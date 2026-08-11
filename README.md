@@ -24,6 +24,7 @@ rules live in [AGENTS.md](AGENTS.md).
 | ------ | ------ | ----------- |
 | `task` | Available | Unified scheduling across Bukkit and Folia |
 | `config` | Available | YAML configs declared as records, generated and upgraded automatically |
+| `text` | Available | Colours and formatting: palette tokens, legacy codes and MiniMessage, parsed once and cached |
 
 ---
 
@@ -345,6 +346,94 @@ Values are read the way people write YAML: `"25"` is a number, `yes` is `true`,
 belongs becomes a one element list. What is *not* guessed is anything that could
 silently change behaviour, so `2.5` for a whole number is reported rather than
 rounded.
+
+---
+
+## Text module
+
+Every player-facing string goes through here: chat, titles, action bars, item
+names, lore, scoreboards. Output is always an Adventure `Component`.
+
+### Notations
+
+All three work, mixed freely in the same string.
+
+| Form | Example |
+| --- | --- |
+| Palette token | `{primary}`, `{error}`, `{highlight}` |
+| Legacy code | `&a`, `&l`, `&r` |
+| Legacy hex | `&#8a51c4`, `&x&8&a&5&1&c&4` |
+| MiniMessage | `<bold>`, `<gradient:#8a51c4:#ff6b9d>` |
+
+```java
+Text.of("{primary}&lWELCOME &8[{success}online&8]").send(player);
+Text.of("<gradient:#8a51c4:#ff6b9d>Exylia</gradient>").send(player);
+```
+
+### Values that change
+
+Substitution happens after parsing, on the component tree, so the template still
+hits the parse cache no matter how often the value changes:
+
+```java
+Text.of("{letters}Coins: {highlight}%coins%")
+    .with("%coins%", coins)
+    .send(player);
+```
+
+A substituted value is inserted as literal text, so a player named `&cX` shows
+up as `&cX` rather than as red text.
+
+### The palette
+
+Messages name a role, not a colour. The palette lives in
+`plugins/ExyliaLib/colors.yml`, so a server owner recolours every Exylia plugin
+at once.
+
+```java
+TextColor accent = Colors.get("accent");   // when a colour is needed as a value
+```
+
+Both `{secondary_light}` and `{secondaryLight}` resolve to the same colour.
+
+### Performance
+
+This module is on the hot path of everything, so the work is staged. Measured on
+this machine, 200k iterations after warmup:
+
+| Case | Cost | Against a full parse |
+| --- | --- | --- |
+| Plain text, no formatting | 22 ns | 348x faster |
+| Formatted, cached | 137 ns | 57x faster |
+| Template + changing value | 429 ns | 18x faster |
+| Full parse (cache miss) | 7829 ns | — |
+| Raw MiniMessage, for reference | 7417 ns | — |
+
+Three things get you there:
+
+- **A one-pass scan.** Text with no `&`, `{` or `<` skips the pipeline entirely
+  and becomes a plain component.
+- **One parse, not three.** Palette tokens and legacy codes are rewritten into
+  MiniMessage and parsed once, instead of running three parsers in sequence.
+- **A bounded cache.** Repeated text is parsed once and reused, which is what
+  makes a scoreboard line rebuilt every tick affordable. The cache is capped and
+  expiring, so unique strings cannot turn it into a leak.
+
+### Bad input
+
+A malformed tag never costs a message: the raw text is shown instead. An unknown
+`{token}` is left untouched, because plugins use braces for their own
+placeholders and eating them silently would be a bug that only surfaces in
+production.
+
+### Adventure version
+
+ExyliaLib compiles against **Adventure 4.20.0**, the version `paper-api 1.21.4`
+ships. Both the server's copy and any newer one live in the `net.kyori.adventure`
+package, so the server's classes win at runtime regardless of what a plugin
+compiles against. Building against a newer Adventure would compile cleanly and
+then fail with `NoSuchMethodError` on a real server, so the version is pinned in
+`build.gradle` rather than merely requested.
 
 ---
 

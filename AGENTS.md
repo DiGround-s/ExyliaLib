@@ -129,6 +129,27 @@ int pool = storage.get().poolSize();
 - Los comentarios de `@Comment` son el manual del dueño del servidor: explican
   qué cambia el valor, en qué unidad y en qué rango.
 
+### Texto y color — siempre `Text`, siempre Components
+
+Todo lo que ve un jugador pasa por `net.exylia.lib.text`. Nunca
+`ChatColor`, ni `translateAlternateColorCodes`, ni concatenar `§`.
+
+```java
+Text.of("{primary}&lWELCOME").send(player);
+```
+
+- **Se devuelve `Component`, no `String`.** Un String legacy no puede llevar
+  hover, click ni RGB fiable. `legacy()` existe solo para APIs viejas que aún lo
+  exigen.
+- **Colores por rol, no por hex.** Se escribe `{primary}`, no `<#8a51c4>`. Así el
+  dueño del servidor recolorea todo desde `colors.yml`.
+- **Valores que cambian van con `.with()`**, nunca concatenados. Concatenar
+  rompe la caché y obliga a re-parsear en cada tick; `.with()` sustituye sobre el
+  Component ya parseado.
+- **Adventure es la del servidor.** Se compila contra la versión que trae
+  `paper-api`, fijada con `resolutionStrategy`. Compilar contra una más nueva
+  compila bien y luego revienta con `NoSuchMethodError` en producción.
+
 ### Packets antes que estado
 
 Si el efecto solo tiene que verlo el cliente, es un packet, no una entidad real.

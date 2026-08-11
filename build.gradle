@@ -4,10 +4,13 @@ plugins {
 }
 
 group = 'net.exylia'
-version = '1.1.0'
+version = '1.2.0'
 description = 'Shared high-performance library for Exylia Minecraft plugins.'
 
 def targetJavaVersion = 21
+
+// The Adventure version paper-api 1.21.4 ships, and therefore the one that runs.
+def adventureVersion = '4.20.0'
 
 repositories {
     mavenCentral()
@@ -21,11 +24,41 @@ repositories {
     }
 }
 
+/**
+ * Adventure must resolve to exactly what the server loads.
+ *
+ * Both the server's copy and any newer one live in the net.kyori.adventure
+ * package, so the server's classes win at runtime no matter what we compile
+ * against. Another dependency (PacketEvents) pulls a newer Adventure BOM, and
+ * Gradle would silently upgrade us to it. Compiling against API the running
+ * server does not have is exactly how a plugin dies with NoSuchMethodError, so
+ * the version is pinned instead of merely requested.
+ */
+configurations.configureEach {
+    resolutionStrategy {
+        force "net.kyori:adventure-api:$adventureVersion"
+        force "net.kyori:adventure-text-minimessage:$adventureVersion"
+        force "net.kyori:adventure-text-serializer-legacy:$adventureVersion"
+        force "net.kyori:adventure-key:$adventureVersion"
+    }
+}
+
 dependencies {
     // Provided by the server at runtime. Never shaded.
     compileOnly 'io.papermc.paper:paper-api:1.21.4-R0.1-SNAPSHOT'
     // Provided by the PacketEvents plugin at runtime. Never shaded.
     compileOnly 'com.github.retrooper:packetevents-spigot:2.13.0'
+
+    // Adventure comes from the server, not from us. paper-api 1.21.4 ships
+    // 4.20.0 and it wins at runtime whatever we compile against, since both use
+    // the net.kyori.adventure package. Compiling against anything newer would
+    // build fine and then fail with NoSuchMethodError on a real server.
+    compileOnly "net.kyori:adventure-api:$adventureVersion"
+    compileOnly "net.kyori:adventure-text-minimessage:$adventureVersion"
+    compileOnly "net.kyori:adventure-text-serializer-legacy:$adventureVersion"
+
+    // Installed once on the server, same version across every Exylia plugin.
+    compileOnly 'com.github.ben-manes.caffeine:caffeine:3.2.4'
 
     compileOnly 'org.jetbrains:annotations:26.0.2'
 
@@ -35,6 +68,7 @@ dependencies {
     // Tests drive the schedulers for real, so the server API must be on the test
     // runtime classpath too, not just at compile time.
     testImplementation 'io.papermc.paper:paper-api:1.21.4-R0.1-SNAPSHOT'
+    testImplementation 'com.github.ben-manes.caffeine:caffeine:3.2.4'
 }
 
 java {

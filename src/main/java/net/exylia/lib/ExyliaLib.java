@@ -1,8 +1,11 @@
 package net.exylia.lib;
 
+import net.exylia.lib.config.ConfigFile;
 import net.exylia.lib.config.Configs;
 import net.exylia.lib.platform.Platform;
 import net.exylia.lib.task.Tasks;
+import net.exylia.lib.text.Colors;
+import net.exylia.lib.text.Palette;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
@@ -21,10 +24,34 @@ import org.bukkit.plugin.java.JavaPlugin;
  */
 public final class ExyliaLib extends JavaPlugin implements Listener {
 
+    private ConfigFile<Palette> palette;
+
     @Override
     public void onEnable() {
         getServer().getPluginManager().registerEvents(this, this);
+        loadPalette();
         getLogger().info("ExyliaLib " + version() + " ready on " + Platform.current() + ".");
+    }
+
+    /**
+     * Loads the shared colour palette and keeps it applied across reloads.
+     *
+     * <p>The palette lives here rather than in each plugin so a server owner
+     * recolours everything from one file.
+     */
+    private void loadPalette() {
+        palette = Configs.define(this, "colors", Palette.class).load();
+        Colors.apply(palette.get());
+        palette.onReload(Colors::apply);
+    }
+
+    /**
+     * Reloads ExyliaLib's own configuration.
+     *
+     * <p>Exposed so a plugin can refresh the shared palette without a restart.
+     */
+    public void reloadPalette() {
+        palette.reload();
     }
 
     /**
