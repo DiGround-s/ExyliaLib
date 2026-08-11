@@ -2,6 +2,8 @@ package net.exylia.lib;
 
 import net.exylia.lib.config.ConfigFile;
 import net.exylia.lib.config.Configs;
+import net.exylia.lib.placeholder.Placeholders;
+import net.exylia.lib.placeholder.internal.BuiltIn;
 import net.exylia.lib.platform.Platform;
 import net.exylia.lib.task.Tasks;
 import net.exylia.lib.text.Colors;
@@ -30,6 +32,8 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
     public void onEnable() {
         getServer().getPluginManager().registerEvents(this, this);
         loadPalette();
+        Placeholders.logger(getLogger());
+        BuiltIn.register(this);
         getLogger().info("ExyliaLib " + version() + " ready on " + Platform.current() + ".");
     }
 
@@ -70,6 +74,7 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
     public void onDisable() {
         Tasks.releaseAll();
         Configs.releaseAll();
+        Placeholders.releaseAll();
     }
 
     /**
@@ -87,5 +92,6 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         String pluginName = event.getPlugin().getName();
         Tasks.release(pluginName);
         Configs.release(pluginName);
+        Placeholders.unregisterAll(pluginName);
     }
 }

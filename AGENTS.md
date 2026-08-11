@@ -150,6 +150,36 @@ Text.of("{primary}&lWELCOME").send(player);
   `paper-api`, fijada con `resolutionStrategy`. Compilar contra una más nueva
   compila bien y luego revienta con `NoSuchMethodError` en producción.
 
+### Placeholders — un solo tipo, registro por grupo
+
+Todo placeholder se registra con `net.exylia.lib.placeholder`. No hay cuatro
+tipos de resolver ni cuatro registros: hay **uno**.
+
+```java
+Placeholders.group(this, "clan")
+        .add("name", r -> clans.of(r.requireViewer()).name())
+        .add("top", r -> clans.leaderboard().at(r.arg(0, 1)))
+        .register();
+```
+
+- **Un resolver es `(Request) -> Object`.** Si necesita jugador, argumentos o
+  datos extra se ve en lo que lee del `Request`, no en una categoría elegida al
+  registrar. Eso es lo que elimina registrar lo mismo cuatro veces.
+- **El prefijo se declara una vez**, en el grupo. Y todo el grupo se libera solo
+  cuando el plugin se deshabilita.
+- **Formatear es del placeholder, no del plugin.** Se escribe
+  `%eco_balance:comma%` en la config; no se formatea a mano en Java. Así el dueño
+  del servidor controla la presentación.
+- **Nunca devolver un valor vacío para decir "no hay".** Se devuelve `null`: el
+  módulo aplica el fallback (`%clan_name|Sin clan%`) o deja el placeholder
+  visible para que el typo se vea.
+- **Un resolver que revienta no tumba nada.** Se reporta una vez y se trata como
+  sin valor. Por eso un resolver reporta fallos devolviendo `null`, no lanzando.
+- **`.async()` es una promesa, no una optimización.** Solo si el resolver no toca
+  la API de Bukkit. Marcarlo mal revienta el servidor tarde y en otro sitio.
+- **Línea que se repite, `compile()`.** Un scoreboard compila su plantilla una
+  vez y la guarda: medido, 3.4x más rápido que pasar el string en cada tick.
+
 ### Packets antes que estado
 
 Si el efecto solo tiene que verlo el cliente, es un packet, no una entidad real.

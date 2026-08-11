@@ -1,10 +1,12 @@
 package net.exylia.lib.text;
 
+import net.exylia.lib.placeholder.Placeholders;
 import net.exylia.lib.text.internal.TextEngine;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
 import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
 import org.bukkit.command.CommandSender;
+import org.bukkit.entity.Player;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.ArrayList;
@@ -66,10 +68,14 @@ public final class Text {
     private final List<String> keys;
     private final List<String> values;
 
-    private Text(String raw, List<String> keys, List<String> values) {
+    /** Who the placeholders are resolved for, or {@code null} to leave them alone. */
+    private final Player viewer;
+
+    private Text(String raw, List<String> keys, List<String> values, Player viewer) {
         this.raw = raw;
         this.keys = keys;
         this.values = values;
+        this.viewer = viewer;
     }
 
     /**
@@ -81,7 +87,7 @@ public final class Text {
      * @return the prepared text
      */
     public static @NotNull Text of(@NotNull String text) {
-        return new Text(text, List.of(), List.of());
+        return new Text(text, List.of(), List.of(), null);
     }
 
     /**
@@ -120,7 +126,30 @@ public final class Text {
         newValues.addAll(values);
         newKeys.add(placeholder);
         newValues.add(value == null ? "" : String.valueOf(value));
-        return new Text(raw, newKeys, newValues);
+        return new Text(raw, newKeys, newValues, viewer);
+    }
+
+    /**
+     * Resolves registered placeholders in this text for a player.
+     *
+     * <p>Placeholders are filled in <em>after</em> parsing, on the component
+     * tree, for the same reason {@link #with} works that way: the text itself is
+     * identical for everybody, so it is parsed once and shared, and only the
+     * values differ per player. Resolving them into the string first would
+     * produce a different string per player and miss the parse cache entirely.
+     *
+     * <pre>{@code
+     * Text.of("{letters}Coins: {highlight}%eco_balance:comma%").forPlayer(player).send(player);
+     * }</pre>
+     *
+     * <p>Values are inserted as literal text, so a placeholder cannot inject
+     * colour codes into a message.
+     *
+     * @param player who to resolve for; {@code null} leaves placeholders alone
+     * @return a new prepared text; the original is unchanged
+     */
+    public @NotNull Text forPlayer(Player player) {
+        return new Text(raw, keys, values, player);
     }
 
     /**
@@ -130,6 +159,18 @@ public final class Text {
      */
     public @NotNull Component build() {
         Component component = TextEngine.parse(raw);
+
+        if (viewer != null) {
+            List<String> pairs = Placeholders.resolveInto(raw, viewer);
+            for (int i = 0; i < pairs.size(); i += 2) {
+                String placeholder = pairs.get(i);
+                String value = pairs.get(i + 1);
+                component = component.replaceText(builder -> builder
+                        .matchLiteral(placeholder)
+                        .replacement(Component.text(value)));
+            }
+        }
+
         for (int i = 0; i < keys.size(); i++) {
             String key = keys.get(i);
             String value = values.get(i);
