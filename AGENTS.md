@@ -45,13 +45,18 @@ I/O. Ver *Decisiones cerradas*.
 | API | paper-api 1.21.4 (`compileOnly`) |
 | Plataformas | Spigot, Paper, Purpur y **Folia**, desde un solo build |
 | Packets | PacketEvents 2.13.0 (`compileOnly`) |
-| Caché | Caffeine 3.2.2 |
+| Caché | Caffeine 3.2.4 |
 | Build | Gradle, `java-library` + `maven-publish` |
 | Tests | JUnit 5 |
 
-Las versiones de PacketEvents y Caffeine coinciden con las que ya usan los
-plugins de Exylia. Si subes una, se sube en todos: no queremos dos versiones de
-la misma librería en el mismo servidor.
+PacketEvents y Caffeine son las últimas estables (verificado en CodeMC y Maven
+Central). Caffeine no tiene rama 4.x: 3.x es la línea estable.
+
+Ambas se instalan una sola vez en el servidor, así que la versión tiene que ser
+la misma en todos los plugins de Exylia. Si subes una aquí, se sube en todos: no
+queremos dos versiones de la misma librería conviviendo. Hoy los plugins están en
+Caffeine 3.2.2, así que subirlos a 3.2.4 es una tarea pendiente, no algo ya
+hecho.
 
 ---
 
