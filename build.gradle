@@ -1,10 +1,14 @@
 plugins {
     id 'java-library'
     id 'maven-publish'
+    // Bundles scoreboard-library inside the jar and moves it under our own
+    // package, so the scoreboard module has exactly one copy on the server and
+    // it can never clash with one a plugin still shades during migration.
+    id 'com.gradleup.shadow' version '8.3.9'
 }
 
 group = 'net.exylia'
-version = '1.4.0'
+version = '1.5.0'
 description = 'Shared high-performance library for Exylia Minecraft plugins.'
 
 def targetJavaVersion = 21
@@ -38,6 +42,15 @@ repositories {
  * server does not have is exactly how a plugin dies with NoSuchMethodError, so
  * the version is pinned instead of merely requested.
  */
+configurations {
+    // Dependencies that live inside the published jar, relocated under our own
+    // package. Declaring them here keeps them on the compile classpath and out
+    // of the published POM: consumers must not resolve a relocated copy.
+    shade
+    compileOnly.extendsFrom(shade)
+    testImplementation.extendsFrom(shade)
+}
+
 configurations.configureEach {
     resolutionStrategy {
         force "net.kyori:adventure-api:$adventureVersion"
@@ -67,8 +80,20 @@ dependencies {
     // Optional at runtime: the placeholder module works without it and only
     // bridges to it when the plugin is present.
     compileOnly 'me.clip:placeholderapi:2.11.5'
-
     compileOnly 'org.jetbrains:annotations:26.0.2'
+    // scoreboard-library: packet-level sidebars, the same library ExyliaCommons
+    // consumes. Shaded and relocated into the jar (see shadowJar below), so it
+    // is declared in the shadow configuration: bundled, but kept out of the
+    // published POM, because no consumer should resolve a relocated copy.
+    // Adventure is provided by the server and excluded to avoid duplicates.
+    // The implementation resolves its packet adapters by Class.forName; Shadow
+    // rewrites those strings when relocating, so it keeps working.
+    shade('net.megavex:scoreboard-library-api:2.8.1') {
+        exclude group: 'net.kyori'
+    }
+    shade('net.megavex:scoreboard-library-implementation:2.8.1') {
+        exclude group: 'net.kyori'
+    }
 
     testImplementation platform('org.junit:junit-bom:5.11.4')
     testImplementation 'org.junit.jupiter:junit-jupiter'
@@ -117,6 +142,9 @@ processResources {
 }
 
 jar {
+    // The plain jar is a build intermediate only: the published artifact is the
+    // shadow jar, so this one moves aside to keep the two from colliding.
+    archiveClassifier = 'thin'
     manifest {
         attributes(
                 'Implementation-Title': 'ExyliaLib',
@@ -125,11 +153,37 @@ jar {
     }
 }
 
+shadowJar {
+    archiveClassifier = ''
+    // The shade configuration is not on the runtime classpath, so it has to be
+    // bundled explicitly alongside it.
+    configurations = [project.configurations.runtimeClasspath, project.configurations.shade]
+    // scoreboard-library finds its implementation and packet adapters through
+    // Class.forName; Shadow rewrites those strings together with the classes.
+    relocate 'net.megavex.scoreboardlibrary', 'net.exylia.lib.internal.scoreboardlibrary'
+    manifest {
+        attributes(
+                'Implementation-Title': 'ExyliaLib',
+                'Implementation-Version': project.version
+        )
+    }
+}
+
+// Shadow does not hook itself into the lifecycle, so a plain `gradlew build`
+// would produce only the thin jar: a jar that loads until the first scoreboard.
+assemble.dependsOn shadowJar
+
 publishing {
     publications {
         maven(MavenPublication) {
             artifactId = 'ExyliaLib'
-            from components.java
+            // The shadow component: publishes the relocated jar as the main
+            // artifact and keeps the bundled dependencies out of the POM. It
+            // does not carry the java component's secondary artifacts, so the
+            // sources and javadoc jars are attached back by hand.
+            from components.shadow
+            artifact tasks.named('sourcesJar')
+            artifact tasks.named('javadocJar')
 
             pom {
                 name = 'ExyliaLib'

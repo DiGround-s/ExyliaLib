@@ -7,13 +7,17 @@ import net.exylia.lib.effect.internal.EffectRuntime;
 import net.exylia.lib.placeholder.Placeholders;
 import net.exylia.lib.placeholder.internal.BuiltIn;
 import net.exylia.lib.platform.Platform;
+import net.exylia.lib.scoreboard.internal.BoardManager;
+import net.exylia.lib.scoreboard.internal.SidebarLibrary;
 import net.exylia.lib.task.Tasks;
 import net.exylia.lib.text.Colors;
 import net.exylia.lib.text.Palette;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
+import org.bukkit.event.player.PlayerChangedWorldEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
+import org.bukkit.event.player.PlayerRespawnEvent;
 import org.bukkit.event.server.PluginDisableEvent;
 import org.bukkit.plugin.java.JavaPlugin;
 
@@ -37,6 +41,7 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         loadPalette();
         Placeholders.logger(getLogger());
         BuiltIn.register(this);
+        BoardManager.init(this, SidebarLibrary.load(this, getLogger()));
         getLogger().info("ExyliaLib " + version() + " ready on " + Platform.current() + ".");
     }
 
@@ -49,7 +54,11 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
     private void loadPalette() {
         palette = Configs.define(this, "colors", Palette.class).load();
         Colors.apply(palette.get());
-        palette.onReload(Colors::apply);
+        palette.onReload(values -> {
+            Colors.apply(values);
+            // The text of a board is unchanged, but what it parses into is not.
+            BoardManager.invalidateAll();
+        });
     }
 
     /**
@@ -76,6 +85,9 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
     @Override
     public void onDisable() {
         EffectRuntime.stopEverything();
+        // Before releasing tasks: the boards' refresh driver is one of them.
+        BoardManager.stopEverything();
+        SidebarLibrary.close();
         Tasks.releaseAll();
         Configs.releaseAll();
         Placeholders.releaseAll();
@@ -104,6 +116,31 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
     @EventHandler(priority = EventPriority.MONITOR)
     public void onPlayerQuit(PlayerQuitEvent event) {
         Effects.stopFor(event.getPlayer());
+        BoardManager.stopFor(event.getPlayer());
+    }
+
+    /**
+     * Re-sends a player's board after a world change.
+     *
+     * <p>The client can lose the sidebar objective when it switches worlds, and
+     * another plugin is free to claim it in between.
+     *
+     * @param event the world change event
+     */
+    @EventHandler(priority = EventPriority.MONITOR)
+    public void onWorldChange(PlayerChangedWorldEvent event) {
+        BoardManager.reinit(event.getPlayer());
+    }
+
+    /**
+     * Re-sends a player's board after a respawn, for the same reason as a
+     * world change.
+     *
+     * @param event the respawn event
+     */
+    @EventHandler(priority = EventPriority.MONITOR)
+    public void onRespawn(PlayerRespawnEvent event) {
+        BoardManager.reinit(event.getPlayer());
     }
 
     @EventHandler(priority = EventPriority.MONITOR)
@@ -112,6 +149,7 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         // Before the task module: a display cancels its own task when stopped,
         // and doing it the other way round would leave the effect on screen.
         EffectRuntime.stopAll(pluginName);
+        BoardManager.stopAll(pluginName);
         Tasks.release(pluginName);
         Configs.release(pluginName);
         Placeholders.unregisterAll(pluginName);

@@ -268,6 +268,29 @@ public final class Placeholders {
         return template.resolvePairs(new Request(viewer, viewer, List.of(), Map.of()));
     }
 
+    /**
+     * Resolves a compiled template's placeholders and returns them paired with
+     * the text they were written as.
+     *
+     * <p>The {@link #resolveInto} of a template a caller already holds, and
+     * with a full request rather than a bare viewer, so extra data reaches the
+     * resolvers. The scoreboard module uses this to substitute values into a
+     * component it parsed once, instead of parsing the resolved string again on
+     * every change.
+     *
+     * @param template a template from {@link #compile}
+     * @param request  who is asking, about whom, and with what data
+     * @return alternating original placeholder and resolved value
+     */
+    @org.jetbrains.annotations.ApiStatus.Internal
+    public static @NotNull List<String> resolvePairs(@NotNull Template template,
+                                                     @NotNull Request request) {
+        if (!(template instanceof CompiledTemplate compiled)) {
+            return List.of();
+        }
+        return compiled.resolvePairs(request);
+    }
+
     /** Drops every registration. Called by ExyliaLib on shutdown. */
     public static void releaseAll() {
         PapiBridge.releaseAll();

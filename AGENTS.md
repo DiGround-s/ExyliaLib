@@ -45,8 +45,9 @@ I/O. Ver *Decisiones cerradas*.
 | API | paper-api 1.21.4 (`compileOnly`) |
 | Plataformas | Spigot, Paper, Purpur y **Folia**, desde un solo build |
 | Packets | PacketEvents 2.13.0 (`compileOnly`) |
+| Sidebars | scoreboard-library 2.8.1 (**shadeada y relocalizada**) |
 | Caché | Caffeine 3.2.4 |
-| Build | Gradle, `java-library` + `maven-publish` |
+| Build | Gradle, `java-library` + `maven-publish` + `shadow` |
 | Tests | JUnit 5 |
 
 PacketEvents y Caffeine son las últimas estables (verificado en CodeMC y Maven
@@ -199,6 +200,34 @@ Todo lo que ve u oye un jugador pasa por `net.exylia.lib.effect`. Nunca
 - **Fuegos artificiales son la excepción**: se spawnea y detona en el mismo tick.
   Todo lo demás es packet.
 
+### Scoreboards — siempre `Scoreboards`, siempre configurables
+
+Todo sidebar pasa por `net.exylia.lib.scoreboard`. Nunca el `Scoreboard` de
+Bukkit, ni objetivos y teams a mano, ni una copia propia de scoreboard-library.
+
+- **El board se declara en config, no en Java.** El plugin dice *a quién* mostrar
+  *qué board* (`Scoreboards.show(this, player, config.ffa())`); el dueño escribe
+  título, líneas e intervalo. `SidebarConfig` anida en el record del plugin.
+- **El YML es el de ExyliaCommons.** Mismas claves (`enabled`, `title`, `lines`,
+  `update.interval/smart/cache`) y misma librería por debajo, para que migrar un
+  plugin de commons a lib no obligue al dueño a tocar su fichero.
+- **Aquí el intervalo va en ticks**, no en segundos como el resto de la librería.
+  Es una desviación consciente y acotada a esta sección: un `interval: 15`
+  existente tiene que seguir significando 15 ticks.
+- **Solo se envía lo que cambió.** El diff se hace sobre el string renderizado,
+  antes de parsear y antes de tocar packets. Un board cuyos valores no se movieron
+  cuesta comparar strings y cero packets.
+- **Se parsea el crudo, no el resuelto.** El texto de la plantilla no cambia
+  nunca, así que se parsea una vez y los valores se sustituyen sobre el
+  Component. Medido: 26.8µs contra 4.2µs por línea cambiada.
+- **Los boards se apilan por jugador.** Mostrar uno pausa el anterior, y al
+  cerrarlo vuelve solo. Un board pausado no renderiza nada.
+- **Un solo timer async mueve todos los boards**, con desfase por UUID para no
+  concentrar los renders en el mismo tick.
+- **Nada sobrevive a su dueño**: al salir el jugador, al deshabilitar el plugin, o
+  al recargar la paleta (ahí se reenvía entero, porque el texto es el mismo pero
+  lo que parsea no).
+
 ### Packets antes que estado
 
 Si el efecto solo tiene que verlo el cliente, es un packet, no una entidad real.
@@ -303,6 +332,33 @@ El riesgo real de ese diseño (`maximumPoolSize` ilimitado con `SynchronousQueue
 es decir, threads sin tope) **no se arregla con más threads**, se arregla
 acotando el recurso escaso en su punto: un *connection pool* (HikariCP) para la
 base de datos. Limitar conexiones, no tareas.
+
+### ExyliaLib no se shadea, pero sí shadea
+
+Son dos cosas distintas y conviene no confundirlas:
+
+- **Nadie shadea ExyliaLib.** Vive una vez en el servidor como plugin y los
+  plugins la consumen con `compileOnly`. Eso no cambia.
+- **ExyliaLib sí mete dentro sus dependencias no instalables**, relocalizadas.
+  scoreboard-library es el primer caso: `net.megavex.scoreboardlibrary` viaja
+  como `net.exylia.lib.internal.scoreboardlibrary`.
+
+El criterio para decidir cuál de las dos aplica es si la dependencia es
+**infraestructura compartida del servidor** o **detalle de implementación de un
+módulo**:
+
+| | Ejemplo | Cómo entra |
+| --- | --- | --- |
+| Se instala en el servidor y la usan varios plugins | PacketEvents, Caffeine, PlaceholderAPI | `compileOnly`, versión única en todos los plugins |
+| Solo la usa ExyliaLib por dentro | scoreboard-library | `shade` + relocate |
+
+Shadeada y relocalizada evita el problema que hoy tiene commons: cada plugin
+lleva su propia copia con su propio paquete, así que hay tantas instancias de la
+librería como plugins. Aquí hay una.
+
+Se declara en la configuración `shade` (no en `implementation`) para que
+cumpla las tres condiciones a la vez: compila, se empaqueta, y **no aparece en
+el POM publicado** — nadie debe resolver una copia relocalizada.
 
 ### El versionado es inmutable
 

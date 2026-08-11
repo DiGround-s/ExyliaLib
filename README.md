@@ -27,6 +27,7 @@ rules live in [AGENTS.md](AGENTS.md).
 | `text` | Available | Colours and formatting: palette tokens, legacy codes and MiniMessage, parsed once and cached |
 | `placeholder` | Available | One resolver type, grouped registration, formats and fallbacks, PlaceholderAPI both ways |
 | `effect` | Available | Titles, action bars, boss bars, particles, sounds and fireworks, sent as packets and declared in config |
+| `scoreboard` | Available | Packet-level sidebars declared in config, refreshed off the main thread and diffed line by line |
 
 ---
 
@@ -36,6 +37,10 @@ rules live in [AGENTS.md](AGENTS.md).
 
 Drop `ExyliaLib.jar` into `plugins/`. Plugins that depend on it will refuse to
 load without it.
+
+Scoreboards need nothing extra installed: the packet-level sidebar library
+travels inside the jar, relocated, so there is exactly one copy of it on the
+server instead of one per plugin.
 
 ### Build script
 
@@ -664,6 +669,120 @@ remove. Every display is registered and ends when its timer finishes, when
 
 `Effects.active()` returns how many are showing, which is the number to watch if
 a plugin is suspected of leaking them.
+
+---
+
+## Scoreboard module
+
+Sidebars written at the packet level, declared in config, and refreshed off the
+main thread.
+
+### Declared in config, not in Java
+
+```java
+// player joined the arena
+Scoreboards.show(this, player, config.get().scoreboards().ffa());
+
+// the context changed
+Scoreboards.get(player).ifPresent(board -> board.updateData(Map.of("arena", arena)));
+
+// player left
+Scoreboards.hide(player);
+```
+
+The board itself is the server owner's:
+
+```yaml
+ffa:
+  enabled: true
+  title: '{primary}&lFFA'
+  lines:
+    - ''
+    - ' {muted}❙ {letters}Arena: {highlight}%arena_name%'
+    - ' {muted}❙ {letters}Kills: {success}%ffa_kills%'
+    - ''
+    - ' {highlight}exylia.net'
+  update:
+    interval: 15
+    smart: true
+    cache: true
+```
+
+Write the title as a list and it animates, one frame per refresh:
+
+```yaml
+title:
+  - '{primary}&lFFA'
+  - '{secondary}&lFFA'
+```
+
+A placeholder that returns text with line breaks expands into several lines, so
+one `%ffa_top%` fills a whole top three. Boards are capped at the client's 15
+lines; anything past that is dropped with a warning rather than an exception.
+
+### Files from ExyliaCommons load unchanged
+
+This is the same scoreboard library ExyliaCommons uses, and the section reads
+the same keys: `enabled`, `title`, `lines`, `update.interval`, `update.smart`,
+`update.cache`. A server moving to a plugin built on ExyliaLib keeps its
+scoreboard file exactly as it is.
+
+That is also why `interval` is in **ticks** rather than the seconds the effect
+module uses: an existing `interval: 15` has to keep meaning fifteen ticks. The
+deviation is deliberate and limited to this section.
+
+`cache` is read and ignored. It did nothing in ExyliaCommons either, and text
+parsing here is cached for every plugin at once, with a size limit and an
+expiry — which is what a per-board map of values that change every second can
+never be.
+
+### Boards stack
+
+Showing a board pauses the one the player already had; taking it down brings it
+back:
+
+```
+lobby board  ->  event board  ->  event ends  ->  lobby board is back
+```
+
+Neither plugin knows about the other. A paused board renders nothing at all
+while it waits, and the plugin that showed it can still stop exactly its own
+board through the returned `Board` handle, wherever it sits in the stack.
+
+### Cost
+
+An eight line board, four of them with placeholders, measured over 50k
+refreshes:
+
+| Case | Cost per refresh |
+| --- | --- |
+| Nothing changed | ~1.0 µs |
+| One value changed | ~2.7 µs |
+| No diff (`smart: false`) | ~2.8 µs |
+
+Three decisions produce that. Templates are compiled once, when the board is
+shown. Every refresh compares the rendered lines with what the player already
+has and sends **only** the ones that differ, so a board whose values did not
+move writes zero packets. And what gets parsed is the line's *raw* text, which
+never changes and is therefore always a cache hit, with the resolved values
+substituted into that parsed component: parsing the resolved string instead
+measured 26.8 µs against 4.2 µs per changed line.
+
+One async timer drives every board on the server. Each board renders on a slot
+staggered by the player's id, so a reload that recreates two hundred boards in
+the same tick spreads their work across the interval instead of piling it into
+one.
+
+### Nothing outlives its owner
+
+Boards end when `stop()` or `hide()` is called, when the player leaves, or when
+the plugin that showed them is disabled — including boards buried under someone
+else's. When the shared palette is reloaded, every board is re-sent, because the
+text is unchanged but what it parses into is not.
+
+On a server version without a packet adapter, every call keeps working and the
+boards are simply invisible. `Scoreboards.isSupported()` says so, and nothing
+requires a caller to check.
 
 ---
 
