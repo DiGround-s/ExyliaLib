@@ -26,6 +26,9 @@ public final class FakeServer {
     /** Tasks handed to the scheduler, in submission order. */
     static final List<Scheduled> SCHEDULED = new ArrayList<>();
 
+    /** Players the server reports as online. */
+    private static final List<org.bukkit.entity.Player> ONLINE = new ArrayList<>();
+
     private static boolean installed;
     private static boolean primaryThread = true;
 
@@ -158,7 +161,46 @@ public final class FakeServer {
     /** Clears recorded tasks between tests. */
     public static void reset() {
         SCHEDULED.clear();
+        ONLINE.clear();
         primaryThread = true;
+    }
+
+    /** Sets who the server reports as online. */
+    public static void online(org.bukkit.entity.Player... players) {
+        ONLINE.clear();
+        ONLINE.addAll(List.of(players));
+    }
+
+    private static Object findPlayer(Object[] args) {
+        if (args == null || args.length != 1 || !(args[0] instanceof java.util.UUID id)) {
+            return null;
+        }
+        for (org.bukkit.entity.Player player : ONLINE) {
+            if (player.getUniqueId().equals(id)) {
+                return player;
+            }
+        }
+        return null;
+    }
+
+    /**
+     * A world, which a Location needs before it can measure a distance.
+     *
+     * <p>Identity is what Bukkit compares worlds by, so one instance per world
+     * name is enough.
+     */
+    public static org.bukkit.World newWorld(String name) {
+        return (org.bukkit.World) Proxy.newProxyInstance(
+                FakeServer.class.getClassLoader(),
+                new Class<?>[]{org.bukkit.World.class},
+                (proxy, method, args) -> switch (method.getName()) {
+                    case "getName" -> name;
+                    case "getUID" -> java.util.UUID.nameUUIDFromBytes(name.getBytes());
+                    case "hashCode" -> System.identityHashCode(proxy);
+                    case "equals" -> proxy == args[0];
+                    case "toString" -> "FakeWorld[" + name + "]";
+                    default -> defaultValue(method.getReturnType());
+                });
     }
 
     /** Controls what {@code Bukkit.isPrimaryThread()} reports. */
@@ -175,6 +217,8 @@ public final class FakeServer {
                 new Class<?>[]{Server.class},
                 (proxy, method, args) -> switch (method.getName()) {
                     case "getScheduler" -> scheduler;
+                    case "getOnlinePlayers" -> List.copyOf(ONLINE);
+                    case "getPlayer" -> findPlayer(args);
                     case "isPrimaryThread" -> primaryThread;
                     case "getLogger" -> logger;
                     case "getName" -> "FakeServer";

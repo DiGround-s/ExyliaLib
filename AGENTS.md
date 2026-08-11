@@ -228,6 +228,32 @@ Bukkit, ni objetivos y teams a mano, ni una copia propia de scoreboard-library.
   al recargar la paleta (ahí se reenvía entero, porque el texto es el mismo pero
   lo que parsea no).
 
+### Hologramas — siempre `Holograms`, siempre configurables
+
+Todo objeto que flota pasa por `net.exylia.lib.hologram`. Nunca una entidad real
+de Bukkit, ni un ArmorStand, ni un `TextDisplay` spawneado a mano.
+
+- **Se declaran en config, no en Java.** El plugin dice *dónde* ponerlo
+  (`Holograms.show(this, id, location, config.trophy())`); el dueño escribe
+  líneas, tipo, colores y visibilidad. `HologramConfig` anida en el record.
+- **El YML es el de ExyliaCommons.** Mismas claves que escribía
+  `HologramTemplateSerializer`, excepto las que aquí no pintan nada (chunks,
+  persistencia en disco: un holograma es solo packets, no es un archivo).
+- **El intervalo va en ticks**, como el scoreboard. Otra desviación acotada
+  para que los ficheros de commons sigan sirviendo.
+- **Son packets o no son nada.** Si PacketEvents no está, `isSupported()` es
+  `false` y todo sigue funcionando sin dibujar nada. No hay entidad real de
+  fallback que tickee y ocupe un registro del servidor.
+- **La visibilidad se comprueba cuatro veces por segundo** con distancia al
+  cuadrado por jugador por holograma; solo se mandan packets al cruzar el borde.
+- **Solo se envía lo que cambió.** Una línea sin placeholders nunca refresca.
+  Una que sí, diffea y reenvía solo ella, no el holograma entero.
+- **Moverse es teleport, no respawn.** Así un holograma que sigue a un jugador
+  no parpadea. Y montarlo sobre una entidad (`attachTo`) ni siquiera manda
+  packets mientras se mueve: lo mueve el cliente junto al vehículo.
+- **Nada sobrevive a su dueño**: al deshabilitar el plugin, al salir el jugador,
+  o al recargar la paleta (ahí se reenvía entero).
+
 ### Packets antes que estado
 
 Si el efecto solo tiene que verlo el cliente, es un packet, no una entidad real.

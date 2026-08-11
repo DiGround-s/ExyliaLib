@@ -5,6 +5,7 @@ import net.exylia.lib.config.Configs;
 import net.exylia.lib.effect.Effects;
 import net.exylia.lib.effect.internal.EffectRuntime;
 import net.exylia.lib.placeholder.Placeholders;
+import net.exylia.lib.hologram.internal.HologramRuntime;
 import net.exylia.lib.placeholder.internal.BuiltIn;
 import net.exylia.lib.platform.Platform;
 import net.exylia.lib.scoreboard.internal.BoardManager;
@@ -42,6 +43,7 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         Placeholders.logger(getLogger());
         BuiltIn.register(this);
         BoardManager.init(this, SidebarLibrary.load(this, getLogger()));
+        HologramRuntime.init(this);
         getLogger().info("ExyliaLib " + version() + " ready on " + Platform.current() + ".");
     }
 
@@ -58,6 +60,7 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
             Colors.apply(values);
             // The text of a board is unchanged, but what it parses into is not.
             BoardManager.invalidateAll();
+            HologramRuntime.invalidateAll();
         });
     }
 
@@ -85,8 +88,9 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
     @Override
     public void onDisable() {
         EffectRuntime.stopEverything();
-        // Before releasing tasks: the boards' refresh driver is one of them.
+        // Before releasing tasks: their refresh drivers are among them.
         BoardManager.stopEverything();
+        HologramRuntime.removeEverything();
         SidebarLibrary.close();
         Tasks.releaseAll();
         Configs.releaseAll();
@@ -117,6 +121,7 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
     public void onPlayerQuit(PlayerQuitEvent event) {
         Effects.stopFor(event.getPlayer());
         BoardManager.stopFor(event.getPlayer());
+        HologramRuntime.forget(event.getPlayer());
     }
 
     /**
@@ -150,6 +155,7 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         // and doing it the other way round would leave the effect on screen.
         EffectRuntime.stopAll(pluginName);
         BoardManager.stopAll(pluginName);
+        HologramRuntime.removeAll(pluginName);
         Tasks.release(pluginName);
         Configs.release(pluginName);
         Placeholders.unregisterAll(pluginName);

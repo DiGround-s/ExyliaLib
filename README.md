@@ -28,6 +28,7 @@ rules live in [AGENTS.md](AGENTS.md).
 | `placeholder` | Available | One resolver type, grouped registration, formats and fallbacks, PlaceholderAPI both ways |
 | `effect` | Available | Titles, action bars, boss bars, particles, sounds and fireworks, sent as packets and declared in config |
 | `scoreboard` | Available | Packet-level sidebars declared in config, refreshed off the main thread and diffed line by line |
+| `hologram` | Available | Floating text, items and blocks sent as display-entity packets, per-player or shared |
 
 ---
 
@@ -41,6 +42,11 @@ load without it.
 Scoreboards need nothing extra installed: the packet-level sidebar library
 travels inside the jar, relocated, so there is exactly one copy of it on the
 server instead of one per plugin.
+
+Holograms do require [PacketEvents](https://github.com/retrooper/packetevents);
+without it everything keeps working and nothing is drawn. The holograms
+themselves are packets, so the server holds no state for them and they do not
+appear in the world file.
 
 ### Build script
 
@@ -783,6 +789,106 @@ text is unchanged but what it parses into is not.
 On a server version without a packet adapter, every call keeps working and the
 boards are simply invisible. `Scoreboards.isSupported()` says so, and nothing
 requires a caller to check.
+
+---
+
+## Hologram module
+
+Floating text, items and blocks sent as display-entity packets.
+
+Holograms here are **packets and nothing else**. The server does not know they
+exist: nothing is ticked, nothing is saved to a chunk, nothing survives into a
+world file, and two players can be shown different text at the same
+coordinates. Without PacketEvents every call keeps working and nothing is
+drawn.
+
+### Declared in config, not in Java
+
+```java
+// the event started
+Holograms.show(this, "koth-" + arena.id(), arena.centre(), config.get().koth());
+
+// the score changed
+Holograms.get(this, "koth-" + arena.id()).ifPresent(Hologram::refresh);
+
+// the event ended
+Holograms.remove(this, "koth-" + arena.id());
+```
+
+The hologram itself is the server owner's:
+
+```yaml
+koth:
+  enabled: true
+  type: TEXT
+  lines:
+    - '{warning}⚔ {highlight}&l%event_name%'
+    - ' '
+    - '{letters}Time: {info}%event_time%'
+    - '{letters}Capturing: {highlight}%koth_capturer%'
+  view-distance: 32.0
+  offset-y: 2.0
+  properties:
+    billboard: CENTER
+    scale-x: 1.2
+    scale-y: 1.2
+    scale-z: 1.2
+    background-color: '#00000000'
+  config:
+    update-interval: 20
+    auto-update: true
+```
+
+Set `type` to `ITEM` or `BLOCK` and write `item` or `block` instead of `lines`:
+
+```yaml
+trophy:
+  enabled: true
+  type: ITEM
+  item: DIAMOND_SWORD
+  properties:
+    billboard: FIXED
+```
+
+### Files from ExyliaCommons load unchanged
+
+Every key the old `HologramTemplateSerializer` wrote is read with the same
+meaning here. Two that are not read are `persistent` (nothing is written back
+to disk by the library) and `config.spawn-on-chunk-load` /
+`config.remove-on-chunk-unload` (a hologram is packets, so it costs nothing
+when nobody can see it).
+
+### Viewers
+
+A player only receives packets when they cross the hologram's view distance
+and only while they stay inside it; nothing is sent every tick. A visibility
+filter on the returned `Hologram` can hide it from specific players entirely.
+Moving it teleports the displays rather than respawning them, so a hologram
+that follows something does not flicker.
+
+Holograms are shared by default: one render goes to every viewer. Turn on
+`per-player` only when the lines must differ per viewer, since then each one
+renders and spawns separately.
+
+### Cost
+
+A hologram whose lines contain no placeholders never schedules a refresh at
+all, so a sign that says "Spawn" costs one packet per viewer, once. A changing
+line is only re-sent when its text actually changed, and only the changed line
+is sent, not the whole hologram.
+
+Visibility is checked four times a second: a squared distance per player per
+hologram, sending packets only when someone crosses the edge.
+
+### Nothing outlives its owner
+
+Holograms end when `remove()` is called, when the plugin is disabled, or on
+shutdown. A player who leaves is forgotten without sending them a packet. When
+the shared palette is reloaded, every hologram is re-sent, because the text is
+unchanged but what it parses into is not.
+
+On a server without PacketEvents, every call keeps working and nothing is
+drawn. `Holograms.isSupported()` says so.
 
 ---
 

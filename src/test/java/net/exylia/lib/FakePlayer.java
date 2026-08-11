@@ -29,6 +29,7 @@ public final class FakePlayer {
     private final List<String> bossBarsHidden = new CopyOnWriteArrayList<>();
 
     private volatile boolean online = true;
+    private volatile org.bukkit.Location location;
 
     public FakePlayer(String name) {
         this.name = name;
@@ -37,6 +38,8 @@ public final class FakePlayer {
                 new Class<?>[]{Player.class},
                 (self, method, args) -> switch (method.getName()) {
                     case "getUniqueId" -> id;
+                    case "getLocation" -> location;
+                    case "getWorld" -> location == null ? null : location.getWorld();
                     case "getName" -> this.name;
                     case "isOnline", "isValid" -> online;
                     case "sendActionBar" -> {
@@ -96,6 +99,12 @@ public final class FakePlayer {
     /** How many boss bars were hidden through the Bukkit path. */
     public int bossBarsHidden() {
         return bossBarsHidden.size();
+    }
+
+    /** Puts the player somewhere, which is what makes distance checks work. */
+    public FakePlayer at(org.bukkit.Location where) {
+        this.location = where.clone();
+        return this;
     }
 
     /** Simulates the player leaving. */
