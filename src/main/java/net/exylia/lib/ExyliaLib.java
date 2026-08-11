@@ -1,5 +1,6 @@
 package net.exylia.lib;
 
+import net.exylia.lib.config.Configs;
 import net.exylia.lib.platform.Platform;
 import net.exylia.lib.task.Tasks;
 import org.bukkit.event.EventHandler;
@@ -41,10 +42,11 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
     @Override
     public void onDisable() {
         Tasks.releaseAll();
+        Configs.releaseAll();
     }
 
     /**
-     * Cancels a plugin's tasks when it is disabled.
+     * Releases a plugin's resources when it is disabled.
      *
      * <p>Runs at {@link EventPriority#MONITOR} so the plugin's own
      * {@code onDisable} has already finished and cannot schedule anything else.
@@ -55,6 +57,8 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
      */
     @EventHandler(priority = EventPriority.MONITOR)
     public void onPluginDisable(PluginDisableEvent event) {
-        Tasks.release(event.getPlugin().getName());
+        String pluginName = event.getPlugin().getName();
+        Tasks.release(pluginName);
+        Configs.release(pluginName);
     }
 }

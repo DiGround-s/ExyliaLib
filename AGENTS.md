@@ -108,6 +108,27 @@ ya es la que usan los plugins de Exylia.
 - Datos por jugador: invalidar en quit, o expirar. Un jugador que se fue no debe
   seguir ocupando memoria.
 
+### Configs — siempre records, nunca YAML a mano
+
+Un config se declara como `record` y se usa como `record`. No escribimos ficheros
+YAML a mano ni buscamos valores por string en caliente.
+
+```java
+ConfigFile<Storage> storage = Configs.define(this, "storage", Storage.class).load();
+int pool = storage.get().poolSize();
+```
+
+- **El YAML es salida, no entrada.** El fichero se genera desde el record, con
+  sus comentarios. Editar el `.yml` del `resources/` a mano es la señal de que
+  algo está mal.
+- **Nada de `getInt(path)` en caliente.** Leer del snapshot es un acceso a campo;
+  ir al `FileConfiguration` en cada evento es parseo repetido.
+- **Renombrar una clave exige `Migration`.** Cambiar la anotación sin migración
+  hace que el servidor pierda en silencio lo que el dueño había configurado.
+- **Un typo del usuario nunca tumba el plugin.** Se reporta y se usa el default.
+- Los comentarios de `@Comment` son el manual del dueño del servidor: explican
+  qué cambia el valor, en qué unidad y en qué rango.
+
 ### Packets antes que estado
 
 Si el efecto solo tiene que verlo el cliente, es un packet, no una entidad real.

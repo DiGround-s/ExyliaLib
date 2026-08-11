@@ -21,7 +21,7 @@ import java.util.logging.Logger;
  * <p>Only the handful of methods the scheduler actually calls are implemented;
  * anything else returns a default value.
  */
-final class FakeServer {
+public final class FakeServer {
 
     /** Tasks handed to the scheduler, in submission order. */
     static final List<Scheduled> SCHEDULED = new ArrayList<>();
@@ -59,7 +59,7 @@ final class FakeServer {
      * info through a {@code ServiceLoader} that only exists inside a real
      * server.
      */
-    static synchronized void install() {
+    public static synchronized void install() {
         if (installed) {
             return;
         }
@@ -140,7 +140,18 @@ final class FakeServer {
     }
 
     /** A plugin proxy whose logger swallows nothing, so failures stay visible. */
-    static Plugin newPlugin(String name) {
+    public static Plugin newPlugin(String name) {
+        return newPlugin(name, null);
+    }
+
+    /**
+     * A plugin proxy with a data folder, for tests that touch config files.
+     *
+     * @param name       the plugin name
+     * @param dataFolder the folder configs are written to, or {@code null}
+     * @return the proxy
+     */
+    public static Plugin newPlugin(String name, java.io.File dataFolder) {
         Logger logger = Logger.getLogger(name);
         return (Plugin) Proxy.newProxyInstance(
                 FakeServer.class.getClassLoader(),
@@ -149,6 +160,7 @@ final class FakeServer {
                     case "getName" -> name;
                     case "getLogger" -> logger;
                     case "isEnabled" -> true;
+                    case "getDataFolder" -> dataFolder;
                     case "hashCode" -> System.identityHashCode(proxy);
                     case "equals" -> proxy == args[0];
                     case "toString" -> name;
