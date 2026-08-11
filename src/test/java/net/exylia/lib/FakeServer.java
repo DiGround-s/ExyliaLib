@@ -36,18 +36,56 @@ public final class FakeServer {
     static final class Scheduled {
         final Runnable body;
         final boolean repeating;
+        final long period;
         boolean cancelled;
 
-        Scheduled(Runnable body, boolean repeating) {
+        /** Ticks remaining before the body runs again. */
+        long countdown;
+
+        Scheduled(Runnable body, boolean repeating, long delay, long period) {
+            this.period = Math.max(1, period);
+            this.countdown = Math.max(0, delay);
             this.body = body;
             this.repeating = repeating;
         }
 
-        /** Simulates the server ticking this task once. */
+        /**
+         * Simulates the server ticking this task once.
+         *
+         * <p>A one-shot task runs once and is then done, exactly as the real
+         * scheduler behaves. Running it on every tick would make a test of
+         * "how many times was this sent" measure the harness instead of the
+         * code.
+         */
         void tick() {
-            if (!cancelled) {
-                body.run();
+            if (cancelled) {
+                return;
             }
+            if (!repeating) {
+                cancelled = true;
+            }
+            body.run();
+        }
+
+        /**
+         * Simulates one server tick passing, which is not the same as running
+         * the task.
+         *
+         * <p>Honours the delay and period, so a test of "how often was this
+         * sent" measures the code rather than the harness. Tests that want to
+         * drive a task directly, regardless of its schedule, call
+         * {@link #tick()}.
+         */
+        void tickClock() {
+            if (cancelled) {
+                return;
+            }
+            if (countdown > 0) {
+                countdown--;
+                return;
+            }
+            countdown = repeating ? period - 1 : 0;
+            tick();
         }
     }
 
@@ -73,8 +111,52 @@ public final class FakeServer {
         installed = true;
     }
 
+    /**
+     * Runs every scheduled task once, as if the server ticked.
+     *
+     * <p>Effects are driven by repeating tasks, so this is how a test advances
+     * a countdown without waiting in real time.
+     *
+     * @param times how many ticks to simulate
+     */
+    public static void tick(int times) {
+        for (int i = 0; i < times; i++) {
+            for (Scheduled scheduled : List.copyOf(SCHEDULED)) {
+                scheduled.tickClock();
+            }
+        }
+    }
+
+    /** Returns how many tasks are scheduled and not cancelled. */
+    public static int liveTasks() {
+        int live = 0;
+        for (Scheduled scheduled : SCHEDULED) {
+            if (!scheduled.cancelled) {
+                live++;
+            }
+        }
+        return live;
+    }
+
+    /**
+     * Returns how many repeating tasks are still running.
+     *
+     * <p>Separate from {@link #liveTasks()} because a one-shot task that has not
+     * been ticked yet is not a leak, while a repeating one that outlives its
+     * effect is.
+     */
+    public static int liveRepeatingTasks() {
+        int live = 0;
+        for (Scheduled scheduled : SCHEDULED) {
+            if (!scheduled.cancelled && scheduled.repeating) {
+                live++;
+            }
+        }
+        return live;
+    }
+
     /** Clears recorded tasks between tests. */
-    static void reset() {
+    public static void reset() {
         SCHEDULED.clear();
         primaryThread = true;
     }
@@ -110,9 +192,14 @@ public final class FakeServer {
             if (!name.startsWith("runTask")) {
                 return defaultValue(method.getReturnType());
             }
-            // Every runTask* overload takes the plugin first and the body second.
+            // Every runTask* overload takes the plugin first and the body
+            // second; a delayed one then takes the delay, and a timer the
+            // period after that.
             Runnable body = (Runnable) args[1];
-            Scheduled scheduled = new Scheduled(body, name.contains("Timer"));
+            boolean repeating = name.contains("Timer");
+            long delay = args.length > 2 && args[2] instanceof Long value ? value : 0;
+            long period = args.length > 3 && args[3] instanceof Long value ? value : 1;
+            Scheduled scheduled = new Scheduled(body, repeating, delay, period);
             SCHEDULED.add(scheduled);
             return newTask(scheduled);
         };
@@ -168,7 +255,7 @@ public final class FakeServer {
                 });
     }
 
-    private static Object defaultValue(Class<?> type) {
+    static Object defaultValue(Class<?> type) {
         if (!type.isPrimitive()) {
             return null;
         }

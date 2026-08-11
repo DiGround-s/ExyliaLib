@@ -4,7 +4,7 @@ plugins {
 }
 
 group = 'net.exylia'
-version = '1.3.0'
+version = '1.4.0'
 description = 'Shared high-performance library for Exylia Minecraft plugins.'
 
 def targetJavaVersion = 21
@@ -145,4 +145,5 @@ publishing {
         }
     }
 }
+
 

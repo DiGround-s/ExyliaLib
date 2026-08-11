@@ -26,6 +26,7 @@ rules live in [AGENTS.md](AGENTS.md).
 | `config` | Available | YAML configs declared as records, generated and upgraded automatically |
 | `text` | Available | Colours and formatting: palette tokens, legacy codes and MiniMessage, parsed once and cached |
 | `placeholder` | Available | One resolver type, grouped registration, formats and fallbacks, PlaceholderAPI both ways |
+| `effect` | Available | Titles, action bars, boss bars, particles, sounds and fireworks, sent as packets and declared in config |
 
 ---
 
@@ -550,6 +551,119 @@ Provided once so no plugin re-declares them: `%player_name%`,
 `%player_level%`, `%player_food%`, `%player_gamemode%`, `%player_ping%`,
 `%player_x%`, `%player_y%`, `%player_z%`, `%target_name%`, `%target_uuid%`,
 `%server_online%`, `%server_max%`, `%server_tps%`.
+
+---
+
+## Effect module
+
+Everything a player sees or hears: titles, action bars, boss bars, particles,
+sounds and fireworks.
+
+### Declared in config, not in Java
+
+The point of the module. A plugin says *what happened*; the server owner decides
+what it looks like.
+
+```java
+Effects.play(config.get().onWin(), player);
+```
+
+```yaml
+on-win:
+  title:
+    text: '{primary}VICTORY'
+    subtitle: '{letters}Well played, %player_name%'
+    stay: 3.0
+  sound:
+    name: ENTITY_PLAYER_LEVELUP
+    volume: 0.8
+  firework:
+    colours: ['#8a51c4', '#ff6b9d']
+    shape: BALL_LARGE
+```
+
+`EffectConfig` nests inside a plugin's own config record like any other section,
+so the file is generated with its comments and read back as a record. Every
+section is optional: what is not written does not play.
+
+### Timers, with decimals
+
+Time is written in seconds and decimals are real, because a countdown showing
+`3.3s` has to be driven by something finer than a whole second.
+
+```java
+Effects.bossBar("{primary}Starting in {highlight}%time%s")
+        .countdown(10.5)
+        .timeStyle("tenths")
+        .onEnd(this::startMatch)
+        .show(player);
+```
+
+Inside effect text, the timer's own clock is available as `%time%`, plus
+`%time_total%`, `%time_elapsed%` and `%time_remaining%`. It is not a globally
+registered placeholder: a timer belongs to one effect, so two countdowns on
+screen report their own values rather than sharing one.
+
+| Direction | What it does |
+| --- | --- |
+| `countdown(seconds)` | runs to zero; a boss bar empties |
+| `countUp()` | runs upwards forever; a bar stays full |
+| `countUp(seconds)` | runs upwards to a total; a bar fills |
+
+Time styles: `auto` (tenths under ten seconds, then whole, then a clock),
+`seconds`, `tenths`, `hundredths`, `clock`, `full`.
+
+Durations in config accept units: `3.3s`, `500ms`, `40t`, `2m`, `1h`.
+
+### Effects that stay
+
+Without a timer, a title, action bar or boss bar stays until stopped:
+
+```java
+Display bar = Effects.bossBar("{letters}Waiting for players").show(player);
+bar.stop();
+```
+
+A `Display` can be re-texted, extended, or given an `onEnd` action that runs
+**exactly once**, whether it ended by timer, by `stop()`, or because the plugin
+was disabled.
+
+### Sent as packets
+
+With PacketEvents installed, effects go out as packets and the server keeps no
+state: no boss bar object in a registry, no entity ticking, nothing to clean up
+if a player disconnects mid-effect. Without it, everything still works through
+the Bukkit API.
+
+That also makes effects per-player by default, which is what allows a particle
+outline or a preview to be shown to one person and nobody else.
+
+The one exception is fireworks: the explosion is driven by an entity, so one is
+spawned and detonated in the same tick rather than left to tick.
+
+### Cost
+
+Median of nine batches of 200k redraws:
+
+| Case | Cost |
+| --- | --- |
+| Static text redraw | 5 ns |
+| Countdown text redraw | 652 ns |
+| Timer advance and progress | 18 ns |
+
+Two things keep it there. Text with nothing dynamic is rendered once and reused,
+so a permanent bar reading "Waiting for players" **schedules no task at all**.
+And only the time placeholders a line actually uses are substituted: doing all
+four when the text says `%time%` was 2.5x slower, measured.
+
+### Nothing outlives its owner
+
+An effect that is never stopped is a bar the player can see and no command can
+remove. Every display is registered and ends when its timer finishes, when
+`stop()` is called, when its viewer leaves, or when the plugin is disabled.
+
+`Effects.active()` returns how many are showing, which is the number to watch if
+a plugin is suspected of leaking them.
 
 ---
 

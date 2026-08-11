@@ -180,6 +180,25 @@ Placeholders.group(this, "clan")
 - **Línea que se repite, `compile()`.** Un scoreboard compila su plantilla una
   vez y la guarda: medido, 3.4x más rápido que pasar el string en cada tick.
 
+### Efectos — siempre `Effects`, siempre configurables
+
+Todo lo que ve u oye un jugador pasa por `net.exylia.lib.effect`. Nunca
+`player.sendTitle`, ni `BossBar` de Bukkit, ni `spawnParticle` a mano.
+
+- **El efecto se declara en config, no en Java.** El plugin dice *qué pasó*
+  (`Effects.play(config.onWin(), player)`); el dueño decide si eso es un title,
+  un sonido o fuegos. `EffectConfig` anida en el record del plugin.
+- **El tiempo va en segundos con decimales.** `countdown(3.3)` es 3.3s reales, y
+  `%time%` lo muestra como `3.3`. Nada de multiplicar por 20 a mano.
+- **`%time%` es del efecto, no global.** Un timer pertenece a un efecto; si fuera
+  un placeholder registrado, dos countdowns en pantalla mostrarían lo mismo.
+- **Sin timer, el efecto es permanente** hasta que se pare. Y `onEnd` corre
+  **exactamente una vez**, termine como termine.
+- **Texto estático no programa task.** Si nada cambia, se dibuja una vez. Un bar
+  permanente con texto fijo cuesta un packet, no un task por tick.
+- **Fuegos artificiales son la excepción**: se spawnea y detona en el mismo tick.
+  Todo lo demás es packet.
+
 ### Packets antes que estado
 
 Si el efecto solo tiene que verlo el cliente, es un packet, no una entidad real.

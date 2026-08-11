@@ -2,6 +2,8 @@ package net.exylia.lib;
 
 import net.exylia.lib.config.ConfigFile;
 import net.exylia.lib.config.Configs;
+import net.exylia.lib.effect.Effects;
+import net.exylia.lib.effect.internal.EffectRuntime;
 import net.exylia.lib.placeholder.Placeholders;
 import net.exylia.lib.placeholder.internal.BuiltIn;
 import net.exylia.lib.platform.Platform;
@@ -11,6 +13,7 @@ import net.exylia.lib.text.Palette;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
+import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.event.server.PluginDisableEvent;
 import org.bukkit.plugin.java.JavaPlugin;
 
@@ -72,6 +75,7 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
 
     @Override
     public void onDisable() {
+        EffectRuntime.stopEverything();
         Tasks.releaseAll();
         Configs.releaseAll();
         Placeholders.releaseAll();
@@ -87,9 +91,27 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
      *
      * @param event the disable event
      */
+    /**
+     * Stops a leaving player's effects.
+     *
+     * <p>Without this they would leak. The task module stops an entity timer
+     * once the entity is gone, which means a display driven by one is never
+     * told that its viewer left: its task is cancelled, but the display itself
+     * stays registered and is never cleaned up.
+     *
+     * @param event the quit event
+     */
+    @EventHandler(priority = EventPriority.MONITOR)
+    public void onPlayerQuit(PlayerQuitEvent event) {
+        Effects.stopFor(event.getPlayer());
+    }
+
     @EventHandler(priority = EventPriority.MONITOR)
     public void onPluginDisable(PluginDisableEvent event) {
         String pluginName = event.getPlugin().getName();
+        // Before the task module: a display cancels its own task when stopped,
+        // and doing it the other way round would leave the effect on screen.
+        EffectRuntime.stopAll(pluginName);
         Tasks.release(pluginName);
         Configs.release(pluginName);
         Placeholders.unregisterAll(pluginName);
