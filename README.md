@@ -13,6 +13,9 @@ ExyliaLib will prefer the packet, via
 - **Java 21**, Paper API **1.21.4**
 - Runs on **Spigot, Paper, Purpur and Folia** from a single build
 
+Contributing, or curious about why the library is built this way? The design
+rules live in [AGENTS.md](AGENTS.md).
+
 ---
 
 ## Modules
