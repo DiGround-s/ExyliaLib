@@ -45,7 +45,7 @@ repositories {
 }
 
 dependencies {
-    compileOnly 'com.github.Exylia:ExyliaLib:1.0.0'
+    compileOnly 'com.github.DiGround-s:ExyliaLib:1.0.0'
 }
 ```
 </details>
@@ -60,7 +60,7 @@ repositories {
 }
 
 dependencies {
-    compileOnly("com.github.Exylia:ExyliaLib:1.0.0")
+    compileOnly("com.github.DiGround-s:ExyliaLib:1.0.0")
 }
 ```
 </details>
@@ -75,7 +75,7 @@ dependencies {
 </repository>
 
 <dependency>
-    <groupId>com.github.Exylia</groupId>
+    <groupId>com.github.DiGround-s</groupId>
     <artifactId>ExyliaLib</artifactId>
     <version>1.0.0</version>
     <scope>provided</scope>

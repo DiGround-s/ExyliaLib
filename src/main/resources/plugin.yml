@@ -3,7 +3,7 @@ version: '${version}'
 main: net.exylia.lib.ExyliaLib
 api-version: '1.21'
 description: Shared high-performance library for Exylia plugins.
-website: https://github.com/Exylia/ExyliaLib
+website: https://github.com/DiGround-s/ExyliaLib
 authors: [Exylia]
 load: STARTUP
 folia-supported: true

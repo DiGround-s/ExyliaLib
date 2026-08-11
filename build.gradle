@@ -92,7 +92,7 @@ publishing {
             pom {
                 name = 'ExyliaLib'
                 description = project.description
-                url = 'https://github.com/Exylia/ExyliaLib'
+                url = 'https://github.com/DiGround-s/ExyliaLib'
                 licenses {
                     license {
                         name = 'MIT License'
