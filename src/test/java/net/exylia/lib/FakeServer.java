@@ -162,6 +162,7 @@ public final class FakeServer {
     public static void reset() {
         SCHEDULED.clear();
         ONLINE.clear();
+        CONSOLE_MESSAGES.clear();
         primaryThread = true;
     }
 
@@ -203,6 +204,36 @@ public final class FakeServer {
                 });
     }
 
+    private static final List<String> CONSOLE_MESSAGES = new java.util.concurrent.CopyOnWriteArrayList<>();
+
+    private static final org.bukkit.command.ConsoleCommandSender CONSOLE =
+            (org.bukkit.command.ConsoleCommandSender) Proxy.newProxyInstance(
+                    FakeServer.class.getClassLoader(),
+                    new Class<?>[]{org.bukkit.command.ConsoleCommandSender.class},
+                    (proxy, method, args) -> {
+                        if (method.getName().equals("sendMessage")) {
+                            CONSOLE_MESSAGES.add(args[0] instanceof net.kyori.adventure.text.Component c
+                                    ? net.kyori.adventure.text.serializer.plain
+                                            .PlainTextComponentSerializer.plainText().serialize(c)
+                                    : String.valueOf(args[0]));
+                            return null;
+                        }
+                        if (method.getName().equals("getName")) {
+                            return "CONSOLE";
+                        }
+                        return defaultValue(method.getReturnType());
+                    });
+
+    /** The console, for tests that check what a non-player receives. */
+    public static org.bukkit.command.ConsoleCommandSender consoleSender() {
+        return CONSOLE;
+    }
+
+    /** Everything the console was sent, in order. */
+    public static List<String> consoleMessages() {
+        return List.copyOf(CONSOLE_MESSAGES);
+    }
+
     /** Controls what {@code Bukkit.isPrimaryThread()} reports. */
     static void setPrimaryThread(boolean value) {
         primaryThread = value;
@@ -217,6 +248,7 @@ public final class FakeServer {
                 new Class<?>[]{Server.class},
                 (proxy, method, args) -> switch (method.getName()) {
                     case "getScheduler" -> scheduler;
+                    case "getConsoleSender" -> CONSOLE;
                     case "getOnlinePlayers" -> List.copyOf(ONLINE);
                     case "getPlayer" -> findPlayer(args);
                     case "isPrimaryThread" -> primaryThread;

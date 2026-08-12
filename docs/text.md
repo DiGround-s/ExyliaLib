@@ -44,6 +44,64 @@ Text.of("{primary}&lWELCOME &8[{success}online&8]").send(player);
 `warning_light`, `info`, `info_light`, `accent`, `neutral`, `highlight`,
 `muted`), each a hex string.
 
+## Effects inside a message
+
+A message can ask for a sound, particles or a firework, in the notation
+ExyliaCommons used — existing message files work unchanged:
+
+```yaml
+level-up: "[sound:ENTITY_PLAYER_LEVELUP|1.0|1.2;particle:FLAME|20;center]{success}Well done"
+```
+
+One bracketed block, only at the very start of the line. Inside it, `;`
+separates the kinds, `,` separates several of one kind, and `|` separates a
+kind's own arguments.
+
+| Kind | Arguments | Example |
+| --- | --- | --- |
+| `sound` / `sounds` | `NAME|volume|pitch` | `sound:PLING|0.5|1.8` |
+| `particle` / `particles` | `NAME|count|offsetX|offsetY|offsetZ|speed` | `particle:FLAME|20` |
+| `firework` / `fireworks` | `SHAPE|colour|fade|flicker|trail|power` | `firework:BALL|#ff0000` |
+| `center` / `centered` | — | `center` |
+
+Contracts:
+
+- **The tag never reaches the screen, a log, or an item name.** It is an
+  instruction, dropped by `build()` wherever the text ends up.
+- **Only a player gets the effects.** A console cannot hear a sound, so it
+  receives the message alone.
+- **A bracketed prefix that means nothing is left alone**: `[Server] Restarting`
+  keeps its prefix, and an unclosed `[` is text.
+- **A tag only counts at the start of the line.**
+- **A malformed entry never eats the message.** A nonsense sound name is
+  reported once and skipped; the message still arrives, because the message
+  is the point.
+- Nothing is examined when a line does not begin with `[`, so messages
+  without effects pay nothing.
+
+## Centring
+
+`Centering.center(line)` pads a line so it sits in the middle of the chat
+window, measured in **pixels rather than characters** — Minecraft's font is
+not monospaced, so an `i` is one pixel and a `W` is five. Same widths as
+ExyliaCommons, so a line centred there is centred here.
+
+```java
+Text.of("[center]{primary}WELCOME").send(player);   // in a message
+Centering.center("{primary}WELCOME");               // directly
+```
+
+| Method | Contract |
+| --- | --- |
+| `center(String)` | pads to the middle of the 320px chat window |
+| `center(List<String>)` | the same, line by line |
+| `centerWithin(String, width)` | centres within a width you name; a line too wide is returned unchanged |
+| `pixelWidth(String)` | how wide a line is on screen |
+
+Formatting is measured, not counted: MiniMessage tags, legacy codes and
+palette tokens take no space, and bold takes one pixel more per character
+(a colour code ends bold, exactly as the client does).
+
 ## Performance
 
 - Text with no formatting characters skips the parser entirely.

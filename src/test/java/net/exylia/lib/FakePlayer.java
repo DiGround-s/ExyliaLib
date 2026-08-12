@@ -29,6 +29,8 @@ public final class FakePlayer {
     private final List<String> bossBarsHidden = new CopyOnWriteArrayList<>();
 
     private final List<Component> actionBarComponents = new ArrayList<>();
+    private final List<String> messages = new ArrayList<>();
+    private final List<String> sounds = new ArrayList<>();
     private volatile boolean online = true;
     private volatile org.bukkit.Location location;
 
@@ -43,6 +45,15 @@ public final class FakePlayer {
                     case "getWorld" -> location == null ? null : location.getWorld();
                     case "getName" -> this.name;
                     case "isOnline", "isValid" -> online;
+                    case "playSound" -> {
+                        // (location, sound, volume, pitch)
+                        sounds.add(String.valueOf(args[1]));
+                        yield null;
+                    }
+                    case "sendMessage" -> {
+                        messages.add(plain(args[0]));
+                        yield null;
+                    }
                     case "sendActionBar" -> {
                         actionBars.add(plain(args[0]));
                         if (args[0] instanceof Component component) {
@@ -85,6 +96,16 @@ public final class FakePlayer {
         return proxy;
     }
 
+    /** Every sound played to this player, in order. */
+    public List<String> sounds() {
+        return new ArrayList<>(sounds);
+    }
+
+    /** Every chat message this player received, in order. */
+    public List<String> messages() {
+        return new ArrayList<>(messages);
+    }
+
     /** Every action bar this player received, in order. */
     public List<String> actionBars() {
         return new ArrayList<>(actionBars);
@@ -125,6 +146,8 @@ public final class FakePlayer {
     public void clear() {
         actionBars.clear();
         actionBarComponents.clear();
+        messages.clear();
+        sounds.clear();
         titles.clear();
         bossBarsShown.clear();
         bossBarsHidden.clear();

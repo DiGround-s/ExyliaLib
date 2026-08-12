@@ -9,7 +9,7 @@ against the source — rules and routes are in `AGENTS.md` under
 | --- | --- | --- |
 | [Task](task.md) | Scheduling that runs on Spigot, Paper and Folia from one call | 1.0.0 |
 | [Config](config.md) | YAML files declared and read as Java records | 1.1.0 |
-| [Text](text.md) | Every player-facing string, into Adventure components | 1.2.0 |
+| [Text](text.md) | Every player-facing string, into Adventure components — plus inline effect tags and centring | 1.2.0 |
 | [Placeholders](placeholders.md) | One registry for `%placeholders%`, with or without PlaceholderAPI | 1.3.0 |
 | [Effects](effects.md) | Titles, action bars, boss bars, sounds, particles, fireworks — from config | 1.4.0 |
 | [Scoreboard](scoreboard.md) | Packet sidebars declared in config | 1.5.0 |

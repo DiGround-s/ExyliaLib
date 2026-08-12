@@ -22,6 +22,19 @@ import java.time.Duration;
  * Effects.apply(player, "SPEED:1:300|JUMP_BOOST:2:120");
  * }</pre>
  *
+ * <h2>Effects that stay</h2>
+ * State a plugin owns — a class passive, a kit buff — is applied with
+ * {@link #applyInfinite} and taken back with {@link #remove}, which name the
+ * effects rather than clearing the player:
+ *
+ * <pre>{@code
+ * Effects.applyInfinite(player, classDef.passiveEffects());
+ * Effects.remove(player, classDef.passiveEffects());
+ * }</pre>
+ *
+ * <p>{@link #clear} exists for the case where the player really should end up
+ * with nothing, such as respawning into a lobby.
+ *
  * <h2>Caching</h2>
  * The same config string is parsed once and held for 30 seconds.
  *
@@ -59,6 +72,59 @@ public final class Effects {
         }
     }
 
+    /**
+     * Applies effects that last until something removes them.
+     *
+     * <p>For state a plugin owns rather than times: a class passive, a kit
+     * buff, an area effect. The duration written in the string is ignored,
+     * because an effect that ends on its own is not what the caller asked for.
+     *
+     * <p>Pair with {@link #remove(Player, String)}, never with
+     * {@link #clear(Player)}: the player may be carrying effects from a potion
+     * they drank or from another plugin, and those are not this caller's to
+     * take away.
+     *
+     * @param player the player
+     * @param raw    the same notation as {@link #apply}; durations are ignored
+     */
+    public static void applyInfinite(@NotNull Player player, @NotNull String raw) {
+        applyInfinite(player, parse(raw));
+    }
+
+    /** Applies pre-parsed effects with no end. */
+    public static void applyInfinite(@NotNull Player player, @NotNull ParsedEffect... effects) {
+        for (ParsedEffect e : effects) {
+            if (e.name.isEmpty()) continue;
+            Object type = resolver.resolve(e.name());
+            if (type == null) continue;
+            applier.apply(player, type, e.amplifier(), INFINITE);
+        }
+    }
+
+    /**
+     * Removes the named effects from a player.
+     *
+     * <p>Only the effects named are taken away, so a caller undoes exactly
+     * what it did. Amplifier and duration in the string are ignored: the name
+     * is all that identifies a running effect.
+     *
+     * @param player the player
+     * @param raw    the same notation as {@link #apply}; only names are read
+     */
+    public static void remove(@NotNull Player player, @NotNull String raw) {
+        remove(player, parse(raw));
+    }
+
+    /** Removes pre-parsed effects by name. */
+    public static void remove(@NotNull Player player, @NotNull ParsedEffect... effects) {
+        for (ParsedEffect e : effects) {
+            if (e.name.isEmpty()) continue;
+            Object type = resolver.resolve(e.name());
+            if (type == null) continue;
+            remover.remove(player, type);
+        }
+    }
+
     /** Removes every potion effect from a player. */
     public static void clear(@NotNull Player player) {
         for (PotionEffect effect : player.getActivePotionEffects()) {
@@ -87,21 +153,39 @@ public final class Effects {
         void apply(Player player, Object type, int amplifier, int duration);
     }
 
+    @FunctionalInterface
+    interface EffectRemover {
+        void remove(Player player, Object type);
+    }
+
     private static volatile EffectResolver resolver
             = name -> PotionEffectType.getByName(name);
     private static volatile EffectApplier applier = (player, type, amplifier, duration) ->
             player.addPotionEffect(new PotionEffect(
                     (PotionEffectType) type, duration, amplifier, false, true, true));
+    private static volatile EffectRemover remover = (player, type) ->
+            player.removePotionEffect((PotionEffectType) type);
 
     static void setResolver(@NotNull EffectResolver replacement) { resolver = replacement; }
     static void setApplier(@NotNull EffectApplier replacement) { applier = replacement; }
+    static void setRemover(@NotNull EffectRemover replacement) { remover = replacement; }
     static @NotNull EffectResolver getResolver() { return resolver; }
     static @NotNull EffectApplier getApplier() { return applier; }
+    static @NotNull EffectRemover getRemover() { return remover; }
     static void resetCache() { CACHE.invalidateAll(); }
 
     // ------------------------------------------------------------------
     // Internals
     // ------------------------------------------------------------------
+
+    /**
+     * What the server takes to mean "until removed".
+     *
+     * <p>Spelled out rather than taken from {@code PotionEffect.INFINITE_DURATION}
+     * so this class keeps compiling against older server API, which is the
+     * same reason the rest of the module avoids Bukkit types where it can.
+     */
+    private static final int INFINITE = -1;
 
     private static final Cache<String, ParsedEffect[]> CACHE = Caffeine.newBuilder()
             .maximumSize(4096)

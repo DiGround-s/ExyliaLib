@@ -24,11 +24,29 @@ entries are skipped, never fatal.
 | --- | --- |
 | `parse(raw)` → `ParsedEffect[]` | pure parse — `ParsedEffect(name, amplifier, duration)` holds standard Java types, no Bukkit types |
 | `apply(player, raw)` / `apply(player, ParsedEffect...)` | resolve and apply |
-| `clear(player)` | remove what was applied |
+| `applyInfinite(player, raw)` / `applyInfinite(player, ParsedEffect...)` | apply with no end; the duration in the string is ignored |
+| `remove(player, raw)` / `remove(player, ParsedEffect...)` | take back only the effects named |
+| `clear(player)` | remove **every** effect the player has |
+
+State a plugin owns — a class passive, a kit buff — is applied with
+`applyInfinite` and taken back with `remove`:
+
+```java
+Effects.applyInfinite(player, classDef.passiveEffects());
+Effects.remove(player, classDef.passiveEffects());
+```
+
+Pair those two, never `applyInfinite` with `clear`: the player may be carrying
+effects from a potion they drank or from another plugin, and those are not the
+caller's to take away. `clear` is for when the player really should end up with
+nothing, such as respawning into a lobby.
 
 - Parsing is cached in Caffeine for 30 seconds.
-- The resolver (`PotionEffectType.getByName`) and applier
-  (`addPotionEffect`) are injectable for tests.
+- The resolver (`PotionEffectType.getByName`), applier (`addPotionEffect`) and
+  remover (`removePotionEffect`) are injectable for tests.
+- Infinite is sent as duration `-1`, spelled out rather than taken from
+  `PotionEffect.INFINITE_DURATION` so the class keeps compiling against older
+  server API.
 
 ## TimeFormats — how time is written for a player
 

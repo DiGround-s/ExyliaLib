@@ -1,6 +1,8 @@
 package net.exylia.lib.text;
 
 import net.exylia.lib.placeholder.Placeholders;
+import net.exylia.lib.text.internal.EffectTag;
+import net.exylia.lib.text.internal.EffectTagPlayer;
 import net.exylia.lib.text.internal.TextEngine;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
@@ -158,7 +160,13 @@ public final class Text {
      * @return the parsed component, with every substitution applied
      */
     public @NotNull Component build() {
-        Component component = TextEngine.parse(raw);
+        // The tag is an instruction, not text: it never reaches the screen,
+        // a log, or an item name.
+        EffectTag.Parsed parsed = EffectTag.parse(raw);
+        String source = parsed.centered()
+                ? Centering.center(parsed.message())
+                : parsed.message();
+        Component component = TextEngine.parse(source);
 
         if (viewer != null) {
             List<String> pairs = Placeholders.resolveInto(raw, viewer);
@@ -189,6 +197,15 @@ public final class Text {
      * @param receiver who to send it to
      */
     public void send(@NotNull CommandSender receiver) {
+        // A console cannot hear a sound or see a firework, so it just gets
+        // the message. The tag itself is dropped by build(), wherever the
+        // text ends up.
+        if (receiver instanceof Player player) {
+            EffectTag.Parsed parsed = EffectTag.parse(raw);
+            if (parsed.hasEffects()) {
+                EffectTagPlayer.play(parsed, player);
+            }
+        }
         receiver.sendMessage(build());
     }
 

@@ -151,6 +151,22 @@ Text.of("{primary}&lWELCOME").send(player);
 - **Adventure es la del servidor.** Se compila contra la versión que trae
   `paper-api`, fijada con `resolutionStrategy`. Compilar contra una más nueva
   compila bien y luego revienta con `NoSuchMethodError` en producción.
+- **Un mensaje puede pedir efectos con la notación de commons**
+  (`[sound:X|1|1;particle:Y|20;center]texto`). Se mantiene **idéntica a
+  ExyliaCommons** a propósito: migrar un plugin no debe obligar a reescribir
+  los ficheros de mensajes.
+  - La etiqueta es una instrucción, no texto: nunca llega a pantalla, a un log
+    ni al nombre de un ítem.
+  - Solo un `Player` recibe los efectos; una consola recibe el texto.
+  - Un prefijo entre corchetes que no reconocemos se deja intacto
+    (`[Server] Restarting`), y un `[` sin cerrar es texto.
+  - Un efecto malformado se reporta y se salta: **el mensaje siempre llega**.
+  - `Text` no reproduce nada por su cuenta: le pide a `Effects`, como
+    cualquier plugin.
+- **Centrar se mide en píxeles, no en caracteres.** La fuente de Minecraft no
+  es monoespaciada. La tabla de anchos es la de commons para que una línea
+  centrada allí lo siga estando aquí; el formato (tags, códigos legacy,
+  tokens de paleta) no ocupa, y la negrita suma un píxel por carácter.
 
 ### Placeholders — un solo tipo, registro por grupo
 
@@ -516,6 +532,7 @@ Raíz de código: `src/main/java/net/exylia/lib/`. Raíz de tests:
 | debug | `debug/Debug` | jfiglet shadeado (`internal/jfiglet`) | [docs/debug.md](docs/debug.md) | 1.13.0 |
 | comando `/exylialib` | — | `internal/ReloadCommand`, `internal/Commands` (Lamp confinado) | [docs/reload.md](docs/reload.md) | 1.14.0 |
 | reload | `reload/Reloads` (+ `Reloads.Report`) | disparo en `ExyliaLib.loadPalette`; liberación en `onPluginDisable`/`onDisable` | [docs/reload.md](docs/reload.md) | 1.15.0 |
+| efectos en mensajes + centrado | `text/Centering` | `text/internal/EffectTag`, `EffectTagPlayer`, `text/FontWidths` | [docs/text.md](docs/text.md) | 1.17.0 |
 
 Clases raíz que no son módulo: `ExyliaLib.java` (ciclo de vida y limpieza),
 `platform/Platform.java`, `internal/LibrarySettings`, `internal/ExyliaLibUpdater`.
