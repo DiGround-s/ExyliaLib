@@ -4,6 +4,7 @@ import net.exylia.lib.config.ConfigFile;
 import net.exylia.lib.config.Configs;
 import net.exylia.lib.effect.Effects;
 import net.exylia.lib.effect.internal.EffectRuntime;
+import net.exylia.lib.clan.internal.ClanRuntime;
 import net.exylia.lib.client.internal.ClientRuntime;
 import net.exylia.lib.hologram.internal.HologramRuntime;
 import net.exylia.lib.internal.ExyliaLibUpdater;
@@ -58,6 +59,8 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         BoardManager.init(this, SidebarLibrary.load(this, getLogger()));
         HologramRuntime.init(this);
         ClientRuntime.init(this);
+        ClanRuntime.init(this);
+
         getLogger().info("ExyliaLib " + version() + " ready on " + Platform.current() + ".");
 
         // Check for updates asynchronously — never block the main thread.
@@ -114,6 +117,7 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         BoardManager.stopEverything();
         HologramRuntime.removeEverything();
         ClientRuntime.shutdown();
+        ClanRuntime.shutdown();
         SidebarLibrary.close();
         Tasks.releaseAll();
         Configs.releaseAll();
@@ -146,6 +150,7 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         BoardManager.stopFor(event.getPlayer());
         HologramRuntime.forget(event.getPlayer());
         ClientRuntime.forget(event.getPlayer());
+        ClanRuntime.forget(event.getPlayer().getUniqueId());
     }
 
     /**

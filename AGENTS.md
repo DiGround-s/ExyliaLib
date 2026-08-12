@@ -276,6 +276,24 @@ Todo lo que dependa de Lunar o Feather pasa por `net.exylia.lib.client`. Nunca
 - **Un fallo de la integración no sale de ahí.** Es el bug de otro plugin; el que
   pidió el waypoint no hizo nada malo.
 
+### Clanes — un proveedor activo, caché por jugador, sin ramificar
+
+Todo lo que dependa de un plugin de clanes pasa por `net.exylia.lib.clan`.
+
+- **El plugin nunca pregunta qué plugin de clanes hay.** Pregunta lo que quiere
+  saber (`Clans.areAllied(...)`) y la lib responde con los datos que tenga.
+- **Un proveedor es una clase que implementa `ClanProvider`.** Cada una
+  referencia su plugin por reflexión (SimpleClans, Kingdoms, UltimateClans) o
+  adapta un `ClanBridge` externo. Añadir una no toca nada más.
+- **La detección prioriza bridges externos sobre built-ins.** Un bridge
+  registrado con prioridad 10 gana a cualquier detección automática.
+- **La caché es Caffeine con TTL de 3 segundos**, porque estas llamadas van en
+  el hot path del daño, el kill message, el scoreboard. Invalidada en
+  `Clans.invalidate()` y en `forget(player)`.
+- **Lo que un plugin no tiene se devuelve vacío.** UltimateClans no tiene
+  alianzas → `alliesOf()` devuelve `[]`, no tira excepción. Preguntar si dos
+  clanes son aliados cuando uno no existe devuelve `false`.
+
 ### Packets antes que estado
 
 Si el efecto solo tiene que verlo el cliente, es un packet, no una entidad real.

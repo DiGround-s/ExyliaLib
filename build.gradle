@@ -8,7 +8,7 @@ plugins {
 }
 
 group = 'net.exylia'
-version = '1.7.0'
+version = '1.8.0'
 description = 'Shared high-performance library for Exylia Minecraft plugins.'
 
 def targetJavaVersion = 21
@@ -100,7 +100,6 @@ dependencies {
     // FeatherServerAPI) is enabled. Never shaded — the consumer plugin or
     // server must provide them.
     compileOnly 'com.lunarclient:apollo-api:1.2.4'
-    compileOnly 'net.digitalingot.feather-server-api:api:0.0.5'
     // scoreboard-library: packet-level sidebars, the same library ExyliaCommons
     // consumes. Shaded and relocated into the jar (see shadowJar below), so it
     // is declared in the shadow configuration: bundled, but kept out of the
