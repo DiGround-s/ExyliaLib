@@ -10,7 +10,9 @@ import net.exylia.lib.hologram.internal.HologramRuntime;
 import net.exylia.lib.internal.ExyliaLibUpdater;
 import net.exylia.lib.internal.Commands;
 import net.exylia.lib.internal.LibrarySettings;
+import net.exylia.lib.debug.Debug;
 import net.exylia.lib.placeholder.Placeholders;
+import net.exylia.lib.reload.Reloads;
 import net.exylia.lib.util.Cooldowns;
 import net.exylia.lib.placeholder.internal.BuiltIn;
 import net.exylia.lib.platform.Platform;
@@ -103,6 +105,9 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
             // The text of a board is unchanged, but what it parses into is not.
             BoardManager.invalidateAll();
             HologramRuntime.invalidateAll();
+            // Plugins that kept something parsed — a menu built at startup —
+            // are told, so they can rebuild it. Announced, never invoked.
+            Reloads.fireLibraryReload();
         });
     }
 
@@ -143,6 +148,8 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         Tasks.releaseAll();
         Configs.releaseAll();
         Placeholders.releaseAll();
+        Reloads.releaseAll();
+        Debug.releaseAll();
     }
 
     /**
@@ -235,5 +242,7 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         Tasks.release(pluginName);
         Configs.release(pluginName);
         Placeholders.unregisterAll(pluginName);
+        Reloads.release(pluginName);
+        Debug.release(pluginName);
     }
 }

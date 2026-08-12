@@ -19,7 +19,7 @@ against the source — rules and routes are in `AGENTS.md` under
 | [Cooldowns](cooldowns.md) | The base every cooldown in the ecosystem sits on | 1.10.0 |
 | [Utilities](util.md) | `util.Effects` (potions from strings) and `TimeFormats` | 1.9.0 |
 | [Debug](debug.md) | Coloured console output: log, success, warn, error, debug — and the banner | 1.13.0 |
-| [Reloading](reload.md) | `/exylialib reload` and how a consumer reloads itself | 1.14.0 |
+| [Reloading](reload.md) | `Reloads` steps, library-reload listeners, and `/exylialib reload` | 1.14.0 |
 
 Root classes that are not a module:
 

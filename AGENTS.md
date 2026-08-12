@@ -360,9 +360,18 @@ que el servidor la descargue de Maven Central. Nunca `onCommand`, ni un
 - **"Reload lib → reload plugin" está prohibido**: el plugin no necesita nada
   de la lib para recargarse, y recargar la paleta desde un consumidor
   re-enviaría los visuales de TODOS los plugins.
-- **Excepción conocida**: lo que un plugin parseó una vez y guardó (una GUI
-  construida en `onEnable`) conserva colores viejos hasta que el plugin lo
-  reconstruya en su `onReload`. Convención: ahí se reconstruye.
+- **Un plugin declara su reload con `Reloads`**: pasos con nombre, en orden, y
+  un paso que revienta **no aborta los siguientes** — se reporta por su nombre
+  y se sigue. Un reload a medias sin avisar es peor que uno fallido.
+- **La lib avisa, no invoca.** `Reloads.onLibraryReload(plugin, action)` corre
+  tras `/exylialib reload`; sirve para lo que un plugin parseó una vez y
+  guardó (una GUI de `onEnable`). Un listener que revienta se reporta contra
+  su propio plugin y no frena a los demás; se liberan al deshabilitar.
+- **`step` normal NO escucha a la lib.** Solo `stepAlsoOnLibraryReload`.
+  Re-leer los ficheros propios de un plugin no es lo que significa un
+  recoloreo.
+- **Reload es síncrono.** Leer YAMLs pequeños y reenviar packets no necesita
+  futures ni orquestador: eso era la ceremonia de commons.
 
 ### Debug — seis métodos y un toggle
 
@@ -490,6 +499,8 @@ Raíz de código: `src/main/java/net/exylia/lib/`. Raíz de tests:
 | scopes + persistencia + items | (mismos ficheros) | `ExyliaLib` (join/quit/shutdown/timer) | docs/cooldowns.md | 1.11.0 |
 | decimales + `TimeFormats` + `Timer.ofCooldown` | `util/TimeFormats`; `effect/Timer` | `effect/internal/CooldownTimer` | docs/util.md, docs/effects.md | 1.12.0 |
 | debug | `debug/Debug` | jfiglet shadeado (`internal/jfiglet`) | [docs/debug.md](docs/debug.md) | 1.13.0 |
+| comando `/exylialib` | — | `internal/ReloadCommand`, `internal/Commands` (Lamp confinado) | [docs/reload.md](docs/reload.md) | 1.14.0 |
+| reload | `reload/Reloads` (+ `Reloads.Report`) | disparo en `ExyliaLib.loadPalette`; liberación en `onPluginDisable`/`onDisable` | [docs/reload.md](docs/reload.md) | 1.15.0 |
 
 Clases raíz que no son módulo: `ExyliaLib.java` (ciclo de vida y limpieza),
 `platform/Platform.java`, `internal/LibrarySettings`, `internal/ExyliaLibUpdater`.
@@ -503,7 +514,9 @@ Son package-private a propósito; los tests viven del mismo paquete:
 | `util/Cooldowns` | `setClock/resetClock` (reloj), `installStore/removeStore` (persistencia), `trackedOwners/dirtyCount` (observación) |
 | `util/ItemCooldowns` | `setOverlay/resetOverlay` (el `setCooldown` de Bukkit) |
 | `util/Effects` | `setResolver/setApplier`, `resetCache` |
-| tests compartidos | `src/test/java/net/exylia/lib/FakeServer.java`, `FakePlayer.java` |
+| `debug/Debug` | `setSink/resetSink` (a dónde van las líneas) |
+| `reload/Reloads` | `listenerCount()` (observación de fugas) |
+| tests compartidos | `src/test/java/net/exylia/lib/FakeServer.java`, `FakePlayer.java`, `debug/DebugCapture.java` |
 
 ### Protocolo de release (resumen; el detalle está en *Verificación*)
 

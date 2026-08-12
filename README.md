@@ -33,6 +33,7 @@ rules live in [AGENTS.md](AGENTS.md).
 | `clan` | Available | One API for SimpleClans, Kingdoms, UltimateClans or any external provider; alliances and rivalries included |
 | `util` | Available | Small, self-contained utilities: potion effects from compact strings, and the cooldown base every other cooldown builds on |
 | `debug` | Available | Coloured console output with the plugin's name: log, success, warn, error and toggleable debug lines, plus the ASCII-art banner |
+| `reload` | Available | Named reload steps with contained failures, plus listeners for when the shared configuration changes |
 
 Full per-module API references live in [docs/](docs/README.md).
 
