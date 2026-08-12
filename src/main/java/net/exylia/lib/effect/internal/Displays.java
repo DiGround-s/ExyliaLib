@@ -1,8 +1,10 @@
 package net.exylia.lib.effect.internal;
 
+import net.exylia.lib.effect.Display;
 import net.exylia.lib.effect.Timer;
 import net.kyori.adventure.text.Component;
 import org.bukkit.entity.Player;
+import org.jetbrains.annotations.NotNull;
 
 import java.util.UUID;
 
@@ -104,15 +106,11 @@ final class Displays {
      */
     static final class BossBarDisplay extends ActiveDisplay {
 
-        /**
-         * Made up rather than taken from the server: on the packet path the bar
-         * exists only on the client, and this is its only identity.
-         */
         private final UUID id = UUID.randomUUID();
 
         private final String colour;
         private final String overlay;
-        private final Float fixedProgress;
+        private Float fixedProgress;
 
         private Component lastTitle;
 
@@ -153,6 +151,13 @@ final class Displays {
         void clear(Player viewer) {
             Bars.bossBarRemove(viewer, id);
             Bars.forget(id);
+        }
+
+        @Override
+        public @NotNull Display progress(float progress) {
+            this.fixedProgress = Math.clamp(progress, 0f, 1f);
+            rerender();
+            return this;
         }
     }
 }

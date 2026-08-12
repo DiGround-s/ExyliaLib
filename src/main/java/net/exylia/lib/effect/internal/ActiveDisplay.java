@@ -190,9 +190,22 @@ abstract class ActiveDisplay implements Display {
     }
 
     @Override
-    public @NotNull Display onEnd(@NotNull Runnable action) {
+    public     @NotNull Display onEnd(@NotNull Runnable action) {
         this.onEnd = action;
         return this;
+    }
+
+    @Override
+    public @NotNull Display progress(float progress) {
+        // Boss bars override; others ignore.
+        return this;
+    }
+
+    /** Triggers a redraw on the viewer's thread. Subclasses use this. */
+    protected void rerender() {
+        if (!ended.get()) {
+            run(() -> redraw(viewer, rendered, timer));
+        }
     }
 
     /** Returns whether this display belongs to a plugin. */

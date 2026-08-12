@@ -294,6 +294,22 @@ Todo lo que dependa de un plugin de clanes pasa por `net.exylia.lib.clan`.
   alianzas → `alliesOf()` devuelve `[]`, no tira excepción. Preguntar si dos
   clanes son aliados cuando uno no existe devuelve `false`.
 
+### Utils — modular, auto-contenidas, sin dependencias entre ellas
+
+Todo lo que dé utilidad a los plugins pero no tenga sitio en un módulo
+específico va a `net.exylia.lib.util`.
+
+- **Cada clase es una utilidad auto-contenida.** No dependen entre sí, y nada
+  fuera del módulo sabe cómo funcionan por dentro.
+- **Effects** parsea strings de pociones del formato
+  `SPEED:1:300|JUMP_BOOST:2:120`. El parseo produce `ParsedEffect` (records
+  Java estándar) sin tipos Bukkit, con caché Caffeine de 30 segundos. El
+  resolver (`PotionEffectType.getByName`) y el applier (`addPotionEffect`) son
+  inyectables para tests.
+- **Las futuras utilidades** (cooldowns, inventarios, timestamps, etc.) siguen
+  el mismo patrón: clase propia, caché donde tenga sentido, resolvers
+  inyectables para tests.
+
 ### Packets antes que estado
 
 Si el efecto solo tiene que verlo el cliente, es un packet, no una entidad real.

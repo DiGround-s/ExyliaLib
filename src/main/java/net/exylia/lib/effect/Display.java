@@ -88,4 +88,14 @@ public interface Display {
      * @return this display
      */
     @NotNull Display onEnd(@NotNull Runnable action);
+
+    /**
+     * Sets the fill of a boss bar.
+     *
+     * <p>Only meaningful on boss bars; ignored by other effect types.
+     *
+     * @param progress from 0.0 (empty) to 1.0 (full)
+     * @return this display
+     */
+    @NotNull Display progress(float progress);
 }

@@ -31,6 +31,7 @@ rules live in [AGENTS.md](AGENTS.md).
 | `hologram` | Available | Floating text, items and blocks sent as display-entity packets, per-player or shared |
 | `client` | Available | Waypoints, cooldowns and teammate markers on Lunar and Feather, without the caller knowing which |
 | `clan` | Available | One API for SimpleClans, Kingdoms, UltimateClans or any external provider; alliances and rivalries included |
+| `util` | Available | Small, self-contained utilities: potion effects from compact strings with cached parsing |
 
 ---
 
@@ -48,7 +49,9 @@ server instead of one per plugin.
 The clan module answers questions about clans — whose clan, are they allied,
 are they enemies — without the caller knowing which clan plugin is underneath.
 Built-in detection covers SimpleClans, Kingdoms and UltimateClans; an external
-plugin hands in a bridge.
+plugin hands in a bridge. The `util` module is where small, self-contained tools
+live — today the potion-effect parser; tomorrow cooldowns, inventory helpers,
+or whatever is useful across plugins.
 
 Modified-client features (waypoints, client cooldowns, markers) light up on
 their own when Apollo or the Feather server API is installed. With neither, the
