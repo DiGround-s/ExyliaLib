@@ -397,6 +397,85 @@ fuera es contrato público: romperlo obliga a subir versión mayor.
 
 ---
 
+## Documentación y mapa de rutas
+
+La documentación de usuario vive en `docs/`, **un fichero por módulo**, con
+índice en `docs/README.md`. Es producto (la librería es abierta): va en
+inglés, como el README y el Javadoc. Este AGENTS y la comunicación interna, en
+español.
+
+### Reglas para documentar (anti-alucinación)
+
+1. **Se documenta contra el código, nunca de memoria.** Antes de escribir o
+   tocar un doc, extrae las firmas reales:
+
+   ```bash
+   grep -n "    public" src/main/java/net/exylia/lib/util/Cooldowns.java
+   ```
+
+   Si el doc y el código discrepan, el doc está mal y se corrige en ese
+   commit.
+2. **Toda API nueva o cambiada actualiza su doc en el mismo commit.** Un PR
+   que cambia `Cooldowns.java` y no toca `docs/cooldowns.md` está incompleto.
+3. **El doc describe contratos** (qué hace, hilos, nulabilidad, ciclo de vida,
+   coste medido), no la implementación. Lo que cambia libremente en
+   `internal/` no se promete en un doc.
+4. **Cada módulo lleva su `@since`** en el índice y en el Javadoc. Mapa de
+   versiones abajo.
+5. **Los números de rendimiento que se afirman salen de un benchmark en el
+   repo.** Si no hay medición, no se afirma el número; se escribe el diseño
+   ("se compara al leer, no hay task") sin cifra.
+6. **Las rutas de abajo son la fuente para localizar código.** Léelas antes
+   de buscar con grep a ciegas; están pensadas para que documentar o cambiar
+   un módulo no exija re-explorar el repo.
+
+### Mapa de módulos
+
+Raíz de código: `src/main/java/net/exylia/lib/`. Raíz de tests:
+`src/test/java/net/exylia/lib/` (misma estructura de paquetes).
+
+| Módulo | API pública | Interno | Doc | Desde |
+| --- | --- | --- | --- | --- |
+| task | `task/Tasks`, `TaskScheduler`, `TaskHandle`; `platform/Platform` | `task/internal/` | [docs/task.md](docs/task.md) | 1.0.0 |
+| config | `config/Configs`, `ConfigFile`, `MutableConfig`, `Key`, `Comment`, `Migration`, `ConfigIssue` | `config/internal/` | [docs/config.md](docs/config.md) | 1.1.0 |
+| text | `text/Text`, `Colors`, `Palette` | `text/internal/` | [docs/text.md](docs/text.md) | 1.2.0 |
+| placeholder | `placeholder/Placeholders`, `Template`, `Resolver`, `Request` | `placeholder/internal/` | [docs/placeholders.md](docs/placeholders.md) | 1.3.0 |
+| effect | `effect/Effects`, `Timer`, `Ticks`, `Display`, `EffectConfig` | `effect/internal/` | [docs/effects.md](docs/effects.md) | 1.4.0 |
+| scoreboard | `scoreboard/Scoreboards`, `Board`, `SidebarConfig` | `scoreboard/internal/` | [docs/scoreboard.md](docs/scoreboard.md) | 1.5.0 |
+| hologram | `hologram/Holograms`, `Hologram`, `HologramConfig` | `hologram/internal/` | [docs/hologram.md](docs/hologram.md) | 1.6.0 |
+| client | `client/Clients`, `Waypoint`, `Cooldown`, `ClientBrand` | `client/internal/` | [docs/client.md](docs/client.md) | 1.7.0 |
+| clan | `clan/Clans`, `Clan`, `ClanBridge` | `clan/internal/` | [docs/clan.md](docs/clan.md) | 1.8.0 |
+| util (pociones) | `util/Effects` | — | [docs/util.md](docs/util.md) | 1.9.0 |
+| util (cooldowns) | `util/Cooldowns`, `CooldownScope`, `PluginCooldowns`, `ItemCooldowns` | `util/internal/CooldownStore` | [docs/cooldowns.md](docs/cooldowns.md) | 1.10.0 |
+| scopes + persistencia + items | (mismos ficheros) | `ExyliaLib` (join/quit/shutdown/timer) | docs/cooldowns.md | 1.11.0 |
+| decimales + `TimeFormats` + `Timer.ofCooldown` | `util/TimeFormats`; `effect/Timer` | `effect/internal/CooldownTimer` | docs/util.md, docs/effects.md | 1.12.0 |
+
+Clases raíz que no son módulo: `ExyliaLib.java` (ciclo de vida y limpieza),
+`platform/Platform.java`, `internal/LibrarySettings`, `internal/ExyliaLibUpdater`.
+
+### Costuras inyectables para tests (no las elimines)
+
+Son package-private a propósito; los tests viven del mismo paquete:
+
+| Clase | Costura |
+| --- | --- |
+| `util/Cooldowns` | `setClock/resetClock` (reloj), `installStore/removeStore` (persistencia), `trackedOwners/dirtyCount` (observación) |
+| `util/ItemCooldowns` | `setOverlay/resetOverlay` (el `setCooldown` de Bukkit) |
+| `util/Effects` | `setResolver/setApplier`, `resetCache` |
+| tests compartidos | `src/test/java/net/exylia/lib/FakeServer.java`, `FakePlayer.java` |
+
+### Protocolo de release (resumen; el detalle está en *Verificación*)
+
+1. `./gradlew clean build` — verde, cero warnings.
+2. Tests + sabotajes: rompe la lógica a propósito, el test debe fallar.
+3. `publishToMavenLocal` + consumidor externo compilando contra la versión.
+4. Doc del módulo actualizada (ver reglas) y README si la sección existe.
+5. `version` en `build.gradle`, commit, tag, push; verificar JitPack
+   (POM con 0 dependencias; JAR con las clases nuevas). Los tags son
+   inmutables: una versión publicada jamás se mueve.
+
+---
+
 ## Verificación antes de dar algo por terminado
 
 No basta con que compile.

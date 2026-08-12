@@ -33,6 +33,8 @@ rules live in [AGENTS.md](AGENTS.md).
 | `clan` | Available | One API for SimpleClans, Kingdoms, UltimateClans or any external provider; alliances and rivalries included |
 | `util` | Available | Small, self-contained utilities: potion effects from compact strings, and the cooldown base every other cooldown builds on |
 
+Full per-module API references live in [docs/](docs/README.md).
+
 ---
 
 ## Installation
