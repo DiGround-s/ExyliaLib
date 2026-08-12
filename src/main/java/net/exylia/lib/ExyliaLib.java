@@ -4,8 +4,11 @@ import net.exylia.lib.config.ConfigFile;
 import net.exylia.lib.config.Configs;
 import net.exylia.lib.effect.Effects;
 import net.exylia.lib.effect.internal.EffectRuntime;
-import net.exylia.lib.placeholder.Placeholders;
+import net.exylia.lib.client.internal.ClientRuntime;
 import net.exylia.lib.hologram.internal.HologramRuntime;
+import net.exylia.lib.internal.ExyliaLibUpdater;
+import net.exylia.lib.internal.LibrarySettings;
+import net.exylia.lib.placeholder.Placeholders;
 import net.exylia.lib.placeholder.internal.BuiltIn;
 import net.exylia.lib.platform.Platform;
 import net.exylia.lib.scoreboard.internal.BoardManager;
@@ -17,6 +20,7 @@ import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.player.PlayerChangedWorldEvent;
+import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.event.player.PlayerRespawnEvent;
 import org.bukkit.event.server.PluginDisableEvent;
@@ -34,6 +38,15 @@ import org.bukkit.plugin.java.JavaPlugin;
  */
 public final class ExyliaLib extends JavaPlugin implements Listener {
 
+    /**
+     * How long to wait before asking what client a player runs.
+     *
+     * <p>Modified clients announce themselves a moment after joining, so a
+     * question asked immediately gets "vanilla" and that answer would be
+     * remembered for the whole session.
+     */
+    private static final long CLIENT_HANDSHAKE_TICKS = 20L;
+
     private ConfigFile<Palette> palette;
 
     @Override
@@ -44,7 +57,16 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         BuiltIn.register(this);
         BoardManager.init(this, SidebarLibrary.load(this, getLogger()));
         HologramRuntime.init(this);
+        ClientRuntime.init(this);
         getLogger().info("ExyliaLib " + version() + " ready on " + Platform.current() + ".");
+
+        // Check for updates asynchronously — never block the main thread.
+        LibrarySettings.load(this);
+        Thread updateThread = new Thread(
+            () -> ExyliaLibUpdater.checkForUpdate(this),
+            "ExyliaLib-Updater");
+        updateThread.setDaemon(true);
+        updateThread.start();
     }
 
     /**
@@ -91,6 +113,7 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         // Before releasing tasks: their refresh drivers are among them.
         BoardManager.stopEverything();
         HologramRuntime.removeEverything();
+        ClientRuntime.shutdown();
         SidebarLibrary.close();
         Tasks.releaseAll();
         Configs.releaseAll();
@@ -122,6 +145,7 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         Effects.stopFor(event.getPlayer());
         BoardManager.stopFor(event.getPlayer());
         HologramRuntime.forget(event.getPlayer());
+        ClientRuntime.forget(event.getPlayer());
     }
 
     /**
@@ -135,6 +159,28 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
     @EventHandler(priority = EventPriority.MONITOR)
     public void onWorldChange(PlayerChangedWorldEvent event) {
         BoardManager.reinit(event.getPlayer());
+        // Feather drops waypoints along with the world they belonged to.
+        ClientRuntime.resend(event.getPlayer(), true);
+    }
+
+    /**
+     * Puts back what a player's modified client forgot while they were away.
+     *
+     * <p>Delayed on purpose: a modified client announces itself a moment after
+     * joining, so asking immediately would find a vanilla player and remember
+     * that answer for the whole session.
+     *
+     * @param event the join event
+     */
+    @EventHandler(priority = EventPriority.MONITOR)
+    public void onPlayerJoin(PlayerJoinEvent event) {
+        org.bukkit.entity.Player player = event.getPlayer();
+        // An entity timer dies with its entity, so a player who leaves during
+        // the wait costs nothing and needs no online check of its own.
+        Tasks.of(this).runAtEntityLater(player, CLIENT_HANDSHAKE_TICKS, () -> {
+            ClientRuntime.forget(player);
+            ClientRuntime.resend(player, false);
+        });
     }
 
     /**

@@ -254,6 +254,28 @@ de Bukkit, ni un ArmorStand, ni un `TextDisplay` spawneado a mano.
 - **Nada sobrevive a su dueño**: al deshabilitar el plugin, al salir el jugador,
   o al recargar la paleta (ahí se reenvía entero).
 
+### Clientes modificados — siempre `Clients`, nunca ramificar
+
+Todo lo que dependa de Lunar o Feather pasa por `net.exylia.lib.client`. Nunca
+`Apollo.getPlayerManager()` ni `FeatherAPI` en un plugin.
+
+- **El plugin nunca pregunta qué cliente lleva el jugador.** Dice lo que debería
+  ver (`Clients.waypoints().show(...)`) y quien pueda pintarlo, lo pinta. Un
+  jugador vanilla no es un caso especial: es una consulta a un mapa y nada más.
+- **Cada cliente es un `ClientLink` y una línea en `ClientRegistry`.** Añadir uno
+  nuevo no toca nada más. Lo que un cliente no sabe hacer se responde con
+  `false` en su `supports`, no con una excepción.
+- **Apollo y Feather se confinan a una clase cada uno**, igual que PacketEvents.
+  Verificado en bytecode: solo `ApolloLink` y `FeatherLink` los nombran.
+- **La detección se cachea por jugador** y se pregunta un segundo después del
+  join: el cliente se anuncia *después* de entrar, y preguntar antes deja
+  "vanilla" cacheado toda la sesión.
+- **La librería recuerda lo que mandó y lo repone** al reconectar y al cambiar
+  de mundo (solo lo del mundo nuevo). En memoria: un waypoint es algo en una
+  pantalla, no un registro que merezca disco.
+- **Un fallo de la integración no sale de ahí.** Es el bug de otro plugin; el que
+  pidió el waypoint no hizo nada malo.
+
 ### Packets antes que estado
 
 Si el efecto solo tiene que verlo el cliente, es un packet, no una entidad real.

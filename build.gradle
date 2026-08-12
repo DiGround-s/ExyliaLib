@@ -8,7 +8,7 @@ plugins {
 }
 
 group = 'net.exylia'
-version = '1.6.0'
+version = '1.7.0'
 description = 'Shared high-performance library for Exylia Minecraft plugins.'
 
 def targetJavaVersion = 21
@@ -29,6 +29,14 @@ repositories {
     maven {
         name = 'placeholderapi'
         url = 'https://repo.extendedclip.com/content/repositories/placeholderapi/'
+    }
+    maven {
+        name = 'lunarclient'
+        url = 'https://repo.lunarclient.dev'
+    }
+    maven {
+        name = 'feather'
+        url = 'https://repo.feathermc.net/artifactory/maven-releases'
     }
 }
 
@@ -81,6 +89,18 @@ dependencies {
     // bridges to it when the plugin is present.
     compileOnly 'me.clip:placeholderapi:2.11.5'
     compileOnly 'org.jetbrains:annotations:26.0.2'
+    // Modified-client integrations. Both optional at runtime and confined to one
+    // class each, exactly like PacketEvents: a server with neither installed
+    // never loads them, and everything the client module offers degrades to
+    // doing nothing rather than failing.
+    compileOnly 'com.lunarclient:apollo-api:1.2.4'
+    compileOnly 'net.digitalingot.feather-server-api:api:0.0.5'
+
+    // Client-mod APIs: bridges load only when the backing plugin (Apollo,
+    // FeatherServerAPI) is enabled. Never shaded — the consumer plugin or
+    // server must provide them.
+    compileOnly 'com.lunarclient:apollo-api:1.2.4'
+    compileOnly 'net.digitalingot.feather-server-api:api:0.0.5'
     // scoreboard-library: packet-level sidebars, the same library ExyliaCommons
     // consumes. Shaded and relocated into the jar (see shadowJar below), so it
     // is declared in the shadow configuration: bundled, but kept out of the

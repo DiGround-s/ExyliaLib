@@ -1,0 +1,14 @@
+{
+  "versions": {
+    "1.5.0": {
+      "version": "1.5.0",
+      "url": "https://github.com/DiGround-s/ExyliaLib/releases/download/v1.5.0/ExyliaLib-1.5.0.jar",
+      "sha256": "REPLACE_WITH_ACTUAL_SHA256",
+      "major": 1,
+      "requiresRestart": true
+    }
+  },
+  "latest": {
+    "major1": "1.5.0"
+  }
+}

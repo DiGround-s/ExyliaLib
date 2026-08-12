@@ -1,0 +1,282 @@
+package net.exylia.lib.client.internal;
+
+import net.exylia.lib.client.ClientBrand;
+import net.exylia.lib.client.Clients;
+import net.exylia.lib.client.Cooldown;
+import net.exylia.lib.client.Waypoint;
+import org.bukkit.entity.Player;
+import org.bukkit.plugin.Plugin;
+import org.jetbrains.annotations.NotNull;
+
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.List;
+import java.util.UUID;
+
+/**
+ * The client module's working parts.
+ *
+ * <p>Each feature is one small implementation that does the same three things:
+ * find the player's client, ask it whether it can do this, and remember what
+ * was sent so it can be sent again. Everything client-specific lives behind
+ * {@link ClientLink}.
+ */
+public final class ClientRuntime {
+
+    /** The waypoint API handed out by {@link Clients#waypoints()}. */
+    public static final Clients.Waypoints WAYPOINTS = new WaypointsImpl();
+
+    /** The cooldown API handed out by {@link Clients#cooldowns()}. */
+    public static final Clients.Cooldowns COOLDOWNS = new CooldownsImpl();
+
+    /** The marker API handed out by {@link Clients#markers()}. */
+    public static final Clients.Markers MARKERS = new MarkersImpl();
+
+    private ClientRuntime() {
+    }
+
+    /**
+     * Loads whichever client integrations are installed.
+     *
+     * <p>Called by ExyliaLib at startup.
+     *
+     * @param plugin the library plugin
+     */
+    public static void init(Plugin plugin) {
+        ClientState.logger(plugin.getLogger());
+        ClientRegistry.load(plugin.getLogger());
+    }
+
+    public static boolean isSupported() {
+        return ClientRegistry.anyAvailable();
+    }
+
+    public static ClientBrand brandOf(Player player) {
+        return ClientRegistry.brandOf(player);
+    }
+
+    /** Removes everything sent to a player, across every feature. */
+    public static void clearEverything(Player player) {
+        WAYPOINTS.clear(player);
+        COOLDOWNS.clear(player);
+        MARKERS.clear(player);
+    }
+
+    /**
+     * Re-sends what a player had, after their client forgot it.
+     *
+     * <p>Called on join, once the client has had time to announce itself, and
+     * on a world change for clients that drop waypoints with the world.
+     *
+     * @param player      the player
+     * @param worldChange whether this is a world change rather than a join
+     */
+    public static void resend(Player player, boolean worldChange) {
+        ClientLink link = ClientRegistry.of(player);
+        if (!link.supportsWaypoints()) {
+            return;
+        }
+        if (worldChange && !link.resendsOnWorldChange()) {
+            return;
+        }
+
+        UUID id = player.getUniqueId();
+        for (ClientState.Sent sent : ClientState.waypointsOf(id)) {
+            Waypoint waypoint = sent.waypoint();
+            // A waypoint belongs to a world: after a change, only the ones for
+            // the world the player is now in are worth sending.
+            if (worldChange && !waypoint.worldName().equals(player.getWorld().getName())) {
+                continue;
+            }
+            Object handle = link.showWaypoint(player, waypoint);
+            if (handle != null) {
+                ClientState.rememberWaypoint(id, waypoint, handle);
+            }
+        }
+    }
+
+    /**
+     * Forgets a player who left.
+     *
+     * <p>No packets: their client is gone. This only stops the library from
+     * believing a player who left still has anything on screen.
+     */
+    public static void forget(Player player) {
+        UUID id = player.getUniqueId();
+        ClientRegistry.forget(id);
+        ClientState.forget(id);
+    }
+
+    /** Drops every integration and everything remembered. */
+    public static void shutdown() {
+        ClientRegistry.clear();
+        ClientState.clear();
+    }
+
+    // ------------------------------------------------------------------
+    // Waypoints
+    // ------------------------------------------------------------------
+
+    private static final class WaypointsImpl implements Clients.Waypoints {
+
+        @Override
+        public boolean show(@NotNull Player player, @NotNull Waypoint waypoint) {
+            ClientLink link = ClientRegistry.of(player);
+            if (!link.supportsWaypoints()) {
+                return false;
+            }
+            UUID id = player.getUniqueId();
+            // Showing the same name twice is a move, not a duplicate: the old
+            // one goes first so clients that key by name do not keep both.
+            ClientState.Sent previous = ClientState.forgetWaypoint(id, waypoint.name());
+            if (previous != null) {
+                safely(() -> link.removeWaypoint(player, previous.waypoint(), previous.handle()));
+            }
+
+            Object handle = link.showWaypoint(player, waypoint);
+            if (handle == null) {
+                return false;
+            }
+            ClientState.rememberWaypoint(id, waypoint, handle);
+            return true;
+        }
+
+        @Override
+        public void show(@NotNull Collection<? extends Player> players, @NotNull Waypoint waypoint) {
+            for (Player player : players) {
+                show(player, waypoint);
+            }
+        }
+
+        @Override
+        public void remove(@NotNull Player player, @NotNull String name) {
+            ClientState.Sent sent = ClientState.forgetWaypoint(player.getUniqueId(), name);
+            if (sent == null) {
+                return;
+            }
+            ClientLink link = ClientRegistry.of(player);
+            safely(() -> link.removeWaypoint(player, sent.waypoint(), sent.handle()));
+        }
+
+        @Override
+        public void clear(@NotNull Player player) {
+            ClientState.clearWaypoints(player.getUniqueId());
+            ClientLink link = ClientRegistry.of(player);
+            if (link.supportsWaypoints()) {
+                safely(() -> link.clearWaypoints(player));
+            }
+        }
+
+        @Override
+        public boolean supported(@NotNull Player player) {
+            return ClientRegistry.of(player).supportsWaypoints();
+        }
+    }
+
+    // ------------------------------------------------------------------
+    // Cooldowns
+    // ------------------------------------------------------------------
+
+    private static final class CooldownsImpl implements Clients.Cooldowns {
+
+        @Override
+        public boolean show(@NotNull Player player, @NotNull Cooldown cooldown) {
+            ClientLink link = ClientRegistry.of(player);
+            if (!link.supportsCooldowns()) {
+                return false;
+            }
+            safely(() -> link.showCooldown(player, cooldown));
+            ClientState.rememberCooldown(player.getUniqueId(), cooldown.name());
+            return true;
+        }
+
+        @Override
+        public void show(@NotNull Collection<? extends Player> players, @NotNull Cooldown cooldown) {
+            for (Player player : players) {
+                show(player, cooldown);
+            }
+        }
+
+        @Override
+        public void remove(@NotNull Player player, @NotNull String name) {
+            ClientState.forgetCooldown(player.getUniqueId(), name);
+            ClientLink link = ClientRegistry.of(player);
+            if (link.supportsCooldowns()) {
+                safely(() -> link.removeCooldown(player, name));
+            }
+        }
+
+        @Override
+        public void clear(@NotNull Player player) {
+            ClientState.clearCooldowns(player.getUniqueId());
+            ClientLink link = ClientRegistry.of(player);
+            if (link.supportsCooldowns()) {
+                safely(() -> link.clearCooldowns(player));
+            }
+        }
+
+        @Override
+        public boolean supported(@NotNull Player player) {
+            return ClientRegistry.of(player).supportsCooldowns();
+        }
+    }
+
+    // ------------------------------------------------------------------
+    // Markers
+    // ------------------------------------------------------------------
+
+    private static final class MarkersImpl implements Clients.Markers {
+
+        @Override
+        public void update(@NotNull Player viewer, @NotNull Collection<? extends Player> teammates) {
+            ClientLink link = ClientRegistry.of(viewer);
+            if (!link.supportsMarkers()) {
+                return;
+            }
+            List<Player> others = new ArrayList<>(teammates.size());
+            for (Player teammate : teammates) {
+                if (teammate != null && teammate.isOnline() && !teammate.equals(viewer)) {
+                    others.add(teammate);
+                }
+            }
+            safely(() -> link.updateMarkers(viewer, others));
+            ClientState.rememberMarkers(viewer.getUniqueId(), others);
+        }
+
+        @Override
+        public void updateTeam(@NotNull Collection<? extends Player> team) {
+            for (Player member : team) {
+                update(member, team);
+            }
+        }
+
+        @Override
+        public void clear(@NotNull Player viewer) {
+            ClientState.clearMarkers(viewer.getUniqueId());
+            ClientLink link = ClientRegistry.of(viewer);
+            if (link.supportsMarkers()) {
+                safely(() -> link.clearMarkers(viewer));
+            }
+        }
+
+        @Override
+        public boolean supported(@NotNull Player player) {
+            return ClientRegistry.of(player).supportsMarkers();
+        }
+    }
+
+    /**
+     * Runs an integration call without letting it escape.
+     *
+     * <p>These calls end up inside somebody else's plugin. A client integration
+     * that throws is their bug, and it must not take down the game that asked
+     * for a waypoint.
+     */
+    private static void safely(Runnable action) {
+        try {
+            action.run();
+        } catch (Throwable t) {
+            ClientState.logger().warning("A client integration failed: " + t.getMessage());
+        }
+    }
+}

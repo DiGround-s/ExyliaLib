@@ -29,6 +29,7 @@ rules live in [AGENTS.md](AGENTS.md).
 | `effect` | Available | Titles, action bars, boss bars, particles, sounds and fireworks, sent as packets and declared in config |
 | `scoreboard` | Available | Packet-level sidebars declared in config, refreshed off the main thread and diffed line by line |
 | `hologram` | Available | Floating text, items and blocks sent as display-entity packets, per-player or shared |
+| `client` | Available | Waypoints, cooldowns and teammate markers on Lunar and Feather, without the caller knowing which |
 
 ---
 
@@ -42,6 +43,10 @@ load without it.
 Scoreboards need nothing extra installed: the packet-level sidebar library
 travels inside the jar, relocated, so there is exactly one copy of it on the
 server instead of one per plugin.
+
+Modified-client features (waypoints, client cooldowns, markers) light up on
+their own when Apollo or the Feather server API is installed. With neither, the
+calls still work and send nothing.
 
 Holograms do require [PacketEvents](https://github.com/retrooper/packetevents);
 without it everything keeps working and nothing is drawn. The holograms
@@ -889,6 +894,62 @@ unchanged but what it parses into is not.
 
 On a server without PacketEvents, every call keeps working and nothing is
 drawn. `Holograms.isSupported()` says so.
+
+---
+
+## Client module
+
+Talks to modified clients — Lunar through Apollo, and Feather — without the
+caller ever asking which one a player runs.
+
+```java
+Clients.waypoints().show(player, Waypoint.at("Koth", arena.centre()).colour("#8a51c4"));
+Clients.cooldowns().show(player, Cooldown.seconds("pearl", 16).icon(Icon.item("ENDER_PEARL")));
+Clients.markers().updateTeam(team.members());
+```
+
+### A vanilla player is not a special case
+
+Every call answers for any player. Vanilla, a client that does not support that
+feature, or a server with no integration installed at all: the call costs a map
+lookup and sends nothing. That is the whole design — a plugin says what the
+player *should* see, and whoever can show it, shows it.
+
+| Feature | Lunar | Feather | Vanilla |
+| --- | --- | --- | --- |
+| Waypoints | yes | yes | — |
+| Cooldowns | yes | — | — |
+| Teammate markers | yes | — | — |
+
+`Clients.brandOf(player)` is there for a join message or a statistic, not for
+branching before a call.
+
+### What is remembered, and why
+
+Clients forget everything when a player reconnects, and Feather forgets
+waypoints along with the world they belonged to. The library remembers what it
+sent and puts it back — after a world change, only the waypoints belonging to
+the world the player is now in.
+
+Without that, every plugin grows its own "re-send my waypoints on join"
+listener and they all get it slightly wrong. Nothing is written to disk: a
+waypoint is a thing on a screen, not a record, so a restart clears them.
+
+Detection is asked once, a second after the player joins, and remembered until
+they leave — a modified client announces itself a moment *after* joining, so an
+immediate question gets "vanilla" and would poison the answer for the whole
+session.
+
+### Adding a client
+
+One class implementing `ClientLink`, one line in `ClientRegistry`. Nothing else
+in the module, and nothing at all outside it, knows how many clients exist. A
+client that cannot do something returns `false` from the matching `supports`
+method instead of throwing, because a missing feature is normal, not
+exceptional.
+
+An integration that throws is contained and logged: the plugin that asked for a
+waypoint did nothing wrong, and somebody else's bug must not surface as theirs.
 
 ---
 
