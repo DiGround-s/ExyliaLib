@@ -342,6 +342,24 @@ específico va a `net.exylia.lib.util`.
   patrón: clase propia, caché donde tenga sentido, y una costura inyectable
   (reloj, resolver, overlay) para que se puedan testear sin servidor.
 
+### Debug — seis métodos y un toggle
+
+Todo mensaje a consola pasa por `net.exylia.lib.debug.Debug`. Nunca
+`System.out`, ni ANSI a mano, ni un logger propio por plugin.
+
+- **`log`, `success`, `warn`, `error`, `debug`.** No hay categorías, niveles
+  numéricos ni configuración de formato. Commons tenía cuatro ejes de
+  clasificación y cuarenta entry points para decir estas cinco cosas; a las 3
+  de la mañana nadie elige bien entre cuarenta opciones.
+- **El color sale de la paleta del servidor** y el mensaje se anexa literal:
+  una traza llena de `&` y `{}` sale tal cual.
+- **`debug()` solo imprime con `enabled(true)`**; el toggle lo da la config
+  del plugin. El resto siempre imprime.
+- **El banner (`motd()`) es el nombre en ASCII art + versión**, lo que se
+  echaba de menos de commons. jfiglet va shadeado y relocado, fuera del POM.
+- **Nunca rompe un arranque**: sin fuente en un jar roto, imprime el nombre
+  en plano.
+
 ### Packets antes que estado
 
 Si el efecto solo tiene que verlo el cliente, es un packet, no una entidad real.
@@ -449,6 +467,7 @@ Raíz de código: `src/main/java/net/exylia/lib/`. Raíz de tests:
 | util (cooldowns) | `util/Cooldowns`, `CooldownScope`, `PluginCooldowns`, `ItemCooldowns` | `util/internal/CooldownStore` | [docs/cooldowns.md](docs/cooldowns.md) | 1.10.0 |
 | scopes + persistencia + items | (mismos ficheros) | `ExyliaLib` (join/quit/shutdown/timer) | docs/cooldowns.md | 1.11.0 |
 | decimales + `TimeFormats` + `Timer.ofCooldown` | `util/TimeFormats`; `effect/Timer` | `effect/internal/CooldownTimer` | docs/util.md, docs/effects.md | 1.12.0 |
+| debug | `debug/Debug` | jfiglet shadeado (`internal/jfiglet`) | [docs/debug.md](docs/debug.md) | 1.13.0 |
 
 Clases raíz que no son módulo: `ExyliaLib.java` (ciclo de vida y limpieza),
 `platform/Platform.java`, `internal/LibrarySettings`, `internal/ExyliaLibUpdater`.

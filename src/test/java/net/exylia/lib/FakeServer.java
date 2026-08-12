@@ -292,6 +292,9 @@ public final class FakeServer {
                     case "getLogger" -> logger;
                     case "isEnabled" -> true;
                     case "getDataFolder" -> dataFolder;
+                    case "getDescription" ->
+                            new org.bukkit.plugin.PluginDescriptionFile(name, "1.0-test",
+                                    "test.Main");
                     case "hashCode" -> System.identityHashCode(proxy);
                     case "equals" -> proxy == args[0];
                     case "toString" -> name;

@@ -18,6 +18,7 @@ against the source — rules and routes are in `AGENTS.md` under
 | [Clan](clan.md) | One API over SimpleClans, Kingdoms, UltimateClans and external bridges | 1.8.0 |
 | [Cooldowns](cooldowns.md) | The base every cooldown in the ecosystem sits on | 1.10.0 |
 | [Utilities](util.md) | `util.Effects` (potions from strings) and `TimeFormats` | 1.9.0 |
+| [Debug](debug.md) | Coloured console output: log, success, warn, error, debug — and the banner | 1.13.0 |
 
 Root classes that are not a module:
 

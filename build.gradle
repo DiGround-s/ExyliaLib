@@ -8,7 +8,7 @@ plugins {
 }
 
 group = 'net.exylia'
-version = '1.12.0'
+version = '1.13.0'
 description = 'Shared high-performance library for Exylia Minecraft plugins.'
 
 def targetJavaVersion = 21
@@ -113,6 +113,10 @@ dependencies {
     shade('net.megavex:scoreboard-library-implementation:2.8.1') {
         exclude group: 'net.kyori'
     }
+    // jfiglet: the ASCII-art plugin name the debug module prints on enable.
+    // Same treatment as scoreboard-library: bundled and relocated, absent from
+    // the published POM.
+    shade 'com.github.lalyos:jfiglet:0.0.9'
 
     testImplementation platform('org.junit:junit-bom:5.11.4')
     testImplementation 'org.junit.jupiter:junit-jupiter'
@@ -180,6 +184,7 @@ shadowJar {
     // scoreboard-library finds its implementation and packet adapters through
     // Class.forName; Shadow rewrites those strings together with the classes.
     relocate 'net.megavex.scoreboardlibrary', 'net.exylia.lib.internal.scoreboardlibrary'
+    relocate 'com.github.lalyos.jfiglet', 'net.exylia.lib.internal.jfiglet'
     manifest {
         attributes(
                 'Implementation-Title': 'ExyliaLib',
