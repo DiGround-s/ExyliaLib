@@ -372,6 +372,18 @@ que el servidor la descargue de Maven Central. Nunca `onCommand`, ni un
   recoloreo.
 - **Reload es síncrono.** Leer YAMLs pequeños y reenviar packets no necesita
   futures ni orquestador: eso era la ceremonia de commons.
+- **Un módulo que guarda un `Component` (o algo derivado de la paleta) más
+  allá de un render DEBE exponer `invalidateAll()`** y ser llamado desde el
+  listener de la paleta en `ExyliaLib.loadPalette`. Es requisito para que un
+  módulo nuevo entre en la lib.
+  - Ya conectados: `TextEngine` (vía `Colors.apply`), `BoardManager`,
+    `HologramRuntime`, `EffectRuntime`.
+  - El atajo de "texto estático se dibuja una vez" es justo lo que crea este
+    bug: en 1.16.0 los efectos estáticos se quedaban con los colores viejos.
+  - Lo que un módulo cachea sin relación con la paleta (clanes, pociones
+    parseadas, cooldowns) se deja en paz a propósito.
+  - La tabla de qué recarga qué está en `docs/reload.md` y la cubre
+    `PaletteReloadTest`.
 
 ### Debug — seis métodos y un toggle
 
@@ -429,6 +441,9 @@ Un módulo entra en ExyliaLib solo si cumple todo esto:
    una clase que solo se carga en esa plataforma. La librería debe cargar en
    Spigot puro.
 7. **Con tests de comportamiento**, no solo de compilación.
+8. **Responde al reload.** Si el módulo guarda algo derivado de la paleta,
+   expone `invalidateAll()` y se engancha en `ExyliaLib.loadPalette`; si no
+   guarda nada, se documenta que no aplica. Ver *Reload* y `docs/reload.md`.
 
 ### Estructura
 

@@ -181,6 +181,19 @@ abstract class ActiveDisplay implements Display {
         return this;
     }
 
+    /**
+     * Re-parses and re-draws with the same text.
+     *
+     * <p>For a palette reload: the text is unchanged, but the colours it
+     * parses into are not.
+     */
+    void invalidate() {
+        this.rendered = new Rendered(rendered.raw(), rendered.timeStyle());
+        if (!ended.get()) {
+            run(() -> redraw(viewer, rendered, timer));
+        }
+    }
+
     @Override
     public @NotNull Display addTime(double seconds) {
         if (timer != null) {

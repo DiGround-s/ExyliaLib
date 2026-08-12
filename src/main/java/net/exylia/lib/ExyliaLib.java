@@ -105,6 +105,9 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
             // The text of a board is unchanged, but what it parses into is not.
             BoardManager.invalidateAll();
             HologramRuntime.invalidateAll();
+            // A static effect is drawn once and never re-parsed, so without
+            // this a permanent boss bar would keep the old colours.
+            EffectRuntime.invalidateAll();
             // Plugins that kept something parsed — a menu built at startup —
             // are told, so they can rebuild it. Announced, never invoked.
             Reloads.fireLibraryReload();

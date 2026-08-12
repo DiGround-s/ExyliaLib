@@ -121,6 +121,25 @@ public final class EffectRuntime {
         ACTIVE.clear();
     }
 
+    /**
+     * Re-draws every showing effect after the palette changed.
+     *
+     * <p>A static effect is drawn once and left alone, which is what makes a
+     * permanent boss bar cost one packet instead of a task. That same saving
+     * means nothing re-parses it when the colours change, so it would keep
+     * the old ones until something stopped it — this is that something.
+     *
+     * @return how many were re-drawn
+     */
+    public static int invalidateAll() {
+        int redrawn = 0;
+        for (ActiveDisplay display : List.copyOf(ACTIVE.keySet())) {
+            display.invalidate();
+            redrawn++;
+        }
+        return redrawn;
+    }
+
     /** Returns how many displays are showing. */
     public static int active() {
         return ACTIVE.size();

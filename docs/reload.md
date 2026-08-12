@@ -95,6 +95,34 @@ The honest exception: what a plugin parsed *once* and kept as state (a GUI
 built in `onEnable`, say). That is plugin state with old colours baked in;
 the convention is that such things are rebuilt in the plugin's `onReload`.
 
+## What a palette reload actually refreshes
+
+Audited module by module, and covered by `PaletteReloadTest`. The pattern
+that matters: **anything that caches a parsed component must be invalidated,
+and anything that re-parses per render was never at risk.**
+
+| Module | State it keeps | On `/exylialib reload` |
+| --- | --- | --- |
+| text | `TextEngine` component cache | Dropped by `Colors.apply` — every later parse uses the new colours |
+| scoreboard | last rendered lines per board | `BoardManager.invalidateAll()` re-sends every board in full |
+| hologram | last text sent per viewer | `HologramRuntime.invalidateAll()` re-sends every hologram |
+| effect (static) | the component, drawn once and left alone | `EffectRuntime.invalidateAll()` re-parses and re-draws — **added in 1.16.0; this was silently stale before** |
+| effect (dynamic) | nothing; rebuilds each cycle | Picks up new colours on its own |
+| placeholder | compiled templates (structure, not colour) | Nothing to do — templates hold the raw text, and rendering goes through `Text` |
+| clan / client / cooldowns / util | no rendered text | Nothing to do |
+| plugin state | whatever a plugin parsed once and kept | Told through `Reloads.onLibraryReload` — the plugin rebuilds it |
+
+### The rule for new modules
+
+If a module holds a `Component` — or anything derived from the palette —
+beyond a single render, it **must** expose an `invalidateAll()` and be called
+from the palette listener in `ExyliaLib.loadPalette`. The cheap-static-path
+optimisation is exactly what creates this bug: an effect drawn once and left
+alone is the one that keeps last week's colours.
+
+Anything else a module caches (clan lookups, parsed potion strings, cooldown
+state) has nothing to do with the palette and is deliberately left alone.
+
 ## Why not "reload lib → reload plugin"
 
 That order is backwards and harmful: the plugin needs nothing from the

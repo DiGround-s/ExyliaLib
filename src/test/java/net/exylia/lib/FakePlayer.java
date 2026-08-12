@@ -28,6 +28,7 @@ public final class FakePlayer {
     private final List<String> bossBarsShown = new CopyOnWriteArrayList<>();
     private final List<String> bossBarsHidden = new CopyOnWriteArrayList<>();
 
+    private final List<Component> actionBarComponents = new ArrayList<>();
     private volatile boolean online = true;
     private volatile org.bukkit.Location location;
 
@@ -44,6 +45,9 @@ public final class FakePlayer {
                     case "isOnline", "isValid" -> online;
                     case "sendActionBar" -> {
                         actionBars.add(plain(args[0]));
+                        if (args[0] instanceof Component component) {
+                            actionBarComponents.add(component);
+                        }
                         yield null;
                     }
                     case "showTitle" -> {
@@ -86,6 +90,11 @@ public final class FakePlayer {
         return new ArrayList<>(actionBars);
     }
 
+    /** The same, unserialized, for tests that care about colour. */
+    public List<Component> actionBarComponents() {
+        return new ArrayList<>(actionBarComponents);
+    }
+
     /** Every title event, in order. */
     public List<String> titles() {
         return new ArrayList<>(titles);
@@ -115,6 +124,7 @@ public final class FakePlayer {
     /** Forgets everything recorded so far. */
     public void clear() {
         actionBars.clear();
+        actionBarComponents.clear();
         titles.clear();
         bossBarsShown.clear();
         bossBarsHidden.clear();
