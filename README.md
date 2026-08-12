@@ -31,7 +31,7 @@ rules live in [AGENTS.md](AGENTS.md).
 | `hologram` | Available | Floating text, items and blocks sent as display-entity packets, per-player or shared |
 | `client` | Available | Waypoints, cooldowns and teammate markers on Lunar and Feather, without the caller knowing which |
 | `clan` | Available | One API for SimpleClans, Kingdoms, UltimateClans or any external provider; alliances and rivalries included |
-| `util` | Available | Small, self-contained utilities: potion effects from compact strings with cached parsing |
+| `util` | Available | Small, self-contained utilities: potion effects from compact strings, per-player cooldowns |
 
 ---
 
@@ -959,6 +959,111 @@ exceptional.
 
 An integration that throws is contained and logged: the plugin that asked for a
 waypoint did nothing wrong, and somebody else's bug must not surface as theirs.
+
+---
+
+## Clan module
+
+A single API for every clan plugin. The caller never branches on which one runs.
+
+```java
+Clans.clanOf(player).ifPresent(clan -> {
+    for (String ally : clan.allies()) {
+        // notify everyone who would care
+    }
+});
+
+boolean friendlyFire = Clans.areAllied(attacker, defender);
+boolean war = Clans.areRivals(attacker, defender);
+```
+
+### Three providers built in
+
+SimpleClans, Kingdoms and UltimateClans are detected automatically when their
+plugin is enabled. All three go through reflection — nothing is compiled
+against, so a server with none of them never tries to load a missing class.
+
+| Feature | SimpleClans | Kingdoms | UltimateClans |
+|---|---|---|---|
+| Members, leaders, moderators | yes | yes | leader and members |
+| Alliances | yes | yes | no |
+| Rivalries | yes | yes | no |
+
+What a plugin does not have returns an empty set. The caller never needs to know
+whether "no allies" means the plugin lacks the concept or the clan simply has
+none — the answer is the same either way.
+
+### External providers
+
+A plugin outside ExyliaLib implements `ClanBridge` and registers it:
+
+```java
+Clans.registerBridge(new MyClanBridge(), 10);
+```
+
+The bridge speaks only UUIDs, strings and primitives — no Bukkit, no Exylia
+types — so it can live anywhere. A registered bridge beats automatic detection,
+and a higher priority beats a lower one.
+
+### What is remembered
+
+A player's clan is cached for a few seconds, because the question sits on hot
+paths: a damage event, a kill message, a scoreboard refresh. The cache is
+emptied by `Clans.invalidate()` and when a player leaves.
+
+---
+
+## Util module
+
+A pocket for small, self-contained tools. Each one stands alone: no dependencies
+between utilities, and nothing outside the module knows how they work inside.
+
+### Effects
+
+Potion effects from a compact string — the format kits and minigames keep in
+their configs:
+
+```java
+Effects.apply(player, "SPEED:1:300|JUMP_BOOST:2:120");
+```
+
+- `|` separates effects, `:` separates name, amplifier and duration
+- Amplifier defaults to `0`, duration to `200` ticks (10 seconds), so `"SPEED"`
+  on its own is valid
+- The same string is parsed once and cached for 30 seconds
+- Unknown names are skipped and an empty string yields nothing: a typo in a
+  config is not worth an exception
+
+The parser is pure. `Effects.parse("...")` returns `ParsedEffect` records made
+of strings and ints, with no Bukkit types, so config parsing can be tested
+without a server.
+
+### Cooldowns
+
+The thing every plugin rewrites — an ability on a timer, a command that cannot
+be spammed:
+
+```java
+if (!Cooldowns.tryStart(player, "pearl", Duration.ofSeconds(16))) {
+    player.sendMessage("Wait " + Cooldowns.remainingSeconds(player, "pearl") + "s");
+    return;
+}
+```
+
+`tryStart` is the whole guard in one call: it starts the cooldown and says
+whether it was free. A refusal never extends the cooldown already running —
+that is the bug this exists to replace.
+
+Nothing is ticked down. An expiry instant is stored once and compared on read,
+so a thousand idle cooldowns cost nothing until somebody asks. Expired entries
+are dropped by the read that notices them, and a player's entire set is dropped
+when they leave, so the map cannot grow without bound.
+
+Seconds round **up**: with 400 ms left `remainingSeconds` says `1`, not `0`.
+Telling players "0 seconds" while still refusing the action is a lie.
+
+A key is any string. Two plugins using the same key share the cooldown — a
+feature when deliberate, a bug when not, so prefix keys that should be private.
 
 ---
 

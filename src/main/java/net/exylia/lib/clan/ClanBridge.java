@@ -15,7 +15,7 @@ import java.util.function.Predicate;
  * <p>This is the same contract ExyliaCommons gave its own external providers,
  * plus the alliance and rivalry tables commons never added. A plugin that wants
  * the library to see its clans implements this and calls
- * {@link net.exylia.lib.clan.Clans#registerBridge(ClanBridge)} in its {@code onEnable()}.
+ * {@link Clans#registerBridge(ClanBridge, int)} in its {@code onEnable()}.
  *
  * <p>Only standard library types appear: a UUID, a string, an int. That is so
  * the implementation lives anywhere, not just inside a Bukkit plugin.

@@ -10,6 +10,7 @@ import net.exylia.lib.hologram.internal.HologramRuntime;
 import net.exylia.lib.internal.ExyliaLibUpdater;
 import net.exylia.lib.internal.LibrarySettings;
 import net.exylia.lib.placeholder.Placeholders;
+import net.exylia.lib.util.Cooldowns;
 import net.exylia.lib.placeholder.internal.BuiltIn;
 import net.exylia.lib.platform.Platform;
 import net.exylia.lib.scoreboard.internal.BoardManager;
@@ -118,6 +119,7 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         HologramRuntime.removeEverything();
         ClientRuntime.shutdown();
         ClanRuntime.shutdown();
+        Cooldowns.clearEverything();
         SidebarLibrary.close();
         Tasks.releaseAll();
         Configs.releaseAll();
@@ -151,6 +153,7 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         HologramRuntime.forget(event.getPlayer());
         ClientRuntime.forget(event.getPlayer());
         ClanRuntime.forget(event.getPlayer().getUniqueId());
+        Cooldowns.forget(event.getPlayer().getUniqueId());
     }
 
     /**

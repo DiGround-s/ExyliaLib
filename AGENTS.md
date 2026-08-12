@@ -306,9 +306,16 @@ específico va a `net.exylia.lib.util`.
   Java estándar) sin tipos Bukkit, con caché Caffeine de 30 segundos. El
   resolver (`PotionEffectType.getByName`) y el applier (`addPotionEffect`) son
   inyectables para tests.
-- **Las futuras utilidades** (cooldowns, inventarios, timestamps, etc.) siguen
-  el mismo patrón: clase propia, caché donde tenga sentido, resolvers
-  inyectables para tests.
+- **Cooldowns** guarda por jugador un mapa de clave → instante de expiración.
+  No hay tarea que descuente: se compara al leer, así que mil cooldowns
+  inactivos cuestan cero. Lo expirado se purga en la lectura que lo detecta, y
+  al salir el jugador se olvida entero — el mapa no puede crecer sin límite.
+  El reloj es inyectable para que los tests no duerman. Los segundos redondean
+  **hacia arriba**: decirle "0 segundos" a alguien a quien aún le niegas la
+  acción es mentirle.
+- **Las futuras utilidades** (inventarios, timestamps, etc.) siguen el mismo
+  patrón: clase propia, caché donde tenga sentido, y una costura inyectable
+  (reloj, resolver) para que se puedan testear sin servidor.
 
 ### Packets antes que estado
 
