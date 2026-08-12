@@ -96,11 +96,14 @@ class ItemCooldownsTest {
     }
 
     @Test
-    @DisplayName("seconds left round up, as everywhere else")
-    void secondsRoundUp() {
+    @DisplayName("seconds left keep their decimals, as everywhere else")
+    void secondsHaveDecimals() {
         ItemCooldowns.start(player.player(), Material.ENDER_PEARL, Duration.ofMillis(400));
 
-        assertEquals(1L, ItemCooldowns.remainingSeconds(player.player(), Material.ENDER_PEARL));
+        assertEquals(0.4,
+                ItemCooldowns.remainingSeconds(player.player(), Material.ENDER_PEARL), 0.001);
+        assertEquals("0.4",
+                ItemCooldowns.remainingFormatted(player.player(), Material.ENDER_PEARL));
     }
 
     // ------------------------------------------------------------------

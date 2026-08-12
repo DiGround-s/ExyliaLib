@@ -95,9 +95,25 @@ public final class PluginCooldowns {
         return Cooldowns.remaining(scope, prefix + key);
     }
 
-    /** Returns the seconds left, rounded up, or {@code 0} when nothing is. */
-    public long remainingSeconds(@NotNull Player player, @NotNull String key) {
+    /** Returns the seconds left, decimals included, or {@code 0}. */
+    public double remainingSeconds(@NotNull Player player, @NotNull String key) {
         return Cooldowns.remainingSeconds(player, prefix + key);
+    }
+
+    /** Returns the seconds left rounded up, for a "wait N seconds" message. */
+    public long remainingWholeSeconds(@NotNull Player player, @NotNull String key) {
+        return Cooldowns.remainingWholeSeconds(player, prefix + key);
+    }
+
+    /** Returns what is left, written the way a player should read it. */
+    public @NotNull String remainingFormatted(@NotNull Player player, @NotNull String key) {
+        return Cooldowns.remainingFormatted(player, prefix + key);
+    }
+
+    /** Returns what is left, written in the given style. */
+    public @NotNull String remainingFormatted(@NotNull Player player, @NotNull String key,
+                                              @NotNull TimeFormats.Style style) {
+        return Cooldowns.remainingFormatted(player, prefix + key, style);
     }
 
     /** Starts the cooldown and returns whether it was free to begin with. */

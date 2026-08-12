@@ -26,7 +26,7 @@ import java.util.logging.Logger;
  *
  * <pre>{@code
  * if (!Cooldowns.tryStart(player, "pearl", Duration.ofSeconds(16))) {
- *     player.sendMessage("Wait " + Cooldowns.remainingSeconds(player, "pearl") + "s");
+ *     player.sendMessage("Wait " + Cooldowns.remainingFormatted(player, "pearl") + "s");
  *     return;
  * }
  * }</pre>
@@ -206,17 +206,74 @@ public final class Cooldowns {
         return left;
     }
 
-    /** Returns the seconds left, rounded up, or {@code 0} when nothing is. */
-    public static long remainingSeconds(@NotNull Player player, @NotNull String key) {
+    /**
+     * Returns the seconds left, decimals included, or {@code 0} when nothing
+     * is.
+     *
+     * <p>{@code 3.3}, not {@code 3} or {@code 4}. The state is kept in
+     * milliseconds, so the precision was always there — this is the method
+     * that stops hiding it. A countdown that ticks {@code 3, 3, 3, 2} looks
+     * broken next to one that ticks {@code 3.3, 3.2, 3.1}.
+     *
+     * @see #remainingFormatted(Player, String) for text a player reads
+     * @see #remainingWholeSeconds(Player, String) for "wait 4 seconds"
+     */
+    public static double remainingSeconds(@NotNull Player player, @NotNull String key) {
         return remainingSeconds(CooldownScope.player(player.getUniqueId()), key);
     }
 
-    /** Returns the seconds left, rounded up, or {@code 0} when nothing is. */
-    public static long remainingSeconds(@NotNull CooldownScope scope, @NotNull String key) {
-        long millis = remaining(scope, key);
-        // Rounded up, because "1 second left" reading as 0 is a lie to the
-        // player looking at the message.
-        return (millis + 999L) / 1000L;
+    /** Returns the seconds left, decimals included, or {@code 0}. */
+    public static double remainingSeconds(@NotNull CooldownScope scope, @NotNull String key) {
+        return remaining(scope, key) / 1000.0;
+    }
+
+    /**
+     * Returns the seconds left rounded up, or {@code 0} when nothing is.
+     *
+     * <p>For a chat message that says how long to wait. Rounded up, because
+     * "1 second left" reading as {@code 0} is a lie to the player being
+     * refused.
+     */
+    public static long remainingWholeSeconds(@NotNull Player player, @NotNull String key) {
+        return remainingWholeSeconds(CooldownScope.player(player.getUniqueId()), key);
+    }
+
+    /** Returns the seconds left rounded up, or {@code 0} when nothing is. */
+    public static long remainingWholeSeconds(@NotNull CooldownScope scope,
+                                             @NotNull String key) {
+        return (remaining(scope, key) + 999L) / 1000L;
+    }
+
+    /**
+     * Returns what is left, written the way a player should read it.
+     *
+     * <pre>{@code
+     * player.sendMessage("Wait " + Cooldowns.remainingFormatted(player, "pearl") + "s");
+     * }</pre>
+     *
+     * <p>Uses {@link TimeFormats.Style#AUTO}: tenths under ten seconds, whole
+     * seconds up to a minute, and a clock past that. One implementation for
+     * the whole library, so this reads the same as a boss bar counting down
+     * the same cooldown.
+     */
+    public static @NotNull String remainingFormatted(@NotNull Player player,
+                                                     @NotNull String key) {
+        return remainingFormatted(CooldownScope.player(player.getUniqueId()), key,
+                TimeFormats.Style.AUTO);
+    }
+
+    /** Returns what is left, written in the given style. */
+    public static @NotNull String remainingFormatted(@NotNull Player player,
+                                                     @NotNull String key,
+                                                     @NotNull TimeFormats.Style style) {
+        return remainingFormatted(CooldownScope.player(player.getUniqueId()), key, style);
+    }
+
+    /** Returns what is left, written in the given style. */
+    public static @NotNull String remainingFormatted(@NotNull CooldownScope scope,
+                                                     @NotNull String key,
+                                                     @NotNull TimeFormats.Style style) {
+        return TimeFormats.render(remainingSeconds(scope, key), style);
     }
 
     /**

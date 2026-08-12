@@ -95,13 +95,21 @@ class CooldownsTest {
     }
 
     @Test
-    @DisplayName("seconds left are rounded up, so 0.4s left reads as 1")
+    @DisplayName("whole seconds are rounded up, so 0.4s left reads as 1")
     void secondsRoundUp() {
         Cooldowns.start(player.player(), "pearl", Duration.ofMillis(400));
 
         // Rounding down would tell the player "0 seconds" while still
         // refusing the action.
-        assertEquals(1L, Cooldowns.remainingSeconds(player.player(), "pearl"));
+        assertEquals(1L, Cooldowns.remainingWholeSeconds(player.player(), "pearl"));
+    }
+
+    @Test
+    @DisplayName("seconds left keep their decimals, which whole seconds throw away")
+    void secondsKeepDecimals() {
+        Cooldowns.start(player.player(), "pearl", Duration.ofMillis(400));
+
+        assertEquals(0.4, Cooldowns.remainingSeconds(player.player(), "pearl"), 0.001);
     }
 
     // ------------------------------------------------------------------

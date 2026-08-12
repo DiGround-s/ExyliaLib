@@ -1106,6 +1106,41 @@ The file is one line per cooldown, expiry first so keys may contain spaces:
 Written to a temporary file and moved into place, so a server killed mid-write
 leaves either the old file or the new one, never half of either.
 
+#### Decimals, ready to show
+
+`remainingSeconds` returns a `double` — `3.3`, not `3` or `4`. The state was
+always kept in milliseconds, so the precision was always there; the earlier
+`long` was hiding it and forcing every plugin to divide and format on its own,
+each one slightly differently.
+
+`remainingFormatted` returns text ready for a player, rendered by the library's
+one time formatter (`TimeFormats`), so a chat message and a boss bar counting
+the same cooldown read the same way:
+
+```java
+player.sendMessage("Wait " + Cooldowns.remainingFormatted(player, "pearl") + "s"); // 3.3
+player.sendMessage(Cooldowns.remainingFormatted(player, "raid", Style.CLOCK));     // 1:30
+```
+
+For a message that refuses somebody, `remainingWholeSeconds` still rounds up —
+saying "0 seconds" while blocking the action would be a lie.
+
+#### A cooldown behind a display
+
+`Timer.ofCooldown(player, "pearl")` is a timer that reads a cooldown instead of
+counting on its own, so an action bar, title or boss bar can show one without
+the two drifting:
+
+```java
+Cooldowns.start(player, "pearl", Duration.ofSeconds(16));
+Effects.bossBar("<red>Pearl: %time%s").timer(Timer.ofCooldown(player, "pearl")).show(player);
+```
+
+This is a bridge, not a merge: the cooldown stays the truth (shared between
+plugins, surviving a restart) and the display just looks at it, finishing the
+moment the cooldown does. `advance` and `extend` do nothing on such a timer —
+time is added through `Cooldowns`, and the bar will show it.
+
 #### What it costs
 
 Measured over two million calls with two hundred players:

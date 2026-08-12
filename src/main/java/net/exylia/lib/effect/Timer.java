@@ -70,6 +70,78 @@ public interface Timer {
     }
 
     /**
+     * Creates a timer that reads a running cooldown.
+     *
+     * <p>For showing a player a cooldown they already have, rather than
+     * counting the same thing twice:
+     *
+     * <pre>{@code
+     * Cooldowns.start(player, "pearl", Duration.ofSeconds(16));
+     *
+     * Effects.bossBar("<red>Pearl: %time%s")
+     *        .timer(Timer.ofCooldown(player, "pearl"))
+     *        .show(player);
+     * }</pre>
+     *
+     * <p>The cooldown remains the truth: it is what other plugins see, what
+     * survives a restart, and what decides when the bar is finished. This only
+     * looks at it, so {@link #advance} and {@link #extend} do nothing — to give
+     * the player more time, start the cooldown again.
+     *
+     * <p>The total is whatever is left when this is created, so make it while
+     * the cooldown is fresh if the bar should start full.
+     *
+     * @param player the player whose cooldown to show
+     * @param key    the cooldown's key
+     * @return the timer
+     * @since 1.12.0
+     */
+    static @NotNull Timer ofCooldown(@NotNull org.bukkit.entity.Player player,
+                                     @NotNull String key) {
+        return new net.exylia.lib.effect.internal.CooldownTimer(
+                net.exylia.lib.util.CooldownScope.player(player.getUniqueId()), key);
+    }
+
+    /**
+     * Creates a timer that reads a running cooldown, measured against a total
+     * you name.
+     *
+     * <p>For a bar created after the cooldown started, which would otherwise
+     * measure itself against whatever happened to be left.
+     *
+     * @param player       the player whose cooldown to show
+     * @param key          the cooldown's key
+     * @param totalSeconds what a full bar means
+     * @return the timer
+     * @since 1.12.0
+     */
+    static @NotNull Timer ofCooldown(@NotNull org.bukkit.entity.Player player,
+                                     @NotNull String key, double totalSeconds) {
+        return new net.exylia.lib.effect.internal.CooldownTimer(
+                net.exylia.lib.util.CooldownScope.player(player.getUniqueId()),
+                key, totalSeconds);
+    }
+
+    /**
+     * Creates a timer that reads a cooldown belonging to any owner.
+     *
+     * <p>For a boss bar counting down something the whole server shares:
+     *
+     * <pre>{@code
+     * Timer.ofCooldown(CooldownScope.GLOBAL, "world-boss");
+     * }</pre>
+     *
+     * @param scope whose cooldown to show
+     * @param key   the cooldown's key
+     * @return the timer
+     * @since 1.12.0
+     */
+    static @NotNull Timer ofCooldown(@NotNull net.exylia.lib.util.CooldownScope scope,
+                                     @NotNull String key) {
+        return new net.exylia.lib.effect.internal.CooldownTimer(scope, key);
+    }
+
+    /**
      * Advances the timer.
      *
      * <p>Called by whatever drives the effect. Advancing past the end clamps

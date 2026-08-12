@@ -79,9 +79,15 @@ public final class ItemCooldowns {
         return Cooldowns.remaining(player, NAMESPACE + material.name().toLowerCase());
     }
 
-    /** Returns the seconds left on a material, rounded up. */
-    public static long remainingSeconds(@NotNull Player player, @NotNull Material material) {
+    /** Returns the seconds left on a material, decimals included. */
+    public static double remainingSeconds(@NotNull Player player, @NotNull Material material) {
         return Cooldowns.remainingSeconds(player, NAMESPACE + material.name().toLowerCase());
+    }
+
+    /** Returns what is left on a material, written for a player to read. */
+    public static @NotNull String remainingFormatted(@NotNull Player player,
+                                                     @NotNull Material material) {
+        return Cooldowns.remainingFormatted(player, NAMESPACE + material.name().toLowerCase());
     }
 
     /** Ends a material's cooldown early, clearing the overlay with it. */
@@ -126,9 +132,15 @@ public final class ItemCooldowns {
         return Cooldowns.remaining(player, NAMESPACE + key);
     }
 
-    /** Returns the seconds left on a named item, rounded up. */
-    public static long remainingSeconds(@NotNull Player player, @NotNull String key) {
+    /** Returns the seconds left on a named item, decimals included. */
+    public static double remainingSeconds(@NotNull Player player, @NotNull String key) {
         return Cooldowns.remainingSeconds(player, NAMESPACE + key);
+    }
+
+    /** Returns what is left on a named item, written for a player to read. */
+    public static @NotNull String remainingFormatted(@NotNull Player player,
+                                                     @NotNull String key) {
+        return Cooldowns.remainingFormatted(player, NAMESPACE + key);
     }
 
     /** Ends a named item's cooldown early, clearing an overlay with it. */

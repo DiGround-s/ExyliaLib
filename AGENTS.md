@@ -326,6 +326,14 @@ específico va a `net.exylia.lib.util`.
   cooldowns largos cambiaron, a fichero temporal + move atómico.
 - **Al capa de ítems solo le toca lo suyo**: el overlay de Bukkit y la clave por
   material bajo `item:`. Contar el tiempo es de la base.
+- **El tiempo se muestra con decimales.** `remainingSeconds` devuelve
+  `double`; `remainingWholeSeconds` sigue redondeando arriba para mensajes de
+  "espera N segundos"; `remainingFormatted` da el texto listo pasando por
+  `TimeFormats`, la única implementación de formato de la lib (public en
+  `util`, compartida con `effect`).
+- **Un display lee un cooldown, no lo duplica.** `Timer.ofCooldown(...)` es un
+  puente: el cooldown sigue siendo la verdad, el display solo mira. `advance` y
+  `extend` no hacen nada en ese timer; dar más tiempo se hace vía `Cooldowns`.
 - **Medir antes de apilar.** El benchmark existe y está en el repo: ~32 ns con
   cooldown activo, ~8 ns cuando no hay nada. Cuando añadí scopes subió a 89 ns
   por culpa de `UUID.toString()` en cada llamada — el mismo pecado que le

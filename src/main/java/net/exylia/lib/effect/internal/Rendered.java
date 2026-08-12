@@ -1,6 +1,7 @@
 package net.exylia.lib.effect.internal;
 
 import net.exylia.lib.effect.Timer;
+import net.exylia.lib.util.TimeFormats;
 import net.exylia.lib.placeholder.Placeholders;
 import net.exylia.lib.text.Text;
 import net.kyori.adventure.text.Component;
