@@ -31,7 +31,7 @@ rules live in [AGENTS.md](AGENTS.md).
 | `hologram` | Available | Floating text, items and blocks sent as display-entity packets, per-player or shared |
 | `client` | Available | Waypoints, cooldowns and teammate markers on Lunar and Feather, without the caller knowing which |
 | `clan` | Available | One API for SimpleClans, Kingdoms, UltimateClans or any external provider; alliances and rivalries included |
-| `util` | Available | Small, self-contained utilities: potion effects from compact strings, per-player cooldowns |
+| `util` | Available | Small, self-contained utilities: potion effects from compact strings, and the cooldown base every other cooldown builds on |
 
 ---
 
@@ -1062,8 +1062,94 @@ when they leave, so the map cannot grow without bound.
 Seconds round **up**: with 400 ms left `remainingSeconds` says `1`, not `0`.
 Telling players "0 seconds" while still refusing the action is a lie.
 
-A key is any string. Two plugins using the same key share the cooldown — a
-feature when deliberate, a bug when not, so prefix keys that should be private.
+#### Owners other than a player
+
+Most cooldowns belong to a player, and every method has an overload for that.
+Anything else uses a scope:
+
+```java
+Cooldowns.start(CooldownScope.GLOBAL, "world-boss", Duration.ofHours(4));
+Cooldowns.start(CooldownScope.group(clanId), "war-declare", Duration.ofDays(1));
+Cooldowns.start(CooldownScope.of("region", "spawn"), "pvp-grace", Duration.ofMinutes(1));
+```
+
+A scope is its kind *and* its id, so a clan called `red` and a team called `red`
+are two different owners.
+
+#### Keys that cannot collide
+
+A key is any string, and two plugins both using `"pearl"` share one cooldown —
+occasionally what you want, usually a bug. Take a namespaced view and stop
+thinking about it:
+
+```java
+private final PluginCooldowns cooldowns = Cooldowns.forPlugin(this);
+cooldowns.tryStart(player, "pearl", Duration.ofSeconds(16));  // myplugin:pearl
+```
+
+#### Surviving a restart
+
+Cooldowns of **five minutes or more** are written to disk and come back with the
+server. Shorter ones are not: a sixteen-second cooldown is worth less than the
+disk write it costs, and it expires before anybody could read it back.
+
+Nothing is configured and nothing is asked of the caller — the duration decides.
+Writes go off the main thread, only for owners whose long cooldowns changed, and
+happen on quit, every five minutes, and at shutdown. Loading is async on join.
+
+The file is one line per cooldown, expiry first so keys may contain spaces:
+
+```
+1763925600000 myplugin:daily-reward
+```
+
+Written to a temporary file and moved into place, so a server killed mid-write
+leaves either the old file or the new one, never half of either.
+
+#### What it costs
+
+Measured over two million calls with two hundred players:
+
+| Call | Cost |
+| --- | --- |
+| `isActive`, cooldown running | ~32 ns |
+| `isActive`, key never set (the common case) | ~8 ns |
+| `isActive`, unknown player | ~4 ns |
+| `start` | ~49 ns |
+
+Two hundred players checking once a tick is about **0.013% of a tick**. Player
+scopes are cached rather than rebuilt per call, which is worth 7 ns on the hot
+path and about half the cost of a miss.
+
+### Item cooldowns
+
+The base, plus the sweep the client draws over the item:
+
+```java
+if (!ItemCooldowns.tryStart(player, Material.ENDER_PEARL, Duration.ofSeconds(16))) {
+    return; // the player is already watching the overlay
+}
+```
+
+Bukkit's own `setCooldown` draws the overlay and blocks the item, which is most
+of the job — so it is kept for exactly that. What it will not do is survive a
+restart, apply to something that is not a material, or tell another plugin what
+is going on, so the authoritative answer stays in `Cooldowns`.
+
+An item that is more than its material gets its own key and still shows the
+overlay of whatever it is made of:
+
+```java
+ItemCooldowns.tryStart(player, "fire-wand", Material.BLAZE_ROD, Duration.ofSeconds(30));
+```
+
+Item keys live under `item:`, so a plugin using the plain key `"ender_pearl"`
+for something else is untouched. Long item cooldowns persist for free, because
+they are ordinary cooldowns underneath.
+
+`ItemCooldowns.restore(player, material)` redraws the sweep for what is still
+running — the client forgets it on reconnect, so a cooldown that survived on the
+server would otherwise look free until used.
 
 ---
 

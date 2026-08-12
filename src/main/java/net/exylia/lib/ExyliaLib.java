@@ -49,6 +49,15 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
      */
     private static final long CLIENT_HANDSHAKE_TICKS = 20L;
 
+    /**
+     * How often long cooldowns are written out: five minutes.
+     *
+     * <p>Matched to the threshold that makes a cooldown persistent in the
+     * first place, so nothing worth saving can be lost by more than the
+     * interval that decided it was worth saving.
+     */
+    private static final long COOLDOWN_FLUSH_TICKS = 20L * 60L * 5L;
+
     private ConfigFile<Palette> palette;
 
     @Override
@@ -61,6 +70,12 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         HologramRuntime.init(this);
         ClientRuntime.init(this);
         ClanRuntime.init(this);
+        Cooldowns.init(this, task -> Tasks.of(this).runAsync(task));
+        // Long cooldowns are written every few minutes as well as on quit, so
+        // a server that dies without a clean shutdown loses minutes rather
+        // than everything.
+        Tasks.of(this).runAsyncTimer(
+                COOLDOWN_FLUSH_TICKS, COOLDOWN_FLUSH_TICKS, Cooldowns::flushAll);
 
         getLogger().info("ExyliaLib " + version() + " ready on " + Platform.current() + ".");
 
@@ -119,6 +134,7 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         HologramRuntime.removeEverything();
         ClientRuntime.shutdown();
         ClanRuntime.shutdown();
+        // Writes whatever is pending before the maps are emptied.
         Cooldowns.clearEverything();
         SidebarLibrary.close();
         Tasks.releaseAll();
@@ -183,6 +199,9 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
     @EventHandler(priority = EventPriority.MONITOR)
     public void onPlayerJoin(PlayerJoinEvent event) {
         org.bukkit.entity.Player player = event.getPlayer();
+        // Reading a file is not something the main thread should wait for.
+        java.util.UUID id = player.getUniqueId();
+        Tasks.of(this).runAsync(() -> Cooldowns.load(id));
         // An entity timer dies with its entity, so a player who leaves during
         // the wait costs nothing and needs no online check of its own.
         Tasks.of(this).runAtEntityLater(player, CLIENT_HANDSHAKE_TICKS, () -> {

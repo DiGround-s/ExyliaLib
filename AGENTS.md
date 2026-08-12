@@ -313,9 +313,26 @@ específico va a `net.exylia.lib.util`.
   El reloj es inyectable para que los tests no duerman. Los segundos redondean
   **hacia arriba**: decirle "0 segundos" a alguien a quien aún le niegas la
   acción es mentirle.
+- **`Cooldowns` es LA base de todos los cooldowns del ecosistema.** Ítems, chat
+  y lo que venga se construyen encima, nunca en paralelo. En ExyliaCommons
+  había cuatro implementaciones distintas y una (`channel`) tenía
+  `getRemainingSeconds()` devolviendo `0` siempre: nadie mira la cuarta copia.
+- **Un cooldown lo identifican `CooldownScope` + clave.** El scope es su tipo y
+  su id, así que `clan:red` y `team:red` son dueños distintos. Los scopes de
+  jugador se cachean, no se reconstruyen: vale 7 ns en la ruta caliente.
+- **Persistencia por umbral, sin configurar nada: >= 5 minutos va a disco.** Lo
+  decide la duración, no el llamante. Menos de eso no compensa la escritura y
+  habría expirado antes de leerse. Se escribe async, solo de los dueños cuyos
+  cooldowns largos cambiaron, a fichero temporal + move atómico.
+- **Al capa de ítems solo le toca lo suyo**: el overlay de Bukkit y la clave por
+  material bajo `item:`. Contar el tiempo es de la base.
+- **Medir antes de apilar.** El benchmark existe y está en el repo: ~32 ns con
+  cooldown activo, ~8 ns cuando no hay nada. Cuando añadí scopes subió a 89 ns
+  por culpa de `UUID.toString()` en cada llamada — el mismo pecado que le
+  critiqué a commons. Se arregló guardando el UUID y cacheando el scope.
 - **Las futuras utilidades** (inventarios, timestamps, etc.) siguen el mismo
   patrón: clase propia, caché donde tenga sentido, y una costura inyectable
-  (reloj, resolver) para que se puedan testear sin servidor.
+  (reloj, resolver, overlay) para que se puedan testear sin servidor.
 
 ### Packets antes que estado
 

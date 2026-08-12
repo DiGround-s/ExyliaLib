@@ -36,6 +36,7 @@ class CooldownsTest {
         other = new FakePlayer("Alex");
         FakeServer.online(player.player(), other.player());
 
+        Cooldowns.removeStore();
         Cooldowns.clearEverything();
         Cooldowns.setClock(now::get);
     }
@@ -240,12 +241,12 @@ class CooldownsTest {
     @DisplayName("an expired cooldown is dropped from the map when it is read")
     void expiredEntriesAreDropped() {
         Cooldowns.start(player.player(), "pearl", Duration.ofSeconds(16));
-        assertEquals(1, Cooldowns.trackedPlayers());
+        assertEquals(1, Cooldowns.trackedOwners());
 
         advance(Duration.ofSeconds(17));
         Cooldowns.isActive(player.player(), "pearl");
 
-        assertEquals(0, Cooldowns.trackedPlayers(),
+        assertEquals(0, Cooldowns.trackedOwners(),
                 "nothing sweeps this map, so reading is the only chance to notice");
     }
 
@@ -259,7 +260,7 @@ class CooldownsTest {
 
         // At exactly the expiry instant the cooldown is over, so its entry has
         // no reason to survive the read that noticed.
-        assertEquals(0, Cooldowns.trackedPlayers());
+        assertEquals(0, Cooldowns.trackedOwners());
     }
 
     @Test
@@ -269,7 +270,7 @@ class CooldownsTest {
 
         // Storing an already-expired entry would work, but it writes a map
         // entry for something that was over before it began.
-        assertEquals(0, Cooldowns.trackedPlayers());
+        assertEquals(0, Cooldowns.trackedOwners());
     }
 
     @Test
@@ -278,7 +279,7 @@ class CooldownsTest {
         Cooldowns.start(player.player(), "pearl", Duration.ofSeconds(16));
         Cooldowns.start(player.player(), "pearl", Duration.ZERO);
 
-        assertEquals(0, Cooldowns.trackedPlayers());
+        assertEquals(0, Cooldowns.trackedOwners());
     }
 
     @Test
@@ -289,7 +290,7 @@ class CooldownsTest {
 
         Cooldowns.forget(player.player().getUniqueId());
 
-        assertEquals(1, Cooldowns.trackedPlayers());
+        assertEquals(1, Cooldowns.trackedOwners());
         assertTrue(Cooldowns.isActive(other.player(), "pearl"));
     }
 
