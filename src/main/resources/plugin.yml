@@ -7,3 +7,8 @@ website: https://github.com/DiGround-s/ExyliaLib
 authors: [Exylia]
 load: STARTUP
 folia-supported: true
+# The command framework, provided by the server's library loader at runtime
+# (Maven Central), exactly as every consumer plugin declares it.
+libraries:
+  - 'io.github.revxrsal:lamp.common:4.0.0-rc.17'
+  - 'io.github.revxrsal:lamp.bukkit:4.0.0-rc.17'

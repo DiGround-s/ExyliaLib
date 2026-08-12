@@ -8,6 +8,7 @@ import net.exylia.lib.clan.internal.ClanRuntime;
 import net.exylia.lib.client.internal.ClientRuntime;
 import net.exylia.lib.hologram.internal.HologramRuntime;
 import net.exylia.lib.internal.ExyliaLibUpdater;
+import net.exylia.lib.internal.Commands;
 import net.exylia.lib.internal.LibrarySettings;
 import net.exylia.lib.placeholder.Placeholders;
 import net.exylia.lib.util.Cooldowns;
@@ -76,7 +77,7 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         // than everything.
         Tasks.of(this).runAsyncTimer(
                 COOLDOWN_FLUSH_TICKS, COOLDOWN_FLUSH_TICKS, Cooldowns::flushAll);
-
+        Commands.register(this);
         getLogger().info("ExyliaLib " + version() + " ready on " + Platform.current() + ".");
 
         // Check for updates asynchronously — never block the main thread.
@@ -120,9 +121,11 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
      * <p>Paper deprecates {@code getDescription()} in favour of
      * {@code getPluginMeta()}, but that method does not exist on Spigot, where
      * calling it would fail at runtime. The deprecated call is the portable one.
+     *
+     * @return the running version
      */
     @SuppressWarnings("deprecation")
-    private String version() {
+    public String version() {
         return getDescription().getVersion();
     }
 

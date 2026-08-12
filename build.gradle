@@ -8,7 +8,7 @@ plugins {
 }
 
 group = 'net.exylia'
-version = '1.13.0'
+version = '1.14.0'
 description = 'Shared high-performance library for Exylia Minecraft plugins.'
 
 def targetJavaVersion = 21
@@ -100,6 +100,11 @@ dependencies {
     // FeatherServerAPI) is enabled. Never shaded — the consumer plugin or
     // server must provide them.
     compileOnly 'com.lunarclient:apollo-api:1.2.4'
+    // Lamp: the command framework the whole ecosystem standardises on.
+    // compileOnly like everywhere else; the server provides it through the
+    // plugin.yml libraries section, exactly as the consumer plugins do.
+    compileOnly 'io.github.revxrsal:lamp.common:4.0.0-rc.17'
+    compileOnly 'io.github.revxrsal:lamp.bukkit:4.0.0-rc.17'
     // scoreboard-library: packet-level sidebars, the same library ExyliaCommons
     // consumes. Shaded and relocated into the jar (see shadowJar below), so it
     // is declared in the shadow configuration: bundled, but kept out of the
@@ -124,6 +129,8 @@ dependencies {
     // Tests drive the schedulers for real, so the server API must be on the test
     // runtime classpath too, not just at compile time.
     testImplementation 'io.papermc.paper:paper-api:1.21.4-R0.1-SNAPSHOT'
+    testImplementation 'io.github.revxrsal:lamp.common:4.0.0-rc.17'
+    testImplementation 'io.github.revxrsal:lamp.bukkit:4.0.0-rc.17'
     testImplementation 'com.github.ben-manes.caffeine:caffeine:3.2.4'
 }
 

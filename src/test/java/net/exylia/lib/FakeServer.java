@@ -302,7 +302,8 @@ public final class FakeServer {
                 });
     }
 
-    static Object defaultValue(Class<?> type) {
+    /** Default return values for proxy methods nobody stubbed. */
+    public static Object defaultValue(Class<?> type) {
         if (!type.isPrimitive()) {
             return null;
         }

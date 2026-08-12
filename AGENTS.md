@@ -45,6 +45,7 @@ I/O. Ver *Decisiones cerradas*.
 | API | paper-api 1.21.4 (`compileOnly`) |
 | Plataformas | Spigot, Paper, Purpur y **Folia**, desde un solo build |
 | Packets | PacketEvents 2.13.0 (`compileOnly`) |
+| Comandos | Lamp 4.0.0-rc.17 (`compileOnly` + `libraries:` en plugin.yml) |
 | Sidebars | scoreboard-library 2.8.1 (**shadeada y relocalizada**) |
 | Caché | Caffeine 3.2.4 |
 | Build | Gradle, `java-library` + `maven-publish` + `shadow` |
@@ -341,6 +342,27 @@ específico va a `net.exylia.lib.util`.
 - **Las futuras utilidades** (inventarios, timestamps, etc.) siguen el mismo
   patrón: clase propia, caché donde tenga sentido, y una costura inyectable
   (reloj, resolver, overlay) para que se puedan testear sin servidor.
+
+### Comandos — siempre Lamp, nunca un executor a mano
+
+Todo comando se escribe con **Lamp** (`io.github.revxrsal:lamp.*`), la base
+del ecosistema: `compileOnly` en Gradle y `libraries:` en el plugin.yml para
+que el servidor la descargue de Maven Central. Nunca `onCommand`, ni un
+`CommandExecutor` propio, ni otra versión que la del resto de plugins.
+
+### Reload — cada cual recarga lo suyo
+
+- **No hay sistema de reload.** `Configs.reloadAll(plugin)` + `onReload` lo
+  cubren; un plugin se recarga a sí mismo en tres líneas y nunca toca la lib.
+- **`/exylialib reload` recarga solo la paleta** y basta para recolorear todo
+  el servidor: `Colors.apply` → se descarta la caché de `TextEngine` →
+  `BoardManager` y `HologramRuntime` se re-envían enteros.
+- **"Reload lib → reload plugin" está prohibido**: el plugin no necesita nada
+  de la lib para recargarse, y recargar la paleta desde un consumidor
+  re-enviaría los visuales de TODOS los plugins.
+- **Excepción conocida**: lo que un plugin parseó una vez y guardó (una GUI
+  construida en `onEnable`) conserva colores viejos hasta que el plugin lo
+  reconstruya en su `onReload`. Convención: ahí se reconstruye.
 
 ### Debug — seis métodos y un toggle
 
