@@ -25,6 +25,7 @@ Text.of("{primary}&lWELCOME &8[{success}online&8]").send(player);
 | Method | Contract |
 | --- | --- |
 | `of(String)` | the chainable form |
+| `from(plugin, String)` | same, for a message belonging to a plugin, so `%prefix%` resolves |
 | `component(String)` | straight to a `Component` |
 | `with(placeholder, value)` | substitute on the parsed component; values that change per player go here, never concatenated |
 | `forPlayer(player)` | resolve `%placeholders%` for that viewer when building |
@@ -43,6 +44,33 @@ Text.of("{primary}&lWELCOME &8[{success}online&8]").send(player);
 `letters`, `letters_black`, `success`, `success_light`, `warning`,
 `warning_light`, `info`, `info_light`, `accent`, `neutral`, `highlight`,
 `muted`), each a hex string.
+
+## The prefix
+
+Nearly every message a plugin sends starts with the same tag. Written into each
+line, changing it means editing the whole file; registered as a placeholder, two
+plugins fight over the one name `%prefix%`. So a prefix belongs to a plugin:
+
+```java
+Prefixes.set(this, messages.prefix());                       // on enable, and on reload
+Text.from(this, messages.warmup().ready()).send(player);     // %prefix% resolves
+```
+
+| Method | Contract |
+| --- | --- |
+| `Prefixes.set(plugin, prefix)` | set it; call again after a reload |
+| `Prefixes.get(plugin)` | the prefix, or `null` |
+| `Prefixes.release(name)` | forget it; done for you when the plugin disables |
+
+Contracts:
+
+- Two plugins can both use `%prefix%` in their own files and each gets its own.
+- `Text.of` leaves `%prefix%` alone. Text that does not say which plugin it came
+  from has no prefix to use, and guessing would be worse than showing the token.
+- A plugin that never set one leaves `%prefix%` visible, so the omission is
+  obvious rather than silent.
+- The prefix is substituted **before** parsing and **before** centring: it
+  carries its own colours, and its width counts towards a centred line.
 
 ## Effects inside a message
 

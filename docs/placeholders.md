@@ -40,7 +40,7 @@ Formats (`placeholder/internal/Formats.java`): `comma`, `compact`/`short`,
 
 | Method | Contract |
 | --- | --- |
-| `apply(text, viewer)` / `apply(text, viewer, data)` / `apply(text)` | resolve all placeholders in a string |
+| `apply(text, viewer)` / `apply(text, viewer, data)` / `apply(text)` | resolve all placeholders in a string; `data` also **supplies** values, see below |
 | `applyRelational(text, viewer, target)` | relational variant |
 | `compile(text)` → `Template` | parse once, render many — a scoreboard line measured 3.4x faster than passing the string each tick |
 | `isDynamic(text)` | whether the text contains placeholders |
@@ -59,8 +59,29 @@ Formats (`placeholder/internal/Formats.java`): `comma`, `compact`/`short`,
 `argCount()`, `get(key, type)` / `get(key, type, fallback)`,
 `isRelational()`. `Request.EMPTY` exists.
 
+## Values for one message
+
+Most values a message needs exist only for that message — the class a player is
+joining, the seconds left. Registering a server-wide resolver for those makes no
+sense, so pass them with the render:
+
+```java
+Placeholders.apply(raw, player, Map.of("class", "Warrior", "time", "3"));
+// or, keeping the parse cache, Text.of(raw).with("%class%", "Warrior")
+```
+
+- A **registered resolver always wins.** It is the considered, server-wide
+  answer, and a value attached to one message must not shadow `%player_name%`
+  by accident.
+- The map is consulted only when no resolver owns the name. A resolver that
+  legitimately returned nothing is not overridden by stray data.
+- Formats still apply: `%coins:comma%` with `coins = 1234567` gives `1,234,567`.
+
 ## Rules
 
+- **A placeholder nothing resolves is left as written and reported once** to the
+  console, naming the placeholder and how to supply it. Before this it failed in
+  silence, and the first anyone knew was a player seeing `%class%` in chat.
 - **Return `null` to say "no value", never `""`.** The module applies the
   fallback (`%x|default%`) or leaves the placeholder visible so a typo shows.
 - A resolver that throws is reported once and treated as no-value. Nothing

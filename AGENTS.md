@@ -163,6 +163,18 @@ Text.of("{primary}&lWELCOME").send(player);
   - Un efecto malformado se reporta y se salta: **el mensaje siempre llega**.
   - `Text` no reproduce nada por su cuenta: le pide a `Effects`, como
     cualquier plugin.
+- **El `Map` de `apply` da valores, no solo contexto.** Un resolver registrado
+  gana siempre; el mapa se consulta cuando nadie posee el nombre. La necesidad
+  más común al mandar un mensaje es "sustituye esto aquí", y durante un tiempo
+  la firma obvia no hacía nada: el primer plugin migrado mandó `%class%` literal
+  al chat de un servidor en vivo.
+- **Un placeholder que no resuelve se reporta**, una vez por nombre. Fallar en
+  silencio significa que el bug lo encuentra un jugador, no el desarrollador.
+- **El prefijo es por plugin, no del servidor.** El registro de placeholders es
+  un mapa plano por nombre: un `%prefix%` global haría que dos plugins se
+  pelearan por él. `Text.of` lo deja intacto a propósito — texto que no dice de
+  qué plugin viene no tiene prefijo que usar. Se sustituye antes de parsear y
+  antes de centrar, porque lleva colores propios y su ancho cuenta.
 - **Centrar se mide en píxeles, no en caracteres.** La fuente de Minecraft no
   es monoespaciada. La tabla de anchos es la de commons para que una línea
   centrada allí lo siga estando aquí; el formato (tags, códigos legacy,
@@ -533,6 +545,7 @@ Raíz de código: `src/main/java/net/exylia/lib/`. Raíz de tests:
 | comando `/exylialib` | — | `internal/ReloadCommand`, `internal/Commands` (Lamp confinado) | [docs/reload.md](docs/reload.md) | 1.14.0 |
 | reload | `reload/Reloads` (+ `Reloads.Report`) | disparo en `ExyliaLib.loadPalette`; liberación en `onPluginDisable`/`onDisable` | [docs/reload.md](docs/reload.md) | 1.15.0 |
 | efectos en mensajes + centrado | `text/Centering` | `text/internal/EffectTag`, `EffectTagPlayer`, `text/FontWidths` | [docs/text.md](docs/text.md) | 1.17.0 |
+| prefijo por plugin | `text/Prefixes` | sustitución en `Text.build`; limpieza en `ExyliaLib.onPluginDisable` | [docs/text.md](docs/text.md) | 1.17.2 |
 
 Clases raíz que no son módulo: `ExyliaLib.java` (ciclo de vida y limpieza),
 `platform/Platform.java`, `internal/LibrarySettings`, `internal/ExyliaLibUpdater`.
