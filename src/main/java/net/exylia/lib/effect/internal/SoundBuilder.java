@@ -90,11 +90,21 @@ public final class SoundBuilder {
     public boolean show(@NotNull Player viewer) {
         Location where = location != null ? location : viewer.getLocation();
 
-        if (Packets.available()) {
-            return PacketSender.sound(viewer, name, category,
-                    where.getX(), where.getY(), where.getZ(), volume, pitch);
+        // A false from the packet path means the registry did not know the
+        // name, not that the sound played; an exception means the classloader
+        // cannot see PacketEvents, which a PlugMan-style load produces. Either
+        // way Bukkit is the difference between silence and the sound the
+        // config asked for.
+        String key = resolvedKey();
+        try {
+            if (Packets.available() && PacketSender.sound(viewer, key, category,
+                    where.getX(), where.getY(), where.getZ(), volume, pitch)) {
+                return true;
+            }
+        } catch (Throwable ignored) {
+            // Fall through to the Bukkit API.
         }
-        return fallback(viewer, where);
+        return fallback(viewer, where, key);
     }
 
     /**
@@ -104,22 +114,53 @@ public final class SoundBuilder {
      * namespaced key directly, which avoids depending on an enum whose constants
      * move between versions.
      */
-    private boolean fallback(Player viewer, Location where) {
+    private boolean fallback(Player viewer, Location where, String key) {
         try {
-            viewer.playSound(where, bukkitName(), volume, pitch);
+            viewer.playSound(where, key, volume, pitch);
             return true;
         } catch (Throwable ignored) {
             return false;
         }
     }
 
-    /** Bukkit's string form is the lower-case dotted key. */
-    private String bukkitName() {
-        String trimmed = name.trim().toLowerCase(Locale.ROOT);
-        if (trimmed.indexOf(':') >= 0) {
-            trimmed = trimmed.substring(trimmed.indexOf(':') + 1);
+    /**
+     * Resolves the written name to the key the client knows.
+     *
+     * <p>The mapping is not mechanical: {@code ENTITY_PLAYER_LEVELUP} is
+     * {@code entity.player.levelup} but {@code BLOCK_NOTE_BLOCK_PLING} is
+     * {@code block.note_block.pling}, with an underscore inside the key. Turning
+     * every underscore into a dot — the obvious rule — invents a sound that does
+     * not exist, and the client answers with silence. That is exactly the bug a
+     * live server heard. So a Bukkit enum name is resolved through the enum,
+     * which knows its own key, and anything else is treated as a key already,
+     * namespace intact.
+     */
+    /**
+     * Test seam: the enum-backed resolution needs a live server registry, so
+     * tests inject the answer the enum would give.
+     */
+    static volatile java.util.function.UnaryOperator<String> keyResolver;
+
+    private String resolvedKey() {
+        java.util.function.UnaryOperator<String> injected = keyResolver;
+        if (injected != null) {
+            return injected.apply(name.trim());
         }
-        return trimmed.indexOf('.') >= 0 ? trimmed : trimmed.replace('_', '.');
+        String trimmed = name.trim();
+        try {
+            org.bukkit.Sound sound = org.bukkit.Sound.valueOf(trimmed.toUpperCase(Locale.ROOT));
+            org.bukkit.NamespacedKey key = org.bukkit.Registry.SOUNDS.getKey(sound);
+            if (key != null) {
+                return key.toString();
+            }
+            return trimmed.toLowerCase(Locale.ROOT);
+        } catch (Throwable ignored) {
+            // Not an enum name — already a key — or no registry behind the
+            // enum at all. Either way the written text is the best key there
+            // is, and a namespace in it is kept on purpose: stripping one
+            // sends a resource pack's sound to minecraft:, where it is not.
+            return trimmed.toLowerCase(Locale.ROOT);
+        }
     }
 
     /** Plays the sound for everybody online. */

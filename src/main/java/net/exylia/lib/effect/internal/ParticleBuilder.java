@@ -120,10 +120,14 @@ public final class ParticleBuilder {
     public boolean show(@NotNull Player viewer) {
         Location where = location != null ? location : viewer.getLocation();
 
-        if (Packets.available()) {
-            return PacketSender.particle(viewer, name,
+        try {
+            if (Packets.available() && PacketSender.particle(viewer, name,
                     where.getX(), where.getY(), where.getZ(),
-                    offsetX, offsetY, offsetZ, speed, count, longDistance);
+                    offsetX, offsetY, offsetZ, speed, count, longDistance)) {
+                return true;
+            }
+        } catch (Throwable ignored) {
+            // Fall through to the Bukkit API.
         }
         return fallback(viewer, where);
     }

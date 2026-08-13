@@ -1,6 +1,10 @@
 package net.exylia.lib.text;
 
 import net.exylia.lib.placeholder.Placeholders;
+import net.exylia.lib.placeholder.Request;
+import net.exylia.lib.placeholder.Template;
+import net.exylia.lib.placeholder.internal.CompiledTemplate;
+import net.exylia.lib.placeholder.internal.ValueRenderer;
 import net.exylia.lib.text.internal.EffectTag;
 import net.exylia.lib.text.internal.EffectTagPlayer;
 import net.exylia.lib.text.internal.TextEngine;
@@ -13,7 +17,10 @@ import org.bukkit.plugin.Plugin;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 /**
  * Turns text into Adventure components, understanding every notation Exylia
@@ -71,8 +78,12 @@ public final class Text {
     private static final LegacyComponentSerializer SECTION = LegacyComponentSerializer.legacySection();
 
     private final String raw;
-    private final List<String> keys;
-    private final List<String> values;
+
+    /** A value to substitute: the exact text it replaces and how it is inserted. */
+    private record Substitution(String key, String value, boolean formatted) {
+    }
+
+    private final List<Substitution> substitutions;
 
     /** Who the placeholders are resolved for, or {@code null} to leave them alone. */
     private final Player viewer;
@@ -80,12 +91,8 @@ public final class Text {
     /** The plugin this text belongs to, so {@code %prefix%} knows whose to use. */
     private final Plugin owner;
 
-    private Text(String raw, List<String> keys, List<String> values, Player viewer, Plugin owner) {
-        this.raw = raw;
-        this.keys = keys;
-        this.values = values;
-        this.viewer = viewer;
-        this.owner = owner;
+    private Text(String raw, List<Substitution> substitutions, Player viewer, Plugin owner) {
+        this(raw, substitutions, viewer, owner, false);
     }
 
     /**
@@ -97,7 +104,7 @@ public final class Text {
      * @return the prepared text
      */
     public static @NotNull Text of(@NotNull String text) {
-        return new Text(text, List.of(), List.of(), null, null);
+        return new Text(text, List.of(), null, null);
     }
 
     /**
@@ -120,7 +127,7 @@ public final class Text {
      * @return the prepared text
      */
     public static @NotNull Text from(@NotNull Plugin plugin, @NotNull String text) {
-        return new Text(text, List.of(), List.of(), null, plugin);
+        return new Text(text, List.of(), null, plugin);
     }
 
     /**
@@ -153,13 +160,31 @@ public final class Text {
      * @return a new prepared text; the original is unchanged
      */
     public @NotNull Text with(@NotNull String placeholder, Object value) {
-        List<String> newKeys = new ArrayList<>(keys.size() + 1);
-        List<String> newValues = new ArrayList<>(values.size() + 1);
-        newKeys.addAll(keys);
-        newValues.addAll(values);
-        newKeys.add(placeholder);
-        newValues.add(value == null ? "" : String.valueOf(value));
-        return new Text(raw, newKeys, newValues, viewer, owner);
+        return substitute(placeholder, value, false);
+    }
+
+    /**
+     * Substitutes a value that carries its own formatting.
+     *
+     * <p>For values that come from a config and say what they look like, such
+     * as a class's display name written as {@code <#c8c8c8><bold>ARCHER</bold>}.
+     * The value goes through the same parser as the message itself, so its
+     * colours and styles are honoured — which {@link #with} deliberately
+     * refuses, because a value typed by a player is data, not formatting.
+     *
+     * @param placeholder the exact text to replace, such as {@code %class%}
+     * @param value       the value to parse and insert
+     * @return a new prepared text; the original is unchanged
+     */
+    public @NotNull Text withFormatted(@NotNull String placeholder, Object value) {
+        return substitute(placeholder, value, true);
+    }
+
+    private Text substitute(String placeholder, Object value, boolean formatted) {
+        List<Substitution> updated = new ArrayList<>(substitutions.size() + 1);
+        updated.addAll(substitutions);
+        updated.add(new Substitution(placeholder, value == null ? "" : String.valueOf(value), formatted));
+        return new Text(raw, updated, viewer, owner);
     }
 
     /**
@@ -182,7 +207,36 @@ public final class Text {
      * @return a new prepared text; the original is unchanged
      */
     public @NotNull Text forPlayer(Player player) {
-        return new Text(raw, keys, values, player, owner);
+        return new Text(raw, substitutions, player, owner);
+    }
+
+    /**
+     * Resolves registered placeholders for a player, honouring formatting in
+     * the values they return.
+     *
+     * <p>For placeholders that answer with a display name from a config — a
+     * class shown as {@code <#c8c8c8><bold>ARCHER</bold>} — where inserting the
+     * answer as literal text would print the raw tags to chat. Values typed by
+     * players should come back through a resolver that strips formatting, not
+     * through this.
+     *
+     * @param player who to resolve for
+     * @return a new prepared text; the original is unchanged
+     */
+    public @NotNull Text forPlayerFormatted(Player player) {
+        return new Text(raw, substitutions, player, owner, true);
+    }
+
+    /** Whether resolved placeholder values are parsed for formatting. */
+    private final boolean resolveFormatted;
+
+    private Text(String raw, List<Substitution> substitutions, Player viewer, Plugin owner,
+                 boolean resolveFormatted) {
+        this.raw = raw;
+        this.substitutions = substitutions;
+        this.viewer = viewer;
+        this.owner = owner;
+        this.resolveFormatted = resolveFormatted;
     }
 
     /**
@@ -204,24 +258,59 @@ public final class Text {
         Component component = TextEngine.parse(source);
 
         if (viewer != null) {
-            List<String> pairs = Placeholders.resolveInto(raw, viewer);
-            for (int i = 0; i < pairs.size(); i += 2) {
-                String placeholder = pairs.get(i);
-                String value = pairs.get(i + 1);
+            // The names this class substitutes itself are told to the resolver,
+            // so a value supplied through with() is not reported as unknown
+            // moments before being substituted — which is exactly the false
+            // alarm that fired on a live server.
+            Template template = Placeholders.compile(raw);
+            List<String> triples = template instanceof CompiledTemplate compiled
+                    ? compiled.resolveTriples(new Request(viewer, viewer, List.of(), Map.of()),
+                            resolveFormatted ? FORMATTED_RENDERER : ValueRenderer.LITERAL,
+                            handledNames())
+                    : List.of();
+            for (int i = 0; i < triples.size(); i += 3) {
+                String placeholder = triples.get(i);
+                String value = triples.get(i + 1);
+                Component replacement = triples.get(i + 2).equals("formatted")
+                        ? TextEngine.parseUncached(value)
+                        : Component.text(value);
                 component = component.replaceText(builder -> builder
                         .matchLiteral(placeholder)
-                        .replacement(Component.text(value)));
+                        .replacement(replacement));
             }
         }
 
-        for (int i = 0; i < keys.size(); i++) {
-            String key = keys.get(i);
-            String value = values.get(i);
+        for (Substitution substitution : substitutions) {
+            Component replacement = substitution.formatted()
+                    ? TextEngine.parseUncached(substitution.value())
+                    : Component.text(substitution.value());
             component = component.replaceText(builder -> builder
-                    .matchLiteral(key)
-                    .replacement(Component.text(value)));
+                    .matchLiteral(substitution.key())
+                    .replacement(replacement));
         }
         return component;
+    }
+
+    /** Parses a trusted value, honouring its formatting. */
+    private static final ValueRenderer FORMATTED_RENDERER = TextEngine::parseUncached;
+
+    /**
+     * The placeholder names this text substitutes itself, so the resolver does
+     * not report them as unknown.
+     */
+    private Set<String> handledNames() {
+        Set<String> names = new HashSet<>();
+        for (Substitution substitution : substitutions) {
+            String key = substitution.key();
+            if (key.length() > 2 && key.startsWith("%") && key.endsWith("%")) {
+                names.add(key.substring(1, key.length() - 1));
+            }
+        }
+        if (owner != null) {
+            // The prefix is substituted on the string before parsing.
+            names.add("prefix");
+        }
+        return names;
     }
 
     /**

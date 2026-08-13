@@ -85,6 +85,21 @@ ends), `progress(float)`.
 
 ## Contracts
 
+- **Packets are a preference, never a requirement.** If the packet registry does
+  not know a name — or PacketEvents cannot even be seen through the classloader
+  — the effect goes out through the Bukkit API instead. A false from the packet
+  path means "I do not know this name", not "it played".
+- **A sound name resolves through the enum, not through string rules.**
+  `BLOCK_NOTE_BLOCK_PLING` is `block.note_block.pling` — an underscore *inside*
+  the key — while `ENTITY_PLAYER_LEVELUP` is `entity.player.levelup`. No
+  underscore-to-dot rule survives both, and inventing the wrong key is answered
+  by the client with silence.
+- **A custom key is passed to Bukkit unchanged, namespace included.** The string
+  API cannot validate resource-pack sounds server-side; mutating them only
+  breaks the valid ones.
+
+
+
 - Without a timer the effect stays until stopped.
 - Static text never schedules a task: nothing changing means one packet, not
   a per-tick task.

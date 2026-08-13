@@ -163,6 +163,22 @@ Text.of("{primary}&lWELCOME").send(player);
   - Un efecto malformado se reporta y se salta: **el mensaje siempre llega**.
   - `Text` no reproduce nada por su cuenta: le pide a `Effects`, como
     cualquier plugin.
+- **La vía de paquetes es una preferencia, nunca un requisito.** Si el registry
+  de PacketEvents no conoce un nombre — o el classloader no ve PacketEvents —
+  el efecto sale por la API de Bukkit. Un `false` del packet path significa
+  "no conozco ese nombre", no "sonó".
+- **Las claves de sonido no se derivan con reglas de strings.**
+  `BLOCK_NOTE_BLOCK_PLING` es `block.note_block.pling` (guión bajo *dentro* de
+  la clave) pero `ENTITY_PLAYER_LEVELUP` es `entity.player.levelup`. Se resuelve
+  por el enum de Bukkit; inventar la clave mal la paga el cliente con silencio.
+- **Los valores sustituidos son literales por defecto, formateados a pedido.**
+  `with()` inserta texto plano (lo que teclea un jugador no puede inyectar
+  formato); `withFormatted()`/`forPlayerFormatted()` parsean el valor (un
+  display name de config *es* su formato). Elegir mal en cualquiera de los dos
+  sentidos es un bug visible en chat.
+- **El aviso de placeholder desconocido distingue "sin dueño" de "sin valor".**
+  Un resolver registrado que devuelve null no es un placeholder desconocido, y
+  llamarlo así manda al autor a buscar un registro que existe.
 - **El `Map` de `apply` da valores, no solo contexto.** Un resolver registrado
   gana siempre; el mapa se consulta cuando nadie posee el nombre. La necesidad
   más común al mandar un mensaje es "sustituye esto aquí", y durante un tiempo

@@ -10,6 +10,7 @@ import org.jetbrains.annotations.Nullable;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.logging.Logger;
 
 /**
@@ -112,8 +113,15 @@ public final class CompiledTemplate implements Template {
                 if (part.fallback() != null) {
                     result.append(part.fallback());
                 } else {
-                    // Nothing resolved and no fallback: leave it visible so the
-                    // owner can see which placeholder is unknown.
+                    // Report only what nobody owns: a registered resolver that
+                    // answered "no value" — or failed and was already reported
+                    // — is not an unknown placeholder, and calling it one sends
+                    // its author looking for a registration that exists.
+                    if (!isKnown(part, request)) {
+                        Registry.reportUnknown(part.name(), logger);
+                    }
+                    // Leave it visible so the owner can see which placeholder
+                    // is unknown.
                     result.append(part.original());
                 }
                 continue;
@@ -154,11 +162,12 @@ public final class CompiledTemplate implements Template {
         if (Registry.has(part.name())) {
             return null;
         }
-        Object attached = request.data().get(part.name());
-        if (attached == null) {
-            Registry.reportUnknown(part.name(), logger);
-        }
-        return attached;
+        return request.data().get(part.name());
+    }
+
+    /** Whether anything claims this name: a resolver, or a value for this render. */
+    private boolean isKnown(Part part, Request request) {
+        return Registry.has(part.name()) || request.data().containsKey(part.name());
     }
 
     @Override
@@ -190,10 +199,38 @@ public final class CompiledTemplate implements Template {
      *         template has no placeholders
      */
     public List<String> resolvePairs(Request request) {
+        List<String> rich = resolveTriples(request, ValueRenderer.LITERAL, Set.of());
+        if (rich.isEmpty()) {
+            return rich;
+        }
+        // Public compatibility: resolvePairs has always returned alternating
+        // original and value. The richer form is for the text module.
+        List<String> pairs = new ArrayList<>((rich.size() / 3) * 2);
+        for (int i = 0; i < rich.size(); i += 3) {
+            pairs.add(rich.get(i));
+            pairs.add(rich.get(i + 1));
+        }
+        return pairs;
+    }
+
+    /**
+     * The form of {@link #resolvePairs} the text module uses: the caller says
+     * how each value becomes a component and which names it substitutes itself.
+     *
+     * @param request     who is asking
+     * @param renderer    literal for plain data, formatted for values that carry
+     *                    their formatting, such as a display name from a config
+     * @param handledHere names the caller replaces after this returns; an
+     *                    unknown one of those is not a mistake worth reporting
+     * @return alternating original text, rendered value, and "formatted" or
+     *         "literal" for how the value should be inserted
+     */
+    public List<String> resolveTriples(Request request, ValueRenderer renderer,
+                                       Set<String> handledHere) {
         if (!dynamic) {
             return List.of();
         }
-        List<String> pairs = new ArrayList<>(names.size() * 2);
+        List<String> pairs = new ArrayList<>(names.size() * 3);
         for (Part part : parts) {
             if (part.isLiteral()) {
                 continue;
@@ -203,19 +240,23 @@ public final class CompiledTemplate implements Template {
                     : new Request(request.viewer(), request.target(), part.args(), request.data());
 
             Object value = resolveWith(part, scoped);
-            String rendered;
             if (value == null) {
                 if (part.fallback() == null) {
-                    // Unknown placeholder: leave it alone rather than blanking
-                    // it, so a typo in a config is visible to its owner.
+                    if (!handledHere.contains(part.name()) && !isKnown(part, request)) {
+                        Registry.reportUnknown(part.name(), logger);
+                    }
+                    // Left alone either way: the caller substitutes it, or a
+                    // typo in a config stays visible to its owner.
                     continue;
                 }
-                rendered = part.fallback();
-            } else {
-                rendered = Formats.apply(value, part.format());
+                pairs.add(part.original());
+                pairs.add(part.fallback());
+                pairs.add("literal");
+                continue;
             }
             pairs.add(part.original());
-            pairs.add(rendered);
+            pairs.add(Formats.apply(value, part.format()));
+            pairs.add(renderer == ValueRenderer.LITERAL ? "literal" : "formatted");
         }
         return pairs;
     }

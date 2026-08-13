@@ -27,7 +27,9 @@ Text.of("{primary}&lWELCOME &8[{success}online&8]").send(player);
 | `of(String)` | the chainable form |
 | `from(plugin, String)` | same, for a message belonging to a plugin, so `%prefix%` resolves |
 | `component(String)` | straight to a `Component` |
-| `with(placeholder, value)` | substitute on the parsed component; values that change per player go here, never concatenated |
+| `with(placeholder, value)` | substitute on the parsed component, as literal text; values that change per player go here, never concatenated |
+| `withFormatted(placeholder, value)` | substitute a value that carries its own formatting — a display name from a config; never for text a player typed |
+| `forPlayerFormatted(player)` | like `forPlayer`, but resolver values that carry formatting (a display name) are honoured instead of shown raw |
 | `forPlayer(player)` | resolve `%placeholders%` for that viewer when building |
 | `build()` | the final `Component` |
 | `send(CommandSender)` | build and deliver |

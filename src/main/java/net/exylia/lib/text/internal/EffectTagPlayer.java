@@ -63,10 +63,14 @@ public final class EffectTagPlayer {
     /** {@code NAME|volume|pitch} */
     private static void playSound(String entry, Player viewer) {
         String[] parts = EffectTag.arguments(entry);
-        Effects.sound(parts[0])
+        boolean played = Effects.sound(parts[0])
                 .volume(EffectTag.number(parts, 1, 1.0))
                 .pitch(EffectTag.number(parts, 2, 1.0))
                 .show(viewer);
+        if (!played) {
+            logger.warning("The sound '" + parts[0] + "' in a message played for nobody:"
+                    + " neither the packet registry nor Bukkit knows that name.");
+        }
     }
 
     /** {@code NAME|count|offsetX|offsetY|offsetZ|speed} */
@@ -83,7 +87,10 @@ public final class EffectTagPlayer {
         if (parts.length >= 6) {
             particle.speed(EffectTag.number(parts, 5, 0));
         }
-        particle.show(viewer);
+        if (!particle.show(viewer)) {
+            logger.warning("The particle '" + parts[0] + "' in a message showed for nobody:"
+                    + " neither the packet registry nor Bukkit knows that name.");
+        }
     }
 
     /** {@code SHAPE|colour|fade|flicker|trail|power} */
