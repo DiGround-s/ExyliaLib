@@ -52,6 +52,9 @@ public final class Registry {
     public static void register(String name, Entry entry) {
         ENTRIES.put(name, entry);
         REPORTED.remove(name);
+        // Registering late clears the complaint, so a plugin that loads after
+        // the first render is not blamed forever.
+        REPORTED_UNKNOWN.remove(name);
         // A new registration can change how existing text splits into name and
         // arguments, so compiled templates are no longer trustworthy.
         TemplateCache.invalidate();
@@ -123,6 +126,30 @@ public final class Registry {
         }
     }
 
+    /** Names already reported as unknown, so a typo is mentioned once, not per tick. */
+    private static final Set<String> REPORTED_UNKNOWN = ConcurrentHashMap.newKeySet();
+
+    /**
+     * Reports a placeholder nobody could resolve.
+     *
+     * <p>An unresolved placeholder used to fail in silence: the text kept the
+     * {@code %name%} and the only way to notice was a player seeing it in chat,
+     * which is how {@code %class%} reached a live server. The name is mentioned
+     * once, because this is reached from scoreboards that render every tick.
+     *
+     * @param name   the placeholder that resolved to nothing
+     * @param logger where to report it
+     */
+    public static void reportUnknown(String name, Logger logger) {
+        if (REPORTED_UNKNOWN.add(name)) {
+            logger.warning("Placeholder %" + name + "% is not registered by any plugin"
+                    + " and no value was given for it, so it is left as written."
+                    + " Register it with Placeholders.register, or pass it per message"
+                    + " with Text.with(\"%" + name + "%\", value)."
+                    + " This is reported once per name.");
+        }
+    }
+
     /** Returns every registered name. */
     public static Set<String> names() {
         return Set.copyOf(ENTRIES.keySet());
@@ -148,6 +175,7 @@ public final class Registry {
     public static void clear() {
         ENTRIES.clear();
         REPORTED.clear();
+        REPORTED_UNKNOWN.clear();
         TemplateCache.invalidate();
     }
 }

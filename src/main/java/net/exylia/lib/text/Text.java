@@ -9,6 +9,7 @@ import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
 import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
+import org.bukkit.plugin.Plugin;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.ArrayList;
@@ -63,6 +64,9 @@ import java.util.List;
  */
 public final class Text {
 
+    /** The one placeholder the text module resolves itself, since it owns prefixes. */
+    private static final String PREFIX_TOKEN = "%prefix%";
+
     private static final PlainTextComponentSerializer PLAIN = PlainTextComponentSerializer.plainText();
     private static final LegacyComponentSerializer SECTION = LegacyComponentSerializer.legacySection();
 
@@ -73,11 +77,15 @@ public final class Text {
     /** Who the placeholders are resolved for, or {@code null} to leave them alone. */
     private final Player viewer;
 
-    private Text(String raw, List<String> keys, List<String> values, Player viewer) {
+    /** The plugin this text belongs to, so {@code %prefix%} knows whose to use. */
+    private final Plugin owner;
+
+    private Text(String raw, List<String> keys, List<String> values, Player viewer, Plugin owner) {
         this.raw = raw;
         this.keys = keys;
         this.values = values;
         this.viewer = viewer;
+        this.owner = owner;
     }
 
     /**
@@ -89,7 +97,30 @@ public final class Text {
      * @return the prepared text
      */
     public static @NotNull Text of(@NotNull String text) {
-        return new Text(text, List.of(), List.of(), null);
+        return new Text(text, List.of(), List.of(), null, null);
+    }
+
+    /**
+     * Prepares a message belonging to a plugin, so {@code %prefix%} resolves to
+     * that plugin's prefix.
+     *
+     * <p>For the ordinary case of a message read from a plugin's own messages
+     * file:
+     *
+     * <pre>{@code
+     * Prefixes.set(this, messages.prefix());
+     * Text.from(this, messages.warmup().ready()).send(player);
+     * }</pre>
+     *
+     * <p>{@link #of} leaves {@code %prefix%} untouched, because text that does
+     * not say which plugin it came from has no prefix to use.
+     *
+     * @param plugin the plugin the message belongs to
+     * @param text   the raw text, in any supported notation
+     * @return the prepared text
+     */
+    public static @NotNull Text from(@NotNull Plugin plugin, @NotNull String text) {
+        return new Text(text, List.of(), List.of(), null, plugin);
     }
 
     /**
@@ -128,7 +159,7 @@ public final class Text {
         newValues.addAll(values);
         newKeys.add(placeholder);
         newValues.add(value == null ? "" : String.valueOf(value));
-        return new Text(raw, newKeys, newValues, viewer);
+        return new Text(raw, newKeys, newValues, viewer, owner);
     }
 
     /**
@@ -151,7 +182,7 @@ public final class Text {
      * @return a new prepared text; the original is unchanged
      */
     public @NotNull Text forPlayer(Player player) {
-        return new Text(raw, keys, values, player);
+        return new Text(raw, keys, values, player, owner);
     }
 
     /**
@@ -163,9 +194,13 @@ public final class Text {
         // The tag is an instruction, not text: it never reaches the screen,
         // a log, or an item name.
         EffectTag.Parsed parsed = EffectTag.parse(raw);
-        String source = parsed.centered()
-                ? Centering.center(parsed.message())
-                : parsed.message();
+
+        // Before parsing and before centring: the prefix carries its own colours
+        // and its width counts towards a centred line.
+        String source = applyPrefix(parsed.message());
+        if (parsed.centered()) {
+            source = Centering.center(source);
+        }
         Component component = TextEngine.parse(source);
 
         if (viewer != null) {
@@ -187,6 +222,25 @@ public final class Text {
                     .replacement(Component.text(value)));
         }
         return component;
+    }
+
+    /**
+     * Substitutes {@code %prefix%} with the owning plugin's prefix.
+     *
+     * <p>Done on the string rather than on the component tree, because a prefix
+     * is formatting: {@code {primary}&lEXYLIA} has to go through the parser to
+     * become bold and coloured, and a value inserted into a component is
+     * deliberately literal.
+     *
+     * @param message the message, with the effect tag already removed
+     * @return the message with the prefix in place
+     */
+    private String applyPrefix(String message) {
+        if (owner == null || message.indexOf(PREFIX_TOKEN) < 0) {
+            return message;
+        }
+        String prefix = Prefixes.get(owner);
+        return prefix == null ? message : message.replace(PREFIX_TOKEN, prefix);
     }
 
     /**

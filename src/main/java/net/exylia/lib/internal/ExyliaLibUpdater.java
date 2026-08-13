@@ -48,6 +48,13 @@ public final class ExyliaLibUpdater {
     /**
      * Checks for an update and stages it if one is available.
      *
+     * <p>Run on shutdown as well as on startup. The server applies
+     * {@code plugins/update/} while it is discovering plugins, before it loads
+     * any of them, so a jar staged during shutdown is picked up by the very
+     * next start: one restart, not two. The startup pass stays as a safety net
+     * for servers that are killed rather than stopped, where {@code onDisable}
+     * never runs.
+     *
      * @param plugin the ExyliaLib plugin instance
      */
     public static void checkForUpdate(ExyliaLib plugin) {
@@ -84,12 +91,46 @@ public final class ExyliaLibUpdater {
             Path updateDir = updateDir();
             Files.createDirectories(updateDir);
             Path dest = updateDir.resolve("ExyliaLib.jar");
+
+            // Startup already staged this one, or a previous shutdown did.
+            // Downloading it again would cost the admin a slower stop for a
+            // file that is byte for byte what is already sitting there.
+            if (isAlready(dest, best.sha256)) {
+                plugin.getLogger().info(String.format(
+                    "ExyliaLib %s is already staged — will be applied on next restart.",
+                    best.version));
+                return;
+            }
+
             downloadWithVerification(best, dest, plugin);
             plugin.getLogger().info(String.format(
                 "ExyliaLib %s ready — will be applied on next restart.", best.version));
         } catch (Exception e) {
             plugin.getLogger().log(Level.WARNING,
                 "Failed to download ExyliaLib " + best.version + ": " + e.getMessage(), e);
+        }
+    }
+
+    /**
+     * Returns whether {@code file} already holds exactly the expected release.
+     *
+     * <p>Compares the hash rather than trusting the file name: a staged jar
+     * from an interrupted download would carry the right name and the wrong
+     * bytes, and skipping on name alone would keep serving it forever.
+     */
+    private static boolean isAlready(Path file, String expectedSha256) {
+        if (expectedSha256 == null || expectedSha256.isBlank()) return false;
+        if (!Files.isRegularFile(file)) return false;
+        try {
+            MessageDigest md = MessageDigest.getInstance("SHA-256");
+            byte[] digest = md.digest(Files.readAllBytes(file));
+            StringBuilder sb = new StringBuilder();
+            for (byte b : digest) sb.append(String.format("%02x", b));
+            return sb.toString().equalsIgnoreCase(expectedSha256);
+        } catch (NoSuchAlgorithmException e) {
+            throw new AssertionError("SHA-256 required", e);
+        } catch (IOException e) {
+            return false;
         }
     }
 

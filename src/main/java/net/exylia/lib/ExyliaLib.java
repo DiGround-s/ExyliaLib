@@ -13,6 +13,7 @@ import net.exylia.lib.internal.LibrarySettings;
 import net.exylia.lib.debug.Debug;
 import net.exylia.lib.placeholder.Placeholders;
 import net.exylia.lib.reload.Reloads;
+import net.exylia.lib.text.Prefixes;
 import net.exylia.lib.util.Cooldowns;
 import net.exylia.lib.placeholder.internal.BuiltIn;
 import net.exylia.lib.platform.Platform;
@@ -65,6 +66,12 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
 
     @Override
     public void onEnable() {
+        // First, before anything that could throw. A release that fails to
+        // start is exactly the one that most needs to fetch its replacement,
+        // and this used to sit at the end of onEnable where a broken version
+        // could never reach it.
+        startUpdateCheck();
+
         getServer().getPluginManager().registerEvents(this, this);
         loadPalette();
         Placeholders.logger(getLogger());
@@ -81,8 +88,17 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
                 COOLDOWN_FLUSH_TICKS, COOLDOWN_FLUSH_TICKS, Cooldowns::flushAll);
         Commands.register(this);
         getLogger().info("ExyliaLib " + version() + " ready on " + Platform.current() + ".");
+    }
 
-        // Check for updates asynchronously — never block the main thread.
+    /**
+     * Stages a newer release in the background, if there is one.
+     *
+     * <p>Off the main thread: this talks to the network and the server should
+     * not wait on it to finish starting. The shutdown pass is the one that
+     * matters for a single-restart update; this pass covers servers that were
+     * killed rather than stopped, and releases that cannot finish starting.
+     */
+    private void startUpdateCheck() {
         LibrarySettings.load(this);
         Thread updateThread = new Thread(
             () -> ExyliaLibUpdater.checkForUpdate(this),
@@ -139,6 +155,17 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
 
     @Override
     public void onDisable() {
+        // Stage any newer release now, while the server is on its way down.
+        // The next start applies plugins/update/ before it loads anything, so
+        // staging here is what turns updating into a single restart. Run inline
+        // rather than on a thread: the JVM is about to exit and a daemon thread
+        // would be killed mid-download. Nobody is playing, so the pause costs
+        // nothing, and the updater's own timeouts bound it either way.
+        //
+        // Before the teardown below, not after: reading the settings goes
+        // through Configs, which releaseAll() empties.
+        ExyliaLibUpdater.checkForUpdate(this);
+
         EffectRuntime.stopEverything();
         // Before releasing tasks: their refresh drivers are among them.
         BoardManager.stopEverything();
@@ -151,6 +178,7 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         Tasks.releaseAll();
         Configs.releaseAll();
         Placeholders.releaseAll();
+        Prefixes.releaseAll();
         Reloads.releaseAll();
         Debug.releaseAll();
     }
@@ -245,6 +273,7 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         Tasks.release(pluginName);
         Configs.release(pluginName);
         Placeholders.unregisterAll(pluginName);
+        Prefixes.release(pluginName);
         Reloads.release(pluginName);
         Debug.release(pluginName);
     }

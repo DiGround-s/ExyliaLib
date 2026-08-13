@@ -106,7 +106,7 @@ public final class CompiledTemplate implements Template {
                     ? request
                     : new Request(request.viewer(), request.target(), part.args(), request.data());
 
-            Object value = Registry.resolve(part.name(), scoped, logger);
+            Object value = resolveWith(part, scoped);
 
             if (value == null) {
                 if (part.fallback() != null) {
@@ -123,6 +123,42 @@ public final class CompiledTemplate implements Template {
         }
 
         return result.toString();
+    }
+
+    /**
+     * Resolves one placeholder, from a registered resolver or from the values
+     * the caller attached to this render.
+     *
+     * <p>A registered resolver wins. It is the considered registration, knows
+     * about arguments and is what {@code %player_name%} means everywhere on the
+     * server; a per-render value must not be able to shadow it by accident.
+     *
+     * <p>The attached values are consulted second, so
+     * {@code apply(text, player, Map.of("class", "Warrior"))} fills in
+     * {@code %class%} without anybody registering a resolver for a value that
+     * only exists for the length of one message. Before this, that map was only
+     * readable from inside a resolver, which meant the obvious call quietly did
+     * nothing.
+     *
+     * @param part    the placeholder to resolve
+     * @param request the request being rendered
+     * @return the value, or {@code null} when nothing supplies one
+     */
+    private Object resolveWith(Part part, Request request) {
+        Object value = Registry.resolve(part.name(), request, logger);
+        if (value != null) {
+            return value;
+        }
+        // Only when no resolver owns the name, so a registered placeholder that
+        // legitimately resolved to nothing is not overridden by stray data.
+        if (Registry.has(part.name())) {
+            return null;
+        }
+        Object attached = request.data().get(part.name());
+        if (attached == null) {
+            Registry.reportUnknown(part.name(), logger);
+        }
+        return attached;
     }
 
     @Override
@@ -166,7 +202,7 @@ public final class CompiledTemplate implements Template {
                     ? request
                     : new Request(request.viewer(), request.target(), part.args(), request.data());
 
-            Object value = Registry.resolve(part.name(), scoped, logger);
+            Object value = resolveWith(part, scoped);
             String rendered;
             if (value == null) {
                 if (part.fallback() == null) {
