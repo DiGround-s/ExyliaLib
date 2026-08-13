@@ -4,6 +4,7 @@ import net.exylia.lib.config.ConfigFile;
 import net.exylia.lib.config.Configs;
 import net.exylia.lib.effect.Effects;
 import net.exylia.lib.effect.internal.EffectRuntime;
+import net.exylia.lib.action.Actions;
 import net.exylia.lib.clan.internal.ClanRuntime;
 import net.exylia.lib.skull.internal.SkullRuntime;
 import net.exylia.lib.client.internal.ClientRuntime;
@@ -183,6 +184,7 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         Tasks.releaseAll();
         Configs.releaseAll();
         Placeholders.releaseAll();
+        Actions.releaseAll();
         Prefixes.releaseAll();
         Reloads.releaseAll();
         Debug.releaseAll();
@@ -279,6 +281,7 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         Tasks.release(pluginName);
         Configs.release(pluginName);
         Placeholders.unregisterAll(pluginName);
+        Actions.release(pluginName);
         Prefixes.release(pluginName);
         Reloads.release(pluginName);
         Debug.release(pluginName);

@@ -21,6 +21,7 @@ against the source — rules and routes are in `AGENTS.md` under
 | [Debug](debug.md) | Coloured console output: log, success, warn, error, debug — and the banner | 1.13.0 |
 | [Reloading](reload.md) | `Reloads` steps, library-reload listeners, and `/exylialib reload` | 1.14.0 |
 | [Skulls](skulls.md) | Player heads from base64, a URL or a name — cached, shared and never blocking | 1.19.0 |
+| [Actions](actions.md) | Compiled, namespaced actions shared by menus, items and other event boundaries | 1.20.0 |
 
 Root classes that are not a module:
 

@@ -250,6 +250,23 @@ Todo lo que ve u oye un jugador pasa por `net.exylia.lib.effect`. Nunca
 - **Fuegos artificiales son la excepción**: se spawnea y detona en el mismo tick.
   Todo lo demás es packet.
 
+### Actions — compilar una vez, adaptar en el borde
+Actions es el núcleo compartido por menús, items y otros triggers, pero no sabe
+qué es un click, una mano o un slot.
+
+- Registry siempre por plugin y namespace: `Actions.of(plugin, "practice")`.
+- En YAML público siempre `namespace:id`; los IDs simples solo se aceptan al
+  compilar desde el `PluginActions` dueño.
+- El string se compila al cargar config (`ActionCall`), nunca en cada click.
+- Sync corre directo. Async solo para I/O real mediante `registerAsync`, que usa
+  Tasks; no agendar un simple `closeInventory()`.
+- Datos específicos mediante `ActionKey<T>` definidos por UI/Items, nunca mapas
+  con claves string en el core.
+- Solo SUCCESS continúa una `ActionSequence`; STOP, DENIED y FAILED la terminan.
+- Delays pertenecen a `ActionStep` y se agendan en la entidad del jugador.
+- No duplicar cooldowns, permisos, auditoría ni rate limits en un pipeline:
+  usar el módulo especializado cuando una acción concreta lo necesite.
+
 ### Scoreboards — siempre `Scoreboards`, siempre configurables
 
 Todo sidebar pasa por `net.exylia.lib.scoreboard`. Nunca el `Scoreboard` de
@@ -569,6 +586,7 @@ Raíz de código: `src/main/java/net/exylia/lib/`. Raíz de tests:
 | prefijo por plugin | `text/Prefixes` | sustitución en `Text.build`; limpieza en `ExyliaLib.onPluginDisable` | [docs/text.md](docs/text.md) | 1.17.2 |
 | dueño de efectos por plugin | `effect/Effects.of`, `PluginEffects` | `effect/internal/EffectRuntime` (registro por plugin) | [docs/effects.md](docs/effects.md) | 1.18.3 |
 | skull | `skull/Skulls`, `SkullSource`, `SkullBuilder`, `SkullHandle` | `skull/internal/` | [docs/skulls.md](docs/skulls.md) | 1.19.0 |
+| action | `action/Actions`, `PluginActions`, `ActionCall`, `ActionContext`, `ActionSequence` y tipos auxiliares | `action/internal/` | [docs/actions.md](docs/actions.md) | 1.20.0 |
 
 Clases raíz que no son módulo: `ExyliaLib.java` (ciclo de vida y limpieza),
 `platform/Platform.java`, `internal/LibrarySettings`, `internal/ExyliaLibUpdater`.
