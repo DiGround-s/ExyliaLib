@@ -52,7 +52,7 @@ class ActionSequenceTest {
         });
         ActionSequence sequence = actions.compile(List.of("damage 3.5", "heal"));
 
-        ActionResult result = sequence.execute(context).get();
+        ActionResult result = sequence.execute(context).result().get();
 
         assertTrue(result.isSuccess());
         assertEquals(List.of("damage", "heal:3.5"), order);
@@ -72,7 +72,7 @@ class ActionSequenceTest {
                 .then("damage_configured", 0, config, new DamageConfig(8.5))
                 .build();
 
-        assertTrue(sequence.execute(context).get().isSuccess());
+        assertTrue(sequence.execute(context).result().get().isSuccess());
         assertEquals(List.of(3.0, 8.5), seen);
     }
 
@@ -86,7 +86,7 @@ class ActionSequenceTest {
         });
 
         ActionResult result = actions.compile(List.of("condition", "after"))
-                .execute(context).get();
+                .execute(context).result().get();
 
         assertEquals(ActionResult.Status.STOP, result.status());
         assertEquals(0, after.get());
@@ -104,7 +104,7 @@ class ActionSequenceTest {
                 return ActionResult.success();
             });
             ActionResult result = actions.compile(List.of(id, "after_" + id))
-                    .execute(context).get();
+                    .execute(context).result().get();
             assertEquals(blocked.status(), result.status());
             assertEquals(0, after.get());
         }
@@ -134,7 +134,7 @@ class ActionSequenceTest {
     void emptySequenceIsFree() throws Exception {
         ActionSequence sequence = actions.compile(List.of());
 
-        ActionResult result = sequence.execute(context).get(1, TimeUnit.SECONDS);
+        ActionResult result = sequence.execute(context).result().get(1, TimeUnit.SECONDS);
 
         assertTrue(result.isSuccess());
         assertEquals(0, FakeServer.liveTasks());

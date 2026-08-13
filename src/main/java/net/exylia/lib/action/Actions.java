@@ -45,7 +45,7 @@ public final class Actions {
 
     /** Compiles a fully namespaced action independently of its owner. */
     public static @NotNull ActionCall compile(@NotNull String raw) {
-        return ActionRegistry.compile(raw, "global");
+        return ActionCompiler.compile(raw, "global");
     }
 
     /** Removes everything owned by a plugin; normally lifecycle calls this. */

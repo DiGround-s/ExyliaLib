@@ -207,6 +207,39 @@ actions.registerSync("heal", (context, args) -> {
 `ActionScope` is thread-safe because an async step may populate it before a
 synchronous continuation resumes.
 
+## Actions that depend on the row they are drawn for
+A menu row's button often carries the id of the thing in that row, and
+sometimes has nothing to offer at all:
+
+```java
+// "practice:party_kick %member_id%", or "none" for a row the viewer cannot kick
+ActionTemplate kick = actions.template(config.getString("kick-action"));
+
+kick.resolve(viewer, Map.of("member_id", member.id())).execute(context);
+```
+
+- **A template with no placeholders costs nothing.** It is compiled once, when
+  the menu loads, and every use returns that same call. A typo is then reported
+  at load rather than when somebody presses the button.
+- **`resolveOrNoop` survives stale data.** An id that no longer exists leaves a
+  dead button instead of stopping the menu from opening.
+
+## Stopping what has not run yet
+`execute` returns an `ActionExecution`, not a bare future:
+
+```java
+ActionExecution running = sequence.execute(context);
+// when the menu closes, or the player logs out:
+running.cancel("menu closed");
+```
+
+Without this, a sequence with a delayed step outlives the screen that started
+it. Cancelling stops the sequence before its next step and cancels any pending
+delay outright, so nothing is left scheduled. A step already running is not
+interrupted — killing code halfway through is worse than letting it finish —
+but nothing after it starts. Cancelling twice, or after the sequence already
+finished, does nothing.
+
 ## Future UI adapter
 UI should compile:
 
@@ -258,6 +291,7 @@ are ordinary handlers returning `STOP` or `DENIED`.
 ## Source and tests
 - Public: `action/Actions`, `PluginActions`, `ActionId`, `ActionCall`,
   `ActionArguments`, `ActionContext`, `ActionKey`, `ActionScope`,
-  `ActionHandler`, `ActionResult`, `ActionStep`, `ActionSequence`.
+  `ActionHandler`, `ActionResult`, `ActionStep`, `ActionSequence`,
+  `ActionTemplate`, `ActionExecution`.
 - Internal: `action/internal/ActionRegistry`, `RegisteredAction`.
-- Tests: `action/ActionsTest`, `ActionSequenceTest`.
+- Tests: `action/ActionsTest`, `ActionSequenceTest`, `ActionTemplateTest`.

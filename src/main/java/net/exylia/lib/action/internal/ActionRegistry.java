@@ -1,12 +1,10 @@
 package net.exylia.lib.action.internal;
 
 import net.exylia.lib.action.ActionArguments;
-import net.exylia.lib.action.ActionCall;
 import net.exylia.lib.action.ActionHandler;
 import net.exylia.lib.action.ActionId;
 import net.exylia.lib.action.ActionResult;
 
-import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
@@ -29,32 +27,9 @@ public final class ActionRegistry {
         return action;
     }
 
-    public static ActionCall compile(String raw, String defaultNamespace) {
-        String trimmed = raw == null ? "" : raw.trim();
-        if (trimmed.isEmpty() || isNoop(trimmed)) {
-            return new ActionCall(NOOP.id(), ActionArguments.empty(), NOOP);
-        }
-        int space = firstWhitespace(trimmed);
-        String idText = space < 0 ? trimmed : trimmed.substring(0, space);
-        String tail = space < 0 ? "" : trimmed.substring(space + 1).trim();
-        ActionId id = idText.indexOf(':') >= 0
-                ? ActionId.parse(idText)
-                : new ActionId(defaultNamespace, idText);
-        RegisteredAction action = ACTIONS.get(id);
-        if (action == null) {
-            throw new IllegalArgumentException("Unknown action: " + id);
-        }
-        return new ActionCall(id, ActionArguments.parse(tail), action);
-    }
-
-    private static boolean isNoop(String raw) {
-        String lower = raw.toLowerCase(Locale.ROOT);
-        return lower.equals("none") || lower.equals("noop") || lower.equals("none:");
-    }
-
-    private static int firstWhitespace(String text) {
-        for (int i = 0; i < text.length(); i++) if (Character.isWhitespace(text.charAt(i))) return i;
-        return -1;
+    /** The shared do-nothing registration, used for blank and {@code none}. */
+    public static RegisteredAction noop() {
+        return NOOP;
     }
 
     public static Optional<RegisteredAction> get(ActionId id) {

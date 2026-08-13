@@ -30,36 +30,65 @@ public final class ActionSequence {
 
     public @NotNull List<ActionStep> steps() { return steps; }
 
-    /** Executes the sequence. Empty sequences succeed. */
-    public @NotNull CompletableFuture<ActionResult> execute(@NotNull ActionContext context) {
-        CompletableFuture<ActionResult> result = new CompletableFuture<>();
-        advance(0, context, result);
-        return result;
+    /**
+     * Executes the sequence.
+     *
+     * <p>The handle can stop what has not run yet, which is what a menu does
+     * when it closes. Empty sequences succeed without scheduling anything.
+     *
+     * @param context what the actions act on
+     * @return the running sequence
+     */
+    public @NotNull ActionExecution execute(@NotNull ActionContext context) {
+        ActionExecution execution = new ActionExecution();
+        advance(0, context, execution);
+        return execution;
     }
 
-    private void advance(int index, ActionContext context, CompletableFuture<ActionResult> result) {
+    private void advance(int index, ActionContext context, ActionExecution execution) {
+        if (execution.isCancelled()) {
+            return;
+        }
         if (index >= steps.size()) {
-            result.complete(ActionResult.success());
+            execution.finish(ActionResult.success());
             return;
         }
         ActionStep step = steps.get(index);
         Runnable execute = () -> {
+            execution.arrived();
+            if (execution.isCancelled()) {
+                // Cancelled while this step's delay was running out.
+                return;
+            }
             step.bind(context.scope());
             step.call().execute(context).whenComplete((outcome, error) -> {
-            ActionResult actual = error == null ? outcome : ActionResult.failed(error);
-            if (actual != null && actual.continues()) {
-                Runnable next = () -> advance(index + 1, context, result);
-                // An async handler completes on its worker. The next action may
-                // touch an inventory or entity, so resume at the player rather
-                // than leaking the worker thread into the rest of the chain.
-                if (Tasks.of(plugin).isOwnedBy(context.player())) next.run();
-                else Tasks.of(plugin).runAtEntity(context.player(), next, null);
-            } else result.complete(actual == null
-                    ? ActionResult.failed("Action returned no result") : actual);
+                if (execution.isCancelled()) {
+                    return;
+                }
+                ActionResult actual = error == null ? outcome : ActionResult.failed(error);
+                if (actual != null && actual.continues()) {
+                    Runnable next = () -> advance(index + 1, context, execution);
+                    // An async handler completes on its worker. The next action
+                    // may touch an inventory or entity, so resume at the player
+                    // rather than leaking the worker thread into the rest of
+                    // the chain.
+                    if (Tasks.of(plugin).isOwnedBy(context.player())) {
+                        next.run();
+                    } else {
+                        Tasks.of(plugin).runAtEntity(context.player(), next, null);
+                    }
+                } else {
+                    execution.finish(actual == null
+                            ? ActionResult.failed("Action returned no result") : actual);
+                }
             });
         };
-        if (step.delayTicks() == 0) execute.run();
-        else Tasks.of(plugin).runAtEntityLater(context.player(), step.delayTicks(), execute);
+        if (step.delayTicks() == 0) {
+            execute.run();
+        } else {
+            execution.awaiting(Tasks.of(plugin)
+                    .runAtEntityLater(context.player(), step.delayTicks(), execute));
+        }
     }
 
     /** Builds sequences while loading structured item configuration. */

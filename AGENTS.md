@@ -264,6 +264,10 @@ qué es un click, una mano o un slot.
   con claves string en el core.
 - Solo SUCCESS continúa una `ActionSequence`; STOP, DENIED y FAILED la terminan.
 - Delays pertenecen a `ActionStep` y se agendan en la entidad del jugador.
+- `execute` devuelve `ActionExecution`: quien abre algo con pasos demorados
+  (un menú, un item) debe cancelarlo al cerrarse. No dejar tasks vivas.
+- Acciones que dependen de la fila que se dibuja: `PluginActions.template`.
+  Una plantilla sin placeholders se compila al cargar y no cuesta nada luego.
 - No duplicar cooldowns, permisos, auditoría ni rate limits en un pipeline:
   usar el módulo especializado cuando una acción concreta lo necesite.
 

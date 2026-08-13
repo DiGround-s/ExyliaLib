@@ -59,9 +59,23 @@ public final class PluginActions {
         });
     }
 
+    /**
+     * Compiles a string whose action may only be known when it is shown.
+     *
+     * <p>For a menu row whose button carries the id of the thing in that row,
+     * or resolves to nothing for a row the viewer cannot act on. A template
+     * with no placeholders is compiled once here and costs nothing later.
+     *
+     * @param raw the action string, possibly containing placeholders
+     * @return the template
+     */
+    public @NotNull ActionTemplate template(@NotNull String raw) {
+        return new ActionTemplate(raw, namespace);
+    }
+
     /** Compiles one string now; execution thereafter is a direct call. */
     public @NotNull ActionCall compile(@NotNull String raw) {
-        return ActionRegistry.compile(raw, namespace);
+        return ActionCompiler.compile(raw, namespace);
     }
 
     /** Compiles a sequential list with no delays. */

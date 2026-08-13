@@ -20,7 +20,12 @@ public final class ActionCall {
     private final ActionArguments arguments;
     private final RegisteredAction action;
 
-    public ActionCall(ActionId id, ActionArguments arguments, RegisteredAction action) {
+    /**
+     * Not public: the registration is an internal type, and a consumer holding
+     * one could keep a disabled plugin's handler alive. Compiled through
+     * {@link PluginActions#compile(String)}.
+     */
+    ActionCall(ActionId id, ActionArguments arguments, RegisteredAction action) {
         this.id = id;
         this.arguments = arguments;
         this.action = action;
