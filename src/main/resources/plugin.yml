@@ -7,8 +7,14 @@ website: https://github.com/DiGround-s/ExyliaLib
 authors: [Exylia]
 load: STARTUP
 folia-supported: true
-# The command framework, provided by the server's library loader at runtime
-# (Maven Central), exactly as every consumer plugin declares it.
+# Runtime dependencies the server's library loader fetches from Maven Central,
+# exactly as every consumer plugin declares its own. Everything else ExyliaLib
+# touches is either shaded into the jar (scoreboard-library, jfiglet), provided
+# by the server (Bukkit, Adventure, Guava, Gson, netty) or optional and guarded
+# behind a plugin check (PacketEvents, Apollo, Feather, PlaceholderAPI).
 libraries:
   - 'io.github.revxrsal:lamp.common:4.0.0-rc.17'
   - 'io.github.revxrsal:lamp.bukkit:4.0.0-rc.17'
+  # Caches in TextEngine, TemplateCache, Effects and ClanRuntime. TextEngine is
+  # touched from onEnable, so a missing Caffeine kills startup outright.
+  - 'com.github.ben-manes.caffeine:caffeine:3.2.4'
