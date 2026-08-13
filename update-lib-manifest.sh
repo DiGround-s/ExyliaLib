@@ -12,7 +12,11 @@
 #   1. Computes the SHA-256 of the JAR
 #   2. Updates lib-manifest.json with the new version entry
 #   3. Points the "latest.major<N>" pointer to the new version
-#   4. Outputs instructions for uploading to GitHub Pages
+#   4. Outputs the remaining publish steps
+#
+# The manifest is served straight from the repository's default branch at
+# https://raw.githubusercontent.com/DiGround-s/ExyliaLib/main/lib-manifest.json
+# so pushing it is what publishes it — there is no site to deploy.
 #
 set -euo pipefail
 
@@ -65,7 +69,10 @@ fi
 
 echo ""
 echo "Next steps:"
-echo "  1. Commit the updated $MANIFEST to the repo"
-echo "  2. Push to GitHub (triggers GitHub Pages deployment)"
-echo "  3. Upload the JAR as a GitHub Release asset:"
-echo "     gh release upload v${VERSION} \"$JAR\""
+echo "  1. Publish the JAR as a GitHub Release asset:"
+echo "     gh release create v${VERSION} \"$JAR\" --title \"ExyliaLib ${VERSION}\" --notes \"ExyliaLib ${VERSION}\""
+echo "  2. Commit and push $MANIFEST — the push is what publishes it:"
+echo "     git add $MANIFEST && git commit -m \"chore: point the manifest at ${VERSION}\" && git push"
+echo ""
+echo "Release first: a manifest naming a version nobody can download yet"
+echo "would send every loader to a 404."

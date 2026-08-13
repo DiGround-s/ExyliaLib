@@ -13,19 +13,29 @@ Cooldowns live in this package too but have their own page:
 Since 1.9.0.
 
 ```java
-Effects.apply(player, "SPEED:1:300|JUMP_BOOST:2:120");
+Effects.apply(player, "SPEED|2|5");                  // Speed II, 5 seconds
+Effects.apply(player, classDef.getPassiveEffects()); // a list of such lines
 ```
 
-Format: `NAME:amplifier:durationTicks`, entries joined with `|`. Missing
-parts default to amplifier `0` and duration `200` ticks. Unknown or malformed
-entries are skipped, never fatal.
+One effect per line, `NAME|LEVEL|SECONDS`, pipe-separated — the notation
+every Exylia config already writes, taken from ExyliaCommons unchanged:
+
+- `LEVEL` is written the way a player reads it — `SPEED|2` is Speed II, which
+  Bukkit calls amplifier 1. Missing means I.
+- `SECONDS` is a duration in seconds; the words `infinite` and `-1` mean the
+  effect does not end on its own. Missing means 10 seconds.
+
+Anything malformed — an empty line, a name with a colon from some other
+notation, an unparseable number — is skipped, never fatal. Several effects
+are a `List<String>`, one line each, the way configs hand them over.
 
 | Method | Contract |
 | --- | --- |
-| `parse(raw)` → `ParsedEffect[]` | pure parse — `ParsedEffect(name, amplifier, duration)` holds standard Java types, no Bukkit types |
-| `apply(player, raw)` / `apply(player, ParsedEffect...)` | resolve and apply |
-| `applyInfinite(player, raw)` / `applyInfinite(player, ParsedEffect...)` | apply with no end; the duration in the string is ignored |
-| `remove(player, raw)` / `remove(player, ParsedEffect...)` | take back only the effects named |
+| `parse(raw)` → `ParsedEffect?` | pure parse of one line — `ParsedEffect(name, amplifier, durationTicks)` holds standard Java types, no Bukkit types; `null` when malformed |
+| `parse(lines)` → `List<ParsedEffect>` | a list of lines, malformed skipped |
+| `apply(player, raw)` / `apply(player, lines)` / `apply(player, ParsedEffect...)` | resolve and apply |
+| `applyInfinite(player, raw/lines/ParsedEffect...)` | apply with no end; the duration on the line is overridden |
+| `remove(player, raw/lines/ParsedEffect...)` | take back only the effects named |
 | `clear(player)` | remove **every** effect the player has |
 
 State a plugin owns — a class passive, a kit buff — is applied with
@@ -35,6 +45,9 @@ State a plugin owns — a class passive, a kit buff — is applied with
 Effects.applyInfinite(player, classDef.passiveEffects());
 Effects.remove(player, classDef.passiveEffects());
 ```
+
+`applyInfinite` forces the infinite duration regardless of what the line
+says; writing `|infinite` on the line achieves the same through `apply`.
 
 Pair those two, never `applyInfinite` with `clear`: the player may be carrying
 effects from a potion they drank or from another plugin, and those are not the

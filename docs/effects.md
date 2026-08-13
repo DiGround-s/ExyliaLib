@@ -34,6 +34,23 @@ the global registry: two countdowns on screen must not show the same number.
 Programmatic builders also exist: `Effects.title(text)`, `.actionBar(text)`,
 `.bossBar(text)`, `.particle(name)`, `.sound(name)`, `.firework()`.
 
+## A whole effect on one config line
+
+Class and kit YAMLs often carry the whole sound or particle in a single
+field, so the caller should not have to split it:
+
+```java
+Effects.soundFrom("BLOCK_ANVIL_PLACE|1|1").show(player);
+Effects.particleFrom("CLOUD|80|1.5|1.5|1.5|1.5").at(location).show(player);
+Effects.particleFrom("FLAME|20|0.5").at(location).show(player);  // one spread value
+```
+
+Notation: `NAME|volume|pitch` for sounds; `NAME|count|dx|dy|dz|speed` for
+particles, with a lone `NAME|count|spread|speed` also accepted. Pipe is the
+one separator — it is what every production config already writes, and a
+namespaced key such as `minecraft:flame` carries a colon that must survive
+the split. Missing parts fall back to full volume/pitch, count 1, no spread.
+
 ## Timers
 
 `net.exylia.lib.effect.Timer` is the clock behind a timed effect — a value,

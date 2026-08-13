@@ -140,6 +140,66 @@ public final class Effects {
     }
 
     /**
+     * Starts a sound from a config line.
+     *
+     * <p>A single field of a class or kit YAML often carries the whole sound,
+     * so the caller should not have to split it:
+     *
+     * <pre>{@code
+     * Effects.soundFrom("BLOCK_ANVIL_PLACE|1|1").show(player);
+     * }</pre>
+     *
+     * <p>The notation is {@code NAME|volume|pitch}, pipe-separated the way
+     * production configs already write it; a namespaced key with a colon
+     * survives, since the colon is never a separator here. Missing parts fall
+     * back to full volume and pitch.
+     *
+     * @param line the config line
+     * @return a builder, already configured
+     */
+    public static @NotNull SoundBuilder soundFrom(@NotNull String line) {
+        String[] parts = splitFields(line);
+        SoundBuilder builder = new SoundBuilder(parts[0]);
+        if (parts.length > 1) builder.volume(parseDouble(parts[1], 1.0));
+        if (parts.length > 2) builder.pitch(parseDouble(parts[2], 1.0));
+        return builder;
+    }
+
+    /**
+     * Starts a particle effect from a config line.
+     *
+     * <p>The notation is {@code NAME|count|dx|dy|dz|speed}; a lone spread value
+     * is also accepted as {@code NAME|count|spread|speed}, matching the shapes
+     * already written in production configs.
+     *
+     * <pre>{@code
+     * Effects.particleFrom("CLOUD|80|1.5|1.5|1.5|1.5").at(location).show(player);
+     * Effects.particleFrom("FLAME|20|0.5").at(location).show(player);
+     * }</pre>
+     *
+     * @param line the config line
+     * @return a builder, already configured
+     */
+    public static @NotNull ParticleBuilder particleFrom(@NotNull String line) {
+        String[] parts = splitFields(line);
+        ParticleBuilder builder = new ParticleBuilder(parts[0]);
+        if (parts.length > 1) builder.count(parseInt(parts[1], 1));
+
+        if (parts.length >= 5) {
+            // NAME|count|dx|dy|dz[|speed]
+            builder.spread(parseDouble(parts[2], 0.0),
+                    parseDouble(parts[3], 0.0),
+                    parseDouble(parts[4], 0.0));
+            if (parts.length > 5) builder.speed(parseDouble(parts[5], 0.0));
+        } else if (parts.length > 2) {
+            // NAME|count|spread[|speed]
+            builder.spread(parseDouble(parts[2], 0.0));
+            if (parts.length > 3) builder.speed(parseDouble(parts[3], 0.0));
+        }
+        return builder;
+    }
+
+    /**
      * Starts a firework.
      *
      * <p>Fireworks are the one effect that cannot be a pure packet on every
@@ -208,5 +268,38 @@ public final class Effects {
      */
     public static int active() {
         return EffectRuntime.active();
+    }
+
+    // --- config-line parsing for soundFrom / particleFrom ---
+
+    /**
+     * Splits {@code NAME|a|b|c} on pipes only.
+     *
+     * <p>Pipe is the one separator: it is what every production config already
+     * writes, and a namespaced key such as {@code minecraft:flame} carries a
+     * colon that must survive the split.
+     */
+    private static @NotNull String[] splitFields(@NotNull String line) {
+        String[] parts = line.split("\\|", -1);
+        for (int i = 0; i < parts.length; i++) {
+            parts[i] = parts[i].trim();
+        }
+        return parts;
+    }
+
+    private static double parseDouble(String raw, double fallback) {
+        try {
+            return Double.parseDouble(raw);
+        } catch (NumberFormatException e) {
+            return fallback;
+        }
+    }
+
+    private static int parseInt(String raw, int fallback) {
+        try {
+            return Integer.parseInt(raw);
+        } catch (NumberFormatException e) {
+            return fallback;
+        }
     }
 }

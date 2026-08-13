@@ -29,7 +29,16 @@ import java.util.logging.Level;
  */
 public final class ExyliaLibUpdater {
 
-    private static final String MANIFEST_URL = "https://exylia.net/lib-manifest.json";
+    /**
+     * Where the version manifest lives.
+     *
+     * <p>Served straight from the repository's default branch rather than a
+     * site: it updates with the same push that publishes the release, needs no
+     * hosting to keep alive, and sits on the same domain as the release assets
+     * it points at. The loader reads the same URL.
+     */
+    private static final String MANIFEST_URL =
+        "https://raw.githubusercontent.com/DiGround-s/ExyliaLib/main/lib-manifest.json";
     private static final int TIMEOUT_MS = 15_000;
 
     private ExyliaLibUpdater() {
