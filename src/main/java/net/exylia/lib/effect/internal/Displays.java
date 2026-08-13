@@ -33,8 +33,8 @@ final class Displays {
         private final int fadeOut;
 
         TitleDisplay(Player viewer, Rendered title, Rendered subtitle, Timer timer,
-                     long period, int fadeIn, int stay, int fadeOut) {
-            super(viewer, title, timer, period);
+                     long period, int fadeIn, int stay, int fadeOut, String owner) {
+            super(viewer, title, timer, period, owner);
             this.subtitle = subtitle;
             this.fadeIn = fadeIn;
             this.stay = stay;
@@ -73,8 +73,8 @@ final class Displays {
      */
     static final class ActionBarDisplay extends ActiveDisplay {
 
-        ActionBarDisplay(Player viewer, Rendered text, Timer timer, long period) {
-            super(viewer, text, timer, period);
+        ActionBarDisplay(Player viewer, Rendered text, Timer timer, long period, String owner) {
+            super(viewer, text, timer, period, owner);
         }
 
         @Override
@@ -115,8 +115,8 @@ final class Displays {
         private Component lastTitle;
 
         BossBarDisplay(Player viewer, Rendered text, Timer timer, long period,
-                       String colour, String overlay, Float fixedProgress) {
-            super(viewer, text, timer, period);
+                       String colour, String overlay, Float fixedProgress, String owner) {
+            super(viewer, text, timer, period, owner);
             this.colour = colour;
             this.overlay = overlay;
             this.fixedProgress = fixedProgress;

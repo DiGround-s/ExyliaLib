@@ -34,6 +34,9 @@ public final class BossBarBuilder {
     private long period = 1;
     private Runnable onEnd;
 
+    /** The owning plugin's name, stamped by {@code Effects.of(plugin)}. */
+    private String owner;
+
     public BossBarBuilder(String text) {
         this.text = text;
     }
@@ -151,10 +154,23 @@ public final class BossBarBuilder {
      * @param viewer who sees it
      * @return the display
      */
+    /**
+     * Stamps the owning plugin, so the display ticks on its scheduler and
+     * stops when it disables. Called by {@code Effects.of(plugin)}; direct use
+     * is fine too.
+     *
+     * @param pluginName the owning plugin's name
+     * @return this builder
+     */
+    public @NotNull BossBarBuilder ownedBy(@NotNull String pluginName) {
+        this.owner = pluginName;
+        return this;
+    }
+
     public @NotNull Display show(@NotNull Player viewer) {
         Display display = new Displays.BossBarDisplay(viewer,
                 new Rendered(text, timeStyle), timer, period,
-                colour, overlay, fixedProgress).start();
+                colour, overlay, fixedProgress, owner).start();
         if (onEnd != null) {
             display.onEnd(onEnd);
         }

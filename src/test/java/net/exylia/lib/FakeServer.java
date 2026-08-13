@@ -164,6 +164,10 @@ public final class FakeServer {
         ONLINE.clear();
         CONSOLE_MESSAGES.clear();
         primaryThread = true;
+        // Effect owners are per-plugin, and the plugins of a finished test do
+        // not exist any more: left behind, they make the next test's effects
+        // ambiguous.
+        net.exylia.lib.effect.internal.EffectRuntime.releaseAll();
     }
 
     /** Sets who the server reports as online. */

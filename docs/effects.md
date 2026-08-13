@@ -108,6 +108,30 @@ ends), `progress(float)`.
 - Nothing outlives its owner: quit, plugin disable and palette reload all
   clean up.
 
+## Which plugin owns an effect
+Every display belongs to a plugin: it ticks on that plugin's scheduler and
+stops when that plugin disables.
+
+```java
+effects = Effects.of(this);                  // once, usually a field
+effects.bossBar("<gold>Energy").show(player);
+```
+
+- **`Effects.of(plugin)` is the form to prefer.** It stamps the owner on every
+  display, so it stays right no matter how many plugins share the server.
+- **The static builders still work** and cost nothing to use: with a single
+  plugin owning effects, or when the caller can be identified from its own
+  classloader, the owner is worked out with no help.
+- **Registration happens on demand.** Earlier versions required
+  `Effects.owner(plugin)` in `onEnable` and threw on the first boss bar if you
+  forgot; that contract only failed at runtime, so it is gone.
+  `Effects.owner(plugin)` remains, and is still worth calling in `onEnable`,
+  but nothing breaks if it is not.
+- **Ambiguity is reported, never guessed.** If several plugins own effects and
+  the caller cannot be identified, the error asks for `Effects.of(plugin)`
+  rather than charging the display to whichever plugin came first — a wrong
+  guess is a bar killed by an unrelated plugin's disable.
+
 ## Source and tests
 
 - Public: `effect/Effects.java`, `Timer.java`, `Ticks.java`, `Display.java`,
@@ -116,4 +140,4 @@ ends), `progress(float)`.
   `ActiveDisplay`, `Rendered`, `Displays`, `Bars`, `Packets`, `PacketSender`,
   builders, `ConfigPlayer`, `EffectRuntime`).
 - Tests: `src/test/java/net/exylia/lib/effect/` (`TimerTest`, `DisplayTest`,
-  `EffectConfigTest`, `TimeTextTest`).
+  `EffectConfigTest`, `TimeTextTest`, `EffectOwnershipTest`).

@@ -4,6 +4,7 @@ import net.exylia.lib.effect.Display;
 import net.exylia.lib.effect.Ticks;
 import net.exylia.lib.effect.Timer;
 import net.exylia.lib.task.TaskHandle;
+import net.exylia.lib.task.TaskScheduler;
 import org.bukkit.entity.Player;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -31,7 +32,13 @@ import java.util.logging.Level;
  */
 abstract class ActiveDisplay implements Display {
 
-    private final String owner;
+    /** The owner stamped by the builder, or {@code null} when created through a static. */
+    private final String stampedOwner;
+
+    /** The resolved owner, set when the display starts. */
+    private String owner;
+    private TaskScheduler scheduler;
+
     private final Player viewer;
     private final Timer timer;
     private final long periodTicks;
@@ -44,7 +51,12 @@ abstract class ActiveDisplay implements Display {
     private volatile TaskHandle task;
 
     ActiveDisplay(Player viewer, Rendered rendered, Timer timer, long periodTicks) {
-        this.owner = EffectRuntime.ownerName();
+        this(viewer, rendered, timer, periodTicks, null);
+    }
+
+    ActiveDisplay(Player viewer, Rendered rendered, Timer timer, long periodTicks,
+                  @Nullable String stampedOwner) {
+        this.stampedOwner = stampedOwner;
         this.viewer = viewer;
         this.rendered = rendered;
         this.timer = timer;
@@ -66,6 +78,12 @@ abstract class ActiveDisplay implements Display {
      * @return this display
      */
     Display start() {
+        // Resolved once, at the start: the display then knows exactly which
+        // plugin's scheduler drives it and which plugin's disable ends it.
+        EffectRuntime.Registration registration = EffectRuntime.resolve(stampedOwner);
+        this.owner = registration.plugin().getName();
+        this.scheduler = registration.scheduler();
+
         EffectRuntime.register(this);
         run(() -> draw(viewer, rendered, timer));
 
@@ -75,7 +93,7 @@ abstract class ActiveDisplay implements Display {
             return this;
         }
 
-        task = EffectRuntime.scheduler().runAtEntityTimer(viewer, periodTicks, periodTicks, handle -> {
+        task = scheduler.runAtEntityTimer(viewer, periodTicks, periodTicks, handle -> {
             if (ended.get()) {
                 handle.cancel();
                 return;
@@ -91,7 +109,7 @@ abstract class ActiveDisplay implements Display {
             try {
                 redraw(viewer, rendered, timer);
             } catch (Throwable throwable) {
-                EffectRuntime.logger().log(Level.WARNING,
+                EffectRuntime.logger(owner).log(Level.WARNING,
                         "An effect failed while redrawing and has been stopped.", throwable);
                 finish(true);
                 return;
@@ -159,7 +177,7 @@ abstract class ActiveDisplay implements Display {
      * Folia and behaves as the main thread everywhere else.
      */
     private void run(Runnable action) {
-        EffectRuntime.scheduler().runAtEntity(viewer, action, null);
+        scheduler.runAtEntity(viewer, action, null);
     }
 
     @Override

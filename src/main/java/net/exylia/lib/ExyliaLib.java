@@ -167,6 +167,7 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         ExyliaLibUpdater.checkForUpdate(this);
 
         EffectRuntime.stopEverything();
+        EffectRuntime.releaseAll();
         // Before releasing tasks: their refresh drivers are among them.
         BoardManager.stopEverything();
         HologramRuntime.removeEverything();
@@ -268,6 +269,7 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         // Before the task module: a display cancels its own task when stopped,
         // and doing it the other way round would leave the effect on screen.
         EffectRuntime.stopAll(pluginName);
+        EffectRuntime.release(pluginName);
         BoardManager.stopAll(pluginName);
         HologramRuntime.removeAll(pluginName);
         Tasks.release(pluginName);

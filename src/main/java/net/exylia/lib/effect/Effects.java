@@ -87,6 +87,22 @@ public final class Effects {
     }
 
     /**
+     * Returns effects bound to a plugin, the form that survives sharing a
+     * server.
+     *
+     * <p>The static builders resolve their owner only when exactly one plugin
+     * registered; a second plugin on the server makes that a guess, and a
+     * wrong guess is a display killed by another plugin's disable.
+     * {@code Effects.of(plugin)} stamps the owner on every display instead.
+     *
+     * @param plugin the plugin the effects belong to
+     * @return effects bound to that plugin
+     */
+    public static @NotNull PluginEffects of(@NotNull Plugin plugin) {
+        return new PluginEffects(plugin);
+    }
+
+    /**
      * Starts a title.
      *
      * @param text the title text, in any supported notation

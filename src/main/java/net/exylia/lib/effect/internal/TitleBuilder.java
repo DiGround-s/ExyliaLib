@@ -34,6 +34,9 @@ public final class TitleBuilder {
     private boolean permanent;
     private Runnable onEnd;
 
+    /** The owning plugin's name, stamped by {@code Effects.of(plugin)}. */
+    private String owner;
+
     public TitleBuilder(String title) {
         this.title = title;
     }
@@ -143,6 +146,19 @@ public final class TitleBuilder {
      * @param viewer who sees it
      * @return the display
      */
+    /**
+     * Stamps the owning plugin, so the display ticks on its scheduler and
+     * stops when it disables. Called by {@code Effects.of(plugin)}; direct use
+     * is fine too.
+     *
+     * @param pluginName the owning plugin's name
+     * @return this builder
+     */
+    public @NotNull TitleBuilder ownedBy(@NotNull String pluginName) {
+        this.owner = pluginName;
+        return this;
+    }
+
     public @NotNull Display show(@NotNull Player viewer) {
         if (permanent) {
             // A title with no expiry has to be re-sent, so it is given a stay of
@@ -153,7 +169,7 @@ public final class TitleBuilder {
         Display display = new Displays.TitleDisplay(viewer,
                 new Rendered(title, timeStyle),
                 new Rendered(subtitle, timeStyle),
-                timer, period, fadeIn, stay, fadeOut).start();
+                timer, period, fadeIn, stay, fadeOut, owner).start();
         if (onEnd != null) {
             display.onEnd(onEnd);
         }

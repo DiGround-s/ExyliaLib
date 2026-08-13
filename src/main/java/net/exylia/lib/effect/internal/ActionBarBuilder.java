@@ -38,6 +38,9 @@ public final class ActionBarBuilder {
     private long period = KEEPALIVE_TICKS;
     private Runnable onEnd;
 
+    /** The owning plugin's name, stamped by {@code Effects.of(plugin)}. */
+    private String owner;
+
     public ActionBarBuilder(String text) {
         this.text = text;
     }
@@ -128,9 +131,22 @@ public final class ActionBarBuilder {
      * @param viewer who sees it
      * @return the display
      */
+    /**
+     * Stamps the owning plugin, so the display ticks on its scheduler and
+     * stops when it disables. Called by {@code Effects.of(plugin)}; direct use
+     * is fine too.
+     *
+     * @param pluginName the owning plugin's name
+     * @return this builder
+     */
+    public @NotNull ActionBarBuilder ownedBy(@NotNull String pluginName) {
+        this.owner = pluginName;
+        return this;
+    }
+
     public @NotNull Display show(@NotNull Player viewer) {
         Display display = new Displays.ActionBarDisplay(viewer,
-                new Rendered(text, timeStyle), timer, period).start();
+                new Rendered(text, timeStyle), timer, period, owner).start();
         if (onEnd != null) {
             display.onEnd(onEnd);
         }
