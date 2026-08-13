@@ -20,9 +20,23 @@
       "sha256": "b5f63926cd07125c52d35be2ed9f15fd9b7dfa762bc630773bf798fa66ec5595",
       "major": 1,
       "requiresRestart": true
+    },
+    "1.18.0": {
+      "version": "1.18.0",
+      "url": "https://github.com/DiGround-s/ExyliaLib/releases/download/v1.18.0/ExyliaLib-1.18.0.jar",
+      "sha256": "5501d68e3da99842ea369f718ae6cd830a69dc7d5db76062c22c6d17167dfdd5",
+      "major": 1,
+      "requiresRestart": true
+    },
+    "1.18.1": {
+      "version": "1.18.1",
+      "url": "https://github.com/DiGround-s/ExyliaLib/releases/download/v1.18.1/ExyliaLib-1.18.1.jar",
+      "sha256": "a9aee25018ef35d48e0290586870349c3ac0dd9b8f9ef463412181e6bdfaa27c",
+      "major": 1,
+      "requiresRestart": true
     }
   },
   "latest": {
-    "major1": "1.17.2"
+    "major1": "1.18.1"
   }
 }
