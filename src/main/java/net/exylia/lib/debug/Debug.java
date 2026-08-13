@@ -63,12 +63,8 @@ public final class Debug {
      * Where lines go. Replaced in tests; by default, the server's console,
      * which renders component colours as terminal colours.
      */
-    private static volatile Sink sink = (line, error) -> {
-        Bukkit.getConsoleSender().sendMessage(line);
-        if (error != null) {
-            error.printStackTrace();
-        }
-    };
+    private static volatile Sink sink = (line, error) ->
+            Bukkit.getConsoleSender().sendMessage(line);
 
     private final String name;
     private final Plugin plugin;
@@ -192,6 +188,12 @@ public final class Debug {
         Component line = Component.text("[" + name + "] ", Colors.get("primary", PRIMARY))
                 .append(Component.text(message, Colors.get(token, fallback)));
         sink.send(line, error);
+        if (error != null) {
+            // The stack belongs in the log file, with a level and the plugin's
+            // name on it — printStackTrace wrote it to raw stdout, where it
+            // arrives as unowned noise. This was the last antique in here.
+            plugin.getLogger().log(java.util.logging.Level.WARNING, message, error);
+        }
     }
 
     /** Test seam: captures lines instead of printing them. */
@@ -204,11 +206,7 @@ public final class Debug {
     }
 
     static void resetSink() {
-        sink = (line, error) -> {
-            Bukkit.getConsoleSender().sendMessage(line);
-            if (error != null) {
-                error.printStackTrace();
-            }
-        };
+        sink = (line, error) ->
+                Bukkit.getConsoleSender().sendMessage(line);
     }
 }

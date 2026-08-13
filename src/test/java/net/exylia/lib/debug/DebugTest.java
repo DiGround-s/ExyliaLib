@@ -129,6 +129,28 @@ class DebugTest {
         assertEquals(null, out.get(0).error());
     }
 
+    @Test
+    @DisplayName("the stack goes to the plugin's logger, with a level, never to raw stdout")
+    void stackGoesThroughTheLogger() {
+        List<java.util.logging.LogRecord> records = new java.util.ArrayList<>();
+        java.util.logging.Logger pluginLogger = java.util.logging.Logger.getLogger("ExyliaTest");
+        pluginLogger.setUseParentHandlers(false);
+        pluginLogger.addHandler(new java.util.logging.Handler() {
+            @Override public void publish(java.util.logging.LogRecord record) { records.add(record); }
+            @Override public void flush() { }
+            @Override public void close() { }
+        });
+        RuntimeException boom = new RuntimeException("boom");
+
+        debug.error("broke", boom);
+
+        // printStackTrace would leave no trace here: it wrote to System.err,
+        // which no handler can see and no log file keeps.
+        assertEquals(1, records.size());
+        assertSame(boom, records.get(0).getThrown());
+        assertEquals(java.util.logging.Level.WARNING, records.get(0).getLevel());
+    }
+
     // ------------------------------------------------------------------
     // The debug toggle
     // ------------------------------------------------------------------
