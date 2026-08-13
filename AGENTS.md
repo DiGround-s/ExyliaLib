@@ -567,6 +567,8 @@ Raíz de código: `src/main/java/net/exylia/lib/`. Raíz de tests:
 | reload | `reload/Reloads` (+ `Reloads.Report`) | disparo en `ExyliaLib.loadPalette`; liberación en `onPluginDisable`/`onDisable` | [docs/reload.md](docs/reload.md) | 1.15.0 |
 | efectos en mensajes + centrado | `text/Centering` | `text/internal/EffectTag`, `EffectTagPlayer`, `text/FontWidths` | [docs/text.md](docs/text.md) | 1.17.0 |
 | prefijo por plugin | `text/Prefixes` | sustitución en `Text.build`; limpieza en `ExyliaLib.onPluginDisable` | [docs/text.md](docs/text.md) | 1.17.2 |
+| dueño de efectos por plugin | `effect/Effects.of`, `PluginEffects` | `effect/internal/EffectRuntime` (registro por plugin) | [docs/effects.md](docs/effects.md) | 1.18.3 |
+| skull | `skull/Skulls`, `SkullSource`, `SkullBuilder`, `SkullHandle` | `skull/internal/` | [docs/skulls.md](docs/skulls.md) | 1.19.0 |
 
 Clases raíz que no son módulo: `ExyliaLib.java` (ciclo de vida y limpieza),
 `platform/Platform.java`, `internal/LibrarySettings`, `internal/ExyliaLibUpdater`.
@@ -582,7 +584,9 @@ Son package-private a propósito; los tests viven del mismo paquete:
 | `util/Effects` | `setResolver/setApplier`, `resetCache` |
 | `debug/Debug` | `setSink/resetSink` (a dónde van las líneas) |
 | `reload/Reloads` | `listenerCount()` (observación de fugas) |
-| tests compartidos | `src/test/java/net/exylia/lib/FakeServer.java`, `FakePlayer.java`, `debug/DebugCapture.java` |
+| `skull/internal/SkullRuntime` | `installForTests` (lookup y store), `seed` (textura sin red) |
+| `skull/internal/Lookup` | la interfaz que sustituye a Mojang en tests |
+| tests compartidos | `src/test/java/net/exylia/lib/FakeServer.java`, `FakePlayer.java`, `debug/DebugCapture.java`; `FakeServer.runAsyncForReal()` ejecuta las async en un hilo real |
 
 ### Protocolo de release (resumen; el detalle está en *Verificación*)
 

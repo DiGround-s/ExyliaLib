@@ -5,6 +5,7 @@ import net.exylia.lib.config.Configs;
 import net.exylia.lib.effect.Effects;
 import net.exylia.lib.effect.internal.EffectRuntime;
 import net.exylia.lib.clan.internal.ClanRuntime;
+import net.exylia.lib.skull.internal.SkullRuntime;
 import net.exylia.lib.client.internal.ClientRuntime;
 import net.exylia.lib.hologram.internal.HologramRuntime;
 import net.exylia.lib.internal.ExyliaLibUpdater;
@@ -80,6 +81,7 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         HologramRuntime.init(this);
         ClientRuntime.init(this);
         ClanRuntime.init(this);
+        SkullRuntime.init(this);
         Cooldowns.init(this, task -> Tasks.of(this).runAsync(task));
         // Long cooldowns are written every few minutes as well as on quit, so
         // a server that dies without a clean shutdown loses minutes rather
@@ -173,6 +175,8 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         HologramRuntime.removeEverything();
         ClientRuntime.shutdown();
         ClanRuntime.shutdown();
+        // Writes the texture cache before tasks go away: the save is inline.
+        SkullRuntime.shutdown();
         // Writes whatever is pending before the maps are emptied.
         Cooldowns.clearEverything();
         SidebarLibrary.close();

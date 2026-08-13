@@ -20,6 +20,7 @@ against the source — rules and routes are in `AGENTS.md` under
 | [Utilities](util.md) | `util.Effects` (potions from strings) and `TimeFormats` | 1.9.0 |
 | [Debug](debug.md) | Coloured console output: log, success, warn, error, debug — and the banner | 1.13.0 |
 | [Reloading](reload.md) | `Reloads` steps, library-reload listeners, and `/exylialib reload` | 1.14.0 |
+| [Skulls](skulls.md) | Player heads from base64, a URL or a name — cached, shared and never blocking | 1.19.0 |
 
 Root classes that are not a module:
 

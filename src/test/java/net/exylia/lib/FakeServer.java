@@ -26,6 +26,23 @@ public final class FakeServer {
     /** Tasks handed to the scheduler, in submission order. */
     static final List<Scheduled> SCHEDULED = new ArrayList<>();
 
+    /**
+     * Whether asynchronous tasks really run on another thread.
+     *
+     * <p>Off by default, because most tests want to inspect a scheduled task
+     * rather than race it. Modules that fetch things turn it on: their whole
+     * behaviour is what happens while a lookup is in flight.
+     */
+    private static volatile boolean asyncRunsForReal;
+
+    /** Where asynchronous tasks really run, so async behaviour is testable. */
+    static final java.util.concurrent.ExecutorService ASYNC =
+            java.util.concurrent.Executors.newCachedThreadPool(runnable -> {
+                Thread thread = new Thread(runnable, "FakeServer-async");
+                thread.setDaemon(true);
+                return thread;
+            });
+
     /** Players the server reports as online. */
     private static final List<org.bukkit.entity.Player> ONLINE = new ArrayList<>();
 
@@ -158,8 +175,14 @@ public final class FakeServer {
         return live;
     }
 
+    /** Makes {@code runAsync} execute on a real thread until the next reset. */
+    public static void runAsyncForReal() {
+        asyncRunsForReal = true;
+    }
+
     /** Clears recorded tasks between tests. */
     public static void reset() {
+        asyncRunsForReal = false;
         SCHEDULED.clear();
         ONLINE.clear();
         CONSOLE_MESSAGES.clear();
@@ -281,6 +304,17 @@ public final class FakeServer {
             long period = args.length > 3 && args[3] instanceof Long value ? value : 1;
             Scheduled scheduled = new Scheduled(body, repeating, delay, period);
             SCHEDULED.add(scheduled);
+            if (asyncRunsForReal && name.contains("Asynchronously") && !repeating && delay == 0) {
+                // A real server runs these on another thread rather than on a
+                // tick. Tests of anything that fetches need them to actually
+                // run, and running them for real is also what lets a test put
+                // two of them in flight at once.
+                ASYNC.execute(() -> {
+                    if (!scheduled.cancelled) {
+                        body.run();
+                    }
+                });
+            }
             return newTask(scheduled);
         };
         return (BukkitScheduler) Proxy.newProxyInstance(
