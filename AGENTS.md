@@ -171,6 +171,11 @@ Text.of("{primary}&lWELCOME").send(player);
   `BLOCK_NOTE_BLOCK_PLING` es `block.note_block.pling` (guión bajo *dentro* de
   la clave) pero `ENTITY_PLAYER_LEVELUP` es `entity.player.levelup`. Se resuelve
   por el enum de Bukkit; inventar la clave mal la paga el cliente con silencio.
+- **Una config se poda contra su record al cargar.** Clave que ningún campo
+  declara se elimina y se reporta una vez, como hacía el modo estricto de
+  commons. Las migraciones corren antes (todavía pueden leer el layout viejo) y
+  `config-version` está reservado. Avisar sin borrar solo convierte cada clave
+  retirada en una tradición del log de arranque.
 - **Los valores sustituidos son literales por defecto, formateados a pedido.**
   `with()` inserta texto plano (lo que teclea un jugador no puede inyectar
   formato); `withFormatted()`/`forPlayerFormatted()` parsean el valor (un

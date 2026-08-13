@@ -72,7 +72,7 @@ final class Binder {
             }
         }
 
-        reportUnknownKeys(section, known, path, file, issues);
+        pruneUnknownKeys(section, known, path, file, issues);
 
         try {
             return (T) schema.canonical().newInstance(arguments);
@@ -86,8 +86,19 @@ final class Binder {
         }
     }
 
-    private static void reportUnknownKeys(ConfigurationSection section, Set<String> known,
-                                          String path, String file, List<ConfigIssue> issues) {
+    /**
+     * Removes keys the schema does not own.
+     *
+     * <p>A config outlives the code that wrote it: fields get renamed, features
+     * get cut, and the old keys sit in the file forever, warning on every boot.
+     * Commons deleted them outright; this does the same, reporting each removal
+     * so the log says exactly what left and from where.
+     *
+     * <p>Only a key with no owner is touched, and only after migrations have
+     * run, so a migration can still read the old layout before it goes.
+     */
+    private static void pruneUnknownKeys(ConfigurationSection section, Set<String> known,
+                                         String path, String file, List<ConfigIssue> issues) {
         if (section == null) {
             return;
         }
@@ -100,8 +111,9 @@ final class Binder {
                 continue;
             }
             String childPath = path.isEmpty() ? key : path + "." + key;
+            section.set(key, null);
             issues.add(new ConfigIssue(ConfigIssue.Type.UNKNOWN_KEY, childPath,
-                    "is not a setting this plugin uses; it was left untouched", file));
+                    "is not a setting this plugin uses; it has been removed", file));
         }
     }
 

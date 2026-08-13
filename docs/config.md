@@ -73,6 +73,17 @@ on `Migration`:
 Renaming a key without a migration silently loses what the owner configured.
 Do not do it.
 
+## Housekeeping
+
+A config outlives the code that wrote it: fields get renamed, features get cut.
+A key no record declares is **removed from the file on load**, and each removal
+is reported as an `UNKNOWN_KEY` issue so the log says exactly what left and from
+where. This is the strict cleanup ExyliaCommons performed. Two guarantees:
+
+- Migrations run first, so a migration can still read the old layout before it
+  goes.
+- The library's own `config-version` marker is never touched.
+
 ## When the file is wrong
 
 A typo in the user's file never crashes the plugin: each problem becomes a

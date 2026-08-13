@@ -184,7 +184,8 @@ public final class ConfigFileImpl<T> implements ConfigFile<T> {
         // Writing back is what makes new keys appear in existing files, and what
         // keeps comments in sync with the code.
         boolean addedKeys = found.stream().anyMatch(issue -> issue.type() == ConfigIssue.Type.MISSING_KEY);
-        if (!existed || migrated || addedKeys || initial) {
+        boolean prunedKeys = found.stream().anyMatch(issue -> issue.type() == ConfigIssue.Type.UNKNOWN_KEY);
+        if (!existed || migrated || addedKeys || prunedKeys || initial) {
             render(yaml, bound);
             writeFile(yaml);
         }

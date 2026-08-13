@@ -152,16 +152,66 @@ class ConfigModuleTest {
     }
 
     @Test
-    @DisplayName("leaves keys it does not own untouched")
-    void preservesUnknownKeys() throws IOException {
+    @DisplayName("removes keys the schema does not own, and says so")
+    void prunesUnknownKeys() throws IOException {
         Files.writeString(file("config"), "pool-size: 5\nsomething-else: keep me\n");
 
         ConfigFile<Settings> config = Configs.define(plugin, "config", Settings.class).load();
 
-        assertTrue(contents("config").contains("something-else: keep me"),
-                "a key the schema does not define must not be deleted");
-        assertTrue(config.issues().stream().anyMatch(i -> i.type() == ConfigIssue.Type.UNKNOWN_KEY),
-                "but it should be reported so a typo is noticeable");
+        assertFalse(contents("config").contains("something-else"),
+                "a key the schema does not define is pruned, like commons did");
+        assertTrue(config.issues().stream().anyMatch(i -> i.type() == ConfigIssue.Type.UNKNOWN_KEY
+                        && i.message().contains("removed")),
+                "and the log says what left");
+    }
+
+    @Test
+    @DisplayName("prunes a whole stale section from an older layout")
+    void prunesStaleSection() throws IOException {
+        // The sections a commons-era file carries that no record declares.
+        Files.writeString(file("config"),
+                "pool-size: 5\ntasks:\n  interval: 20\ndebug: false\n");
+
+        ConfigFile<Settings> config = Configs.define(plugin, "config", Settings.class).load();
+
+        String written = contents("config");
+        assertFalse(written.contains("tasks:"), written);
+        assertFalse(written.contains("debug:"), written);
+        assertEquals(2, config.issues().stream()
+                .filter(i -> i.type() == ConfigIssue.Type.UNKNOWN_KEY).count());
+    }
+
+    @Test
+    @DisplayName("a second load finds nothing left to prune")
+    void pruneHappensOnce() throws IOException {
+        Files.writeString(file("config"), "pool-size: 5\nstale: true\n");
+        ConfigFile<Settings> config = Configs.define(plugin, "config", Settings.class).load();
+
+        // Pruned means pruned: the file stays clean, and the warning does not
+        // become a boot-time tradition.
+        assertFalse(config.reload().stream().anyMatch(i -> i.type() == ConfigIssue.Type.UNKNOWN_KEY),
+                "once removed, a stale key must not warn on every boot");
+    }
+
+    @Test
+    @DisplayName("a stale key found during reload is removed from disk too")
+    void reloadPruneIsPersisted() throws IOException {
+        ConfigFile<Settings> config = Configs.define(plugin, "config", Settings.class).load();
+        Files.writeString(file("config"), contents("config") + "\nstale-after-enable: true\n");
+
+        config.reload();
+
+        assertFalse(contents("config").contains("stale-after-enable"),
+                "pruning only the in-memory YAML would let the key return next boot");
+    }
+
+    @Test
+    @DisplayName("the version marker survives pruning")
+    void versionMarkerSurvives() throws IOException {
+        Files.writeString(file("config"), "pool-size: 5\nstale: true\n");
+        Configs.define(plugin, "config", Settings.class).load();
+        assertTrue(contents("config").contains("config-version"),
+                "the library's own bookkeeping key is not a stale key");
     }
 
     // ------------------------------------------------------------------

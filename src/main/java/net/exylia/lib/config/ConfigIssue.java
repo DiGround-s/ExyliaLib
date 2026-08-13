@@ -39,7 +39,8 @@ public record ConfigIssue(@NotNull Type type,
 
         /**
          * The file has a key the schema does not define. Usually a typo or a
-         * leftover from an older version. The value is kept untouched.
+         * leftover from an older layout. It is removed from the file, the way
+         * commons cleaned house, and the removal is what this issue reports.
          */
         UNKNOWN_KEY,
 
