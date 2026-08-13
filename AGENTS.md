@@ -593,6 +593,19 @@ Son package-private a propósito; los tests viven del mismo paquete:
 5. `version` en `build.gradle`, commit, tag, push; verificar JitPack
    (POM con 0 dependencias; JAR con las clases nuevas). Los tags son
    inmutables: una versión publicada jamás se mueve.
+6. **GitHub Release** `v<versión>` (con la `v`) apuntando al commit del tag, con
+   `build/libs/ExyliaLib-<versión>.jar` adjunto y marcada *Latest*:
+   `gh release create v1.x.y build/libs/ExyliaLib-1.x.y.jar --target <sha> --latest`.
+   La auto-actualización descarga de ahí, no de JitPack.
+7. **`lib-manifest.json`**: entrada nueva con `url` + `sha256` del jar
+   (`sha256sum build/libs/ExyliaLib-1.x.y.jar`), y `"major1"` apuntando a la
+   versión. Push a `main`: el updater lo lee de `raw.githubusercontent.com`.
+   Verificar descargando el jar de la release y comparando el hash.
+8. En los plugins consumidores: subir `compileOnly("net.exylia:ExyliaLib:1.x.y")`,
+   adaptar el código a lo que cambie, `./gradlew build`, commit, y **desplegar el
+   jar del plugin a mano** — los plugins no tienen auto-updater. Si el plugin usa
+   API nueva, el jar de la lib debe llegar al servidor **antes o junto con** el
+   del plugin (`NoSuchMethodError` en caso contrario).
 
 ---
 
