@@ -1,0 +1,71 @@
+title: "{primary}&lMANAGE&r {muted}— %slot_name%"
+size: 27
+
+open_sounds:
+  - "ENTITY_EXPERIENCE_ORB_PICKUP|1.0|1.2"
+click_sounds:
+  - "UI_BUTTON_CLICK|1.0|1.5"
+
+filler:
+  global:
+    material: GRAY_STAINED_GLASS_PANE
+    hide_tooltip: true
+
+items:
+  rename:
+    slot: 10
+    material: NAME_TAG
+    name: "{warning}&lEdit Name"
+    lore:
+      - ""
+      - " {muted}❙ {letters}Current: {highlight}%slot_name%"
+      - ""
+      - "{warning}» Click to rename"
+    actions:
+      - "practice:kit_editor_rename_slot %category_id% %kit_id% %slot_index%"
+
+  icon:
+    slot: 12
+    material: ITEM_FRAME
+    name: "{info}&lEdit Icon"
+    lore:
+      - ""
+      - " {muted}❙ {letters}Current: {highlight}%slot_icon%"
+      - ""
+      - "{info}» Click to change icon"
+    actions:
+      - "practice:kit_editor_set_slot_icon %category_id% %kit_id% %slot_index%"
+
+  edit:
+    slot: 14
+    material: LIME_CONCRETE
+    name: "{success}&lEdit Items"
+    lore:
+      - ""
+      - " {muted}❙ {letters}Kit: {info}%kit_name%"
+      - " {muted}❙ {letters}Slot: {highlight}%slot_index%"
+      - ""
+      - "{success}» Click to enter edit mode"
+    actions:
+      - "practice:kit_editor_edit_slot %category_id% %kit_id% %slot_index%"
+
+  delete:
+    slot: 16
+    material: RED_CONCRETE
+    name: "{error}&lDelete Slot"
+    lore:
+      - ""
+      - " {muted}❙ {warning}This cannot be undone!"
+      - ""
+      - "{error}» Click to delete"
+    actions:
+      - "practice:kit_editor_delete_slot %category_id% %kit_id% %slot_index%"
+
+  back:
+    slot: 22
+    material: ARROW
+    name: "{error}&l← Back"
+    lore:
+      - "{muted}Return to loadout list"
+    actions:
+      - "practice:kit_editor_select_kit %category_id% %kit_id%"

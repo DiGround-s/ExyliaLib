@@ -1,0 +1,74 @@
+title: "{primary}&lARENA&r {muted}— %target_name%"
+size: 54
+type: PAGINATION
+
+open_sounds:
+  - "ENTITY_EXPERIENCE_ORB_PICKUP|1.0|1.2"
+click_sounds:
+  - "UI_BUTTON_CLICK|1.0|1.5"
+
+filler:
+  global:
+    material: GRAY_STAINED_GLASS_PANE
+    hide_tooltip: true
+
+  pagination:
+    material: LIGHT_GRAY_STAINED_GLASS_PANE
+    name: "{muted}No arenas available"
+    lore:
+      - ""
+      - "{muted}No arenas are configured for this kit."
+    hide_tooltip: false
+
+pagination:
+  slots: '10-16,19-25,28-34'
+
+  item_template:
+    material: "%arena_icon%"
+    name: "{warning}&l%arena_name%"
+    lore:
+      - ""
+      - "{success}» Click to play on this arena"
+    actions:
+      - "practice:duel_send_request %target_name% %kit_id% %rounds% %arena_id%"
+
+  navigation:
+    previous:
+      slot: 45
+      material: ARROW
+      name: '{error}&l← PREVIOUS'
+      lore:
+        - '{info}Page: {success}%current_page%&8/{error}%total_pages%'
+      actions:
+        - 'previous_page'
+    next:
+      slot: 53
+      material: ARROW
+      name: '{success}&lNEXT →'
+      lore:
+        - '{info}Page: {success}%current_page%&8/{error}%total_pages%'
+      actions:
+        - 'next_page'
+
+items:
+  random:
+    slot: 4
+    material: ENDER_PEARL
+    name: "{primary}&lRandom Arena"
+    lore:
+      - ""
+      - " {muted}❙ Let the server choose"
+      - " {muted}❙ any compatible arena"
+      - ""
+      - "{success}» Click to send request"
+    actions:
+      - "practice:duel_send_request %target_name% %kit_id% %rounds% random"
+
+  back:
+    slot: 49
+    material: ARROW
+    name: "{error}&lBack"
+    lore:
+      - "{muted}Return to round selection"
+    actions:
+      - "practice:duel_select_kit %target_name% %kit_id% %category_id%"

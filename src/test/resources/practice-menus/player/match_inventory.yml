@@ -1,0 +1,98 @@
+title: "{primary}&lMatch Inventory {muted}— %owner_label%"
+size: 54
+type: SIMPLE
+
+open_sounds:
+  - "ENTITY_EXPERIENCE_ORB_PICKUP|1.0|1.2"
+click_sounds:
+  - "UI_BUTTON_CLICK|1.0|1.5"
+
+items:
+  info:
+    slot: 4
+    material: "%result_material%"
+    name: "%result_prefix%%opponent_name%"
+    lore:
+      - ""
+      - " {accent}&lMATCH INFO"
+      - " {muted}❙ {letters}Kit: {highlight}%kit_name%"
+      - " {muted}❙ {letters}Arena: {highlight}%arena_name%"
+      - " {muted}❙ {letters}Mode: {highlight}%match_mode%"
+      - " {muted}❙ {letters}Type: %ranked_badge%"
+      - ""
+      - " {accent}&lCOMBAT STATS"
+      - " {muted}❙ {letters}Kills: {success}%kills% {muted}/ Deaths: {error}%deaths% {muted}(K/D: {highlight}%kd_ratio%{muted})"
+      - " {muted}❙ {letters}Damage dealt: {highlight}%damage_dealt%"
+      - " {muted}❙ {letters}Hits: {success}%hits_dealt% {muted}dealt / {error}%hits_received% {muted}recv {muted}({highlight}%hit_ratio%%{muted})"
+      - " {muted}❙ {letters}Accuracy: {highlight}%accuracy%%"
+      - " {muted}❙ {letters}Best combo: {highlight}%best_combo%"
+      - ""
+      - " {accent}&lMATCH DETAILS"
+      - " {muted}❙ {letters}Duration: {highlight}%duration%"
+      - " {muted}❙ {letters}Date: {muted}%date%"
+      - "%elo_line%"
+    hide_tooltip: false
+
+  switch:
+    slot: 49
+    material: "%switch_material%"
+    name: "%switch_name%"
+    lore:
+      - ""
+      - "{accent}▶ Click to switch view"
+    hide_tooltip: false
+    actions:
+      - "practice:history_switch_inventory"
+
+  back:
+    slot: 45
+    material: DARK_OAK_BUTTON
+    name: "{warning}&l← Back"
+    lore:
+      - ""
+      - "{warning}▶ Return to match history"
+    hide_tooltip: false
+    actions:
+      - "practice:history_back_from_inventory"
+
+  nav_46:
+    slot: 46
+    material: BLACK_STAINED_GLASS_PANE
+    name: " "
+    hide_tooltip: true
+
+  nav_47:
+    slot: 47
+    material: BLACK_STAINED_GLASS_PANE
+    name: " "
+    hide_tooltip: true
+
+  nav_48:
+    slot: 48
+    material: BLACK_STAINED_GLASS_PANE
+    name: " "
+    hide_tooltip: true
+
+  nav_50:
+    slot: 50
+    material: BLACK_STAINED_GLASS_PANE
+    name: " "
+    hide_tooltip: true
+
+  nav_51:
+    slot: 51
+    material: BLACK_STAINED_GLASS_PANE
+    name: " "
+    hide_tooltip: true
+
+  nav_52:
+    slot: 52
+    material: BLACK_STAINED_GLASS_PANE
+    name: " "
+    hide_tooltip: true
+
+  nav_53:
+    slot: 53
+    material: BLACK_STAINED_GLASS_PANE
+    name: " "
+    hide_tooltip: true

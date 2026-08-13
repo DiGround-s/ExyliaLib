@@ -1,0 +1,71 @@
+title: "{primary}&lSTATS&r {muted}— %category_name%"
+size: 54
+type: PAGINATION
+
+open_sounds:
+  - "ENTITY_EXPERIENCE_ORB_PICKUP|1.0|1.2"
+click_sounds:
+  - "UI_BUTTON_CLICK|1.0|1.5"
+
+filler:
+  global:
+    material: GRAY_STAINED_GLASS_PANE
+    hide_tooltip: true
+
+  pagination:
+    material: LIGHT_GRAY_STAINED_GLASS_PANE
+    name: "{muted}No kits available"
+    lore:
+      - ""
+      - "{muted}No kits are enabled for this category."
+    hide_tooltip: false
+
+pagination:
+  slots: '10-16,19-25,28-34'
+
+  item_template:
+    material: "%kit_icon%"
+    name: "{warning}&l%kit_name%"
+    lore:
+      - ""
+      - " {muted}❙ {letters}Rank: {highlight}%rank_name% {muted}(%rank_lp%/%rank_lp_max% LP) {muted}· Position: {highlight}%rank_position%"
+      - " {muted}❙ {letters}Wins: {success}%wins% {muted}| Losses: {error}%losses% {muted}| WR: {highlight}%win_rate%"
+      - " {muted}❙ {letters}Kills: {highlight}%kills%"
+      - " {muted}❙ {letters}Deaths: {highlight}%deaths%"
+      - " {muted}❙ {letters}KDR: {highlight}%kdr%"
+      - " {muted}❙ {letters}Current Streak: {highlight}%current_streak%"
+      - " {muted}❙ {letters}Best Streak: {highlight}%best_streak%"
+      - " {muted}❙ {letters}Damage Dealt: {highlight}%damage_dealt%"
+      - " {muted}❙ {letters}Time Played: {highlight}%time_played%"
+      - ""
+      - "{success}» Click to view leaderboard"
+    actions:
+      - "practice:lb_select_kit %kit_id%"
+
+  navigation:
+    previous:
+      slot: 45
+      material: ARROW
+      name: '{error}&l← PREVIOUS'
+      lore:
+        - '{info}Page: {success}%current_page%&8/{error}%total_pages%'
+      actions:
+        - 'previous_page'
+    next:
+      slot: 53
+      material: ARROW
+      name: '{success}&lNEXT →'
+      lore:
+        - '{info}Page: {success}%current_page%&8/{error}%total_pages%'
+      actions:
+        - 'next_page'
+
+items:
+  back:
+    slot: 49
+    material: ARROW
+    name: "{error}&lBack"
+    lore:
+      - "{muted}Return to categories"
+    actions:
+      - "practice:open_stats"

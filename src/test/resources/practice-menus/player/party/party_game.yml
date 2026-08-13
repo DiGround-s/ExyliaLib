@@ -1,0 +1,58 @@
+title: "{primary}&lPARTY&r {muted}— Choose Game Mode"
+size: 27
+type: SIMPLE
+
+open_sounds:
+  - "ENTITY_EXPERIENCE_ORB_PICKUP|1.0|1.2"
+click_sounds:
+  - "UI_BUTTON_CLICK|1.0|1.5"
+
+items:
+  ffa:
+    slot: 11
+    material: NETHERITE_SWORD
+    name: "{error}&lFFA"
+    lore:
+      - ""
+      - " {muted}❙ {letters}All vs All"
+      - " {muted}❙ {letters}Everyone fights each other"
+      - ""
+      - "{success}» Click to select kit"
+    actions:
+      - "practice:open_party_kit_select FFA"
+
+  split:
+    slot: 13
+    material: SHIELD
+    name: "{info}&lSPLIT"
+    lore:
+      - ""
+      - " {muted}❙ {letters}Random 2 teams"
+      - " {muted}❙ {letters}Team vs Team"
+      - ""
+      - "{success}» Click to select kit"
+    actions:
+      - "practice:open_party_kit_select SPLIT"
+
+  duel:
+    slot: 15
+    material: EMERALD
+    name: "{success}&lDUEL"
+    lore:
+      - ""
+      - " {muted}❙ {letters}Party vs Party"
+      - " {muted}❙ {letters}Challenge another party"
+      - ""
+      - "{success}» Click to select kit"
+    actions:
+      - "practice:open_party_kit_select DUEL"
+
+  back:
+    slot: 22
+    material: ARROW
+    name: "{muted}&l← Back"
+    lore:
+      - ""
+      - "{muted}Return to party hub"
+    actions:
+      - "practice:open_party_hub"

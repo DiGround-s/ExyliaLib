@@ -1,0 +1,83 @@
+config:
+  slot_default_icon: IRON_CHESTPLATE
+  create_available_material: PAPER
+  create_available_name: "{success}&lCreate New Slot"
+  create_limit_material: BARRIER
+  create_limit_name: "{error}&lSlot Limit Reached"
+
+title: "{primary}&lLOADOUTS&r {muted}— %kit_name%"
+size: 54
+type: PAGINATION
+
+open_sounds:
+  - "ENTITY_EXPERIENCE_ORB_PICKUP|1.0|1.2"
+click_sounds:
+  - "UI_BUTTON_CLICK|1.0|1.5"
+
+filler:
+  global:
+    material: GRAY_STAINED_GLASS_PANE
+    hide_tooltip: true
+
+  pagination:
+    material: LIGHT_GRAY_STAINED_GLASS_PANE
+    name: "{muted}No loadouts saved"
+    lore:
+      - ""
+      - "{muted}Create your first loadout!"
+    hide_tooltip: false
+
+pagination:
+  slots: '10-16,19-25,28-34'
+
+  item_template:
+    material: "%slot_icon%"
+    name: "{warning}&l%slot_name%"
+    lore:
+      - ""
+      - " {muted}❙ {letters}Slot: {highlight}%slot_index%"
+      - " {muted}❙ {letters}Kit: {info}%kit_name%"
+      - ""
+      - "{success}» Click to manage"
+    actions:
+      - "practice:kit_editor_open_slot %category_id% %kit_id% %slot_index%"
+
+  navigation:
+    previous:
+      slot: 45
+      material: ARROW
+      name: '{error}&l← PREVIOUS'
+      lore:
+        - '{info}Page: {success}%current_page%&8/{error}%total_pages%'
+      actions:
+        - 'previous_page'
+    next:
+      slot: 53
+      material: ARROW
+      name: '{success}&lNEXT →'
+      lore:
+        - '{info}Page: {success}%current_page%&8/{error}%total_pages%'
+      actions:
+        - 'next_page'
+
+items:
+  create:
+    slot: 49
+    material: "%create_material%"
+    name: "%create_name%"
+    lore:
+      - ""
+      - " {muted}❙ {info}%slots_count%{muted}/{info}%slots_max% {muted}slots used"
+      - ""
+      - "{success}» Click to create"
+    actions:
+      - "practice:kit_editor_create_slot %category_id% %kit_id%"
+
+  back:
+    slot: 47
+    material: ARROW
+    name: "{error}&l← Back"
+    lore:
+      - "{muted}Return to kit selection"
+    actions:
+      - "practice:kit_editor_select_category %category_id%"

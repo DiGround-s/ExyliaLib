@@ -1,0 +1,97 @@
+title: "{primary}&lMATCH HISTORY {muted}%kit_name%"
+size: 54
+type: MULTI_PAGINATION
+animation: "center_out"
+
+open_sounds:
+  - "ENTITY_EXPERIENCE_ORB_PICKUP|1.0|1.2"
+click_sounds:
+  - "UI_BUTTON_CLICK|1.0|1.5"
+
+filler:
+  global:
+    material: BLACK_STAINED_GLASS_PANE
+    hide_tooltip: true
+
+items:
+  back:
+    slot: 40
+    material: DARK_OAK_BUTTON
+    name: "{warning}&l← BACK"
+    lore:
+      - ""
+      - "{warning}▶ Click to go back"
+    actions:
+      - "practice:open_history"
+
+sections:
+  matches:
+    slots: "1-7,10-16,19-25,28-34"
+    filler:
+      material: GRAY_STAINED_GLASS_PANE
+      name: "{muted}No matches found"
+      lore:
+        - ""
+        - "{muted}No matches found for the selected filter."
+      hide_tooltip: false
+    match_template:
+      material: "%match_material%"
+      name: "%match_result_prefix%%opponent_name%"
+      lore:
+        - ""
+        - " {muted}❙ {letters}Kit: {highlight}%kit_name%"
+        - " {muted}❙ {letters}Arena: {highlight}%arena_name%"
+        - " {muted}❙ {letters}Mode: {highlight}%ranked_display%"
+        - " {muted}❙ {letters}ELO: %elo_info%"
+        - " {muted}❙ {letters}Duration: {highlight}%duration%"
+        - " {muted}❙ {letters}Date: {muted}%date%"
+        - ""
+        - " {muted}❙ {letters}Kills: {highlight}%kills% {muted}/ Deaths: {highlight}%deaths%"
+        - " {muted}❙ {letters}Damage dealt: {highlight}%damage_dealt%"
+        - " {muted}❙ {letters}Hits: {success}%hits_dealt% {muted}dealt / {error}%hits_received% {muted}received"
+        - " {muted}❙ {letters}Best combo: {highlight}%best_combo%"
+        - ""
+        - " {accent}▶ Click to view inventories"
+      actions:
+        - "practice:history_view_inventory %match_id%"
+    navigation:
+      previous:
+        slot: 37
+        material: ARROW
+        name: "{letters}← Previous"
+        hide_tooltip: false
+      next:
+        slot: 43
+        material: ARROW
+        name: "{letters}Next →"
+        hide_tooltip: false
+
+  filters:
+    slots: "46-52"
+    filler:
+      material: GRAY_STAINED_GLASS_PANE
+      hide_tooltip: true
+    not_selected_template:
+      material: "%filter_material%"
+      name: "{muted}&l%filter_name%"
+      lore:
+        - ""
+        - "{accent}» Click to filter"
+    selected_template:
+      material: "%filter_material%"
+      name: "{success}&l%filter_name%"
+      lore:
+        - ""
+        - "{success}✔ Active filter"
+      glowing: true
+    navigation:
+      previous:
+        slot: 45
+        material: ARROW
+        name: "{letters}← Previous"
+        hide_tooltip: false
+      next:
+        slot: 53
+        material: ARROW
+        name: "{letters}Next →"
+        hide_tooltip: false

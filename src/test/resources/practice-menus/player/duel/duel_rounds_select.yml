@@ -1,0 +1,70 @@
+title: "{primary}&lROUNDS&r {muted}— %target_name%"
+size: 27
+
+open_sounds:
+  - "ENTITY_EXPERIENCE_ORB_PICKUP|1.0|1.2"
+click_sounds:
+  - "UI_BUTTON_CLICK|1.0|1.5"
+
+filler:
+  global:
+    material: GRAY_STAINED_GLASS_PANE
+    hide_tooltip: true
+
+items:
+  round_1:
+    slot: 10
+    material: LIME_WOOL
+    name: "{success}&l1 Round"
+    lore:
+      - ""
+      - " {muted}❙ First to {highlight}1 win {muted}wins the duel"
+      - ""
+      - "{success}» Click to select arena"
+    actions:
+      - "practice:duel_open_arena_select %target_name% %kit_id% 1 %category_id%"
+
+  round_3:
+    slot: 12
+    material: YELLOW_WOOL
+    name: "{warning}&l3 Rounds"
+    lore:
+      - ""
+      - " {muted}❙ First to {highlight}3 wins {muted}wins the duel"
+      - ""
+      - "{success}» Click to select arena"
+    actions:
+      - "practice:duel_open_arena_select %target_name% %kit_id% 3 %category_id%"
+
+  round_5:
+    slot: 14
+    material: ORANGE_WOOL
+    name: "{highlight}&l5 Rounds"
+    lore:
+      - ""
+      - " {muted}❙ First to {highlight}5 wins {muted}wins the duel"
+      - ""
+      - "{success}» Click to select arena"
+    actions:
+      - "practice:duel_open_arena_select %target_name% %kit_id% 5 %category_id%"
+
+  round_custom:
+    slot: 16
+    material: COMPARATOR
+    name: "{primary}&lCustom"
+    lore:
+      - ""
+      - " {muted}❙ Choose {highlight}1-20 rounds {muted}manually"
+      - ""
+      - "{success}» Click to enter amount"
+    actions:
+      - "practice:duel_custom_rounds %target_name% %kit_id% %category_id%"
+
+  back:
+    slot: 22
+    material: ARROW
+    name: "{error}&lBack"
+    lore:
+      - "{muted}Return to kit selection"
+    actions:
+      - "practice:duel_select_category %target_name% %category_id%"
