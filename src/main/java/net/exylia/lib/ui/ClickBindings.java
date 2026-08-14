@@ -2,6 +2,7 @@ package net.exylia.lib.ui;
 
 import net.exylia.lib.action.ActionCall;
 import net.exylia.lib.action.ActionTemplate;
+import net.exylia.lib.command.CommandLine;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -23,15 +24,21 @@ import java.util.Set;
 public final class ClickBindings {
 
     private static final ClickBindings EMPTY =
-            new ClickBindings(new EnumMap<>(ClickKind.class), List.of());
+            new ClickBindings(new EnumMap<>(ClickKind.class), new EnumMap<>(ClickKind.class), List.of());
 
     private final Map<ClickKind, List<ActionTemplate>> byKind;
+
+    /** Commands are a separate list in the file, and stay separate here. */
+    private final Map<ClickKind, List<CommandLine>> commandsByKind;
 
     /** Kept so a rebuilt menu can report what it was configured with. */
     private final List<String> raw;
 
-    private ClickBindings(Map<ClickKind, List<ActionTemplate>> byKind, List<String> raw) {
+    private ClickBindings(Map<ClickKind, List<ActionTemplate>> byKind,
+                          Map<ClickKind, List<CommandLine>> commandsByKind,
+                          List<String> raw) {
         this.byKind = byKind;
+        this.commandsByKind = commandsByKind;
         this.raw = raw;
     }
 
@@ -42,7 +49,7 @@ public final class ClickBindings {
 
     /** Returns whether any click is bound. */
     public boolean isEmpty() {
-        return byKind.isEmpty();
+        return byKind.isEmpty() && commandsByKind.isEmpty();
     }
 
     /** The strings this was compiled from. */
@@ -61,10 +68,27 @@ public final class ClickBindings {
         return bound == null ? List.of() : bound;
     }
 
+    /**
+     * The commands bound to a kind of click.
+     *
+     * <p>Separate from actions on purpose. An action is a registered handler
+     * inside a plugin; a command is a line the server dispatches. Guessing
+     * which one a string meant would make a typo in either look like the
+     * other.
+     *
+     * @param kind how the button was clicked
+     * @return the commands, in the order they were written; never {@code null}
+     */
+    public @NotNull List<CommandLine> commandsForClick(@NotNull ClickKind kind) {
+        List<CommandLine> bound = commandsByKind.get(kind);
+        return bound == null ? List.of() : bound;
+    }
+
     /** Builds bindings from configuration. */
     public static final class Builder {
 
         private final Map<ClickKind, List<ActionTemplate>> byKind = new EnumMap<>(ClickKind.class);
+        private final Map<ClickKind, List<CommandLine>> commandsByKind = new EnumMap<>(ClickKind.class);
         private final List<String> raw = new ArrayList<>();
 
         /**
@@ -87,6 +111,29 @@ public final class ClickBindings {
             ActionTemplate template = compiler.apply(split.action());
             for (ClickKind kind : split.kinds()) {
                 byKind.computeIfAbsent(kind, ignored -> new ArrayList<>()).add(template);
+            }
+            return this;
+        }
+
+        /**
+         * Adds one line of a {@code commands} list.
+         *
+         * <p>Takes the same click prefix as an action, so
+         * {@code "any: player: queue"} means what it looks like: on any click,
+         * make the player run {@code /queue}. The remainder is parsed by the
+         * command module, which owns that syntax for every consumer, not only
+         * menus.
+         *
+         * @param line the line as written
+         * @return this builder
+         * @throws IllegalArgumentException if there is no command in it
+         */
+        public @NotNull Builder addCommand(@NotNull String line) {
+            raw.add(line);
+            Split split = split(line.trim());
+            CommandLine command = CommandLine.compile(split.action());
+            for (ClickKind kind : split.kinds()) {
+                commandsByKind.computeIfAbsent(kind, ignored -> new ArrayList<>()).add(command);
             }
             return this;
         }
@@ -142,12 +189,14 @@ public final class ClickBindings {
         }
 
         public @NotNull ClickBindings build() {
-            if (byKind.isEmpty()) {
+            if (byKind.isEmpty() && commandsByKind.isEmpty()) {
                 return EMPTY;
             }
-            Map<ClickKind, List<ActionTemplate>> copy = new EnumMap<>(ClickKind.class);
-            byKind.forEach((kind, actions) -> copy.put(kind, List.copyOf(actions)));
-            return new ClickBindings(copy, List.copyOf(raw));
+            Map<ClickKind, List<ActionTemplate>> actions = new EnumMap<>(ClickKind.class);
+            byKind.forEach((kind, bound) -> actions.put(kind, List.copyOf(bound)));
+            Map<ClickKind, List<CommandLine>> commands = new EnumMap<>(ClickKind.class);
+            commandsByKind.forEach((kind, bound) -> commands.put(kind, List.copyOf(bound)));
+            return new ClickBindings(actions, commands, List.copyOf(raw));
         }
     }
 }

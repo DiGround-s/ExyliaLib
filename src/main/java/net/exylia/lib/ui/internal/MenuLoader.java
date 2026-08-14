@@ -86,43 +86,56 @@ public final class MenuLoader {
     public static UiDefinition load(String id, ConfigurationSection config,
                                     Function<String, ActionTemplate> compiler,
                                     UiSounds defaults, Problems problems) {
-        Function<String, ActionTemplate> safe = forgiving(compiler, problems);
-        return read(id, config, safe, defaults);
+        return read(id, config, new Binder(compiler, problems), defaults);
     }
 
     /**
-     * Wraps action compilation so a bad action is a dead button.
+     * Compiles what a button does, turning a bad line into a dead button.
      *
      * <p>Menus in the wild contain lines like
-     * {@code "any: player: practice:open_regions"} — two syntaxes mixed by
-     * hand. That button has never worked; the difference now is that somebody
-     * is told.
+     * {@code "any: player: practice:open_regions"} — a command written under
+     * {@code actions}. That button has never worked; the difference now is
+     * that somebody is told, and the other fifty buttons still open.
      */
-    private static Function<String, ActionTemplate> forgiving(
-            Function<String, ActionTemplate> compiler, Problems problems) {
-        return raw -> {
+    private record Binder(Function<String, ActionTemplate> compiler, Problems problems) {
+
+        /** Compiles an action, falling back to a no-op. */
+        ActionTemplate action(String raw) {
             try {
                 return compiler.apply(raw);
             } catch (IllegalArgumentException bad) {
                 problems.found("action \"" + raw + "\"", bad.getMessage());
                 return compiler.apply("none");
             }
-        };
+        }
+
+        /** Fills bindings from an item's {@code actions} and {@code commands}. */
+        void bind(ClickBindings.Builder bindings, ConfigurationSection section) {
+            for (String line : actions(section)) {
+                bindings.add(line, this::action);
+            }
+            for (String line : lines(section, "commands")) {
+                try {
+                    bindings.addCommand(line);
+                } catch (IllegalArgumentException bad) {
+                    problems.found("command \"" + line + "\"", bad.getMessage());
+                }
+            }
+        }
     }
 
     private static UiDefinition read(String id, ConfigurationSection config,
-                                     Function<String, ActionTemplate> compiler,
-                                     UiSounds defaults) {
+                                     Binder binder, UiSounds defaults) {
         String title = config.getString("title", "Menu");
         UiDefinition.UiKind kind = kindOf(config.getString("type", "CHEST"));
         int size = size(config, kind);
 
         Map<Integer, UiItem> items = new LinkedHashMap<>();
-        readItems(config.getConfigurationSection("items"), compiler, size, items);
+        readItems(config.getConfigurationSection("items"), binder, size, items);
 
-        List<UiItem> fillers = readFillers(config.getConfigurationSection("filler"), compiler);
+        List<UiItem> fillers = readFillers(config.getConfigurationSection("filler"), binder);
         UiDefinition.Pagination pagination =
-                readPagination(config.getConfigurationSection("pagination"), compiler, size);
+                readPagination(config.getConfigurationSection("pagination"), binder, size);
 
         List<Integer> inputSlots = slots(config, "editable_slots");
         if (inputSlots.isEmpty()) {
@@ -185,7 +198,7 @@ public final class MenuLoader {
     }
 
     private static void readItems(ConfigurationSection section,
-                                  Function<String, ActionTemplate> compiler,
+                                  Binder binder,
                                   int size, Map<Integer, UiItem> into) {
         if (section == null) {
             return;
@@ -195,7 +208,7 @@ public final class MenuLoader {
             if (itemSection == null) {
                 continue;
             }
-            UiItem item = readItem(itemSection, compiler);
+            UiItem item = readItem(itemSection, binder);
             for (int slot : itemSlots(itemSection, key)) {
                 if (slot < 0 || slot >= size) {
                     throw new IllegalArgumentException("Item \"" + key + "\" uses slot " + slot
@@ -249,7 +262,7 @@ public final class MenuLoader {
 
     /** Reads one item definition. */
     static UiItem readItem(ConfigurationSection section,
-                           Function<String, ActionTemplate> compiler) {
+                           Binder binder) {
         UiItem.Builder builder = UiItem.of(section.getString("material", "STONE"))
                 .name(section.getString("name"))
                 .lore(section.getStringList("lore"))
@@ -267,9 +280,7 @@ public final class MenuLoader {
         head(section, builder);
 
         ClickBindings.Builder bindings = new ClickBindings.Builder();
-        for (String line : actions(section)) {
-            bindings.add(line, compiler);
-        }
+        binder.bind(bindings, section);
         return builder.bindings(bindings.build()).build();
     }
 
@@ -363,17 +374,23 @@ public final class MenuLoader {
 
     /** Reads the actions of an item, accepting a list or a single string. */
     private static List<String> actions(ConfigurationSection section) {
-        if (!section.contains("actions")) {
+        return lines(section, "actions");
+    }
+
+    /** Reads a key that may hold one line or a list of them. */
+    private static List<String> lines(ConfigurationSection section, String key) {
+        if (!section.contains(key)) {
             return List.of();
         }
-        if (section.isString("actions")) {
-            return List.of(section.getString("actions", ""));
+        if (section.isString(key)) {
+            String single = section.getString(key, "");
+            return single.isBlank() ? List.of() : List.of(single);
         }
-        return section.getStringList("actions");
+        return section.getStringList(key);
     }
 
     private static List<UiItem> readFillers(ConfigurationSection section,
-                                            Function<String, ActionTemplate> compiler) {
+                                            Binder binder) {
         if (section == null) {
             return List.of();
         }
@@ -381,7 +398,7 @@ public final class MenuLoader {
         for (String key : List.of("global", "border", "pagination")) {
             ConfigurationSection filler = section.getConfigurationSection(key);
             if (filler != null) {
-                fillers.add(readItem(filler, compiler));
+                fillers.add(readItem(filler, binder));
             }
         }
         ConfigurationSection custom = section.getConfigurationSection("custom");
@@ -389,7 +406,7 @@ public final class MenuLoader {
             for (String key : custom.getKeys(false)) {
                 ConfigurationSection one = custom.getConfigurationSection(key);
                 if (one != null) {
-                    fillers.add(readItem(one, compiler));
+                    fillers.add(readItem(one, binder));
                 }
             }
         }
@@ -397,7 +414,7 @@ public final class MenuLoader {
     }
 
     private static UiDefinition.Pagination readPagination(ConfigurationSection section,
-                                                          Function<String, ActionTemplate> compiler,
+                                                          Binder binder,
                                                           int size) {
         if (section == null) {
             return null;
@@ -421,14 +438,14 @@ public final class MenuLoader {
         }
         ConfigurationSection navigation = section.getConfigurationSection("navigation");
         ConfigurationSection filler = section.getConfigurationSection("filler");
-        return new UiDefinition.Pagination(slots, readItem(template, compiler),
-                placed(navigation, "previous", compiler),
-                placed(navigation, "next", compiler),
-                filler == null ? null : readItem(filler, compiler));
+        return new UiDefinition.Pagination(slots, readItem(template, binder),
+                placed(navigation, "previous", binder),
+                placed(navigation, "next", binder),
+                filler == null ? null : readItem(filler, binder));
     }
 
     private static UiDefinition.Placed placed(ConfigurationSection navigation, String key,
-                                              Function<String, ActionTemplate> compiler) {
+                                              Binder binder) {
         if (navigation == null) {
             return null;
         }
@@ -440,7 +457,7 @@ public final class MenuLoader {
         if (slot < 0) {
             return null;
         }
-        return new UiDefinition.Placed(slot, readItem(section, compiler));
+        return new UiDefinition.Placed(slot, readItem(section, binder));
     }
 
     private static UiAnimationSpec animation(ConfigurationSection section, String key) {

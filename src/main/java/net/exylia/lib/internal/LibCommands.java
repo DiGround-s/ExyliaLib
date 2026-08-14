@@ -11,9 +11,9 @@ import revxrsal.commands.bukkit.actor.BukkitCommandActor;
  * <p>Lamp is confined to this class and {@link ReloadCommand}: if the
  * framework were ever swapped, nothing outside this package would change.
  */
-public final class Commands {
+public final class LibCommands {
 
-    private Commands() {
+    private LibCommands() {
         throw new AssertionError("No instances.");
     }
 

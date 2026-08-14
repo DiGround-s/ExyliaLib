@@ -1,0 +1,80 @@
+queue:
+  slot: 0
+  material: MACE
+  name: "<gradient:#FF8C00:#FF4500>⚔ Queues</gradient>"
+  lore:
+    - "<#888888>Browse available queues"
+  commands:
+    - "any: player: queue"
+
+spectator:
+  slot: 1
+  material: SPYGLASS
+  name: "<gradient:#00B4DB:#0083B0>👁 Spectator</gradient>"
+  lore:
+    - "<#888888>Spectate ongoing matches"
+  commands:
+    - "any: player: spectate"
+
+party:
+  slot: 2
+  material: AMETHYST_SHARD
+  name: "<gradient:#DA22FF:#9733EE>★ Party</gradient>"
+  lore:
+    - "<#888888>Manage your party"
+  commands:
+    - "any: player: party hub"
+
+ffa:
+  slot: 3
+  material: ECHO_SHARD
+  name: "<gradient:#FF4E50:#F9D423>⚡ FFA</gradient>"
+  lore:
+    - "<#888888>Join the FFA arena"
+  commands:
+    - "any: player: ffa"
+
+events:
+  slot: 4
+  material: TRIAL_KEY
+  name: "<gradient:#F7971E:#FFD200>✦ Events</gradient>"
+  lore:
+    - "<#888888>View active events"
+  commands:
+    - "any: player: events"
+
+rtp:
+  slot: 5
+  material: RECOVERY_COMPASS
+  name: "<gradient:#56ab2f:#a8e063>⛵ RTP</gradient>"
+  lore:
+    - "<#888888>Random teleport"
+  commands:
+    - "any: player: rtp"
+
+kit-editor:
+  slot: 6
+  material: BRUSH
+  name: "<gradient:#C9D6FF:#E2E2E2>✎ Kit Editor</gradient>"
+  lore:
+    - "<#888888>Edit your kit loadouts"
+  commands:
+    - "any: player: ke"
+
+stats:
+  slot: 7
+  material: NETHERITE_UPGRADE_SMITHING_TEMPLATE
+  name: "<gradient:#fcbe03:#f8fc03>⭐ Stats & Leaderboard</gradient>"
+  lore:
+    - "<#888888>View stats and leaderboard"
+  commands:
+    - "any: player: stats"
+
+settings:
+  slot: 8
+  material: "playerhead-%player_name%"
+  name: "<#9BA4B5>⚙ Settings"
+  lore:
+    - "<#888888>Your personal settings"
+  commands:
+    - "any: player: settings"

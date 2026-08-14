@@ -5,12 +5,13 @@ import net.exylia.lib.config.Configs;
 import net.exylia.lib.effect.Effects;
 import net.exylia.lib.effect.internal.EffectRuntime;
 import net.exylia.lib.action.Actions;
+import net.exylia.lib.command.Commands;
 import net.exylia.lib.clan.internal.ClanRuntime;
 import net.exylia.lib.skull.internal.SkullRuntime;
 import net.exylia.lib.client.internal.ClientRuntime;
 import net.exylia.lib.hologram.internal.HologramRuntime;
 import net.exylia.lib.internal.ExyliaLibUpdater;
-import net.exylia.lib.internal.Commands;
+import net.exylia.lib.internal.LibCommands;
 import net.exylia.lib.internal.LibrarySettings;
 import net.exylia.lib.debug.Debug;
 import net.exylia.lib.placeholder.Placeholders;
@@ -89,7 +90,7 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         // than everything.
         Tasks.of(this).runAsyncTimer(
                 COOLDOWN_FLUSH_TICKS, COOLDOWN_FLUSH_TICKS, Cooldowns::flushAll);
-        Commands.register(this);
+        LibCommands.register(this);
         getLogger().info("ExyliaLib " + version() + " ready on " + Platform.current() + ".");
     }
 
@@ -185,6 +186,7 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         Configs.releaseAll();
         Placeholders.releaseAll();
         Actions.releaseAll();
+        Commands.releaseAll();
         Prefixes.releaseAll();
         Reloads.releaseAll();
         Debug.releaseAll();
@@ -282,6 +284,7 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         Configs.release(pluginName);
         Placeholders.unregisterAll(pluginName);
         Actions.release(pluginName);
+        Commands.release(pluginName);
         Prefixes.release(pluginName);
         Reloads.release(pluginName);
         Debug.release(pluginName);

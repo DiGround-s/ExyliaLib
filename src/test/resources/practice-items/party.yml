@@ -1,0 +1,35 @@
+party-settings:
+  slot: 0
+  material: COMPARATOR
+  name: "<#9BA4B5>⚙ Party Settings"
+  lore:
+    - "<#888888>View the party settings"
+  commands:
+    - "any: player: party hub"
+
+play:
+  slot: 4
+  material: BREEZE_ROD
+  name: "<gradient:#56ab2f:#a8e063>▶ Play</gradient>"
+  lore:
+    - "<#888888>Start a party game"
+  commands:
+    - "any: player: party game"
+
+leave:
+  slot: 7
+  material: OMINOUS_BOTTLE
+  name: "<gradient:#CB2D3E:#EF473A>✖ Leave Party</gradient>"
+  lore:
+    - "<#888888>Leave your current party"
+  commands:
+    - "any: player: party leave"
+
+settings:
+  slot: 8
+  material: "playerhead-%player_name%"
+  name: "<#9BA4B5>⚙ Settings"
+  lore:
+    - "<#888888>Your personal settings"
+  commands:
+    - "any: player: settings"

@@ -31,6 +31,8 @@ public final class FakePlayer {
     private final List<Component> actionBarComponents = new ArrayList<>();
     private final List<String> messages = new ArrayList<>();
     private final List<String> sounds = new ArrayList<>();
+    private final List<String> commands = new CopyOnWriteArrayList<>();
+    private volatile boolean acceptsCommands = true;
     private volatile boolean online = true;
     private volatile org.bukkit.Location location;
 
@@ -45,6 +47,10 @@ public final class FakePlayer {
                     case "getWorld" -> location == null ? null : location.getWorld();
                     case "getName" -> this.name;
                     case "isOnline", "isValid" -> online;
+                    case "performCommand" -> {
+                        commands.add(String.valueOf(args[0]));
+                        yield acceptsCommands;
+                    }
                     case "playSound" -> {
                         // (location, sound, volume, pitch)
                         sounds.add(String.valueOf(args[1]));
@@ -97,6 +103,17 @@ public final class FakePlayer {
     }
 
     /** Every sound played to this player, in order. */
+    /** Every command this player was made to run, in order. */
+    public List<String> commands() {
+        return List.copyOf(commands);
+    }
+
+    /** Makes the player's commands report failure, as an unknown one would. */
+    public FakePlayer rejectsCommands() {
+        this.acceptsCommands = false;
+        return this;
+    }
+
     public List<String> sounds() {
         return new ArrayList<>(sounds);
     }

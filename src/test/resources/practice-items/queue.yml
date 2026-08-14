@@ -1,0 +1,17 @@
+queues:
+  slot: 0
+  material: MACE
+  name: "<gradient:#FF8C00:#FF4500>⚔ Queues</gradient>"
+  lore:
+    - "<#888888>Browse available queues"
+  commands:
+    - "any: player: queue"
+
+leave-queue:
+  slot: 8
+  material: OMINOUS_BOTTLE
+  name: "<gradient:#CB2D3E:#EF473A>✖ Leave Queue</gradient>"
+  lore:
+    - "<#888888>Leave the current queue"
+  commands:
+    - "any: player: leavequeue"

@@ -186,6 +186,8 @@ public final class FakeServer {
         SCHEDULED.clear();
         ONLINE.clear();
         CONSOLE_MESSAGES.clear();
+        CONSOLE_COMMANDS.clear();
+        consoleAcceptsCommands = true;
         primaryThread = true;
         // Effect owners are per-plugin, and the plugins of a finished test do
         // not exist any more: left behind, they make the next test's effects
@@ -233,6 +235,10 @@ public final class FakeServer {
 
     private static final List<String> CONSOLE_MESSAGES = new java.util.concurrent.CopyOnWriteArrayList<>();
 
+    private static final List<String> CONSOLE_COMMANDS = new java.util.concurrent.CopyOnWriteArrayList<>();
+
+    private static volatile boolean consoleAcceptsCommands = true;
+
     private static final org.bukkit.command.ConsoleCommandSender CONSOLE =
             (org.bukkit.command.ConsoleCommandSender) Proxy.newProxyInstance(
                     FakeServer.class.getClassLoader(),
@@ -261,6 +267,16 @@ public final class FakeServer {
         return List.copyOf(CONSOLE_MESSAGES);
     }
 
+    /** Every command dispatched from the console, in order. */
+    public static List<String> consoleCommands() {
+        return List.copyOf(CONSOLE_COMMANDS);
+    }
+
+    /** Makes console dispatch report failure, as an unknown command would. */
+    public static void consoleRejectsCommands() {
+        consoleAcceptsCommands = false;
+    }
+
     /** Controls what {@code Bukkit.isPrimaryThread()} reports. */
     static void setPrimaryThread(boolean value) {
         primaryThread = value;
@@ -276,6 +292,10 @@ public final class FakeServer {
                 (proxy, method, args) -> switch (method.getName()) {
                     case "getScheduler" -> scheduler;
                     case "getConsoleSender" -> CONSOLE;
+                    case "dispatchCommand" -> {
+                        CONSOLE_COMMANDS.add(String.valueOf(args[1]));
+                        yield consoleAcceptsCommands;
+                    }
                     case "getOnlinePlayers" -> List.copyOf(ONLINE);
                     case "getPlayer" -> findPlayer(args);
                     case "isPrimaryThread" -> primaryThread;
