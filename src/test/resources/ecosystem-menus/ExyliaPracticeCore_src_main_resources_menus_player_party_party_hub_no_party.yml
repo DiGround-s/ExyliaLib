@@ -1,0 +1,34 @@
+title: "{primary}&lPARTY&r {muted}— No Party"
+size: 27
+type: SIMPLE
+
+open_sounds:
+  - "ENTITY_EXPERIENCE_ORB_PICKUP|1.0|1.2"
+click_sounds:
+  - "UI_BUTTON_CLICK|1.0|1.5"
+
+items:
+  create:
+    slot: 11
+    material: LIME_CONCRETE
+    name: "{success}&lCreate Party"
+    lore:
+      - ""
+      - " {muted}❙ {letters}Start a new party"
+      - " {muted}❙ {letters}and invite your friends"
+      - ""
+      - "{success}» Click to create"
+    actions:
+      - "practice:party_create"
+
+  invitations:
+    slot: 15
+    material: PAPER
+    name: "{info}&lInvitations"
+    lore:
+      - ""
+      - " {muted}❙ {letters}Pending: {highlight}%invitation_count%"
+      - ""
+      - "{info}» Click to view"
+    actions:
+      - "practice:open_party_invitations"

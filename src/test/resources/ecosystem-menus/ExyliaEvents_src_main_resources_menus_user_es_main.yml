@@ -1,0 +1,65 @@
+title: "{primary}&lEVENTOS"
+size: 27
+type: SIMPLE
+refresh:
+  mode: SMART
+  interval: 20
+animation: "center_out"
+
+open_sounds:
+  - "ENTITY_EXPERIENCE_ORB_PICKUP|1.0|1.2"
+click_sounds:
+  - "UI_BUTTON_CLICK|1.0|1.5"
+
+filler:
+  global:
+    material: GRAY_STAINED_GLASS_PANE
+    hide_tooltip: true
+
+items:
+  start-event:
+    slot: 11
+    material: GOLDEN_AXE
+    name: "{secondary}&lINICIAR EVENTO"
+    lore:
+      - ""
+      - " {muted}❙ {letters}Inicia un nuevo evento"
+      - " {muted}❙ {letters}y anuncialo a los jugadores."
+      - ""
+      - "{info}» Clic para abrir"
+    actions:
+      - "events:open_start_event"
+
+  active:
+    slot: 13
+    material: COMPASS
+    name: "{warning}&lEVENTOS ACTIVOS"
+    amount: "%total_players%"
+    lore:
+      - ""
+      - " {muted}❙ {letters}Revisa los eventos activos"
+      - " {muted}❙ {letters}Juega o espectea."
+      - ""
+      - " {muted}❙ {letters}Activos: {highlight}%active_events%"
+      - " {muted}❙ {letters}Esperando: {success}%joinable_events%"
+      - " {muted}❙ {letters}En progreso: {info}%playing_events%"
+      - " {muted}❙ {letters}Jugadores totales: {highlight}%total_players%"
+      - ""
+      - "{info}» Clic para abrir"
+    actions:
+      - "events:open_active_events"
+
+  stats:
+    slot: 15
+    material: BOOK
+    name: "{info}&lESTADISTICAS"
+    lore:
+      - ""
+      - " {muted}❙ {letters}Tus estadisticas de eventos."
+      - ""
+      - " {muted}❙ {letters}Victorias: {success}%player_wins%"
+      - " {muted}❙ {letters}Jugados: {highlight}%player_games%"
+      - ""
+      - "{info}» Clic para abrir"
+    actions:
+      - "events:open_stats"

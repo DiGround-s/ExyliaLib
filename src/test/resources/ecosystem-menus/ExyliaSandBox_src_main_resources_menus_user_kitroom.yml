@@ -1,0 +1,73 @@
+title: "{primary}&lKIT ROOM"
+size: 54
+type: MULTI_PAGINATION
+refresh:
+  mode: ON_CLICK
+  click_delay: 1
+animation: "center_out"
+
+open_sounds:
+  - "ENTITY_EXPERIENCE_ORB_PICKUP|1.0|1.2"
+click_sounds:
+  - "UI_BUTTON_CLICK|1.0|1.5"
+
+filler:
+  global:
+    material: BLACK_STAINED_GLASS_PANE
+    hide_tooltip: true
+
+items: []
+
+sections:
+  categories:
+    slots: "46-52"
+    filler:
+      material: GRAY_STAINED_GLASS_PANE
+      hide_tooltip: true
+    not_selected_template:
+      material: "%category_material%"
+      name: "{muted}&l%category_name%"
+      lore:
+        - ""
+        - " {muted}❙ {letters}Items: {info}%category_item_count%"
+        - ""
+        - "{accent}» Click to view items"
+    selected_template:
+      material: "%category_material%"
+      name: "{success}&l%category_name%"
+      lore:
+        - ""
+        - " {muted}❙ {letters}Items: {info}%category_item_count%"
+        - ""
+        - "{success}✔ Selected category"
+      glowing: true
+    navigation:
+      previous:
+        slot: 45
+        material: ARROW
+        name: "{letters}← Previous"
+        hide_tooltip: false
+      next:
+        slot: 53
+        material: ARROW
+        name: "{letters}Next →"
+        hide_tooltip: false
+
+  items:
+    slots: "0-44"
+    filler:
+      material: AIR
+      hide_tooltip: true
+
+# DON'T USE THIS
+#    navigation:
+#      previous:
+#        slot: 0
+#        material: ARROW
+#        name: "{letters}← Previous"
+#        hide_tooltip: false
+#      next:
+#        slot: 0
+#        material: ARROW
+#        name: "{letters}Next →"
+#        hide_tooltip: false

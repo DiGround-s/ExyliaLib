@@ -1,0 +1,49 @@
+title: "{primary}&l%tpa_title% {muted}» {letters}%target_name%"
+size: 27
+type: SIMPLE
+animation: "center_out"
+
+open_sounds:
+  - "ENTITY_EXPERIENCE_ORB_PICKUP|1.0|1.2"
+click_sounds:
+  - "UI_BUTTON_CLICK|1.0|1.5"
+
+filler:
+  global:
+    material: GRAY_STAINED_GLASS_PANE
+    hide_tooltip: true
+
+items:
+  target_info:
+    slot: 13
+    material: "playerhead-%target_name%"
+    name: "{primary}&l%target_name%"
+    lore:
+      - ""
+      - " {muted}❙ {letters}World: {highlight}%target_world%"
+      - " {muted}❙ {letters}Location: {highlight}%target_location%"
+      - " {muted}❙ {letters}Health: {error}%target_health%{letters}/{error}%target_max_health%"
+      - " {muted}❙ {letters}Food: {success}%target_food%{letters}/20"
+      - ""
+
+  confirm:
+    slot: 15
+    material: LIME_STAINED_GLASS_PANE
+    name: "{success}&lCONFIRM"
+    lore:
+      - ""
+      - " {muted}❙ {letters}%tpa_confirm_description%"
+      - ""
+      - "{info}» Click to confirm"
+    actions:
+      - "survivalcore:tpa_confirm %target_uuid% %tpa_type%"
+
+  cancel:
+    slot: 11
+    material: RED_STAINED_GLASS_PANE
+    name: "{error}&lCANCEL"
+    lore:
+      - ""
+      - "{info}» Click to cancel"
+    actions:
+      - "survivalcore:close_menu"

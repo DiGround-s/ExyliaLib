@@ -1,0 +1,442 @@
+package net.exylia.lib.database.internal;
+
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
+
+import java.sql.Connection;
+import java.sql.DatabaseMetaData;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.sql.Statement;
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.Set;
+import java.util.SortedMap;
+import java.util.TreeMap;
+
+/**
+ * Bringing a live table up to what a record says it should be.
+ *
+ * <p>Runs on every start, so every step has to be idempotent — and idempotent
+ * on four engines that disagree about how to spell "if it is not already
+ * there". Three of them parse {@code IF NOT EXISTS} on an index and MySQL
+ * treats it as a syntax error, so the guard is a metadata lookup first and a
+ * swallowed vendor code second.
+ *
+ * <h2>What it will and will not do</h2>
+ * It creates a table, adds a column a record has gained, and creates an index.
+ * It never drops, narrows, retypes or renames anything. A schema tool that
+ * removes a column because a record stopped declaring it is a schema tool that
+ * deletes a live server's data the first time somebody deploys an old jar.
+ *
+ * <h2>Threads</h2>
+ * Called from the background pool, once per repository at enable. Not
+ * thread-safe against itself for the same table, and does not need to be: two
+ * servers racing on one database both end up with the table, because every
+ * statement here tolerates having lost the race.
+ *
+ * @see Dialect
+ */
+final class SqlSchema {
+
+    private final Dialect dialect;
+
+    SqlSchema(@NotNull Dialect dialect) {
+        this.dialect = dialect;
+    }
+
+    /**
+     * Creates the table if it is missing, adds the columns it lacks, and
+     * creates the indexes the model asks for.
+     *
+     * @param connection an open connection, owned by the caller
+     * @param model      the record model
+     * @return what was actually changed, for the caller to report
+     * @throws SQLException if a statement failed for a reason other than
+     *                      "already there"
+     */
+    @NotNull SchemaReport ensure(@NotNull Connection connection, @NotNull EntityModel<?> model)
+            throws SQLException {
+        String table = dialect.identifier(model.table());
+        boolean created = false;
+        if (!tableExists(connection, table)) {
+            execute(connection, dialect.createTable(model));
+            created = true;
+        }
+        // Only asked of a table that was already there. A table this method
+        // just created has every column the model declares by construction, and
+        // asking anyway is a metadata round trip per table per start for an
+        // answer that is known.
+        List<String> addedColumns = created ? List.of() : addMissingColumns(connection, model, table);
+        List<String> createdIndexes = new ArrayList<>(0);
+        List<String> blockedIndexes = new ArrayList<>(0);
+        createIndexes(connection, model, table, created, createdIndexes, blockedIndexes);
+        return new SchemaReport(table, created, addedColumns, createdIndexes, blockedIndexes);
+    }
+
+    // ----------------------------------------------------------- inspection
+
+    /**
+     * Whether a table exists, asked in a way that survives all four engines.
+     *
+     * <p>Two traps live in this one call:
+     *
+     * <ul>
+     *   <li><b>Case.</b> {@code getTables} matches the identifier as
+     *       <em>stored</em>, and the engines fold differently — H2 upper-cases
+     *       an unquoted name, Postgres lower-cases it, MySQL depends on
+     *       {@code lower_case_table_names}. Since this library always quotes a
+     *       lower-case name, the stored form is lower case everywhere; the
+     *       upper-case form is still tried, because a table created by hand or
+     *       by an older ExyliaCommons plugin was not created this way. Getting
+     *       it wrong means the table looks missing and {@code CREATE TABLE}
+     *       runs against a table that is already full of rows.</li>
+     *   <li><b>{@code _} is a LIKE wildcard.</b> The pattern arguments of
+     *       {@code getTables} and {@code getColumns} are patterns, not names, so
+     *       {@code player_data} also matches {@code playerXdata}. Escaping is
+     *       possible but the escape character is per-driver
+     *       ({@code getSearchStringEscape}), so the result is filtered by exact
+     *       name instead — one comparison, and no driver quirk to get wrong.</li>
+     * </ul>
+     */
+    boolean tableExists(@NotNull Connection connection, @NotNull String table) throws SQLException {
+        DatabaseMetaData metadata = connection.getMetaData();
+        for (String candidate : metadataForms(table)) {
+            try (ResultSet tables = metadata.getTables(connection.getCatalog(), schemaOf(connection),
+                    candidate, new String[]{"TABLE"})) {
+                while (tables.next()) {
+                    if (table.equalsIgnoreCase(tables.getString("TABLE_NAME"))) {
+                        return true;
+                    }
+                }
+            }
+        }
+        return false;
+    }
+
+    /**
+     * The column names a live table has, lower case.
+     *
+     * @param connection an open connection
+     * @param table      the folded table name
+     * @return the columns, possibly empty when the table does not exist
+     */
+    @NotNull Set<String> columnsOf(@NotNull Connection connection, @NotNull String table) throws SQLException {
+        DatabaseMetaData metadata = connection.getMetaData();
+        Set<String> found = new HashSet<>();
+        for (String candidate : metadataForms(table)) {
+            try (ResultSet columns = metadata.getColumns(connection.getCatalog(), schemaOf(connection),
+                    candidate, null)) {
+                while (columns.next()) {
+                    // The same post-filter as tableExists, for the same reason:
+                    // an underscore in the table name is a wildcard here too,
+                    // so a stats_history table would answer for stats_history
+                    // and statsXhistory alike.
+                    if (table.equalsIgnoreCase(columns.getString("TABLE_NAME"))) {
+                        found.add(columns.getString("COLUMN_NAME").toLowerCase(Locale.ROOT));
+                    }
+                }
+            }
+            if (!found.isEmpty()) {
+                return found;
+            }
+        }
+        return found;
+    }
+
+    /**
+     * The indexes on a live table: their names, and the columns each covers.
+     *
+     * <p>{@code getIndexInfo} returns one row per column of per index, with an
+     * {@code ORDINAL_POSITION} saying where in the key that column sits, so the
+     * rows are grouped by name and ordered by position to reconstruct the real
+     * shape of every index that is already there.
+     *
+     * <p>That reconstruction is what makes a composite index recognisable as
+     * itself rather than merely as a name. It matters because the two ways an
+     * index can be "already there" have opposite right answers: an index over
+     * the same columns under a name an operator chose must not be duplicated,
+     * while an index that carries <em>our</em> generated name but covers
+     * different columns is a stale index from a release whose {@code @Index}
+     * listed something else — and skipping that one on a name match would leave
+     * a table permanently without the index the code now asks for, silently,
+     * forever.
+     *
+     * <p>{@code ASC_OR_DESC} is deliberately not compared. It is documented as
+     * nullable and several drivers return {@code null} for every row regardless
+     * of how the index was built, so a comparison against it would read as
+     * "the direction changed" on every start and drop and rebuild a working
+     * index each time. Direction is written into the {@code CREATE} and left
+     * there; what is verified is the columns and their order, which every driver
+     * does report.
+     *
+     * @param connection an open connection
+     * @param table      the folded table name
+     * @return each index name, lower case, mapped to what it covers
+     */
+    @NotNull Map<String, Existing> indexesOf(@NotNull Connection connection,
+                                             @NotNull String table) throws SQLException {
+        DatabaseMetaData metadata = connection.getMetaData();
+        for (String candidate : metadataForms(table)) {
+            // getIndexInfo takes an exact name, not a pattern, so there is no
+            // wildcard to filter here — only the case to get right.
+            Map<String, SortedMap<Integer, String>> columns = new LinkedHashMap<>();
+            Map<String, Boolean> unique = new LinkedHashMap<>();
+            try (ResultSet indexes = metadata.getIndexInfo(connection.getCatalog(), schemaOf(connection),
+                    candidate, false, false)) {
+                while (indexes.next()) {
+                    String name = indexes.getString("INDEX_NAME");
+                    String column = indexes.getString("COLUMN_NAME");
+                    if (name == null || column == null) {
+                        // tableIndexStatistic rows carry a null column: they
+                        // describe the table's row count, not an index.
+                        continue;
+                    }
+                    String key = name.toLowerCase(Locale.ROOT);
+                    columns.computeIfAbsent(key, absent -> new TreeMap<>())
+                            .put(indexes.getInt("ORDINAL_POSITION"), column.toLowerCase(Locale.ROOT));
+                    unique.put(key, !indexes.getBoolean("NON_UNIQUE"));
+                }
+            } catch (SQLException unsupported) {
+                // Some drivers throw rather than return an empty set for a
+                // table they cannot see. An empty answer here only costs a
+                // CREATE INDEX that the duplicate-code path then swallows.
+                return Map.of();
+            }
+            if (!columns.isEmpty()) {
+                Map<String, Existing> found = new LinkedHashMap<>(columns.size() * 2);
+                columns.forEach((name, positions) -> found.put(name,
+                        new Existing(List.copyOf(positions.values()),
+                                Boolean.TRUE.equals(unique.get(name)))));
+                return Map.copyOf(found);
+            }
+        }
+        return Map.of();
+    }
+
+    /**
+     * An index that is already on a live table.
+     *
+     * @param columns the columns it covers, lower case, in key order
+     * @param unique  whether it enforces uniqueness
+     */
+    record Existing(@NotNull List<String> columns, boolean unique) {
+    }
+
+    /**
+     * Both spellings of an identifier to try against {@code DatabaseMetaData}.
+     *
+     * <p>Lower case first, because that is what this library stores and what
+     * every table it created has. Upper case second, for a table created by
+     * hand on H2 or by an older plugin that let the engine fold the name.
+     */
+    private @NotNull List<String> metadataForms(@NotNull String identifier) {
+        String folded = dialect.foldForMetadata(identifier);
+        String upper = folded.toUpperCase(Locale.ROOT);
+        return folded.equals(upper) ? List.of(folded) : List.of(folded, upper);
+    }
+
+    /**
+     * The schema to scope a metadata query to, or {@code null} for all of them.
+     *
+     * <p>Postgres puts every table in {@code public} unless told otherwise and
+     * reports its catalog as the database, while MySQL has no schemas at all
+     * and reports the database as the catalog. Asking the connection rather
+     * than assuming keeps a lookup from matching a same-named table in another
+     * schema the user happens to be able to see.
+     */
+    private static @Nullable String schemaOf(@NotNull Connection connection) {
+        try {
+            return connection.getSchema();
+        } catch (SQLException | AbstractMethodError unsupported) {
+            // AbstractMethodError: getSchema arrived in JDBC 4.1 and an old
+            // driver on a server's classpath can predate it.
+            return null;
+        }
+    }
+
+    // ------------------------------------------------------------- migration
+
+    /**
+     * Adds the columns a live table is missing.
+     *
+     * <p>A column the table has and the record does not is left alone: it may
+     * belong to another plugin's view of the same table, and dropping it is
+     * never recoverable.
+     */
+    private @NotNull List<String> addMissingColumns(@NotNull Connection connection,
+                                                    @NotNull EntityModel<?> model,
+                                                    @NotNull String table) throws SQLException {
+        Set<String> existing = columnsOf(connection, table);
+        if (existing.isEmpty()) {
+            // The table exists but nothing could be read about it — a driver
+            // that scoped the query differently than expected. Adding every
+            // column blind would throw on the first one that is already there;
+            // doing nothing leaves the table exactly as it was.
+            return List.of();
+        }
+        List<String> added = new ArrayList<>(0);
+        for (ColumnModel column : model.columns()) {
+            String name = dialect.identifier(column.name());
+            if (existing.contains(name)) {
+                continue;
+            }
+            try {
+                execute(connection, dialect.addColumn(model.table(), column));
+                added.add(name);
+            } catch (SQLException failure) {
+                if (!dialect.isDuplicateColumn(failure)) {
+                    throw failure;
+                }
+                // Lost a race with another server on the same database. The
+                // column is there, which is all that was wanted.
+            }
+        }
+        return List.copyOf(added);
+    }
+
+    /**
+     * Creates the indexes a model asks for, once.
+     *
+     * <p>MySQL has to be asked first, because it cannot carry the guard in the
+     * statement. The other three are asked too, for a different reason: an
+     * {@code IF NOT EXISTS} that quietly does nothing is indistinguishable from
+     * one that created an index, so without the lookup this method would report
+     * every index as newly created on every single start, and the report exists
+     * precisely so that a console line means something happened.
+     *
+     * <p>The guard still goes in the statement where the engine parses it, and
+     * a collision is still forgiven by vendor code: the lookup and the
+     * {@code CREATE} are not atomic, and two servers starting together race.
+     *
+     * <p>What counts as "already there" is decided by the columns an existing
+     * index covers rather than by its name — see {@link #covered} and
+     * {@link #indexesOf}. A composite index is a shape, and the name is only how
+     * this library happens to spell it.
+     *
+     * <p>An index whose <em>name</em> is already taken by an index over
+     * different columns is reported as blocked rather than as created. That is
+     * the one case where "already exists" is not good enough: the name usually
+     * comes from an {@code @Index} that kept its name and changed its columns, so
+     * the old index still holds the name, the {@code CREATE} either does nothing
+     * (where {@code IF NOT EXISTS} parses) or fails as a duplicate (on MySQL),
+     * and claiming to have created it would leave the table silently without the
+     * index the code now asks for on every start, forever.
+     *
+     * @param freshTable whether the table was created a moment ago, in which
+     *                   case it provably has no indexes yet and the lookup is
+     *                   a round trip for a known answer
+     * @param created    filled with the indexes actually created
+     * @param blocked    filled with the indexes whose name is held by another
+     */
+    private void createIndexes(@NotNull Connection connection,
+                               @NotNull EntityModel<?> model,
+                               @NotNull String table,
+                               boolean freshTable,
+                               @NotNull List<String> created,
+                               @NotNull List<String> blocked) throws SQLException {
+        // One list, whether an index came from @Indexed on a component or from
+        // @Index on the record. EntityModel already excluded the primary key,
+        // which every engine indexes on its own.
+        List<IndexModel> wanted = model.indexes();
+        if (wanted.isEmpty()) {
+            return;
+        }
+        Map<String, Existing> existing = freshTable
+                ? Map.of()
+                : indexesOf(connection, table);
+
+        for (IndexModel index : wanted) {
+            if (covered(existing, index)) {
+                continue;
+            }
+            String name = dialect.indexName(index);
+            if (existing.containsKey(name.toLowerCase(Locale.ROOT))) {
+                // The name is taken by an index that does not cover what this one
+                // wants — covered() already said so. Nothing can be created under
+                // it, and pretending otherwise is worse than saying so.
+                blocked.add(name);
+                continue;
+            }
+            try {
+                execute(connection, dialect.createIndex(model.table(), index));
+                created.add(name);
+            } catch (SQLException failure) {
+                if (!dialect.isDuplicateIndex(failure)) {
+                    throw failure;
+                }
+                // Lost a race with another server on the same database, or the
+                // index exists under a name the metadata lookup could not see.
+                // Either way it is there, which is all that was wanted.
+            }
+        }
+    }
+
+    /**
+     * Whether an index the model asks for is already on the table.
+     *
+     * <p>Answered by columns, not by name. Any live index whose leading columns
+     * are the ones this index wants, in the same order, already answers every
+     * query this one would: a key on {@code (kit_id, elo, wins)} serves a lookup
+     * that filters {@code kit_id} and sorts {@code elo} exactly as well as a key
+     * on {@code (kit_id, elo)} does, so creating the shorter one would pay for a
+     * second B-tree on every insert to answer nothing new.
+     *
+     * <p>A prefix match rather than an exact one for the same reason it is not a
+     * name match: an operator who widened an index by hand, or an earlier
+     * release that asked for more columns, has left something better than what
+     * is being asked for. Only the other direction — a live index that is a
+     * <em>shorter</em> prefix of the wanted one — means the index is genuinely
+     * missing, and that is the case this returns false for.
+     *
+     * <p>A unique index is only covered by a unique one, whatever the columns
+     * say. Uniqueness is a constraint and not an optimisation: a plain index
+     * over the same columns answers the same queries and enforces nothing, so
+     * treating it as covering would silently drop the guarantee a record asked
+     * for and let in the duplicate row it was written to refuse. The reverse is
+     * fine — a unique index covers a non-unique request completely.
+     */
+    private static boolean covered(@NotNull Map<String, Existing> existing,
+                                   @NotNull IndexModel index) {
+        List<String> wanted = index.columns();
+        for (Existing present : existing.values()) {
+            if (index.unique() && !present.unique()) {
+                continue;
+            }
+            List<String> columns = present.columns();
+            if (columns.size() < wanted.size()) {
+                continue;
+            }
+            // A unique constraint over more columns than were asked for is not
+            // the constraint that was asked for: uniqueness of (a) is stricter
+            // than uniqueness of (a, b), so a wider unique index does not
+            // enforce it. Only an exact column list will do for a unique index.
+            if (index.unique() && columns.size() != wanted.size()) {
+                continue;
+            }
+            boolean prefix = true;
+            for (int position = 0; position < wanted.size(); position++) {
+                if (!columns.get(position).equalsIgnoreCase(wanted.get(position))) {
+                    prefix = false;
+                    break;
+                }
+            }
+            if (prefix) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static void execute(@NotNull Connection connection, @NotNull String sql) throws SQLException {
+        // Statement, not PreparedStatement: DDL carries no parameters, and a
+        // prepared DDL statement is refused outright by some drivers.
+        try (Statement statement = connection.createStatement()) {
+            statement.execute(sql);
+        }
+    }
+}

@@ -1,0 +1,62 @@
+title: "{primary}&lEDITOR DE KITS {muted}%current_page%/%total_pages%"
+size: 54
+type: PAGINATION
+animation: "center_out"
+
+open_sounds:
+  - "ENTITY_EXPERIENCE_ORB_PICKUP|1.0|1.2"
+click_sounds:
+  - "UI_BUTTON_CLICK|1.0|1.5"
+
+filler:
+  global:
+    material: GRAY_STAINED_GLASS_PANE
+    hide_tooltip: true
+
+  pagination:
+    material: LIGHT_GRAY_STAINED_GLASS_PANE
+    name: "{muted}No hay arenas disponibles"
+    hide_tooltip: false
+
+pagination:
+  slots: '10-16,19-25,28-34,37-43'
+
+  item_template:
+    material: "%arena_icon%"
+    name: "{warning}&l%arena_name%"
+    lore:
+      - ""
+      - " {muted}❙ {letters}Kits disponibles: {highlight}%arena_kit_count%"
+      - ""
+      - "{success}▶ Haz clic para seleccionar kit"
+    actions:
+      - "ffa:open_kit_editor_kits %arena_id%"
+
+  navigation:
+    previous:
+      slot: 48
+      material: ARROW
+      name: '{error}&l← PAGINA ANTERIOR'
+      lore:
+        - '{info}ℹ Pagina actual: {success}%current_page%&8/{error}%total_pages%'
+      actions:
+        - 'previous_page'
+    next:
+      slot: 50
+      material: ARROW
+      name: '{success}&lSIGUIENTE PAGINA →'
+      lore:
+        - '{info}ℹ Pagina actual: {success}%current_page%&8/{error}%total_pages%'
+      actions:
+        - 'next_page'
+
+items:
+  close:
+    slot: 49
+    material: BARRIER
+    name: "{error}&lCERRAR"
+    lore:
+      - ""
+      - "{error}▶ Haz clic para cerrar"
+    actions:
+      - "close"

@@ -1,0 +1,84 @@
+title: "{primary}&lFILTER BY EVENT"
+size: 54
+type: PAGINATION
+
+open_sounds:
+  - "ENTITY_EXPERIENCE_ORB_PICKUP|1.0|1.2"
+click_sounds:
+  - "UI_BUTTON_CLICK|1.0|1.5"
+
+filler:
+  global:
+    material: BLACK_STAINED_GLASS_PANE
+    hide_tooltip: true
+
+  pagination:
+    material: AIR
+    hide_tooltip: true
+
+pagination:
+  slots: '10-16,19-25,28-34'
+
+  item_template:
+    material: "%filter_event_material%"
+    name: "{primary}&l%filter_event_name%"
+    lore:
+      - ""
+      - "{secondary}Details:"
+      - " {letters_black}▎ {letters}Mode {letters_black}» {info}%filter_event_type%"
+      - " {letters_black}▎ {letters}Points per win {letters_black}» {highlight}%filter_event_points%"
+      - ""
+      - "{warning}➥ Click to filter"
+      - ""
+    actions:
+      - "capture:apply_lb_filter %filter_event_id%"
+
+  navigation:
+    previous:
+      slot: 45
+      material: ARROW
+      name: '{letters}&l← PREVIOUS'
+      lore:
+        - ""
+        - " {letters_black}▎ {letters}Page {letters_black}» {info}%current_page%{letters_black}/%total_pages%"
+        - ""
+      actions:
+        - 'previous_page'
+    next:
+      slot: 53
+      material: ARROW
+      name: '{letters}&lNEXT →'
+      lore:
+        - ""
+        - " {letters_black}▎ {letters}Page {letters_black}» {info}%current_page%{letters_black}/%total_pages%"
+        - ""
+      actions:
+        - 'next_page'
+
+items:
+  global-option:
+    slot: 4
+    material: NETHER_STAR
+    name: "{primary}&lGLOBAL"
+    lore:
+      - ""
+      - " {letters_black}▎ {letters}Clears the filter and combines"
+      - " {letters_black}▎ {letters}{highlight}every event{letters}."
+      - ""
+      - "{warning}➥ Click to select"
+      - ""
+    actions:
+      - "capture:apply_lb_filter global"
+
+  back:
+    slot: 48
+    material: DARK_OAK_BUTTON
+    name: "{primary}&l← BACK"
+    lore:
+      - ""
+      - " {letters_black}▎ {letters}Returns to the ranking"
+      - " {letters_black}▎ {letters}without changing the filter."
+      - ""
+      - "{warning}➥ Click to go back"
+    actions:
+      - "capture:return_from_lb_filter"

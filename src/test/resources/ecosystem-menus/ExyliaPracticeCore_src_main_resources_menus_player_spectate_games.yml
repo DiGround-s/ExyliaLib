@@ -1,0 +1,54 @@
+title: "{primary}&lGAMES&r {muted}— %game_count% active"
+size: 54
+type: PAGINATION
+refresh:
+  mode: FULL
+  interval: 20
+
+open_sounds:
+  - "ENTITY_EXPERIENCE_ORB_PICKUP|1.0|1.2"
+click_sounds:
+  - "UI_BUTTON_CLICK|1.0|1.5"
+
+filler:
+  global:
+    material: GRAY_STAINED_GLASS_PANE
+    hide_tooltip: true
+
+  pagination:
+    material: LIGHT_GRAY_STAINED_GLASS_PANE
+    name: "{muted}No active games"
+    hide_tooltip: false
+
+pagination:
+  slots: '10-16,19-25,28-34'
+
+  item_template:
+    material: "%kit_icon%"
+    name: "{primary}&l%kit_name%"
+    lore:
+      - ""
+      - " {muted}❙ {letters}Players: {highlight}%player_names%"
+      - " {muted}❙ {letters}Duration: {highlight}%duration%"
+      - ""
+      - "{success}» Click to spectate"
+    actions:
+      - "practice:join_spectate %game_id%"
+
+  navigation:
+    previous:
+      slot: 45
+      material: ARROW
+      name: '{error}&l← PREVIOUS'
+      lore:
+        - '{info}Page: {success}%current_page%&8/{error}%total_pages%'
+      actions:
+        - 'previous_page'
+    next:
+      slot: 53
+      material: ARROW
+      name: '{success}&lNEXT →'
+      lore:
+        - '{info}Page: {success}%current_page%&8/{error}%total_pages%'
+      actions:
+        - 'next_page'

@@ -1,0 +1,147 @@
+title: "{error}&lPAYLOAD SETTINGS"
+size: 45
+type: SIMPLE
+refresh:
+  mode: ON_CLICK
+  click_delay: 4
+
+open_sounds:
+  - "ENTITY_EXPERIENCE_ORB_PICKUP|1.0|1.2"
+click_sounds:
+  - "UI_BUTTON_CLICK|1.0|1.5"
+
+filler:
+  global:
+    material: GRAY_STAINED_GLASS_PANE
+    hide_tooltip: true
+
+items:
+  spawn-location:
+    slot: 10
+    material: "%spawn_material%"
+    name: "{info}&lSPAWN LOCATION"
+    lore:
+      - ""
+      - " {muted}❙ {letters}Status: {highlight}%spawn_status%"
+      - " {muted}❙ {letters}Initial cart position"
+      - ""
+      - " {success}» Click to set"
+    actions:
+      - "capture:set_payload_spawn"
+
+  end-location:
+    slot: 16
+    material: "%end_material%"
+    name: "{info}&lEND LOCATION"
+    lore:
+      - ""
+      - " {muted}❙ {letters}Status: {highlight}%end_status%"
+      - " {muted}❙ {letters}Delivery destination"
+      - ""
+      - " {success}» Click to set"
+    actions:
+      - "capture:set_payload_end"
+
+  radius:
+    slot: 20
+    material: COMPASS
+    name: "{info}&lCAPTURE RADIUS"
+    lore:
+      - ""
+      - " {muted}❙ {letters}Current: {highlight}%radius% blocks"
+      - " {muted}❙ {letters}Detection radius around the cart"
+      - ""
+      - " {muted}❙ {success}Left-Click +0.5"
+      - " {muted}❙ {error}Right-Click -0.5"
+      - " {muted}❙ {warning}Shift-Click to enter"
+    actions:
+      - "left: capture:adjust_double_setting radius 0.5"
+      - "right: capture:adjust_double_setting radius -0.5"
+      - "shift_left: capture:input_double_setting radius"
+
+  minecart-type:
+    slot: 24
+    material: MINECART
+    name: "{warning}&lMINECART TYPE"
+    lore:
+      - ""
+      - " {muted}❙ {letters}Current: {highlight}%minecart_type%"
+      - " {muted}❙ {letters}Entity type spawned as cart"
+      - ""
+      - " {success}» Click to cycle"
+    actions:
+      - "capture:cycle_minecart_type"
+
+  clan-mode:
+    slot: 22
+    material: "%clan_mode_material%"
+    name: "{warning}&lCLAN MODE"
+    lore:
+      - ""
+      - " {muted}❙ {letters}Current: {highlight}%clan_mode_status%"
+      - " {muted}❙ {letters}Only clan members can capture"
+      - " {muted}❙ {letters}Win goes to the delivering clan"
+      - ""
+      - " {muted}❙ {success}Click to toggle"
+    actions:
+      - "capture:toggle_boolean_setting clan-mode"
+
+  capture-speed:
+    slot: 28
+    material: LIME_DYE
+    name: "{success}&lCAPTURE SPEED"
+    lore:
+      - ""
+      - " {muted}❙ {letters}Current: {highlight}%capture_speed% blocks/s"
+      - " {muted}❙ {letters}Speed when clan is escorting"
+      - ""
+      - " {muted}❙ {success}Left-Click +0.1"
+      - " {muted}❙ {error}Right-Click -0.1"
+      - " {muted}❙ {warning}Shift-Click to enter"
+    actions:
+      - "left: capture:adjust_double_setting capture-speed 0.1"
+      - "right: capture:adjust_double_setting capture-speed -0.1"
+      - "shift_left: capture:input_double_setting capture-speed"
+
+  recapture-speed:
+    slot: 31
+    material: RED_DYE
+    name: "{error}&lRECAPTURE SPEED"
+    lore:
+      - ""
+      - " {muted}❙ {letters}Current: {highlight}%recapture_speed% blocks/s"
+      - " {muted}❙ {letters}Speed when enemies push cart back"
+      - ""
+      - " {muted}❙ {success}Left-Click +0.1"
+      - " {muted}❙ {error}Right-Click -0.1"
+      - " {muted}❙ {warning}Shift-Click to enter"
+    actions:
+      - "left: capture:adjust_double_setting recapture-speed 0.1"
+      - "right: capture:adjust_double_setting recapture-speed -0.1"
+      - "shift_left: capture:input_double_setting recapture-speed"
+
+  return-speed:
+    slot: 34
+    material: YELLOW_DYE
+    name: "{warning}&lRETURN SPEED"
+    lore:
+      - ""
+      - " {muted}❙ {letters}Current: {highlight}%return_speed% blocks/s"
+      - " {muted}❙ {letters}Speed when cart drifts back (no players)"
+      - ""
+      - " {muted}❙ {success}Left-Click +0.1"
+      - " {muted}❙ {error}Right-Click -0.1"
+      - " {muted}❙ {warning}Shift-Click to enter"
+    actions:
+      - "left: capture:adjust_double_setting return-speed 0.1"
+      - "right: capture:adjust_double_setting return-speed -0.1"
+      - "shift_left: capture:input_double_setting return-speed"
+
+  back:
+    slot: 40
+    material: ARROW
+    name: "{error}&lBack"
+    lore:
+      - "{muted}Click to go back"
+    actions:
+      - "capture:open_config_setup"

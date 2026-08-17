@@ -1,0 +1,158 @@
+title: "{primary}&lPLAYER SETTINGS"
+size: 36
+type: SIMPLE
+refresh:
+  mode: ON_CLICK
+  click_delay: 4
+
+open_sounds:
+  - "ENTITY_EXPERIENCE_ORB_PICKUP|1.0|1.2"
+click_sounds:
+  - "UI_BUTTON_CLICK|1.0|1.5"
+
+filler:
+  global:
+    material: GRAY_STAINED_GLASS_PANE
+    hide_tooltip: true
+
+items:
+  scoreboard:
+    slot: 10
+    material: "%scoreboard_material%"
+    name: "{highlight}&lSCOREBOARD"
+    lore:
+      - ""
+      - " {muted}❙ {letters}Status: %scoreboard_label%"
+      - " {muted}❙ {letters}Show or hide the FFA scoreboard"
+      - ""
+      - "{info}» Click to toggle"
+    actions:
+      - "ffa:toggle_player_setting SCOREBOARD"
+
+  waypoints:
+    slot: 11
+    material: "%waypoints_material%"
+    name: "{highlight}&lSPAWN WAYPOINTS"
+    lore:
+      - ""
+      - " {muted}❙ {letters}Status: %waypoints_label%"
+      - " {muted}❙ {letters}Show waypoints pointing to spawns"
+      - ""
+      - "{info}» Click to toggle"
+    actions:
+      - "ffa:toggle_player_setting SPAWN_WAYPOINTS"
+
+  combat-bar:
+    slot: 12
+    material: "%combat_bar_material%"
+    name: "{highlight}&lCOMBAT ACTION BAR"
+    lore:
+      - ""
+      - " {muted}❙ {letters}Status: %combat_bar_label%"
+      - " {muted}❙ {letters}Show the combat timer in action bar"
+      - ""
+      - "{info}» Click to toggle"
+    actions:
+      - "ffa:toggle_player_setting COMBAT_ACTION_BAR"
+
+  linked-bar:
+    slot: 13
+    material: "%linked_bar_material%"
+    name: "{highlight}&lLINKED OPPONENT BAR"
+    lore:
+      - ""
+      - " {muted}❙ {letters}Status: %linked_bar_label%"
+      - " {muted}❙ {letters}Show linked opponent health & ping"
+      - " {muted}❙ {muted}Only shows during Anti Free-Hit"
+      - ""
+      - "{info}» Click to toggle"
+    actions:
+      - "ffa:toggle_player_setting LINKED_ACTION_BAR"
+
+  combat-msgs:
+    slot: 14
+    material: "%combat_msgs_material%"
+    name: "{highlight}&lCOMBAT MESSAGES"
+    lore:
+      - ""
+      - " {muted}❙ {letters}Status: %combat_msgs_label%"
+      - " {muted}❙ {letters}Show in-combat and untag messages"
+      - ""
+      - "{info}» Click to toggle"
+    actions:
+      - "ffa:toggle_player_setting COMBAT_MESSAGES"
+
+  ks-notifs:
+    slot: 15
+    material: "%ks_notifs_material%"
+    name: "{highlight}&lKILL STREAK NOTIFICATIONS"
+    lore:
+      - ""
+      - " {muted}❙ {letters}Status: %ks_notifs_label%"
+      - " {muted}❙ {letters}Receive your own kill streak messages"
+      - ""
+      - "{info}» Click to toggle"
+    actions:
+      - "ffa:toggle_player_setting KILL_STREAK_NOTIFICATIONS"
+
+  ks-broadcasts:
+    slot: 16
+    material: "%ks_broadcasts_material%"
+    name: "{highlight}&lKILL STREAK BROADCASTS"
+    lore:
+      - ""
+      - " {muted}❙ {letters}Status: %ks_broadcasts_label%"
+      - " {muted}❙ {letters}See others' kill streak announcements"
+      - ""
+      - "{info}» Click to toggle"
+    actions:
+      - "ffa:toggle_player_setting KILL_STREAK_BROADCASTS"
+
+  kd-broadcasts:
+    slot: 21
+    material: "%kd_broadcasts_material%"
+    name: "{highlight}&lKILL / DEATH MESSAGES"
+    lore:
+      - ""
+      - " {muted}❙ {letters}Status: %kd_broadcasts_label%"
+      - " {muted}❙ {letters}See kill and death announcements"
+      - ""
+      - "{info}» Click to toggle"
+    actions:
+      - "ffa:toggle_player_setting KILL_DEATH_BROADCASTS"
+
+  glow:
+    slot: 22
+    material: "%glow_material%"
+    name: "{highlight}&lGLOW ON LINKED PLAYER"
+    lore:
+      - ""
+      - " {muted}❙ {letters}Status: %glow_label%"
+      - " {muted}❙ {letters}Highlight your linked opponent"
+      - " {muted}❙ {muted}Only visible to you during Anti Free-Hit"
+      - ""
+      - "{info}» Click to toggle"
+    actions:
+      - "ffa:toggle_player_setting GLOW_LINKED_PLAYER"
+
+  spec-hint:
+    slot: 23
+    material: "%spec_hint_material%"
+    name: "{highlight}&lSPECTATOR HINT"
+    lore:
+      - ""
+      - " {muted}❙ {letters}Status: %spec_hint_label%"
+      - " {muted}❙ {letters}Show the double-shift spectator hint"
+      - ""
+      - "{info}» Click to toggle"
+    actions:
+      - "ffa:toggle_player_setting SPECTATOR_ACTIONBAR_HINT"
+
+  close:
+    slot: 31
+    material: BARRIER
+    name: "{error}&lClose"
+    lore:
+      - "{muted}Close this menu"
+    actions:
+      - "close"

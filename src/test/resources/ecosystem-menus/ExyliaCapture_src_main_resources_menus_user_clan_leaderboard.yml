@@ -1,0 +1,165 @@
+title: "{primary}&lCLANS {letters_black}» %lb_filter_name%"
+size: 54
+type: PAGINATION
+
+open_sounds:
+  - "ENTITY_EXPERIENCE_ORB_PICKUP|1.0|1.2"
+click_sounds:
+  - "UI_BUTTON_CLICK|1.0|1.5"
+
+filler:
+  global:
+    material: BLACK_STAINED_GLASS_PANE
+    hide_tooltip: true
+
+  pagination:
+    material: AIR
+    hide_tooltip: true
+
+pagination:
+  slots: '10-16,19-25,28-34,37-43'
+
+  item_template:
+    material: "%lb_rank_material%"
+    name: "%lb_medal% {letters_black}[{secondary}%lb_clan_tag%{letters_black}] {letters}%lb_clan_name%%lb_you%"
+    lore:
+      - ""
+      - "{secondary}Ranking:"
+      - " {letters_black}▎ {letters}Points {letters_black}» {highlight}%lb_points%"
+      - " {letters_black}▎ {letters}Position {letters_black}» {info}#%lb_rank% {letters_black}of %lb_total%"
+      - ""
+      - "{secondary}Performance:"
+      - " {letters_black}▎ {letters}Wins {letters_black}» {success}%lb_wins%"
+      - " {letters_black}▎ {letters}Captures {letters_black}» {info}%lb_captures%"
+      - ""
+
+  navigation:
+    previous:
+      slot: 45
+      material: ARROW
+      name: '{letters}&l← PREVIOUS'
+      lore:
+        - ""
+        - " {letters_black}▎ {letters}Page {letters_black}» {info}%current_page%{letters_black}/%total_pages%"
+        - ""
+      actions:
+        - 'previous_page'
+    next:
+      slot: 53
+      material: ARROW
+      name: '{letters}&lNEXT →'
+      lore:
+        - ""
+        - " {letters_black}▎ {letters}Page {letters_black}» {info}%current_page%{letters_black}/%total_pages%"
+        - ""
+      actions:
+        - 'next_page'
+
+items:
+  empty-state:
+    slot: 22
+    condition: "%lb_total% == 0"
+    material: LIGHT_GRAY_STAINED_GLASS_PANE
+    name: "{letters_black}&lNO DATA YET"
+    lore:
+      - ""
+      - " {letters_black}▎ {letters}No clan has scored in this"
+      - " {letters_black}▎ {letters}ranking yet."
+      - ""
+      - "{warning}➥ Win an event to be the first"
+      - ""
+
+  header:
+    slot: 4
+    material: SHIELD
+    name: "{primary}&lYOUR CLAN"
+    lore:
+      - ""
+      - "{secondary}Ranking:"
+      - " {letters_black}▎ {letters}Clan {letters_black}» {highlight}%lb_self_clan%"
+      - " {letters_black}▎ {letters}Position {letters_black}» %lb_self_rank%"
+      - " {letters_black}▎ {letters}Points {letters_black}» {highlight}%lb_self_points%"
+      - ""
+      - "{secondary}Performance:"
+      - " {letters_black}▎ {letters}Wins {letters_black}» {success}%lb_self_wins%"
+      - " {letters_black}▎ {letters}Captures {letters_black}» {info}%lb_self_captures%"
+      - ""
+
+  filter-global:
+    slot: 2
+    material: "%global_filter_material%"
+    name: "{primary}&lGLOBAL"
+    lore:
+      - ""
+      - " {letters_black}▎ {letters}Every event combined into"
+      - " {letters_black}▎ {letters}a {highlight}single ranking{letters}."
+      - ""
+      - "%global_filter_state%"
+    actions:
+      - "capture:set_clan_lb_filter global"
+
+  filter-event:
+    slot: 6
+    material: "%event_filter_material%"
+    name: "{primary}&lBY EVENT"
+    lore:
+      - ""
+      - " {letters_black}▎ {letters}Current filter {letters_black}» {info}%lb_filter_event%"
+      - " {letters_black}▎ {letters}Ranking for one"
+      - " {letters_black}▎ {letters}specific event."
+      - ""
+      - "{warning}➥ Click to choose an event"
+    actions:
+      - "capture:open_clan_lb_filter"
+
+  # --- Shared tab bar (same slots across every user menu) ---
+  tab-events:
+    slot: 47
+    material: CLOCK
+    name: "%tab_events_name%"
+    lore:
+      - ""
+      - " {letters_black}▎ {letters}Every event and its"
+      - " {letters_black}▎ {letters}{highlight}next start{letters}."
+      - ""
+      - "%tab_events_state%"
+    actions:
+      - "capture:open_events_list"
+
+  tab-players:
+    slot: 48
+    material: PLAYER_HEAD
+    name: "%tab_players_name%"
+    lore:
+      - ""
+      - " {letters_black}▎ {letters}Ranking of the"
+      - " {letters_black}▎ {letters}{highlight}top players{letters}."
+      - ""
+      - "%tab_players_state%"
+    actions:
+      - "capture:open_player_leaderboard"
+
+  tab-clans:
+    slot: 49
+    material: SHIELD
+    glowing: true
+    name: "%tab_clans_name%"
+    lore:
+      - ""
+      - " {letters_black}▎ {letters}Ranking of the"
+      - " {letters_black}▎ {letters}{highlight}top clans{letters}."
+      - ""
+      - "%tab_clans_state%"
+    actions:
+      - "capture:open_clan_leaderboard"
+
+  close:
+    slot: 51
+    material: BARRIER
+    name: "{error}&lCLOSE"
+    lore:
+      - ""
+      - " {letters_black}▎ {letters}Closes this menu."
+      - ""
+    actions:
+      - "close"

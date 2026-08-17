@@ -1,0 +1,42 @@
+material: GOLDEN_HOE
+name: "&c&lCrowbar"
+lore:
+  - ""
+  - " &8❙ &7Right-click special blocks to extract them."
+  - " &8❙ &7Uses per material:"
+  - "   &8▸ &7End Portal Frame: &f%uses_end_portal_frame%"
+  - "   &8▸ &7Spawner: &f%uses_spawner%"
+  - "   &8▸ &7Bedrock: &f%uses_bedrock%"
+  - ""
+flags:
+  - HIDE_ATTRIBUTES
+max_stack_size: 1
+unbreakable: true
+glow: true
+
+behaviors:
+  - id: crowbar
+    config:
+      materials:
+        END_PORTAL_FRAME: 12
+        SPAWNER: 1
+        BEDROCK: 4
+      no-uses-message: "&cNo more uses remaining for &e%material%&c."
+      on-no-uses:
+        sounds:
+          - "BLOCK_NOTE_BLOCK_BASS|1.0|0.5"
+        particles:
+          - "SMOKE|3|0.2|0.2|0.2"
+
+effects:
+  on-use:
+    sounds:
+      - "BLOCK_ANVIL_USE|1.0|0.8"
+    particles: []
+  on-block-break:
+    sounds:
+      - "BLOCK_STONE_BREAK|1.0|0.7"
+      - "ITEM_TRIDENT_RETURN|0.6|1.2"
+    particles:
+      - "CRIT|8|0.2|0.2|0.2"
+      - "SMOKE|6|0.15|0.15|0.15"

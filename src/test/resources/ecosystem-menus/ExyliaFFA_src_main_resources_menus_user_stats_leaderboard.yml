@@ -1,0 +1,81 @@
+title: "{primary}&lLEADERBOARD {muted}%arena_name%"
+size: 54
+type: MULTI_PAGINATION
+animation: "center_out"
+
+open_sounds:
+  - "ENTITY_EXPERIENCE_ORB_PICKUP|1.0|1.2"
+click_sounds:
+  - "UI_BUTTON_CLICK|1.0|1.5"
+
+filler:
+  global:
+    material: BLACK_STAINED_GLASS_PANE
+    hide_tooltip: true
+
+items:
+  back:
+    slot: 40
+    material: DARK_OAK_BUTTON
+    name: "{warning}&l← BACK"
+    lore:
+      - ""
+      - "{warning}▶ Click to go back"
+    actions:
+      - "ffa:open_stats"
+
+sections:
+  players:
+    slots: "1-7,10-16,19-25,28-34"
+    filler:
+      material: AIR
+      hide_tooltip: true
+    player_template:
+      material: "playerhead-%player_name%"
+      name: "{highlight}#%player_rank% {letters}%player_name%"
+      lore:
+        - ""
+        - " {muted}❙ {letters}%stat_type_name%: {success}%stat_value%"
+        - ""
+        - "{accent}» Top player"
+    navigation:
+      previous:
+        slot: 37
+        material: ARROW
+        name: "{letters}← Previous"
+        hide_tooltip: false
+      next:
+        slot: 43
+        material: ARROW
+        name: "{letters}Next →"
+        hide_tooltip: false
+
+  stat_types:
+    slots: "46-52"
+    filler:
+      material: GRAY_STAINED_GLASS_PANE
+      hide_tooltip: true
+    not_selected_template:
+      material: "%stat_material%"
+      name: "{muted}&l%stat_name%"
+      lore:
+        - ""
+        - "{accent}» Click to sort by this stat"
+    selected_template:
+      material: "%stat_material%"
+      name: "{success}&l%stat_name%"
+      lore:
+        - ""
+        - "{success}✔ Currently sorting by this stat"
+      glowing: true
+    navigation:
+      previous:
+        slot: 45
+        material: ARROW
+        name: "{letters}← Previous"
+        hide_tooltip: false
+      next:
+        slot: 53
+        material: ARROW
+        name: "{letters}Next →"
+        hide_tooltip: false

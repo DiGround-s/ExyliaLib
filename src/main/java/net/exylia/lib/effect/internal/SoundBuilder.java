@@ -141,6 +141,19 @@ public final class SoundBuilder {
      */
     static volatile java.util.function.UnaryOperator<String> keyResolver;
 
+    /**
+     * The key this sound resolves to, without playing it.
+     *
+     * <p>For callers that need the key rather than the sound: an item that eats
+     * with a configured sound stores the key in a data component, and resolving
+     * it a second way would reintroduce the bug this method exists to avoid.
+     *
+     * @return the namespaced key
+     */
+    public @NotNull String key() {
+        return resolvedKey();
+    }
+
     private String resolvedKey() {
         java.util.function.UnaryOperator<String> injected = keyResolver;
         if (injected != null) {

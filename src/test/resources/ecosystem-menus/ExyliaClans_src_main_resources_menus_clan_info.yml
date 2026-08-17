@@ -1,0 +1,92 @@
+title: "{primary}&l%clan_name%"
+size: 27
+type: SIMPLE
+animation: "center_out"
+
+
+open_sounds:
+  - "ENTITY_EXPERIENCE_ORB_PICKUP|1.0|1.2"
+click_sounds:
+  - "UI_BUTTON_CLICK|1.0|1.5"
+
+filler:
+  global:
+    material: GRAY_STAINED_GLASS_PANE
+    hide_tooltip: true
+
+items:
+  clan-info:
+    slot: 4
+    material: SHIELD
+    name: "{primary}&l%clan_name%"
+    lore:
+      - ""
+      - " {muted}❙ {letters}Leader: {highlight}%leader%"
+      - " {muted}❙ {letters}Members: {highlight}%members%{muted}/{highlight}%max_members% {muted}({success}%online_members% online{muted})"
+      - " {muted}❙ {letters}Balance: {highlight}%balance%"
+      - " {muted}❙ {letters}Status: %status%"
+      - " {muted}❙ {letters}Friendly Fire: %ff%"
+      - " {muted}❙ {letters}Allies: {highlight}%allies%"
+      - " {muted}❙ {letters}Home: %home%"
+      - " {muted}❙ {letters}DTR: {highlight}%dtr%{muted}/{highlight}%max_dtr% %dtr_state%"
+      - "%dtr_detail%"
+      - ""
+      - " {muted}❙ {letters}Kills: {success}%clan_kills%"
+      - " {muted}❙ {letters}Deaths: {error}%clan_deaths%"
+      - " {muted}❙ {letters}KDR: {highlight}%clan_kdr%"
+      - " {muted}❙ {letters}Playtime: {info}%clan_playtime%"
+      - ""
+
+  members:
+    slot: 10
+    material: PLAYER_HEAD
+    name: "{secondary}&lMEMBERS"
+    amount: "%members%"
+    lore:
+      - ""
+      - " {muted}❙ {letters}Members: {highlight}%members%{muted}/{highlight}%max_members%"
+      - ""
+      - "%members_lore%"
+    actions:
+      - "%members_action%"
+
+  balance:
+    slot: 11
+    material: GOLD_BLOCK
+    name: "{highlight}&lCLAN BANK"
+    lore:
+      - ""
+      - " {muted}❙ {letters}Balance: {success}%balance%"
+      - ""
+
+  allies:
+    slot: 15
+    material: GREEN_BANNER
+    name: "{success}&lALLIES"
+    amount: "%allies%"
+    lore:
+      - ""
+      - " {muted}❙ {letters}Allied clans: {success}%allies%"
+      - ""
+      - "%ally_lore%"
+    actions:
+      - "%ally_action%"
+
+  status:
+    slot: 16
+    material: COMPARATOR
+    name: "{letters}&lINFO"
+    lore:
+      - ""
+      - " {muted}❙ {letters}Status: %status%"
+      - " {muted}❙ {letters}Friendly Fire: %ff%"
+      - ""
+
+  close:
+    slot: 22
+    material: 'basehead-eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvMjIzZmI2NzQyOTcxNmIyMWJjNmU4ZTdkNjY5Y2VkZGY2NWIxM2UwNzkwYTVjZTU1YjJlMDc3YjgyZDE5ZTEyNCJ9fX0='
+    name: "{error}&lClose"
+    lore:
+      - "{muted}Click to close"
+    actions:
+      - "exyliaclans:close_menu"

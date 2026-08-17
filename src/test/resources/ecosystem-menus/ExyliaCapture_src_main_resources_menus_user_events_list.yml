@@ -1,0 +1,140 @@
+title: "{primary}&lEVENTS {letters_black}» %total_events% total"
+size: 54
+type: PAGINATION
+
+open_sounds:
+  - "ENTITY_EXPERIENCE_ORB_PICKUP|1.0|1.2"
+click_sounds:
+  - "UI_BUTTON_CLICK|1.0|1.5"
+
+filler:
+  global:
+    material: BLACK_STAINED_GLASS_PANE
+    hide_tooltip: true
+
+  pagination:
+    material: AIR
+    hide_tooltip: true
+
+pagination:
+  slots: '10-16,19-25,28-34,37-43'
+
+  item_template:
+    material: "%event_material%"
+    name: "%event_state_icon% {primary}&l%event_name%"
+    lore:
+      - ""
+      - "{secondary}Details:"
+      - " {letters_black}▎ {letters}Mode {letters_black}» {info}%event_type%"
+      - " {letters_black}▎ {letters}Duration {letters_black}» {info}%event_duration%"
+      - ""
+      - "{secondary}Status:"
+      - " {letters_black}▎ {letters}State {letters_black}» %event_status%"
+      - " {letters_black}▎ {letters}%event_timing_label% {letters_black}» %event_next_start%"
+      - ""
+      - "%event_hint%"
+      - ""
+
+  navigation:
+    previous:
+      slot: 45
+      material: ARROW
+      name: '{letters}&l← PREVIOUS'
+      lore:
+        - ""
+        - " {letters_black}▎ {letters}Page {letters_black}» {info}%current_page%{letters_black}/%total_pages%"
+        - ""
+      actions:
+        - 'previous_page'
+    next:
+      slot: 53
+      material: ARROW
+      name: '{letters}&lNEXT →'
+      lore:
+        - ""
+        - " {letters_black}▎ {letters}Page {letters_black}» {info}%current_page%{letters_black}/%total_pages%"
+        - ""
+      actions:
+        - 'next_page'
+
+items:
+  empty-state:
+    slot: 22
+    condition: "%total_events% == 0"
+    material: LIGHT_GRAY_STAINED_GLASS_PANE
+    name: "{letters_black}&lNO EVENTS AVAILABLE"
+    lore:
+      - ""
+      - " {letters_black}▎ {letters}No events are enabled"
+      - " {letters_black}▎ {letters}on this server right now."
+      - ""
+      - "{warning}➥ Check back later"
+      - ""
+
+  header:
+    slot: 4
+    material: CLOCK
+    name: "{primary}&lEVENT SCHEDULE"
+    lore:
+      - ""
+      - "{secondary}Overview:"
+      - " {letters_black}▎ {letters}Live now {letters_black}» {success}%live_events%"
+      - " {letters_black}▎ {letters}Scheduled {letters_black}» {info}%scheduled_events%"
+      - " {letters_black}▎ {letters}Total {letters_black}» {highlight}%total_events%"
+      - ""
+      - "{secondary}Next up:"
+      - " {letters_black}▎ {letters}%next_event_name%"
+      - " {letters_black}▎ {letters}Starts in {letters_black}» {info}%next_event_time%"
+      - ""
+
+  # --- Shared tab bar (same slots across every user menu) ---
+  tab-events:
+    slot: 47
+    material: CLOCK
+    glowing: true
+    name: "%tab_events_name%"
+    lore:
+      - ""
+      - " {letters_black}▎ {letters}Every event and its"
+      - " {letters_black}▎ {letters}{highlight}next start{letters}."
+      - ""
+      - "%tab_events_state%"
+    actions:
+      - "capture:open_events_list"
+
+  tab-players:
+    slot: 48
+    material: PLAYER_HEAD
+    name: "%tab_players_name%"
+    lore:
+      - ""
+      - " {letters_black}▎ {letters}Ranking of the"
+      - " {letters_black}▎ {letters}{highlight}top players{letters}."
+      - ""
+      - "%tab_players_state%"
+    actions:
+      - "capture:open_player_leaderboard"
+
+  tab-clans:
+    slot: 49
+    material: SHIELD
+    name: "%tab_clans_name%"
+    lore:
+      - ""
+      - " {letters_black}▎ {letters}Ranking of the"
+      - " {letters_black}▎ {letters}{highlight}top clans{letters}."
+      - ""
+      - "%tab_clans_state%"
+    actions:
+      - "capture:open_clan_leaderboard"
+
+  close:
+    slot: 51
+    material: BARRIER
+    name: "{error}&lCLOSE"
+    lore:
+      - ""
+      - " {letters_black}▎ {letters}Closes this menu."
+      - ""
+    actions:
+      - "close"

@@ -1,0 +1,62 @@
+title: "{primary}&l◎ NEAR {muted}%near_radius%m · %current_page%/%total_pages%"
+size: 54
+type: PAGINATION
+
+open_sounds:
+  - "UI_BUTTON_CLICK|0.6|1.5"
+click_sounds:
+  - "UI_BUTTON_CLICK|1.0|1.5"
+
+filler:
+  global:
+    material: GRAY_STAINED_GLASS_PANE
+    hide_tooltip: true
+  pagination:
+    material: LIGHT_GRAY_STAINED_GLASS_PANE
+    name: "{muted}No players nearby"
+    hide_tooltip: false
+
+pagination:
+  slots: '10-16,19-25,28-34'
+  item_template:
+    material: COMPASS
+    name: "{primary}&l%near_direction_arrow% {highlight}%near_player_name%"
+    lore:
+      - ""
+      - " {muted}❙ {letters}Distance: {highlight}%near_distance%m"
+      - " {muted}❙ {letters}Direction: {highlight}%near_direction_arrow% %near_direction%"
+      - " {muted}❙ {letters}Vertical: {highlight}%near_vertical%"
+      - ""
+    hide_tooltip: false
+
+  navigation:
+    previous:
+      slot: 45
+      material: ARROW
+      name: "{error}&l← PREVIOUS"
+      actions:
+        - "previous_page"
+    next:
+      slot: 53
+      material: ARROW
+      name: "{success}&lNEXT →"
+      actions:
+        - "next_page"
+
+items:
+  info:
+    slot: 4
+    material: SPYGLASS
+    name: "{primary}&l◎ NEARBY PLAYERS"
+    lore:
+      - ""
+      - " {muted}❙ {letters}Players found: {highlight}%near_count%"
+      - " {muted}❙ {letters}Scan radius: {highlight}%near_radius%m"
+      - ""
+    hide_tooltip: false
+  close:
+    slot: 49
+    material: BARRIER
+    name: "{error}&lCLOSE"
+    actions:
+      - "survivalcore:close_menu"

@@ -46,6 +46,14 @@ public final class FakeServer {
     /** Players the server reports as online. */
     private static final List<org.bukkit.entity.Player> ONLINE = new ArrayList<>();
 
+    /**
+     * Worlds the server reports as loaded.
+     *
+     * <p>Anything that stores a location has to resolve a world by name to read
+     * one back, so a test of that path needs the server to know about one.
+     */
+    private static final List<org.bukkit.World> WORLDS = new ArrayList<>();
+
     private static boolean installed;
     private static boolean primaryThread = true;
 
@@ -185,6 +193,8 @@ public final class FakeServer {
         asyncRunsForReal = false;
         SCHEDULED.clear();
         ONLINE.clear();
+        WORLDS.clear();
+        EVENTS.clear();
         CONSOLE_MESSAGES.clear();
         CONSOLE_COMMANDS.clear();
         consoleAcceptsCommands = true;
@@ -193,6 +203,24 @@ public final class FakeServer {
         // not exist any more: left behind, they make the next test's effects
         // ambiguous.
         net.exylia.lib.effect.internal.EffectRuntime.releaseAll();
+    }
+
+    /** Sets which worlds the server reports as loaded. */
+    public static void worlds(org.bukkit.World... worlds) {
+        WORLDS.clear();
+        WORLDS.addAll(List.of(worlds));
+    }
+
+    private static Object findWorld(Object[] args) {
+        if (args == null || args.length != 1 || !(args[0] instanceof String name)) {
+            return null;
+        }
+        for (org.bukkit.World world : WORLDS) {
+            if (world.getName().equals(name)) {
+                return world;
+            }
+        }
+        return null;
     }
 
     /** Sets who the server reports as online. */
@@ -291,12 +319,15 @@ public final class FakeServer {
                 new Class<?>[]{Server.class},
                 (proxy, method, args) -> switch (method.getName()) {
                     case "getScheduler" -> scheduler;
+                    case "getPluginManager" -> PLUGIN_MANAGER;
                     case "getConsoleSender" -> CONSOLE;
                     case "dispatchCommand" -> {
                         CONSOLE_COMMANDS.add(String.valueOf(args[1]));
                         yield consoleAcceptsCommands;
                     }
                     case "getOnlinePlayers" -> List.copyOf(ONLINE);
+                    case "getWorlds" -> List.copyOf(WORLDS);
+                    case "getWorld" -> findWorld(args);
                     case "getPlayer" -> findPlayer(args);
                     case "isPrimaryThread" -> primaryThread;
                     case "getLogger" -> logger;
@@ -307,6 +338,45 @@ public final class FakeServer {
                     case "equals" -> proxy == args[0];
                     default -> defaultValue(method.getReturnType());
                 });
+    }
+
+    /** Every event the code under test fired, in order. */
+    private static final List<org.bukkit.event.Event> EVENTS =
+            new java.util.concurrent.CopyOnWriteArrayList<>();
+
+    /**
+     * A plugin manager that records events rather than dispatching them.
+     *
+     * <p>Nothing here has real listeners, and a module that fires an event is
+     * announcing something: recording is what lets a test assert on the
+     * announcement without standing up a server.
+     */
+    private static final org.bukkit.plugin.PluginManager PLUGIN_MANAGER =
+            (org.bukkit.plugin.PluginManager) Proxy.newProxyInstance(
+                    FakeServer.class.getClassLoader(),
+                    new Class<?>[]{org.bukkit.plugin.PluginManager.class},
+                    (proxy, method, args) -> {
+                        if (method.getName().equals("callEvent")) {
+                            EVENTS.add((org.bukkit.event.Event) args[0]);
+                            return null;
+                        }
+                        return defaultValue(method.getReturnType());
+                    });
+
+    /** Every event fired since the last reset, in order. */
+    public static List<org.bukkit.event.Event> events() {
+        return List.copyOf(EVENTS);
+    }
+
+    /** Every fired event of one kind, in order. */
+    public static <T extends org.bukkit.event.Event> List<T> events(Class<T> type) {
+        List<T> found = new ArrayList<>();
+        for (org.bukkit.event.Event event : EVENTS) {
+            if (type.isInstance(event)) {
+                found.add(type.cast(event));
+            }
+        }
+        return List.copyOf(found);
     }
 
     private static BukkitScheduler newScheduler() {

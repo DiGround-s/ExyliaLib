@@ -1,0 +1,82 @@
+title: "{primary}&l%home_name%"
+size: 27
+type: SIMPLE
+animation: "center_out"
+
+open_sounds:
+  - "ENTITY_EXPERIENCE_ORB_PICKUP|1.0|1.2"
+click_sounds:
+  - "UI_BUTTON_CLICK|1.0|1.5"
+
+filler:
+  global:
+    material: GRAY_STAINED_GLASS_PANE
+    hide_tooltip: true
+
+items:
+  info:
+    slot: 4
+    material: "%home_icon%"
+    name: "{primary}&l%home_name%"
+    lore:
+      - ""
+      - " {muted}❙ {letters}Location: {highlight}%home_location%"
+      - ""
+
+  teleport:
+    slot: 10
+    material: ENDER_PEARL
+    name: "{success}&lTELEPORT"
+    lore:
+      - ""
+      - " {muted}❙ {letters}Teleport to this home."
+      - ""
+      - "{info}» Click to teleport"
+    actions:
+      - "survivalcore:home_teleport %home_id%"
+
+  rename:
+    slot: 12
+    material: NAME_TAG
+    name: "{highlight}&lRENAME"
+    lore:
+      - ""
+      - " {muted}❙ {letters}Change the name of this home."
+      - ""
+      - "{info}» Click to rename"
+    actions:
+      - "survivalcore:home_rename %home_id%"
+
+  icon:
+    slot: 14
+    material: ITEM_FRAME
+    name: "{info}&lCHANGE ICON"
+    lore:
+      - ""
+      - " {muted}❙ {letters}Change the display icon."
+      - ""
+      - "{info}» Click to choose an item icon"
+    actions:
+      - "survivalcore:home_icon %home_id%"
+
+  delete:
+    slot: 16
+    material: BARRIER
+    name: "{error}&lDELETE"
+    lore:
+      - ""
+      - " {muted}❙ {letters}Permanently delete this home."
+      - ""
+      - "{error}» Click to delete"
+    actions:
+      - "survivalcore:home_delete %home_id%"
+
+  back:
+    slot: 22
+    material: ARROW
+    name: "{muted}&lBACK"
+    lore:
+      - ""
+      - "{info}» Click to go back"
+    actions:
+      - "survivalcore:homes_open"

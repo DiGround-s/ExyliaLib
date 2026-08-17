@@ -1,0 +1,70 @@
+title: "{primary}&lKITS {muted}%current_page%/%total_pages%"
+size: 54
+type: PAGINATION
+
+open_sounds:
+  - "ENTITY_EXPERIENCE_ORB_PICKUP|1.0|1.2"
+click_sounds:
+  - "UI_BUTTON_CLICK|1.0|1.5"
+
+filler:
+  global:
+    material: GRAY_STAINED_GLASS_PANE
+    hide_tooltip: true
+  pagination:
+    material: LIGHT_GRAY_STAINED_GLASS_PANE
+    name: "{muted}No kits created"
+    lore:
+      - ""
+      - " {muted}Click the button above to create one."
+    hide_tooltip: false
+
+pagination:
+  slots: '10-16,19-25,28-34'
+  item_template:
+    material: "%kit_icon%"
+    name: "{warning}&l%kit_name% {muted}— {letters}%kit_id%"
+    lore:
+      - ""
+      - " {muted}❙ {letters}Status: {highlight}%kit_enabled%"
+      - " {muted}❙ {letters}Items: {highlight}%kit_items%"
+      - " {muted}❙ {letters}Cooldown: {highlight}%kit_cooldown_ms% ms"
+      - " {muted}❙ {letters}Max Uses: {highlight}%kit_max_uses%"
+      - ""
+      - " {success}● {info}Left-click to edit"
+      - " {error}● {info}Right-click to delete"
+    actions:
+      - "left: survivalcore:kit_admin_edit %kit_id%"
+      - "right: survivalcore:kit_admin_delete %kit_id%"
+
+  navigation:
+    previous:
+      slot: 45
+      material: ARROW
+      name: "{error}&l← PREVIOUS"
+      actions:
+        - "previous_page"
+    next:
+      slot: 53
+      material: ARROW
+      name: "{success}&lNEXT →"
+      actions:
+        - "next_page"
+
+items:
+  create:
+    slot: 4
+    material: EMERALD
+    name: "{success}&lCREATE KIT"
+    lore:
+      - ""
+      - " {info}Click to create a new kit."
+    actions:
+      - "survivalcore:kit_admin_create"
+
+  close:
+    slot: 49
+    material: BARRIER
+    name: "{error}&lCLOSE"
+    actions:
+      - "survivalcore:close_menu"

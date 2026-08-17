@@ -1,0 +1,58 @@
+title: "{primary}&lSELECT LOADOUT&r {muted}— %kit_name%"
+size: 54
+type: PAGINATION
+
+open_sounds:
+  - "ENTITY_EXPERIENCE_ORB_PICKUP|1.0|1.2"
+click_sounds:
+  - "UI_BUTTON_CLICK|1.0|1.5"
+
+filler:
+  global:
+    material: GRAY_STAINED_GLASS_PANE
+    hide_tooltip: true
+
+pagination:
+  slots: '10-16,19-25,28-34'
+
+  item_template:
+    material: IRON_CHESTPLATE
+    name: "{warning}&l%slot_name%"
+    lore:
+      - ""
+      - " {muted}❙ {letters}Slot: {highlight}%slot_index%"
+      - " {muted}❙ {letters}Kit: {info}%kit_name%"
+      - ""
+      - "{success}» Click to use this loadout"
+    actions:
+      - "practice:select_kit_slot %slot_index%"
+
+  navigation:
+    previous:
+      slot: 45
+      material: ARROW
+      name: '{error}&l← PREVIOUS'
+      lore:
+        - '{info}Page: {success}%current_page%&8/{error}%total_pages%'
+      actions:
+        - 'previous_page'
+    next:
+      slot: 53
+      material: ARROW
+      name: '{success}&lNEXT →'
+      lore:
+        - '{info}Page: {success}%current_page%&8/{error}%total_pages%'
+      actions:
+        - 'next_page'
+
+items:
+  default:
+    slot: 49
+    material: BARRIER
+    name: "{muted}&lUSE DEFAULT"
+    lore:
+      - ""
+      - " {muted}❙ {letters}Close this menu to use"
+      - " {muted}❙ {letters}your first saved loadout"
+      - ""
+      - "{muted}Or press ESC"

@@ -1,0 +1,62 @@
+title: "{primary}&lSELECT KIT {muted}%current_page%/%total_pages%"
+size: 36
+type: PAGINATION
+animation: "center_out"
+
+open_sounds:
+  - "ENTITY_EXPERIENCE_ORB_PICKUP|1.0|1.2"
+click_sounds:
+  - "UI_BUTTON_CLICK|1.0|1.5"
+
+filler:
+  global:
+    material: GRAY_STAINED_GLASS_PANE
+    hide_tooltip: true
+
+  pagination:
+    material: LIGHT_GRAY_STAINED_GLASS_PANE
+    name: "{muted}No kits available"
+    hide_tooltip: false
+
+pagination:
+  slots: '10-16,19-25'
+
+  item_template:
+    material: "%kit_icon%"
+    name: "{success}&l%kit_name%"
+    lore:
+      - ""
+      - " {muted}❙ {letters}Select this kit"
+      - " {muted}❙ {letters}to start the event"
+      - ""
+      - "{info}» Click to select"
+    actions:
+      - "events:select_kit_and_start %config_id% %kit_id%"
+
+  navigation:
+    previous:
+      slot: 30
+      material: ARROW
+      name: '{error}&l← PREVIOUS'
+      lore:
+        - '{info}Page: {success}%current_page%&8/{error}%total_pages%'
+      actions:
+        - 'previous_page'
+    next:
+      slot: 32
+      material: ARROW
+      name: '{success}&lNEXT →'
+      lore:
+        - '{info}Page: {success}%current_page%&8/{error}%total_pages%'
+      actions:
+        - 'next_page'
+
+items:
+  back:
+    slot: 31
+    material: ARROW
+    name: "{error}&lCancel"
+    lore:
+      - "{muted}Click to go back"
+    actions:
+      - "events:open_start_event"

@@ -18,3 +18,13 @@ libraries:
   # Caches in TextEngine, TemplateCache, Effects and ClanRuntime. TextEngine is
   # touched from onEnable, so a missing Caffeine kills startup outright.
   - 'com.github.ben-manes.caffeine:caffeine:3.2.4'
+  # Database. The pool is always needed; the drivers are not, and a server only
+  # ever loads the one its config names. They are listed anyway because the
+  # library loader fetches them once and shares them across every plugin, which
+  # is the same arrangement the consumer plugins already declare.
+  - 'com.zaxxer:HikariCP:5.1.0'
+  - 'com.h2database:h2:2.2.224'
+  - 'com.mysql:mysql-connector-j:8.4.0'
+  - 'org.mariadb.jdbc:mariadb-java-client:3.4.1'
+  - 'org.postgresql:postgresql:42.7.4'
+  - 'org.mongodb:mongodb-driver-sync:4.11.1'

@@ -8,7 +8,7 @@ plugins {
 }
 
 group = 'net.exylia'
-version = '1.21.0'
+version = '1.26.0'
 description = 'Shared high-performance library for Exylia Minecraft plugins.'
 
 def targetJavaVersion = 21
@@ -100,6 +100,23 @@ dependencies {
     // FeatherServerAPI) is enabled. Never shaded — the consumer plugin or
     // server must provide them.
     compileOnly 'com.lunarclient:apollo-api:1.2.4'
+    // Database. Provided at runtime through plugin.yml libraries, exactly like
+    // Lamp and Caffeine: the server's library loader fetches them once and every
+    // plugin shares the same copy. Never shaded — two connection pools or two
+    // driver copies on one server is precisely what we are avoiding.
+    compileOnly 'com.zaxxer:HikariCP:5.1.0'
+    compileOnly 'com.h2database:h2:2.2.224'
+    compileOnly 'com.mysql:mysql-connector-j:8.4.0'
+    compileOnly 'org.mariadb.jdbc:mariadb-java-client:3.4.1'
+    compileOnly 'org.postgresql:postgresql:42.7.4'
+    compileOnly 'org.mongodb:mongodb-driver-sync:4.11.1'
+    // The database tests run against real engines rather than a mock: H2 in
+    // memory covers every dialect path we can exercise without a server, and a
+    // wire-format bug is invisible to a mock by construction.
+    testImplementation 'com.zaxxer:HikariCP:5.1.0'
+    testImplementation 'com.h2database:h2:2.2.224'
+    testImplementation 'org.mongodb:mongodb-driver-sync:4.11.1'
+
     // Lamp: the command framework the whole ecosystem standardises on.
     // compileOnly like everywhere else; the server provides it through the
     // plugin.yml libraries section, exactly as the consumer plugins do.

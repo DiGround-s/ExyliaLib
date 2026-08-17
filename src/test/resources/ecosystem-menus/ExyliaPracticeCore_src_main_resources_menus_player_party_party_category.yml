@@ -1,0 +1,63 @@
+title: "{primary}&lPARTY&r {muted}— Select Category"
+size: 54
+type: PAGINATION
+
+open_sounds:
+  - "ENTITY_EXPERIENCE_ORB_PICKUP|1.0|1.2"
+click_sounds:
+  - "UI_BUTTON_CLICK|1.0|1.5"
+
+filler:
+  global:
+    material: GRAY_STAINED_GLASS_PANE
+    hide_tooltip: true
+  pagination:
+    material: LIGHT_GRAY_STAINED_GLASS_PANE
+    name: "{muted}No categories available"
+    lore:
+      - ""
+      - "{muted}No practice categories are enabled."
+    hide_tooltip: false
+
+pagination:
+  slots: '10-16,21-23,30-32,37-43'
+
+  item_template:
+    material: "%category_icon%"
+    name: "{primary}&l%category_name%"
+    lore:
+      - ""
+      - " {muted}❙ {letters}Kits: {highlight}%kit_count%"
+      - ""
+      - "{success}» Click to browse kits"
+    actions:
+      - "practice:party_select_category %game_type% %category_id%"
+
+  navigation:
+    previous:
+      slot: 45
+      material: ARROW
+      name: '{error}&l← PREVIOUS'
+      lore:
+        - '{info}Page: {success}%current_page%&8/{error}%total_pages%'
+      actions:
+        - 'previous_page'
+    next:
+      slot: 53
+      material: ARROW
+      name: '{success}&lNEXT →'
+      lore:
+        - '{info}Page: {success}%current_page%&8/{error}%total_pages%'
+      actions:
+        - 'next_page'
+
+items:
+  back:
+    slot: 49
+    material: ARROW
+    name: "{muted}&l← Back"
+    lore:
+      - ""
+      - "{muted}Return to party hub"
+    actions:
+      - "practice:open_party_hub"

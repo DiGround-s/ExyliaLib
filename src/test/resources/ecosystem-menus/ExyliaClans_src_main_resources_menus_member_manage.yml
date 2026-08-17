@@ -1,0 +1,88 @@
+title: "{primary}&l%member_name%"
+size: 27
+type: SIMPLE
+animation: "center_out"
+
+open_sounds:
+  - "ENTITY_EXPERIENCE_ORB_PICKUP|1.0|1.2"
+click_sounds:
+  - "UI_BUTTON_CLICK|1.0|1.5"
+
+filler:
+  global:
+    material: GRAY_STAINED_GLASS_PANE
+    hide_tooltip: true
+
+items:
+  info:
+    slot: 4
+    material: "playerhead-%member_name%"
+    name: "{primary}&l%member_name%"
+    lore:
+      - ""
+      - " {muted}❙ {letters}Role: {highlight}%member_role%"
+      - " {muted}❙ {letters}Status: %member_status%"
+      - ""
+      - " {muted}❙ {letters}Kills: {success}%member_kills%"
+      - " {muted}❙ {letters}Deaths: {error}%member_deaths%"
+      - " {muted}❙ {letters}KDR: {highlight}%member_kdr%"
+      - " {muted}❙ {letters}Playtime: {info}%member_playtime%"
+      - ""
+
+  kick:
+    slot: 10
+    material: IRON_SWORD
+    name: "{error}&lKICK"
+    lore:
+      - ""
+      - " {muted}❙ {letters}Remove player from clan."
+      - ""
+      - "{error}» Click to kick"
+    actions:
+      - "exyliaclans:open_kick_confirm %member_uuid%"
+
+  ban:
+    slot: 12
+    material: 'basehead-eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvMjIzZmI2NzQyOTcxNmIyMWJjNmU4ZTdkNjY5Y2VkZGY2NWIxM2UwNzkwYTVjZTU1YjJlMDc3YjgyZDE5ZTEyNCJ9fX0='
+    name: "{error}&lBAN"
+    lore:
+      - ""
+      - " {muted}❙ {letters}Ban player from clan."
+      - ""
+      - "{error}» Click to ban"
+    actions:
+      - "exyliaclans:open_ban_confirm %member_uuid%"
+
+  assign_role:
+    slot: 14
+    material: BOOK
+    name: "{highlight}&lASSIGN ROLE"
+    lore:
+      - ""
+      - " {muted}❙ {letters}Change this member's role."
+      - ""
+      - "{info}» Click to assign"
+    actions:
+      - "exyliaclans:open_assign_role %member_uuid%"
+
+  transfer:
+    slot: 16
+    material: NETHER_STAR
+    name: "{warning}&lTRANSFER LEADERSHIP"
+    lore:
+      - ""
+      - " {muted}❙ {letters}Transfer clan leadership"
+      - " {muted}❙ {letters}to this member."
+      - ""
+      - "{info}» Click to transfer"
+    actions:
+      - "exyliaclans:open_transfer_leader_confirm %member_uuid%"
+
+  back:
+    slot: 22
+    material: 'basehead-eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvMjIzZmI2NzQyOTcxNmIyMWJjNmU4ZTdkNjY5Y2VkZGY2NWIxM2UwNzkwYTVjZTU1YjJlMDc3YjgyZDE5ZTEyNCJ9fX0='
+    name: '{error}&lBACK'
+    lore:
+      - '{muted}Click to go back'
+    actions:
+      - "exyliaclans:open_members"

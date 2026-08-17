@@ -1,0 +1,75 @@
+title: "{primary}&lSTATISTICS"
+size: 45
+type: PAGINATION
+animation: "center_out"
+
+open_sounds:
+  - "ENTITY_EXPERIENCE_ORB_PICKUP|1.0|1.2"
+click_sounds:
+  - "UI_BUTTON_CLICK|1.0|1.5"
+
+filler:
+  global:
+    material: GRAY_STAINED_GLASS_PANE
+    hide_tooltip: true
+
+  pagination:
+    material: LIGHT_GRAY_STAINED_GLASS_PANE
+    name: "{muted}No events available"
+    lore:
+      - ""
+      - "{muted}Come back later!"
+    hide_tooltip: false
+
+items:
+  overall:
+    slot: 4
+    material: DIAMOND
+    name: "{warning}&lOVERALL STATISTICS"
+    lore:
+      - ""
+      - " {muted}❙ {letters}Kills: {highlight}%total_kills%"
+      - " {muted}❙ {letters}Deaths: {highlight}%total_deaths%"
+      - " {muted}❙ {letters}K/D Ratio: {highlight}%kdr%"
+      - ""
+      - " {muted}❙ {letters}Wins: {success}%total_wins%"
+      - " {muted}❙ {letters}Games: {highlight}%games_played%"
+      - " {muted}❙ {letters}Win Rate: {success}%win_rate%"
+
+  back:
+    slot: 40
+    material: ARROW
+    name: "{error}&lBack"
+    lore:
+      - "{muted}Click to go back"
+    actions:
+      - "events:open_main_menu"
+
+pagination:
+  slots: '19-25,28-34'
+  item_template:
+    material: "%config_material%"
+    name: "{primary}&l%config_name%"
+    lore:
+      - " {muted}Type: {highlight}%config_type%"
+      - ""
+      - " {muted}❙ {letters}Kills: {highlight}%kills%"
+      - " {muted}❙ {letters}Deaths: {highlight}%deaths%"
+      - " {muted}❙ {letters}K/D Ratio: {highlight}%kdr%"
+      - ""
+      - " {muted}❙ {letters}Wins: {success}%wins%"
+      - " {muted}❙ {letters}Games: {highlight}%games%"
+      - " {muted}❙ {letters}Win Rate: {success}%winrate%"
+  navigation:
+    previous:
+      slot: 38
+      material: ARROW
+      name: "{primary}&lPrevious"
+      actions:
+        - "previous_page"
+    next:
+      slot: 42
+      material: ARROW
+      name: "{primary}&lNext"
+      actions:
+        - "next_page"

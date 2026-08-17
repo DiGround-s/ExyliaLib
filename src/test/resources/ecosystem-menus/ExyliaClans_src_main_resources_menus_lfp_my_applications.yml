@@ -1,0 +1,51 @@
+title: "{primary}&lMY APPLICATIONS {muted}%current_page%/%total_pages%"
+size: 54
+type: PAGINATION
+animation: "center_out"
+open_sounds:
+  - "ENTITY_EXPERIENCE_ORB_PICKUP|1.0|1.2"
+click_sounds:
+  - "UI_BUTTON_CLICK|1.0|1.5"
+filler:
+  global:
+    material: GRAY_STAINED_GLASS_PANE
+    hide_tooltip: true
+  pagination:
+    material: LIGHT_GRAY_STAINED_GLASS_PANE
+    name: "{muted}No applications sent"
+    hide_tooltip: false
+pagination:
+  slots: '10-16,19-25,28-34,37-43'
+  item_template:
+    material: BOOK
+    name: "{highlight}&l%clan_name%"
+    lore:
+      - ""
+      - " {muted}❙ Status: %application_status%"
+      - " {muted}❙ Date: {highlight}%application_date%"
+      - ""
+      - " {letters}%application_message%"
+      - ""
+      - "{info}» Click to view"
+    actions:
+      - "exyliaclans:lfp_view_my_application %application_id%"
+  navigation:
+    previous:
+      slot: 48
+      material: 'basehead-eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvZGExZDU1YjNmOTg5NDEwYTM0NzUyNjUwZTI0OGM5YjZjMTc4M2E3ZWMyYWEzZmQ3Nzg3YmRjNGQwZTYzN2QzOSJ9fX0='
+      name: '{error}&l← ANTERIOR'
+      actions:
+        - 'previous_page'
+    next:
+      slot: 50
+      material: 'basehead-eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvZmE4N2UzZDk2ZTFjZmViOWNjZmIzYmE1M2EyMTdmYWY1MjQ5ZTI4NTUzM2IyNzFhMmZiMjg0YzMwZGJkOTgyOSJ9fX0='
+      name: '{success}&lSIGUIENTE →'
+      actions:
+        - 'next_page'
+items:
+  back:
+    slot: 49
+    material: BARRIER
+    name: "{error}&lBACK"
+    actions:
+      - "exyliaclans:open_lfp_browse"

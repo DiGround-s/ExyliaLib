@@ -1,0 +1,42 @@
+title: "{primary}&lSHULKER {muted}— {highlight}%shulker_name%"
+size: 45
+type: SIMPLE
+animation: "center_out"
+
+open_sounds:
+  - "BLOCK_SHULKER_BOX_OPEN|1.0|1.0"
+click_sounds:
+  - "UI_BUTTON_CLICK|1.0|1.5"
+
+filler:
+  global:
+    material: PURPLE_STAINED_GLASS_PANE
+    name: " "
+    hide_tooltip: true
+
+  custom:
+    header:
+      material: GRAY_STAINED_GLASS_PANE
+      name: " "
+      hide_tooltip: true
+      slots: "0-8"
+
+items:
+  shulker_info:
+    slot: 4
+    material: SHULKER_BOX
+    name: "{highlight}&l%shulker_name%"
+    lore:
+      - ""
+      - " {muted}❙ {letters}Shulker contents preview"
+      - " {muted}❙ {letters}Items: {highlight}%shulker_items%"
+
+  back:
+    slot: 40
+    material: ARROW
+    name: "{muted}&lBACK"
+    lore:
+      - ""
+      - " {info}» Click to return to the kit preview"
+    actions:
+      - "back"

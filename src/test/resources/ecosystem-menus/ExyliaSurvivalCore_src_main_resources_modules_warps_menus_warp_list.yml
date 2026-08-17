@@ -1,0 +1,56 @@
+title: "{primary}&l✦ WARPS {muted}%current_page%/%total_pages%"
+size: 54
+type: PAGINATION
+
+open_sounds:
+  - "ENTITY_ENDERMAN_TELEPORT|0.5|1.5"
+click_sounds:
+  - "UI_BUTTON_CLICK|1.0|1.5"
+
+filler:
+  global:
+    material: GRAY_STAINED_GLASS_PANE
+    hide_tooltip: true
+  pagination:
+    material: LIGHT_GRAY_STAINED_GLASS_PANE
+    name: "{muted}No warps available"
+    lore:
+      - ""
+      - " {muted}There are no warps to display."
+    hide_tooltip: false
+
+pagination:
+  slots: '10-16,19-25,28-34'
+  item_template:
+    material: "%warp_icon%"
+    name: "{primary}&l✦ {highlight}%warp_name%"
+    lore:
+      - ""
+      - " {muted}❙ {letters}Cost: {highlight}%warp_cost%"
+      - " {muted}❙ {letters}Cooldown: {highlight}%warp_cooldown%"
+      - ""
+      - " {success}● {info}Click to teleport"
+    actions:
+      - "survivalcore:warp_teleport %warp_id%"
+
+  navigation:
+    previous:
+      slot: 45
+      material: ARROW
+      name: "{error}&l← PREVIOUS"
+      actions:
+        - "previous_page"
+    next:
+      slot: 53
+      material: ARROW
+      name: "{success}&lNEXT →"
+      actions:
+        - "next_page"
+
+items:
+  close:
+    slot: 49
+    material: BARRIER
+    name: "{error}&lCLOSE"
+    actions:
+      - "survivalcore:close_menu"

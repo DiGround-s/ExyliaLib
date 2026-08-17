@@ -1,0 +1,76 @@
+title: "{primary}&lHOMES {muted}%current_page%/%total_pages%"
+size: 54
+type: PAGINATION
+animation: "center_out"
+
+open_sounds:
+  - "ENTITY_EXPERIENCE_ORB_PICKUP|1.0|1.2"
+click_sounds:
+  - "UI_BUTTON_CLICK|1.0|1.5"
+
+filler:
+  global:
+    material: GRAY_STAINED_GLASS_PANE
+    hide_tooltip: true
+  pagination:
+    material: LIGHT_GRAY_STAINED_GLASS_PANE
+    name: "{muted}No more homes"
+    hide_tooltip: false
+
+pagination:
+  slots: '10-16,19-25,28-34'
+
+  item_template:
+    material: "%home_icon%"
+    name: "{primary}&l%home_name%"
+    lore:
+      - ""
+      - " {muted}❙ {letters}Location: {highlight}%home_location%"
+      - ""
+      - " {success}● {info}Left-click to teleport"
+      - " {warning}● {info}Right-click to manage"
+    actions:
+      - "left: survivalcore:home_teleport %home_id%"
+      - "right: survivalcore:home_manage %home_id%"
+
+  navigation:
+    previous:
+      slot: 45
+      material: ARROW
+      name: '{error}&l← PREVIOUS PAGE'
+      lore:
+        - ' {muted}❙ {letters}Go to the previous page.'
+        - ''
+        - '{info}ℹ Page: {success}%current_page%<#475569>/{error}%total_pages%'
+      actions:
+        - 'previous_page'
+    next:
+      slot: 53
+      material: ARROW
+      name: '{success}&lNEXT PAGE →'
+      lore:
+        - ' {muted}❙ {letters}Go to the next page.'
+        - ''
+        - '{info}ℹ Page: {success}%current_page%<#475569>/{error}%total_pages%'
+      actions:
+        - 'next_page'
+
+items:
+  info:
+    slot: 49
+    material: PAPER
+    name: "{letters}&lHOMES"
+    lore:
+      - ""
+      - " {muted}❙ {letters}Total: {highlight}%homes_count%{letters}/{highlight}%homes_max%"
+      - ""
+
+  close:
+    slot: 47
+    material: BARRIER
+    name: "{error}&lCLOSE"
+    lore:
+      - ""
+      - "{info}» Click to close"
+    actions:
+      - "survivalcore:close_menu"

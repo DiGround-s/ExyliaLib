@@ -1,0 +1,80 @@
+title: "{primary}&lESPECTADOR {muted}%current_page%/%total_pages%"
+size: 54
+type: PAGINATION
+animation: "center_out"
+
+open_sounds:
+  - "ENTITY_EXPERIENCE_ORB_PICKUP|1.0|1.2"
+click_sounds:
+  - "UI_BUTTON_CLICK|1.0|1.5"
+
+filler:
+  global:
+    material: GRAY_STAINED_GLASS_PANE
+    hide_tooltip: true
+
+  pagination:
+    material: LIGHT_GRAY_STAINED_GLASS_PANE
+    name: "{muted}No hay jugadores vivos"
+    lore:
+      - ""
+      - "{muted}Esperando..."
+    hide_tooltip: false
+
+pagination:
+  slots: '10-16,19-25,28-34,37-43'
+
+  item_template:
+    material: "playerhead-%player_name%"
+    name: "{highlight}%player_name%"
+    lore:
+      - ""
+      - ' {muted}❙ {letters}Vida: {info}%player_health% ❤'
+      - ""
+      - "{success}▶ Clic para teletransportar"
+    actions:
+      - "events:spectator_teleport %player_name%"
+
+  navigation:
+    previous:
+      slot: 48
+      material: ARROW
+      name: '{error}&l← PAGINA ANTERIOR'
+      lore:
+        - ' {muted}❙ {letters}Clic para ir'
+        - ' {muted}❙ {letters}a la pagina anterior.'
+        - ''
+        - '{info}ℹ Pagina actual: {success}%current_page%&8/{error}%total_pages%'
+      actions:
+        - 'previous_page'
+    next:
+      slot: 50
+      material: ARROW
+      name: '{success}&lSIGUIENTE PAGINA →'
+      lore:
+        - ' {muted}❙ {letters}Clic para ir'
+        - ' {muted}❙ {letters}a la siguiente pagina.'
+        - ''
+        - '{info}ℹ Pagina actual: {success}%current_page%&8/{error}%total_pages%'
+      actions:
+        - 'next_page'
+
+items:
+  toggle_spectators:
+    slot: 45
+    material: "%spectator_toggle_material%"
+    name: "%spectator_toggle_name%"
+    lore:
+      - ""
+      - "%spectator_toggle_action%"
+    actions:
+      - "events:toggle_spectators"
+
+  leave:
+    slot: 49
+    material: BARRIER
+    name: '{error}&lSalir del evento'
+    lore:
+      - '{muted}Clic para salir'
+    actions:
+      - "events:leave_event"

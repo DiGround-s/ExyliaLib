@@ -1,0 +1,181 @@
+title: "{primary}&lSHIELD EDITOR {muted}— Slot %slot_label%"
+size: 54
+type: MULTI_PAGINATION
+refresh:
+  mode: ON_CLICK
+  click_delay: 4
+
+open_sounds:
+  - "ENTITY_EXPERIENCE_ORB_PICKUP|1.0|1.2"
+click_sounds:
+  - "UI_BUTTON_CLICK|1.0|1.5"
+
+filler:
+  global:
+    material: GRAY_STAINED_GLASS_PANE
+    hide_tooltip: true
+
+items:
+  base_color:
+    slot: 0
+    material: "%base_color_material%"
+    name: "{letters}&lBASE COLOR"
+    lore:
+      - ""
+      - " {muted}❙ {letters}Current: {info}%base_color_name%"
+      - ""
+      - "{accent}» Click to change"
+    actions:
+      - "shield:open_color_picker %slot_index% base"
+
+  dye_color:
+    slot: 1
+    material: "%dye_color_material%"
+    name: "{letters}&lDYE COLOR"
+    lore:
+      - ""
+      - " {muted}❙ {letters}Selected: {info}%dye_color_name%"
+      - ""
+      - "{accent}» Click to change"
+    actions:
+      - "shield:open_color_picker %slot_index% dye"
+
+  toggle_preview:
+    slot: 2
+    material: "%preview_material%"
+    name: "{letters}&lPATTERN PREVIEW"
+    lore:
+      - ""
+      - " {muted}❙ {letters}Status: %preview_status%"
+      - ""
+      - "{accent}» Click to toggle"
+    actions:
+      - "shield:toggle_preview %slot_index%"
+
+  preview:
+    slot: 4
+    material: SHIELD
+    banner_design: "%shield_preview%"
+    name: "{highlight}&lCURRENT DESIGN"
+    lore:
+      - ""
+      - " {muted}❙ {letters}ID: {info}#%design_id%"
+      - " {muted}❙ {letters}Base: {info}%base_color_name%"
+      - " {muted}❙ {letters}Layers: {info}%layers_count%{muted}/{info}%layers_max%"
+    hide_attributes: true
+
+  delete:
+    slot: 6
+    material: BARRIER
+    name: "{error}&lDELETE DESIGN"
+    lore:
+      - ""
+      - " {muted}❙ {letters}Permanently removes this design"
+      - ""
+      - "{error}» Click to delete"
+    actions:
+      - "shield:delete_slot %slot_index%"
+
+  reset:
+    slot: 7
+    material: RED_DYE
+    name: "{error}&lRESET DESIGN"
+    lore:
+      - ""
+      - " {muted}❙ {letters}Removes all layers"
+      - ""
+      - "{error}» Click to reset"
+    actions:
+      - "shield:reset_slot %slot_index%"
+
+  set_active:
+    slot: 8
+    material: EMERALD
+    name: "{success}&lSET AS ACTIVE"
+    lore:
+      - ""
+      - " {muted}❙ {letters}Applies this design to your shield"
+      - ""
+      - "{success}» Click to activate"
+    actions:
+      - "shield:select_slot %slot_index%"
+
+  back:
+    slot: 45
+    material: ARROW
+    name: "{error}&lBACK"
+    lore:
+      - "{muted}Return to shield list"
+    actions:
+      - "shield:open_slots"
+
+sections:
+  patterns:
+    slots: "9-35"
+    filler:
+      material: LIGHT_GRAY_STAINED_GLASS_PANE
+      name: "{muted}No patterns available"
+      hide_tooltip: false
+    item_template:
+      material: "%pattern_material%"
+      banner_design: "%pattern_banner%"
+      name: "{letters}%pattern_name%"
+      lore:
+        - ""
+        - " {muted}❙ {letters}ID: {info}%pattern_id%"
+        - ""
+        - " {muted}❙ {accent}Click to add layer"
+      hide_attributes: true
+      actions:
+        - "shield:add_pattern %slot_index% %pattern_id%"
+    no_permission_template:
+      material: "%pattern_material%"
+      banner_design: "%pattern_banner%"
+      name: "{muted}%pattern_name%"
+      lore:
+        - ""
+        - " {muted}❙ {letters}ID: {info}%pattern_id%"
+        - ""
+        - " {muted}❙ {error}No permission"
+      hide_attributes: true
+    navigation:
+      previous:
+        slot: 3
+        material: ARROW
+        name: "{letters}&l← PATTERNS"
+        hide_tooltip: false
+      next:
+        slot: 5
+        material: ARROW
+        name: "{letters}&lPATTERNS →"
+        hide_tooltip: false
+
+  layers:
+    slots: "37-43"
+    filler:
+      material: GRAY_STAINED_GLASS_PANE
+      name: "{muted}Empty layer slot"
+      hide_tooltip: true
+    item_template:
+      material: WHITE_BANNER
+      banner_design: "%layer_banner%"
+      name: "{highlight}Layer %layer_number%: {letters}%pattern_name%"
+      lore:
+        - ""
+        - " {muted}❙ {letters}Color: {info}%color_name%"
+        - ""
+        - " {muted}❙ {error}Click to remove"
+      hide_attributes: true
+      actions:
+        - "shield:remove_layer %slot_index% %layer_index%"
+    navigation:
+      previous:
+        slot: 36
+        material: ARROW
+        name: "{letters}&l← LAYERS"
+        hide_tooltip: false
+      next:
+        slot: 44
+        material: ARROW
+        name: "{letters}&lLAYERS →"
+        hide_tooltip: false

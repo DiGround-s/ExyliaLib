@@ -1,0 +1,109 @@
+title: "{primary}&lWARP {muted}— {highlight}%warp_name%"
+size: 54
+type: SIMPLE
+
+open_sounds:
+  - "ENTITY_EXPERIENCE_ORB_PICKUP|1.0|1.2"
+click_sounds:
+  - "UI_BUTTON_CLICK|1.0|1.5"
+
+filler:
+  global:
+    material: GRAY_STAINED_GLASS_PANE
+    hide_tooltip: true
+
+items:
+  display-name:
+    slot: 11
+    material: NAME_TAG
+    name: "{highlight}&lDISPLAY NAME"
+    lore:
+      - ""
+      - " {muted}❙ {letters}Current: {highlight}%warp_name%"
+      - ""
+      - " {info}» Click to rename"
+    actions:
+      - "survivalcore:admin_warp_edit_name"
+
+  enabled:
+    slot: 13
+    material: "%enabled_material%"
+    name: "{highlight}&lSTATUS"
+    lore:
+      - ""
+      - " {muted}❙ {letters}Current: %enabled_status%"
+      - ""
+      - " {info}» Click to toggle"
+    actions:
+      - "survivalcore:admin_warp_toggle_enabled"
+
+  icon:
+    slot: 15
+    material: "%warp_icon%"
+    name: "{highlight}&lICON"
+    lore:
+      - ""
+      - " {muted}❙ {letters}Current: {highlight}%warp_icon%"
+      - ""
+      - " {info}» Click to change icon"
+      - " {muted}  Select an item with the icon picker"
+    actions:
+      - "survivalcore:admin_warp_set_icon"
+
+  location:
+    slot: 29
+    material: COMPASS
+    name: "{highlight}&lLOCATION"
+    lore:
+      - ""
+      - " {muted}❙ {letters}Current: {highlight}%warp_location%"
+      - ""
+      - " {info}» Click to set to your position"
+    actions:
+      - "survivalcore:admin_warp_set_location"
+
+  cost:
+    slot: 31
+    material: GOLD_INGOT
+    name: "{highlight}&lCOST"
+    lore:
+      - ""
+      - " {muted}❙ {letters}Current: {highlight}%warp_cost%"
+      - ""
+      - " {info}» Click to set cost"
+      - " {muted}  Set to 0 for free"
+    actions:
+      - "survivalcore:admin_warp_set_cost"
+
+  permission:
+    slot: 33
+    material: TRIPWIRE_HOOK
+    name: "{highlight}&lPERMISSION"
+    lore:
+      - ""
+      - " {muted}❙ {letters}Current: {highlight}%warp_permission%"
+      - ""
+      - " {info}» Click to set custom permission"
+      - " {muted}  Leave blank to use global"
+    actions:
+      - "survivalcore:admin_warp_set_permission"
+
+  delete:
+    slot: 53
+    material: BARRIER
+    name: "{error}&lDELETE WARP"
+    lore:
+      - ""
+      - " {error}» Click to permanently delete"
+    actions:
+      - "survivalcore:admin_warp_delete %warp_id%"
+
+  back:
+    slot: 45
+    material: ARROW
+    name: "{letters}&lBACK"
+    lore:
+      - ""
+      - " {info}» Return to warp list"
+    actions:
+      - "survivalcore:admin_warp_open_list"

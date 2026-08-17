@@ -1,12 +1,15 @@
 package net.exylia.lib.ui.internal;
 
 import net.exylia.lib.action.ActionTemplate;
-import net.exylia.lib.skull.SkullSource;
+import net.exylia.lib.item.Items;
 import net.exylia.lib.ui.ClickBindings;
 import net.exylia.lib.ui.Slots;
 import net.exylia.lib.ui.UiAnimationSpec;
 import net.exylia.lib.ui.UiDefinition;
 import net.exylia.lib.ui.UiItem;
+import net.exylia.lib.ui.UiFillers;
+import net.exylia.lib.ui.UiRefresh;
+import net.exylia.lib.ui.UiSection;
 import net.exylia.lib.ui.UiSounds;
 import org.bukkit.configuration.ConfigurationSection;
 
@@ -133,23 +136,23 @@ public final class MenuLoader {
         Map<Integer, UiItem> items = new LinkedHashMap<>();
         readItems(config.getConfigurationSection("items"), binder, size, items);
 
-        List<UiItem> fillers = readFillers(config.getConfigurationSection("filler"), binder);
-        UiDefinition.Pagination pagination =
-                readPagination(config.getConfigurationSection("pagination"), binder, size);
+        UiFillers fillers = readFillers(config.getConfigurationSection("filler"), binder);
+        Map<String, UiSection> sections = readSections(config, binder, size);
 
         List<Integer> inputSlots = slots(config, "editable_slots");
         if (inputSlots.isEmpty()) {
             inputSlots = slots(config, "input-slots");
         }
 
-        UiSounds sounds = defaults;
-        ConfigurationSection soundSection = config.getConfigurationSection("sounds");
-        if (soundSection != null) {
-            sounds = UiSounds.of(values(soundSection), defaults);
-        }
+        UiSounds sounds = readSounds(config, defaults);
 
-        return new UiDefinition(id, title, kind, size, items, fillers, pagination, inputSlots,
-                sounds, animation(config, "animation"),
+        ConfigurationSection refreshSection = config.getConfigurationSection("refresh");
+        UiRefresh refresh = refreshSection == null
+                ? UiRefresh.NEVER
+                : UiRefresh.of(values(refreshSection));
+
+        return new UiDefinition(id, title, kind, size, items, fillers, sections, inputSlots,
+                sounds, refresh, animation(config, "animation", binder.problems()),
                 config.getStringList("open-actions"),
                 config.getStringList("close-actions"),
                 config.getString("parent"));
@@ -260,116 +263,23 @@ public final class MenuLoader {
         return List.of();
     }
 
-    /** Reads one item definition. */
+    /**
+     * Reads one slot.
+     *
+     * <p>What it looks like is read by the item module, which owns that format
+     * and is used by four plugins that never open a menu. What is left here is
+     * what only a menu means: clicks, a condition, and what a redraw depends
+     * on.
+     */
     static UiItem readItem(ConfigurationSection section,
                            Binder binder) {
-        UiItem.Builder builder = UiItem.of(section.getString("material", "STONE"))
-                .name(section.getString("name"))
-                .lore(section.getStringList("lore"))
-                .amount(amount(section))
-                .glow(flag(section, "glow", "glowing"))
-                .hideTooltip(flag(section, "hide-tooltip", "hide_tooltip"))
-                .customModelData(section.getInt("custom-model-data",
-                        section.getInt("custom_model_data", -1)))
-                .condition(section.getString("condition"))
-                .dependsOn(section.getStringList("depends-on"))
-                .animation(animation(section, "animation"))
-                .itemFlags(section.getStringList("item-flags"))
-                .enchantments(enchantments(section));
-
-        head(section, builder);
-
         ClickBindings.Builder bindings = new ClickBindings.Builder();
         binder.bind(bindings, section);
-        return builder.bindings(bindings.build()).build();
-    }
-
-    /**
-     * Reads the head of an item.
-     *
-     * <p>All the spellings menus use, because head configuration is where the
-     * old system was loosest: a base64 texture, a URL, a player name, or a
-     * name with a placeholder in it, which cannot be resolved until the row is
-     * drawn.
-     */
-    private static void head(ConfigurationSection section, UiItem.Builder builder) {
-        String texture = first(section, "texture", "head-texture", "skull-texture");
-        if (texture != null && !texture.isEmpty()) {
-            builder.head(SkullSource.texture(texture));
-            return;
-        }
-        String url = first(section, "head-url", "skull-url");
-        if (url != null && !url.isEmpty()) {
-            builder.head(SkullSource.url(url));
-            return;
-        }
-        String owner = first(section, "head", "skull", "head-owner", "skull-owner", "owner");
-        if (owner == null || owner.isEmpty()) {
-            return;
-        }
-        if (owner.indexOf('%') >= 0) {
-            // Whose head it is depends on the row, so it is resolved per render.
-            builder.headTemplate(owner);
-        } else {
-            builder.head(SkullSource.player(owner));
-        }
-    }
-
-    private static String first(ConfigurationSection section, String... keys) {
-        for (String key : keys) {
-            if (section.contains(key)) {
-                return section.getString(key);
-            }
-        }
-        return null;
-    }
-
-    /**
-     * Reads a flag written either way.
-     *
-     * <p>Both spellings are accepted, and either one being true is enough. The
-     * old parser combined the two with an OR of two <em>defaults</em>, which
-     * meant a flag defaulting to true could not be turned off by writing one
-     * spelling — you had to know to write both.
-     */
-    private static boolean flag(ConfigurationSection section, String dashed, String underscored) {
-        if (section.contains(dashed)) {
-            return section.getBoolean(dashed);
-        }
-        if (section.contains(underscored)) {
-            return section.getBoolean(underscored);
-        }
-        return false;
-    }
-
-    private static String amount(ConfigurationSection section) {
-        if (!section.contains("amount")) {
-            return "1";
-        }
-        return section.isInt("amount")
-                ? String.valueOf(section.getInt("amount"))
-                : section.getString("amount", "1");
-    }
-
-    private static Map<String, Integer> enchantments(ConfigurationSection section) {
-        Map<String, Integer> enchantments = new HashMap<>();
-        for (String entry : section.getStringList("enchantments")) {
-            int separator = entry.lastIndexOf(':');
-            if (separator < 0) {
-                separator = entry.lastIndexOf('|');
-            }
-            if (separator < 0) {
-                enchantments.put(entry.trim(), 1);
-                continue;
-            }
-            try {
-                enchantments.put(entry.substring(0, separator).trim(),
-                        Integer.parseInt(entry.substring(separator + 1).trim()));
-            } catch (NumberFormatException notALevel) {
-                enchantments.put(entry.substring(0, separator).trim(), 1);
-            }
-        }
-        return enchantments;
+        return UiItem.of(Items.parse(section, binder.problems()::found))
+                .bindings(bindings.build())
+                .condition(section.getString("condition"))
+                .dependsOn(section.getStringList("depends-on"))
+                .build();
     }
 
     /** Reads the actions of an item, accepting a list or a single string. */
@@ -389,33 +299,144 @@ public final class MenuLoader {
         return section.getStringList(key);
     }
 
-    private static List<UiItem> readFillers(ConfigurationSection section,
-                                            Binder binder) {
+    /**
+     * Reads what fills the slots a menu does not otherwise use.
+     *
+     * <p>Three jobs, not one list. {@code global} is the background;
+     * {@code pagination} is what a short list shows in its empty slots, and
+     * usually says something ("no kits available") rather than being another
+     * grey pane; {@code custom} is named panels with their own slots.
+     */
+    private static UiFillers readFillers(ConfigurationSection section, Binder binder) {
         if (section == null) {
-            return List.of();
+            return UiFillers.NONE;
         }
-        List<UiItem> fillers = new ArrayList<>();
-        for (String key : List.of("global", "border", "pagination")) {
-            ConfigurationSection filler = section.getConfigurationSection(key);
-            if (filler != null) {
-                fillers.add(readItem(filler, binder));
-            }
-        }
+        UiItem global = child(section, binder, "global", "border");
+        UiItem pagination = child(section, binder, "pagination");
+
+        List<UiFillers.Panel> panels = new ArrayList<>();
         ConfigurationSection custom = section.getConfigurationSection("custom");
         if (custom != null) {
             for (String key : custom.getKeys(false)) {
                 ConfigurationSection one = custom.getConfigurationSection(key);
-                if (one != null) {
-                    fillers.add(readItem(one, binder));
+                if (one == null) {
+                    continue;
+                }
+                List<Integer> where = slots(one, "slots");
+                if (where.isEmpty()) {
+                    // A panel with nowhere to go would silently do nothing.
+                    continue;
+                }
+                panels.add(new UiFillers.Panel(key, readItem(one, binder), where));
+            }
+        }
+        return new UiFillers(global, pagination, panels);
+    }
+
+    /** Reads a child section under whichever of these names is present. */
+    private static UiItem child(ConfigurationSection section, Binder binder, String... keys) {
+        for (String key : keys) {
+            ConfigurationSection child = section.getConfigurationSection(key);
+            if (child != null) {
+                return readItem(child, binder);
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Reads what a menu sounds like.
+     *
+     * <p>Two spellings, because the files in the wild use one and the tidier
+     * one is worth having. A {@code sounds} block names each sound; the older
+     * form is a list per sound at the root:
+     *
+     * <pre>
+     * open_sounds:
+     *   - "ENTITY_EXPERIENCE_ORB_PICKUP|1.0|1.2"
+     * click_sounds:
+     *   - "UI_BUTTON_CLICK|1.0|1.5"
+     * </pre>
+     *
+     * <p>Nine hundred and ninety-six menus write {@code open_sounds} and none
+     * write a {@code sounds} block, so reading only the latter would have made
+     * every menu in the ecosystem silent.
+     *
+     * <p>A list because that is how they were written, but only the first entry
+     * is used: the rest were never played by the old runtime either, and a
+     * button that makes four noises at once is not a feature anybody asked for.
+     */
+    private static UiSounds readSounds(ConfigurationSection config, UiSounds defaults) {
+        Map<String, Object> named = new LinkedHashMap<>();
+        for (String key : List.of("open", "close", "click", "denied", "failed", "back", "page")) {
+            String listed = firstSound(config, key + "_sounds", key + "-sounds");
+            if (listed != null) {
+                named.put(key, listed);
+            }
+        }
+        // The tidier spelling wins where both are present: somebody who wrote
+        // it meant it, and the other form is what they are migrating from.
+        ConfigurationSection block = config.getConfigurationSection("sounds");
+        if (block != null) {
+            named.putAll(values(block));
+        }
+        return named.isEmpty() ? defaults : UiSounds.of(named, defaults);
+    }
+
+    /**
+     * The first sound of a list, or the value if it was written as one string.
+     *
+     * <p>An empty list means silence, and is not the same as no key at all.
+     */
+    private static String firstSound(ConfigurationSection config, String... keys) {
+        for (String key : keys) {
+            if (!config.contains(key)) {
+                continue;
+            }
+            if (config.isList(key)) {
+                List<String> listed = config.getStringList(key);
+                return listed.isEmpty() ? "" : listed.getFirst();
+            }
+            return config.getString(key, "");
+        }
+        return null;
+    }
+
+    /**
+     * Reads the paginated lists of a menu.
+     *
+     * <p>Two spellings mean the same thing. A {@code pagination} block is one
+     * list and becomes a section named {@link UiSection#MAIN}; a
+     * {@code sections} block names each of several. A hundred and fifty files
+     * use the first and thirteen the second, and neither has to know about the
+     * other.
+     */
+    private static Map<String, UiSection> readSections(ConfigurationSection config,
+                                                       Binder binder, int size) {
+        Map<String, UiSection> sections = new LinkedHashMap<>();
+
+        UiSection single = readSection(UiSection.MAIN,
+                config.getConfigurationSection("pagination"), binder, size);
+        if (single != null) {
+            sections.put(single.id(), single);
+        }
+
+        ConfigurationSection named = config.getConfigurationSection("sections");
+        if (named != null) {
+            for (String id : named.getKeys(false)) {
+                UiSection section = readSection(id,
+                        named.getConfigurationSection(id), binder, size);
+                if (section != null) {
+                    sections.put(id, section);
                 }
             }
         }
-        return fillers;
+        return sections;
     }
 
-    private static UiDefinition.Pagination readPagination(ConfigurationSection section,
-                                                          Binder binder,
-                                                          int size) {
+    /** Reads one paginated list. */
+    private static UiSection readSection(String id, ConfigurationSection section,
+                                         Binder binder, int size) {
         if (section == null) {
             return null;
         }
@@ -425,27 +446,73 @@ public final class MenuLoader {
         }
         for (int slot : slots) {
             if (slot < 0 || slot >= size) {
-                throw new IllegalArgumentException(
-                        "Pagination uses slot " + slot + ", outside a menu of " + size);
+                throw new IllegalArgumentException("Section \"" + id + "\" uses slot " + slot
+                        + ", outside a menu of " + size);
             }
         }
-        ConfigurationSection template = section.getConfigurationSection("item_template");
-        if (template == null) {
-            template = section.getConfigurationSection("item-template");
-        }
-        if (template == null) {
-            throw new IllegalArgumentException("Pagination has slots but no item_template");
-        }
+        Map<String, UiItem> templates = readTemplates(id, section, binder);
         ConfigurationSection navigation = section.getConfigurationSection("navigation");
         ConfigurationSection filler = section.getConfigurationSection("filler");
-        return new UiDefinition.Pagination(slots, readItem(template, binder),
+        return new UiSection(id, slots, templates,
                 placed(navigation, "previous", binder),
                 placed(navigation, "next", binder),
                 filler == null ? null : readItem(filler, binder));
     }
 
-    private static UiDefinition.Placed placed(ConfigurationSection navigation, String key,
-                                              Binder binder) {
+    /**
+     * Reads the ways a row of a section can be drawn.
+     *
+     * <p>Any key ending in {@code template} is one, named by what comes before
+     * it: {@code selected_template} is {@code selected}. There are a hundred
+     * and sixty-seven distinct names across the ecosystem and a plugin is free
+     * to invent another, so they are read by shape rather than from a list.
+     *
+     * <p>{@code item_template} is the plain one and becomes
+     * {@link UiSection#DEFAULT}. A section with several named templates and no
+     * plain one uses the first as its default, because that is what the old
+     * runtime did with a row nobody classified.
+     */
+    private static Map<String, UiItem> readTemplates(String id, ConfigurationSection section,
+                                                     Binder binder) {
+        Map<String, UiItem> templates = new LinkedHashMap<>();
+        for (String key : section.getKeys(false)) {
+            if (!key.endsWith("template") && !key.endsWith("templates")) {
+                continue;
+            }
+            ConfigurationSection template = section.getConfigurationSection(key);
+            if (template == null) {
+                continue;
+            }
+            templates.put(templateName(key), readItem(template, binder));
+        }
+        if (!templates.isEmpty()) {
+            templates.putIfAbsent(UiSection.DEFAULT, templates.values().iterator().next());
+        }
+        // A section with no template is not broken. ExyliaSandBox's kit room
+        // lists the stacks it has stored, and no template could describe an
+        // arbitrary saved item; those rows bring their own.
+        return templates;
+    }
+
+    /** {@code selected_template} names the template {@code selected}. */
+    private static String templateName(String key) {
+        String name = key;
+        for (String suffix : List.of("_template", "-template", "template")) {
+            if (name.endsWith(suffix)) {
+                name = name.substring(0, name.length() - suffix.length());
+                break;
+            }
+        }
+        name = name.replace('-', '_');
+        while (name.endsWith("_")) {
+            name = name.substring(0, name.length() - 1);
+        }
+        // "item_template" and a bare "template" are the ordinary row.
+        return name.isEmpty() || name.equals("item") ? UiSection.DEFAULT : name;
+    }
+
+    private static UiSection.Placed placed(ConfigurationSection navigation, String key,
+                                           Binder binder) {
         if (navigation == null) {
             return null;
         }
@@ -457,25 +524,45 @@ public final class MenuLoader {
         if (slot < 0) {
             return null;
         }
-        return new UiDefinition.Placed(slot, readItem(section, binder));
+        return new UiSection.Placed(slot, readItem(section, binder));
     }
 
-    private static UiAnimationSpec animation(ConfigurationSection section, String key) {
+    private static UiAnimationSpec animation(ConfigurationSection section, String key,
+                                             Problems problems) {
         if (!section.contains(key)) {
             return null;
         }
+        UiAnimationSpec spec;
         if (section.isString(key)) {
-            return UiAnimationSpec.of(section.getString(key, "pulse"));
+            spec = UiAnimationSpec.of(section.getString(key, "none"));
+        } else {
+            ConfigurationSection animation = section.getConfigurationSection(key);
+            if (animation == null) {
+                return null;
+            }
+            // The old format wrote the open animation under "open".
+            spec = animation.contains("open") && !animation.contains("type")
+                    ? UiAnimationSpec.of(animation.getString("open", "none"))
+                    : UiAnimationSpec.of(values(animation));
         }
-        ConfigurationSection animation = section.getConfigurationSection(key);
-        if (animation == null) {
-            return null;
+        return checked(spec, problems);
+    }
+
+    /**
+     * Reports an animation name nothing can draw.
+     *
+     * <p>Worth saying out loud: a misspelt name is indistinguishable from a
+     * menu that simply appears, so without this an admin would be left
+     * wondering why their animation does nothing. The menu still loads — an
+     * animation is decoration.
+     */
+    private static UiAnimationSpec checked(UiAnimationSpec spec, Problems problems) {
+        if (!OpenAnimation.isKnown(spec.type())) {
+            problems.found("animation", "Unknown animation \"" + spec.type()
+                    + "\"; the menu will appear at once. Known: "
+                    + String.join(", ", new java.util.TreeSet<>(OpenAnimation.known())));
         }
-        // The old format wrote the open animation under "open".
-        if (animation.contains("open") && !animation.contains("type")) {
-            return UiAnimationSpec.of(animation.getString("open", "pulse"));
-        }
-        return UiAnimationSpec.of(values(animation));
+        return spec;
     }
 
     private static Map<String, Object> values(ConfigurationSection section) {

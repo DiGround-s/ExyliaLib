@@ -1,0 +1,63 @@
+title: "{primary}&lALLIES {muted}%current_page%/%total_pages%"
+size: 27
+type: PAGINATION
+animation: "center_out"
+
+open_sounds:
+  - "ENTITY_EXPERIENCE_ORB_PICKUP|1.0|1.2"
+click_sounds:
+  - "UI_BUTTON_CLICK|1.0|1.5"
+
+filler:
+  global:
+    material: GRAY_STAINED_GLASS_PANE
+    hide_tooltip: true
+  pagination:
+    material: LIGHT_GRAY_STAINED_GLASS_PANE
+    name: "{muted}No allies yet"
+    lore:
+      - ""
+      - "{muted}Browse clans to add allies!"
+    hide_tooltip: false
+
+pagination:
+  slots: '10-16'
+
+  item_template:
+    material: GREEN_BANNER
+    name: "{success}&l%ally_name%"
+    lore:
+      - ""
+      - " {muted}❙ {letters}Members: {highlight}%ally_members% {muted}({success}%ally_online% online{muted})"
+      - " {muted}❙ {letters}Kills: {success}%ally_kills%"
+      - " {muted}❙ {letters}Deaths: {error}%ally_deaths%"
+      - " {muted}❙ {letters}KDR: {highlight}%ally_kdr%"
+      - " {muted}❙ {letters}Playtime: {info}%ally_playtime%"
+      - ""
+      - "%ally_lore%"
+    actions:
+      - "%ally_action%"
+
+  navigation:
+    previous:
+      slot: 18
+      material: 'basehead-eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvZGExZDU1YjNmOTg5NDEwYTM0NzUyNjUwZTI0OGM5YjZjMTc4M2E3ZWMyYWEzZmQ3Nzg3YmRjNGQwZTYzN2QzOSJ9fX0='
+      name: '{error}&l← PREVIOUS PAGE'
+      actions:
+        - 'previous_page'
+    next:
+      slot: 26
+      material: 'basehead-eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvZmE4N2UzZDk2ZTFjZmViOWNjZmIzYmE1M2EyMTdmYWY1MjQ5ZTI4NTUzM2IyNzFhMmZiMjg0YzMwZGJkOTgyOSJ9fX0='
+      name: '{success}&lNEXT PAGE →'
+      actions:
+        - 'next_page'
+
+items:
+  back:
+    slot: 22
+    material: 'basehead-eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvMjIzZmI2NzQyOTcxNmIyMWJjNmU4ZTdkNjY5Y2VkZGY2NWIxM2UwNzkwYTVjZTU1YjJlMDc3YjgyZDE5ZTEyNCJ9fX0='
+    name: '{error}&lBACK'
+    lore:
+      - '{muted}Click to go back'
+    actions:
+      - "%back_action%"

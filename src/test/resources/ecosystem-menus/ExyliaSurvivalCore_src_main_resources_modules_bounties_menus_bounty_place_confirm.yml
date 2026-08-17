@@ -1,0 +1,48 @@
+title: "{primary}&lCONFIRM BOUNTY"
+size: 27
+type: STATIC
+
+open_sounds:
+  - "UI_BUTTON_CLICK|1.0|1.2"
+click_sounds:
+  - "UI_BUTTON_CLICK|1.0|1.5"
+
+filler:
+  global:
+    material: GRAY_STAINED_GLASS_PANE
+    hide_tooltip: true
+
+items:
+  info:
+    slot: 13
+    material: "playerhead:%bounty_target%"
+    name: "{warning}&l%bounty_target%"
+    lore:
+      - ""
+      - " {muted}❙ {letters}Bounty Amount: {highlight}%bounty_amount%"
+      - " {muted}❙ {letters}Cancel Penalty: {error}%bounty_penalty%%"
+      - " {muted}❙ {letters}Refund if Cancelled: {highlight}%bounty_refund%"
+      - " {muted}❙ {letters}Anonymous: {highlight}%bounty_anonymous%"
+      - ""
+      - " {muted}This amount will be deducted from your balance."
+    hide_tooltip: false
+
+  confirm:
+    slot: 15
+    material: LIME_CONCRETE
+    name: "{success}&l✔ CONFIRM"
+    lore:
+      - ""
+      - " {info}Place the bounty on {highlight}%bounty_target%{info}."
+    actions:
+      - "survivalcore:bounty_place_confirm %bounty_target_uuid% %bounty_raw_amount% false"
+
+  cancel:
+    slot: 11
+    material: RED_CONCRETE
+    name: "{error}&l✘ CANCEL"
+    lore:
+      - ""
+      - " {muted}Abort and return to the bounty list."
+    actions:
+      - "survivalcore:bounty_open_list"

@@ -1,0 +1,79 @@
+title: "{primary}&lKIT ITEMS {muted}— {highlight}%kit_id%"
+size: 54
+type: ITEM_INPUT
+
+open_sounds:
+  - "BLOCK_CHEST_OPEN|1.0|1.0"
+
+editable_slots: "0-4,9-44"
+
+filler:
+  global:
+    material: GRAY_STAINED_GLASS_PANE
+    hide_tooltip: true
+
+items:
+  armor-label:
+    slot: 5
+    material: LIGHT_BLUE_STAINED_GLASS_PANE
+    name: "{info}&l← ARMOR / OFFHAND"
+    lore:
+      - ""
+      - " {muted}Slot {highlight}1 {muted}→ Helmet"
+      - " {muted}Slot {highlight}2 {muted}→ Chestplate"
+      - " {muted}Slot {highlight}3 {muted}→ Leggings"
+      - " {muted}Slot {highlight}4 {muted}→ Boots"
+      - " {muted}Slot {highlight}5 {muted}→ Offhand"
+
+  import:
+    slot: 6
+    material: HOPPER
+    name: "{success}&lIMPORT INVENTORY"
+    lore:
+      - ""
+      - " {letters}Imports your current inventory,"
+      - " {letters}armor and offhand into this kit."
+      - ""
+      - " {info}» Click to import"
+    actions:
+      - "survivalcore:kit_admin_import_inventory"
+
+  separator:
+    slot: 7
+    material: GRAY_STAINED_GLASS_PANE
+    hide_tooltip: true
+
+  clear:
+    slot: 8
+    material: TNT
+    name: "{error}&lCLEAR ALL"
+    lore:
+      - ""
+      - " {error}Removes all items from this kit."
+      - ""
+      - " {error}» Click to clear"
+    actions:
+      - "survivalcore:kit_admin_clear_items"
+
+  cancel:
+    slot: 45
+    material: BARRIER
+    name: "{error}&lCANCEL"
+    lore:
+      - ""
+      - " {error}Discards all changes and returns"
+      - " {error}without saving."
+      - ""
+      - " {error}» Click to cancel"
+    actions:
+      - "survivalcore:kit_admin_cancel_items"
+
+  back:
+    slot: 53
+    material: EMERALD
+    name: "{success}&lSAVE & BACK"
+    lore:
+      - ""
+      - " {info}» Saves items and returns"
+    actions:
+      - "close"

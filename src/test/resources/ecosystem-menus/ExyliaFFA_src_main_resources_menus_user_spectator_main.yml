@@ -1,0 +1,64 @@
+title: "{primary}&lSPECTATOR"
+size: 27
+type: SIMPLE
+refresh:
+  mode: ON_CLICK
+  click_delay: 1
+
+open_sounds:
+  - "ENTITY_EXPERIENCE_ORB_PICKUP|1.0|1.2"
+click_sounds:
+  - "UI_BUTTON_CLICK|1.0|1.5"
+
+filler:
+  global:
+    material: GRAY_STAINED_GLASS_PANE
+    hide_tooltip: true
+
+items:
+  toggle_spectators:
+    slot: 0
+    material: "%spectator_toggle_material%"
+    name: "%spectator_toggle_name%"
+    lore:
+      - ""
+      - "%spectator_toggle_action%"
+    actions:
+      - "ffa:toggle_spectators"
+
+  respawn:
+    slot: 11
+    material: RESPAWN_ANCHOR
+    name: "{success}&lRESPAWN"
+    lore:
+      - ""
+      - " {muted}❙ {letters}Respawn and fight again!"
+      - ""
+      - "{success}▶ Click to respawn"
+    actions:
+      - "ffa:respawn_ffa"
+
+  leave:
+    slot: 13
+    material: BARRIER
+    name: "{error}&lLEAVE FFA"
+    lore:
+      - ""
+      - " {muted}❙ {letters}Return to lobby"
+      - ""
+      - "{error}▶ Click to leave"
+    actions:
+      - "ffa:leave_ffa"
+
+  players:
+    slot: 15
+    material: COMPASS
+    name: "{info}&lPLAYERS"
+    amount: "%alive_count%"
+    lore:
+      - ""
+      - " {muted}❙ {letters}Alive: {highlight}%alive_count%"
+      - ""
+      - "{info}▶ Click to see players"
+    actions:
+      - "ffa:open_spectator_players"

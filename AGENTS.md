@@ -271,6 +271,107 @@ qué es un click, una mano o un slot.
 - No duplicar cooldowns, permisos, auditoría ni rate limits en un pipeline:
   usar el módulo especializado cuando una acción concreta lo necesite.
 
+### Items — una definición, muchos renders
+
+Todo ítem que venga de una config pasa por `net.exylia.lib.item`. Nunca un
+`ItemStack` construido a mano desde un `ConfigurationSection`, ni una copia del
+parser dentro de un plugin.
+
+- **`Item` es una definición, no un `ItemStack`.** Guarda sus placeholders sin
+  resolver, la comparten todos los que la miran, y se testea sin servidor.
+  Leer el fichero es caro y pasa una vez; construir el ítem es barato y pasa
+  constantemente. Commons hacía las dos cosas juntas en cada render.
+- **No es un módulo de menús.** SpecialsV3, PracticeCore (hotbar del lobby),
+  Shields y SurvivalCore lo usan sin abrir ninguna GUI; `ui` es un consumidor
+  más. Por eso vive fuera de `ui` y no dentro.
+- **`Items.of(plugin)`, no estático.** Los valores de `nbt` van bajo el
+  namespace del plugin dueño. Commons guardaba un `plugin` estático, que en una
+  librería compartida archivaría todo bajo `exylialib:`.
+- **El prefijo de cabeza vive en `material`.** `basehead-`, `headbase-`,
+  `urlhead-`, `playerhead-`, `bytes:` — 440 usos reales. `Source` los resuelve
+  al cargar; `startsWith` en caliente era de commons.
+- **`playerhead-%player_name%` es un tipo aparte** (`OfHeadTemplate`): el único
+  que obliga a resolver por jugador. Saberlo al cargar es lo que permite que
+  los otros cincuenta slots no paguen nada.
+- **`name` y `display-name` son cosas distintas**, no un par con fallback. El
+  primero se pinta; el segundo lo cita un plugin en un mensaje. Tratarlos igual
+  mandaba al chat un nombre en negrita con degradado y un contador dentro.
+- **Un ítem estático se renderiza una vez y se copia.** Dinámico es cualquiera
+  con placeholder, cabeza por plantilla o trim con placeholder. Los que llevan
+  `nbt` nunca se cachean: el namespace del dueño los hace distintos.
+- **La caché se tira al recargar la paleta.** Requisito de la barra de calidad;
+  enganchado en `ExyliaLib.loadPalette` junto a los demás.
+- **Cero reflexión.** Contra paper-api 1.21.4 los data components son API
+  directa. Commons tenía 202 líneas de reflexión solo para consumibles y 152
+  para atributos porque soportaba servidores anteriores; nosotros no.
+- **Una parte ilegible se reporta y se salta**, el ítem sigue. Commons se la
+  tragaba, así que un encantamiento mal escrito era indistinguible de uno bien.
+- **Cuatro bugs de commons se arreglan a propósito**, y cada uno tiene su test:
+  `flags` no se parseaba en ningún sitio; `hide-attributes` era
+  `getBoolean(a,true) || getBoolean(b,true)` y no se podía apagar; `upgraded`
+  se guardaba y no se leía, así que un refill de Instant Health II daba I; y
+  `display-name` era fallback de `name`.
+- **El sonido del consumible se le pide a `Effects`.** La regla no es mecánica
+  (`BLOCK_NOTE_BLOCK_PLING` conserva su guión bajo) y ya está escrita una vez.
+- **Los registros van por `Registry`, nunca `valueOf`.** Varios de esos tipos
+  dejaron de ser enums en 1.21: `values()` compila y revienta en runtime con
+  `IncompatibleClassChangeError`.
+
+### Menús — el estado en la sesión, nunca en un mapa por jugador
+
+Todo menú pasa por `net.exylia.lib.ui`. Nunca un `Inventory` abierto a mano, ni
+un `InventoryClickEvent` propio, ni un mapa estático de jugador a lo que tiene
+abierto.
+
+- **Tres cosas separadas a propósito.** `UiDefinition` es lo que dice el fichero,
+  compilado una vez y compartido; `UiSession` es la ventana de un jugador y lo
+  único contra lo que se valida un click; `UiEntry` es una fila con sus valores
+  y **la cosa de la que trata**.
+- **`UiItem` compone un `Item`.** El aspecto es del módulo `item`, que usan
+  cuatro plugins sin abrir ninguna GUI. Aquí solo vive lo que únicamente
+  significa algo en una pantalla: clicks, condición, dependencias, animación.
+- **Las secciones son de primera clase.** Un menú puede tener varias listas
+  paginadas a la vez (13 ficheros reales lo hacen). Un bloque `pagination` se
+  lee como una sección llamada `main`, así los 153 ficheros de una sola lista no
+  se enteran.
+- **Las plantillas se leen por forma, no por lista.** Cualquier clave acabada en
+  `template` es una, nombrada por lo que va antes. Hay 167 nombres distintos en
+  el ecosistema y un plugin puede inventar otro mañana.
+- **La fila lleva su valor.** `UiKeys.ENTRY`. Commons no tenía dónde ponerlo, así
+  que un handler reconstruía el kit desde el ítem dibujado — de ahí los mapas
+  estáticos por jugador, y de ahí que dos menús abiertos se contestaran mal.
+- **Un click se valida contra lo dibujado, no contra el packet.** El cliente
+  manda un número de slot; el servidor ya sabe qué puso ahí. Un slot cuya
+  condición falla no está en blanco: **no está**.
+- **La sesión se encuentra por el holder de la ventana**, nunca por un mapa
+  jugador → menú. Un jugador que abre un cofre encima de un menú no es nuestro.
+- **Una condición ilegible oculta el slot.** Fallar al revés le da un botón a
+  quien no debía tenerlo; lo primero solo lo hace invisible.
+- **Nada sobrevive a su pantalla.** Un `ActionExecution` con pasos demorados se
+  cancela al cerrar; deshabilitar un plugin cierra sus ventanas **antes** de
+  soltar sus tasks, porque un botón cuyo classloader se está muriendo no debe
+  contestar otro click.
+- **`next_page`, `previous_page`, `back`, `close`, `refresh` son de la lib.**
+  Pasar de página no es una feature de nadie y 500 ficheros ya las escriben. Si
+  un plugin registra la suya con ese nombre, gana la suya.
+- **Cambiar de página redibuja esa lista y nada más.** `invalidate(dep)` redibuja
+  solo los slots que declararon depender de eso. Sin rebuild completo, sin
+  parpadeo, sin packets para lo que no cambió.
+- **`refresh: SMART` redibuja solo lo que puede cambiar.** Un timer que repinta
+  decoración estática son packets para un ítem idéntico. El timer solo arranca
+  si hay algo que pueda cambiar, y muere con el jugador.
+- **La animación dibuja primero y esconde después.** Todo queda registrado antes
+  de empezar, así un click sobre un slot que aún no se ve funciona igual. Al
+  revés sería una ventana en la que los botones no hacen nada en silencio. Un
+  click salta el resto.
+- **Los tres fillers son tres cosas.** `global` es fondo; `pagination` es lo que
+  ve quien tiene una lista vacía y **suele decir por qué**; `custom` son paneles
+  con sus propios slots. Tratar el segundo como fondo deja al jugador sin
+  explicación.
+- **Los sonidos se leen de `open_sounds:` en la raíz**, que es como están escritos
+  los 2028 ficheros. Leer solo un bloque `sounds:` dejaba mudo al ecosistema
+  entero y pasaba los tests igual.
+
 ### Scoreboards — siempre `Scoreboards`, siempre configurables
 
 Todo sidebar pasa por `net.exylia.lib.scoreboard`. Nunca el `Scoreboard` de
@@ -447,7 +548,7 @@ que el servidor la descargue de Maven Central. Nunca `onCommand`, ni un
   listener de la paleta en `ExyliaLib.loadPalette`. Es requisito para que un
   módulo nuevo entre en la lib.
   - Ya conectados: `TextEngine` (vía `Colors.apply`), `BoardManager`,
-    `HologramRuntime`, `EffectRuntime`.
+    `HologramRuntime`, `EffectRuntime`, `ItemCache`.
   - El atajo de "texto estático se dibuja una vez" es justo lo que crea este
     bug: en 1.16.0 los efectos estáticos se quedaban con los colores viejos.
   - Lo que un módulo cachea sin relación con la paleta (clanes, pociones
@@ -591,6 +692,13 @@ Raíz de código: `src/main/java/net/exylia/lib/`. Raíz de tests:
 | dueño de efectos por plugin | `effect/Effects.of`, `PluginEffects` | `effect/internal/EffectRuntime` (registro por plugin) | [docs/effects.md](docs/effects.md) | 1.18.3 |
 | skull | `skull/Skulls`, `SkullSource`, `SkullBuilder`, `SkullHandle` | `skull/internal/` | [docs/skulls.md](docs/skulls.md) | 1.19.0 |
 | action | `action/Actions`, `PluginActions`, `ActionCall`, `ActionContext`, `ActionSequence` y tipos auxiliares | `action/internal/` | [docs/actions.md](docs/actions.md) | 1.20.0 |
+| region | `region/Regions`, `PluginRegions`, `RegionSnapshot`, `RegionShape` y formas, `PolicyKey`/`PolicySet`, `RegionData`/`RegionCodec`, `PlayerRegionChangeEvent`, selección y visualización | `region/internal/` | [docs/regions.md](docs/regions.md) | 1.23.0 |
+| database | `database/Databases`, `PluginDatabase`, `Repository`, `Query`, `Table`, `Column`, `Id`, `Indexed`, `Index`, `Codec`, `DatabaseException`, `DatabaseSettings` | `database/internal/` | [docs/database.md](docs/database.md) | 1.24.0 |
+| format | `format/Formats`, `Numbers`, `Amounts`, `Dates`, `FormatSettings`; `util/TimeFormats` | `format/internal/` | [docs/formats.md](docs/formats.md) | 1.25.0 |
+| economy | `economy/Economy`, `CurrencyProvider`, `EconomyResponse`, `TransferResult`, `EconomySettings`, `EconomyException` | `economy/internal/` | [docs/economy.md](docs/economy.md) | 1.26.0 |
+| command | `command/Commands`, `PluginCommands`, `CommandLine`, `CommandActor`, `CommandResult` | — | — | 1.21.0 |
+| item | `item/Items`, `PluginItems`, `Item`, `Source`, `Appearance`, `Traits`, `Potion`, `Trim`, `Banner`, `Consumable`, `Modifier`, `Problems` | `item/internal/` | [docs/items.md](docs/items.md) | 1.22.0 |
+| ui | `ui/Menus`, `PluginMenus`, `UiSession`, `UiDefinition`, `UiSection`, `UiEntry`, `UiItem`, `UiKeys`, `UiFillers`, `UiRefresh`, `UiSounds`, `UiAnimationSpec`, `ClickBindings`, `ClickKind`, `ClickPolicy`, `Pages`, `Slots` | `ui/internal/` | [docs/menus.md](docs/menus.md) | 1.22.0 |
 
 Clases raíz que no son módulo: `ExyliaLib.java` (ciclo de vida y limpieza),
 `platform/Platform.java`, `internal/LibrarySettings`, `internal/ExyliaLibUpdater`.

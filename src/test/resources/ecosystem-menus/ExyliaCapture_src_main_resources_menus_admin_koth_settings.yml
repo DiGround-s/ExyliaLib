@@ -1,0 +1,87 @@
+title: "{primary}&lKOTH SETTINGS"
+size: 36
+type: SIMPLE
+refresh:
+  mode: ON_CLICK
+  click_delay: 4
+
+open_sounds:
+  - "ENTITY_EXPERIENCE_ORB_PICKUP|1.0|1.2"
+click_sounds:
+  - "UI_BUTTON_CLICK|1.0|1.5"
+
+filler:
+  global:
+    material: GRAY_STAINED_GLASS_PANE
+    hide_tooltip: true
+
+items:
+  capture-time:
+    slot: 11
+    material: CLOCK
+    name: "{info}&lCAPTURE TIME"
+    lore:
+      - ""
+      - " {muted}❙ {letters}Current: {highlight}%capture_time%"
+      - " {muted}❙ {letters}Time to hold zone to win"
+      - ""
+      - " {muted}❙ {success}Left-Click +5s"
+      - " {muted}❙ {error}Right-Click -5s"
+      - " {muted}❙ {warning}Shift-Click to enter"
+    actions:
+      - "left: capture:adjust_setting_millis capture-time 5"
+      - "right: capture:adjust_setting_millis capture-time -5"
+      - "shift_left: capture:input_setting_millis capture-time"
+
+  infinite:
+    slot: 13
+    material: "%infinite_material%"
+    name: "{warning}&lINFINITE MODE"
+    lore:
+      - ""
+      - " {muted}❙ {letters}Current: {highlight}%infinite_status%"
+      - " {muted}❙ {letters}Auto-reset zone after each capture"
+      - " {muted}❙ {letters}Event ends only by timeout or force-stop"
+      - ""
+      - " {muted}❙ {success}Click to toggle"
+    actions:
+      - "capture:toggle_boolean_setting infinite"
+
+  glow-enabled:
+    slot: 20
+    material: "%glow_enabled_material%"
+    name: "{warning}&lGLOW EFFECT"
+    lore:
+      - ""
+      - " {muted}❙ {letters}Current: {highlight}%glow_enabled_status%"
+      - " {muted}❙ {letters}Capturer glows near capture end"
+      - ""
+      - " {muted}❙ {success}Click to toggle"
+    actions:
+      - "capture:toggle_boolean_setting glow-enabled"
+
+  glow-last-millis:
+    slot: 22
+    material: GLOWSTONE_DUST
+    name: "{info}&lGLOW THRESHOLD"
+    lore:
+      - ""
+      - " {muted}❙ {letters}Current: {highlight}%glow_last_seconds%"
+      - " {muted}❙ {letters}Time before end to start glow"
+      - ""
+      - " {muted}❙ {success}Left-Click +1s"
+      - " {muted}❙ {error}Right-Click -1s"
+      - " {muted}❙ {warning}Shift-Click to enter"
+    actions:
+      - "left: capture:adjust_setting_millis glow-last-millis 1"
+      - "right: capture:adjust_setting_millis glow-last-millis -1"
+      - "shift_left: capture:input_setting_millis glow-last-millis"
+
+  back:
+    slot: 31
+    material: ARROW
+    name: "{error}&lBack"
+    lore:
+      - "{muted}Click to go back"
+    actions:
+      - "capture:open_config_setup"

@@ -1,0 +1,65 @@
+title: "{primary}&lPLAYERS {muted}%current_page%/%total_pages%"
+size: 54
+type: PAGINATION
+animation: "center_out"
+
+open_sounds:
+  - "ENTITY_EXPERIENCE_ORB_PICKUP|1.0|1.2"
+click_sounds:
+  - "UI_BUTTON_CLICK|1.0|1.5"
+
+filler:
+  global:
+    material: GRAY_STAINED_GLASS_PANE
+    hide_tooltip: true
+
+  pagination:
+    material: LIGHT_GRAY_STAINED_GLASS_PANE
+    name: "{muted}No players alive"
+    lore:
+      - ""
+      - "{muted}Waiting for players..."
+    hide_tooltip: false
+
+pagination:
+  slots: '10-16,19-25,28-34,37-43'
+
+  item_template:
+    material: "playerhead-%player_name%"
+    name: "{highlight}%player_name%"
+    lore:
+      - ""
+      - " {muted}❙ {letters}Health: {info}%player_health% ❤"
+      - ""
+      - "{success}▶ Click to teleport"
+    actions:
+      - "ffa:spectator_teleport %player_name%"
+
+  navigation:
+    previous:
+      slot: 48
+      material: ARROW
+      name: '{error}&l← PREVIOUS PAGE'
+      lore:
+        - '{info}ℹ Current page: {success}%current_page%&8/{error}%total_pages%'
+      actions:
+        - 'previous_page'
+    next:
+      slot: 50
+      material: ARROW
+      name: '{success}&lNEXT PAGE →'
+      lore:
+        - '{info}ℹ Current page: {success}%current_page%&8/{error}%total_pages%'
+      actions:
+        - 'next_page'
+
+items:
+  back:
+    slot: 49
+    material: DARK_OAK_BUTTON
+    name: "{warning}&l← BACK"
+    lore:
+      - ""
+      - "{warning}▶ Click to go back"
+    actions:
+      - "ffa:open_spectator_main"

@@ -70,8 +70,50 @@ public final class TimeFormats {
         CLOCK,
 
         /** {@code "1h 5m 3s"}, for a duration read once rather than watched. */
-        FULL
+        FULL,
+
+        /**
+         * The largest unit that says something, and nothing else:
+         * {@code "3d"}, {@code "2.5h"}, {@code "45s"}.
+         *
+         * <p>For a length of time that appears inside a sentence rather than as
+         * the subject of the screen — how old a mail is, how long until a
+         * posting expires, when a member was last seen. Those are read at a
+         * glance in a lore line, where {@code "3d"} is the whole answer and
+         * {@code "3d 4h 12m 6s"} is four numbers to skip past.
+         *
+         * <p>The units run to years, which the other styles do not reach:
+         * {@code CLOCK} and {@code FULL} count hours upwards forever, so a
+         * three-day gap reads as {@code "72h"}. That is correct and unreadable.
+         *
+         * <p>A month is thirty days and a year is three hundred and sixty-five,
+         * as ExyliaCommons had it. Both are approximations, which is the point:
+         * a line that says {@code "2mo ago"} is not claiming to know which
+         * months.
+         *
+         * @since 1.25.0
+         */
+        COMPACT
     }
+
+    /**
+     * The units {@link Style#COMPACT} counts in, largest first, in seconds.
+     *
+     * <p>Exactly ExyliaCommons' ladder, so a duration that read {@code "3d"}
+     * before a plugin migrated still reads {@code "3d"} after.
+     */
+    private static final long[] COMPACT_UNITS = {
+            31_536_000L,  // year, 365 days
+            2_592_000L,   // month, 30 days
+            604_800L,     // week
+            86_400L,      // day
+            3_600L,       // hour
+            60L,          // minute
+            1L};          // second
+
+    /** Each unit's suffix, parallel to {@link #COMPACT_UNITS}. */
+    private static final String[] COMPACT_SUFFIXES =
+            {"y", "mo", "w", "d", "h", "m", "s"};
 
     private static final DecimalFormatSymbols SYMBOLS =
             DecimalFormatSymbols.getInstance(Locale.US);
@@ -107,6 +149,7 @@ public final class TimeFormats {
             case HUNDREDTHS -> TWO_DECIMALS.get().format(safe);
             case CLOCK -> clock(safe);
             case FULL -> full(safe);
+            case COMPACT -> compact(safe);
         };
     }
 
@@ -152,6 +195,7 @@ public final class TimeFormats {
             case "hundredths", "2" -> Style.HUNDREDTHS;
             case "clock" -> Style.CLOCK;
             case "full" -> Style.FULL;
+            case "compact" -> Style.COMPACT;
             default -> Style.AUTO;
         };
     }
@@ -195,6 +239,36 @@ public final class TimeFormats {
             result.append(remainder).append('s');
         }
         return result.toString().trim();
+    }
+
+    /**
+     * The largest unit that says something, with a tenth only where it does.
+     *
+     * <p>{@code 259200} is {@code "3d"} rather than {@code "3.0d"}, and
+     * {@code 9000} is {@code "2.5h"} rather than {@code "2h"} — a lore line
+     * that rounds two and a half hours down to two is telling a player they
+     * have half an hour they do not have.
+     *
+     * <p>Below a second it is {@code "0s"}, not milliseconds. Nothing reading
+     * this style cares about a gap that small; the styles that do are the
+     * decimal ones above.
+     */
+    private static String compact(double seconds) {
+        for (int index = 0; index < COMPACT_UNITS.length; index++) {
+            long unit = COMPACT_UNITS[index];
+            if (seconds >= unit) {
+                double scaled = seconds / unit;
+                // Rounded half-up by hand rather than through the formatter,
+                // because the decimal is dropped more often than it is kept and
+                // formatting it only to strip it is work for nothing.
+                double rounded = Math.floor(scaled * 10 + 0.5) / 10;
+                long whole = (long) rounded;
+                int tenth = (int) Math.round((rounded - whole) * 10);
+                String suffix = COMPACT_SUFFIXES[index];
+                return tenth == 0 ? whole + suffix : whole + "." + tenth + suffix;
+            }
+        }
+        return "0s";
     }
 
     private static String pad(long value) {

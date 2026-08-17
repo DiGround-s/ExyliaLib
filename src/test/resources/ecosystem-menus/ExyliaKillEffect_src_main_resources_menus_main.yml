@@ -1,0 +1,139 @@
+title: "{primary}&lDEATH EFFECTS"
+size: 54
+type: MULTI_PAGINATION
+refresh:
+  mode: ON_CLICK
+  click_delay: 1
+animation: "rows_alternate"
+
+open_sounds:
+  - "ENTITY_ARROW_SHOOT|1.0|2.0"
+close_sounds:
+  - "BLOCK_CHEST_LOCKED|1.0|2.0"
+click_sounds:
+  - "UI_BUTTON_CLICK|1.0|2.0"
+
+filler:
+  global:
+    material: BLACK_STAINED_GLASS_PANE
+    hide_tooltip: true
+
+items:
+  toggle_particles:
+    slot: 45
+    material: ENDER_EYE
+    name: "{accent}&lPARTICLE VISIBILITY"
+    lore:
+      - "{muted} ┃ {letters}Current: {info}%particle_visibility%"
+      - ""
+      - "{muted} ┃ {neutral}%visibility_all% {muted}— See all particles"
+      - "{muted} ┃ {neutral}%visibility_none% {muted}— See no particles"
+      - "{muted} ┃ {neutral}%visibility_self_only% {muted}— Only own particles"
+      - "{muted} ┃ {neutral}%visibility_others_only% {muted}— Only others'"
+      - ""
+      - "{accent}⚡ Click to toggle"
+    actions:
+      - "killeffect:toggle_particles"
+
+  reset:
+    slot: 49
+    material: RED_DYE
+    name: "{error}&lRESET EFFECT"
+    lore:
+      - "{muted} ┃ {letters}Remove death effect"
+      - ""
+      - "{error}⚡ Click to reset"
+    actions:
+      - "killeffect:reset"
+
+sections:
+  categories:
+    slots: "1-7"
+    filler:
+      material: STONE_BUTTON
+      hide_tooltip: true
+    not_selected_template:
+      material: "%category_material%"
+      name: "{muted}&l%category_raw_name%"
+      amount: "%category_effects_count%"
+      lore:
+        - ""
+        - "{info}⭐ {letters}Available effects: {info}%category_effects_count%"
+        - "{success}🔓 {letters}Effects with access: {success}%category_effects_access_count%"
+        - ""
+        - "{accent}⚡ Click to select"
+      glowing: true
+    selected_template:
+      material: "%category_material%"
+      name: "{success}&l%category_raw_name%"
+      amount: "%category_effects_count%"
+      lore:
+        - ""
+        - "{info}⭐ {letters}Available effects: {info}%category_effects_count%"
+        - "{success}🔓 {letters}Effects with access: {success}%category_effects_access_count%"
+        - ""
+        - "{success}✔ Category selected"
+      glowing: true
+    navigation:
+      previous:
+        slot: 0
+        material: "headbase-eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvZGExZDU1YjNmOTg5NDEwYTM0NzUyNjUwZTI0OGM5YjZjMTc4M2E3ZWMyYWEzZmQ3Nzg3YmRjNGQwZTYzN2QzOSJ9fX0="
+        name: "{letters}Previous"
+        lore:
+          - "{muted} ┃ {neutral}Previous section"
+      next:
+        slot: 8
+        material: "headbase-eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvZmE4N2UzZDk2ZTFjZmViOWNjZmIzYmE1M2EyMTdmYWY1MjQ5ZTI4NTUzM2IyNzFhMmZiMjg0YzMwZGJkOTgyOSJ9fX0="
+        name: "{letters}Next"
+        lore:
+          - "{muted} ┃ {neutral}Next section"
+
+  effects:
+    slots: "19-25,28-34,37-43"
+    filler:
+      material: STONE_BUTTON
+      hide_tooltip: true
+    no_permissions_template:
+      material: "%effect_material%"
+      name: "{error}&l%effect_raw_name%"
+      lore:
+        - ""
+        - "{muted} ┃ {letters}Effect: {info}%effect_id%"
+        - "{muted} ┃ {letters}Description: {neutral}%effect_description%"
+        - ""
+        - "{error}🔒 No permission to use this effect"
+        - "{accent}⚡ Right-click to preview"
+    not_selected_template:
+      material: "%effect_material%"
+      name: "{muted}&l%effect_raw_name%"
+      lore:
+        - ""
+        - "{muted} ┃ {letters}Effect: {info}%effect_id%"
+        - "{muted} ┃ {letters}Description: {neutral}%effect_description%"
+        - ""
+        - "{accent}⚡ Left-click to select"
+        - "{muted}⚡ Right-click to preview"
+    selected_template:
+      material: "%effect_material%"
+      name: "{success}&l%effect_raw_name%"
+      lore:
+        - ""
+        - "{muted} ┃ {letters}Effect: {info}%effect_id%"
+        - "{muted} ┃ {letters}Description: {neutral}%effect_description%"
+        - ""
+        - "{success}✔ Effect selected"
+        - "{muted}⚡ Right-click to preview"
+      glowing: true
+    navigation:
+      previous:
+        slot: 18
+        material: "headbase-eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvZGExZDU1YjNmOTg5NDEwYTM0NzUyNjUwZTI0OGM5YjZjMTc4M2E3ZWMyYWEzZmQ3Nzg3YmRjNGQwZTYzN2QzOSJ9fX0="
+        name: "{letters}Previous"
+        lore:
+          - "{muted} ┃ {neutral}Previous section"
+      next:
+        slot: 26
+        material: "headbase-eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvZmE4N2UzZDk2ZTFjZmViOWNjZmIzYmE1M2EyMTdmYWY1MjQ5ZTI4NTUzM2IyNzFhMmZiMjg0YzMwZGJkOTgyOSJ9fX0="
+        name: "{letters}Next"
+        lore:
+          - "{muted} ┃ {neutral}Next section"

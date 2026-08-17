@@ -1,0 +1,77 @@
+title: "{primary}&lSETTINGS"
+size: 27
+type: SIMPLE
+refresh:
+  mode: ON_CLICK
+  click_delay: 4
+animation: "center_out"
+
+open_sounds:
+  - "ENTITY_EXPERIENCE_ORB_PICKUP|1.0|1.2"
+click_sounds:
+  - "UI_BUTTON_CLICK|1.0|1.5"
+
+filler:
+  global:
+    material: GRAY_STAINED_GLASS_PANE
+    hide_tooltip: true
+
+items:
+  roles:
+    slot: 10
+    material: WRITABLE_BOOK
+    name: "{primary}&lCLAN ROLES"
+    lore:
+      - ""
+      - " {muted}❙ {letters}Manage clan roles and"
+      - " {muted}❙ {letters}their permissions."
+      - ""
+      - "{info}» Click to open"
+    actions:
+      - "exyliaclans:open_roles"
+
+  status:
+    slot: 12
+    material: "%status_material%"
+    name: "{warning}&lCLAN STATUS"
+    lore:
+      - ""
+      - " {muted}❙ {letters}Current: %status%"
+      - ""
+      - "{info}» Click to toggle"
+    actions:
+      - "exyliaclans:toggle_open"
+
+  ff:
+    slot: 14
+    material: "%ff_material%"
+    name: "{error}&lFRIENDLY FIRE"
+    lore:
+      - ""
+      - " {muted}❙ {letters}Current: %ff%"
+      - ""
+      - "{info}» Click to toggle"
+    actions:
+      - "exyliaclans:toggle_ff"
+
+  sethome:
+    slot: 16
+    material: RED_BED
+    name: "{highlight}&lSET HOME"
+    lore:
+      - ""
+      - " {muted}❙ {letters}Set clan home to your"
+      - " {muted}❙ {letters}current location."
+      - ""
+      - "{info}» Click to set"
+    actions:
+      - "exyliaclans:set_home"
+
+  back:
+    slot: 22
+    material: 'basehead-eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvMjIzZmI2NzQyOTcxNmIyMWJjNmU4ZTdkNjY5Y2VkZGY2NWIxM2UwNzkwYTVjZTU1YjJlMDc3YjgyZDE5ZTEyNCJ9fX0='
+    name: '{error}&lBACK'
+    lore:
+      - '{muted}Click to go back'
+    actions:
+      - "exyliaclans:open_main_menu"

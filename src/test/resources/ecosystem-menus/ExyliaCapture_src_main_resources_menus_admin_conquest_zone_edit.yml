@@ -1,0 +1,108 @@
+title: "{warning}&lEDIT ZONE: {highlight}%zone_name%"
+size: 45
+type: SIMPLE
+refresh:
+  mode: ON_CLICK
+  click_delay: 4
+
+open_sounds:
+  - "ENTITY_EXPERIENCE_ORB_PICKUP|1.0|1.2"
+click_sounds:
+  - "UI_BUTTON_CLICK|1.0|1.5"
+
+filler:
+  global:
+    material: GRAY_STAINED_GLASS_PANE
+    hide_tooltip: true
+
+items:
+  rename:
+    slot: 10
+    material: WRITABLE_BOOK
+    name: "{success}&lRENAME"
+    lore:
+      - ""
+      - " {muted}❙ {letters}Current: {highlight}%zone_name%"
+      - ""
+      - "{info}» Click to rename"
+    actions:
+      - "capture:edit_zone_name"
+
+  color:
+    slot: 12
+    material: LIME_DYE
+    name: "{success}&lCOLOR"
+    lore:
+      - ""
+      - " {muted}❙ {letters}Current: {highlight}%zone_color%"
+      - " {muted}❙ {letters}Format: {muted}#RRGGBB"
+      - ""
+      - "{info}» Click to change"
+    actions:
+      - "capture:edit_zone_color"
+
+  points:
+    slot: 14
+    material: EMERALD
+    name: "{info}&lPOINTS PER CAPTURE"
+    lore:
+      - ""
+      - " {muted}❙ {letters}Current: {highlight}%zone_pts%"
+      - ""
+      - " {muted}❙ {success}Left-Click +1"
+      - " {muted}❙ {error}Right-Click -1"
+      - " {muted}❙ {warning}Shift-Click to enter"
+    actions:
+      - "left: capture:adjust_zone_pts 1"
+      - "right: capture:adjust_zone_pts -1"
+      - "shift_left: capture:input_zone_pts"
+
+  capture-time:
+    slot: 16
+    material: CLOCK
+    name: "{info}&lCAPTURE TIME"
+    lore:
+      - ""
+      - " {muted}❙ {letters}Current: {highlight}%zone_capture_time%"
+      - " {muted}❙ {letters}Time to hold zone to score a point"
+      - ""
+      - " {muted}❙ {success}Left-Click +5s"
+      - " {muted}❙ {error}Right-Click -5s"
+      - " {muted}❙ {warning}Shift-Click to enter"
+    actions:
+      - "left: capture:adjust_zone_capture_time 5"
+      - "right: capture:adjust_zone_capture_time -5"
+      - "shift_left: capture:input_zone_capture_time"
+
+  reselect:
+    slot: 30
+    material: MAP
+    name: "{warning}&lRE-SELECT AREA"
+    lore:
+      - ""
+      - " {muted}❙ {letters}Use wand to redefine the zone"
+      - ""
+      - "{info}» Click to start"
+    actions:
+      - "capture:reselect_zone_area"
+
+  delete:
+    slot: 32
+    material: BARRIER
+    name: "{error}&lDELETE ZONE"
+    lore:
+      - ""
+      - " {muted}❙ {letters}Permanently removes this zone"
+      - ""
+      - "{error}» Click to delete"
+    actions:
+      - "capture:delete_zone_by_index"
+
+  back:
+    slot: 40
+    material: ARROW
+    name: "{error}&lBack"
+    lore:
+      - "{muted}Click to go back"
+    actions:
+      - "capture:open_conquest_zones"

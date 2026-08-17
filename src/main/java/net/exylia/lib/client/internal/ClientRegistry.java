@@ -46,8 +46,10 @@ public final class ClientRegistry {
         LINKS.clear();
         BY_PLAYER.clear();
 
-        add(ApolloLink.create());
-        add(FeatherLink.create());
+        add(logger, "com.lunarclient.apollo.Apollo",
+                "net.exylia.lib.client.internal.ApolloLink");
+        add(logger, "net.digitalingot.feather.serverapi.api.FeatherAPI",
+                "net.exylia.lib.client.internal.FeatherLink");
 
         if (!LINKS.isEmpty()) {
             List<String> names = new ArrayList<>(LINKS.size());
@@ -55,6 +57,40 @@ public final class ClientRegistry {
                 names.add(link.brand().display());
             }
             logger.info("Client integrations: " + String.join(", ", names) + ".");
+        }
+    }
+
+    /**
+     * Adds an integration, if its client API is on the classpath.
+     *
+     * <p>Neither class is named in code. Naming {@code ApolloLink} here would
+     * make the JVM verify it, and verifying it means resolving every Apollo
+     * type it mentions: a server without Apollo, or with a version that moved
+     * a class, would fail to load this one before the check inside it ever
+     * ran. Reflection keeps the decision at runtime, where it belongs.
+     *
+     * @param logger    where a broken integration is reported
+     * @param apiClass  a class the client's own plugin provides
+     * @param linkClass the integration, with a static {@code create()}
+     */
+    private static void add(Logger logger, String apiClass, String linkClass) {
+        ClassLoader loader = ClientRegistry.class.getClassLoader();
+        try {
+            Class.forName(apiClass, false, loader);
+        } catch (Throwable absent) {
+            // The normal case on most servers, and not worth a line in the log.
+            return;
+        }
+        try {
+            java.lang.reflect.Method create = Class.forName(linkClass, true, loader)
+                    .getDeclaredMethod("create");
+            create.setAccessible(true);
+            add((ClientLink) create.invoke(null));
+        } catch (Throwable broken) {
+            // The API is here but not the one this was built against: an
+            // upgrade on their side, never a reason to stop the server.
+            logger.warning("Client integration " + apiClass
+                    + " is installed but incompatible, so it was skipped: " + broken);
         }
     }
 

@@ -1,0 +1,142 @@
+title: "{primary}&lCOMMANDS: %config_id%"
+size: 54
+type: SIMPLE
+refresh:
+  mode: ON_CLICK
+  click_delay: 4
+
+open_sounds:
+  - "ENTITY_EXPERIENCE_ORB_PICKUP|1.0|1.2"
+click_sounds:
+  - "UI_BUTTON_CLICK|1.0|1.5"
+
+filler:
+  global:
+    material: GRAY_STAINED_GLASS_PANE
+    hide_tooltip: true
+
+items:
+  start-info:
+    slot: 2
+    material: LIME_DYE
+    name: "{success}&lSTART COMMANDS"
+    lore:
+      - ""
+      - " {muted}❙ {letters}Executed when event starts"
+      - " {muted}❙ {letters}Count: {highlight}%start_commands_count%"
+      - ""
+      - " {muted}❙ {info}Supports: {highlight}console: {info}/ {highlight}player:"
+      - " {muted}❙ {info}Placeholders: {highlight}%event_name%"
+
+  start-add:
+    slot: 4
+    material: LIME_CONCRETE
+    name: "{success}&lADD START COMMAND"
+    lore:
+      - ""
+      - "{info}» Click to add"
+    actions:
+      - "capture:add_start_command"
+
+  start-clear:
+    slot: 6
+    material: RED_CONCRETE
+    name: "{error}&lCLEAR START COMMANDS"
+    lore:
+      - ""
+      - "{error}» Click to clear all"
+    actions:
+      - "capture:clear_start_commands"
+
+  end-info:
+    slot: 20
+    material: GOLD_INGOT
+    name: "{warning}&lEND COMMANDS"
+    lore:
+      - ""
+      - " {muted}❙ {letters}Executed when event ends"
+      - " {muted}❙ {letters}Runs for the winner player"
+      - " {muted}❙ {letters}Count: {highlight}%end_commands_count%"
+      - ""
+      - " {muted}❙ {info}Supports: {highlight}console: {info}/ {highlight}player:"
+      - " {muted}❙ {info}Placeholders: {highlight}%player% %event_name%"
+
+  end-add:
+    slot: 22
+    material: LIME_CONCRETE
+    name: "{success}&lADD END COMMAND"
+    lore:
+      - ""
+      - "{info}» Click to add"
+    actions:
+      - "capture:add_end_command"
+
+  end-clear:
+    slot: 24
+    material: RED_CONCRETE
+    name: "{error}&lCLEAR END COMMANDS"
+    lore:
+      - ""
+      - "{error}» Click to clear all"
+    actions:
+      - "capture:clear_end_commands"
+
+  top1-reward:
+    slot: 37
+    material: DIAMOND
+    name: "{highlight}&l#1 REWARD"
+    lore:
+      - ""
+      - " {muted}❙ {letters}For points events only"
+      - " {muted}❙ {letters}Count: {highlight}%top_1_count%"
+      - ""
+      - " {muted}❙ {info}Placeholders: {highlight}%player% %position% %event_name%"
+      - ""
+      - " {muted}❙ {success}Left-Click to add"
+      - " {muted}❙ {error}Right-Click to clear"
+    actions:
+      - "left: capture:add_top_reward 1"
+      - "right: capture:clear_top_rewards 1"
+
+  top2-reward:
+    slot: 40
+    material: IRON_INGOT
+    name: "{highlight}&l#2 REWARD"
+    lore:
+      - ""
+      - " {muted}❙ {letters}For points events only"
+      - " {muted}❙ {letters}Count: {highlight}%top_2_count%"
+      - ""
+      - " {muted}❙ {info}Placeholders: {highlight}%player% %position% %event_name%"
+      - ""
+      - " {muted}❙ {success}Left-Click to add"
+      - " {muted}❙ {error}Right-Click to clear"
+    actions:
+      - "left: capture:add_top_reward 2"
+      - "right: capture:clear_top_rewards 2"
+
+  top3-reward:
+    slot: 43
+    material: GOLD_INGOT
+    name: "{highlight}&l#3 REWARD"
+    lore:
+      - ""
+      - " {muted}❙ {letters}For points events only"
+      - " {muted}❙ {letters}Count: {highlight}%top_3_count%"
+      - ""
+      - " {muted}❙ {info}Placeholders: {highlight}%player% %position% %event_name%"
+      - ""
+      - " {muted}❙ {success}Left-Click to add"
+      - " {muted}❙ {error}Right-Click to clear"
+    actions:
+      - "left: capture:add_top_reward 3"
+      - "right: capture:clear_top_rewards 3"
+
+  back:
+    slot: 45
+    material: ARROW
+    name: "{error}&lBack"
+    lore:
+      - "{muted}Click to go back"
+    actions:
+      - "capture:open_config_setup"

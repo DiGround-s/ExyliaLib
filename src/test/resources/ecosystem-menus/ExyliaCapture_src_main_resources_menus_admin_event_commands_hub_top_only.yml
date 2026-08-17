@@ -1,0 +1,104 @@
+title: "{primary}&lCOMMANDS {muted}- %config_id%"
+size: 54
+type: SIMPLE
+refresh:
+  mode: ON_CLICK
+  click_delay: 4
+
+open_sounds:
+  - "ENTITY_EXPERIENCE_ORB_PICKUP|1.0|1.2"
+click_sounds:
+  - "UI_BUTTON_CLICK|1.0|1.5"
+
+filler:
+  global:
+    material: GRAY_STAINED_GLASS_PANE
+    hide_tooltip: true
+
+items:
+  start-commands:
+    slot: 10
+    material: LIME_DYE
+    name: "{success}&lSTART COMMANDS"
+    lore:
+      - ""
+      - " {muted}❙ {letters}Executed when the event starts"
+      - " {muted}❙ {letters}Count: {highlight}%start_count%"
+      - ""
+      - " {muted}❙ {info}Supports: {highlight}console: {info}/ {highlight}player:"
+      - " {muted}❙ {info}Placeholder: {highlight}%event_name%"
+      - ""
+      - " {muted}❙ {success}Click to manage"
+    actions:
+      - "capture:open_start_commands"
+
+  end-commands:
+    slot: 16
+    material: RED_DYE
+    name: "{error}&lEND COMMANDS"
+    lore:
+      - ""
+      - " {muted}❙ {letters}Executed when the event ends"
+      - " {muted}❙ {letters}Runs regardless of outcome {muted}(win, cancel, timeout)"
+      - " {muted}❙ {letters}Count: {highlight}%end_count%"
+      - ""
+      - " {muted}❙ {info}Supports: {highlight}console: {info}/ {highlight}player:"
+      - " {muted}❙ {info}Placeholder: {highlight}%event_name%"
+      - ""
+      - " {muted}❙ {success}Click to manage"
+    actions:
+      - "capture:open_end_commands"
+
+  top1-reward:
+    slot: 29
+    material: DIAMOND
+    name: "{highlight}&l#1 REWARD"
+    lore:
+      - ""
+      - " {muted}❙ {letters}Rewards: {highlight}%top_1_count%"
+      - ""
+      - " {muted}❙ {info}Reward for the top 1 clan"
+      - " {muted}❙ {info}Supports chance, condition & permission"
+      - ""
+      - " {muted}❙ {success}Click to manage"
+    actions:
+      - "capture:open_top_rewards 1"
+
+  top2-reward:
+    slot: 31
+    material: IRON_INGOT
+    name: "{highlight}&l#2 REWARD"
+    lore:
+      - ""
+      - " {muted}❙ {letters}Rewards: {highlight}%top_2_count%"
+      - ""
+      - " {muted}❙ {info}Reward for the top 2 clan"
+      - " {muted}❙ {info}Supports chance, condition & permission"
+      - ""
+      - " {muted}❙ {success}Click to manage"
+    actions:
+      - "capture:open_top_rewards 2"
+
+  top3-reward:
+    slot: 33
+    material: GOLD_NUGGET
+    name: "{highlight}&l#3 REWARD"
+    lore:
+      - ""
+      - " {muted}❙ {letters}Rewards: {highlight}%top_3_count%"
+      - ""
+      - " {muted}❙ {info}Reward for the top 3 clan"
+      - " {muted}❙ {info}Supports chance, condition & permission"
+      - ""
+      - " {muted}❙ {success}Click to manage"
+    actions:
+      - "capture:open_top_rewards 3"
+
+  back:
+    slot: 49
+    material: ARROW
+    name: "{error}&lBack"
+    lore:
+      - "{muted}Click to go back"
+    actions:
+      - "capture:open_config_setup"

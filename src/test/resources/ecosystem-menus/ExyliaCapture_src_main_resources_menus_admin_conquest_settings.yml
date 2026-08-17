@@ -1,0 +1,57 @@
+title: "{warning}&lCONQUEST SETTINGS"
+size: 45
+type: SIMPLE
+refresh:
+  mode: ON_CLICK
+  click_delay: 4
+
+open_sounds:
+  - "ENTITY_EXPERIENCE_ORB_PICKUP|1.0|1.2"
+click_sounds:
+  - "UI_BUTTON_CLICK|1.0|1.5"
+
+filler:
+  global:
+    material: GRAY_STAINED_GLASS_PANE
+    hide_tooltip: true
+
+items:
+  target-points:
+    slot: 12
+    material: BEACON
+    name: "{info}&lTARGET POINTS"
+    lore:
+      - ""
+      - " {muted}❙ {letters}Current: {highlight}%target_points%"
+      - " {muted}❙ {letters}First clan to reach this wins"
+      - ""
+      - " {muted}❙ {success}Left-Click +1"
+      - " {muted}❙ {error}Right-Click -1"
+      - " {muted}❙ {warning}Shift-Click to enter"
+    actions:
+      - "left: capture:adjust_setting target-points 1"
+      - "right: capture:adjust_setting target-points -1"
+      - "shift_left: capture:input_setting target-points"
+
+  manage-zones:
+    slot: 14
+    material: MAP
+    name: "{warning}&lMANAGE ZONES"
+    lore:
+      - ""
+      - " {muted}❙ {letters}Zones: {highlight}%zones_count%"
+      - " {muted}❙ {letters}Configure capture zones"
+      - " {muted}❙ {letters}Each zone has its own capture time"
+      - ""
+      - "{info}» Click to open"
+    actions:
+      - "capture:open_conquest_zones"
+
+  back:
+    slot: 40
+    material: ARROW
+    name: "{error}&lBack"
+    lore:
+      - "{muted}Click to go back"
+    actions:
+      - "capture:open_config_setup"

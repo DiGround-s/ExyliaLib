@@ -28,6 +28,23 @@ public final class ActionSequence {
         this.steps = List.copyOf(steps);
     }
 
+    /**
+     * Builds a sequence from steps that are already compiled.
+     *
+     * <p>For a trigger that resolved its own templates because only it knows
+     * what to resolve them against — a menu button, whose action names the row
+     * it was drawn in. Everything else should use {@link Builder}, which
+     * compiles as it goes.
+     *
+     * @param plugin who owns the sequence, for scheduling and release
+     * @param steps  what to run, in order
+     * @return the sequence
+     */
+    public static @NotNull ActionSequence of(@NotNull Plugin plugin,
+                                             @NotNull List<ActionStep> steps) {
+        return new ActionSequence(plugin, steps);
+    }
+
     public @NotNull List<ActionStep> steps() { return steps; }
 
     /**

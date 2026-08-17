@@ -1,0 +1,84 @@
+title: "{primary}&lPLAYTIME REWARDS {muted}%current_page%/%total_pages%"
+size: 54
+type: PAGINATION
+animation: "center_out"
+refresh:
+  mode: SMART
+  interval: 20
+
+open_sounds:
+  - "ENTITY_EXPERIENCE_ORB_PICKUP|1.0|1.2"
+click_sounds:
+  - "UI_BUTTON_CLICK|1.0|1.5"
+
+filler:
+  global:
+    material: BLACK_STAINED_GLASS_PANE
+    hide_tooltip: true
+  pagination:
+    material: GRAY_STAINED_GLASS_PANE
+    name: "{muted}No rewards configured"
+    hide_tooltip: false
+
+pagination:
+  slots: '10-16,19-25,28-34'
+
+  item_template:
+    material: "%reward_icon%"
+    name: "%reward_name%"
+    lore:
+      - ""
+      - "%reward_description%"
+      - ""
+      - " {muted}❙ {letters}Required: {highlight}%reward_required_time%"
+      - " {muted}❙ {letters}Progress: %reward_progress_bar%"
+      - ""
+      - " %reward_status%"
+      - ""
+    actions:
+      - "survivalcore:playtime_claim %reward_id%"
+
+  navigation:
+    previous:
+      slot: 45
+      material: ARROW
+      name: '{error}&l← PREVIOUS PAGE'
+      lore:
+        - ' {muted}❙ {letters}Go to the previous page.'
+        - ''
+        - '{info}ℹ Page: {success}%current_page%<#475569>/{error}%total_pages%'
+      actions:
+        - 'previous_page'
+    next:
+      slot: 53
+      material: ARROW
+      name: '{success}&lNEXT PAGE →'
+      lore:
+        - ' {muted}❙ {letters}Go to the next page.'
+        - ''
+        - '{info}ℹ Page: {success}%current_page%<#475569>/{error}%total_pages%'
+      actions:
+        - 'next_page'
+
+items:
+  info:
+    slot: 4
+    material: CLOCK
+    name: "{highlight}⭐ Your Playtime Progress"
+    lore:
+      - ""
+      - " {muted}❙ {letters}Total time played: {highlight}%player_playtime%"
+      - " {muted}❙ {letters}Rewards claimed: {success}%player_claimed_count% {letters}/ {highlight}%total_rewards%"
+      - " {muted}❙ {letters}Next reward: {highlight}%next_reward_name%"
+      - " {muted}❙ {letters}Time until next: {highlight}%next_reward_remaining%"
+      - ""
+
+  close:
+    slot: 49
+    material: BARRIER
+    name: "{error}&lCLOSE"
+    lore:
+      - ""
+      - "{info}» Click to close"
+    actions:
+      - "survivalcore:close_menu"

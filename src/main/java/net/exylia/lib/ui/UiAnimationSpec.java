@@ -6,48 +6,45 @@ import java.util.Locale;
 import java.util.Map;
 
 /**
- * An animation, as a server owner writes it.
+ * How a menu appears when it opens.
  *
- * <p>The whole point is that the short form is enough:
+ * <p>The whole point is that the short form is enough, and it is what every
+ * deployed file writes:
  *
  * <pre>
- * animation: pulse
+ * animation: center_out
  * </pre>
  *
- * <p>and the long form only adds what somebody actually wants to change:
+ * <p>The long form only adds the one thing worth changing:
  *
  * <pre>
  * animation:
- *   type: wave
- *   speed: 2
- *   direction: left-to-right
- *   loop: true
- *   stagger: 1
+ *   type: rows_alternate
+ *   speed: 3
  * </pre>
  *
  * <p>No frame lists, no timelines and no easing curves in configuration. An
  * admin picks a name; the library knows what that looks like.
  *
- * @param type      which animation, by name
- * @param speed     how many ticks between frames, at least one
- * @param direction which way it travels, for the ones that travel
- * @param loop      whether it repeats or plays once
- * @param stagger   ticks of offset between neighbouring slots
+ * <p>There is deliberately no {@code direction}, {@code loop} or {@code stagger}.
+ * They were here, no file has ever written one, and nothing could have read
+ * them: an option that is parsed and ignored is worse than one that does not
+ * exist, because it reads as supported.
+ *
+ * @param type  which animation, by name
+ * @param speed how many ticks between frames, at least one
  * @since 1.22.0
  */
-public record UiAnimationSpec(@NotNull String type, int speed, @NotNull String direction,
-                              boolean loop, int stagger) {
+public record UiAnimationSpec(@NotNull String type, int speed) {
 
     public UiAnimationSpec {
         type = type.trim().toLowerCase(Locale.ROOT);
         speed = Math.max(1, speed);
-        direction = direction.trim().toLowerCase(Locale.ROOT);
-        stagger = Math.max(0, stagger);
     }
 
     /** The short form: just a name. */
     public static @NotNull UiAnimationSpec of(@NotNull String type) {
-        return new UiAnimationSpec(type, 2, "forward", true, 0);
+        return new UiAnimationSpec(type, 2);
     }
 
     /**
@@ -57,13 +54,9 @@ public record UiAnimationSpec(@NotNull String type, int speed, @NotNull String d
      * @return the specification
      */
     public static @NotNull UiAnimationSpec of(@NotNull Map<String, Object> values) {
-        String type = String.valueOf(values.getOrDefault("type", "pulse"));
         return new UiAnimationSpec(
-                type,
-                asInt(values.get("speed"), 2),
-                String.valueOf(values.getOrDefault("direction", "forward")),
-                asBoolean(values.get("loop")),
-                asInt(values.get("stagger"), 0));
+                String.valueOf(values.getOrDefault("type", "none")),
+                asInt(values.get("speed"), 2));
     }
 
     private static int asInt(Object value, int fallback) {
@@ -78,16 +71,5 @@ public record UiAnimationSpec(@NotNull String type, int speed, @NotNull String d
             }
         }
         return fallback;
-    }
-
-    private static boolean asBoolean(Object value) {
-        if (value instanceof Boolean bool) {
-            return bool;
-        }
-        if (value instanceof String text) {
-            return !text.equalsIgnoreCase("false");
-        }
-        // Looping is what somebody writing "animation: pulse" expects.
-        return true;
     }
 }

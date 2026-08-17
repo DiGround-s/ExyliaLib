@@ -1,0 +1,66 @@
+title: "{primary}&lCREADOR DE KITS {muted}· {highlight}%current_kits%{muted}/{highlight}%max_kits%"
+size: 54
+type: PAGINATION
+refresh:
+  mode: ON_CLICK
+  click_delay: 2
+
+open_sounds:
+  - "ENTITY_EXPERIENCE_ORB_PICKUP|1.0|1.2"
+click_sounds:
+  - "UI_BUTTON_CLICK|1.0|1.5"
+
+filler:
+  global:
+    material: BLACK_STAINED_GLASS_PANE
+    hide_tooltip: true
+
+  pagination:
+    material: LIGHT_GRAY_STAINED_GLASS_PANE
+    hide_tooltip: true
+
+pagination:
+  slots: '9-44'
+
+  item_template:
+    material: "%kit_icon%"
+    name: "{letters}&l%kit_name%"
+    glow: true
+    lore:
+      - ""
+      - " {muted}❙ {letters}Click para gestionar este kit"
+      - ""
+      - "{info}» Click para abrir opciones"
+    actions:
+      - "sandbox:kit_creator_options %kit_slot%"
+
+  navigation:
+    previous:
+      slot: 45
+      material: ARROW
+      name: '{error}&l← ANTERIOR'
+      lore:
+        - '{info}Pagina: {success}%current_page%&8/{error}%total_pages%'
+      actions:
+        - 'previous_page'
+    next:
+      slot: 53
+      material: ARROW
+      name: '{success}&lSIGUIENTE →'
+      lore:
+        - '{info}Pagina: {success}%current_page%&8/{error}%total_pages%'
+      actions:
+        - 'next_page'
+
+items:
+  create:
+    slot: 49
+    material: LIME_DYE
+    name: '{success}&l+ NUEVO KIT'
+    lore:
+      - ''
+      - ' {muted}❙ {letters}Kits: {highlight}%current_kits%{muted}/{highlight}%max_kits%'
+      - ''
+      - '{info}» Click para crear'
+    actions:
+      - 'sandbox:kit_creator_create'

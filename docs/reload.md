@@ -20,6 +20,8 @@ One command recolours the whole server. The chain, verified in code:
       → TextEngine cache dropped               nothing stale is re-shown
       → BoardManager.invalidateAll()           scoreboards re-send themselves
       → HologramRuntime.invalidateAll()        holograms too
+      → EffectRuntime.invalidateAll()          static effects re-draw
+      → ItemCache.invalidateAll()              rendered items are built again
 ```
 
 `/exylialib` alone shows the version and the subcommand.
@@ -108,6 +110,8 @@ and anything that re-parses per render was never at risk.**
 | hologram | last text sent per viewer | `HologramRuntime.invalidateAll()` re-sends every hologram |
 | effect (static) | the component, drawn once and left alone | `EffectRuntime.invalidateAll()` re-parses and re-draws — **added in 1.16.0; this was silently stale before** |
 | effect (dynamic) | nothing; rebuilds each cycle | Picks up new colours on its own |
+| item (static) | the rendered `ItemStack`, name and lore already parsed | `ItemCache.invalidateAll()` drops it, so the next render parses again |
+| item (dynamic) | nothing; only static items are held | Rendered per viewer anyway |
 | placeholder | compiled templates (structure, not colour) | Nothing to do — templates hold the raw text, and rendering goes through `Text` |
 | clan / client / cooldowns / util | no rendered text | Nothing to do |
 | plugin state | whatever a plugin parsed once and kept | Told through `Reloads.onLibraryReload` — the plugin rebuilds it |

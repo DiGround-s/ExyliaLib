@@ -1,0 +1,61 @@
+title: "{primary}&lDUEL&r {muted}— %target_name% — %category_name%"
+size: 54
+type: PAGINATION
+
+open_sounds:
+  - "ENTITY_EXPERIENCE_ORB_PICKUP|1.0|1.2"
+click_sounds:
+  - "UI_BUTTON_CLICK|1.0|1.5"
+
+filler:
+  global:
+    material: GRAY_STAINED_GLASS_PANE
+    hide_tooltip: true
+
+  pagination:
+    material: LIGHT_GRAY_STAINED_GLASS_PANE
+    name: "{muted}No kits available"
+    lore:
+      - ""
+      - "{muted}No kits are enabled."
+    hide_tooltip: false
+
+pagination:
+  slots: '10-16,19-25,28-34'
+
+  item_template:
+    material: "%kit_icon%"
+    name: "{warning}&l%kit_name%"
+    lore:
+      - ""
+      - "{success}» Click to select this kit"
+    actions:
+      - "practice:duel_select_kit %target_name% %kit_id% %category_id%"
+
+  navigation:
+    previous:
+      slot: 45
+      material: ARROW
+      name: '{error}&l← PREVIOUS'
+      lore:
+        - '{info}Page: {success}%current_page%&8/{error}%total_pages%'
+      actions:
+        - 'previous_page'
+    next:
+      slot: 53
+      material: ARROW
+      name: '{success}&lNEXT →'
+      lore:
+        - '{info}Page: {success}%current_page%&8/{error}%total_pages%'
+      actions:
+        - 'next_page'
+
+items:
+  back:
+    slot: 49
+    material: ARROW
+    name: "{error}&lBack"
+    lore:
+      - "{muted}Return to categories"
+    actions:
+      - "practice:duel_open_category_select %target_name%"

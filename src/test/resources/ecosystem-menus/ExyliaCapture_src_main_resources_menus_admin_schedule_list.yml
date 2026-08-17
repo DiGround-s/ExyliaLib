@@ -1,0 +1,80 @@
+title: "{primary}&lSCHEDULES {muted}%current_page%/%total_pages%"
+size: 54
+type: PAGINATION
+
+open_sounds:
+  - "ENTITY_EXPERIENCE_ORB_PICKUP|1.0|1.2"
+click_sounds:
+  - "UI_BUTTON_CLICK|1.0|1.5"
+
+filler:
+  global:
+    material: GRAY_STAINED_GLASS_PANE
+    hide_tooltip: true
+
+  pagination:
+    material: LIGHT_GRAY_STAINED_GLASS_PANE
+    name: "{muted}No schedules"
+    lore:
+      - ""
+      - "{muted}Click 'Add Schedule' to create one!"
+    hide_tooltip: false
+
+pagination:
+  slots: '10-16,19-25,28-34'
+
+  item_template:
+    material: CLOCK
+    name: "{highlight}&l%schedule_name%"
+    lore:
+      - ""
+      - " {muted}❙ {letters}Time: {info}%schedule_time%"
+      - " {muted}❙ {letters}Days: {info}%schedule_days%"
+      - " {muted}❙ {letters}Min Players: {info}%schedule_min_players%"
+      - ""
+      - " {muted}❙ {success}Left-Click to edit"
+      - " {muted}❙ {error}Right-Click to delete"
+    actions:
+      - "left: capture:edit_schedule %schedule_index%"
+      - "right: capture:delete_schedule %schedule_index%"
+
+  navigation:
+    previous:
+      slot: 47
+      material: ARROW
+      name: '{error}&l← PREVIOUS'
+      lore:
+        - '{info}ℹ {letters}Page: {success}%current_page%{muted}/{error}%total_pages%'
+      actions:
+        - 'previous_page'
+    next:
+      slot: 51
+      material: ARROW
+      name: '{success}&lNEXT →'
+      lore:
+        - '{info}ℹ {letters}Page: {success}%current_page%{muted}/{error}%total_pages%'
+      actions:
+        - 'next_page'
+
+items:
+  add:
+    slot: 4
+    material: LIME_CONCRETE
+    name: "{success}&lADD SCHEDULE"
+    lore:
+      - ""
+      - " {muted}❙ {letters}Add a scheduled trigger"
+      - " {muted}❙ {letters}for this event"
+      - ""
+      - "{info}» Click to add"
+    actions:
+      - "capture:add_schedule"
+
+  back:
+    slot: 49
+    material: ARROW
+    name: "{error}&lBack"
+    lore:
+      - "{muted}Click to go back"
+    actions:
+      - "capture:open_config_setup"

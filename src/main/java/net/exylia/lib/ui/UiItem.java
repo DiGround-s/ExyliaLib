@@ -1,154 +1,72 @@
 package net.exylia.lib.ui;
 
-import net.exylia.lib.skull.SkullSource;
+import net.exylia.lib.item.Item;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.List;
-import java.util.Map;
 
 /**
- * What to draw in a slot, before it is drawn for anybody.
+ * A slot in a menu: an item, plus what pressing it does.
  *
- * <p>Deliberately data rather than an {@code ItemStack}: a definition is
- * shared by every player looking at the menu, and turning it into an item is
- * per-viewer work done at render time. Keeping them apart is also what makes
- * the interesting parts — bindings, dependencies, conditions — testable
- * without a running server.
+ * <p>The two halves are deliberately apart. What the item <em>looks like</em>
+ * is an {@link Item}, which the item module owns and four plugins use without
+ * ever opening a menu; what it <em>does</em> is here, because clicks,
+ * conditions and refresh dependencies mean nothing outside a screen.
  *
+ * <p>Kept as data rather than an {@code ItemStack} for the same reason
+ * {@link Item} is: a definition is shared by every player looking at the menu,
+ * and turning it into an item is per-viewer work done at render time.
+ *
+ * <p>There is deliberately no per-slot animation. The field existed, no file in
+ * the ecosystem has ever written one, and an animation nobody can trigger is
+ * worse than none: it reads as supported. A menu animates when it opens, which
+ * is what {@code animation} at the root means.
+ *
+ * @param item         what to draw
+ * @param bindings     what each kind of click does
+ * @param condition    whether this slot is shown at all, or {@code null} for always
+ * @param dependencies what this slot is derived from, so it can be redrawn when
+ *                     that changes and left alone when it does not
  * @since 1.22.0
  */
 public record UiItem(
-        @NotNull String material,
-        @Nullable String name,
-        @NotNull List<String> lore,
-        @NotNull String amount,
-        boolean glow,
-        boolean hideTooltip,
-        int customModelData,
-        @Nullable SkullSource head,
-        @Nullable String headTemplate,
-        @NotNull Map<String, Integer> enchantments,
-        @NotNull List<String> itemFlags,
+        @NotNull Item item,
         @NotNull ClickBindings bindings,
         @Nullable String condition,
-        @NotNull List<String> dependencies,
-        @Nullable UiAnimationSpec animation) {
+        @NotNull List<String> dependencies) {
 
     public UiItem {
-        lore = List.copyOf(lore);
-        enchantments = Map.copyOf(enchantments);
-        itemFlags = List.copyOf(itemFlags);
         dependencies = List.copyOf(dependencies);
     }
 
     /**
-     * Returns whether anything about this item can change while it is shown.
+     * Returns whether anything about this slot can change while it is shown.
      *
-     * <p>A static item is rendered once and never looked at again, which is
+     * <p>A static slot is rendered once and never looked at again, which is
      * what makes a menu of decorations free. Only the ones that can change are
      * re-rendered, and only when what they depend on says so.
      */
     public boolean isDynamic() {
-        return !dependencies.isEmpty()
-                || animation != null
-                || headTemplate != null
-                || condition != null
-                || containsPlaceholder();
+        return item.isDynamic()
+                || !dependencies.isEmpty()
+                || condition != null;
     }
 
-    private boolean containsPlaceholder() {
-        if (hasPlaceholder(material) || hasPlaceholder(name) || hasPlaceholder(amount)) {
-            return true;
-        }
-        for (String line : lore) {
-            if (hasPlaceholder(line)) {
-                return true;
-            }
-        }
-        return false;
+    /** Starts describing a slot. */
+    public static @NotNull Builder of(@NotNull Item item) {
+        return new Builder(item);
     }
 
-    private static boolean hasPlaceholder(String text) {
-        return text != null && text.indexOf('%') >= 0;
-    }
-
-    /** Starts a definition. */
-    public static @NotNull Builder of(@NotNull String material) {
-        return new Builder(material);
-    }
-
-    /** Builds an item definition. */
+    /** Builds a slot. */
     public static final class Builder {
-        private final String material;
-        private String name;
-        private List<String> lore = List.of();
-        private String amount = "1";
-        private boolean glow;
-        private boolean hideTooltip;
-        private int customModelData = -1;
-        private SkullSource head;
-        private String headTemplate;
-        private Map<String, Integer> enchantments = Map.of();
-        private List<String> itemFlags = List.of();
+        private final Item item;
         private ClickBindings bindings = ClickBindings.none();
         private String condition;
         private List<String> dependencies = List.of();
-        private UiAnimationSpec animation;
 
-        private Builder(String material) {
-            this.material = material;
-        }
-
-        public @NotNull Builder name(@Nullable String name) {
-            this.name = name;
-            return this;
-        }
-
-        public @NotNull Builder lore(@NotNull List<String> lore) {
-            this.lore = lore;
-            return this;
-        }
-
-        public @NotNull Builder amount(@NotNull String amount) {
-            this.amount = amount;
-            return this;
-        }
-
-        public @NotNull Builder glow(boolean glow) {
-            this.glow = glow;
-            return this;
-        }
-
-        public @NotNull Builder hideTooltip(boolean hideTooltip) {
-            this.hideTooltip = hideTooltip;
-            return this;
-        }
-
-        public @NotNull Builder customModelData(int customModelData) {
-            this.customModelData = customModelData;
-            return this;
-        }
-
-        public @NotNull Builder head(@Nullable SkullSource head) {
-            this.head = head;
-            return this;
-        }
-
-        /** A head whose owner is only known when the row is drawn. */
-        public @NotNull Builder headTemplate(@Nullable String headTemplate) {
-            this.headTemplate = headTemplate;
-            return this;
-        }
-
-        public @NotNull Builder enchantments(@NotNull Map<String, Integer> enchantments) {
-            this.enchantments = enchantments;
-            return this;
-        }
-
-        public @NotNull Builder itemFlags(@NotNull List<String> itemFlags) {
-            this.itemFlags = itemFlags;
-            return this;
+        private Builder(Item item) {
+            this.item = item;
         }
 
         public @NotNull Builder bindings(@NotNull ClickBindings bindings) {
@@ -161,24 +79,13 @@ public record UiItem(
             return this;
         }
 
-        /**
-         * What this item is derived from, so it can be re-rendered when that
-         * changes and left alone when it does not.
-         */
         public @NotNull Builder dependsOn(@NotNull List<String> dependencies) {
             this.dependencies = dependencies;
             return this;
         }
 
-        public @NotNull Builder animation(@Nullable UiAnimationSpec animation) {
-            this.animation = animation;
-            return this;
-        }
-
         public @NotNull UiItem build() {
-            return new UiItem(material, name, lore, amount, glow, hideTooltip, customModelData,
-                    head, headTemplate, enchantments, itemFlags, bindings, condition,
-                    dependencies, animation);
+            return new UiItem(item, bindings, condition, dependencies);
         }
     }
 }

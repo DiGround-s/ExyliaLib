@@ -1,0 +1,66 @@
+title: "{primary}&lCLANS"
+size: 27
+type: SIMPLE
+animation: "center_out"
+
+open_sounds:
+  - "ENTITY_EXPERIENCE_ORB_PICKUP|1.0|1.2"
+click_sounds:
+  - "UI_BUTTON_CLICK|1.0|1.5"
+
+filler:
+  global:
+    material: GRAY_STAINED_GLASS_PANE
+    hide_tooltip: true
+
+items:
+  create:
+    slot: 10
+    material: WRITABLE_BOOK
+    name: "{success}&lCREATE CLAN"
+    lore:
+      - ""
+      - " {muted}❙ {letters}Start your own clan"
+      - " {muted}❙ {letters}and invite your friends."
+      - ""
+      - "{info}» Click to create"
+    actions:
+      - "exyliaclans:create_clan_input"
+
+  browse:
+    slot: 12
+    material: COMPASS
+    name: "{warning}&lBROWSE CLANS"
+    lore:
+      - ""
+      - " {muted}❙ {letters}Browse open clans"
+      - " {muted}❙ {letters}and join directly."
+      - ""
+      - " {muted}❙ {letters}Open clans: {success}%open_clans%"
+      - ""
+      - "{info}» Click to browse"
+    actions:
+      - "exyliaclans:open_browse_clans"
+
+  invitations:
+    slot: 14
+    material: PAPER
+    name: "{info}&lINVITATIONS"
+    lore:
+      - ""
+      - " {muted}❙ {letters}View all clan invitations"
+      - " {muted}❙ {letters}you have received."
+      - ""
+      - "{info}» Click to view"
+    actions:
+      - "exyliaclans:open_invitations"
+
+  info:
+    slot: 16
+    material: KNOWLEDGE_BOOK
+    name: "{info}&lHOW TO JOIN"
+    lore:
+      - ""
+      - " {muted}❙ {letters}Get invited by a clan member."
+      - " {muted}❙ {letters}Then use {highlight}/clan join <name>"
+      - " {muted}❙ {letters}to accept the invite."

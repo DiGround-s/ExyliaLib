@@ -1,0 +1,193 @@
+title: "{primary}&l%clan_name%"
+size: 45
+type: SIMPLE
+refresh:
+  mode: SMART
+  interval: 20
+animation: "center_out"
+
+open_sounds:
+  - "ENTITY_EXPERIENCE_ORB_PICKUP|1.0|1.2"
+click_sounds:
+  - "UI_BUTTON_CLICK|1.0|1.5"
+
+filler:
+  global:
+    material: GRAY_STAINED_GLASS_PANE
+    hide_tooltip: true
+
+items:
+  clan-info:
+    slot: 4
+    material: SHIELD
+    name: "{primary}&l%clan_name%"
+    lore:
+      - ""
+      - " {muted}❙ {letters}Leader: {highlight}%leader%"
+      - " {muted}❙ {letters}Members: {highlight}%members%{muted}/{highlight}%max_members% {muted}({success}%online_members% online{muted})"
+      - " {muted}❙ {letters}Balance: {highlight}%balance%"
+      - " {muted}❙ {letters}Status: %status%"
+      - " {muted}❙ {letters}Friendly Fire: %ff%"
+      - " {muted}❙ {letters}Allies: {highlight}%allies%"
+      - " {muted}❙ {letters}Rivals: {error}%rivals%"
+      - " {muted}❙ {letters}Home: %home%"
+      - " {muted}❙ {letters}DTR: {highlight}%dtr%{muted}/{highlight}%max_dtr% %dtr_state%"
+      - "%dtr_detail%"
+      - ""
+      - " {muted}❙ {letters}Level: {warning}%clan_level% {muted}({letters}EXP: {success}%clan_exp%{muted})"
+      - " {muted}❙ {letters}Kills: {success}%clan_kills%"
+      - " {muted}❙ {letters}Deaths: {error}%clan_deaths%"
+      - " {muted}❙ {letters}KDR: {highlight}%clan_kdr%"
+      - " {muted}❙ {letters}Playtime: {info}%clan_playtime%"
+      - ""
+
+  level:
+    slot: 16
+    material: EXPERIENCE_BOTTLE
+    name: "{warning}&lCLAN LEVEL"
+    lore:
+      - ""
+      - " {muted}❙ {letters}Level: {warning}%clan_level%{muted}/{warning}%max_level%"
+      - " {muted}❙ {letters}EXP: {success}%clan_exp%"
+      - " {muted}❙ {letters}Progress: %level_progress%"
+      - ""
+      - "{info}» Click to view all levels"
+    actions:
+      - "exyliaclans:open_level_menu"
+
+  members:
+    slot: 10
+    material: "playerhead-%player_name%"
+    name: "{secondary}&lMEMBERS"
+    amount: "%members%"
+    lore:
+      - ""
+      - " {muted}❙ {letters}View and manage"
+      - " {muted}❙ {letters}your clan members."
+      - ""
+      - " {muted}❙ {letters}Members: {highlight}%members%{muted}/{highlight}%max_members% {muted}({success}%online_members% online{muted})"
+      - ""
+      - "{info}» Click to open"
+    actions:
+      - "exyliaclans:open_members"
+
+  allies:
+    slot: 11
+    material: GREEN_BANNER
+    name: "{success}&lALLIES"
+    lore:
+      - ""
+      - " {muted}❙ {letters}View allied clans."
+      - ""
+      - " {muted}❙ {letters}Allied clans: {success}%allies%"
+      - ""
+      - "{info}» Click to open"
+    actions:
+      - "exyliaclans:open_allies"
+
+  rivals:
+    slot: 19
+    material: RED_BANNER
+    name: "{error}&lRIVALS"
+    lore:
+      - ""
+      - " {muted}❙ {letters}View rival clans."
+      - ""
+      - " {muted}❙ {letters}Rival clans: {error}%rivals%"
+      - ""
+      - "{info}» Click to open"
+    actions:
+      - "exyliaclans:open_rivals"
+
+  home:
+    slot: 22
+    material: RED_BED
+    name: "{highlight}&lCLAN HOME"
+    lore:
+      - ""
+      - " {muted}❙ {letters}Teleport to your clan home."
+      - ""
+      - " {muted}❙ {letters}Home: %home%"
+      - ""
+      - "{info}» Click to teleport"
+    actions:
+      - "exyliaclans:teleport_home"
+
+  settings:
+    slot: 44
+    material: COMPARATOR
+    name: "{warning}&lSETTINGS"
+    lore:
+      - ""
+      - " {muted}❙ {letters}Manage clan settings."
+      - ""
+      - "{info}» Click to open"
+    actions:
+      - "exyliaclans:open_settings"
+
+  banned:
+    slot: 36
+    material: 'basehead-eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvMjIzZmI2NzQyOTcxNmIyMWJjNmU4ZTdkNjY5Y2VkZGY2NWIxM2UwNzkwYTVjZTU1YjJlMDc3YjgyZDE5ZTEyNCJ9fX0='
+    name: "{error}&lBANNED"
+    lore:
+      - ""
+      - " {muted}❙ {letters}View and manage"
+      - " {muted}❙ {letters}banned players."
+      - ""
+      - "{info}» Click to open"
+    actions:
+      - "exyliaclans:open_banned"
+
+  bank:
+    slot: 15
+    material: GOLD_BLOCK
+    name: "{highlight}&lCLAN BANK"
+    lore:
+      - ""
+      - " {muted}❙ {letters}Deposit and withdraw"
+      - " {muted}❙ {letters}from the clan bank."
+      - ""
+      - " {muted}❙ {letters}Balance: {success}%balance%"
+      - ""
+      - "{info}» Click to open"
+    actions:
+      - "exyliaclans:open_bank"
+
+  chat:
+    slot: 25
+    material: OAK_SIGN
+    name: "{info}&lCLAN CHAT"
+    lore:
+      - ""
+      - " {muted}❙ {letters}Toggle clan-only chat mode."
+      - " {muted}❙ {letters}Channel: %chat_channel%"
+      - ""
+      - "{info}» Click to toggle"
+    actions:
+      - "exyliaclans:toggle_chat"
+
+  mail:
+    slot: 24
+    material: WRITABLE_BOOK
+    name: "{primary}&lCLAN MAIL %mail_unread_badge%"
+    lore:
+      - ""
+      - " {muted}❙ {letters}Read and send messages"
+      - " {muted}❙ {letters}to your clanmates."
+      - ""
+      - "{info}» Click to open"
+    actions:
+      - "exyliaclans:open_mail_inbox"
+
+  logs:
+    slot: 40
+    material: WRITTEN_BOOK
+    name: "{letters}&lCLAN LOGS"
+    lore:
+      - ""
+      - " {muted}❙ {letters}View a history of all"
+      - " {muted}❙ {letters}actions performed in the clan."
+      - ""
+      - "{info}» Click to open"
+    actions:
+      - "exyliaclans:open_clan_logs"

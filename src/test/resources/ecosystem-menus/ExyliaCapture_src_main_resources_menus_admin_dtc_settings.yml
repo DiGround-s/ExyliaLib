@@ -1,0 +1,120 @@
+title: "{error}&lDTC SETTINGS"
+size: 45
+type: SIMPLE
+refresh:
+  mode: ON_CLICK
+  click_delay: 4
+
+open_sounds:
+  - "ENTITY_EXPERIENCE_ORB_PICKUP|1.0|1.2"
+click_sounds:
+  - "UI_BUTTON_CLICK|1.0|1.5"
+
+filler:
+  global:
+    material: GRAY_STAINED_GLASS_PANE
+    hide_tooltip: true
+
+items:
+  block-location:
+    slot: 10
+    material: "%block_material%"
+    name: "{info}&lCORE BLOCK"
+    lore:
+      - ""
+      - " {muted}❙ {letters}Status: {highlight}%block_status%"
+      - " {muted}❙ {letters}The block players must destroy"
+      - ""
+      - " {success}» Click to set"
+    actions:
+      - "capture:set_dtc_block"
+
+  target-points:
+    slot: 13
+    material: NETHER_STAR
+    name: "{warning}&lTARGET POINTS"
+    lore:
+      - ""
+      - " {muted}❙ {letters}Current: {highlight}%target_points% pts"
+      - " {muted}❙ {letters}Points required to win"
+      - ""
+      - " {muted}❙ {success}Left-Click +5"
+      - " {muted}❙ {error}Right-Click -5"
+      - " {muted}❙ {warning}Shift-Click to enter"
+    actions:
+      - "left: capture:adjust_setting target-points 5"
+      - "right: capture:adjust_setting target-points -5"
+      - "shift_left: capture:input_setting target-points"
+
+  points-per-break:
+    slot: 16
+    material: EXPERIENCE_BOTTLE
+    name: "{success}&lPOINTS PER BREAK"
+    lore:
+      - ""
+      - " {muted}❙ {letters}Current: {highlight}%points_per_break% pts"
+      - " {muted}❙ {letters}Points awarded per block break"
+      - ""
+      - " {muted}❙ {success}Left-Click +1"
+      - " {muted}❙ {error}Right-Click -1"
+      - " {muted}❙ {warning}Shift-Click to enter"
+    actions:
+      - "left: capture:adjust_setting points-per-break 1"
+      - "right: capture:adjust_setting points-per-break -1"
+      - "shift_left: capture:input_setting points-per-break"
+
+  regen-time:
+    slot: 29
+    material: CLOCK
+    name: "{info}&lREGEN TIME"
+    lore:
+      - ""
+      - " {muted}❙ {letters}Current: {highlight}%regen_time%"
+      - " {muted}❙ {letters}Time for core block to regenerate"
+      - ""
+      - " {muted}❙ {success}Left-Click +1s"
+      - " {muted}❙ {error}Right-Click -1s"
+      - " {muted}❙ {warning}Shift-Click to enter"
+    actions:
+      - "left: capture:adjust_setting_millis regen-time 1"
+      - "right: capture:adjust_setting_millis regen-time -1"
+      - "shift_left: capture:input_setting_millis regen-time"
+
+  broadcast-every:
+    slot: 31
+    material: BELL
+    name: "{info}&lBROADCAST EVERY"
+    lore:
+      - ""
+      - " {muted}❙ {letters}Current: {highlight}every %broadcast_every% breaks"
+      - " {muted}❙ {letters}Broadcast message every N breaks"
+      - ""
+      - " {muted}❙ {success}Left-Click +1"
+      - " {muted}❙ {error}Right-Click -1"
+      - " {muted}❙ {warning}Shift-Click to enter"
+    actions:
+      - "left: capture:adjust_setting broadcast-every 1"
+      - "right: capture:adjust_setting broadcast-every -1"
+      - "shift_left: capture:input_setting broadcast-every"
+
+  clan-mode:
+    slot: 33
+    material: "%clan_mode_material%"
+    name: "{warning}&lCLAN MODE"
+    lore:
+      - ""
+      - " {muted}❙ {letters}Current: {highlight}%clan_mode_status%"
+      - " {muted}❙ {letters}Points are attributed to clans"
+      - ""
+      - " {muted}❙ {success}Click to toggle"
+    actions:
+      - "capture:toggle_boolean_setting clan-mode"
+
+  back:
+    slot: 40
+    material: ARROW
+    name: "{error}&lBack"
+    lore:
+      - "{muted}Click to go back"
+    actions:
+      - "capture:open_config_setup"

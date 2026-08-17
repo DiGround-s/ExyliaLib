@@ -1,0 +1,440 @@
+max_layers: 6
+
+shield_patterns:
+  base:
+    name: "Solid Base"
+    item:
+      material: WHITE_BANNER
+      banner_patterns:
+        base_color: WHITE
+        patterns:
+          - pattern: BASE
+            color: LIGHT_GRAY
+  stripe_bottom:
+    name: "Base Stripe"
+    item:
+      material: WHITE_BANNER
+      banner_patterns:
+        base_color: WHITE
+        patterns:
+          - pattern: STRIPE_BOTTOM
+            color: LIGHT_GRAY
+  stripe_top:
+    name: "Chief"
+    item:
+      material: WHITE_BANNER
+      banner_patterns:
+        base_color: WHITE
+        patterns:
+          - pattern: STRIPE_TOP
+            color: LIGHT_GRAY
+  stripe_left:
+    name: "Pale Dexter"
+    item:
+      material: WHITE_BANNER
+      banner_patterns:
+        base_color: WHITE
+        patterns:
+          - pattern: STRIPE_LEFT
+            color: LIGHT_GRAY
+  stripe_right:
+    name: "Pale Sinister"
+    item:
+      material: WHITE_BANNER
+      banner_patterns:
+        base_color: WHITE
+        patterns:
+          - pattern: STRIPE_RIGHT
+            color: LIGHT_GRAY
+  stripe_center:
+    name: "Pale"
+    item:
+      material: WHITE_BANNER
+      banner_patterns:
+        base_color: WHITE
+        patterns:
+          - pattern: STRIPE_CENTER
+            color: LIGHT_GRAY
+  stripe_middle:
+    name: "Fess"
+    item:
+      material: WHITE_BANNER
+      banner_patterns:
+        base_color: WHITE
+        patterns:
+          - pattern: STRIPE_MIDDLE
+            color: LIGHT_GRAY
+  stripe_downright:
+    name: "Bend"
+    item:
+      material: WHITE_BANNER
+      banner_patterns:
+        base_color: WHITE
+        patterns:
+          - pattern: STRIPE_DOWNRIGHT
+            color: LIGHT_GRAY
+  stripe_downleft:
+    name: "Bend Sinister"
+    item:
+      material: WHITE_BANNER
+      banner_patterns:
+        base_color: WHITE
+        patterns:
+          - pattern: STRIPE_DOWNLEFT
+            color: LIGHT_GRAY
+  small_stripes:
+    name: "Paly"
+    item:
+      material: WHITE_BANNER
+      banner_patterns:
+        base_color: WHITE
+        patterns:
+          - pattern: SMALL_STRIPES
+            color: LIGHT_GRAY
+  cross:
+    name: "Saltire"
+    item:
+      material: WHITE_BANNER
+      banner_patterns:
+        base_color: WHITE
+        patterns:
+          - pattern: CROSS
+            color: LIGHT_GRAY
+  straight_cross:
+    name: "Cross"
+    item:
+      material: WHITE_BANNER
+      banner_patterns:
+        base_color: WHITE
+        patterns:
+          - pattern: STRAIGHT_CROSS
+            color: LIGHT_GRAY
+  triangle_bottom:
+    name: "Chevron"
+    item:
+      material: WHITE_BANNER
+      banner_patterns:
+        base_color: WHITE
+        patterns:
+          - pattern: TRIANGLE_BOTTOM
+            color: LIGHT_GRAY
+  triangle_top:
+    name: "Inverted Chevron"
+    item:
+      material: WHITE_BANNER
+      banner_patterns:
+        base_color: WHITE
+        patterns:
+          - pattern: TRIANGLE_TOP
+            color: LIGHT_GRAY
+  triangles_bottom:
+    name: "Base Indented"
+    item:
+      material: WHITE_BANNER
+      banner_patterns:
+        base_color: WHITE
+        patterns:
+          - pattern: TRIANGLES_BOTTOM
+            color: LIGHT_GRAY
+  triangles_top:
+    name: "Chief Indented"
+    item:
+      material: WHITE_BANNER
+      banner_patterns:
+        base_color: WHITE
+        patterns:
+          - pattern: TRIANGLES_TOP
+            color: LIGHT_GRAY
+  diagonal_left:
+    name: "Per Bend Sinister"
+    item:
+      material: WHITE_BANNER
+      banner_patterns:
+        base_color: WHITE
+        patterns:
+          - pattern: DIAGONAL_LEFT
+            color: LIGHT_GRAY
+  diagonal_up_left:
+    name: "Per Bend Sinister Inv."
+    item:
+      material: WHITE_BANNER
+      banner_patterns:
+        base_color: WHITE
+        patterns:
+          - pattern: DIAGONAL_UP_LEFT
+            color: LIGHT_GRAY
+  diagonal_right:
+    name: "Per Bend"
+    item:
+      material: WHITE_BANNER
+      banner_patterns:
+        base_color: WHITE
+        patterns:
+          - pattern: DIAGONAL_RIGHT
+            color: LIGHT_GRAY
+  diagonal_up_right:
+    name: "Per Bend Inverted"
+    item:
+      material: WHITE_BANNER
+      banner_patterns:
+        base_color: WHITE
+        patterns:
+          - pattern: DIAGONAL_UP_RIGHT
+            color: LIGHT_GRAY
+  half_vertical:
+    name: "Per Pale"
+    item:
+      material: WHITE_BANNER
+      banner_patterns:
+        base_color: WHITE
+        patterns:
+          - pattern: HALF_VERTICAL
+            color: LIGHT_GRAY
+  half_horizontal:
+    name: "Per Fess"
+    item:
+      material: WHITE_BANNER
+      banner_patterns:
+        base_color: WHITE
+        patterns:
+          - pattern: HALF_HORIZONTAL
+            color: LIGHT_GRAY
+  HALF_VERTICAL_RIGHT:
+    name: "Per Pale Inverted"
+    item:
+      material: WHITE_BANNER
+      banner_patterns:
+        base_color: WHITE
+        patterns:
+          - pattern: HALF_VERTICAL_RIGHT
+            color: LIGHT_GRAY
+  HALF_HORIZONTAL_BOTTOM:
+    name: "Per Fess Inverted"
+    item:
+      material: WHITE_BANNER
+      banner_patterns:
+        base_color: WHITE
+        patterns:
+          - pattern: HALF_HORIZONTAL_BOTTOM
+            color: LIGHT_GRAY
+  border:
+    name: "Bordure"
+    item:
+      material: WHITE_BANNER
+      banner_patterns:
+        base_color: WHITE
+        patterns:
+          - pattern: BORDER
+            color: LIGHT_GRAY
+  curly_border:
+    name: "Bordure Indented"
+    item:
+      material: WHITE_BANNER
+      banner_patterns:
+        base_color: WHITE
+        patterns:
+          - pattern: CURLY_BORDER
+            color: LIGHT_GRAY
+  square_bottom_left:
+    name: "Base Dexter Canton"
+    item:
+      material: WHITE_BANNER
+      banner_patterns:
+        base_color: WHITE
+        patterns:
+          - pattern: SQUARE_BOTTOM_LEFT
+            color: LIGHT_GRAY
+  square_bottom_right:
+    name: "Base Sinister Canton"
+    item:
+      material: WHITE_BANNER
+      banner_patterns:
+        base_color: WHITE
+        patterns:
+          - pattern: SQUARE_BOTTOM_RIGHT
+            color: LIGHT_GRAY
+  square_top_left:
+    name: "Chief Dexter Canton"
+    item:
+      material: WHITE_BANNER
+      banner_patterns:
+        base_color: WHITE
+        patterns:
+          - pattern: SQUARE_TOP_LEFT
+            color: LIGHT_GRAY
+  square_top_right:
+    name: "Chief Sinister Canton"
+    item:
+      material: WHITE_BANNER
+      banner_patterns:
+        base_color: WHITE
+        patterns:
+          - pattern: SQUARE_TOP_RIGHT
+            color: LIGHT_GRAY
+  rhombus:
+    name: "Per Saltire"
+    item:
+      material: WHITE_BANNER
+      banner_patterns:
+        base_color: WHITE
+        patterns:
+          - pattern: RHOMBUS
+            color: LIGHT_GRAY
+  circle:
+    name: "Roundel"
+    item:
+      material: WHITE_BANNER
+      banner_patterns:
+        base_color: WHITE
+        patterns:
+          - pattern: CIRCLE
+            color: LIGHT_GRAY
+  bricks:
+    name: "Field Masoned"
+    item:
+      material: WHITE_BANNER
+      banner_patterns:
+        base_color: WHITE
+        patterns:
+          - pattern: BRICKS
+            color: LIGHT_GRAY
+  gradient:
+    name: "Gradient"
+    item:
+      material: WHITE_BANNER
+      banner_patterns:
+        base_color: WHITE
+        patterns:
+          - pattern: GRADIENT
+            color: LIGHT_GRAY
+  gradient_up:
+    name: "Base Gradient"
+    item:
+      material: WHITE_BANNER
+      banner_patterns:
+        base_color: WHITE
+        patterns:
+          - pattern: GRADIENT_UP
+            color: LIGHT_GRAY
+  creeper:
+    name: "Creeper Charge"
+    item:
+      material: WHITE_BANNER
+      banner_patterns:
+        base_color: WHITE
+        patterns:
+          - pattern: CREEPER
+            color: LIME
+  skull:
+    name: "Skull Charge"
+    item:
+      material: WHITE_BANNER
+      banner_patterns:
+        base_color: WHITE
+        patterns:
+          - pattern: SKULL
+            color: GRAY
+  flower:
+    name: "Flower Charge"
+    item:
+      material: WHITE_BANNER
+      banner_patterns:
+        base_color: WHITE
+        patterns:
+          - pattern: FLOWER
+            color: YELLOW
+  mojang:
+    name: "Thing"
+    item:
+      material: WHITE_BANNER
+      banner_patterns:
+        base_color: WHITE
+        patterns:
+          - pattern: MOJANG
+            color: RED
+  globe:
+    name: "Globe"
+    item:
+      material: WHITE_BANNER
+      banner_patterns:
+        base_color: WHITE
+        patterns:
+          - pattern: GLOBE
+            color: BLUE
+  piglin:
+    name: "Snout"
+    item:
+      material: WHITE_BANNER
+      banner_patterns:
+        base_color: WHITE
+        patterns:
+          - pattern: PIGLIN
+            color: ORANGE
+  flow:
+    name: "Flow"
+    item:
+      material: WHITE_BANNER
+      banner_patterns:
+        base_color: WHITE
+        patterns:
+          - pattern: FLOW
+            color: CYAN
+  guster:
+    name: "Guster"
+    item:
+      material: WHITE_BANNER
+      banner_patterns:
+        base_color: WHITE
+        patterns:
+          - pattern: GUSTER
+            color: ORANGE
+
+shield_colors:
+  white:
+    name: "White"
+    item: WHITE_BANNER
+  orange:
+    name: "Orange"
+    item: ORANGE_BANNER
+  magenta:
+    name: "Magenta"
+    item: MAGENTA_BANNER
+  light_blue:
+    name: "Light Blue"
+    item: LIGHT_BLUE_BANNER
+  yellow:
+    name: "Yellow"
+    item: YELLOW_BANNER
+  lime:
+    name: "Lime"
+    item: LIME_BANNER
+  pink:
+    name: "Pink"
+    item: PINK_BANNER
+  gray:
+    name: "Gray"
+    item: GRAY_BANNER
+  light_gray:
+    name: "Light Gray"
+    item: LIGHT_GRAY_BANNER
+  cyan:
+    name: "Cyan"
+    item: CYAN_BANNER
+  purple:
+    name: "Purple"
+    item: PURPLE_BANNER
+  blue:
+    name: "Blue"
+    item: BLUE_BANNER
+  brown:
+    name: "Brown"
+    item: BROWN_BANNER
+  green:
+    name: "Green"
+    item: GREEN_BANNER
+  red:
+    name: "Red"
+    item: RED_BANNER
+  black:
+    name: "Black"
+    item: BLACK_BANNER

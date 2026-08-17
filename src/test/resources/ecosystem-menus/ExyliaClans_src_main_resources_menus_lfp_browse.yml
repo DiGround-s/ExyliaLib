@@ -1,0 +1,142 @@
+title: "{primary}&lLOOKING FOR PLAYER {muted}%current_page%/%total_pages%"
+size: 54
+type: PAGINATION
+animation: "center_out"
+refresh:
+  mode: SMART
+  interval: 40
+open_sounds:
+  - "ENTITY_EXPERIENCE_ORB_PICKUP|1.0|1.2"
+click_sounds:
+  - "UI_BUTTON_CLICK|1.0|1.5"
+filler:
+  global:
+    material: GRAY_STAINED_GLASS_PANE
+    hide_tooltip: true
+  pagination:
+    material: LIGHT_GRAY_STAINED_GLASS_PANE
+    name: "{muted}No active recruitments"
+    hide_tooltip: false
+pagination:
+  slots: '10-16,19-25,28-34'
+  item_template:
+    material: "playerhead-%clan_leader%"
+    name: "{primary}&l%clan_name%"
+    lore:
+      - ""
+      - " {muted}❙ {letters}Posted by: {highlight}%clan_leader%"
+      - " {muted}❙ {letters}Posted: {highlight}%posting_posted%"
+      - " {muted}❙ {letters}Expires: {highlight}%posting_expires%"
+      - ""
+      - "%posting_summary%"
+      - ""
+      - " {muted}Status: %application_state%"
+      - ""
+      - "{info}» Click to apply"
+    actions:
+      - "exyliaclans:lfp_apply %posting_id%"
+  navigation:
+    previous:
+      slot: 45
+      material: 'basehead-eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvZGExZDU1YjNmOTg5NDEwYTM0NzUyNjUwZTI0OGM5YjZjMTc4M2E3ZWMyYWEzZmQ3Nzg3YmRjNGQwZTYzN2QzOSJ9fX0='
+      name: '{error}&l← PREVIOUS'
+      actions:
+        - 'previous_page'
+    next:
+      slot: 53
+      material: 'basehead-eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvZmE4N2UzZDk2ZTFjZmViOWNjZmIzYmE1M2EyMTdmYWY1MjQ5ZTI4NTUzM2IyNzFhMmZiMjg0YzMwZGJkOTgyOSJ9fX0='
+      name: '{success}&lNEXT →'
+      actions:
+        - 'next_page'
+items:
+  create_posting:
+    slot: 47
+    material: WRITABLE_BOOK
+    name: "{success}&lCREATE RECRUITMENT"
+    condition: "%lfp_manage_state% == create"
+    lore:
+      - ""
+      - " {muted}Define the player profile you are looking for."
+      - " {muted}Players can apply to your clan."
+      - ""
+      - "{info}» Click to create"
+    actions:
+      - "exyliaclans:open_lfp_create"
+  edit_posting:
+    slot: 46
+    material: WRITABLE_BOOK
+    name: "{primary}&lMY RECRUITMENT"
+    condition: "%lfp_manage_state% == active"
+    lore:
+      - ""
+      - " {muted}Status: %my_posting_status%"
+      - " {muted}Posted: %my_posting_posted%"
+      - " {muted}Expires: %my_posting_expires%"
+      - ""
+      - "{info}» Click to edit"
+    actions:
+      - "exyliaclans:open_lfp_edit"
+  expired_posting:
+    slot: 45
+    material: BOOK
+    name: "{error}&lEXPIRED RECRUITMENT"
+    condition: "%lfp_manage_state% == expired"
+    lore:
+      - ""
+      - " {muted}Edit and repost to appear in the list again."
+      - ""
+      - "{info}» Click to edit"
+    actions:
+      - "exyliaclans:open_lfp_edit"
+  renew_posting:
+    slot: 47
+    material: LIME_WOOL
+    name: "{success}&lRENEW RECRUITMENT"
+    condition: "%lfp_manage_state% == expired"
+    lore:
+      - "{muted}Renew without changing the requirements."
+    actions:
+      - "exyliaclans:lfp_renew_posting"
+  applications:
+    slot: 50
+    material: CHEST
+    condition: "%lfp_manage_state% != none"
+    name: "{highlight}&lAPPLICATIONS"
+    lore:
+      - ""
+      - " {muted}Review applications received by your clan."
+      - ""
+      - "{info}» Click to review"
+    actions:
+      - "exyliaclans:open_lfp_applications"
+  my_applications:
+    slot: 51
+    material: BOOK
+    name: "{letters}&lMY APPLICATIONS"
+    lore:
+      - ""
+      - " {muted}View the applications you have sent."
+      - ""
+      - "{info}» Click to view"
+    actions:
+      - "exyliaclans:open_lfp_my_applications"
+  cancel_posting:
+    slot: 48
+    material: RED_WOOL
+    condition: "%lfp_manage_state% != none"
+    name: "{error}&lCANCEL RECRUITMENT"
+    lore:
+      - ""
+      - " {muted}Remove the posting and its applications."
+      - ""
+      - "{error}» Click to cancel"
+    actions:
+      - "exyliaclans:lfp_cancel_posting"
+  close:
+    slot: 49
+    material: BARRIER
+    name: "{error}&lCLOSE"
+    lore:
+      - "{muted}Close menu"
+    actions:
+      - "exyliaclans:close_menu"

@@ -1,0 +1,68 @@
+title: "{primary}&lREWARDS {muted}— {highlight}%zone_name%"
+size: 54
+type: PAGINATION
+
+open_sounds:
+  - "ENTITY_EXPERIENCE_ORB_PICKUP|1.0|1.2"
+click_sounds:
+  - "UI_BUTTON_CLICK|1.0|1.5"
+
+filler:
+  global:
+    material: GRAY_STAINED_GLASS_PANE
+    hide_tooltip: true
+  pagination:
+    material: LIGHT_GRAY_STAINED_GLASS_PANE
+    name: "{muted}No rewards configured"
+    lore:
+      - ""
+      - " {muted}Ask an administrator to configure"
+      - " {muted}rewards for this AFK zone."
+    hide_tooltip: false
+
+pagination:
+  slots: '10-16,19-25,28-34'
+  item_template:
+    material: "%reward_icon%"
+    name: "{highlight}&l%reward_name%"
+    lore:
+      - ""
+      - " {muted}❙ {letters}Type {letters_black}» %reward_type%"
+      - " {muted}❙ {letters}Chance 🎲 {letters_black}» {highlight}%reward_chance%"
+      - " {muted}❙ {letters}Condition {letters_black}» %reward_has_condition%"
+      - " {muted}❙ {letters}Requires permission {letters_black}» %reward_has_permission%"
+
+  navigation:
+    previous:
+      slot: 45
+      material: ARROW
+      name: "{error}&l← PREVIOUS"
+      actions:
+        - "previous_page"
+    next:
+      slot: 53
+      material: ARROW
+      name: "{success}&lNEXT →"
+      actions:
+        - "next_page"
+
+items:
+  info:
+    slot: 4
+    material: CHEST
+    name: "{highlight}&l%zone_name%"
+    lore:
+      - ""
+      - " {muted}❙ {letters}Possible rewards while AFK in this zone"
+      - " {muted}❙ {letters}Total {letters_black}» {highlight}%reward_count%"
+      - " {muted}❙ {letters}Interval {letters_black}» {highlight}%interval_value%s"
+
+  close:
+    slot: 49
+    material: BARRIER
+    name: "{error}&lCLOSE"
+    lore:
+      - ""
+      - " {info}» Click to close"
+    actions:
+      - "survivalcore:close_menu"

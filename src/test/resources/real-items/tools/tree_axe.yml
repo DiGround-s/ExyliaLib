@@ -1,0 +1,40 @@
+material: NETHERITE_AXE
+name: "<#f59e0b>&lTimber Axe <#475569>[<#fbbf24>%status%<#475569>]"
+lore:
+  - ""
+  - " <#475569>❙ <#94a3b8>Chops down the full connected tree instantly"
+  - " <#475569>❙ <#94a3b8>Uses: <#f8fafc>%uses_remaining%<#475569>/<#f8fafc>%max_uses%"
+  - " <#475569>❙ <#94a3b8>Time: <#f8fafc>%time_remaining%"
+  - ""
+enchantments:
+  EFFICIENCY: 5
+  UNBREAKING: 3
+  FORTUNE: 3
+  MENDING: 1
+flags:
+  - HIDE_ENCHANTS
+  - HIDE_ATTRIBUTES
+max_stack_size: 1
+unbreakable: true
+glow: true
+
+behaviors:
+  - id: tree_capitator
+    config:
+      max-blocks: 150
+      break-leaves: true
+      max-leaf-distance: 4
+      disable-when-sneaking: true
+
+effects:
+  on-use:
+    sounds:
+      - "BLOCK_AMETHYST_CLUSTER_HIT|0.85|0.95"
+      - "BLOCK_AMETHYST_BLOCK_RESONATE|0.55|1.2"
+    particles: []
+  on-block-break:
+    sounds: []
+    particles:
+      - "PORTAL|5|0.25|0.25|0.25"
+      - "SPELL_WITCH|2|0.2|0.2|0.2"
+      - "END_ROD|3|0.2|0.25|0.2"

@@ -1,0 +1,64 @@
+title: "{primary}&lSELECT TEAM"
+size: 36
+type: PAGINATION
+refresh:
+  mode: SMART
+  interval: 20
+animation: "center_out"
+
+open_sounds:
+  - "ENTITY_EXPERIENCE_ORB_PICKUP|1.0|1.2"
+click_sounds:
+  - "UI_BUTTON_CLICK|1.0|1.5"
+
+filler:
+  global:
+    material: GRAY_STAINED_GLASS_PANE
+    hide_tooltip: true
+
+  pagination:
+    material: LIGHT_GRAY_STAINED_GLASS_PANE
+    name: "{muted}No teams available"
+    hide_tooltip: false
+
+pagination:
+  slots: '10-16,19-25'
+
+  item_template:
+    material: "%team_material%"
+    name: "%team_color%&l%team_name%"
+    lore:
+      - ""
+      - " {muted}❙ {letters}Members: {highlight}%team_size%{muted}/{highlight}%team_max%"
+      - ""
+      - "{info}» Click to join"
+    actions:
+      - "events:join_team %event_id% %team_id%"
+
+  navigation:
+    previous:
+      slot: 30
+      material: ARROW
+      name: '{error}&l← PREVIOUS'
+      lore:
+        - '{info}Page: {success}%current_page%&8/{error}%total_pages%'
+      actions:
+        - 'previous_page'
+    next:
+      slot: 32
+      material: ARROW
+      name: '{success}&lNEXT →'
+      lore:
+        - '{info}Page: {success}%current_page%&8/{error}%total_pages%'
+      actions:
+        - 'next_page'
+
+items:
+  close:
+    slot: 31
+    material: BARRIER
+    name: "{error}&lClose"
+    lore:
+      - "{muted}Close the menu"
+    actions:
+      - "close"

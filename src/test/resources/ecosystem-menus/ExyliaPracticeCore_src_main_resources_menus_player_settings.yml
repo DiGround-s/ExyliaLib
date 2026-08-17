@@ -1,0 +1,182 @@
+title: "{primary}&lSETTINGS"
+size: 36
+type: SIMPLE
+refresh:
+  mode: ON_CLICK
+  click_delay: 4
+
+open_sounds:
+  - "ENTITY_EXPERIENCE_ORB_PICKUP|1.0|1.2"
+click_sounds:
+  - "UI_BUTTON_CLICK|1.0|1.5"
+
+filler:
+  global:
+    material: GRAY_STAINED_GLASS_PANE
+    hide_tooltip: true
+
+items:
+  party_invites:
+    slot: 10
+    material: "HONEYCOMB"
+    name: "{primary}&lParty Invitations"
+    lore:
+      - ""
+      - " {muted}❙ {letters}Status: %party_invites_value%"
+      - ""
+      - "{info}» Click to toggle"
+    actions:
+      - "practice:toggle_setting party_invites"
+
+  duel_requests:
+    slot: 11
+    material: "NETHERITE_SWORD"
+    name: "{primary}&lDuel Requests"
+    lore:
+      - ""
+      - " {muted}❙ {letters}Status: %duel_requests_value%"
+      - ""
+      - "{info}» Click to toggle"
+    actions:
+      - "practice:toggle_setting duel_requests"
+
+  scoreboard:
+    slot: 13
+    material: "OAK_SIGN"
+    name: "{primary}&lScoreboard"
+    lore:
+      - ""
+      - " {muted}❙ {letters}Status: %scoreboard_value%"
+      - ""
+      - "{info}» Click to toggle"
+    actions:
+      - "practice:toggle_setting scoreboard"
+
+  spectators:
+    slot: 15
+    material: "ENDER_EYE"
+    name: "{primary}&lSpectators"
+    lore:
+      - ""
+      - " {muted}❙ {letters}Status: %spectators_value%"
+      - ""
+      - "{info}» Click to toggle"
+    actions:
+      - "practice:toggle_setting spectators"
+
+  time_of_day:
+    slot: 16
+    material: "CLOCK"
+    name: "{primary}&lTime of Day"
+    lore:
+      - ""
+      - " {muted}❙ {letters}Current: {highlight}%time_value%"
+      - ""
+      - "{info}» Click to change"
+    actions:
+      - "practice:open_time_select"
+
+  show_vip:
+    slot: 19
+    material: "DIAMOND"
+    name: "{primary}&lShow VIP"
+    lore:
+      - ""
+      - " {muted}❙ {letters}Status: %show_vip_value%"
+      - ""
+      - " {muted}❙ {letters}Show players with {highlight}vip"
+      - " {muted}❙ {letters}permission in the lobby."
+      - ""
+      - "{info}» Click to toggle"
+    actions:
+      - "practice:toggle_setting show_vip"
+
+  show_party:
+    slot: 20
+    material: "HONEYCOMB"
+    name: "{primary}&lShow Party"
+    lore:
+      - ""
+      - " {muted}❙ {letters}Status: %show_party_value%"
+      - ""
+      - " {muted}❙ {letters}Show members of your party"
+      - " {muted}❙ {letters}while in the lobby."
+      - ""
+      - "{info}» Click to toggle"
+    actions:
+      - "practice:toggle_setting show_party"
+
+  show_others:
+    slot: 21
+    material: "GRASS_BLOCK"
+    name: "{primary}&lShow Others"
+    lore:
+      - ""
+      - " {muted}❙ {letters}Status: %show_others_value%"
+      - ""
+      - " {muted}❙ {letters}Show all other players"
+      - " {muted}❙ {letters}in the lobby."
+      - ""
+      - "{info}» Click to toggle"
+    actions:
+      - "practice:toggle_setting show_others"
+
+  double_jump:
+    slot: 22
+    material: "FEATHER"
+    name: "{primary}&lDouble Jump"
+    lore:
+      - ""
+      - " {muted}❙ {letters}Status: %double_jump_value%"
+      - ""
+      - " {muted}❙ {letters}Jump twice in the lobby"
+      - " {muted}❙ {letters}to launch yourself forward."
+      - ""
+      - "{info}» Click to toggle"
+    actions:
+      - "practice:toggle_setting double_jump"
+  effects:
+    slot: 23
+    material: "BLAZE_POWDER"
+    name: "{primary}&lKill Effects"
+    lore:
+      - ""
+      - " {muted}❙ {letters}Current: {highlight}%exyliakilleffect_effect_name%"
+      - ""
+      - " {muted}❙ {letters}Select the visual effect"
+      - " {muted}❙ {letters}that appears when you kill"
+      - " {muted}❙ {letters}a player."
+      - ""
+      - "{info}» Click to configure"
+    commands:
+      - "killeffect"
+
+  hiteffect:
+    slot: 24
+    material: "NETHER_STAR"
+    name: "{primary}&lHit Effects"
+    lore:
+      - ""
+      - " {muted}❙ {letters}Current: {highlight}%exyliahiteffect_effect_name%"
+      - ""
+      - " {muted}❙ {letters}Select the visual effect"
+      - " {muted}❙ {letters}that appears when you hit"
+      - " {muted}❙ {letters}a player."
+      - ""
+      - "{info}» Click to configure"
+    commands:
+      - "hiteffect"
+
+  armor_trims:
+    slot: 25
+    material: "NETHERITE_CHESTPLATE"
+    name: "{primary}&lArmor Trims"
+    lore:
+      - ""
+      - " {muted}❙ {letters}Customize the appearance"
+      - " {muted}❙ {letters}of your armor with unique"
+      - " {muted}❙ {letters}trim designs."
+      - ""
+      - "{info}» Click to configure"
+    commands:
+      - "armortrim"

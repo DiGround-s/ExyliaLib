@@ -1,0 +1,93 @@
+title: "{primary}&lKIT {muted}· {highlight}%kit_name%"
+size: 27
+
+open_sounds:
+  - "ENTITY_EXPERIENCE_ORB_PICKUP|1.0|1.2"
+click_sounds:
+  - "UI_BUTTON_CLICK|1.0|1.5"
+
+filler:
+  global:
+    material: BLACK_STAINED_GLASS_PANE
+    hide_tooltip: true
+
+items:
+  kit_preview:
+    slot: 13
+    material: "%kit_icon%"
+    name: "{letters}&l%kit_name%"
+    glow: true
+    hide_tooltip: false
+    lore:
+      - ""
+      - " {muted}❙ {letters}Slot: {highlight}%kit_slot%"
+
+  edit:
+    slot: 10
+    material: ANVIL
+    name: "{success}&lEditar Kit"
+    lore:
+      - ""
+      - " {muted}❙ {letters}Modificar contenido del kit"
+      - ""
+      - "{info}» Click para editar"
+    actions:
+      - "sandbox:kit_creator_edit %kit_slot%"
+
+  favorite:
+    slot: 11
+    material: "%kit_fav_material%"
+    name: "{highlight}&l★ Kit Favorito"
+    glow: true
+    lore:
+      - ""
+      - " {muted}❙ {letters}Estado: {highlight}%kit_fav_status%"
+      - ""
+      - "{info}» Click para alternar"
+    actions:
+      - "sandbox:kit_creator_set_favorite %kit_slot%"
+
+  rename:
+    slot: 12
+    material: NAME_TAG
+    name: "{info}&lRenombrar Kit"
+    lore:
+      - ""
+      - " {muted}❙ {letters}Cambiar el nombre del kit"
+      - ""
+      - "{info}» Click para renombrar"
+    actions:
+      - "sandbox:kit_creator_rename %kit_slot%"
+
+  icon:
+    slot: 14
+    material: ITEM_FRAME
+    name: "{highlight}&lCambiar Icono"
+    lore:
+      - ""
+      - " {muted}❙ {letters}Definir un material de icono personalizado"
+      - ""
+      - "{info}» Click para cambiar"
+    actions:
+      - "sandbox:kit_creator_set_icon %kit_slot%"
+
+  delete:
+    slot: 16
+    material: BARRIER
+    name: "{error}&lEliminar Kit"
+    lore:
+      - ""
+      - " {muted}❙ {letters}Eliminar este kit permanentemente"
+      - ""
+      - "{info}» Click para eliminar"
+    actions:
+      - "sandbox:kit_creator_delete %kit_slot%"
+
+  back:
+    slot: 22
+    material: ARROW
+    name: "{error}&lAtras"
+    lore:
+      - "{muted}Volver a la lista de kits"
+    actions:
+      - "sandbox:open_kit_creator"

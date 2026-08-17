@@ -1,0 +1,47 @@
+material: BLAZE_ROD
+name: "<#22c55e>&lGrowth Wand <#475569>[<#4ade80>%status%<#475569>]"
+lore:
+  - ""
+  - " <#475569>❙ <#94a3b8>Applies bone meal to a <#fbbf24>5x5 <#94a3b8>area on right-click"
+  - " <#475569>❙ <#94a3b8>Also boosts <#fbbf24>nether wart, cactus and sugar cane"
+  - " <#475569>❙ <#94a3b8>Uses: <#f8fafc>%uses_remaining%<#475569>/<#f8fafc>%max_uses%"
+  - " <#475569>❙ <#94a3b8>Time: <#f8fafc>%time_remaining%"
+  - ""
+flags:
+  - HIDE_ENCHANTS
+  - HIDE_ATTRIBUTES
+max_stack_size: 1
+unbreakable: true
+glow: true
+
+behaviors:
+  - id: bonemeal_area
+    config:
+      radius: 2
+      age-steps: 1
+      custom-growth-materials:
+        - NETHER_WART
+        - CACTUS
+        - SUGAR_CANE
+      column-growth-materials:
+        - CACTUS
+        - SUGAR_CANE
+      default-column-max-height: 3
+      column-max-height:
+        CACTUS: 3
+        SUGAR_CANE: 3
+
+effects:
+  on-use:
+    sounds:
+      - "BLOCK_GRASS_BREAK|0.7|1.3"
+      - "ENTITY_EXPERIENCE_ORB_PICKUP|0.5|1.5"
+    particles: []
+  on-block-break:
+    sounds: []
+    particles: []
+  on-place:
+    sounds: []
+    particles:
+      - "HAPPY_VILLAGER|4|0.35|0.1|0.35"
+      - "END_ROD|2|0.2|0.1|0.2"

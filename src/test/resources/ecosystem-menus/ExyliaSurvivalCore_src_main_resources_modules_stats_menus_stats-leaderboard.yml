@@ -1,0 +1,62 @@
+title: "{primary}&lLEADERBOARD {muted}| %stat_name% {muted}%current_page%/%total_pages%"
+size: 54
+type: PAGINATION
+animation: "center_out"
+
+open_sounds:
+  - "ENTITY_EXPERIENCE_ORB_PICKUP|1.0|1.2"
+
+click_sounds:
+  - "UI_BUTTON_CLICK|1.0|1.5"
+
+filler:
+  global:
+    material: GRAY_STAINED_GLASS_PANE
+    hide_tooltip: true
+  pagination:
+    material: LIGHT_GRAY_STAINED_GLASS_PANE
+    name: "{muted}No more entries"
+    hide_tooltip: false
+
+pagination:
+  slots: '10-16,19-25,28-34'
+
+  item_template:
+    material: "playerhead-%player_name%"
+    name: "{highlight}#%rank% {letters}%player_name%"
+    lore:
+      - ""
+      - " {muted}❙ %stat_name%{muted}: {highlight}%stat_value%"
+      - ""
+    actions: []
+
+  navigation:
+    previous:
+      slot: 45
+      material: ARROW
+      name: "{error}&l← PREVIOUS PAGE"
+      actions:
+        - "previous_page"
+    next:
+      slot: 53
+      material: ARROW
+      name: "{success}&lNEXT PAGE →"
+      actions:
+        - "next_page"
+
+items:
+  header:
+    slot: 4
+    material: NETHER_STAR
+    name: "{primary}&lTOP PLAYERS"
+    lore:
+      - ""
+      - " {muted}❙ {letters}Stat: %stat_name%"
+      - ""
+
+  back:
+    slot: 49
+    material: ARROW
+    name: "{warning}&l← BACK TO STATS"
+    actions:
+      - "survivalcore:stats_open"

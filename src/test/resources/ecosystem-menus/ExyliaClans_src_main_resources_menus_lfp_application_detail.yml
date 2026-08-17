@@ -1,0 +1,72 @@
+title: "{primary}&lAPPLICATION FROM {highlight}%player_name%"
+size: 27
+type: SIMPLE
+open_sounds:
+  - "ENTITY_EXPERIENCE_ORB_PICKUP|1.0|1.2"
+click_sounds:
+  - "UI_BUTTON_CLICK|1.0|1.5"
+filler:
+  global:
+    material: GRAY_STAINED_GLASS_PANE
+    hide_tooltip: true
+items:
+  info:
+    slot: 13
+    material: "playerhead-%player_name%"
+    name: "{highlight}&l%player_name%"
+    lore:
+      - ""
+      - " {muted}❙ {letters}Clan: {highlight}%clan_name%"
+      - " {muted}❙ {letters}Status: %application_status%"
+      - ""
+      - " {letters}%application_message%"
+  accept:
+    slot: 11
+    material: LIME_WOOL
+    name: "{success}&lACCEPT"
+    condition: "%application_action_state% == clan_pending"
+    lore:
+      - ""
+      - " {muted}Accept this player into the clan."
+      - ""
+      - "{info}» Click to accept"
+    actions:
+      - "exyliaclans:lfp_accept_application %application_id%"
+  reject:
+    slot: 15
+    material: RED_WOOL
+    name: "{error}&lREJECT"
+    condition: "%application_action_state% == clan_pending"
+    lore:
+      - ""
+      - " {muted}Reject this application."
+      - ""
+      - "{error}» Click to reject"
+    actions:
+      - "exyliaclans:lfp_reject_application %application_id%"
+  withdraw:
+    slot: 15
+    material: RED_WOOL
+    name: "{error}&lWITHDRAW APPLICATION"
+    condition: "%application_action_state% == player_pending"
+    lore:
+      - ""
+      - " {muted}Withdraw your application to this clan."
+      - ""
+      - "{error}» Click to withdraw"
+    actions:
+      - "exyliaclans:lfp_withdraw_application %application_id%"
+  back:
+    slot: 22
+    material: BARRIER
+    name: "{error}&lBACK"
+    condition: "%application_return% == clan"
+    actions:
+      - "exyliaclans:open_lfp_applications"
+  back_player:
+    slot: 22
+    material: BARRIER
+    name: "{error}&lBACK"
+    condition: "%application_return% == player"
+    actions:
+      - "exyliaclans:open_lfp_my_applications"

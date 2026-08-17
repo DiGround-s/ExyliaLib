@@ -1,0 +1,71 @@
+title: "{primary}&lSTART EVENT {muted}%current_page%/%total_pages%"
+size: 36
+type: PAGINATION
+animation: "center_out"
+
+open_sounds:
+  - "ENTITY_EXPERIENCE_ORB_PICKUP|1.0|1.2"
+click_sounds:
+  - "UI_BUTTON_CLICK|1.0|1.5"
+
+filler:
+  global:
+    material: GRAY_STAINED_GLASS_PANE
+    hide_tooltip: true
+
+  pagination:
+    material: LIGHT_GRAY_STAINED_GLASS_PANE
+    name: "{muted}No events available"
+    lore:
+      - ""
+      - "{muted}Come back later!"
+    hide_tooltip: false
+
+pagination:
+  slots: '10-16,19-25'
+
+  item_template:
+    material: "%event_material%"
+    name: "%event_name%"
+    lore:
+      - ""
+      - " {muted}❙ {letters}Type: {info}%event_type%"
+      - " {muted}❙ {letters}Players: {highlight}%min_players% - %max_players%"
+      - ""
+      - "{info}» Click to start"
+    actions:
+      - "events:start_event %event_id%"
+
+  navigation:
+    previous:
+      slot: 30
+      material: ARROW
+      name: '{error}&l← PREVIOUS PAGE'
+      lore:
+        - ' {muted}❙ {letters}Click to go'
+        - ' {muted}❙ {letters}to the previous page.'
+        - ''
+        - '{info}ℹ Current page: {success}%current_page%&8/{error}%total_pages%'
+      actions:
+        - 'previous_page'
+    next:
+      slot: 32
+      material: ARROW
+      name: '{success}&lNEXT PAGE →'
+      lore:
+        - ' {muted}❙ {letters}Click to go'
+        - ' {muted}❙ {letters}to the next page.'
+        - ''
+        - '{info}ℹ Current page: {success}%current_page%&8/{error}%total_pages%'
+      actions:
+        - 'next_page'
+
+items:
+  back:
+    slot: 31
+    material: ARROW
+    name: '{error}&lBack'
+    lore:
+      - '{muted}Click to go back'
+    actions:
+      - "events:open_main_menu"

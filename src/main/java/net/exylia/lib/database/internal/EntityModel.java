@@ -3,6 +3,7 @@ package net.exylia.lib.database.internal;
 import net.exylia.lib.database.Codec;
 import net.exylia.lib.database.Column;
 import net.exylia.lib.database.Id;
+import net.exylia.lib.database.Index;
 import net.exylia.lib.database.Indexed;
 import net.exylia.lib.database.Table;
 import org.jetbrains.annotations.NotNull;
@@ -18,7 +19,9 @@ import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
@@ -106,6 +109,15 @@ public final class EntityModel<T> {
     private final ColumnModel id;
 
     /**
+     * Every index the record asks for, however it asked.
+     *
+     * <p>One list, not two: {@link Indexed} on a component and {@link Index} on
+     * the record both land here, so a schema layer has exactly one thing to
+     * iterate. See {@link #indexes()}.
+     */
+    private final List<IndexModel> indexes;
+
+    /**
      * The canonical constructor, adapted to {@code (Object[]) -> Object}.
      *
      * <p>Adapted once so that building a record is a single
@@ -138,6 +150,7 @@ public final class EntityModel<T> {
                         String table,
                         List<ColumnModel> columns,
                         ColumnModel id,
+                        List<IndexModel> indexes,
                         MethodHandle constructor,
                         int[] slots,
                         Object[] blank) {
@@ -145,6 +158,7 @@ public final class EntityModel<T> {
         this.table = table;
         this.columns = List.copyOf(columns);
         this.id = id;
+        this.indexes = List.copyOf(indexes);
         this.constructor = constructor;
         this.slots = slots;
         this.blank = blank;
@@ -255,7 +269,156 @@ public final class EntityModel<T> {
         }
 
         return new EntityModel<>(type, table.value(), columns, id,
+                indexes(type, table.value(), columns),
                 canonicalConstructor(type, lookup), slots, blank);
+    }
+
+    // ---------------------------------------------------------------- indexes
+
+    /**
+     * Compiles {@link Indexed} and {@link Index} into one list.
+     *
+     * <p>Component-level indexes come first, in declaration order, then the
+     * record-level ones in the order they were written. A single-column
+     * {@code @Indexed} is an {@link IndexModel} exactly like a composite one is,
+     * which is what leaves the schema layers with a single mechanism instead of
+     * two that have to be kept in step.
+     *
+     * <p>Everything wrong here is wrong in code and identical on every server,
+     * so it fails at compilation, loudly, naming the record: an index over a
+     * column that does not exist, a {@code descending} entry that is not one of
+     * the index's own columns, two indexes under one name, or a composite index
+     * over a column no database can index at all.
+     */
+    private static List<IndexModel> indexes(Class<?> type, String table, List<ColumnModel> columns) {
+        List<IndexModel> indexes = new ArrayList<>(0);
+        // Case-insensitively, because that is how the names end up in the
+        // database: every identifier is folded to lower case before it is
+        // quoted, so idx_A and idx_a are one index there and would collide.
+        Map<String, String> takenNames = new HashMap<>();
+
+        for (ColumnModel column : columns) {
+            // The primary key is already indexed by every engine there is, and
+            // a unique column gets its index from the uniqueness itself.
+            if (!column.id() && (column.indexed() || column.unique())) {
+                List<IndexModel.Part> parts = List.of(IndexModel.Part.asc(column.name()));
+                IndexModel model = new IndexModel(IndexModel.derivedName(table, parts),
+                        parts, column.unique());
+                takenNames.put(model.name().toLowerCase(Locale.ROOT), "component " + column.component());
+                indexes.add(model);
+            }
+        }
+
+        for (Index declared : type.getAnnotationsByType(Index.class)) {
+            IndexModel model = index(type, table, columns, declared);
+            String previous = takenNames.putIfAbsent(model.name().toLowerCase(Locale.ROOT),
+                    "@Index " + model.columns());
+            if (previous != null) {
+                throw new IllegalArgumentException(type.getName() + " declares two indexes named '"
+                        + model.name() + "' (" + previous + " and @Index " + model.columns() + ")."
+                        + " A second CREATE INDEX under a name that already exists reads as"
+                        + " \"already there\" and is forgiven, so one of the two would simply never"
+                        + " be created. Name one of them explicitly.");
+            }
+            indexes.add(model);
+        }
+        return indexes;
+    }
+
+    /**
+     * Compiles one {@link Index} against the columns the record actually has.
+     *
+     * <p>Names are accepted as either the column name or the record component
+     * name and normalised to the column name, because a developer writing an
+     * index next to the components reads {@code kitId} while the database has
+     * {@code kit_id}. Normalising here rather than passing the name through is
+     * what keeps the {@code CREATE INDEX} and the metadata lookup addressing
+     * the same column.
+     */
+    private static IndexModel index(Class<?> type,
+                                    String table,
+                                    List<ColumnModel> columns,
+                                    Index declared) {
+        if (declared.columns().length == 0) {
+            throw new IllegalArgumentException(type.getName()
+                    + " has an @Index over no columns. Name the columns it covers, in the order a"
+                    + " query uses them: the ones it filters by first, the one it sorts by last.");
+        }
+        Set<String> descending = new LinkedHashSet<>(declared.descending().length * 2);
+        for (String name : declared.descending()) {
+            descending.add(resolve(type, columns, declared, name).name());
+        }
+
+        List<IndexModel.Part> parts = new ArrayList<>(declared.columns().length);
+        Set<String> seen = new LinkedHashSet<>(declared.columns().length * 2);
+        for (String name : declared.columns()) {
+            ColumnModel column = resolve(type, columns, declared, name);
+            if (!seen.add(column.name())) {
+                throw new IllegalArgumentException(type.getName() + " has an @Index naming '"
+                        + column.name() + "' twice " + java.util.Arrays.toString(declared.columns())
+                        + ". A column appears in an index once; a second mention narrows nothing"
+                        + " and no engine accepts it.");
+            }
+            if (declared.columns().length > 1 && column.length() == Column.UNBOUNDED
+                    && column.storedType() == String.class && column.javaType() != UUID.class) {
+                // A single-column index on an unbounded column is already
+                // reported by the dialect, which knows the engine's own limit.
+                // A composite one is refused here regardless of engine: there is
+                // no length at which a LONGTEXT or TEXT column can be one part
+                // of a multi-column key, so no engine can build this index.
+                throw new IllegalArgumentException(type.getName() + " has a composite @Index "
+                        + java.util.Arrays.toString(declared.columns()) + " covering '"
+                        + column.name() + "', which is unbounded text. No database can index an"
+                        + " unbounded column as part of a composite key. Give the column a length,"
+                        + " or leave it out of the index.");
+            }
+            parts.add(new IndexModel.Part(column.name(), descending.contains(column.name())));
+        }
+
+        // Checked after the parts are built so the message can name what the
+        // index does cover. A descending entry outside the index is either a
+        // typo or a misunderstanding of what descending means here, and both
+        // produce an index sorted the wrong way for the query it was written
+        // for — which is invisible until the table is large.
+        for (String name : descending) {
+            if (!seen.contains(name)) {
+                throw new IllegalArgumentException(type.getName() + " has an @Index marking '"
+                        + name + "' descending, but the index covers " + seen
+                        + ". Only a column the index itself lists can be sorted by it.");
+            }
+        }
+
+        String name = declared.name().isBlank()
+                ? IndexModel.derivedName(table, parts)
+                : declared.name();
+        return new IndexModel(name, parts, declared.unique());
+    }
+
+    /**
+     * The column an {@link Index} entry names, by column name or component name.
+     *
+     * <p>Refused rather than skipped when there is no such column. An index
+     * quietly built over fewer columns than were asked for is an index that does
+     * not answer the query it exists for, and the only symptom is a table scan
+     * on a live server.
+     */
+    private static ColumnModel resolve(Class<?> type,
+                                       List<ColumnModel> columns,
+                                       Index declared,
+                                       String name) {
+        for (ColumnModel column : columns) {
+            if (column.name().equals(name) || column.component().equals(name)) {
+                return column;
+            }
+        }
+        List<String> known = new ArrayList<>(columns.size());
+        for (ColumnModel column : columns) {
+            known.add(column.name());
+        }
+        throw new IllegalArgumentException(type.getName() + " has an @Index "
+                + java.util.Arrays.toString(declared.columns()) + " naming '" + name
+                + "', which is neither a column nor a component of the record. It has: " + known
+                + ". A component with no @Column is not stored, so it cannot be indexed.");
     }
 
     private static int slotOf(RecordComponent[] components, String name) {
@@ -513,6 +676,25 @@ public final class EntityModel<T> {
     /** The primary key column. Never {@code null}: compilation refuses a record without one. */
     public @NotNull ColumnModel id() {
         return id;
+    }
+
+    /**
+     * Every index this record asks for, in one list.
+     *
+     * <p>Component-level {@link Indexed} first, in declaration order, then the
+     * record-level {@link Index} declarations in the order they were written. A
+     * single-column index and a composite one are the same type here on purpose:
+     * the schema layers iterate this and nothing else, so there is no second
+     * mechanism to keep in step.
+     *
+     * <p>The primary key is never among them — every engine indexes it already,
+     * and a second index over the same column costs a write on every insert and
+     * answers nothing the first does not.
+     *
+     * @return the indexes, empty when the record asks for none
+     */
+    public @NotNull List<IndexModel> indexes() {
+        return indexes;
     }
 
     /**

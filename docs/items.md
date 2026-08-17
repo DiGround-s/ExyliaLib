@@ -1,0 +1,232 @@
+# Items
+
+Items described in configuration, read once and drawn per player.
+
+A menu icon, a special item, a kit entry, a lobby hotbar slot and a shield are
+the same block of YAML. They were being parsed by five copies of the same code;
+this is the one copy.
+
+```java
+PluginItems items = Items.of(this);
+
+// when the file loads, once
+Item icon = items.parse(section);
+
+// when somebody looks at it
+ItemStack stack = items.render(icon, player);
+```
+
+## The split that matters
+
+`Item` is a definition, not an `ItemStack`. It holds its placeholders
+unresolved, is shared by every player who sees it, and can be compared, cached
+and tested without a running server. Turning one into an item is per-viewer work
+and happens at render time.
+
+That is the whole point of the module. Reading a file is expensive and happens
+once; building an item is cheap and happens constantly. ExyliaCommons did both
+together on every render.
+
+## Entry points
+
+| Call | What it does |
+| --- | --- |
+| `Items.of(plugin)` | the reader belonging to a plugin |
+| `Items.parse(section)` | read an item with no owner |
+| `Items.parse(section, problems)` | the same, reporting bad parts |
+| `Items.banner(base64)` | decode a saved banner design |
+| `Items.encode(banner)` | encode one |
+
+On a `PluginItems`:
+
+| Call | What it does |
+| --- | --- |
+| `parse(section)` | read a definition, reporting problems to the console |
+| `parse(section, problems)` | read one, reporting problems where you want them |
+| `render(item, viewer)` | build the `ItemStack` |
+| `render(item, viewer, problems)` | the same, reporting where you want |
+| `build(section, viewer)` | read and build in one call |
+| `plugin()` | the plugin these belong to |
+
+`viewer` may be `null`, which means nobody in particular: placeholders are left
+visible rather than lost.
+
+### Why it is per plugin
+
+Values written with `nbt` are stored under the owning plugin's namespace, so two
+plugins can both write `id` onto an item without colliding. ExyliaCommons held
+one static plugin reference for this, which in a shared library would file every
+value under ExyliaLib's own name.
+
+`Items.parse` without a plugin is fine for definitions that carry no stored
+values, which is nearly all of them. One that does keeps them in the definition
+and drops them when rendered, because there is no namespace to file them under.
+
+## What a file can say
+
+Everything ExyliaCommons accepted, spelled the same way. Where two spellings
+exist, either works.
+
+### The object
+
+`material` decides what the item is, and carries more than a material name:
+
+| Written as | Means |
+| --- | --- |
+| `DIAMOND_SWORD` | a material |
+| `%kit_icon%` | a material the viewer decides |
+| `basehead-<base64>`, `headbase-<base64>` | a head, by texture |
+| `urlhead-<url>`, `headurl-<url>` | a head, by skin URL |
+| `playerhead-Notch` | a head, by player name |
+| `playerhead-%player_name%` | a head, whose owner depends on the row |
+| `bytes:<base64>` | a serialised item |
+
+Both `-` and `:` separate a prefix from its payload, and the prefix is matched
+case-insensitively. Heads go through [`Skulls`](skulls.md): a texture or a URL
+never touches the network, and a player head that has not been fetched comes
+back plain rather than blocking.
+
+### Text
+
+| Key | Meaning |
+| --- | --- |
+| `name` | the name painted on the item |
+| `display-name` | the name in plain form, for messages and logs |
+| `lore` | the tooltip lines; `<nl>` splits one entry into several |
+| `amount` | the stack size, as a number or a placeholder |
+
+`name` and `display-name` are **separate**, not a fallback pair. `name` is what
+is painted on the item — bold, gradient-filled, with a counter in it — and
+`display-name` is what a plugin quotes back to a player. `Item.label()` returns
+the second, falling back to the first.
+
+Everything goes through [`Text`](text.md), so palette tokens, MiniMessage and
+legacy codes all work, and italics are off unless asked for.
+
+### Appearance
+
+| Key | Meaning |
+| --- | --- |
+| `glow`, `glowing` | the enchantment shimmer, with no line in the tooltip |
+| `hide-tooltip`, `hide_tooltip` | hides the tooltip entirely |
+| `hide-attributes`, `hide_attributes` | hides the damage and speed lines |
+| `unbreakable` | marks it unbreakable |
+| `custom-model-data`, `custom_model_data` | the model number |
+| `max_stack_size`, `max-stack-size` | the stack limit |
+| `flags`, `item-flags` | `ItemFlag` names to hide |
+| `item_model`, `item-model` | an item model key, `namespace:key` |
+| `tooltip_style`, `tooltip-style` | a tooltip style key |
+| `enchantments` | a section of `NAME: level`, or a list of `NAME:level` |
+
+### Traits
+
+Only some materials have these, and fewer than twenty configured items across
+the ecosystem use any of them. They are kept in a separate `Traits` record so
+the other few thousand items carry one shared reference instead of six null
+fields each.
+
+```yaml
+potion:
+  base_type: HEALING
+  upgraded: true            # STRONG_HEALING
+  color: "#ff4d4d"
+  custom_effects:
+    - type: SPEED
+      amplifier: "%level%"  # resolved per viewer
+      duration: 600
+
+armor_trim:
+  pattern: "%helmet_trim_pattern%"
+  material: "%helmet_trim_material%"
+
+banner_patterns:
+  base_color: WHITE
+  patterns:
+    - pattern: STRIPE_BOTTOM
+      color: LIGHT_GRAY
+
+banner_design: "<base64>"   # the same thing, as an editor saves it
+
+force-consumable: true
+consumable-time: 1.0
+consumable-nutrition: 6
+consumable-saturation: 14.4
+consumable-sound: ITEM_HONEY_BOTTLE_DRINK
+
+attributes:
+  - "attack_damage|8"
+  - "movement_speed|0.05"
+
+nbt:
+  kind: special
+  uses: 3
+```
+
+A trait that does not fit its material does nothing. Setting a potion on a sword
+is a leftover key in a config file, not a reason to fail while drawing a menu.
+
+## Problems are reported, not swallowed
+
+An item is many independent pieces, and one bad enchantment should not cost the
+other twenty. A part that cannot be read is skipped and named:
+
+```java
+Item icon = items.parse(section, (where, problem) ->
+        getLogger().warning(where + ": " + problem));
+```
+
+`PluginItems.parse` reports to the console by default. `Items.parse` without a
+handler ignores them.
+
+Commons agreed with the first half and skipped the second: a mistyped
+enchantment simply did not appear, so a broken item looked exactly like a
+working one until somebody counted the levels.
+
+## What it costs
+
+An item that cannot look different for different players is rendered once and
+copied thereafter, which is what makes a menu full of decorations free to
+redraw. Anything with a placeholder, a head template or a placeholder-driven
+trim is built per viewer, because it has to be.
+
+Items carrying `nbt` are never cached: those values go under the owning plugin's
+namespace, so two plugins sharing a definition are two different items.
+
+The cache is bounded and expiring, and dropped whenever the palette changes —
+its entries hold text already parsed, so what they say stays right and what
+colour they say it in does not. See [reloading](reload.md).
+
+Nothing here touches the network, and nothing blocks. Rendering must happen on
+the thread that owns the viewer, like anything else that builds an inventory;
+parsing is pure and safe anywhere.
+
+## Four bugs that are fixed rather than reproduced
+
+Migrating a plugin to this module changes four behaviours. All four are cases
+where the file said one thing and the server did another.
+
+**`flags` was parsed nowhere.** Fifteen files in ExyliaSpecialsV3 have asked to
+hide their enchantment lines for years and been showing them.
+
+**`hide-attributes` could not be turned off.** Commons wrote
+`getBoolean(a, true) || getBoolean(b, true)`, whose value is `true` whatever the
+file says.
+
+**`upgraded` was dropped.** `PotionConfig` stored it and `PotionProcessor` never
+read it, so a refill kit configured for Instant Health II handed out Instant
+Health I. `HEALING` with `upgraded: true` is now `STRONG_HEALING`.
+
+**`display-name` was treated as a fallback for `name`.** A plugin quoting an
+item back to a player quoted its bold, gradient-filled tooltip name.
+
+## Where the code is
+
+| | |
+| --- | --- |
+| Public API | `item/Items`, `PluginItems`, `Item`, `Source`, `Appearance`, `Traits`, `Potion`, `Trim`, `Banner`, `Consumable`, `Modifier`, `Problems` |
+| Internal | `item/internal/ItemReader`, `ItemRenderer`, `TraitApplier`, `Registries`, `BannerCodec`, `ItemCache` |
+| Tests | `src/test/java/net/exylia/lib/item/` |
+
+`RealItemsTest` loads the seventy-seven item files ExyliaSpecialsV3 and
+ExyliaShields ship, unedited. A parser that handles the examples somebody
+thought to write down is not the same as one that handles what is deployed.

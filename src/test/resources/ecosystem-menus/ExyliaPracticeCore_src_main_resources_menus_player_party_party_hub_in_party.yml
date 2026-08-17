@@ -1,0 +1,109 @@
+title: "{primary}&lPARTY&r {muted}— %party_size%/%party_max% members"
+size: 27
+type: SIMPLE
+refresh:
+  mode: SMART
+  interval: 20
+open_sounds:
+  - "ENTITY_EXPERIENCE_ORB_PICKUP|1.0|1.2"
+click_sounds:
+  - "UI_BUTTON_CLICK|1.0|1.5"
+
+items:
+  members:
+    slot: 10
+    material: "playerhead-%leader_name%"
+    name: "{highlight}&lParty Members"
+    lore:
+      - ""
+      - " {muted}❙ {letters}Leader: {highlight}%leader_name%"
+      - " {muted}❙ {letters}Size: {highlight}%party_size%{muted}/%party_max%"
+      - ""
+      - "{info}» Click to view members"
+    actions:
+      - "practice:open_party_members"
+
+  toggle-open:
+    slot: 12
+    material: "%open_material%"
+    name: "%open_name%"
+    lore:
+      - ""
+      - " {muted}❙ {letters}Status: %open_status%"
+      - ""
+      - "{info}» Click to toggle"
+    actions:
+      - "practice:party_toggle_open"
+
+  announce:
+    slot: 13
+    material: BELL
+    name: "{warning}&lAnnounce Party"
+    lore:
+      - ""
+      - " {muted}❙ {letters}Broadcast a message"
+      - " {muted}❙ {letters}so others can join"
+      - ""
+      - "{info}» Click to announce"
+    actions:
+      - "practice:party_announce"
+
+  chat:
+    slot: 14
+    material: "%chat_material%"
+    name: "%chat_name%"
+    lore:
+      - ""
+      - " {muted}❙ {letters}Status: %chat_status%"
+      - ""
+      - "{info}» Click to toggle"
+    actions:
+      - "practice:party_toggle_chat"
+
+  games:
+    slot: 15
+    material: NETHERITE_SWORD
+    name: "{success}&lParty Games"
+    lore:
+      - ""
+      - " {muted}❙ {letters}FFA, Split, Duel"
+      - ""
+      - "{success}» Click to choose a game mode"
+    actions:
+      - "practice:open_party_game_menu"
+
+  size:
+    slot: 16
+    material: COMPARATOR
+    name: "{highlight}&lParty Size"
+    lore:
+      - ""
+      - " {muted}❙ {letters}Current: {highlight}%party_size%{muted}/%party_max%"
+      - ""
+      - " {success}» Left-click  {highlight}+1"
+      - " {error}» Right-click  {highlight}-1"
+    actions:
+      - "left: practice:party_adjust_size 1"
+      - "right: practice:party_adjust_size -1"
+
+  duel-queue:
+    slot: 22
+    material: "%duel_queue_material%"
+    name: "%duel_queue_name%"
+    lore:
+      - ""
+      - " {muted}❙ {letters}%duel_queue_desc%"
+      - ""
+      - "{error}» Click to leave queue"
+    actions:
+      - "practice:party_leave_duel_queue"
+
+  leave:
+    slot: 26
+    material: "%leave_material%"
+    name: "%leave_name%"
+    lore:
+      - ""
+      - "{muted}» Click to confirm"
+    actions:
+      - "%leave_action%"

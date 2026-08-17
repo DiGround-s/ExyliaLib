@@ -1,0 +1,64 @@
+title: "{primary}&lSTATS {muted}| {highlight}%player_name%"
+size: 54
+type: PAGINATION
+animation: "center_out"
+
+open_sounds:
+  - "ENTITY_EXPERIENCE_ORB_PICKUP|1.0|1.2"
+
+click_sounds:
+  - "UI_BUTTON_CLICK|1.0|1.5"
+
+filler:
+  global:
+    material: GRAY_STAINED_GLASS_PANE
+    hide_tooltip: true
+  pagination:
+    material: LIGHT_GRAY_STAINED_GLASS_PANE
+    hide_tooltip: true
+
+pagination:
+  slots: '10-16,19-25,28-34'
+
+  item_template:
+    material: "%stat_icon%"
+    name: "%stat_display_name%"
+    lore:
+      - ""
+      - " {muted}❙ {letters}Value: {highlight}%stat_value%"
+      - " {muted}❙ {letters}Rank: {highlight}%stat_rank%"
+      - ""
+      - " {success}● {info}Left-click to view leaderboard"
+    actions:
+      - "left: survivalcore:stats_leaderboard %stat_id%"
+
+  navigation:
+    previous:
+      slot: 45
+      material: ARROW
+      name: "{error}&l← PREVIOUS PAGE"
+      actions:
+        - "previous_page"
+    next:
+      slot: 53
+      material: ARROW
+      name: "{success}&lNEXT PAGE →"
+      actions:
+        - "next_page"
+
+items:
+  header:
+    slot: 4
+    material: 'playerhead-%player_name%'
+    name: "{primary}&l%player_name%{primary}'s Stats"
+    lore:
+      - ""
+      - " {muted}View player statistics and rankings."
+      - ""
+
+  close:
+    slot: 49
+    material: BARRIER
+    name: "{error}&lCLOSE"
+    actions:
+      - "survivalcore:close_menu"

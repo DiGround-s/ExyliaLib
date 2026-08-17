@@ -1,0 +1,82 @@
+title: "{primary}&lPLAYERS {muted}· {highlight}%world_display_name% {muted}%current_page%/%total_pages%"
+size: 45
+type: PAGINATION
+refresh:
+  mode: SMART
+  interval: 40
+  click_delay: 1
+
+open_sounds:
+  - "ENTITY_EXPERIENCE_ORB_PICKUP|1.0|1.2"
+click_sounds:
+  - "UI_BUTTON_CLICK|1.0|1.5"
+
+filler:
+  global:
+    material: GRAY_STAINED_GLASS_PANE
+    hide_tooltip: true
+
+  pagination:
+    material: LIGHT_GRAY_STAINED_GLASS_PANE
+    name: "{muted}No players in this world"
+    lore:
+      - ""
+      - "{muted}The world is empty"
+    hide_tooltip: false
+
+pagination:
+  slots: '10-16,19-25,28-34'
+
+  item_template:
+    material: PLAYER_HEAD
+    name: "{highlight}&l%player_name%"
+    lore:
+      - ""
+      - " {muted}❙ {letters}Gamemode: {info}%player_gamemode%"
+      - " {muted}❙ {letters}Health: {info}%player_health%{muted}/{info}%player_max_health%"
+      - " {muted}❙ {letters}Level: {info}%player_level%"
+      - " {muted}❙ {letters}Position: {info}%player_x%{muted}, {info}%player_y%{muted}, {info}%player_z%"
+      - ""
+      - "{info}» Click to teleport"
+    actions:
+      - "sandbox:admin_tp_to_player %player_name%"
+
+  navigation:
+    previous:
+      slot: 36
+      material: ARROW
+      name: '{error}&l← PREVIOUS'
+      lore:
+        - '{info}Page: {success}%current_page%&8/{error}%total_pages%'
+      actions:
+        - 'previous_page'
+    next:
+      slot: 44
+      material: ARROW
+      name: '{success}&lNEXT →'
+      lore:
+        - '{info}Page: {success}%current_page%&8/{error}%total_pages%'
+      actions:
+        - 'next_page'
+
+items:
+  info:
+    slot: 4
+    material: PLAYER_HEAD
+    name: "{highlight}&lWORLD PLAYERS"
+    lore:
+      - ""
+      - " {muted}❙ {letters}World: {info}%world_display_name%"
+      - " {muted}❙ {letters}Online: {info}%world_player_count% players"
+      - ""
+      - "{muted}Click a player to teleport"
+    hide_tooltip: false
+
+  back:
+    slot: 40
+    material: ARROW
+    name: "{error}&lBack"
+    lore:
+      - "{muted}Return to world config"
+    actions:
+      - "sandbox:open_world_config_from_settings"

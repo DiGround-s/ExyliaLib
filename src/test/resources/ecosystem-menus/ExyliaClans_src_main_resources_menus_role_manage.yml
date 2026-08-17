@@ -1,0 +1,367 @@
+title: "{primary}&lMANAGE ROLE {muted}· {highlight}%role_name%"
+size: 54
+type: SIMPLE
+animation: "center_out"
+
+open_sounds:
+  - "ENTITY_EXPERIENCE_ORB_PICKUP|1.0|1.2"
+click_sounds:
+  - "UI_BUTTON_CLICK|1.0|1.5"
+
+filler:
+  global:
+    material: GRAY_STAINED_GLASS_PANE
+    hide_tooltip: true
+
+items:
+  info:
+    slot: 4
+    material: BOOK
+    name: "{highlight}&l%role_name%"
+    lore:
+      - ""
+      - " {muted}❙ {letters}Weight: {highlight}%role_weight%"
+      - " {muted}❙ {letters}Members: {highlight}%role_members%"
+      - " {muted}❙ {letters}Default: %role_default%"
+      - ""
+
+  perm_invite:
+    slot: 9
+    material: "%perm_invite_mat%"
+    name: "{primary}&lINVITE MEMBER"
+    lore:
+      - ""
+      - " {muted}❙ {letters}Status: %perm_invite_status%"
+      - ""
+      - "%edit_action_lore%"
+    actions:
+      - "exyliaclans:toggle_role_perm %role_id% INVITE"
+
+  perm_kick:
+    slot: 10
+    material: "%perm_kick_mat%"
+    name: "{primary}&lKICK MEMBER"
+    lore:
+      - ""
+      - " {muted}❙ {letters}Status: %perm_kick_status%"
+      - ""
+      - "%edit_action_lore%"
+    actions:
+      - "exyliaclans:toggle_role_perm %role_id% KICK"
+
+  perm_ban:
+    slot: 11
+    material: "%perm_ban_mat%"
+    name: "{primary}&lBAN MEMBER"
+    lore:
+      - ""
+      - " {muted}❙ {letters}Status: %perm_ban_status%"
+      - ""
+      - "%edit_action_lore%"
+    actions:
+      - "exyliaclans:toggle_role_perm %role_id% BAN"
+
+  perm_promote:
+    slot: 12
+    material: "%perm_promote_mat%"
+    name: "{primary}&lPROMOTE MEMBER"
+    lore:
+      - ""
+      - " {muted}❙ {letters}Status: %perm_promote_status%"
+      - ""
+      - "%edit_action_lore%"
+    actions:
+      - "exyliaclans:toggle_role_perm %role_id% PROMOTE"
+
+  perm_demote:
+    slot: 13
+    material: "%perm_demote_mat%"
+    name: "{primary}&lDEMOTE MEMBER"
+    lore:
+      - ""
+      - " {muted}❙ {letters}Status: %perm_demote_status%"
+      - ""
+      - "%edit_action_lore%"
+    actions:
+      - "exyliaclans:toggle_role_perm %role_id% DEMOTE"
+
+  perm_manage_roles:
+    slot: 16
+    material: "%perm_manage_roles_mat%"
+    name: "{primary}&lMANAGE ROLES"
+    lore:
+      - ""
+      - " {muted}❙ {letters}Status: %perm_manage_roles_status%"
+      - ""
+      - "%edit_action_lore%"
+    actions:
+      - "exyliaclans:toggle_role_perm %role_id% MANAGE_ROLES"
+
+  perm_send_alliance_request:
+    slot: 17
+    material: "%perm_send_alliance_request_mat%"
+    name: "{primary}&lSEND ALLIANCE REQUEST"
+    lore:
+      - ""
+      - " {muted}❙ {letters}Status: %perm_send_alliance_request_status%"
+      - ""
+      - "%edit_action_lore%"
+    actions:
+      - "exyliaclans:toggle_role_perm %role_id% SEND_ALLIANCE_REQUEST"
+
+  perm_accept_alliance:
+    slot: 18
+    material: "%perm_accept_alliance_mat%"
+    name: "{primary}&lACCEPT ALLIANCE"
+    lore:
+      - ""
+      - " {muted}❙ {letters}Status: %perm_accept_alliance_status%"
+      - " {muted}❙ {letters}Also covers declining requests."
+      - ""
+      - "%edit_action_lore%"
+    actions:
+      - "exyliaclans:toggle_role_perm %role_id% ACCEPT_ALLIANCE"
+
+  perm_remove_ally:
+    slot: 19
+    material: "%perm_remove_ally_mat%"
+    name: "{primary}&lREMOVE ALLY"
+    lore:
+      - ""
+      - " {muted}❙ {letters}Status: %perm_remove_ally_status%"
+      - ""
+      - "%edit_action_lore%"
+    actions:
+      - "exyliaclans:toggle_role_perm %role_id% REMOVE_ALLY"
+
+  perm_set_home:
+    slot: 20
+    material: "%perm_set_home_mat%"
+    name: "{primary}&lSET HOME"
+    lore:
+      - ""
+      - " {muted}❙ {letters}Status: %perm_set_home_status%"
+      - ""
+      - "%edit_action_lore%"
+    actions:
+      - "exyliaclans:toggle_role_perm %role_id% SET_HOME"
+
+  perm_deposit_bank:
+    slot: 21
+    material: "%perm_deposit_bank_mat%"
+    name: "{primary}&lDEPOSIT BANK"
+    lore:
+      - ""
+      - " {muted}❙ {letters}Status: %perm_deposit_bank_status%"
+      - ""
+      - "%edit_action_lore%"
+    actions:
+      - "exyliaclans:toggle_role_perm %role_id% DEPOSIT_BANK"
+
+  perm_withdraw_bank:
+    slot: 22
+    material: "%perm_withdraw_bank_mat%"
+    name: "{primary}&lWITHDRAW BANK"
+    lore:
+      - ""
+      - " {muted}❙ {letters}Status: %perm_withdraw_bank_status%"
+      - ""
+      - "%edit_action_lore%"
+    actions:
+      - "exyliaclans:toggle_role_perm %role_id% WITHDRAW_BANK"
+
+  perm_toggle_ff:
+    slot: 23
+    material: "%perm_toggle_friendly_fire_mat%"
+    name: "{primary}&lFRIENDLY FIRE"
+    lore:
+      - ""
+      - " {muted}❙ {letters}Status: %perm_toggle_friendly_fire_status%"
+      - ""
+      - "%edit_action_lore%"
+    actions:
+      - "exyliaclans:toggle_role_perm %role_id% TOGGLE_FRIENDLY_FIRE"
+
+  perm_toggle_open:
+    slot: 24
+    material: "%perm_toggle_open_mat%"
+    name: "{primary}&lTOGGLE OPEN"
+    lore:
+      - ""
+      - " {muted}❙ {letters}Status: %perm_toggle_open_status%"
+      - ""
+      - "%edit_action_lore%"
+    actions:
+      - "exyliaclans:toggle_role_perm %role_id% TOGGLE_OPEN"
+
+  perm_claim_land:
+    slot: 27
+    material: "%perm_claim_land_mat%"
+    name: "{primary}&lCLAIM LAND"
+    lore:
+      - ""
+      - " {muted}❙ {letters}Status: %perm_claim_land_status%"
+      - ""
+      - "%edit_action_lore%"
+    actions:
+      - "exyliaclans:toggle_role_perm %role_id% CLAIM_LAND"
+
+  perm_unclaim_land:
+    slot: 28
+    material: "%perm_unclaim_land_mat%"
+    name: "{primary}&lUNCLAIM LAND"
+    lore:
+      - ""
+      - " {muted}❙ {letters}Status: %perm_unclaim_land_status%"
+      - ""
+      - "%edit_action_lore%"
+    actions:
+      - "exyliaclans:toggle_role_perm %role_id% UNCLAIM_LAND"
+
+  perm_build:
+    slot: 29
+    material: "%perm_build_mat%"
+    name: "{primary}&lBUILD IN CLAIM"
+    lore:
+      - ""
+      - " {muted}❙ {letters}Status: %perm_build_status%"
+      - " {muted}❙ {letters}Break and place blocks"
+      - " {muted}❙ {letters}in clan territory."
+      - ""
+      - "%edit_action_lore%"
+    actions:
+      - "exyliaclans:toggle_role_perm %role_id% BUILD"
+
+  perm_open_doors:
+    slot: 30
+    material: "%perm_open_doors_mat%"
+    name: "{primary}&lOPEN DOORS"
+    lore:
+      - ""
+      - " {muted}❙ {letters}Status: %perm_open_doors_status%"
+      - " {muted}❙ {letters}Open doors, trapdoors,"
+      - " {muted}❙ {letters}fence gates and similar."
+      - ""
+      - "%edit_action_lore%"
+    actions:
+      - "exyliaclans:toggle_role_perm %role_id% OPEN_DOORS"
+
+  perm_open_containers:
+    slot: 31
+    material: "%perm_open_containers_mat%"
+    name: "{primary}&lOPEN CONTAINERS"
+    lore:
+      - ""
+      - " {muted}❙ {letters}Status: %perm_open_containers_status%"
+      - " {muted}❙ {letters}Open chests, barrels,"
+      - " {muted}❙ {letters}hoppers, dispensers, etc."
+      - ""
+      - "%edit_action_lore%"
+    actions:
+      - "exyliaclans:toggle_role_perm %role_id% OPEN_CONTAINERS"
+
+  perm_send_clan_mail:
+    slot: 32
+    material: "%perm_send_clan_mail_mat%"
+    name: "{highlight}&lSEND CLAN MAIL"
+    lore:
+      - ""
+      - " {muted}❙ {letters}Status: %perm_send_clan_mail_status%"
+      - " {muted}❙ {letters}Send mail messages to"
+      - " {muted}❙ {letters}the entire clan, and pin them."
+      - ""
+      - "%edit_action_lore%"
+    actions:
+      - "exyliaclans:toggle_role_perm %role_id% SEND_CLAN_MAIL"
+
+  perm_manage_lfp:
+    slot: 33
+    material: "%perm_manage_lfp_mat%"
+    name: "{highlight}&lMANAGE LFP"
+    lore:
+      - ""
+      - " {muted}❙ {letters}Status: %perm_manage_lfp_status%"
+      - " {muted}❙ {letters}Manage the clan's looking-"
+      - " {muted}❙ {letters}for-players posting."
+      - ""
+      - "%edit_action_lore%"
+    actions:
+      - "exyliaclans:toggle_role_perm %role_id% MANAGE_LFP"
+
+  perm_view_logs:
+    slot: 34
+    material: "%perm_view_logs_mat%"
+    name: "{highlight}&lVIEW LOGS"
+    lore:
+      - ""
+      - " {muted}❙ {letters}Status: %perm_view_logs_status%"
+      - " {muted}❙ {letters}View the clan's activity log."
+      - ""
+      - "%edit_action_lore%"
+    actions:
+      - "exyliaclans:toggle_role_perm %role_id% VIEW_LOGS"
+
+  set_weight:
+    slot: 36
+    material: COMPARATOR
+    name: "{warning}&lSET WEIGHT"
+    lore:
+      - ""
+      - " {muted}❙ {letters}Current: {highlight}%role_weight%"
+      - " {muted}❙ {letters}Higher weight = more senior."
+      - " {muted}❙ {letters}Must be unique and below"
+      - " {muted}❙ {letters}your own weight."
+      - ""
+      - "%edit_action_lore%"
+    actions:
+      - "exyliaclans:set_weight_input %role_id%"
+
+  rename:
+    slot: 37
+    material: NAME_TAG
+    name: "{warning}&lRENAME ROLE"
+    lore:
+      - ""
+      - " {muted}❙ {letters}Change the name of this role."
+      - ""
+      - "%edit_action_lore%"
+    actions:
+      - "exyliaclans:rename_role_input %role_id%"
+
+  set_default:
+    slot: 40
+    material: "%role_default_mat%"
+    name: "{highlight}&lSET AS DEFAULT"
+    lore:
+      - ""
+      - " {muted}❙ {letters}New members will receive"
+      - " {muted}❙ {letters}this role automatically."
+      - ""
+      - " {muted}❙ {letters}Default: %role_default%"
+      - ""
+      - "%edit_action_lore%"
+    actions:
+      - "exyliaclans:set_role_default %role_id%"
+
+  delete:
+    slot: 43
+    material: 'basehead-eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvYmUwZmQxMDE5OWU4ZTRmY2RhYmNhZTRmODVjODU5MTgxMjdhN2M1NTUzYWQyMzVmMDFjNTZkMThiYjk0NzBkMyJ9fX0='
+    name: "{error}&lDELETE ROLE"
+    lore:
+      - ""
+      - " {muted}❙ {letters}Permanently delete this role."
+      - " {muted}❙ {letters}Members will be moved to"
+      - " {muted}❙ {letters}the default role."
+      - ""
+      - "%edit_action_lore%"
+    actions:
+      - "exyliaclans:delete_role %role_id%"
+
+  back:
+    slot: 49
+    material: 'basehead-eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvMjIzZmI2NzQyOTcxNmIyMWJjNmU4ZTdkNjY5Y2VkZGY2NWIxM2UwNzkwYTVjZTU1YjJlMDc3YjgyZDE5ZTEyNCJ9fX0='
+    name: '{error}&lBACK'
+    lore:
+      - '{muted}Click to go back'
+    actions:
+      - "exyliaclans:open_roles"

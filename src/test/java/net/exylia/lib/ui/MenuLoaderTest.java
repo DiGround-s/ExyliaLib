@@ -4,6 +4,7 @@ import net.exylia.lib.FakeServer;
 import net.exylia.lib.action.ActionResult;
 import net.exylia.lib.action.Actions;
 import net.exylia.lib.action.PluginActions;
+import net.exylia.lib.item.Source;
 import net.exylia.lib.ui.internal.MenuLoader;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.plugin.Plugin;
@@ -17,6 +18,7 @@ import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -88,8 +90,8 @@ class MenuLoaderTest {
         assertEquals(UiDefinition.UiKind.CHEST, menu.kind());
         UiItem item = menu.items().get(10);
         assertNotNull(item);
-        assertEquals("HONEYCOMB", item.material());
-        assertEquals(2, item.lore().size());
+        assertEquals("HONEYCOMB", assertInstanceOf(Source.OfMaterial.class, item.item().source()).raw());
+        assertEquals(2, item.item().lore().size());
         assertFalse(item.bindings().isEmpty());
     }
 
@@ -191,13 +193,15 @@ class MenuLoaderTest {
                       - "practice:open_queue_categories"
                 """);
 
-        UiDefinition.Pagination pagination = menu.pagination();
-        assertNotNull(pagination);
-        assertEquals(21, pagination.perPage());
-        assertEquals(10, pagination.slots().get(0));
-        assertEquals(34, pagination.slots().get(20));
-        assertEquals(45, pagination.previous().slot());
-        assertEquals(53, pagination.next().slot());
+        // A pagination block is one section, and its name is not interesting.
+        UiSection list = menu.section();
+        assertNotNull(list);
+        assertEquals(UiSection.MAIN, list.id());
+        assertEquals(21, list.perPage());
+        assertEquals(10, list.slots().get(0));
+        assertEquals(34, list.slots().get(20));
+        assertEquals(45, list.previous().slot());
+        assertEquals(53, list.next().slot());
         assertTrue(menu.isPaginated());
     }
 
@@ -299,33 +303,33 @@ class MenuLoaderTest {
     @Test
     @DisplayName("heads load from a texture, a URL, a name, or a name decided per row")
     void heads() {
+        // The prefix lives inside material, which is how all four hundred of
+        // these are written across the ecosystem. The earlier parser looked for
+        // texture:, head-url: and head: keys, which nobody has ever written.
         UiDefinition menu = load("""
                 title: "Heads"
                 size: 27
                 items:
                   by_texture:
                     slot: 0
-                    material: PLAYER_HEAD
-                    texture: "abc123"
+                    material: "basehead-abc123"
                   by_url:
                     slot: 1
-                    material: PLAYER_HEAD
-                    head-url: "https://textures.minecraft.net/texture/deadbeef"
+                    material: "urlhead-https://textures.minecraft.net/texture/deadbeef"
                   by_name:
                     slot: 2
-                    material: PLAYER_HEAD
-                    head: "Notch"
+                    material: "playerhead-Notch"
                   by_row:
                     slot: 3
-                    material: PLAYER_HEAD
-                    head: "%member_name%"
+                    material: "playerhead-%member_name%"
                 """);
 
-        assertNotNull(menu.items().get(0).head());
-        assertNotNull(menu.items().get(1).head());
-        assertNotNull(menu.items().get(2).head());
-        assertNull(menu.items().get(3).head(), "whose head it is depends on the row");
-        assertEquals("%member_name%", menu.items().get(3).headTemplate());
+        assertInstanceOf(Source.OfHead.class, menu.items().get(0).item().source());
+        assertInstanceOf(Source.OfHead.class, menu.items().get(1).item().source());
+        assertInstanceOf(Source.OfHead.class, menu.items().get(2).item().source());
+        assertInstanceOf(Source.OfHeadTemplate.class, menu.items().get(3).item().source(),
+                "whose head it is depends on the row");
+        assertTrue(menu.items().get(3).isDynamic());
     }
 
     @Test
@@ -344,8 +348,8 @@ class MenuLoaderTest {
                     glowing: true
                 """);
 
-        assertFalse(menu.items().get(0).glow());
-        assertTrue(menu.items().get(1).glow());
+        assertFalse(menu.items().get(0).item().appearance().glow());
+        assertTrue(menu.items().get(1).item().appearance().glow());
     }
 
     @Test
@@ -392,31 +396,40 @@ class MenuLoaderTest {
     }
 
     @Test
-    @DisplayName("an animation is a name, or a name with settings")
+    @DisplayName("an animation is a name, or a name with a speed")
     void animations() {
+        // Every one of the 89 animated menus in the wild writes the short form.
         UiDefinition shortForm = load("""
                 title: "Menu"
                 size: 27
-                animation: pulse
+                animation: center_out
                 """);
-        assertEquals("pulse", shortForm.openAnimation().type());
-        assertTrue(shortForm.openAnimation().loop());
+        assertEquals("center_out", shortForm.openAnimation().type());
+        assertEquals(2, shortForm.openAnimation().speed(), "a sensible default pace");
 
         UiDefinition longForm = load("""
                 title: "Menu"
                 size: 27
                 animation:
-                  type: wave
+                  type: rows_alternate
                   speed: 3
-                  direction: left-to-right
-                  loop: false
-                  stagger: 1
                 """);
-        assertEquals("wave", longForm.openAnimation().type());
+        assertEquals("rows_alternate", longForm.openAnimation().type());
         assertEquals(3, longForm.openAnimation().speed());
-        assertEquals("left-to-right", longForm.openAnimation().direction());
-        assertFalse(longForm.openAnimation().loop());
-        assertEquals(1, longForm.openAnimation().stagger());
+    }
+
+    @Test
+    @DisplayName("a speed of zero would be a frame every tick, not a stalled menu")
+    void animationSpeedIsAtLeastOne() {
+        UiDefinition menu = load("""
+                title: "Menu"
+                size: 27
+                animation:
+                  type: center_out
+                  speed: 0
+                """);
+
+        assertEquals(1, menu.openAnimation().speed());
     }
 
     @Test
@@ -467,5 +480,438 @@ class MenuLoaderTest {
 
         assertEquals(1, menu.items().get(0).bindings().forClick(ClickKind.LEFT).size());
         assertTrue(menu.items().get(0).bindings().forClick(ClickKind.LEFT).get(0).isDynamic());
+    }
+
+    @Test
+    @DisplayName("the sound spelling every deployed menu uses is read")
+    void soundsAtTheRoot() {
+        // 996 files write open_sounds and none write a sounds block. Reading
+        // only the latter made every menu in the ecosystem silent.
+        UiDefinition menu = load("""
+                title: "Kits"
+                size: 27
+                open_sounds:
+                  - "ENTITY_EXPERIENCE_ORB_PICKUP|1.0|1.2"
+                click_sounds:
+                  - "UI_BUTTON_CLICK|1.0|1.5"
+                """);
+
+        assertEquals("ENTITY_EXPERIENCE_ORB_PICKUP|1.0|1.2", menu.sounds().open());
+        assertEquals("UI_BUTTON_CLICK|1.0|1.5", menu.sounds().click());
+        assertEquals(UiSounds.DEFAULTS.close(), menu.sounds().close(),
+                "what the file does not mention keeps the default");
+    }
+
+    @Test
+    @DisplayName("an empty sound list is silence, not a missing key")
+    void silence() {
+        UiDefinition menu = load("""
+                title: "Quiet"
+                size: 27
+                open_sounds: []
+                """);
+
+        assertNull(menu.sounds().open());
+    }
+
+    @Test
+    @DisplayName("the tidier spelling wins where a file uses both")
+    void soundsBlockWins() {
+        UiDefinition menu = load("""
+                title: "Kits"
+                size: 27
+                open_sounds:
+                  - "ENTITY_EXPERIENCE_ORB_PICKUP|1.0|1.2"
+                sounds:
+                  open: "BLOCK_BARREL_OPEN|1|1"
+                """);
+
+        assertEquals("BLOCK_BARREL_OPEN|1|1", menu.sounds().open());
+    }
+
+    @Test
+    @DisplayName("every type value the ecosystem writes lands on a chest")
+    void everyRealTypeValue() {
+        // The old type described the container and whether it paginated at the
+        // same time. All five values in the wild mean a chest; what paginates
+        // is decided by whether the file has a list.
+        for (String type : new String[] {
+                "SIMPLE", "PAGINATION", "MULTI_PAGINATION", "ITEM_INPUT", "STATIC"}) {
+            UiDefinition menu = load("""
+                    title: "Menu"
+                    size: 27
+                    type: %s
+                    """.formatted(type));
+            assertEquals(UiDefinition.UiKind.CHEST, menu.kind(), type + " should be a chest");
+            assertEquals(27, menu.size(), type + " should keep its configured size");
+        }
+    }
+
+    @Test
+    @DisplayName("a real container keeps the size the server says it has")
+    void realContainerTypes() {
+        // Asked of Bukkit rather than written down. Writing them out by hand
+        // got three wrong, and each would be an inventory of the wrong size,
+        // which throws on open rather than looking slightly odd.
+        assertEquals(5, sizeOf("HOPPER"), "hopper");
+        assertEquals(9, sizeOf("DROPPER"), "dropper");
+        assertEquals(3, sizeOf("ANVIL"), "anvil");
+        assertEquals(4, sizeOf("SMITHING"), "a smithing table has four slots, not three");
+        assertEquals(10, sizeOf("CRAFTING"), "a crafting window has ten, not nine");
+        assertEquals(27, sizeOf("BARREL"), "a barrel is a fixed 27, whatever the file says");
+        assertEquals(1, sizeOf("BEACON"), "beacon");
+        assertEquals(2, sizeOf("ENCHANTING"), "enchanting");
+
+        assertEquals(UiDefinition.UiKind.ANVIL, load("""
+                title: "Anvil"
+                type: ANVIL
+                """).kind());
+    }
+
+    @Test
+    @DisplayName("only a chest is resizable")
+    void onlyChestsResize() {
+        assertTrue(UiDefinition.UiKind.CHEST.isSizeConfigurable());
+        assertFalse(UiDefinition.UiKind.BARREL.isSizeConfigurable(),
+                "a barrel looks like a chest and is not");
+        assertEquals(9, load("""
+                title: "Small"
+                size: 9
+                """).size());
+    }
+
+    /** The real slot count of a container kind, as the file would ask for it. */
+    private int sizeOf(String type) {
+        return load("""
+                title: "Menu"
+                size: 54
+                type: %s
+                """.formatted(type)).size();
+    }
+
+    @Test
+    @DisplayName("the three filler roles are kept apart")
+    void fillerRoles() {
+        // 826 menus write global, 499 write pagination, 6 write custom. The
+        // pagination one is not another background: it is what a player sees
+        // when a list is empty, and it usually says so.
+        UiDefinition menu = load("""
+                title: "Kits"
+                size: 54
+                filler:
+                  global:
+                    material: GRAY_STAINED_GLASS_PANE
+                    hide_tooltip: true
+                  pagination:
+                    material: LIGHT_GRAY_STAINED_GLASS_PANE
+                    name: "{muted}No kits available"
+                  custom:
+                    header:
+                      material: BLACK_STAINED_GLASS_PANE
+                      slots: "0-8"
+                pagination:
+                  slots: '10-16'
+                  item_template:
+                    material: STONE
+                """);
+
+        UiFillers fillers = menu.fillers();
+        assertNotNull(fillers.global());
+        assertNotNull(fillers.pagination());
+        assertEquals("{muted}No kits available", fillers.pagination().item().name(),
+                "the empty-list filler says why the list is empty");
+        assertEquals(1, fillers.custom().size());
+        assertEquals("header", fillers.custom().getFirst().id());
+        assertEquals(9, fillers.custom().getFirst().slots().size());
+    }
+
+    @Test
+    @DisplayName("a custom panel with nowhere to go is dropped rather than kept")
+    void customPanelWithoutSlots() {
+        UiDefinition menu = load("""
+                title: "Kits"
+                size: 27
+                filler:
+                  custom:
+                    nowhere:
+                      material: STONE
+                """);
+
+        assertTrue(menu.fillers().custom().isEmpty());
+    }
+
+    @Test
+    @DisplayName("a menu with no filler block fills nothing")
+    void noFillers() {
+        UiDefinition menu = load("""
+                title: "Bare"
+                size: 27
+                """);
+
+        assertTrue(menu.fillers().isEmpty());
+    }
+
+    @Test
+    @DisplayName("the refresh block 161 deployed menus declare is read")
+    void refreshBlock() {
+        UiDefinition menu = load("""
+                title: "Arrows"
+                size: 54
+                refresh:
+                  mode: ON_CLICK
+                  click_delay: 4
+                """);
+
+        assertEquals(UiRefresh.Mode.ON_CLICK, menu.refresh().mode());
+        assertEquals(4, menu.refresh().clickDelay());
+        assertTrue(menu.refresh().isOnClick());
+        assertFalse(menu.refresh().isTimed());
+    }
+
+    @Test
+    @DisplayName("a smart refresh both ticks and answers clicks")
+    void smartRefresh() {
+        UiDefinition menu = load("""
+                title: "Queue"
+                size: 54
+                refresh:
+                  mode: SMART
+                  interval: 20
+                """);
+
+        assertTrue(menu.refresh().isTimed());
+        assertTrue(menu.refresh().isOnClick(), "SMART redraws the clicked slot too");
+        assertEquals(20, menu.refresh().interval());
+    }
+
+    @Test
+    @DisplayName("a menu that says nothing about refreshing does not")
+    void noRefreshBlock() {
+        UiDefinition menu = load("""
+                title: "Static"
+                size: 27
+                """);
+
+        assertEquals(UiRefresh.Mode.DISABLED, menu.refresh().mode());
+        assertFalse(menu.refresh().isTimed());
+        assertFalse(menu.refresh().isOnClick());
+    }
+
+    @Test
+    @DisplayName("a mode nobody implemented does nothing rather than guessing")
+    void unknownRefreshMode() {
+        UiDefinition menu = load("""
+                title: "Odd"
+                size: 27
+                refresh:
+                  mode: WHENEVER
+                """);
+
+        assertEquals(UiRefresh.Mode.DISABLED, menu.refresh().mode());
+    }
+
+    @Test
+    @DisplayName("several lists on one screen each keep their own slots and arrows")
+    void sections() {
+        // ExyliaPracticeCore, menus/player/leaderboard.yml: the players in the
+        // middle and the stat to sort by along the bottom, paging separately.
+        UiDefinition menu = load("""
+                title: "Leaderboard"
+                size: 54
+                sections:
+                  players:
+                    slots: "1-7,10-16"
+                    player_template:
+                      material: "playerhead-%player_name%"
+                      name: "{highlight}#%player_rank_position%"
+                    navigation:
+                      previous: { slot: 37, material: ARROW }
+                      next: { slot: 43, material: ARROW }
+                  stat_types:
+                    slots: "46-52"
+                    not_selected_template:
+                      material: "%stat_material%"
+                      name: "{muted}%stat_name%"
+                    selected_template:
+                      material: "%stat_material%"
+                      name: "{success}%stat_name%"
+                      glowing: true
+                    navigation:
+                      previous: { slot: 45, material: ARROW }
+                      next: { slot: 53, material: ARROW }
+                """);
+
+        assertEquals(2, menu.sections().size());
+        assertNull(menu.section(), "with two lists there is no single one");
+
+        UiSection players = menu.section("players");
+        assertNotNull(players);
+        assertEquals(14, players.perPage());
+        assertEquals(37, players.previous().slot());
+
+        UiSection types = menu.section("stat_types");
+        assertNotNull(types);
+        assertEquals(7, types.perPage());
+        assertEquals(45, types.previous().slot());
+    }
+
+    @Test
+    @DisplayName("a row can be drawn several ways, named by the file")
+    void namedTemplates() {
+        UiDefinition menu = load("""
+                title: "Effects"
+                size: 54
+                sections:
+                  effects:
+                    slots: "19-25"
+                    no_permissions_template:
+                      material: BARRIER
+                    not_selected_template:
+                      material: "%effect_icon%"
+                    selected_template:
+                      material: "%effect_icon%"
+                      glowing: true
+                """);
+
+        UiSection effects = menu.section("effects");
+        assertNotNull(effects);
+        assertTrue(effects.hasTemplate("no_permissions"));
+        assertTrue(effects.hasTemplate("not_selected"));
+        assertTrue(effects.hasTemplate("selected"));
+        assertTrue(effects.template("selected").item().appearance().glow());
+        // A name the file does not declare draws the ordinary row rather than
+        // leaving an empty slot, which is far easier to notice and recover from.
+        assertNotNull(effects.template("invented_by_a_plugin"));
+    }
+
+    @Test
+    @DisplayName("item_template is the ordinary row, whatever else the section declares")
+    void defaultTemplate() {
+        UiDefinition menu = load("""
+                title: "Kits"
+                size: 54
+                sections:
+                  kits:
+                    slots: "10-16"
+                    item_template:
+                      material: STONE
+                    selected_template:
+                      material: DIAMOND
+                """);
+
+        UiSection kits = menu.section("kits");
+        assertNotNull(kits);
+        assertEquals("STONE", assertInstanceOf(Source.OfMaterial.class,
+                kits.template(null).item().source()).raw());
+    }
+
+    @Test
+    @DisplayName("a section with only named templates still has a default")
+    void namedTemplatesWithoutAPlainOne() {
+        // 31 of the 33 real sections do exactly this: selected_template and
+        // not_selected_template, with no item_template between them. Refusing
+        // them would refuse every leaderboard in the ecosystem.
+        UiDefinition menu = load("""
+                title: "Stats"
+                size: 54
+                sections:
+                  types:
+                    slots: "46-52"
+                    not_selected_template:
+                      material: PAPER
+                    selected_template:
+                      material: PAPER
+                      glowing: true
+                """);
+
+        UiSection types = menu.section("types");
+        assertNotNull(types);
+        assertNotNull(types.template(null), "a row that names nothing still draws");
+        assertEquals("PAPER", assertInstanceOf(Source.OfMaterial.class,
+                types.template(null).item().source()).raw());
+    }
+
+    @Test
+    @DisplayName("a section with slots and no template loads, for rows that bring their own")
+    void sectionWithoutTemplate() {
+        // ExyliaSandBox, menus/user/kitroom.yml: a section with slots and a
+        // filler and nothing else, whose rows are the stacks the plugin stored.
+        UiDefinition menu = load("""
+                title: "Kit Room"
+                size: 54
+                sections:
+                  items:
+                    slots: "10-16"
+                    filler:
+                      material: AIR
+                """);
+
+        UiSection list = menu.section("items");
+        assertNotNull(list);
+        assertFalse(list.hasTemplates());
+        assertEquals(7, list.perPage());
+    }
+
+    @Test
+    @DisplayName("a section slot outside the menu is a broken file")
+    void sectionSlotOutsideMenu() {
+        assertThrows(IllegalArgumentException.class, () -> load("""
+                title: "Broken"
+                size: 27
+                sections:
+                  kits:
+                    slots: "10-40"
+                    item_template:
+                      material: STONE
+                """));
+    }
+
+    @Test
+    @DisplayName("page buttons are indexed once, so a click looks them up rather than searching")
+    void navigationIsIndexed() {
+        UiDefinition menu = load("""
+                title: "Leaderboard"
+                size: 54
+                sections:
+                  players:
+                    slots: "1-7"
+                    item_template: { material: STONE }
+                    navigation:
+                      previous: { slot: 37, material: ARROW }
+                      next: { slot: 43, material: ARROW }
+                  types:
+                    slots: "46-52"
+                    item_template: { material: STONE }
+                    navigation:
+                      previous: { slot: 45, material: ARROW }
+                      next: { slot: 53, material: ARROW }
+                """);
+
+        var navigation = menu.navigation();
+        assertEquals(4, navigation.size());
+        assertEquals("players", navigation.get(37).section());
+        assertEquals(-1, navigation.get(37).step());
+        assertEquals("types", navigation.get(53).section());
+        assertEquals(1, navigation.get(53).step());
+    }
+
+    @Test
+    @DisplayName("a click in a listed slot knows which list it landed in")
+    void sectionAtSlot() {
+        UiDefinition menu = load("""
+                title: "Leaderboard"
+                size: 54
+                sections:
+                  players:
+                    slots: "1-7"
+                    item_template: { material: STONE }
+                  types:
+                    slots: "46-52"
+                    item_template: { material: STONE }
+                """);
+
+        assertEquals("players", menu.sectionAt(3).id());
+        assertEquals("types", menu.sectionAt(50).id());
+        assertNull(menu.sectionAt(22), "nothing is listed there");
     }
 }

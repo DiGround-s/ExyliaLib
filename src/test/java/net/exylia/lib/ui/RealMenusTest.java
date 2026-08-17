@@ -77,6 +77,10 @@ class RealMenusTest {
         List<String> failures = new ArrayList<>();
         List<String> deadButtons = new ArrayList<>();
         int paginated = 0;
+        int multiSection = 0;
+        int withOpenSound = 0;
+        int withRefresh = 0;
+        int withPaginationFiller = 0;
         int items = 0;
         for (Path file : files) {
             String name = root.relativize(file).toString();
@@ -89,6 +93,19 @@ class RealMenusTest {
                 items += menu.items().size();
                 if (menu.isPaginated()) {
                     paginated++;
+                }
+                if (menu.sections().size() > 1) {
+                    multiSection++;
+                }
+                if (menu.fillers().pagination() != null) {
+                    withPaginationFiller++;
+                }
+                if (menu.refresh().mode() != net.exylia.lib.ui.UiRefresh.Mode.DISABLED) {
+                    withRefresh++;
+                }
+                if (menu.sounds().open() != null
+                        && !menu.sounds().open().equals(UiSounds.DEFAULTS.open())) {
+                    withOpenSound++;
                 }
             } catch (Exception | AssertionError failure) {
                 failures.add(name + ": " + failure);
@@ -106,6 +123,16 @@ class RealMenusTest {
                 "more dead buttons than the two known ones:\n  "
                         + String.join("\n  ", deadButtons));
         assertTrue(paginated >= 5, "expected paginated menus among them, found " + paginated);
+        assertTrue(multiSection >= 4,
+                "expected the menus with several lists on one screen, found " + multiSection);
+        // Every one of these files writes open_sounds. Reading only a "sounds"
+        // block would have made the whole ecosystem silent and passed anyway.
+        assertTrue(withOpenSound >= 40,
+                "expected the menus to declare their own open sound, found " + withOpenSound);
+        assertTrue(withRefresh >= 20,
+                "expected the menus that ask to redraw themselves, found " + withRefresh);
+        assertTrue(withPaginationFiller >= 15,
+                "expected the menus that say why a list is empty, found " + withPaginationFiller);
         assertTrue(items >= 200, "expected a few hundred items, found " + items);
     }
 

@@ -1,0 +1,78 @@
+title: "{primary}&lRANDOM TELEPORT {muted}%current_page%/%total_pages%"
+size: 54
+type: PAGINATION
+animation: "center_out"
+
+open_sounds:
+  - "ENTITY_EXPERIENCE_ORB_PICKUP|1.0|1.2"
+click_sounds:
+  - "UI_BUTTON_CLICK|1.0|1.5"
+
+filler:
+  global:
+    material: BLACK_STAINED_GLASS_PANE
+    hide_tooltip: true
+  pagination:
+    material: GRAY_STAINED_GLASS_PANE
+    name: "{muted}No worlds available"
+    hide_tooltip: false
+
+pagination:
+  slots: '10-16,19-25,28-34'
+
+  item_template:
+    material: "%world_icon%"
+    name: "%world_name%"
+    lore:
+      - ""
+      - " {muted}❙ {letters}Price: {highlight}%world_price%"
+      - " {muted}❙ {letters}Cooldown: {highlight}%world_cooldown%"
+      - " {muted}❙ {letters}Status: %world_status%"
+      - ""
+      - " {info}» Click to teleport"
+      - ""
+    actions:
+      - "survivalcore:rtp_world %world_id%"
+
+  navigation:
+    previous:
+      slot: 45
+      material: ARROW
+      name: '{error}&l← PREVIOUS PAGE'
+      lore:
+        - ' {muted}❙ {letters}Go to the previous page.'
+        - ''
+        - '{info}ℹ Page: {success}%current_page%<#475569>/{error}%total_pages%'
+      actions:
+        - 'previous_page'
+    next:
+      slot: 53
+      material: ARROW
+      name: '{success}&lNEXT PAGE →'
+      lore:
+        - ' {muted}❙ {letters}Go to the next page.'
+        - ''
+        - '{info}ℹ Page: {success}%current_page%<#475569>/{error}%total_pages%'
+      actions:
+        - 'next_page'
+
+items:
+  info:
+    slot: 4
+    material: COMPASS
+    name: "{primary}&lRandom Teleport"
+    lore:
+      - ""
+      - " {muted}❙ {letters}Select a world to teleport to"
+      - " {muted}❙ {letters}a random safe location!"
+      - ""
+
+  close:
+    slot: 49
+    material: BARRIER
+    name: "{error}&lCLOSE"
+    lore:
+      - ""
+      - "{info}» Click to close"
+    actions:
+      - "survivalcore:close_menu"

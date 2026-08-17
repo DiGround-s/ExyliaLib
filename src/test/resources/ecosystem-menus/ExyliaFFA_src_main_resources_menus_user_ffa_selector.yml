@@ -1,0 +1,91 @@
+title: "{primary}&lFFA {muted}%current_page%/%total_pages%"
+size: 36
+type: PAGINATION
+animation: "center_out"
+
+open_sounds:
+  - "ENTITY_EXPERIENCE_ORB_PICKUP|1.0|1.2"
+click_sounds:
+  - "UI_BUTTON_CLICK|1.0|1.5"
+
+filler:
+  global:
+    material: GRAY_STAINED_GLASS_PANE
+    hide_tooltip: true
+
+  pagination:
+    material: LIGHT_GRAY_STAINED_GLASS_PANE
+    name: "{muted}No FFA arenas available"
+    lore:
+      - ""
+      - "{muted}Check back later!"
+    hide_tooltip: false
+
+pagination:
+  slots: '10-16,19-25'
+
+  item_template:
+    material: "%arena_icon%"
+    name: "{warning}&l%arena_name%"
+    amount: "%arena_total%"
+    lore:
+      - ""
+      - " {muted}❙ {letters}Fighting: {highlight}%arena_players%{muted}/{letters}%arena_max%"
+      - " {muted}❙ {letters}Total players: {highlight}%arena_total%"
+      - ""
+      - "{success}▶ Click to join"
+    actions:
+      - "ffa:join_ffa %arena_id%"
+
+  navigation:
+    previous:
+      slot: 30
+      material: ARROW
+      name: '{error}&l← PREVIOUS PAGE'
+      lore:
+        - '{info}ℹ Current page: {success}%current_page%&8/{error}%total_pages%'
+      actions:
+        - 'previous_page'
+    next:
+      slot: 32
+      material: ARROW
+      name: '{success}&lNEXT PAGE →'
+      lore:
+        - '{info}ℹ Current page: {success}%current_page%&8/{error}%total_pages%'
+      actions:
+        - 'next_page'
+
+items:
+  kit_editor:
+    slot: 35
+    material: CHEST
+    name: "{primary}&lKIT EDITOR"
+    lore:
+      - ""
+      - " {muted}❙ {letters}Customize your kit loadouts"
+      - ""
+      - "{success}▶ Click to open"
+    actions:
+      - "ffa:open_kit_editor"
+  leaderboard:
+    slot: 27
+    material: NETHER_STAR
+    name: "{primary}&lLEADERBOARD"
+    lore:
+      - ""
+      - " {muted}❙ {letters}Check your stats and other stats"
+      - ""
+      - "{success}▶ Click to open"
+    actions:
+      - "ffa:open_stats"
+  settings:
+    slot: 33
+    material: COMPARATOR
+    name: "{primary}&lSETTINGS"
+    lore:
+      - ""
+      - " {muted}❙ {letters}Customize your FFA experience"
+      - ""
+      - "{success}▶ Click to open"
+    actions:
+      - "ffa:open_settings"

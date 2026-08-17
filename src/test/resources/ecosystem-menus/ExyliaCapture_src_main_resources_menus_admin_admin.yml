@@ -1,0 +1,60 @@
+title: "{primary}&lADMIN CAPTURE"
+size: 27
+type: SIMPLE
+refresh:
+  mode: ON_CLICK
+  click_delay: 4
+
+open_sounds:
+  - "ENTITY_EXPERIENCE_ORB_PICKUP|1.0|1.2"
+click_sounds:
+  - "UI_BUTTON_CLICK|1.0|1.5"
+
+filler:
+  global:
+    material: GRAY_STAINED_GLASS_PANE
+    hide_tooltip: true
+
+items:
+  configurations:
+    slot: 11
+    material: SCAFFOLDING
+    name: "{info}&lCONFIGURATIONS"
+    lore:
+      - ""
+      - " {muted}❙ {letters}Create and configure"
+      - " {muted}❙ {letters}capture zone events"
+      - ""
+      - " {muted}❙ {letters}Total: {highlight}%total_configs%"
+      - ""
+      - "{info}» Click to manage"
+    actions:
+      - "capture:open_config_list"
+
+  active-events:
+    slot: 13
+    material: COMPASS
+    name: "{warning}&lACTIVE EVENTS"
+    lore:
+      - ""
+      - " {muted}❙ {letters}Currently running"
+      - " {muted}❙ {letters}capture events"
+      - ""
+      - " {muted}❙ {letters}Active: {highlight}%active_events%"
+      - ""
+      - "{info}» Click to view"
+    actions:
+      - "capture:open_config_list"
+
+  reload:
+    slot: 15
+    material: REDSTONE
+    name: "{error}&lRELOAD"
+    lore:
+      - ""
+      - " {muted}❙ {letters}Reload all plugin"
+      - " {muted}❙ {letters}configurations"
+      - ""
+      - "{info}» Click to reload"
+    actions:
+      - "capture:reload_configs"

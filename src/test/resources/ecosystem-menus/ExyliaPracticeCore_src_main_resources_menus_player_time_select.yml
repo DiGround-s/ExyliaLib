@@ -1,0 +1,71 @@
+title: "{primary}&lTIME OF DAY"
+size: 27
+type: SIMPLE
+
+open_sounds:
+  - "UI_BUTTON_CLICK|1.0|1.5"
+click_sounds:
+  - "UI_BUTTON_CLICK|1.0|1.5"
+
+filler:
+  global:
+    material: GRAY_STAINED_GLASS_PANE
+    hide_tooltip: true
+
+items:
+  day:
+    slot: 10
+    material: YELLOW_STAINED_GLASS
+    name: "{warning}&lDay"
+    lore:
+      - ""
+      - " {muted}❙ {letters}Clear sky, bright daylight"
+      - ""
+      - "{info}» Click to select"
+    actions:
+      - "practice:set_time DAY"
+
+  noon:
+    slot: 12
+    material: ORANGE_STAINED_GLASS
+    name: "{warning}&lNoon"
+    lore:
+      - ""
+      - " {muted}❙ {letters}Sun at its peak"
+      - ""
+      - "{info}» Click to select"
+    actions:
+      - "practice:set_time NOON"
+
+  sunset:
+    slot: 14
+    material: RED_STAINED_GLASS
+    name: "{error}&lSunset"
+    lore:
+      - ""
+      - " {muted}❙ {letters}Golden hour"
+      - ""
+      - "{info}» Click to select"
+    actions:
+      - "practice:set_time SUNSET"
+
+  night:
+    slot: 16
+    material: BLUE_STAINED_GLASS
+    name: "{info}&lNight"
+    lore:
+      - ""
+      - " {muted}❙ {letters}Dark skies"
+      - ""
+      - "{info}» Click to select"
+    actions:
+      - "practice:set_time NIGHT"
+
+  back:
+    slot: 22
+    material: ARROW
+    name: "{error}&lBack"
+    lore:
+      - "{muted}Return to settings"
+    actions:
+      - "practice:open_settings"

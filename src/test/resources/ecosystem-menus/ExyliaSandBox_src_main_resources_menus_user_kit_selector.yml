@@ -1,0 +1,66 @@
+title: "{primary}&lKITS"
+size: 27
+type: PAGINATION
+animation: "center_out"
+refresh:
+  mode: ON_CLICK
+  click_delay: 2
+
+open_sounds:
+  - "ENTITY_EXPERIENCE_ORB_PICKUP|1.0|1.2"
+click_sounds:
+  - "UI_BUTTON_CLICK|1.0|1.5"
+
+filler:
+  global:
+    material: GRAY_STAINED_GLASS_PANE
+    hide_tooltip: true
+
+  pagination:
+    material: LIGHT_GRAY_STAINED_GLASS_PANE
+    name: "{muted}No kits available"
+    hide_tooltip: false
+
+pagination:
+  slots: '10-16'
+
+  item_template:
+    material: "%kit_icon%"
+    name: "{success}&l%kit_name%"
+    glow: true
+    lore:
+      - ""
+      - " {muted}❙ {letters}Click to select this kit"
+      - ""
+      - "{info}» Click to select kit"
+    actions:
+      - "%selector_action%"
+
+  navigation:
+    previous:
+      slot: 21
+      material: ARROW
+      name: '{error}&l← PREVIOUS'
+      lore:
+        - '{info}Page: {success}%current_page%&8/{error}%total_pages%'
+      actions:
+        - 'previous_page'
+    next:
+      slot: 23
+      material: ARROW
+      name: '{success}&lNEXT →'
+      lore:
+        - '{info}Page: {success}%current_page%&8/{error}%total_pages%'
+      actions:
+        - 'next_page'
+
+items:
+  close:
+    slot: 22
+    material: BARRIER
+    name: '{error}&lClose'
+    lore:
+      - '{muted}Click to close'
+    hide_tooltip: false
+    actions:
+      - 'close'

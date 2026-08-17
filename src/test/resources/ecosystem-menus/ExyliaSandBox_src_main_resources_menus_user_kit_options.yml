@@ -1,0 +1,93 @@
+title: "{primary}&lKIT {muted}· {highlight}%kit_name%"
+size: 27
+
+open_sounds:
+  - "ENTITY_EXPERIENCE_ORB_PICKUP|1.0|1.2"
+click_sounds:
+  - "UI_BUTTON_CLICK|1.0|1.5"
+
+filler:
+  global:
+    material: BLACK_STAINED_GLASS_PANE
+    hide_tooltip: true
+
+items:
+  kit_preview:
+    slot: 13
+    material: "%kit_icon%"
+    name: "{letters}&l%kit_name%"
+    glow: true
+    hide_tooltip: false
+    lore:
+      - ""
+      - " {muted}❙ {letters}Slot: {highlight}%kit_slot%"
+
+  edit:
+    slot: 10
+    material: ANVIL
+    name: "{success}&lEdit Kit"
+    lore:
+      - ""
+      - " {muted}❙ {letters}Modify kit contents"
+      - ""
+      - "{info}» Click to edit"
+    actions:
+      - "sandbox:kit_creator_edit %kit_slot%"
+
+  favorite:
+    slot: 11
+    material: "%kit_fav_material%"
+    name: "{highlight}&l★ Favorite Kit"
+    glow: true
+    lore:
+      - ""
+      - " {muted}❙ {letters}Status: {highlight}%kit_fav_status%"
+      - ""
+      - "{info}» Click to toggle"
+    actions:
+      - "sandbox:kit_creator_set_favorite %kit_slot%"
+
+  rename:
+    slot: 12
+    material: NAME_TAG
+    name: "{info}&lRename Kit"
+    lore:
+      - ""
+      - " {muted}❙ {letters}Change the kit name"
+      - ""
+      - "{info}» Click to rename"
+    actions:
+      - "sandbox:kit_creator_rename %kit_slot%"
+
+  icon:
+    slot: 14
+    material: ITEM_FRAME
+    name: "{highlight}&lChange Icon"
+    lore:
+      - ""
+      - " {muted}❙ {letters}Set a custom icon material"
+      - ""
+      - "{info}» Click to change"
+    actions:
+      - "sandbox:kit_creator_set_icon %kit_slot%"
+
+  delete:
+    slot: 16
+    material: BARRIER
+    name: "{error}&lDelete Kit"
+    lore:
+      - ""
+      - " {muted}❙ {letters}Permanently delete this kit"
+      - ""
+      - "{info}» Click to delete"
+    actions:
+      - "sandbox:kit_creator_delete %kit_slot%"
+
+  back:
+    slot: 22
+    material: ARROW
+    name: "{error}&lBack"
+    lore:
+      - "{muted}Return to kit list"
+    actions:
+      - "sandbox:open_kit_creator"

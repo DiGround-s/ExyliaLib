@@ -3,8 +3,8 @@ package net.exylia.lib.ui;
 import net.exylia.lib.action.ActionExecution;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.Inventory;
+import org.bukkit.inventory.ItemStack;
 import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
 
 import java.util.Collection;
 import java.util.List;
@@ -21,8 +21,8 @@ import java.util.Set;
  * and the server decides what slot 13 is.
  *
  * <p>A session outlives a single render. Changing page, refreshing a row and
- * reloading a definition all update the same session, so the player's context
- * — filters, selection, the entry they were looking at — survives.
+ * replacing a list all update the same session, so the player's context — the
+ * filter, the selection, the entry they were looking at — survives.
  *
  * @since 1.22.0
  */
@@ -34,31 +34,103 @@ public interface UiSession {
     /** The id of the definition being shown, such as {@code practice:queue_kits}. */
     @NotNull String menuId();
 
+    /** What the menu was compiled from. */
+    @NotNull UiDefinition definition();
+
     /** The inventory the player has open. */
     @NotNull Inventory inventory();
 
-    /** The page being shown, starting at one. */
-    int page();
-
-    /** How many pages there are, at least one. */
-    int pages();
+    // ---------------------------------------------------------------- paging
 
     /**
-     * Shows another page.
+     * The page a list is showing, starting at one.
      *
-     * <p>Clamped: a menu that lost rows while somebody was on the last page
+     * @param section which list
+     * @return the page, or one when there is no such list
+     */
+    int page(@NotNull String section);
+
+    /**
+     * How many pages a list has, at least one.
+     *
+     * @param section which list
+     * @return the page count
+     */
+    int pages(@NotNull String section);
+
+    /**
+     * Shows another page of a list.
+     *
+     * <p>Clamped: a list that lost rows while somebody was on the last page
      * shows the last page that exists rather than an empty one.
+     *
+     * @param section which list
+     * @param page    the page, starting at one
+     * @return whether the page changed
+     */
+    boolean page(@NotNull String section, int page);
+
+    /**
+     * Moves a list forward or back.
+     *
+     * @param section which list
+     * @param step    how many pages, negative to go back
+     * @return whether the page changed
+     */
+    boolean turn(@NotNull String section, int step);
+
+    /**
+     * Shows another page of the only list, for menus that have one.
      *
      * @param page the page, starting at one
      * @return whether the page changed
      */
     boolean page(int page);
 
-    /** Shows the next page, if there is one. */
+    /** Shows the next page of the only list. */
     boolean nextPage();
 
-    /** Shows the previous page, if there is one. */
+    /** Shows the previous page of the only list. */
     boolean previousPage();
+
+    // --------------------------------------------------------------- entries
+
+    /**
+     * The rows of a list.
+     *
+     * @param section which list
+     * @return the rows, in order; empty when there is no such list
+     */
+    @NotNull List<UiEntry> entries(@NotNull String section);
+
+    /**
+     * Replaces the rows of a list and redraws it.
+     *
+     * <p>The page is kept where it was, clamped to what still exists. A
+     * leaderboard that refreshes under somebody reading page three leaves them
+     * on page three.
+     *
+     * @param section which list
+     * @param entries the new rows
+     */
+    void entries(@NotNull String section, @NotNull Collection<UiEntry> entries);
+
+    /**
+     * Replaces the rows of the only list, for menus that have one.
+     *
+     * @param entries the new rows
+     */
+    void entries(@NotNull Collection<UiEntry> entries);
+
+    /**
+     * The row drawn in a slot, if any.
+     *
+     * @param slot the slot
+     * @return the row, or empty when nothing is listed there
+     */
+    @NotNull Optional<UiEntry> entryAt(int slot);
+
+    // ------------------------------------------------------------ redrawing
 
     /**
      * Marks something as changed, so whatever depends on it is redrawn.
@@ -66,8 +138,8 @@ public interface UiSession {
      * <p>The heart of the reactive model. A leaderboard whose data changed
      * calls {@code invalidate("stats")}, and only the slots that declared they
      * depend on {@code stats} are re-rendered and re-sent. Everything else on
-     * screen is untouched — no full rebuild, no flicker, no packets for slots
-     * that did not change.
+     * screen is untouched — no full rebuild, no flicker, and no packets for
+     * slots that did not change.
      *
      * @param dependencies what changed
      * @return how many slots were redrawn
@@ -80,39 +152,31 @@ public interface UiSession {
     /** Redraws everything. The expensive option, and rarely the right one. */
     void refresh();
 
+    // ---------------------------------------------------------------- context
+
     /**
      * Values this session carries, such as the thing the menu is about.
      *
-     * <p>Restored when the player comes back through {@code back}, which is
-     * what makes returning to a filtered list actually return to it.
+     * <p>Also filled into the placeholders of everything the menu draws, so a
+     * title reading {@code %kit_name%} needs no resolver of its own.
      */
     @NotNull Map<String, Object> context();
 
     /** Reads one context value. */
     <T> @NotNull Optional<T> context(@NotNull String key, @NotNull Class<T> type);
 
-    /** Writes one context value. */
+    /** Writes one context value, redrawing nothing. */
     @NotNull UiSession context(@NotNull String key, @NotNull Object value);
 
-    /**
-     * The entries of a paginated list, if it has any.
-     *
-     * @return the entries, in order
-     */
-    @NotNull List<?> entries();
-
-    /**
-     * Replaces the entries of a paginated list and redraws it.
-     *
-     * @param entries the new entries
-     */
-    void entries(@NotNull Collection<?> entries);
+    // ----------------------------------------------------------------- input
 
     /** Slots the player is allowed to put items into. */
     @NotNull Set<Integer> inputSlots();
 
     /** Whatever the player has left in the input slots. */
-    @NotNull Map<Integer, org.bukkit.inventory.ItemStack> inputs();
+    @NotNull Map<Integer, ItemStack> inputs();
+
+    // -------------------------------------------------------------- lifecycle
 
     /**
      * Registers something to cancel when this menu closes.

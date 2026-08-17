@@ -7,15 +7,30 @@ import net.exylia.lib.effect.internal.EffectRuntime;
 import net.exylia.lib.action.Actions;
 import net.exylia.lib.command.Commands;
 import net.exylia.lib.clan.internal.ClanRuntime;
+import net.exylia.lib.database.Databases;
+import net.exylia.lib.format.FormatSettings;
+import net.exylia.lib.economy.EconomySettings;
+import net.exylia.lib.economy.internal.BalanceCache;
+import net.exylia.lib.economy.internal.CurrencyRegistry;
+import net.exylia.lib.format.Formats;
+import net.exylia.lib.format.internal.FormatPlaceholders;
 import net.exylia.lib.skull.internal.SkullRuntime;
 import net.exylia.lib.client.internal.ClientRuntime;
 import net.exylia.lib.hologram.internal.HologramRuntime;
 import net.exylia.lib.internal.ExyliaLibUpdater;
+import net.exylia.lib.item.internal.ItemCache;
+import net.exylia.lib.ui.Menus;
+import net.exylia.lib.ui.internal.MenuListener;
+import net.exylia.lib.ui.internal.MenuRuntime;
 import net.exylia.lib.internal.LibCommands;
 import net.exylia.lib.internal.LibrarySettings;
 import net.exylia.lib.debug.Debug;
 import net.exylia.lib.placeholder.Placeholders;
 import net.exylia.lib.reload.Reloads;
+import net.exylia.lib.region.Regions;
+import net.exylia.lib.region.internal.RegionListener;
+import net.exylia.lib.region.internal.RegionRuntime;
+import net.exylia.lib.region.internal.SelectionListener;
 import net.exylia.lib.text.Prefixes;
 import net.exylia.lib.util.Cooldowns;
 import net.exylia.lib.placeholder.internal.BuiltIn;
@@ -66,6 +81,8 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
     private static final long COOLDOWN_FLUSH_TICKS = 20L * 60L * 5L;
 
     private ConfigFile<Palette> palette;
+    private ConfigFile<FormatSettings> formats;
+    private ConfigFile<EconomySettings> economy;
 
     @Override
     public void onEnable() {
@@ -76,14 +93,27 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         startUpdateCheck();
 
         getServer().getPluginManager().registerEvents(this, this);
+        // One listener for every plugin's menus: an inventory event fires once,
+        // and the window's holder says whose menu it is.
+        getServer().getPluginManager().registerEvents(new MenuListener(), this);
+        RegionRuntime.init(this);
+        getServer().getPluginManager().registerEvents(new RegionListener(), this);
+        getServer().getPluginManager().registerEvents(new SelectionListener(), this);
         loadPalette();
+        loadFormats();
+        loadEconomy();
         Placeholders.logger(getLogger());
         BuiltIn.register(this);
+        FormatPlaceholders.register(this);
         BoardManager.init(this, SidebarLibrary.load(this, getLogger()));
         HologramRuntime.init(this);
         ClientRuntime.init(this);
         ClanRuntime.init(this);
         SkullRuntime.init(this);
+        // Reads database.yml and nothing else: the pool opens when the first
+        // plugin asks for a repository, so a server whose plugins store nothing
+        // never creates a database file nor contacts a host that may not be up.
+        Databases.init(this);
         Cooldowns.init(this, task -> Tasks.of(this).runAsync(task));
         // Long cooldowns are written every few minutes as well as on quit, so
         // a server that dies without a clean shutdown loses minutes rather
@@ -128,9 +158,53 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
             // A static effect is drawn once and never re-parsed, so without
             // this a permanent boss bar would keep the old colours.
             EffectRuntime.invalidateAll();
+            // Same reason: an item with no placeholders is rendered once and
+            // copied, so its name and lore hold the previous palette.
+            ItemCache.invalidateAll();
             // Plugins that kept something parsed — a menu built at startup —
             // are told, so they can rebuild it. Announced, never invoked.
             Reloads.fireLibraryReload();
+        });
+    }
+
+    /**
+     * Loads the shared number and date formats and keeps them applied across
+     * reloads.
+     *
+     * <p>The same reason as the palette: a plugin says "this is money" and this
+     * file decides what money looks like, so a server changes its currency
+     * symbol once instead of in two thousand configuration files.
+     *
+     * <p>Nothing needs invalidating afterwards. Formats are read on every
+     * render rather than cached into a component, so applying the new settings
+     * is the whole of the reload — a board that re-sends itself for the palette
+     * picks up the new symbol on the way.
+     */
+    private void loadFormats() {
+        formats = Configs.define(this, "formats", FormatSettings.class).load();
+        Formats.apply(formats.get());
+        formats.onReload(Formats::apply);
+    }
+
+    /**
+     * Reads {@code economy.yml} and finds whichever economies are installed.
+     *
+     * <p>Detection is reflective and every probe is guarded, so a server with
+     * no economy plugin, or with a version whose API moved, starts normally and
+     * reports that no currency is available rather than failing to enable.
+     *
+     * <p>The settings are applied before detection so the first fallback
+     * decision already knows the order the owner chose, and re-applied on reload
+     * so changing the default currency does not need a restart.
+     */
+    private void loadEconomy() {
+        economy = Configs.define(this, "economy", EconomySettings.class).load();
+        CurrencyRegistry.apply(economy.get());
+        BalanceCache.apply(economy.get());
+        CurrencyRegistry.init(this);
+        economy.onReload(settings -> {
+            CurrencyRegistry.apply(settings);
+            BalanceCache.apply(settings);
         });
     }
 
@@ -141,6 +215,12 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
      */
     public void reloadPalette() {
         palette.reload();
+        // Both files are the library's own shared configuration, and a server
+        // owner running one reload command means both. Keeping formats.yml on a
+        // separate command would guarantee that the one nobody remembers is the
+        // one that stays stale.
+        formats.reload();
+        economy.reload();
     }
 
     /**
@@ -182,6 +262,13 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         // Writes whatever is pending before the maps are emptied.
         Cooldowns.clearEverything();
         SidebarLibrary.close();
+        Menus.releaseAll();
+        Regions.releaseAll();
+        // After every plugin has had its own onDisable — they run before this
+        // one — so a last write queued there has already been handed to the
+        // pool. Before the task module, because the pool's own close is
+        // synchronous and cancelling the tasks first would leave it open.
+        Databases.releaseAll();
         Tasks.releaseAll();
         Configs.releaseAll();
         Placeholders.releaseAll();
@@ -220,6 +307,7 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         ClientRuntime.forget(event.getPlayer());
         ClanRuntime.forget(event.getPlayer().getUniqueId());
         Cooldowns.forget(event.getPlayer().getUniqueId());
+        MenuRuntime.forgetEverywhere(event.getPlayer().getUniqueId());
     }
 
     /**
@@ -280,6 +368,17 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         EffectRuntime.release(pluginName);
         BoardManager.stopAll(pluginName);
         HologramRuntime.removeAll(pluginName);
+        // Before the task module: closing a window cancels what its buttons
+        // started, and a menu whose actions come from a dying classloader
+        // must not answer another click.
+        Menus.release(pluginName);
+        // Reconciliation uses ExyliaLib's scheduler, but publication must still happen
+        // before the dying plugin's own task scheduler is cancelled.
+        Regions.release(pluginName);
+        // Drops the plugin's repositories, never the connection: that is the
+        // server's, and closing it here would take every other plugin's
+        // database down with this one.
+        Databases.release(pluginName);
         Tasks.release(pluginName);
         Configs.release(pluginName);
         Placeholders.unregisterAll(pluginName);
