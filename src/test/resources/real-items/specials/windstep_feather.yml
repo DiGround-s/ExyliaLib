@@ -1,1 +1,98 @@
+# ===== ITEM =====
 
+material: "FEATHER"
+name: '{muted}» &#8fd1ffWindstep Feather {muted}[{success}%current_uses%{muted}/{error}%max_uses%{muted}]'
+lore:
+  - '{secondary}Information:'
+  - ' {muted}▎ {letters}Launches you forward in whichever'
+  - ' {muted}▎ {letters}direction you''re {highlight}looking{letters}. A quick'
+  - ' {muted}▎ {letters}dash for repositioning, chasing,'
+  - ' {muted}▎ {letters}or escaping. No fall damage for'
+  - ' {muted}▎ {letters}{highlight}3 seconds {letters}after using it.'
+  - ''
+  - '{secondary}Stats:'
+  - ' {muted}▎ {letters}Cooldown {muted}» {info}5s ⌚'
+  - ''
+  - '{warning}➥ Click to dash'
+  - ''
+
+glow: true
+hide-attributes: true
+
+# ===== CONFIGURATION ======
+
+display-name: '&#8fd1ffᴡɪɴᴅꜱᴛᴇᴘ ғᴇᴀᴛʜᴇʀ'
+cancel-event: true # Cancel the event when the item is used
+max_stack_size: 1
+max-uses: 15 # Maximum number of uses
+cooldown: 5 # seconds - meant to be used often for movement, not a rare cooldown
+
+# ===== ACTIONS =====
+
+# Trigger types:
+#  - IMMEDIATE -> Only affect the source player -> Apply action immediately
+#  - AFTER_CONSUME -> Only affect the source player -> Apply action after the item is consumed (example: food, potions, etc.)
+#  - ON_HIT_PLAYER -> Only affect the target player -> Apply action when the target player hit a player
+#  - ON_PROJECTILE_HIT -> Only affect the target player -> Apply action when the target player is hit by a projectile
+#      (optional) combo: {required-hits: N, window: seconds} -> require N consecutive hits within the window before the action fires
+#  - RADIUS -> Only affect players in a radius of the source player -> Apply to all players in a radius of the source player
+#  - ON_LAST_ATTACKER -> Only affect the source player -> Apply action targeting the last player who hit the source within "attacker-window" seconds
+#  - HOLD -> Only affect the source player -> Apply every "hold-interval" ticks
+trigger-type: IMMEDIATE
+
+action: "dash"
+action-config:
+  force: 1.8 # horizontal impulse strength
+  vertical-boost: 0.3 # small lift so you don't just skid along the ground
+  use-pitch: false # false = horizontal dash only (look up/down doesn't send you into the sky/ground); true = full 3D dash in your exact look direction
+  max-velocity: 3.0 # hard cap on the resulting launch speed
+
+  cancel-fall-damage: true
+  fall-damage-grace-seconds: 3.0 # how long after the dash you're immune to fall damage
+
+  dash-effects:
+    particles:
+      enabled: true
+      particles:
+        - "CLOUD|15|0.3|0.2|0.3|0.05"
+        - "END_ROD|10|0.2|0.2|0.2|0.02"
+    sounds:
+      enabled: true
+      sounds:
+        - "ENTITY_PHANTOM_FLAP|1.0|1.6"
+
+  landing-effects:
+    particles:
+      enabled: true
+      particles:
+        - "CLOUD|10|0.4|0.1|0.4|0.05"
+    sounds:
+      enabled: true
+      sounds:
+        - "ENTITY_PLAYER_SMALL_FALL|0.6|1.2"
+
+# ===== VISUALS =====
+
+effects-on-use:
+  particles:
+    enabled: false
+    particles: []
+  sounds:
+    enabled: false
+    sounds: []
+  fireworks:
+    enabled: false
+    fireworks: []
+
+# ===== WORLD-GUARD =====
+
+#region:
+#  disable-in-non-pvp-regions: true
+#  type: WHITELIST
+#  checker: CONTAINS
+#  list:
+#    - "area-pvp"
+#    - "arena-1|world_nether"
+#  cooldowns:
+#    "area-pvp": 10.0
+#    "arena-1": 15.5

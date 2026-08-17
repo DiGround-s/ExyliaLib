@@ -1,1 +1,118 @@
+# ===== ITEM =====
 
+material: "POTION"
+name: '{muted}» &#9b30ffSuper Elixir {muted}[{success}%current_uses%{muted}/{error}%max_uses%{muted}]'
+lore:
+  - '{secondary}Information:'
+  - ' {muted}▎ {letters}Drink it to gain {highlight}Strength III{letters},'
+  - ' {muted}▎ {letters}{highlight}Resistance III {letters}and {highlight}Regeneration III'
+  - ' {muted}▎ {letters}for {highlight}10 seconds{letters}.'
+  - ' {muted}▎ {letters}While active, you {error}cannot use any'
+  - ' {muted}▎ {letters}{error}potion or eat food{letters}.'
+  - ''
+  - '{secondary}Stats:'
+  - ' {muted}▎ {letters}Cooldown {muted}» {info}60s ⌚'
+  - ' {muted}▎ {letters}Duration {muted}» {info}10s ⌚'
+  - ''
+  - '{warning}➥ Drink to activate'
+  - ''
+
+glow: true
+hide-attributes: true
+consumable-time: 1.0
+consumable-sound: ENTITY_GENERIC_DRINK
+
+# ===== CONFIGURATION ======
+
+display-name: '&#9b30ffSuper Elixir'
+cancel-event: false
+max_stack_size: 1
+max-uses: 3
+cooldown: 60.0
+
+# ===== ACTIONS =====
+
+# Trigger types:
+#  - IMMEDIATE -> Apply action immediately on use
+#  - AFTER_CONSUME -> Apply action after the item is fully consumed
+trigger-type: AFTER_CONSUME
+
+# Action chain: instead of a single "elixir" action that mixed giving effects +
+# blocking items, this now combines two atomic, reusable actions, each with its
+# own isolated action-config.
+actions:
+  - action: "effect"
+    action-config:
+      effects:
+        - "STRENGTH|3|10"
+        - "RESISTANCE|3|10"
+        - "REGENERATION|3|10"
+
+  - action: "interact_lock"
+    action-config:
+      duration: 10.0 # how long the item lock lasts, in seconds
+      block_all: true # blocks using/consuming ANY item while locked (potions, food, etc.)
+      stack-mode: REPLACE # REPLACE | EXTEND | IGNORE
+
+      restriction-effects:
+        particles:
+          enabled: true
+          particles:
+            - "DUST|25|0.4|0.6|0.4|0|155,0,255"
+            - "END_ROD|15|0.4|0.6|0.4|0.05"
+        sounds:
+          enabled: true
+          sounds:
+            - "ENTITY_WITCH_DRINK|1.0|0.8"
+            - "ENTITY_ILLUSIONER_CAST_SPELL|0.8|1.2"
+        fireworks:
+          enabled: false
+          fireworks: []
+
+      blocked-effects:
+        particles:
+          enabled: true
+          particles:
+            - "SMOKE|8|0.3|0.4|0.3|0.05"
+        sounds:
+          enabled: true
+          sounds:
+            - "ENTITY_VILLAGER_NO|0.7|1.3"
+        fireworks:
+          enabled: false
+          fireworks: []
+
+      bossbar:
+        enabled: true
+        text: "&d✦ &fSuper Elixir: &e%time_formatted% &f- &7No potions or food"
+        color: "PURPLE"
+        style: "PROGRESS"
+        permanent: false
+        update-interval: 2
+
+# ===== VISUALS =====
+
+effects-on-use:
+  particles:
+    enabled: true
+    particles:
+      - "VILLAGER_HAPPY|10|0.4|0.4|0.4|0.1"
+  sounds:
+    enabled: false
+    sounds: []
+  fireworks:
+    enabled: false
+    fireworks: []
+
+# ===== WORLD-GUARD =====
+
+#region:
+#  disable-in-non-pvp-regions: true
+#  type: WHITELIST
+#  checker: CONTAINS
+#  list:
+#    - "area-pvp"
+#    - "arena-1|world_nether"
+#  cooldowns:
+#    "area-pvp": 10.0
+#    "arena-1": 15.5

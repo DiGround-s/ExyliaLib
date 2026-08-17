@@ -1,1 +1,86 @@
+# ===== ITEM =====
 
+material: "GUNPOWDER"
+name: '{muted}» &#7a7a7aConcussion Charge {muted}[{success}%current_uses%{muted}/{error}%max_uses%{muted}]'
+lore:
+  - '{secondary}Information:'
+  - ' {muted}▎ {letters}Hitting an enemy triggers a'
+  - ' {muted}▎ {letters}{highlight}fake explosion {letters}right in their face -'
+  - ' {muted}▎ {letters}full screen shake, blast sound'
+  - ' {muted}▎ {letters}and particles. No real damage,'
+  - ' {muted}▎ {letters}knockback or block destruction.'
+  - ''
+  - '{secondary}Stats:'
+  - ' {muted}▎ {letters}Cooldown {muted}» {info}10s ⌚'
+  - ''
+  - '{warning}➥ Hit an enemy to activate'
+  - ''
+
+glow: true
+hide-attributes: true
+
+# ===== CONFIGURATION ======
+
+display-name: '&#7a7a7aᴄᴏɴᴄᴜꜱꜱɪᴏɴ ᴄʜᴀʀɢᴇ'
+cancel-event: true
+max_stack_size: 1
+max-uses: 8 # Maximum number of uses
+cooldown: 10
+
+# ===== ACTIONS =====
+
+# Trigger types:
+#  - IMMEDIATE -> Only affect the source player -> Apply action immediately
+#  - AFTER_CONSUME -> Only affect the source player -> Apply action after the item is consumed (example: food, potions, etc.)
+#  - ON_HIT_PLAYER -> Only affect the target player -> Apply action when the target player hit a player
+#  - ON_PROJECTILE_HIT -> Only affect the target player -> Apply action when the target player is hit by a projectile
+#      (optional) combo: {required-hits: N, window: seconds} -> require N consecutive hits within the window before the action fires
+#  - RADIUS -> Only affect players in a radius of the source player -> Apply to all players in a radius of the source player
+#  - ON_LAST_ATTACKER -> Only affect the source player -> Apply action targeting the last player who hit the source within "attacker-window" seconds
+#  - HOLD -> Only affect the source player -> Apply every "hold-interval" ticks
+trigger-type: ON_HIT_PLAYER
+
+# Requires PacketEvents. Sends a raw Explosion packet with an empty block list and zero player
+# motion, so the client renders the shake/particles/sound but nothing is actually destroyed and
+# no real knockback is applied - purely a jump-scare, not a combat tool.
+action: "screen_shake"
+action-config:
+  strength: 1.5 # visual explosion size
+  offset: 1.0 # blocks above the target's feet to center the explosion at (roughly eye level)
+
+  shake-effects:
+    particles:
+      enabled: true
+      particles:
+        - "EXPLOSION|1|0|0|0|0"
+        - "SMOKE_LARGE|15|0.4|0.4|0.4|0.1"
+    sounds:
+      enabled: true
+      sounds:
+        - "ENTITY_GENERIC_EXPLODE|1.0|1.0"
+
+# ===== VISUALS =====
+
+effects-on-use:
+  particles:
+    enabled: false
+    particles: []
+  sounds:
+    enabled: false
+    sounds: []
+  fireworks:
+    enabled: false
+    fireworks: []
+
+# ===== WORLD-GUARD =====
+
+#region:
+#  disable-in-non-pvp-regions: true
+#  type: WHITELIST
+#  checker: CONTAINS
+#  list:
+#    - "area-pvp"
+#    - "arena-1|world_nether"
+#  cooldowns:
+#    "area-pvp": 10.0
+#    "arena-1": 15.5

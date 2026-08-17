@@ -1,1 +1,92 @@
+# ===== ITEM =====
 
+material: "TRIDENT"
+name: '{muted}» &#3f9fbaStormcaller {muted}[{success}%current_uses%{muted}/{error}%max_uses%{muted}]'
+lore:
+  - '{secondary}Information:'
+  - ' {muted}▎ {letters}Striking an enemy unleashes'
+  - ' {muted}▎ {letters}a bolt of {highlight}chain lightning'
+  - ' {muted}▎ {letters}that jumps between nearby foes.'
+  - ''
+  - '{secondary}Stats:'
+  - ' {muted}▎ {letters}Cooldown {muted}» {info}18s ⌚'
+  - ' {muted}▎ {letters}Max Jumps {muted}» {info}4'
+  - ' {muted}▎ {letters}Jump Radius {muted}» {info}6 blocks'
+  - ''
+  - '{warning}➥ Hit an enemy to activate'
+  - ''
+
+glow: true
+hide-attributes: true
+
+# ===== CONFIGURATION ======
+
+display-name: '&#3f9fbaꜱᴛᴏʀᴍᴄᴀʟʟᴇʀ'
+cancel-event: true # Cancel the event when the item is used
+max_stack_size: 1
+max-uses: 5 # Maximum number of uses
+cooldown: 18 # seconds
+
+# ===== ACTIONS =====
+
+# Trigger types:
+#  - IMMEDIATE -> Only affect the source player -> Apply action immediately
+#  - AFTER_CONSUME -> Only affect the source player -> Apply action after the item is consumed (example: food, potions, etc.)
+#  - ON_HIT_PLAYER -> Only affect the target player -> Apply action when the target player hit a player
+#  - ON_PROJECTILE_HIT -> Only affect the target player -> Apply action when the target player is hit by a projectile
+#      (optional) combo: {required-hits: N, window: seconds} -> require N consecutive hits within the window before the action fires
+#  - RADIUS -> Only affect players in a radius of the source player -> Apply to all players in a radius of the source player
+#  - ON_LAST_ATTACKER -> Only affect the source player -> Apply action targeting the last player who hit the source within "attacker-window" seconds
+#  - HOLD -> Only affect the source player -> Apply every "hold-interval" ticks
+trigger-type: ON_HIT_PLAYER
+
+action: "chain_lightning"
+action-config:
+  damage: 5.0 # damage dealt to the first target
+  damage-falloff: 0.7 # each jump deals 70% of the previous jump's damage
+  max-jumps: 4 # additional enemies the bolt can jump to
+  jump-radius: 6.0 # search radius for the next target from the current one
+  only-players: true
+  effects:
+    - "SLOWNESS|1|3"
+
+  chain-particle: "ELECTRIC_SPARK|12|0.1|0.1|0.1|0" # PARTICLE|COUNT|OFFSET_X|OFFSET_Y|OFFSET_Z|EXTRA
+  chain-line-spacing: 0.35 # distance in blocks between each particle point along the bolt
+
+  strike-effects:
+    particles:
+      enabled: true
+      particles:
+        - "ELECTRIC_SPARK|25|0.4|0.6|0.4|0.2"
+    sounds:
+      enabled: true
+      sounds:
+        - "ENTITY_LIGHTNING_BOLT_IMPACT|1.0|1.5"
+
+# ===== VISUALS =====
+
+effects-on-use:
+  particles:
+    enabled: true
+    particles:
+      - "ELECTRIC_SPARK|20|0.5|0.5|0.5|0.1"
+  sounds:
+    enabled: true
+    sounds:
+      - "ITEM_TRIDENT_THUNDER|1.0|1.2"
+  fireworks:
+    enabled: false
+    fireworks: []
+
+# ===== WORLD-GUARD =====
+
+#region:
+#  disable-in-non-pvp-regions: true
+#  type: WHITELIST # WHITELIST | BLACKLIST | NONE
+#  checker: CONTAINS # CONTAINS | PRIORITY
+#  list:
+#    - "area-pvp"
+#    - "arena-1|world_nether"  # For specific world
+#  cooldowns: # Custom cooldowns by region
+#    "area-pvp": 10.0
+#    "arena-1": 15.5

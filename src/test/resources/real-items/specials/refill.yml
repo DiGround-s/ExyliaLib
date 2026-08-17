@@ -1,1 +1,97 @@
+# ===== ITEM =====
 
+material: "HOPPER"
+name: '&#3fa9f5Refill Kit &8[&#ffc58f%current_uses%&8/&#8fffc1%max_uses%&8]'
+lore:
+  - '{secondary}Information:'
+  - ' {muted}▎ {letters}Fills every empty slot in your'
+  - ' {muted}▎ {letters}inventory with {highlight}Instant Health II'
+  - ' {muted}▎ {letters}{letters}potions.'
+  - ''
+  - '{secondary}Stats:'
+  - ' {muted}▎ {letters}Cooldown {muted}» {info}45s ⌚'
+  - ''
+  - '{warning}➥ Right click to activate'
+  - ''
+glow: true
+hide-attributes: true
+
+# ===== CONFIGURATION ======
+
+display-name: '&#3fa9f5Refill Kit'
+cancel-event: true # Cancel the event when the item is used
+max_stack_size: 1
+max-uses: 5 # Maximum number of uses
+cooldown: 45.0 # seconds
+
+# ===== ACTIONS =====
+
+# Trigger types:
+#  - IMMEDIATE -> Only affect the source player -> Apply action immediately
+#  - AFTER_CONSUME -> Only affect the source player -> Apply action after the item is consumed (example: food, potions, etc.)
+#  - ON_HIT_PLAYER -> Only affect the target player -> Apply action when the target player hit a player
+#  - ON_PROJECTILE_HIT -> Only affect the target player -> Apply action when the target player is hit by a projectile
+#      (optional) combo: {required-hits: N, window: seconds} -> require N consecutive hits within the window before the action fires
+#  - RADIUS -> Only affect players in a radius of the source player -> Apply to all players in a radius of the source player
+#  - ON_LAST_ATTACKER -> Only affect the source player -> Apply action targeting the last player who hit the source within "attacker-window" seconds
+#  - HOLD -> Only affect the source player -> Apply every "hold-interval" ticks
+trigger-type: IMMEDIATE
+action: "refill"
+action-config:
+  scope: "INVENTORY" # INVENTORY (hotbar + storage) | HOTBAR (only slots 0-8)
+  max-fill: 0 # Maximum number of slots to fill, 0 = unlimited
+
+  refill-item:
+    material: "POTION"
+    amount: 1
+    name: '&#ff4d4dInstant Health II'
+    potion:
+      base_type: "HEALING"
+      upgraded: true
+
+  refill-effects:
+    particles:
+      enabled: true
+      particles:
+        - "HEART|10|0.5|0.5|0.5|0.1"
+        - "END_ROD|15|0.6|0.8|0.6|0.05"
+    sounds:
+      enabled: true
+      sounds:
+        - "ENTITY_ITEM_PICKUP|0.8|1.2"
+        - "BLOCK_BREWING_STAND_BREW|0.8|1.4"
+    fireworks:
+      enabled: false
+      fireworks: []
+
+# ===== VISUALS =====
+
+effects-on-use:
+  particles:
+    enabled: true
+    # Format: PARTICLE_NAME|COUNT|OFFSET_X|OFFSET_Y|OFFSET_Z|EXTRA|DATA
+    # PARTICLE_NAME: https://hub.spigotmc.org/javadocs/bukkit/org/bukkit/Particle.html
+    particles:
+      - "VILLAGER_HAPPY|15|0.5|0.5|0.5|0.1"
+  sounds:
+    enabled: true
+    # Format: SOUND_NAME|VOLUME|PITCH
+    # SOUND_NAME: https://hub.spigotmc.org/javadocs/bukkit/org/bukkit/Sound.html
+    sounds:
+      - "ENTITY_EXPERIENCE_ORB_PICKUP|1.0|1.0"
+  fireworks:
+    enabled: false
+    fireworks: []
+
+# ===== WORLD-GUARD =====
+
+#region:
+#  disable-in-non-pvp-regions: true
+#  type: WHITELIST # WHITELIST | BLACKLIST | NONE
+#  checker: CONTAINS # CONTAINS | PRIORITY
+#  list:
+#    - "area-pvp"
+#    - "arena-1|world_nether"  # For specific world
+#  cooldowns: # Custom cooldowns by region
+#    "area-pvp": 10.0
+#    "arena-1": 15.5

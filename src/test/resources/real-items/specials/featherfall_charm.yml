@@ -1,1 +1,84 @@
+# ===== ITEM =====
 
+material: "PHANTOM_MEMBRANE"
+name: '{muted}» &#bfd9ffFeatherfall Charm {muted}[{success}%current_uses%{muted}/{error}%max_uses%{muted}]'
+lore:
+  - '{secondary}Information:'
+  - ' {muted}▎ {letters}Grants {highlight}Slow Falling {letters}for'
+  - ' {muted}▎ {letters}{highlight}8 seconds{letters} - no fall damage, and'
+  - ' {muted}▎ {letters}you drift gently down. Perfect'
+  - ' {muted}▎ {letters}alongside Dash, Blink or a'
+  - ' {muted}▎ {letters}Grappling Hook for tall jumps.'
+  - ''
+  - '{secondary}Stats:'
+  - ' {muted}▎ {letters}Cooldown {muted}» {info}20s ⌚'
+  - ''
+  - '{warning}➥ Click to activate'
+  - ''
+
+glow: true
+hide-attributes: true
+
+# ===== CONFIGURATION ======
+
+display-name: '&#bfd9ffғᴇᴀᴛʜᴇʀғᴀʟʟ ᴄʜᴀʀᴍ'
+cancel-event: true
+max_stack_size: 1
+max-uses: 6 # Maximum number of uses
+cooldown: 20
+
+# ===== ACTIONS =====
+
+# Trigger types:
+#  - IMMEDIATE -> Only affect the source player -> Apply action immediately
+#  - AFTER_CONSUME -> Only affect the source player -> Apply action after the item is consumed (example: food, potions, etc.)
+#  - ON_HIT_PLAYER -> Only affect the target player -> Apply action when the target player hit a player
+#  - ON_PROJECTILE_HIT -> Only affect the target player -> Apply action when the target player is hit by a projectile
+#      (optional) combo: {required-hits: N, window: seconds} -> require N consecutive hits within the window before the action fires
+#  - RADIUS -> Only affect players in a radius of the source player -> Apply to all players in a radius of the source player
+#  - ON_LAST_ATTACKER -> Only affect the source player -> Apply action targeting the last player who hit the source within "attacker-window" seconds
+#  - HOLD -> Only affect the source player -> Apply every "hold-interval" ticks
+trigger-type: IMMEDIATE
+
+# No dedicated action needed here: vanilla Slow Falling already removes fall damage entirely,
+# so this reuses the existing "effect" action instead of writing new code for the same result.
+action: "effect"
+action-config:
+  effects:
+    - "SLOW_FALLING|1|8"
+
+  feedback-effects:
+    particles:
+      enabled: true
+      particles:
+        - "CLOUD|15|0.4|0.6|0.4|0.05"
+    sounds:
+      enabled: true
+      sounds:
+        - "ITEM_ELYTRA_FLYING|0.6|1.4"
+
+# ===== VISUALS =====
+
+effects-on-use:
+  particles:
+    enabled: false
+    particles: []
+  sounds:
+    enabled: false
+    sounds: []
+  fireworks:
+    enabled: false
+    fireworks: []
+
+# ===== WORLD-GUARD =====
+
+#region:
+#  disable-in-non-pvp-regions: true
+#  type: WHITELIST
+#  checker: CONTAINS
+#  list:
+#    - "area-pvp"
+#    - "arena-1|world_nether"
+#  cooldowns:
+#    "area-pvp": 10.0
+#    "arena-1": 15.5

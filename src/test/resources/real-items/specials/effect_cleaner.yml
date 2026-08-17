@@ -1,1 +1,84 @@
+# ===== ITEM =====
 
+material: "PAPER"
+name: '&#ca9a12Effects Cleaner &8[&#ffc58f%current_uses%&8/&#8fffc1%max_uses%&8]'
+lore:
+  - '{secondary}Information:'
+  - ' {muted}▎ {letters}Removes {highlight}poison, wither'
+  - ' {muted}▎ {letters}and {highlight}levitation {letters}instantly.'
+  - ''
+  - '{secondary}Stats:'
+  - ' {muted}▎ {letters}Cooldown {muted}» {info}30s ⌚'
+  - ''
+  - '{warning}➥ Click to use'
+  - ''
+glow: true
+hide-attributes: true
+
+# ===== CONFIGURATION ======
+
+display-name: '&#ca9a12Effects Cleaner'
+cancel-event: true # Cancel the event when the item is used
+max_stack_size: 1
+max-uses: 3 # Maximum number of uses
+cooldown: 30.0 # seconds
+
+# ===== ACTIONS =====
+
+#commands:
+#  - "console: effect give %player% minecraft:strength 30 2"
+#  - "console: effect give %player% minecraft:speed 30 1"
+#  - "player: say Hello!"
+
+# Trigger types:
+#  - IMMEDIATE -> Only affect the source player -> Apply action immediately
+#  - AFTER_CONSUME -> Only affect the source player -> Apply action after the item is consumed (example: food, potions, etc.)
+#  - ON_HIT_PLAYER -> Only affect the target player -> Apply action when the target player hit a player
+#  - ON_PROJECTILE_HIT -> Only affect the target player -> Apply action when the target player is hit by a projectile
+#      (optional) combo: {required-hits: N, window: seconds} -> require N consecutive hits within the window before the action fires
+#  - RADIUS -> Only affect players in a radius of the source player -> Apply to all players in a radius of the source player
+#  - ON_LAST_ATTACKER -> Only affect the source player -> Apply action targeting the last player who hit the source within "attacker-window" seconds
+#  - HOLD -> Only affect the source player -> Apply every "hold-interval" ticks
+trigger-type: IMMEDIATE
+action: "effect_cleaner"
+action-config:
+  effects:
+    - "POISON"
+    - "WITHER"
+    - "LEVITATION"
+
+# ===== VISUALS =====
+
+
+effects-on-use:
+  particles:
+    enabled: true
+    # Format: PARTICLE_NAME|COUNT|OFFSET_X|OFFSET_Y|OFFSET_Z|EXTRA|DATA
+    # PARTICLE_NAME: https://hub.spigotmc.org/javadocs/bukkit/org/bukkit/Particle.html
+    particles:
+      - "FLAME|20|0.5|0.5|0.5|0.1"
+  sounds:
+    enabled: true
+    # Format: SOUND_NAME|VOLUME|PITCH
+    # SOUND_NAME: https://hub.spigotmc.org/javadocs/bukkit/org/bukkit/Sound.html
+    sounds:
+      - "ENTITY_LIGHTNING_BOLT_THUNDER|1.0|1.2"
+  fireworks:
+    enabled: true
+    # Format: TYPE|COLORS|FADE_COLORS|FLICKER|TRAIL|POWER
+    # TYPE: https://hub.spigotmc.org/javadocs/bukkit/org/bukkit/FireworkEffect.Type.html
+    fireworks:
+      - "BALL|255,215,0;255,0,0|255,255,255|true|true|2"
+
+# ===== WORLD-GUARD =====
+
+#region:
+#  disable-in-non-pvp-regions: true
+#  type: WHITELIST # WHITELIST | BLACKLIST | NONE
+#  checker: CONTAINS # CONTAINS | PRIORITY
+#  list:
+#    - "area-pvp"
+#    - "arena-1|world_nether"  # For specific world
+#  cooldowns: # Custom cooldowns by region
+#    "area-pvp": 10.0
+#    "arena-1": 15.5

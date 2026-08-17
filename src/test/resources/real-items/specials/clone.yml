@@ -1,1 +1,122 @@
+# ===== ITEM =====
 
+material: "PLAYER_HEAD"
+name: '&#4fc3f7Clone Master &8[&#ffc58f%current_uses%&8/&#8fffc1%max_uses%&8]'
+lore:
+  - '{secondary}Information:'
+  - ' {muted}▎ {letters}Right click summons a {highlight}clone'
+  - ' {muted}▎ {letters}Left click swaps positions with it'
+  - ''
+  - '{secondary}Stats:'
+  - ' {muted}▎ {letters}Cooldown {muted}» {info}45s ⌚'
+  - ' {muted}▎ {letters}Duration {muted}» {info}30s ⌚'
+  - ''
+  - '{warning}➥ Click to use'
+  - ''
+glow: true
+hide-attributes: true
+
+# ===== CONFIGURATION ======
+
+display-name: '&#4fc3f7Clone Master'
+cancel-event: true
+max_stack_size: 1
+max-uses: 5
+cooldown: 45.0
+
+# ===== ACTIONS =====
+
+trigger-type: IMMEDIATE
+action: "clone" # Requires server version 1.21.11+ (uses Mannequin)
+action-config:
+  duration: 30 # clone duration in seconds
+  move-interval: 5 # movement interval in seconds
+  min-radius: 3 # minimum movement radius
+  max-radius: 8 # maximum movement radius
+  spawn-offset: 0 # spawn offset (0 = same position as player)
+  clone-name: "%player%"
+  invulnerable: true # if false, the clone can be damaged and killed like a normal entity
+  move-speed: 0.15 # horizontal wander speed
+  location-search-attempts: 10 # attempts per wander tick to find a valid random spot
+  glowing: false
+  collidable: true # if false, players walk through the clone
+  silent: false # if true, disables the clone's ambient/hurt sounds
+  copy-equipment: false # if true, mirrors the owner's currently worn armor and held items
+  mimic-pose: false # if true, the clone copies the owner's pose (sneaking, swimming, etc.)
+
+  # Effects when creating the clone
+  spawn-effects:
+    particles:
+      enabled: true
+      particles:
+        - "PORTAL|30|1.0|2.0|1.0|0.8"
+        - "ENCHANTMENT_TABLE|25|1.5|2.5|1.5|0.5"
+    sounds:
+      enabled: true
+      sounds:
+        - "ENTITY_ENDERMAN_TELEPORT|1.0|0.8"
+        - "BLOCK_PORTAL_AMBIENT|0.8|1.2"
+    fireworks:
+      enabled: true
+      fireworks:
+        - "STAR|138,43,226;75,0,130|255,255,255|true|true|1"
+
+  # Effects when swapping position
+  swap-effects:
+    particles:
+      enabled: true
+      particles:
+        - "PORTAL|20|0.8|1.5|0.8|0.6"
+        - "WITCH|15|0.5|1.0|0.5|0.3"
+    sounds:
+      enabled: true
+      sounds:
+        - "ENTITY_ENDERMAN_TELEPORT|0.8|1.5"
+    fireworks:
+      enabled: false
+      fireworks: []
+
+  # Effects when removing the clone
+  remove-effects:
+    particles:
+      enabled: true
+      particles:
+        - "POOF|20|1.0|1.0|1.0|0.1"
+        - "SMOKE|10|0.8|0.8|0.8|0.05"
+    sounds:
+      enabled: true
+      sounds:
+        - "ENTITY_GENERIC_EXTINGUISH_FIRE|0.7|1.0"
+    fireworks:
+      enabled: false
+      fireworks: []
+
+# ===== VISUALS =====
+
+effects-on-use:
+  particles:
+    enabled: true
+    particles:
+      - "ENCHANTMENT_TABLE|15|0.5|0.5|0.5|0.2"
+      - "PORTAL|10|0.3|0.3|0.3|0.1"
+  sounds:
+    enabled: true
+    sounds:
+      - "ENTITY_PLAYER_LEVELUP|1.0|1.0"
+  fireworks:
+    enabled: true
+    fireworks:
+      - "BALL|79,195,247;138,43,226|255,255,255|true|false|1"
+
+# ===== WORLD-GUARD =====
+
+#region:
+#  disable-in-non-pvp-regions: true
+#  type: WHITELIST # WHITELIST | BLACKLIST | NONE
+#  checker: CONTAINS # CONTAINS | PRIORITY
+#  list:
+#    - "area-pvp"
+#    - "arena-1|world_nether"  # For specific world
+#  cooldowns: # Custom cooldowns by region
+#    "area-pvp": 10.0
+#    "arena-1": 15.5

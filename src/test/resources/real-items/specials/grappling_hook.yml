@@ -1,1 +1,79 @@
+# ===== ITEM =====
 
+material: "FISHING_ROD"
+name: '&#ff6b35Grappling Hook &8[&#ffc58f%current_uses%&8/&#8fffc1%max_uses%&8]'
+lore:
+  - '{secondary}Information:'
+  - ' {muted}▎ {letters}Shoots an arrow and pulls you'
+  - ' {muted}▎ {letters}to where it lands, {highlight}Batman style{letters}.'
+  - ''
+  - '{secondary}Stats:'
+  - ' {muted}▎ {letters}Cooldown {muted}» {info}5s ⌚'
+  - ' {muted}▎ {letters}Max Distance {muted}» {info}40 blocks'
+  - ''
+  - '{warning}➥ Click to use'
+  - ''
+glow: true
+hide-attributes: true
+
+# ===== CONFIGURATION ======
+
+display-name: '&#ff6b35Grappling Hook'
+cancel-event: true
+max_stack_size: 1
+max-uses: 10
+cooldown: 5.0
+
+# ===== ACTIONS =====
+
+trigger-type: IMMEDIATE
+action: "grappling_hook"
+action-config:
+  arrow-speed: 3.0
+  pull-force: 2.0
+  max-distance: 40.0
+  allow-wall-pull: true
+
+  launch-effects:
+    particles:
+      enabled: true
+      particles:
+        - "SMOKE_NORMAL|10|0.3|0.3|0.3|0.1"
+        - "SPARK|5|0.2|0.2|0.2|0.2"
+    sounds:
+      enabled: true
+      sounds:
+        - "ENTITY_ARROW_SHOOT|0.8|0.8"
+    fireworks:
+      enabled: false
+      fireworks: []
+
+# ===== VISUALS =====
+
+effects-on-use:
+  particles:
+    enabled: true
+    particles:
+      - "REDSTONE|15|0.5|0.5|0.5|0.0|255,107,53"
+      - "CLOUD|8|0.3|0.3|0.3|0.1"
+  sounds:
+    enabled: true
+    sounds:
+      - "BLOCK_PISTON_EXTEND|1.0|1.2"
+  fireworks:
+    enabled: true
+    fireworks:
+      - "STAR|255,107,53;255,215,0|255,255,255|true|false|1"
+
+# ===== WORLD-GUARD =====
+
+#region:
+#  disable-in-non-pvp-regions: true
+#  type: WHITELIST # WHITELIST | BLACKLIST | NONE
+#  checker: CONTAINS # CONTAINS | PRIORITY
+#  list:
+#    - "area-pvp"
+#    - "arena-1|world_nether"  # For specific world
+#  cooldowns: # Custom cooldowns by region
+#    "area-pvp": 10.0
+#    "arena-1": 15.5

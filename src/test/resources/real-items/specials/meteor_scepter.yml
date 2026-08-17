@@ -1,1 +1,113 @@
+# ===== ITEM =====
 
+material: "BLAZE_ROD"
+name: '{muted}» &#ba5f1fMeteor Scepter {muted}[{success}%current_uses%{muted}/{error}%max_uses%{muted}]'
+lore:
+  - '{secondary}Information:'
+  - ' {muted}▎ {letters}Marks your target''s position.'
+  - ' {muted}▎ {letters}After {highlight}2.5 seconds{letters}, meteors rain'
+  - ' {muted}▎ {letters}down on the area. Give them'
+  - ' {muted}▎ {letters}a reason to run.'
+  - ''
+  - '{secondary}Stats:'
+  - ' {muted}▎ {letters}Cooldown {muted}» {info}35s ⌚'
+  - ' {muted}▎ {letters}Meteors {muted}» {info}6'
+  - ' {muted}▎ {letters}Blast Radius {muted}» {info}5 blocks'
+  - ''
+  - '{warning}➥ Hit an enemy to activate'
+  - ''
+
+glow: true
+hide-attributes: true
+
+# ===== CONFIGURATION ======
+
+display-name: '&#ba5f1fᴍᴇᴛᴇᴏʀ ꜱᴄᴇᴘᴛʀᴇ'
+cancel-event: true # Cancel the event when the item is used
+max_stack_size: 1
+max-uses: 2 # Maximum number of uses
+cooldown: 35 # seconds
+
+# ===== ACTIONS =====
+
+# Trigger types:
+#  - IMMEDIATE -> Only affect the source player -> Apply action immediately
+#  - AFTER_CONSUME -> Only affect the source player -> Apply action after the item is consumed (example: food, potions, etc.)
+#  - ON_HIT_PLAYER -> Only affect the target player -> Apply action when the target player hit a player
+#  - ON_PROJECTILE_HIT -> Only affect the target player -> Apply action when the target player is hit by a projectile
+#      (optional) combo: {required-hits: N, window: seconds} -> require N consecutive hits within the window before the action fires
+#  - RADIUS -> Only affect players in a radius of the source player -> Apply to all players in a radius of the source player
+#  - ON_LAST_ATTACKER -> Only affect the source player -> Apply action targeting the last player who hit the source within "attacker-window" seconds
+#  - HOLD -> Only affect the source player -> Apply every "hold-interval" ticks
+trigger-type: ON_HIT_PLAYER
+
+# Telegraphed ultimate: the strike lands on the target's location at the moment of the hit,
+# not wherever they run to afterward - so a fast enemy can dodge it entirely.
+action: "meteor_strike"
+action-config:
+  delay: 2.5 # seconds between the mark and the meteors landing
+  radius: 5.0 # radius around ground zero where meteors can land
+  meteor-count: 6 # number of meteors launched
+  damage: 5.0 # damage dealt to anyone caught in a meteor's impact-radius
+  impact-radius: 2.5 # blast radius per individual meteor
+  affect-caster: false # whether your own meteors can hurt you
+  only-players: true
+  spawn-height: 18.0 # how high above the target the meteors start falling from
+  fall-speed: 1.8
+  stagger-ticks: 3 # random spread between each meteor's launch, for a "rain" effect
+
+  warning-bossbar:
+    enabled: true
+    text: '{error}☄ Meteors incoming! &8[&f%time_formatted%s&8]'
+    color: "RED"
+    style: "SOLID"
+
+  warning-effects:
+    particles:
+      enabled: true
+      particles:
+        - "FLAME|8|1.5|0.1|1.5|0.02"
+    sounds:
+      enabled: true
+      sounds:
+        - "BLOCK_LAVA_POP|0.6|0.8"
+
+  impact-effects:
+    particles:
+      enabled: true
+      particles:
+        - "EXPLOSION|1|0|0|0|0"
+        - "LAVA|15|0.5|0.3|0.5|0.1"
+        - "FLAME|20|0.6|0.4|0.6|0.05"
+    sounds:
+      enabled: true
+      sounds:
+        - "ENTITY_GENERIC_EXPLODE|1.0|0.9"
+
+# ===== VISUALS =====
+
+effects-on-use:
+  particles:
+    enabled: true
+    particles:
+      - "FLAME|20|0.5|0.5|0.5|0.1"
+  sounds:
+    enabled: true
+    sounds:
+      - "ITEM_FIRECHARGE_USE|1.0|0.7"
+  fireworks:
+    enabled: false
+    fireworks: []
+
+# ===== WORLD-GUARD =====
+
+#region:
+#  disable-in-non-pvp-regions: true
+#  type: WHITELIST # WHITELIST | BLACKLIST | NONE
+#  checker: CONTAINS # CONTAINS | PRIORITY
+#  list:
+#    - "area-pvp"
+#    - "arena-1|world_nether"  # For specific world
+#  cooldowns: # Custom cooldowns by region
+#    "area-pvp": 10.0
+#    "arena-1": 15.5

@@ -1,1 +1,99 @@
+# ===== ITEM =====
 
+material: "GOLDEN_AXE"
+name: '{muted}» &#ba8f1fWarlord''s Fury {muted}[{success}%current_uses%{muted}/{error}%max_uses%{muted}]'
+lore:
+  - '{secondary}Information:'
+  - ' {muted}▎ {letters}Every hit builds a stack of'
+  - ' {muted}▎ {letters}{highlight}Fury {letters}(up to {highlight}5{letters}), boosting your'
+  - ' {muted}▎ {letters}Strength and Speed. Stop swinging'
+  - ' {muted}▎ {letters}for {highlight}4 seconds {letters}and it fades.'
+  - ''
+  - '{secondary}Stats:'
+  - ' {muted}▎ {letters}Cooldown {muted}» {info}1s ⌚'
+  - ' {muted}▎ {letters}Max Stacks {muted}» {info}5'
+  - ' {muted}▎ {letters}Decay Window {muted}» {info}4s ⌚'
+  - ''
+  - '{warning}➥ Hit an enemy to build Fury'
+  - ''
+
+glow: true
+hide-attributes: true
+
+# ===== CONFIGURATION ======
+
+display-name: '&#ba8f1fᴡᴀʀʟᴏʀᴅ''ꜱ ғᴜʀʏ'
+cancel-event: true # Cancel the event when the item is used
+max_stack_size: 1
+max-uses: 40 # Maximum number of uses - high because it triggers on every hit to build stacks
+cooldown: 1 # seconds - practically no cooldown, this is meant to be spammed in a fight
+
+# ===== ACTIONS =====
+
+# Trigger types:
+#  - IMMEDIATE -> Only affect the source player -> Apply action immediately
+#  - AFTER_CONSUME -> Only affect the source player -> Apply action after the item is consumed (example: food, potions, etc.)
+#  - ON_HIT_PLAYER -> Only affect the target player -> Apply action when the target player hit a player
+#  - ON_PROJECTILE_HIT -> Only affect the target player -> Apply action when the target player is hit by a projectile
+#      (optional) combo: {required-hits: N, window: seconds} -> require N consecutive hits within the window before the action fires
+#  - RADIUS -> Only affect players in a radius of the source player -> Apply to all players in a radius of the source player
+#  - ON_LAST_ATTACKER -> Only affect the source player -> Apply action targeting the last player who hit the source within "attacker-window" seconds
+#  - HOLD -> Only affect the source player -> Apply every "hold-interval" ticks
+trigger-type: ON_HIT_PLAYER
+
+# The buff always applies to YOU (the attacker), not the player you hit - regardless of trigger type.
+action: "ascension"
+action-config:
+  max-stacks: 5
+  decay-window: 4.0 # seconds without landing a hit before Fury resets to 0
+  strength-per-stack: 1 # +1 amplifier level of Strength per stack
+  speed-per-stack: 1 # +1 amplifier level of Speed per stack
+  resistance-per-stack: 0 # disabled by default; set > 0 to also grant Resistance per stack
+
+  stack-effects:
+    particles:
+      enabled: true
+      particles:
+        - "FLAME|10|0.3|0.5|0.3|0.05"
+    sounds:
+      enabled: true
+      sounds:
+        - "ENTITY_PLAYER_LEVELUP|0.5|1.8"
+
+  max-stack-effects:
+    particles:
+      enabled: true
+      particles:
+        - "FLAME|30|0.5|0.8|0.5|0.1"
+        - "LAVA|10|0.3|0.3|0.3|0.05"
+    sounds:
+      enabled: true
+      sounds:
+        - "ENTITY_ENDER_DRAGON_GROWL|0.4|1.6"
+        - "ENTITY_PLAYER_LEVELUP|1.0|2.0"
+
+# ===== VISUALS =====
+
+effects-on-use:
+  particles:
+    enabled: false
+    particles: []
+  sounds:
+    enabled: false
+    sounds: []
+  fireworks:
+    enabled: false
+    fireworks: []
+
+# ===== WORLD-GUARD =====
+
+#region:
+#  disable-in-non-pvp-regions: true
+#  type: WHITELIST # WHITELIST | BLACKLIST | NONE
+#  checker: CONTAINS # CONTAINS | PRIORITY
+#  list:
+#    - "area-pvp"
+#    - "arena-1|world_nether"  # For specific world
+#  cooldowns: # Custom cooldowns by region
+#    "area-pvp": 10.0
+#    "arena-1": 15.5

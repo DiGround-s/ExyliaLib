@@ -1,1 +1,94 @@
+# ===== ITEM =====
 
+material: "STRING"
+name: '{muted}» &#4a2f6aSpider Gauntlets {muted}[{success}%current_uses%{muted}/{error}%max_uses%{muted}]'
+lore:
+  - '{secondary}Information:'
+  - ' {muted}▎ {letters}Lets you {highlight}climb any wall {letters}you touch'
+  - ' {muted}▎ {letters}for {highlight}8 seconds{letters}, like a ladder.'
+  - ' {muted}▎ {letters}Great for escaping, ambushing'
+  - ' {muted}▎ {letters}from above, or reaching places'
+  - ' {muted}▎ {letters}nobody expects.'
+  - ''
+  - '{secondary}Stats:'
+  - ' {muted}▎ {letters}Cooldown {muted}» {info}40s ⌚'
+  - ' {muted}▎ {letters}Duration {muted}» {info}8s ⌚'
+  - ''
+  - '{warning}➥ Click to activate'
+  - ''
+
+glow: true
+hide-attributes: true
+
+# ===== CONFIGURATION ======
+
+display-name: '&#4a2f6aꜱᴘɪᴅᴇʀ ɢᴀᴜɴᴛʟᴇᴛꜱ'
+cancel-event: true
+max_stack_size: 1
+max-uses: 3
+cooldown: 40
+
+# ===== ACTIONS =====
+
+# Trigger types:
+#  - IMMEDIATE -> Only affect the source player -> Apply action immediately
+#  - AFTER_CONSUME -> Only affect the source player -> Apply action after the item is consumed (example: food, potions, etc.)
+#  - ON_HIT_PLAYER -> Only affect the target player -> Apply action when the target player hit a player
+#  - ON_PROJECTILE_HIT -> Only affect the target player -> Apply action when the target player is hit by a projectile
+#      (optional) combo: {required-hits: N, window: seconds} -> require N consecutive hits within the window before the action fires
+#  - RADIUS -> Only affect players in a radius of the source player -> Apply to all players in a radius of the source player
+#  - ON_LAST_ATTACKER -> Only affect the source player -> Apply action targeting the last player who hit the source within "attacker-window" seconds
+#  - HOLD -> Only affect the source player -> Apply every "hold-interval" ticks
+trigger-type: IMMEDIATE
+
+action: "wall_climb"
+action-config:
+  duration: 8.0 # seconds the climbing ability lasts
+  climb-speed: 0.15 # vertical speed while against a wall, similar to vanilla ladders
+  detection-distance: 0.3 # how far in front of you to check for a wall to grab onto
+
+  activate-effects:
+    particles:
+      enabled: true
+      particles:
+        - "SPORE_BLOSSOM_AIR|10|0.3|0.3|0.3|0.05"
+    sounds:
+      enabled: true
+      sounds:
+        - "ENTITY_SPIDER_AMBIENT|1.0|0.7"
+
+  expire-effects:
+    particles:
+      enabled: true
+      particles:
+        - "POOF|8|0.3|0.3|0.3|0.05"
+    sounds:
+      enabled: true
+      sounds:
+        - "ENTITY_SPIDER_STEP|0.8|1.2"
+
+# ===== VISUALS =====
+
+effects-on-use:
+  particles:
+    enabled: false
+    particles: []
+  sounds:
+    enabled: false
+    sounds: []
+  fireworks:
+    enabled: false
+    fireworks: []
+
+# ===== WORLD-GUARD =====
+
+#region:
+#  disable-in-non-pvp-regions: true
+#  type: WHITELIST
+#  checker: CONTAINS
+#  list:
+#    - "area-pvp"
+#    - "arena-1|world_nether"
+#  cooldowns:
+#    "area-pvp": 10.0
+#    "arena-1": 15.5

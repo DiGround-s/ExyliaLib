@@ -1,1 +1,116 @@
+# ===== ITEM =====
 
+material: "ECHO_SHARD"
+name: '&#ca9a121v1 &8[&#ffc58f%current_uses%&8/&#8fffc1%max_uses%&8]'
+lore:
+  - '{secondary}Information:'
+  - ' {muted}▎ {letters}Hit a player to challenge them to'
+  - ' {muted}▎ {letters}a {highlight}1v1 duel {letters}in a private arena.'
+  - ''
+  - '{secondary}Stats:'
+  - ' {muted}▎ {letters}Cooldown {muted}» {info}30s ⌚'
+  - ''
+  - '{warning}➥ Hit an enemy to activate'
+  - ''
+glow: true
+hide-attributes: true
+
+# ===== CONFIGURATION ======
+
+display-name: '&#ca9a121v1'
+cancel-event: true # Cancel the event when the item is used
+max_stack_size: 1
+max-uses: 1 # Maximum number of uses
+cooldown: 30.0 # seconds
+
+# ===== ACTIONS =====
+
+#commands:
+#  - "console: effect give %player% minecraft:strength 30 2"
+#  - "console: effect give %player% minecraft:speed 30 1"
+#  - "player: say Hello!"
+
+# Trigger types:
+#  - IMMEDIATE -> Only affect the source player -> Apply action immediately
+#  - AFTER_CONSUME -> Only affect the source player -> Apply action after the item is consumed (example: food, potions, etc.)
+#  - ON_HIT_PLAYER -> Only affect the target player -> Apply action when the target player hit a player
+#  - ON_PROJECTILE_HIT -> Only affect the target player -> Apply action when the target player is hit by a projectile
+#      (optional) combo: {required-hits: N, window: seconds} -> require N consecutive hits within the window before the action fires
+#  - RADIUS -> Only affect players in a radius of the source player -> Apply to all players in a radius of the source player
+#  - ON_LAST_ATTACKER -> Only affect the source player -> Apply action targeting the last player who hit the source within "attacker-window" seconds
+#  - HOLD -> Only affect the source player -> Apply every "hold-interval" ticks
+trigger-type: ON_HIT_PLAYER
+action: "1v1"
+action-config:
+  # Mode can be "fixed" or "region_mapping"
+  mode: "fixed"
+
+  # For fixed mode: specify a single arena
+  arena: "example-arena"
+
+#  # Mode: region_mapping for location-based arena selection
+#  mode: "region_mapping"
+#
+#  # Map WorldGuard regions to specific arenas
+#  region_mapping:
+#    "spawn": "spawn-arena"
+#    "pvp-zone": "main-pvp-arena"
+#    "crystal-area": "crystal-arena"
+#    "pot-area": "pot-arena"
+#    "mazo-area": "mazo-arena"
+#
+#  # Default arena if player is not in any mapped region
+#  default_arena: "default-arena"
+
+  # Boss bar de countdown durante la pelea
+  fight-bossbar:
+    enabled: true
+    text: "{warning}⚔ &fTime: {warning}%time_formatted% &f| {error}%player1% &fvs {error}%player2%"
+    color: "RED"
+    style: "PROGRESS"
+    permanent: false
+    update-interval: 2
+
+  # Boss bar de countdown durante la fase de loot
+  loot-bossbar:
+    enabled: true
+    text: "{success}💰 &fLoot Time: {success}%time_formatted%"
+    color: "GREEN"
+    style: "PROGRESS"
+    permanent: false
+    update-interval: 2
+
+# ===== VISUALS =====
+
+effects-on-use:
+  particles:
+    enabled: true
+    # Format: PARTICLE_NAME|COUNT|OFFSET_X|OFFSET_Y|OFFSET_Z|EXTRA|DATA
+    # PARTICLE_NAME: https://hub.spigotmc.org/javadocs/bukkit/org/bukkit/Particle.html
+    particles:
+      - "FLAME|20|0.5|0.5|0.5|0.1"
+  sounds:
+    enabled: true
+    # Format: SOUND_NAME|VOLUME|PITCH
+    # SOUND_NAME: https://hub.spigotmc.org/javadocs/bukkit/org/bukkit/Sound.html
+    sounds:
+      - "ENTITY_LIGHTNING_BOLT_THUNDER|1.0|1.2"
+  fireworks:
+    enabled: true
+    # Format: TYPE|COLORS|FADE_COLORS|FLICKER|TRAIL|POWER
+    # TYPE: https://hub.spigotmc.org/javadocs/bukkit/org/bukkit/FireworkEffect.Type.html
+    fireworks:
+      - "BALL|255,215,0;255,0,0|255,255,255|true|true|2"
+
+# ===== WORLD-GUARD =====
+
+#region:
+#  disable-in-non-pvp-regions: true
+#  type: WHITELIST # WHITELIST | BLACKLIST | NONE
+#  checker: CONTAINS # CONTAINS | PRIORITY
+#  list:
+#    - "area-pvp"
+#    - "arena-1|world_nether"  # For specific world
+#  cooldowns: # Custom cooldowns by region
+#    "area-pvp": 10.0
+#    "arena-1": 15.5

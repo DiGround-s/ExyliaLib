@@ -1,1 +1,103 @@
+# ===== ITEM =====
 
+material: "IRON_AXE"
+name: '{muted}» &#2f8f4fBerserker''s Growl {muted}[{success}%current_uses%{muted}/{error}%max_uses%{muted}]'
+lore:
+  - '{secondary}Information:'
+  - ' {muted}▎ {letters}Landing a hit triggers a battle'
+  - ' {muted}▎ {letters}rage: you grow, gain {highlight}+2 hearts'
+  - ' {muted}▎ {letters}of temporary health, and Strength'
+  - ' {muted}▎ {letters}III for {highlight}6 seconds{letters}. Combat-triggered,'
+  - ' {muted}▎ {letters}not manually activated.'
+  - ''
+  - '{secondary}Stats:'
+  - ' {muted}▎ {letters}Cooldown {muted}» {info}25s ⌚'
+  - ''
+  - '{warning}➥ Hit an enemy to trigger'
+  - ''
+
+glow: true
+hide-attributes: true
+
+# ===== CONFIGURATION ======
+
+display-name: '&#2f8f4fʙᴇʀꜱᴇʀᴋᴇʀ''ꜱ ɢʀᴏᴡʟ'
+cancel-event: true
+max_stack_size: 1
+max-uses: 6 # Maximum number of uses
+cooldown: 25
+
+# ===== ACTIONS =====
+
+# Trigger types:
+#  - IMMEDIATE -> Only affect the source player -> Apply action immediately
+#  - AFTER_CONSUME -> Only affect the source player -> Apply action after the item is consumed (example: food, potions, etc.)
+#  - ON_HIT_PLAYER -> Only affect the target player -> Apply action when the target player hit a player
+#  - ON_PROJECTILE_HIT -> Only affect the target player -> Apply action when the target player is hit by a projectile
+#      (optional) combo: {required-hits: N, window: seconds} -> require N consecutive hits within the window before the action fires
+#  - RADIUS -> Only affect players in a radius of the source player -> Apply to all players in a radius of the source player
+#  - ON_LAST_ATTACKER -> Only affect the source player -> Apply action targeting the last player who hit the source within "attacker-window" seconds
+#  - HOLD -> Only affect the source player -> Apply every "hold-interval" ticks
+trigger-type: ON_HIT_PLAYER
+
+# titans_growth still only ever affects the SOURCE player regardless of trigger type, so hitting
+# an enemy transforms YOU - a smaller, shorter, combat-reactive version of Titan's Heart.
+# The Strength buff is a separate chained "effect" step instead of being hardcoded inside
+# titans_growth, so titans_growth stays focused on the scale/health transformation only.
+actions:
+  - action: "titans_growth"
+    action-config:
+      duration: 6.0
+      scale-multiplier: 1.3
+      bonus-health: 4.0
+
+      transform-effects:
+        particles:
+          enabled: true
+          particles:
+            - "BLOCK_CRUMBLE|20|0.5|0.7|0.5|0.1|IRON_BLOCK"
+        sounds:
+          enabled: true
+          sounds:
+            - "ENTITY_RAVAGER_ROAR|0.6|1.3"
+
+      revert-effects:
+        particles:
+          enabled: true
+          particles:
+            - "SMOKE_NORMAL|15|0.4|0.5|0.4|0.05"
+        sounds:
+          enabled: true
+          sounds:
+            - "ENTITY_PLAYER_BREATH|1.0|0.8"
+
+  - action: "effect"
+    action-config:
+      effects:
+        - "STRENGTH|3|6" # Strength III for 6 seconds, matching titans_growth's duration above
+
+# ===== VISUALS =====
+
+effects-on-use:
+  particles:
+    enabled: false
+    particles: []
+  sounds:
+    enabled: false
+    sounds: []
+  fireworks:
+    enabled: false
+    fireworks: []
+
+# ===== WORLD-GUARD =====
+
+#region:
+#  disable-in-non-pvp-regions: true
+#  type: WHITELIST
+#  checker: CONTAINS
+#  list:
+#    - "area-pvp"
+#    - "arena-1|world_nether"
+#  cooldowns:
+#    "area-pvp": 10.0
+#    "arena-1": 15.5

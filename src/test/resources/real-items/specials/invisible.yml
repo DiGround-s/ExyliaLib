@@ -1,1 +1,93 @@
+# ===== ITEM =====
 
+material: "GLASS_BOTTLE"
+name: '&#9c27b0Invisibility Potion &8[&#ffc58f%current_uses%&8/&#8fffc1%max_uses%&8]'
+lore:
+  - '{secondary}Information:'
+  - ' {muted}▎ {letters}Makes you completely {highlight}invisible'
+  - ' {muted}▎ {letters}and immune to damage.'
+  - ''
+  - '{secondary}Stats:'
+  - ' {muted}▎ {letters}Cooldown {muted}» {info}40s ⌚'
+  - ' {muted}▎ {letters}Duration {muted}» {info}15s ⌚'
+  - ''
+  - '{warning}➥ Click to use'
+  - ''
+glow: true
+hide-attributes: true
+
+# ===== CONFIGURATION ======
+
+display-name: '&#9c27b0Invisibility Potion'
+cancel-event: true
+max_stack_size: 1
+max-uses: 4
+cooldown: 40.0
+
+# ===== ACTIONS =====
+
+trigger-type: IMMEDIATE
+action: "invisible"
+action-config:
+  duration: 15 # invisibility duration in seconds
+  delay: 60 # delay ticks before applying invisibility (3 seconds)
+  delay-effect-ticks: 2 # effect interval during delay
+  hide-from-all: true # hide from all players
+  prevent-damage: true # prevent taking damage while invisible
+  effects: # additional potion effects
+    - "SPEED|1|15" # SPEED level 1 for 15 seconds
+    - "NIGHT_VISION|1|15" # NIGHT VISION for 15 seconds
+
+  # Boss bar during delay
+  delay-bossbar:
+    enabled: true
+    text: "&7⏳ Applying invisibility... &8[&f%time_formatted%s&8]"
+    color: "PURPLE"
+    style: "SOLID"
+
+  # Effects during delay
+  delay-effects:
+    particles:
+      enabled: true
+      particles:
+        - "WITCH|8|0.5|1.0|0.5|0.1"
+        - "PORTAL|5|0.3|0.8|0.3|0.05"
+    sounds:
+      enabled: true
+      sounds:
+        - "BLOCK_BREWING_STAND_BREW|0.5|1.5"
+    fireworks:
+      enabled: false
+      fireworks: []
+
+# ===== VISUALS =====
+
+effects-on-use:
+  particles:
+    enabled: true
+    particles:
+      - "WITCH|20|1.0|1.5|1.0|0.2"
+      - "PORTAL|15|0.8|1.2|0.8|0.1"
+      - "SMOKE|10|0.5|0.8|0.5|0.05"
+  sounds:
+    enabled: true
+    sounds:
+      - "ENTITY_SPLASH_POTION_BREAK|1.0|0.8"
+      - "ENTITY_WITCH_DRINK|0.8|1.2"
+  fireworks:
+    enabled: true
+    fireworks:
+      - "BALL|156,39,176;128,0,128|255,255,255|true|false|1"
+
+# ===== WORLD-GUARD =====
+
+#region:
+#  disable-in-non-pvp-regions: true
+#  type: WHITELIST # WHITELIST | BLACKLIST | NONE
+#  checker: CONTAINS # CONTAINS | PRIORITY
+#  list:
+#    - "area-pvp"
+#    - "arena-1|world_nether"  # For specific world
+#  cooldowns: # Custom cooldowns by region
+#    "area-pvp": 10.0
+#    "arena-1": 15.5

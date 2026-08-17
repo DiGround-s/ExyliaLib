@@ -1,1 +1,99 @@
+# ===== ITEM =====
 
+material: "SHEARS"
+name: '{muted}» &#3fbaa8Ninja Shears {muted}[{success}%current_uses%{muted}/{error}%max_uses%{muted}]'
+lore:
+  - '{secondary}Information:'
+  - ' {muted}▎ {letters}Teleports you to the'
+  - ' {muted}▎ {highlight}last player {letters}that hit you'
+  - ' {muted}▎ {letters}within the last {highlight}3 seconds{letters}.'
+  - ''
+  - '{secondary}Stats:'
+  - ' {muted}▎ {letters}Cooldown {muted}» {info}20s ⌚'
+  - ' {muted}▎ {letters}Attacker Window {muted}» {info}3s ⌚'
+  - ''
+  - '{warning}➥ Right click to use'
+  - ''
+
+glow: true
+hide-attributes: true
+
+# ===== CONFIGURATION ======
+
+display-name: '&#3fbaa8ɴɪɴᴊᴀ ꜱʜᴇᴀʀꜱ'
+cancel-event: true # Cancel the event when the item is used
+max_stack_size: 1
+max-uses: 5 # Maximum number of uses
+cooldown: 20 # seconds
+
+# ===== ACTIONS =====
+
+# Trigger types:
+#  - IMMEDIATE -> Only affect the source player -> Apply action immediately
+#  - AFTER_CONSUME -> Only affect the source player -> Apply action after the item is consumed (example: food, potions, etc.)
+#  - ON_HIT_PLAYER -> Only affect the target player -> Apply action when the target player hit a player
+#  - ON_PROJECTILE_HIT -> Only affect the target player -> Apply action when the target player is hit by a projectile
+#      (optional) combo: {required-hits: N, window: seconds} -> require N consecutive hits within the window before the action fires
+#  - RADIUS -> Only affect players in a radius of the source player -> Apply to all players in a radius of the source player
+#  - ON_LAST_ATTACKER -> Only affect the source player -> Apply action targeting the last player who hit the source within "attacker-window" seconds
+#  - HOLD -> Only affect the source player -> Apply every "hold-interval" ticks
+trigger-type: ON_LAST_ATTACKER
+
+# Only teleports if someone hit you within the last 3 seconds
+attacker-window: 3.0
+
+action: "teleport"
+action-config:
+  type: "FROM" # Teleports you to the last player that hit you
+  delay: 0
+
+  # Sent if the attacker went offline right before the teleport resolved
+  fail-message: '%prefix% {error}Could not teleport to your attacker.'
+
+  # Teleport effects played at both the origin and destination locations
+  teleport-effects:
+    particles:
+      enabled: true
+      particles:
+        - "SMOKE_NORMAL|25|0.4|0.6|0.4|0.05"
+        - "CRIT|15|0.3|0.5|0.3|0.1"
+    sounds:
+      enabled: true
+      sounds:
+        - "ENTITY_ENDERMAN_TELEPORT|1.0|1.4"
+        - "ITEM_TRIDENT_RETURN|0.8|1.6"
+    fireworks:
+      enabled: false
+      fireworks: []
+
+# ===== VISUALS =====
+
+effects-on-use:
+  particles:
+    enabled: true
+    # Format: PARTICLE_NAME|COUNT|OFFSET_X|OFFSET_Y|OFFSET_Z|EXTRA|DATA
+    # PARTICLE_NAME: https://hub.spigotmc.org/javadocs/bukkit/org/bukkit/Particle.html
+    particles:
+      - "SMOKE_NORMAL|20|0.5|0.5|0.5|0.1"
+  sounds:
+    enabled: true
+    # Format: SOUND_NAME|VOLUME|PITCH
+    # SOUND_NAME: https://hub.spigotmc.org/javadocs/bukkit/org/bukkit/Sound.html
+    sounds:
+      - "ENTITY_ZOMBIE_INFECT|1.0|1.5"
+  fireworks:
+    enabled: false
+    fireworks: []
+
+# ===== WORLD-GUARD =====
+
+#region:
+#  disable-in-non-pvp-regions: true
+#  type: WHITELIST # WHITELIST | BLACKLIST | NONE
+#  checker: CONTAINS # CONTAINS | PRIORITY
+#  list:
+#    - "area-pvp"
+#    - "arena-1|world_nether"  # For specific world
+#  cooldowns: # Custom cooldowns by region
+#    "area-pvp": 10.0
+#    "arena-1": 15.5

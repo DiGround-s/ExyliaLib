@@ -1,1 +1,105 @@
+# ===== ITEM =====
 
+material: "FERMENTED_SPIDER_EYE"
+name: '{muted}» &#8a1f3fBlood Nova {muted}[{success}%current_uses%{muted}/{error}%max_uses%{muted}]'
+lore:
+  - '{secondary}Information:'
+  - ' {muted}▎ {letters}Unleashes a burst of dark energy'
+  - ' {muted}▎ {letters}around you, damaging {highlight}every enemy'
+  - ' {muted}▎ {letters}in range {letters}and healing you for {highlight}50%'
+  - ' {muted}▎ {letters}of the total damage dealt.'
+  - ''
+  - '{secondary}Stats:'
+  - ' {muted}▎ {letters}Cooldown {muted}» {info}25s ⌚'
+  - ' {muted}▎ {letters}Radius {muted}» {info}5 blocks'
+  - ''
+  - '{warning}➥ Click to unleash'
+  - ''
+
+glow: true
+hide-attributes: true
+
+# ===== CONFIGURATION ======
+
+display-name: '&#8a1f3fʙʟᴏᴏᴅ ɴᴏᴠᴀ'
+cancel-event: true
+max_stack_size: 1
+max-uses: 3
+cooldown: 25
+
+# ===== ACTIONS =====
+
+# Trigger types:
+#  - IMMEDIATE -> Only affect the source player -> Apply action immediately
+#  - AFTER_CONSUME -> Only affect the source player -> Apply action after the item is consumed (example: food, potions, etc.)
+#  - ON_HIT_PLAYER -> Only affect the target player -> Apply action when the target player hit a player
+#  - ON_PROJECTILE_HIT -> Only affect the target player -> Apply action when the target player is hit by a projectile
+#      (optional) combo: {required-hits: N, window: seconds} -> require N consecutive hits within the window before the action fires
+#  - RADIUS -> Only affect players in a radius of the source player -> Apply to all players in a radius of the source player
+#  - ON_LAST_ATTACKER -> Only affect the source player -> Apply action targeting the last player who hit the source within "attacker-window" seconds
+#  - HOLD -> Only affect the source player -> Apply every "hold-interval" ticks
+trigger-type: RADIUS
+
+# Radius settings live at the item root level (not inside an action-config) because
+# SpecialItemConfig resolves them once for the whole item, shared by every step below.
+radius: 5.0
+radius-shape: SPHERE
+radius-include-self: false
+
+# The same damage+heal chain as Bloodfang, but fired at every nearby enemy at once instead
+# of a single melee target - each enemy hit adds to the total healed, so surrounding
+# yourself with enemies is rewarded.
+actions:
+  - action: "damage"
+    action-config:
+      damage: 2.5
+      damage-effects:
+        particles:
+          enabled: true
+          particles:
+            - "DUST|15|0.3|0.5|0.3|0|140,0,20"
+        sounds:
+          enabled: true
+          sounds:
+            - "ENTITY_PLAYER_HURT|0.8|0.7"
+
+  - action: "heal"
+    action-config:
+      amount: "%last_damage% * 0.5"
+      heal-effects:
+        particles:
+          enabled: true
+          particles:
+            - "HEART|6|0.3|0.4|0.3|0.1"
+        sounds:
+          enabled: true
+          sounds:
+            - "ENTITY_GENERIC_DRINK|0.8|1.3"
+
+# ===== VISUALS =====
+
+effects-on-use:
+  particles:
+    enabled: true
+    particles:
+      - "DUST|40|1.5|0.3|1.5|0|140,0,20"
+  sounds:
+    enabled: true
+    sounds:
+      - "ENTITY_WITHER_AMBIENT|0.6|0.7"
+  fireworks:
+    enabled: false
+    fireworks: []
+
+# ===== WORLD-GUARD =====
+
+#region:
+#  disable-in-non-pvp-regions: true
+#  type: WHITELIST
+#  checker: CONTAINS
+#  list:
+#    - "area-pvp"
+#    - "arena-1|world_nether"
+#  cooldowns:
+#    "area-pvp": 10.0
+#    "arena-1": 15.5

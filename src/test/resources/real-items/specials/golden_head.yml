@@ -1,1 +1,78 @@
+# ===== ITEM =====
 
+material: "basehead-eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvM2JiNjEyZWI0OTVlZGUyYzVjYTUxNzhkMmQxZWNmMWNhNWEyNTVkMjVkZmMzYzI1NGJjNDdmNjg0ODc5MWQ4In19fQ=="
+name: '{muted}» &#FFD700Golden Head {muted}[{success}%current_uses%{muted}/{error}%max_uses%{muted}]'
+lore:
+  - '{secondary}Information:'
+  - ' {muted}▎ {letters}Upon consuming you will get'
+  - ' {muted}▎ {highlight}special effects {letters}for a limited time.'
+  - ''
+  - '{secondary}Effects:'
+  - ' {muted}▎ {letters}Speed II {muted}» {info}5s ⌚'
+  - ' {muted}▎ {letters}Regeneration II {muted}» {info}10s ⌚'
+  - ' {muted}▎ {letters}Absorption II {muted}» {info}30s ⌚'
+  - ''
+  - '{secondary}Stats:'
+  - ' {muted}▎ {letters}Cooldown {muted}» {info}8s ⌚'
+  - ''
+  - '{warning}➥ Click to consume'
+  - ''
+
+glow: true
+hide-attributes: true
+force-consumable: true
+consumable-time: 1.0
+consumable-nutrition: 6
+consumable-saturation: 14.4
+consumable-sound: ITEM_HONEY_BOTTLE_DRINK
+
+# ===== CONFIGURATION ======
+
+display-name: '&#FFD700ɢᴏʟᴅᴇɴ ʜᴇᴀᴅ'
+cancel-event: false
+max_stack_size: 64
+max-uses: 1
+cooldown: 8
+
+# ===== ACTIONS =====
+
+# Trigger types:
+#  - IMMEDIATE -> Apply action immediately on use
+#  - AFTER_CONSUME -> Apply action after the item is fully consumed
+trigger-type: AFTER_CONSUME
+action: "effect"
+action-config:
+  effects:
+    - "SPEED|2|5"
+    - "REGENERATION|2|10"
+    - "ABSORPTION|2|30"
+
+# ===== VISUALS =====
+
+effects-on-use:
+  particles:
+    enabled: true
+    particles:
+      - "FLAME|20|0.4|0.4|0.4|0.05"
+      - "VILLAGER_HAPPY|10|0.5|0.5|0.5|0.1"
+  sounds:
+    enabled: true
+    sounds:
+      - "ENTITY_PLAYER_LEVELUP|1.0|1.0"
+  fireworks:
+    enabled: true
+    fireworks:
+      - "BALL|255,215,0;255,140,0|255,255,200|true|false|1"
+
+# ===== WORLD-GUARD =====
+
+#region:
+#  disable-in-non-pvp-regions: true
+#  type: WHITELIST # WHITELIST | BLACKLIST | NONE
+#  checker: CONTAINS # CONTAINS | PRIORITY
+#  list:
+#    - "area-pvp"
+#    - "arena-1|world_nether"  # For specific world
+#  cooldowns: # Custom cooldowns by region
+#    "area-pvp": 10.0
+#    "arena-1": 15.5

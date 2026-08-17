@@ -1,1 +1,93 @@
+# ===== ITEM =====
 
+material: "COBWEB"
+name: '&#795548Block Creator &8[&#ffc58f%current_uses%&8/&#8fffc1%max_uses%&8]'
+lore:
+  - '{secondary}Information:'
+  - ' {muted}▎ {letters}Creates a temporary {highlight}sphere'
+  - ' {muted}▎ {letters}of blocks that vanish after a while.'
+  - ''
+  - '{secondary}Stats:'
+  - ' {muted}▎ {letters}Cooldown {muted}» {info}45s ⌚'
+  - ' {muted}▎ {letters}Radius {muted}» {info}5 blocks'
+  - ' {muted}▎ {letters}Duration {muted}» {info}30s ⌚'
+  - ''
+  - '{warning}➥ Click to use'
+  - ''
+glow: true
+hide-attributes: true
+
+# ===== CONFIGURATION ======
+
+display-name: '&#795548Block Creator'
+cancel-event: true
+max_stack_size: 1
+max-uses: 3
+cooldown: 45.0
+
+# ===== ACTIONS =====
+
+trigger-type: IMMEDIATE
+action: "block_creator"
+action-config:
+  radius: 5.0 # structure radius
+  material: "COBWEB" # block material
+  type: "SPHERE" # SPHERE or CUBOID
+  position: "CIRCULAR" # CIRCULAR or RECTANGULAR (for floors)
+  replace-water: true # replace water
+  thickness: 1.0 # wall thickness (for hollow structures)
+  remove-duration: 30 # seconds before removing blocks (-1 = permanent)
+
+  # Boss bar for destruction countdown
+  bossbar:
+    enabled: true
+    text: "&c⚠ Blocks will be destroyed in &f%time_formatted%s"
+    color: "RED"
+    style: "SEGMENTED_20"
+
+  # Effects when destroying blocks
+  destruction-effects:
+    particles:
+      enabled: true
+      particles:
+        - "BLOCK_CRACK|5|0.5|0.5|0.5|0.1|%material%"
+        - "POOF|3|0.3|0.3|0.3|0.05"
+    sounds:
+      enabled: true
+      sounds:
+        - "BLOCK_STONE_BREAK|0.5|1.0"
+    fireworks:
+      enabled: false
+      fireworks: []
+
+# ===== VISUALS =====
+
+effects-on-use:
+  particles:
+    enabled: true
+    particles:
+      - "BLOCK_DUST|20|2.0|2.0|2.0|0.1|COBWEB"
+      - "EXPLOSION|5|1.0|1.0|1.0|0.1"
+      - "SMOKE|10|1.5|1.5|1.5|0.05"
+  sounds:
+    enabled: true
+    sounds:
+      - "BLOCK_STONE_PLACE|1.0|0.8"
+      - "ENTITY_EXPERIENCE_ORB_PICKUP|1.0|1.5"
+  fireworks:
+    enabled: true
+    fireworks:
+      - "BALL|121,85,72;139,69,19|255,255,255|true|false|1"
+
+# ===== WORLD-GUARD =====
+
+#region:
+#  disable-in-non-pvp-regions: true
+#  type: WHITELIST # WHITELIST | BLACKLIST | NONE
+#  checker: CONTAINS # CONTAINS | PRIORITY
+#  list:
+#    - "area-pvp"
+#    - "arena-1|world_nether"  # For specific world
+#  cooldowns: # Custom cooldowns by region
+#    "area-pvp": 10.0
+#    "arena-1": 15.5

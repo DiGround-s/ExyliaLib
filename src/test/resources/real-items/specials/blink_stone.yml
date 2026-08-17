@@ -1,1 +1,87 @@
+# ===== ITEM =====
 
+material: "ENDER_EYE"
+name: '{muted}» &#8f6fbaBlink Stone {muted}[{success}%current_uses%{muted}/{error}%max_uses%{muted}]'
+lore:
+  - '{secondary}Information:'
+  - ' {muted}▎ {letters}Instantly teleports you up to'
+  - ' {muted}▎ {letters}{highlight}8 blocks {letters}in the direction you''re'
+  - ' {muted}▎ {letters}looking. Stops short of walls and'
+  - ' {muted}▎ {letters}always finds a safe spot to land -'
+  - ' {muted}▎ {letters}no fall risk like Dash.'
+  - ''
+  - '{secondary}Stats:'
+  - ' {muted}▎ {letters}Cooldown {muted}» {info}10s ⌚'
+  - ' {muted}▎ {letters}Range {muted}» {info}8 blocks'
+  - ''
+  - '{warning}➥ Click to blink'
+  - ''
+
+glow: true
+hide-attributes: true
+
+# ===== CONFIGURATION ======
+
+display-name: '&#8f6fbaʙʟɪɴᴋ ꜱᴛᴏɴᴇ'
+cancel-event: true
+max_stack_size: 1
+max-uses: 10 # Maximum number of uses
+cooldown: 10
+
+# ===== ACTIONS =====
+
+# Trigger types:
+#  - IMMEDIATE -> Only affect the source player -> Apply action immediately
+#  - AFTER_CONSUME -> Only affect the source player -> Apply action after the item is consumed (example: food, potions, etc.)
+#  - ON_HIT_PLAYER -> Only affect the target player -> Apply action when the target player hit a player
+#  - ON_PROJECTILE_HIT -> Only affect the target player -> Apply action when the target player is hit by a projectile
+#      (optional) combo: {required-hits: N, window: seconds} -> require N consecutive hits within the window before the action fires
+#  - RADIUS -> Only affect players in a radius of the source player -> Apply to all players in a radius of the source player
+#  - ON_LAST_ATTACKER -> Only affect the source player -> Apply action targeting the last player who hit the source within "attacker-window" seconds
+#  - HOLD -> Only affect the source player -> Apply every "hold-interval" ticks
+trigger-type: IMMEDIATE
+
+action: "blink"
+action-config:
+  distance: 8.0 # max blink range
+  safety-margin: 0.3 # how far to stop short of a wall the ray hits
+  require-safe-landing: true # step backward along the path until a non-solid spot is found; false = always land exactly at the raytraced point (riskier, allows clipping into thin gaps)
+
+  fail-message: '%prefix% {error}No safe spot to blink to.'
+
+  blink-effects:
+    particles:
+      enabled: true
+      particles:
+        - "PORTAL|25|0.3|0.5|0.3|0.3"
+        - "REVERSE_PORTAL|10|0.2|0.4|0.2|0.1"
+    sounds:
+      enabled: true
+      sounds:
+        - "ENTITY_ENDERMAN_TELEPORT|0.8|1.3"
+
+# ===== VISUALS =====
+
+effects-on-use:
+  particles:
+    enabled: false
+    particles: []
+  sounds:
+    enabled: false
+    sounds: []
+  fireworks:
+    enabled: false
+    fireworks: []
+
+# ===== WORLD-GUARD =====
+
+#region:
+#  disable-in-non-pvp-regions: true
+#  type: WHITELIST
+#  checker: CONTAINS
+#  list:
+#    - "area-pvp"
+#    - "arena-1|world_nether"
+#  cooldowns:
+#    "area-pvp": 10.0
+#    "arena-1": 15.5

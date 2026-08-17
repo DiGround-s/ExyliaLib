@@ -1,1 +1,103 @@
+# ===== ITEM =====
 
+material: "EGG"
+name: '{muted}» &#8a7f4fHarpoon {muted}[{success}%current_uses%{muted}/{error}%max_uses%{muted}]'
+lore:
+  - '{secondary}Information:'
+  - ' {muted}▎ {letters}Throw it. Whoever it hits gets'
+  - ' {muted}▎ {letters}chained to you for {highlight}6 seconds{letters}.'
+  - ' {muted}▎ {letters}A ranged version of Soul Shackle -'
+  - ' {muted}▎ {letters}reel in fleeing enemies from afar.'
+  - ''
+  - '{secondary}Stats:'
+  - ' {muted}▎ {letters}Cooldown {muted}» {info}18s ⌚'
+  - ' {muted}▎ {letters}Leash Range {muted}» {info}6 blocks'
+  - ''
+  - '{warning}➥ Throw at an enemy to activate'
+  - ''
+
+glow: true
+hide-attributes: true
+
+# ===== CONFIGURATION ======
+
+display-name: '&#8a7f4fʜᴀʀᴘᴏᴏɴ'
+cancel-event: true
+max_stack_size: 1
+max-uses: 5
+cooldown: 18
+
+# ===== ACTIONS =====
+
+# Trigger types:
+#  - IMMEDIATE -> Only affect the source player -> Apply action immediately
+#  - AFTER_CONSUME -> Only affect the source player -> Apply action after the item is consumed (example: food, potions, etc.)
+#  - ON_HIT_PLAYER -> Only affect the target player -> Apply action when the target player hit a player
+#  - ON_PROJECTILE_HIT -> Only affect the target player -> Apply action when the target player is hit by a projectile
+#      (optional) combo: {required-hits: N, window: seconds} -> require N consecutive hits within the window before the action fires
+#  - RADIUS -> Only affect players in a radius of the source player -> Apply to all players in a radius of the source player
+#  - ON_LAST_ATTACKER -> Only affect the source player -> Apply action targeting the last player who hit the source within "attacker-window" seconds
+#  - HOLD -> Only affect the source player -> Apply every "hold-interval" ticks
+#
+# Note: ON_PROJECTILE_HIT only works with EGG, SNOWBALL or ENDER_PEARL as the item material.
+trigger-type: ON_PROJECTILE_HIT
+
+# Same binding_chains action as Soul Shackle, but you throw it instead of needing a melee hit -
+# a shorter leash and duration since landing it is much easier from range.
+action: "binding_chains"
+action-config:
+  duration: 6.0
+  max-distance: 6.0
+  pull-force: 0.8
+  tick-interval: 2
+
+  tether-particle: "CRIT|3|0|0|0|0"
+  tether-spacing: 0.5
+
+  link-effects:
+    particles:
+      enabled: true
+      particles:
+        - "SMOKE_NORMAL|15|0.3|0.5|0.3|0.05"
+    sounds:
+      enabled: true
+      sounds:
+        - "ENTITY_FISHING_BOBBER_RETRIEVE|1.0|0.9"
+
+  break-effects:
+    particles:
+      enabled: true
+      particles:
+        - "POOF|15|0.3|0.5|0.3|0.05"
+    sounds:
+      enabled: true
+      sounds:
+        - "ENTITY_ITEM_BREAK|1.0|1.0"
+
+# ===== VISUALS =====
+
+effects-on-use:
+  particles:
+    enabled: true
+    particles:
+      - "CRIT|8|0.3|0.3|0.3|0.05"
+  sounds:
+    enabled: true
+    sounds:
+      - "ENTITY_ARROW_SHOOT|0.7|0.9"
+  fireworks:
+    enabled: false
+    fireworks: []
+
+# ===== WORLD-GUARD =====
+
+#region:
+#  disable-in-non-pvp-regions: true
+#  type: WHITELIST
+#  checker: CONTAINS
+#  list:
+#    - "area-pvp"
+#    - "arena-1|world_nether"
+#  cooldowns:
+#    "area-pvp": 10.0
+#    "arena-1": 15.5

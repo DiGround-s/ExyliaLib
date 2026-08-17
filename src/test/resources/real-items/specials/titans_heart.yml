@@ -1,1 +1,105 @@
+# ===== ITEM =====
 
+material: "HEART_OF_THE_SEA"
+name: '{muted}» &#2f8f4fTitan''s Heart {muted}[{success}%current_uses%{muted}/{error}%max_uses%{muted}]'
+lore:
+  - '{secondary}Information:'
+  - ' {muted}▎ {letters}Consume to grow into a'
+  - ' {muted}▎ {letters}{highlight}Titan {letters}for {highlight}10 seconds{letters}: bigger,'
+  - ' {muted}▎ {letters}tougher, and stronger, with'
+  - ' {muted}▎ {letters}{highlight}+4 hearts {letters}of bonus max health.'
+  - ''
+  - '{secondary}Stats:'
+  - ' {muted}▎ {letters}Cooldown {muted}» {info}45s ⌚'
+  - ' {muted}▎ {letters}Size {muted}» {info}+50%'
+  - ' {muted}▎ {letters}Bonus Health {muted}» {info}+4 ❤'
+  - ' {muted}▎ {letters}Strength {muted}» {info}II'
+  - ''
+  - '{warning}➥ Click to transform'
+  - ''
+
+glow: true
+hide-attributes: true
+
+# ===== CONFIGURATION ======
+
+display-name: '&#2f8f4fᴛɪᴛᴀɴ''ꜱ ʜᴇᴀʀᴛ'
+cancel-event: true # Cancel the event when the item is used
+max_stack_size: 1
+max-uses: 4 # Maximum number of uses
+cooldown: 45 # seconds
+
+# ===== ACTIONS =====
+
+# Trigger types:
+#  - IMMEDIATE -> Only affect the source player -> Apply action immediately
+#  - AFTER_CONSUME -> Only affect the source player -> Apply action after the item is consumed (example: food, potions, etc.)
+#  - ON_HIT_PLAYER -> Only affect the target player -> Apply action when the target player hit a player
+#  - ON_PROJECTILE_HIT -> Only affect the target player -> Apply action when the target player is hit by a projectile
+#      (optional) combo: {required-hits: N, window: seconds} -> require N consecutive hits within the window before the action fires
+#  - RADIUS -> Only affect players in a radius of the source player -> Apply to all players in a radius of the source player
+#  - ON_LAST_ATTACKER -> Only affect the source player -> Apply action targeting the last player who hit the source within "attacker-window" seconds
+#  - HOLD -> Only affect the source player -> Apply every "hold-interval" ticks
+trigger-type: IMMEDIATE
+
+# The Strength buff is a separate chained "effect" step instead of being hardcoded inside
+# titans_growth, so titans_growth stays focused on the scale/health transformation only.
+actions:
+  - action: "titans_growth"
+    action-config:
+      duration: 10.0 # seconds the transformation lasts
+      scale-multiplier: 1.5 # 1.5 = 50% bigger
+      bonus-health: 8.0 # +4 hearts of temporary max health, granted immediately as usable HP
+
+      transform-effects:
+        particles:
+          enabled: true
+          particles:
+            - "EXPLOSION|3|0.3|0.5|0.3|0.1"
+            - "BLOCK_CRUMBLE|30|0.6|0.8|0.6|0.1|STONE"
+        sounds:
+          enabled: true
+          sounds:
+            - "ENTITY_IRON_GOLEM_ATTACK|1.0|0.6"
+            - "ENTITY_GENERIC_EXPLODE|0.6|1.6"
+
+      revert-effects:
+        particles:
+          enabled: true
+          particles:
+            - "SMOKE_NORMAL|20|0.4|0.6|0.4|0.05"
+        sounds:
+          enabled: true
+          sounds:
+            - "ENTITY_ELDER_GUARDIAN_CURSE|0.5|1.5"
+
+  - action: "effect"
+    action-config:
+      effects:
+        - "STRENGTH|2|10" # Strength II for 10 seconds, matching titans_growth's duration above
+
+# ===== VISUALS =====
+
+effects-on-use:
+  particles:
+    enabled: false
+    particles: []
+  sounds:
+    enabled: false
+    sounds: []
+  fireworks:
+    enabled: false
+    fireworks: []
+
+# ===== WORLD-GUARD =====
+
+#region:
+#  disable-in-non-pvp-regions: true
+#  type: WHITELIST # WHITELIST | BLACKLIST | NONE
+#  checker: CONTAINS # CONTAINS | PRIORITY
+#  list:
+#    - "area-pvp"
+#    - "arena-1|world_nether"  # For specific world
+#  cooldowns: # Custom cooldowns by region
+#    "area-pvp": 10.0
+#    "arena-1": 15.5

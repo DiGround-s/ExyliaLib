@@ -1,1 +1,107 @@
+# ===== ITEM =====
 
+material: "MAGMA_CREAM"
+name: '{muted}» &#ba5f1fScorched Retreat {muted}[{success}%current_uses%{muted}/{error}%max_uses%{muted}]'
+lore:
+  - '{secondary}Information:'
+  - ' {muted}▎ {letters}Calls down meteors around'
+  - ' {muted}▎ {letters}{highlight}yourself {letters}after a short delay - a'
+  - ' {muted}▎ {letters}panic button to punish anyone'
+  - ' {muted}▎ {letters}chasing you. You are never hit'
+  - ' {muted}▎ {letters}by your own meteors.'
+  - ''
+  - '{secondary}Stats:'
+  - ' {muted}▎ {letters}Cooldown {muted}» {info}40s ⌚'
+  - ' {muted}▎ {letters}Delay {muted}» {info}1.5s ⌚'
+  - ''
+  - '{warning}➥ Click to activate'
+  - ''
+
+glow: true
+hide-attributes: true
+
+# ===== CONFIGURATION ======
+
+display-name: '&#ba5f1fꜱᴄᴏʀᴄʜᴇᴅ ʀᴇᴛʀᴇᴀᴛ'
+cancel-event: true
+max_stack_size: 1
+max-uses: 2
+cooldown: 40
+
+# ===== ACTIONS =====
+
+# Trigger types:
+#  - IMMEDIATE -> Only affect the source player -> Apply action immediately
+#  - AFTER_CONSUME -> Only affect the source player -> Apply action after the item is consumed (example: food, potions, etc.)
+#  - ON_HIT_PLAYER -> Only affect the target player -> Apply action when the target player hit a player
+#  - ON_PROJECTILE_HIT -> Only affect the target player -> Apply action when the target player is hit by a projectile
+#      (optional) combo: {required-hits: N, window: seconds} -> require N consecutive hits within the window before the action fires
+#  - RADIUS -> Only affect players in a radius of the source player -> Apply to all players in a radius of the source player
+#  - ON_LAST_ATTACKER -> Only affect the source player -> Apply action targeting the last player who hit the source within "attacker-window" seconds
+#  - HOLD -> Only affect the source player -> Apply every "hold-interval" ticks
+trigger-type: IMMEDIATE
+
+# Same meteor_strike action as Meteor Scepter, but self-targeted (IMMEDIATE) with a much shorter
+# delay and affect-caster disabled - a defensive area-denial zone around you instead of an
+# offensive strike on your enemy's position.
+action: "meteor_strike"
+action-config:
+  delay: 1.5
+  radius: 4.0
+  meteor-count: 5
+  damage: 4.0
+  impact-radius: 2.0
+  affect-caster: false
+  only-players: true
+  spawn-height: 14.0
+  fall-speed: 2.0
+  stagger-ticks: 2
+
+  warning-effects:
+    particles:
+      enabled: true
+      particles:
+        - "FLAME|6|1.0|0.1|1.0|0.02"
+    sounds:
+      enabled: true
+      sounds:
+        - "BLOCK_LAVA_POP|0.5|1.0"
+
+  impact-effects:
+    particles:
+      enabled: true
+      particles:
+        - "LAVA|10|0.4|0.3|0.4|0.1"
+        - "FLAME|15|0.5|0.3|0.5|0.05"
+    sounds:
+      enabled: true
+      sounds:
+        - "ENTITY_GENERIC_EXPLODE|0.8|1.1"
+
+# ===== VISUALS =====
+
+effects-on-use:
+  particles:
+    enabled: true
+    particles:
+      - "SMOKE_NORMAL|20|0.5|0.5|0.5|0.1"
+  sounds:
+    enabled: true
+    sounds:
+      - "ITEM_FIRECHARGE_USE|0.8|0.9"
+  fireworks:
+    enabled: false
+    fireworks: []
+
+# ===== WORLD-GUARD =====
+
+#region:
+#  disable-in-non-pvp-regions: true
+#  type: WHITELIST
+#  checker: CONTAINS
+#  list:
+#    - "area-pvp"
+#    - "arena-1|world_nether"
+#  cooldowns:
+#    "area-pvp": 10.0
+#    "arena-1": 15.5

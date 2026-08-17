@@ -1,1 +1,95 @@
+# ===== ITEM =====
 
+material: "RABBIT_FOOT"
+name: '{muted}» &#d4af37Adrenaline Rush {muted}[{success}%current_uses%{muted}/{error}%max_uses%{muted}]'
+lore:
+  - '{secondary}Information:'
+  - ' {muted}▎ {letters}A cheap, quick version of the'
+  - ' {muted}▎ {letters}Last Stand Totem: activate for a'
+  - ' {muted}▎ {letters}{highlight}2.5 second {letters}window where a fatal'
+  - ' {muted}▎ {letters}hit is negated and you heal {highlight}25%{letters}.'
+  - ' {muted}▎ {letters}Weaker save, much shorter cooldown.'
+  - ''
+  - '{secondary}Stats:'
+  - ' {muted}▎ {letters}Cooldown {muted}» {info}25s ⌚'
+  - ' {muted}▎ {letters}Ward Window {muted}» {info}2.5s ⌚'
+  - ''
+  - '{warning}➥ Click to activate'
+  - ''
+
+glow: true
+hide-attributes: true
+
+# ===== CONFIGURATION ======
+
+display-name: '&#d4af37ᴀᴅʀᴇɴᴀʟɪɴᴇ ʀᴜꜱʜ'
+cancel-event: true
+max_stack_size: 1
+max-uses: 6 # Maximum number of uses
+cooldown: 25
+
+# ===== ACTIONS =====
+
+# Trigger types:
+#  - IMMEDIATE -> Only affect the source player -> Apply action immediately
+#  - AFTER_CONSUME -> Only affect the source player -> Apply action after the item is consumed (example: food, potions, etc.)
+#  - ON_HIT_PLAYER -> Only affect the target player -> Apply action when the target player hit a player
+#  - ON_PROJECTILE_HIT -> Only affect the target player -> Apply action when the target player is hit by a projectile
+#      (optional) combo: {required-hits: N, window: seconds} -> require N consecutive hits within the window before the action fires
+#  - RADIUS -> Only affect players in a radius of the source player -> Apply to all players in a radius of the source player
+#  - ON_LAST_ATTACKER -> Only affect the source player -> Apply action targeting the last player who hit the source within "attacker-window" seconds
+#  - HOLD -> Only affect the source player -> Apply every "hold-interval" ticks
+trigger-type: IMMEDIATE
+
+# Same unstoppable action as Last Stand Totem, but a much shorter window, a weaker heal, and a
+# far cheaper cooldown - a frequent reflexive dodge instead of a rare clutch save.
+action: "unstoppable"
+action-config:
+  window: 2.5
+  heal-percent: 0.25
+
+  activate-effects:
+    particles:
+      enabled: true
+      particles:
+        - "CLOUD|10|0.3|0.4|0.3|0.05"
+    sounds:
+      enabled: true
+      sounds:
+        - "ENTITY_RABBIT_JUMP|1.0|1.6"
+
+  trigger-effects:
+    particles:
+      enabled: true
+      particles:
+        - "END_ROD|20|0.4|0.6|0.4|0.1"
+    sounds:
+      enabled: true
+      sounds:
+        - "ENTITY_PLAYER_LEVELUP|0.8|1.6"
+
+# ===== VISUALS =====
+
+effects-on-use:
+  particles:
+    enabled: false
+    particles: []
+  sounds:
+    enabled: false
+    sounds: []
+  fireworks:
+    enabled: false
+    fireworks: []
+
+# ===== WORLD-GUARD =====
+
+#region:
+#  disable-in-non-pvp-regions: true
+#  type: WHITELIST
+#  checker: CONTAINS
+#  list:
+#    - "area-pvp"
+#    - "arena-1|world_nether"
+#  cooldowns:
+#    "area-pvp": 10.0
+#    "arena-1": 15.5

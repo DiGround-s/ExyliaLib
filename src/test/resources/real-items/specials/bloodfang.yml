@@ -1,1 +1,97 @@
+# ===== ITEM =====
 
+material: "NETHERITE_AXE"
+name: '{muted}» &#ba1f3fBloodfang {muted}[{success}%current_uses%{muted}/{error}%max_uses%{muted}]'
+lore:
+  - '{secondary}Information:'
+  - ' {muted}▎ {letters}Every hit deals bonus damage'
+  - ' {muted}▎ {letters}and heals you for {highlight}60%'
+  - ' {muted}▎ {letters}of that damage.'
+  - ''
+  - '{secondary}Stats:'
+  - ' {muted}▎ {letters}Cooldown {muted}» {info}6s ⌚'
+  - ' {muted}▎ {letters}Bonus Damage {muted}» {info}3 ❤'
+  - ' {muted}▎ {letters}Lifesteal {muted}» {info}60%'
+  - ''
+  - '{warning}➥ Hit an enemy to activate'
+  - ''
+
+glow: true
+hide-attributes: true
+
+# ===== CONFIGURATION ======
+
+display-name: '&#ba1f3fʙʟᴏᴏᴅғᴀɴɢ'
+cancel-event: true # Cancel the event when the item is used
+max_stack_size: 1
+max-uses: 10 # Maximum number of uses
+cooldown: 6 # seconds
+
+# ===== ACTIONS =====
+
+# Trigger types:
+#  - IMMEDIATE -> Only affect the source player -> Apply action immediately
+#  - AFTER_CONSUME -> Only affect the source player -> Apply action after the item is consumed (example: food, potions, etc.)
+#  - ON_HIT_PLAYER -> Only affect the target player -> Apply action when the target player hit a player
+#  - ON_PROJECTILE_HIT -> Only affect the target player -> Apply action when the target player is hit by a projectile
+#      (optional) combo: {required-hits: N, window: seconds} -> require N consecutive hits within the window before the action fires
+#  - RADIUS -> Only affect players in a radius of the source player -> Apply to all players in a radius of the source player
+#  - ON_LAST_ATTACKER -> Only affect the source player -> Apply action targeting the last player who hit the source within "attacker-window" seconds
+#  - HOLD -> Only affect the source player -> Apply every "hold-interval" ticks
+trigger-type: ON_HIT_PLAYER
+
+# Action chain: generic "damage" step feeds the actual damage dealt into the chain
+# variables, and "heal" reads it back through an expression instead of a hardcoded
+# lifesteal action - the same pattern works for any future "heal based on X" item.
+actions:
+  - action: "damage"
+    action-config:
+      damage: 3.0 # bonus damage dealt on top of the weapon's normal hit
+      damage-effects:
+        particles:
+          enabled: true
+          particles:
+            - "DUST|20|0.3|0.5|0.3|0|180,0,20"
+        sounds:
+          enabled: true
+          sounds:
+            - "ENTITY_PLAYER_HURT|1.0|0.7"
+
+  - action: "heal"
+    action-config:
+      amount: "%last_damage% * 0.6" # heal 60% of that bonus damage back to the attacker
+      heal-effects:
+        particles:
+          enabled: true
+          particles:
+            - "HEART|8|0.4|0.4|0.4|0.1"
+        sounds:
+          enabled: true
+          sounds:
+            - "ENTITY_GENERIC_DRINK|1.0|1.3"
+
+# ===== VISUALS =====
+
+effects-on-use:
+  particles:
+    enabled: false
+    particles: []
+  sounds:
+    enabled: false
+    sounds: []
+  fireworks:
+    enabled: false
+    fireworks: []
+
+# ===== WORLD-GUARD =====
+
+#region:
+#  disable-in-non-pvp-regions: true
+#  type: WHITELIST # WHITELIST | BLACKLIST | NONE
+#  checker: CONTAINS # CONTAINS | PRIORITY
+#  list:
+#    - "area-pvp"
+#    - "arena-1|world_nether"  # For specific world
+#  cooldowns: # Custom cooldowns by region
+#    "area-pvp": 10.0
+#    "arena-1": 15.5

@@ -1,1 +1,96 @@
+# ===== ITEM =====
 
+material: "NETHERITE_SWORD"
+name: '{muted}» &#7d3fbaVoid Blade {muted}[{success}%current_uses%{muted}/{error}%max_uses%{muted}]'
+lore:
+  - '{secondary}Information:'
+  - ' {muted}▎ {letters}Hitting an enemy inverts'
+  - ' {muted}▎ {letters}their {highlight}gravity {letters}for {highlight}4 seconds{letters},'
+  - ' {muted}▎ {letters}sending them falling into the sky.'
+  - ''
+  - '{secondary}Stats:'
+  - ' {muted}▎ {letters}Cooldown {muted}» {info}15s ⌚'
+  - ' {muted}▎ {letters}Flip Duration {muted}» {info}4s ⌚'
+  - ''
+  - '{warning}➥ Hit an enemy to activate'
+  - ''
+
+glow: true
+hide-attributes: true
+
+# ===== CONFIGURATION ======
+
+display-name: '&#7d3fbaᴠᴏɪᴅ ʙʟᴀᴅᴇ'
+cancel-event: true # Cancel the event when the item is used
+max_stack_size: 1
+max-uses: 5 # Maximum number of uses
+cooldown: 15 # seconds
+
+# ===== ACTIONS =====
+
+# Trigger types:
+#  - IMMEDIATE -> Only affect the source player -> Apply action immediately
+#  - AFTER_CONSUME -> Only affect the source player -> Apply action after the item is consumed (example: food, potions, etc.)
+#  - ON_HIT_PLAYER -> Only affect the target player -> Apply action when the target player hit a player
+#  - ON_PROJECTILE_HIT -> Only affect the target player -> Apply action when the target player is hit by a projectile
+#      (optional) combo: {required-hits: N, window: seconds} -> require N consecutive hits within the window before the action fires
+#  - RADIUS -> Only affect players in a radius of the source player -> Apply to all players in a radius of the source player
+#  - ON_LAST_ATTACKER -> Only affect the source player -> Apply action targeting the last player who hit the source within "attacker-window" seconds
+#  - HOLD -> Only affect the source player -> Apply every "hold-interval" ticks
+trigger-type: ON_HIT_PLAYER
+
+action: "gravity_flip"
+action-config:
+  duration: 4.0 # seconds the target's gravity stays inverted
+  gravity-multiplier: -1.0 # -1.0 fully inverts gravity, 0.0 makes the target float, 0.3 = slow-fall
+  launch-velocity: 0.5 # initial upward kick so the flip is instantly noticeable
+  only-players: true
+
+  flip-effects:
+    particles:
+      enabled: true
+      particles:
+        - "PORTAL|30|0.4|0.6|0.4|0.3"
+        - "REVERSE_PORTAL|15|0.3|0.3|0.3|0.05"
+    sounds:
+      enabled: true
+      sounds:
+        - "ENTITY_ENDERMAN_TELEPORT|1.0|0.6"
+
+  end-effects:
+    particles:
+      enabled: true
+      particles:
+        - "CLOUD|20|0.4|0.4|0.4|0.1"
+    sounds:
+      enabled: true
+      sounds:
+        - "ENTITY_GENERIC_BIG_FALL|1.0|1.0"
+
+# ===== VISUALS =====
+
+effects-on-use:
+  particles:
+    enabled: true
+    particles:
+      - "PORTAL|15|0.5|0.5|0.5|0.2"
+  sounds:
+    enabled: true
+    sounds:
+      - "BLOCK_END_PORTAL_FRAME_FILL|0.7|1.4"
+  fireworks:
+    enabled: false
+    fireworks: []
+
+# ===== WORLD-GUARD =====
+
+#region:
+#  disable-in-non-pvp-regions: true
+#  type: WHITELIST # WHITELIST | BLACKLIST | NONE
+#  checker: CONTAINS # CONTAINS | PRIORITY
+#  list:
+#    - "area-pvp"
+#    - "arena-1|world_nether"  # For specific world
+#  cooldowns: # Custom cooldowns by region
+#    "area-pvp": 10.0
+#    "arena-1": 15.5

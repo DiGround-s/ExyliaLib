@@ -1,1 +1,64 @@
+# ===== ITEM =====
 
+material: "FEATHER"
+name: '&#29b6f6Flight Wings &8[&#ffc58f%current_uses%&8/&#8fffc1%max_uses%&8]'
+lore:
+  - '{secondary}Information:'
+  - ' {muted}▎ {letters}Grants temporary {highlight}flight{letters}.'
+  - ' {muted}▎ {letters}Use wisely.'
+  - ''
+  - '{secondary}Stats:'
+  - ' {muted}▎ {letters}Cooldown {muted}» {info}60s ⌚'
+  - ' {muted}▎ {letters}Duration {muted}» {info}10s ⌚'
+  - ''
+  - '{warning}➥ Click to use'
+  - ''
+glow: true
+hide-attributes: true
+
+# ===== CONFIGURATION ======
+
+display-name: '&#29b6f6Flight Wings'
+cancel-event: true
+max_stack_size: 1
+max-uses: 3
+cooldown: 60.0
+
+# ===== ACTIONS =====
+
+trigger-type: IMMEDIATE
+action: "flight"
+action-config:
+  duration: 10 # flight duration in seconds
+
+# ===== VISUALS =====
+
+effects-on-use:
+  particles:
+    enabled: true
+    particles:
+      - "CLOUD|25|1.0|1.0|1.0|0.3"
+      - "FIREWORK|15|0.8|0.8|0.8|0.1"
+      - "END_ROD|10|0.5|0.5|0.5|0.2"
+  sounds:
+    enabled: true
+    sounds:
+      - "ENTITY_ENDER_DRAGON_FLAP|1.0|1.5"
+      - "ENTITY_BAT_TAKEOFF|0.8|1.2"
+  fireworks:
+    enabled: true
+    fireworks:
+      - "BURST|173,216,230;41,182,246|255,255,255|true|true|2"
+
+# ===== WORLD-GUARD =====
+
+#region:
+#  disable-in-non-pvp-regions: true
+#  type: WHITELIST # WHITELIST | BLACKLIST | NONE
+#  checker: CONTAINS # CONTAINS | PRIORITY
+#  list:
+#    - "area-pvp"
+#    - "arena-1|world_nether"  # For specific world
+#  cooldowns: # Custom cooldowns by region
+#    "area-pvp": 10.0
+#    "arena-1": 15.5

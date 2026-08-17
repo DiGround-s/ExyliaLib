@@ -1,1 +1,109 @@
+# ===== ITEM =====
 
+material: "GHAST_TEAR"
+name: '{muted}» &#4f2f7dBlood Pact {muted}[{success}%current_uses%{muted}/{error}%max_uses%{muted}]'
+lore:
+  - '{secondary}Information:'
+  - ' {muted}▎ {letters}Binds your soul to your target'
+  - ' {muted}▎ {letters}for {highlight}12 seconds{letters}. Half of all'
+  - ' {muted}▎ {letters}damage either of you takes'
+  - ' {muted}▎ {letters}is mirrored onto the other.'
+  - ''
+  - '{secondary}Stats:'
+  - ' {muted}▎ {letters}Cooldown {muted}» {info}30s ⌚'
+  - ' {muted}▎ {letters}Damage Shared {muted}» {info}50%'
+  - ''
+  - '{warning}➥ Hit an enemy to activate'
+  - ''
+
+glow: true
+hide-attributes: true
+
+# ===== CONFIGURATION ======
+
+display-name: '&#4f2f7dʙʟᴏᴏᴅ ᴘᴀᴄᴛ'
+cancel-event: true # Cancel the event when the item is used
+max_stack_size: 1
+max-uses: 3 # Maximum number of uses
+cooldown: 30 # seconds
+
+# ===== ACTIONS =====
+
+# Trigger types:
+#  - IMMEDIATE -> Only affect the source player -> Apply action immediately
+#  - AFTER_CONSUME -> Only affect the source player -> Apply action after the item is consumed (example: food, potions, etc.)
+#  - ON_HIT_PLAYER -> Only affect the target player -> Apply action when the target player hit a player
+#  - ON_PROJECTILE_HIT -> Only affect the target player -> Apply action when the target player is hit by a projectile
+#      (optional) combo: {required-hits: N, window: seconds} -> require N consecutive hits within the window before the action fires
+#  - RADIUS -> Only affect players in a radius of the source player -> Apply to all players in a radius of the source player
+#  - ON_LAST_ATTACKER -> Only affect the source player -> Apply action targeting the last player who hit the source within "attacker-window" seconds
+#  - HOLD -> Only affect the source player -> Apply every "hold-interval" ticks
+trigger-type: ON_HIT_PLAYER
+
+# Risk/reward: only use this on a fight you're confident you'll win, since damage flows both ways.
+action: "soul_link"
+action-config:
+  duration: 12.0 # seconds the link stays active
+  damage-share-percent: 0.5 # fraction of damage taken by either linked player mirrored to the other
+  tick-interval: 2 # ticks between tether particle updates
+
+  tether-particle: "SOUL|3|0|0|0|0" # PARTICLE|COUNT|OFFSET_X|OFFSET_Y|OFFSET_Z|EXTRA
+  tether-spacing: 0.5 # distance in blocks between each particle point along the link
+
+  link-effects:
+    particles:
+      enabled: true
+      particles:
+        - "SOUL|20|0.4|0.6|0.4|0.05"
+    sounds:
+      enabled: true
+      sounds:
+        - "ENTITY_WARDEN_HEARTBEAT|0.6|1.5"
+
+  break-effects:
+    particles:
+      enabled: true
+      particles:
+        - "SOUL_FIRE_FLAME|15|0.3|0.5|0.3|0.05"
+    sounds:
+      enabled: true
+      sounds:
+        - "PARTICLE_SOUL_ESCAPE|1.0|1.0"
+
+  mirror-effects:
+    particles:
+      enabled: true
+      particles:
+        - "SOUL|10|0.3|0.4|0.3|0.05"
+    sounds:
+      enabled: true
+      sounds:
+        - "ENTITY_PLAYER_HURT|0.8|0.6"
+
+# ===== VISUALS =====
+
+effects-on-use:
+  particles:
+    enabled: true
+    particles:
+      - "SOUL|20|0.5|0.5|0.5|0.1"
+  sounds:
+    enabled: true
+    sounds:
+      - "BLOCK_SOUL_SAND_BREAK|1.0|0.7"
+  fireworks:
+    enabled: false
+    fireworks: []
+
+# ===== WORLD-GUARD =====
+
+#region:
+#  disable-in-non-pvp-regions: true
+#  type: WHITELIST # WHITELIST | BLACKLIST | NONE
+#  checker: CONTAINS # CONTAINS | PRIORITY
+#  list:
+#    - "area-pvp"
+#    - "arena-1|world_nether"  # For specific world
+#  cooldowns: # Custom cooldowns by region
+#    "area-pvp": 10.0
+#    "arena-1": 15.5

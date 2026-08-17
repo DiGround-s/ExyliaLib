@@ -1,1 +1,99 @@
+# ===== ITEM =====
 
+material: "IRON_CHAIN"
+name: '{muted}» &#8a7f4fSoul Shackle {muted}[{success}%current_uses%{muted}/{error}%max_uses%{muted}]'
+lore:
+  - '{secondary}Information:'
+  - ' {muted}▎ {letters}Hitting an enemy binds you'
+  - ' {muted}▎ {letters}together for {highlight}8 seconds{letters}.'
+  - ' {muted}▎ {letters}Stray too far apart and the'
+  - ' {muted}▎ {letters}chain yanks you back together.'
+  - ''
+  - '{secondary}Stats:'
+  - ' {muted}▎ {letters}Cooldown {muted}» {info}20s ⌚'
+  - ' {muted}▎ {letters}Leash Range {muted}» {info}8 blocks'
+  - ''
+  - '{warning}➥ Hit an enemy to activate'
+  - ''
+
+glow: true
+hide-attributes: true
+
+# ===== CONFIGURATION ======
+
+display-name: '&#8a7f4fꜱᴏᴜʟ ꜱʜᴀᴄᴋʟᴇ'
+cancel-event: true # Cancel the event when the item is used
+max_stack_size: 1
+max-uses: 5 # Maximum number of uses
+cooldown: 20 # seconds
+
+# ===== ACTIONS =====
+
+# Trigger types:
+#  - IMMEDIATE -> Only affect the source player -> Apply action immediately
+#  - AFTER_CONSUME -> Only affect the source player -> Apply action after the item is consumed (example: food, potions, etc.)
+#  - ON_HIT_PLAYER -> Only affect the target player -> Apply action when the target player hit a player
+#  - ON_PROJECTILE_HIT -> Only affect the target player -> Apply action when the target player is hit by a projectile
+#      (optional) combo: {required-hits: N, window: seconds} -> require N consecutive hits within the window before the action fires
+#  - RADIUS -> Only affect players in a radius of the source player -> Apply to all players in a radius of the source player
+#  - ON_LAST_ATTACKER -> Only affect the source player -> Apply action targeting the last player who hit the source within "attacker-window" seconds
+#  - HOLD -> Only affect the source player -> Apply every "hold-interval" ticks
+trigger-type: ON_HIT_PLAYER
+
+action: "binding_chains"
+action-config:
+  duration: 8.0 # seconds the chain stays active
+  max-distance: 8.0 # leash length before the pull-back kicks in
+  pull-force: 0.7 # strength of the snap-back pull applied to both players
+  tick-interval: 2 # ticks between tether checks/particle updates
+
+  tether-particle: "WITCH|3|0|0|0|0" # PARTICLE|COUNT|OFFSET_X|OFFSET_Y|OFFSET_Z|EXTRA
+  tether-spacing: 0.5 # distance in blocks between each particle point along the chain
+
+  link-effects:
+    particles:
+      enabled: true
+      particles:
+        - "SMOKE_NORMAL|15|0.3|0.5|0.3|0.05"
+    sounds:
+      enabled: true
+      sounds:
+        - "BLOCK_CHAIN_PLACE|1.0|0.8"
+
+  break-effects:
+    particles:
+      enabled: true
+      particles:
+        - "POOF|15|0.3|0.5|0.3|0.05"
+    sounds:
+      enabled: true
+      sounds:
+        - "BLOCK_CHAIN_BREAK|1.0|1.0"
+
+# ===== VISUALS =====
+
+effects-on-use:
+  particles:
+    enabled: true
+    particles:
+      - "SMOKE_NORMAL|15|0.5|0.5|0.5|0.05"
+  sounds:
+    enabled: true
+    sounds:
+      - "BLOCK_CHAIN_HIT|1.0|0.7"
+  fireworks:
+    enabled: false
+    fireworks: []
+
+# ===== WORLD-GUARD =====
+
+#region:
+#  disable-in-non-pvp-regions: true
+#  type: WHITELIST # WHITELIST | BLACKLIST | NONE
+#  checker: CONTAINS # CONTAINS | PRIORITY
+#  list:
+#    - "area-pvp"
+#    - "arena-1|world_nether"  # For specific world
+#  cooldowns: # Custom cooldowns by region
+#    "area-pvp": 10.0
+#    "arena-1": 15.5

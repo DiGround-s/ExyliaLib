@@ -1,1 +1,97 @@
+# ===== ITEM =====
 
+material: "NETHERITE_PICKAXE"
+name: '{muted}» &#5a4a3aGrounding Slam {muted}[{success}%current_uses%{muted}/{error}%max_uses%{muted}]'
+lore:
+  - '{secondary}Information:'
+  - ' {muted}▎ {letters}Hitting an enemy {highlight}quadruples'
+  - ' {muted}▎ {letters}their gravity for {highlight}4 seconds{letters},'
+  - ' {muted}▎ {letters}slamming them into the ground'
+  - ' {muted}▎ {letters}and killing their jump height.'
+  - ''
+  - '{secondary}Stats:'
+  - ' {muted}▎ {letters}Cooldown {muted}» {info}15s ⌚'
+  - ''
+  - '{warning}➥ Hit an enemy to activate'
+  - ''
+
+glow: true
+hide-attributes: true
+
+# ===== CONFIGURATION ======
+
+display-name: '&#5a4a3aɢʀᴏᴜɴᴅɪɴɢ ꜱʟᴀᴍ'
+cancel-event: true
+max_stack_size: 1
+max-uses: 5
+cooldown: 15
+
+# ===== ACTIONS =====
+
+# Trigger types:
+#  - IMMEDIATE -> Only affect the source player -> Apply action immediately
+#  - AFTER_CONSUME -> Only affect the source player -> Apply action after the item is consumed (example: food, potions, etc.)
+#  - ON_HIT_PLAYER -> Only affect the target player -> Apply action when the target player hit a player
+#  - ON_PROJECTILE_HIT -> Only affect the target player -> Apply action when the target player is hit by a projectile
+#      (optional) combo: {required-hits: N, window: seconds} -> require N consecutive hits within the window before the action fires
+#  - RADIUS -> Only affect players in a radius of the source player -> Apply to all players in a radius of the source player
+#  - ON_LAST_ATTACKER -> Only affect the source player -> Apply action targeting the last player who hit the source within "attacker-window" seconds
+#  - HOLD -> Only affect the source player -> Apply every "hold-interval" ticks
+trigger-type: ON_HIT_PLAYER
+
+# Reuses gravity_flip with a POSITIVE multiplier instead of a negative one: instead of floating
+# away, the target gets crushed toward the ground - the opposite feel from Void Blade.
+action: "gravity_flip"
+action-config:
+  duration: 4.0
+  gravity-multiplier: 4.0
+  launch-velocity: 0.0
+  only-players: true
+
+  flip-effects:
+    particles:
+      enabled: true
+      particles:
+        - "BLOCK_CRUMBLE|25|0.4|0.2|0.4|0.1|STONE"
+    sounds:
+      enabled: true
+      sounds:
+        - "ENTITY_IRON_GOLEM_STEP|1.0|0.5"
+
+  end-effects:
+    particles:
+      enabled: true
+      particles:
+        - "CLOUD|10|0.3|0.2|0.3|0.05"
+    sounds:
+      enabled: true
+      sounds:
+        - "BLOCK_STONE_BREAK|0.6|0.9"
+
+# ===== VISUALS =====
+
+effects-on-use:
+  particles:
+    enabled: true
+    particles:
+      - "BLOCK_CRUMBLE|10|0.5|0.5|0.5|0.1|NETHERITE_BLOCK"
+  sounds:
+    enabled: true
+    sounds:
+      - "BLOCK_ANVIL_LAND|0.7|0.8"
+  fireworks:
+    enabled: false
+    fireworks: []
+
+# ===== WORLD-GUARD =====
+
+#region:
+#  disable-in-non-pvp-regions: true
+#  type: WHITELIST
+#  checker: CONTAINS
+#  list:
+#    - "area-pvp"
+#    - "arena-1|world_nether"
+#  cooldowns:
+#    "area-pvp": 10.0
+#    "arena-1": 15.5

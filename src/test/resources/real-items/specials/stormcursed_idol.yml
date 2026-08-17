@@ -1,1 +1,107 @@
+# ===== ITEM =====
 
+material: "PRISMARINE_SHARD"
+name: '{muted}» &#3f6a8aStormcursed Idol {muted}[{success}%current_uses%{muted}/{error}%max_uses%{muted}]'
+lore:
+  - '{secondary}Information:'
+  - ' {muted}▎ {letters}Hit an enemy to curse their'
+  - ' {muted}▎ {letters}screen with a {highlight}fake storm {letters}for'
+  - ' {muted}▎ {letters}{highlight}8 seconds{letters} - heavy rain and thunder'
+  - ' {muted}▎ {letters}only they can see. The real'
+  - ' {muted}▎ {letters}weather never changes, and it'
+  - ' {muted}▎ {letters}clears itself exactly on time.'
+  - ''
+  - '{secondary}Stats:'
+  - ' {muted}▎ {letters}Cooldown {muted}» {info}30s ⌚'
+  - ''
+  - '{warning}➥ Hit an enemy to activate'
+  - ''
+
+glow: true
+hide-attributes: true
+
+# ===== CONFIGURATION ======
+
+display-name: '&#3f6a8aꜱᴛᴏʀᴍᴄᴜʀꜱᴇᴅ ɪᴅᴏʟ'
+cancel-event: true
+max_stack_size: 1
+max-uses: 3
+cooldown: 30
+
+# ===== ACTIONS =====
+
+# Trigger types:
+#  - IMMEDIATE -> Only affect the source player -> Apply action immediately
+#  - AFTER_CONSUME -> Only affect the source player -> Apply action after the item is consumed (example: food, potions, etc.)
+#  - ON_HIT_PLAYER -> Only affect the target player -> Apply action when the target player hit a player
+#  - ON_PROJECTILE_HIT -> Only affect the target player -> Apply action when the target player is hit by a projectile
+#      (optional) combo: {required-hits: N, window: seconds} -> require N consecutive hits within the window before the action fires
+#  - RADIUS -> Only affect players in a radius of the source player -> Apply to all players in a radius of the source player
+#  - ON_LAST_ATTACKER -> Only affect the source player -> Apply action targeting the last player who hit the source within "attacker-window" seconds
+#  - HOLD -> Only affect the source player -> Apply every "hold-interval" ticks
+trigger-type: ON_HIT_PLAYER
+
+# Requires PacketEvents. Unlike Flash, this has no client-dismissible screen to click through -
+# it's a pure world-state override that only the server can start or stop, so the duration is
+# always exact.
+action: "fake_storm"
+action-config:
+  duration: 8.0
+  rain-level: 1.0
+  thunder-level: 1.0
+
+  lightning-strikes: true
+  lightning-min-delay: 0.05
+  lightning-max-delay: 0.25
+  lightning-min-strikes: 2
+  lightning-max-strikes: 5
+  lightning-radius: 16.0
+  lightning-min-lifetime-ticks: 6
+  lightning-max-lifetime-ticks: 14
+
+  storm-effects:
+    particles:
+      enabled: true
+      particles:
+        - "CLOUD|10|0.4|0.4|0.4|0.05"
+    sounds:
+      enabled: true
+      sounds:
+        - "WEATHER_RAIN|1.0|0.6"
+        - "ENTITY_LIGHTNING_BOLT_THUNDER|0.6|0.8"
+
+  clear-effects:
+    particles:
+      enabled: true
+      particles:
+        - "END_ROD|10|0.3|0.3|0.3|0.05"
+    sounds:
+      enabled: true
+      sounds:
+        - "BLOCK_BEACON_DEACTIVATE|0.5|1.3"
+
+# ===== VISUALS =====
+
+effects-on-use:
+  particles:
+    enabled: false
+    particles: []
+  sounds:
+    enabled: false
+    sounds: []
+  fireworks:
+    enabled: false
+    fireworks: []
+
+# ===== WORLD-GUARD =====
+
+#region:
+#  disable-in-non-pvp-regions: true
+#  type: WHITELIST
+#  checker: CONTAINS
+#  list:
+#    - "area-pvp"
+#    - "arena-1|world_nether"
+#  cooldowns:
+#    "area-pvp": 10.0
+#    "arena-1": 15.5

@@ -1,1 +1,89 @@
+# ===== ITEM =====
 
+material: "IRON_BLOCK"
+name: '&#607d8bDefensor Golem &8[&#ffc58f%current_uses%&8/&#8fffc1%max_uses%&8]'
+lore:
+  - '{secondary}Information:'
+  - ' {muted}▎ {letters}Summons a {highlight}defender golem'
+  - ' {muted}▎ {letters}that attacks nearby enemies.'
+  - ''
+  - '{secondary}Stats:'
+  - ' {muted}▎ {letters}Cooldown {muted}» {info}120s ⌚'
+  - ' {muted}▎ {letters}Duration {muted}» {info}60s ⌚'
+  - ' {muted}▎ {letters}Range {muted}» {info}15 blocks'
+  - ''
+  - '{warning}➥ Click to use'
+  - ''
+glow: true
+hide-attributes: true
+
+# ===== CONFIGURATION ======
+
+display-name: '&#607d8bDefensor Golem'
+cancel-event: true
+max_stack_size: 1
+max-uses: 2
+cooldown: 120.0
+
+# ===== ACTIONS =====
+
+trigger-type: IMMEDIATE
+action: "defensor"
+action-config:
+  duration: 60 # golem duration in seconds
+  range: 15 # enemy detection range
+  shoot-interval: 20 # ticks between shots (1 second)
+  damage: 4.0 # damage per projectile
+  knockback: 0.5 # knockback force
+  health: 50.0 # golem health
+  projectile-speed: 2.0 # projectile speed
+  defensor-name: "&7⚔ Defender of %player%"
+  scale: 0.5 # golem size
+  movement-speed: 0.0 # golem walk speed. Must be > 0 for follow-owner or attack-mode: MELEE to actually move
+  collidable: false # if true, the golem physically blocks/pushes players
+  glowing: false
+  attack-mode: "RANGED" # RANGED (shoots snowballs) | MELEE (lets the golem punch like a vanilla iron golem)
+  target-mobs: false # if true, the golem also attacks nearby hostile mobs, not just enemy players
+  follow-owner: false # if true, the golem walks back towards its owner when it has no target in range
+  follow-distance: 6 # distance from the owner before the golem starts following (requires follow-owner + movement-speed > 0)
+  projectile-trail-duration: 5.0 # seconds the projectile particle trail lasts
+
+  # Sound configuration
+  spawn-sound: "ENTITY_IRON_GOLEM_HURT"
+  shoot-sound: "ENTITY_SNOWBALL_THROW"
+  remove-sound: "ENTITY_IRON_GOLEM_DEATH"
+
+  # Particle configuration
+  enable-particles: true
+
+# ===== VISUALS =====
+
+effects-on-use:
+  particles:
+    enabled: true
+    particles:
+      - "EXPLOSION|8|1.0|1.0|1.0|0.1"
+      - "SMOKE|15|1.5|1.5|1.5|0.1"
+      - "CRIT|10|0.8|0.8|0.8|0.2"
+  sounds:
+    enabled: true
+    sounds:
+      - "ENTITY_IRON_GOLEM_REPAIR|1.0|0.8"
+      - "BLOCK_ANVIL_PLACE|0.8|1.2"
+  fireworks:
+    enabled: true
+    fireworks:
+      - "STAR|96,125,139;158,158,158|255,255,255|true|true|2"
+
+# ===== WORLD-GUARD =====
+
+#region:
+#  disable-in-non-pvp-regions: true
+#  type: WHITELIST # WHITELIST | BLACKLIST | NONE
+#  checker: CONTAINS # CONTAINS | PRIORITY
+#  list:
+#    - "area-pvp"
+#    - "arena-1|world_nether"  # For specific world
+#  cooldowns: # Custom cooldowns by region
+#    "area-pvp": 10.0
+#    "arena-1": 15.5

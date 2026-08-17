@@ -1,1 +1,129 @@
+# ===== ITEM =====
 
+material: "GOAT_HORN"
+name: '&#ffb74dBard &8[&#ffc58f%current_uses%&8/&#8fffc1%max_uses%&8]'
+lore:
+  - '{secondary}Information:'
+  - ' {muted}▎ {letters}Summons a {highlight}bard'
+  - ' {muted}▎ {letters}that buffs you while you stay'
+  - ' {muted}▎ {letters}near it. {highlight}Unlike the clone,'
+  - ' {muted}▎ {letters}the bard {highlight}can be killed'
+  - ' {muted}▎ {letters}by enemies to cut off your buff.'
+  - ''
+  - '{secondary}Stats:'
+  - ' {muted}▎ {letters}Cooldown {muted}» {info}90s ⌚'
+  - ' {muted}▎ {letters}Duration {muted}» {info}45s ⌚'
+  - ' {muted}▎ {letters}Effect range {muted}» {info}20 blocks'
+  - ''
+  - '{warning}➥ Click to use'
+  - ''
+glow: true
+hide-attributes: true
+
+# ===== CONFIGURATION ======
+
+display-name: '&#ffb74dBard'
+cancel-event: true
+max_stack_size: 1
+max-uses: 2
+cooldown: 90.0
+
+# ===== ACTIONS =====
+
+trigger-type: IMMEDIATE
+action: "bard" # Requires server version 1.21.11+ (uses Mannequin)
+action-config:
+  duration: 45 # bard lifetime in seconds (unless killed sooner)
+  health: 20.0 # the bard is killable - this is its max health
+  effect-range: 20 # blocks the owner must stay within to keep receiving the buff
+  check-interval: 20 # ticks between refreshes (1 second)
+
+  # Effects granted to the owner while alive and in range. Format: TYPE|LEVEL|SECONDS
+  # Re-applied every check-interval with the duration below, so it never actually runs out while in range,
+  # but if the owner already has a stronger/longer effect of the same type from another source, it is left untouched.
+  # When the bard dies/expires/goes out of range, refreshing just stops and the last application fades out naturally.
+  effects:
+    - "STRENGTH|3|3"
+
+  effect-particles: true # show the potion effect's ambient particles on the owner
+  effect-icon: true # show the potion effect icon in the owner's HUD
+
+  bard-name: "&6🎵 Bard of %player%"
+  glowing: true
+  collidable: true # if false, players walk through the bard
+  silent: false
+  invulnerable: false # the bard is meant to be killable; only set true for testing
+
+  # Effects when summoning the bard
+  spawn-effects:
+    particles:
+      enabled: true
+      particles:
+        - "NOTE|30|1.0|1.5|1.0|1.0"
+        - "END_ROD|15|0.5|1.0|0.5|0.2"
+    sounds:
+      enabled: true
+      sounds:
+        - "BLOCK_NOTE_BLOCK_HARP|1.0|1.0"
+        - "ENTITY_PLAYER_LEVELUP|0.8|1.5"
+    fireworks:
+      enabled: true
+      fireworks:
+        - "STAR|255,183,77;255,235,59|255,255,255|true|true|1"
+
+  # Ambient effect replayed around the bard while the owner is in range and buffed
+  aura-effects:
+    particles:
+      enabled: true
+      particles:
+        - "NOTE|3|0.6|0.8|0.6|1.0"
+    sounds:
+      enabled: false
+      sounds: []
+    fireworks:
+      enabled: false
+      fireworks: []
+
+  # Effects when the bard is removed (duration expired, killed, or owner disconnected)
+  remove-effects:
+    particles:
+      enabled: true
+      particles:
+        - "SMOKE|20|1.0|1.0|1.0|0.1"
+        - "NOTE|10|0.8|0.8|0.8|1.0"
+    sounds:
+      enabled: true
+      sounds:
+        - "BLOCK_NOTE_BLOCK_BASS|1.0|0.6"
+    fireworks:
+      enabled: false
+      fireworks: []
+
+# ===== VISUALS =====
+
+effects-on-use:
+  particles:
+    enabled: true
+    particles:
+      - "NOTE|15|0.5|0.5|0.5|1.0"
+  sounds:
+    enabled: true
+    sounds:
+      - "BLOCK_NOTE_BLOCK_HARP|1.0|1.2"
+  fireworks:
+    enabled: true
+    fireworks:
+      - "BALL|255,183,77;255,235,59|255,255,255|true|false|1"
+
+# ===== WORLD-GUARD =====
+
+#region:
+#  disable-in-non-pvp-regions: true
+#  type: WHITELIST # WHITELIST | BLACKLIST | NONE
+#  checker: CONTAINS # CONTAINS | PRIORITY
+#  list:
+#    - "area-pvp"
+#    - "arena-1|world_nether"  # For specific world
+#  cooldowns: # Custom cooldowns by region
+#    "area-pvp": 10.0
+#    "arena-1": 15.5
