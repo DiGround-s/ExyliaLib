@@ -110,9 +110,8 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         ClientRuntime.init(this);
         ClanRuntime.init(this);
         SkullRuntime.init(this);
-        // Reads database.yml and nothing else: the pool opens when the first
-        // plugin asks for a repository, so a server whose plugins store nothing
-        // never creates a database file nor contacts a host that may not be up.
+        // Starts only the database lifecycle. Each consumer loads database.yml
+        // when it asks for its view, and opens lazily on its first repository.
         Databases.init(this);
         Cooldowns.init(this, task -> Tasks.of(this).runAsync(task));
         // Long cooldowns are written every few minutes as well as on quit, so
@@ -375,9 +374,8 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         // Reconciliation uses ExyliaLib's scheduler, but publication must still happen
         // before the dying plugin's own task scheduler is cancelled.
         Regions.release(pluginName);
-        // Drops the plugin's repositories, never the connection: that is the
-        // server's, and closing it here would take every other plugin's
-        // database down with this one.
+        // Drops the plugin's repositories and datasource lease. A target closes
+        // only after its last owning plugin releases it.
         Databases.release(pluginName);
         Tasks.release(pluginName);
         Configs.release(pluginName);

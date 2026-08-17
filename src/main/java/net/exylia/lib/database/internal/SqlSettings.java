@@ -197,7 +197,17 @@ public final class SqlSettings {
         // credential in a console log is a credential in whatever pastebin the
         // next support ticket links to.
         return "SqlSettings[" + engine + " "
-                + (embedded() ? String.valueOf(file != null ? file : database) : host + ":" + port + "/" + database)
+                + (embedded() ? String.valueOf(file != null ? file : database)
+                : redactHost(host) + ":" + port + "/" + database)
                 + "]";
+    }
+
+    private static @Nullable String redactHost(@Nullable String host) {
+        if (host == null || (!host.startsWith("mongodb://") && !host.startsWith("mongodb+srv://"))) {
+            return host;
+        }
+        int credentials = host.indexOf('@', host.indexOf("://") + 3);
+        return credentials < 0 ? host : host.substring(0, host.indexOf("://") + 3)
+                + "***" + host.substring(credentials);
     }
 }

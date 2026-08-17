@@ -8,17 +8,15 @@ import java.nio.file.Path;
 import java.util.Locale;
 
 /**
- * The one database every plugin on the server shares, as
- * {@code plugins/ExyliaLib/database.yml} describes it.
+ * One consumer plugin's database settings, as its {@code database.yml}
+ * describes them.
  *
- * <p>There is exactly one of these because there is exactly one connection.
- * ExyliaCommons had one pool per plugin, so a server running eight Exylia
- * plugins opened eight pools against the same MySQL instance and spent eight
- * times the connections to do it. Here the library owns the connection and
- * plugins ask it for repositories.
+ * <p>Each plugin owns its configuration and, by default, its embedded H2 file.
+ * Plugins that resolve to the same datasource share one client; differing
+ * settings stay isolated.
  *
  * <h2>H2 is what happens when nobody decides</h2>
- * The defaults below are a file next to the library: no daemon, no credentials,
+ * The defaults below are a file in the consumer plugin's folder: no daemon, no credentials,
  * no network, nothing to install. A server owner who wants MySQL says so; a
  * server owner who has never thought about it still gets durable storage rather
  * than a plugin that refuses to enable. Anything unrecognisable in the file is
@@ -26,7 +24,7 @@ import java.util.Locale;
  * must not be the reason a server does not start.
  *
  * @param type     the engine
- * @param file     where an embedded database lives, relative to the ExyliaLib folder
+ * @param file     where an embedded database lives, relative to the consumer plugin folder
  * @param host     the host of a networked engine
  * @param port     the port, or {@code 0} for the engine's own default
  * @param database the schema or database name
@@ -35,12 +33,10 @@ import java.util.Locale;
  * @param poolSize connections at most, or {@code 0} to let the engine decide
  * @since 1.24.0
  */
-@Comment("The database every Exylia plugin on this server shares.")
+@Comment("This plugin's database.")
 @Comment("")
-@Comment("One connection pool for the whole server, owned by ExyliaLib.")
-@Comment("Plugins ask the library for their tables; none of them opens a")
-@Comment("connection of its own, so this file is the only place a database")
-@Comment("is configured.")
+@Comment("ExyliaLib opens and owns the client. Plugins with identical resolved")
+@Comment("settings share that client; different settings use separate clients.")
 @Comment("")
 @Comment("Leave it alone and everything is stored in a file next to this one.")
 @Comment("Nothing to install, nothing to back up but the file itself.")
@@ -118,7 +114,7 @@ public record DatabaseSettings(
      * embedded engine that wants four connections and a networked one sized
      * from the machine's cores.
      *
-     * @param dataFolder the ExyliaLib folder, which an embedded file is relative to
+     * @param dataFolder the consumer plugin folder, which an embedded file is relative to
      * @return the SQL settings
      */
     public @NotNull SqlSettings toSql(@NotNull Path dataFolder) {

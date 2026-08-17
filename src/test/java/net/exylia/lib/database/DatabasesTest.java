@@ -391,6 +391,7 @@ class DatabasesTest {
         // One pool serves the whole server. A view that closed it would take
         // every other plugin's database with it, and doing nothing instead would
         // let the caller believe it had.
+        Databases.of(plugin).repository(Stats.class);
         var view = new net.exylia.lib.database.internal.GatedStorage(
                 net.exylia.lib.database.internal.DatabaseRuntime.storage());
         assertThrows(UnsupportedOperationException.class, view::close);
@@ -435,8 +436,8 @@ class DatabasesTest {
         await(theirs.save(stats(UUID.randomUUID(), 1200, "red")));
         await(ours.save(new Kit("boxing", 36)));
 
-        // Different tables, both on one pool: neither plugin can see the
-        // other's rows and neither had to configure a connection.
+        // Different tables on one intentionally shared target: neither plugin
+        // can see the other's rows and neither had to configure a connection.
         assertEquals(1L, await(theirs.count()));
         assertEquals(1L, await(ours.count()));
         assertEquals("stats", theirs.table());
@@ -480,7 +481,7 @@ class DatabasesTest {
         Databases.release(plugin.getName());
 
         assertEquals(1, Databases.registered());
-        // The connection is the server's, so the surviving plugin still works.
+        // Their shared target stays alive while the surviving plugin holds it.
         assertTrue(Databases.isReady());
         assertEquals(1L, await(theirs.count()));
         // And the released plugin gets a fresh view rather than the old one.
@@ -534,6 +535,98 @@ class DatabasesTest {
     @DisplayName("the engine is reported for a diagnostics command")
     void reportsTheEngine() {
         assertEquals("h2", Databases.engine());
+    }
+
+    @Test
+    @DisplayName("a Mongo URI never exposes its credentials in diagnostics")
+    void mongoUriIsRedactedInSettingsDiagnostics() {
+        SqlSettings settings = SqlSettings.remote("mongodb", "mongodb://admin:secret@cluster.example/app",
+                0, "app", "ignored", "ignored");
+
+        assertFalse(settings.toString().contains("admin:secret"));
+        assertTrue(settings.toString().contains("***@cluster.example"));
+    }
+
+    @Test
+    @DisplayName("equal settings reuse one target and survive the first release")
+    void equalSettingsShareATarget() {
+        Plugin other = FakeServer.newPlugin("Survival");
+        Databases.installForTests(plugin, java.util.Map.of(
+                plugin.getName(), SqlSettings.memory("h2", "shared" + DATABASE.incrementAndGet()),
+                other.getName(), SqlSettings.memory("h2", "shared" + DATABASE.get())));
+
+        Repository<Stats> mine = Databases.of(plugin).repository(Stats.class);
+        Repository<Stats> theirs = Databases.of(other).repository(Stats.class);
+        UUID uuid = UUID.randomUUID();
+        await(mine.save(stats(uuid, 1200, "red")));
+
+        assertEquals(1, Databases.targetsForTests());
+        assertEquals(1200, await(theirs.find(uuid)).orElseThrow().elo());
+        Databases.release(plugin.getName());
+
+        assertEquals(1, Databases.targetsForTests());
+        assertTrue(Databases.isReady());
+        assertEquals(1200, await(theirs.find(uuid)).orElseThrow().elo());
+    }
+
+    @Test
+    @DisplayName("different settings isolate targets")
+    void differentSettingsUseDifferentTargets() {
+        Plugin other = FakeServer.newPlugin("Survival");
+        Databases.installForTests(plugin, java.util.Map.of(
+                plugin.getName(), SqlSettings.memory("h2", "practice" + DATABASE.incrementAndGet()),
+                other.getName(), SqlSettings.memory("h2", "survival" + DATABASE.incrementAndGet())));
+
+        Repository<Stats> mine = Databases.of(plugin).repository(Stats.class);
+        Repository<Stats> theirs = Databases.of(other).repository(Stats.class);
+        await(mine.save(stats(UUID.randomUUID(), 1200, "red")));
+
+        assertEquals(2, Databases.targetsForTests());
+        assertEquals(0L, await(theirs.count()));
+        assertEquals("multiple", Databases.engine());
+    }
+
+    @Test
+    @DisplayName("default H2 settings resolve inside each consumer folder")
+    void defaultH2PathsArePerPlugin() throws java.io.IOException {
+        java.nio.file.Path root = java.nio.file.Files.createTempDirectory("exylia-database");
+        Plugin practice = FakeServer.newPlugin("Practice", root.resolve("Practice").toFile());
+        Plugin survival = FakeServer.newPlugin("Survival", root.resolve("Survival").toFile());
+        Databases.releaseAll();
+        Databases.init(plugin);
+
+        PluginDatabase practiceDatabase = Databases.of(practice);
+        PluginDatabase survivalDatabase = Databases.of(survival);
+        assertEquals("h2", practiceDatabase.engine());
+        assertEquals("h2", survivalDatabase.engine());
+        await(practiceDatabase.repository(Stats.class).count());
+        await(survivalDatabase.repository(Stats.class).count());
+        assertEquals(2, Databases.targetsForTests());
+
+        Databases.release(practice.getName());
+        Databases.release(survival.getName());
+        java.nio.file.Files.walk(root)
+                .sorted(java.util.Comparator.reverseOrder())
+                .forEach(path -> {
+                    try {
+                        java.nio.file.Files.delete(path);
+                    } catch (java.io.IOException failure) {
+                        throw new AssertionError("Could not remove test directory", failure);
+                    }
+                });
+    }
+
+    @Test
+    @DisplayName("the final release closes and removes its target")
+    void finalReleaseClosesTarget() {
+        Repository<Stats> repository = Databases.of(plugin).repository(Stats.class);
+        await(repository.save(stats(UUID.randomUUID(), 1200, "red")));
+        assertEquals(1, Databases.targetsForTests());
+
+        Databases.release(plugin.getName());
+
+        assertEquals(0, Databases.targetsForTests());
+        assertFalse(Databases.isReady());
     }
 
     // ------------------------------------------------------- composite indexes

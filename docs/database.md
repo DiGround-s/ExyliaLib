@@ -1,6 +1,6 @@
 # Database
 
-Records stored in a database, with one connection for the whole server.
+Records stored in a database, configured by the plugin that owns them.
 
 ```java
 @Table("practice_player_stats")
@@ -24,17 +24,23 @@ stats.find(player.getUniqueId()).thenAccept(found ->
 ```
 
 That is the whole setup. No connection, no credentials, no schema: the table is
-created from the record, and the engine is whatever
-`plugins/ExyliaLib/database.yml` says.
+created from the record, and the engine is whatever the consumer's
+`plugins/<Plugin>/database.yml` says.
 
-## One connection, owned by the library
+## One client per datasource
 
-The pool lives in ExyliaLib and is configured once. ExyliaCommons opened a pool
-per plugin, so a server running eight Exylia plugins held eight pools against
-the same MySQL and spent eight times the connections doing it — against the
-thing that was already the bottleneck.
+Each consumer plugin owns `database.yml`; ExyliaLib owns the client it needs.
+The default embedded H2 file is therefore `plugins/<Plugin>/database`, so two
+plugins that leave their files alone never share data by accident.
 
-**H2 is the default and the fallback.** A file next to the library: no daemon, no
+ExyliaLib resolves every setting that affects a connection and shares exactly
+one SQL/Mongo client among plugins whose resolved settings are identical. This
+avoids duplicate pools when plugins intentionally point at the same datasource.
+Different settings, including credentials, pool size, URL properties, or an H2
+file path, are separate targets. Credentials are used for matching but are never
+printed in logs or diagnostics.
+
+**H2 is the default and the fallback.** A file next to the consumer plugin: no daemon, no
 credentials, nothing to install. It is never YAML — a YAML "database" cannot
 index, cannot sort, cannot count without reading everything, and rewrites the
 whole file to change one row.
@@ -204,23 +210,24 @@ and look a `World` up by name; it may not spawn anything.
 
 ## Lifecycle
 
-Disabling a plugin releases its repositories and nothing else. The pool belongs
-to the library and closes with it, after everything pending is written.
+Disabling a plugin releases its repositories and its datasource lease. A shared
+target remains open until its final consumer releases it, then closes. ExyliaLib
+releases every remaining target on shutdown, after everything pending is written.
 
 ## Configuration
 
-`plugins/ExyliaLib/database.yml`, generated with its own explanation:
+Each consumer gets `plugins/<Plugin>/database.yml`, generated with its own
+explanation when it first calls `Databases.of(plugin)`:
 
 ```yaml
-database:
-  type: h2                    # h2 | mysql | mariadb | postgresql | mongodb
-  file: database/exylia       # embedded only
-  host: localhost
-  port: 0                     # 0 uses the engine's default
-  database: minecraft
-  user: root
-  password: ''
-  pool-size: 0                # 0 lets the library size it
+type: h2                    # h2 | mysql | mariadb | postgresql | mongodb
+file: database              # embedded only, relative to this plugin folder
+host: localhost
+port: 0                     # 0 uses the engine's default
+database: exylia
+user: exylia
+password: ''
+pool-size: 0                # 0 lets the library size it
 ```
 
 ## Where the code is
@@ -229,4 +236,4 @@ database:
 | --- | --- |
 | Public API | `database/Databases`, `PluginDatabase`, `Repository`, `Query`, `Table`, `Column`, `Id`, `Indexed`, `Index`, `Codec`, `DatabaseException`, `DatabaseSettings` |
 | Internal | `database/internal/EntityModel`, `ColumnModel`, `IndexModel`, `IndexCoverage`, `CodecRegistry`, `Codecs`, `Coercions`, `Storage`, `SqlStorage`, `MongoStorage`, `GatedStorage`, `SqlBackend`, `SqlSchema`, `SqlSettings`, `SchemaReport`, `Dialect`, `AnsiDialect`, `H2Dialect`, `MySQLDialect`, `MariaDBDialect`, `PostgresDialect`, `MongoBackend`, `MongoDocuments`, `DatabaseRuntime`, `TaskExecutor` |
-| Lifecycle | `ExyliaLib` — one pool opened at enable, released after everything is written |
+| Lifecycle | `ExyliaLib` starts target management; each consumer loads `database.yml` on view creation and leases a target lazily |

@@ -10,7 +10,7 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * Records stored in a database, with one connection for the whole server.
+ * Records stored in a database, configured by each consumer plugin.
  *
  * <pre>{@code
  * @Table("player_stats")
@@ -32,15 +32,13 @@ import java.util.concurrent.ConcurrentHashMap;
  *         tasks.runAtEntity(player, () -> found.ifPresent(this::show)));
  * }</pre>
  *
- * <h2>One connection, owned by the library</h2>
- * The pool lives here, not in a plugin, and it is configured once in
- * {@code plugins/ExyliaLib/database.yml}. ExyliaCommons opened a pool per
- * plugin, so a server running eight Exylia plugins held eight pools against the
- * same MySQL instance and spent eight times the connections to do it — against
- * a database that was already the bottleneck. A plugin here asks the library for
- * a repository and never sees a connection at all.
+ * <h2>One client per datasource, owned by the library</h2>
+ * Each consumer owns {@code plugins/<Plugin>/database.yml}. ExyliaLib opens the
+ * client and shares it only with plugins whose fully resolved settings match,
+ * so plugins retain independent defaults while intentional shared databases do
+ * not duplicate pools.
  *
- * <p>H2 is the default and the fallback: a file next to the library, no daemon,
+ * <p>H2 is the default and the fallback: a file next to the consumer plugin, no daemon,
  * no credentials, nothing to install. A server owner who wants MySQL says so.
  *
  * <h2>Nothing blocks and nothing runs on a game thread</h2>
@@ -119,7 +117,7 @@ public final class Databases {
     }
 
     /**
-     * Whether the shared connection is open and usable.
+     * Whether any active database target is open and usable.
      *
      * <p>{@code false} both before any plugin asked for a repository — nothing
      * connects until something needs it — and after a failure to open. From a
@@ -134,10 +132,10 @@ public final class Databases {
     }
 
     /**
-     * The engine in use, for a diagnostics command.
+     * The engine in use, for a global diagnostics command.
      *
-     * @return {@code h2}, {@code mysql}, {@code mariadb}, {@code postgresql},
-     *         or {@code unconfigured} before the library has read its file
+     * @return one target engine, {@code multiple} when more than one target is
+     *         active, or {@code unconfigured} when none is active
      */
     public static @NotNull String engine() {
         return DatabaseRuntime.engine();
@@ -155,12 +153,11 @@ public final class Databases {
     // ------------------------------------------------------------- lifecycle
 
     /**
-     * Reads the library's own database configuration.
+     * Starts the database lifecycle.
      *
-     * <p>Called once by ExyliaLib on enable. Nothing connects here: the first
-     * repository is what opens the pool, so a server whose plugins store nothing
-     * never creates a database file and never contacts a host that may not be up
-     * yet.
+     * <p>Called once by ExyliaLib on enable. This does not load configuration or
+     * connect: a consumer's {@code database.yml} is loaded when it asks for its
+     * view, and its first repository opens the target.
      *
      * @param plugin the library plugin
      */
@@ -172,8 +169,7 @@ public final class Databases {
      * Forgets one plugin's repositories.
      *
      * <p>Called by ExyliaLib when the plugin is disabled; consumers do not need
-     * to. The connection stays open, because it belongs to the server rather
-     * than to any one plugin, and so does every table.
+     * to. The target stays open while another plugin holds the same datasource.
      *
      * @param pluginName the name of the plugin being disabled
      */
@@ -211,5 +207,15 @@ public final class Databases {
         VIEWS.values().forEach(PluginDatabase::release);
         VIEWS.clear();
         DatabaseRuntime.installForTests(plugin, settings);
+    }
+
+    static void installForTests(@NotNull Plugin plugin, @NotNull Map<String, SqlSettings> settings) {
+        VIEWS.values().forEach(PluginDatabase::release);
+        VIEWS.clear();
+        DatabaseRuntime.installForTests(plugin, settings);
+    }
+
+    static int targetsForTests() {
+        return DatabaseRuntime.targetCount();
     }
 }

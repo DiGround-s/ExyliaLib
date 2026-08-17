@@ -3,6 +3,7 @@ package net.exylia.lib.database;
 import net.exylia.lib.database.internal.DatabaseRuntime;
 import net.exylia.lib.database.internal.EntityModel;
 import net.exylia.lib.database.internal.GatedStorage;
+import net.exylia.lib.database.internal.SqlSettings;
 import net.exylia.lib.database.internal.Storage;
 import net.exylia.lib.debug.Debug;
 import org.bukkit.plugin.Plugin;
@@ -13,7 +14,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * One plugin's view of the shared database.
+ * One plugin's view of its configured database target.
  *
  * <p>Obtained from {@link Databases#of(Plugin)} and normally kept in a field:
  *
@@ -26,9 +27,9 @@ import java.util.concurrent.ConcurrentHashMap;
  * }
  * }</pre>
  *
- * <p>The connection is not this plugin's — one pool serves the whole server —
- * but the repositories are. Disabling the plugin drops them, and nothing it
- * queued outlives it.
+ * <p>The client is owned by ExyliaLib, while this view owns one lazy lease on
+ * its resolved target. Equal settings share a target; differing settings never
+ * do. Disabling the plugin drops its repositories and lease.
  *
  * <h2>Nothing here blocks, including registration</h2>
  * {@link #repository} returns immediately. Behind it, the pool is opened if it
@@ -61,6 +62,7 @@ import java.util.concurrent.ConcurrentHashMap;
 public final class PluginDatabase {
 
     private final Plugin plugin;
+    private final SqlSettings settings;
 
     /**
      * This plugin's repositories, by record class.
@@ -70,14 +72,28 @@ public final class PluginDatabase {
      * preparing a table again because a different record was used more recently.
      */
     private final Map<Class<?>, Repository<?>> repositories = new ConcurrentHashMap<>();
+    private volatile DatabaseRuntime.Lease lease;
+    private boolean released;
 
     PluginDatabase(@NotNull Plugin plugin) {
         this.plugin = plugin;
+        this.settings = DatabaseRuntime.settings(plugin);
     }
 
     /** The plugin this view belongs to. */
     public @NotNull Plugin plugin() {
         return plugin;
+    }
+
+    /** The configured engine for this plugin's target, for diagnostics. */
+    public @NotNull String engine() {
+        return settings.engine();
+    }
+
+    /** Whether this plugin's acquired target is open and usable. */
+    public boolean isReady() {
+        DatabaseRuntime.Lease current = lease;
+        return current != null && current.isReady();
     }
 
     /**
@@ -103,6 +119,10 @@ public final class PluginDatabase {
      */
     @SuppressWarnings("unchecked")
     public <T> @NotNull Repository<T> repository(@NotNull Class<T> recordType) {
+        if (released) {
+            throw new IllegalStateException("The database view for " + plugin.getName()
+                    + " was released because the plugin is disabled.");
+        }
         return (Repository<T>) repositories.computeIfAbsent(recordType, this::build);
     }
 
@@ -132,8 +152,13 @@ public final class PluginDatabase {
      * need to. The tables stay exactly where they are — this drops the objects
      * that address them, not the data.
      */
-    public void release() {
+    public synchronized void release() {
+        released = true;
         repositories.clear();
+        if (lease != null) {
+            lease.release();
+            lease = null;
+        }
     }
 
     private <T> Repository<T> build(Class<T> recordType) {
@@ -141,7 +166,7 @@ public final class PluginDatabase {
         // be stored must fail on the thread that asked, where the stack trace
         // points at the plugin's own onEnable.
         EntityModel<T> model = EntityModel.of(recordType);
-        return new Repository<>(new GatedStorage(prepare(model)), model);
+        return new Repository<>(new GatedStorage(prepare(lease(), model)), model);
     }
 
     /**
@@ -153,9 +178,9 @@ public final class PluginDatabase {
      * does — which is the honest answer. A read answered with an empty list
      * would be indistinguishable from a database that is simply new.
      */
-    private CompletableFuture<Storage> prepare(EntityModel<?> model) {
+    private CompletableFuture<Storage> prepare(DatabaseRuntime.Lease target, EntityModel<?> model) {
         Debug debug = Debug.of(plugin);
-        return DatabaseRuntime.storage().thenCompose(storage ->
+        return target.storage().thenCompose(storage ->
                 storage.prepare(model).thenApply(report -> {
                     // Only the start where something changed is worth a line. On
                     // a server that has been running for months nothing changes
@@ -182,6 +207,17 @@ public final class PluginDatabase {
                             + failure.getMessage(), failure);
                     return CompletableFuture.failedFuture(failure);
                 }));
+    }
+
+    private synchronized DatabaseRuntime.Lease lease() {
+        if (lease == null) {
+            if (released) {
+                throw new IllegalStateException("The database view for " + plugin.getName()
+                        + " was released because the plugin is disabled.");
+            }
+            lease = DatabaseRuntime.acquire(plugin, settings);
+        }
+        return lease;
     }
 
     @Override
