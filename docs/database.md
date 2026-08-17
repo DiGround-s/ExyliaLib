@@ -30,7 +30,7 @@ created from the record, and the engine is whatever the consumer's
 ## One client per datasource
 
 Each consumer plugin owns `database.yml`; ExyliaLib owns the client it needs.
-The default embedded H2 file is therefore `plugins/<Plugin>/database`, so two
+The default embedded H2 file is therefore `plugins/<Plugin>/database/h2`, so two
 plugins that leave their files alone never share data by accident.
 
 ExyliaLib resolves every setting that affects a connection and shares exactly
@@ -221,7 +221,7 @@ explanation when it first calls `Databases.of(plugin)`:
 
 ```yaml
 type: h2                    # h2 | mysql | mariadb | postgresql | mongodb
-file: database              # embedded only, relative to this plugin folder
+file: database/h2           # embedded only, relative to this plugin folder
 host: localhost
 port: 0                     # 0 uses the engine's default
 database: exylia

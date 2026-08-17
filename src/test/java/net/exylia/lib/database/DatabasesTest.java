@@ -602,6 +602,12 @@ class DatabasesTest {
         await(practiceDatabase.repository(Stats.class).count());
         await(survivalDatabase.repository(Stats.class).count());
         assertEquals(2, Databases.targetsForTests());
+        assertTrue(java.nio.file.Files.readString(root.resolve("Practice/database.yml"))
+                .contains("file: database/h2"));
+        assertTrue(java.nio.file.Files.readString(root.resolve("Survival/database.yml"))
+                .contains("file: database/h2"));
+        assertTrue(java.nio.file.Files.exists(root.resolve("Practice/database/h2.mv.db")));
+        assertTrue(java.nio.file.Files.exists(root.resolve("Survival/database/h2.mv.db")));
 
         Databases.release(practice.getName());
         Databases.release(survival.getName());

@@ -82,7 +82,7 @@ public record DatabaseSettings(
 
     /** The defaults: an embedded file, and nothing to configure. */
     public DatabaseSettings() {
-        this("h2", "database", "127.0.0.1", 0, "exylia", "exylia", "", 0);
+        this("h2", "database/h2", "127.0.0.1", 0, "exylia", "exylia", "", 0);
     }
 
     /** The engine name, trimmed and lower cased, as a dialect takes it. */
@@ -120,7 +120,7 @@ public record DatabaseSettings(
     public @NotNull SqlSettings toSql(@NotNull Path dataFolder) {
         SqlSettings settings = embedded()
                 ? SqlSettings.file(engine(), dataFolder.resolve(file == null || file.isBlank()
-                        ? "database" : file))
+                        ? "database/h2" : file))
                 : SqlSettings.remote(engine(), host, port, database, user, password);
         return poolSize > 0 ? settings.poolSize(poolSize) : settings;
     }
