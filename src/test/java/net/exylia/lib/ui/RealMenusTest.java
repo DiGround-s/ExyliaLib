@@ -25,6 +25,9 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Stream;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
 
@@ -134,6 +137,29 @@ class RealMenusTest {
         assertTrue(withPaginationFiller >= 15,
                 "expected the menus that say why a list is empty, found " + withPaginationFiller);
         assertTrue(items >= 200, "expected a few hundred items, found " + items);
+    }
+
+    @Test
+    @DisplayName("a deployed menu puts a working button under a page arrow")
+    void buttonBeneathAPageArrow() throws Exception {
+        // spectator.yml really does put "toggle spectators" at slot 45, where
+        // the previous-page arrow also lives. A hidden arrow that painted
+        // glass there would take away a button that works, on every menu of
+        // spectators short enough to fit one page — which is all of them.
+        Path file = menus().resolve("player/spectator.yml");
+        registerEveryReferencedAction(List.of(file));
+        YamlConfiguration config = new YamlConfiguration();
+        config.loadFromString(Files.readString(file));
+        UiDefinition menu = MenuLoader.load("practice:spectator", config,
+                actions::template, UiSounds.DEFAULTS);
+
+        UiSection list = menu.section();
+        assertNotNull(list);
+        assertEquals(45, list.previous().slot(), "the arrow shares the slot with an item");
+        assertSame(menu.items().get(45), menu.beneath(45),
+                "the fixed button comes back rather than being covered by filler");
+        assertSame(menu.fillers().global(), menu.beneath(53),
+                "a slot with no item of its own falls through to the background");
     }
 
     /**

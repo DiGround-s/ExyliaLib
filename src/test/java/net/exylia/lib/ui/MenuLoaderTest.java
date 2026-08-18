@@ -625,6 +625,62 @@ class MenuLoaderTest {
         assertEquals(9, fillers.custom().getFirst().slots().size());
     }
 
+    /** What a filler is made of, for asserting which one covered a slot. */
+    private static String materialOf(UiItem item) {
+        return assertInstanceOf(Source.OfMaterial.class, item.item().source()).raw();
+    }
+
+    @Test
+    @DisplayName("a slot a page button vacates goes back to the menu's background")
+    void backgroundUnderAPageButton() {
+        // What a hidden arrow leaves behind. ExyliaCommons drew its fillers
+        // before its navigation, so a button it did not draw was already
+        // covered; here the button is drawn last, so the slot has to be told
+        // what to go back to.
+        UiDefinition menu = load("""
+                title: "Kits"
+                size: 54
+                filler:
+                  global:
+                    material: GRAY_STAINED_GLASS_PANE
+                  custom:
+                    footer:
+                      material: BLACK_STAINED_GLASS_PANE
+                      slots: "45-53"
+                pagination:
+                  slots: '10-16'
+                  item_template:
+                    material: STONE
+                  navigation:
+                    previous: { slot: 45, material: ARROW }
+                    next: { slot: 53, material: ARROW }
+                """);
+
+        UiFillers fillers = menu.fillers();
+        assertEquals("BLACK_STAINED_GLASS_PANE", materialOf(fillers.backgroundAt(45)),
+                "a panel covering the slot wins over the background");
+        assertEquals("GRAY_STAINED_GLASS_PANE", materialOf(fillers.backgroundAt(20)),
+                "a slot no panel claims falls through to the background");
+    }
+
+    @Test
+    @DisplayName("a menu that fills nothing leaves a vacated button slot empty")
+    void backgroundWithoutFillers() {
+        UiDefinition menu = load("""
+                title: "Kits"
+                size: 54
+                pagination:
+                  slots: '10-16'
+                  item_template:
+                    material: STONE
+                  navigation:
+                    next: { slot: 53, material: ARROW }
+                """);
+
+        assertNull(menu.fillers().backgroundAt(53),
+                "nothing to fill with means the slot is emptied, not left showing the arrow");
+    }
+
     @Test
     @DisplayName("a custom panel with nowhere to go is dropped rather than kept")
     void customPanelWithoutSlots() {

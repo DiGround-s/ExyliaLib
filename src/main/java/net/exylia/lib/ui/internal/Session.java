@@ -569,7 +569,7 @@ final class Session implements UiSession {
         }
 
         // Named panels first, so the background does not paint over them, and
-        // in file order so a later one wins where two overlap.
+        // in file order so the first to claim a slot keeps it.
         for (UiFillers.Panel panel : fillers.custom()) {
             ItemStack drawn = render(panel.item(), Map.of());
             for (int slot : panel.slots()) {
@@ -675,23 +675,65 @@ final class Session implements UiSession {
      * <p>They carry the page numbers, so they are re-drawn whenever the page
      * moves — a button reading "Page 2/5" that still says 1/5 is worse than no
      * button at all.
+     *
+     * <p>A button with nowhere to go is not drawn at all. An arrow that is
+     * there and does nothing is the same lie in every menu that has fewer rows
+     * than one page, which is most of them on a quiet server.
      */
     private void drawNavigation(UiSection list, int rows) {
+        int page = page(list.id());
+        int pages = list.pagesFor(rows);
         Map<String, String> values = Map.of(
-                "current_page", String.valueOf(page(list.id())),
-                "total_pages", String.valueOf(list.pagesFor(rows)),
-                "page", String.valueOf(page(list.id())),
-                "pages", String.valueOf(list.pagesFor(rows)));
-        drawPlaced(list.previous(), values);
-        drawPlaced(list.next(), values);
+                "current_page", String.valueOf(page),
+                "total_pages", String.valueOf(pages),
+                "page", String.valueOf(page),
+                "pages", String.valueOf(pages));
+        drawPlaced(list.previous(), values, Pages.hasPrevious(page));
+        drawPlaced(list.next(), values, Pages.hasNext(page, rows, list.perPage()));
     }
 
-    private void drawPlaced(UiSection.Placed placed, Map<String, String> values) {
+    /**
+     * Draws a page button, or puts back what the slot would otherwise hold.
+     *
+     * <p>Restored rather than emptied, because the page a button disappears on
+     * changes while the menu is open: leaving a hole would make the background
+     * flicker on and off as somebody pages through a list.
+     */
+    private void drawPlaced(UiSection.Placed placed, Map<String, String> values,
+                            boolean reachable) {
         if (placed == null) {
+            return;
+        }
+        if (!reachable) {
+            drawBackground(placed.slot());
             return;
         }
         put(placed.slot(), render(placed.item(), values));
         slots.put(placed.slot(), Rendered.of(placed.item()));
+    }
+
+    /**
+     * Draws what a slot holds when the button that owns it is not drawn.
+     *
+     * <p>The same order the menu drew it in to begin with, so a slot a button
+     * vacated looks exactly like it would have if the button had never been
+     * declared there.
+     */
+    private void drawBackground(int slot) {
+        UiItem beneath = definition.beneath(slot);
+        if (beneath == null) {
+            put(slot, null);
+            slots.remove(slot);
+            return;
+        }
+        if (beneath == definition.items().get(slot)) {
+            // A menu that puts a button under a page arrow gets its button
+            // back, condition and clicks included, rather than glass over it.
+            drawFixed(slot, beneath);
+            return;
+        }
+        put(slot, render(beneath, Map.of()));
+        slots.put(slot, Rendered.FILLER);
     }
 
     /** Whether a slot's condition lets it be shown. */

@@ -207,8 +207,14 @@ when a list has fewer rows than slots, and it usually **says something**.
 Treating it as another background would tell somebody with an empty list
 nothing at all.
 
-Panels are drawn before the background, in file order, so a later one wins where
-two overlap.
+Panels are drawn before the background, in file order, so the first one to claim
+a slot keeps it where two overlap.
+
+A page button that has nowhere to go is not drawn either, and its slot goes back
+to whatever would otherwise cover it — the panel that claims it, or the global
+filler, or nothing at all when the menu fills nothing. An arrow that is there
+and does nothing is the same lie in every menu with a single page of rows, which
+is most of them on a quiet server.
 
 ## Redrawing
 

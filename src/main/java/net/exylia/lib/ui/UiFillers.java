@@ -66,4 +66,25 @@ public record UiFillers(@Nullable UiItem global, @Nullable UiItem pagination,
     public boolean isEmpty() {
         return global == null && pagination == null && custom.isEmpty();
     }
+
+    /**
+     * What covers a slot nothing else claims.
+     *
+     * <p>A named panel wins over the background, and the first panel to claim a
+     * slot keeps it — the order a menu draws them in. Asked whenever a slot has
+     * to go back to looking like the rest of the menu: a page button that has
+     * nowhere to go, for instance.
+     *
+     * @param slot the slot
+     * @return what to draw there, or {@code null} when nothing fills it
+     * @since 1.27.0
+     */
+    public @Nullable UiItem backgroundAt(int slot) {
+        for (Panel panel : custom) {
+            if (panel.slots().contains(slot)) {
+                return panel.item();
+            }
+        }
+        return global;
+    }
 }

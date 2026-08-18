@@ -368,6 +368,12 @@ abierto.
   ve quien tiene una lista vacía y **suele decir por qué**; `custom` son paneles
   con sus propios slots. Tratar el segundo como fondo deja al jugador sin
   explicación.
+- **Un botón de página sin página no se dibuja**, y su slot vuelve al fondo que
+  le tocaba (el panel que lo reclama, o el `global`, o nada). Commons pintaba
+  los fillers *antes* que la navegación, así que el botón que no dibujaba ya
+  estaba tapado; aquí la navegación va última y hay que decirle a qué volver.
+  Una flecha que existe y no hace nada es la mitad de los menús de un servidor
+  tranquilo.
 - **Los sonidos se leen de `open_sounds:` en la raíz**, que es como están escritos
   los 2028 ficheros. Leer solo un bloque `sounds:` dejaba mudo al ecosistema
   entero y pasaba los tests igual.

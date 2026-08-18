@@ -221,6 +221,24 @@ public record UiDefinition(
     public record Navigation(@NotNull String section, int step) {
     }
 
+    /**
+     * What covers a slot when nothing that could be drawn over it is.
+     *
+     * <p>Asked when a page button has nowhere to go, which is most menus most
+     * of the time. A fixed item wins over any filler: several deployed menus
+     * put a button under a page arrow — {@code spectator.yml} has its
+     * "toggle spectators" under {@code previous} — and painting glass over it
+     * would take away a button that works.
+     *
+     * @param slot the slot
+     * @return what to draw there, or {@code null} when nothing covers it
+     * @since 1.27.0
+     */
+    public @Nullable UiItem beneath(int slot) {
+        UiItem fixed = items.get(slot);
+        return fixed != null ? fixed : fillers.backgroundAt(slot);
+    }
+
     /** Returns whether anything in this menu can change while it is open. */
     public boolean isDynamic() {
         if (isPaginated() || openAnimation != null || title.indexOf('%') >= 0) {

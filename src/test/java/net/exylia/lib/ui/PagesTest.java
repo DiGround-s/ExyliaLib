@@ -7,6 +7,7 @@ import java.util.List;
 import java.util.stream.IntStream;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -98,6 +99,32 @@ class PagesTest {
             }
             assertEquals(all, seen, "walking every page of " + total + " rows");
         }
+    }
+
+    @Test
+    @DisplayName("a page button with nowhere to go knows it")
+    void reachablePages() {
+        // What decides whether an arrow is drawn. The single-page case is the
+        // one that matters: it is every menu on a quiet server, and drawing
+        // both arrows there was two buttons that did nothing.
+        assertFalse(Pages.hasPrevious(1), "there is nothing before the first page");
+        assertFalse(Pages.hasNext(1, 5, 21), "one page of rows has nothing after it");
+        assertFalse(Pages.hasNext(1, 0, 21), "an empty list has nowhere to go");
+        assertFalse(Pages.hasNext(1, 21, 21), "an exact fit is still one page");
+
+        assertTrue(Pages.hasNext(1, 22, 21), "one row over the edge makes a second page");
+        assertTrue(Pages.hasPrevious(2));
+        assertTrue(Pages.hasNext(2, 100, 21));
+        assertFalse(Pages.hasNext(5, 100, 21), "the last page of five");
+    }
+
+    @Test
+    @DisplayName("a page number left behind by a shrinking list still hides the arrow")
+    void reachableAfterShrinking() {
+        // A leaderboard emptying under somebody on page three: the rows are
+        // gone, so forward has to be refused even though the page number says
+        // otherwise.
+        assertFalse(Pages.hasNext(3, 4, 21));
     }
 
     @Test

@@ -75,6 +75,30 @@ public final class Pages {
     }
 
     /**
+     * Whether there is a page before this one.
+     *
+     * @param page which page, one-based
+     * @return whether paging back would go anywhere
+     * @since 1.27.0
+     */
+    public static boolean hasPrevious(int page) {
+        return page > 1;
+    }
+
+    /**
+     * Whether there is a page after this one.
+     *
+     * @param page    which page, one-based
+     * @param entries how many rows there are
+     * @param perPage how many fit on a page
+     * @return whether paging forward would go anywhere
+     * @since 1.27.0
+     */
+    public static boolean hasNext(int page, int entries, int perPage) {
+        return page < count(entries, perPage);
+    }
+
+    /**
      * Which row a slot on a page corresponds to.
      *
      * @param page    which page, one-based
