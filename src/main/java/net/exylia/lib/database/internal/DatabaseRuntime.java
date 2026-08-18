@@ -15,6 +15,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
+import java.util.function.Supplier;
 
 /** Owns the ref-counted database targets used by consumer plugins. */
 public final class DatabaseRuntime {
@@ -167,6 +168,10 @@ public final class DatabaseRuntime {
             return target.isReady();
         }
 
+        public <T> @NotNull CompletableFuture<T> submit(@NotNull Supplier<CompletableFuture<T>> operation) {
+            return target.submit(operation);
+        }
+
         public void release() {
             synchronized (LOCK) {
                 if (released) {
@@ -186,6 +191,9 @@ public final class DatabaseRuntime {
         private final Plugin owner;
         private CompletableFuture<Storage> storage;
         private int owners;
+        private int operations;
+        private boolean closing;
+        private boolean closed;
 
         private Target(TargetKey key, SqlSettings settings, Plugin owner) {
             this.key = key;
@@ -204,14 +212,43 @@ public final class DatabaseRuntime {
             return storage != null && storage.isDone() && !storage.isCompletedExceptionally();
         }
 
-        private synchronized void closeWhenFinished() {
-            if (storage != null) {
-                storage.whenComplete((opened, failure) -> {
-                    if (opened != null) {
-                        opened.close();
-                    }
-                });
+        private synchronized <T> @NotNull CompletableFuture<T> submit(
+                @NotNull Supplier<CompletableFuture<T>> operation) {
+            if (closing) {
+                return CompletableFuture.failedFuture(new DatabaseException(
+                        "The database target is closing because its last plugin was disabled."));
             }
+            operations++;
+            CompletableFuture<T> future;
+            try {
+                future = operation.get();
+            } catch (Throwable failure) {
+                future = CompletableFuture.failedFuture(failure);
+            }
+            future.whenComplete((ignored, failure) -> completeOperation());
+            return future;
+        }
+
+        private synchronized void closeWhenFinished() {
+            closing = true;
+            closeIfIdle();
+        }
+
+        private synchronized void completeOperation() {
+            operations--;
+            closeIfIdle();
+        }
+
+        private void closeIfIdle() {
+            if (!closing || operations != 0 || closed || storage == null) {
+                return;
+            }
+            closed = true;
+            storage.whenComplete((opened, failure) -> {
+                if (opened != null) {
+                    opened.close();
+                }
+            });
         }
     }
 

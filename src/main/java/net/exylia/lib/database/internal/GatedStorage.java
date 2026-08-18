@@ -9,6 +9,7 @@ import java.util.Collection;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
+import java.util.function.Supplier;
 
 /**
  * A {@link Storage} that holds every call back until the store behind it is
@@ -44,6 +45,7 @@ import java.util.function.Function;
 public final class GatedStorage implements Storage {
 
     private final CompletableFuture<Storage> ready;
+    private final OperationGate operations;
 
     /**
      * A view that waits for a store to become usable.
@@ -52,7 +54,16 @@ public final class GatedStorage implements Storage {
      *              the table exists, or fails with why it never will
      */
     public GatedStorage(@NotNull CompletableFuture<Storage> ready) {
+        this(ready, Supplier::get);
+    }
+
+    /**
+     * A view that waits for a store and registers its work with the target that
+     * owns the eventual connection.
+     */
+    public GatedStorage(@NotNull CompletableFuture<Storage> ready, @NotNull OperationGate operations) {
         this.ready = ready;
+        this.operations = operations;
     }
 
     @Override
@@ -146,7 +157,14 @@ public final class GatedStorage implements Storage {
      * in front of a scheduler round trip.
      */
     private <R> CompletableFuture<R> after(@NotNull Function<Storage, CompletableFuture<R>> work) {
-        return ready.thenCompose(work);
+        return operations.submit(() -> ready.thenCompose(work));
+    }
+
+    /** A target-owned gate that keeps already-queued work alive through release. */
+    @FunctionalInterface
+    public interface OperationGate {
+
+        <T> @NotNull CompletableFuture<T> submit(@NotNull Supplier<CompletableFuture<T>> operation);
     }
 
     @Override

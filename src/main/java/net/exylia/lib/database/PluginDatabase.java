@@ -166,7 +166,8 @@ public final class PluginDatabase {
         // be stored must fail on the thread that asked, where the stack trace
         // points at the plugin's own onEnable.
         EntityModel<T> model = EntityModel.of(recordType);
-        return new Repository<>(new GatedStorage(prepare(lease(), model)), model);
+        DatabaseRuntime.Lease target = lease();
+        return new Repository<>(new GatedStorage(prepare(target, model), target::submit), model);
     }
 
     /**
@@ -180,7 +181,7 @@ public final class PluginDatabase {
      */
     private CompletableFuture<Storage> prepare(DatabaseRuntime.Lease target, EntityModel<?> model) {
         Debug debug = Debug.of(plugin);
-        return target.storage().thenCompose(storage ->
+        return target.submit(() -> target.storage().thenCompose(storage ->
                 storage.prepare(model).thenApply(report -> {
                     // Only the start where something changed is worth a line. On
                     // a server that has been running for months nothing changes
@@ -206,7 +207,7 @@ public final class PluginDatabase {
                             + " can be read or written until this is fixed: "
                             + failure.getMessage(), failure);
                     return CompletableFuture.failedFuture(failure);
-                }));
+                })));
     }
 
     private synchronized DatabaseRuntime.Lease lease() {

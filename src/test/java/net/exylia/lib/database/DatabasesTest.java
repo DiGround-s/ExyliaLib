@@ -504,6 +504,19 @@ class DatabasesTest {
     }
 
     @Test
+    @DisplayName("the final release waits for work that was already queued")
+    void finalReleaseWaitsForQueuedWork() {
+        Repository<Stats> repository = Databases.of(plugin).repository(Stats.class);
+        UUID uuid = UUID.randomUUID();
+
+        CompletableFuture<Void> save = repository.save(stats(uuid, 1200, "red"));
+        Databases.release(plugin.getName());
+
+        await(save);
+        assertEquals(0, Databases.targetsForTests());
+    }
+
+    @Test
     @DisplayName("releasing everything closes the connection")
     void releaseAllClosesTheConnection() {
         Repository<Stats> repository = Databases.of(plugin).repository(Stats.class);
