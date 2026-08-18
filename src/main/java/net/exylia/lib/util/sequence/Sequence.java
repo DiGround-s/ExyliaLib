@@ -36,7 +36,7 @@ import java.util.List;
  * <p>Immutable and shared: one {@code Sequence} serves every player who
  * triggers it, on any thread.
  *
- * @since 1.28.0
+ * @since 1.30.0
  */
 public final class Sequence {
 

@@ -26,7 +26,7 @@ import java.util.List;
  * <p>Cancelling stops the steps that have not run and the frames already
  * scheduled by the ones that have.
  *
- * @since 1.28.0
+ * @since 1.30.0
  */
 public final class SequenceRun {
 

@@ -1,7 +1,7 @@
 # Sequence module
 
 Choreographed effects, written in configuration. A ring of flame, a sound, a
-pause, an explosion — in that order, from a list of strings. Since 1.28.0.
+pause, an explosion — in that order, from a list of strings. Since 1.30.0.
 
 Entry point: `net.exylia.lib.util.sequence.Sequences`.
 

@@ -47,7 +47,7 @@ import java.util.concurrent.ConcurrentHashMap;
  * every string and re-derived every point on each play, so a full arena of
  * players dying re-did that work on the region thread every time.
  *
- * @since 1.28.0
+ * @since 1.30.0
  */
 public final class Sequences {
 

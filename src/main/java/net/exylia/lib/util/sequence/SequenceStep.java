@@ -12,7 +12,7 @@ import org.jetbrains.annotations.NotNull;
  * <p>Implementations live in {@code internal} and are free to change. A plugin
  * never writes one; it writes a line of configuration.
  *
- * @since 1.28.0
+ * @since 1.30.0
  */
 public interface SequenceStep {
 

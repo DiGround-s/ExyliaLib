@@ -170,7 +170,8 @@ class PreviewTest {
 
         viewer.disconnect();
         FakeServer.dispatch(new org.bukkit.event.player.PlayerQuitEvent(
-                viewer.player(), net.kyori.adventure.text.Component.empty()));
+                viewer.player(), net.kyori.adventure.text.Component.empty(),
+                org.bukkit.event.player.PlayerQuitEvent.QuitReason.DISCONNECTED));
 
         // Teleporting a player who is leaving throws, and the server saves them
         // wherever it has them.

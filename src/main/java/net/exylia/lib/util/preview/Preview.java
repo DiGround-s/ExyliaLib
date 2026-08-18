@@ -18,7 +18,7 @@ import org.jetbrains.annotations.NotNull;
  * the safety timer. Whoever gets there first wins and the rest are ignored,
  * which is what makes the restore safe to trigger from anywhere.
  *
- * @since 1.31.0
+ * @since 1.30.0
  */
 public interface Preview {
 

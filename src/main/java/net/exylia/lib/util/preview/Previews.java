@@ -47,7 +47,7 @@ import java.util.concurrent.ConcurrentHashMap;
  *       sky, across every plugin.</li>
  * </ul>
  *
- * @since 1.31.0
+ * @since 1.30.0
  */
 public final class Previews {
 

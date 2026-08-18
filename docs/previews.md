@@ -1,6 +1,6 @@
 # Preview module
 
-Showing one player an effect, against nothing. Since 1.31.0.
+Showing one player an effect, against nothing. Since 1.30.0.
 
 Entry point: `net.exylia.lib.util.preview.Previews`.
 

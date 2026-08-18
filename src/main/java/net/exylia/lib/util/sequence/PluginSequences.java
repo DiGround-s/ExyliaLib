@@ -35,7 +35,7 @@ import java.util.concurrent.atomic.AtomicInteger;
  * plugin that asked. A shared static would leave one plugin's effects drawing
  * after its classloader was gone.
  *
- * @since 1.28.0
+ * @since 1.30.0
  */
 public final class PluginSequences {
 

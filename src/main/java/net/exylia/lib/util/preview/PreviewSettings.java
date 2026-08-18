@@ -24,7 +24,7 @@ import net.exylia.lib.config.Key;
  * @param lingerTicks  how long to keep the stage after the effect ends
  * @param maxTicks     the longest a preview may last, whatever happens
  *
- * @since 1.31.0
+ * @since 1.30.0
  */
 @Comment("Where preview effects are shown.")
 @Comment("")

@@ -38,7 +38,7 @@ import java.util.List;
  * should sit at chest height returns points around {@code y=1}, and a shape
  * that draws on the floor returns points around {@code y=0}.
  *
- * @since 1.28.0
+ * @since 1.30.0
  */
 @FunctionalInterface
 public interface Shape {
@@ -62,7 +62,7 @@ public interface Shape {
      * for what was not. Every unreadable value is reported against the file it
      * came from rather than silently replaced.
      *
-     * @since 1.28.0
+     * @since 1.30.0
      */
     interface ShapeArgs {
 

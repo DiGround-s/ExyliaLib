@@ -37,7 +37,7 @@ import java.util.function.BiPredicate;
  * <p>The radius is a value rather than a constant: ExyliaCommons hardcoded 32
  * blocks, which is right for a kill effect and wasteful for a footstep.
  *
- * @since 1.28.0
+ * @since 1.30.0
  */
 public final class SequenceTarget {
 

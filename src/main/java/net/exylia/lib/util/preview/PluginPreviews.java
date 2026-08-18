@@ -24,7 +24,7 @@ import org.jetbrains.annotations.Nullable;
  * previews.show(player, effect.sequence(), () -> openMenu(player));
  * }</pre>
  *
- * @since 1.31.0
+ * @since 1.30.0
  */
 public final class PluginPreviews {
 
