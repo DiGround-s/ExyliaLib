@@ -33,6 +33,7 @@ import net.exylia.lib.region.internal.RegionRuntime;
 import net.exylia.lib.region.internal.SelectionListener;
 import net.exylia.lib.text.Prefixes;
 import net.exylia.lib.util.Cooldowns;
+import net.exylia.lib.util.preview.Previews;
 import net.exylia.lib.util.sequence.Sequences;
 import net.exylia.lib.placeholder.internal.BuiltIn;
 import net.exylia.lib.platform.Platform;
@@ -112,6 +113,7 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         ClientRuntime.init(this);
         ClanRuntime.init(this);
         SkullRuntime.init(this);
+        net.exylia.lib.util.preview.internal.PreviewRuntime.init(this);
         // Starts only the database lifecycle. Each consumer loads database.yml
         // when it asks for its view, and opens lazily on its first repository.
         Databases.init(this);
@@ -283,6 +285,7 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
 
         EffectRuntime.stopEverything();
         EffectRuntime.releaseAll();
+        Previews.releaseAll();
         Sequences.releaseAll();
         // Before releasing tasks: their refresh drivers are among them.
         BoardManager.stopEverything();
@@ -398,6 +401,9 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         // and doing it the other way round would leave the effect on screen.
         EffectRuntime.stopAll(pluginName);
         EffectRuntime.release(pluginName);
+        // Before the sequence module: a preview owns a run and must put its
+        // player back before that run is cancelled underneath it.
+        Previews.release(pluginName);
         // Before the task module, for the same reason: a sequence schedules the
         // frames of its own animation, and a frame belonging to a classloader
         // that is going away must not fire.

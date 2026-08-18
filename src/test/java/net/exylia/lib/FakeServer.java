@@ -195,6 +195,7 @@ public final class FakeServer {
         ONLINE.clear();
         WORLDS.clear();
         EVENTS.clear();
+        LISTENERS.clear();
         CONSOLE_MESSAGES.clear();
         CONSOLE_COMMANDS.clear();
         consoleAcceptsCommands = true;
@@ -340,6 +341,10 @@ public final class FakeServer {
                 });
     }
 
+    /** Listeners the code under test registered, for opt-in dispatch. */
+    private static final List<org.bukkit.event.Listener> LISTENERS =
+            new java.util.concurrent.CopyOnWriteArrayList<>();
+
     /** Every event the code under test fired, in order. */
     private static final List<org.bukkit.event.Event> EVENTS =
             new java.util.concurrent.CopyOnWriteArrayList<>();
@@ -360,8 +365,43 @@ public final class FakeServer {
                             EVENTS.add((org.bukkit.event.Event) args[0]);
                             return null;
                         }
+                        if (method.getName().equals("registerEvents")) {
+                            LISTENERS.add((org.bukkit.event.Listener) args[0]);
+                            return null;
+                        }
                         return defaultValue(method.getReturnType());
                     });
+
+
+    /**
+     * Delivers one event to the listeners that registered for it.
+     *
+     * <p>Opt-in on purpose: most tests want events recorded rather than acted
+     * on, and dispatching everywhere would change what they assert. A test that
+     * needs a listener to run asks for it.
+     *
+     * @param event the event to deliver
+     */
+    public static void dispatch(org.bukkit.event.Event event) {
+        for (org.bukkit.event.Listener listener : LISTENERS) {
+            for (java.lang.reflect.Method method : listener.getClass().getMethods()) {
+                if (!method.isAnnotationPresent(org.bukkit.event.EventHandler.class)) {
+                    continue;
+                }
+                Class<?>[] parameters = method.getParameterTypes();
+                if (parameters.length != 1 || !parameters[0].isInstance(event)) {
+                    continue;
+                }
+                try {
+                    method.invoke(listener, event);
+                } catch (ReflectiveOperationException failed) {
+                    throw new IllegalStateException(
+                            "A listener threw while handling " + event.getClass().getSimpleName(),
+                            failed.getCause() != null ? failed.getCause() : failed);
+                }
+            }
+        }
+    }
 
     /** Every event fired since the last reset, in order. */
     public static List<org.bukkit.event.Event> events() {

@@ -29,6 +29,7 @@ against the source — rules and routes are in `AGENTS.md` under
 | [Formats](formats.md) | Numbers, money, percentages and dates a player reads — and amounts a player types, such as `10M` | 1.25.0 |
 | [Economy](economy.md) | Balances, charges and transfers over Vault, PlayerPoints or a currency you write — one economy choice for the whole server | 1.26.0 |
 | [Sequences](sequences.md) | Choreographed effects from configuration: shapes, sounds, delays — the ExyliaCommons syntax, compiled once | 1.28.0 |
+| [Previews](previews.md) | Showing one player an effect against an empty sky, and putting them back | 1.31.0 |
 
 Root classes that are not a module:
 

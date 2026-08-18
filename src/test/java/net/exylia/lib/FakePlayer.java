@@ -35,6 +35,12 @@ public final class FakePlayer {
     private volatile boolean acceptsCommands = true;
     private volatile boolean online = true;
     private volatile org.bukkit.Location location;
+    private final List<org.bukkit.Location> teleports = new CopyOnWriteArrayList<>();
+    private final List<String> hidden = new CopyOnWriteArrayList<>();
+    private volatile boolean allowFlight;
+    private volatile boolean flying;
+    private volatile boolean invulnerable;
+    private volatile boolean gravity = true;
 
     public FakePlayer(String name) {
         this.name = name;
@@ -83,6 +89,41 @@ public final class FakePlayer {
                         bossBarsHidden.add(String.valueOf(args[0]));
                         yield null;
                     }
+                    case "teleport" -> {
+                        if (args[0] instanceof org.bukkit.Location where) {
+                            teleports.add(where.clone());
+                            this.location = where.clone();
+                        }
+                        yield true;
+                    }
+                    case "setAllowFlight" -> {
+                        allowFlight = (boolean) args[0];
+                        yield null;
+                    }
+                    case "getAllowFlight" -> allowFlight;
+                    case "setFlying" -> {
+                        flying = (boolean) args[0];
+                        yield null;
+                    }
+                    case "isFlying" -> flying;
+                    case "setInvulnerable" -> {
+                        invulnerable = (boolean) args[0];
+                        yield null;
+                    }
+                    case "isInvulnerable" -> invulnerable;
+                    case "setGravity" -> {
+                        gravity = (boolean) args[0];
+                        yield null;
+                    }
+                    case "hasGravity" -> gravity;
+                    case "hideEntity", "hidePlayer" -> {
+                        hidden.add(String.valueOf(args[1]));
+                        yield null;
+                    }
+                    case "showEntity", "showPlayer" -> {
+                        hidden.remove(String.valueOf(args[1]));
+                        yield null;
+                    }
                     case "hashCode" -> System.identityHashCode(self);
                     case "equals" -> self == args[0];
                     case "toString" -> "FakePlayer[" + this.name + "]";
@@ -103,6 +144,26 @@ public final class FakePlayer {
     }
 
     /** Every sound played to this player, in order. */
+    /** Everywhere this player was teleported, in order. */
+    public List<org.bukkit.Location> teleports() {
+        return List.copyOf(teleports);
+    }
+
+    /** What is currently hidden from this player. */
+    public List<String> hidden() {
+        return List.copyOf(hidden);
+    }
+
+    /** Whether this player is currently held in the air. */
+    public boolean isFrozen() {
+        return allowFlight && flying && !gravity;
+    }
+
+    /** Whether this player is currently invulnerable. */
+    public boolean isInvulnerable() {
+        return invulnerable;
+    }
+
     /** Every command this player was made to run, in order. */
     public List<String> commands() {
         return List.copyOf(commands);
