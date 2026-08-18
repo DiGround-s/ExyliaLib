@@ -3,6 +3,7 @@ package net.exylia.lib.item.internal;
 import net.exylia.lib.item.Appearance;
 import net.exylia.lib.item.Item;
 import net.exylia.lib.item.Source;
+import net.exylia.lib.placeholder.Placeholders;
 import net.exylia.lib.skull.SkullSource;
 import net.exylia.lib.skull.Skulls;
 import net.exylia.lib.text.Text;
@@ -136,13 +137,33 @@ public final class ItemRenderer {
         if (viewer == null && values.isEmpty()) {
             return value -> value;
         }
-        return value -> {
-            if (value.indexOf('%') < 0) {
-                return value;
-            }
-            String filled = fill(value, values);
-            return viewer == null ? filled : Text.of(filled).forPlayer(viewer).plain();
-        };
+        return value -> value(value, viewer, values);
+    }
+
+    /**
+     * Resolves a placeholder that names something rather than saying it.
+     *
+     * <p>A material, a head's owner, a trim pattern: the answer is looked up in
+     * a registry or sent to Mojang, so it has to come back with the letters it
+     * was written with. Nothing here is drawn on the screen, which is why the
+     * text module's presentation — small capitals above all — must not touch
+     * it.
+     *
+     * <p>The bug this exists for is not subtle once seen: with small text on,
+     * {@code material: "%effect_material%"} resolved to {@code ғɪʀᴇ_ᴄʜᴀʀɢᴇ},
+     * no registry has ever heard of that, and every icon in the menu came out
+     * as stone with one console line each.
+     */
+    static String value(String written, Player viewer, Map<String, String> values) {
+        if (written.indexOf('%') < 0) {
+            return written;
+        }
+        String filled = fill(written, values);
+        // Through the placeholder module, never through Text: the value is
+        // wanted, its presentation is not. Text would resolve the same names
+        // and then draw the answer — small capitals, palette tokens, centring —
+        // and a drawn registry key is not a registry key any more.
+        return viewer == null ? filled : Placeholders.apply(filled, viewer);
     }
 
     /** Substitutes row values into a string, before anything else looks at it. */
