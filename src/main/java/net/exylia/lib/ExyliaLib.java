@@ -17,6 +17,7 @@ import net.exylia.lib.input.InputSettings;
 import net.exylia.lib.input.Inputs;
 import net.exylia.lib.input.internal.Bedrocks;
 import net.exylia.lib.input.internal.ChatTransport;
+import net.exylia.lib.input.internal.DialogTransport;
 import net.exylia.lib.input.internal.InputListener;
 import net.exylia.lib.input.internal.InputRuntime;
 import net.exylia.lib.format.internal.FormatPlaceholders;
@@ -264,6 +265,7 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
     private void applyInput(InputSettings settings) {
         Inputs.defaultTimeout(java.time.Duration.ofSeconds(Math.max(1, settings.timeoutSeconds())));
         ChatTransport.setCancelWord(settings.cancelWord());
+        DialogTransport.enabled(settings.preferDialogs());
         Bedrocks.prefix(LibrarySettings.get().bedrockPrefix());
     }
 

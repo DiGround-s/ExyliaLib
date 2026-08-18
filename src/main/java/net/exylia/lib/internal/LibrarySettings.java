@@ -35,6 +35,13 @@ import net.exylia.lib.config.Configs;
 @Comment("server that wants ordinary capitals.")
 @Comment("Values a plugin substitutes are left alone: a player named Steve")
 @Comment("stays Steve, and a number stays a number.")
+@Comment("")
+@Comment("bedrock-prefix: the character Floodgate puts in front of a Bedrock")
+@Comment("player's name. Used to tell Bedrock players from Java ones when")
+@Comment("Floodgate itself is not installed to be asked. It lives here")
+@Comment("rather than in input.yml because who is on Bedrock is a fact about")
+@Comment("your players, not about asking them questions: menus, forms and")
+@Comment("anything else that adapts to the client reads the same value.")
 public record LibrarySettings(
         @Comment("Whether to check for and download newer versions automatically.")
         boolean autoUpdate,
@@ -46,12 +53,16 @@ public record LibrarySettings(
         boolean debug,
 
         @Comment("Whether text is drawn in small capitals.")
-        boolean smallText
+        boolean smallText,
+
+        @Comment("The prefix Floodgate adds to a Bedrock player's name.")
+        @Comment("Leave it empty if your Bedrock players have no prefix.")
+        String bedrockPrefix
 ) {
 
     /** Safe defaults used when no config file exists yet. */
     public LibrarySettings() {
-        this(true, 30, false, true);
+        this(true, 30, false, true, "*");
     }
 
     private static volatile LibrarySettings instance;

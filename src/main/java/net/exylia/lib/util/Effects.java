@@ -55,6 +55,29 @@ import java.util.List;
  * <h2>Caching</h2>
  * The same config string is parsed once and held for 30 seconds.
  *
+ * <h2>Threads</h2>
+ * {@link #parse} is pure data and safe from any thread. Everything that touches
+ * a player — {@link #apply}, {@link #applyInfinite}, {@link #remove} and
+ * {@link #clear} — must be called from the thread that owns that player:
+ *
+ * <pre>{@code
+ * tasks.runAtEntity(player, () -> Effects.applyInfinite(player, passives));
+ * }</pre>
+ *
+ * <p>On Folia the caller's own thread is the contract, and calling from
+ * anywhere else throws. {@link net.exylia.lib.task.TaskScheduler#run} is the
+ * global region thread, which does <em>not</em> own any player: a timer that
+ * ends up applying an effect belongs on
+ * {@link net.exylia.lib.task.TaskScheduler#runAtEntityTimer}, not on
+ * {@link net.exylia.lib.task.TaskScheduler#runTimer}. Applying to somebody
+ * other than the player the current task owns needs its own hop.
+ *
+ * <p>This module deliberately does not schedule that hop for you. Folia's
+ * entity scheduler always defers, even when the calling thread is already the
+ * right one, so wrapping every line would turn one synchronous call into a
+ * task per effect and leave the caller unable to read back what it just
+ * applied.
+ *
  * @since 1.9.0
  */
 public final class Effects {
@@ -110,6 +133,9 @@ public final class Effects {
      * Effects.apply(player, classDef.getPassiveEffects());
      * }</pre>
      *
+     * <p>Call from the thread that owns {@code player}; see the class notes on
+     * threads.
+     *
      * @param player the player
      * @param lines  one effect per element
      */
@@ -140,6 +166,9 @@ public final class Effects {
      * {@link #clear(Player)}: the player may be carrying effects from a potion
      * they drank or from another plugin, and those are not this caller's to
      * take away.
+     *
+     * <p>Call from the thread that owns {@code player}; see the class notes on
+     * threads.
      *
      * @param player the player
      * @param raw    the same notation as {@link #apply}; the duration is overridden
@@ -173,6 +202,9 @@ public final class Effects {
      * what it did. Level and duration in the line are ignored: the name is
      * all that identifies a running effect.
      *
+     * <p>Call from the thread that owns {@code player}; see the class notes on
+     * threads.
+     *
      * @param player the player
      * @param raw    the same notation as {@link #apply}; only the name is read
      */
@@ -198,7 +230,12 @@ public final class Effects {
         }
     }
 
-    /** Removes every potion effect from a player. */
+    /**
+     * Removes every potion effect from a player.
+     *
+     * <p>Call from the thread that owns {@code player}; see the class notes on
+     * threads.
+     */
     public static void clear(@NotNull Player player) {
         for (PotionEffect effect : player.getActivePotionEffects()) {
             player.removePotionEffect(effect.getType());

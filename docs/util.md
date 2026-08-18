@@ -54,6 +54,31 @@ effects from a potion they drank or from another plugin, and those are not the
 caller's to take away. `clear` is for when the player really should end up with
 nothing, such as respawning into a lobby.
 
+### Threads
+
+`parse` is pure data and safe from any thread. Everything that touches a player
+— `apply`, `applyInfinite`, `remove`, `clear` — must be called from the thread
+that owns that player:
+
+```java
+tasks.runAtEntity(player, () -> Effects.applyInfinite(player, passives));
+```
+
+On Folia the caller's own thread is the contract, and calling from anywhere else
+throws. Two ways to get it wrong:
+
+- **`runTimer` instead of `runAtEntityTimer`.** `run`/`runTimer` are the global
+  region thread, which owns no player. A timer that ends up applying an effect
+  belongs on `runAtEntityTimer`.
+- **Applying to somebody else.** Being on one player's thread says nothing about
+  another player near a region border. Each target needs its own
+  `runAtEntity` hop.
+
+This module deliberately does not schedule that hop for you. Folia's entity
+scheduler always defers, even when the calling thread is already the right one,
+so wrapping every line would turn one synchronous call into a task per effect
+and leave the caller unable to read back what it just applied.
+
 - Parsing is cached in Caffeine for 30 seconds.
 - The resolver (`PotionEffectType.getByName`), applier (`addPotionEffect`) and
   remover (`removePotionEffect`) are injectable for tests.

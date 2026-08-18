@@ -151,6 +151,7 @@ and anything that re-parses per render was never at risk.**
 | item (static) | the rendered `ItemStack`, name and lore already parsed | `ItemCache.invalidateAll()` drops it, so the next render parses again |
 | item (dynamic) | nothing; only static items are held | Rendered per viewer anyway |
 | placeholder | compiled templates (structure, not colour) | Nothing to do — templates hold the raw text, and rendering goes through `Text` |
+| input | the prompt text, held as the string the plugin passed | Nothing to hold: a prompt is parsed when it is drawn, so the next question already uses the new palette |
 | clan / client / cooldowns / util | no rendered text | Nothing to do |
 | plugin state | whatever a plugin parsed once and kept | Told through `Reloads.onLibraryReload` — the plugin rebuilds it |
 
