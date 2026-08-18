@@ -40,4 +40,37 @@ public @interface Id {
      * fits a UUID string with room to spare.
      */
     int length() default 64;
+
+    /**
+     * Whether the database hands out the key instead of the caller.
+     *
+     * <p>Off by default, and that default is the right one for most tables: a
+     * row keyed by a player's {@code UUID} already has an identity before it is
+     * written, and asking the database to invent a second one would only add a
+     * number nothing refers to.
+     *
+     * <p>Turn it on for a row that has no natural key — a design in a shared
+     * library, an entry in an audit log — where the identity only exists once
+     * the row does. The component must then be {@code long}, {@code Long},
+     * {@code int} or {@code Integer}, and a record whose key is generated is
+     * written with {@link net.exylia.lib.database.Repository#insert(Object)}
+     * rather than {@code save}:
+     *
+     * <pre>{@code
+     * @Table("shield_design_library")
+     * public record Design(@Id(generated = true) long id,
+     *                      @Column("owner_uuid") UUID owner,
+     *                      @Column("design_json") String json) { }
+     *
+     * // The zero is a placeholder; the database picks the real one.
+     * long id = designs.insert(new Design(0L, owner, json)).join();
+     * }</pre>
+     *
+     * <p>The placeholder value is not stored. On insert the key column is left
+     * out of the statement entirely, so the engine's own counter fills it —
+     * which is also why two servers writing to one database cannot collide.
+     *
+     * @since 1.32.0
+     */
+    boolean generated() default false;
 }

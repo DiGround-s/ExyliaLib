@@ -175,7 +175,72 @@ public final class Repository<T> {
      * @return completes when written
      */
     public @NotNull CompletableFuture<Void> save(@NotNull T record) {
+        if (model.generatedId()) {
+            throw new IllegalArgumentException(model.type().getSimpleName()
+                    + " has a generated key, so it is written with insert(), not save()."
+                    + " A save has to be told which row to merge with, and the key of a"
+                    + " record that has not been stored yet is a placeholder — merging on"
+                    + " it would overwrite whichever row happens to hold that id.");
+        }
         return reported("save", storage.save(model, record));
+    }
+
+    /**
+     * Stores a new record and answers the key the database gave it.
+     *
+     * <p>For a record whose {@link Id} is {@code generated}: the key component
+     * of the record passed in is a placeholder and is not written. The row is
+     * always new — this never updates one — so a record that came back from a
+     * read is changed with {@link #save} instead.
+     *
+     * <pre>{@code
+     * long id = designs.insert(new Design(0L, owner, json)).join();
+     * }</pre>
+     *
+     * <p>Prefer {@link #insertReturning} when the whole record is wanted back;
+     * this exists because most callers only need the number to hand to
+     * something else.
+     *
+     * @param record the record, its key ignored
+     * @return completes with the assigned key
+     * @throws IllegalArgumentException if the record's key is not generated
+     * @since 1.32.0
+     */
+    public @NotNull CompletableFuture<Long> insert(@NotNull T record) {
+        requireGenerated("insert");
+        return reported("insert", storage.insert(model, record));
+    }
+
+    /**
+     * Stores a new record and answers it carrying the key it was given.
+     *
+     * <p>A record is immutable, so the key cannot be written into the instance
+     * that was passed in: what comes back is an equal record with the key filled
+     * in, and it is the one to keep.
+     *
+     * <pre>{@code
+     * Design stored = designs.insertReturning(new Design(0L, owner, json)).join();
+     * player.sendMessage("Design #" + stored.id());
+     * }</pre>
+     *
+     * @param record the record, its key ignored
+     * @return completes with the stored record
+     * @throws IllegalArgumentException if the record's key is not generated
+     * @since 1.32.0
+     */
+    public @NotNull CompletableFuture<T> insertReturning(@NotNull T record) {
+        requireGenerated("insertReturning");
+        return reported("insert", storage.insert(model, record)
+                .thenApply(key -> model.withId(record, key)));
+    }
+
+    private void requireGenerated(String operation) {
+        if (!model.generatedId()) {
+            throw new IllegalArgumentException(model.type().getSimpleName()
+                    + " brings its own key, so " + operation + "() has nothing to hand out."
+                    + " Use save(), or mark the @Id generated if the database should"
+                    + " choose the key.");
+        }
     }
 
     /**
@@ -189,6 +254,13 @@ public final class Repository<T> {
      * @return completes when all of them are written
      */
     public @NotNull CompletableFuture<Void> saveAll(@NotNull Collection<T> records) {
+        if (model.generatedId()) {
+            throw new IllegalArgumentException(model.type().getSimpleName()
+                    + " has a generated key, so it is written with insert(), one row at a"
+                    + " time. A batch cannot answer with the keys it was given, and a"
+                    + " caller that inserted a hundred rows without learning their ids"
+                    + " has stored a hundred rows nothing can refer to.");
+        }
         return reported("saveAll", storage.saveAll(model, records));
     }
 

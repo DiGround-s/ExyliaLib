@@ -10,6 +10,7 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.sql.Statement;
 import java.sql.Types;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -255,6 +256,50 @@ public final class SqlBackend implements AutoCloseable {
                 throw failure;
             } finally {
                 connection.setAutoCommit(autoCommit);
+            }
+        }
+    }
+
+    /**
+     * Inserts a row whose key the engine hands out, and returns that key.
+     *
+     * <p>Not a save. An upsert needs a key to resolve the conflict against, and
+     * a record whose key does not exist yet has nothing to offer it — asking the
+     * engine to merge on a placeholder zero would overwrite whichever row
+     * happened to have that id.
+     *
+     * <p>The key comes back through {@code getGeneratedKeys}, which every engine
+     * here supports on the same call that wrote the row. Reading it back with a
+     * second statement — {@code SELECT MAX(id)} or {@code LAST_INSERT_ID()} on a
+     * fresh connection — is the classic version of this bug: the pool hands out
+     * a different connection, and on a table two servers write to the number
+     * belongs to whoever inserted last.
+     *
+     * @param model    the record model, whose key must be generated
+     * @param instance the record; its key value is ignored
+     * @param <T>      the record type
+     * @return the key the engine assigned
+     * @throws SQLException if the insert failed or returned no key
+     * @since 1.32.0
+     */
+    public <T> long insert(@NotNull EntityModel<T> model, @NotNull T instance) throws SQLException {
+        String sql = statements.computeIfAbsent("insert:" + model.type().getName(),
+                key -> dialect.insertGenerated(model));
+        try (Connection connection = pool.getConnection();
+             PreparedStatement statement =
+                     connection.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
+            List<ColumnModel> columns = model.insertColumns();
+            Object[] values = model.insertValues(instance);
+            for (int index = 0; index < columns.size(); index++) {
+                bind(statement, index + 1, columns.get(index), values[index]);
+            }
+            statement.executeUpdate();
+            try (ResultSet keys = statement.getGeneratedKeys()) {
+                if (!keys.next()) {
+                    throw new SQLException("Insert into " + model.table()
+                            + " returned no generated key.");
+                }
+                return keys.getLong(1);
             }
         }
     }

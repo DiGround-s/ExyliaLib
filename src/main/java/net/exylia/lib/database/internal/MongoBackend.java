@@ -13,6 +13,8 @@ import com.mongodb.client.MongoCollection;
 import com.mongodb.client.MongoDatabase;
 import com.mongodb.client.model.BulkWriteOptions;
 import com.mongodb.client.model.Filters;
+import com.mongodb.client.model.FindOneAndUpdateOptions;
+import com.mongodb.client.model.ReturnDocument;
 import com.mongodb.client.model.IndexOptions;
 import com.mongodb.client.model.Indexes;
 import com.mongodb.client.model.ReplaceOneModel;
@@ -125,6 +127,16 @@ public final class MongoBackend implements AutoCloseable {
      */
     private static final int INDEX_OPTIONS_CONFLICT = 85;
     private static final int INDEX_KEY_SPECS_CONFLICT = 86;
+
+    /**
+     * Where the generated-key counters live, one document per table.
+     *
+     * <p>Named after the pattern rather than after any plugin: every table in
+     * one database shares this collection, keyed by table name, so a plugin
+     * adding a table adds a document and not a collection.
+     */
+    private static final String COUNTERS = "exylia_sequences";
+    private static final String COUNTER_FIELD = "value";
 
     private final MongoClient client;
     private final MongoDatabase database;
@@ -542,6 +554,46 @@ public final class MongoBackend implements AutoCloseable {
         collection(model).replaceOne(Filters.eq(MongoDocuments.ID_FIELD,
                         document.get(MongoDocuments.ID_FIELD)),
                 document, new ReplaceOptions().upsert(true));
+    }
+
+    /**
+     * Inserts a record under a key this backend hands out, and returns it.
+     *
+     * <p>MongoDB has no counter of its own, so one is kept in a collection of
+     * counters and advanced with {@code findOneAndUpdate} plus {@code $inc}.
+     * That is a single atomic document update returning the new value, which is
+     * what makes it safe with several servers on one database — the pattern
+     * MongoDB's own manual gives for exactly this.
+     *
+     * <p>Not {@code count() + 1}, which is the version of this that looks
+     * simpler and hands the same id to two servers that insert in the same
+     * instant, and hands a used one back after any delete.
+     *
+     * @param model    the record model, whose key must be generated
+     * @param instance the record; its key value is ignored
+     * @param <T>      the record type
+     * @return the key assigned
+     * @since 1.32.0
+     */
+    public <T> long insert(@NotNull EntityModel<T> model, @NotNull T instance) {
+        long key = nextKey(model.table());
+        Document document = document(MongoDocuments.toDocument(model, model.withId(instance, key)));
+        collection(model).insertOne(document);
+        return key;
+    }
+
+    /** The next value of one table's counter, advanced atomically. */
+    private long nextKey(@NotNull String table) {
+        Document counter = database.getCollection(COUNTERS)
+                .findOneAndUpdate(Filters.eq(MongoDocuments.ID_FIELD, table),
+                        new Document("$inc", new Document(COUNTER_FIELD, 1L)),
+                        new FindOneAndUpdateOptions()
+                                .upsert(true)
+                                .returnDocument(ReturnDocument.AFTER));
+        if (counter == null) {
+            throw new IllegalStateException("Counter for " + table + " returned nothing after $inc");
+        }
+        return ((Number) counter.get(COUNTER_FIELD)).longValue();
     }
 
     /**

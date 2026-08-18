@@ -358,6 +358,24 @@ public interface Dialect {
     @NotNull String insert(@NotNull EntityModel<?> model);
 
     /**
+     * An {@code INSERT} that leaves a generated key for the engine to fill.
+     *
+     * <p>Every column but the key, so the engine's counter supplies it. The key
+     * cannot simply be bound as {@code null}: MySQL accepts that and treats it
+     * as "pick one", Postgres rejects it against a {@code NOT NULL} identity
+     * column, and the two behaviours would diverge the day a server moves
+     * between them.
+     *
+     * <p>The placeholders are {@link EntityModel#insertColumns()} in order, so a
+     * caller binds {@link EntityModel#insertValues(Object)} straight through.
+     *
+     * @param model the record model
+     * @return one statement with one placeholder per written column
+     * @since 1.32.0
+     */
+    @NotNull String insertGenerated(@NotNull EntityModel<?> model);
+
+    /**
      * Insert-or-update of every column, in model order.
      *
      * <p>The key columns are a required argument rather than something read off

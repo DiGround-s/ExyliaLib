@@ -86,6 +86,7 @@ public final class ColumnModel {
     private final boolean unique;
     private final boolean indexed;
     private final boolean id;
+    private final boolean generated;
 
     private final Kind kind;
     private final Codec<Object> codec;
@@ -100,6 +101,7 @@ public final class ColumnModel {
                 boolean unique,
                 boolean indexed,
                 boolean id,
+                boolean generated,
                 Kind kind,
                 @Nullable Codec<Object> codec,
                 @Nullable Type genericType,
@@ -113,6 +115,7 @@ public final class ColumnModel {
         this.unique = unique;
         this.indexed = indexed;
         this.id = id;
+        this.generated = generated;
         this.kind = kind;
         this.codec = codec;
         this.genericType = genericType;
@@ -179,6 +182,16 @@ public final class ColumnModel {
     }
 
     /**
+     * Whether the database hands out this key rather than the caller.
+     *
+     * <p>Only ever true on the primary key. A column that is generated is left
+     * out of an insert entirely, so the engine's counter fills it.
+     */
+    public boolean generated() {
+        return generated;
+    }
+
+    /**
      * Reads this column out of a record instance, already encoded.
      *
      * <p>The returned value is what the driver is handed: a number, a boolean,
@@ -205,6 +218,28 @@ public final class ColumnModel {
             throw new IllegalStateException("Accessor " + component + "() failed", failure);
         }
         return encode(value);
+    }
+
+    /**
+     * Reads this column out of a record instance, exactly as it is declared.
+     *
+     * <p>Unlike {@link #read}, nothing is encoded: this is the value a record
+     * constructor takes back. Rebuilding a record around a generated key needs
+     * the other components as they are, and routing them through the codec and
+     * back would turn a {@code Location} into its text and expect the
+     * constructor to accept it.
+     *
+     * @param instance the record, never {@code null}
+     * @return the declared value, possibly {@code null}
+     * @throws IllegalStateException if the record's accessor threw
+     * @since 1.32.0
+     */
+    public @Nullable Object raw(@NotNull Object instance) {
+        try {
+            return accessor.invokeExact(instance);
+        } catch (Throwable failure) {
+            throw new IllegalStateException("Accessor " + component + "() failed", failure);
+        }
     }
 
     /**

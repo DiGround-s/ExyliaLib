@@ -121,6 +121,17 @@ abstract class AnsiDialect implements Dialect {
         return "TINYINT";
     }
 
+    /**
+     * How a column declares that the engine fills it.
+     *
+     * <p>Appended after the type, which is what H2, MySQL and MariaDB all
+     * expect. Postgres spells the whole thing as one type instead and overrides
+     * both this and {@link #columnType} together.
+     */
+    @NotNull String autoIncrement() {
+        return " AUTO_INCREMENT";
+    }
+
     /** The type a boolean becomes. MySQL and MariaDB have no real one. */
     @NotNull String booleanType() {
         return "BOOLEAN";
@@ -143,6 +154,9 @@ abstract class AnsiDialect implements Dialect {
             sql.append(quote(identifier(column.name()))).append(' ').append(columnType(column));
             if (!column.nullable()) {
                 sql.append(" NOT NULL");
+            }
+            if (column.generated()) {
+                sql.append(autoIncrement());
             }
         }
         sql.append(", PRIMARY KEY (")
@@ -201,6 +215,27 @@ abstract class AnsiDialect implements Dialect {
         sql.append(") VALUES (");
         appendPlaceholders(sql, model.columns().size());
         return sql.append(')').toString();
+    }
+
+    @Override
+    public @NotNull String insertGenerated(@NotNull EntityModel<?> model) {
+        List<ColumnModel> columns = model.insertColumns();
+        if (columns.isEmpty()) {
+            // A table that is nothing but a generated key. Rare, but legal:
+            // an id handed out to something that only needs to be counted.
+            return "INSERT INTO " + table(model) + " VALUES (" + defaultKeyword() + ')';
+        }
+        StringBuilder sql = new StringBuilder(96)
+                .append("INSERT INTO ").append(table(model)).append(" (");
+        appendColumnList(sql, columns);
+        sql.append(") VALUES (");
+        appendPlaceholders(sql, columns.size());
+        return sql.append(')').toString();
+    }
+
+    /** How an engine spells "use the value you would have picked". */
+    @NotNull String defaultKeyword() {
+        return "DEFAULT";
     }
 
     @Override
@@ -366,7 +401,11 @@ abstract class AnsiDialect implements Dialect {
 
     /** Every column of a model, folded, quoted and comma-separated. */
     final void appendColumnList(@NotNull StringBuilder sql, @NotNull EntityModel<?> model) {
-        List<ColumnModel> columns = model.columns();
+        appendColumnList(sql, model.columns());
+    }
+
+    /** A given list of columns, folded, quoted and comma-separated. */
+    final void appendColumnList(@NotNull StringBuilder sql, @NotNull List<ColumnModel> columns) {
         for (int index = 0; index < columns.size(); index++) {
             if (index > 0) {
                 sql.append(", ");

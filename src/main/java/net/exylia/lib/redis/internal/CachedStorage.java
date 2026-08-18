@@ -136,6 +136,23 @@ public final class CachedStorage implements Storage {
     }
 
     @Override
+    public <T> @NotNull CompletableFuture<Long> insert(@NotNull EntityModel<T> model,
+                                                       @NotNull T record) {
+        // Cached under the key the database chose, which is only known once the
+        // insert completed. Nothing else can hold this row yet — no other server
+        // can have read a key that did not exist a moment ago — so there is
+        // nothing to invalidate, only something to publish.
+        return delegate.insert(model, record).thenApply(key -> {
+            T stored = model.withId(record, key);
+            // Keyed exactly as save() keys it, off the stored record rather than
+            // off the raw number: an int key and a long one must not produce two
+            // different cache keys for the same row.
+            cache.put(model, model.id().decode(model.idOf(stored)), stored);
+            return key;
+        });
+    }
+
+    @Override
     public <T> @NotNull CompletableFuture<Void> saveAll(@NotNull EntityModel<T> model,
                                                         @NotNull Collection<T> records) {
         List<T> copy = List.copyOf(records);

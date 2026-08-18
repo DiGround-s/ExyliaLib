@@ -111,6 +111,12 @@ public final class GatedStorage implements Storage {
     }
 
     @Override
+    public <T> @NotNull CompletableFuture<Long> insert(@NotNull EntityModel<T> model,
+                                                       @NotNull T record) {
+        return after(storage -> storage.insert(model, record));
+    }
+
+    @Override
     public <T> @NotNull CompletableFuture<Void> saveAll(@NotNull EntityModel<T> model,
                                                         @NotNull Collection<T> records) {
         List<T> copy = List.copyOf(records);

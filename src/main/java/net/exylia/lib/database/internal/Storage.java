@@ -120,6 +120,20 @@ public interface Storage {
     <T> @NotNull CompletableFuture<Void> save(@NotNull EntityModel<T> model, @NotNull T record);
 
     /**
+     * Inserts a record whose key the store hands out, and answers that key.
+     *
+     * <p>Only ever called for a model whose key is generated; the value the
+     * record carries in that component is a placeholder and is not written.
+     *
+     * @param model  the compiled record model
+     * @param record the record
+     * @param <T>    the record type
+     * @return completes with the assigned key
+     * @since 1.32.0
+     */
+    <T> @NotNull CompletableFuture<Long> insert(@NotNull EntityModel<T> model, @NotNull T record);
+
+    /**
      * Writes many records in one round trip.
      *
      * <p>An empty collection is a completed future and no round trip at all.

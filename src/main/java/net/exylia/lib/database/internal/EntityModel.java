@@ -146,6 +146,14 @@ public final class EntityModel<T> {
      */
     private final Object[] blank;
 
+    /**
+     * The columns an insert writes: every column, unless the key is generated.
+     *
+     * <p>Held rather than filtered per write. For the common record — one whose
+     * key it brings itself — this is {@link #columns} and not a second list.
+     */
+    private final List<ColumnModel> insertColumns;
+
     private EntityModel(Class<T> type,
                         String table,
                         List<ColumnModel> columns,
@@ -162,6 +170,9 @@ public final class EntityModel<T> {
         this.constructor = constructor;
         this.slots = slots;
         this.blank = blank;
+        this.insertColumns = id.generated()
+                ? this.columns.stream().filter(column -> !column.id()).toList()
+                : this.columns;
 
         Map<String, ColumnModel> names = new HashMap<>(columns.size() * 2);
         Map<String, ColumnModel> components = new HashMap<>(columns.size() * 2);
@@ -470,8 +481,25 @@ public final class EntityModel<T> {
                     + " and a primary key must be indexed.");
         }
 
+        boolean generated = isId && key.generated();
+        if (generated && !isWholeNumber(javaType)) {
+            // Every engine counts in integers. A generated UUID or String key
+            // would have to be invented by the library rather than the database,
+            // and two servers writing to one table would each invent their own.
+            throw new IllegalArgumentException(where(owner, component)
+                    + " asks for a generated key on a " + javaType.getSimpleName()
+                    + ". A database hands out whole numbers: use long, Long, int or Integer,"
+                    + " or drop generated and give the row a key of its own.");
+        }
+
         return new ColumnModel(name, component.getName(), javaType, length, nullable, unique, indexed,
-                isId, kind, codec, generic, accessor(owner, component, lookup));
+                isId, generated, kind, codec, generic, accessor(owner, component, lookup));
+    }
+
+    /** Whether a type is one a database counter can fill. */
+    private static boolean isWholeNumber(Class<?> type) {
+        return type == long.class || type == Long.class
+                || type == int.class || type == Integer.class;
     }
 
     /**
@@ -676,6 +704,80 @@ public final class EntityModel<T> {
     /** The primary key column. Never {@code null}: compilation refuses a record without one. */
     public @NotNull ColumnModel id() {
         return id;
+    }
+
+    /**
+     * Whether the database hands out this record's key.
+     *
+     * <p>When true the key column is left out of an insert, so the engine's own
+     * counter fills it, and the value the record carried is a placeholder.
+     *
+     * @return whether the key is generated
+     * @since 1.32.0
+     */
+    public boolean generatedId() {
+        return id.generated();
+    }
+
+    /**
+     * The columns an insert writes, which is every column but a generated key.
+     *
+     * <p>Computed once at compilation rather than filtered per write: an insert
+     * of a thousand rows would otherwise rebuild the same list a thousand times.
+     *
+     * @return the columns to write, in order
+     * @since 1.32.0
+     */
+    public @NotNull List<ColumnModel> insertColumns() {
+        return insertColumns;
+    }
+
+    /**
+     * The values an insert binds, in the order of {@link #insertColumns()}.
+     *
+     * @param instance the record, never {@code null}
+     * @return the values
+     * @since 1.32.0
+     */
+    public @NotNull Object[] insertValues(@NotNull T instance) {
+        Object[] values = new Object[insertColumns.size()];
+        for (int index = 0; index < values.length; index++) {
+            values[index] = insertColumns.get(index).read(instance);
+        }
+        return values;
+    }
+
+    /**
+     * Rebuilds a record with the key the database handed out.
+     *
+     * <p>A record is immutable, so the generated key cannot be written back into
+     * the instance that was passed in — the caller gets a new one carrying it.
+     * That is also what makes the key observable at all: the alternative is
+     * reading the row back, which on a table two servers write to would be a
+     * guess.
+     *
+     * @param instance the record that was inserted
+     * @param key      the key the database assigned
+     * @return an equal record carrying the key
+     * @since 1.32.0
+     */
+    public @NotNull T withId(@NotNull T instance, long key) {
+        Object[] arguments = blank.clone();
+        for (int index = 0; index < columns.size(); index++) {
+            ColumnModel column = columns.get(index);
+            arguments[slots[index]] = column.id()
+                    ? narrow(column.javaType(), key)
+                    : column.raw(instance);
+        }
+        return construct(arguments);
+    }
+
+    /** The key as the component declares it, since a database counter is always wide. */
+    private static Object narrow(Class<?> type, long key) {
+        if (type == int.class || type == Integer.class) {
+            return (int) key;
+        }
+        return key;
     }
 
     /**
