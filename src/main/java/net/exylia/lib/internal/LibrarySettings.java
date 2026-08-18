@@ -21,17 +21,26 @@ import net.exylia.lib.config.Configs;
 @Comment("debug: turns on the detail lines of every Exylia plugin at once.")
 @Comment("Leave it false in production; turn it on to diagnose a problem")
 @Comment("without editing each plugin's own config.")
+@Comment("")
+@Comment("small-text: draws every line in small capitals, so WELCOME reaches")
+@Comment("the screen as \u1D21\u1D07\u029F\u1D04\u1D0F\u1D0D\u1D07. Applies to every message, item name,")
+@Comment("lore, scoreboard and hologram of every Exylia plugin at once.")
+@Comment("Values a plugin substitutes are left alone: a player named Steve")
+@Comment("stays Steve, and a number stays a number.")
 public record LibrarySettings(
         @Comment("Whether to check for and download newer versions automatically.")
         boolean autoUpdate,
 
         @Comment("Whether debug lines print, for every plugin using ExyliaLib.")
-        boolean debug
+        boolean debug,
+
+        @Comment("Whether text is drawn in small capitals.")
+        boolean smallText
 ) {
 
     /** Safe defaults used when no config file exists yet. */
     public LibrarySettings() {
-        this(true, false);
+        this(true, false, false);
     }
 
     private static volatile LibrarySettings instance;

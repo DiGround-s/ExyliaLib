@@ -150,7 +150,19 @@ public final class Centering {
                 }
             }
 
-            width += bold ? FontWidths.boldWidthOf(current) : FontWidths.widthOf(current);
+            // Measure the glyph that will be drawn, not the letter that was
+            // written: with small capitals on, "WELCOME" reaches the screen as
+            // "ᴡᴇʟᴄᴏᴍᴇ", and a capital is five pixels where a small capital is
+            // not. Measuring the source would push every centred line right.
+            char drawn = current;
+            if (net.exylia.lib.text.internal.SmallText.enabled()) {
+                char small = net.exylia.lib.text.internal.SmallText.glyphFor(current);
+                if (small != 0) {
+                    drawn = small;
+                }
+            }
+
+            width += bold ? FontWidths.boldWidthOf(drawn) : FontWidths.widthOf(drawn);
             // Every character is followed by a one-pixel gap.
             width++;
         }

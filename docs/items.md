@@ -118,7 +118,7 @@ legacy codes all work, and italics are off unless asked for.
 | --- | --- |
 | `glow`, `glowing` | the enchantment shimmer, with no line in the tooltip |
 | `hide-tooltip`, `hide_tooltip` | hides the tooltip entirely |
-| `hide-attributes`, `hide_attributes` | hides the damage and speed lines |
+| `hide-attributes`, `hide_attributes` | hides everything vanilla writes by itself |
 | `unbreakable` | marks it unbreakable |
 | `custom-model-data`, `custom_model_data` | the model number |
 | `max_stack_size`, `max-stack-size` | the stack limit |
@@ -126,6 +126,16 @@ legacy codes all work, and italics are off unless asked for.
 | `item_model`, `item-model` | an item model key, `namespace:key` |
 | `tooltip_style`, `tooltip-style` | a tooltip style key |
 | `enchantments` | a section of `NAME: level`, or a list of `NAME:level` |
+
+`hide-attributes` covers the whole of what the client writes on its own: the
+damage and speed lines on a tool, and the block a smithing template, a potion, a
+firework or a banner adds to describe itself. A menu asking for a clean tooltip
+means all of it — a smithing template in a list otherwise still says *"Applies
+to: Armor"*.
+
+It leaves enchantments alone. ExyliaCommons applied every flag here, so an item
+hiding its attributes also lost the enchantment lines it meant to show; hiding
+those stays something a file asks for, through `flags`.
 
 ### Traits
 
@@ -219,7 +229,8 @@ hide their enchantment lines for years and been showing them.
 
 **`hide-attributes` could not be turned off.** Commons wrote
 `getBoolean(a, true) || getBoolean(b, true)`, whose value is `true` whatever the
-file says.
+file says. Writing `false` now turns it off — which also means a file that never
+wrote the key at all gets the vanilla tooltip, where commons silently hid it.
 
 **`upgraded` was dropped.** `PotionConfig` stored it and `PotionProcessor` never
 read it, so a refill kit configured for Instant Health II handed out Instant

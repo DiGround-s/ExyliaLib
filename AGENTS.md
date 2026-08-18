@@ -320,6 +320,17 @@ parser dentro de un plugin.
   `getBoolean(a,true) || getBoolean(b,true)` y no se podía apagar; `upgraded`
   se guardaba y no se leía, así que un refill de Instant Health II daba I; y
   `display-name` era fallback de `name`.
+- **`hide-attributes` esconde todo lo que el cliente escribe solo**, no solo las
+  líneas de daño y velocidad: también el bloque que se añade a sí mismo un
+  smithing template ("Applies to: Armor"), una poción, un firework o un banner.
+  Un menú que pide un tooltip limpio se refiere a todo eso. Desde 1.20.5 eso
+  vive en data components y la flag es `HIDE_ADDITIONAL_TOOLTIP`; contra
+  paper-api 1.21.4 son API directa, así que aquí no hace falta la reflexión que
+  commons usaba para lo mismo.
+- **Pero no esconde encantamientos.** Commons aplicaba `ItemFlag.values()`, así
+  que un ítem que pedía ocultar atributos perdía las líneas de encantamiento que
+  quería enseñar. Ocultar esas sigue siendo algo que el fichero pide, vía
+  `flags`.
 - **El sonido del consumible se le pide a `Effects`.** La regla no es mecánica
   (`BLOCK_NOTE_BLOCK_PLING` conserva su guión bajo) y ya está escrita una vez.
 - **Los registros van por `Registry`, nunca `valueOf`.** Varios de esos tipos

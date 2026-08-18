@@ -301,8 +301,11 @@ public final class ItemRenderer {
         }
     }
 
-    private static void appearance(ItemMeta meta, Appearance appearance,
-                                   TraitApplier.Reporter problems) {
+    // Package-private rather than private: writing an appearance onto meta is
+    // the whole of this decision, and an ItemMeta can be stood in for, while an
+    // ItemStack cannot be built at all without the server's registry.
+    static void appearance(ItemMeta meta, Appearance appearance,
+                           TraitApplier.Reporter problems) {
         if (appearance.isPlain()) {
             return;
         }
@@ -316,7 +319,19 @@ public final class ItemRenderer {
             meta.setHideTooltip(true);
         }
         if (appearance.hideAttributes()) {
-            meta.addItemFlags(ItemFlag.HIDE_ATTRIBUTES);
+            // Everything vanilla writes on its own, not only the modifier
+            // lines. A smithing template describes itself ("Applies to:
+            // Armor"), a potion lists its effects and a firework its flight,
+            // and a menu asking for a clean tooltip means all of it.
+            //
+            // ExyliaCommons applied ItemFlag.values() here, which also swept
+            // up HIDE_ENCHANTS: an item asking to hide its attributes lost the
+            // enchantment lines it meant to show. Named rather than "all", so
+            // hiding an enchantment stays something a file asks for.
+            meta.addItemFlags(ItemFlag.HIDE_ATTRIBUTES,
+                    ItemFlag.HIDE_ADDITIONAL_TOOLTIP,
+                    ItemFlag.HIDE_ARMOR_TRIM,
+                    ItemFlag.HIDE_DYE);
         }
         if (appearance.unbreakable()) {
             meta.setUnbreakable(true);

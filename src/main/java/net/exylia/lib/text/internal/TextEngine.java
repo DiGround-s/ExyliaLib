@@ -48,7 +48,32 @@ public final class TextEngine {
     /** Palette tokens mapped to the MiniMessage tag they expand to. */
     private static volatile Map<String, String> tokens = tokensOf(new Palette());
 
+    /** Whether every line is drawn as small capitals. */
+    private static volatile boolean smallText;
+
     private TextEngine() {
+    }
+
+    /**
+     * Turns small capitals on or off for the whole server.
+     *
+     * <p>Cached components were built in the other style, so the cache is
+     * dropped — the same reason a palette change drops it. Called by ExyliaLib
+     * when its config is loaded or reloaded; nothing else should.
+     *
+     * @param enabled whether letters are drawn as small capitals
+     */
+    public static void smallText(boolean enabled) {
+        if (smallText == enabled) {
+            return;
+        }
+        smallText = enabled;
+        CACHE.invalidateAll();
+    }
+
+    /** Returns whether small capitals are on. */
+    public static boolean smallText() {
+        return smallText;
     }
 
     /**
@@ -84,7 +109,7 @@ public final class TextEngine {
         if (FormatScanner.isPlain(flags)) {
             // The common case: no formatting at all. Not worth a cache entry,
             // since building a plain component is cheaper than hashing the key.
-            return Component.text(text);
+            return Component.text(smallText ? SmallText.apply(text) : text);
         }
 
         Component cached = CACHE.getIfPresent(text);
@@ -113,13 +138,16 @@ public final class TextEngine {
         }
         int flags = FormatScanner.scan(text);
         if (FormatScanner.isPlain(flags)) {
-            return Component.text(text);
+            return Component.text(smallText ? SmallText.apply(text) : text);
         }
         return parseUncached(text, flags);
     }
 
     private static Component parseUncached(String text, int flags) {
-        String prepared = text;
+        // Before anything expands: a palette token is left alone here, but
+        // once it becomes "<#8a51c4>" it is indistinguishable from a tag the
+        // author wrote, and the hex digits inside it are letters.
+        String prepared = smallText ? SmallText.apply(text) : text;
 
         if (FormatScanner.has(flags, FormatScanner.BRACE)) {
             prepared = TokenResolver.resolve(prepared, tokens);

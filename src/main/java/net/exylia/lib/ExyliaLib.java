@@ -40,6 +40,7 @@ import net.exylia.lib.scoreboard.internal.SidebarLibrary;
 import net.exylia.lib.task.Tasks;
 import net.exylia.lib.text.Colors;
 import net.exylia.lib.text.Palette;
+import net.exylia.lib.text.internal.TextEngine;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
@@ -132,7 +133,12 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
      * killed rather than stopped, and releases that cannot finish starting.
      */
     private void startUpdateCheck() {
-        Debug.all(LibrarySettings.load(this).debug());
+        LibrarySettings settings = LibrarySettings.load(this);
+        Debug.all(settings.debug());
+        // Applied before anything can parse a line, so the first item built
+        // during startup is drawn in the style the owner asked for rather
+        // than being cached in the other one.
+        TextEngine.smallText(settings.smallText());
         Thread updateThread = new Thread(
             () -> ExyliaLibUpdater.checkForUpdate(this),
             "ExyliaLib-Updater");
@@ -215,7 +221,14 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
     public void reloadPalette() {
         // The debug switch too: a server owner turning it on to chase a bug
         // should not have to restart to see the lines it was meant to show.
-        Debug.all(LibrarySettings.reload().debug());
+        LibrarySettings settings = LibrarySettings.reload();
+        Debug.all(settings.debug());
+        // Before the palette reloads, not after: switching the style changes
+        // what every cached component looks like, and the palette's own
+        // listener already re-sends every board, hologram, effect and item.
+        // Applying it afterwards would leave all of them holding the previous
+        // style until something else happened to invalidate them.
+        TextEngine.smallText(settings.smallText());
         palette.reload();
         // Both files are the library's own shared configuration, and a server
         // owner running one reload command means both. Keeping formats.yml on a

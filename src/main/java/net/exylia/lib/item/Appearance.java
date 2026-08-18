@@ -14,7 +14,10 @@ import java.util.List;
  *
  * @param glow           adds the enchantment shimmer without an enchantment in the tooltip
  * @param hideTooltip    hides the tooltip entirely, for decorative slots
- * @param hideAttributes hides the damage and speed lines vanilla adds to tools
+ * @param hideAttributes hides everything vanilla adds to the tooltip by itself:
+ *                       the damage and speed lines on a tool, and the extra
+ *                       block a smithing template, a potion or a firework
+ *                       carries
  * @param unbreakable    marks the item unbreakable
  * @param modelData      the custom model data, or {@code -1} for none
  * @param maxStackSize   the stack limit, or {@code -1} to leave the vanilla one
