@@ -97,6 +97,58 @@ class UiEntryTest {
     }
 
     @Test
+    @DisplayName("a value is literal unless the caller asked for formatting")
+    void formattedValues() {
+        // The distinction is whose value it is. A colour written in a config
+        // is formatting; a name somebody typed is data, and parsing it would
+        // let a player recolour whatever line they appear on.
+        UiEntry entry = UiEntry.row()
+                .with("player_name", "{error}Steve")
+                .withFormatted("rank", "{highlight}&lMVP")
+                .build();
+
+        assertEquals(java.util.Set.of("rank"), entry.formatted());
+        assertFalse(entry.formatted().contains("player_name"),
+                "a name a player typed stays data");
+        assertEquals("{error}Steve", entry.values().get("player_name"),
+                "the value itself is kept as written either way");
+    }
+
+    @Test
+    @DisplayName("a row that never asked for formatting has none")
+    void nothingIsFormattedByDefault() {
+        // The default has to be the safe one: a plugin that never thought
+        // about this must not be the one that opens the hole.
+        assertTrue(UiEntry.row().with("kit_name", "Boxing").build().formatted().isEmpty());
+    }
+
+    @Test
+    @DisplayName("setting a value again decides afresh how it is inserted")
+    void reassigningAValueChangesItsKind() {
+        // Whichever call came last is the caller's intent. Leaving the old
+        // answer behind would make a value's kind depend on a call that is no
+        // longer there.
+        assertTrue(UiEntry.row()
+                .withFormatted("rank", "{highlight}MVP")
+                .with("rank", "MVP")
+                .build().formatted().isEmpty(), "literal after formatted is literal");
+
+        assertEquals(java.util.Set.of("rank"), UiEntry.row()
+                .with("rank", "MVP")
+                .withFormatted("rank", "{highlight}MVP")
+                .build().formatted(), "formatted after literal is formatted");
+    }
+
+    @Test
+    @DisplayName("a formatted name is accepted written either way, like a literal one")
+    void formattedNameSpelling() {
+        UiEntry entry = UiEntry.row().withFormatted("%rank%", "{highlight}MVP").build();
+
+        assertEquals(java.util.Set.of("rank"), entry.formatted());
+        assertEquals("{highlight}MVP", entry.values().get("rank"));
+    }
+
+    @Test
     @DisplayName("values keep the order they were given")
     void valuesKeepOrder() {
         UiEntry entry = UiEntry.row()

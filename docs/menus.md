@@ -168,6 +168,37 @@ Replacing the rows keeps the reader where they were, clamped to what still
 exists: a leaderboard refreshing under somebody on page three leaves them on
 page three.
 
+### Literal values, and the ones that are not
+
+`with()` inserts a value as **text**. A kit somebody named `{error}&lX` shows
+those characters rather than repainting the row, which is what you want for
+anything a player typed.
+
+`withFormatted()` parses the value instead, for values a server owner wrote and
+that say what they look like:
+
+```java
+UiEntry.of(player)
+        .with("player_name", player.getName())          // data
+        .withFormatted("rank", config.rankDisplay())    // "{highlight}&lMVP"
+        .build();
+```
+
+Getting this backwards is a bug either way: a display name printing `{highlight}`
+to the screen, or a player called `<rainbow>` recolouring a menu.
+
+**A colour on its own cannot be a value.** This does not work, and cannot:
+
+```yaml
+name: "%name_color%&l%kit_name%"    # no
+```
+
+Substitution happens on the parsed component tree — that is what lets a template
+be parsed once and shared by every row drawn from it. A bare colour parses to an
+empty component carrying a colour, and a colour on one node does not reach the
+text beside it. Pass the whole coloured phrase, or say which state the row is in
+and let the templates below decide how it looks.
+
 ### Templates by name
 
 A row is not always drawn the same way. Any key ending in `template` is one,

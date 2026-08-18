@@ -45,11 +45,20 @@ On a `PluginItems`:
 | `parse(section, problems)` | read one, reporting problems where you want them |
 | `render(item, viewer)` | build the `ItemStack` |
 | `render(item, viewer, problems)` | the same, reporting where you want |
+| `render(item, viewer, values)` | the same, with extra placeholder values |
+| `render(item, viewer, values, formatted)` | the same, naming the values that carry formatting |
 | `build(section, viewer)` | read and build in one call |
 | `plugin()` | the plugin these belong to |
 
 `viewer` may be `null`, which means nobody in particular: placeholders are left
 visible rather than lost.
+
+A value is inserted as text unless its name is listed in `formatted`. That is
+the safe default — a player called `{error}X` shows those characters instead of
+recolouring the line — and the other door is for values a server owner wrote,
+such as a rank display name written `{highlight}&lMVP`. A colour with no text
+of its own cannot travel as a value at all; see the note in
+[menus.md](menus.md).
 
 ### Why it is per plugin
 

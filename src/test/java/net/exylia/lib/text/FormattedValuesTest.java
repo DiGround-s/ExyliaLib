@@ -123,6 +123,50 @@ class FormattedValuesTest {
         assertTrue(formatted.contains("ARCHER"));
     }
 
+    @Test
+    @DisplayName("a formatted value brings its own colour with it")
+    void paletteTokenInAFormattedValue() {
+        // The shape that works: the value carries colour and the text it
+        // colours. A rank display name written in a config is this.
+        String formatted = Text.of("%rank%").withFormatted("%rank%", "{accent}MVP").legacy();
+
+        assertFalse(formatted.contains("{accent}"), "the token is resolved: " + formatted);
+        assertTrue(formatted.contains("§"), "and becomes a colour: " + formatted);
+        assertTrue(formatted.contains("MVP"), formatted);
+    }
+
+    @Test
+    @DisplayName("a colour with nothing to colour cannot travel as a value")
+    void aBareColourIsNotAValue() {
+        // From the ExyliaArmorTrims report: a menu passed "{accent}" as a row
+        // value, expecting it to colour the name written after the
+        // placeholder. It cannot, and no amount of asking changes that.
+        //
+        // Substitution happens on the component tree, not on the string, which
+        // is what lets a template be parsed once and shared by every row. A
+        // bare colour parses to an empty component that carries a colour, and
+        // a colour on one node does not reach its siblings — "WILD" is next to
+        // it, not inside it.
+        //
+        // So a colour is not data. A row says which state it is in and the
+        // section's templates say what each state looks like.
+        String formatted = Text.of("%name_color%WILD")
+                .withFormatted("%name_color%", "{accent}")
+                .legacy();
+        assertFalse(formatted.contains("§"),
+                "a bare colour cannot reach the text beside it: " + formatted);
+
+        // Not a palette quirk: a raw hex value behaves the same way, because
+        // the reason is the tree rather than the notation.
+        assertFalse(Text.of("%c%WILD").withFormatted("%c%", "<#ff6b9d>").legacy().contains("§"),
+                "the same is true written as hex");
+
+        // And literally is what with() promises, which is the safe default.
+        assertTrue(Text.of("%name_color%WILD").with("%name_color%", "{accent}").legacy()
+                        .contains("{accent}"),
+                "a literal value is shown exactly as given");
+    }
+
     // ---------------------------------------------------------------
     // The warning must not cry wolf
     // ---------------------------------------------------------------

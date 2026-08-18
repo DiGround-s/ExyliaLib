@@ -180,7 +180,16 @@ Text.of("{primary}&lWELCOME").send(player);
   `with()` inserta texto plano (lo que teclea un jugador no puede inyectar
   formato); `withFormatted()`/`forPlayerFormatted()` parsean el valor (un
   display name de config *es* su formato). Elegir mal en cualquiera de los dos
-  sentidos es un bug visible en chat.
+  sentidos es un bug visible en chat. La distinción es **de quién es el valor**,
+  no de qué tipo es: lo escribió el dueño del servidor, o lo tecleó un jugador.
+- **Un color suelto no puede ser un valor.** La sustitución ocurre sobre el
+  Component ya parseado — eso es lo que permite parsear la plantilla una vez y
+  compartirla entre todas las filas. Un color sin texto parsea a un componente
+  vacío con un color puesto, y un color en un nodo no alcanza a su hermano: en
+  `%name_color%WILD`, `WILD` está al lado, no dentro. Da igual el hex o el
+  token, y da igual `withFormatted`. Se pasa la frase coloreada entera, o se
+  usa una plantilla por estado. ExyliaArmorTrims mandaba `{accent}` como valor
+  de fila y pintaba los ocho caracteres en el ítem.
 - **El aviso de placeholder desconocido distingue "sin dueño" de "sin valor".**
   Un resolver registrado que devuelve null no es un placeholder desconocido, y
   llamarlo así manda al autor a buscar un registro que existe.
@@ -340,6 +349,13 @@ abierto.
 - **La fila lleva su valor.** `UiKeys.ENTRY`. Commons no tenía dónde ponerlo, así
   que un handler reconstruía el kit desde el ítem dibujado — de ahí los mapas
   estáticos por jugador, y de ahí que dos menús abiertos se contestaran mal.
+- **Una fila dice en qué estado está, no de qué color es.** `.template(...)`
+  elige `selected` / `no_permissions`, y el fichero decide cómo se ve cada uno.
+  Mandar el color como valor esconde la paleta en Java y no funciona (ver *Texto
+  y color*); además deja al dueño del servidor con un `%name_color%` que no
+  puede tocar.
+- **`withFormatted` en una fila es para valores que traen color *y* texto.** Un
+  display name de config. Lo que teclea un jugador va por `with`.
 - **Un click se valida contra lo dibujado, no contra el packet.** El cliente
   manda un número de slot; el servidor ya sabe qué puso ahí. Un slot cuya
   condición falla no está en blanco: **no está**.
@@ -705,6 +721,7 @@ Raíz de código: `src/main/java/net/exylia/lib/`. Raíz de tests:
 | command | `command/Commands`, `PluginCommands`, `CommandLine`, `CommandActor`, `CommandResult` | — | — | 1.21.0 |
 | item | `item/Items`, `PluginItems`, `Item`, `Source`, `Appearance`, `Traits`, `Potion`, `Trim`, `Banner`, `Consumable`, `Modifier`, `Problems` | `item/internal/` | [docs/items.md](docs/items.md) | 1.22.0 |
 | ui | `ui/Menus`, `PluginMenus`, `UiSession`, `UiDefinition`, `UiSection`, `UiEntry`, `UiItem`, `UiKeys`, `UiFillers`, `UiRefresh`, `UiSounds`, `UiAnimationSpec`, `ClickBindings`, `ClickKind`, `ClickPolicy`, `Pages`, `Slots` | `ui/internal/` | [docs/menus.md](docs/menus.md) | 1.22.0 |
+| valores de fila con formato | `ui/UiEntry.Builder.withFormatted`; `item/PluginItems.render(item, viewer, values, formatted)` | `item/internal/ItemRenderer.text` | [docs/menus.md](docs/menus.md), [docs/items.md](docs/items.md) | 1.28.0 |
 
 Clases raíz que no son módulo: `ExyliaLib.java` (ciclo de vida y limpieza),
 `platform/Platform.java`, `internal/LibrarySettings`, `internal/ExyliaLibUpdater`.

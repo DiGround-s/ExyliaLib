@@ -642,7 +642,7 @@ final class Session implements UiSession {
                 drawSectionFiller(list, slot);
                 continue;
             }
-            put(slot, render(template, entry.values()));
+            put(slot, render(template, entry.values(), entry.formatted()));
             slots.put(slot, Rendered.of(template, entry, list.id()));
         }
         drawNavigation(list, rows.size());
@@ -759,7 +759,12 @@ final class Session implements UiSession {
 
     /** Builds a slot's item, with the row's values and the menu's context. */
     private ItemStack render(UiItem item, Map<String, String> values) {
-        return items.render(item.item(), viewer, merged(values));
+        return render(item, values, Set.of());
+    }
+
+    /** Builds a slot's item, honouring the row values that carry formatting. */
+    private ItemStack render(UiItem item, Map<String, String> values, Set<String> formatted) {
+        return items.render(item.item(), viewer, merged(values), formatted);
     }
 
     /**

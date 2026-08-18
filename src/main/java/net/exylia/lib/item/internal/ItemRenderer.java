@@ -21,6 +21,7 @@ import java.util.ArrayList;
 import java.util.Base64;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.function.UnaryOperator;
 
 /**
@@ -71,6 +72,29 @@ public final class ItemRenderer {
     public static ItemStack render(Item definition, Player viewer, Plugin owner,
                                    Map<String, String> values,
                                    TraitApplier.Reporter problems) {
+        return render(definition, viewer, owner, values, Set.of(), problems);
+    }
+
+    /**
+     * Builds an item where some values carry their own formatting.
+     *
+     * <p>A value named in {@code formatted} is parsed rather than inserted as
+     * text, so a rank written {@code {highlight}&lMVP} in configuration arrives
+     * as colour. Only for values the server owner wrote: anything a player
+     * typed stays literal, or naming yourself {@code {error}} would recolour
+     * whatever line you appear on.
+     *
+     * @param definition what to build
+     * @param viewer     who it is for, or {@code null} for nobody in particular
+     * @param owner      whose namespace stored values go under, or {@code null}
+     * @param values     placeholder names to what they resolve to, without percent signs
+     * @param formatted  which of those values are parsed rather than inserted literally
+     * @param problems   where to report parts that could not be applied
+     * @return the item
+     */
+    public static ItemStack render(Item definition, Player viewer, Plugin owner,
+                                   Map<String, String> values, Set<String> formatted,
+                                   TraitApplier.Reporter problems) {
         // Row values make the result specific to that row, so an item that
         // would otherwise be shared is not.
         boolean cacheable = values.isEmpty() && ItemCache.isCacheable(definition);
@@ -80,7 +104,7 @@ public final class ItemRenderer {
                 return held;
             }
         }
-        ItemStack item = build(definition, viewer, owner, values, problems);
+        ItemStack item = build(definition, viewer, owner, values, formatted, problems);
         if (cacheable) {
             ItemCache.put(definition, item);
         }
@@ -88,11 +112,11 @@ public final class ItemRenderer {
     }
 
     private static ItemStack build(Item definition, Player viewer, Plugin owner,
-                                   Map<String, String> values,
+                                   Map<String, String> values, Set<String> formatted,
                                    TraitApplier.Reporter problems) {
         UnaryOperator<String> resolve = resolver(viewer, values);
         ItemStack item = base(definition.source(), resolve, problems);
-        write(item, definition, viewer, values, resolve, problems);
+        write(item, definition, viewer, values, formatted, resolve, problems);
         TraitApplier.apply(item, definition.traits(), owner, resolve, problems);
         return item;
     }
@@ -188,7 +212,8 @@ public final class ItemRenderer {
 
     /** Writes everything that is not the object itself. */
     private static void write(ItemStack item, Item definition, Player viewer,
-                              Map<String, String> values, UnaryOperator<String> resolve,
+                              Map<String, String> values, Set<String> formatted,
+                              UnaryOperator<String> resolve,
                               TraitApplier.Reporter problems) {
         amount(item, definition.amount(), resolve);
 
@@ -198,10 +223,10 @@ public final class ItemRenderer {
             return;
         }
         if (definition.name() != null) {
-            meta.displayName(text(definition.name(), viewer, values));
+            meta.displayName(text(definition.name(), viewer, values, formatted));
         }
         if (!definition.lore().isEmpty()) {
-            meta.lore(lore(definition.lore(), viewer, values));
+            meta.lore(lore(definition.lore(), viewer, values, formatted));
         }
         enchantments(meta, definition.enchantments(), resolve, problems);
         appearance(meta, definition.appearance(), problems);
@@ -230,13 +255,21 @@ public final class ItemRenderer {
      * <p>Italics off unless asked for: vanilla italicises item names and lore,
      * and every plugin that forgets it ends up with a slanted menu.
      */
-    private static Component text(String written, Player viewer, Map<String, String> values) {
+    // Package-private rather than private: this is the whole of what a row's
+    // values do to a line, and it is the only part that can be exercised
+    // without a live server, since an ItemStack needs the registry.
+    static Component text(String written, Player viewer, Map<String, String> values,
+                          Set<String> formatted) {
         Text built = Text.of(written);
         // Row values are substituted on the component tree rather than into the
         // string, so the template itself is parsed once and shared by every row
-        // drawn from it. Inserted literally: what a player typed is data.
+        // drawn from it. Literal unless the caller said otherwise: what a
+        // player typed is data, and a colour written in a config is not.
         for (Map.Entry<String, String> entry : values.entrySet()) {
-            built = built.with('%' + entry.getKey() + '%', entry.getValue());
+            String placeholder = '%' + entry.getKey() + '%';
+            built = formatted.contains(entry.getKey())
+                    ? built.withFormatted(placeholder, entry.getValue())
+                    : built.with(placeholder, entry.getValue());
         }
         if (viewer != null) {
             built = built.forPlayer(viewer);
@@ -246,10 +279,10 @@ public final class ItemRenderer {
     }
 
     private static List<Component> lore(List<String> written, Player viewer,
-                                        Map<String, String> values) {
+                                        Map<String, String> values, Set<String> formatted) {
         List<Component> lines = new ArrayList<>(written.size());
         for (String line : written) {
-            lines.add(text(line, viewer, values));
+            lines.add(text(line, viewer, values, formatted));
         }
         return lines;
     }

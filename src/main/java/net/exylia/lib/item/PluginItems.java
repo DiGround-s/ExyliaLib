@@ -125,8 +125,37 @@ public final class PluginItems {
      */
     public @NotNull ItemStack render(@NotNull Item definition, @Nullable Player viewer,
                                      @NotNull Map<String, String> values) {
-        return ItemRenderer.render(definition, viewer, plugin, values, (where, problem) ->
-                debug.warn("Rendering an item, " + where + ": " + problem));
+        return render(definition, viewer, values, java.util.Set.of());
+    }
+
+    /**
+     * Builds an item where some values carry their own formatting.
+     *
+     * <p>A value named in {@code formatted} is parsed rather than inserted as
+     * text, so a rank written {@code {highlight}&lMVP} in a config arrives as
+     * colour instead of as those characters:
+     *
+     * <pre>{@code
+     * items.render(template, player,
+     *         Map.of("rank", config.rankDisplay()), Set.of("rank"));
+     * }</pre>
+     *
+     * <p>Only for values the server owner wrote. A value a player typed goes
+     * through {@link #render(Item, Player, Map)}: parsing it would let somebody
+     * named {@code {error}} recolour whatever line they appear on.
+     *
+     * @param definition what to build
+     * @param viewer     who it is for, or {@code null}
+     * @param values     placeholder names to what they resolve to
+     * @param formatted  which of those names are parsed rather than inserted literally
+     * @return the item
+     * @since 1.28.0
+     */
+    public @NotNull ItemStack render(@NotNull Item definition, @Nullable Player viewer,
+                                     @NotNull Map<String, String> values,
+                                     @NotNull java.util.Set<String> formatted) {
+        return ItemRenderer.render(definition, viewer, plugin, values, formatted,
+                (where, problem) -> debug.warn("Rendering an item, " + where + ": " + problem));
     }
 
     /**

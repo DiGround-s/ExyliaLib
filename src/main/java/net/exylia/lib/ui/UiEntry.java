@@ -29,15 +29,17 @@ import java.util.Map;
  * open at once could hand the wrong answer to the wrong click. Here the value is
  * on the row, and a click reads it through {@link UiKeys#ENTRY}.
  *
- * @param value    what the row is about, or {@code null} when it is only text
- * @param values   what fills the template's placeholders
- * @param template which template to draw it with, or {@code null} for the default
- * @param item     an item to draw as-is, instead of a template
+ * @param value     what the row is about, or {@code null} when it is only text
+ * @param values    what fills the template's placeholders
+ * @param formatted which of those values carry their own formatting
+ * @param template  which template to draw it with, or {@code null} for the default
+ * @param item      an item to draw as-is, instead of a template
  * @since 1.22.0
  */
 public record UiEntry(
         @Nullable Object value,
         @NotNull Map<String, String> values,
+        @NotNull java.util.Set<String> formatted,
         @Nullable String template,
         @Nullable org.bukkit.inventory.ItemStack item) {
 
@@ -46,10 +48,28 @@ public record UiEntry(
         // a caller adding "%rank%" before "%rank_name%" should see them applied
         // in that order. An unordered copy makes that depend on hash codes.
         values = java.util.Collections.unmodifiableMap(new java.util.LinkedHashMap<>(values));
+        formatted = java.util.Set.copyOf(formatted);
         // Copied, because an ItemStack is mutable and the caller still holds
         // theirs: a kit room handing out its own stored stacks must not have
         // them renamed by whoever drew the row.
         item = item == null ? null : item.clone();
+    }
+
+    /**
+     * A row whose values are all literal.
+     *
+     * <p>Kept so code written before rows could carry formatting still
+     * compiles: {@link Builder#withFormatted} is the way to ask for the other
+     * kind, and nothing that never asked has to say so.
+     *
+     * @param value    what the row is about
+     * @param values   what fills the template's placeholders
+     * @param template which template to draw it with
+     * @param item     an item to draw as-is
+     */
+    public UiEntry(@Nullable Object value, @NotNull Map<String, String> values,
+                   @Nullable String template, @Nullable org.bukkit.inventory.ItemStack item) {
+        this(value, values, java.util.Set.of(), template, item);
     }
 
     /**
@@ -86,6 +106,7 @@ public record UiEntry(
     public static final class Builder {
         private final Object value;
         private final java.util.Map<String, String> values = new java.util.LinkedHashMap<>();
+        private final java.util.Set<String> formatted = new java.util.LinkedHashSet<>();
         private String template;
         private org.bukkit.inventory.ItemStack item;
 
@@ -99,12 +120,41 @@ public record UiEntry(
          * <p>Written without percent signs: {@code with("kit_name", ...)} fills
          * {@code %kit_name%} in the template.
          *
+         * <p>Inserted as literal text. A kit somebody named {@code {error}X}
+         * shows those characters rather than recolouring the row, which is why
+         * this is the default and {@link #withFormatted} has to be asked for.
+         *
          * @param name  the placeholder name
          * @param value what it resolves to; {@code null} becomes empty
          * @return this builder
          */
         public @NotNull Builder with(@NotNull String name, @Nullable Object value) {
-            values.put(strip(name), value == null ? "" : String.valueOf(value));
+            String key = strip(name);
+            values.put(key, value == null ? "" : String.valueOf(value));
+            formatted.remove(key);
+            return this;
+        }
+
+        /**
+         * Sets a value that carries its own formatting.
+         *
+         * <p>For values that come from configuration and say what they look
+         * like — a rank shown as {@code {highlight}&lMVP}. The value is parsed
+         * the same way the template is, so its colours are honoured.
+         *
+         * <p>Only for values the server owner wrote. Anything a player typed
+         * goes through {@link #with}: a formatted value can recolour the rest
+         * of the line, and a name is data rather than formatting.
+         *
+         * @param name  the placeholder name
+         * @param value what it resolves to; {@code null} becomes empty
+         * @return this builder
+         * @since 1.28.0
+         */
+        public @NotNull Builder withFormatted(@NotNull String name, @Nullable Object value) {
+            String key = strip(name);
+            values.put(key, value == null ? "" : String.valueOf(value));
+            formatted.add(key);
             return this;
         }
 
@@ -135,7 +185,7 @@ public record UiEntry(
         }
 
         public @NotNull UiEntry build() {
-            return new UiEntry(value, values, template, item);
+            return new UiEntry(value, values, formatted, template, item);
         }
 
         /** Accepts a name written either way, since both spellings are natural. */
