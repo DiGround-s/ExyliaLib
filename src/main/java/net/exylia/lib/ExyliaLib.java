@@ -33,6 +33,7 @@ import net.exylia.lib.region.internal.RegionRuntime;
 import net.exylia.lib.region.internal.SelectionListener;
 import net.exylia.lib.text.Prefixes;
 import net.exylia.lib.util.Cooldowns;
+import net.exylia.lib.util.sequence.Sequences;
 import net.exylia.lib.placeholder.internal.BuiltIn;
 import net.exylia.lib.platform.Platform;
 import net.exylia.lib.scoreboard.internal.BoardManager;
@@ -267,6 +268,7 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
 
         EffectRuntime.stopEverything();
         EffectRuntime.releaseAll();
+        Sequences.releaseAll();
         // Before releasing tasks: their refresh drivers are among them.
         BoardManager.stopEverything();
         HologramRuntime.removeEverything();
@@ -381,6 +383,10 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         // and doing it the other way round would leave the effect on screen.
         EffectRuntime.stopAll(pluginName);
         EffectRuntime.release(pluginName);
+        // Before the task module, for the same reason: a sequence schedules the
+        // frames of its own animation, and a frame belonging to a classloader
+        // that is going away must not fire.
+        Sequences.release(pluginName);
         BoardManager.stopAll(pluginName);
         HologramRuntime.removeAll(pluginName);
         // Before the task module: closing a window cancels what its buttons
