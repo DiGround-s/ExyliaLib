@@ -176,6 +176,24 @@ Text.of("{primary}&lWELCOME").send(player);
   commons. Las migraciones corren antes (todavía pueden leer el layout viejo) y
   `config-version` está reservado. Avisar sin borrar solo convierte cada clave
   retirada en una tradición del log de arranque.
+- **El small text es un booleano y se aplica sobre la plantilla, no sobre los
+  valores.** `small-text: true` y listo. Se transforma dentro del parse
+  cacheado, así que el coste es cero por jugador y por tick; un nombre de
+  jugador y un número se sustituyen después y quedan intactos. Transformar el
+  valor haría que `Steve` se lea `sᴛᴇᴠᴇ` y obligaría a transformar por jugador
+  en cada render, que es justo lo que la caché existe para evitar.
+- **El transform respeta lo que es instrucción**: tags, tokens, códigos legacy
+  y `%placeholder%`. Los tres primeros dejan de funcionar si se reescriben; el
+  cuarto falla **en silencio**, porque el valor se sustituye buscando el nombre
+  literal sobre el Component y un nombre reescrito no vuelve a coincidir: el
+  `%coins%` crudo llega al chat.
+- **No hay "forzar mayúsculas", y no es un olvido.** En commons `a` y `A`
+  apuntaban al mismo glifo del mapa, así que el flag no podía cambiar un solo
+  carácter. Estuvo años en el config de cada servidor sin hacer nada; portarlo
+  sería copiar un bug con formato de feature.
+- **Centrar mide el glifo dibujado, no el escrito.** Una mayúscula ocupa cinco
+  píxeles y su small cap cuatro: medir el original empuja cada línea centrada
+  a la derecha. Y cambiar el switch tira la caché de parseo, como la paleta.
 - **Los valores sustituidos son literales por defecto, formateados a pedido.**
   `with()` inserta texto plano (lo que teclea un jugador no puede inyectar
   formato); `withFormatted()`/`forPlayerFormatted()` parsean el valor (un
@@ -733,6 +751,7 @@ Raíz de código: `src/main/java/net/exylia/lib/`. Raíz de tests:
 | item | `item/Items`, `PluginItems`, `Item`, `Source`, `Appearance`, `Traits`, `Potion`, `Trim`, `Banner`, `Consumable`, `Modifier`, `Problems` | `item/internal/` | [docs/items.md](docs/items.md) | 1.22.0 |
 | ui | `ui/Menus`, `PluginMenus`, `UiSession`, `UiDefinition`, `UiSection`, `UiEntry`, `UiItem`, `UiKeys`, `UiFillers`, `UiRefresh`, `UiSounds`, `UiAnimationSpec`, `ClickBindings`, `ClickKind`, `ClickPolicy`, `Pages`, `Slots` | `ui/internal/` | [docs/menus.md](docs/menus.md) | 1.22.0 |
 | valores de fila con formato | `ui/UiEntry.Builder.withFormatted`; `item/PluginItems.render(item, viewer, values, formatted)` | `item/internal/ItemRenderer.text` | [docs/menus.md](docs/menus.md), [docs/items.md](docs/items.md) | 1.28.0 |
+| small text | `small-text` en `internal/LibrarySettings`; medida en `text/Centering` | `text/internal/SmallText`, `TextEngine.smallText` | [docs/text.md](docs/text.md) | 1.29.0 |
 
 Clases raíz que no son módulo: `ExyliaLib.java` (ciclo de vida y limpieza),
 `platform/Platform.java`, `internal/LibrarySettings`, `internal/ExyliaLibUpdater`.

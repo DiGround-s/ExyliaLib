@@ -132,6 +132,44 @@ Formatting is measured, not counted: MiniMessage tags, legacy codes and
 palette tokens take no space, and bold takes one pixel more per character
 (a colour code ends bold, exactly as the client does).
 
+## Small capitals
+
+One switch in `plugins/ExyliaLib/config.yml` draws every line of every Exylia
+plugin in small capitals — `WELCOME` reaches the screen as `ᴡᴇʟᴄᴏᴍᴇ`:
+
+```yaml
+small-text: true
+```
+
+Off by default. It is not a Minecraft font — the client has one default font
+and no way to switch it from a message — so the letters are swapped for the
+Unicode small capitals that look like them.
+
+| Written | Drawn |
+| --- | --- |
+| letters, either case | the small capital (`a` and `A` both give `ᴀ`) |
+| `s` and `x` | unchanged; Unicode has no small capital for them |
+| digits, punctuation, symbols | unchanged |
+| tags, tokens, legacy codes | unchanged, and still work |
+| substituted values | unchanged |
+
+**Values are never transformed.** A player named `Steve` stays `Steve` and a
+balance stays `1500`: the template is parsed once and shared, and values are
+inserted into the parsed component afterwards. That is the same design that
+makes the parse cache work, and it is why the switch costs nothing per player.
+
+There is no separate "force uppercase" option. ExyliaCommons shipped one for
+years and it could not change a single character, because both cases already
+map to the same glyph.
+
+Centring accounts for it: a capital is five pixels and the small capital that
+replaces it is four, so `pixelWidth` measures the glyph that will be drawn
+rather than the letter that was written.
+
+Flipping the switch and running `/exylialib reload` restyles the server live —
+the parse cache is dropped, and boards, holograms, effects and items re-send
+themselves, exactly as a palette change does.
+
 ## Performance
 
 - Text with no formatting characters skips the parser entirely.
@@ -153,5 +191,6 @@ palette tokens take no space, and bold takes one pixel more per character
 
 - Public: `text/Text.java`, `text/Colors.java`, `text/Palette.java`.
 - Internal: `text/internal/` (`TextEngine`, `FormatScanner`,
-  `LegacyTranslator`, `TokenResolver`).
-- Tests: `src/test/java/net/exylia/lib/text/TextModuleTest.java`.
+  `LegacyTranslator`, `TokenResolver`, `SmallText`).
+- Tests: `src/test/java/net/exylia/lib/text/TextModuleTest.java`,
+  `SmallTextTest.java`.
