@@ -13,6 +13,12 @@ import net.exylia.lib.economy.EconomySettings;
 import net.exylia.lib.economy.internal.BalanceCache;
 import net.exylia.lib.economy.internal.CurrencyRegistry;
 import net.exylia.lib.format.Formats;
+import net.exylia.lib.input.InputSettings;
+import net.exylia.lib.input.Inputs;
+import net.exylia.lib.input.internal.Bedrocks;
+import net.exylia.lib.input.internal.ChatTransport;
+import net.exylia.lib.input.internal.InputListener;
+import net.exylia.lib.input.internal.InputRuntime;
 import net.exylia.lib.format.internal.FormatPlaceholders;
 import net.exylia.lib.skull.internal.SkullRuntime;
 import net.exylia.lib.client.internal.ClientRuntime;
@@ -26,6 +32,7 @@ import net.exylia.lib.internal.LibCommands;
 import net.exylia.lib.internal.LibrarySettings;
 import net.exylia.lib.debug.Debug;
 import net.exylia.lib.placeholder.Placeholders;
+import net.exylia.lib.redis.internal.RedisRuntime;
 import net.exylia.lib.reload.Reloads;
 import net.exylia.lib.region.Regions;
 import net.exylia.lib.region.internal.RegionListener;
@@ -86,6 +93,7 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
     private ConfigFile<Palette> palette;
     private ConfigFile<FormatSettings> formats;
     private ConfigFile<EconomySettings> economy;
+    private ConfigFile<InputSettings> input;
 
     @Override
     public void onEnable() {
@@ -99,12 +107,16 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         // One listener for every plugin's menus: an inventory event fires once,
         // and the window's holder says whose menu it is.
         getServer().getPluginManager().registerEvents(new MenuListener(), this);
+        // One listener for every plugin's questions, for the same reason: a
+        // chat or inventory event fires once and the session says whose it is.
+        getServer().getPluginManager().registerEvents(new InputListener(), this);
         RegionRuntime.init(this);
         getServer().getPluginManager().registerEvents(new RegionListener(), this);
         getServer().getPluginManager().registerEvents(new SelectionListener(), this);
         loadPalette();
         loadFormats();
         loadEconomy();
+        loadInput();
         Placeholders.logger(getLogger());
         BuiltIn.register(this);
         FormatPlaceholders.register(this);
@@ -232,6 +244,30 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
     }
 
     /**
+     * Reads {@code input.yml} and starts the question runtime.
+     *
+     * <p>Transports are discovered reflectively, so a server without
+     * PacketEvents or Floodgate simply has fewer ways to ask and falls back to
+     * chat and menus rather than failing to start.
+     *
+     * <p>The Bedrock prefix comes from {@code config.yml} rather than from
+     * here: it says which players are on Bedrock, which anything that adapts to
+     * the client needs, not only the part that asks them questions.
+     */
+    private void loadInput() {
+        input = Configs.define(this, "input", InputSettings.class).load();
+        applyInput(input.get());
+        input.onReload(this::applyInput);
+        InputRuntime.init(this);
+    }
+
+    private void applyInput(InputSettings settings) {
+        Inputs.defaultTimeout(java.time.Duration.ofSeconds(Math.max(1, settings.timeoutSeconds())));
+        ChatTransport.setCancelWord(settings.cancelWord());
+        Bedrocks.prefix(LibrarySettings.get().bedrockPrefix());
+    }
+
+    /**
      * Reloads ExyliaLib's own configuration.
      *
      * <p>Exposed so a plugin can refresh the shared palette without a restart.
@@ -254,6 +290,7 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         // one that stays stale.
         formats.reload();
         economy.reload();
+        input.reload();
     }
 
     /**
@@ -297,6 +334,11 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         // Writes whatever is pending before the maps are emptied.
         Cooldowns.clearEverything();
         SidebarLibrary.close();
+        // Before the task module: a pending question owns a timeout task, and
+        // a player left staring at a form nobody will answer is worse than one
+        // told the server is stopping.
+        InputRuntime.shutdown();
+        Inputs.releaseAll();
         Menus.releaseAll();
         Regions.releaseAll();
         // After every plugin has had its own onDisable — they run before this
@@ -304,6 +346,10 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         // pool. Before the task module, because the pool's own close is
         // synchronous and cancelling the tasks first would leave it open.
         Databases.releaseAll();
+        // After the datasources, because a repository closing may still write,
+        // and a write still caches. Closing the cache first would leave the
+        // last writes of a shutdown invisible to the rest of the network.
+        RedisRuntime.shutdown();
         Tasks.releaseAll();
         Configs.releaseAll();
         Placeholders.releaseAll();
@@ -343,6 +389,7 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         ClanRuntime.forget(event.getPlayer().getUniqueId());
         Cooldowns.forget(event.getPlayer().getUniqueId());
         MenuRuntime.forgetEverywhere(event.getPlayer().getUniqueId());
+        InputRuntime.forget(event.getPlayer().getUniqueId());
     }
 
     /**
@@ -414,6 +461,12 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         // started, and a menu whose actions come from a dying classloader
         // must not answer another click.
         Menus.release(pluginName);
+        // Same reason, and one more: a pending question holds a future the
+        // dying plugin is waiting on. Ending it as SHUT_DOWN releases that
+        // waiter; leaving it would hand a player a form whose answer has
+        // nowhere left to go.
+        InputRuntime.releasePlugin(pluginName);
+        Inputs.release(pluginName);
         // Reconciliation uses ExyliaLib's scheduler, but publication must still happen
         // before the dying plugin's own task scheduler is cancelled.
         Regions.release(pluginName);

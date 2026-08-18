@@ -28,3 +28,10 @@ libraries:
   - 'org.mariadb.jdbc:mariadb-java-client:3.4.1'
   - 'org.postgresql:postgresql:42.7.4'
   - 'org.mongodb:mongodb-driver-sync:4.11.1'
+  # The shared cache, off unless a database.yml turns it on. Listed with the
+  # drivers for the same reason: fetched once and shared, and the same version
+  # ExyliaCommons installs, so a server midway through migrating holds one copy.
+  # commons-pool2 is Jedis's own dependency and is named explicitly rather than
+  # left to transitive resolution, which the library loader does not perform.
+  - 'redis.clients:jedis:5.1.0'
+  - 'org.apache.commons:commons-pool2:2.12.0'

@@ -4,6 +4,7 @@ import net.exylia.lib.config.Configs;
 import net.exylia.lib.database.DatabaseException;
 import net.exylia.lib.database.DatabaseSettings;
 import net.exylia.lib.debug.Debug;
+import net.exylia.lib.redis.RedisSettings;
 import org.bukkit.plugin.Plugin;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -29,6 +30,9 @@ public final class DatabaseRuntime {
     private static Map<TargetKey, Target> targets = new LinkedHashMap<>();
     private static volatile Map<String, SqlSettings> overrides = Map.of();
 
+    /** Test seam: the Redis block a forced datasource pretends to have read. */
+    private static volatile RedisSettings redisOverride;
+
     private DatabaseRuntime() {
         throw new AssertionError("No instances.");
     }
@@ -53,7 +57,13 @@ public final class DatabaseRuntime {
             library = plugin;
             executor = new TaskExecutor(plugin);
             overrides = Map.copyOf(settings);
+            redisOverride = null;
         }
+    }
+
+    /** Test seam: the Redis block forced datasources report. */
+    public static void installRedisForTests(@Nullable RedisSettings settings) {
+        redisOverride = settings;
     }
 
     /** Resolves and loads the configuration owned by this consumer plugin. */
@@ -66,23 +76,53 @@ public final class DatabaseRuntime {
         if (forced != null) {
             return forced;
         }
+        return resolve(plugin).toSql(dataFolder(plugin));
+    }
 
+    /**
+     * The shared cache settings this consumer asked for.
+     *
+     * <p>Separate from {@link #settings} because a {@link SqlSettings} is what
+     * identifies a datasource, and two plugins pointed at the same database
+     * through different Redis servers are still one datasource. The config file
+     * is read once and cached by the config module, so asking twice is a map
+     * lookup rather than a second parse.
+     *
+     * @param plugin the consumer
+     * @return its Redis block, disabled when it configured none
+     */
+    public static @NotNull RedisSettings redis(@NotNull Plugin plugin) {
+        requireStarted();
+        if (!overrides.isEmpty()) {
+            // A forced datasource is a test fixture, which names no config
+            // file. Tests that want a cache supply its settings directly.
+            return redisOverride == null ? new RedisSettings() : redisOverride;
+        }
+        DatabaseSettings.Database block = resolve(plugin).database();
+        RedisSettings redis = block == null ? null : block.redis();
+        return redis == null ? new RedisSettings() : redis;
+    }
+
+    /** Reads and validates this consumer's {@code database.yml}. */
+    private static DatabaseSettings resolve(Plugin plugin) {
         DatabaseSettings values = Configs.define(plugin, "database", DatabaseSettings.class)
                 .version(2)
                 .migration(1, DatabaseRuntime::nest)
                 .load().get();
 
-        Debug debug = Debug.of(plugin);
-        if (values.mongo()) {
-            return values.toSql(dataFolder(plugin));
+        if (values.mongo() || SQL_ENGINES.contains(values.engine())) {
+            return values;
         }
-        if (!SQL_ENGINES.contains(values.engine())) {
-            debug.warn("database.yml asks for the engine \"" + values.engine() + "\", which does not"
-                    + " exist. Using the embedded h2 database instead. Valid values are:"
-                    + " h2, mysql, mariadb, postgresql, mongodb.");
-            values = new DatabaseSettings();
-        }
-        return values.toSql(dataFolder(plugin));
+        Debug.of(plugin).warn("database.yml asks for the engine \"" + values.engine()
+                + "\", which does not exist. Using the embedded h2 database instead."
+                + " Valid values are: h2, mysql, mariadb, postgresql, mongodb.");
+        // The engine falls back; everything else the owner configured, the
+        // Redis block included, is still theirs and still honoured.
+        return new DatabaseSettings(new DatabaseSettings.Database("h2",
+                values.database().settings(), values.database().h2(),
+                values.database().mysql(), values.database().mariadb(),
+                values.database().postgresql(), values.database().mongodb(),
+                values.database().redis()));
     }
 
     /**

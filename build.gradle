@@ -110,12 +110,19 @@ dependencies {
     compileOnly 'org.mariadb.jdbc:mariadb-java-client:3.4.1'
     compileOnly 'org.postgresql:postgresql:42.7.4'
     compileOnly 'org.mongodb:mongodb-driver-sync:4.11.1'
+    // Redis, on the same terms and the same version ExyliaCommons already
+    // installs, so a server migrating plugin by plugin holds one copy rather
+    // than two. Optional at runtime: without it the cache reports itself
+    // unavailable and every read goes to the database, which is what a server
+    // with no Redis configured does anyway.
+    compileOnly 'redis.clients:jedis:5.1.0'
     // The database tests run against real engines rather than a mock: H2 in
     // memory covers every dialect path we can exercise without a server, and a
     // wire-format bug is invisible to a mock by construction.
     testImplementation 'com.zaxxer:HikariCP:5.1.0'
     testImplementation 'com.h2database:h2:2.2.224'
     testImplementation 'org.mongodb:mongodb-driver-sync:4.11.1'
+    testImplementation 'redis.clients:jedis:5.1.0'
 
     // Lamp: the command framework the whole ecosystem standardises on.
     // compileOnly like everywhere else; the server provides it through the

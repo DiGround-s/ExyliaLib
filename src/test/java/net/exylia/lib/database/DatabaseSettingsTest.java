@@ -222,9 +222,15 @@ class DatabaseSettingsTest {
 
         resolved();
         String file = read();
-        assertFalse(file.contains("server-id"), "a setting that does nothing was left in the file");
-        assertFalse(file.contains("redis"), "a setting that does nothing was left in the file");
         assertFalse(file.contains("write-behind"), "a setting that does nothing was left in the file");
+        // The commons server-id sat at the top of the block and meant nothing
+        // here, so it goes. The one this library writes lives inside redis:,
+        // where it names the sender of an invalidation — same key name, and the
+        // only reason it is asserted by indentation rather than by name.
+        assertFalse(file.contains("\n  server-id:"),
+                "the top-level server-id does nothing here and should be gone");
+        assertTrue(file.contains("redis:"), "the Redis block is honoured, not pruned");
+        assertTrue(file.contains("key-prefix:"), "and it gains the keys this library adds");
     }
 
     @Test

@@ -21,8 +21,9 @@ import java.util.Locale;
  * credentials it has for MySQL stay where they are and keep working. Only the
  * keys ExyliaLib actually honours are declared; the ones commons wrote but this
  * library does not implement ({@code write-behind}, {@code cache},
- * {@code redis}, {@code server-id}) are pruned on load and reported, because a
- * setting that no longer does what it says is worse than no setting at all.
+ * {@code server-id}) are pruned on load and reported, because a setting that no
+ * longer does what it says is worse than no setting at all. {@code redis} is
+ * honoured; see {@link net.exylia.lib.redis.RedisSettings}.
  *
  * <h2>H2 is what happens when nobody decides</h2>
  * The defaults below are a file in the consumer plugin's folder: no daemon, no
@@ -59,6 +60,7 @@ public record DatabaseSettings(Database database) {
      * @param mariadb  a MariaDB server
      * @param postgresql a PostgreSQL server
      * @param mongodb  a MongoDB server
+     * @param redis    the shared cache, off unless asked for
      */
     public record Database(
 
@@ -75,13 +77,15 @@ public record DatabaseSettings(Database database) {
             Server mysql,
             Server mariadb,
             Server postgresql,
-            Mongo mongodb
+            Mongo mongodb,
+            net.exylia.lib.redis.RedisSettings redis
     ) {
 
-        /** The defaults: h2, and every server block left at its own default. */
+        /** The defaults: h2, no Redis, and every server block at its own default. */
         public Database() {
             this("h2", new Settings(), new H2(),
-                    new Server(3306), new Server(3306), new Server(5432), new Mongo());
+                    new Server(3306), new Server(3306), new Server(5432), new Mongo(),
+                    new net.exylia.lib.redis.RedisSettings());
         }
     }
 

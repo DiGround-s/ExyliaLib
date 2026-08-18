@@ -6,8 +6,11 @@ import net.exylia.lib.database.internal.GatedStorage;
 import net.exylia.lib.database.internal.SqlSettings;
 import net.exylia.lib.database.internal.Storage;
 import net.exylia.lib.debug.Debug;
+import net.exylia.lib.redis.internal.RedisRuntime;
+import net.exylia.lib.redis.internal.RowCache;
 import org.bukkit.plugin.Plugin;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
@@ -74,6 +77,16 @@ public final class PluginDatabase {
     private final Map<Class<?>, Repository<?>> repositories = new ConcurrentHashMap<>();
     private volatile DatabaseRuntime.Lease lease;
     private boolean released;
+
+    /**
+     * The shared cache, resolved lazily and at most once.
+     *
+     * <p>The flag rather than a null check: a plugin that configured no Redis
+     * resolves to null, and without it every repository would try to open a
+     * connection again.
+     */
+    private RowCache cache;
+    private boolean cacheResolved;
 
     PluginDatabase(@NotNull Plugin plugin) {
         this.plugin = plugin;
@@ -175,6 +188,21 @@ public final class PluginDatabase {
     }
 
     /**
+     * The shared cache for this plugin, or {@code null} when it configured none.
+     *
+     * <p>Resolved once, on the first repository, so a plugin with no Redis pays
+     * nothing and one with Redis opens a single connection however many record
+     * types it registers.
+     */
+    private synchronized @Nullable RowCache cache() {
+        if (!cacheResolved) {
+            cacheResolved = true;
+            cache = RedisRuntime.cache(plugin, DatabaseRuntime.redis(plugin));
+        }
+        return cache;
+    }
+
+    /**
      * Opens the shared connection if needed and creates the table, in the
      * background.
      *
@@ -185,7 +213,12 @@ public final class PluginDatabase {
      */
     private CompletableFuture<Storage> prepare(DatabaseRuntime.Lease target, EntityModel<?> model) {
         Debug debug = Debug.of(plugin);
-        return target.submit(() -> target.storage().thenCompose(storage ->
+        return target.submit(() -> target.storage().thenApply(opened ->
+                // Wrapped before the table is prepared, so preparing is what
+                // registers the table for invalidation: a peer's message names
+                // a table, and this is the one place that knows this server
+                // reads it.
+                RedisRuntime.wrap(opened, cache())).thenCompose(storage ->
                 storage.prepare(model).thenApply(report -> {
                     // Only the start where something changed is worth a line. On
                     // a server that has been running for months nothing changes

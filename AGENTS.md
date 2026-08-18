@@ -659,6 +659,52 @@ conocerlo.
 - **El layout plano de 1.24–1.30 migra**, y sus campos de conexión caen en el
   bloque que nombra su `type`, no en `mysql` siempre.
 
+### Redis — caché compartida, nunca almacenamiento
+
+Todo lo que dependa de Redis pasa por `net.exylia.lib.redis`. Ningún plugin
+llama nada: se enciende desde `database.yml` y los repositorios que ya tenía
+empiezan a responder desde Redis y a avisar a los demás servidores.
+
+- **Se guarda y después se avisa, nunca al revés.** Un peer que recibe el
+  mensaje re-lee al instante; si el mensaje pudiera adelantar al valor,
+  cachearía justo la fila que le dijeron que tirara. Es la regla de la que
+  depende todo el módulo, y tiene test que la detecta invirtiéndola.
+- **El join no espera ningún mensaje.** Un proxy mueve a un jugador entre
+  servidores dentro del mismo tick. El servidor destino falla en su memoria
+  (el jugador no estaba) y lee de Redis, donde el otro ya escribió. El pub/sub
+  solo ahorra trabajo a los que ya tenían la fila. Hacerlo depender del mensaje
+  convierte el handoff en una carrera que se pierde a veces — eso es
+  exactamente "se me reseteó el killeffect al cambiar de servidor".
+- **La base de datos es la verdad.** Toda escritura completa contra ella
+  *antes* de cachear nada. Perder Redis cuesta velocidad y frescura entre
+  servidores, jamás datos.
+- **Solo se cachea lo que tiene clave.** `find` y `exists` sí; `select` y
+  `count` no. Un leaderboard cambia cuando cambia cualquiera y ninguna clave lo
+  predice. Commons los cacheaba y lo pagaba tirando el keyspace entero de la
+  tabla en cada save.
+- **No se cachea la ausencia.** Un primer join escribe justo esa fila un
+  instante después.
+- **Un `set` que falla no se anuncia.** Mandar a los peers a buscar un valor
+  que no se guardó convierte una escritura fallida en un fallback a la DB de
+  toda la red durante el TTL entero.
+- **El valor se codifica como lo codifica la DB**, vía `EntityModel`. Commons
+  cacheaba con Gson pelado mientras escribía con sus serializers: el mismo
+  campo tenía dos representaciones.
+- **La clave lleva el nombre de la tabla y el id *almacenado*.** Media docena
+  de plugins declaran un `PlayerData`; y un `UUID` con `toString()` de un lado
+  y su codec del otro da una caché que nunca acierta y parece sana.
+- **`server-id` es el del config, no un UUID aleatorio.** En commons se
+  regeneraba en cada arranque: una colisión dejaba dos servidores ignorándose
+  para siempre y ningún log podía nombrar al emisor.
+- **Un Redis caído falla rápido, no cuelga.** El `maxWait` del pool está
+  acotado; commons lo dejaba en el default (infinito) y una caída se
+  convertía en hilos parados.
+- **Jedis vive confinado en `JedisClient`.** Verificado en bytecode. Un
+  servidor sin la librería no carga esa clase y todo sigue funcionando.
+- **No hay `@PlayerSession` ni flush-on-quit.** En commons era código muerto
+  (cero entidades anotadas en todo el ecosistema) y no era lo que hacía
+  funcionar el handoff. Aquí las escrituras son durables al completar.
+
 ---
 
 ## Barra de calidad de un módulo
@@ -769,6 +815,7 @@ Raíz de código: `src/main/java/net/exylia/lib/`. Raíz de tests:
 | small text | `small-text` en `internal/LibrarySettings`; medida en `text/Centering` | `text/internal/SmallText`, `TextEngine.smallText` | [docs/text.md](docs/text.md) | 1.29.0 |
 | util (sequence) | `util/sequence/Sequences`, `PluginSequences`, `Sequence`, `SequenceTarget`, `SequenceRun`, `SequenceStep`, `Shape` | `util/sequence/internal/` | [docs/sequences.md](docs/sequences.md) | 1.30.0 |
 | util (preview) | `util/preview/Previews`, `PluginPreviews`, `Preview`, `PreviewSettings` | `util/preview/internal/` | [docs/previews.md](docs/previews.md) | 1.30.0 |
+| redis | `redis/Redis`, `RedisSettings` | `redis/internal/` (Jedis confinado en `JedisClient`) | [docs/redis.md](docs/redis.md) | 1.31.0 |
 | poll de auto-actualización | `update-check-minutes` en `internal/LibrarySettings` | `internal/ExyliaLibUpdater` (ETag), timer en `ExyliaLib.startUpdateCheck` | [docs/reload.md](docs/reload.md) | 1.30.0 |
 
 Clases raíz que no son módulo: `ExyliaLib.java` (ciclo de vida y limpieza),
