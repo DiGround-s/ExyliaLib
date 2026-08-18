@@ -272,6 +272,29 @@ class ConfigModuleTest {
     }
 
     @Test
+    @DisplayName("never binds a group of settings as if it were a value")
+    void aSectionIsNotAValue() throws IOException {
+        // A file whose layout moved on has a block where the schema now expects
+        // a value. String.valueOf would happily render it as
+        // "MemorySection[path='server-name', root='YamlConfiguration']" and the
+        // save that follows writes that into the file, as though the owner had
+        // typed it there.
+        Files.writeString(file("config"), """
+                server-name:
+                  host: localhost
+                  port: 25565
+                """);
+
+        ConfigFile<Settings> config = Configs.define(plugin, "config", Settings.class).load();
+
+        assertEquals("lobby", config.get().serverName(), "the default should be used");
+        assertFalse(contents("config").contains("MemorySection"),
+                "a section was stringified into a value: " + contents("config"));
+        assertTrue(config.issues().stream().anyMatch(i -> i.type() == ConfigIssue.Type.INVALID_VALUE),
+                "the problem should be reported");
+    }
+
+    @Test
     @DisplayName("rejects a decimal where a whole number belongs")
     void rejectsDecimalForInt() throws IOException {
         // Rounding 0.5 to 0 silently would be worse than saying so.

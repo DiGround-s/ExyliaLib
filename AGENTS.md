@@ -644,6 +644,20 @@ conocerlo.
   tocar nada del juego.
 - Cachear con Caffeine para no ir a la DB en caliente. Agrupar escrituras en
   lote antes que una query por evento.
+- **El `database.yml` es el de ExyliaCommons**: bloque por motor bajo
+  `database:`, mismos nombres de clave. Un servidor que ya corre plugins de
+  commons conserva sus credenciales sin tocar el fichero. Se declaran **solo**
+  las claves que la lib honra; `server-id`, `write-behind`, `cache`, `redis` y
+  el resto de `settings` se podan y se reportan, porque un ajuste que ya no
+  hace lo que dice es peor que ninguno.
+- **Un bloque de ajustes no es un valor.** `Coercions` rechaza una sección
+  antes de intentar convertirla; sin eso `String.valueOf` escribía
+  `MemorySection[path='database', root='YamlConfiguration']` en el fichero como
+  si lo hubiera tecleado el dueño, y la poda se llevaba su contraseña de MySQL
+  detrás. No era un bug de `database`: afectaba a cualquier campo `String` de
+  cualquier config.
+- **El layout plano de 1.24–1.30 migra**, y sus campos de conexión caen en el
+  bloque que nombra su `type`, no en `mysql` siempre.
 
 ---
 

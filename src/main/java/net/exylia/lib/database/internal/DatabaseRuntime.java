@@ -67,18 +67,73 @@ public final class DatabaseRuntime {
             return forced;
         }
 
-        DatabaseSettings values = Configs.define(plugin, "database", DatabaseSettings.class).load().get();
+        DatabaseSettings values = Configs.define(plugin, "database", DatabaseSettings.class)
+                .version(2)
+                .migration(1, DatabaseRuntime::nest)
+                .load().get();
+
         Debug debug = Debug.of(plugin);
         if (values.mongo()) {
             return values.toSql(dataFolder(plugin));
         }
         if (!SQL_ENGINES.contains(values.engine())) {
-            debug.warn("database.yml asks for the engine \"" + values.type() + "\", which does not"
+            debug.warn("database.yml asks for the engine \"" + values.engine() + "\", which does not"
                     + " exist. Using the embedded h2 database instead. Valid values are:"
                     + " h2, mysql, mariadb, postgresql, mongodb.");
             values = new DatabaseSettings();
         }
         return values.toSql(dataFolder(plugin));
+    }
+
+    /**
+     * Moves a flat {@code database.yml} under the {@code database:} block.
+     *
+     * <p>A file written by ExyliaCommons already nests, so it arrives here
+     * untouched and keeps every credential its owner set. A file written by
+     * ExyliaLib 1.24 to 1.30 was flat, and without this its keys would be pruned
+     * as ones the schema no longer owns — taking a MySQL password with them.
+     *
+     * <p>Every value is read before anything is written, because the old flat
+     * {@code database:} key is the new block's own name: renaming it one key at
+     * a time would drop whatever the previous rename had just put there.
+     */
+    private static void nest(@NotNull net.exylia.lib.config.MutableConfig data) {
+        // The marker of the flat layout. A nested file has a section here, and a
+        // section is not a value, so it is left alone.
+        Object flatType = data.get("type");
+        if (flatType == null) {
+            return;
+        }
+
+        // The flat layout had one set of connection fields, so they belong to
+        // whichever engine the file names. Sending them to mysql regardless
+        // would hand a postgresql server an empty block and lose the password.
+        String server = switch (String.valueOf(flatType).toLowerCase(Locale.ROOT).trim()) {
+            case "mariadb" -> "mariadb";
+            case "postgres", "postgresql", "pgsql" -> "postgresql";
+            case "mongo", "mongodb" -> "mongodb";
+            default -> "mysql";
+        };
+
+        Map<String, String> moves = new LinkedHashMap<>();
+        moves.put("type", "database.type");
+        moves.put("file", "database.h2.file");
+        moves.put("pool-size", "database.settings.pool-size");
+        moves.put("host", "database." + server + ".host");
+        moves.put("port", "database." + server + ".port");
+        moves.put("database", "database." + server + ".database");
+        moves.put("user", "database." + server + ".username");
+        moves.put("password", "database." + server + ".password");
+
+        Map<String, Object> carried = new LinkedHashMap<>();
+        moves.forEach((from, to) -> {
+            Object value = data.get(from);
+            if (value != null) {
+                carried.put(to, value);
+            }
+            data.remove(from);
+        });
+        carried.forEach(data::set);
     }
 
     /** Acquires a target lease, opening nothing until its first repository needs storage. */

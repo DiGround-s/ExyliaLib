@@ -51,6 +51,15 @@ final class Coercions {
             return Result.fail("a value");
         }
 
+        if (isGroup(raw) && !target.isInstance(raw)) {
+            // A group of settings is not a value, and no rule below may treat it
+            // as one. Without this, String.valueOf turns a section into
+            // "MemorySection[path='database', root='YamlConfiguration']" and
+            // that gets written back into the file as though the owner had
+            // typed it there.
+            return Result.fail(describe(target));
+        }
+
         if (target == String.class) {
             // Anything renders as text, including numbers people write unquoted.
             return Result.ok(String.valueOf(raw));
@@ -89,6 +98,36 @@ final class Coercions {
         }
 
         return Result.fail("a " + target.getSimpleName());
+    }
+
+    /**
+     * Whether a raw value is a nested block rather than a value.
+     *
+     * <p>Bukkit hands back a {@code ConfigurationSection} for a block it parsed,
+     * and a plain {@code Map} for one that arrived through {@code set}. Neither
+     * is something an owner typed as a value, so neither may be coerced into
+     * one.
+     */
+    private static boolean isGroup(Object raw) {
+        return raw instanceof org.bukkit.configuration.ConfigurationSection
+                || raw instanceof java.util.Map<?, ?>;
+    }
+
+    /** Names the declared type the way a server owner would recognise it. */
+    private static String describe(Class<?> target) {
+        if (target == String.class) {
+            return "a value";
+        }
+        if (target == boolean.class || target == Boolean.class) {
+            return "true or false";
+        }
+        if (Number.class.isAssignableFrom(target) || target.isPrimitive()) {
+            return "a number";
+        }
+        if (List.class.isAssignableFrom(target)) {
+            return "a list";
+        }
+        return "a " + target.getSimpleName();
     }
 
     private static Result toBoolean(Object raw) {

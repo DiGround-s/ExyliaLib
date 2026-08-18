@@ -118,6 +118,10 @@ public final class ConfigFileImpl<T> implements ConfigFile<T> {
     /** Writes the schema into the YAML tree, including the file header. */
     private void render(YamlConfiguration yaml, T snapshot) {
         Binder.write(yaml, schema, snapshot, "");
+        // Removed before it is written so it lands last. A migration sets it
+        // while rewriting, and Bukkit keeps a key where it first appeared, so
+        // without this a migrated file opens with its own bookkeeping.
+        yaml.set(VERSION_KEY, null);
         yaml.set(VERSION_KEY, currentVersion);
         // The leading null renders as a blank line, separating this bookkeeping
         // key from the settings that matter to the reader.

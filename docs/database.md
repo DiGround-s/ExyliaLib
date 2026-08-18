@@ -257,15 +257,43 @@ Each consumer gets `plugins/<Plugin>/database.yml`, generated with its own
 explanation when it first calls `Databases.of(plugin)`:
 
 ```yaml
-type: h2                    # h2 | mysql | mariadb | postgresql | mongodb
-file: database/h2           # embedded only, relative to this plugin folder
-host: localhost
-port: 0                     # 0 uses the engine's default
-database: exylia
-user: exylia
-password: ''
-pool-size: 0                # 0 lets the library size it
+database:
+  type: h2                  # h2 | mysql | mariadb | postgresql | mongodb
+
+  settings:
+    pool-size: 0            # 0 lets the library size it
+
+  h2:
+    file: database/h2       # relative to this plugin folder
+
+  mysql:                    # and mariadb, and postgresql
+    host: localhost
+    port: 0                 # 0 uses the engine's default
+    database: minecraft
+    username: root
+    password: ''
+
+  mongodb:
+    host: localhost
+    port: 0
+    database: minecraft
+    username: ''
+    password: ''
+    connection-string: ''   # a full URI wins over everything above
 ```
+
+Only the block `type` names is read; the rest sit there as documentation of what
+switching engine would need.
+
+The layout is ExyliaCommons', key for key, so a server already running commons
+plugins keeps the credentials it has. The keys commons wrote that this library
+does not implement — `server-id`, `write-behind`, `cache`, `redis`, and the
+`settings` entries beyond `pool-size` — are removed on load and reported, because
+a setting that no longer does what it says is worse than no setting at all.
+
+A file written by ExyliaLib 1.24 to 1.30 was flat (`type`, `host`, `user`, …).
+It is migrated to the layout above on first load, and its connection fields land
+in the block its `type` names, not in `mysql` regardless.
 
 ## Where the code is
 
