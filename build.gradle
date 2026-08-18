@@ -221,6 +221,126 @@ shadowJar {
 // would produce only the thin jar: a jar that loads until the first scoreboard.
 assemble.dependsOn shadowJar
 
+/**
+ * Rebuilds lib-manifest.json from the GitHub releases that actually exist.
+ *
+ * The manifest was maintained by hand, which makes every release depend on
+ * remembering a step. Getting it wrong is not cosmetic: two readers consume
+ * this file with two different policies — ExyliaLibUpdater takes latest.majorN,
+ * while the Lukittu loader's ExyliaLibManifest.findBest walks versions{} — so a
+ * release missing from versions{} is a release the loader cannot install, even
+ * though the updater would still find the newest one.
+ *
+ * 1.22.0 through 1.25.0 show the same gap from the other side: they were built
+ * and published to Maven, but never cut as GitHub releases, so there is nothing
+ * to serve and they are correctly absent here.
+ *
+ * The releases API is the source of truth because it is the same place the
+ * updater downloads from: a release with no asset cannot be served, so it is
+ * skipped rather than written as an entry pointing at nothing. The sha256 comes
+ * from the asset digest GitHub itself computed over the bytes it will serve.
+ */
+tasks.register('generateLibManifest') {
+    group = 'exylia'
+    description = 'Regenerates lib-manifest.json from published GitHub releases.'
+
+    def manifestFile = layout.projectDirectory.file('lib-manifest.json').asFile
+
+    doLast {
+        def raw = new ByteArrayOutputStream()
+        def result = exec {
+            commandLine 'gh', 'api', '--paginate',
+                    'repos/DiGround-s/ExyliaLib/releases?per_page=100'
+            standardOutput = raw
+            ignoreExitValue = true
+        }
+        if (result.exitValue != 0) {
+            throw new GradleException(
+                    'Could not list releases. Is the gh CLI installed and authenticated?')
+        }
+
+        // --paginate concatenates one JSON array per page.
+        def releases = []
+        def slurper = new groovy.json.JsonSlurper()
+        raw.toString('UTF-8').replace('][', '],[').with { joined ->
+            if (joined.startsWith('[') && joined.contains('],[')) {
+                slurper.parseText("[${joined}]").each { releases.addAll(it) }
+            } else {
+                releases.addAll(slurper.parseText(joined))
+            }
+        }
+
+        def entries = [:]
+        def skipped = []
+
+        releases.findAll { !it.draft }.each { release ->
+            def v = (release.tag_name ?: '').replaceFirst(/^v/, '')
+            if (!(v ==~ /\d+\.\d+\.\d+/)) return
+
+            def asset = release.assets.find { it.name == "ExyliaLib-${v}.jar" }
+            if (asset == null) {
+                skipped << "${v} (no ExyliaLib-${v}.jar asset)"
+                return
+            }
+            // GitHub reports "sha256:<hex>"; the readers expect bare hex.
+            def digest = (asset.digest ?: '').replaceFirst(/^sha256:/, '')
+            if (!digest) {
+                skipped << "${v} (asset has no sha256 digest)"
+                return
+            }
+
+            entries[v] = [
+                    version        : v,
+                    url            : asset.browser_download_url,
+                    sha256         : digest,
+                    major          : v.substring(0, v.indexOf('.')) as int,
+                    requiresRestart: true
+            ]
+        }
+
+        if (entries.isEmpty()) {
+            throw new GradleException('No releases with a usable jar asset were found.')
+        }
+
+        def bySemver = { String a, String b ->
+            def x = a.tokenize('.')*.toInteger()
+            def y = b.tokenize('.')*.toInteger()
+            [0, 1, 2].findResult { x[it] <=> y[it] ?: null } ?: 0
+        }
+
+        def sortedVersions = entries.keySet().sort(false, bySemver as Comparator)
+
+        def latest = [:]
+        sortedVersions.each { v ->
+            // Ascending order, so the last write per major is the highest.
+            latest["major${entries[v].major}" as String] = v
+        }
+
+        def ordered = [versions: [:], latest: latest]
+        sortedVersions.each { ordered.versions[it] = entries[it] }
+
+        // prettyPrint indents with four spaces; the file has always used two.
+        // Reindenting every line would bury the one entry a release adds under a
+        // whole-file diff, so the existing style is kept.
+        manifestFile.text = groovy.json.JsonOutput
+                .prettyPrint(groovy.json.JsonOutput.toJson(ordered))
+                .readLines()
+                .collect { line ->
+                    def indent = line.length() - line.stripLeading().length()
+                    ' ' * (indent / 2 as int) + line.stripLeading()
+                }
+                .join('\n') + '\n'
+
+        logger.lifecycle("Wrote ${sortedVersions.size()} versions to lib-manifest.json")
+        latest.each { major, v -> logger.lifecycle("  latest.${major} = ${v}") }
+        skipped.each { logger.warn("  skipped ${it}") }
+
+        if (!entries.containsKey(project.version.toString())) {
+            logger.warn("Note: ${project.version} has no GitHub release yet, so it is not listed.")
+        }
+    }
+}
+
 publishing {
     publications {
         maven(MavenPublication) {
