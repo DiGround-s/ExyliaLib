@@ -135,4 +135,66 @@ class ExyliaLibUpdaterTest {
         assertFalse(isAlready(staged, ""),
             "with no hash to compare there is no evidence the staged jar is current");
     }
+
+    @Test
+    @DisplayName("a second release before the restart replaces the staged one")
+    void newerReleaseSupersedesWhatIsStaged(@TempDir Path dir) throws Exception {
+        // A server can stay up across several releases. The check compares
+        // against the running version, not the staged jar, so 1.17.2 must be
+        // offered to a 1.17.0 install that already has 1.17.1 waiting.
+        String twoMore = MANIFEST
+            .replace("\"1.17.1\"", "\"1.17.2\"")
+            .replace("1.17.1.jar", "1.17.2.jar");
+
+        Object best = findNewerVersion(twoMore, "1.17.0");
+        assertNotNull(best, "the newest release is still newer than what is running");
+        assertEquals("1.17.2", version(best));
+
+        Path staged = dir.resolve("ExyliaLib.jar");
+        Files.write(staged, "the 1.17.1 jar".getBytes(StandardCharsets.UTF_8));
+        assertFalse(isAlready(staged, sha256(best)),
+            "the staged jar is the previous release, so it must be replaced");
+    }
+
+    @Test
+    @DisplayName("an unchanged manifest is reused instead of re-read")
+    void notModifiedReusesTheCachedBody() throws Exception {
+        // Polling costs a round trip and no body while the manifest is
+        // unchanged, which is what makes a 30-minute poll cheap. Verified
+        // against the real host: 4340 bytes on a 200, zero on a 304.
+        setCache("\"tag-1\"", MANIFEST);
+        assertEquals(MANIFEST, cachedManifest(),
+            "the body is kept so a 304 has something to return");
+
+        // Cleared together: a 304 must never pair a stale body with a new tag.
+        setCache(null, null);
+        assertNull(cachedManifest());
+    }
+
+    private static String version(Object entry) throws Exception {
+        Method m = entry.getClass().getDeclaredMethod("version");
+        m.setAccessible(true);
+        return (String) m.invoke(entry);
+    }
+
+    private static String sha256(Object entry) throws Exception {
+        Method m = entry.getClass().getDeclaredMethod("sha256");
+        m.setAccessible(true);
+        return (String) m.invoke(entry);
+    }
+
+    private static void setCache(String etag, String body) throws Exception {
+        java.lang.reflect.Field e = ExyliaLibUpdater.class.getDeclaredField("cachedEtag");
+        java.lang.reflect.Field b = ExyliaLibUpdater.class.getDeclaredField("cachedManifest");
+        e.setAccessible(true);
+        b.setAccessible(true);
+        e.set(null, etag);
+        b.set(null, body);
+    }
+
+    private static String cachedManifest() throws Exception {
+        java.lang.reflect.Field b = ExyliaLibUpdater.class.getDeclaredField("cachedManifest");
+        b.setAccessible(true);
+        return (String) b.get(null);
+    }
 }

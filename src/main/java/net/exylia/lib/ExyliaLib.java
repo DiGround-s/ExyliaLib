@@ -145,6 +145,21 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
             "ExyliaLib-Updater");
         updateThread.setDaemon(true);
         updateThread.start();
+
+        // Keep looking while the server runs. The shutdown pass is what makes
+        // an update a single restart, but it only happens on a clean stop: a
+        // crash, a kill -9 or a host reboot never reaches onDisable, and that
+        // server would sit on an old jar until someone stopped it properly.
+        //
+        // Releases in between are handled by the same code, because the check
+        // compares against the version now running rather than against the one
+        // already staged: the newest release wins and simply overwrites it.
+        int minutes = settings.updateCheckMinutes();
+        if (settings.autoUpdate() && minutes > 0) {
+            long ticks = minutes * 60L * 20L;
+            Tasks.of(this).runAsyncTimer(
+                    ticks, ticks, () -> ExyliaLibUpdater.checkForUpdate(this));
+        }
     }
 
     /**

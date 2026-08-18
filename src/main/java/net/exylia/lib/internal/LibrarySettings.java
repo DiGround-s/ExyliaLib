@@ -18,6 +18,12 @@ import net.exylia.lib.config.Configs;
 @Comment("version after startup and stages it for the next restart.")
 @Comment("Set to false if you prefer to update manually.")
 @Comment("")
+@Comment("update-check-minutes: how often to look again while the server runs.")
+@Comment("The staged jar is applied on the next restart either way; checking")
+@Comment("periodically means a server that crashes instead of stopping still")
+@Comment("has the newest version waiting. 0 disables the periodic check and")
+@Comment("leaves only the ones at startup and shutdown.")
+@Comment("")
 @Comment("debug: turns on the detail lines of every Exylia plugin at once.")
 @Comment("Leave it false in production; turn it on to diagnose a problem")
 @Comment("without editing each plugin's own config.")
@@ -31,6 +37,9 @@ public record LibrarySettings(
         @Comment("Whether to check for and download newer versions automatically.")
         boolean autoUpdate,
 
+        @Comment("Minutes between update checks while running. 0 disables them.")
+        int updateCheckMinutes,
+
         @Comment("Whether debug lines print, for every plugin using ExyliaLib.")
         boolean debug,
 
@@ -40,7 +49,7 @@ public record LibrarySettings(
 
     /** Safe defaults used when no config file exists yet. */
     public LibrarySettings() {
-        this(true, false, false);
+        this(true, 30, false, false);
     }
 
     private static volatile LibrarySettings instance;

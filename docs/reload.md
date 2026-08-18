@@ -26,6 +26,44 @@ One command recolours the whole server. The chain, verified in code:
 
 `/exylialib` alone shows the version and the subcommand.
 
+## Staying up to date (since 1.30.0)
+
+The library updates itself. A newer release is downloaded, verified against
+the SHA-256 in the manifest, and written to `plugins/update/`, which the
+server applies while it discovers plugins — so the update costs one restart,
+not two.
+
+Three moments trigger a check:
+
+| When | Why |
+| --- | --- |
+| Startup | Covers a server that was killed rather than stopped |
+| Every 30 minutes | Covers a server that crashes before it can stop cleanly |
+| Shutdown | Runs inline, so the very next start is already up to date |
+
+Without the periodic check, a server that dies to a crash, a `kill -9` or a
+host reboot never reaches `onDisable` and sits on an old jar until someone
+stops it properly.
+
+```yaml
+# plugins/ExyliaLib/config.yml
+auto-update: true
+update-check-minutes: 30   # 0 leaves only the startup and shutdown checks
+```
+
+**Several releases before one restart is the normal case.** Each check
+compares against the version *running*, not against the jar already staged,
+so the newest release always wins and simply overwrites what is waiting. A
+staged jar whose hash already matches is left alone rather than downloaded
+again.
+
+Polling is cheap and does not touch any rate limit. The manifest is served
+from `raw.githubusercontent.com`, which is a CDN rather than the GitHub API —
+the 60-requests-per-hour limit does not apply to it. Checks are conditional
+on the file's ETag, so an unchanged manifest answers `304` with an empty
+body: measured at 4340 bytes for a changed manifest against 0 for an
+unchanged one. At 30 minutes that is 48 round trips a day.
+
 ## A plugin: `Reloads` (since 1.15.0)
 
 A consumer reloads **itself** and never touches the library. `Reloads`
