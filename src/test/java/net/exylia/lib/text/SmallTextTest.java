@@ -1,5 +1,6 @@
 package net.exylia.lib.text;
 
+import net.exylia.lib.internal.LibrarySettings;
 import net.exylia.lib.text.internal.TextEngine;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.TextColor;
@@ -79,11 +80,19 @@ class SmallTextTest {
     }
 
     @Test
-    @DisplayName("off by default, so nothing changes until an owner asks")
-    void offByDefault() {
+    @DisplayName("turning it off restores ordinary capitals")
+    void switchingItOff() {
         TextEngine.smallText(false);
         assertEquals("WELCOME", plain("WELCOME"));
         assertFalse(TextEngine.smallText());
+    }
+
+    @Test
+    @DisplayName("on by default, since this is the Exylia look")
+    void onByDefault() {
+        // The default lives in the record, so a server with no config file
+        // and a server that never touched the key both get the same screen.
+        assertTrue(new LibrarySettings().smallText());
     }
 
     // ------------------------------------------------------------------

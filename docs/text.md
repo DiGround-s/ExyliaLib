@@ -134,16 +134,21 @@ palette tokens take no space, and bold takes one pixel more per character
 
 ## Small capitals
 
-One switch in `plugins/ExyliaLib/config.yml` draws every line of every Exylia
-plugin in small capitals — `WELCOME` reaches the screen as `ᴡᴇʟᴄᴏᴍᴇ`:
+Every line of every Exylia plugin is drawn in small capitals — `WELCOME`
+reaches the screen as `ᴡᴇʟᴄᴏᴍᴇ`. This is the Exylia look, so it is on by
+default; one switch in `plugins/ExyliaLib/config.yml` turns it off:
 
 ```yaml
-small-text: true
+small-text: false
 ```
 
-Off by default. It is not a Minecraft font — the client has one default font
-and no way to switch it from a message — so the letters are swapped for the
-Unicode small capitals that look like them.
+It is not a Minecraft font — the client has one default font and no way to
+switch it from a message — so the letters are swapped for the Unicode small
+capitals that look like them.
+
+A server already running 1.29.0 has `small-text: false` written in its file
+from that release, and a value already in the file wins over the default. Set
+it to `true`, or delete the line, to pick up the new look.
 
 | Written | Drawn |
 | --- | --- |

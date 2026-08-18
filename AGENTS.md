@@ -176,8 +176,9 @@ Text.of("{primary}&lWELCOME").send(player);
   commons. Las migraciones corren antes (todavía pueden leer el layout viejo) y
   `config-version` está reservado. Avisar sin borrar solo convierte cada clave
   retirada en una tradición del log de arranque.
-- **El small text es un booleano y se aplica sobre la plantilla, no sobre los
-  valores.** `small-text: true` y listo. Se transforma dentro del parse
+- **El small text es un booleano, va en `true` por defecto y se aplica sobre la
+  plantilla, no sobre los valores.** Es el look de Exylia, así que se activa
+  solo; `small-text: false` lo apaga. Se transforma dentro del parse
   cacheado, así que el coste es cero por jugador y por tick; un nombre de
   jugador y un número se sustituyen después y quedan intactos. Transformar el
   valor haría que `Steve` se lea `sᴛᴇᴠᴇ` y obligaría a transformar por jugador
