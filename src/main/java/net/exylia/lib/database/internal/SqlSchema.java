@@ -63,6 +63,24 @@ final class SqlSchema {
             throws SQLException {
         String table = dialect.identifier(model.table());
         boolean created = false;
+        String legacy = differentlyCasedTable(connection, table);
+        if (legacy != null) {
+            // The table is there under the engine's own folding, because
+            // something created it unquoted — an older ExyliaCommons plugin, or
+            // a hand-written CREATE. Every statement this library builds quotes
+            // the lower-case name, so without this the table is found, creation
+            // is skipped, and then every single read and write fails with
+            // "table not found (candidates are: THE_ONE_RIGHT_THERE)".
+            // Renaming once is what makes the existing rows reachable; the
+            // alternative, addressing it in its own case forever, spreads the
+            // engine's folding rules through every statement the library emits.
+            execute(connection, dialect.renameTable(legacy, table));
+            // The columns were folded by the same engine on the same day, so a
+            // table found this way always has them in that case too. Renaming
+            // the table alone moves the failure one level down, from "table not
+            // found" to "column not found", which is the same outage.
+            renameLegacyColumns(connection, model, table);
+        }
         if (!tableExists(connection, table)) {
             execute(connection, dialect.createTable(model));
             created = true;
@@ -104,18 +122,95 @@ final class SqlSchema {
      * </ul>
      */
     boolean tableExists(@NotNull Connection connection, @NotNull String table) throws SQLException {
+        return storedNameOf(connection, table, true) != null;
+    }
+
+    /**
+     * The name a same-named table is actually stored under, when that differs
+     * from the one this library addresses it by.
+     *
+     * <p>{@code null} when there is no such table, or when it is stored exactly
+     * as expected — the ordinary case, which must cost nothing extra.
+     */
+    private @Nullable String differentlyCasedTable(@NotNull Connection connection,
+                                                   @NotNull String table) throws SQLException {
+        String stored = storedNameOf(connection, table, false);
+        return stored != null && !stored.equals(table) ? stored : null;
+    }
+
+    /**
+     * The {@code TABLE_NAME} the driver reports for a table, in its own case.
+     *
+     * <p>Compared case-insensitively on purpose: the engines fold differently,
+     * and the point of the lookup is to find the table whatever case it landed
+     * in. {@code exactOnly} narrows that to the form this library writes, for
+     * the caller that is deciding whether to run {@code CREATE TABLE}.
+     */
+    private @Nullable String storedNameOf(@NotNull Connection connection, @NotNull String table,
+                                          boolean exactOnly) throws SQLException {
         DatabaseMetaData metadata = connection.getMetaData();
         for (String candidate : metadataForms(table)) {
             try (ResultSet tables = metadata.getTables(connection.getCatalog(), schemaOf(connection),
                     candidate, new String[]{"TABLE"})) {
                 while (tables.next()) {
-                    if (table.equalsIgnoreCase(tables.getString("TABLE_NAME"))) {
-                        return true;
+                    String name = tables.getString("TABLE_NAME");
+                    if (!table.equalsIgnoreCase(name)) {
+                        continue;
                     }
+                    if (exactOnly && !table.equals(name)) {
+                        continue;
+                    }
+                    return name;
                 }
             }
         }
-        return false;
+        return null;
+    }
+
+    /**
+     * Renames the columns of a just-renamed table into the case this library
+     * addresses them by.
+     *
+     * <p>Only the ones the model declares: a column belonging to another
+     * plugin's view of the same table is left exactly as it is, for the same
+     * reason {@link #addMissingColumns} never drops one.
+     */
+    private void renameLegacyColumns(@NotNull Connection connection, @NotNull EntityModel<?> model,
+                                     @NotNull String table) throws SQLException {
+        Map<String, String> stored = storedColumnNames(connection, table);
+        for (ColumnModel column : model.columns()) {
+            String wanted = dialect.identifier(column.name());
+            String actual = stored.get(wanted);
+            if (actual != null && !actual.equals(wanted)) {
+                execute(connection, dialect.renameColumn(table, actual, wanted));
+            }
+        }
+    }
+
+    /**
+     * Every column of a table, keyed by its folded name and valued by the name
+     * the driver reports.
+     */
+    private @NotNull Map<String, String> storedColumnNames(@NotNull Connection connection,
+                                                           @NotNull String table) throws SQLException {
+        DatabaseMetaData metadata = connection.getMetaData();
+        Map<String, String> found = new LinkedHashMap<>();
+        for (String candidate : metadataForms(table)) {
+            try (ResultSet columns = metadata.getColumns(connection.getCatalog(), schemaOf(connection),
+                    candidate, null)) {
+                while (columns.next()) {
+                    if (!table.equalsIgnoreCase(columns.getString("TABLE_NAME"))) {
+                        continue;
+                    }
+                    String name = columns.getString("COLUMN_NAME");
+                    found.put(name.toLowerCase(Locale.ROOT), name);
+                }
+            }
+            if (!found.isEmpty()) {
+                return found;
+            }
+        }
+        return found;
     }
 
     /**

@@ -39,6 +39,7 @@ class DebugTest {
         FakeServer.install();
         FakeServer.reset();
         Debug.releaseAll();
+        Debug.all(false);
         Debug.setSink((line, error) -> out.add(new Captured(line, error)));
 
         plugin = FakeServer.newPlugin("ExyliaTest");
@@ -49,6 +50,7 @@ class DebugTest {
     void tearDown() {
         Debug.resetSink();
         Debug.releaseAll();
+        Debug.all(false);
         FakeServer.reset();
     }
 
@@ -187,6 +189,64 @@ class DebugTest {
     @Test
     @DisplayName("the toggle only gates debug, not the rest")
     void toggleGatesOnlyDebug() {
+        debug.warn("still here");
+
+        assertEquals(1, out.size());
+    }
+
+    // ------------------------------------------------------------------
+    // The library-wide switch
+    // ------------------------------------------------------------------
+
+    @Test
+    @DisplayName("the library switch makes a plugin print without its own toggle")
+    void libraryWideSwitchEnables() {
+        Debug.all(true);
+
+        debug.debug("noisy detail");
+
+        assertEquals("[ExyliaTest] noisy detail", out.get(0).plain());
+    }
+
+    @Test
+    @DisplayName("the library switch reaches instances made before it was set")
+    void libraryWideSwitchReachesExistingInstances() {
+        Debug existing = Debug.of(plugin);
+        Debug.all(true);
+
+        existing.debug("noisy detail");
+
+        assertEquals(1, out.size(), "an instance created earlier must obey the switch too");
+    }
+
+    @Test
+    @DisplayName("turning the library switch off does not silence a plugin that enabled itself")
+    void libraryWideSwitchDoesNotOverrideThePlugin() {
+        debug.enabled(true);
+        Debug.all(false);
+
+        debug.debug("noisy detail");
+
+        // It raises the floor, so the plugin's own toggle still wins over off.
+        assertEquals(1, out.size());
+    }
+
+    @Test
+    @DisplayName("the library switch off leaves a plugin that never enabled itself silent")
+    void libraryWideSwitchOffIsQuiet() {
+        Debug.all(true);
+        Debug.all(false);
+
+        debug.debug("noisy detail");
+
+        assertTrue(out.isEmpty());
+    }
+
+    @Test
+    @DisplayName("the library switch gates only debug, not warnings")
+    void libraryWideSwitchGatesOnlyDebug() {
+        Debug.all(false);
+
         debug.warn("still here");
 
         assertEquals(1, out.size());

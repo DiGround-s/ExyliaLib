@@ -132,7 +132,7 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
      * killed rather than stopped, and releases that cannot finish starting.
      */
     private void startUpdateCheck() {
-        LibrarySettings.load(this);
+        Debug.all(LibrarySettings.load(this).debug());
         Thread updateThread = new Thread(
             () -> ExyliaLibUpdater.checkForUpdate(this),
             "ExyliaLib-Updater");
@@ -213,6 +213,9 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
      * <p>Exposed so a plugin can refresh the shared palette without a restart.
      */
     public void reloadPalette() {
+        // The debug switch too: a server owner turning it on to chase a bug
+        // should not have to restart to see the lines it was meant to show.
+        Debug.all(LibrarySettings.reload().debug());
         palette.reload();
         // Both files are the library's own shared configuration, and a server
         // owner running one reload command means both. Keeping formats.yml on a

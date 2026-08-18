@@ -66,6 +66,15 @@ public final class Debug {
     private static volatile Sink sink = (line, error) ->
             Bukkit.getConsoleSender().sendMessage(line);
 
+    /**
+     * The library-wide switch, from {@code plugins/ExyliaLib/config.yml}.
+     *
+     * <p>Static because it answers a question no single plugin owns: a server
+     * owner diagnosing a problem turns on the detail of everything at once,
+     * rather than editing a dozen configs and restarting between each.
+     */
+    private static volatile boolean allEnabled;
+
     private final String name;
     private final Plugin plugin;
     private volatile boolean debugEnabled;
@@ -96,6 +105,26 @@ public final class Debug {
     }
 
     /**
+     * Turns debug lines on for every plugin, from the library's own config.
+     *
+     * <p>Called by ExyliaLib when it loads {@code config.yml} and again when
+     * that file is reloaded. It raises the floor rather than replacing each
+     * plugin's toggle: a plugin that enabled its own stays enabled when this
+     * is off, and everything prints when this is on. A server owner chasing a
+     * bug flips one value instead of a dozen.
+     *
+     * @param enabled whether every plugin's debug lines print
+     */
+    public static void all(boolean enabled) {
+        allEnabled = enabled;
+    }
+
+    /** Whether the library-wide switch is on. */
+    public static boolean isAllEnabled() {
+        return allEnabled;
+    }
+
+    /**
      * Sets whether {@link #debug(String)} prints. Everything else always does.
      *
      * @param enabled whether debug lines show
@@ -106,9 +135,9 @@ public final class Debug {
         return this;
     }
 
-    /** Returns whether debug lines show. */
+    /** Returns whether debug lines show, from either switch. */
     public boolean isDebugEnabled() {
-        return debugEnabled;
+        return debugEnabled || allEnabled;
     }
 
     /** Prints an ordinary line: the day-to-day noise of a plugin running. */
@@ -143,7 +172,7 @@ public final class Debug {
      * values behind a decision. Toggle it from the plugin's config.
      */
     public void debug(@NotNull String message) {
-        if (debugEnabled) {
+        if (isDebugEnabled()) {
             send("muted", MUTED, message);
         }
     }

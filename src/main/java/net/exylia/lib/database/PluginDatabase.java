@@ -167,7 +167,11 @@ public final class PluginDatabase {
         // points at the plugin's own onEnable.
         EntityModel<T> model = EntityModel.of(recordType);
         DatabaseRuntime.Lease target = lease();
-        return new Repository<>(new GatedStorage(prepare(target, model), target::submit), model);
+        Debug debug = Debug.of(plugin);
+        return new Repository<>(new GatedStorage(prepare(target, model), target::submit), model,
+                // Against the plugin that owns the repository, not the library:
+                // the console line has to name whose query broke.
+                debug::error);
     }
 
     /**

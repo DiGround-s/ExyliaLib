@@ -703,6 +703,70 @@ class DatabasesTest {
         }
     }
 
+    @Test
+    @DisplayName("a failure nobody handled still reaches the console")
+    void anUnhandledFailureIsNeverSilent() {
+        // Reported from production: a plugin wrote find(id).thenAccept(...)
+        // with no error branch, the read failed, and the menu it fed simply
+        // never opened — no stack trace, no console line, nothing to grep for.
+        // Whoever drops the future is wrong, but a database error that reaches
+        // nobody at all is the library's fault, not theirs.
+        List<String> lines = net.exylia.lib.debug.DebugCapture.start();
+        try {
+            Repository<KitStats> repository = Databases.of(plugin).repository(KitStats.class);
+            await(repository.save(new KitStats("unhandled", "boxing", 1, 1)));
+
+            // An unknown filter column: a failure from inside the storage, on a
+            // background thread, on a future this test deliberately drops.
+            repository.where("no_such_column", 1).find();
+
+            // "A query on leaderboards (KitStats) failed" — matched on the
+            // wording this reporting produces, not on the table name alone,
+            // which the missing-index warning also mentions.
+            org.junit.jupiter.api.Assertions.assertTrue(
+                    waitFor(() -> lines.stream().anyMatch(line ->
+                            line.contains("query on leaderboards") && line.contains("failed"))),
+                    () -> "an unhandled database failure printed nothing: " + lines);
+        } finally {
+            net.exylia.lib.debug.DebugCapture.stop();
+        }
+    }
+
+    @Test
+    @DisplayName("reporting a failure does not steal it from the caller")
+    void reportingLeavesTheCallersChainIntact() {
+        List<String> lines = net.exylia.lib.debug.DebugCapture.start();
+        try {
+            Repository<KitStats> repository = Databases.of(plugin).repository(KitStats.class);
+
+            // The caller's own handler must still run, and still see the cause.
+            Throwable seen = repository.where("no_such_column", 1).find()
+                    .handle((rows, failure) -> failure)
+                    .join();
+
+            org.junit.jupiter.api.Assertions.assertNotNull(seen,
+                    "the caller's handler must still receive the failure");
+        } finally {
+            net.exylia.lib.debug.DebugCapture.stop();
+        }
+    }
+
+    /** Waits briefly for something a background thread produces. */
+    private static boolean waitFor(java.util.function.BooleanSupplier condition) {
+        for (int attempt = 0; attempt < 200; attempt++) {
+            if (condition.getAsBoolean()) {
+                return true;
+            }
+            try {
+                Thread.sleep(10L);
+            } catch (InterruptedException interrupted) {
+                Thread.currentThread().interrupt();
+                return false;
+            }
+        }
+        return condition.getAsBoolean();
+    }
+
     // ----------------------------------------------------------------- codecs
 
     @Test

@@ -308,6 +308,45 @@ public interface Dialect {
      */
     @NotNull String addColumn(@NotNull String table, @NotNull ColumnModel column);
 
+    /**
+     * {@code ALTER TABLE ... RENAME TO} for a table stored under another case.
+     *
+     * <p>Run once, when a table created unquoted by an older plugin is found
+     * folded to the engine's own case. Both names are quoted, so the statement
+     * says exactly which table becomes which and does not fold again halfway.
+     *
+     * <p>The same syntax on all four engines, which is why it is not abstract:
+     * MySQL also accepts {@code RENAME TABLE a TO b}, but the {@code ALTER}
+     * spelling is the one Postgres, H2 and MariaDB share.
+     *
+     * @param from the name the table is stored under
+     * @param to   the name this library addresses it by
+     * @return one statement
+     */
+    default @NotNull String renameTable(@NotNull String from, @NotNull String to) {
+        return "ALTER TABLE " + quote(from) + " RENAME TO " + quote(to);
+    }
+
+    /**
+     * {@code ALTER TABLE ... RENAME COLUMN} for a column stored under another
+     * case, alongside {@link #renameTable}.
+     *
+     * <p>Standard SQL since 2016 and supported by all four engines in the
+     * versions this library targets — MySQL from 8.0, MariaDB from 10.5.2.
+     * A dialect for an older server would override it with the
+     * {@code CHANGE COLUMN} spelling, which needs the type repeated.
+     *
+     * @param table the table, already in the case this library uses
+     * @param from  the name the column is stored under
+     * @param to    the name this library addresses it by
+     * @return one statement
+     */
+    default @NotNull String renameColumn(@NotNull String table, @NotNull String from,
+                                         @NotNull String to) {
+        return "ALTER TABLE " + quote(table) + " RENAME COLUMN " + quote(from)
+                + " TO " + quote(to);
+    }
+
     // ------------------------------------------------------------------- DML
 
     /**

@@ -96,6 +96,37 @@ class SqlBackendTest {
     }
 
     @Test
+    @DisplayName("a table the engine folded to upper case is found, not created again")
+    void findsTableStoredInTheEnginesOwnCase() throws SQLException {
+        // Exactly what a server has after a plugin created the table unquoted:
+        // H2 folded the name to PLAYER_STATS. Reported from production, where
+        // ensureTable said "created" on every boot and every read then failed
+        // with "Table player_stats not found (candidates are: PLAYER_STATS)".
+        try (Connection connection = connect(); Statement statement = connection.createStatement()) {
+            statement.execute("CREATE TABLE player_stats (uuid VARCHAR(36) PRIMARY KEY)");
+        }
+
+        assertFalse(backend.ensureTable(model).createdTable(),
+                "the table is already there under the engine's own folding");
+    }
+
+    @Test
+    @DisplayName("a legacy upper-case table is read and written through, not shadowed")
+    void readsAndWritesTheLegacyTable() throws SQLException {
+        try (Connection connection = connect(); Statement statement = connection.createStatement()) {
+            statement.execute("CREATE TABLE player_stats (uuid VARCHAR(36) PRIMARY KEY)");
+        }
+        backend.ensureTable(model);
+        UUID uuid = UUID.randomUUID();
+
+        // The failure this reproduces was not cosmetic: every read and write
+        // for the record type threw, so the plugin's menu never opened.
+        backend.save(model, stats(uuid, 1200, "exylia"));
+
+        assertNotNull(backend.find(model, uuid));
+    }
+
+    @Test
     @DisplayName("an index is created once and never again")
     void indexCreationIsIdempotent() throws SQLException {
         assertEquals(List.of("idx_player_stats_clan"), backend.ensureTable(model).createdIndexes());

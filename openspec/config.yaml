@@ -1,0 +1,61 @@
+schema: spec-driven
+project: exylialib
+artifact_store:
+  mode: hybrid
+session:
+  execution_mode: auto
+  delivery_strategy: auto-chain
+  review_budget_lines: 400
+context: |
+  Java 21 shared Minecraft plugin library built with Gradle 8.14.4.
+  Targets Paper API 1.21.4 and must remain compatible with Spigot, Paper, Purpur, and Folia.
+  Public APIs live under net.exylia.lib; implementations belong in module internal packages.
+  Runtime integrations use compileOnly; only private implementation dependencies are shaded and relocated.
+  Module entry points own lifecycle cleanup, palette invalidation, and plugin-scoped registries.
+  Tests use JUnit Jupiter with FakeServer seams and behavior-focused module tests.
+  Public APIs, Javadoc, and documentation are English and versioned contracts.
+strict_tdd: true
+testing:
+  runner:
+    framework: JUnit Jupiter 5.11.4
+    command: ./gradlew test
+  layers:
+    unit: JUnit Jupiter behavior tests with FakeServer
+    integration: H2 in-memory database and real scheduler/database paths
+    e2e: unavailable
+  coverage:
+    available: false
+    command: ""
+  quality:
+    linter: ""
+    type_checker: javac through ./gradlew compileJava
+    formatter: ""
+  build_command: ./gradlew clean build
+  current_status: blocked by existing compile failure in ExyliaLib.loadFormats()
+rules:
+  proposal:
+    - Include rollback plan for risky or public API changes.
+    - Preserve public configuration and API compatibility unless migration is explicit.
+  specs:
+    - Use Given/When/Then scenarios and RFC 2119 language.
+    - Define lifecycle, threading, nullability, and Folia compatibility when applicable.
+  design:
+    - Keep public APIs outside internal packages and document tradeoffs.
+    - Prefer packets over server state for client-only visuals.
+  tasks:
+    - Group work into independently verifiable work units.
+    - Auto-chain work forecast above 400 authored changed lines.
+  apply:
+    guidelines:
+      - Follow module entry-point and internal-package patterns.
+      - Use Tasks, Caffeine, records-based Configs, and Components where applicable.
+      - Update module docs with every public API change.
+    tdd: true
+    test_command: ./gradlew test
+  verify:
+    test_command: ./gradlew test
+    build_command: ./gradlew clean build
+    coverage_threshold: 0
+  archive:
+    - Warn before merging destructive deltas.
+    - Preserve archived change folders as audit history.

@@ -199,6 +199,43 @@ Two deliberate differences, both bug fixes rather than format changes:
   an empty list, and reading absence gives an empty list rather than `null` —
   every list consumer in the ecosystem was either null-checking or a latent NPE.
 
+### A table an older plugin created unquoted
+
+Since 1.27.0, a table stored under the engine's own folding — `PLAYER_DATA`
+where this library writes `"player_data"` — is renamed once, with its declared
+columns, on the start that finds it.
+
+The library always quotes a lower-case identifier, so on H2 and Postgres a
+table created unquoted by an older plugin was found by the metadata lookup,
+skipped by `CREATE TABLE`, and then missed by every statement:
+
+```
+Table "player_data" not found (candidates are: "PLAYER_DATA")
+```
+
+Every read and write for that record type failed, and the rows were still
+there. Renaming is what makes them reachable; addressing the table in its own
+case instead would spread each engine's folding rules through every statement
+the library emits. Columns another plugin owns are never touched.
+
+## Failures are never silent
+
+Since 1.27.0, an operation that fails prints through `Debug` against the plugin
+that owns the repository, **even when nobody attached a handler**:
+
+```
+[ExyliaArmorTrims] A find on player_data (PlayerData) failed
+```
+
+A caller that does handle it — `exceptionally`, `handle`, `whenComplete` —
+still gets it, and still gets it first. This only covers the dropped future.
+
+The bug that prompted it: a plugin wrote `find(id).thenAccept(...)` with no
+error branch, the read failed, and the menu it fed simply never opened. No
+stack trace, no console line, nothing to search the logs for. Dropping the
+future is the caller's mistake; a database error that reaches nobody at all
+was the library's.
+
 ## Threads
 
 Every operation runs off the game threads, through `Tasks`, on the pool the
