@@ -328,9 +328,72 @@ class ItemReaderTest {
     @DisplayName("a banner design that will not decode is reported, not thrown")
     void brokenBannerDesign() {
         Item item = read("material: SHIELD\nbanner_design: \"not base64 at all\"\n");
-
         assertNull(item.traits().banner());
         assertEquals(1, problems.size());
+    }
+
+    @Test
+    @DisplayName("a banner design given as a placeholder is kept to resolve later")
+    void bannerDesignTemplate() {
+        // ExyliaShields, menus/design_editor.yml: every row previews the
+        // player's current design plus the layer that row would add, so the
+        // whole design is a value computed per row.
+        Item item = read("material: SHIELD\nbanner_design: \"%pattern_preview%\"\n");
+        Banner banner = item.traits().banner();
+        assertNotNull(banner);
+        assertEquals("%pattern_preview%", banner.template());
+        assertTrue(banner.patterns().isEmpty());
+        assertEquals(0, problems.size(),
+                "a design that has not arrived yet is not a broken one");
+    }
+
+    @Test
+    @DisplayName("an item whose banner is a placeholder is dynamic")
+    void bannerTemplateIsDynamic() {
+        // Without this the cache keeps the first viewer's design and hands it
+        // to everyone, so twenty different shields draw the same picture.
+        Item item = read("material: SHIELD\nbanner_design: \"%pattern_preview%\"\n");
+        assertTrue(item.isDynamic());
+    }
+
+    @Test
+    @DisplayName("an item whose banner design is spelled out is not dynamic")
+    void spelledOutBannerIsNotDynamic() {
+        Item item = read("""
+                material: WHITE_BANNER
+                banner_patterns:
+                  base_color: WHITE
+                  patterns:
+                    - pattern: STRIPE_BOTTOM
+                      color: LIGHT_GRAY
+                """);
+        assertFalse(item.isDynamic(),
+                "a design known at load time is shared, not rebuilt per viewer");
+    }
+
+    @Test
+    @DisplayName("a banner design with a placeholder in one field is dynamic")
+    void bannerFieldPlaceholderIsDynamic() {
+        Item item = read("""
+                material: WHITE_BANNER
+                banner_patterns:
+                  base_color: "%base_colour%"
+                  patterns:
+                    - pattern: STRIPE_BOTTOM
+                      color: LIGHT_GRAY
+                """);
+        assertTrue(item.isDynamic());
+    }
+
+    @Test
+    @DisplayName("a saved design still decodes when it is not a placeholder")
+    void bannerDesignWithoutTemplate() {
+        Banner original = new Banner("white", List.of(new Banner.Layer("border", "black")));
+        Item item = read("material: SHIELD\nbanner_design: \"" + Items.encode(original) + "\"\n");
+        Banner banner = item.traits().banner();
+        assertNotNull(banner);
+        assertNull(banner.template(), "a design that is already here is not a promise of one");
+        assertEquals(original, banner);
     }
 
     @Test

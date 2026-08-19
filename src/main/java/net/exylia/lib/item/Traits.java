@@ -52,11 +52,17 @@ public record Traits(
     /**
      * Returns whether any trait has to be resolved per viewer.
      *
-     * <p>Only trims can: a potion's amplifier may hold a placeholder, but the
-     * effect list is resolved at build time either way.
+     * <p>Trims and banners can: a potion's amplifier may hold a placeholder,
+     * but the effect list is resolved at build time either way.
+     *
+     * <p>A banner that answers yes here and is not asked would be worse than
+     * one that is not drawn at all: {@code ItemCache} would keep the first
+     * viewer's design and hand it to everyone, so a menu of twenty different
+     * shields would show the same one twenty times.
      */
     public boolean isDynamic() {
-        return trim != null && trim.isDynamic();
+        return (trim != null && trim.isDynamic())
+                || (banner != null && banner.isDynamic());
     }
 
     /** Starts describing traits. */

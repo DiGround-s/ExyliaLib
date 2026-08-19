@@ -155,7 +155,11 @@ public final class TraitApplier {
      */
     private static void banner(ItemStack item, Banner banner, UnaryOperator<String> resolve,
                                Reporter problems) {
-        List<Pattern> layers = layers(banner, resolve, problems);
+        Banner design = resolved(banner, resolve, problems);
+        if (design == null) {
+            return;
+        }
+        List<Pattern> layers = layers(design, resolve, problems);
         ItemMeta meta = item.getItemMeta();
         if (meta instanceof BannerMeta bannerMeta) {
             bannerMeta.setPatterns(layers);
@@ -166,8 +170,8 @@ public final class TraitApplier {
                 || !(blockMeta.getBlockState() instanceof org.bukkit.block.Banner state)) {
             return;
         }
-        if (banner.baseColor() != null) {
-            DyeColor base = Registries.dye(resolve.apply(banner.baseColor()));
+        if (design.baseColor() != null) {
+            DyeColor base = Registries.dye(resolve.apply(design.baseColor()));
             if (base != null) {
                 state.setBaseColor(base);
             }
@@ -176,6 +180,36 @@ public final class TraitApplier {
         state.update();
         blockMeta.setBlockState(state);
         item.setItemMeta(blockMeta);
+    }
+
+    /**
+     * The design to draw, with a template replaced by what it stood for.
+     *
+     * <p>A template is a placeholder holding a whole encoded design, so the
+     * design only exists once there is a viewer to resolve it against.
+     *
+     * <p>An unresolved or unreadable one draws nothing rather than a blank
+     * banner: a menu row that quietly loses its picture is a bug somebody has
+     * to notice, and a reported one is a bug somebody can find.
+     *
+     * @return the design, or {@code null} when there is nothing to draw
+     */
+    private static Banner resolved(Banner banner, UnaryOperator<String> resolve,
+                                   Reporter problems) {
+        String template = banner.template();
+        if (template == null) {
+            return banner;
+        }
+        String encoded = resolve.apply(template);
+        if (encoded == null || encoded.isEmpty() || encoded.equals(template)) {
+            problems.found("banner_design", "nothing resolved \"" + template + "\"");
+            return null;
+        }
+        Banner decoded = BannerCodec.decode(encoded);
+        if (decoded == null) {
+            problems.found("banner_design", "\"" + template + "\" could not be decoded");
+        }
+        return decoded;
     }
 
     private static List<Pattern> layers(Banner banner, UnaryOperator<String> resolve,

@@ -262,10 +262,18 @@ public final class ItemReader {
      * <p>{@code banner_design} carries one base64 string, which is how a design
      * a player built in an editor is saved; {@code banner_patterns} spells the
      * same thing out. Both end up here as the same value.
+     *
+     * <p>{@code banner_design} may also be a placeholder, for a row whose
+     * design is computed per viewer. There is nothing to decode at this point —
+     * the design does not exist yet — so it is kept as a template and decoded
+     * when the item is drawn.
      */
     private static Banner banner(ConfigurationSection section, Problems problems) {
         String design = first(section, "banner_design", "banner-design");
         if (design != null && !design.isEmpty()) {
+            if (design.indexOf('%') >= 0) {
+                return Banner.template(design);
+            }
             Banner decoded = BannerCodec.decode(design);
             if (decoded == null) {
                 problems.found("banner_design", "could not be decoded");

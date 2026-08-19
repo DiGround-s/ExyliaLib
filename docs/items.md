@@ -165,6 +165,7 @@ banner_patterns:
       color: LIGHT_GRAY
 
 banner_design: "<base64>"   # the same thing, as an editor saves it
+banner_design: "%shield_preview%"   # or a design computed per viewer
 
 force-consumable: true
 consumable-time: 1.0
@@ -183,6 +184,40 @@ nbt:
 
 A trait that does not fit its material does nothing. Setting a potion on a sword
 is a leftover key in a config file, not a reason to fail while drawing a menu.
+
+### A banner design computed per viewer
+
+`banner_design` also takes a placeholder, for a row whose design is not known
+until there is somebody looking at it:
+
+```yaml
+material: SHIELD
+banner_design: "%pattern_preview%"
+```
+
+```java
+session.entries("patterns", patterns.stream()
+        .map(id -> UiEntry.of(id)
+                .with("pattern_preview", Items.encode(previewOf(design, id)))
+                .build())
+        .toList());
+```
+
+This is a different thing from a placeholder *inside* a design, which
+`banner_patterns` already allowed. There the shape is known when the file is
+read and only the values arrive later; here the whole design arrives at once,
+base colour and an unknown number of layers together, so there is nothing to
+read at load time at all. A shield editor previewing *"your current design, plus
+the layer this row would add"* needs the second, and no arrangement of the first
+expresses it.
+
+An item whose design is a placeholder is **dynamic**: it is rendered per viewer
+rather than once and shared. Without that a menu of twenty different shields
+would draw whichever one was built first, twenty times.
+
+A placeholder nothing resolves, or a value that is not a design, draws no banner
+and is reported. A row that quietly loses its picture is a bug somebody has to
+notice; a reported one is a bug somebody can find.
 
 ## Problems are reported, not swallowed
 
