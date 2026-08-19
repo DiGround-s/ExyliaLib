@@ -12,7 +12,7 @@ package net.exylia.lib.util.reward;
  * refuses it loudly; a plugin that asked to keep it does not lose it because a
  * database was unreachable.
  *
- * @since 1.33.0
+ * @since 1.34.0
  */
 public enum OverflowPolicy {
 

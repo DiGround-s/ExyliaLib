@@ -32,7 +32,7 @@ import java.util.Set;
  * &mdash; emptying an ender chest because a two-year-old row never mentioned
  * one would be a very expensive way to be consistent.
  *
- * @since 1.33.0
+ * @since 1.34.0
  */
 public enum SnapshotPart {
 

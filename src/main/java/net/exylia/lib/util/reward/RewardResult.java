@@ -13,7 +13,7 @@ import org.jetbrains.annotations.Nullable;
  * @param outcome how it ended
  * @param detail  what went wrong, for {@link RewardOutcome#FAILED}, else {@code null}
  * @param failure the exception, if one was thrown
- * @since 1.33.0
+ * @since 1.34.0
  */
 public record RewardResult(@NotNull RewardEntry reward,
                            @NotNull RewardOutcome outcome,

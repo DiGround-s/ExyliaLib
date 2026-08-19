@@ -61,7 +61,7 @@ import java.util.function.Consumer;
  * everything else in the snapshot survives &mdash; and the problem is reported
  * rather than swallowed.
  *
- * @since 1.33.0
+ * @since 1.34.0
  */
 public final class SnapshotCodec {
 

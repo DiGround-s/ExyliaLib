@@ -22,7 +22,7 @@ import net.exylia.lib.config.Key;
  *
  * @param importLegacy whether to copy the ExyliaCommons table on first use
  *
- * @since 1.33.0
+ * @since 1.34.0
  */
 @Comment("Stored player snapshots: inventories held while a player is somewhere")
 @Comment("else, such as an arena, an event or a sandbox world.")

@@ -12,7 +12,7 @@ A reward is something a server owner configured — an item, a command, some mon
 — along with the odds of getting it and who is allowed to. This module holds
 them, decides which ones happen, and hands them over on the right thread.
 
-**Since 1.33.0.**
+**Since 1.34.0.**
 
 ---
 
@@ -75,12 +75,12 @@ List<RewardEntry> owed = RewardCodec.decodeLegacyCommands(row.commandsJson());
 
 | Type | Payload | Since |
 | --- | --- | --- |
-| `COMMAND` | `command` — run by the console, with or without a leading `/` | 1.33.0 |
-| `ITEM` | `itemSnapshot` — a material, a head string, or `bytes:` | 1.33.0 |
-| `MESSAGE` | `message`, in Exylia text notation | 1.33.0 |
-| `ECONOMY` | `value` as written, plus an optional `currency` | 1.33.0 |
-| `EXPERIENCE` | `value`, in points | 1.33.0 |
-| `POTION` | `value`, as `util/Effects` reads it: `SPEED:1:300` | 1.33.0 |
+| `COMMAND` | `command` — run by the console, with or without a leading `/` | 1.34.0 |
+| `ITEM` | `itemSnapshot` — a material, a head string, or `bytes:` | 1.34.0 |
+| `MESSAGE` | `message`, in Exylia text notation | 1.34.0 |
+| `ECONOMY` | `value` as written, plus an optional `currency` | 1.34.0 |
+| `EXPERIENCE` | `value`, in points | 1.34.0 |
+| `POTION` | `value`, as `util/Effects` reads it: `SPEED:1:300` | 1.34.0 |
 
 The first three are the ones commons stored. `RewardType.isLegacy()` says which.
 

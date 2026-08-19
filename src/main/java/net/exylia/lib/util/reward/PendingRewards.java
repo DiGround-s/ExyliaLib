@@ -41,7 +41,7 @@ import java.util.UUID;
  *       write to {@code Tasks.of(plugin).runAsync(...)} and return.</li>
  * </ul>
  *
- * @since 1.33.0
+ * @since 1.34.0
  */
 public interface PendingRewards {
 

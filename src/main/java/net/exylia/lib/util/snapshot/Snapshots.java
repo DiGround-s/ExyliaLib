@@ -58,7 +58,7 @@ import java.util.concurrent.ConcurrentHashMap;
  * and the palette reload does not reach this module. A snapshot holds items and
  * numbers; nothing in it is a component.
  *
- * @since 1.33.0
+ * @since 1.34.0
  */
 public final class Snapshots {
 

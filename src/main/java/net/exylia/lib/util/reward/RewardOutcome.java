@@ -9,7 +9,7 @@ package net.exylia.lib.util.reward;
  * "why did nobody get this" could not tell the difference, and neither could the
  * statistics.
  *
- * @since 1.33.0
+ * @since 1.34.0
  */
 public enum RewardOutcome {
 

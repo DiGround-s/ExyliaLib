@@ -54,7 +54,7 @@ import java.util.Set;
  * own copy. Two snapshots are equal when every field is, which is what makes a
  * wire-format test meaningful.
  *
- * @since 1.33.0
+ * @since 1.34.0
  */
 public final class Snapshot {
 
@@ -95,7 +95,7 @@ public final class Snapshot {
      * @param ambient   whether it came from a beacon
      * @param particles whether particles were shown
      * @param icon      whether the icon was shown
-     * @since 1.33.0
+     * @since 1.34.0
      */
     public record Effect(@NotNull String type, int duration, int amplifier,
                          boolean ambient, boolean particles, boolean icon) {
@@ -115,7 +115,7 @@ public final class Snapshot {
      * @param velocityZ     how fast they were moving, south
      * @param walkSpeed     their walk speed
      * @param invulnerable  whether they could be hurt
-     * @since 1.33.0
+     * @since 1.34.0
      */
     public record Physical(int fireTicks, int remainingAir,
                            double velocityX, double velocityY, double velocityZ,

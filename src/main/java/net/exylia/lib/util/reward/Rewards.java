@@ -56,7 +56,7 @@ import java.util.function.BiConsumer;
  * {@link RewardCodec} round-trips a list. An editor built on those touches no
  * internals.
  *
- * @since 1.33.0
+ * @since 1.34.0
  */
 public final class Rewards {
 

@@ -20,7 +20,7 @@ import java.util.Locale;
  * of throwing: a server mid-migration must lose at most the reward it cannot
  * understand.
  *
- * @since 1.33.0
+ * @since 1.34.0
  */
 public enum RewardType {
 
@@ -36,14 +36,14 @@ public enum RewardType {
     /**
      * Deposits money through the economy module.
      *
-     * @since 1.33.0
+     * @since 1.34.0
      */
     ECONOMY,
 
     /**
      * Grants experience.
      *
-     * @since 1.33.0
+     * @since 1.34.0
      */
     EXPERIENCE,
 
@@ -51,7 +51,7 @@ public enum RewardType {
      * Applies a potion effect, written the way {@link net.exylia.lib.util.Effects}
      * reads it: {@code SPEED:1:300}.
      *
-     * @since 1.33.0
+     * @since 1.34.0
      */
     POTION;
 

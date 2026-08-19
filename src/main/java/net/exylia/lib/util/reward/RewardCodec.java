@@ -52,7 +52,7 @@ import java.util.function.BiConsumer;
  * suddenly held {@code []} where it used to hold {@code NULL} would read back
  * the same, but it would not compare the same, and something out there compares.
  *
- * @since 1.33.0
+ * @since 1.34.0
  */
 public final class RewardCodec {
 

@@ -51,7 +51,7 @@ import java.util.concurrent.atomic.AtomicLong;
  * <p>{@link #claim} arranges both halves on its own: the store is read off the
  * main thread and the delivery comes back onto the player's.
  *
- * @since 1.33.0
+ * @since 1.34.0
  */
 public final class PluginRewards {
 

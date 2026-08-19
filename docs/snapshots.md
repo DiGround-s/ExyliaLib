@@ -1,7 +1,7 @@
 # Snapshot module
 
 A player's state, kept for later — held in memory for the length of a menu, or
-stored so it survives a disconnect, a restart and a crash. Since 1.33.0.
+stored so it survives a disconnect, a restart and a crash. Since 1.34.0.
 
 Entry point: `net.exylia.lib.util.snapshot.Snapshots`.
 

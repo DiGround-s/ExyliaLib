@@ -33,7 +33,7 @@ import java.util.UUID;
  * field names {@link RewardCodec} reads and writes are fixed. See that class for
  * the format; this one only describes what the fields mean.
  *
- * @since 1.33.0
+ * @since 1.34.0
  */
 public final class RewardEntry {
 
@@ -132,7 +132,7 @@ public final class RewardEntry {
      * {@link RewardType#EXPERIENCE}, and a potion string such as
      * {@code SPEED:1:300} for {@link RewardType#POTION}.
      *
-     * @since 1.33.0
+     * @since 1.34.0
      */
     public @Nullable String value() {
         return value;
@@ -142,7 +142,7 @@ public final class RewardEntry {
      * Which currency an {@link RewardType#ECONOMY} reward pays into, or
      * {@code null} for the server's default.
      *
-     * @since 1.33.0
+     * @since 1.34.0
      */
     public @Nullable String currency() {
         return currency;
@@ -167,7 +167,7 @@ public final class RewardEntry {
     /**
      * The low end of a random amount, or {@code null} for a fixed one.
      *
-     * @since 1.33.0
+     * @since 1.34.0
      */
     public @Nullable Integer minAmount() {
         return minAmount;
@@ -176,7 +176,7 @@ public final class RewardEntry {
     /**
      * The high end of a random amount, or {@code null} for a fixed one.
      *
-     * @since 1.33.0
+     * @since 1.34.0
      */
     public @Nullable Integer maxAmount() {
         return maxAmount;
@@ -185,7 +185,7 @@ public final class RewardEntry {
     /**
      * Whether this reward gives a random amount rather than a fixed one.
      *
-     * @since 1.33.0
+     * @since 1.34.0
      */
     public boolean isRanged() {
         return minAmount != null && maxAmount != null;
@@ -217,7 +217,7 @@ public final class RewardEntry {
      * entry is never picked by a weighted roll, which is why the default is
      * {@code 1}.
      *
-     * @since 1.33.0
+     * @since 1.34.0
      */
     public double weight() {
         return weight;
@@ -351,7 +351,7 @@ public final class RewardEntry {
      *
      * @param amount how much, as written, so a decimal is not rounded on its way
      *               through a {@code double}
-     * @since 1.33.0
+     * @since 1.34.0
      */
     public static @NotNull Builder economy(@NotNull String amount) {
         return of(RewardType.ECONOMY).value(amount);
@@ -361,7 +361,7 @@ public final class RewardEntry {
      * A reward that grants experience points.
      *
      * @param points how much experience
-     * @since 1.33.0
+     * @since 1.34.0
      */
     public static @NotNull Builder experience(int points) {
         return of(RewardType.EXPERIENCE).value(Integer.toString(points));
@@ -372,7 +372,7 @@ public final class RewardEntry {
      *
      * @param effect the effect, written as {@link net.exylia.lib.util.Effects}
      *               reads it: {@code SPEED:1:300}
-     * @since 1.33.0
+     * @since 1.34.0
      */
     public static @NotNull Builder potion(@NotNull String effect) {
         return of(RewardType.POTION).value(effect);
@@ -518,7 +518,7 @@ public final class RewardEntry {
          * finally handed over would change what they earned.
          *
          * @param amount how many
-         * @since 1.33.0
+         * @since 1.34.0
          */
         public @NotNull Builder fixedAmount(int amount) {
             this.itemAmount = amount;
@@ -536,7 +536,7 @@ public final class RewardEntry {
          *
          * @param min the low end
          * @param max the high end
-         * @since 1.33.0
+         * @since 1.34.0
          */
         public @NotNull Builder amountBetween(int min, int max) {
             this.minAmount = Math.min(min, max);

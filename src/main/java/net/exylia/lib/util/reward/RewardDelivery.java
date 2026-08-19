@@ -11,7 +11,7 @@ import java.util.List;
  * <em>which</em> reward failed and tell the player something useful.
  *
  * @param results one per reward, in the order they were given
- * @since 1.33.0
+ * @since 1.34.0
  */
 public record RewardDelivery(@NotNull List<RewardResult> results) {
 

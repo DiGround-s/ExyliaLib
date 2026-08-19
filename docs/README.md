@@ -32,7 +32,9 @@ against the source — rules and routes are in `AGENTS.md` under
 | [Sequences](sequences.md) | Choreographed effects from configuration: shapes, sounds, delays — the ExyliaCommons syntax, compiled once | 1.30.0 |
 | [Previews](previews.md) | Showing one player an effect against an empty sky, and putting them back | 1.30.0 |
 | [Redis](redis.md) | A shared cache that makes one database look the same from every server — a change on one is visible on the others immediately | 1.31.0 |
-| [Rewards](rewards.md) | What a player earned — items, commands, money, odds and conditions — stored exactly as ExyliaCommons stored it | 1.33.0 |
+| [Rewards](rewards.md) | What a player earned — items, commands, money, odds and conditions — stored exactly as ExyliaCommons stored it | 1.34.0 |
+| [Snapshots](snapshots.md) | A player's state kept for later — in memory for a menu, or stored so it survives a restart | 1.34.0 |
+| [Teleport](teleport.md) | Moving a player: countdowns that moving or damage calls off, safe landings, `/back`, requests, random spots and handovers to another server | 1.34.0 |
 | [Wizards](wizard.md) | Walking a player through several questions — branches, a review they can go back from, and nothing applied until they confirm | 1.34.0 |
 
 Root classes that are not a module:

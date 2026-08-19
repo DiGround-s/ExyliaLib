@@ -963,7 +963,9 @@ Raíz de código: `src/main/java/net/exylia/lib/`. Raíz de tests:
 | redis | `redis/Redis`, `RedisSettings` | `redis/internal/` (Jedis confinado en `JedisClient`) | [docs/redis.md](docs/redis.md) | 1.31.0 |
 | poll de auto-actualización | `update-check-minutes` en `internal/LibrarySettings` | `internal/ExyliaLibUpdater` (ETag), timer en `ExyliaLib.startUpdateCheck` | [docs/reload.md](docs/reload.md) | 1.30.0 |
 | claves generadas | `database/Id.generated`, `Repository.insert`/`insertReturning` | `Dialect.insertGenerated`, `SqlBackend.insert` (`getGeneratedKeys`), `MongoBackend.insert` (`$inc`), `EntityModel.withId` | [docs/database.md](docs/database.md) | 1.32.0 |
-| util (rewards) | `util/reward/Rewards`, `PluginRewards`, `RewardEntry`, `RewardType`, `RewardCodec`, `RewardResult`, `RewardDelivery`, `RewardOutcome`, `OverflowPolicy`, `PendingRewards` | `util/reward/internal/` (`Providers`, `ItemGiver`, `Conditions`, `Rolls`), `util/reward/Previews` | [docs/rewards.md](docs/rewards.md) | 1.33.0 |
+| util (rewards) | `util/reward/Rewards`, `PluginRewards`, `RewardEntry`, `RewardType`, `RewardCodec`, `RewardResult`, `RewardDelivery`, `RewardOutcome`, `OverflowPolicy`, `PendingRewards` | `util/reward/internal/` (`Providers`, `ItemGiver`, `Conditions`, `Rolls`), `util/reward/Previews` | [docs/rewards.md](docs/rewards.md) | 1.34.0 |
+| util (snapshots) | `util/snapshot/Snapshots`, `PluginSnapshots`, `Snapshot`, `SnapshotPart`, `SnapshotCodec`, `SnapshotSettings` | `util/snapshot/internal/` (`PlayerState`, `SnapshotRow`, `LegacyRow`, `LegacyImport`, `SnapshotRuntime`) | [docs/snapshots.md](docs/snapshots.md) | 1.34.0 |
+| util (teleport) | `util/teleport/Teleports`, `PluginTeleports`, `TeleportRequest`, `TeleportHandle`, `TeleportResult`, `TeleportCause`, `TeleportSettings`, `ExyliaLocation`, `ExyliaTeleportEvent`, `RandomArea`, `TeleportDirection`, `TeleportRequestTicket`, `TpaAcceptance`, `TpaOutcome` | `util/teleport/internal/` (`TeleportRuntime`, `RunningTeleport`, `TeleportPlan`, `Teleporter`, `SafeLocations`, `RandomLocations`, `BackHistory`, `TpaBook`, `CrossServer`) | [docs/teleport.md](docs/teleport.md) | 1.34.0 |
 | util (wizard) | `util/wizard/Wizards`, `PluginWizards`, `Wizard`, `WizardBuilder` (+ `Branch`), `WizardStep` (+ `Prompt`), `WizardKey`, `WizardValues`, `WizardRun`, `WizardOutcome`, `WizardResult`, `WizardSettings`, `WizardException` | `util/wizard/internal/` (`WizardRuntime`, `WizardSession`, `WizardListener`); `init`/`forget`/`release` en `ExyliaLib` | [docs/wizard.md](docs/wizard.md) | 1.34.0 |
 
 Clases raíz que no son módulo: `ExyliaLib.java` (ciclo de vida y limpieza),
@@ -982,6 +984,8 @@ Son package-private a propósito; los tests viven del mismo paquete:
 | `reload/Reloads` | `listenerCount()` (observación de fugas) |
 | `skull/internal/SkullRuntime` | `installForTests` (lookup y store), `seed` (textura sin red) |
 | `skull/internal/Lookup` | la interfaz que sustituye a Mojang en tests |
+| `util/snapshot/SnapshotCodec` | `setItems/resetItems` (`ItemIo`: cómo un ítem se vuelve texto — un `ItemStack` real no se construye sin servidor) |
+| `util/snapshot/internal/SnapshotRuntime` | `forgetReportedForTests` (los avisos ya dichos) |
 | tests compartidos | `src/test/java/net/exylia/lib/FakeServer.java`, `FakePlayer.java`, `debug/DebugCapture.java`; `FakeServer.runAsyncForReal()` ejecuta las async en un hilo real |
 
 ### Protocolo de release (resumen; el detalle está en *Verificación*)

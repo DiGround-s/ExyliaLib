@@ -62,7 +62,7 @@ import java.util.function.Consumer;
  * keyed on the player alone, which meant a player who joined an event while in
  * an arena lost the inventory they actually owned.
  *
- * @since 1.33.0
+ * @since 1.34.0
  */
 public final class PluginSnapshots {
 
