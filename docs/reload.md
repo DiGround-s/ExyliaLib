@@ -17,6 +17,8 @@ conventionally gated by one node.
 | `/exylialib reload` | Reloads the library's own runtime settings |
 | `/exylialib info` (since 1.35.0) | Version, platform, `config.yml` switches, and which plugins depend on the library |
 | `/exylialib stats` (since 1.35.0) | Live counters from every module |
+| `/exylialib export <plugin>` (since 1.36.0) | Writes that plugin's tables to a dump |
+| `/exylialib import <plugin> <file> [force]` (since 1.36.0) | Reads one back; `force` **merges**, it does not replace |
 
 ### `/exylialib reload`
 
@@ -62,6 +64,31 @@ exposes for diagnostics —
 `Menus.registered()`, `Actions.registered()`, `Regions.registered()`,
 `Databases.registered()`/`isReady()`/`engine()`, `Redis.isActive()`/`stats()`
 and `Configs.loaded()`.
+
+### `/exylialib export` and `/exylialib import` (since 1.36.0)
+
+The transfer module behind a command, so a server owner moves a plugin's
+database without anybody writing code. Both sit behind `exylialib.admin` like
+the rest, and the plugin argument suggests only plugins that actually store
+something — `Databases.registeredPlugins()`, so a name that is suggested is a
+name that resolves.
+
+Dumps live in one folder for the whole server, `plugins/ExyliaLib/dumps/`,
+rather than one per plugin: a migration moves several plugins at once, and an
+owner should be able to copy one directory. The import argument is a **file
+name inside that folder**, not a path — it arrives from a chat box, and
+`Path.resolve` on `../../server.properties` leaves the folder entirely.
+
+`export` prints the tables it found **by name** before it starts. A plugin
+appears to the library only once it has asked for its first repository, so one
+that registers a record type lazily exports fewer tables than it owns, and the
+names against what somebody expected are the only way that is visible.
+
+`import` refuses by default when a target table already holds rows, names which
+and how many, and hands back the exact command to re-run — together with the
+sentence that `force` **merges rather than replaces**. It also warns when Redis
+is active and the target was non-empty, which is the one case the module's
+known limitation actually bites. See [transfer.md](transfer.md).
 
 ## Staying up to date (since 1.30.0)
 
@@ -193,6 +220,7 @@ and anything that re-parses per render was never at risk.**
 | nametag | a colour and a derived team name per viewer | Nothing to do — a `NamedTextColor` is one of sixteen values the client resolves, not something the palette produces |
 | combat | whether a player is tagged, and their stats | Nothing to do — numbers and booleans, expiring on their own in seconds |
 | world | the detected backend | Nothing to do — no rendered text, and the Worlds plugin is not hot-swappable |
+| transfer | nothing at all, between transfers | Nothing to do — rows move in storage form, which is text and numbers a codec never touched, and a transfer in flight owns only its own streams |
 | plugin state | whatever a plugin parsed once and kept | Told through `Reloads.onLibraryReload` — the plugin rebuilds it |
 
 ### The rule for new modules

@@ -946,6 +946,51 @@ empiezan a responder desde Redis y a avisar a los demás servidores.
   (cero entidades anotadas en todo el ecosistema) y no era lo que hacía
   funcionar el handoff. Aquí las escrituras son durables al completar.
 
+### Transfer — el fichero es una línea por fila, y el resultado tiene tres valores
+
+Mover la base de datos de un plugin a otra máquina o a otro motor pasa por
+`net.exylia.lib.database.transfer`. Nunca un `mysqldump` a mano, ni un JSON
+gigante escrito por el plugin.
+
+- **Un fichero NDJSON en gzip, no un objeto anidado.** Commons escribía
+  `{tables:{t:[...]}}`: un parser solo puede aceptarlo o rechazarlo entero, así
+  que un dump cortado por un disco lleno no valía nada. Una línea por valor
+  además deja **nombrar la línea que falló** — que es lo que un operador puede
+  abrir.
+- **El resultado son tres valores, no un booleano.** `PARTIAL` existe porque el
+  importador de commons registraba un lote fallido, seguía, y devolvía
+  `success(true)`: perder mil filas y no perder ninguna eran la misma respuesta.
+  Una tabla saltada, una columna que ya no existe o una fila rechazada bajan a
+  `PARTIAL` y nunca vuelven a `SUCCESS`.
+- **Los valores se escriben tipados, jamás inferidos.** Gson sin type token
+  convierte todo número en `Double` — eso hacía commons — así que cada `long`
+  por encima de 2^53 y cada decimal volvían cambiados en silencio. El
+  `BigDecimal` va como **string**: el texto *es* el valor, y el dinero es la
+  única razón de que una columna sea uno.
+- **`force` fusiona, no reemplaza**, y la frase se escribe entera donde se
+  ofrece. La fila cuya clave está en el dump se pisa; la que no está se queda.
+  Quien lo lee como "reemplaza" y lo ejecuta ha mezclado dos servidores en una
+  tabla sin que nada lo diga.
+- **Las filas se enlazan por nombre de columna**, usando el layout de la
+  cabecera. Un record que ganó un componente desde el dump tiene que poder
+  importar; enlazar por posición metería el `UUID` en la columna del clan y
+  reportaría éxito.
+- **Después de importar ids explícitos se mueve el contador.** H2 y Postgres no
+  lo avanzan solo, así que el siguiente insert pide una clave que las filas
+  importadas ya tienen. Tiene test, y el test falla con la colisión real cuando
+  se quita la llamada.
+- **Nunca corre un codec.** Las filas viajan en forma de almacenamiento, así que
+  un inventario serializado es texto Base64 en los dos extremos y el módulo se
+  testea sin servidor.
+- **Un plugin aparece cuando pide su primer repositorio, no antes.** Uno que
+  registra tarde exporta menos tablas de las que tiene, y desde fuera no se
+  distingue: por eso se **nombran** las tablas encontradas y no solo se cuentan.
+- **Deuda declarada: `writeRows` no invalida Redis.** A propósito — un mensaje
+  por lote mandaría a cada peer a la base de datos por la tabla entera, que es
+  como se hundió commons. Importar sobre una tabla **viva** con Redis deja a los
+  demás servidores sirviendo filas viejas hasta el TTL; sobre una tabla nueva
+  (el caso de migración) no aplica. El comando avisa justo en ese caso.
+
 ---
 
 ## Barra de calidad de un módulo
@@ -1068,7 +1113,9 @@ Raíz de código: `src/main/java/net/exylia/lib/`. Raíz de tests:
 | util (world) | `util/world/Worlds` | `util/world/internal/` (`WorldsBackend`, `WorldsBackendDetector`, `WorldsReflection`, `Worlds3Backend`, `Worlds4Backend`) | [docs/world.md](docs/world.md) | 1.36.0 |
 | nametag | `nametag/Nametags`, `PluginNametags`, `NametagStyle` | `nametag/internal/` (`NametagRuntime`, `State`, `NametagSink`; PacketEvents confinado en `NametagPackets`) | [docs/nametags.md](docs/nametags.md) | 1.36.0 |
 | util (combat) | `util/combat/Combat`, `CombatBridge`, `CombatStats` | `util/combat/internal/` (`CombatRuntime`, `CombatProvider`, `DeluxeCombatProvider`, `PvpManagerProvider`) | [docs/combat.md](docs/combat.md) | 1.36.0 |
+| transfer | `database/transfer/Transfers`, `PluginTransfers`, `TransferReport`, `TableTransfer`, `TransferOutcome` | `database/transfer/internal/` (`DumpFormat`, `DumpWriter`, `DumpReader`, `DumpException`, `TransferRuntime`, `DumpFormatAccess`); comando en `internal/ReloadCommand` sobre `internal/TransferAccess` | [docs/transfer.md](docs/transfer.md) | 1.36.0 |
 | `/exylialib info` y `stats` | — | `internal/ReloadCommand` (`dependentsOf`, `hologramsLine`) | [docs/reload.md](docs/reload.md) | 1.35.0 |
+| `/exylialib export` e `import` | — | `internal/ReloadCommand` (`export`, `importDump`, `reportPanel`, `importPanel`, `safeName`, `KnownPlugins`) | [docs/transfer.md](docs/transfer.md) | 1.36.0 |
 
 Clases raíz que no son módulo: `ExyliaLib.java` (ciclo de vida y limpieza),
 `platform/Platform.java`, `internal/LibrarySettings`, `internal/ExyliaLibUpdater`.
@@ -1088,6 +1135,8 @@ Son package-private a propósito; los tests viven del mismo paquete:
 | `skull/internal/Lookup` | la interfaz que sustituye a Mojang en tests |
 | `util/snapshot/SnapshotCodec` | `setItems/resetItems` (`ItemIo`: cómo un ítem se vuelve texto — un `ItemStack` real no se construye sin servidor) |
 | `util/snapshot/internal/SnapshotRuntime` | `forgetReportedForTests` (los avisos ya dichos) |
+| `database/transfer/internal/DumpFormatAccess` | `extension()`, `observeBatches` (los lotes que el lector entrega: la cota de memoria del import, observable) |
+| `internal/TransferAccess` | la interfaz que el comando usa para exportar e importar; `live()` es la real, un fake la sustituye sin base de datos ni fichero |
 | tests compartidos | `src/test/java/net/exylia/lib/FakeServer.java`, `FakePlayer.java`, `debug/DebugCapture.java`; `FakeServer.runAsyncForReal()` ejecuta las async en un hilo real |
 
 ### Protocolo de release (resumen; el detalle está en *Verificación*)

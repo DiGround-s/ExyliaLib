@@ -321,6 +321,37 @@ Disabling a plugin releases its repositories and its datasource lease. A shared
 target remains open until its final consumer releases it, then closes. ExyliaLib
 releases every remaining target on shutdown, after everything pending is written.
 
+## Enumerating what a plugin stores (since 1.36.0)
+
+For a whole-plugin operation — an export, a diagnostic listing — there has to
+be a way to ask which tables a plugin owns:
+
+| Method | Contract |
+| --- | --- |
+| `Databases.find(String pluginName)` | that plugin's view, or `null` when it has never registered a repository |
+| `Databases.registeredPlugins()` | the names of every plugin holding a view, sorted |
+| `PluginDatabase.tables()` | its repositories by table name, sorted, unmodifiable |
+
+`find` is a **lookup and deliberately not a factory**. `Databases.of(plugin)`
+creates the view if it is missing, and creating one reads — and therefore
+*writes* — that plugin's `database.yml`: looking an unrelated plugin up through
+`of` would leave a config file behind in the data folder of a plugin that never
+asked for one.
+
+**A plugin appears once it has called `repository(...)`, not before.** One that
+registers a record type lazily — on first use, behind a config switch, from a
+subcommand — has fewer tables here than it eventually will, and nothing can
+tell the difference from outside. Anything built on this should therefore
+**name** the tables it found rather than only counting them: a silent short
+list is the failure mode, and reading the names is the only way anybody
+notices it.
+
+`Repository.model()` and `Repository.storage()` also exist and are marked
+`@ApiStatus.Internal`. They hand back `internal` types, which by this library's
+own rule change without notice; they are public only because the transfer
+module lives in another package. A plugin calling them has coupled itself to
+something that carries no compatibility promise at all.
+
 ## Configuration
 
 Each consumer gets `plugins/<Plugin>/database.yml`, generated with its own
@@ -371,4 +402,5 @@ in the block its `type` names, not in `mysql` regardless.
 | --- | --- |
 | Public API | `database/Databases`, `PluginDatabase`, `Repository`, `Query`, `Table`, `Column`, `Id`, `Indexed`, `Index`, `Codec`, `DatabaseException`, `DatabaseSettings` |
 | Internal | `database/internal/EntityModel`, `ColumnModel`, `IndexModel`, `IndexCoverage`, `CodecRegistry`, `Codecs`, `Coercions`, `Storage`, `SqlStorage`, `MongoStorage`, `GatedStorage`, `SqlBackend`, `SqlSchema`, `SqlSettings`, `SchemaReport`, `Dialect`, `AnsiDialect`, `H2Dialect`, `MySQLDialect`, `MariaDBDialect`, `PostgresDialect`, `MongoBackend`, `MongoDocuments`, `DatabaseRuntime`, `TaskExecutor` |
+| Moving a database | `database/transfer/` — see [transfer.md](transfer.md) |
 | Lifecycle | `ExyliaLib` starts target management; each consumer loads `database.yml` on view creation and leases a target lazily |
