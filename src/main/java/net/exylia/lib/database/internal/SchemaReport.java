@@ -17,6 +17,9 @@ import java.util.List;
  * @param table            the table, folded as it is stored
  * @param createdTable     whether the table did not exist and was created
  * @param addedColumns     columns added to a table that already existed
+ * @param renamedColumns   columns that were there under the engine's own
+ *                         folding and were renamed into the case this library
+ *                         addresses them by
  * @param createdIndexes   indexes created, by name
  * @param blockedIndexes   indexes that could not be created because their name
  *                         is held by an index over different columns
@@ -25,22 +28,24 @@ import java.util.List;
 public record SchemaReport(@NotNull String table,
                            boolean createdTable,
                            @NotNull List<String> addedColumns,
+                           @NotNull List<String> renamedColumns,
                            @NotNull List<String> createdIndexes,
                            @NotNull List<String> blockedIndexes) {
 
     /** Compact constructor, defensive: the lists outlive the builder that made them. */
     public SchemaReport {
         addedColumns = List.copyOf(addedColumns);
+        renamedColumns = List.copyOf(renamedColumns);
         createdIndexes = List.copyOf(createdIndexes);
         blockedIndexes = List.copyOf(blockedIndexes);
     }
 
     /**
-     * A report of a schema step that created no index it could not create.
+     * A report of a schema step that renamed nothing and blocked nothing.
      *
-     * <p>For the backends where the situation cannot arise — Mongo drops and
-     * rebuilds an index it owns rather than leaving it — and for callers built
-     * before the fourth list existed.
+     * <p>For the backends where neither situation can arise — Mongo has no
+     * column to fold and drops and rebuilds an index it owns rather than
+     * leaving it — and for callers built before those lists existed.
      *
      * @param table          the table
      * @param createdTable   whether the table was created
@@ -51,12 +56,20 @@ public record SchemaReport(@NotNull String table,
                         boolean createdTable,
                         @NotNull List<String> addedColumns,
                         @NotNull List<String> createdIndexes) {
-        this(table, createdTable, addedColumns, createdIndexes, List.of());
+        this(table, createdTable, addedColumns, List.of(), createdIndexes, List.of());
     }
 
-    /** Whether anything at all changed. */
+    /**
+     * Whether anything at all changed.
+     *
+     * <p>A rename counts. It is the whole of what happened on the start that
+     * repaired a table an ExyliaCommons-era {@code CREATE} had left with
+     * folded column names, and a start that silently fixed an outage is
+     * precisely the one worth a console line.
+     */
     public boolean changed() {
-        return createdTable || !addedColumns.isEmpty() || !createdIndexes.isEmpty();
+        return createdTable || !addedColumns.isEmpty() || !renamedColumns.isEmpty()
+                || !createdIndexes.isEmpty();
     }
 
     /**
@@ -92,15 +105,21 @@ public record SchemaReport(@NotNull String table,
             return null;
         }
         StringBuilder line = new StringBuilder(64).append(table).append(": ");
+        boolean said = false;
         if (createdTable) {
             line.append("created");
+            said = true;
         }
         if (!addedColumns.isEmpty()) {
-            line.append(createdTable ? ", " : "").append("added ").append(addedColumns);
+            line.append(said ? ", " : "").append("added ").append(addedColumns);
+            said = true;
+        }
+        if (!renamedColumns.isEmpty()) {
+            line.append(said ? ", " : "").append("renamed ").append(renamedColumns);
+            said = true;
         }
         if (!createdIndexes.isEmpty()) {
-            line.append(createdTable || !addedColumns.isEmpty() ? ", " : "")
-                    .append("indexed ").append(createdIndexes);
+            line.append(said ? ", " : "").append("indexed ").append(createdIndexes);
         }
         return line.toString();
     }

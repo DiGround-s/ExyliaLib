@@ -437,6 +437,111 @@ class SqlBackendTest {
         assertEquals(List.of(), found.tags());
     }
 
+    /**
+     * The real shape of {@code killeffect_players}, copied from production.
+     *
+     * <p>Its own record type rather than {@link Stats}, because the failure it
+     * reproduces is about the timestamp columns an ExyliaCommons-era base class
+     * added to every table, and those are the two that came back upper case.
+     */
+    @Table("killeffect_players")
+    record KillEffect(
+            @Id UUID uuid,
+            @Column String name,
+            @Column String killeffect,
+            @Column boolean particlevisibility,
+            @Column("created_at") long createdAt,
+            @Column("updated_at") long updatedAt) {
+    }
+
+    @Test
+    @DisplayName("a live table with only SOME columns stored upper case is reconciled, not left broken")
+    void reconcilesMixedCaseColumnsOnATableWhoseNameIsFine() throws SQLException {
+        try (Connection connection = connect(); Statement statement = connection.createStatement()) {
+            // Exactly what production has: the table name is stored the way this
+            // library addresses it, so the legacy-table branch never runs, but
+            // two of its columns were created unquoted by an ExyliaCommons-era
+            // base class and H2 folded them to CREATED_AT / UPDATED_AT. Every
+            // SELECT the library builds quotes "created_at" and fails with
+            // Column "created_at" not found, forever.
+            statement.execute("CREATE TABLE \"killeffect_players\" ("
+                    + "\"uuid\" VARCHAR(36) NOT NULL, \"name\" VARCHAR(255),"
+                    + " \"killeffect\" VARCHAR(255), \"particlevisibility\" BOOLEAN,"
+                    + " created_at BIGINT, updated_at BIGINT,"
+                    + " PRIMARY KEY (\"uuid\"))");
+            statement.execute("INSERT INTO \"killeffect_players\" VALUES"
+                    + " ('00000000-0000-0000-0000-000000000002', 'Steve', 'flame', TRUE, 10, 20)");
+        }
+        EntityModel<KillEffect> effects = EntityModel.of(KillEffect.class);
+        var report = backend.ensureTable(effects);
+
+        assertFalse(report.createdTable());
+        // Nothing is genuinely missing: the two columns are there, only in the
+        // wrong case. Adding them would be the other bug.
+        assertEquals(List.of(), report.addedColumns());
+        assertEquals(List.of("created_at", "updated_at"), report.renamedColumns());
+
+        // The row that was already there reads through, which is the outage.
+        KillEffect found = backend.find(effects,
+                UUID.fromString("00000000-0000-0000-0000-000000000002"));
+        assertNotNull(found);
+        assertEquals("Steve", found.name());
+        assertEquals(10L, found.createdAt());
+        assertEquals(20L, found.updatedAt());
+
+        // And writing works too: the earlier production symptom was a NOT NULL
+        // violation naming the column as "CREATED_AT".
+        backend.save(effects, new KillEffect(UUID.fromString("00000000-0000-0000-0000-000000000003"),
+                "Alex", "hearts", false, 30L, 40L));
+        assertEquals(40L, backend.find(effects,
+                UUID.fromString("00000000-0000-0000-0000-000000000003")).updatedAt());
+
+        // Idempotent: a second start has nothing left to reconcile.
+        assertFalse(backend.ensureTable(effects).changed());
+    }
+
+    @Test
+    @DisplayName("a table with both a mis-cased column and a genuinely missing one gets each treatment")
+    void renamesWhatIsMisCasedAndAddsWhatIsAbsent() throws SQLException {
+        try (Connection connection = connect(); Statement statement = connection.createStatement()) {
+            // updated_at folded upper case, killeffect never existed. One
+            // metadata read has to answer both questions.
+            statement.execute("CREATE TABLE \"killeffect_players\" ("
+                    + "\"uuid\" VARCHAR(36) NOT NULL, \"name\" VARCHAR(255),"
+                    + " \"particlevisibility\" BOOLEAN, \"created_at\" BIGINT, updated_at BIGINT,"
+                    + " PRIMARY KEY (\"uuid\"))");
+        }
+        EntityModel<KillEffect> effects = EntityModel.of(KillEffect.class);
+        var report = backend.ensureTable(effects);
+
+        assertEquals(List.of("killeffect"), report.addedColumns());
+        assertEquals(List.of("updated_at"), report.renamedColumns());
+        assertTrue(report.summary().contains("renamed"), report.summary());
+
+        UUID uuid = UUID.randomUUID();
+        backend.save(effects, new KillEffect(uuid, "Steve", "flame", true, 1L, 2L));
+        assertEquals("flame", backend.find(effects, uuid).killeffect());
+    }
+
+    @Test
+    @DisplayName("a column another plugin owns is never renamed, whatever case it is in")
+    void leavesForeignColumnsAlone() throws SQLException {
+        try (Connection connection = connect(); Statement statement = connection.createStatement()) {
+            // LEGACY_NOTES belongs to somebody else's view of the same table.
+            // Renaming it because it looks unfamiliar is how a schema tool
+            // breaks a plugin it was never told about.
+            statement.execute("CREATE TABLE \"killeffect_players\" ("
+                    + "\"uuid\" VARCHAR(36) NOT NULL, \"name\" VARCHAR(255),"
+                    + " \"killeffect\" VARCHAR(255), \"particlevisibility\" BOOLEAN,"
+                    + " created_at BIGINT, \"updated_at\" BIGINT, LEGACY_NOTES VARCHAR(255),"
+                    + " PRIMARY KEY (\"uuid\"))");
+        }
+        backend.ensureTable(EntityModel.of(KillEffect.class));
+
+        assertTrue(columnNames("killeffect_players").contains("LEGACY_NOTES"),
+                columnNames("killeffect_players").toString());
+    }
+
     // ----------------------------------------------------------------- write
 
     @Test
@@ -749,6 +854,18 @@ class SqlBackendTest {
                         SqlSettings.remote("postgres", "127.0.0.1", 1, "nope", "u", "p"), "tests"));
         assertTrue(failure.getMessage().contains("org.postgresql.Driver"), failure.getMessage());
         assertTrue(failure.getMessage().contains("plugin.yml"), failure.getMessage());
+    }
+
+    /** The column names a table has, in the case the engine stored them under. */
+    private List<String> columnNames(String table) throws SQLException {
+        List<String> names = new ArrayList<>();
+        try (Connection connection = connect();
+             ResultSet columns = connection.getMetaData().getColumns(null, null, table, null)) {
+            while (columns.next()) {
+                names.add(columns.getString("COLUMN_NAME"));
+            }
+        }
+        return names;
     }
 
     /** A connection outside the pool's bookkeeping, for setting a table up by hand. */

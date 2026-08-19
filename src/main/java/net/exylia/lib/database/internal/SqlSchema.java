@@ -9,12 +9,10 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import java.util.Set;
 import java.util.SortedMap;
 import java.util.TreeMap;
 
@@ -28,10 +26,14 @@ import java.util.TreeMap;
  * swallowed vendor code second.
  *
  * <h2>What it will and will not do</h2>
- * It creates a table, adds a column a record has gained, and creates an index.
- * It never drops, narrows, retypes or renames anything. A schema tool that
- * removes a column because a record stopped declaring it is a schema tool that
- * deletes a live server's data the first time somebody deploys an old jar.
+ * It creates a table, adds a column a record has gained, creates an index, and
+ * renames a table or column that is there under the engine's own folding into
+ * the case this library addresses it by. It never drops, narrows or retypes
+ * anything, and it never touches a column the record does not declare — in
+ * either direction. A schema tool that removes a column because a record
+ * stopped declaring it is a schema tool that deletes a live server's data the
+ * first time somebody deploys an old jar, and one that renames a column it does
+ * not own breaks the plugin it was never told about.
  *
  * <h2>Threads</h2>
  * Called from the background pool, once per repository at enable. Not
@@ -78,8 +80,9 @@ final class SqlSchema {
             // The columns were folded by the same engine on the same day, so a
             // table found this way always has them in that case too. Renaming
             // the table alone moves the failure one level down, from "table not
-            // found" to "column not found", which is the same outage.
-            renameLegacyColumns(connection, model, table);
+            // found" to "column not found", which is the same outage. The
+            // column pass below is what closes that, and it runs for every
+            // pre-existing table rather than only for this branch — see there.
         }
         if (!tableExists(connection, table)) {
             execute(connection, dialect.createTable(model));
@@ -89,11 +92,16 @@ final class SqlSchema {
         // just created has every column the model declares by construction, and
         // asking anyway is a metadata round trip per table per start for an
         // answer that is known.
-        List<String> addedColumns = created ? List.of() : addMissingColumns(connection, model, table);
+        List<String> addedColumns = new ArrayList<>(0);
+        List<String> renamedColumns = new ArrayList<>(0);
+        if (!created) {
+            reconcileColumns(connection, model, table, addedColumns, renamedColumns);
+        }
         List<String> createdIndexes = new ArrayList<>(0);
         List<String> blockedIndexes = new ArrayList<>(0);
         createIndexes(connection, model, table, created, createdIndexes, blockedIndexes);
-        return new SchemaReport(table, created, addedColumns, createdIndexes, blockedIndexes);
+        return new SchemaReport(table, created, addedColumns, renamedColumns, createdIndexes,
+                blockedIndexes);
     }
 
     // ----------------------------------------------------------- inspection
@@ -168,28 +176,20 @@ final class SqlSchema {
     }
 
     /**
-     * Renames the columns of a just-renamed table into the case this library
-     * addresses them by.
+     * Every column of a live table, keyed by its folded name and valued by the
+     * name the driver reports.
      *
-     * <p>Only the ones the model declares: a column belonging to another
-     * plugin's view of the same table is left exactly as it is, for the same
-     * reason {@link #addMissingColumns} never drops one.
-     */
-    private void renameLegacyColumns(@NotNull Connection connection, @NotNull EntityModel<?> model,
-                                     @NotNull String table) throws SQLException {
-        Map<String, String> stored = storedColumnNames(connection, table);
-        for (ColumnModel column : model.columns()) {
-            String wanted = dialect.identifier(column.name());
-            String actual = stored.get(wanted);
-            if (actual != null && !actual.equals(wanted)) {
-                execute(connection, dialect.renameColumn(table, actual, wanted));
-            }
-        }
-    }
-
-    /**
-     * Every column of a table, keyed by its folded name and valued by the name
-     * the driver reports.
+     * <p>Keyed folded and valued as stored on purpose: the caller needs both
+     * halves of the answer from one read — the key says whether a column the
+     * record declares is there at all, and the value says whether it is spelled
+     * the way this library addresses it. A lookup that only kept the folded name
+     * cannot tell "already correct" from "there under the engine's own folding",
+     * and that is the difference between a working table and an outage.
+     *
+     * @param connection an open connection
+     * @param table      the folded table name
+     * @return the columns, possibly empty when the table does not exist or when
+     *         the driver scoped the query differently than expected
      */
     private @NotNull Map<String, String> storedColumnNames(@NotNull Connection connection,
                                                            @NotNull String table) throws SQLException {
@@ -199,41 +199,15 @@ final class SqlSchema {
             try (ResultSet columns = metadata.getColumns(connection.getCatalog(), schemaOf(connection),
                     candidate, null)) {
                 while (columns.next()) {
+                    // The same post-filter as tableExists, for the same reason:
+                    // an underscore in the table name is a wildcard here too,
+                    // so a stats_history table would answer for stats_history
+                    // and statsXhistory alike.
                     if (!table.equalsIgnoreCase(columns.getString("TABLE_NAME"))) {
                         continue;
                     }
                     String name = columns.getString("COLUMN_NAME");
                     found.put(name.toLowerCase(Locale.ROOT), name);
-                }
-            }
-            if (!found.isEmpty()) {
-                return found;
-            }
-        }
-        return found;
-    }
-
-    /**
-     * The column names a live table has, lower case.
-     *
-     * @param connection an open connection
-     * @param table      the folded table name
-     * @return the columns, possibly empty when the table does not exist
-     */
-    @NotNull Set<String> columnsOf(@NotNull Connection connection, @NotNull String table) throws SQLException {
-        DatabaseMetaData metadata = connection.getMetaData();
-        Set<String> found = new HashSet<>();
-        for (String candidate : metadataForms(table)) {
-            try (ResultSet columns = metadata.getColumns(connection.getCatalog(), schemaOf(connection),
-                    candidate, null)) {
-                while (columns.next()) {
-                    // The same post-filter as tableExists, for the same reason:
-                    // an underscore in the table name is a wildcard here too,
-                    // so a stats_history table would answer for stats_history
-                    // and statsXhistory alike.
-                    if (table.equalsIgnoreCase(columns.getString("TABLE_NAME"))) {
-                        found.add(columns.getString("COLUMN_NAME").toLowerCase(Locale.ROOT));
-                    }
                 }
             }
             if (!found.isEmpty()) {
@@ -357,32 +331,62 @@ final class SqlSchema {
     // ------------------------------------------------------------- migration
 
     /**
-     * Adds the columns a live table is missing.
+     * Brings the columns of a live table up to what the record declares: the
+     * ones stored under another case are renamed, the ones genuinely absent are
+     * added.
      *
-     * <p>A column the table has and the record does not is left alone: it may
-     * belong to another plugin's view of the same table, and dropping it is
-     * never recoverable.
+     * <p>Both from a single metadata read, because they are the same question
+     * asked of the same map. Splitting them cost an outage: the rename used to
+     * run only when the <em>table</em> name had been folded, while the add
+     * compared against names lower-cased on the way in — so a table whose name
+     * was fine but whose {@code CREATED_AT} had been folded by an
+     * ExyliaCommons-era {@code CREATE} looked complete to the add and was never
+     * offered to the rename. The column was neither added nor reconciled, and
+     * every read and write against it failed with
+     * {@code Column "created_at" not found}, forever. Production had exactly
+     * that on {@code killeffect_players}: four columns lower case, two upper.
+     *
+     * <p>A column the table has and the record does not is left alone, in
+     * either direction: it may belong to another plugin's view of the same
+     * table, and neither dropping it nor renaming it is recoverable.
+     *
+     * @param connection an open connection
+     * @param model      the record model
+     * @param table      the folded table name
+     * @param added      collects the columns added, in model order
+     * @param renamed    collects the columns reconciled, in model order
      */
-    private @NotNull List<String> addMissingColumns(@NotNull Connection connection,
-                                                    @NotNull EntityModel<?> model,
-                                                    @NotNull String table) throws SQLException {
-        Set<String> existing = columnsOf(connection, table);
-        if (existing.isEmpty()) {
+    private void reconcileColumns(@NotNull Connection connection,
+                                  @NotNull EntityModel<?> model,
+                                  @NotNull String table,
+                                  @NotNull List<String> added,
+                                  @NotNull List<String> renamed) throws SQLException {
+        Map<String, String> stored = storedColumnNames(connection, table);
+        if (stored.isEmpty()) {
             // The table exists but nothing could be read about it — a driver
             // that scoped the query differently than expected. Adding every
             // column blind would throw on the first one that is already there;
             // doing nothing leaves the table exactly as it was.
-            return List.of();
+            return;
         }
-        List<String> added = new ArrayList<>(0);
         for (ColumnModel column : model.columns()) {
-            String name = dialect.identifier(column.name());
-            if (existing.contains(name)) {
+            String wanted = dialect.identifier(column.name());
+            String actual = stored.get(wanted);
+            if (wanted.equals(actual)) {
+                continue;
+            }
+            if (actual != null) {
+                // There, but spelled in the engine's own folding. Renaming once
+                // is what makes the existing rows reachable; the alternative,
+                // addressing it in its own case forever, spreads the engine's
+                // folding rules through every statement the library emits.
+                execute(connection, dialect.renameColumn(table, actual, wanted));
+                renamed.add(wanted);
                 continue;
             }
             try {
                 execute(connection, dialect.addColumn(model.table(), column));
-                added.add(name);
+                added.add(wanted);
             } catch (SQLException failure) {
                 if (!dialect.isDuplicateColumn(failure)) {
                     throw failure;
@@ -391,7 +395,6 @@ final class SqlSchema {
                 // column is there, which is all that was wanted.
             }
         }
-        return List.copyOf(added);
     }
 
     /**

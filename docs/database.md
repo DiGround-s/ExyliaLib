@@ -264,6 +264,30 @@ there. Renaming is what makes them reachable; addressing the table in its own
 case instead would spread each engine's folding rules through every statement
 the library emits. Columns another plugin owns are never touched.
 
+### A column an older plugin created unquoted
+
+The same reconciliation runs per column, on **every** table that already
+existed — not only on one whose name had to be renamed. A table can have some
+columns folded and others not, and production did: on `killeffect_players`,
+`uuid`, `name`, `killeffect` and `particlevisibility` were stored lower case
+while the timestamp pair an ExyliaCommons-era base class added was stored
+`CREATED_AT` / `UPDATED_AT`. The table name itself was fine, so nothing was
+ever reconciled, and every statement failed:
+
+```
+Column "created_at" not found
+```
+
+For each column the record declares, one metadata read now decides between
+three answers: stored exactly as addressed → nothing; stored under another
+case → `ALTER TABLE ... RENAME COLUMN`; not there at all → `ALTER TABLE ...
+ADD COLUMN`, as before. A column the record does not declare is neither
+dropped nor renamed, whatever case it is in — it may belong to another
+plugin's view of the same table.
+
+Renames appear in the schema report alongside additions, so the one start that
+repaired the table says so on the console and the next start says nothing.
+
 ## Failures are never silent
 
 Since 1.27.0, an operation that fails prints through `Debug` against the plugin
