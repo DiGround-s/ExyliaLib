@@ -4,6 +4,7 @@ import net.exylia.lib.database.internal.Storage;
 import net.exylia.lib.debug.Debug;
 import net.exylia.lib.redis.RedisSettings;
 import org.bukkit.plugin.Plugin;
+import org.jetbrains.annotations.ApiStatus;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -60,24 +61,66 @@ public final class RedisRuntime {
             if (existing != null) {
                 return existing;
             }
-            try {
-                RedisClient client = factory.open(settings, "exylia-" + plugin.getName());
-                RowCache cache = new RowCache(client, settings, settings.serverId(), debug::warn);
-                CLIENTS.put(key, client);
-                CACHES.put(key, cache);
-                debug.log("Redis cache connected to " + settings.host() + ':' + settings.port()
-                        + " as \"" + settings.serverId() + "\".");
-                return cache;
-            } catch (Throwable unreachable) {
-                // Never fatal. A plugin whose Redis is down must still enable,
-                // and it will: the database is the truth and it is still there.
-                debug.warn("Redis is configured but could not be reached at " + settings.host()
-                        + ':' + settings.port() + " (" + unreachable.getMessage() + ")."
-                        + " Continuing without a shared cache: everything works, reads just go"
-                        + " to the database. Cross-server changes will not be visible until"
-                        + " this is fixed.");
+            RedisClient client = openLocked(plugin, settings, key, debug);
+            if (client == null) {
                 return null;
             }
+            RowCache cache = new RowCache(client, settings, settings.serverId(), debug::warn);
+            CACHES.put(key, cache);
+            debug.log("Redis cache connected to " + settings.host() + ':' + settings.port()
+                    + " as \"" + settings.serverId() + "\".");
+            return cache;
+        }
+    }
+
+    /**
+     * The shared connection for these settings, opening it the first time.
+     *
+     * <p>For the modules that need Redis for something other than caching rows
+     * — the teleport module's cross-server handover is the first — and it hands
+     * back the <em>same</em> client the cache uses rather than opening a second
+     * pool: two pools against one Redis is twice the connections and twice the
+     * subscriber threads for one server, which is the arrangement ExyliaCommons
+     * had and this module exists to stop.
+     *
+     * <p>Returns {@code null} when Redis is off, unreachable, or its library is
+     * not installed, which is never an error: the caller does without.
+     *
+     * @param plugin   the plugin asking, for the console line and the client name
+     * @param settings where to connect
+     * @return the shared client, or {@code null} to run without one
+     */
+    @ApiStatus.Internal
+    public static @Nullable RedisClient client(@NotNull Plugin plugin,
+                                               @NotNull RedisSettings settings) {
+        if (!settings.enabled()) {
+            return null;
+        }
+        synchronized (LOCK) {
+            return openLocked(plugin, settings, keyOf(settings), Debug.of(plugin));
+        }
+    }
+
+    /** The one place a client is opened. Callers hold {@link #LOCK}. */
+    private static @Nullable RedisClient openLocked(Plugin plugin, RedisSettings settings,
+                                                    String key, Debug debug) {
+        RedisClient existing = CLIENTS.get(key);
+        if (existing != null) {
+            return existing;
+        }
+        try {
+            RedisClient opened = factory.open(settings, "exylia-" + plugin.getName());
+            CLIENTS.put(key, opened);
+            return opened;
+        } catch (Throwable unreachable) {
+            // Never fatal. A plugin whose Redis is down must still enable,
+            // and it will: the database is the truth and it is still there.
+            debug.warn("Redis is configured but could not be reached at " + settings.host()
+                    + ':' + settings.port() + " (" + unreachable.getMessage() + ")."
+                    + " Continuing without a shared cache: everything works, reads just go"
+                    + " to the database. Cross-server changes will not be visible until"
+                    + " this is fixed.");
+            return null;
         }
     }
 

@@ -116,19 +116,33 @@ public record DatabaseSettings(Database database) {
     /**
      * The embedded engine, which is a file and nothing else.
      *
-     * @param file where the file lives, relative to the consumer plugin folder
+     * @param file       where the file lives, relative to the consumer plugin folder
+     * @param autoServer whether a second process may open the same file
      */
     @Comment("The embedded engine. Used when type is h2.")
     public record H2(
 
             @Comment("Where the database file is stored, relative to this folder.")
             @Comment("The engine adds its own file extension.")
-            String file
+            String file,
+
+            @Comment("Let more than one process open this file at once.")
+            @Comment("")
+            @Comment("An H2 file belongs to one JVM: the second one to open it")
+            @Comment("is refused with \"The file is locked\". Turn this on and the")
+            @Comment("first server to start also serves the file to the others,")
+            @Comment("which is what makes two plugins on separate servers, or a")
+            @Comment("server plus a database viewer, able to share it.")
+            @Comment("")
+            @Comment("Every process has to reach the first one over TCP, so this")
+            @Comment("is for servers on one machine. For anything else, run a")
+            @Comment("real database and set type to mysql or postgresql.")
+            boolean autoServer
     ) {
 
-        /** The defaults: a file under the plugin's own folder. */
+        /** The defaults: a file under the plugin's own folder, opened by this server alone. */
         public H2() {
-            this("database/h2");
+            this("database/h2", false);
         }
     }
 
@@ -265,7 +279,10 @@ public record DatabaseSettings(Database database) {
         if (embedded()) {
             H2 h2 = block.h2() == null ? new H2() : block.h2();
             String file = h2.file() == null || h2.file().isBlank() ? "database/h2" : h2.file();
-            return SqlSettings.file("h2", dataFolder.resolve(file));
+            SqlSettings settings = SqlSettings.file("h2", dataFolder.resolve(file));
+            // Carried as a URL parameter, which is the only place H2 accepts it:
+            // the mode is decided when the connection is opened, not afterwards.
+            return h2.autoServer() ? settings.property("AUTO_SERVER", "TRUE") : settings;
         }
         Server server = switch (engine()) {
             case "mariadb" -> block.mariadb();
