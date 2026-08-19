@@ -36,14 +36,26 @@ import java.util.concurrent.ConcurrentHashMap;
  * things; nobody picks the right combination at 3 a.m., which is when debug
  * output matters.
  *
- * <h2>Colours</h2>
- * Colours come from the server's palette, so a recoloured server recolours
- * its logs too. The message itself is appended literally — a stack trace or
- * a config line full of {@code &} and {@code {} } prints as-is.
+ * <h2>The shape of a line</h2>
+ * {@code [PluginName] [WARN] the message}. The name is painted secondary to
+ * primary and back; the label says which of the five kinds this is and wears
+ * that kind's colour. Both come from the server's palette, so a recoloured
+ * server recolours its console too. The message itself is appended literally
+ * — a stack trace or a config line full of {@code &} and {@code {} } prints
+ * as-is.
+ *
+ * <h2>Who a line belongs to</h2>
+ * The name in front is the plugin passed to {@link #of(Plugin)}, and it
+ * answers <em>whose problem this is</em> rather than which jar the code lives
+ * in. The library reports an unreadable {@code database.yml} against the
+ * plugin that wrote it, and its own cross-server trouble against itself.
+ * ExyliaCommons split this into a pair of methods per kind — a plugin one and
+ * a library one — which asked the caller a question the reader never asks, and
+ * got it wrong invisibly.
  *
  * <h2>The banner</h2>
  * {@link #motd()} prints the plugin's name in ASCII art — the ExyliaCommons
- * touch worth keeping — followed by its version.
+ * touch worth keeping — with its version, debug state and the Exylia link.
  *
  * @since 1.13.0
  */
@@ -53,11 +65,14 @@ public final class Debug {
 
     /** Fallbacks match the palette defaults, for when the lib is not loaded. */
     private static final TextColor PRIMARY = TextColor.color(0x8a51c4);
+    private static final TextColor SECONDARY = TextColor.color(0xaa76de);
     private static final TextColor LETTERS = TextColor.color(0xe7cfff);
     private static final TextColor SUCCESS = TextColor.color(0x8fffc1);
     private static final TextColor WARNING = TextColor.color(0xff9500);
     private static final TextColor ERROR = TextColor.color(0xa33b53);
+    private static final TextColor INFO = TextColor.color(0x59a4ff);
     private static final TextColor MUTED = TextColor.color(0x868e96);
+    private static final TextColor BRACKETS = TextColor.color(0x868e96);
 
     /**
      * Where lines go. Replaced in tests; by default, the server's console,
@@ -142,27 +157,27 @@ public final class Debug {
 
     /** Prints an ordinary line: the day-to-day noise of a plugin running. */
     public void log(@NotNull String message) {
-        send("letters", LETTERS, message);
+        send("INFO", "info", INFO, "letters", LETTERS, message);
     }
 
     /** Prints a line that says something went right, in the success colour. */
     public void success(@NotNull String message) {
-        send("success", SUCCESS, message);
+        send("SUCCESS", "success", SUCCESS, "success", SUCCESS, message);
     }
 
     /** Prints a warning: wrong, but survivable. */
     public void warn(@NotNull String message) {
-        send("warning", WARNING, message);
+        send("WARN", "warning", WARNING, "warning", WARNING, message);
     }
 
     /** Prints an error. */
     public void error(@NotNull String message) {
-        send("error", ERROR, message);
+        send("ERROR", "error", ERROR, "error", ERROR, message);
     }
 
     /** Prints an error followed by the throwable's stack trace. */
     public void error(@NotNull String message, @Nullable Throwable throwable) {
-        send("error", ERROR, message, throwable);
+        send("ERROR", "error", ERROR, "error", ERROR, message, throwable);
     }
 
     /**
@@ -173,18 +188,21 @@ public final class Debug {
      */
     public void debug(@NotNull String message) {
         if (isDebugEnabled()) {
-            send("muted", MUTED, message);
+            send("DEBUG", "muted", MUTED, "muted", MUTED, message);
         }
     }
 
     /**
-     * Prints the plugin's name in ASCII art, with its version underneath.
+     * Prints the plugin's name in ASCII art, framed the ExyliaCommons way.
      *
-     * <p>Call once from {@code onEnable}. The version comes from the plugin
-     * description; a plugin without one just gets the art.
+     * <p>A blank line, the art, the version alongside whether debug is on, the
+     * Exylia link, and a blank line to close. Call once from {@code onEnable}.
+     * The version comes from the plugin description; a plugin without one
+     * still gets the art and the link.
      */
     public void motd() {
         TextColor primary = Colors.get("primary", PRIMARY);
+        TextColor muted = Colors.get("muted", MUTED);
         String art;
         try {
             art = FigletFont.convertOneLine(name);
@@ -192,7 +210,10 @@ public final class Debug {
             // A broken jar without its font resource still gets a banner.
             art = name;
         }
-        for (String line : art.split("\n")) {
+        // The blank lines around the banner are the ExyliaCommons framing: a
+        // banner wedged between two plugins' startup noise is not a banner.
+        sink.send(Component.empty(), null);
+        for (String line : art.split("\\n")) {
             // Figlet pads the last rows with blanks; printing them adds
             // nothing but console height.
             if (!line.isBlank()) {
@@ -201,21 +222,35 @@ public final class Debug {
         }
         PluginDescriptionFile description = plugin.getDescription();
         if (description != null && description.getVersion() != null) {
-            sink.send(Component.text("v" + description.getVersion(),
-                    Colors.get("muted", MUTED)), null);
+            sink.send(Component.text("Version: v" + description.getVersion(), muted)
+                    .append(Component.text(" | ", BRACKETS))
+                    .append(Component.text("Debug: " + isDebugEnabled(), muted)), null);
         }
+        sink.send(Component.text("Powered by Exylia - ", muted)
+                .append(Component.text("https://discord.exylia.net",
+                        Colors.get("secondary", SECONDARY))), null);
+        sink.send(Component.empty(), null);
     }
 
-    private void send(String token, TextColor fallback, String message) {
-        send(token, fallback, message, null);
+    private void send(String label, String labelToken, TextColor labelFallback,
+                      String bodyToken, TextColor bodyFallback, String message) {
+        send(label, labelToken, labelFallback, bodyToken, bodyFallback, message, null);
     }
 
-    private void send(String token, TextColor fallback, String message,
+    private void send(String label, String labelToken, TextColor labelFallback,
+                      String bodyToken, TextColor bodyFallback, String message,
                       @Nullable Throwable error) {
+        TextColor brackets = Colors.get("muted", BRACKETS);
+        TextColor labelColour = Colors.get(labelToken, labelFallback);
         // The message is appended literally, never parsed: debug output is
         // exactly the place where a stray "&" or "{" must survive.
-        Component line = Component.text("[" + name + "] ", Colors.get("primary", PRIMARY))
-                .append(Component.text(message, Colors.get(token, fallback)));
+        Component line = Component.text("[", brackets)
+                .append(gradientName())
+                .append(Component.text("] ", brackets))
+                .append(Component.text("[", brackets))
+                .append(Component.text(label, labelColour))
+                .append(Component.text("] ", brackets))
+                .append(Component.text(message, Colors.get(bodyToken, bodyFallback)));
         sink.send(line, error);
         if (error != null) {
             // The stack belongs in the log file, with a level and the plugin's
@@ -223,6 +258,49 @@ public final class Debug {
             // arrives as unowned noise. This was the last antique in here.
             plugin.getLogger().log(java.util.logging.Level.WARNING, message, error);
         }
+    }
+
+    /**
+     * The plugin's name, painted secondary &rarr; primary &rarr; secondary.
+     *
+     * <p>The ExyliaCommons look, rebuilt out of palette tokens rather than the
+     * hardcoded hexes it used: a server that recolours its palette recolours
+     * its console too. Read on every line rather than cached, which is what
+     * lets this module answer a palette reload without an
+     * {@code invalidateAll()} hook — a plugin name is a dozen characters and a
+     * log line is not a hot path, so caching would buy nothing and cost the
+     * coupling.
+     */
+    private Component gradientName() {
+        TextColor edge = Colors.get("secondary", SECONDARY);
+        TextColor middle = Colors.get("primary", PRIMARY);
+        int length = name.length();
+        if (length == 0) {
+            return Component.empty();
+        }
+        if (length == 1) {
+            return Component.text(name, middle);
+        }
+        Component painted = Component.empty();
+        int last = length - 1;
+        for (int index = 0; index < length; index++) {
+            // Two runs: out to the middle and back, so both ends read as the
+            // same colour however long the name is.
+            double toMiddle = (double) index / (last / 2.0);
+            double position = toMiddle <= 1 ? toMiddle : 2 - toMiddle;
+            painted = painted.append(Component.text(name.charAt(index),
+                    blend(edge, middle, position)));
+        }
+        return painted;
+    }
+
+    /** A colour {@code position} of the way from {@code from} to {@code to}. */
+    private static TextColor blend(TextColor from, TextColor to, double position) {
+        double clamped = Math.max(0, Math.min(1, position));
+        return TextColor.color(
+                (int) Math.round(from.red() + (to.red() - from.red()) * clamped),
+                (int) Math.round(from.green() + (to.green() - from.green()) * clamped),
+                (int) Math.round(from.blue() + (to.blue() - from.blue()) * clamped));
     }
 
     /** Test seam: captures lines instead of printing them. */

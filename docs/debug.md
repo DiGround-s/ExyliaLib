@@ -26,9 +26,45 @@ public void onEnable() {
 | `warn(message)` | wrong but survivable, in the warning colour |
 | `error(message)` / `error(message, throwable)` | an error, with the stack trace after it |
 | `debug(message)` | the detail nobody wants in production — prints only when enabled |
-| `motd()` | the plugin's name in ASCII art, version underneath |
+| `motd()` | the plugin's name in ASCII art, framed with its version and the Exylia link |
 
-Every line is prefixed with the plugin's name: `[ExyliaFFA] ready`.
+## The shape of a line
+
+```
+[ExyliaFFA] [WARN] arena "sky" has no spawn
+```
+
+The name is painted `secondary` → `primary` → `secondary`, the ExyliaCommons
+look rebuilt out of palette tokens; the label says which of the five kinds
+this is and wears that kind's colour. Since 1.35.0.
+
+| Method | Label | Label colour |
+| --- | --- | --- |
+| `log` | `[INFO]` | `info` |
+| `success` | `[SUCCESS]` | `success` |
+| `warn` | `[WARN]` | `warning` |
+| `error` | `[ERROR]` | `error` |
+| `debug` | `[DEBUG]` | `muted` |
+
+## Whose line is it
+
+The name in front is whatever plugin was passed to `Debug.of(plugin)`, and it
+answers **whose problem this is** — not which jar the code lives in. The
+library reports an unreadable `database.yml` against the plugin that wrote
+it, and its own cross-server trouble against itself:
+
+| Situation | The library calls | It prints |
+| --- | --- | --- |
+| A consumer's `database.yml` names an unknown engine | `Debug.of(plugin)` | `[ExyliaFFA]` |
+| A consumer's menu, item or sequence is unreadable | `Debug.of(plugin)` | `[ExyliaFFA]` |
+| Redis is unreachable during the library's own handover | `Debug.of(library)` | `[ExyliaLib]` |
+| Palette reload, the updater, lifecycle | `Debug.of(this)` | `[ExyliaLib]` |
+
+ExyliaCommons split this into a pair of methods per kind — `logPluginWarn`
+and `logLibWarn`, with the library prefix a hardcoded constant. That asked
+the caller which jar it was in, which is a question no one reading a console
+ever asks, and got it wrong invisibly across forty entry points. There is one
+method per kind here, and the name comes from the argument.
 
 Lifecycle: `Debug.of(plugin)` caches per plugin; `release(pluginName)` /
 `releaseAll()` drop instances (the library does this on shutdown).
@@ -64,15 +100,22 @@ reason to.
 
 ## Contracts
 
-- **Colours come from the server's palette** (`primary` for the prefix,
-  `success`/`warning`/`error`/`muted` for the body), so a recoloured server
-  recolours its logs. Fixed fallbacks match the palette defaults for when
-  the palette is not loaded.
+- **Colours come from the server's palette** (`primary`/`secondary` for the
+  name, `info`/`success`/`warning`/`error`/`muted` for the label and body),
+  so a recoloured server recolours its logs. Fixed fallbacks match the
+  palette defaults for when the palette is not loaded.
+- **The palette is read on every line, never cached.** That is what lets this
+  module answer `/exylialib reload` without an `invalidateAll()` hook — see
+  `docs/reload.md`. A plugin name is a dozen characters and a log line is not
+  a hot path, so caching would buy nothing and cost the coupling.
 - **The message is appended literally, never parsed.** A stack trace or a
   config line full of `&` and `{}` prints as-is.
 - **Either toggle gates only `debug`.** Everything else always prints.
 - **The banner never breaks a startup.** If the font resource were missing
-  from a broken jar, the name prints plainly instead.
+  from a broken jar, the name prints plainly instead. It is framed by a blank
+  line at each end, and closes with the version alongside the debug state and
+  the Exylia link — the ExyliaCommons framing, which a banner wedged between
+  two plugins' startup noise does not have.
 - Lines go to the server's console sender, which renders component colours
   as terminal colours and writes plain text to the log file.
 

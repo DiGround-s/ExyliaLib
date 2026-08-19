@@ -740,12 +740,28 @@ Todo mensaje a consola pasa por `net.exylia.lib.debug.Debug`. Nunca
   numéricos ni configuración de formato. Commons tenía cuatro ejes de
   clasificación y cuarenta entry points para decir estas cinco cosas; a las 3
   de la mañana nadie elige bien entre cuarenta opciones.
+- **Una línea es `[Plugin] [WARN] mensaje`.** El nombre va en degradado
+  `{secondary}`→`{primary}`→`{secondary}` y la etiqueta la elige el método,
+  nunca el llamante: son las mismas cinco cosas, no cuatro ejes nuevos.
 - **El color sale de la paleta del servidor** y el mensaje se anexa literal:
   una traza llena de `&` y `{}` sale tal cual.
+- **El degradado se lee en cada línea, no se cachea.** Por eso este módulo
+  responde al reload sin `invalidateAll()`, y por eso no está en
+  `ExyliaLib.loadPalette`. Un nombre de plugin son doce caracteres y un log
+  no es ruta caliente: cachear no compraría nada y pagaría el acoplamiento.
+- **De quién es la línea lo dice el argumento, no el método.** `Debug.of` con
+  el plugin del consumidor cuando el problema es suyo (su `database.yml`, su
+  menú ilegible), con la lib cuando es de la lib. Commons partía cada tipo en
+  `logPluginX`/`logLibX` con el prefijo de la lib hardcodeado: eso le
+  preguntaba al llamante en qué jar estaba, que es justo lo que nadie
+  pregunta al leer una consola, y se elegía mal en silencio.
 - **`debug()` solo imprime con `enabled(true)`**; el toggle lo da la config
   del plugin. El resto siempre imprime.
-- **El banner (`motd()`) es el nombre en ASCII art + versión**, lo que se
-  echaba de menos de commons. jfiglet va shadeado y relocado, fuera del POM.
+- **El banner (`motd()`) es el nombre en ASCII art**, enmarcado por una línea
+  en blanco a cada lado y cerrado con versión + estado de debug + el enlace
+  de Exylia: el marco de commons, que un banner encajado entre el ruido de
+  arranque de otros dos plugins no tiene. jfiglet va shadeado y relocado,
+  fuera del POM.
 - **Nunca rompe un arranque**: sin fuente en un jar roto, imprime el nombre
   en plano.
 
@@ -967,6 +983,7 @@ Raíz de código: `src/main/java/net/exylia/lib/`. Raíz de tests:
 | util (snapshots) | `util/snapshot/Snapshots`, `PluginSnapshots`, `Snapshot`, `SnapshotPart`, `SnapshotCodec`, `SnapshotSettings` | `util/snapshot/internal/` (`PlayerState`, `SnapshotRow`, `LegacyRow`, `LegacyImport`, `SnapshotRuntime`) | [docs/snapshots.md](docs/snapshots.md) | 1.34.0 |
 | util (teleport) | `util/teleport/Teleports`, `PluginTeleports`, `TeleportRequest`, `TeleportHandle`, `TeleportResult`, `TeleportCause`, `TeleportSettings`, `ExyliaLocation`, `ExyliaTeleportEvent`, `RandomArea`, `TeleportDirection`, `TeleportRequestTicket`, `TpaAcceptance`, `TpaOutcome` | `util/teleport/internal/` (`TeleportRuntime`, `RunningTeleport`, `TeleportPlan`, `Teleporter`, `SafeLocations`, `RandomLocations`, `BackHistory`, `TpaBook`, `CrossServer`) | [docs/teleport.md](docs/teleport.md) | 1.34.0 |
 | util (wizard) | `util/wizard/Wizards`, `PluginWizards`, `Wizard`, `WizardBuilder` (+ `Branch`), `WizardStep` (+ `Prompt`), `WizardKey`, `WizardValues`, `WizardRun`, `WizardOutcome`, `WizardResult`, `WizardSettings`, `WizardException` | `util/wizard/internal/` (`WizardRuntime`, `WizardSession`, `WizardListener`); `init`/`forget`/`release` en `ExyliaLib` | [docs/wizard.md](docs/wizard.md) | 1.34.0 |
+| consola con look de commons | `debug/Debug` (degradado, etiqueta por tipo, marco del `motd`) | `gradientName`/`blend` en `Debug` | [docs/debug.md](docs/debug.md) | 1.35.0 |
 
 Clases raíz que no son módulo: `ExyliaLib.java` (ciclo de vida y limpieza),
 `platform/Platform.java`, `internal/LibrarySettings`, `internal/ExyliaLibUpdater`.

@@ -14,7 +14,7 @@ import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotSame;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -33,6 +33,19 @@ class DebugTest {
     private final List<Captured> out = new CopyOnWriteArrayList<>();
     private Plugin plugin;
     private Debug debug;
+
+    /** The message body: the last piece appended to a line. */
+    private static TextColor bodyColour(Component line) {
+        List<Component> parts = line.children();
+        return parts.get(parts.size() - 1).color();
+    }
+
+    /** The label between the brackets, which sits just before the body. */
+    private static TextColor labelColour(Component line) {
+        List<Component> parts = line.children();
+        // [ name ] [ LABEL ] body — the label is three back from the end.
+        return parts.get(parts.size() - 3).color();
+    }
 
     @BeforeEach
     void setUp() {
@@ -81,7 +94,7 @@ class DebugTest {
     void prefixedWithName() {
         debug.log("ready");
 
-        assertEquals("[ExyliaTest] ready", out.get(0).plain());
+        assertEquals("[ExyliaTest] [INFO] ready", out.get(0).plain());
     }
 
     @Test
@@ -90,7 +103,25 @@ class DebugTest {
         debug.log("100% & counting {primary}");
 
         // Parsed, the & would vanish and the token would become a colour.
-        assertEquals("[ExyliaTest] 100% & counting {primary}", out.get(0).plain());
+        assertEquals("[ExyliaTest] [INFO] 100% & counting {primary}",
+                out.get(0).plain());
+    }
+
+    @Test
+    @DisplayName("each type says which it is")
+    void typesAreLabelled() {
+        debug.log("a");
+        debug.success("b");
+        debug.warn("c");
+        debug.error("d");
+        debug.enabled(true);
+        debug.debug("e");
+
+        assertEquals("[ExyliaTest] [INFO] a", out.get(0).plain());
+        assertEquals("[ExyliaTest] [SUCCESS] b", out.get(1).plain());
+        assertEquals("[ExyliaTest] [WARN] c", out.get(2).plain());
+        assertEquals("[ExyliaTest] [ERROR] d", out.get(3).plain());
+        assertEquals("[ExyliaTest] [DEBUG] e", out.get(4).plain());
     }
 
     @Test
@@ -101,15 +132,26 @@ class DebugTest {
         debug.warn("c");
         debug.error("d");
 
-        // The body colour lives on the appended part, so compare those.
-        TextColor letters = out.get(0).line().children().get(0).color();
-        TextColor success = out.get(1).line().children().get(0).color();
-        TextColor warning = out.get(2).line().children().get(0).color();
-        TextColor error = out.get(3).line().children().get(0).color();
+        TextColor letters = bodyColour(out.get(0).line());
+        TextColor success = bodyColour(out.get(1).line());
+        TextColor warning = bodyColour(out.get(2).line());
+        TextColor error = bodyColour(out.get(3).line());
         assertTrue(success.value() != warning.value(),
                 "success and warning must not look alike");
         assertTrue(error.value() != letters.value());
         assertTrue(warning.value() != letters.value());
+    }
+
+    @Test
+    @DisplayName("the label wears its type's colour, not the body's")
+    void labelIsColouredByType() {
+        debug.warn("careful");
+        debug.error("broke");
+
+        TextColor warnLabel = labelColour(out.get(0).line());
+        TextColor errorLabel = labelColour(out.get(1).line());
+        assertTrue(warnLabel.value() != errorLabel.value(),
+                "a warning and an error must not share a label colour");
     }
 
     @Test
@@ -119,7 +161,7 @@ class DebugTest {
 
         debug.error("broke", boom);
 
-        assertEquals("[ExyliaTest] broke", out.get(0).plain());
+        assertEquals("[ExyliaTest] [ERROR] broke", out.get(0).plain());
         assertSame(boom, out.get(0).error());
     }
 
@@ -172,7 +214,7 @@ class DebugTest {
 
         debug.debug("noisy detail");
 
-        assertEquals("[ExyliaTest] noisy detail", out.get(0).plain());
+        assertEquals("[ExyliaTest] [DEBUG] noisy detail", out.get(0).plain());
     }
 
     @Test
@@ -205,7 +247,7 @@ class DebugTest {
 
         debug.debug("noisy detail");
 
-        assertEquals("[ExyliaTest] noisy detail", out.get(0).plain());
+        assertEquals("[ExyliaTest] [DEBUG] noisy detail", out.get(0).plain());
     }
 
     @Test
@@ -257,13 +299,29 @@ class DebugTest {
     // ------------------------------------------------------------------
 
     @Test
-    @DisplayName("the banner is ASCII art plus the version")
+    @DisplayName("the banner is ASCII art plus the version and the link")
     void motdPrintsArtAndVersion() {
         debug.motd();
 
         assertTrue(out.size() >= 3,
                 "a banner is several art lines plus a version line, got " + out.size());
-        assertEquals("v1.0-test", out.get(out.size() - 1).plain());
+        List<String> lines = out.stream().map(Captured::plain).toList();
+        assertTrue(lines.contains("Version: v1.0-test | Debug: false"),
+                "the version line is missing, got " + lines);
+        assertTrue(lines.contains("Powered by Exylia - https://discord.exylia.net"),
+                "the Exylia line is missing, got " + lines);
+    }
+
+    @Test
+    @DisplayName("the banner says whether debug is on")
+    void motdReportsTheDebugState() {
+        debug.enabled(true);
+
+        debug.motd();
+
+        assertTrue(out.stream().map(Captured::plain)
+                        .anyMatch(line -> line.equals("Version: v1.0-test | Debug: true")),
+                "a banner printed with debug on must say so");
     }
 
     @Test
@@ -278,10 +336,81 @@ class DebugTest {
     }
 
     @Test
-    @DisplayName("the banner skips blank figlet rows")
+    @DisplayName("the banner skips blank figlet rows but keeps its own framing")
     void motdSkipsBlankLines() {
         debug.motd();
 
-        assertFalse(out.stream().anyMatch(line -> line.plain().isBlank()));
+        // Two deliberate blanks — one above, one below — and no figlet padding
+        // in between, which would show up as more.
+        long blanks = out.stream().filter(line -> line.plain().isBlank()).count();
+        assertEquals(2, blanks, "the framing is one blank line at each end");
+        assertTrue(out.get(0).plain().isBlank(), "the banner opens on a blank line");
+        assertTrue(out.get(out.size() - 1).plain().isBlank(),
+                "the banner closes on a blank line");
+    }
+
+    // ------------------------------------------------------------------
+    // The gradient name
+    // ------------------------------------------------------------------
+
+    @Test
+    @DisplayName("the name is a gradient, not one flat colour")
+    void nameIsAGradient() {
+        debug.log("ready");
+
+        List<TextColor> painted = nameColours(out.get(0).line());
+        assertTrue(painted.stream().distinct().count() > 1,
+                "a flat name means the gradient was lost");
+    }
+
+    @Test
+    @DisplayName("the gradient runs out to the middle and back")
+    void gradientIsSymmetric() {
+        debug.log("ready");
+
+        List<TextColor> painted = nameColours(out.get(0).line());
+        assertEquals(painted.get(0), painted.get(painted.size() - 1),
+                "both ends of the name must read the same");
+        TextColor middle = painted.get(painted.size() / 2);
+        assertNotEquals(painted.get(0), middle,
+                "the middle must differ from the ends");
+    }
+
+    @Test
+    @DisplayName("a one-letter plugin name still paints")
+    void gradientHandlesAShortName() {
+        Debug tiny = Debug.of(FakeServer.newPlugin("X"));
+
+        tiny.log("ready");
+
+        assertEquals("[X] [INFO] ready", out.get(0).plain());
+    }
+
+    @Test
+    @DisplayName("recolouring the palette recolours the console")
+    void followsThePalette() {
+        debug.log("ready");
+        List<TextColor> before = nameColours(out.get(0).line());
+        out.clear();
+
+        net.exylia.lib.text.Palette recoloured = new net.exylia.lib.text.Palette(
+                "#112233", "#445566", "#b48fd9", "#e7cfff", "#a89ab5",
+                "#a33b53", "#8fffc1", "#a1ffc3", "#ff9500", "#ffd2a8",
+                "#59a4ff", "#7db7ff", "#ff6b9d", "#6c757d", "#ffd700", "#868e96");
+        net.exylia.lib.text.Colors.apply(recoloured);
+        debug.log("ready");
+
+        assertNotEquals(before, nameColours(out.get(0).line()),
+                "the name is read from the palette on every line, so a reload "
+                        + "must reach it without an invalidateAll hook");
+    }
+
+    /** The colour of every character of the name, in order. */
+    private static List<TextColor> nameColours(Component line) {
+        // The painted name is appended as one piece holding a part per
+        // character, so it arrives as the first child rather than as N.
+        return line.children().get(0).children().stream()
+                .map(Component::color)
+                .toList();
     }
 }
