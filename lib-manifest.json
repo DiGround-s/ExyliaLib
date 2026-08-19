@@ -160,9 +160,16 @@
       "sha256": "1e0311a68959686d8b6ecd9738d2d0e70292f627abbe321ca40398af203f0011",
       "major": 1,
       "requiresRestart": true
+    },
+    "1.37.0": {
+      "version": "1.37.0",
+      "url": "https://github.com/DiGround-s/ExyliaLib/releases/download/v1.37.0/ExyliaLib-1.37.0.jar",
+      "sha256": "c7e6a24f985042a77e60c1aeeecc9b2b83ab67566e61e55fcead463389bbee8a",
+      "major": 1,
+      "requiresRestart": true
     }
   },
   "latest": {
-    "major1": "1.36.0"
+    "major1": "1.37.0"
   }
 }
