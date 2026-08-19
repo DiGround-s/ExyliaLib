@@ -4,17 +4,35 @@ There is no reload *system*, because none is needed: each side reloads what
 it owns, and nothing else. Since 1.14.0 the library's half of that is
 reachable from in-game.
 
-## The library: `/exylialib reload`
+## The library: `/exylialib`
 
 Registered through Lamp (`io.github.revxrsal:lamp.*:4.0.0-rc.17`, the
-framework the whole ecosystem standardises on), permission
-`exylialib.admin`. It reloads `colors.yml` — the only state of the library a
-server owner edits.
+framework the whole ecosystem standardises on). Every subcommand sits behind
+`exylialib.admin`, including the read-only ones — server admin commands are
+conventionally gated by one node.
 
-One command recolours the whole server. The chain, verified in code:
+| Subcommand | What it does |
+| --- | --- |
+| `/exylialib` | Overview: what the command does |
+| `/exylialib reload` | Reloads the library's own runtime settings |
+| `/exylialib info` (since 1.35.0) | Version, platform, `config.yml` switches, and which plugins depend on the library |
+| `/exylialib stats` (since 1.35.0) | Live counters from every module |
+
+### `/exylialib reload`
+
+Reloads **five files**, not just `colors.yml`: `config.yml`
+(`LibrarySettings` — debug, small text, auto-update), `colors.yml` (the
+palette), `formats.yml`, `economy.yml` and `input.yml`. All five are the
+library's own shared configuration, and a server owner running one reload
+command means all of it — see `ExyliaLib.reloadPalette()`, whose name is a
+holdover from when the palette was the only file, kept for the smaller diff.
+
+The chain, verified in code:
 
 ```
 /exylialib reload
+  → LibrarySettings.reload()                   config.yml: debug, small text, auto-update
+  → TextEngine.smallText(...)                  applied before the palette, so nothing renders stale
   → palette.reload()
       → Colors.apply(new palette)              palette tokens mean new colours
       → TextEngine cache dropped               nothing stale is re-shown
@@ -22,9 +40,22 @@ One command recolours the whole server. The chain, verified in code:
       → HologramRuntime.invalidateAll()        holograms too
       → EffectRuntime.invalidateAll()          static effects re-draw
       → ItemCache.invalidateAll()              rendered items are built again
+  → formats.reload()                           formats.yml
+  → economy.reload()                           economy.yml
+  → input.reload()                             input.yml
 ```
 
-`/exylialib` alone shows the version and the subcommand.
+### `/exylialib info` and `/exylialib stats`
+
+Both are read-only diagnostics. Neither adds tracking to the library: `info`
+reads `Platform.current()`, `LibrarySettings.get()` and
+`Bukkit.getPluginManager().getPlugins()` (checking each enabled plugin's
+`plugin.yml` for `ExyliaLib` under `depend` or `softdepend`); `stats` reads
+the counters every module already exposes for diagnostics —
+`BoardManager.activeCount()`, `HologramRuntime.count()`, `Effects.active()`,
+`Menus.registered()`, `Actions.registered()`, `Regions.registered()`,
+`Databases.registered()`/`isReady()`/`engine()`, `Redis.isActive()`/`stats()`
+and `Configs.loaded()`.
 
 ## Staying up to date (since 1.30.0)
 

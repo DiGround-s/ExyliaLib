@@ -700,9 +700,16 @@ que el servidor la descargue de Maven Central. Nunca `onCommand`, ni un
 
 - **No hay sistema de reload.** `Configs.reloadAll(plugin)` + `onReload` lo
   cubren; un plugin se recarga a sí mismo en tres líneas y nunca toca la lib.
-- **`/exylialib reload` recarga solo la paleta** y basta para recolorear todo
-  el servidor: `Colors.apply` → se descarta la caché de `TextEngine` →
-  `BoardManager` y `HologramRuntime` se re-envían enteros.
+- **`/exylialib reload` recarga los cinco ficheros de la lib** (`config.yml`,
+  `colors.yml`, `formats.yml`, `economy.yml`, `input.yml`) y nada de un
+  consumidor. La paleta sola basta para recolorear todo el servidor:
+  `Colors.apply` → se descarta la caché de `TextEngine` → `BoardManager` y
+  `HologramRuntime` se re-envían enteros. `reloadPalette()` conserva el nombre
+  de cuando la paleta era el único fichero.
+- **`info` y `stats` no añaden contadores**, solo enseñan lo que los módulos
+  ya exponen (`Effects.active()`, `Databases.registered()`, …) y lo que Bukkit
+  ya sabe (quién declara `ExyliaLib` en su `plugin.yml`). Un diagnóstico que
+  obliga a instrumentar la lib deja de ser un diagnóstico.
 - **"Reload lib → reload plugin" está prohibido**: el plugin no necesita nada
   de la lib para recargarse, y recargar la paleta desde un consumidor
   re-enviaría los visuales de TODOS los plugins.
@@ -984,6 +991,7 @@ Raíz de código: `src/main/java/net/exylia/lib/`. Raíz de tests:
 | util (teleport) | `util/teleport/Teleports`, `PluginTeleports`, `TeleportRequest`, `TeleportHandle`, `TeleportResult`, `TeleportCause`, `TeleportSettings`, `ExyliaLocation`, `ExyliaTeleportEvent`, `RandomArea`, `TeleportDirection`, `TeleportRequestTicket`, `TpaAcceptance`, `TpaOutcome` | `util/teleport/internal/` (`TeleportRuntime`, `RunningTeleport`, `TeleportPlan`, `Teleporter`, `SafeLocations`, `RandomLocations`, `BackHistory`, `TpaBook`, `CrossServer`) | [docs/teleport.md](docs/teleport.md) | 1.34.0 |
 | util (wizard) | `util/wizard/Wizards`, `PluginWizards`, `Wizard`, `WizardBuilder` (+ `Branch`), `WizardStep` (+ `Prompt`), `WizardKey`, `WizardValues`, `WizardRun`, `WizardOutcome`, `WizardResult`, `WizardSettings`, `WizardException` | `util/wizard/internal/` (`WizardRuntime`, `WizardSession`, `WizardListener`); `init`/`forget`/`release` en `ExyliaLib` | [docs/wizard.md](docs/wizard.md) | 1.34.0 |
 | consola con look de commons | `debug/Debug` (degradado, etiqueta por tipo, marco del `motd`) | `gradientName`/`blend` en `Debug` | [docs/debug.md](docs/debug.md) | 1.35.0 |
+| `/exylialib info` y `stats` | — | `internal/ReloadCommand` (`dependentsOf`, `hologramsLine`) | [docs/reload.md](docs/reload.md) | 1.35.0 |
 
 Clases raíz que no son módulo: `ExyliaLib.java` (ciclo de vida y limpieza),
 `platform/Platform.java`, `internal/LibrarySettings`, `internal/ExyliaLibUpdater`.

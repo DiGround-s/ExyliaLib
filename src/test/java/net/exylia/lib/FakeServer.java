@@ -47,6 +47,13 @@ public final class FakeServer {
     private static final List<org.bukkit.entity.Player> ONLINE = new ArrayList<>();
 
     /**
+     * Plugins the server reports as installed, for tests of code that
+     * inspects {@code Bukkit.getPluginManager().getPlugins()} directly (such
+     * as discovering who depends on ExyliaLib from {@code plugin.yml}).
+     */
+    private static final List<Plugin> PLUGINS = new ArrayList<>();
+
+    /**
      * Worlds the server reports as loaded.
      *
      * <p>Anything that stores a location has to resolve a world by name to read
@@ -214,6 +221,7 @@ public final class FakeServer {
         deliverFiredEvents = false;
         SCHEDULED.clear();
         ONLINE.clear();
+        PLUGINS.clear();
         WORLDS.clear();
         EVENTS.clear();
         LISTENERS.clear();
@@ -249,6 +257,12 @@ public final class FakeServer {
     public static void online(org.bukkit.entity.Player... players) {
         ONLINE.clear();
         ONLINE.addAll(List.of(players));
+    }
+
+    /** Sets which plugins {@code Bukkit.getPluginManager().getPlugins()} reports. */
+    public static void plugins(Plugin... plugins) {
+        PLUGINS.clear();
+        PLUGINS.addAll(List.of(plugins));
     }
 
     private static Object findPlayer(Object[] args) {
@@ -396,6 +410,9 @@ public final class FakeServer {
                             LISTENERS.add((org.bukkit.event.Listener) args[0]);
                             return null;
                         }
+                        if (method.getName().equals("getPlugins")) {
+                            return PLUGINS.toArray(new Plugin[0]);
+                        }
                         return defaultValue(method.getReturnType());
                     });
 
@@ -510,7 +527,30 @@ public final class FakeServer {
      * @return the proxy
      */
     public static Plugin newPlugin(String name, java.io.File dataFolder) {
+        return newPlugin(name, dataFolder, "1.0-test", List.of(), List.of());
+    }
+
+    /**
+     * A plugin proxy whose description declares dependencies, for tests of
+     * code that inspects {@code plugin.yml}'s {@code depend}/{@code softdepend}
+     * (such as discovering who depends on ExyliaLib).
+     *
+     * @param name        the plugin name
+     * @param version     the version {@link Plugin#getDescription()} reports
+     * @param depend      hard dependencies, as {@code plugin.yml} would list them
+     * @param softDepend  soft dependencies, as {@code plugin.yml} would list them
+     * @return the proxy, enabled, with no data folder
+     */
+    public static Plugin newPlugin(String name, String version, List<String> depend, List<String> softDepend) {
+        return newPlugin(name, null, version, depend, softDepend);
+    }
+
+    private static Plugin newPlugin(String name, java.io.File dataFolder, String version,
+                                     List<String> depend, List<String> softDepend) {
         Logger logger = Logger.getLogger(name);
+        org.bukkit.plugin.PluginDescriptionFile description =
+                new org.bukkit.plugin.PluginDescriptionFile(name, version, "test.Main");
+        setDependencies(description, depend, softDepend);
         return (Plugin) Proxy.newProxyInstance(
                 FakeServer.class.getClassLoader(),
                 new Class<?>[]{Plugin.class},
@@ -519,14 +559,37 @@ public final class FakeServer {
                     case "getLogger" -> logger;
                     case "isEnabled" -> true;
                     case "getDataFolder" -> dataFolder;
-                    case "getDescription" ->
-                            new org.bukkit.plugin.PluginDescriptionFile(name, "1.0-test",
-                                    "test.Main");
+                    case "getDescription" -> description;
                     case "hashCode" -> System.identityHashCode(proxy);
                     case "equals" -> proxy == args[0];
                     case "toString" -> name;
                     default -> defaultValue(method.getReturnType());
                 });
+    }
+
+    /**
+     * Fills in {@code depend}/{@code softdepend} on a description built from
+     * the 3-argument constructor, which leaves both {@code null}.
+     *
+     * <p>Reflection, not a YAML round-trip: {@link org.bukkit.plugin.PluginDescriptionFile}
+     * has no public setters and the only constructor that accepts these lists
+     * also demands a dozen other fields no test needs.
+     */
+    private static void setDependencies(org.bukkit.plugin.PluginDescriptionFile description,
+                                         List<String> depend, List<String> softDepend) {
+        if (depend.isEmpty() && softDepend.isEmpty()) {
+            return;
+        }
+        try {
+            java.lang.reflect.Field dependField = description.getClass().getDeclaredField("depend");
+            dependField.setAccessible(true);
+            dependField.set(description, new ArrayList<>(depend));
+            java.lang.reflect.Field softDependField = description.getClass().getDeclaredField("softDepend");
+            softDependField.setAccessible(true);
+            softDependField.set(description, new ArrayList<>(softDepend));
+        } catch (ReflectiveOperationException exception) {
+            throw new IllegalStateException("Could not set test plugin dependencies", exception);
+        }
     }
 
     /** Default return values for proxy methods nobody stubbed. */
