@@ -42,6 +42,7 @@ import net.exylia.lib.region.internal.SelectionListener;
 import net.exylia.lib.text.Prefixes;
 import net.exylia.lib.util.Cooldowns;
 import net.exylia.lib.util.preview.Previews;
+import net.exylia.lib.util.reward.Rewards;
 import net.exylia.lib.util.sequence.Sequences;
 import net.exylia.lib.util.wizard.Wizards;
 import net.exylia.lib.util.wizard.internal.WizardRuntime;
@@ -353,6 +354,9 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         Inputs.releaseAll();
         Menus.releaseAll();
         Regions.releaseAll();
+        // Before the database module, for the same reason a plugin's release is:
+        // a pending store is somebody's repository.
+        Rewards.releaseAll();
         // After every plugin has had its own onDisable — they run before this
         // one — so a last write queued there has already been handed to the
         // pool. Before the task module, because the pool's own close is
@@ -491,6 +495,10 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         // Reconciliation uses ExyliaLib's scheduler, but publication must still happen
         // before the dying plugin's own task scheduler is cancelled.
         Regions.release(pluginName);
+        // Before the database module: a claim reads the plugin's pending table,
+        // and a reward handed to a player whose plugin is going away must not be
+        // marked as claimed by a repository that is about to close.
+        Rewards.release(pluginName);
         // Drops the plugin's repositories and datasource lease. A target closes
         // only after its last owning plugin releases it.
         Databases.release(pluginName);

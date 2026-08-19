@@ -34,6 +34,10 @@ public final class FakePlayer {
     private final List<String> commands = new CopyOnWriteArrayList<>();
     private volatile boolean acceptsCommands = true;
     private volatile boolean online = true;
+    private final java.util.Set<String> permissions = new java.util.concurrent.CopyOnWriteArraySet<>();
+    private final java.util.concurrent.atomic.AtomicInteger experience =
+            new java.util.concurrent.atomic.AtomicInteger();
+    private volatile Object inventory;
     private volatile org.bukkit.Location location;
     private final List<org.bukkit.Location> teleports = new CopyOnWriteArrayList<>();
     private final List<String> hidden = new CopyOnWriteArrayList<>();
@@ -53,6 +57,13 @@ public final class FakePlayer {
                     case "getWorld" -> location == null ? null : location.getWorld();
                     case "getName" -> this.name;
                     case "isOnline", "isValid" -> online;
+                    case "hasPermission" -> permissions.contains(String.valueOf(args[0]));
+                    case "getInventory" -> inventory;
+                    case "giveExp" -> {
+                        experience.addAndGet((int) args[0]);
+                        yield null;
+                    }
+                    case "getTotalExperience" -> experience.get();
                     case "performCommand" -> {
                         commands.add(String.valueOf(args[0]));
                         yield acceptsCommands;
@@ -213,6 +224,30 @@ public final class FakePlayer {
     public FakePlayer at(org.bukkit.Location where) {
         this.location = where.clone();
         return this;
+    }
+
+    /**
+     * Gives this player an inventory.
+     *
+     * <p>Untyped because only a test that cares about inventories provides one,
+     * and building a real {@code PlayerInventory} needs a running server.
+     *
+     * @param stub something implementing {@code PlayerInventory}
+     */
+    public FakePlayer inventory(Object stub) {
+        this.inventory = stub;
+        return this;
+    }
+
+    /** Gives this player a permission. */
+    public FakePlayer grant(String permission) {
+        permissions.add(permission);
+        return this;
+    }
+
+    /** How much experience this player was granted. */
+    public int experience() {
+        return experience.get();
     }
 
     /** Simulates the player leaving. */

@@ -635,6 +635,60 @@ específico va a `net.exylia.lib.util`.
   patrón: clase propia, caché donde tenga sentido, y una costura inyectable
   (reloj, resolver, overlay) para que se puedan testear sin servidor.
 
+### Rewards — el formato es de commons, los bugs no
+
+Todo lo que un jugador gana pasa por `net.exylia.lib.util.reward`. Nunca un
+`addItem` suelto, ni un `dispatchCommand` a mano, ni una lista de comandos en un
+`List<String>` propio.
+
+- **El formato almacenado no se elige.** Hay filas escritas por commons en
+  producción (`capture_pending_rewards`, `event_pending_rewards`, los power-ups
+  de SurvivalCore). `RewardCodec` lee y escribe exactamente esa forma: los
+  nombres de campo son los del bean Lombok viejo, los nulos se omiten, y una
+  lista vacía se guarda como `NULL` y no como `[]`. Migrar un plugin es cambiar
+  imports.
+- **Un campo nuevo solo se escribe si no es el default.** Así una reward que el
+  módulo viejo podría haber escrito serializa byte a byte a lo que él escribía, y
+  no engorda contra el `VARCHAR(8192)` que esas tablas ya tienen.
+- **Un tipo desconocido cuesta una reward, no la lista.** Es lo que permite que
+  un plugin sin migrar lea una fila escrita por uno migrado.
+- **Nada se destruye.** Commons descartaba el mapa que devuelve `addItem`, así
+  que un ítem que no cabía se borraba sin mensaje, sin log y sin fallo. Aquí la
+  política es `DROP`, `QUEUE` o `FAIL`; ninguna reproduce aquello. Y `QUEUE` sin
+  store, o con un store que revienta, **dropea**: pedir encolar es pedir no
+  perderlo, y una base de datos caída no cambia lo que se pidió.
+- **Lo que se encola es el sobrante, y no se vuelve a tirar el dado** — ya se
+  tiró. Pero conserva permiso y condición: algo que se debía a quien desde
+  entonces perdió el rango que lo exigía ya no se debe.
+- **Permiso y condición van antes del dado.** Quién *puede* recibir algo no
+  depende del azar. Commons tiraba primero, así que una reward rara reportaba
+  "no salió" cuando la verdad era un permiso mal escrito.
+- **Un skip no es un fallo.** Perder el dado, no tener permiso y reventar son
+  tres resultados distintos y se reportan como tres. Contar los tres como fallo
+  hacía que el success rate de commons describiera el dado, no la config.
+- **Una condición ilegible entrega la reward.** Al revés que en menús, y a
+  propósito: la config dice a quién *excluir*, y una condición que nadie puede
+  leer no excluye a nadie. Ocultar un botón es invisible; regalar algo que no
+  tocaba es ruidoso, y lo ruidoso es lo que hace que se arregle el typo.
+- **`chance` y `weight` son preguntas distintas.** La primera es "¿pasa esto?",
+  la segunda "¿cuál de estas pasa?". `pick` solo mira el peso; `roll` elige por
+  peso y **después** entrega, así que el ganador todavía se enfrenta a su propio
+  `chance`.
+- **El dinero viaja como texto.** Un decimal que pasa por un `double` camino a la
+  base de datos no vuelve igual.
+- **La tabla de pendientes es del plugin, no de la lib.** Capture y Events ya
+  tienen la suya llena de filas que alguien espera; una tabla impuesta por la lib
+  o las ignora o fuerza una migración. Se pasa un `PendingRewards`.
+- **Meter el ítem en el inventario está detrás de `ItemGiver`.** Es la única
+  parte que necesita un `ItemStack` de verdad, y sacarla permite testear sin
+  servidor el resto de lo que decide una entrega: el orden, el dado, el rango, el
+  overflow y la cola. Lo demás sí llama a Bukkit (`dispatchCommand`, `giveExp`,
+  `hasPermission`), pero contra un jugador falso, no contra un registro.
+- **El menú de edición está preparado, no escrito.** `RewardEntry` es inmutable
+  con `toBuilder()` que conserva el id, `copy()` duplica, `displayName()` y
+  `resolvedIcon()` dibujan sin servidor, y `RewardCodec` va y viene. Un editor
+  construido sobre eso no toca nada interno.
+
 ### Comandos — siempre Lamp, nunca un executor a mano
 
 Todo comando se escribe con **Lamp** (`io.github.revxrsal:lamp.*`), la base
@@ -909,6 +963,7 @@ Raíz de código: `src/main/java/net/exylia/lib/`. Raíz de tests:
 | redis | `redis/Redis`, `RedisSettings` | `redis/internal/` (Jedis confinado en `JedisClient`) | [docs/redis.md](docs/redis.md) | 1.31.0 |
 | poll de auto-actualización | `update-check-minutes` en `internal/LibrarySettings` | `internal/ExyliaLibUpdater` (ETag), timer en `ExyliaLib.startUpdateCheck` | [docs/reload.md](docs/reload.md) | 1.30.0 |
 | claves generadas | `database/Id.generated`, `Repository.insert`/`insertReturning` | `Dialect.insertGenerated`, `SqlBackend.insert` (`getGeneratedKeys`), `MongoBackend.insert` (`$inc`), `EntityModel.withId` | [docs/database.md](docs/database.md) | 1.32.0 |
+| util (rewards) | `util/reward/Rewards`, `PluginRewards`, `RewardEntry`, `RewardType`, `RewardCodec`, `RewardResult`, `RewardDelivery`, `RewardOutcome`, `OverflowPolicy`, `PendingRewards` | `util/reward/internal/` (`Providers`, `ItemGiver`, `Conditions`, `Rolls`), `util/reward/Previews` | [docs/rewards.md](docs/rewards.md) | 1.33.0 |
 | util (wizard) | `util/wizard/Wizards`, `PluginWizards`, `Wizard`, `WizardBuilder` (+ `Branch`), `WizardStep` (+ `Prompt`), `WizardKey`, `WizardValues`, `WizardRun`, `WizardOutcome`, `WizardResult`, `WizardSettings`, `WizardException` | `util/wizard/internal/` (`WizardRuntime`, `WizardSession`, `WizardListener`); `init`/`forget`/`release` en `ExyliaLib` | [docs/wizard.md](docs/wizard.md) | 1.34.0 |
 
 Clases raíz que no son módulo: `ExyliaLib.java` (ciclo de vida y limpieza),
