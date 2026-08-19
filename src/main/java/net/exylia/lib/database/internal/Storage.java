@@ -7,6 +7,7 @@ import org.jetbrains.annotations.Nullable;
 import java.util.Collection;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.function.Consumer;
 
 /**
  * The one thing a {@link net.exylia.lib.database.Repository} talks to, whatever
@@ -145,6 +146,111 @@ public interface Storage {
      */
     <T> @NotNull CompletableFuture<Void> saveAll(@NotNull EntityModel<T> model,
                                                  @NotNull Collection<T> records);
+
+    /**
+     * Walks the whole table, in primary-key order, one bounded batch at a time.
+     *
+     * <p>The read half of the row-level seam. Rows are handed over in
+     * <em>storage form</em>: an {@code Object[]} in
+     * {@link EntityModel#columns()} order holding exactly what the store gave
+     * back, which after {@link EntityModel#values} is only ever a primitive
+     * wrapper, a {@code String} or a {@code BigDecimal}. No codec runs on this
+     * path, so a column holding an {@code ItemStack} is a Base64 string and
+     * never becomes a Bukkit object — which is what makes the pair with
+     * {@link #writeRows} exact rather than merely equivalent, and what lets a
+     * whole table be walked with no game type involved at all.
+     *
+     * <h2>Constant memory, whatever the table</h2>
+     * One batch is alive at a time, and the block is called with it before the
+     * next is read. That is the entire reason this exists rather than a
+     * {@link #select} with no limit: four hundred thousand rows of serialised
+     * inventories read into one list is a heap this server does not have.
+     *
+     * <h2>Keyset, never offset</h2>
+     * Each batch resumes strictly after the last key of the previous one.
+     * {@code LIMIT ? OFFSET ?} would make the store produce and discard
+     * everything before each page — O(n²) over the walk — and without a total
+     * order the rows may come back in a different order per page, so a row is
+     * silently handed over twice and another not at all. ExyliaCommons paged
+     * that way, without an {@code ORDER BY}, and its exports lost rows.
+     *
+     * <h2>Threads</h2>
+     * The block runs on the database's own background thread, never on the
+     * caller's: the future is what the caller waits on, and by the time it
+     * completes every batch has already been handed over. A block that touches
+     * anything the game owns must come back through {@code Tasks} like any
+     * other database callback.
+     *
+     * <p>The block may keep the list it is given; nothing here reuses it, and
+     * where the walk resumes is decided before the block sees it. Whatever the
+     * block throws ends the scan and completes the future exceptionally — no
+     * further batch is read, and nothing is left open.
+     *
+     * @param model     the compiled record model
+     * @param batchSize rows per batch at most, which is the memory bound
+     * @param block     called once per batch, on the database thread
+     * @param <T>       the record type
+     * @return completes with the total number of rows handed over
+     * @throws IllegalArgumentException synchronously if the batch size is not
+     *                                  positive, which is a bug at the call
+     *                                  site rather than a condition to recover
+     *                                  from
+     * @since 1.36.0
+     */
+    <T> @NotNull CompletableFuture<Long> scan(@NotNull EntityModel<T> model,
+                                              int batchSize,
+                                              @NotNull Consumer<List<Object[]>> block);
+
+    /**
+     * Writes rows in storage form, as one batch, upserting by primary key.
+     *
+     * <p>The write half of the seam, and the exact inverse of {@link #scan}: it
+     * takes the arrays that method produced and writes every column of each of
+     * them, the key included — an explicitly supplied generated id lands in the
+     * table as it was given rather than being replaced by one the store would
+     * have handed out. Nothing is decoded and nothing is re-encoded, so what
+     * was read is byte for byte what is written.
+     *
+     * <p>The counter behind a generated key is <em>not</em> moved by this. Two
+     * of the four SQL engines leave it where it was after an explicit key, so a
+     * repopulated table hands out a key it already holds on the next insert;
+     * {@link #resequence} is what fixes that, and it is separate because a
+     * caller writing several batches should move the counter once at the end
+     * rather than once per batch.
+     *
+     * <p>An empty list is a completed future and no round trip at all.
+     *
+     * @param model the compiled record model
+     * @param rows  the rows, each in {@link EntityModel#columns()} order and
+     *              already encoded
+     * @return completes with how many rows were written
+     * @since 1.36.0
+     */
+    @NotNull CompletableFuture<Integer> writeRows(@NotNull EntityModel<?> model,
+                                                  @NotNull List<Object[]> rows);
+
+    /**
+     * Moves a generated key's counter past every key the table now holds.
+     *
+     * <p>Called once after {@link #writeRows} has written rows carrying their
+     * own ids. Without it the next {@link #insert} asks for a key the table
+     * already has and fails on the primary key — on H2 and Postgres, which do
+     * not advance the counter for a row that supplied its key, and not on MySQL
+     * or MariaDB, which do. That asymmetry is the whole reason this is a method
+     * rather than something a caller is expected to remember: a repopulated
+     * table that works on the engine somebody tested against and throws on the
+     * other two is the failure this module exists to prevent.
+     *
+     * <p>A no-op, and a completed future, for a model that brings its own key:
+     * there is no counter to move. Also a no-op on an empty table, where the
+     * counter is already correct wherever it is.
+     *
+     * @param model the compiled record model
+     * @return completes with the value the store will next hand out, or
+     *         {@code 0} when there was nothing to do
+     * @since 1.36.0
+     */
+    @NotNull CompletableFuture<Long> resequence(@NotNull EntityModel<?> model);
 
     /**
      * Removes the row with a primary key.

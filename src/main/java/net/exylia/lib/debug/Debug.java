@@ -120,6 +120,23 @@ public final class Debug {
     }
 
     /**
+     * Names of every plugin that has called {@link #of(Plugin)}, for
+     * diagnostics.
+     *
+     * <p>This is the widest signal the library has for "who uses ExyliaLib":
+     * a plugin can run without a menu, a database or a scoreboard, but every
+     * one written against the library ends up logging through {@code Debug}
+     * sooner or later. A {@code depend}/{@code softdepend} entry in
+     * {@code plugin.yml} is a separate, narrower signal — this one only knows
+     * a plugin exists once it has actually called into the library.
+     *
+     * @return an immutable snapshot of the registered plugin names
+     */
+    public static @NotNull java.util.Set<String> registeredPlugins() {
+        return java.util.Set.copyOf(BY_PLUGIN.keySet());
+    }
+
+    /**
      * Turns debug lines on for every plugin, from the library's own config.
      *
      * <p>Called by ExyliaLib when it loads {@code config.yml} and again when

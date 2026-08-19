@@ -19,6 +19,7 @@ import com.mongodb.client.model.IndexOptions;
 import com.mongodb.client.model.Indexes;
 import com.mongodb.client.model.ReplaceOneModel;
 import com.mongodb.client.model.ReplaceOptions;
+import com.mongodb.client.model.UpdateOptions;
 import org.bson.Document;
 import org.bson.types.Decimal128;
 import org.jetbrains.annotations.NotNull;
@@ -32,6 +33,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Consumer;
 
 /**
  * One Mongo client and everything that runs against it.
@@ -597,6 +599,59 @@ public final class MongoBackend implements AutoCloseable {
     }
 
     /**
+     * Moves a generated key's counter past every key the collection holds.
+     *
+     * <p>The Mongo half of what {@link SqlBackend#resequence} does, and the
+     * same need: {@link #writeRows} writes the {@code _id} it was given without
+     * touching the counter, so the next {@link #insert} would hand out a key
+     * that is already taken and the insert would fail on the unique index Mongo
+     * keeps on {@code _id}.
+     *
+     * <p>{@code $max}, not {@code $set}: two servers repopulating at once must
+     * not be able to move the counter backwards, and a counter already ahead of
+     * the imported ids — because somebody inserted meanwhile — has to stay
+     * where it is. {@code $max} is a single atomic document update and answers
+     * both, where a read-then-write would be a race with itself.
+     *
+     * @param model the record model, whose key must be generated
+     * @return the value the counter will next hand out, or {@code 0} when
+     *         nothing was done
+     * @since 1.36.0
+     */
+    public long resequence(@NotNull EntityModel<?> model) {
+        if (!model.generatedId()) {
+            return 0L;
+        }
+        // Descending on _id, one document: the same index every lookup by key
+        // uses, so this is a seek to one end of it rather than a scan.
+        Document highest = collection(model)
+                .find()
+                .projection(new Document(MongoDocuments.ID_FIELD, 1))
+                .sort(new Document(MongoDocuments.ID_FIELD, -1))
+                .limit(1)
+                .first();
+        if (highest == null) {
+            return 0L;
+        }
+        Object key = highest.get(MongoDocuments.ID_FIELD);
+        if (!(key instanceof Number number)) {
+            // A generated key is a whole number by construction — EntityModel
+            // refuses anything else — so this is a collection somebody else
+            // wrote under the same name. Moving its counter would be guessing.
+            return 0L;
+        }
+        long max = number.longValue();
+        if (max <= 0L) {
+            return 0L;
+        }
+        database.getCollection(COUNTERS)
+                .updateOne(Filters.eq(MongoDocuments.ID_FIELD, model.table()),
+                        new Document("$max", new Document(COUNTER_FIELD, max)),
+                        new UpdateOptions().upsert(true));
+        return max + 1L;
+    }
+
+    /**
      * Writes many records in one batch.
      *
      * <p>One round trip per batch rather than per record, and unordered on
@@ -622,9 +677,44 @@ public final class MongoBackend implements AutoCloseable {
         if (instances.isEmpty()) {
             return 0;
         }
-        List<ReplaceOneModel<Document>> writes = new ArrayList<>(instances.size());
+        List<Object[]> rows = new ArrayList<>(instances.size());
         for (T instance : instances) {
-            Document document = document(MongoDocuments.toDocument(model, instance));
+            rows.add(model.values(instance));
+        }
+        return writeRows(model, rows);
+    }
+
+    /**
+     * Writes rows already in storage form, as one bulk write, upserting by key.
+     *
+     * <p>The same {@code ReplaceOneModel} with {@code upsert} that
+     * {@link #saveAll} builds — it is that method's second half — with the
+     * encoding step left out because these rows have been through it already.
+     * That is what makes this the write half of a round trip that runs no
+     * codec: a row that came out of {@link #scan} goes back in unchanged, and
+     * an {@code ItemStack} field is text at both ends.
+     *
+     * <p>Every field is written, the key included, whether or not this backend
+     * would have handed one out. The counter is left where it is; see
+     * {@link #resequence}.
+     *
+     * <p>Unordered and not a transaction, exactly like {@link #saveAll} and for
+     * the same reason.
+     *
+     * @param model the record model
+     * @param rows  the rows, each in {@link EntityModel#columns()} order
+     * @return how many documents the server accepted
+     * @throws IllegalStateException if the server refused any document, after
+     *                               every other one has been written
+     * @since 1.36.0
+     */
+    public int writeRows(@NotNull EntityModel<?> model, @NotNull List<Object[]> rows) {
+        if (rows.isEmpty()) {
+            return 0;
+        }
+        List<ReplaceOneModel<Document>> writes = new ArrayList<>(rows.size());
+        for (Object[] row : rows) {
+            Document document = document(MongoDocuments.fromRow(model, row));
             writes.add(new ReplaceOneModel<>(
                     Filters.eq(MongoDocuments.ID_FIELD, document.get(MongoDocuments.ID_FIELD)),
                     document, new ReplaceOptions().upsert(true)));
@@ -775,6 +865,68 @@ public final class MongoBackend implements AutoCloseable {
             found.add(read(model, document));
         }
         return List.copyOf(found);
+    }
+
+    /**
+     * Walks the whole collection in {@code _id} order, in batches, without ever
+     * holding more than one batch.
+     *
+     * <p>The Mongo half of {@link SqlBackend#scan}, with the same contract:
+     * rows come back in storage form, in {@link EntityModel#columns()} order,
+     * so no codec runs and an {@code ItemStack} field is the Base64 it was
+     * stored as.
+     *
+     * <h2>Keyset, not skip</h2>
+     * {@code skip(n)} is O(n) here — the server walks and discards what it
+     * skips — so paging a collection with it costs O(n²), which on a collection
+     * worth exporting is the difference between minutes and hours. A filter on
+     * {@code _id} greater than the last key seen is a seek into the index Mongo
+     * maintains on every collection whether asked to or not, and the order is
+     * total, so every document is seen exactly once.
+     *
+     * @param model     the record model
+     * @param batchSize documents per batch, at least one
+     * @param block     called once per batch, on this thread, before the next
+     *                  batch is read
+     * @return how many documents were handed over in total
+     * @throws IllegalArgumentException if the batch size is not positive
+     * @since 1.36.0
+     */
+    public long scan(@NotNull EntityModel<?> model,
+                     int batchSize,
+                     @NotNull Consumer<List<Object[]>> block) {
+        if (batchSize <= 0) {
+            throw new IllegalArgumentException("A scan of " + model.table()
+                    + " needs a batch size of at least one document, not " + batchSize
+                    + ". The batch is what bounds the memory the walk uses.");
+        }
+        MongoCollection<Document> collection = collection(model);
+        Document ascending = new Document(MongoDocuments.ID_FIELD, 1);
+        int keyIndex = model.idIndex();
+        long total = 0L;
+        Object cursor = null;
+        while (true) {
+            var find = cursor == null
+                    ? collection.find()
+                    : collection.find(Filters.gt(MongoDocuments.ID_FIELD, cursor));
+            List<Object[]> batch = new ArrayList<>(batchSize);
+            // Drained fully before the block runs, so the server-side cursor is
+            // closed rather than held open across whatever the block does.
+            for (Document document : find.sort(ascending).limit(batchSize)) {
+                batch.add(MongoDocuments.toRow(model, field -> javaValue(document.get(field))));
+            }
+            if (batch.isEmpty()) {
+                return total;
+            }
+            total += batch.size();
+            // The stored form, which is what _id holds; a BigDecimal key is
+            // impossible here, since a Mongo key is a whole number or a string.
+            cursor = value(batch.get(batch.size() - 1)[keyIndex]);
+            block.accept(batch);
+            if (batch.size() < batchSize) {
+                return total;
+            }
+        }
     }
 
     /**

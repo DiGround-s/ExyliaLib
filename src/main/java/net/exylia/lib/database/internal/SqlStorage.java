@@ -158,6 +158,41 @@ public final class SqlStorage implements Storage {
     }
 
     @Override
+    public <T> @NotNull CompletableFuture<Long> scan(@NotNull EntityModel<T> model,
+                                                     int batchSize,
+                                                     @NotNull Consumer<List<Object[]>> block) {
+        if (batchSize <= 0) {
+            // Thrown here rather than completed exceptionally: it is a bug at
+            // the call site, not a condition to recover from, and the module
+            // treats a bad argument that way everywhere. Checked before the
+            // work is queued so the stack trace names the caller.
+            throw new IllegalArgumentException("A scan of " + model.table()
+                    + " needs a batch size of at least one row, not " + batchSize
+                    + ". The batch is what bounds the memory the walk uses.");
+        }
+        // The block runs on the executor, inside this call: whatever it throws
+        // comes out of backend.scan and lands in async's catch, which fails the
+        // future and reads no further batch.
+        return async(model, "scan", () -> backend.scan(model, batchSize, block));
+    }
+
+    @Override
+    public @NotNull CompletableFuture<Integer> writeRows(@NotNull EntityModel<?> model,
+                                                         @NotNull List<Object[]> rows) {
+        if (rows.isEmpty()) {
+            // No task, no connection, no round trip — the same as saveAll.
+            return CompletableFuture.completedFuture(0);
+        }
+        List<Object[]> copy = List.copyOf(rows);
+        return async(model, "writeRows", () -> backend.writeRows(model, copy));
+    }
+
+    @Override
+    public @NotNull CompletableFuture<Long> resequence(@NotNull EntityModel<?> model) {
+        return async(model, "resequence", () -> backend.resequence(model));
+    }
+
+    @Override
     public @NotNull CompletableFuture<Boolean> delete(@NotNull EntityModel<?> model,
                                                       @NotNull Object id) {
         return async(model, "delete", () -> backend.delete(model, id));

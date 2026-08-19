@@ -109,6 +109,15 @@ public final class EntityModel<T> {
     private final ColumnModel id;
 
     /**
+     * Where the key sits in {@link #columns()}, resolved once.
+     *
+     * <p>A keyset scan reads the key out of every row it hands over, so this
+     * would otherwise be a search of the column list per batch. It is not the
+     * declaration order of the record either: a key declared last is last here.
+     */
+    private final int idIndex;
+
+    /**
      * Every index the record asks for, however it asked.
      *
      * <p>One list, not two: {@link Indexed} on a component and {@link Index} on
@@ -173,6 +182,7 @@ public final class EntityModel<T> {
         this.insertColumns = id.generated()
                 ? this.columns.stream().filter(column -> !column.id()).toList()
                 : this.columns;
+        this.idIndex = this.columns.indexOf(id);
 
         Map<String, ColumnModel> names = new HashMap<>(columns.size() * 2);
         Map<String, ColumnModel> components = new HashMap<>(columns.size() * 2);
@@ -704,6 +714,23 @@ public final class EntityModel<T> {
     /** The primary key column. Never {@code null}: compilation refuses a record without one. */
     public @NotNull ColumnModel id() {
         return id;
+    }
+
+    /**
+     * Where the key sits in a row laid out in {@link #columns()} order.
+     *
+     * <p>For the one caller that has a row rather than a record: a keyset scan
+     * reads the last key it saw out of the array it just handed over. Resolved
+     * at compilation because the alternative is searching the column list once
+     * per batch, and it is not simply zero — a record is free to declare its
+     * key anywhere among its components.
+     *
+     * @return the index into {@link #columns()} and into every {@code Object[]}
+     *         this class produces or accepts
+     * @since 1.36.0
+     */
+    public int idIndex() {
+        return idIndex;
     }
 
     /**

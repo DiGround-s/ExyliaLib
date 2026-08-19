@@ -4,6 +4,10 @@ import net.exylia.lib.ExyliaLib;
 import net.exylia.lib.action.Actions;
 import net.exylia.lib.config.Configs;
 import net.exylia.lib.database.Databases;
+import net.exylia.lib.database.transfer.TableTransfer;
+import net.exylia.lib.database.transfer.TransferOutcome;
+import net.exylia.lib.database.transfer.TransferReport;
+import net.exylia.lib.debug.Debug;
 import net.exylia.lib.effect.Effects;
 import net.exylia.lib.hologram.internal.HologramRuntime;
 import net.exylia.lib.platform.Platform;
@@ -18,9 +22,16 @@ import org.bukkit.plugin.Plugin;
 import org.jetbrains.annotations.NotNull;
 import revxrsal.commands.annotation.Command;
 import revxrsal.commands.annotation.CommandPlaceholder;
+import revxrsal.commands.annotation.Default;
+import revxrsal.commands.annotation.Optional;
 import revxrsal.commands.annotation.Subcommand;
+import revxrsal.commands.annotation.SuggestWith;
+import revxrsal.commands.autocomplete.SuggestionProvider;
+import revxrsal.commands.bukkit.actor.BukkitCommandActor;
 import revxrsal.commands.bukkit.annotation.CommandPermission;
+import revxrsal.commands.node.ExecutionContext;
 
+import java.nio.file.Path;
 import java.util.List;
 import java.util.function.Supplier;
 
@@ -64,19 +75,43 @@ public final class ReloadCommand {
     private final Supplier<LibrarySettings> settings;
     private final Supplier<List<Dependent>> dependents;
 
+    /**
+     * Where a dump is written and looked for.
+     *
+     * <p>One folder for the whole server rather than one per plugin: a
+     * migration moves several plugins at once, and an owner should be able to
+     * copy one directory rather than hunt through {@code plugins/} for it.
+     */
+    private final Supplier<Path> dumpFolder;
+
+    /** How a transfer is started, injected so a test does not need a database. */
+    private final TransferAccess transfers;
+
     public ReloadCommand(@NotNull ExyliaLib plugin) {
         this(plugin::reloadPalette, plugin::version, Platform::current,
-                LibrarySettings::get, () -> dependentsOf(plugin));
+                LibrarySettings::get, () -> dependentsOf(plugin),
+                () -> plugin.getDataFolder().toPath().resolve("dumps"),
+                TransferAccess.live());
     }
 
     /** Test seam: every data source is injected. */
     ReloadCommand(Runnable paletteReload, Supplier<String> version, Supplier<Platform> platform,
                   Supplier<LibrarySettings> settings, Supplier<List<Dependent>> dependents) {
+        this(paletteReload, version, platform, settings, dependents,
+                () -> Path.of("dumps"), TransferAccess.live());
+    }
+
+    /** Test seam: the transfer side too, so no database has to exist. */
+    ReloadCommand(Runnable paletteReload, Supplier<String> version, Supplier<Platform> platform,
+                  Supplier<LibrarySettings> settings, Supplier<List<Dependent>> dependents,
+                  Supplier<Path> dumpFolder, TransferAccess transfers) {
         this.paletteReload = paletteReload;
         this.version = version;
         this.platform = platform;
         this.settings = settings;
         this.dependents = dependents;
+        this.dumpFolder = dumpFolder;
+        this.transfers = transfers;
     }
 
     /**
@@ -94,6 +129,11 @@ public final class ReloadCommand {
                 + "{muted}/exylialib info{letters} — version, platform and who depends on this library."
                 + "\n{letters_black}▎ {secondary}Stats {letters_black}» {letters}"
                 + "{muted}/exylialib stats{letters} — live counters from every module."
+                + "\n{letters_black}▎ {secondary}Export {letters_black}» {letters}"
+                + "{muted}/exylialib export <plugin>{letters} — writes that plugin's tables to a dump."
+                + "\n{letters_black}▎ {secondary}Import {letters_black}» {letters}"
+                + "{muted}/exylialib import <plugin> <file> [force]{letters} — reads one back;"
+                + " force MERGES rather than replacing."
         ).send(sender);
     }
 
@@ -127,11 +167,12 @@ public final class ReloadCommand {
      * {@code config.yml}, and which plugins on this server depend on the
      * library.
      *
-     * <p>The dependent list comes from {@link org.bukkit.plugin.PluginManager}
-     * alone — each enabled plugin's {@code plugin.yml} is checked for
-     * {@code ExyliaLib} under {@code depend} or {@code softdepend}, compared
-     * case-insensitively. This is a read of data Bukkit already holds, not a
-     * registry the library maintains.
+     * <p>The dependent list is the union of two signals — see
+     * {@link #dependentsOf(Plugin)} for why neither is enough alone: a
+     * {@code plugin.yml} {@code depend}/{@code softdepend} declaration, and
+     * every plugin {@link Debug#registeredPlugins()} has seen call
+     * {@code Debug.of(this)}. Neither is a registry the library added for
+     * this — both already existed for their own reasons.
      *
      * @param sender who asked
      */
@@ -203,9 +244,198 @@ public final class ReloadCommand {
         Text.of(text.toString()).send(sender);
     }
 
-    /** Shared header: bold name, muted version, for every subcommand's output. */
+    // -------------------------------------------------------------- transfer
+
+    /**
+     * Writes one plugin's tables into a dump.
+     *
+     * <p>The tables found are named before the work starts, not only counted.
+     * A plugin only appears in {@link Databases#find(String)} once it has asked
+     * for its first repository, so one that registers a record type lazily
+     * exports fewer tables than it owns — and the only way anybody notices is
+     * by reading the names against what they expected.
+     *
+     * @param sender     who asked
+     * @param pluginName the plugin whose tables to export
+     */
+    @Subcommand("export")
+    @CommandPermission("exylialib.admin")
+    public void export(@NotNull CommandSender sender,
+                       @SuggestWith(KnownPlugins.class) @NotNull String pluginName) {
+        List<String> tables = transfers.tablesOf(pluginName);
+        if (tables == null || tables.isEmpty()) {
+            Text.of(unknownPlugin(pluginName, transfers.plugins())).send(sender);
+            return;
+        }
+        Path folder = dumpFolder.get();
+        Text.of(header()
+                + "\n{letters_black}▎ {secondary}Exporting {letters_black}» {info}" + pluginName
+                + " {letters}(" + tables.size() + " tables)"
+                + "\n{letters_black}▎ {secondary}Tables {letters_black}» {letters}"
+                + String.join("{letters_black}, {letters}", tables)
+                + "\n{letters_black}▎ {muted}A table a plugin registers lazily is not listed here"
+                + " and will not be exported."
+        ).send(sender);
+
+        transfers.export(pluginName, folder).thenAccept(report ->
+                Text.of(reportPanel("Export", pluginName, report)).send(sender));
+    }
+
+    /**
+     * Reads a dump into one plugin's tables.
+     *
+     * <p>The file argument is a name inside the dump folder rather than a whole
+     * path: an admin typing a path into chat is one slash away from reading
+     * something the server should not, and the folder is where {@code export}
+     * put it anyway.
+     *
+     * @param sender     who asked
+     * @param pluginName the plugin whose tables to write
+     * @param fileName   the dump's file name, inside the dump folder
+     * @param force      whether to write into tables that already hold rows
+     */
+    @Subcommand("import")
+    @CommandPermission("exylialib.admin")
+    public void importDump(@NotNull CommandSender sender,
+                           @SuggestWith(KnownPlugins.class) @NotNull String pluginName,
+                           @NotNull String fileName,
+                           @Optional @Default("false") boolean force) {
+        List<String> tables = transfers.tablesOf(pluginName);
+        if (tables == null || tables.isEmpty()) {
+            Text.of(unknownPlugin(pluginName, transfers.plugins())).send(sender);
+            return;
+        }
+        Path file = dumpFolder.get().resolve(safeName(fileName));
+        Text.of(header()
+                + "\n{letters_black}▎ {secondary}Importing {letters_black}» {info}" + pluginName
+                + "\n{letters_black}▎ {secondary}File {letters_black}» {letters}" + file.getFileName()
+                + "\n{letters_black}▎ {secondary}Mode {letters_black}» "
+                + (force ? "{warning}force {letters}(merge)" : "{letters}safe")
+        ).send(sender);
+
+        transfers.importFrom(pluginName, file, force).thenAccept(report ->
+                Text.of(importPanel(pluginName, fileName, report)).send(sender));
+    }
+
+    /**
+     * The panel a finished transfer prints.
+     *
+     * <p>A pure function of the report so both branches — and every problem
+     * line — are testable without a database, a file or a server.
+     *
+     * @param what       {@code "Export"} or {@code "Import"}
+     * @param pluginName whose tables these were
+     * @param report     what happened
+     * @return the text, palette tokens included
+     */
+    static String reportPanel(String what, String pluginName, TransferReport report) {
+        StringBuilder text = new StringBuilder("{primary}&l" + what.toUpperCase(java.util.Locale.ROOT)
+                + "&r {muted}" + pluginName);
+        text.append("\n{letters_black}▎ {secondary}Result {letters_black}» ")
+                .append(outcome(report.outcome()));
+        text.append("\n{letters_black}▎ {secondary}Rows {letters_black}» {info}").append(report.rows());
+        text.append("\n{letters_black}▎ {secondary}Took {letters_black}» {info}")
+                .append(report.took().toMillis()).append("ms");
+        if (report.file() != null) {
+            text.append("\n{letters_black}▎ {secondary}File {letters_black}» {letters}")
+                    .append(report.file().getFileName());
+        }
+        for (TableTransfer table : report.tables()) {
+            text.append("\n{letters_black}▎ {letters}").append(table.table())
+                    .append(" {letters_black}» ")
+                    .append(table.skipped() ? "{muted}skipped"
+                            : (table.drifted() ? "{warning}" : "{info}") + table.rows()
+                              + (table.drifted() ? " {letters}(layout drifted)" : ""));
+        }
+        if (!report.problems().isEmpty()) {
+            text.append("\n\n{secondary}Problems:");
+            for (String problem : report.problems()) {
+                text.append("\n{letters_black}▎ {warning}").append(problem);
+            }
+        }
+        return text.toString();
+    }
+
+    /**
+     * The import panel, which adds the one thing an export never needs to say.
+     *
+     * <p>A refusal has to hand back the exact command that would go through,
+     * and it has to say plainly that force merges. Somebody who reads "force"
+     * as "replace" and runs it has silently mixed two servers into one table,
+     * and nothing anywhere reports that.
+     */
+    static String importPanel(String pluginName, String fileName, TransferReport report) {
+        String panel = reportPanel("Import", pluginName, report);
+        boolean refused = report.outcome() == TransferOutcome.FAILED
+                && report.problems().stream().anyMatch(line -> line.startsWith("Refused:"));
+        if (!refused) {
+            return panel;
+        }
+        return panel
+                + "\n\n{warning}➥ Re-run with force to write anyway:"
+                + "\n{letters_black}▎ {muted}/exylialib import " + pluginName + " " + fileName
+                + " true"
+                + "\n{letters_black}▎ {error}force MERGES, it does not replace{letters}: rows whose"
+                + " key is in the dump are overwritten, rows that are not in the dump stay exactly"
+                + " where they are.";
+    }
+
+    /** The refusal when a name matches no plugin that stores anything. */
+    static String unknownPlugin(String pluginName, List<String> known) {
+        return "{primary}&lEXYLIALIB&r {muted}transfer"
+                + "\n{letters_black}▎ {error}" + pluginName + " has no registered tables."
+                + "\n{letters_black}▎ {letters}A plugin appears here once it has asked for its"
+                + " first repository."
+                + "\n{letters_black}▎ {secondary}Available {letters_black}» "
+                + (known.isEmpty() ? "{muted}none" : "{letters}" + String.join("{letters_black}, {letters}", known));
+    }
+
+    private static String outcome(TransferOutcome outcome) {
+        return switch (outcome) {
+            case SUCCESS -> "{success}success";
+            case PARTIAL -> "{warning}partial";
+            case FAILED -> "{error}failed";
+        };
+    }
+
+    /**
+     * A file name with no way out of the dump folder.
+     *
+     * <p>{@code Path.resolve} on {@code ../../server.properties} leaves the
+     * folder, and this argument arrives from a chat box. Taking only the last
+     * element of whatever was typed is what keeps the resolve inside.
+     */
+    static String safeName(String typed) {
+        Path name = Path.of(typed).getFileName();
+        return name == null ? typed : name.toString();
+    }
+
+    /**
+     * The plugins an argument can name: the ones that actually store something.
+     *
+     * <p>Public and with a no-argument constructor because Lamp builds it
+     * itself from {@code @SuggestWith}. It reads the same registry the command
+     * does, so a name that is suggested is a name that resolves.
+     */
+    public static final class KnownPlugins implements SuggestionProvider<BukkitCommandActor> {
+
+        @Override
+        public java.util.Collection<String> getSuggestions(
+                @NotNull ExecutionContext<BukkitCommandActor> context) {
+            return Databases.registeredPlugins();
+        }
+    }
+
+    /**
+     * Shared header: bold name, muted version, for every subcommand's output.
+     *
+     * <p>The bold code is closed with {@code &r} right after the name. Legacy
+     * codes are not scoped to the word they were written next to — an unclosed
+     * {@code &l} stays open for the rest of the string, which is everything
+     * else this text builds. Without the reset, the whole panel renders bold.
+     */
     private String header() {
-        return "{primary}&lEXYLIALIB {muted}v" + version.get();
+        return "{primary}&lEXYLIALIB&r {muted}v" + version.get();
     }
 
     private static String onOff(boolean value) {
@@ -235,29 +465,45 @@ public final class ReloadCommand {
     }
 
     /**
-     * Finds every enabled plugin whose {@code plugin.yml} names
-     * {@code ExyliaLib} under {@code depend} or {@code softdepend}.
+     * Finds every plugin that actually uses the library, combining two
+     * signals that neither covers alone.
      *
-     * <p>Pure inspection of {@link org.bukkit.plugin.PluginManager}: no
-     * registry is added to the library for this, since Bukkit already knows
-     * the answer for every installed plugin. The library itself is always
-     * excluded.
+     * <p>{@code plugin.yml}'s {@code depend}/{@code softdepend} is what a
+     * plugin <em>declared</em> — accurate when present, but easy to miss: a
+     * plugin can call {@code Databases.of(this)} or {@code Menus.of(this)}
+     * without ever naming the library, and Bukkit still starts it in the
+     * right order by luck of load ordering. {@link Debug#registeredPlugins()}
+     * is the opposite: it only knows a plugin once it has actually called
+     * into the library — {@code Debug.of(this)} is the one call nearly every
+     * module reaches for when it logs on a consumer's behalf — but it says
+     * nothing about a plugin that has not logged anything yet.
+     *
+     * <p>The union of both is the closest this command gets to ground truth
+     * without adding a registry the library did not already have. A plugin
+     * only in the declared list, but silent so far, still gets a fair
+     * mention; one only seen through {@code Debug} still gets listed even
+     * though it never declared the dependency. The library itself is always
+     * excluded, and only enabled plugins are considered.
      *
      * @param library the running ExyliaLib instance, excluded from its own list
-     * @return the dependents, in the order the server reports them
+     * @return the dependents, sorted by name
      */
     @SuppressWarnings("deprecation") // getDescription(): the portable call, see ExyliaLib#version()
     static List<Dependent> dependentsOf(Plugin library) {
-        List<Dependent> found = new java.util.ArrayList<>();
+        java.util.Set<String> seen = Debug.registeredPlugins();
+        java.util.Map<String, Dependent> found = new java.util.TreeMap<>();
         for (Plugin candidate : Bukkit.getPluginManager().getPlugins()) {
             if (!candidate.isEnabled() || candidate.getName().equals(library.getName())) {
                 continue;
             }
-            if (dependsOnLibrary(candidate, library.getName())) {
-                found.add(new Dependent(candidate.getName(), candidate.getDescription().getVersion()));
+            boolean declared = dependsOnLibrary(candidate, library.getName());
+            boolean active = seen.contains(candidate.getName());
+            if (declared || active) {
+                found.put(candidate.getName(),
+                        new Dependent(candidate.getName(), candidate.getDescription().getVersion()));
             }
         }
-        return List.copyOf(found);
+        return List.copyOf(found.values());
     }
 
     /**

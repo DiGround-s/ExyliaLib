@@ -16,6 +16,8 @@ import java.util.Collection;
  * Clients.waypoints().show(player, Waypoint.at("Koth", arena.centre()).colour("#8a51c4"));
  * Clients.cooldowns().show(player, Cooldown.seconds("pearl", 16).icon(Icon.item("ENDER_PEARL")));
  * Clients.markers().update(player, team.members());
+ *
+ * ClientTeam red = Clients.teams(this).create(redPlayers);
  * }</pre>
  *
  * <p>A player on vanilla, or on a client that does not support a feature, is
@@ -65,6 +67,20 @@ public final class Clients {
      */
     public static @NotNull Markers markers() {
         return ClientRuntime.MARKERS;
+    }
+
+    /**
+     * Teams whose members see each other's markers.
+     *
+     * <p>{@link #markers()} draws a set of teammates once; a team remembers who
+     * is on it, so a game does not have to answer that question again on every
+     * join, death and reconnect. Teams die with the plugin that created them.
+     *
+     * @param plugin the owning plugin
+     * @return its team registry
+     */
+    public static @NotNull PluginTeams teams(@NotNull org.bukkit.plugin.Plugin plugin) {
+        return ClientRuntime.teamsOf(plugin);
     }
 
     /**

@@ -196,6 +196,18 @@ class MySQLDialect extends AnsiDialect {
     }
 
     @Override
+    public @NotNull String resequence(@NotNull EntityModel<?> model, long next) {
+        // Not the standard ALTER COLUMN ... RESTART WITH, which MySQL and
+        // MariaDB do not parse: the counter is a table attribute here, not a
+        // column one. Both already advance it themselves when a row arrives
+        // with an explicit key, so this is a restatement of where the engine
+        // is — and it stays emitted so that the four engines end a repopulated
+        // table in the same state rather than in whatever state the engine
+        // somebody tested against happened to reach.
+        return "ALTER TABLE " + table(model) + " AUTO_INCREMENT = " + next;
+    }
+
+    @Override
     public boolean isDuplicateIndex(@NotNull SQLException failure) {
         return hasCode(failure, DUPLICATE_INDEX)
                 || (hasState(failure, "42000") && mentionsAll(failure, "duplicate key name"));

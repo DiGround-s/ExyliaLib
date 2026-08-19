@@ -36,6 +36,21 @@ public final class ClientRuntime {
     }
 
     /**
+     * Returns a plugin's team registry.
+     *
+     * @param plugin the owning plugin
+     * @return its teams
+     */
+    public static net.exylia.lib.client.PluginTeams teamsOf(Plugin plugin) {
+        return TeamRegistry.of(plugin.getName());
+    }
+
+    /** Deletes the teams of a plugin that is going away. */
+    public static void release(String pluginName) {
+        TeamRegistry.release(pluginName);
+    }
+
+    /**
      * Loads whichever client integrations are installed.
      *
      * <p>Called by ExyliaLib at startup.
@@ -72,6 +87,11 @@ public final class ClientRuntime {
      * @param worldChange whether this is a world change rather than a join
      */
     public static void resend(Player player, boolean worldChange) {
+        UUID id = player.getUniqueId();
+        // A team draws everyone's markers from the membership it owns, so it
+        // is re-sent whatever the client does with waypoints.
+        TeamRegistry.resend(id);
+
         ClientLink link = ClientRegistry.of(player);
         if (!link.supportsWaypoints()) {
             return;
@@ -80,7 +100,6 @@ public final class ClientRuntime {
             return;
         }
 
-        UUID id = player.getUniqueId();
         for (ClientState.Sent sent : ClientState.waypointsOf(id)) {
             Waypoint waypoint = sent.waypoint();
             // A waypoint belongs to a world: after a change, only the ones for
@@ -105,12 +124,16 @@ public final class ClientRuntime {
         UUID id = player.getUniqueId();
         ClientRegistry.forget(id);
         ClientState.forget(id);
+        // Their teammates still have a marker pointing at them, and unlike the
+        // player who left, they are still looking at it.
+        TeamRegistry.forget(id);
     }
 
     /** Drops every integration and everything remembered. */
     public static void shutdown() {
         ClientRegistry.clear();
         ClientState.clear();
+        TeamRegistry.clear();
     }
 
     // ------------------------------------------------------------------

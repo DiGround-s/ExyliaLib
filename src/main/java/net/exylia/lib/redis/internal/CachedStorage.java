@@ -9,6 +9,7 @@ import org.jetbrains.annotations.Nullable;
 import java.util.Collection;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.function.Consumer;
 
 /**
  * A {@link Storage} that answers key lookups from Redis before asking the
@@ -38,8 +39,9 @@ import java.util.concurrent.CompletableFuture;
  * had the row cached from doing the same thing a moment later.
  *
  * <h2>Only what can be keyed is cached</h2>
- * {@link #find} and {@link #exists} are answered from the cache. {@link #select}
- * and {@link #count} are not: a filter has no stable key, a leaderboard changes
+ * {@link #find} and {@link #exists} are answered from the cache. {@link #select},
+ * {@link #count} and {@link #scan} are not: a filter has no stable key, a
+ * whole-table walk has no key at all, a leaderboard changes
  * whenever anyone's score does, and caching a query result means invalidating
  * it on writes that no key can predict. ExyliaCommons cached them and paid for
  * it by dropping the entire table's keyspace on every save, which left the
@@ -162,6 +164,54 @@ public final class CachedStorage implements Storage {
             }
             return null;
         });
+    }
+
+    // ------------------------------------------------------------- row level
+
+    @Override
+    public <T> @NotNull CompletableFuture<Long> scan(@NotNull EntityModel<T> model,
+                                                     int batchSize,
+                                                     @NotNull Consumer<List<Object[]>> block) {
+        // Straight through, like select and count and for the same reason: a
+        // whole-table walk has no key to cache under, and filling the cache
+        // with every row of a table on the way past would evict the rows
+        // players are actually reading.
+        return delegate.scan(model, batchSize, block);
+    }
+
+    /**
+     * {@inheritDoc}
+     *
+     * <p>Straight through, and it neither fills nor drops the cache.
+     *
+     * <p>It cannot fill it: what arrives here is storage form and the cache
+     * holds records, so caching would mean decoding every row — running exactly
+     * the codecs this path exists to avoid — to store rows nobody asked for.
+     *
+     * <p>It deliberately does not drop the table either, which is the choice
+     * worth writing down. A bulk write is called once per batch, and a
+     * table-wide invalidation per batch is a network-wide message per thousand
+     * rows, each sending every peer back to the database for everything it held
+     * of that table. That is ExyliaCommons' own failure — it dropped the
+     * table's keyspace on every save — reproduced by the one path that would
+     * hit it hardest. So a caller that replaces rows a live server is reading
+     * owes the network exactly one invalidation when it has finished, not one
+     * per batch, and there is no seam for that here yet: this class is reached
+     * through {@link Storage}, which has no "forget this table" of its own.
+     * Until there is, the honest statement is that this path is for filling a
+     * table nothing is serving from — which is what an import into a fresh
+     * table is — and that replacing a live one needs that seam first.
+     */
+    @Override
+    public @NotNull CompletableFuture<Integer> writeRows(@NotNull EntityModel<?> model,
+                                                         @NotNull List<Object[]> rows) {
+        return delegate.writeRows(model, rows);
+    }
+
+    @Override
+    public @NotNull CompletableFuture<Long> resequence(@NotNull EntityModel<?> model) {
+        // A counter, not a row: nothing here caches one.
+        return delegate.resequence(model);
     }
 
     @Override

@@ -8,6 +8,7 @@ import net.exylia.lib.action.Actions;
 import net.exylia.lib.command.Commands;
 import net.exylia.lib.clan.internal.ClanRuntime;
 import net.exylia.lib.database.Databases;
+import net.exylia.lib.database.transfer.Transfers;
 import net.exylia.lib.format.FormatSettings;
 import net.exylia.lib.economy.EconomySettings;
 import net.exylia.lib.economy.internal.BalanceCache;
@@ -23,6 +24,8 @@ import net.exylia.lib.input.internal.InputRuntime;
 import net.exylia.lib.format.internal.FormatPlaceholders;
 import net.exylia.lib.skull.internal.SkullRuntime;
 import net.exylia.lib.client.internal.ClientRuntime;
+import net.exylia.lib.nametag.internal.NametagRuntime;
+import net.exylia.lib.util.combat.internal.CombatRuntime;
 import net.exylia.lib.hologram.internal.HologramRuntime;
 import net.exylia.lib.internal.ExyliaLibUpdater;
 import net.exylia.lib.item.internal.ItemCache;
@@ -130,7 +133,9 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         BoardManager.init(this, SidebarLibrary.load(this, getLogger()));
         HologramRuntime.init(this);
         ClientRuntime.init(this);
+        NametagRuntime.init(this);
         ClanRuntime.init(this);
+        CombatRuntime.init(this);
         SkullRuntime.init(this);
         net.exylia.lib.util.preview.internal.PreviewRuntime.init(this);
         net.exylia.lib.util.teleport.internal.TeleportRuntime.init(this);
@@ -141,6 +146,11 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         // Starts only the database lifecycle. Each consumer loads database.yml
         // when it asks for its view, and opens lazily on its first repository.
         Databases.init(this);
+        // Holds only this plugin reference, so that an export or an import runs
+        // on the library's scheduler: a transfer scheduled on the consumer's own
+        // would be cancelled halfway through a file the moment that consumer is
+        // disabled.
+        Transfers.init(this);
         // Registers the snapshot codec, which has to happen before anything can
         // compile a model that uses it: a codec registered afterwards never
         // reaches a model that is already compiled.
@@ -346,7 +356,9 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         BoardManager.stopEverything();
         HologramRuntime.removeEverything();
         ClientRuntime.shutdown();
+        NametagRuntime.shutdown();
         ClanRuntime.shutdown();
+        CombatRuntime.shutdown();
         // Writes the texture cache before tasks go away: the save is inline.
         SkullRuntime.shutdown();
         // Writes whatever is pending before the maps are emptied.
@@ -374,6 +386,11 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         // pool. Before the task module, because the pool's own close is
         // synchronous and cancelling the tasks first would leave it open.
         Databases.releaseAll();
+        // Nothing to close: a transfer in flight owns its own streams and shuts
+        // them in a finally. This drops the library reference so a transfer
+        // asked for after this point is refused rather than scheduled onto a
+        // plugin that is gone.
+        Transfers.releaseAll();
         // After the datasources, because a repository closing may still write,
         // and a write still caches. Closing the cache first would leave the
         // last writes of a shutdown invisible to the rest of the network.
@@ -414,7 +431,9 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         BoardManager.stopFor(event.getPlayer());
         HologramRuntime.forget(event.getPlayer());
         ClientRuntime.forget(event.getPlayer());
+        NametagRuntime.forget(event.getPlayer());
         ClanRuntime.forget(event.getPlayer().getUniqueId());
+        CombatRuntime.forget(event.getPlayer().getUniqueId());
         Cooldowns.forget(event.getPlayer().getUniqueId());
         MenuRuntime.forgetEverywhere(event.getPlayer().getUniqueId());
         // Before the input module: ending a run cancels the question it was
@@ -450,6 +469,9 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
     @EventHandler(priority = EventPriority.MONITOR)
     public void onPlayerJoin(PlayerJoinEvent event) {
         org.bukkit.entity.Player player = event.getPlayer();
+        // An outgoing metadata packet carries an entity id and nothing else, so
+        // the way back to the player has to be recorded while they are here.
+        NametagRuntime.register(player);
         // Reading a file is not something the main thread should wait for.
         java.util.UUID id = player.getUniqueId();
         Tasks.of(this).runAsync(() -> Cooldowns.load(id));
@@ -488,6 +510,13 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         Sequences.release(pluginName);
         BoardManager.stopAll(pluginName);
         HologramRuntime.removeAll(pluginName);
+        // Deleting a team clears its members' markers, which is a packet to a
+        // player who is still here: it has to happen while the client module
+        // is still up, not on the way out with the rest of the shutdown.
+        ClientRuntime.release(pluginName);
+        // Same reason: putting a nametag back to normal is a packet to a player
+        // who is still on the server.
+        NametagRuntime.release(pluginName);
         // Before all three of the modules a run borrows from, because ending
         // one hands work back to each of them: it cancels the question it was
         // waiting on, releases the player's block selector, and schedules the

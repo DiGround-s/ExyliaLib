@@ -5,6 +5,7 @@ import net.exylia.lib.database.internal.DatabaseRuntime;
 import net.exylia.lib.database.internal.SqlSettings;
 import org.bukkit.plugin.Plugin;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -82,6 +83,42 @@ public final class Databases {
      */
     public static @NotNull PluginDatabase of(@NotNull Plugin plugin) {
         return VIEWS.computeIfAbsent(plugin.getName(), ignored -> new PluginDatabase(plugin));
+    }
+
+    /**
+     * The database view a plugin already has, or {@code null} when it has none.
+     *
+     * <p>A lookup, deliberately not a factory. {@link #of(Plugin)} creates the
+     * view if it is missing, and creating one reads — and therefore
+     * <em>writes</em> — that plugin's {@code database.yml}: a command that
+     * looked an unrelated plugin up through {@code of} would leave a config
+     * file behind in the data folder of a plugin that never asked for one.
+     * This answers the question a diagnostic or a whole-plugin operation
+     * actually has, which is "does this plugin store anything", and answers it
+     * with {@code null} rather than by inventing a view.
+     *
+     * <p>Keyed by name for the same reason {@link #release(String)} is: the
+     * caller has a name typed into a command, not a {@code Plugin}.
+     *
+     * @param pluginName the plugin's name, as {@code plugin.yml} spells it
+     * @return its view, or {@code null} when it never registered a repository
+     * @since 1.36.0
+     */
+    public static @Nullable PluginDatabase find(@NotNull String pluginName) {
+        return VIEWS.get(pluginName);
+    }
+
+    /**
+     * The names of every plugin holding a database view, for diagnostics and
+     * for command suggestions.
+     *
+     * <p>Sorted, so a suggestion list does not reshuffle between presses.
+     *
+     * @return the plugin names, never {@code null}
+     * @since 1.36.0
+     */
+    public static @NotNull java.util.List<String> registeredPlugins() {
+        return VIEWS.keySet().stream().sorted().toList();
     }
 
     /**

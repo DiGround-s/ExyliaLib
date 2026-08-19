@@ -127,9 +127,37 @@ public final class MongoDocuments {
      */
     public static <T> @NotNull Map<String, Object> toDocument(@NotNull EntityModel<T> model,
                                                               @NotNull T instance) {
+        return fromRow(model, model.values(instance));
+    }
+
+    /**
+     * A document out of a row already in storage form.
+     *
+     * <p>The same document {@link #toDocument} builds, from the array rather
+     * than from the record. That is what lets a row read out of one collection
+     * be written back into another without ever becoming a record: no codec
+     * runs, so an {@code ItemStack} column stays the Base64 it was stored as
+     * and nothing needs a running server to rebuild it.
+     *
+     * @param model the record model
+     * @param row   the values, in {@link EntityModel#columns()} order and
+     *              already encoded
+     * @return a fresh, mutable map in column order
+     * @throws IllegalArgumentException if the row is the wrong length, or its
+     *                                  key is {@code null}
+     * @since 1.36.0
+     */
+    public static @NotNull Map<String, Object> fromRow(@NotNull EntityModel<?> model,
+                                                       @NotNull Object[] row) {
+        List<ColumnModel> columns = model.columns();
+        if (row.length != columns.size()) {
+            throw new IllegalArgumentException("Expected " + columns.size() + " values for "
+                    + model.type().getSimpleName() + ", got " + row.length);
+        }
         Map<String, Object> document = new LinkedHashMap<>();
-        for (ColumnModel column : model.columns()) {
-            Object value = bsonValue(column.read(instance));
+        for (int index = 0; index < columns.size(); index++) {
+            ColumnModel column = columns.get(index);
+            Object value = bsonValue(row[index]);
             if (value == null) {
                 if (column.id()) {
                     throw new IllegalArgumentException(model.type().getSimpleName()
@@ -141,6 +169,33 @@ public final class MongoDocuments {
             document.put(fieldOf(column), value);
         }
         return document;
+    }
+
+    /**
+     * A row in storage form out of a document, without building the record.
+     *
+     * <p>The mirror of {@link #fromRow}, and the read half of a walk that never
+     * runs a codec. The {@code _id} redirect happens here for the same reason it
+     * happens in {@link #read}: ask a document for {@code uuid} and it answers
+     * {@code null}, because the key was written to {@code _id}.
+     *
+     * <p>An absent field reads as {@code null}, exactly as an absent column
+     * does on the SQL side — a document written before a plugin added a column
+     * is the normal case here, not the exotic one.
+     *
+     * @param model the record model
+     * @param field raw field access, answering {@code null} for an absent field
+     * @return the values, in {@link EntityModel#columns()} order
+     * @since 1.36.0
+     */
+    public static @NotNull Object[] toRow(@NotNull EntityModel<?> model,
+                                          @NotNull Function<String, Object> field) {
+        List<ColumnModel> columns = model.columns();
+        Object[] row = new Object[columns.size()];
+        for (int index = 0; index < columns.size(); index++) {
+            row[index] = field.apply(fieldOf(columns.get(index)));
+        }
+        return row;
     }
 
     /**

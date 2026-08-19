@@ -265,6 +265,41 @@ abstract class AnsiDialect implements Dialect {
     }
 
     @Override
+    public @NotNull String scan(@NotNull EntityModel<?> model, boolean after) {
+        String key = quote(identifier(model.id().name()));
+        StringBuilder sql = new StringBuilder(128).append("SELECT ");
+        appendColumnList(sql, model);
+        sql.append(" FROM ").append(table(model));
+        if (after) {
+            // Strictly greater than. A >= would re-read the row the previous
+            // batch ended on, so every row after the first batch is handed over
+            // twice and a table whose size is a multiple of the batch never
+            // terminates.
+            sql.append(" WHERE ").append(key).append(" > ?");
+        }
+        // A bare LIMIT, not page(): the offset half of that clause is what this
+        // whole statement exists to avoid, and binding a constant zero on every
+        // batch would be a placeholder that only ever means "not this".
+        // All four engines parse LIMIT ? on its own; the one that did not would
+        // override this method, as MySQL overrides the index guard.
+        return sql.append(" ORDER BY ").append(key).append(" LIMIT ?").toString();
+    }
+
+    @Override
+    public @NotNull String maxKey(@NotNull EntityModel<?> model) {
+        return "SELECT MAX(" + quote(identifier(model.id().name())) + ") FROM " + table(model);
+    }
+
+    @Override
+    public @NotNull String resequence(@NotNull EntityModel<?> model, long next) {
+        // The standard spelling, which H2 and Postgres both take for an
+        // identity column. MySQL and MariaDB have their own and override this.
+        return "ALTER TABLE " + table(model)
+                + " ALTER COLUMN " + quote(identifier(model.id().name()))
+                + " RESTART WITH " + next;
+    }
+
+    @Override
     public @NotNull String delete(@NotNull EntityModel<?> model, @NotNull List<String> whereColumns) {
         if (whereColumns.isEmpty()) {
             // A DELETE with no filter empties the table, and nothing in this

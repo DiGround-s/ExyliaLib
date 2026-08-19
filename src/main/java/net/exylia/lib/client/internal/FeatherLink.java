@@ -31,6 +31,9 @@ final class FeatherLink implements ClientLink {
     /** Feather hides waypoints unless the mod is on, so it is switched on. */
     private static final List<FeatherMod> WAYPOINT_MOD = List.of(new FeatherMod("waypoints"));
 
+    /** Same for teammate markers. */
+    private static final List<FeatherMod> MARKER_MOD = List.of(new FeatherMod("teamtracker"));
+
     private final WaypointService waypoints;
 
     private FeatherLink(WaypointService waypoints) {
@@ -122,6 +125,44 @@ final class FeatherLink implements ClientLink {
         FeatherPlayer target = feather(player);
         if (target != null) {
             waypoints.destroyAllWaypoints(target);
+        }
+    }
+
+    // ------------------------------------------------------------------
+    // Markers
+    // ------------------------------------------------------------------
+
+    @Override
+    public boolean supportsMarkers() {
+        return true;
+    }
+
+    /**
+     * Switches the teammate tracker on, or off when there is nobody to track.
+     *
+     * <p>Feather is told who, not where: its tracker works out the positions on
+     * the client, so unlike Apollo there is nothing to push and nothing to
+     * refresh. That is why an empty team turns the mod off — leaving it on with
+     * no teammates draws a tracker that never points at anything.
+     */
+    @Override
+    public void updateMarkers(Player player, java.util.Collection<Player> teammates) {
+        FeatherPlayer target = feather(player);
+        if (target == null) {
+            return;
+        }
+        if (teammates.isEmpty()) {
+            target.disableMods(MARKER_MOD);
+            return;
+        }
+        target.enableMods(MARKER_MOD);
+    }
+
+    @Override
+    public void clearMarkers(Player player) {
+        FeatherPlayer target = feather(player);
+        if (target != null) {
+            target.disableMods(MARKER_MOD);
         }
     }
 

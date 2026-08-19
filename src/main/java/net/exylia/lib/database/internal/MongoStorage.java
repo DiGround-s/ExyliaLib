@@ -161,6 +161,37 @@ public final class MongoStorage implements Storage {
     }
 
     @Override
+    public <T> @NotNull CompletableFuture<Long> scan(@NotNull EntityModel<T> model,
+                                                     int batchSize,
+                                                     @NotNull Consumer<List<Object[]>> block) {
+        if (batchSize <= 0) {
+            // Thrown rather than completed exceptionally, exactly as on the SQL
+            // side: a bad argument is a bug at the call site, and the stack
+            // trace has to name the caller rather than a background thread.
+            throw new IllegalArgumentException("A scan of " + model.table()
+                    + " needs a batch size of at least one document, not " + batchSize
+                    + ". The batch is what bounds the memory the walk uses.");
+        }
+        return async(model, "scan", () -> backend.scan(model, batchSize, block));
+    }
+
+    @Override
+    public @NotNull CompletableFuture<Integer> writeRows(@NotNull EntityModel<?> model,
+                                                         @NotNull List<Object[]> rows) {
+        if (rows.isEmpty()) {
+            // No task, no round trip — the same as saveAll.
+            return CompletableFuture.completedFuture(0);
+        }
+        List<Object[]> copy = List.copyOf(rows);
+        return async(model, "writeRows", () -> backend.writeRows(model, copy));
+    }
+
+    @Override
+    public @NotNull CompletableFuture<Long> resequence(@NotNull EntityModel<?> model) {
+        return async(model, "resequence", () -> backend.resequence(model));
+    }
+
+    @Override
     public @NotNull CompletableFuture<Boolean> delete(@NotNull EntityModel<?> model,
                                                       @NotNull Object id) {
         return async(model, "delete", () -> backend.delete(model, id));

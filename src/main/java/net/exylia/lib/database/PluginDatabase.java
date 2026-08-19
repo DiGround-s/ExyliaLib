@@ -159,6 +159,39 @@ public final class PluginDatabase {
     }
 
     /**
+     * The tables this plugin has registered so far, by table name.
+     *
+     * <p>Public because a whole-plugin operation — an export, a diagnostic
+     * listing — has no other way to find out which tables a plugin owns, and
+     * because the answer is only names and repositories, both of which are
+     * already public.
+     *
+     * <h2>It is what has been registered, not what exists</h2>
+     * A repository appears here the moment {@link #repository(Class)} is
+     * called, and not before. A plugin that registers a record type lazily —
+     * on first use, behind a config switch, from a subcommand — has fewer
+     * tables here than it will eventually have, and nothing can tell the
+     * difference from outside. That is why every caller of this reports the
+     * table names it found rather than only their count: a silent short list
+     * is an export missing a table, and the only way anybody notices is by
+     * reading the names.
+     *
+     * <p>Ordered by table name so the same plugin lists the same way twice,
+     * which a report of what was exported has to.
+     *
+     * @return the repositories by table name, never {@code null}, possibly
+     *         empty
+     * @since 1.36.0
+     */
+    public @NotNull java.util.SortedMap<String, Repository<?>> tables() {
+        java.util.SortedMap<String, Repository<?>> found = new java.util.TreeMap<>();
+        for (Repository<?> repository : repositories.values()) {
+            found.put(repository.table(), repository);
+        }
+        return java.util.Collections.unmodifiableSortedMap(found);
+    }
+
+    /**
      * Forgets this plugin's repositories.
      *
      * <p>Called by the library when the plugin is disabled; a consumer does not

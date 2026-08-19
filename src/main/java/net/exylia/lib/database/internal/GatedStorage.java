@@ -8,6 +8,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
@@ -121,6 +122,33 @@ public final class GatedStorage implements Storage {
                                                         @NotNull Collection<T> records) {
         List<T> copy = List.copyOf(records);
         return after(storage -> storage.saveAll(model, copy));
+    }
+
+    @Override
+    public <T> @NotNull CompletableFuture<Long> scan(@NotNull EntityModel<T> model,
+                                                     int batchSize,
+                                                     @NotNull Consumer<List<Object[]>> block) {
+        if (batchSize <= 0) {
+            // Checked here as well as in the delegate. A bad argument must
+            // reach the caller as a throw, and behind the gate it would arrive
+            // as a failed future minutes later instead.
+            throw new IllegalArgumentException("A scan of " + model.table()
+                    + " needs a batch size of at least one row, not " + batchSize
+                    + ". The batch is what bounds the memory the walk uses.");
+        }
+        return after(storage -> storage.scan(model, batchSize, block));
+    }
+
+    @Override
+    public @NotNull CompletableFuture<Integer> writeRows(@NotNull EntityModel<?> model,
+                                                         @NotNull List<Object[]> rows) {
+        List<Object[]> copy = List.copyOf(rows);
+        return after(storage -> storage.writeRows(model, copy));
+    }
+
+    @Override
+    public @NotNull CompletableFuture<Long> resequence(@NotNull EntityModel<?> model) {
+        return after(storage -> storage.resequence(model));
     }
 
     @Override

@@ -568,6 +568,80 @@ Todo lo que dependa de Lunar o Feather pasa por `net.exylia.lib.client`. Nunca
   pantalla, no un registro que merezca disco.
 - **Un fallo de la integración no sale de ahí.** Es el bug de otro plugin; el que
   pidió el waypoint no hizo nada malo.
+- **Un equipo es un registro, no un empujón.** `markers()` dibuja una lista y se
+  olvida; una partida que dura tiene que contestar "quién está en este equipo"
+  en cada join, muerte, quit y reconexión. Los tres bugs que salían de guardar
+  esa lista en un mapa propio son los mismos siempre: un jugador en dos equipos,
+  un equipo que sobrevive a la partida, y un miembro que ya se fue. `ClientTeam`
+  contesta las tres una vez.
+- **Un jugador está en un equipo a la vez, en todo el servidor**, y `of(player)`
+  cruza plugins: de quién es el equipo no cambia en cuál está el jugador.
+- **Los miembros se guardan por id, nunca como `Player`.** Un equipo que dura
+  más que una sesión no puede ser el motivo de que el servidor mantenga viva una
+  entidad. El que se desconectó se cae al leer, así que un equipo que nadie
+  limpió igual se encoge.
+- **Un equipo muere con su plugin.** Igual que todo lo demás de la librería.
+
+### Nametags — packets a todos, no solo a clientes modificados
+
+Todo lo que cambie cómo ve un jugador a otro (color del nombre, glow, colisión,
+ver invisibles) pasa por `net.exylia.lib.nametag`. Nunca un `Scoreboard` de
+Bukkit, ni teams a mano, ni `setGlowing`.
+
+- **Está fuera de `client` a propósito, y no es un detalle de empaquetado.**
+  `Clients` existe para hablarle a Lunar y Feather y no hacer nada para el
+  resto; esto son teams vanilla y flags de entidad por packet, así que un
+  jugador sin mods ve exactamente lo mismo. Meterlo ahí haría que `ClientLink`
+  y `ClientBrand` no signifiquen nada en la mitad del módulo. En commons vivían
+  bajo el mismo paquete sin compartir una sola línea de código.
+- **Es por espectador, no por jugador.** El mismo jugador es rojo para su
+  enemigo y verde para su clan al mismo tiempo, y nada de eso existe en el
+  servidor: sin scoreboard, sin team real, sin estado que mantener sincronizado.
+- **El llamante declara un estilo, no un nombre de equipo.** El nombre se deriva
+  del estilo, así que dos que pintan igual comparten team sin saberlo. Cada
+  plugin se inventaba el suyo (`"clan_" + id`) y después tenía que mantenerlo a
+  juego con los colores que significaba.
+- **El glow no entra en el nombre del team.** Viaja en las flags de la entidad,
+  así que dos estilos que solo se diferencian en eso comparten uno.
+- **Un color que no cambió no se manda.** Y un team se crea una vez y después se
+  le añade; borrarlo y recrearlo cuesta dos packets cada vez, y un team vacío en
+  un cliente no cuesta nada.
+- **El glow se reescribe al vuelo, no se manda una vez.** El servidor reenvía
+  las flags de una entidad cada vez que algo le pasa, y cada una de esas apagaría
+  el contorno. Por eso el módulo necesita PacketEvents.
+- **Un plugin solo deshace lo que él pintó.** Una partida no puede tapar en
+  silencio el color de un clan. Y al deshabilitarse se deshace todo lo suyo:
+  una partida que termina mal no deja a nadie rojo para siempre.
+- **Sin PacketEvents no falla, no dibuja.** `isSupported()` en `false` y todos
+  en blanco.
+
+### Combate — una respuesta, y falla abierto
+
+Todo lo que pregunte si alguien está en combate pasa por
+`net.exylia.lib.util.combat`. Nunca un hook propio por plugin.
+
+- **Cuatro plugins tenían su propio hook para la misma pregunta**, y cada uno
+  conocía un set distinto de plugins de combate: el mismo servidor contestaba
+  cosas distintas según quién preguntara. Uno devolvía `true` en `canAttack` con
+  un `TODO` encima.
+- **Falla abierto, siempre.** Sin plugin instalado, o si el plugin revienta:
+  nadie está tagueado y todos pueden pelear. Al revés, un fallo de integración
+  frenaría todas las peleas del servidor.
+- **Se cachea el tag y nada más.** Es la pregunta del hot path (daño,
+  movimiento, scoreboard) y no cambia en medio segundo. El tiempo restante
+  **no** se cachea: es una cuenta atrás, y cacheada se queda quieta y después
+  salta. Una escritura tampoco: taguear leyendo un valor viejo taguea por una
+  pelea que ya terminó, así que `tag`/`untag` invalidan el suyo.
+- **Vacío no es cero.** Un plugin que no cuenta nada devuelve vacío, no un
+  record de ceros. "Sin kills" y "nadie está contando" son respuestas distintas,
+  y un leaderboard que no las distingue muestra a todo un servidor en cero.
+- **`ratio()` lo calcula la lib.** Los plugins no se ponen de acuerdo en qué
+  hacer con cero muertes, y un leaderboard que mezcla dos respuestas es peor que
+  uno que elige.
+- **Reflexión, como en clanes**, y por lo mismo: la lib carga en servidores que
+  no tienen ninguno de los dos.
+- **Un `CombatBridge` solo escribe lo que su plugin sabe contestar**; el resto
+  son defaults, y cada default es lo que hace un servidor sin nada instalado.
 
 ### Clanes — un proveedor activo, caché por jugador, sin ramificar
 
@@ -957,7 +1031,7 @@ Raíz de código: `src/main/java/net/exylia/lib/`. Raíz de tests:
 | effect | `effect/Effects`, `Timer`, `Ticks`, `Display`, `EffectConfig` | `effect/internal/` | [docs/effects.md](docs/effects.md) | 1.4.0 |
 | scoreboard | `scoreboard/Scoreboards`, `Board`, `SidebarConfig` | `scoreboard/internal/` | [docs/scoreboard.md](docs/scoreboard.md) | 1.5.0 |
 | hologram | `hologram/Holograms`, `Hologram`, `HologramConfig` | `hologram/internal/` | [docs/hologram.md](docs/hologram.md) | 1.6.0 |
-| client | `client/Clients`, `Waypoint`, `Cooldown`, `ClientBrand` | `client/internal/` | [docs/client.md](docs/client.md) | 1.7.0 |
+| client | `client/Clients`, `Waypoint`, `Cooldown`, `ClientBrand`, `ClientTeam`, `PluginTeams` | `client/internal/` (+ `TeamRegistry`) | [docs/client.md](docs/client.md) | 1.7.0 (equipos 1.36.0) |
 | clan | `clan/Clans`, `Clan`, `ClanBridge` | `clan/internal/` | [docs/clan.md](docs/clan.md) | 1.8.0 |
 | util (pociones) | `util/Effects` | — | [docs/util.md](docs/util.md) | 1.9.0 |
 | util (cooldowns) | `util/Cooldowns`, `CooldownScope`, `PluginCooldowns`, `ItemCooldowns` | `util/internal/CooldownStore` | [docs/cooldowns.md](docs/cooldowns.md) | 1.10.0 |
@@ -991,6 +1065,9 @@ Raíz de código: `src/main/java/net/exylia/lib/`. Raíz de tests:
 | util (teleport) | `util/teleport/Teleports`, `PluginTeleports`, `TeleportRequest`, `TeleportHandle`, `TeleportResult`, `TeleportCause`, `TeleportSettings`, `ExyliaLocation`, `ExyliaTeleportEvent`, `RandomArea`, `TeleportDirection`, `TeleportRequestTicket`, `TpaAcceptance`, `TpaOutcome` | `util/teleport/internal/` (`TeleportRuntime`, `RunningTeleport`, `TeleportPlan`, `Teleporter`, `SafeLocations`, `RandomLocations`, `BackHistory`, `TpaBook`, `CrossServer`) | [docs/teleport.md](docs/teleport.md) | 1.34.0 |
 | util (wizard) | `util/wizard/Wizards`, `PluginWizards`, `Wizard`, `WizardBuilder` (+ `Branch`), `WizardStep` (+ `Prompt`), `WizardKey`, `WizardValues`, `WizardRun`, `WizardOutcome`, `WizardResult`, `WizardSettings`, `WizardException` | `util/wizard/internal/` (`WizardRuntime`, `WizardSession`, `WizardListener`); `init`/`forget`/`release` en `ExyliaLib` | [docs/wizard.md](docs/wizard.md) | 1.34.0 |
 | consola con look de commons | `debug/Debug` (degradado, etiqueta por tipo, marco del `motd`) | `gradientName`/`blend` en `Debug` | [docs/debug.md](docs/debug.md) | 1.35.0 |
+| util (world) | `util/world/Worlds` | `util/world/internal/` (`WorldsBackend`, `WorldsBackendDetector`, `WorldsReflection`, `Worlds3Backend`, `Worlds4Backend`) | [docs/world.md](docs/world.md) | 1.36.0 |
+| nametag | `nametag/Nametags`, `PluginNametags`, `NametagStyle` | `nametag/internal/` (`NametagRuntime`, `State`, `NametagSink`; PacketEvents confinado en `NametagPackets`) | [docs/nametags.md](docs/nametags.md) | 1.36.0 |
+| util (combat) | `util/combat/Combat`, `CombatBridge`, `CombatStats` | `util/combat/internal/` (`CombatRuntime`, `CombatProvider`, `DeluxeCombatProvider`, `PvpManagerProvider`) | [docs/combat.md](docs/combat.md) | 1.36.0 |
 | `/exylialib info` y `stats` | — | `internal/ReloadCommand` (`dependentsOf`, `hologramsLine`) | [docs/reload.md](docs/reload.md) | 1.35.0 |
 
 Clases raíz que no son módulo: `ExyliaLib.java` (ciclo de vida y limpieza),

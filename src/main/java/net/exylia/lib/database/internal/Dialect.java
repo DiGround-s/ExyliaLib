@@ -423,6 +423,78 @@ public interface Dialect {
                            int offset);
 
     /**
+     * One page of a whole-table walk, in primary-key order.
+     *
+     * <p>Keyset pagination, not {@code OFFSET}. The two are not
+     * interchangeable and the difference is what makes this method exist:
+     * {@code LIMIT ? OFFSET ?} makes the engine produce and discard every row
+     * before the page, so walking a table of <i>n</i> rows in pages costs
+     * O(n²), and without a total order the engine is free to return the rows in
+     * a different order per page — so a row can appear on two pages and another
+     * on none. ExyliaCommons paged exactly that way, with no {@code ORDER BY}
+     * at all, which is why its exports silently duplicated and dropped rows.
+     * A key comparison seeks straight into the primary key's index and the
+     * order is total, so every row is seen exactly once.
+     *
+     * <pre>{@code
+     * SELECT "uuid", "elo" FROM "stats" ORDER BY "uuid" LIMIT ?              // after = false
+     * SELECT "uuid", "elo" FROM "stats" WHERE "uuid" > ? ORDER BY "uuid" LIMIT ?  // after = true
+     * }</pre>
+     *
+     * <p>Placeholders are bound in this order: the key the previous batch ended
+     * on when {@code after} is true, then the batch size. The batch size is
+     * bound rather than spliced, exactly as in {@link #select}, so every batch
+     * of a scan is byte-identical SQL and one prepared statement.
+     *
+     * <p>Strictly greater than, never {@code >=}: the previous batch already
+     * handed that row over, and re-reading it would hand it over twice and
+     * never terminate on a table whose last batch is exactly full.
+     *
+     * @param model the record model
+     * @param after whether to resume after a key, or start from the beginning
+     * @return one statement
+     * @since 1.36.0
+     */
+    @NotNull String scan(@NotNull EntityModel<?> model, boolean after);
+
+    /**
+     * The largest primary key in the table, or nothing when it is empty.
+     *
+     * <p>Only ever asked of a model whose key is generated, and only to work
+     * out what {@link #resequence} has to move the counter past.
+     *
+     * @param model the record model
+     * @return one statement, returning one row of one nullable number
+     * @since 1.36.0
+     */
+    @NotNull String maxKey(@NotNull EntityModel<?> model);
+
+    /**
+     * Moves a generated key's counter so the next row the engine numbers
+     * cannot collide with one that was written with an explicit key.
+     *
+     * <p>Needed because two of the four engines do not advance the counter
+     * when a row arrives carrying its own key. H2 and Postgres leave it where
+     * it was, so a table repopulated with ids 1..500 hands out 1 on the next
+     * generated insert and fails on the primary key; MySQL and MariaDB move it
+     * themselves and take this statement as a no-op restatement of where they
+     * already are. Emitting it on all four is what keeps the outcome the same
+     * everywhere rather than the same on the engine somebody tested against.
+     *
+     * <p>This is the one statement in the interface that carries a value in its
+     * text, because no engine accepts a placeholder in DDL. It is safe by
+     * construction and not by inspection: the parameter is a {@code long}, so
+     * what lands in the string is a run of digits and there is nothing a caller
+     * could put in it that is not one.
+     *
+     * @param model the record model, whose key must be generated
+     * @param next  the value the counter must next hand out
+     * @return one statement
+     * @since 1.36.0
+     */
+    @NotNull String resequence(@NotNull EntityModel<?> model, long next);
+
+    /**
      * {@code DELETE} with an optional filter.
      *
      * @param model        the record model

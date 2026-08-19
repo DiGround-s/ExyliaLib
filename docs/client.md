@@ -2,7 +2,11 @@
 
 Lunar and Feather client features — waypoints, client-drawn cooldowns,
 teammate markers — behind one API. The consuming plugin never asks which
-client a player runs. Since 1.7.0.
+client a player runs. Since 1.7.0; teams since 1.36.0.
+
+For nametag colours, glow and collision — which every player sees, vanilla
+included — see [nametags](nametags.md). That is a different module on purpose:
+this one does nothing for a player on an unmodified client.
 
 Entry point: `net.exylia.lib.client.Clients`.
 
@@ -12,6 +16,7 @@ Entry point: `net.exylia.lib.client.Clients`.
 Clients.waypoints().show(player, Waypoint.at("base", location));
 Clients.cooldowns().show(player, Cooldown.seconds("pearl", 16));
 Clients.markers().update(viewer, teammates);
+Clients.teams(this).create(redPlayers);
 ```
 
 `Clients`:
@@ -19,6 +24,7 @@ Clients.markers().update(viewer, teammates);
 | Method | Contract |
 | --- | --- |
 | `waypoints()` / `cooldowns()` / `markers()` | the three feature groups |
+| `teams(plugin)` | teams whose members see each other's markers |
 | `brandOf(player)` | `ClientBrand.VANILLA`, `LUNAR` or `FEATHER` |
 | `isSupported()` | whether any integration is live here |
 | `clear(player)` | forget everything sent to that player |
@@ -38,6 +44,38 @@ Lunar the library removes it when time is up, so behavior matches.
 plugin's business; this only draws): `of(name, Duration)` /
 `seconds(name, double)`, `.icon(Icon)`. `Icon.item(material)` /
 `Icon.resource(resource, size)`.
+
+## Teams
+
+Since 1.36.0. `markers()` is a push: it draws a set of teammates and forgets.
+A game that lasts has to answer "who is on this team" again on every join,
+death, quit and reconnect, and every caller that kept that list in a map of its
+own got the same three things wrong — a player in two teams at once, a team left
+behind when the game ended, and a member who had logged out.
+
+```java
+PluginTeams teams = Clients.teams(this);
+
+ClientTeam red = teams.create(redPlayers);
+red.add(latecomer);        // draws everyone's markers again
+teams.leave(deadPlayer);   // without knowing which team held them
+red.delete();              // clears every member's markers
+```
+
+`ClientTeam`: `id()`, `add`, `addAll`, `remove`, `has`, `members()`, `size()`,
+`refresh()`, `delete()`, `alive()`.
+`PluginTeams`: `create()`, `create(players)`, `find(id)`, `of(player)`,
+`leave(player)`, `all()`, `clear()`.
+
+- **One team per player, server-wide.** Joining a second leaves the first, and
+  the team left behind is re-drawn. `of(player)` answers across plugins,
+  because "which team is this player in" does not depend on who asked.
+- **Members are held as ids, not `Player` objects.** A team that outlives a
+  session must not be the reason the server keeps an entity alive. A member who
+  logged out is dropped when the team is next read, so a team nobody cleaned up
+  still shrinks to nothing.
+- **Teams die with the plugin that created them**, so a game that ends badly
+  cannot leave markers on a screen.
 
 ## Behavior
 
@@ -60,7 +98,8 @@ plugin's business; this only draws): `of(name, Duration)` /
 ## Source and tests
 
 - Public: `client/Clients.java`, `Waypoint.java`, `Cooldown.java`,
-  `ClientBrand.java`.
+  `ClientBrand.java`, `ClientTeam.java`, `PluginTeams.java`.
 - Internal: `client/internal/` (`ClientLink`, `ClientRegistry`,
-  `ClientRuntime`, `ClientState`, `ApolloLink`, `FeatherLink`).
+  `ClientRuntime`, `ClientState`, `TeamRegistry`, `ApolloLink`,
+  `FeatherLink`).
 - Tests: `src/test/java/net/exylia/lib/client/`.

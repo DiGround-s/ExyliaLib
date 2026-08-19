@@ -2,6 +2,7 @@ package net.exylia.lib.database;
 
 import net.exylia.lib.database.internal.EntityModel;
 import net.exylia.lib.database.internal.Storage;
+import org.jetbrains.annotations.ApiStatus;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.Collection;
@@ -90,6 +91,44 @@ public final class Repository<T> {
     /** The record type this stores. */
     public @NotNull Class<T> type() {
         return model.type();
+    }
+
+    /**
+     * The compiled model, for the library's own row-level paths.
+     *
+     * <p>Not API. It is {@code public} only because the one caller — the
+     * transfer module — lives in another package, and it hands back an
+     * {@code internal} type, which by the library's own rule is free to change
+     * without notice. A plugin that calls this has coupled itself to something
+     * that carries no compatibility promise at all.
+     *
+     * <p>It exists because an export needs the column layout of a table it did
+     * not compile: the layout is what the dump's header carries, and it is what
+     * makes a dump readable after a record gains a component.
+     *
+     * @return the model, never {@code null}
+     * @since 1.36.0
+     */
+    @ApiStatus.Internal
+    public @NotNull EntityModel<T> model() {
+        return model;
+    }
+
+    /**
+     * The store underneath, for the library's own row-level paths.
+     *
+     * <p>Not API, for the same reason as {@link #model()}. This is the
+     * <em>gated</em> view the repository itself writes through, which is why a
+     * transfer goes through here rather than reaching for the shared storage:
+     * the gate is what holds an export back until the {@code CREATE TABLE} the
+     * repository is still waiting on has actually run.
+     *
+     * @return the storage, never {@code null}
+     * @since 1.36.0
+     */
+    @ApiStatus.Internal
+    public @NotNull Storage storage() {
+        return storage;
     }
 
     /** The table or collection it is stored in. */

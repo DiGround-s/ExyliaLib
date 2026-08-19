@@ -48,10 +48,16 @@ The chain, verified in code:
 ### `/exylialib info` and `/exylialib stats`
 
 Both are read-only diagnostics. Neither adds tracking to the library: `info`
-reads `Platform.current()`, `LibrarySettings.get()` and
+reads `Platform.current()`, `LibrarySettings.get()`, and its dependent list is
+the union of two signals Bukkit and the library already expose —
 `Bukkit.getPluginManager().getPlugins()` (checking each enabled plugin's
-`plugin.yml` for `ExyliaLib` under `depend` or `softdepend`); `stats` reads
-the counters every module already exposes for diagnostics —
+`plugin.yml` for `ExyliaLib` under `depend` or `softdepend`) plus
+`Debug.registeredPlugins()` (every plugin that has ever called `Debug.of(this)`,
+which is nearly every consumer sooner or later, regardless of what it declared).
+A plugin only needs one of the two to be listed, so calling
+`Databases.of(this)` or `Menus.of(this)` without ever naming the library in
+`plugin.yml` is still caught. `stats` reads the counters every module already
+exposes for diagnostics —
 `BoardManager.activeCount()`, `HologramRuntime.count()`, `Effects.active()`,
 `Menus.registered()`, `Actions.registered()`, `Regions.registered()`,
 `Databases.registered()`/`isReady()`/`engine()`, `Redis.isActive()`/`stats()`
@@ -184,6 +190,9 @@ and anything that re-parses per render was never at risk.**
 | placeholder | compiled templates (structure, not colour) | Nothing to do — templates hold the raw text, and rendering goes through `Text` |
 | input | the prompt text, held as the string the plugin passed | Nothing to hold: a prompt is parsed when it is drawn, so the next question already uses the new palette |
 | clan / client / cooldowns / util | no rendered text | Nothing to do |
+| nametag | a colour and a derived team name per viewer | Nothing to do — a `NamedTextColor` is one of sixteen values the client resolves, not something the palette produces |
+| combat | whether a player is tagged, and their stats | Nothing to do — numbers and booleans, expiring on their own in seconds |
+| world | the detected backend | Nothing to do — no rendered text, and the Worlds plugin is not hot-swappable |
 | plugin state | whatever a plugin parsed once and kept | Told through `Reloads.onLibraryReload` — the plugin rebuilds it |
 
 ### The rule for new modules

@@ -17,6 +17,7 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Consumer;
 
 /**
  * One connection pool and everything that runs statements through it.
@@ -238,19 +239,56 @@ public final class SqlBackend implements AutoCloseable {
         if (instances.isEmpty()) {
             return 0;
         }
+        List<Object[]> rows = new ArrayList<>(instances.size());
+        for (T instance : instances) {
+            rows.add(model.values(instance));
+        }
+        return writeRows(model, rows);
+    }
+
+    /**
+     * Writes rows already in storage form, as one batch, upserting by key.
+     *
+     * <p>The same statement, the same transaction and the same binding
+     * {@link #saveAll} uses — it is literally that method's second half — with
+     * the encoding step left out because these rows have already been through
+     * it. That is what makes this the write half of a round trip that never
+     * runs a codec: a row that came out of {@link #scan} goes back in here
+     * unchanged, and an {@code ItemStack} column is text at both ends rather
+     * than being deserialised into a Bukkit object and serialised again.
+     *
+     * <p>Every column is written, the key included, whether or not the engine
+     * would have handed one out. There is deliberately no guard here against
+     * writing an explicit generated id: the one that stops a plugin doing it by
+     * accident lives on {@link net.exylia.lib.database.Repository}, at the
+     * public surface, and this path is reached only from inside the library —
+     * where writing the id an exported row already had is the entire point.
+     * The counter is left where it is; see {@link #resequence}.
+     *
+     * @param model the record model
+     * @param rows  the rows, each in {@link EntityModel#columns()} order
+     * @return how many rows were sent
+     * @throws SQLException if the batch failed
+     * @since 1.36.0
+     */
+    public int writeRows(@NotNull EntityModel<?> model, @NotNull List<Object[]> rows)
+            throws SQLException {
+        if (rows.isEmpty()) {
+            return 0;
+        }
         String sql = statements.computeIfAbsent("save:" + model.type().getName(),
                 key -> dialect.upsert(model, List.of(model.id().name())));
         try (Connection connection = pool.getConnection()) {
             boolean autoCommit = connection.getAutoCommit();
             connection.setAutoCommit(false);
             try (PreparedStatement statement = connection.prepareStatement(sql)) {
-                for (T instance : instances) {
-                    bindRow(statement, model, model.values(instance));
+                for (Object[] row : rows) {
+                    bindRow(statement, model, row);
                     statement.addBatch();
                 }
                 statement.executeBatch();
                 connection.commit();
-                return instances.size();
+                return rows.size();
             } catch (SQLException failure) {
                 connection.rollback();
                 throw failure;
@@ -258,6 +296,54 @@ public final class SqlBackend implements AutoCloseable {
                 connection.setAutoCommit(autoCommit);
             }
         }
+    }
+
+    /**
+     * Moves a generated key's counter past every key the table already holds.
+     *
+     * <p>Needed after rows arrive carrying their own ids, which is what
+     * {@link #writeRows} does. H2 and Postgres do not advance the counter for a
+     * row that supplied its key, so the next {@link #insert} would ask for 1 on
+     * a table whose ids run to five hundred and fail on the primary key; MySQL
+     * and MariaDB advance it themselves and take the statement as a
+     * restatement of where they already are. Emitting it on all four is what
+     * makes the four end in the same state.
+     *
+     * <p>A no-op for a model that brings its own key — there is no counter —
+     * and for an empty table, where the counter is already correct wherever it
+     * is.
+     *
+     * @param model the record model
+     * @return the value the counter will next hand out, or {@code 0} when
+     *         nothing was done
+     * @throws SQLException if either statement failed
+     * @since 1.36.0
+     */
+    public long resequence(@NotNull EntityModel<?> model) throws SQLException {
+        if (!model.generatedId()) {
+            return 0L;
+        }
+        long max;
+        String maxSql = statements.computeIfAbsent("maxKey:" + model.type().getName(),
+                key -> dialect.maxKey(model));
+        try (Connection connection = pool.getConnection();
+             PreparedStatement statement = connection.prepareStatement(maxSql);
+             ResultSet rows = statement.executeQuery()) {
+            // MAX over an empty table is one row holding null, not no rows.
+            max = rows.next() ? rows.getLong(1) : 0L;
+        }
+        if (max <= 0L) {
+            return 0L;
+        }
+        long next = max + 1L;
+        // Not cached by shape: the value is in the text, so caching it would
+        // key a growing number of one-use strings on a map that is sized for a
+        // handful of query shapes.
+        try (Connection connection = pool.getConnection();
+             Statement statement = connection.createStatement()) {
+            statement.execute(dialect.resequence(model, next));
+        }
+        return next;
     }
 
     /**
@@ -399,6 +485,99 @@ public final class SqlBackend implements AutoCloseable {
                     found.add(readRow(rows, model));
                 }
                 return List.copyOf(found);
+            }
+        }
+    }
+
+    /**
+     * Walks the whole table in primary-key order, in batches, without ever
+     * holding more than one batch.
+     *
+     * <p>Rows are handed over in storage form: an {@code Object[]} in
+     * {@link EntityModel#columns()} order, holding exactly what the driver
+     * returned. No codec runs, so an {@code ItemStack} column is a Base64
+     * string and never becomes a Bukkit object — which is what lets a whole
+     * table be walked on a background thread with no game types involved, and
+     * what makes the round trip through {@link #writeRows} exact rather than
+     * merely equivalent.
+     *
+     * <h2>Keyset, not offset</h2>
+     * Each batch resumes strictly after the last key of the previous one, which
+     * is an index seek and a total order: O(n) for the whole table and every
+     * row seen exactly once. {@code LIMIT ? OFFSET ?} would be O(n²), and
+     * without an {@code ORDER BY} — which ExyliaCommons omitted — the engine may
+     * order the rows differently per page, so rows silently appear twice or not
+     * at all.
+     *
+     * <h2>Memory</h2>
+     * One batch is alive at a time and the caller's block is called with it
+     * before the next is read. A table of four hundred thousand rows costs the
+     * same as one of four hundred, which is the whole reason this exists rather
+     * than {@code select} with no limit.
+     *
+     * <p>Every batch is bounded by its {@code LIMIT}, so the connection goes
+     * back to the pool between batches and nothing here touches
+     * {@code autoCommit} or {@code setFetchSize} — a cursor held open across a
+     * whole table would keep a pooled connection, and on Postgres a transaction,
+     * for the length of the walk.
+     *
+     * @param model     the record model
+     * @param batchSize rows per batch, at least one
+     * @param block     called once per batch, on this thread, before the next
+     *                  batch is read; whatever it throws propagates out of here
+     *                  and ends the scan
+     * @return how many rows were handed over in total
+     * @throws SQLException             if a read failed
+     * @throws IllegalArgumentException if the batch size is not positive
+     * @since 1.36.0
+     */
+    public long scan(@NotNull EntityModel<?> model,
+                     int batchSize,
+                     @NotNull Consumer<List<Object[]>> block) throws SQLException {
+        if (batchSize <= 0) {
+            throw new IllegalArgumentException("A scan of " + model.table()
+                    + " needs a batch size of at least one row, not " + batchSize
+                    + ". The batch is what bounds the memory the walk uses.");
+        }
+        String first = statements.computeIfAbsent("scan:" + model.type().getName(),
+                key -> dialect.scan(model, false));
+        String next = statements.computeIfAbsent("scanAfter:" + model.type().getName(),
+                key -> dialect.scan(model, true));
+        int keyIndex = model.idIndex();
+        long total = 0L;
+        Object cursor = null;
+        while (true) {
+            List<Object[]> batch = new ArrayList<>(batchSize);
+            try (Connection connection = pool.getConnection();
+                 PreparedStatement statement =
+                         connection.prepareStatement(cursor == null ? first : next)) {
+                int slot = 1;
+                if (cursor != null) {
+                    // Already in storage form: it came out of the previous
+                    // batch, which is what the column holds. Encoding it again
+                    // would hand a UUID column's codec a String.
+                    bind(statement, slot++, model.id(), cursor);
+                }
+                statement.setInt(slot, batchSize);
+                try (ResultSet rows = statement.executeQuery()) {
+                    while (rows.next()) {
+                        batch.add(readValues(rows, model));
+                    }
+                }
+            }
+            if (batch.isEmpty()) {
+                return total;
+            }
+            total += batch.size();
+            cursor = batch.get(batch.size() - 1)[keyIndex];
+            // After the cursor is taken and before the next read: the block may
+            // keep, wrap or discard the list, and it must not be able to affect
+            // where the walk resumes.
+            block.accept(batch);
+            if (batch.size() < batchSize) {
+                // A short batch is the end of the table. Asking again would be
+                // one round trip per scan to be told the same thing.
+                return total;
             }
         }
     }
@@ -589,6 +768,19 @@ public final class SqlBackend implements AutoCloseable {
      */
     private static <T> @NotNull T readRow(@NotNull ResultSet rows, @NotNull EntityModel<T> model)
             throws SQLException {
+        return model.read(readValues(rows, model));
+    }
+
+    /**
+     * One row as the driver returned it, in column order and nothing more.
+     *
+     * <p>The half of {@link #readRow} that stops short of the record. A scan
+     * wants exactly this and not the record: decoding would run every codec to
+     * produce Bukkit objects that the export is about to encode back into the
+     * same strings, and would need a server to do it.
+     */
+    private static @NotNull Object[] readValues(@NotNull ResultSet rows,
+                                                @NotNull EntityModel<?> model) throws SQLException {
         List<ColumnModel> columns = model.columns();
         Object[] values = new Object[columns.size()];
         for (int index = 0; index < columns.size(); index++) {
@@ -597,7 +789,7 @@ public final class SqlBackend implements AutoCloseable {
                     ? rows.getString(index + 1)
                     : rows.getObject(index + 1);
         }
-        return model.read(values);
+        return values;
     }
 
     /**
