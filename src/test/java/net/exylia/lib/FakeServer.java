@@ -57,6 +57,16 @@ public final class FakeServer {
     private static boolean installed;
     private static boolean primaryThread = true;
 
+    /**
+     * Whether a fired event is also delivered to the listeners.
+     *
+     * <p>Off by default, because most tests assert that an announcement was
+     * made rather than that somebody answered it, and delivering everywhere
+     * would change what they see. A module whose event is a seam for other
+     * plugins — one they are meant to cancel — turns it on.
+     */
+    private static volatile boolean deliverFiredEvents;
+
     private FakeServer() {
     }
 
@@ -188,9 +198,20 @@ public final class FakeServer {
         asyncRunsForReal = true;
     }
 
+    /**
+     * Makes fired events reach the registered listeners until the next reset.
+     *
+     * <p>For a module whose event exists so other plugins can veto it: without
+     * delivery there is nothing to prove, since the veto is the behaviour.
+     */
+    public static void deliverEvents() {
+        deliverFiredEvents = true;
+    }
+
     /** Clears recorded tasks between tests. */
     public static void reset() {
         asyncRunsForReal = false;
+        deliverFiredEvents = false;
         SCHEDULED.clear();
         ONLINE.clear();
         WORLDS.clear();
@@ -363,6 +384,12 @@ public final class FakeServer {
                     (proxy, method, args) -> {
                         if (method.getName().equals("callEvent")) {
                             EVENTS.add((org.bukkit.event.Event) args[0]);
+                            if (deliverFiredEvents) {
+                                // Opt-in: a module whose own event is a seam for
+                                // other plugins can only be tested if a listener
+                                // actually gets to answer it.
+                                dispatch((org.bukkit.event.Event) args[0]);
+                            }
                             return null;
                         }
                         if (method.getName().equals("registerEvents")) {

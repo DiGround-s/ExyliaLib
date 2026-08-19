@@ -42,8 +42,11 @@ import net.exylia.lib.region.internal.SelectionListener;
 import net.exylia.lib.text.Prefixes;
 import net.exylia.lib.util.Cooldowns;
 import net.exylia.lib.util.preview.Previews;
+import net.exylia.lib.util.teleport.Teleports;
 import net.exylia.lib.util.reward.Rewards;
 import net.exylia.lib.util.sequence.Sequences;
+import net.exylia.lib.util.snapshot.Snapshots;
+import net.exylia.lib.util.snapshot.internal.SnapshotRuntime;
 import net.exylia.lib.util.wizard.Wizards;
 import net.exylia.lib.util.wizard.internal.WizardRuntime;
 import net.exylia.lib.placeholder.internal.BuiltIn;
@@ -130,6 +133,7 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         ClanRuntime.init(this);
         SkullRuntime.init(this);
         net.exylia.lib.util.preview.internal.PreviewRuntime.init(this);
+        net.exylia.lib.util.teleport.internal.TeleportRuntime.init(this);
         // One listener for every plugin's wizards, for the same reason menus
         // and questions have one: a block click fires once, and the run that
         // owns it is found by player rather than by plugin.
@@ -137,6 +141,10 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         // Starts only the database lifecycle. Each consumer loads database.yml
         // when it asks for its view, and opens lazily on its first repository.
         Databases.init(this);
+        // Registers the snapshot codec, which has to happen before anything can
+        // compile a model that uses it: a codec registered afterwards never
+        // reaches a model that is already compiled.
+        SnapshotRuntime.init(this);
         Cooldowns.init(this, task -> Tasks.of(this).runAsync(task));
         // Long cooldowns are written every few minutes as well as on quit, so
         // a server that dies without a clean shutdown loses minutes rather
@@ -332,6 +340,7 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         EffectRuntime.stopEverything();
         EffectRuntime.releaseAll();
         Previews.releaseAll();
+        Teleports.releaseAll();
         Sequences.releaseAll();
         // Before releasing tasks: their refresh drivers are among them.
         BoardManager.stopEverything();
@@ -357,6 +366,9 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         // Before the database module, for the same reason a plugin's release is:
         // a pending store is somebody's repository.
         Rewards.releaseAll();
+        // Same reason, and nothing else: every stored snapshot was durable the
+        // moment it was taken, so a shutdown has nothing left to write.
+        Snapshots.releaseAll();
         // After every plugin has had its own onDisable — they run before this
         // one — so a last write queued there has already been handed to the
         // pool. Before the task module, because the pool's own close is
@@ -499,9 +511,17 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         // and a reward handed to a player whose plugin is going away must not be
         // marked as claimed by a repository that is about to close.
         Rewards.release(pluginName);
+        // Before the database module for the same reason, and for no other: a
+        // snapshot this plugin took is already a row, so nothing has to be
+        // written on the way out. Forgetting the repository is the whole job.
+        Snapshots.release(pluginName);
         // Drops the plugin's repositories and datasource lease. A target closes
         // only after its last owning plugin releases it.
         Databases.release(pluginName);
+        // Before the task module: a pending warmup owns an entity timer
+        // belonging to this plugin and must be cancelled before its scheduler
+        // goes away.
+        Teleports.release(pluginName);
         Tasks.release(pluginName);
         Configs.release(pluginName);
         Placeholders.unregisterAll(pluginName);

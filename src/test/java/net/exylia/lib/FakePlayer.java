@@ -41,6 +41,7 @@ public final class FakePlayer {
     private volatile org.bukkit.Location location;
     private final List<org.bukkit.Location> teleports = new CopyOnWriteArrayList<>();
     private final List<String> hidden = new CopyOnWriteArrayList<>();
+    private final List<String> pluginMessages = new CopyOnWriteArrayList<>();
     private volatile boolean allowFlight;
     private volatile boolean flying;
     private volatile boolean invulnerable;
@@ -107,6 +108,17 @@ public final class FakePlayer {
                         }
                         yield true;
                     }
+                    // Paper's asynchronous teleport, which is the one the
+                    // teleport module uses. Recorded the same way, so a test
+                    // asserts on where the player ended up rather than on which
+                    // overload moved them.
+                    case "teleportAsync" -> {
+                        if (args[0] instanceof org.bukkit.Location where) {
+                            teleports.add(where.clone());
+                            this.location = where.clone();
+                        }
+                        yield java.util.concurrent.CompletableFuture.completedFuture(true);
+                    }
                     case "setAllowFlight" -> {
                         allowFlight = (boolean) args[0];
                         yield null;
@@ -135,6 +147,14 @@ public final class FakePlayer {
                         hidden.remove(String.valueOf(args[1]));
                         yield null;
                     }
+                    // How a proxy is told to move a player between servers.
+                    // Recorded by channel so a test can assert not only that
+                    // one was sent but exactly when, which is the whole
+                    // contract of a cross-server handover.
+                    case "sendPluginMessage" -> {
+                        pluginMessages.add(String.valueOf(args[1]));
+                        yield null;
+                    }
                     case "hashCode" -> System.identityHashCode(self);
                     case "equals" -> self == args[0];
                     case "toString" -> "FakePlayer[" + this.name + "]";
@@ -158,6 +178,11 @@ public final class FakePlayer {
     /** Everywhere this player was teleported, in order. */
     public List<org.bukkit.Location> teleports() {
         return List.copyOf(teleports);
+    }
+
+    /** Every plugin-message channel this player was sent something on. */
+    public List<String> pluginMessages() {
+        return List.copyOf(pluginMessages);
     }
 
     /** What is currently hidden from this player. */
