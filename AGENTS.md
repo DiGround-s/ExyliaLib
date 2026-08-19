@@ -424,6 +424,75 @@ abierto.
   los 2028 ficheros. Leer solo un bloque `sounds:` dejaba mudo al ecosistema
   entero y pasaba los tests igual.
 
+### Wizards — un flujo, un dueño, nada a medias
+
+Todo flujo guiado pasa por `net.exylia.lib.util.wizard`. Nunca una cadena de
+inputs encadenados a mano, ni un `static Map<UUID, ...>` con el estado a medio
+construir.
+
+- **`EventConfigWizard` de ExyliaEvents es lo que esto arregla**, y es código
+  real: 94 líneas para preguntar dos cosas. `askConfigId` llama a
+  `askDisplayName` llama a `finishCreation`, y entre medias el tipo de evento
+  vive en un `static Map<UUID, String>`. De ahí salen las tres consecuencias, y
+  las tres están en el fichero: la rama de cancelar copiada cuatro veces (una
+  por cada salida que alguien recordó — y la que nadie recordó, un timeout o un
+  quit, no borra nada, así que `hasPendingWizard` sigue diciendo `true` de un
+  flujo que ya no existe); ninguna vuelta atrás, así que quien se equivoca en el
+  id se entera en el paso dos y empieza de cero; y el menú que lo abrió se
+  reabre solo en la ruta de éxito, así que quien cancela se queda mirando la
+  nada. No es que estuviera mal escrito: es que no había un objeto que **fuera**
+  el flujo, solo callbacks que cada uno conocía al siguiente.
+- **Uno por jugador en todo el servidor.** Un segundo flujo termina el primero
+  como `REPLACED`. Es la misma regla que el módulo `input` ya impone con su
+  única pregunta activa, y por la misma razón: un wizard **es** una cadena de
+  inputs, así que dos flujos vivos estarían esperando el mismo hueco — la
+  siguiente pregunta contestaría al paso del otro, y el otro al suyo. Se
+  intercambian las respuestas y ninguno entrega nada usable.
+- **Nada se aplica hasta confirmar.** Con `summary()`, `onFinish` corre
+  **exactamente una vez** y solo en `COMPLETED`. Un run cancelado, caducado,
+  desconectado, reemplazado o fallido no llega ahí nunca. Eso es lo que permite
+  crear la cosa entera de una vez en lugar de ir acumulando medio-objetos paso a
+  paso, que es lo que hace commons.
+- **Un solo camino de limpieza**, no una rama por paso. Toda salida reclama el
+  hueco terminal de forma atómica y suelta las cuatro cosas que el jugador nota:
+  la pregunta abierta, el selector de bloques, la barra de progreso y el hueco de
+  wizard del jugador. Cada una va protegida por su cuenta: una barra que no se
+  deja parar no puede impedir que se suelte el selector.
+- **El selector de bloques es único por jugador en TODO el servidor**, y es la
+  razón afilada de que el camino sea uno solo. Las otras tres cosas son nuestras:
+  una barra colgada es nuestra barra, una pregunta colgada es nuestra pregunta, y
+  un hueco colgado solo bloquea los wizards de esta lib. Un selector colgado deja
+  a ese jugador sin poder seleccionar un bloque para **ningún** plugin — un claim
+  de WorldGuard, el setup de otra arena, una región de tienda — hasta que
+  reconecte. Es la única fuga del módulo que el jugador se lleva puesta fuera del
+  plugin que la causó. Un paso `region` que no puede reclamarlo termina como
+  `REPLACED` nombrando al dueño actual, no peleándose por los clicks.
+- **El back vive en el resumen, y es un `confirm` más un `choice` y nada más.**
+  Negar el resumen ofrece la lista de respuestas; elegir una la vuelve a
+  preguntar y devuelve al resumen. Se construye con esas dos peticiones a
+  propósito: no pide ningún control que a algún transporte le falte, así que
+  funciona idéntico en diálogo nativo, formulario Bedrock, yunque, menú y chat.
+  Una pantalla de revisión propia habría que escribirla cinco veces, y cuatro se
+  pudrirían. Las rondas están acotadas por `maxRedos`; pasarse cancela, porque
+  quien va por la cuarta vuelta ya no está contestando.
+- **Cambiar una respuesta de la que depende una rama re-resuelve el flujo.** Se
+  re-camina la definición entera desde arriba contra las respuestas actuales: lo
+  que pertenecía a pasos que ya no aplican se tira, y lo que ahora aplica se
+  pregunta **antes** de que vuelva el resumen. Lo demás sobrevive por nombre, así
+  que el jugador no vuelve a teclear lo que ya tecleó. Volver directo al resumen
+  — que es lo que hacía la primera versión — está mal en las dos direcciones y en
+  silencio: quien cambia KOTH por CONQUEST le manda a `onFinish` un `points` que
+  ese tipo de evento no tiene, y al revés le manda respuestas sin una obligatoria.
+  Ninguno de los dos se ve hasta que el código de creación del plugin lee un
+  campo, o sea: en producción, y lo reporta quien creó el evento roto. Rehacer
+  una clave que no guarda ninguna rama sigue yendo directo al resumen, que es el
+  caso común.
+- **No cachea nada derivado de la paleta**, así que no tiene `invalidateAll()` y
+  está deliberadamente fuera de `ExyliaLib.loadPalette`. Cada prompt, línea del
+  resumen y barra se construye con `Text` en el momento de mostrarse, y el título
+  del `Wizard` se guarda crudo, no parseado. Está declarado a propósito: el punto
+  8 de la barra de calidad exige decirlo, no callarlo.
+
 ### Scoreboards — siempre `Scoreboards`, siempre configurables
 
 Todo sidebar pasa por `net.exylia.lib.scoreboard`. Nunca el `Scoreboard` de
@@ -840,6 +909,7 @@ Raíz de código: `src/main/java/net/exylia/lib/`. Raíz de tests:
 | redis | `redis/Redis`, `RedisSettings` | `redis/internal/` (Jedis confinado en `JedisClient`) | [docs/redis.md](docs/redis.md) | 1.31.0 |
 | poll de auto-actualización | `update-check-minutes` en `internal/LibrarySettings` | `internal/ExyliaLibUpdater` (ETag), timer en `ExyliaLib.startUpdateCheck` | [docs/reload.md](docs/reload.md) | 1.30.0 |
 | claves generadas | `database/Id.generated`, `Repository.insert`/`insertReturning` | `Dialect.insertGenerated`, `SqlBackend.insert` (`getGeneratedKeys`), `MongoBackend.insert` (`$inc`), `EntityModel.withId` | [docs/database.md](docs/database.md) | 1.32.0 |
+| util (wizard) | `util/wizard/Wizards`, `PluginWizards`, `Wizard`, `WizardBuilder` (+ `Branch`), `WizardStep` (+ `Prompt`), `WizardKey`, `WizardValues`, `WizardRun`, `WizardOutcome`, `WizardResult`, `WizardSettings`, `WizardException` | `util/wizard/internal/` (`WizardRuntime`, `WizardSession`, `WizardListener`); `init`/`forget`/`release` en `ExyliaLib` | [docs/wizard.md](docs/wizard.md) | 1.34.0 |
 
 Clases raíz que no son módulo: `ExyliaLib.java` (ciclo de vida y limpieza),
 `platform/Platform.java`, `internal/LibrarySettings`, `internal/ExyliaLibUpdater`.

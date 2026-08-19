@@ -43,6 +43,8 @@ import net.exylia.lib.text.Prefixes;
 import net.exylia.lib.util.Cooldowns;
 import net.exylia.lib.util.preview.Previews;
 import net.exylia.lib.util.sequence.Sequences;
+import net.exylia.lib.util.wizard.Wizards;
+import net.exylia.lib.util.wizard.internal.WizardRuntime;
 import net.exylia.lib.placeholder.internal.BuiltIn;
 import net.exylia.lib.platform.Platform;
 import net.exylia.lib.scoreboard.internal.BoardManager;
@@ -127,6 +129,10 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         ClanRuntime.init(this);
         SkullRuntime.init(this);
         net.exylia.lib.util.preview.internal.PreviewRuntime.init(this);
+        // One listener for every plugin's wizards, for the same reason menus
+        // and questions have one: a block click fires once, and the run that
+        // owns it is found by player rather than by plugin.
+        WizardRuntime.init(this);
         // Starts only the database lifecycle. Each consumer loads database.yml
         // when it asks for its view, and opens lazily on its first repository.
         Databases.init(this);
@@ -336,6 +342,10 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         // Writes whatever is pending before the maps are emptied.
         Cooldowns.clearEverything();
         SidebarLibrary.close();
+        // Before the modules a run borrows from, for the same reason its
+        // per-plugin release goes first: ending one gives back a question, a
+        // block selector and a menu.
+        Wizards.releaseAll();
         // Before the task module: a pending question owns a timeout task, and
         // a player left staring at a form nobody will answer is worse than one
         // told the server is stopping.
@@ -391,6 +401,9 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         ClanRuntime.forget(event.getPlayer().getUniqueId());
         Cooldowns.forget(event.getPlayer().getUniqueId());
         MenuRuntime.forgetEverywhere(event.getPlayer().getUniqueId());
+        // Before the input module: ending a run cancels the question it was
+        // waiting on, and a question already forgotten cannot be cancelled.
+        WizardRuntime.forget(event.getPlayer().getUniqueId());
         InputRuntime.forget(event.getPlayer().getUniqueId());
     }
 
@@ -459,6 +472,12 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         Sequences.release(pluginName);
         BoardManager.stopAll(pluginName);
         HologramRuntime.removeAll(pluginName);
+        // Before all three of the modules a run borrows from, because ending
+        // one hands work back to each of them: it cancels the question it was
+        // waiting on, releases the player's block selector, and schedules the
+        // menu it promised to reopen. Released after any of them, a run would
+        // be reaching into a module that is already gone.
+        Wizards.release(pluginName);
         // Before the task module: closing a window cancels what its buttons
         // started, and a menu whose actions come from a dying classloader
         // must not answer another click.
