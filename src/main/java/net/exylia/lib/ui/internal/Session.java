@@ -762,9 +762,28 @@ final class Session implements UiSession {
         return render(item, values, Set.of());
     }
 
-    /** Builds a slot's item, honouring the row values that carry formatting. */
+    /**
+     * Builds a slot's item, honouring the row values that carry formatting.
+     *
+     * <p>Context values are parsed; row values are literal unless the caller
+     * asked otherwise. The two are not the same kind of thing. A row value is
+     * one entry in a list, and lists are full of names players chose, so
+     * inserting them as text is what stops somebody called {@code <rainbow>}
+     * from repainting the menu. A context value describes the whole screen and
+     * is written by whoever wrote the menu — the same person who wrote the
+     * template it lands in, and in the same file.
+     *
+     * <p>Everything else already agreed: the title and slot conditions
+     * substitute into the string before parsing, so a colour in a context value
+     * worked there. Only the items disagreed, which meant a menu whose title
+     * came out right had buttons spelling {@code {success}&l} at the player.
+     */
     private ItemStack render(UiItem item, Map<String, String> values, Set<String> formatted) {
-        return items.render(item.item(), viewer, merged(values), formatted);
+        if (context.isEmpty()) {
+            return items.render(item.item(), viewer, values, formatted);
+        }
+        return items.render(item.item(), viewer,
+                merged(context, values), parsed(context, values, formatted));
     }
 
     /**
@@ -773,10 +792,7 @@ final class Session implements UiSession {
      * <p>The row wins: a leaderboard's context names the kit, and each row names
      * its own player.
      */
-    private Map<String, String> merged(Map<String, String> values) {
-        if (context.isEmpty()) {
-            return values;
-        }
+    static Map<String, String> merged(Map<String, Object> context, Map<String, String> values) {
         Map<String, String> all = new LinkedHashMap<>();
         for (Map.Entry<String, Object> value : context.entrySet()) {
             all.put(value.getKey(), String.valueOf(value.getValue()));
@@ -785,13 +801,62 @@ final class Session implements UiSession {
         return all;
     }
 
-    /** The title, with its placeholders resolved for this viewer. */
+    /**
+     * Which of them are parsed rather than inserted as text.
+     *
+     * <p>Package-private so the decision can be exercised without a server: an
+     * {@code ItemStack} needs the registry, and this is the whole of what
+     * changed.
+     *
+     * <p>A row naming the same key as the context keeps whichever the caller
+     * chose for it, because at that point it is the row's value being drawn.
+     */
+    static Set<String> parsed(Map<String, Object> context, Map<String, String> values,
+                              Set<String> formatted) {
+        Set<String> parsed = new LinkedHashSet<>(context.keySet());
+        parsed.removeAll(values.keySet());
+        parsed.addAll(formatted);
+        return parsed;
+    }
+
+    /**
+     * The title, with its placeholders resolved for this viewer.
+     *
+     * <p>Page numbers are filled in as well, because titles reading
+     * {@code %current_page%/%total_pages%} are how nearly every paginated menu
+     * in the ecosystem is written, and a window's title is fixed when it is
+     * created: there is no later moment to resolve them in.
+     *
+     * <p>A menu is opened on its first page, so that is what it says. The total
+     * is not known here — rows are handed over after the window exists — so a
+     * title asking for it is given {@code 1} as well, which is what a menu
+     * whose list fits on one page would say anyway.
+     *
+     * <p>What matters is that neither is left showing its own name. A title
+     * reading {@code %current_page%/%total_pages%} to the player is the kind of
+     * bug a server owner reports as "the menu is broken", and it was what every
+     * paginated menu in the ecosystem did.
+     */
     static String title(UiDefinition definition, Player viewer, Map<String, Object> context) {
-        String text = definition.title();
+        return Text.of(filledTitle(definition.title(), context)).forPlayer(viewer).legacy();
+    }
+
+    /**
+     * A title with its values in, before it is parsed.
+     *
+     * <p>Package-private so it can be exercised without a server, which is
+     * exactly where the bug was: nothing filled the page numbers in, so the
+     * player read the placeholder names off the top of the window.
+     */
+    static String filledTitle(String written, Map<String, Object> context) {
+        String text = written;
         for (Map.Entry<String, Object> value : context.entrySet()) {
             text = text.replace('%' + value.getKey() + '%', String.valueOf(value.getValue()));
         }
-        return Text.of(text).forPlayer(viewer).legacy();
+        return text.replace("%current_page%", "1")
+                .replace("%page%", "1")
+                .replace("%total_pages%", "1")
+                .replace("%pages%", "1");
     }
 
     /**

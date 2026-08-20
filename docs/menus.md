@@ -63,6 +63,21 @@ returns the session it opened — call it on the player's thread.
 The **context** fills placeholders everywhere the menu draws: the title, every
 fixed slot, every row. A menu titled `%kit_name%` needs no resolver of its own.
 
+Context values are **parsed**, unlike row values. A context value describes the
+whole screen and was written by whoever wrote the menu — usually in the same
+file — so `"{success}&lNEW SHIELD"` out of a config arrives as a green button
+rather than as those characters. Row values stay literal unless asked otherwise,
+because a list is full of names players chose; see
+[literal values](#literal-values-and-the-ones-that-are-not). A row naming the
+same key as the context shadows it, and keeps its own rule.
+
+A paginated title is filled in too: `%current_page%`, `%page%`, `%total_pages%`
+and `%pages%` all resolve to `1`, which is the page a menu opens on. A window's
+title is fixed when the window is created, so it does not follow the reader
+through the list — changing it would mean closing and reopening the screen on
+every click. What it must never do is show the player the placeholder's own
+name.
+
 ## What kind of window
 
 ```yaml
