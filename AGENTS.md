@@ -916,6 +916,15 @@ conocerlo.
   cualquier config.
 - **El layout plano de 1.24–1.30 migra**, y sus campos de conexión caen en el
   bloque que nombra su `type`, no en `mysql` siempre.
+- **Una columna que la tabla exige y ningún record declara deja de exigirse.**
+  Toda entidad de commons heredaba `created_at`/`updated_at` de `Entity`, y su
+  `CREATE TABLE` los escribía `NOT NULL` sin default. Ningún record de la lib
+  los declara, así que el primer insert tras migrar nombra menos columnas de
+  las que la tabla pide y la fila se rechaza. Se afloja, no se borra ni se
+  rellena: borrar se lleva los valores de las filas que un plugin sin migrar
+  todavía lee, y rellenar inventa una fecha de creación que no lo es. Solo las
+  que no tienen default ni valor generado; si el motor rechaza el `ALTER`, se
+  deja como estaba antes que impedir el arranque.
 - **La clave la trae la fila; el contador es la excepción.** Un `UUID` de
   jugador ya identifica su fila y no necesita un número más. `@Id(generated)`
   es para lo que no tiene identidad hasta que existe (un diseño en una
@@ -1158,6 +1167,7 @@ Raíz de código: `src/main/java/net/exylia/lib/`. Raíz de tests:
 | contexto parseado y título paginado | — | `ui/internal/Session.parsed`, `merged`, `filledTitle` | [docs/menus.md](docs/menus.md) | 1.39.0 |
 | título que sigue a la página | — | `ui/internal/Session.retitle`, `Titles`, `TitlePackets` (PacketEvents confinado) | [docs/menus.md](docs/menus.md) | 1.40.0 |
 | flecha de `navigation` que pagina sola | — | `ui/internal/MenuLoader.placed` (fallback por sección) | [docs/menus.md](docs/menus.md) | 1.41.0 |
+| columna heredada de commons que la tabla exige | — | `database/internal/SqlSchema.relaxOrphanedColumns`, `Dialect.dropNotNull`, `SchemaReport.relaxedColumns` | [docs/database.md](docs/database.md) | 1.42.0 |
 | valor de fila multilínea | `<nl>` en un valor de `UiEntry`/`PluginItems.render` | `item/internal/ItemRenderer.lore`, `spans`, `segment` | [docs/menus.md](docs/menus.md), [docs/items.md](docs/items.md) | 1.38.0 |
 
 Clases raíz que no son módulo: `ExyliaLib.java` (ciclo de vida y limpieza),

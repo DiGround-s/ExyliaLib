@@ -347,6 +347,25 @@ public interface Dialect {
                 + " TO " + quote(to);
     }
 
+    /**
+     * {@code ALTER TABLE ... ALTER COLUMN ... DROP NOT NULL} for a column the
+     * table requires and no record declares.
+     *
+     * <p>The ANSI spelling, which H2 and Postgres both take. MySQL and MariaDB
+     * cannot drop a constraint without restating the column's type, so they
+     * override this.
+     *
+     * @param table  the table, already in the case this library uses
+     * @param column the column as the engine spells it
+     * @param type   the column's declared type, as the driver reports it
+     * @return one statement
+     */
+    default @NotNull String dropNotNull(@NotNull String table, @NotNull String column,
+                                        @NotNull String type) {
+        return "ALTER TABLE " + quote(table) + " ALTER COLUMN " + quote(column)
+                + " DROP NOT NULL";
+    }
+
     // ------------------------------------------------------------------- DML
 
     /**

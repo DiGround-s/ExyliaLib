@@ -20,6 +20,9 @@ import java.util.List;
  * @param renamedColumns   columns that were there under the engine's own
  *                         folding and were renamed into the case this library
  *                         addresses them by
+ * @param relaxedColumns   columns the table required and no record declares,
+ *                         which stopped being required so that a plugin
+ *                         migrated off the previous library can write its rows
  * @param createdIndexes   indexes created, by name
  * @param blockedIndexes   indexes that could not be created because their name
  *                         is held by an index over different columns
@@ -29,6 +32,7 @@ public record SchemaReport(@NotNull String table,
                            boolean createdTable,
                            @NotNull List<String> addedColumns,
                            @NotNull List<String> renamedColumns,
+                           @NotNull List<String> relaxedColumns,
                            @NotNull List<String> createdIndexes,
                            @NotNull List<String> blockedIndexes) {
 
@@ -36,6 +40,7 @@ public record SchemaReport(@NotNull String table,
     public SchemaReport {
         addedColumns = List.copyOf(addedColumns);
         renamedColumns = List.copyOf(renamedColumns);
+        relaxedColumns = List.copyOf(relaxedColumns);
         createdIndexes = List.copyOf(createdIndexes);
         blockedIndexes = List.copyOf(blockedIndexes);
     }
@@ -56,7 +61,7 @@ public record SchemaReport(@NotNull String table,
                         boolean createdTable,
                         @NotNull List<String> addedColumns,
                         @NotNull List<String> createdIndexes) {
-        this(table, createdTable, addedColumns, List.of(), createdIndexes, List.of());
+        this(table, createdTable, addedColumns, List.of(), List.of(), createdIndexes, List.of());
     }
 
     /**
@@ -69,7 +74,7 @@ public record SchemaReport(@NotNull String table,
      */
     public boolean changed() {
         return createdTable || !addedColumns.isEmpty() || !renamedColumns.isEmpty()
-                || !createdIndexes.isEmpty();
+                || !relaxedColumns.isEmpty() || !createdIndexes.isEmpty();
     }
 
     /**
@@ -116,6 +121,11 @@ public record SchemaReport(@NotNull String table,
         }
         if (!renamedColumns.isEmpty()) {
             line.append(said ? ", " : "").append("renamed ").append(renamedColumns);
+            said = true;
+        }
+        if (!relaxedColumns.isEmpty()) {
+            line.append(said ? ", " : "").append("no longer requires ").append(relaxedColumns)
+                    .append(" (the table asks for them and no record declares them)");
             said = true;
         }
         if (!createdIndexes.isEmpty()) {

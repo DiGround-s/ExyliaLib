@@ -9,10 +9,12 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 import java.util.SortedMap;
 import java.util.TreeMap;
 
@@ -94,14 +96,16 @@ final class SqlSchema {
         // answer that is known.
         List<String> addedColumns = new ArrayList<>(0);
         List<String> renamedColumns = new ArrayList<>(0);
+        List<String> relaxedColumns = new ArrayList<>(0);
         if (!created) {
-            reconcileColumns(connection, model, table, addedColumns, renamedColumns);
+            reconcileColumns(connection, model, table, addedColumns, renamedColumns,
+                    relaxedColumns);
         }
         List<String> createdIndexes = new ArrayList<>(0);
         List<String> blockedIndexes = new ArrayList<>(0);
         createIndexes(connection, model, table, created, createdIndexes, blockedIndexes);
-        return new SchemaReport(table, created, addedColumns, renamedColumns, createdIndexes,
-                blockedIndexes);
+        return new SchemaReport(table, created, addedColumns, renamedColumns, relaxedColumns,
+                createdIndexes, blockedIndexes);
     }
 
     // ----------------------------------------------------------- inspection
@@ -215,6 +219,69 @@ final class SqlSchema {
             }
         }
         return found;
+    }
+
+    /**
+     * The columns a live table insists on that the record does not declare.
+     *
+     * <p>Every entity in the previous library extended a base class carrying
+     * {@code created_at} and {@code updated_at}, written {@code NOT NULL}. A
+     * plugin that migrates keeps its table, so its first insert names only the
+     * columns the record has and the row is refused for a column the code no
+     * longer knows exists.
+     *
+     * <p>Only columns with no default and no generated value are returned:
+     * anything the engine can fill in for itself is already handled.
+     *
+     * @param connection an open connection
+     * @param table      the folded table name
+     * @param model      what the record declares
+     * @return the orphaned names as the engine spells them
+     */
+    private @NotNull List<Orphan> orphanedRequiredColumns(@NotNull Connection connection,
+                                                          @NotNull String table,
+                                                          @NotNull EntityModel<?> model)
+            throws SQLException {
+        Set<String> declared = new HashSet<>();
+        for (ColumnModel column : model.columns()) {
+            declared.add(column.name().toLowerCase(Locale.ROOT));
+        }
+        DatabaseMetaData metadata = connection.getMetaData();
+        List<Orphan> orphans = new ArrayList<>();
+        for (String candidate : metadataForms(table)) {
+            try (ResultSet columns = metadata.getColumns(connection.getCatalog(), schemaOf(connection),
+                    candidate, null)) {
+                while (columns.next()) {
+                    if (!table.equalsIgnoreCase(columns.getString("TABLE_NAME"))) {
+                        continue;
+                    }
+                    String name = columns.getString("COLUMN_NAME");
+                    if (declared.contains(name.toLowerCase(Locale.ROOT))) {
+                        continue;
+                    }
+                    if (columns.getInt("NULLABLE") != DatabaseMetaData.columnNoNulls) {
+                        continue;
+                    }
+                    // A column that fills itself in needs nothing from us, and
+                    // an identity column must not be touched at all.
+                    if (columns.getString("COLUMN_DEF") != null
+                            || "YES".equalsIgnoreCase(columns.getString("IS_AUTOINCREMENT"))
+                            || "YES".equalsIgnoreCase(columns.getString("IS_GENERATEDCOLUMN"))) {
+                        continue;
+                    }
+                    // MySQL has to restate the type to drop the constraint.
+                    orphans.add(new Orphan(name, columns.getString("TYPE_NAME")));
+                }
+            }
+            if (!orphans.isEmpty()) {
+                return orphans;
+            }
+        }
+        return orphans;
+    }
+
+    /** A column the table requires and the record does not declare. */
+    private record Orphan(String name, String type) {
     }
 
     /**
@@ -360,7 +427,8 @@ final class SqlSchema {
                                   @NotNull EntityModel<?> model,
                                   @NotNull String table,
                                   @NotNull List<String> added,
-                                  @NotNull List<String> renamed) throws SQLException {
+                                  @NotNull List<String> renamed,
+                                  @NotNull List<String> relaxed) throws SQLException {
         Map<String, String> stored = storedColumnNames(connection, table);
         if (stored.isEmpty()) {
             // The table exists but nothing could be read about it — a driver
@@ -393,6 +461,45 @@ final class SqlSchema {
                 }
                 // Lost a race with another server on the same database. The
                 // column is there, which is all that was wanted.
+            }
+        }
+        relaxOrphanedColumns(connection, model, table, relaxed);
+    }
+
+    /**
+     * Lets a table accept a row without the columns the record dropped.
+     *
+     * <p>The column keeps its data and its name: only the refusal goes. A
+     * column this library never writes cannot be filled in by guessing, and
+     * inventing a value would be writing a lie into a column that means
+     * something — a creation time that is not when the row was created.
+     *
+     * <p>Dropping it instead would take the existing rows' values with it, and
+     * a plugin that has not migrated yet still reads them.
+     *
+     * <p>Best-effort: a database that refuses the alteration, or a user without
+     * the rights to make it, is left exactly as it was rather than kept from
+     * starting.
+     */
+    private void relaxOrphanedColumns(@NotNull Connection connection,
+                                      @NotNull EntityModel<?> model,
+                                      @NotNull String table,
+                                      @NotNull List<String> relaxed) {
+        List<Orphan> orphans;
+        try {
+            orphans = orphanedRequiredColumns(connection, table, model);
+        } catch (SQLException unreadable) {
+            return;
+        }
+        for (Orphan found : orphans) {
+            String orphan = found.name();
+            try {
+                execute(connection, dialect.dropNotNull(table, orphan, found.type()));
+                relaxed.add(orphan);
+            } catch (SQLException refused) {
+                // Left exactly as it was. Every write to this table will keep
+                // failing, which the caller learns from the failure itself
+                // rather than from a line at boot nobody was reading.
             }
         }
     }

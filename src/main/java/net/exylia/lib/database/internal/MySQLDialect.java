@@ -55,6 +55,20 @@ class MySQLDialect extends AnsiDialect {
         return "mysql";
     }
 
+    /**
+     * {@code MODIFY}, because MySQL cannot drop a constraint on its own.
+     *
+     * <p>The column has to be restated in full, so the type the driver reports
+     * is repeated back. Everything omitted from a {@code MODIFY} is reset to
+     * its default, which here is exactly the one thing being changed.
+     */
+    @Override
+    public @NotNull String dropNotNull(@NotNull String table, @NotNull String column,
+                                       @NotNull String type) {
+        return "ALTER TABLE " + quote(identifier(table)) + " MODIFY " + quote(column)
+                + " " + type + " NULL";
+    }
+
     @Override
     public @NotNull String driverClassName() {
         return "com.mysql.cj.jdbc.Driver";

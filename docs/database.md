@@ -245,6 +245,33 @@ Two deliberate differences, both bug fixes rather than format changes:
   an empty list, and reading absence gives an empty list rather than `null` —
   every list consumer in the ecosystem was either null-checking or a latent NPE.
 
+### A column the table requires and no record declares
+
+Every entity in Commons extended a base class carrying `created_at` and
+`updated_at`, and its `CREATE TABLE` wrote them `NOT NULL` with no default. No
+record in this library declares them, because nothing reads them — so the first
+insert after a migration names only the columns the record has, and the row is
+refused for a column the code no longer knows exists:
+
+```
+NULL not allowed for column "CREATED_AT"
+INSERT INTO "shield_design_library" ("owner_uuid", "owner_name", "design_json", "uses") VALUES (?,?,?,?)
+```
+
+On the start that finds it, such a column **stops being required**. It keeps its
+name and its data; only the refusal goes, and the change is named in the schema
+summary.
+
+The column is not dropped and not filled in. Dropping it would take the existing
+rows' values with it, and a plugin that has not migrated yet still reads them.
+Filling it in would mean inventing a value for a column that means something —
+a creation time that is not when the row was created is worse than an absent
+one.
+
+Only columns with no default and no generated value are touched, so an identity
+column or one the engine fills in for itself is left alone. A database that
+refuses the alteration is left exactly as it was rather than kept from starting.
+
 ### A table an older plugin created unquoted
 
 Since 1.27.0, a table stored under the engine's own folding — `PLAYER_DATA`
