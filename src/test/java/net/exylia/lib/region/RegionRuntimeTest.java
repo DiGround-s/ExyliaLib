@@ -174,6 +174,32 @@ class RegionRuntimeTest {
     // ------------------------------------------------- changing under a player
 
     @Test
+    @DisplayName("walking before any region exists still reports where you came from")
+    void movementBeforeAnyRegionExistsStillTracksPosition() {
+        // A server whose plugins have not registered anything yet can skip the
+        // region lookup entirely, but not the position: the first event after a
+        // region appears carries previous(), and reporting the spot the player
+        // stood on at join rather than the one they walked from is a silent lie
+        // about where they came from.
+        FakePlayer player = playerAt(100, 5, 100);
+        RegionRuntime.initialize(player.player());
+
+        moveTo(player, world, 60, 5, 60);
+        moveTo(player, world, 11, 5, 11);
+        assertTrue(FakeServer.events(PlayerRegionChangeEvent.class).isEmpty(),
+                "nothing is registered, so nothing can be entered");
+
+        regions.register(cube("spawn", 0));
+        moveTo(player, world, 5, 5, 5);
+
+        List<PlayerRegionChangeEvent> events = FakeServer.events(PlayerRegionChangeEvent.class);
+        assertEquals(1, events.size(), "entering the new region");
+        BlockPosition previous = events.getFirst().previous().orElseThrow();
+        assertEquals(11, previous.x(), "previous() is the last block walked, not the join spot");
+        assertEquals(11, previous.z(), "previous() is the last block walked, not the join spot");
+    }
+
+    @Test
     @DisplayName("a region registered around a standing player enters them")
     void registeringUnderneathAPlayer() {
         // The old system only looked when somebody moved, so a region created

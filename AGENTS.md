@@ -1207,6 +1207,14 @@ Son package-private a propósito; los tests viven del mismo paquete:
 | `internal/TransferAccess` | la interfaz que el comando usa para exportar e importar; `live()` es la real, un fake la sustituye sin base de datos ni fichero |
 | tests compartidos | `src/test/java/net/exylia/lib/FakeServer.java`, `FakePlayer.java`, `debug/DebugCapture.java`; `FakeServer.runAsyncForReal()` ejecuta las async en un hilo real |
 
+**Los fakes no son gratis, y un benchmark que los llama se mide a sí mismo.**
+`FakePlayer` es un `java.lang.reflect.Proxy` y `FakeServer.newWorld` recalcula
+su UUID con un MD5 en **cada** `getUID()`. Medir a través de ellos infló el
+primer `RegionBenchmark` en ~460 bytes por move que no eran de la lib. Un
+benchmark saca del bucle medido todo lo que el servidor real no recalcula, e
+imprime el piso del harness para que el número se pueda leer como "esto más
+aquello" en vez de culpar a la lib.
+
 ### Release protocol (summary; details are in *Verification*)
 
 1. Run `./gradlew clean build` and require a green build with zero warnings.

@@ -20,11 +20,9 @@ import org.jetbrains.annotations.Nullable;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicReference;
@@ -234,8 +232,8 @@ public final class RegionRuntime {
         Location location = player.getLocation();
         World world = location.getWorld();
         if (world == null) return;
-        update(player, WorldIdentity.from(world), location.getX(), location.getY(), location.getZ(),
-                cause, true);
+        update(player, world.getUID(), world.getName(),
+                location.getX(), location.getY(), location.getZ(), cause, true);
     }
 
     /** Initializes join state without manufacturing enter events for an already-present player. */
@@ -247,42 +245,109 @@ public final class RegionRuntime {
         List<RegionSnapshot> regions = index.query(world.getUID(),
                 location.getX(), location.getY(), location.getZ());
         MEMBERSHIPS.put(player.getUniqueId(), new Membership(player.getUniqueId(),
-                position(WorldIdentity.from(world), location.getX(), location.getY(), location.getZ()),
+                WorldIdentity.from(world),
+                floor(location.getX()), floor(location.getY()), floor(location.getZ()),
                 regions, index.revision()));
     }
 
     public static void move(@NotNull Player player, @NotNull UUID worldId,
                             @NotNull String worldName, double x, double y, double z,
                             @NotNull RegionChangeCause cause) {
-        update(player, new WorldIdentity(worldId, worldName), x, y, z, cause, true);
+        update(player, worldId, worldName, x, y, z, cause, true);
     }
 
-    private static void update(Player player, WorldIdentity world, double x, double y, double z,
+    private static void update(Player player, UUID worldId, String worldName,
+                               double x, double y, double z,
                                RegionChangeCause cause, boolean fire) {
         RegionIndex index = INDEX.get();
-        List<RegionSnapshot> now = index.query(world.id(), x, y, z);
-        List<RegionId> nowIds = now.stream().map(RegionSnapshot::id).toList();
         UUID playerId = player.getUniqueId();
         Membership before = MEMBERSHIPS.get(playerId);
-        BlockPosition current = position(world, x, y, z);
-        List<RegionId> oldIds = before == null ? List.of() : before.regionIds();
+        // Reused while the player stays in one world, which is almost always. A
+        // player crossing worlds gets a new one, and identity is the UUID anyway.
+        WorldIdentity world = before != null && before.world().id().equals(worldId)
+                ? before.world()
+                : new WorldIdentity(worldId, worldName);
+        int blockX = floor(x);
+        int blockY = floor(y);
+        int blockZ = floor(z);
 
-        MEMBERSHIPS.put(playerId, new Membership(playerId, current, now, index.revision()));
-        if (!fire || oldIds.equals(nowIds)) {
+        // The whole-server fast path: nothing is registered, so the query can only
+        // return empty and no event can fire. Position still has to advance, or the
+        // first event after a region is registered would report a stale previous().
+        if (index.isEmpty() && (before == null || before.isEmpty())) {
+            MEMBERSHIPS.put(playerId, Membership.empty(playerId, world, blockX, blockY, blockZ,
+                    index.revision()));
             return;
         }
 
-        Set<RegionId> oldSet = new HashSet<>(oldIds);
-        Set<RegionId> newSet = new HashSet<>(nowIds);
-        List<RegionSnapshot> exited = before == null ? List.of() : before.regions().stream()
-                .filter(region -> !newSet.contains(region.id())).toList();
-        List<RegionSnapshot> entered = now.stream().filter(region -> !oldSet.contains(region.id())).toList();
+        List<RegionSnapshot> now = index.query(world.id(), x, y, z);
+        // Both lists come out of the same immutable index, so equal membership means
+        // identical references. Comparing them directly answers the overwhelmingly
+        // common "nothing changed" without allocating the two id lists it used to.
+        boolean unchanged = before != null && sameRegions(before.regions(), now);
+
+        Membership updated = new Membership(playerId, world, blockX, blockY, blockZ,
+                now, index.revision());
+        MEMBERSHIPS.put(playerId, updated);
+        if (!fire || unchanged) {
+            return;
+        }
+
+        List<RegionSnapshot> previous = before == null ? List.of() : before.regions();
+        List<RegionSnapshot> exited = difference(previous, now);
+        List<RegionSnapshot> entered = difference(now, previous);
+        if (exited.isEmpty() && entered.isEmpty()) {
+            return;
+        }
         Bukkit.getPluginManager().callEvent(new PlayerRegionChangeEvent(player, cause,
-                before == null ? null : before.position(), current, exited, entered, index.revision()));
+                before == null ? null : before.position(), updated.position(),
+                exited, entered, index.revision()));
     }
 
-    private static BlockPosition position(WorldIdentity world, double x, double y, double z) {
-        return new BlockPosition(world, floor(x), floor(y), floor(z));
+    /**
+     * Identity comparison over two results of the same index.
+     *
+     * <p>A published index is immutable and its query results reuse the very same
+     * snapshot instances, so reference equality is exact here rather than an
+     * optimistic shortcut. A revision change produces new instances and correctly
+     * reports a difference, which the reconciliation pass then resolves.
+     */
+    private static boolean sameRegions(List<RegionSnapshot> before, List<RegionSnapshot> now) {
+        int size = before.size();
+        if (size != now.size()) return false;
+        for (int index = 0; index < size; index++) {
+            if (before.get(index) != now.get(index)) return false;
+        }
+        return true;
+    }
+
+    /** Regions present in {@code source} whose id is absent from {@code other}. */
+    private static List<RegionSnapshot> difference(List<RegionSnapshot> source,
+                                                    List<RegionSnapshot> other) {
+        if (source.isEmpty()) return List.of();
+        if (other.isEmpty()) return source;
+
+        List<RegionSnapshot> missing = null;
+        for (int index = 0; index < source.size(); index++) {
+            RegionSnapshot region = source.get(index);
+            if (contains(other, region.id())) continue;
+            // Allocated only once something actually entered or exited, which is
+            // rare compared to the number of moves that reach this point.
+            if (missing == null) missing = new ArrayList<>(source.size() - index);
+            missing.add(region);
+        }
+        return missing == null ? List.of() : List.copyOf(missing);
+    }
+
+    /**
+     * Linear scan on purpose: a player stands in a handful of regions at most, and
+     * at that size a scan beats building the hash set the old code allocated.
+     */
+    private static boolean contains(List<RegionSnapshot> regions, RegionId id) {
+        for (int index = 0; index < regions.size(); index++) {
+            if (regions.get(index).id().equals(id)) return true;
+        }
+        return false;
     }
 
     private static int floor(double value) {
@@ -294,16 +359,35 @@ public final class RegionRuntime {
         MEMBERSHIPS.remove(Objects.requireNonNull(playerId, "playerId"));
     }
 
-    private record Membership(UUID playerId, BlockPosition position,
+    /**
+     * A player's last known position and regions.
+     *
+     * <p>The position is held as primitives rather than as a {@link BlockPosition}
+     * because it is written on every block step and read only when an event fires,
+     * which is far rarer. The region list is stored as handed over: it is always a
+     * query result from an immutable index, so copying it defensively would
+     * duplicate an already immutable list on every move.
+     */
+    private record Membership(UUID playerId, WorldIdentity world, int x, int y, int z,
                               List<RegionSnapshot> regions, long revision) {
         private Membership {
             Objects.requireNonNull(playerId, "playerId");
-            Objects.requireNonNull(position, "position");
-            regions = List.copyOf(regions);
+            Objects.requireNonNull(world, "world");
+            Objects.requireNonNull(regions, "regions");
         }
 
-        private List<RegionId> regionIds() {
-            return regions.stream().map(RegionSnapshot::id).toList();
+        private static Membership empty(UUID playerId, WorldIdentity world,
+                                        int x, int y, int z, long revision) {
+            return new Membership(playerId, world, x, y, z, List.of(), revision);
+        }
+
+        private boolean isEmpty() {
+            return regions.isEmpty();
+        }
+
+        /** Materialized only when an event is about to carry it. */
+        private BlockPosition position() {
+            return new BlockPosition(world, x, y, z);
         }
     }
 }

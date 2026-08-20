@@ -84,6 +84,19 @@ final class RegionIndex {
     }
 
     /**
+     * Whether this index holds no regions at all.
+     *
+     * <p>Lets the movement path skip a query that can only return empty, which is
+     * the whole cost of the region module for a server whose plugins never
+     * register one.
+     *
+     * @return {@code true} when no region is indexed
+     */
+    boolean isEmpty() {
+        return all.isEmpty();
+    }
+
+    /**
      * Builds and validates an immutable index without modifying any published index.
      *
      * <p>Input order is deliberately discarded. Regions, owner views, and every spatial bucket
@@ -532,7 +545,14 @@ final class RegionIndex {
         }
     }
 
-    /** Exact-size, array-backed immutable query result. */
+    /**
+     * Exact-size, array-backed immutable query result.
+     *
+     * <p>Immutable in contract but not a {@code java.util.ImmutableCollections}
+     * type, so {@link List#copyOf} does not recognize it and copies instead. That
+     * makes a defensive copy of a query result silently real work on a hot path;
+     * callers holding on to one must store it as handed over.
+     */
     private static final class SnapshotList extends AbstractList<RegionSnapshot> implements RandomAccess {
 
         private final RegionSnapshot[] snapshots;

@@ -107,6 +107,37 @@ when a world is unloaded and loaded again, so every region in it silently became
 unreachable while the dead world was pinned in memory. World UUIDs do not have
 that problem.
 
+### What a step costs
+
+Membership is refreshed on every `PlayerMoveEvent` that crosses a block
+boundary, so the number that matters is not the lookup but what one step
+allocates: allocation here is paid back later as a GC pause, which is what a
+player feels as a stutter.
+
+Measured by `RegionBenchmark` (`./gradlew test --tests "*RegionBenchmark*" -i`),
+per move, with the test harness floor subtracted:
+
+| Situation | ns | bytes |
+| --- | --- | --- |
+| no regions registered anywhere | 42 | 48 |
+| standing outside every region | 103 | 72 |
+| inside one region | 136 | 136 |
+| inside two overlapping regions | 241 | 280 |
+
+Four things keep it there. A server with no regions at all skips the lookup
+entirely and only advances the stored position. An unchanged membership is
+detected by comparing snapshot **references**, which is exact rather than
+optimistic because both lists come out of the same immutable index — so the
+overwhelmingly common "nothing changed" allocates nothing. The stored position
+is held as primitives and materialized into a `BlockPosition` only when an event
+is about to carry it. And the enter/exit lists are built only once something
+actually crossed a boundary.
+
+Note that a query result is immutable in contract but is not a
+`java.util.ImmutableCollections` type, so `List.copyOf` does **not** recognize it
+and copies. Storing one defensively is silent work on this path; it is kept as
+handed over.
+
 ## Registering
 
 ```java
