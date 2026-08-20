@@ -407,16 +407,6 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
     }
 
     /**
-     * Releases a plugin's resources when it is disabled.
-     *
-     * <p>Runs at {@link EventPriority#MONITOR} so the plugin's own
-     * {@code onDisable} has already finished and cannot schedule anything else.
-     * This matters most on Folia, whose region and entity schedulers otherwise
-     * keep running tasks belonging to a plugin that is already gone.
-     *
-     * @param event the disable event
-     */
-    /**
      * Stops a leaving player's effects.
      *
      * <p>Without this they would leak. The task module stops an entity timer
@@ -495,6 +485,27 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         BoardManager.reinit(event.getPlayer());
     }
 
+    /**
+     * Releases a plugin's resources when it is disabled.
+     *
+     * <p>Runs at {@link EventPriority#MONITOR} so no other listener can still
+     * be reacting to the disable when the modules go away. It does <em>not</em>
+     * run after the plugin's own {@code onDisable}: both Bukkit's
+     * {@code JavaPluginLoader} and Paper's {@code PaperPluginInstanceManager}
+     * fire this event and only then call {@code setEnabled(false)}, which is
+     * what invokes {@code onDisable}. This method is therefore the last thing
+     * before the plugin's own teardown, not the first thing after it.
+     *
+     * <p>That ordering splits the work in two. What is released here is what
+     * must not outlive the classloader: a button whose action comes from a
+     * dying plugin must not answer another click, and a packet must not be
+     * sent on behalf of code that is going away. What a plugin legitimately
+     * uses <em>from</em> {@code onDisable} — its repositories above all, since
+     * a last save is the single most common thing an {@code onDisable} does —
+     * is deferred by {@link #releaseAfterDisable(String)} instead.
+     *
+     * @param event the disable event
+     */
     @EventHandler(priority = EventPriority.MONITOR)
     public void onPluginDisable(PluginDisableEvent event) {
         String pluginName = event.getPlugin().getName();
@@ -537,6 +548,47 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         // Reconciliation uses ExyliaLib's scheduler, but publication must still happen
         // before the dying plugin's own task scheduler is cancelled.
         Regions.release(pluginName);
+        // Before the task module: a pending warmup owns an entity timer
+        // belonging to this plugin and must be cancelled before its scheduler
+        // goes away.
+        Teleports.release(pluginName);
+        Tasks.release(pluginName);
+        Placeholders.unregisterAll(pluginName);
+        Actions.release(pluginName);
+        Commands.release(pluginName);
+        Prefixes.release(pluginName);
+        Reloads.release(pluginName);
+
+        // Everything a plugin still uses from its own onDisable, which has not
+        // run yet. Scheduled on the library's scheduler, which is still up:
+        // the dying plugin's own was just cancelled above.
+        Tasks.of(this).run(() -> releaseAfterDisable(pluginName));
+    }
+
+    /**
+     * Releases the modules a plugin is still entitled to use while it shuts
+     * itself down.
+     *
+     * <p>Runs one tick after {@link PluginDisableEvent}, which is the first
+     * moment the plugin's {@code onDisable} is guaranteed to have finished —
+     * the event fires before it, not after. Released from the event itself,
+     * these took the plugin's database out from under its last save: a
+     * {@code saveAll} issued from {@code onDisable} arrived at a target whose
+     * final owner had already let go, so it came back as "the database target
+     * is closing because its last plugin was disabled" and the rows were lost.
+     * Silently: the write failed on the way out, when nobody is watching the
+     * console and the server is seconds from exiting.
+     *
+     * <p>On a full server stop this task never runs, because the scheduler
+     * stops with the server. That is not a leak and not a second path: the
+     * whole-server teardown in {@link #onDisable()} releases the same modules,
+     * and it runs after every plugin's {@code onDisable} for the same reason
+     * this one does. This method exists for the case the shutdown path cannot
+     * cover — a single plugin disabled while the server keeps running.
+     *
+     * @param pluginName the plugin that was disabled
+     */
+    private void releaseAfterDisable(String pluginName) {
         // Before the database module: a claim reads the plugin's pending table,
         // and a reward handed to a player whose plugin is going away must not be
         // marked as claimed by a repository that is about to close.
@@ -548,17 +600,12 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         // Drops the plugin's repositories and datasource lease. A target closes
         // only after its last owning plugin releases it.
         Databases.release(pluginName);
-        // Before the task module: a pending warmup owns an entity timer
-        // belonging to this plugin and must be cancelled before its scheduler
-        // goes away.
-        Teleports.release(pluginName);
-        Tasks.release(pluginName);
+        // After the database module: resolving a datasource reads the plugin's
+        // database.yml through Configs, so forgetting its files first would
+        // strand a repository asked for during the plugin's own teardown.
         Configs.release(pluginName);
-        Placeholders.unregisterAll(pluginName);
-        Actions.release(pluginName);
-        Commands.release(pluginName);
-        Prefixes.release(pluginName);
-        Reloads.release(pluginName);
+        // Last: everything above reports through it, so a line written while
+        // the plugin lets go still names the plugin it belongs to.
         Debug.release(pluginName);
     }
 }

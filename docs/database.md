@@ -363,6 +363,30 @@ Disabling a plugin releases its repositories and its datasource lease. A shared
 target remains open until its final consumer releases it, then closes. ExyliaLib
 releases every remaining target on shutdown, after everything pending is written.
 
+**A save issued from your `onDisable` still works.** That is the point at which
+a plugin writes what it was holding in memory, so the release is deferred until
+your teardown is over rather than done when the library first hears about it:
+
+```java
+@Override
+public void onDisable() {
+    players.repository().saveAll(cache.values()).join();
+}
+```
+
+The reason it needs saying is that `PluginDisableEvent` — how the library finds
+out — fires **before** `onDisable`, not after. Both Bukkit's `JavaPluginLoader`
+and Paper's `PaperPluginInstanceManager` deliver the event and only then call
+`setEnabled(false)`. Released on the event, the datasource dropped its last
+owner one step ahead of the write that needed it, and the save came back as
+`the database target is closing because its last plugin was disabled` with the
+rows gone. Since 1.45.0 the datasource, and the modules layered on it, are
+released one tick later instead.
+
+The same holds for a full server stop, by a different route: there the deferred
+task never runs, and the shutdown path releases everything after every plugin's
+`onDisable` has finished.
+
 ## Enumerating what a plugin stores (since 1.36.0)
 
 For a whole-plugin operation — an export, a diagnostic listing — there has to
