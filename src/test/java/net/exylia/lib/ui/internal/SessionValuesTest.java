@@ -90,12 +90,12 @@ class SessionValuesTest {
     @Test
     @DisplayName("a title showing page numbers is not left showing their names")
     void titlePageNumbersAreFilled() {
-        // How nearly every paginated menu in the ecosystem is written. A window
-        // title is fixed when the window is created, so there is no later
-        // moment to fill these in — and unfilled, the player reads the
-        // placeholder instead of a page number.
+        // How nearly every paginated menu in the ecosystem is written, and the
+        // menu is what knows the answer: asking every plugin to supply these
+        // would be asking them to compute what the list in front of them has
+        // already worked out.
         String title = Session.filledTitle(
-                "{primary}MY SHIELDS {muted}%current_page%/%total_pages%", Map.of());
+                "{primary}MY SHIELDS {muted}%current_page%/%total_pages%", Map.of(), 1, 1);
 
         assertFalse(title.contains("%current_page%"), title);
         assertFalse(title.contains("%total_pages%"), title);
@@ -103,11 +103,40 @@ class SessionValuesTest {
     }
 
     @Test
+    @DisplayName("a title says which page is actually being read")
+    void titleFollowsThePage() {
+        String title = Session.filledTitle("Kits %current_page%/%total_pages%", Map.of(), 3, 7);
+
+        assertEquals("Kits 3/7", title,
+                "the page numbers come from the list, not from a guess");
+    }
+
+    @Test
+    @DisplayName("the shorter spellings of the page numbers work too")
+    void titleTakesShortSpellings() {
+        String title = Session.filledTitle("Page %page% of %pages%", Map.of(), 2, 4);
+
+        assertEquals("Page 2 of 4", title);
+    }
+
+    @Test
     @DisplayName("a title still takes the values the menu was opened with")
     void titleTakesContext() {
         String title = Session.filledTitle("Editing slot %slot_label%",
-                context("slot_label", "3"));
+                context("slot_label", "3"), 1, 1);
 
         assertEquals("Editing slot 3", title);
+    }
+
+    @Test
+    @DisplayName("a context value never masquerades as a page number")
+    void contextCannotOverridePageNumbers() {
+        // The list is the authority on which page it is showing. A context
+        // value of the same name would let a stale number outlive the click
+        // that changed it.
+        String title = Session.filledTitle("%current_page%/%total_pages%",
+                context("current_page", "99"), 2, 5);
+
+        assertEquals("2/5", title);
     }
 }

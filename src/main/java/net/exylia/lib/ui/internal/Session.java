@@ -64,6 +64,9 @@ final class Session implements UiSession {
     /** What to stop when the menu closes. */
     private final List<ActionExecution> pending = new ArrayList<>();
 
+    /** The title last sent, so an unchanged one costs no packet. */
+    private String lastTitle;
+
     private boolean open = true;
 
     /** The running open animation, if one is still revealing slots. */
@@ -140,6 +143,7 @@ final class Session implements UiSession {
         }
         pages.put(section, wanted);
         drawSection(list);
+        retitle();
         runtime.play(viewer, definition.sounds().page());
         return true;
     }
@@ -186,6 +190,9 @@ final class Session implements UiSession {
         // them on page three.
         pages.put(section, Pages.clamp(page(section), rows.size(), list.perPage()));
         drawSection(list);
+        // The count is part of the title, and it just changed: a menu filled
+        // after it opened would otherwise say "1/1" over five pages of rows.
+        retitle();
     }
 
     @Override
@@ -820,25 +827,53 @@ final class Session implements UiSession {
     }
 
     /**
+     * Sends the title again, when what it says has changed.
+     *
+     * <p>Only when it names the page, and only when the text actually moved:
+     * retitling costs a packet and makes the client re-request the window's
+     * contents, which is far too much for a title that reads the same.
+     *
+     * <p>Silently does nothing without PacketEvents. A title stuck on the page
+     * it opened at is what every menu did before this existed, and is not worth
+     * refusing to page for.
+     */
+    private void retitle() {
+        String written = definition.title();
+        if (written.indexOf('%') < 0 || !namesAPage(written)) {
+            return;
+        }
+
+        UiSection only = definition.section();
+        int page = only == null ? 1 : page(only.id());
+        int pages = only == null ? 1 : only.pagesFor(entries(only.id()).size());
+
+        String filled = filledTitle(written, context, page, pages);
+        if (filled.equals(lastTitle)) {
+            return;
+        }
+        lastTitle = filled;
+        Titles.retitle(viewer, definition.size(), Text.of(filled).forPlayer(viewer).build());
+    }
+
+    /** Returns whether a title asks for a page number at all. */
+    private static boolean namesAPage(String written) {
+        return written.contains("%current_page%") || written.contains("%total_pages%")
+                || written.contains("%page%") || written.contains("%pages%");
+    }
+
+    /**
      * The title, with its placeholders resolved for this viewer.
      *
-     * <p>Page numbers are filled in as well, because titles reading
-     * {@code %current_page%/%total_pages%} are how nearly every paginated menu
-     * in the ecosystem is written, and a window's title is fixed when it is
-     * created: there is no later moment to resolve them in.
+     * <p>Page numbers are supplied by the menu itself, because a title reading
+     * {@code %current_page%/%total_pages%} is how nearly every paginated menu
+     * in the ecosystem is written and no plugin should have to answer a
+     * question the menu already knows the answer to.
      *
-     * <p>A menu is opened on its first page, so that is what it says. The total
-     * is not known here — rows are handed over after the window exists — so a
-     * title asking for it is given {@code 1} as well, which is what a menu
-     * whose list fits on one page would say anyway.
-     *
-     * <p>What matters is that neither is left showing its own name. A title
-     * reading {@code %current_page%/%total_pages%} to the player is the kind of
-     * bug a server owner reports as "the menu is broken", and it was what every
-     * paginated menu in the ecosystem did.
+     * <p>A window being opened is on its first page and has no rows yet, so
+     * both read one. What they say afterwards is {@link #retitle()}'s job.
      */
     static String title(UiDefinition definition, Player viewer, Map<String, Object> context) {
-        return Text.of(filledTitle(definition.title(), context)).forPlayer(viewer).legacy();
+        return Text.of(filledTitle(definition.title(), context, 1, 1)).forPlayer(viewer).legacy();
     }
 
     /**
@@ -847,16 +882,24 @@ final class Session implements UiSession {
      * <p>Package-private so it can be exercised without a server, which is
      * exactly where the bug was: nothing filled the page numbers in, so the
      * player read the placeholder names off the top of the window.
+     *
+     * @param written the title as the file wrote it
+     * @param context what the menu is about
+     * @param page    the page being shown
+     * @param pages   how many there are
      */
-    static String filledTitle(String written, Map<String, Object> context) {
-        String text = written;
+    static String filledTitle(String written, Map<String, Object> context, int page, int pages) {
+        // The page numbers go in first, because the list is the authority on
+        // which page it is showing. A context value of the same name would
+        // otherwise outlive the click that moved it.
+        String text = written.replace("%current_page%", String.valueOf(page))
+                .replace("%page%", String.valueOf(page))
+                .replace("%total_pages%", String.valueOf(pages))
+                .replace("%pages%", String.valueOf(pages));
         for (Map.Entry<String, Object> value : context.entrySet()) {
             text = text.replace('%' + value.getKey() + '%', String.valueOf(value.getValue()));
         }
-        return text.replace("%current_page%", "1")
-                .replace("%page%", "1")
-                .replace("%total_pages%", "1")
-                .replace("%pages%", "1");
+        return text;
     }
 
     /**

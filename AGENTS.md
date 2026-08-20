@@ -418,6 +418,19 @@ abierto.
 - **`next_page`, `previous_page`, `back`, `close`, `refresh` son de la lib.**
   Pasar de página no es una feature de nadie y 500 ficheros ya las escriben. Si
   un plugin registra la suya con ese nombre, gana la suya.
+- **Los números de página los pone el menú, no el plugin.** La sección sabe
+  cuántas filas tiene y cuál está mirando; pedírselos al llamante es pedirle
+  que calcule lo que la lista ya calculó. Por eso un valor de contexto con ese
+  nombre **no** los pisa: sobreviviría al clic que los movió.
+- **El título sigue al lector, y eso es un packet.** En Bukkit el título es un
+  argumento de `createInventory` que se lee una vez; el cliente en cambio acepta
+  un segundo "open window" para el contenedor que ya tiene abierto y lo trata
+  como un retitulado — los slots no se mueven y no parpadea. Sin PacketEvents se
+  queda en la página en la que abrió, que es lo que hacía antes, y todo lo demás
+  funciona igual.
+- **Solo se reenvía si el título nombra una página y además cambió.** Retitular
+  obliga al cliente a volver a pedir el contenido de la ventana: demasiado para
+  un título que dice lo mismo.
 - **Cambiar de página redibuja esa lista y nada más.** `invalidate(dep)` redibuja
   solo los slots que declararon depender de eso. Sin rebuild completo, sin
   parpadeo, sin packets para lo que no cambió.
@@ -1136,6 +1149,7 @@ Raíz de código: `src/main/java/net/exylia/lib/`. Raíz de tests:
 | `/exylialib export` e `import` | — | `internal/ReloadCommand` (`export`, `importDump`, `reportPanel`, `importPanel`, `safeName`, `KnownPlugins`) | [docs/transfer.md](docs/transfer.md) | 1.36.0 |
 | banner por jugador | `item/Banner.template`, `Banner.isDynamic` | `item/internal/ItemReader.banner`, `TraitApplier.resolved` | [docs/items.md](docs/items.md) | 1.37.0 |
 | contexto parseado y título paginado | — | `ui/internal/Session.parsed`, `merged`, `filledTitle` | [docs/menus.md](docs/menus.md) | 1.39.0 |
+| título que sigue a la página | — | `ui/internal/Session.retitle`, `Titles`, `TitlePackets` (PacketEvents confinado) | [docs/menus.md](docs/menus.md) | 1.40.0 |
 | valor de fila multilínea | `<nl>` en un valor de `UiEntry`/`PluginItems.render` | `item/internal/ItemRenderer.lore`, `spans`, `segment` | [docs/menus.md](docs/menus.md), [docs/items.md](docs/items.md) | 1.38.0 |
 
 Clases raíz que no son módulo: `ExyliaLib.java` (ciclo de vida y limpieza),

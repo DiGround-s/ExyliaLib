@@ -71,12 +71,32 @@ because a list is full of names players chose; see
 [literal values](#literal-values-and-the-ones-that-are-not). A row naming the
 same key as the context shadows it, and keeps its own rule.
 
-A paginated title is filled in too: `%current_page%`, `%page%`, `%total_pages%`
-and `%pages%` all resolve to `1`, which is the page a menu opens on. A window's
-title is fixed when the window is created, so it does not follow the reader
-through the list — changing it would mean closing and reopening the screen on
-every click. What it must never do is show the player the placeholder's own
-name.
+### The page in the title
+
+A title may say which page is being read, and the menu answers on its own:
+
+```yaml
+title: '{primary}&lMY SHIELDS {muted}%current_page%/%total_pages%'
+```
+
+`%current_page%` and `%total_pages%` are supplied by the list itself — as are
+the shorter `%page%` and `%pages%`. No plugin passes them in, because the
+section already knows how many rows it has and which page it is showing; the
+list is the authority, so a context value of the same name never shadows them.
+
+The title **follows the reader through the list**. Bukkit cannot do this — a
+title is an argument to `createInventory`, read once when the window is built —
+so the new title goes out as a packet, which the client accepts as a retitle of
+the container it already has open. The slots stay put and nothing flickers.
+
+It is sent only when the title names a page *and* the text actually changed:
+retitling makes the client re-request the window's contents, which is far too
+much for a title that reads the same. A menu filled after it opened is retitled
+too, since that is when the total stops being one.
+
+This needs **PacketEvents**. Without it the title stays on the page it opened
+at — what every menu did before — and paging, drawing and clicking are
+unaffected.
 
 ## What kind of window
 

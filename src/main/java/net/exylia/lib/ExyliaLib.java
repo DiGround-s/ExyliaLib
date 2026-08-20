@@ -134,6 +134,7 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         HologramRuntime.init(this);
         ClientRuntime.init(this);
         NametagRuntime.init(this);
+        MenuRuntime.init(this);
         ClanRuntime.init(this);
         CombatRuntime.init(this);
         SkullRuntime.init(this);

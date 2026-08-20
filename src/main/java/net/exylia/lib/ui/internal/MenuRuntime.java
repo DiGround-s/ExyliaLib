@@ -108,6 +108,17 @@ public final class MenuRuntime {
         for (MenuRuntime runtime : RUNTIMES.values()) {
             runtime.forget(id);
         }
+        Titles.forget(id);
+    }
+
+    /**
+     * Starts watching which window each player has open.
+     *
+     * <p>Only needed to retitle one, so a server without PacketEvents simply
+     * never retitles: every menu still opens, draws and clicks.
+     */
+    public static void init(Plugin plugin) {
+        Titles.init(plugin);
     }
 
     public Plugin plugin() {
