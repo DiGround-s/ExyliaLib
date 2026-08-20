@@ -1202,6 +1202,30 @@ server would otherwise look free until used.
 To consume the local build, add `mavenLocal()` to your repositories and depend on
 `net.exylia:ExyliaLib:1.0.0`.
 
+### Contributor releases
+
+Quick path: verify the change, inspect `git status` and `git diff`, then stage,
+commit, and push only the files belonging to your own completed change. A push to
+`main` with an intentional new `version` in `build.gradle` triggers the GitHub
+Actions release workflow.
+
+**Do**
+
+- Coordinate before changing `build.gradle`'s `version`; it is release automation
+  input.
+- Keep unrelated work in the working tree untouched and report it if encountered.
+
+**Do not**
+
+- Stage, amend, reset, or revert another agent's unreviewed work.
+- Manually create tags or GitHub releases, or edit and push `lib-manifest.json` for
+  a release.
+- Publish another agent's changes or files outside your completed change.
+
+The workflow builds and tests the version from `build.gradle`, creates the GitHub
+release and tag, and updates and pushes `lib-manifest.json` automatically. Local
+`publishToMavenLocal` is only for local consumer validation.
+
 ---
 
 ## License

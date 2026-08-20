@@ -1192,28 +1192,31 @@ Son package-private a propósito; los tests viven del mismo paquete:
 | `internal/TransferAccess` | la interfaz que el comando usa para exportar e importar; `live()` es la real, un fake la sustituye sin base de datos ni fichero |
 | tests compartidos | `src/test/java/net/exylia/lib/FakeServer.java`, `FakePlayer.java`, `debug/DebugCapture.java`; `FakeServer.runAsyncForReal()` ejecuta las async en un hilo real |
 
-### Protocolo de release (resumen; el detalle está en *Verificación*)
+### Release protocol (summary; details are in *Verification*)
 
-1. `./gradlew clean build` — verde, cero warnings.
-2. Tests + sabotajes: rompe la lógica a propósito, el test debe fallar.
-3. `publishToMavenLocal` + consumidor externo compilando contra la versión.
-4. Doc del módulo actualizada (ver reglas) y README si la sección existe.
-5. `version` en `build.gradle`, commit, tag, push; verificar JitPack
-   (POM con 0 dependencias; JAR con las clases nuevas). Los tags son
-   inmutables: una versión publicada jamás se mueve.
-6. **GitHub Release** `v<versión>` (con la `v`) apuntando al commit del tag, con
-   `build/libs/ExyliaLib-<versión>.jar` adjunto y marcada *Latest*:
-   `gh release create v1.x.y build/libs/ExyliaLib-1.x.y.jar --target <sha> --latest`.
-   La auto-actualización descarga de ahí, no de JitPack.
-7. **`lib-manifest.json`**: entrada nueva con `url` + `sha256` del jar
-   (`sha256sum build/libs/ExyliaLib-1.x.y.jar`), y `"major1"` apuntando a la
-   versión. Push a `main`: el updater lo lee de `raw.githubusercontent.com`.
-   Verificar descargando el jar de la release y comparando el hash.
-8. En los plugins consumidores: subir `compileOnly("net.exylia:ExyliaLib:1.x.y")`,
-   adaptar el código a lo que cambie, `./gradlew build`, commit, y **desplegar el
-   jar del plugin a mano** — los plugins no tienen auto-updater. Si el plugin usa
-   API nueva, el jar de la lib debe llegar al servidor **antes o junto con** el
-   del plugin (`NoSuchMethodError` en caso contrario).
+1. Run `./gradlew clean build` and require a green build with zero warnings.
+2. Run tests and sabotage checks: deliberately break the logic and verify that
+   the relevant test fails.
+3. `publishToMavenLocal` is local-only validation. Use it to compile an external
+   consumer against the local artifact; it does not publish to GitHub.
+4. Update the module documentation (see the rules) and README when applicable.
+5. Contributors and agents must not manually create GitHub tags or releases,
+   edit or publish `lib-manifest.json` for a release, or run release commands.
+   Commit and push only the files belonging to their own completed change.
+6. Changing `version` in `build.gradle` is intentional release input. Coordinate
+   before changing it: a push to `main` with a new strict `X.Y.Z` version signals
+   `.github/workflows/release.yml` to build and test, create the `v<version>`
+   GitHub release with the JAR, update `lib-manifest.json`, and push the manifest
+   with the bot account. The workflow rejects duplicate, downgrade, and existing
+   tag versions.
+7. Keep local release-readiness checks separate from GitHub publication. Verify
+   the generated JAR and, when relevant, its POM and downloaded release checksum
+   only after the workflow has completed.
+8. In consumer plugins: update `compileOnly("net.exylia:ExyliaLib:1.x.y")`, adapt
+   code for API changes, run `./gradlew build`, commit, and **deploy the plugin
+   JAR manually** — consumer plugins have no auto-updater. If a plugin uses a new
+   API, the library JAR must reach the server **before or together with**
+   the plugin JAR (`NoSuchMethodError` otherwise).
 
 ---
 
