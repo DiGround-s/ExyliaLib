@@ -299,6 +299,11 @@ public final class Text {
      * not report them as unknown.
      */
     private Set<String> handledNames() {
+        // The common line has no substitutions and no owner, so there is nothing to
+        // exempt and the set would be built empty on every render.
+        if (substitutions.isEmpty() && owner == null) {
+            return Set.of();
+        }
         Set<String> names = new HashSet<>();
         for (Substitution substitution : substitutions) {
             String key = substitution.key();

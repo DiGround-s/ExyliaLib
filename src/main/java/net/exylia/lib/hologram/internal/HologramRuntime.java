@@ -360,6 +360,11 @@ public final class HologramRuntime {
      * ones.
      */
     static void tick() {
+        // Asked four times a second forever, so a server whose plugins registered
+        // no hologram should not allocate a list to discover that.
+        if (BY_OWNER.isEmpty()) {
+            return;
+        }
         List<HologramImpl> holograms = new ArrayList<>();
         forEach(holograms::add);
         if (holograms.isEmpty()) {

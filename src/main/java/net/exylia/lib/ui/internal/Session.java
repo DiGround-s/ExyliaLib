@@ -65,6 +65,9 @@ final class Session implements UiSession {
     private final List<ActionExecution> pending = new ArrayList<>();
 
     /** The title last sent, so an unchanged one costs no packet. */
+    /** Built on first use; the definition it derives from cannot change. */
+    private Set<Integer> inputSlots;
+
     private String lastTitle;
 
     private boolean open = true;
@@ -388,7 +391,14 @@ final class Session implements UiSession {
 
     @Override
     public @NotNull Set<Integer> inputSlots() {
-        return Set.copyOf(definition.inputSlots());
+        // Every click and every drag asks for this, and the answer is fixed for the
+        // whole session: the definition is immutable and its slots never move.
+        Set<Integer> cached = inputSlots;
+        if (cached == null) {
+            cached = Set.copyOf(definition.inputSlots());
+            inputSlots = cached;
+        }
+        return cached;
     }
 
     @Override
@@ -847,6 +857,14 @@ final class Session implements UiSession {
      */
     static Set<String> parsed(Map<String, Object> context, Map<String, String> values,
                               Set<String> formatted) {
+        // A fixed slot carries no row values, and most rows ask for no formatting.
+        // The answer is then exactly the context's keys, so the copy would be a
+        // per-slot allocation of a set that already says the right thing. The view
+        // is only ever read — the renderer asks it `contains` and nothing else — and
+        // is not retained past the render it was handed to.
+        if (values.isEmpty() && formatted.isEmpty()) {
+            return context.keySet();
+        }
         Set<String> parsed = new LinkedHashSet<>(context.keySet());
         parsed.removeAll(values.keySet());
         parsed.addAll(formatted);

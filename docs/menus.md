@@ -362,6 +362,19 @@ refresh:
 packets for an identical item. The timer only starts if the menu has something
 that could change, and it dies with the player.
 
+Deciding a slot's values costs nothing when the slot carries no row values,
+which is what a fixed slot — a decoration, a button, a title bar — always is.
+Measured by `SessionValuesBenchmark`, per drawn slot:
+
+| Slot | ns | bytes |
+| --- | --- | --- |
+| fixed, no row values | 2.9 | 0 |
+| list row, 2 values | 113 | 320 |
+| list row, 1 formatted | 74 | 360 |
+
+A row genuinely has to merge its own values over the menu's context, so it
+allocates. A fixed slot does not, and no longer pretends to.
+
 A click redraws **everything that can change**, not only the slot it landed on.
 A button rarely changes just itself: adding a layer moves a counter, a preview
 and a list, and none of those is the slot that was clicked. The redraw reads the
