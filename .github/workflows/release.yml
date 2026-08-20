@@ -1,0 +1,153 @@
+name: Release
+
+on:
+  push:
+    branches: [main]
+
+concurrency:
+  group: release-main
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Ensure jq is available
+        run: |
+          if ! command -v jq >/dev/null 2>&1; then
+            sudo apt-get update
+            sudo apt-get install -y jq
+          fi
+
+      - name: Validate version and release guard
+        id: release_guard
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+
+          mapfile -t versions < <(sed -nE "s/^[[:space:]]*version[[:space:]]*=[[:space:]]*['\"]([^'\"]+)['\"][[:space:]]*$/\1/p" build.gradle)
+          if (( ${#versions[@]} != 1 )); then
+            echo "Expected exactly one literal version assignment in build.gradle." >&2
+            exit 1
+          fi
+
+          version="${versions[0]}"
+          semver_re='^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$'
+          if [[ ! "$version" =~ $semver_re ]]; then
+            echo "Invalid Gradle version: $version (expected strict X.Y.Z semver)." >&2
+            exit 1
+          fi
+
+          releases="$(gh api --paginate --slurp "repos/${GITHUB_REPOSITORY}/releases?per_page=100")"
+          latest_tag="$(jq -r 'flatten | map(select(.draft == false)) | sort_by(.published_at) | last | .tag_name // empty' <<< "$releases")"
+          tag="v${version}"
+
+          if [[ -n "$latest_tag" ]]; then
+            if [[ "$latest_tag" != v* ]]; then
+              echo "Latest release tag is not v-prefixed: $latest_tag" >&2
+              exit 1
+            fi
+
+            latest_version="${latest_tag#v}"
+            if [[ ! "$latest_version" =~ $semver_re ]]; then
+              echo "Latest release is not strict X.Y.Z semver: $latest_tag" >&2
+              exit 1
+            fi
+
+            if [[ "$version" == "$latest_version" ]]; then
+              echo "Version $version is already the latest release; nothing to do."
+              echo "version=$version" >> "$GITHUB_OUTPUT"
+              echo "tag=$tag" >> "$GITHUB_OUTPUT"
+              echo "release_needed=false" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+
+            IFS=. read -r current_major current_minor current_patch <<< "$version"
+            IFS=. read -r latest_major latest_minor latest_patch <<< "$latest_version"
+            if (( current_major < latest_major ||
+                  (current_major == latest_major && current_minor < latest_minor) ||
+                  (current_major == latest_major && current_minor == latest_minor && current_patch < latest_patch) )); then
+              echo "Version $version is older than latest release $latest_version." >&2
+              exit 1
+            fi
+          fi
+
+          if jq -e --arg tag "$tag" 'flatten | any(.[]; .tag_name == $tag)' <<< "$releases" >/dev/null; then
+            echo "Release $tag already exists; refusing to duplicate it." >&2
+            exit 1
+          fi
+
+          set +e
+          git ls-remote --exit-code --refs origin "$tag" >/dev/null 2>&1
+          status=$?
+          set -e
+          if (( status == 0 )); then
+            echo "Tag $tag already exists; refusing to overwrite it." >&2
+            exit 1
+          fi
+          if (( status != 2 )); then
+            echo "Could not verify whether tag $tag exists (git status $status)." >&2
+            exit "$status"
+          fi
+
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          echo "release_needed=true" >> "$GITHUB_OUTPUT"
+
+      - name: Build and test
+        if: steps.release_guard.outputs.release_needed == 'true'
+        run: ./gradlew clean build
+
+      - name: Create GitHub release
+        if: steps.release_guard.outputs.release_needed == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.release_guard.outputs.version }}
+          TAG: ${{ steps.release_guard.outputs.tag }}
+        run: |
+          set -euo pipefail
+          jar="build/libs/ExyliaLib-${VERSION}.jar"
+          test -f "$jar"
+          gh release create "$TAG" "$jar" \
+            --target "$GITHUB_SHA" \
+            --title "ExyliaLib ${VERSION}" \
+            --generate-notes
+          [[ "$(gh release view "$TAG" --json tagName --jq .tagName)" == "$TAG" ]]
+
+      - name: Update and publish manifest
+        if: steps.release_guard.outputs.release_needed == 'true'
+        env:
+          VERSION: ${{ steps.release_guard.outputs.version }}
+        run: |
+          set -euo pipefail
+          jar="build/libs/ExyliaLib-${VERSION}.jar"
+          ./update-lib-manifest.sh "$VERSION" "$jar"
+
+          changed_files="$(git diff --name-only)"
+          if [[ -z "$changed_files" ]]; then
+            echo "Manifest already points at ${VERSION}; no commit needed."
+            exit 0
+          fi
+          if [[ "$changed_files" != "lib-manifest.json" ]]; then
+            echo "Unexpected files changed by manifest generation: $changed_files" >&2
+            exit 1
+          fi
+
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add lib-manifest.json
+          git commit -m "chore: point the manifest at ${VERSION}"
+          git push origin HEAD:main
