@@ -137,6 +137,15 @@ public final class SqlStorage implements Storage {
     }
 
     @Override
+    public <T> @NotNull CompletableFuture<Void> update(@NotNull EntityModel<T> model,
+                                                       @NotNull T record) {
+        return async(model, "update", () -> {
+            backend.update(model, record);
+            return null;
+        });
+    }
+
+    @Override
     public <T> @NotNull CompletableFuture<Long> insert(@NotNull EntityModel<T> model,
                                                        @NotNull T record) {
         return async(model, "insert", () -> backend.insert(model, record));

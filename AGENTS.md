@@ -932,6 +932,13 @@ conocerlo.
   de `save`: un upsert necesita contra qué fila fusionar, y la clave de una
   fila que aún no existe es un placeholder — fusionar contra el cero pisa la
   fila que tenga ese id.
+- **Pero un placeholder deja de serlo en cuanto la fila existe.** Una fila
+  leída de la base de datos trae la clave que el motor eligió y nombra una
+  sola fila, así que se reescribe con `update`. Sin él, una tabla con clave
+  generada se podía insertar y no volver a modificar nunca: `save` la
+  rechazaba y `insert` publicaba un duplicado. `update` **nunca crea** — una
+  clave que no encuentra nada no cambia nada, porque la fila que crearía
+  tendría otra clave distinta de la que el llamante tiene en la mano.
 - **La clave se lee del mismo statement que escribió la fila**
   (`getGeneratedKeys`). Un `SELECT MAX(id)` o un `LAST_INSERT_ID()` después
   salen por otra conexión del pool, y en una tabla que escriben dos servidores
@@ -1152,6 +1159,7 @@ Raíz de código: `src/main/java/net/exylia/lib/`. Raíz de tests:
 | redis | `redis/Redis`, `RedisSettings` | `redis/internal/` (Jedis confinado en `JedisClient`) | [docs/redis.md](docs/redis.md) | 1.31.0 |
 | poll de auto-actualización | `update-check-minutes` en `internal/LibrarySettings` | `internal/ExyliaLibUpdater` (ETag), timer en `ExyliaLib.startUpdateCheck` | [docs/reload.md](docs/reload.md) | 1.30.0 |
 | claves generadas | `database/Id.generated`, `Repository.insert`/`insertReturning` | `Dialect.insertGenerated`, `SqlBackend.insert` (`getGeneratedKeys`), `MongoBackend.insert` (`$inc`), `EntityModel.withId` | [docs/database.md](docs/database.md) | 1.32.0 |
+| modificar una fila con clave generada | `database/Repository.update` | `Dialect.update`, `SqlBackend.update`, `MongoBackend.update` (sin upsert), `EntityModel.hasPlaceholderId`, `CachedStorage.update` | [docs/database.md](docs/database.md) | 1.43.0 |
 | util (rewards) | `util/reward/Rewards`, `PluginRewards`, `RewardEntry`, `RewardType`, `RewardCodec`, `RewardResult`, `RewardDelivery`, `RewardOutcome`, `OverflowPolicy`, `PendingRewards` | `util/reward/internal/` (`Providers`, `ItemGiver`, `Conditions`, `Rolls`), `util/reward/Previews` | [docs/rewards.md](docs/rewards.md) | 1.34.0 |
 | util (snapshots) | `util/snapshot/Snapshots`, `PluginSnapshots`, `Snapshot`, `SnapshotPart`, `SnapshotCodec`, `SnapshotSettings` | `util/snapshot/internal/` (`PlayerState`, `SnapshotRow`, `LegacyRow`, `LegacyImport`, `SnapshotRuntime`) | [docs/snapshots.md](docs/snapshots.md) | 1.34.0 |
 | util (teleport) | `util/teleport/Teleports`, `PluginTeleports`, `TeleportRequest`, `TeleportHandle`, `TeleportResult`, `TeleportCause`, `TeleportSettings`, `ExyliaLocation`, `ExyliaTeleportEvent`, `RandomArea`, `TeleportDirection`, `TeleportRequestTicket`, `TpaAcceptance`, `TpaOutcome` | `util/teleport/internal/` (`TeleportRuntime`, `RunningTeleport`, `TeleportPlan`, `Teleporter`, `SafeLocations`, `RandomLocations`, `BackHistory`, `TpaBook`, `CrossServer`) | [docs/teleport.md](docs/teleport.md) | 1.34.0 |

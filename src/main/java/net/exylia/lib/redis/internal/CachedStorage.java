@@ -138,6 +138,18 @@ public final class CachedStorage implements Storage {
     }
 
     @Override
+    public <T> @NotNull CompletableFuture<Void> update(@NotNull EntityModel<T> model,
+                                                       @NotNull T record) {
+        // The same order as save, for the same reason: a peer told to re-read
+        // before the row is written would cache exactly the value it was told
+        // to drop.
+        return delegate.update(model, record).thenApply(ignored -> {
+            cache.put(model, model.id().decode(model.idOf(record)), record);
+            return null;
+        });
+    }
+
+    @Override
     public <T> @NotNull CompletableFuture<Long> insert(@NotNull EntityModel<T> model,
                                                        @NotNull T record) {
         // Cached under the key the database chose, which is only known once the

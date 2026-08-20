@@ -216,7 +216,8 @@ public final class Repository<T> {
     public @NotNull CompletableFuture<Void> save(@NotNull T record) {
         if (model.generatedId()) {
             throw new IllegalArgumentException(model.type().getSimpleName()
-                    + " has a generated key, so it is written with insert(), not save()."
+                    + " has a generated key, so it is written with insert() when it is new"
+                    + " and update() when it came back from a read, not save()."
                     + " A save has to be told which row to merge with, and the key of a"
                     + " record that has not been stored yet is a placeholder — merging on"
                     + " it would overwrite whichever row happens to hold that id.");
@@ -271,6 +272,40 @@ public final class Repository<T> {
         requireGenerated("insertReturning");
         return reported("insert", storage.insert(model, record)
                 .thenApply(key -> model.withId(record, key)));
+    }
+
+    /**
+     * Writes a record that is already stored back to its own row.
+     *
+     * <p>For a record whose {@link Id} is {@code generated}. A generated key is
+     * a placeholder only until the row exists; once the database has chosen it,
+     * the record names exactly one row and changing it is unambiguous. Without
+     * this a table could be inserted into and never changed again.
+     *
+     * <pre>{@code
+     * Design published = designs.find(id).join().orElseThrow();
+     * designs.update(published.withOneMoreUse()).join();
+     * }</pre>
+     *
+     * <p>Never inserts. A key that names no row changes nothing, which is the
+     * honest outcome for an update: creating the row would give it a different
+     * key from the one the caller was holding.
+     *
+     * @param record the record, carrying the key it was stored under
+     * @return completes when written
+     * @throws IllegalArgumentException if the key is not generated, or is still
+     *                                  the placeholder of a record that has
+     *                                  never been stored
+     * @since 1.43.0
+     */
+    public @NotNull CompletableFuture<Void> update(@NotNull T record) {
+        requireGenerated("update");
+        if (model.hasPlaceholderId(record)) {
+            throw new IllegalArgumentException(model.type().getSimpleName()
+                    + " still carries the placeholder key, so update() has no row to write to."
+                    + " A record that has never been stored is written with insert().");
+        }
+        return reported("update", storage.update(model, record));
     }
 
     private void requireGenerated(String operation) {

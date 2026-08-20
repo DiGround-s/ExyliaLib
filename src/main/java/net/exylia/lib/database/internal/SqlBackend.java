@@ -217,6 +217,37 @@ public final class SqlBackend implements AutoCloseable {
     }
 
     /**
+     * Writes a record back to the row it already has.
+     *
+     * <p>Never creates one. A key that matches nothing updates nothing, which
+     * is the honest answer for a design somebody deleted while it was open.
+     *
+     * @param model    the record model
+     * @param instance the record, carrying the key it was stored under
+     * @param <T>      the record type
+     * @throws SQLException if the write failed
+     * @since 1.43.0
+     */
+    public <T> void update(@NotNull EntityModel<T> model, @NotNull T instance) throws SQLException {
+        String sql = statements.computeIfAbsent("update:" + model.type().getName(),
+                key -> dialect.update(model));
+        Object[] values = model.values(instance);
+        try (Connection connection = pool.getConnection();
+             PreparedStatement statement = connection.prepareStatement(sql)) {
+            int index = 1;
+            for (int column = 0; column < values.length; column++) {
+                if (column == model.idIndex()) {
+                    continue;
+                }
+                statement.setObject(index++, values[column]);
+            }
+            // The key is last, because it is the WHERE rather than a SET.
+            statement.setObject(index, values[model.idIndex()]);
+            statement.executeUpdate();
+        }
+    }
+
+    /**
      * Writes many records in one batch.
      *
      * <p>One statement, one round trip per batch rather than per row: with

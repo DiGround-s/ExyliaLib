@@ -142,12 +142,27 @@ counts in integers, and a generated `UUID` would be invented by the library
 rather than the database, so two servers would each invent their own.
 
 `insert` always creates a row; it never updates one. A record that came back
-from a read is written with `save` as usual. The two refuse each other's
-records rather than guessing: `save` on a record whose key is a placeholder
-would merge onto whichever row holds id 0, and `insert` on a record that brought
-its own key has nothing to hand out. `saveAll` refuses a generated key outright,
-because a batch cannot answer with the keys it was given — a caller would have
-stored a hundred rows nothing can refer to.
+from a read is written with `update`:
+
+```java
+Design published = designs.find(id).join().orElseThrow();
+designs.update(published.withOneMoreUse()).join();
+```
+
+`update` never creates a row either. A key that matches nothing changes
+nothing, which is the honest outcome for a design somebody deleted while it was
+open on a screen — creating it would give it a different key from the one the
+caller is holding.
+
+The three refuse each other's records rather than guessing. `save` is an upsert
+and needs to be told which row to merge with, so it is not for a generated key
+at all: on a placeholder it would merge onto whichever row holds id 0. `insert`
+on a record that brought its own key has nothing to hand out, and `update` on a
+record still carrying the placeholder has no row to write to.
+
+`saveAll` refuses a generated key outright, because a batch cannot answer with
+the keys it was given — a caller would have stored a hundred rows nothing can
+refer to.
 
 The key comes back from the same statement that wrote the row
 (`getGeneratedKeys`). Reading it afterwards with `SELECT MAX(id)` or

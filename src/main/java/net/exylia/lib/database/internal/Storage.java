@@ -121,6 +121,22 @@ public interface Storage {
     <T> @NotNull CompletableFuture<Void> save(@NotNull EntityModel<T> model, @NotNull T record);
 
     /**
+     * Writes a record that already has a row, without ever creating one.
+     *
+     * <p>Only called for a model whose key is generated and a record whose key
+     * the store handed out. A key that matches nothing writes nothing: the row
+     * an update would have to create would carry a different key from the one
+     * the caller is holding.
+     *
+     * @param model  the compiled record model
+     * @param record the record, carrying the key it was stored under
+     * @param <T>    the record type
+     * @return completes when written
+     * @since 1.43.0
+     */
+    <T> @NotNull CompletableFuture<Void> update(@NotNull EntityModel<T> model, @NotNull T record);
+
+    /**
      * Inserts a record whose key the store hands out, and answers that key.
      *
      * <p>Only ever called for a model whose key is generated; the value the

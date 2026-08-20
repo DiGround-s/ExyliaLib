@@ -886,6 +886,29 @@ public final class EntityModel<T> {
     }
 
     /**
+     * Whether this record still carries the key of a row that does not exist.
+     *
+     * <p>A generated key is written by the engine's own counter, which never
+     * hands out zero, so a zero is a record on its way to an insert rather than
+     * one that came back from a read. Absent counts as well: a boxed key left
+     * null was never filled in either.
+     *
+     * <p>Only meaningful for a generated key. A record that brings its own
+     * always names its row.
+     *
+     * @param instance the record, never {@code null}
+     * @return whether the key names no row yet
+     * @since 1.43.0
+     */
+    public boolean hasPlaceholderId(@NotNull T instance) {
+        Object key = idOf(instance);
+        if (key == null) {
+            return true;
+        }
+        return key instanceof Number number && number.longValue() == 0L;
+    }
+
+    /**
      * Every column of one record, encoded, by column name.
      *
      * <p>For the stores that address values by name rather than by position —

@@ -559,6 +559,23 @@ public final class MongoBackend implements AutoCloseable {
     }
 
     /**
+     * Replaces a document that already exists, never creating one.
+     *
+     * <p>The same {@code replaceOne} as {@link #save} without the upsert: a key
+     * that matches nothing writes nothing.
+     *
+     * @param model    the record model
+     * @param instance the record, carrying the key it was stored under
+     * @param <T>      the record type
+     * @since 1.43.0
+     */
+    public <T> void update(@NotNull EntityModel<T> model, @NotNull T instance) {
+        Document document = document(MongoDocuments.toDocument(model, instance));
+        collection(model).replaceOne(Filters.eq(MongoDocuments.ID_FIELD,
+                document.get(MongoDocuments.ID_FIELD)), document);
+    }
+
+    /**
      * Inserts a record under a key this backend hands out, and returns it.
      *
      * <p>MongoDB has no counter of its own, so one is kept in a collection of

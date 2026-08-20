@@ -416,6 +416,38 @@ public interface Dialect {
     @NotNull String upsert(@NotNull EntityModel<?> model, @NotNull List<String> keyColumns);
 
     /**
+     * {@code UPDATE} of every column but the key, matched on the key.
+     *
+     * <p>Plain standard SQL, so no dialect overrides it. Unlike
+     * {@link #upsert} it never creates a row: a key that matches nothing
+     * changes nothing, which is what an update of a row somebody deleted
+     * meanwhile should do.
+     *
+     * <p>The placeholders are every non-key column in model order, then the
+     * key last.
+     *
+     * @param model the record model
+     * @return one statement
+     */
+    default @NotNull String update(@NotNull EntityModel<?> model) {
+        StringBuilder sql = new StringBuilder(96)
+                .append("UPDATE ").append(quote(identifier(model.table()))).append(" SET ");
+        boolean first = true;
+        for (ColumnModel column : model.columns()) {
+            if (column.name().equals(model.id().name())) {
+                continue;
+            }
+            if (!first) {
+                sql.append(", ");
+            }
+            sql.append(quote(identifier(column.name()))).append(" = ?");
+            first = false;
+        }
+        return sql.append(" WHERE ").append(quote(identifier(model.id().name())))
+                .append(" = ?").toString();
+    }
+
+    /**
      * {@code SELECT} of every column, with optional filter, order and page.
      *
      * <p>Placeholders are bound in this order: the where values, then the
