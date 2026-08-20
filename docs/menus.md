@@ -187,6 +187,36 @@ UiEntry.of(player)
 Getting this backwards is a bug either way: a display name printing `{highlight}`
 to the screen, or a player called `<rainbow>` recolouring a menu.
 
+The question to ask is **whose value it is**, not what type it is: the server
+owner wrote it, or a player typed it.
+
+### A value that spans several lore lines
+
+A value containing `<nl>` becomes several lore lines. This is for descriptions
+that live in a config and are too long for one:
+
+```java
+.withFormatted("description", String.join("<nl>", effect.lore()))
+```
+
+```yaml
+lore:
+  - "{muted} ┃ {letters}%description%"     # one written line, two drawn
+```
+
+Each drawn line keeps whatever the template puts around the placeholder, so the
+second line gets the same bullet as the first. Values beside it repeat on every
+line rather than vanishing after the first, and only lines that actually mention
+the multi-line value are stretched.
+
+`<nl>` written in the **file** is split when the file is read, so it costs
+nothing at render time. In a **value** it is split as the row is drawn — every
+expanded line comes from the same template string, so they share one parse and
+the cost is a substitution per line, never a parse per line.
+
+An expanded value is still literal unless you asked for `withFormatted`:
+expanding is not a second door into the parser.
+
 **A colour on its own cannot be a value.** This does not work, and cannot:
 
 ```yaml

@@ -20,6 +20,7 @@ import org.bukkit.plugin.Plugin;
 
 import java.util.ArrayList;
 import java.util.Base64;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -34,6 +35,14 @@ import java.util.function.UnaryOperator;
  * The rendering itself is metadata writes and nothing else.
  */
 public final class ItemRenderer {
+
+    /**
+     * What splits a row value into several lore lines.
+     *
+     * <p>The same spelling {@link ItemReader} splits templates on, so a value a
+     * plugin passes in and a line written in a file mean the same thing by it.
+     */
+    private static final String NEWLINE = "<nl>";
 
     private ItemRenderer() {
     }
@@ -299,13 +308,75 @@ public final class ItemRenderer {
                 .decorationIfAbsent(TextDecoration.ITALIC, TextDecoration.State.FALSE);
     }
 
-    private static List<Component> lore(List<String> written, Player viewer,
-                                        Map<String, String> values, Set<String> formatted) {
+    /**
+     * Renders the lore, expanding any row value that spans several lines.
+     *
+     * <p>{@code <nl>} in the template is split by {@link ItemReader} when the
+     * file is read, which cannot reach a value that only exists at render time:
+     * a description a plugin passes in as one row value. Splitting it here is
+     * what lets {@code %effect_description%} hold more than one line.
+     *
+     * <p>Every expanded line is built from the <em>same</em> written string, so
+     * they all hit the same parse-cache entry and each keeps whatever the
+     * template puts around the placeholder. The cost of a multi-line value is
+     * one substitution per line, never one parse per line.
+     */
+    // Package-private for the same reason as text(): expanding a row value into
+    // lines is a decision worth testing, and it needs no live server.
+    static List<Component> lore(List<String> written, Player viewer,
+                                Map<String, String> values, Set<String> formatted) {
         List<Component> lines = new ArrayList<>(written.size());
         for (String line : written) {
-            lines.add(text(line, viewer, values, formatted));
+            int spans = spans(line, values);
+            if (spans == 1) {
+                lines.add(text(line, viewer, values, formatted));
+                continue;
+            }
+            for (int index = 0; index < spans; index++) {
+                lines.add(text(line, viewer, segment(values, index), formatted));
+            }
         }
         return lines;
+    }
+
+    /**
+     * How many lines this template line turns into.
+     *
+     * <p>Only values the line actually mentions count: a multi-line value that
+     * belongs to some other line must not stretch this one.
+     */
+    private static int spans(String line, Map<String, String> values) {
+        int spans = 1;
+        for (Map.Entry<String, String> entry : values.entrySet()) {
+            if (!entry.getValue().contains(NEWLINE)) {
+                continue;
+            }
+            if (line.contains('%' + entry.getKey() + '%')) {
+                spans = Math.max(spans, entry.getValue().split(NEWLINE, -1).length);
+            }
+        }
+        return spans;
+    }
+
+    /**
+     * The values as they stand on one expanded line.
+     *
+     * <p>A single-line value repeats, so text written beside a multi-line one
+     * does not vanish after the first line. A multi-line value that runs out
+     * contributes nothing further rather than repeating its last line.
+     */
+    private static Map<String, String> segment(Map<String, String> values, int index) {
+        Map<String, String> segmented = new LinkedHashMap<>(values.size());
+        for (Map.Entry<String, String> entry : values.entrySet()) {
+            String value = entry.getValue();
+            if (!value.contains(NEWLINE)) {
+                segmented.put(entry.getKey(), value);
+                continue;
+            }
+            String[] parts = value.split(NEWLINE, -1);
+            segmented.put(entry.getKey(), index < parts.length ? parts[index] : "");
+        }
+        return segmented;
     }
 
     private static void enchantments(ItemMeta meta, Map<String, Integer> enchantments,

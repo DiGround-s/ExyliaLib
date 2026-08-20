@@ -385,7 +385,25 @@ abierto.
   y color*); además deja al dueño del servidor con un `%name_color%` que no
   puede tocar.
 - **`withFormatted` en una fila es para valores que traen color *y* texto.** Un
-  display name de config. Lo que teclea un jugador va por `with`.
+  display name de config. Lo que teclea un jugador va por `with`. Elegir mal se
+  ve en pantalla y se reporta; al revés sería una inyección silenciosa, así que
+  el default es el que no parsea. Tres plugins lo eligieron mal en la misma
+  línea (`effect_description`), lo que dice más de la ergonomía que de ellos.
+- **Un valor con `<nl>` se convierte en varias líneas de lore.** Es la única
+  forma de que una descripción de config ocupe dos líneas: `<nl>` del fichero lo
+  parte `ItemReader` al cargar, y eso no alcanza a un valor que solo existe al
+  dibujar. Commons lo permitía porque sustituía sobre el string; devolver una
+  sola línea tiraba el resto **en silencio**.
+- **Expandir no cuesta un parse por línea.** Todas las líneas salen del mismo
+  string de plantilla, así que comparten entrada de caché: el coste es una
+  sustitución por línea. Por eso la premisa de "la plantilla se parsea una vez"
+  sigue en pie.
+- **Cada línea expandida conserva lo que la plantilla pone alrededor** (el
+  bullet, el color), los valores vecinos se repiten en todas, y solo se estira
+  la línea que menciona el valor largo. Estirar las demás convertiría un tooltip
+  de cinco líneas en quince.
+- **Expandir no es una segunda puerta al parser**: una línea expandida sigue
+  siendo literal salvo que se haya pedido `withFormatted`.
 - **Un click se valida contra lo dibujado, no contra el packet.** El cliente
   manda un número de slot; el servidor ya sabe qué puso ahí. Un slot cuya
   condición falla no está en blanco: **no está**.
@@ -1117,6 +1135,7 @@ Raíz de código: `src/main/java/net/exylia/lib/`. Raíz de tests:
 | `/exylialib info` y `stats` | — | `internal/ReloadCommand` (`dependentsOf`, `hologramsLine`) | [docs/reload.md](docs/reload.md) | 1.35.0 |
 | `/exylialib export` e `import` | — | `internal/ReloadCommand` (`export`, `importDump`, `reportPanel`, `importPanel`, `safeName`, `KnownPlugins`) | [docs/transfer.md](docs/transfer.md) | 1.36.0 |
 | banner por jugador | `item/Banner.template`, `Banner.isDynamic` | `item/internal/ItemReader.banner`, `TraitApplier.resolved` | [docs/items.md](docs/items.md) | 1.37.0 |
+| valor de fila multilínea | `<nl>` en un valor de `UiEntry`/`PluginItems.render` | `item/internal/ItemRenderer.lore`, `spans`, `segment` | [docs/menus.md](docs/menus.md), [docs/items.md](docs/items.md) | 1.38.0 |
 
 Clases raíz que no son módulo: `ExyliaLib.java` (ciclo de vida y limpieza),
 `platform/Platform.java`, `internal/LibrarySettings`, `internal/ExyliaLibUpdater`.
