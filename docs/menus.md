@@ -142,9 +142,17 @@ pagination:
     actions:
       - "practice:select %kit_id%"
   navigation:
-    previous: { slot: 45, material: ARROW, actions: ['previous_page'] }
-    next:     { slot: 53, material: ARROW, actions: ['next_page'] }
+    previous: { slot: 45, material: ARROW }
+    next:     { slot: 53, material: ARROW }
 ```
+
+An arrow under `navigation` **pages its own list** — the `actions` are implied,
+because an arrow in a `navigation` block has no other job. Naming them anyway
+works and is what most existing files do; an arrow that names something else
+keeps what it named.
+
+In a menu with several lists each arrow pages the section it is declared in, so
+neither has to name it.
 
 Several, which is how thirteen are:
 

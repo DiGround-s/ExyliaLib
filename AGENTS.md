@@ -445,6 +445,13 @@ abierto.
   ve quien tiene una lista vacía y **suele decir por qué**; `custom` son paneles
   con sus propios slots. Tratar el segundo como fondo deja al jugador sin
   explicación.
+- **Una flecha en `navigation` pagina sola.** El `actions` es implícito: una
+  flecha declarada ahí no tiene otro trabajo, y Commons paginaba **por slot**
+  (`MultiPaginationMenu.handleClickInternal`), así que ningún fichero del
+  ecosistema lo escribía. Exigirlo dejaba 12 bloques reales con flechas que se
+  dibujaban, se podían clicar y no hacían nada. La que nombra otra cosa
+  conserva la suya, y si las built-in no están registradas la flecha se dibuja
+  igual: es una comodidad, no un motivo para no cargar el menú.
 - **Un botón de página sin página no se dibuja**, y su slot vuelve al fondo que
   le tocaba (el panel que lo reclama, o el `global`, o nada). Commons pintaba
   los fillers *antes* que la navegación, así que el botón que no dibujaba ya
@@ -1150,6 +1157,7 @@ Raíz de código: `src/main/java/net/exylia/lib/`. Raíz de tests:
 | banner por jugador | `item/Banner.template`, `Banner.isDynamic` | `item/internal/ItemReader.banner`, `TraitApplier.resolved` | [docs/items.md](docs/items.md) | 1.37.0 |
 | contexto parseado y título paginado | — | `ui/internal/Session.parsed`, `merged`, `filledTitle` | [docs/menus.md](docs/menus.md) | 1.39.0 |
 | título que sigue a la página | — | `ui/internal/Session.retitle`, `Titles`, `TitlePackets` (PacketEvents confinado) | [docs/menus.md](docs/menus.md) | 1.40.0 |
+| flecha de `navigation` que pagina sola | — | `ui/internal/MenuLoader.placed` (fallback por sección) | [docs/menus.md](docs/menus.md) | 1.41.0 |
 | valor de fila multilínea | `<nl>` en un valor de `UiEntry`/`PluginItems.render` | `item/internal/ItemRenderer.lore`, `spans`, `segment` | [docs/menus.md](docs/menus.md), [docs/items.md](docs/items.md) | 1.38.0 |
 
 Clases raíz que no son módulo: `ExyliaLib.java` (ciclo de vida y limpieza),

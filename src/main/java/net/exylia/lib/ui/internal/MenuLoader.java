@@ -454,8 +454,8 @@ public final class MenuLoader {
         ConfigurationSection navigation = section.getConfigurationSection("navigation");
         ConfigurationSection filler = section.getConfigurationSection("filler");
         return new UiSection(id, slots, templates,
-                placed(navigation, "previous", binder),
-                placed(navigation, "next", binder),
+                placed(navigation, "previous", binder, "previous_page " + id),
+                placed(navigation, "next", binder, "next_page " + id),
                 filler == null ? null : readItem(filler, binder));
     }
 
@@ -511,8 +511,22 @@ public final class MenuLoader {
         return name.isEmpty() || name.equals("item") ? UiSection.DEFAULT : name;
     }
 
+    /**
+     * Reads a navigation arrow, and makes it page if the file did not say so.
+     *
+     * <p>An arrow under {@code navigation} is written with a slot and an icon
+     * and nothing else — the old library paged by slot, so no file in the
+     * ecosystem names an action here. Requiring one leaves every arrow ever
+     * written inert: it draws, it is clickable, and nothing happens.
+     *
+     * <p>The fallback names the section, because a menu may have several lists
+     * and each arrow belongs to exactly one of them. A file that does name its
+     * own actions keeps them, so an arrow that does something else still can.
+     *
+     * @param fallback the action to bind when the file bound none
+     */
     private static UiSection.Placed placed(ConfigurationSection navigation, String key,
-                                           Binder binder) {
+                                           Binder binder, String fallback) {
         if (navigation == null) {
             return null;
         }
@@ -524,7 +538,22 @@ public final class MenuLoader {
         if (slot < 0) {
             return null;
         }
-        return new UiSection.Placed(slot, readItem(section, binder));
+        UiItem item = readItem(section, binder);
+        if (!item.bindings().isEmpty()) {
+            return new UiSection.Placed(slot, item);
+        }
+        ClickBindings paging;
+        try {
+            paging = new ClickBindings.Builder().add(fallback, binder.compiler()).build();
+        } catch (RuntimeException unavailable) {
+            // The paging actions are registered per plugin, and this is a
+            // convenience rather than something the file asked for: an arrow
+            // that cannot page is the arrow that would have been drawn anyway,
+            // and is not worth refusing to load the menu over.
+            return new UiSection.Placed(slot, item);
+        }
+        return new UiSection.Placed(slot,
+                new UiItem(item.item(), paging, item.condition(), item.dependencies()));
     }
 
     private static UiAnimationSpec animation(ConfigurationSection section, String key,

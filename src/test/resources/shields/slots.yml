@@ -1,0 +1,118 @@
+config:
+  create_available_material: LIME_DYE
+  create_available_name: "{success}&lNEW SHIELD"
+  create_locked_material: BARRIER
+  create_locked_name: "{error}&lSLOT LIMIT REACHED"
+
+title: "{primary}&lMY SHIELDS {muted}%current_page%/%total_pages%"
+size: 54
+type: PAGINATION
+animation: "center_out"
+
+open_sounds:
+  - "ENTITY_EXPERIENCE_ORB_PICKUP|1.0|1.2"
+click_sounds:
+  - "UI_BUTTON_CLICK|1.0|1.5"
+
+filler:
+  global:
+    material: GRAY_STAINED_GLASS_PANE
+    hide_tooltip: true
+  pagination:
+    material: LIGHT_GRAY_STAINED_GLASS_PANE
+    name: "{muted}No shields yet"
+    lore:
+      - ""
+      - "{muted}Create your first shield!"
+    hide_tooltip: false
+
+pagination:
+  slots: '10-16,19-25,28-34'
+  item_template:
+    material: SHIELD
+    banner_design: "%slot_banner_design%"
+    name: "{primary}&lSLOT #%slot_number%"
+    hide_attributes: true
+    lore:
+      - ""
+      - " {muted}❙ {letters}ID: {info}#%slot_design_id%"
+      - " {muted}❙ {letters}Base: {info}%slot_base_color%"
+      - " {muted}❙ {letters}Layers: {info}%slot_layers%"
+      - " {muted}❙ %slot_status%"
+      - ""
+      - " {muted}❙ {success}Click to edit"
+      - " {muted}❙ {accent}Right click to wear"
+    actions:
+      - "left: shield:open_editor"
+      - "right: shield:select_slot"
+  # The slot being worn, so it is visible at a glance in a full list.
+  active_template:
+    material: SHIELD
+    banner_design: "%slot_banner_design%"
+    name: "{success}&lSLOT #%slot_number%"
+    hide_attributes: true
+    glow: true
+    lore:
+      - ""
+      - " {muted}❙ {letters}ID: {info}#%slot_design_id%"
+      - " {muted}❙ {letters}Base: {info}%slot_base_color%"
+      - " {muted}❙ {letters}Layers: {info}%slot_layers%"
+      - " {muted}❙ %slot_status%"
+      - ""
+      - " {muted}❙ {success}Click to edit"
+    actions:
+      - "left: shield:open_editor"
+  navigation:
+    previous:
+      slot: 45
+      material: ARROW
+      name: "{error}&l← PREVIOUS"
+      lore:
+        - "{info}Page: {success}%current_page%&8/{error}%total_pages%"
+      actions:
+        - "previous_page"
+    next:
+      slot: 53
+      material: ARROW
+      name: "{success}&lNEXT →"
+      lore:
+        - "{info}Page: {success}%current_page%&8/{error}%total_pages%"
+      actions:
+        - "next_page"
+
+items:
+  create:
+    slot: 4
+    material: "%create_material%"
+    name: "%create_name%"
+    lore:
+      - ""
+      - " {muted}❙ {letters}Slots used: {info}%slots_used%{muted}/{info}%slots_max%"
+      - ""
+      - "{success}» Click to create"
+    actions:
+      - "shield:create_slot"
+  browser:
+    slot: 47
+    material: COMPASS
+    name: "{highlight}&lCOMMUNITY BROWSER"
+    lore:
+      - ""
+      - " {muted}❙ {letters}Browse all designs made by the community"
+      - " {muted}❙ {letters}and import them directly to your slots!"
+      - ""
+      - "{success}» Click to browse"
+    actions:
+      - "shield:open_browser"
+  import:
+    slot: 51
+    material: BOOK
+    name: "{info}&lIMPORT BY ID"
+    lore:
+      - ""
+      - " {muted}❙ {letters}Import a design using its unique ID."
+      - " {muted}❙ {letters}Ask a friend for their design ID!"
+      - ""
+      - "{success}» Click to import"
+    actions:
+      - "shield:import_design"
