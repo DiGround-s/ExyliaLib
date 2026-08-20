@@ -434,6 +434,12 @@ abierto.
 - **Cambiar de página redibuja esa lista y nada más.** `invalidate(dep)` redibuja
   solo los slots que declararon depender de eso. Sin rebuild completo, sin
   parpadeo, sin packets para lo que no cambió.
+- **Un clic redibuja todo lo que puede cambiar, no solo el slot clicado.** Un
+  botón rara vez se cambia solo a sí mismo: añadir una capa mueve un contador,
+  un preview y una lista, y ninguno es el slot que recibió el clic. Redibujar
+  uno solo dejaba el resto mostrando lo de antes, que es exactamente "hay que
+  clicar dos veces". Y se lee el contexto vivo, así que un redibujado que hizo
+  el plugin entre medias no se deshace.
 - **`refresh: SMART` redibuja solo lo que puede cambiar.** Un timer que repinta
   decoración estática son packets para un ítem idéntico. El timer solo arranca
   si hay algo que pueda cambiar, y muere con el jugador.
@@ -1159,6 +1165,7 @@ Raíz de código: `src/main/java/net/exylia/lib/`. Raíz de tests:
 | redis | `redis/Redis`, `RedisSettings` | `redis/internal/` (Jedis confinado en `JedisClient`) | [docs/redis.md](docs/redis.md) | 1.31.0 |
 | poll de auto-actualización | `update-check-minutes` en `internal/LibrarySettings` | `internal/ExyliaLibUpdater` (ETag), timer en `ExyliaLib.startUpdateCheck` | [docs/reload.md](docs/reload.md) | 1.30.0 |
 | claves generadas | `database/Id.generated`, `Repository.insert`/`insertReturning` | `Dialect.insertGenerated`, `SqlBackend.insert` (`getGeneratedKeys`), `MongoBackend.insert` (`$inc`), `EntityModel.withId` | [docs/database.md](docs/database.md) | 1.32.0 |
+| clic que redibuja todo lo que puede cambiar | — | `ui/internal/Session.refreshAfterClick`, `redrawChangeable` | [docs/menus.md](docs/menus.md) | 1.44.0 |
 | modificar una fila con clave generada | `database/Repository.update` | `Dialect.update`, `SqlBackend.update`, `MongoBackend.update` (sin upsert), `EntityModel.hasPlaceholderId`, `CachedStorage.update` | [docs/database.md](docs/database.md) | 1.43.0 |
 | util (rewards) | `util/reward/Rewards`, `PluginRewards`, `RewardEntry`, `RewardType`, `RewardCodec`, `RewardResult`, `RewardDelivery`, `RewardOutcome`, `OverflowPolicy`, `PendingRewards` | `util/reward/internal/` (`Providers`, `ItemGiver`, `Conditions`, `Rolls`), `util/reward/Previews` | [docs/rewards.md](docs/rewards.md) | 1.34.0 |
 | util (snapshots) | `util/snapshot/Snapshots`, `PluginSnapshots`, `Snapshot`, `SnapshotPart`, `SnapshotCodec`, `SnapshotSettings` | `util/snapshot/internal/` (`PlayerState`, `SnapshotRow`, `LegacyRow`, `LegacyImport`, `SnapshotRuntime`) | [docs/snapshots.md](docs/snapshots.md) | 1.34.0 |

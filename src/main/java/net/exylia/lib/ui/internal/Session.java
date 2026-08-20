@@ -314,11 +314,21 @@ final class Session implements UiSession {
     }
 
     /**
-     * Redraws the slot a click touched, shortly after.
+     * Redraws what a click changed, shortly after.
      *
-     * <p>What {@code ON_CLICK} means: a button that toggles something has to
-     * show the new state, and the action that changed it has not necessarily
-     * finished by the time the click handler returns. The delay is the file's.
+     * <p>What {@code ON_CLICK} means: the action behind a button has not
+     * necessarily finished when the click handler returns, so the redraw waits
+     * the delay the file asked for.
+     *
+     * <p>Everything that can change is redrawn, not only the slot that was
+     * clicked. A button rarely changes just itself: adding a layer moves a
+     * counter, a preview and a list, and none of those is the slot the click
+     * landed on. Redrawing one slot left the rest showing what they said before
+     * the click, which reads as a menu that needs clicking twice.
+     *
+     * <p>A redraw the plugin did in the meantime is not undone, because this
+     * draws from the same context the plugin just changed rather than from a
+     * copy taken when the click arrived.
      *
      * @param slot which slot was clicked
      */
@@ -328,14 +338,31 @@ final class Session implements UiSession {
         }
         int delay = definition.refresh().clickDelay();
         if (delay <= 0) {
-            invalidateSlot(slot);
+            redrawChangeable(slot);
             return;
         }
         runtime.later(viewer, delay, () -> {
             if (isOpen()) {
-                invalidateSlot(slot);
+                redrawChangeable(slot);
             }
         });
+    }
+
+    /**
+     * Redraws every slot whose contents can differ from what is on screen.
+     *
+     * <p>The clicked slot always counts: a button drawn from nothing but
+     * literal text still has to come back after a condition stopped passing.
+     */
+    private void redrawChangeable(int clicked) {
+        for (Map.Entry<Integer, UiItem> fixed : definition.items().entrySet()) {
+            if (fixed.getValue().isDynamic() || fixed.getKey() == clicked) {
+                drawFixed(fixed.getKey(), fixed.getValue());
+            }
+        }
+        for (UiSection list : definition.sections().values()) {
+            drawSection(list);
+        }
     }
 
     // ---------------------------------------------------------------- context

@@ -355,12 +355,18 @@ refresh:
 | --- | --- |
 | `DISABLED` | only when a plugin asks — the default |
 | `FULL` | everything, on the interval |
-| `SMART` | on the interval, but only slots that can actually differ, and the clicked slot after a click |
-| `ON_CLICK` | only the slot that was clicked, after `click_delay` |
+| `SMART` | on the interval, but only slots that can actually differ, and after a click |
+| `ON_CLICK` | after a click, once `click_delay` has passed |
 
 `SMART` is the one to reach for: a timer that redraws static decorations is
 packets for an identical item. The timer only starts if the menu has something
 that could change, and it dies with the player.
+
+A click redraws **everything that can change**, not only the slot it landed on.
+A button rarely changes just itself: adding a layer moves a counter, a preview
+and a list, and none of those is the slot that was clicked. The redraw reads the
+context as it is when it runs, so a plugin that redrew the menu itself in the
+meantime is not undone.
 
 ## Animations
 
