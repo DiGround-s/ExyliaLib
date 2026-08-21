@@ -130,10 +130,11 @@ final class ItemComponents implements ItemRenderer.Components {
      * The 1.21.5+ way, reached by reflection because its type cannot be named
      * against paper-api 1.21.4.
      *
-     * <p>Hides the intersection of what a type can write about itself with what
-     * this item actually carries. Hiding by name alone asked to hide seventeen
-     * components the item did not have, and the one that mattered was never
-     * among the ones it did.
+     * <p>Hides every type-written component this server knows, whether or not
+     * the item already carries it. The block being hidden — "Applies to: Armor"
+     * and the like — is drawn by the client because the component is declared
+     * for the item's <em>type</em>, and {@code getDataTypes()} does not report
+     * those: hiding only the ones it does leaves the block on screen.
      */
     @SuppressWarnings("unchecked")
     private static boolean hideThroughTooltipDisplay(ItemStack item) throws Exception {
@@ -141,7 +142,7 @@ final class ItemComponents implements ItemRenderer.Components {
                 instanceof DataComponentType.Valued<?> type)) {
             return false;
         }
-        Set<DataComponentType> hidden = intersection(item);
+        Set<DataComponentType> hidden = writtenByType();
         if (hidden.isEmpty()) {
             return false;
         }
@@ -176,20 +177,19 @@ final class ItemComponents implements ItemRenderer.Components {
     }
 
     /**
-     * Which of the type-written components this item actually carries.
+     * The type-written components this server knows.
      *
-     * <p>Not a name check against the server's registry: the ones the item has,
-     * among the ones that could name the block being hidden. {@code
-     * getDataTypes} reports what the item type supplies as well as what was
-     * written onto it, which is what makes the intersection the right set.
+     * <p>Not filtered against the item: a component declared for the item's
+     * type does not appear in {@code getDataTypes()}, and that declared
+     * component — not one written onto the stack — is what draws the block
+     * being hidden. Commons hid them all by name; so does this.
      */
-    private static Set<DataComponentType> intersection(ItemStack item) {
-        Set<DataComponentType> present = item.getDataTypes();
+    private static Set<DataComponentType> writtenByType() {
         Set<DataComponentType> hidden = new LinkedHashSet<>();
         for (String name : WRITTEN_BY_TYPE) {
             DataComponentType type =
                     Registry.DATA_COMPONENT_TYPE.get(NamespacedKey.minecraft(name));
-            if (type != null && present.contains(type)) {
+            if (type != null) {
                 hidden.add(type);
             }
         }
