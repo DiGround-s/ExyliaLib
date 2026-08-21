@@ -368,6 +368,28 @@ parser dentro de un plugin.
   **dentro del render**, así que el menú entero no abre. Pasó en producción con
   1.46.0. `Registry.DATA_COMPONENT_TYPE.get(...)` existe en las dos versiones y
   contesta con `null` cuando el nombre ya no está.
+- **Excepción declarada a "cero reflexión": `TooltipDisplay`.** Es la única de
+  la librería y vive entera en `ItemComponents`. La regla se escribió contra el
+  caso de commons — reflejar para soportar servidores anteriores a los data
+  components —; este es otro: el componente **cambió de nombre entre dos
+  versiones que soportamos a la vez**, y ninguno de los dos nombres compila en
+  ambas. `hide_additional_tooltip` se resuelve por registro; `TooltipDisplay`
+  no existe en paper-api 1.21.4, así que ni siquiera se puede nombrar el tipo.
+  Subir la base mínima sería la alternativa, y hoy es 1.21.4 a propósito.
+- **Los métodos se buscan en la interfaz, nunca en `builder.getClass()`.** El
+  builder que devuelve Paper es su implementación interna y puede no ser
+  pública: un método encontrado ahí no se puede invocar sin `setAccessible`,
+  que esto no usa. `TooltipDisplay$Builder` y `DataComponentBuilder` sí son API
+  pública.
+- **`tooltip_display` esconde componentes, no una categoría**, así que la
+  categoría se enumera (`WRITTEN_BY_TYPE`) y se filtra contra el registro: el
+  nombre que ese servidor no tiene se salta. Así una lista sirve para varias
+  versiones. El bloque del smithing template sale de
+  `provides_trim_material`.
+- **Lo que no se puede escribir se dice una vez por servidor, no por ítem.**
+  Abrir un menú renderiza cada slot: reportar por ítem metió dieciocho líneas
+  idénticas en consola por una sola pantalla. Es un hecho de la versión, no un
+  incidente del ítem.
 - **Un tooltip no vale una pantalla rota.** Lo que no se puede escribir se
   reporta por `Problems` y el ítem se dibuja igual. La regla vale para todo
   data component cuyo nombre no sea estable entre las versiones soportadas; los
@@ -1199,7 +1221,7 @@ Raíz de código: `src/main/java/net/exylia/lib/`. Raíz de tests:
 | poll de auto-actualización | `update-check-minutes` en `internal/LibrarySettings` | `internal/ExyliaLibUpdater` (ETag), timer en `ExyliaLib.startUpdateCheck` | [docs/reload.md](docs/reload.md) | 1.30.0 |
 | claves generadas | `database/Id.generated`, `Repository.insert`/`insertReturning` | `Dialect.insertGenerated`, `SqlBackend.insert` (`getGeneratedKeys`), `MongoBackend.insert` (`$inc`), `EntityModel.withId` | [docs/database.md](docs/database.md) | 1.32.0 |
 | clic que redibuja todo lo que puede cambiar | — | `ui/internal/Session.refreshAfterClick`, `redrawChangeable` | [docs/menus.md](docs/menus.md) | 1.44.0 |
-| bloque que el tipo de ítem escribe solo | `hide-attributes` (mismo fichero) | `item/internal/ItemComponents` (`DataComponentTypes` confinado), `ItemRenderer.hideAdditionalTooltip`, `Components` | [docs/items.md](docs/items.md) | 1.46.0 |
+| bloque que el tipo de ítem escribe solo | `hide-attributes` (mismo fichero) | `item/internal/ItemComponents` (registro + `TooltipDisplay` por reflexión), `ItemRenderer.hideAdditionalTooltip` | [docs/items.md](docs/items.md) | 1.46.0, 1.47.0 |
 | modificar una fila con clave generada | `database/Repository.update` | `Dialect.update`, `SqlBackend.update`, `MongoBackend.update` (sin upsert), `EntityModel.hasPlaceholderId`, `CachedStorage.update` | [docs/database.md](docs/database.md) | 1.43.0 |
 | util (rewards) | `util/reward/Rewards`, `PluginRewards`, `RewardEntry`, `RewardType`, `RewardCodec`, `RewardResult`, `RewardDelivery`, `RewardOutcome`, `OverflowPolicy`, `PendingRewards` | `util/reward/internal/` (`Providers`, `ItemGiver`, `Conditions`, `Rolls`), `util/reward/Previews` | [docs/rewards.md](docs/rewards.md) | 1.34.0 |
 | util (snapshots) | `util/snapshot/Snapshots`, `PluginSnapshots`, `Snapshot`, `SnapshotPart`, `SnapshotCodec`, `SnapshotSettings` | `util/snapshot/internal/` (`PlayerState`, `SnapshotRow`, `LegacyRow`, `LegacyImport`, `SnapshotRuntime`) | [docs/snapshots.md](docs/snapshots.md) | 1.34.0 |
@@ -1234,6 +1256,7 @@ Son package-private a propósito; los tests viven del mismo paquete:
 | `debug/Debug` | `setSink/resetSink` (a dónde van las líneas) |
 | `reload/Reloads` | `listenerCount()` (observación de fugas) |
 | `item/internal/ItemRenderer` | `components(...)` (quién escribe los data components: `DataComponentTypes` exige un servidor vivo solo con nombrarla) |
+| `item/internal/ItemComponents` | `forgetReportedForTests` (el aviso ya dicho, que es una vez por servidor) |
 | `skull/internal/SkullRuntime` | `installForTests` (lookup y store), `seed` (textura sin red) |
 | `skull/internal/Lookup` | la interfaz que sustituye a Mojang en tests |
 | `util/snapshot/SnapshotCodec` | `setItems/resetItems` (`ItemIo`: cómo un ítem se vuelve texto — un `ItemStack` real no se construye sin servidor) |

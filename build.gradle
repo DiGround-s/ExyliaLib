@@ -8,7 +8,7 @@ plugins {
 }
 
 group = 'net.exylia'
-version = '1.46.1'
+version = '1.47.0'
 description = 'Shared high-performance library for Exylia Minecraft plugins.'
 
 def targetJavaVersion = 21
@@ -37,6 +37,10 @@ repositories {
     maven {
         name = 'feather'
         url = 'https://repo.feathermc.net/artifactory/maven-releases'
+    }
+    maven {
+        name = 'enginehub'
+        url = 'https://maven.enginehub.org/repo/'
     }
 }
 
@@ -123,6 +127,15 @@ dependencies {
     testImplementation 'com.h2database:h2:2.2.224'
     testImplementation 'org.mongodb:mongodb-driver-sync:4.11.1'
     testImplementation 'redis.clients:jedis:5.1.0'
+
+    // FastAsyncWorldEdit: the only schematic engine. Installed on the server,
+    // the same version ExyliaCommons already declares, and confined to one
+    // class exactly like PacketEvents: a server without it never loads that
+    // class and the schematic module reports itself unsupported. Never shaded —
+    // FAWE is a plugin, and a second copy of WorldEdit on one server is a
+    // classloading accident waiting to happen.
+    compileOnly 'com.fastasyncworldedit:FastAsyncWorldEdit-Core:2.8.4'
+    compileOnly 'com.fastasyncworldedit:FastAsyncWorldEdit-Bukkit:2.8.4'
 
     // Lamp: the command framework the whole ecosystem standardises on.
     // compileOnly like everywhere else; the server provides it through the

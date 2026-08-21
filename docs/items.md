@@ -139,11 +139,12 @@ smithing template holds none — its block comes from the item *type*. So the
 flag was set, and the tooltip stayed. The component is defined against the type,
 which is what reaches it.
 
-The component is looked up by name, because the versions this library runs on
-do not agree on it: it is `hide_additional_tooltip` on 1.21.4 and gone by
-1.21.11, replaced by `tooltip_display`. On a server that does not know the name,
-the flags are the whole of what happens — the block may stay visible, and the
-menu opens either way. A tooltip is not worth a screen that fails to draw.
+The component is looked up by name, because the versions this library runs on do
+not agree on it: it is `hide_additional_tooltip` on 1.21.4, and gone by 1.21.11
+where `tooltip_display` replaced it. Both are handled. On a server that knows
+neither, the flags are the whole of what happens — the block may stay visible,
+the menu opens either way, and it is said once rather than once per item. A
+tooltip is not worth a screen that fails to draw.
 
 It leaves enchantments alone. ExyliaCommons applied every flag here, so an item
 hiding its attributes also lost the enchantment lines it meant to show; hiding

@@ -165,9 +165,10 @@ class AppearanceFlagsTest {
         // field threw NoSuchFieldError straight through the renderer, taking
         // the whole menu down with it. A tooltip is never worth that.
         //
-        // Run against the real implementation, with no server: the registry
-        // lookup cannot work here either, which is the same shape of failure a
-        // server missing the component produces.
+        // Run against the real implementation, with no server: neither registry
+        // lookup can work here, which is the same shape of failure a server
+        // that knows neither name produces.
+        ItemComponents.forgetReportedForTests();
         List<String> reported = new java.util.ArrayList<>();
 
         assertDoesNotThrow(() -> ItemComponents.INSTANCE.hideAdditionalTooltip(
@@ -176,5 +177,23 @@ class AppearanceFlagsTest {
 
         assertEquals(List.of("hide-attributes"), reported,
                 "and the file is told which of its keys could not be honoured");
+    }
+
+    @Test
+    @DisplayName("a server that cannot write it is told once, not once per item")
+    void theUnsupportedReportIsNotRepeatedPerItem() {
+        // Opening one menu renders every slot in it. Reporting per item put
+        // eighteen identical lines in the console for a single screen, which
+        // buries whatever else the server was saying. It is a fact about the
+        // version, not an incident about the item.
+        ItemComponents.forgetReportedForTests();
+        List<String> reported = new java.util.ArrayList<>();
+
+        for (int slot = 0; slot < 18; slot++) {
+            ItemComponents.INSTANCE.hideAdditionalTooltip(
+                    null, (where, problem) -> reported.add(where));
+        }
+
+        assertEquals(1, reported.size(), "said once for the whole server: " + reported);
     }
 }
