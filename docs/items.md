@@ -133,6 +133,12 @@ firework or a banner adds to describe itself. A menu asking for a clean tooltip
 means all of it — a smithing template in a list otherwise still says *"Applies
 to: Armor"*.
 
+That needs both an item flag and a data component, and the flag alone is not
+enough: an `ItemFlag` is only persisted alongside the data it hides, and a
+smithing template holds none — its block comes from the item *type*. So the
+flag was set, and the tooltip stayed. The component is defined against the type,
+which is what reaches it.
+
 It leaves enchantments alone. ExyliaCommons applied every flag here, so an item
 hiding its attributes also lost the enchantment lines it meant to show; hiding
 those stays something a file asks for, through `flags`.

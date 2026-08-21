@@ -261,6 +261,23 @@ public final class ItemRenderer {
         enchantments(meta, definition.enchantments(), resolve, problems);
         appearance(meta, definition.appearance(), problems);
         item.setItemMeta(meta);
+        hideAdditionalTooltip(item, definition.appearance());
+    }
+
+    /**
+     * Disables the tooltip block an item type writes for itself, when asked.
+     *
+     * <p>Called after the meta is on the item, never before: {@code
+     * setItemMeta} replaces the item's whole component map, so a component
+     * written first would be thrown away by the very next line.
+     *
+     * <p>Package-private so the decision can be exercised without a server,
+     * which is the part that was wrong: the flag was set all along.
+     */
+    static void hideAdditionalTooltip(ItemStack item, Appearance appearance) {
+        if (appearance.hideAttributes()) {
+            components.hideAdditionalTooltip(item);
+        }
     }
 
     /**
@@ -393,6 +410,33 @@ public final class ItemRenderer {
         }
     }
 
+    /**
+     * What writes the data components an appearance needs.
+     *
+     * <p>A seam rather than a direct call, because {@code DataComponentTypes}
+     * resolves every one of its constants against the server's registry in a
+     * static initialiser: naming the class at all is enough to need a live
+     * server, which is exactly what these tests do without.
+     */
+    interface Components {
+
+        /**
+         * Hides the tooltip block an item type writes for itself — the one an
+         * {@code ItemFlag} cannot reach.
+         */
+        void hideAdditionalTooltip(ItemStack item);
+    }
+
+    /** The real one, kept out of line so the class above stays loadable. */
+    private static Components components = ItemComponents.INSTANCE;
+
+    /** Swaps in a stand-in. Tests only; returns what was there before. */
+    static Components components(Components replacement) {
+        Components previous = components;
+        components = replacement;
+        return previous;
+    }
+
     // Package-private rather than private: writing an appearance onto meta is
     // the whole of this decision, and an ItemMeta can be stood in for, while an
     // ItemStack cannot be built at all without the server's registry.
@@ -424,6 +468,12 @@ public final class ItemRenderer {
                     ItemFlag.HIDE_ADDITIONAL_TOOLTIP,
                     ItemFlag.HIDE_ARMOR_TRIM,
                     ItemFlag.HIDE_DYE);
+            // The flag alone was never enough, and the API says why: a flag set
+            // "without also setting the data they are hiding may not result in
+            // the item flag being persisted". A smithing template holds no such
+            // data — its block comes from the item type — so the flag was
+            // dropped and the item kept describing itself. write() finishes the
+            // job with the data component, which is defined against the type.
         }
         if (appearance.unbreakable()) {
             meta.setUnbreakable(true);

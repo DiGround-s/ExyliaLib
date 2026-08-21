@@ -98,4 +98,60 @@ class AppearanceFlagsTest {
 
         assertEquals(Set.of(ItemFlag.HIDE_UNBREAKABLE), flags);
     }
+
+    /** Records whether the additional-tooltip component was written. */
+    private static final class RecordingComponents implements ItemRenderer.Components {
+        private int hidden;
+
+        @Override
+        public void hideAdditionalTooltip(org.bukkit.inventory.ItemStack item) {
+            hidden++;
+        }
+    }
+
+    /**
+     * Whether an appearance calls for the additional-tooltip component.
+     *
+     * <p>Asks the seam rather than rendering: an {@code ItemStack} cannot be
+     * built without the server's registry, and naming
+     * {@code DataComponentTypes} at all needs one too — it resolves its
+     * constants against the registry in a static initialiser. This is the
+     * decision, and the decision is what was wrong.
+     *
+     * <p>The flag is deliberately not what these two assert on. It was being
+     * set all along and the tooltip stayed anyway, because a flag is only
+     * persisted next to the data it hides and a smithing template holds none:
+     * its block comes from the item type. A test that asks about the flag
+     * passes while players see otherwise, which is what happened here.
+     */
+    private static int componentWritesFor(Appearance appearance) {
+        RecordingComponents recording = new RecordingComponents();
+        ItemRenderer.Components previous = ItemRenderer.components(recording);
+        try {
+            ItemRenderer.hideAdditionalTooltip(null, appearance);
+        } finally {
+            ItemRenderer.components(previous);
+        }
+        return recording.hidden;
+    }
+
+    @Test
+    @DisplayName("hiding attributes disables the block the item type writes itself")
+    void hideAttributesWritesTheComponent() {
+        // The report: a WILD_ARMOR_TRIM_SMITHING_TEMPLATE drawn in a menu kept
+        // saying "Applies to: Armor / Ingredients: Ingots & Crystals" with
+        // hide-attributes: true set. Only the data component reaches that.
+        assertEquals(1, componentWritesFor(Appearance.builder().hideAttributes(true).build()),
+                "the component is written exactly once");
+    }
+
+    @Test
+    @DisplayName("an item that did not ask keeps the block its type writes")
+    void withoutHideAttributesTheComponentIsLeftAlone() {
+        // A potion listing its effects is usually the point of drawing it.
+        assertEquals(0, componentWritesFor(Appearance.PLAIN),
+                "nothing is hidden unless the file asked");
+        assertEquals(0, componentWritesFor(Appearance.builder().glow(true).build()),
+                "a glow is not a reason to hide anything");
+    }
 }

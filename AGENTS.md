@@ -346,6 +346,24 @@ parser dentro de un plugin.
   vive en data components y la flag es `HIDE_ADDITIONAL_TOOLTIP`; contra
   paper-api 1.21.4 son API directa, así que aquí no hace falta la reflexión que
   commons usaba para lo mismo.
+- **La `ItemFlag` sola no alcanza, y el enum lo dice**: una flag puesta «sin
+  poner también el dato que esconde puede no persistirse». Un smithing template
+  no guarda ese dato — su bloque sale del *tipo* de ítem — así que la flag se
+  aplicaba, el test la veía puesta, y el ítem seguía diciendo "Applies to:
+  Armor" en pantalla. Hace falta **además** el data component
+  `HIDE_ADDITIONAL_TOOLTIP`, que está definido contra el tipo. Commons llegaba
+  al mismo componente por reflexión porque soportaba servidores viejos.
+- **El componente se escribe después de `setItemMeta`, nunca antes.**
+  `setItemMeta` reemplaza el mapa de componentes entero del ítem, así que uno
+  escrito antes lo tira la línea siguiente.
+- **`DataComponentTypes` vive confinado en `ItemComponents`.** Resuelve cada
+  constante contra el registro del servidor en un inicializador estático, así
+  que nombrarla ya exige un servidor vivo. Confinada, `ItemRenderer` sigue
+  cargando sin uno — que es lo que permite testear la decisión. Verificado en
+  bytecode, igual que PacketEvents y Folia.
+- **Un test que pregunta por la flag no prueba esto.** La flag estuvo puesta
+  todo el tiempo mientras el jugador veía lo contrario; se verifica que se pide
+  el componente, no que se añade la flag.
 - **Pero no esconde encantamientos.** Commons aplicaba `ItemFlag.values()`, así
   que un ítem que pedía ocultar atributos perdía las líneas de encantamiento que
   quería enseñar. Ocultar esas sigue siendo algo que el fichero pide, vía
@@ -1166,6 +1184,7 @@ Raíz de código: `src/main/java/net/exylia/lib/`. Raíz de tests:
 | poll de auto-actualización | `update-check-minutes` en `internal/LibrarySettings` | `internal/ExyliaLibUpdater` (ETag), timer en `ExyliaLib.startUpdateCheck` | [docs/reload.md](docs/reload.md) | 1.30.0 |
 | claves generadas | `database/Id.generated`, `Repository.insert`/`insertReturning` | `Dialect.insertGenerated`, `SqlBackend.insert` (`getGeneratedKeys`), `MongoBackend.insert` (`$inc`), `EntityModel.withId` | [docs/database.md](docs/database.md) | 1.32.0 |
 | clic que redibuja todo lo que puede cambiar | — | `ui/internal/Session.refreshAfterClick`, `redrawChangeable` | [docs/menus.md](docs/menus.md) | 1.44.0 |
+| bloque que el tipo de ítem escribe solo | `hide-attributes` (mismo fichero) | `item/internal/ItemComponents` (`DataComponentTypes` confinado), `ItemRenderer.hideAdditionalTooltip`, `Components` | [docs/items.md](docs/items.md) | 1.46.0 |
 | modificar una fila con clave generada | `database/Repository.update` | `Dialect.update`, `SqlBackend.update`, `MongoBackend.update` (sin upsert), `EntityModel.hasPlaceholderId`, `CachedStorage.update` | [docs/database.md](docs/database.md) | 1.43.0 |
 | util (rewards) | `util/reward/Rewards`, `PluginRewards`, `RewardEntry`, `RewardType`, `RewardCodec`, `RewardResult`, `RewardDelivery`, `RewardOutcome`, `OverflowPolicy`, `PendingRewards` | `util/reward/internal/` (`Providers`, `ItemGiver`, `Conditions`, `Rolls`), `util/reward/Previews` | [docs/rewards.md](docs/rewards.md) | 1.34.0 |
 | util (snapshots) | `util/snapshot/Snapshots`, `PluginSnapshots`, `Snapshot`, `SnapshotPart`, `SnapshotCodec`, `SnapshotSettings` | `util/snapshot/internal/` (`PlayerState`, `SnapshotRow`, `LegacyRow`, `LegacyImport`, `SnapshotRuntime`) | [docs/snapshots.md](docs/snapshots.md) | 1.34.0 |
@@ -1199,6 +1218,7 @@ Son package-private a propósito; los tests viven del mismo paquete:
 | `util/Effects` | `setResolver/setApplier`, `resetCache` |
 | `debug/Debug` | `setSink/resetSink` (a dónde van las líneas) |
 | `reload/Reloads` | `listenerCount()` (observación de fugas) |
+| `item/internal/ItemRenderer` | `components(...)` (quién escribe los data components: `DataComponentTypes` exige un servidor vivo solo con nombrarla) |
 | `skull/internal/SkullRuntime` | `installForTests` (lookup y store), `seed` (textura sin red) |
 | `skull/internal/Lookup` | la interfaz que sustituye a Mojang en tests |
 | `util/snapshot/SnapshotCodec` | `setItems/resetItems` (`ItemIo`: cómo un ítem se vuelve texto — un `ItemStack` real no se construye sin servidor) |
