@@ -52,11 +52,28 @@ class ExyliaLibUpdaterTest {
         return m.invoke(null, json, current);
     }
 
+    private static String configuredManifestUrl() throws Exception {
+        Method m = ExyliaLibUpdater.class.getDeclaredMethod("configuredManifestUrl");
+        m.setAccessible(true);
+        return (String) m.invoke(null);
+    }
+
     private static boolean isAlready(Path file, String sha) throws Exception {
         Method m = ExyliaLibUpdater.class
             .getDeclaredMethod("isAlready", Path.class, String.class);
         m.setAccessible(true);
         return (boolean) m.invoke(null, file, sha);
+    }
+
+    private static void verifySha256(Path file, String sha) throws Exception {
+        Method m = ExyliaLibUpdater.class
+            .getDeclaredMethod("verifySha256", Path.class, String.class);
+        m.setAccessible(true);
+        try {
+            m.invoke(null, file, sha);
+        } catch (java.lang.reflect.InvocationTargetException e) {
+            throw (Exception) e.getCause();
+        }
     }
 
     private static String sha256Of(byte[] bytes) throws Exception {
@@ -137,6 +154,29 @@ class ExyliaLibUpdaterTest {
     }
 
     @Test
+    @DisplayName("malformed manifest hashes never skip a staged jar")
+    void malformedHashDoesNotSkip(@TempDir Path dir) throws Exception {
+        Path staged = dir.resolve("ExyliaLib.jar");
+        Files.write(staged, "whatever".getBytes(StandardCharsets.UTF_8));
+
+        assertFalse(isAlready(staged, null));
+        assertFalse(isAlready(staged, "a".repeat(63)));
+        assertFalse(isAlready(staged, "g".repeat(64)));
+    }
+
+    @Test
+    @DisplayName("malformed manifest hashes reject downloaded bytes")
+    void malformedHashFailsVerification(@TempDir Path dir) throws Exception {
+        Path downloaded = dir.resolve("ExyliaLib.jar");
+        Files.write(downloaded, "whatever".getBytes(StandardCharsets.UTF_8));
+
+        assertThrows(Exception.class, () -> verifySha256(downloaded, null));
+        assertThrows(Exception.class, () -> verifySha256(downloaded, " "));
+        assertThrows(Exception.class, () -> verifySha256(downloaded, "a".repeat(63)));
+        assertThrows(Exception.class, () -> verifySha256(downloaded, "g".repeat(64)));
+    }
+
+    @Test
     @DisplayName("a second release before the restart replaces the staged one")
     void newerReleaseSupersedesWhatIsStaged(@TempDir Path dir) throws Exception {
         // A server can stay up across several releases. The check compares
@@ -169,6 +209,20 @@ class ExyliaLibUpdaterTest {
         // Cleared together: a 304 must never pair a stale body with a new tag.
         setCache(null, null);
         assertNull(cachedManifest());
+    }
+
+    @Test
+    @DisplayName("a loader-provided manifest URL overrides the stable default")
+    void usesConfiguredManifestUrl() throws Exception {
+        String property = "exylialib.manifest-url";
+        String previous = System.getProperty(property);
+        try {
+            System.setProperty(property, "https://raw.example.invalid/dev/lib-manifest.json");
+            assertEquals("https://raw.example.invalid/dev/lib-manifest.json", configuredManifestUrl());
+        } finally {
+            if (previous == null) System.clearProperty(property);
+            else System.setProperty(property, previous);
+        }
     }
 
     private static String version(Object entry) throws Exception {

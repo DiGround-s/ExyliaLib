@@ -37,8 +37,9 @@ public final class ExyliaLibUpdater {
      * hosting to keep alive, and sits on the same domain as the release assets
      * it points at. The loader reads the same URL.
      */
-    private static final String MANIFEST_URL =
+    private static final String DEFAULT_MANIFEST_URL =
         "https://raw.githubusercontent.com/DiGround-s/ExyliaLib/main/lib-manifest.json";
+    private static final String MANIFEST_URL_PROPERTY = "exylialib.manifest-url";
     private static final int TIMEOUT_MS = 15_000;
 
     /**
@@ -55,6 +56,7 @@ public final class ExyliaLibUpdater {
      */
     private static volatile String cachedEtag;
     private static volatile String cachedManifest;
+    private static volatile String cachedManifestUrl;
 
     private ExyliaLibUpdater() {
         throw new AssertionError("No instances.");
@@ -81,11 +83,12 @@ public final class ExyliaLibUpdater {
         }
 
         String currentVersion = version(plugin);
+        String manifestUrl = configuredManifestUrl();
 
         // Fetch the manifest over HTTPS
         String manifestJson;
         try {
-            manifestJson = fetchString(MANIFEST_URL);
+            manifestJson = fetchString(manifestUrl);
         } catch (IOException e) {
             plugin.getLogger().log(Level.WARNING,
                 "Could not check for ExyliaLib updates: " + e.getMessage());
@@ -138,7 +141,7 @@ public final class ExyliaLibUpdater {
      * bytes, and skipping on name alone would keep serving it forever.
      */
     private static boolean isAlready(Path file, String expectedSha256) {
-        if (expectedSha256 == null || expectedSha256.isBlank()) return false;
+        if (expectedSha256 == null || !expectedSha256.matches("^[a-fA-F0-9]{64}$")) return false;
         if (!Files.isRegularFile(file)) return false;
         try {
             MessageDigest md = MessageDigest.getInstance("SHA-256");
@@ -161,6 +164,16 @@ public final class ExyliaLibUpdater {
     }
 
     /**
+     * Uses the URL embedded by a Lukittu loader when one is present. A library
+     * started without a loader, or by an older stable loader, keeps the stable
+     * main-branch behavior.
+     */
+    private static String configuredManifestUrl() {
+        String configured = System.getProperty(MANIFEST_URL_PROPERTY);
+        return configured == null || configured.isBlank() ? DEFAULT_MANIFEST_URL : configured;
+    }
+
+    /**
      * Returns the {@code plugins/update/} directory, respecting the
      * {@code settings.update-folder} in {@code bukkit.yml}.
      */
@@ -173,6 +186,12 @@ public final class ExyliaLibUpdater {
 
     private static String fetchString(String urlStr) throws IOException {
         try {
+            if (!urlStr.equals(cachedManifestUrl)) {
+                cachedEtag = null;
+                cachedManifest = null;
+                cachedManifestUrl = null;
+            }
+
             URI uri = new URI(urlStr);
             HttpURLConnection conn = (HttpURLConnection) uri.toURL().openConnection();
             conn.setConnectTimeout(TIMEOUT_MS);
@@ -204,6 +223,7 @@ public final class ExyliaLibUpdater {
                 // new tag: either both are replaced or neither is.
                 cachedManifest = fetched;
                 cachedEtag = conn.getHeaderField("ETag");
+                cachedManifestUrl = urlStr;
                 return fetched;
             }
         } catch (Exception e) {
@@ -319,7 +339,9 @@ public final class ExyliaLibUpdater {
     }
 
     private static void verifySha256(Path file, String expected) throws IOException {
-        if (expected == null || expected.isBlank()) return;
+        if (expected == null || !expected.matches("^[a-fA-F0-9]{64}$")) {
+            throw new IOException("Invalid SHA-256 hash in ExyliaLib manifest");
+        }
         try {
             MessageDigest md = MessageDigest.getInstance("SHA-256");
             byte[] digest = md.digest(Files.readAllBytes(file));

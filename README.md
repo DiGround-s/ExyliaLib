@@ -1226,6 +1226,26 @@ The workflow builds and tests the version from `build.gradle`, creates the GitHu
 release and tag, and updates and pushes `lib-manifest.json` automatically. Local
 `publishToMavenLocal` is only for local consumer validation.
 
+### Dev channel
+
+Dev releases run on the separate `dev` branch and use `dev-vX.Y.Z` GitHub
+release tags plus the `dev` branch's `lib-manifest.json`. They are intended for
+test servers that never run beside production. The plugin name and file remain
+`ExyliaLib`.
+
+```bash
+./gradlew publishDev
+./gradlew promoteMain -Pversion=1.47.2
+```
+
+`publishDev` requires an authenticated GitHub CLI and dispatches the release
+workflow on `dev`; the remote workflow builds, tests, publishes the prerelease,
+and updates the Dev manifest. `promoteMain` requires the exact published Dev
+version. Its workflow downloads that Dev release, validates the release tag,
+asset bytes, SHA-256, Dev manifest entry, and source commit, then publishes the
+same bytes as stable `vX.Y.Z` and updates the main manifest. Use
+`-PdryRun=true` to print either dispatch without contacting GitHub.
+
 ---
 
 ## License
