@@ -128,6 +128,12 @@ public final class ItemRenderer {
         ItemStack item = base(definition.source(), resolve, problems);
         write(item, definition, viewer, values, formatted, resolve, problems);
         TraitApplier.apply(item, definition.traits(), owner, resolve, problems);
+        // Last of all, and that is the whole point: every setItemMeta replaces
+        // the item's component map, and TraitApplier calls it six times. Writing
+        // this inside write() set the component and then had it wiped a moment
+        // later — no warning, because it was written; no effect, because it was
+        // gone by the time the item was handed over.
+        hideAdditionalTooltip(item, definition.appearance(), problems);
         return item;
     }
 
@@ -261,15 +267,16 @@ public final class ItemRenderer {
         enchantments(meta, definition.enchantments(), resolve, problems);
         appearance(meta, definition.appearance(), problems);
         item.setItemMeta(meta);
-        hideAdditionalTooltip(item, definition.appearance(), problems);
     }
 
     /**
      * Disables the tooltip block an item type writes for itself, when asked.
      *
-     * <p>Called after the meta is on the item, never before: {@code
-     * setItemMeta} replaces the item's whole component map, so a component
-     * written first would be thrown away by the very next line.
+     * <p>Called once the item is otherwise finished, never in the middle:
+     * {@code setItemMeta} replaces the item's whole component map, so anything
+     * written before the last of those calls is thrown away. That is not a
+     * theoretical ordering note — it is why this had no effect at all until
+     * 1.47.1 while reporting no problem, because the write did happen.
      *
      * <p>Package-private so the decision can be exercised without a server,
      * which is the part that was wrong: the flag was set all along.

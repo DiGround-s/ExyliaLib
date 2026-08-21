@@ -353,9 +353,16 @@ parser dentro de un plugin.
   Armor" en pantalla. Hace falta **además** el data component
   `HIDE_ADDITIONAL_TOOLTIP`, que está definido contra el tipo. Commons llegaba
   al mismo componente por reflexión porque soportaba servidores viejos.
-- **El componente se escribe después de `setItemMeta`, nunca antes.**
-  `setItemMeta` reemplaza el mapa de componentes entero del ítem, así que uno
-  escrito antes lo tira la línea siguiente.
+- **El componente se escribe al final del render, después del último
+  `setItemMeta`.** Cada `setItemMeta` reemplaza el mapa de componentes entero
+  del ítem, y `TraitApplier` lo llama seis veces *después* de `write`. Escribirlo
+  dentro de `write` lo ponía y lo borraba un instante después: sin aviso —
+  porque la escritura sí ocurría — y sin efecto. Se ve idéntico a un cliente que
+  ignora el componente, y costó tres despliegues distinguirlo.
+- **`-Dexylia.item.components=true` lo dice.** Imprime una vez por qué ruta se
+  escribió y qué componentes sobrevivieron en el ítem terminado. Apagado no
+  cuesta nada; existe porque "se escribió pero no se ve" y "no se escribió" son
+  indistinguibles desde fuera.
 - **`DataComponentTypes` vive confinado en `ItemComponents`.** Resuelve cada
   constante contra el registro del servidor en un inicializador estático, así
   que nombrarla ya exige un servidor vivo. Confinada, `ItemRenderer` sigue

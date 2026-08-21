@@ -85,13 +85,20 @@ final class ItemComponents implements ItemRenderer.Components {
     /** Reported once per server, not once per item drawn. */
     private static volatile boolean reported;
 
+    /** Whether the diagnostic line has been printed. */
+    private static volatile boolean explained;
+
     private ItemComponents() {
     }
 
     @Override
     public void hideAdditionalTooltip(ItemStack item, TraitApplier.Reporter problems) {
         try {
-            if (hideThroughOldComponent(item) || hideThroughTooltipDisplay(item)) {
+            String route = hideThroughOldComponent(item) ? "hide_additional_tooltip"
+                    : hideThroughTooltipDisplay(item) ? "tooltip_display"
+                    : null;
+            if (route != null) {
+                explainOnce(problems, item, route);
                 return;
             }
             reportOnce(problems, "this server knows neither the "
@@ -179,6 +186,33 @@ final class ItemComponents implements ItemRenderer.Components {
     }
 
     /**
+     * Says which route was taken and what the item ended up carrying, once,
+     * and only when asked for on the command line.
+     *
+     * <p>Off unless {@code -Dexylia.item.components=true} is set. It exists
+     * because this took four attempts to get right and every wrong guess cost
+     * a deploy: the write was happening and being wiped a moment later by a
+     * later {@code setItemMeta}, which reports nothing and looks exactly like
+     * a client that ignored the component. Reading back what survived tells
+     * those two apart in one look.
+     */
+    private static void explainOnce(TraitApplier.Reporter problems, ItemStack item,
+                                    String route) {
+        if (!Boolean.getBoolean("exylia.item.components") || explained) {
+            return;
+        }
+        explained = true;
+        String survived;
+        try {
+            survived = String.valueOf(item.getDataTypes());
+        } catch (Throwable unreadable) {
+            survived = "unreadable: " + unreadable;
+        }
+        problems.found("hide-attributes", "written through \"" + route
+                + "\"; the finished item carries " + survived);
+    }
+
+    /**
      * Says it once.
      *
      * <p>A version this library does not know how to reach is a fact about the
@@ -197,5 +231,6 @@ final class ItemComponents implements ItemRenderer.Components {
     /** Forgets what has been said. Tests only. */
     static void forgetReportedForTests() {
         reported = false;
+        explained = false;
     }
 }
