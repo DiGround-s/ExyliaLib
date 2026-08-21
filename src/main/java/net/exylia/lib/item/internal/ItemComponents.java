@@ -122,6 +122,7 @@ final class ItemComponents implements ItemRenderer.Components {
             return false;
         }
         item.setData(nonValued);
+        lastHidden = "[" + HIDE_ADDITIONAL_TOOLTIP.value() + "]";
         return true;
     }
 
@@ -129,9 +130,10 @@ final class ItemComponents implements ItemRenderer.Components {
      * The 1.21.5+ way, reached by reflection because its type cannot be named
      * against paper-api 1.21.4.
      *
-     * <p>Only the components this item actually carries are listed. Hiding a
-     * component an item does not have would write a value that says nothing,
-     * and the set is what the client reads.
+     * <p>Hides the intersection of what a type can write about itself with what
+     * this item actually carries. Hiding by name alone asked to hide seventeen
+     * components the item did not have, and the one that mattered was never
+     * among the ones it did.
      */
     @SuppressWarnings("unchecked")
     private static boolean hideThroughTooltipDisplay(ItemStack item) throws Exception {
@@ -139,7 +141,7 @@ final class ItemComponents implements ItemRenderer.Components {
                 instanceof DataComponentType.Valued<?> type)) {
             return false;
         }
-        Set<DataComponentType> hidden = writtenByType();
+        Set<DataComponentType> hidden = intersection(item);
         if (hidden.isEmpty()) {
             return false;
         }
@@ -169,21 +171,42 @@ final class ItemComponents implements ItemRenderer.Components {
         // Checked as far as the language allows: the registry answers with a
         // raw type, and the value was built by the component's own builder.
         item.setData((DataComponentType.Valued<Object>) type, built);
+        lastHidden = names(hidden);
         return true;
     }
 
-    /** The type-written components this server actually has. */
-    private static Set<DataComponentType> writtenByType() {
-        Set<DataComponentType> present = new LinkedHashSet<>();
+    /**
+     * Which of the type-written components this item actually carries.
+     *
+     * <p>Not a name check against the server's registry: the ones the item has,
+     * among the ones that could name the block being hidden. {@code
+     * getDataTypes} reports what the item type supplies as well as what was
+     * written onto it, which is what makes the intersection the right set.
+     */
+    private static Set<DataComponentType> intersection(ItemStack item) {
+        Set<DataComponentType> present = item.getDataTypes();
+        Set<DataComponentType> hidden = new LinkedHashSet<>();
         for (String name : WRITTEN_BY_TYPE) {
             DataComponentType type =
                     Registry.DATA_COMPONENT_TYPE.get(NamespacedKey.minecraft(name));
-            if (type != null) {
-                present.add(type);
+            if (type != null && present.contains(type)) {
+                hidden.add(type);
             }
         }
-        return present;
+        return hidden;
     }
+
+    /** Their names, for the diagnostic line. */
+    private static String names(Set<DataComponentType> hidden) {
+        List<String> named = new ArrayList<>(hidden.size());
+        for (DataComponentType type : hidden) {
+            named.add(String.valueOf(type.key().value()));
+        }
+        return named.toString();
+    }
+
+    /** The components just hidden, for the diagnostic line. */
+    private static volatile String lastHidden = "[]";
 
     /**
      * Says which route was taken and what the item ended up carrying, once,
@@ -209,7 +232,8 @@ final class ItemComponents implements ItemRenderer.Components {
             survived = "unreadable: " + unreadable;
         }
         problems.found("hide-attributes", "written through \"" + route
-                + "\"; the finished item carries " + survived);
+                + "\", hiding " + lastHidden
+                + "; the finished item carries " + survived);
     }
 
     /**
