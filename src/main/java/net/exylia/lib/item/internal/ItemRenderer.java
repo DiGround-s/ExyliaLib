@@ -261,7 +261,7 @@ public final class ItemRenderer {
         enchantments(meta, definition.enchantments(), resolve, problems);
         appearance(meta, definition.appearance(), problems);
         item.setItemMeta(meta);
-        hideAdditionalTooltip(item, definition.appearance());
+        hideAdditionalTooltip(item, definition.appearance(), problems);
     }
 
     /**
@@ -274,9 +274,10 @@ public final class ItemRenderer {
      * <p>Package-private so the decision can be exercised without a server,
      * which is the part that was wrong: the flag was set all along.
      */
-    static void hideAdditionalTooltip(ItemStack item, Appearance appearance) {
+    static void hideAdditionalTooltip(ItemStack item, Appearance appearance,
+                                      TraitApplier.Reporter problems) {
         if (appearance.hideAttributes()) {
-            components.hideAdditionalTooltip(item);
+            components.hideAdditionalTooltip(item, problems);
         }
     }
 
@@ -422,9 +423,13 @@ public final class ItemRenderer {
 
         /**
          * Hides the tooltip block an item type writes for itself — the one an
-         * {@code ItemFlag} cannot reach.
+         * {@code ItemFlag} does not cover on its own.
+         *
+         * <p>Reports rather than throws when the server does not know the
+         * component: the versions this library runs on do not agree on it, and
+         * a tooltip is not worth a menu that fails to open.
          */
-        void hideAdditionalTooltip(ItemStack item);
+        void hideAdditionalTooltip(ItemStack item, TraitApplier.Reporter problems);
     }
 
     /** The real one, kept out of line so the class above stays loadable. */

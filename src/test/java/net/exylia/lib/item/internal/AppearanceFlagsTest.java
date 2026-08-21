@@ -11,6 +11,7 @@ import java.util.EnumSet;
 import java.util.List;
 import java.util.Set;
 
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -104,7 +105,8 @@ class AppearanceFlagsTest {
         private int hidden;
 
         @Override
-        public void hideAdditionalTooltip(org.bukkit.inventory.ItemStack item) {
+        public void hideAdditionalTooltip(org.bukkit.inventory.ItemStack item,
+                                          TraitApplier.Reporter problems) {
             hidden++;
         }
     }
@@ -128,7 +130,7 @@ class AppearanceFlagsTest {
         RecordingComponents recording = new RecordingComponents();
         ItemRenderer.Components previous = ItemRenderer.components(recording);
         try {
-            ItemRenderer.hideAdditionalTooltip(null, appearance);
+            ItemRenderer.hideAdditionalTooltip(null, appearance, (where, problem) -> { });
         } finally {
             ItemRenderer.components(previous);
         }
@@ -153,5 +155,26 @@ class AppearanceFlagsTest {
                 "nothing is hidden unless the file asked");
         assertEquals(0, componentWritesFor(Appearance.builder().glow(true).build()),
                 "a glow is not a reason to hide anything");
+    }
+
+    @Test
+    @DisplayName("a server that cannot write the component still draws the item")
+    void anUnsupportedComponentIsReportedRatherThanThrown() {
+        // The library compiles against paper-api 1.21.4 and runs on servers
+        // that moved on: on 1.21.11 this component is gone, and naming it as a
+        // field threw NoSuchFieldError straight through the renderer, taking
+        // the whole menu down with it. A tooltip is never worth that.
+        //
+        // Run against the real implementation, with no server: the registry
+        // lookup cannot work here either, which is the same shape of failure a
+        // server missing the component produces.
+        List<String> reported = new java.util.ArrayList<>();
+
+        assertDoesNotThrow(() -> ItemComponents.INSTANCE.hideAdditionalTooltip(
+                        null, (where, problem) -> reported.add(where)),
+                "a component this server does not have is reported, never thrown");
+
+        assertEquals(List.of("hide-attributes"), reported,
+                "and the file is told which of its keys could not be honoured");
     }
 }

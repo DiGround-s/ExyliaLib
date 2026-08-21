@@ -361,6 +361,21 @@ parser dentro de un plugin.
   que nombrarla ya exige un servidor vivo. Confinada, `ItemRenderer` sigue
   cargando sin uno — que es lo que permite testear la decisión. Verificado en
   bytecode, igual que PacketEvents y Folia.
+- **Ese componente se busca por nombre en el registro, nunca como campo.**
+  Compilamos contra 1.21.4 y los servidores corren más adelante: en 1.21.11
+  `HIDE_ADDITIONAL_TOOLTIP` ya no existe (lo reemplazó `TOOLTIP_DISPLAY`).
+  Nombrar el campo compila igual y revienta en runtime con `NoSuchFieldError`
+  **dentro del render**, así que el menú entero no abre. Pasó en producción con
+  1.46.0. `Registry.DATA_COMPONENT_TYPE.get(...)` existe en las dos versiones y
+  contesta con `null` cuando el nombre ya no está.
+- **Un tooltip no vale una pantalla rota.** Lo que no se puede escribir se
+  reporta por `Problems` y el ítem se dibuja igual. La regla vale para todo
+  data component cuyo nombre no sea estable entre las versiones soportadas; los
+  que sí lo son (`FOOD`, `CONSUMABLE`, `ATTRIBUTE_MODIFIERS`) se siguen
+  nombrando directo en `Components`.
+- **Compilar contra 1.21.4 no es correr en 1.21.4.** La base mínima es 1.21.4 a
+  propósito, así que toda API nueva se verifica también contra la versión que
+  corre el servidor antes de usarla.
 - **Un test que pregunta por la flag no prueba esto.** La flag estuvo puesta
   todo el tiempo mientras el jugador veía lo contrario; se verifica que se pide
   el componente, no que se añade la flag.
