@@ -43,7 +43,29 @@ public final class Clients {
     }
 
     /**
+     * Returns this plugin's own view of the client features.
+     *
+     * <p>Prefer this to the static entry points below. What a plugin sends is
+     * keyed by that plugin, so two of them can both show a {@code "spawn"}
+     * waypoint without replacing each other's, ending a game can take down
+     * what it drew without wiping somebody else's, and everything it sent is
+     * removed on its own when the plugin is disabled.
+     *
+     * @param plugin the owning plugin
+     * @return its view
+     * @since 1.48.0
+     */
+    public static @NotNull PluginClients of(@NotNull org.bukkit.plugin.Plugin plugin) {
+        return ClientRuntime.of(plugin);
+    }
+
+    /**
      * Waypoints: markers in the world and on the minimap.
+     *
+     * <p>Unowned: everything sent here shares one bucket keyed by name alone,
+     * so a second plugin showing the same name replaces the first, and
+     * {@link #clear(Player)} takes down every plugin's. Prefer
+     * {@link #of(org.bukkit.plugin.Plugin)}.
      *
      * @return the waypoint API
      */

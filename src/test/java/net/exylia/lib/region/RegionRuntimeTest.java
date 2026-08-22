@@ -272,6 +272,49 @@ class RegionRuntimeTest {
     // --------------------------------------------------------------- ownership
 
     @Test
+    @DisplayName("a listener sees only its own plugin's regions in the event")
+    void eventIsFilteredByOwner() {
+        // The lists carry the whole server's movement. A game that reads them
+        // unfiltered eliminates a player for walking out of somebody else's
+        // claim, which is the failure this filter exists to stop.
+        PluginRegions survivalRegions = Regions.of(survival);
+        survivalRegions.register(survivalRegions.region("claim", WorldIdentity.from(world),
+                Cuboid.blocks(0, 0, 0, 9, 9, 9), 0, PolicySet.empty()));
+        FakePlayer player = playerAt(100, 5, 100);
+        RegionRuntime.initialize(player.player());
+
+        moveTo(player, world, 5, 5, 5);
+
+        PlayerRegionChangeEvent event =
+                FakeServer.events(PlayerRegionChangeEvent.class).getFirst();
+        assertEquals(1, event.entered().size(), "the raw list has the other plugin's region");
+        assertTrue(event.entered(regions).isEmpty(), "but this plugin entered none of its own");
+        assertFalse(event.involves(regions), "so it has nothing to do");
+        assertEquals(1, event.entered(survivalRegions).size(), "the owner sees its own");
+        assertTrue(event.involves(survivalRegions));
+    }
+
+    @Test
+    @DisplayName("one step across two plugins' borders splits by owner")
+    void eventSplitsBetweenOwners() {
+        PluginRegions survivalRegions = Regions.of(survival);
+        regions.register(cube("arena", 0));
+        survivalRegions.register(survivalRegions.region("claim", WorldIdentity.from(world),
+                Cuboid.blocks(20, 0, 20, 29, 9, 29), 0, PolicySet.empty()));
+        FakePlayer player = playerAt(5, 5, 5);
+        RegionRuntime.initialize(player.player());
+
+        moveTo(player, world, 25, 5, 25);
+
+        PlayerRegionChangeEvent event =
+                FakeServer.events(PlayerRegionChangeEvent.class).getFirst();
+        assertEquals(1, event.exited(regions).size(), "it left its own arena");
+        assertTrue(event.entered(regions).isEmpty(), "and entered none of its own");
+        assertEquals(1, event.entered(survivalRegions).size(), "the other plugin was entered");
+        assertTrue(event.exited(survivalRegions).isEmpty());
+    }
+
+    @Test
     @DisplayName("one plugin's reload leaves another plugin's regions alone")
     void replaceAllIsOwnerScoped() {
         // Commons had one global registry and a reload emptied it, so reloading

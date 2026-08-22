@@ -161,14 +161,25 @@ two plugins with similar names are still two plugins.
 ```java
 @EventHandler
 public void onRegionChange(PlayerRegionChangeEvent event) {
-    for (RegionSnapshot left : event.exited())  { ... }
-    for (RegionSnapshot entered : event.entered()) { ... }
+    for (RegionSnapshot left : event.exited(regions))  { ... }
+    for (RegionSnapshot entered : event.entered(regions)) { ... }
 }
 ```
 
 One event per change, carrying everything that changed. A single step can leave
 one region and enter another, and both are in the same event, ordered the same
 way a query is.
+
+**Pass your own `PluginRegions`.** The event carries the whole server's regions,
+not just yours: a step out of a claim belonging to another plugin arrives in
+your listener too. `exited(regions)` and `entered(regions)` return only the ones
+you registered, and `involves(regions)` answers whether you have anything to do
+at all — which is usually the answer, because a player crossing a border is
+usually crossing somebody else's.
+
+The unfiltered `exited()` and `entered()` are still there for the rare listener
+that genuinely wants to watch the whole server move. Reading them by mistake is
+how a game eliminates a player for leaving a region it does not own.
 
 It is fired **after** the change is committed and is not cancellable: the move
 itself was already accepted, and a cancellable exit is what let the old system

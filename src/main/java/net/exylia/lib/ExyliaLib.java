@@ -531,8 +531,9 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         Sequences.release(pluginName);
         BoardManager.stopAll(pluginName);
         HologramRuntime.removeAll(pluginName);
-        // Deleting a team clears its members' markers, which is a packet to a
-        // player who is still here: it has to happen while the client module
+        // Deleting a team clears its members' markers, and taking down this
+        // plugin's waypoints and cooldowns is a packet too — all of them to
+        // players who are still here. It has to happen while the client module
         // is still up, not on the way out with the rest of the shutdown.
         ClientRuntime.release(pluginName);
         // Same reason: putting a nametag back to normal is a packet to a player

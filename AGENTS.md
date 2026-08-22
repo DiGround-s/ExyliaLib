@@ -672,6 +672,17 @@ Todo lo que dependa de Lunar o Feather pasa por `net.exylia.lib.client`. Nunca
 - **La librería recuerda lo que mandó y lo repone** al reconectar y al cambiar
   de mundo (solo lo del mundo nuevo). En memoria: un waypoint es algo en una
   pantalla, no un registro que merezca disco.
+- **Lo que manda un plugin lleva su nombre.** `Clients.of(plugin)` archiva por
+  dueño y nombre, nunca por nombre solo. Dos plugins tienen todo el derecho a
+  llamar `spawn` a un waypoint — un lobby y una partida lo hacen — y con la
+  clave plana el segundo `show` le borraba el marcador al primero de la pantalla
+  del jugador. Es la misma clase de bug que `Effects.stopFor`: `clear` de la
+  vista con dueño baja lo suyo, el estático baja el de todos.
+- **Lo que un plugin dibujó se baja al deshabilitarlo.** Antes solo se liberaban
+  los equipos, así que un waypoint cuyo dueño ya no está no lo podía quitar
+  nadie: se quedaba en el minimapa hasta que el jugador reconectara. Al reponer
+  tras un reconexión se vuelve a archivar bajo el mismo dueño, o el marcador se
+  mudaría al saco sin dueño y su plugin dejaría de poder tocarlo.
 - **Un fallo de la integración no sale de ahí.** Es el bug de otro plugin; el que
   pidió el waypoint no hizo nada malo.
 - **Un equipo es un registro, no un empujón.** `markers()` dibuja una lista y se
@@ -1198,7 +1209,7 @@ Raíz de código: `src/main/java/net/exylia/lib/`. Raíz de tests:
 | effect | `effect/Effects`, `Timer`, `Ticks`, `Display`, `EffectConfig` | `effect/internal/` | [docs/effects.md](docs/effects.md) | 1.4.0 |
 | scoreboard | `scoreboard/Scoreboards`, `Board`, `SidebarConfig` | `scoreboard/internal/` | [docs/scoreboard.md](docs/scoreboard.md) | 1.5.0 |
 | hologram | `hologram/Holograms`, `Hologram`, `HologramConfig` | `hologram/internal/` | [docs/hologram.md](docs/hologram.md) | 1.6.0 |
-| client | `client/Clients`, `Waypoint`, `Cooldown`, `ClientBrand`, `ClientTeam`, `PluginTeams` | `client/internal/` (+ `TeamRegistry`) | [docs/client.md](docs/client.md) | 1.7.0 (equipos 1.36.0) |
+| client | `client/Clients`, `PluginClients`, `Waypoint`, `Cooldown`, `ClientBrand`, `ClientTeam`, `PluginTeams` | `client/internal/` (+ `TeamRegistry`) | [docs/client.md](docs/client.md) | 1.7.0 (equipos 1.36.0, dueño 1.48.0) |
 | clan | `clan/Clans`, `Clan`, `ClanBridge` | `clan/internal/` | [docs/clan.md](docs/clan.md) | 1.8.0 |
 | util (pociones) | `util/Effects` | — | [docs/util.md](docs/util.md) | 1.9.0 |
 | util (cooldowns) | `util/Cooldowns`, `CooldownScope`, `PluginCooldowns`, `ItemCooldowns` | `util/internal/CooldownStore` | [docs/cooldowns.md](docs/cooldowns.md) | 1.10.0 |
@@ -1212,7 +1223,7 @@ Raíz de código: `src/main/java/net/exylia/lib/`. Raíz de tests:
 | dueño de efectos por plugin | `effect/Effects.of`, `PluginEffects` | `effect/internal/EffectRuntime` (registro por plugin) | [docs/effects.md](docs/effects.md) | 1.18.3 |
 | skull | `skull/Skulls`, `SkullSource`, `SkullBuilder`, `SkullHandle` | `skull/internal/` | [docs/skulls.md](docs/skulls.md) | 1.19.0 |
 | action | `action/Actions`, `PluginActions`, `ActionCall`, `ActionContext`, `ActionSequence` y tipos auxiliares | `action/internal/` | [docs/actions.md](docs/actions.md) | 1.20.0 |
-| region | `region/Regions`, `PluginRegions`, `RegionSnapshot`, `RegionShape` y formas, `PolicyKey`/`PolicySet`, `RegionData`/`RegionCodec`, `PlayerRegionChangeEvent`, selección y visualización | `region/internal/` | [docs/regions.md](docs/regions.md) | 1.23.0 |
+| region | `region/Regions`, `PluginRegions`, `RegionSnapshot`, `RegionShape` y formas, `PolicyKey`/`PolicySet`, `RegionData`/`RegionCodec`, `PlayerRegionChangeEvent` (filtro por dueño 1.48.0), selección y visualización | `region/internal/` | [docs/regions.md](docs/regions.md) | 1.23.0 |
 | database | `database/Databases`, `PluginDatabase`, `Repository`, `Query`, `Table`, `Column`, `Id`, `Indexed`, `Index`, `Codec`, `DatabaseException`, `DatabaseSettings` | `database/internal/` | [docs/database.md](docs/database.md) | 1.24.0 |
 | format | `format/Formats`, `Numbers`, `Amounts`, `Dates`, `FormatSettings`; `util/TimeFormats` | `format/internal/` | [docs/formats.md](docs/formats.md) | 1.25.0 |
 | economy | `economy/Economy`, `CurrencyProvider`, `EconomyResponse`, `TransferResult`, `EconomySettings`, `EconomyException` | `economy/internal/` | [docs/economy.md](docs/economy.md) | 1.26.0 |
