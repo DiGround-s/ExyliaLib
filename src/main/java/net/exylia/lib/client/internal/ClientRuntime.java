@@ -24,10 +24,10 @@ import java.util.UUID;
 public final class ClientRuntime {
 
     /** The waypoint API handed out by {@link Clients#waypoints()}. */
-    public static final Clients.Waypoints WAYPOINTS = new WaypointsImpl();
+    public static final Clients.Waypoints WAYPOINTS = new WaypointsImpl(null);
 
     /** The cooldown API handed out by {@link Clients#cooldowns()}. */
-    public static final Clients.Cooldowns COOLDOWNS = new CooldownsImpl();
+    public static final Clients.Cooldowns COOLDOWNS = new CooldownsImpl(null);
 
     /** The marker API handed out by {@link Clients#markers()}. */
     public static final Clients.Markers MARKERS = new MarkersImpl();
@@ -45,9 +45,42 @@ public final class ClientRuntime {
         return TeamRegistry.of(plugin.getName());
     }
 
-    /** Deletes the teams of a plugin that is going away. */
+    /**
+     * Returns a plugin's own view of the client features.
+     *
+     * @param plugin the owning plugin
+     * @return its view
+     */
+    public static net.exylia.lib.client.PluginClients of(Plugin plugin) {
+        String owner = plugin.getName();
+        return new net.exylia.lib.client.PluginClients(
+                new WaypointsImpl(owner), new CooldownsImpl(owner), teamsOf(plugin));
+    }
+
+    /**
+     * Takes down everything a plugin that is going away put on a screen.
+     *
+     * <p>Its teams, and now its waypoints and cooldowns too. These are packets
+     * to players who are still here: a waypoint whose plugin is gone can never
+     * be removed by anybody, so it would sit on the minimap until the player
+     * reconnected.
+     *
+     * @param pluginName the plugin going away
+     */
     public static void release(String pluginName) {
         TeamRegistry.release(pluginName);
+        for (UUID id : ClientState.waypointViewers(pluginName)) {
+            Player player = org.bukkit.Bukkit.getPlayer(id);
+            if (player != null) {
+                removeAllOf(pluginName, player);
+            }
+        }
+        for (UUID id : ClientState.cooldownViewers(pluginName)) {
+            Player player = org.bukkit.Bukkit.getPlayer(id);
+            if (player != null) {
+                clearCooldownsOf(pluginName, player);
+            }
+        }
     }
 
     /**
@@ -100,8 +133,9 @@ public final class ClientRuntime {
             return;
         }
 
-        for (ClientState.Sent sent : ClientState.waypointsOf(id)) {
-            Waypoint waypoint = sent.waypoint();
+        for (java.util.Map.Entry<ClientState.Key, ClientState.Sent> entry
+                : ClientState.waypointEntriesOf(id)) {
+            Waypoint waypoint = entry.getValue().waypoint();
             // A waypoint belongs to a world: after a change, only the ones for
             // the world the player is now in are worth sending.
             if (worldChange && !waypoint.worldName().equals(player.getWorld().getName())) {
@@ -109,7 +143,10 @@ public final class ClientRuntime {
             }
             Object handle = link.showWaypoint(player, waypoint);
             if (handle != null) {
-                ClientState.rememberWaypoint(id, waypoint, handle);
+                // Put back under the owner it went out with: re-sending under
+                // nobody would leave a marker its own plugin can no longer
+                // remove, on every reconnect.
+                ClientState.rememberWaypoint(id, entry.getKey().owner(), waypoint, handle);
             }
         }
     }
@@ -142,26 +179,16 @@ public final class ClientRuntime {
 
     private static final class WaypointsImpl implements Clients.Waypoints {
 
+        /** Whose waypoints these are, or {@code null} for the unowned static API. */
+        private final String owner;
+
+        WaypointsImpl(String owner) {
+            this.owner = owner;
+        }
+
         @Override
         public boolean show(@NotNull Player player, @NotNull Waypoint waypoint) {
-            ClientLink link = ClientRegistry.of(player);
-            if (!link.supportsWaypoints()) {
-                return false;
-            }
-            UUID id = player.getUniqueId();
-            // Showing the same name twice is a move, not a duplicate: the old
-            // one goes first so clients that key by name do not keep both.
-            ClientState.Sent previous = ClientState.forgetWaypoint(id, waypoint.name());
-            if (previous != null) {
-                safely(() -> link.removeWaypoint(player, previous.waypoint(), previous.handle()));
-            }
-
-            Object handle = link.showWaypoint(player, waypoint);
-            if (handle == null) {
-                return false;
-            }
-            ClientState.rememberWaypoint(id, waypoint, handle);
-            return true;
+            return showAs(owner, player, waypoint);
         }
 
         @Override
@@ -173,7 +200,7 @@ public final class ClientRuntime {
 
         @Override
         public void remove(@NotNull Player player, @NotNull String name) {
-            ClientState.Sent sent = ClientState.forgetWaypoint(player.getUniqueId(), name);
+            ClientState.Sent sent = ClientState.forgetWaypoint(player.getUniqueId(), owner, name);
             if (sent == null) {
                 return;
             }
@@ -181,18 +208,63 @@ public final class ClientRuntime {
             safely(() -> link.removeWaypoint(player, sent.waypoint(), sent.handle()));
         }
 
+        /**
+         * Takes down every waypoint this view sent the player.
+         *
+         * <p>An owned view removes only its own. Clearing the client outright
+         * would take down the lobby's waypoints because a game ended, and the
+         * player would have no way to get them back.
+         */
         @Override
         public void clear(@NotNull Player player) {
-            ClientState.clearWaypoints(player.getUniqueId());
-            ClientLink link = ClientRegistry.of(player);
-            if (link.supportsWaypoints()) {
-                safely(() -> link.clearWaypoints(player));
+            if (owner == null) {
+                ClientState.clearWaypoints(player.getUniqueId());
+                ClientLink link = ClientRegistry.of(player);
+                if (link.supportsWaypoints()) {
+                    safely(() -> link.clearWaypoints(player));
+                }
+                return;
             }
+            removeAllOf(owner, player);
         }
 
         @Override
         public boolean supported(@NotNull Player player) {
             return ClientRegistry.of(player).supportsWaypoints();
+        }
+    }
+
+    /** Shows one waypoint on behalf of an owner, replacing that owner's own. */
+    private static boolean showAs(String owner, Player player, Waypoint waypoint) {
+        ClientLink link = ClientRegistry.of(player);
+        if (!link.supportsWaypoints()) {
+            return false;
+        }
+        UUID id = player.getUniqueId();
+        // Showing the same name twice is a move, not a duplicate: the old
+        // one goes first so clients that key by name do not keep both.
+        ClientState.Sent previous = ClientState.forgetWaypoint(id, owner, waypoint.name());
+        if (previous != null) {
+            safely(() -> link.removeWaypoint(player, previous.waypoint(), previous.handle()));
+        }
+
+        Object handle = link.showWaypoint(player, waypoint);
+        if (handle == null) {
+            return false;
+        }
+        ClientState.rememberWaypoint(id, owner, waypoint, handle);
+        return true;
+    }
+
+    /** Takes down one owner's waypoints on one player. */
+    private static void removeAllOf(String owner, Player player) {
+        UUID id = player.getUniqueId();
+        ClientLink link = ClientRegistry.of(player);
+        for (java.util.Map.Entry<ClientState.Key, ClientState.Sent> entry
+                : ClientState.waypointsOf(id, owner)) {
+            ClientState.Sent sent = entry.getValue();
+            ClientState.forgetWaypoint(id, owner, entry.getKey().name());
+            safely(() -> link.removeWaypoint(player, sent.waypoint(), sent.handle()));
         }
     }
 
@@ -202,6 +274,13 @@ public final class ClientRuntime {
 
     private static final class CooldownsImpl implements Clients.Cooldowns {
 
+        /** Whose cooldowns these are, or {@code null} for the unowned static API. */
+        private final String owner;
+
+        CooldownsImpl(String owner) {
+            this.owner = owner;
+        }
+
         @Override
         public boolean show(@NotNull Player player, @NotNull Cooldown cooldown) {
             ClientLink link = ClientRegistry.of(player);
@@ -209,7 +288,7 @@ public final class ClientRuntime {
                 return false;
             }
             safely(() -> link.showCooldown(player, cooldown));
-            ClientState.rememberCooldown(player.getUniqueId(), cooldown.name());
+            ClientState.rememberCooldown(player.getUniqueId(), owner, cooldown.name());
             return true;
         }
 
@@ -222,25 +301,43 @@ public final class ClientRuntime {
 
         @Override
         public void remove(@NotNull Player player, @NotNull String name) {
-            ClientState.forgetCooldown(player.getUniqueId(), name);
+            ClientState.forgetCooldown(player.getUniqueId(), owner, name);
             ClientLink link = ClientRegistry.of(player);
             if (link.supportsCooldowns()) {
                 safely(() -> link.removeCooldown(player, name));
             }
         }
 
+        /** Takes down every cooldown this view drew, and only those. */
         @Override
         public void clear(@NotNull Player player) {
-            ClientState.clearCooldowns(player.getUniqueId());
-            ClientLink link = ClientRegistry.of(player);
-            if (link.supportsCooldowns()) {
-                safely(() -> link.clearCooldowns(player));
+            if (owner == null) {
+                ClientState.clearCooldowns(player.getUniqueId());
+                ClientLink link = ClientRegistry.of(player);
+                if (link.supportsCooldowns()) {
+                    safely(() -> link.clearCooldowns(player));
+                }
+                return;
             }
+            clearCooldownsOf(owner, player);
         }
 
         @Override
         public boolean supported(@NotNull Player player) {
             return ClientRegistry.of(player).supportsCooldowns();
+        }
+    }
+
+    /** Takes down one owner's cooldowns on one player. */
+    private static void clearCooldownsOf(String owner, Player player) {
+        UUID id = player.getUniqueId();
+        ClientLink link = ClientRegistry.of(player);
+        boolean drawn = link.supportsCooldowns();
+        for (ClientState.Key key : ClientState.cooldownsOf(id, owner)) {
+            ClientState.forgetCooldown(id, owner, key.name());
+            if (drawn) {
+                safely(() -> link.removeCooldown(player, key.name()));
+            }
         }
     }
 
