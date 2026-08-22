@@ -1247,6 +1247,7 @@ Raíz de código: `src/main/java/net/exylia/lib/`. Raíz de tests:
 | flecha de `navigation` que pagina sola | — | `ui/internal/MenuLoader.placed` (fallback por sección) | [docs/menus.md](docs/menus.md) | 1.41.0 |
 | columna heredada de commons que la tabla exige | — | `database/internal/SqlSchema.relaxOrphanedColumns`, `Dialect.dropNotNull`, `SchemaReport.relaxedColumns` | [docs/database.md](docs/database.md) | 1.42.0 |
 | valor de fila multilínea | `<nl>` en un valor de `UiEntry`/`PluginItems.render` | `item/internal/ItemRenderer.lore`, `spans`, `segment` | [docs/menus.md](docs/menus.md), [docs/items.md](docs/items.md) | 1.38.0 |
+| schematic | `schematic/Schematics`, `PluginSchematics`, `SchematicResult`, `SchematicOutcome`, `RegenerateOptions` | `schematic/internal/` (`SchematicRuntime`, `SchematicStore`, `SchematicNames`, `Bounds`, `Engines`, `SchematicEngine`; FAWE confinado en `FaweEngine`) | [docs/schematics.md](docs/schematics.md) | 1.48.0 |
 
 Clases raíz que no son módulo: `ExyliaLib.java` (ciclo de vida y limpieza),
 `platform/Platform.java`, `internal/LibrarySettings`, `internal/ExyliaLibUpdater`.
@@ -1270,6 +1271,8 @@ Son package-private a propósito; los tests viven del mismo paquete:
 | `util/snapshot/internal/SnapshotRuntime` | `forgetReportedForTests` (los avisos ya dichos) |
 | `database/transfer/internal/DumpFormatAccess` | `extension()`, `observeBatches` (los lotes que el lector entrega: la cota de memoria del import, observable) |
 | `internal/TransferAccess` | la interfaz que el comando usa para exportar e importar; `live()` es la real, un fake la sustituye sin base de datos ni fichero |
+| `schematic/internal/Engines` | `install(...)` (el motor: un fake sustituye a FastAsyncWorldEdit, así que **todo** lo que decide el módulo — nombre, carpeta, orden de las etapas, qué pasa cuando una revienta — se testea sin FAWE y sin servidor) |
+| `schematic/internal/SchematicEngine` | la interfaz que se instala ahí; su única implementación real es la que nombra FAWE |
 | tests compartidos | `src/test/java/net/exylia/lib/FakeServer.java`, `FakePlayer.java`, `debug/DebugCapture.java`; `FakeServer.runAsyncForReal()` ejecuta las async en un hilo real |
 
 **Los fakes no son gratis, y un benchmark que los llama se mide a sí mismo.**

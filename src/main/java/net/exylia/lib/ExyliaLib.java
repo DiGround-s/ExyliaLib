@@ -23,6 +23,7 @@ import net.exylia.lib.input.internal.InputListener;
 import net.exylia.lib.input.internal.InputRuntime;
 import net.exylia.lib.format.internal.FormatPlaceholders;
 import net.exylia.lib.skull.internal.SkullRuntime;
+import net.exylia.lib.schematic.internal.SchematicRuntime;
 import net.exylia.lib.client.internal.ClientRuntime;
 import net.exylia.lib.nametag.internal.NametagRuntime;
 import net.exylia.lib.util.combat.internal.CombatRuntime;
@@ -138,6 +139,10 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         ClanRuntime.init(this);
         CombatRuntime.init(this);
         SkullRuntime.init(this);
+        // Binds FastAsyncWorldEdit if the server has it, and says so once here
+        // rather than once per refused call: whether an engine exists is a fact
+        // about the server, not about any one request.
+        SchematicRuntime.init(this);
         net.exylia.lib.util.preview.internal.PreviewRuntime.init(this);
         net.exylia.lib.util.teleport.internal.TeleportRuntime.init(this);
         // One listener for every plugin's wizards, for the same reason menus
@@ -362,6 +367,10 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         CombatRuntime.shutdown();
         // Writes the texture cache before tasks go away: the save is inline.
         SkullRuntime.shutdown();
+        // Before the task module, for the same reason a plugin's release is,
+        // plus one: releasing the engine drops every loaded clipboard, and
+        // those are tens of megabytes each.
+        SchematicRuntime.shutdown();
         // Writes whatever is pending before the maps are emptied.
         Cooldowns.clearEverything();
         SidebarLibrary.close();
@@ -552,6 +561,12 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         // belonging to this plugin and must be cancelled before its scheduler
         // goes away.
         Teleports.release(pluginName);
+        // Same reason, and it is the whole point of this module's cleanup: a
+        // paste in flight is a chain of tasks on that plugin's own scheduler,
+        // so cancelling the scheduler first would leave the stage that
+        // completes the future unable to run — a caller waiting forever, which
+        // is exactly the ExyliaCommons bug this module exists to fix.
+        SchematicRuntime.release(pluginName);
         Tasks.release(pluginName);
         Placeholders.unregisterAll(pluginName);
         Actions.release(pluginName);
