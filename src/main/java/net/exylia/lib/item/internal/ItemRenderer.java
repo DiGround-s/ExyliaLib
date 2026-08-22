@@ -6,6 +6,7 @@ import net.exylia.lib.item.Source;
 import net.exylia.lib.placeholder.Placeholders;
 import net.exylia.lib.skull.SkullSource;
 import net.exylia.lib.skull.Skulls;
+import net.exylia.lib.text.Lines;
 import net.exylia.lib.text.Text;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.TextDecoration;
@@ -42,7 +43,7 @@ public final class ItemRenderer {
      * <p>The same spelling {@link ItemReader} splits templates on, so a value a
      * plugin passes in and a line written in a file mean the same thing by it.
      */
-    private static final String NEWLINE = "<nl>";
+    private static final String NEWLINE = Lines.NEWLINE;
 
     private ItemRenderer() {
     }

@@ -9,6 +9,7 @@ import net.exylia.lib.item.Problems;
 import net.exylia.lib.item.Potion;
 import net.exylia.lib.item.Trim;
 import net.exylia.lib.item.Traits;
+import net.exylia.lib.text.Lines;
 import org.bukkit.configuration.ConfigurationSection;
 
 import java.util.ArrayList;
@@ -60,19 +61,7 @@ public final class ItemReader {
      * description written on one YAML line becomes a readable tooltip.
      */
     private static List<String> lore(ConfigurationSection section) {
-        List<String> written = lines(section, "lore");
-        if (written.isEmpty()) {
-            return List.of();
-        }
-        List<String> lore = new ArrayList<>(written.size());
-        for (String line : written) {
-            if (line.contains("<nl>")) {
-                lore.addAll(List.of(line.split("<nl>", -1)));
-            } else {
-                lore.add(line);
-            }
-        }
-        return lore;
+        return Lines.read(section, "lore");
     }
 
     /** Reads the stack size, which may be a number or a placeholder for one. */
@@ -411,22 +400,16 @@ public final class ItemReader {
         return value == null ? fallback : value;
     }
 
-    /** Reads a key that may hold one line or a list of them. */
+    /**
+     * Reads a key that may hold one line or a list of them.
+     *
+     * <p>Delegates so the {@code <nl>} spelling lives in exactly one place. The
+     * other callers name flags and attribute modifiers, and no valid one of
+     * either can contain the token, so splitting costs them a {@code contains}
+     * and changes no answer.
+     */
     private static List<String> lines(ConfigurationSection section, String... keys) {
-        for (String key : keys) {
-            if (!section.contains(key)) {
-                continue;
-            }
-            if (section.isString(key)) {
-                String single = section.getString(key, "");
-                return single.isEmpty() ? List.of() : List.of(single);
-            }
-            List<String> list = section.getStringList(key);
-            if (!list.isEmpty()) {
-                return list;
-            }
-        }
-        return List.of();
+        return Lines.read(section, keys);
     }
 
     private static String text(Object value, String fallback) {
