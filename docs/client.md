@@ -13,21 +13,43 @@ Entry point: `net.exylia.lib.client.Clients`.
 ## API
 
 ```java
-Clients.waypoints().show(player, Waypoint.at("base", location));
-Clients.cooldowns().show(player, Cooldown.seconds("pearl", 16));
+PluginClients clients = Clients.of(this);
+
+clients.waypoints().show(player, Waypoint.at("base", location));
+clients.cooldowns().show(player, Cooldown.seconds("pearl", 16));
+clients.teams().create(redPlayers);
+clients.clear(player);          // only what this plugin drew
+
 Clients.markers().update(viewer, teammates);
-Clients.teams(this).create(redPlayers);
 ```
 
 `Clients`:
 
 | Method | Contract |
 | --- | --- |
-| `waypoints()` / `cooldowns()` / `markers()` | the three feature groups |
+| `of(plugin)` | this plugin's own waypoints, cooldowns and teams |
+| `waypoints()` / `cooldowns()` / `markers()` | the three feature groups, unowned |
 | `teams(plugin)` | teams whose members see each other's markers |
 | `brandOf(player)` | `ClientBrand.VANILLA`, `LUNAR` or `FEATHER` |
 | `isSupported()` | whether any integration is live here |
-| `clear(player)` | forget everything sent to that player |
+| `clear(player)` | forget everything sent to that player, by anyone |
+
+### Ask for `of(this)`, not the static groups
+
+Since 1.48.0. What a plugin sends is keyed by that plugin, which is what makes
+three things true:
+
+- Two plugins can both show a waypoint named `spawn`. Keyed by name alone, the
+  second `show` deleted the first one's marker off the player's screen.
+- `clients.clear(player)` takes down what this plugin drew. `Clients.clear(player)`
+  wipes the client, including markers another plugin is still relying on — the
+  same mistake as calling `Effects.stopFor` to end one game.
+- Disabling a plugin removes its waypoints and cooldowns. A marker whose owner
+  is gone cannot be removed by anybody and sits on the minimap until the player
+  reconnects.
+
+The static groups still work and still share one unowned bucket. They are for a
+one-off, not for a plugin that keeps state.
 
 Each group has `show(...)` (returns `boolean` — false when nobody could draw
 it), `remove(player, name)`, `clear(player)` and `supported(player)`.
@@ -97,8 +119,8 @@ red.delete();              // clears every member's markers
 
 ## Source and tests
 
-- Public: `client/Clients.java`, `Waypoint.java`, `Cooldown.java`,
-  `ClientBrand.java`, `ClientTeam.java`, `PluginTeams.java`.
+- Public: `client/Clients.java`, `PluginClients.java`, `Waypoint.java`,
+  `Cooldown.java`, `ClientBrand.java`, `ClientTeam.java`, `PluginTeams.java`.
 - Internal: `client/internal/` (`ClientLink`, `ClientRegistry`,
   `ClientRuntime`, `ClientState`, `TeamRegistry`, `ApolloLink`,
   `FeatherLink`).
