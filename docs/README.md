@@ -40,7 +40,7 @@ against the source — rules and routes are in `AGENTS.md` under
 | [Combat](combat.md) | Whether a player is in combat, over DeluxeCombat, PvPManager or a bridge you write | 1.36.0 |
 | [World](world.md) | Creating and deleting worlds through the Worlds plugin, from any thread — and doing nothing loudly when it is absent | 1.36.0 |
 | [Transfer](transfer.md) | A plugin's whole database out to one file and back — moving from H2 to MySQL, or onto another server | 1.36.0 |
-| [Schematics](schematics.md) | Saving a box of the world and pasting it back — arenas regenerated between matches, with their chests still full | 1.47.0 |
+| [Schematics](schematics.md) | Saving a box of the world and pasting it back — arenas regenerated between matches, with their chests still full | 1.48.0 |
 
 Root classes that are not a module:
 
