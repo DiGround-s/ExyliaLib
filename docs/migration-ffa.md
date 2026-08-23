@@ -8,8 +8,15 @@ FFA is not migrated yet. This is the preparation.
 
 ## What was missing, and is now here
 
-Two of the gaps found when auditing FFA were library gaps, and both are fixed:
+All three gaps found when auditing FFA were library gaps, and all three are
+closed as of 1.49.0. **Nothing blocks the migration any more.**
 
+- **Schematics did not exist.** FFA regenerates an arena between matches, which
+  is its core loop, so this was the hard blocker. `Schematics.of(this)` covers
+  every call it makes: `save`, `exists`, `regenerate`, `delete`. There is a
+  `regenerate(name, RegionSnapshot, options)` overload that takes a region
+  rather than a cuboid, which is the shape FFA already has in hand. See
+  [schematics](schematics.md).
 - **A waypoint had no owner.** FFA keeps `Map<UUID, Map<String, UUID>>` of
   tracking ids because ExyliaCommons handed one back per waypoint. The library
   removed by name out of one shared bucket, so `Clients.of(this)` is the
@@ -18,9 +25,9 @@ Two of the gaps found when auditing FFA were library gaps, and both are fixed:
 - **The region event carried the whole server.** `exited(regions)` and
   `entered(regions)` return only this plugin's. See [regions](regions.md).
 
-Still missing at the time of writing: **schematics**. FFA regenerates an arena
-between matches, and that is its core loop. It is being built separately; FFA
-cannot migrate before it lands.
+One thing to confirm before relying on it: schematics need FastAsyncWorldEdit.
+`Schematics.isSupported()` answers whether it loaded, and FAWE is already a hard
+`depend:` in FFA's plugin.yml, so this is a check rather than a risk.
 
 ## The four that change behaviour
 
@@ -104,9 +111,21 @@ lets every commit build and be committed on its own.
 3. `messages.yml` and `scoreboards.yml`.
 4. Text, tasks, teleports, snapshots, items, menus.
 5. Regions, selection, the change event.
-6. Schematics, once the module lands.
+6. Schematics.
 7. Remove `ExyliaLoaderPlugin`, move `config.yml`, drop ExyliaCommons from
    `build.gradle` — one commit, because of the shared file.
+
+Two things ExyliaSandBox got wrong that are cheap to get right here:
+
+- **Register actions before compiling menus.** Compiling a `UiDefinition`
+  resolves the actions its buttons name, so menus read first bind against an
+  empty registry: every action reported unknown, and any supplied binding
+  dereferencing a `PluginActions` field that is still null. Enable order is
+  configs → actions → menus → managers.
+- **A row carries its own value.** Read it back with `UiKeys.ENTRY` rather than
+  passing an id through the action string and looking it up again. It is the
+  object the player was actually looking at, and it cannot go stale between the
+  draw and the click.
 
 ## Smaller things with no direct replacement
 
