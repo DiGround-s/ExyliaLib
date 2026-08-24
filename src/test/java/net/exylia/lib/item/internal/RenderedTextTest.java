@@ -75,6 +75,18 @@ class RenderedTextTest {
     }
 
     @Test
+    @DisplayName("a formatted UI display name renders its MiniMessage styling")
+    void formattedDisplayNameIsParsed() {
+        String drawn = legacy("%arena_name%", Map.of(
+                "arena_name", "<white><gold><bold> NethPot"), Set.of("arena_name"));
+
+        assertTrue(drawn.contains("NethPot"), drawn);
+        assertFalse(drawn.contains("<white>"), "the colour tag is formatting, not text: " + drawn);
+        assertFalse(drawn.contains("<gold>"), "the colour tag is formatting, not text: " + drawn);
+        assertFalse(drawn.contains("<bold>"), "the style tag is formatting, not text: " + drawn);
+    }
+
+    @Test
     @DisplayName("naming one value formatted leaves the others alone")
     void onlyTheNamedValueIsParsed() {
         // The distinction is per value, not per item: the same row carries a
