@@ -249,6 +249,18 @@ public final class WizardRuntime {
         return session != null && session.locationPicked(where);
     }
 
+    /**
+     * Test seam: routes an interaction exactly as the listener would, so the
+     * gesture a pick step wants is what is under test rather than bypassed.
+     *
+     * @return {@code true} when the run consumed the click
+     */
+    static boolean interact(@NotNull UUID player, @Nullable org.bukkit.block.Block block,
+                            boolean sneaking) {
+        WizardSession session = ACTIVE.get(player);
+        return session != null && session.interacted(block, sneaking);
+    }
+
     /** Test seam: replaces what a hand step reads. */
     static void installHands(@NotNull Function<Player, ItemStack> replacement) {
         hands = java.util.Objects.requireNonNull(replacement, "replacement");

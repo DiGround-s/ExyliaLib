@@ -16,6 +16,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotSame;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -76,6 +77,56 @@ class WizardStepKindTest {
         // And moving the original afterwards must not move the answer.
         clicked.setX(999);
         assertEquals(10, collected.get().get(SPAWN).getBlockX());
+    }
+
+    @Test
+    @DisplayName("a standing pick answers with where the player is, and only when sneaking")
+    void standAnswersWithThePlayersOwnPlace() {
+        AtomicReference<WizardValues> collected = new AtomicReference<>();
+        Wizard event = harness.wizards().define("event")
+                .stand(SPAWN, "Stand where the spawn goes and sneak-click")
+                .onFinish(collected::set)
+                .build();
+
+        // Where the admin is standing: fractional, and facing somewhere. Neither
+        // survives a block-aimed pick, which is the whole reason for this step.
+        Location standing = new Location(world, 10.5, 64, 20.5, 90f, 12f);
+        harness.fake().at(standing);
+        harness.wizards().start(harness.player(), event);
+        harness.settle();
+
+        // A click at air with no sneak is a player swinging their arm.
+        assertFalse(WizardPeek.interact(harness.player().getUniqueId(), null, false),
+                "a standing pick must not answer to an unmodified click");
+        harness.settle();
+        assertNull(collected.get(), "the flow must still be waiting");
+
+        assertTrue(WizardPeek.interact(harness.player().getUniqueId(), null, true),
+                "sneak and click must answer a standing pick, block or no block");
+        harness.settle();
+
+        Location answered = collected.get().get(SPAWN);
+        assertEquals(10.5, answered.getX());
+        assertEquals(20.5, answered.getZ());
+        assertEquals(90f, answered.getYaw(), "the facing is half of what a spawn is");
+        assertNotSame(standing, answered,
+                "the live location a player hands out must not become the answer");
+    }
+
+    @Test
+    @DisplayName("an aimed pick ignores a click at air, sneaking or not")
+    void pickNeedsABlock() {
+        Wizard event = harness.wizards().define("event")
+                .pick(SPAWN, "Click the spawn block")
+                .build();
+
+        harness.wizards().start(harness.player(), event);
+        harness.settle();
+
+        assertFalse(WizardPeek.interact(harness.player().getUniqueId(), null, false),
+                "there is no block in a click at air to answer with");
+        assertFalse(WizardPeek.interact(harness.player().getUniqueId(), null, true),
+                "sneaking does not conjure one either");
     }
 
     @Test

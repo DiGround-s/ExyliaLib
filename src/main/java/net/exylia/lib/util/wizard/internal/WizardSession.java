@@ -453,16 +453,29 @@ final class WizardSession implements WizardRun {
     }
 
     /**
-     * Answers a pick step with a clicked block.
+     * Answers a pick step with an interaction.
      *
      * <p>Called from the module's listener, on the thread that owns the player,
-     * because that is the thread a player interaction fires on.
+     * because that is the thread a player interaction fires on. The gesture the
+     * step wants is decided here rather than in the listener: the listener has
+     * no idea which step a run is on, and a run on a question step must not eat
+     * a click at all.
      *
+     * @param block    the block clicked, or {@code null} for a click at air
+     * @param sneaking whether the player was sneaking
      * @return {@code true} when this run consumed the click, so the caller
      *         cancels the event rather than letting it break or open something
      */
-    boolean blockClicked(@NotNull Block block) {
-        return locationPicked(block.getLocation());
+    boolean interacted(@Nullable Block block, boolean sneaking) {
+        if (waiting != Waiting.PICK || !(current instanceof WizardStep.Pick pick)) {
+            return false;
+        }
+        if (!pick.standing()) {
+            return block != null && locationPicked(block.getLocation());
+        }
+        // Sneak, because this gesture also answers at air: without a modifier
+        // the first swing of the arm would end the step.
+        return sneaking && locationPicked(player.getLocation());
     }
 
     /**

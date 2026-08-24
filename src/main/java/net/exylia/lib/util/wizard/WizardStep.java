@@ -84,17 +84,43 @@ public sealed interface WizardStep {
     }
 
     /**
-     * A place in the world, answered by left-clicking a block.
+     * A place in the world, answered with a click.
      *
      * <p>Not a region selection with one corner. {@code Regions}' selector wants
      * two corners and completes only when it has both, so using it for a single
      * point would leave a session that never finishes. This is its own step, and
      * the module's one listener is what makes it possible.
      *
-     * @param key    where the answer is stored
-     * @param prompt what the player is told to click
+     * <h2>The two gestures</h2>
+     * <ul>
+     *   <li><b>Aimed</b> ({@code standing} false) &mdash; either mouse button on
+     *       a block, and the answer is that block. For a point the player can
+     *       see but not reach: the corner of a schematic, a button on a wall.</li>
+     *   <li><b>Standing</b> ({@code standing} true) &mdash; sneak and click, and
+     *       the answer is where the player is, facing included. For a point the
+     *       player walks to: a spawn, a lobby, a warp. It is what ExyliaCommons'
+     *       location wizard did, and it is the only way to answer with a
+     *       fractional position and a yaw, which is what a spawn actually is.
+     *       An aimed pick can only ever name a block, so a spawn set that way
+     *       lands on the block's centre facing whatever the plugin invents.</li>
+     * </ul>
+     *
+     * <p>Sneak is not decoration on the standing gesture: it answers on a click
+     * at air as well as at a block, and without a modifier every swing of the
+     * arm would end the step.
+     *
+     * @param key      where the answer is stored
+     * @param prompt   what the player is told to do
+     * @param standing whether the answer is where the player stands rather than
+     *                 the block they clicked
      */
-    record Pick(@NotNull WizardKey<Location> key, @NotNull String prompt) implements WizardStep {
+    record Pick(@NotNull WizardKey<Location> key, @NotNull String prompt,
+                boolean standing) implements WizardStep {
+
+        /** An aimed pick: the block they click. */
+        public Pick(@NotNull WizardKey<Location> key, @NotNull String prompt) {
+            this(key, prompt, false);
+        }
 
         /** Validates the step. */
         public Pick {

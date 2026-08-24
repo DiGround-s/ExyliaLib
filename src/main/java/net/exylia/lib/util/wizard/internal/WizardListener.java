@@ -1,6 +1,5 @@
 package net.exylia.lib.util.wizard.internal;
 
-import org.bukkit.block.Block;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
@@ -23,29 +22,32 @@ import org.bukkit.event.player.PlayerQuitEvent;
 final class WizardListener implements Listener {
 
     /**
-     * Feeds a block click to a run waiting for one.
+     * Feeds a click to a run waiting for one.
      *
      * <p>Both buttons count. A player told to "click the spawn block" reaches
      * for whichever one they habitually use, and a prompt that only accepts one
      * of them looks broken to half the server. Cancelling the event is what
      * makes accepting both safe: the left click does not start breaking the
      * block and the right click does not open the chest.
+     *
+     * <p>Clicks at air are forwarded too, with a {@code null} block. Only the
+     * standing gesture answers to one &mdash; a player standing in the open with
+     * nothing in front of them has no block to click, and refusing them here
+     * would make the step unanswerable exactly where it is most useful. The
+     * session is what decides; this listener holds no policy.
      */
     @EventHandler(priority = EventPriority.HIGHEST)
     public void onInteract(PlayerInteractEvent event) {
         Action action = event.getAction();
-        if (action != Action.LEFT_CLICK_BLOCK && action != Action.RIGHT_CLICK_BLOCK) {
+        if (action != Action.LEFT_CLICK_BLOCK && action != Action.RIGHT_CLICK_BLOCK
+                && action != Action.LEFT_CLICK_AIR && action != Action.RIGHT_CLICK_AIR) {
             return;
         }
         WizardSession session = WizardRuntime.sessionOf(event.getPlayer().getUniqueId());
         if (session == null) {
             return;
         }
-        Block block = event.getClickedBlock();
-        if (block == null) {
-            return;
-        }
-        if (session.blockClicked(block)) {
+        if (session.interacted(event.getClickedBlock(), event.getPlayer().isSneaking())) {
             event.setCancelled(true);
         }
     }

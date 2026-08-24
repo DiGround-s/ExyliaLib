@@ -119,7 +119,27 @@ public final class WizardBuilder {
      * @return this builder
      */
     public @NotNull WizardBuilder pick(@NotNull WizardKey<Location> key, @NotNull String prompt) {
-        collector.pick(key, prompt);
+        collector.pick(key, prompt, false);
+        return this;
+    }
+
+    /**
+     * Asks the player to stand where they mean and sneak-click.
+     *
+     * <p>The answer is exactly where they are, facing included, rather than the
+     * block they aimed at. Use it for anything a player is later put at &mdash;
+     * a spawn, a lobby, a warp &mdash; because a block can only name a whole
+     * cube and has no yaw, so an aimed pick has to guess both.
+     *
+     * <p>Sneak is required, and either mouse button at either a block or air
+     * answers it.
+     *
+     * @param key    where to store the answer
+     * @param prompt what the player is told to do
+     * @return this builder
+     */
+    public @NotNull WizardBuilder stand(@NotNull WizardKey<Location> key, @NotNull String prompt) {
+        collector.pick(key, prompt, true);
         return this;
     }
 
@@ -333,7 +353,20 @@ public final class WizardBuilder {
          * @see WizardBuilder#pick(WizardKey, String)
          */
         public @NotNull Branch pick(@NotNull WizardKey<Location> key, @NotNull String prompt) {
-            collector.pick(key, prompt);
+            collector.pick(key, prompt, false);
+            return this;
+        }
+
+        /**
+         * Asks the player to stand where they mean and sneak-click.
+         *
+         * @param key    where to store the answer
+         * @param prompt what the player is told to do
+         * @return this branch
+         * @see WizardBuilder#stand(WizardKey, String)
+         */
+        public @NotNull Branch stand(@NotNull WizardKey<Location> key, @NotNull String prompt) {
+            collector.pick(key, prompt, true);
             return this;
         }
 
@@ -433,9 +466,9 @@ public final class WizardBuilder {
             steps.add(new WizardStep.Question<>(key, question::apply));
         }
 
-        void pick(WizardKey<Location> key, String prompt) {
+        void pick(WizardKey<Location> key, String prompt, boolean standing) {
             claim(Objects.requireNonNull(key, "key"));
-            steps.add(new WizardStep.Pick(key, prompt));
+            steps.add(new WizardStep.Pick(key, prompt, standing));
         }
 
         void region(WizardKey<SelectionResult> key, String prompt, SelectionOptions options) {

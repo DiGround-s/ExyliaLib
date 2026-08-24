@@ -42,6 +42,11 @@ public final class WizardPeek {
         return WizardRuntime.pick(player, where);
     }
 
+    /** Routes an interaction exactly as the module's listener would. */
+    public static boolean interact(UUID player, org.bukkit.block.Block block, boolean sneaking) {
+        return WizardRuntime.interact(player, block, sneaking);
+    }
+
     /** Whether a run is registered for this player. */
     public static boolean hasSession(UUID player) {
         return WizardRuntime.sessionOf(player) != null;
