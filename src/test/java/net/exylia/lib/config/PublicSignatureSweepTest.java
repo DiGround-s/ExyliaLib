@@ -39,8 +39,16 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  */
 class PublicSignatureSweepTest {
 
-    /** {@code net.exylia.lib.panel} joins this list when it exists. */
-    private static final List<String> GUARDED_PACKAGES = List.of("net.exylia.lib.config");
+    /**
+     * The packages whose public surface is swept.
+     *
+     * <p>{@code panel} is here because it is the consumer the projection exists
+     * for: a panel that handed back a {@code SchemaNode}, or grew a public method
+     * taking one of its own {@code internal} types, would defeat the boundary
+     * from the other side.
+     */
+    private static final List<String> GUARDED_PACKAGES =
+            List.of("net.exylia.lib.config", "net.exylia.lib.panel");
 
     @Test
     @DisplayName("no internal type appears in a public signature of the guarded packages")
@@ -105,6 +113,16 @@ class PublicSignatureSweepTest {
         assertTrue(types.contains(Schema.class), "the sweep must cover Schema, found: " + types);
         assertTrue(types.contains(ConfigFile.class), "the sweep must cover ConfigFile, found: " + types);
         assertTrue(types.size() >= 7, "expected the whole config package, found: " + types);
+
+        // The second guarded package must be reached too. Listing a package that
+        // is never read would pass all three leak assertions while covering half
+        // the contract, which is exactly the failure this test class was written
+        // after: the first sweep here read one classpath root and swept nothing.
+        List<String> names = types.stream().map(Class::getName).toList();
+        assertTrue(names.contains("net.exylia.lib.panel.Panels"),
+                "the sweep must cover the panel entry point, found: " + names);
+        assertTrue(names.contains("net.exylia.lib.panel.PanelSession"),
+                "the sweep must cover PanelSession, found: " + names);
     }
 
     // ------------------------------------------------------------------

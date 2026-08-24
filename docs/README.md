@@ -41,6 +41,7 @@ against the source — rules and routes are in `AGENTS.md` under
 | [World](world.md) | Creating and deleting worlds through the Worlds plugin, from any thread — and doing nothing loudly when it is absent | 1.36.0 |
 | [Transfer](transfer.md) | A plugin's whole database out to one file and back — moving from H2 to MySQL, or onto another server | 1.36.0 |
 | [Schematics](schematics.md) | Saving a box of the world and pasting it back — arenas regenerated between matches, with their chests still full | 1.48.0 |
+| [Panels](panels.md) | Editing a configuration record on screen: a working copy, bounded undo, and a diff before anything is written | 1.50.0 |
 Migration notes:
 
 - [Migrating ExyliaFFA](migration-ffa.md) — what FFA needs, and the four things

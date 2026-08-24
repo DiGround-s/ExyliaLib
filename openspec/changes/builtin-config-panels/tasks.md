@@ -63,29 +63,29 @@ Split on **layouts** instead. Decision 6 already guarantees a Java-built `Layout
 
 Seams first — RED cannot be written without them.
 
-- [ ] 2a.1 SEAM: create `panel/internal/PanelRenderer.java` — `interface DrawSink { void drew(int slot, ControlKind kind, Object entry); }` + `static DrawSink sink(DrawSink)` returning the previous. Precedent: `ItemRenderer.components`.
-- [ ] 2a.2 SEAM: create `panel/internal/ControlKind.java` — the enum the sink reports.
-- [ ] 2a.3 SEAM: create `panel/internal/PanelRuntime.java` — `static void setClock(LongSupplier)` / `resetClock()`. Precedent: `Cooldowns.setClock`.
-- [ ] 2a.4 SEAM: create `panel/internal/UnsupportedTypes.java` — `static void forgetReportedForTests()`. Precedent: `ItemComponents.forgetReportedForTests`.
-- [ ] 2a.5 SEAM: create `panel/internal/PanelPrompts.java` — `interface Prompts { text(...); confirm(...); <T> search(...); }` returning `CompletionStage<InputResult<…>>`, plus `public static void install(@Nullable Prompts)`. The engine calls **only** this, never `Inputs`.
-- [ ] 2a.6 SEAM: create `panel/internal/Layouts.java` with `BUILT_IN` — a `UiDefinition` built in Java. YAML loading and `install` land in 2b.
-- [ ] 2a.7 RED: create `panel/PanelNoStaticStateTest.java` — reflect every static field in `panel` and `panel.internal`; fail if any is a `Map`, `Collection`, or `Cache` keyed by `UUID` or `Player`.
-- [ ] 2a.8 RED: create `panel/PanelLifecycleTest.java` — quit releases the session (`Panels.session(player)` empty, owner count zero); `Panels.release("A")` closes A, leaves B untouched; a click in a plain chest resolves no session.
-- [ ] 2a.9 RED: extend `PanelLifecycleTest` — plugin disable closes the window **before** tasks are dropped, cancels a delayed `ActionExecution` step, and leaves `FakeServer.liveTasks()` empty; closing early cancels the step so it never runs.
-- [ ] 2a.10 RED: create `panel/PanelUndoTest.java` — two edits then two undos restore the original, a third undo is a no-op; `N + 5` edits leave exactly `Panels.undoLimit()` snapshots, no exception.
-- [ ] 2a.11 RED: create `panel/PanelDiffTest.java` — one added/removed/changed reports exactly `1/1/1`; an unchanged copy yields `isEmpty()` and **no write reaches the store**; cancel leaves persisted state as at open.
-- [ ] 2a.12 RED: create `panel/PanelPaletteTest.java` — reflect `panel` instance and static fields for a retained `Component` or palette-derived value; assert none is held between renders. This is how quality-bar point 8 is *said*, not left silent (decision 5).
-- [ ] 2a.13 GREEN: create `panel/internal/UndoStack.java` — bounded ring, oldest discarded on overflow, never throws.
-- [ ] 2a.14 GREEN: create `panel/internal/Diff.java` and public `panel/PanelDiff.java` — `record PanelDiff(List<String> added, List<String> removed, List<String> changed)` with `isEmpty()`.
-- [ ] 2a.15 GREEN: create `panel/internal/Session.java` — working copy, undo stack, page, filter, clipboard; resolved through the `UiSession` window holder, never a static map. A click validates against what the session drew.
-- [ ] 2a.16 GREEN: complete `PanelRuntime` — per-plugin registries, `forget(Player)`, `release(String)`, `releaseAll()`.
-- [ ] 2a.17 GREEN: create public `panel/Panels.java` (`of`, `session`, `undoLimit()`=20, `release`, `releaseAll`), `PluginPanels.java` (`plugin`, `settings`, `list`, `close`), `PanelSession.java` (`viewer`, `owner`, `undo`, `undoDepth`, `diff`, `save`, `cancel`).
-- [ ] 2a.18 GREEN: modify `ExyliaLib.java` — `PanelRuntime.forget` in `onPlayerQuit`; `Panels.release` in `onPluginDisable` **before** `Menus.release`; `Panels.releaseAll()` in `onDisable` before `Menus.releaseAll()` (line 391). Add **no** `loadPalette` hook (decision 5).
-- [ ] 2a.19 REFACTOR: confirm `open(Player)` delegates to `PluginMenus.open` (any-thread, relocates via `runAtEntity`) and that `openNow` is **not** exposed (decision 7). No `BukkitRunnable`, `Bukkit.getScheduler()`, `new Thread`, or private `ExecutorService`.
-- [ ] 2a.20 Doc: add a `panel` row to the palette-reload table in `docs/reload.md` (after line 225) reading, in substance: *no rendered text is kept — controls are `Item` definitions rendered through `PluginItems.render`, whose `ItemCache.invalidateAll()` already drops them; nothing to do*. Silence is not acceptable per spec `panel-engine` §Palette reload contract.
-- [ ] 2a.21 Javadoc: `Panels`, `PluginPanels`, `PanelSession`, `PanelDiff` — English, `@since 1.50.0`, with the usage example, the any-thread contract on `open`, and the 20-snapshot undo bound and its rationale.
-- [ ] 2a.22 **Sabotage**: remove the undo cap → `PanelUndoTest` must fail. Resolve the session from a `Map<UUID, Session>` instead of the window holder → `PanelNoStaticStateTest` must fail. Drop tasks before closing windows on disable → `PanelLifecycleTest` must fail. Restore all three; record in the PR body.
-- [ ] 2a.23 Verify: extend `PublicSignatureSweepTest` (from 1.9) to cover `net.exylia.lib.panel`; `./gradlew clean build` green, zero warnings.
+- [x] 2a.1 SEAM: create `panel/internal/PanelRenderer.java` — `interface DrawSink { void drew(int slot, ControlKind kind, Object entry); }` + `static DrawSink sink(DrawSink)` returning the previous. Precedent: `ItemRenderer.components`.
+- [x] 2a.2 SEAM: create `panel/internal/ControlKind.java` — the enum the sink reports.
+- [x] 2a.3 SEAM: create `panel/internal/PanelRuntime.java` — `static void setClock(LongSupplier)` / `resetClock()`. Precedent: `Cooldowns.setClock`.
+- [x] 2a.4 SEAM: create `panel/internal/UnsupportedTypes.java` — `static void forgetReportedForTests()`. Precedent: `ItemComponents.forgetReportedForTests`.
+- [x] 2a.5 SEAM: create `panel/internal/PanelPrompts.java` — `interface Prompts { text(...); confirm(...); <T> search(...); }` returning `CompletionStage<InputResult<…>>`, plus `public static void install(@Nullable Prompts)`. The engine calls **only** this, never `Inputs`.
+- [x] 2a.6 SEAM: create `panel/internal/Layouts.java` with `BUILT_IN` — a `UiDefinition` built in Java. YAML loading and `install` land in 2b.
+- [x] 2a.7 RED: create `panel/PanelNoStaticStateTest.java` — reflect every static field in `panel` and `panel.internal`; fail if any is a `Map`, `Collection`, or `Cache` keyed by `UUID` or `Player`.
+- [x] 2a.8 RED: create `panel/PanelLifecycleTest.java` — quit releases the session (`Panels.session(player)` empty, owner count zero); `Panels.release("A")` closes A, leaves B untouched; a click in a plain chest resolves no session.
+- [x] 2a.9 RED: extend `PanelLifecycleTest` — plugin disable closes the window **before** tasks are dropped, cancels a delayed `ActionExecution` step, and leaves `FakeServer.liveTasks()` empty; closing early cancels the step so it never runs.
+- [x] 2a.10 RED: create `panel/PanelUndoTest.java` — two edits then two undos restore the original, a third undo is a no-op; `N + 5` edits leave exactly `Panels.undoLimit()` snapshots, no exception.
+- [x] 2a.11 RED: create `panel/PanelDiffTest.java` — one added/removed/changed reports exactly `1/1/1`; an unchanged copy yields `isEmpty()` and **no write reaches the store**; cancel leaves persisted state as at open.
+- [x] 2a.12 RED: create `panel/PanelPaletteTest.java` — reflect `panel` instance and static fields for a retained `Component` or palette-derived value; assert none is held between renders. This is how quality-bar point 8 is *said*, not left silent (decision 5).
+- [x] 2a.13 GREEN: create `panel/internal/UndoStack.java` — bounded ring, oldest discarded on overflow, never throws.
+- [x] 2a.14 GREEN: create `panel/internal/Diff.java` and public `panel/PanelDiff.java` — `record PanelDiff(List<String> added, List<String> removed, List<String> changed)` with `isEmpty()`.
+- [x] 2a.15 GREEN: create `panel/internal/Session.java` — working copy, undo stack, page, filter, clipboard; resolved through the `UiSession` window holder, never a static map. A click validates against what the session drew.
+- [x] 2a.16 GREEN: complete `PanelRuntime` — per-plugin registries, `forget(Player)`, `release(String)`, `releaseAll()`.
+- [x] 2a.17 GREEN: create public `panel/Panels.java` (`of`, `session`, `undoLimit()`=20, `release`, `releaseAll`), `PluginPanels.java` (`plugin`, `settings`, `list`, `close`), `PanelSession.java` (`viewer`, `owner`, `undo`, `undoDepth`, `diff`, `save`, `cancel`).
+- [x] 2a.18 GREEN: modify `ExyliaLib.java` — `PanelRuntime.forget` in `onPlayerQuit`; `Panels.release` in `onPluginDisable` **before** `Menus.release`; `Panels.releaseAll()` in `onDisable` before `Menus.releaseAll()` (line 391). Add **no** `loadPalette` hook (decision 5).
+- [x] 2a.19 REFACTOR: confirm `open(Player)` delegates to `PluginMenus.open` (any-thread, relocates via `runAtEntity`) and that `openNow` is **not** exposed (decision 7). No `BukkitRunnable`, `Bukkit.getScheduler()`, `new Thread`, or private `ExecutorService`.
+- [x] 2a.20 Doc: add a `panel` row to the palette-reload table in `docs/reload.md` (after line 225) reading, in substance: *no rendered text is kept — controls are `Item` definitions rendered through `PluginItems.render`, whose `ItemCache.invalidateAll()` already drops them; nothing to do*. Silence is not acceptable per spec `panel-engine` §Palette reload contract.
+- [x] 2a.21 Javadoc: `Panels`, `PluginPanels`, `PanelSession`, `PanelDiff` — English, `@since 1.50.0`, with the usage example, the any-thread contract on `open`, and the 20-snapshot undo bound and its rationale.
+- [x] 2a.22 **Sabotage**: remove the undo cap → `PanelUndoTest` must fail. Resolve the session from a `Map<UUID, Session>` instead of the window holder → `PanelNoStaticStateTest` must fail. Drop tasks before closing windows on disable → `PanelLifecycleTest` must fail. Restore all three; record in the PR body.
+- [x] 2a.23 Verify: extend `PublicSignatureSweepTest` (from 1.9) to cover `net.exylia.lib.panel`; `./gradlew clean build` green, zero warnings.
 
 ## Unit 2b — YAML layouts (~220 lines, depends on 2a)
 

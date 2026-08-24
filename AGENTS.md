@@ -1259,6 +1259,7 @@ Raíz de código: `src/main/java/net/exylia/lib/`. Raíz de tests:
 | columna heredada de commons que la tabla exige | — | `database/internal/SqlSchema.relaxOrphanedColumns`, `Dialect.dropNotNull`, `SchemaReport.relaxedColumns` | [docs/database.md](docs/database.md) | 1.42.0 |
 | valor de fila multilínea | `<nl>` en un valor de `UiEntry`/`PluginItems.render` | `item/internal/ItemRenderer.lore`, `spans`, `segment` | [docs/menus.md](docs/menus.md), [docs/items.md](docs/items.md) | 1.38.0 |
 | schematic | `schematic/Schematics`, `PluginSchematics`, `SchematicResult`, `SchematicOutcome`, `RegenerateOptions` | `schematic/internal/` (`SchematicRuntime`, `SchematicStore`, `SchematicNames`, `Bounds`, `Engines`, `SchematicEngine`; FAWE confinado en `FaweEngine`) | [docs/schematics.md](docs/schematics.md) | 1.48.0 |
+| panel | `panel/Panels`, `PluginPanels`, `PanelSession`, `PanelDiff` | `panel/internal/` (`PanelRuntime`, `Session`, `PanelHolder`, `WorkingCopy`, `Diff`, `Layouts`, `PanelRenderer`, `PanelPrompts`, `UnsupportedTypes`, `ControlKind`) | [docs/panels.md](docs/panels.md) | 1.50.0 |
 
 Clases raíz que no son módulo: `ExyliaLib.java` (ciclo de vida y limpieza),
 `platform/Platform.java`, `internal/LibrarySettings`, `internal/ExyliaLibUpdater`.
@@ -1284,6 +1285,11 @@ Son package-private a propósito; los tests viven del mismo paquete:
 | `internal/TransferAccess` | la interfaz que el comando usa para exportar e importar; `live()` es la real, un fake la sustituye sin base de datos ni fichero |
 | `schematic/internal/Engines` | `install(...)` (el motor: un fake sustituye a FastAsyncWorldEdit, así que **todo** lo que decide el módulo — nombre, carpeta, orden de las etapas, qué pasa cuando una revienta — se testea sin FAWE y sin servidor) |
 | `schematic/internal/SchematicEngine` | la interfaz que se instala ahí; su única implementación real es la que nombra FAWE |
+| `panel/internal/PanelRenderer` | `sink(DrawSink)` (qué control cayó en qué slot: leerlo del `ItemStack` exige un servidor vivo, y devolver el anterior en vez de ofrecer un reset permite restaurar exactamente lo que había) |
+| `panel/internal/PanelPrompts` | `install(Prompts)` (las tres preguntas que hace un panel; **el motor nunca llama a `Inputs`**, así que un fake aquí sustituye todos los transportes a la vez) |
+| `panel/internal/PanelRuntime` | `setClock/resetClock` (el reloj del módulo) |
+| `panel/internal/UnsupportedTypes` | `forgetReportedForTests` (el aviso ya dicho: "una vez por servidor" solo se puede afirmar dos veces si se puede olvidar) |
+| `panel/internal/Session` | `forTests(...)` (una sesión sin ventana: `Bukkit.createInventory` devuelve `null` sin servidor y un `ItemStack` ni siquiera inicializa su clase, y lo que prueban los tests de ciclo de vida es la liberación, no el dibujado) |
 | tests compartidos | `src/test/java/net/exylia/lib/FakeServer.java`, `FakePlayer.java`, `debug/DebugCapture.java`; `FakeServer.runAsyncForReal()` ejecuta las async en un hilo real |
 
 **Los fakes no son gratis, y un benchmark que los llama se mide a sí mismo.**
