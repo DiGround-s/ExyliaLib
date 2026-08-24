@@ -118,6 +118,14 @@ legible enough to edit by hand. Anything carrying meta, which is to say a
 textured head or a custom model, is stored whole as `bytes:`, because that is
 the only spelling that keeps it. An empty hand is `AIR`.
 
+**The name and the lore are dropped.** Everything the item looks like is kept —
+model, colour, patterns, glint — but the two things an icon never draws are not
+stored: whatever draws it writes its own name and lore from its own
+configuration. They are also nearly all of an item's size. A kit sword's name
+and lore are gradients and palette tokens, which serialise as component JSON and
+run past the 512 characters an icon column allows, so keeping them meant a real
+kit item could not be used as an icon at all.
+
 ### Text
 
 | Key | Meaning |

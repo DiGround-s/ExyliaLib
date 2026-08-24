@@ -199,7 +199,8 @@ public final class IconInput {
             return InputResult.ended(InputOutcome.CANCELLED);
         }
         if (icon.length() > maxLength) {
-            Text.of("{error}That item carries too much to be stored as an icon.").send(player);
+            Text.of("{error}That item is too big to store as an icon."
+                    + " Pick a material or a head instead.").send(player);
             return InputResult.ended(InputOutcome.CANCELLED);
         }
         return InputResult.completed(icon);

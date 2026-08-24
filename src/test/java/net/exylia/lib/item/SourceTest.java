@@ -3,13 +3,18 @@ package net.exylia.lib.item;
 import net.exylia.lib.skull.SkullSource;
 import org.bukkit.Material;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.inventory.meta.ItemMeta;
 import org.jetbrains.annotations.NotNull;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
+import java.lang.reflect.Proxy;
+import java.util.ArrayList;
 import java.util.Base64;
+import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -130,6 +135,22 @@ class SourceTest {
     }
 
     @Test
+    @DisplayName("the name and lore an icon never draws are not stored")
+    void nameAndLoreAreDropped() {
+        // A kit sword's name and lore are gradients and palette tokens, which
+        // serialise as component JSON and run past the 512 characters an icon
+        // column allows — for text that whatever draws the icon replaces with
+        // its own anyway.
+        Stack held = new Stack(Material.DIAMOND_SWORD, true);
+
+        Source.of(held);
+
+        assertEquals(List.of("clone", "displayName(null)", "lore(null)",
+                "setItemMeta", "serializeAsBytes"), held.calls);
+        assertFalse(held.serialised, "the item the player is holding must not be touched");
+    }
+
+    @Test
     @DisplayName("an item carrying meta is stored whole")
     void itemWithMetaIsASnapshot() {
         // A textured head or a custom model lives in the meta; a material name
@@ -153,12 +174,7 @@ class SourceTest {
     @Test
     @DisplayName("an item the server cannot serialise falls back to its type")
     void unserialisableItemFallsBack() {
-        Source source = Source.of(new Stack(Material.DIAMOND_SWORD, true) {
-            @Override
-            public byte @NotNull [] serializeAsBytes() {
-                throw new IllegalStateException("no server here");
-            }
-        });
+        Source source = Source.of(Stack.unserialisable(Material.DIAMOND_SWORD));
 
         assertEquals("DIAMOND_SWORD", assertInstanceOf(Source.OfMaterial.class, source).raw());
     }
@@ -176,12 +192,30 @@ class SourceTest {
         /** Stands in for a serialised stack; its contents mean nothing. */
         static final byte[] BYTES = {1, 2, 3, 4};
 
+        /** What was called, in order, across this item and the copy of it. */
+        final List<String> calls;
+
         private final Material type;
         private final boolean meta;
+        /** A stack the server cannot write out, copies of it included. */
+        private final boolean unserialisable;
+        /** Whether this very instance was the one serialised. */
+        boolean serialised;
 
         private Stack(Material type, boolean meta) {
+            this(type, meta, new ArrayList<>(), false);
+        }
+
+        /** An item that throws when written out, as a broken stack does. */
+        static Stack unserialisable(Material type) {
+            return new Stack(type, true, new ArrayList<>(), true);
+        }
+
+        private Stack(Material type, boolean meta, List<String> calls, boolean unserialisable) {
             this.type = type;
             this.meta = meta;
+            this.calls = calls;
+            this.unserialisable = unserialisable;
         }
 
         @Override
@@ -195,7 +229,37 @@ class SourceTest {
         }
 
         @Override
+        public @NotNull ItemStack clone() {
+            calls.add("clone");
+            return new Stack(type, meta, calls, unserialisable);
+        }
+
+        @Override
+        public ItemMeta getItemMeta() {
+            return (ItemMeta) Proxy.newProxyInstance(ItemMeta.class.getClassLoader(),
+                    new Class<?>[] {ItemMeta.class}, (proxy, method, args) -> {
+                        if (method.getName().equals("displayName") && args != null && args.length == 1) {
+                            calls.add("displayName(" + args[0] + ")");
+                        } else if (method.getName().equals("lore") && args != null && args.length == 1) {
+                            calls.add("lore(" + args[0] + ")");
+                        }
+                        return null;
+                    });
+        }
+
+        @Override
+        public boolean setItemMeta(ItemMeta meta) {
+            calls.add("setItemMeta");
+            return true;
+        }
+
+        @Override
         public byte @NotNull [] serializeAsBytes() {
+            calls.add("serializeAsBytes");
+            serialised = true;
+            if (unserialisable) {
+                throw new IllegalStateException("no server here");
+            }
             return BYTES;
         }
     }

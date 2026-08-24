@@ -3,6 +3,7 @@ package net.exylia.lib.item;
 import net.exylia.lib.skull.SkullSource;
 import org.bukkit.Material;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.inventory.meta.ItemMeta;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.Base64;
@@ -125,13 +126,43 @@ public sealed interface Source {
             return new OfMaterial(type.name());
         }
         try {
-            String base64 = Base64.getEncoder().encodeToString(item.serializeAsBytes());
+            String base64 = Base64.getEncoder().encodeToString(icon(item).serializeAsBytes());
             return new OfSnapshot("bytes:" + base64, base64);
         } catch (RuntimeException unwritable) {
             // A stack the server cannot serialise. Its type is still true, and
             // an icon that lost its custom model beats an icon that is nothing.
             return new OfMaterial(type.name());
         }
+    }
+
+    /**
+     * The part of an item that is worth storing as an icon.
+     *
+     * <p>Everything the item looks like is kept — its model, its colour, its
+     * patterns, its glint — and the two things an icon never uses are dropped:
+     * the name and the lore. Whatever draws this writes its own, from its own
+     * configuration; the ones the item was carrying are never seen again.
+     *
+     * <p>They are also nearly all of its size. A kit sword's name and lore are
+     * gradients and palette tokens, which serialise as component JSON and run
+     * to well over a thousand characters — past the 512 an icon column allows,
+     * so holding a real kit item and pressing the button answered "that item
+     * carries too much" for text that would have been thrown away on the way to
+     * the screen.
+     *
+     * @param item the item as held
+     * @return a copy with nothing written on it; the original is untouched
+     */
+    private static ItemStack icon(ItemStack item) {
+        ItemStack copy = item.clone();
+        ItemMeta meta = copy.getItemMeta();
+        if (meta == null) {
+            return copy;
+        }
+        meta.displayName(null);
+        meta.lore(null);
+        copy.setItemMeta(meta);
+        return copy;
     }
 
     /** A plain material, possibly named by a placeholder. */
