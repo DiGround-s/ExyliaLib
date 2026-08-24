@@ -105,17 +105,20 @@ final class PapiExpansion extends PlaceholderExpansion implements Relational {
     /**
      * Resolves one placeholder for PlaceholderAPI.
      *
-     * <p>PlaceholderAPI hands over the text without its own identifier prefix.
-     * The registry stays keyed by the original plugin name for lifecycle cleanup,
-     * while the expansion identifier is lower-case for PlaceholderAPI.
+     * <p>PlaceholderAPI hands over the text without its own identifier prefix,
+     * and that identifier is this plugin: {@code %exyliaffa_total_players%}
+     * arrives here as {@code total_players} and is a question addressed to
+     * ExyliaFFA. So it is answered from what ExyliaFFA registered, never from
+     * the flat by-name registry — another plugin registering the same name owns
+     * the bare {@code %total_players%}, but it does not own this identifier and
+     * must not answer under it.
      *
-     * <p>An expansion only answers for names its own plugin registered.
-     * {@link Registry} is flat and keyed by name alone, so two plugins that pick
-     * the same name share one slot: without this check
-     * {@code %exyliaffa_total_players%} would run whichever plugin registered
-     * last and hand back a real number from the wrong plugin. Anything not owned
-     * here comes back as {@code null}, which is how PlaceholderAPI is told to
-     * leave the text alone and let another expansion answer.
+     * <p>That is the whole bug this shape exists for: with one flat slot,
+     * whichever plugin enabled last answered for everybody, and every other
+     * plugin's {@code %<its own name>_total_players%} went quiet.
+     *
+     * <p>Anything this plugin did not register comes back as {@code null},
+     * which is how PlaceholderAPI is told to leave the text alone.
      */
     private String resolve(Player viewer, OfflinePlayer target, String params) {
         String text = "%" + params + "%";
@@ -125,24 +128,37 @@ final class PapiExpansion extends PlaceholderExpansion implements Relational {
         // else owns: "stats_top_kills_1" has to find this plugin's
         // "stats_top_kills", not another plugin's "stats_top".
         List<Part> parts = TemplateCompiler.compile(text, this::owns);
+        StringBuilder answer = new StringBuilder(text.length() + 16);
+        boolean answered = false;
         for (Part part : parts) {
+            if (part.isLiteral()) {
+                answer.append(part.literal());
+                continue;
+            }
             // No owned prefix matched, so the compiler kept the whole body as
             // the name. Not ours to answer.
-            if (!part.isLiteral() && !owns(part.name())) {
+            if (!owns(part.name())) {
                 return null;
             }
+            Object value = Registry.resolve(owner, part.name(),
+                    new Request(viewer, target, part.args(), Map.of()), Loggers.get());
+            if (value == null) {
+                // A resolver that has no value for this player is not an
+                // answer, unless the text said what to write instead.
+                if (part.fallback() == null) {
+                    return null;
+                }
+                answer.append(part.fallback());
+            } else {
+                answer.append(Formats.apply(value, part.format()));
+            }
+            answered = true;
         }
-
-        String rendered = new CompiledTemplate(text, parts, Loggers.get())
-                .renderFor(new Request(viewer, target, List.of(), Map.of()));
-        // A placeholder this expansion does not know comes back unchanged, and
-        // PlaceholderAPI expects null so it can leave the text alone.
-        return rendered.equals(text) ? null : rendered;
+        return answered ? answer.toString() : null;
     }
 
-    /** Whether this expansion's plugin is the one that registered a name. */
+    /** Whether this expansion's plugin is one of the plugins that registered a name. */
     private boolean owns(String name) {
-        Registry.Entry entry = Registry.get(name);
-        return entry != null && entry.owner().equals(owner);
+        return Registry.get(owner, name) != null;
     }
 }

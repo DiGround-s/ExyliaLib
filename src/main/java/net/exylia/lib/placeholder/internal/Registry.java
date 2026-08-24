@@ -4,7 +4,6 @@ import net.exylia.lib.placeholder.Request;
 import net.exylia.lib.placeholder.Resolver;
 
 import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -13,10 +12,26 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 /**
- * Every registered placeholder, in one map.
+ * Every registered placeholder.
  *
- * <p>One map rather than one per kind. Resolution is a single lookup, and there
- * is no ordering question about which registry to consult first.
+ * <p>Two views of the same registrations, because a placeholder is asked for in
+ * two ways that mean different things:
+ *
+ * <ul>
+ *   <li><b>By name alone</b> — {@code %total_players%} in a scoreboard line.
+ *       Nothing in that text says which plugin is meant, so one name can only
+ *       have one answer: the last registration wins, and the takeover is
+ *       reported.</li>
+ *   <li><b>By plugin and name</b> — {@code %exyliaffa_total_players%} through
+ *       PlaceholderAPI, where the identifier already says who is being asked.
+ *       Two plugins registering {@code total_players} are two different
+ *       placeholders there, and both must answer.</li>
+ * </ul>
+ *
+ * <p>Keeping only the first view is what made
+ * {@code %exyliasandbox_total_players%} stop working the moment ExyliaFFA
+ * registered the same name: one flat slot, one owner, and the plugin that lost
+ * it went silent under its own identifier.
  *
  * <p>Reads happen constantly and from many threads; writes happen when a plugin
  * enables or disables. {@link ConcurrentHashMap} fits exactly: lock-free reads,
@@ -24,7 +39,11 @@ import java.util.logging.Logger;
  */
 public final class Registry {
 
+    /** Keyed by name alone: what {@code %name%} with nothing in front resolves to. */
     private static final Map<String, Entry> ENTRIES = new ConcurrentHashMap<>();
+
+    /** Keyed by owner and then by name: what one plugin registered, whoever else did. */
+    private static final Map<String, Map<String, Entry>> BY_OWNER = new ConcurrentHashMap<>();
 
     /** Names that failed, so a broken resolver is reported once and not per render. */
     private static final Set<String> REPORTED = ConcurrentHashMap.newKeySet();
@@ -63,13 +82,17 @@ public final class Registry {
      * @param entry the registration
      */
     public static void register(String name, Entry entry) {
+        BY_OWNER.computeIfAbsent(entry.owner(), owner -> new ConcurrentHashMap<>())
+                .put(name, entry);
         Entry previous = ENTRIES.put(name, entry);
         if (previous != null && !previous.owner().equals(entry.owner())
                 && REPORTED_OVERWRITE.add(name)) {
-            Loggers.get().warning("Placeholder %" + name + "% was registered by "
-                    + previous.owner() + " and has been taken over by " + entry.owner()
-                    + ". The registry is keyed by name alone, so only the last plugin"
-                    + " to register answers for it. Rename one of them to keep both."
+            Loggers.get().warning("Placeholder %" + name + "% is registered by both "
+                    + previous.owner() + " and " + entry.owner()
+                    + ". Both still answer under their own PlaceholderAPI identifier;"
+                    + " written bare as %" + name + "%, it is " + entry.owner()
+                    + " that answers, because a name with no plugin in front of it can"
+                    + " only mean one thing. Rename one of them to remove the ambiguity."
                     + " This is reported once per name.");
         }
         REPORTED.remove(name);
@@ -81,8 +104,9 @@ public final class Registry {
         TemplateCache.invalidate();
     }
 
-    /** Removes a placeholder. */
+    /** Removes a placeholder, whoever registered it. */
     public static void unregister(String name) {
+        BY_OWNER.values().forEach(owned -> owned.remove(name));
         if (ENTRIES.remove(name) != null) {
             TemplateCache.invalidate();
         }
@@ -95,17 +119,33 @@ public final class Registry {
      * @return how many placeholders were removed
      */
     public static int unregisterAll(String owner) {
+        Map<String, Entry> owned = BY_OWNER.remove(owner);
         List<String> names = new ArrayList<>();
         ENTRIES.forEach((name, entry) -> {
             if (entry.owner().equals(owner)) {
                 names.add(name);
             }
         });
-        names.forEach(ENTRIES::remove);
-        if (!names.isEmpty()) {
+        // A name this plugin had taken over goes back to whoever else still
+        // registers it, rather than to nobody: the other plugin never stopped
+        // offering it, and it was only hidden while this one was enabled.
+        names.forEach(name -> {
+            ENTRIES.remove(name);
+            heir(name).ifPresent(entry -> ENTRIES.put(name, entry));
+        });
+        int removed = owned == null ? names.size() : owned.size();
+        if (removed > 0) {
             TemplateCache.invalidate();
         }
-        return names.size();
+        return removed;
+    }
+
+    /** Another plugin that still registers a name, if there is one. */
+    private static java.util.Optional<Entry> heir(String name) {
+        return BY_OWNER.values().stream()
+                .map(owned -> owned.get(name))
+                .filter(java.util.Objects::nonNull)
+                .findFirst();
     }
 
     /** Returns whether a name is registered. */
@@ -116,6 +156,35 @@ public final class Registry {
     /** Returns the entry for a name, or {@code null}. */
     public static Entry get(String name) {
         return ENTRIES.get(name);
+    }
+
+    /**
+     * Returns what one plugin registered under a name, or {@code null}.
+     *
+     * <p>What PlaceholderAPI asks: the identifier in
+     * {@code %exyliaffa_total_players%} names the plugin, so the answer must
+     * come from that plugin whether or not it holds the bare name.
+     *
+     * @param owner the plugin name
+     * @param name  the placeholder name
+     * @return the registration, or {@code null}
+     */
+    public static Entry get(String owner, String name) {
+        Map<String, Entry> owned = BY_OWNER.get(owner);
+        return owned == null ? null : owned.get(name);
+    }
+
+    /**
+     * Resolves one plugin's placeholder, turning any failure into "no value".
+     *
+     * @param owner   the plugin being asked
+     * @param name    the placeholder name
+     * @param request the request to pass along
+     * @param logger  where to report a failure
+     * @return the value, or {@code null} when there is none or it failed
+     */
+    public static Object resolve(String owner, String name, Request request, Logger logger) {
+        return resolve(get(owner, name), name, request, logger);
     }
 
     /**
@@ -130,7 +199,11 @@ public final class Registry {
      * @return the value, or {@code null} when there is none or it failed
      */
     public static Object resolve(String name, Request request, Logger logger) {
-        Entry entry = ENTRIES.get(name);
+        return resolve(ENTRIES.get(name), name, request, logger);
+    }
+
+    /** Runs one registration, reporting a failure once. */
+    private static Object resolve(Entry entry, String name, Request request, Logger logger) {
         if (entry == null) {
             return null;
         }
@@ -186,15 +259,16 @@ public final class Registry {
         return Set.copyOf(ENTRIES.keySet());
     }
 
-    /** Returns the names registered by one plugin. */
+    /**
+     * Returns the names registered by one plugin.
+     *
+     * <p>Read from the per-owner view, so a plugin whose name another plugin
+     * also registered still lists it: PlaceholderAPI shows what
+     * {@code %exyliaffa_…%} answers, and it answers that.
+     */
     public static Set<String> namesOf(String owner) {
-        Set<String> result = new HashSet<>();
-        ENTRIES.forEach((name, entry) -> {
-            if (entry.owner().equals(owner)) {
-                result.add(name);
-            }
-        });
-        return Set.copyOf(result);
+        Map<String, Entry> owned = BY_OWNER.get(owner);
+        return owned == null ? Set.of() : Set.copyOf(owned.keySet());
     }
 
     /** Returns how many placeholders are registered. */
@@ -205,6 +279,7 @@ public final class Registry {
     /** Drops everything. Used on shutdown and by tests. */
     public static void clear() {
         ENTRIES.clear();
+        BY_OWNER.clear();
         REPORTED.clear();
         REPORTED_UNKNOWN.clear();
         REPORTED_OVERWRITE.clear();

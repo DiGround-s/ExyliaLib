@@ -51,36 +51,62 @@ class PapiExpansionTest {
     }
 
     /**
-     * The reported scenario, with ExyliaFFA holding the name: its expansion
-     * answers with its own value, and the other plugin's expansion does not
-     * answer at all rather than handing ExyliaFFA's number out under its own
-     * identifier.
+     * The reported defect: {@code %exyliaffa_total_players%} and
+     * {@code %exyliasandbox_total_players%} are two different placeholders,
+     * because the identifier in front of them says so. Both plugins registering
+     * the name {@code total_players} must therefore both keep answering, in
+     * whichever order they enabled.
      */
     @Test
-    void answersWithItsOwnPluginsValueWhenTwoPluginsShareAName() {
+    void bothPluginsAnswerUnderTheirOwnIdentifier() {
         Plugin other = FakeServer.newPlugin("ExyliaSandBox");
         Placeholders.register(other, "total_players", request -> 0);
-        // Registered last, so ExyliaFFA holds the flat registry slot.
+        // Registered last, so ExyliaFFA holds the bare-name slot. That decides
+        // what "%total_players%" alone means; it decides nothing here.
         Placeholders.register(plugin, "total_players", request -> 42);
 
         assertEquals("42", new PapiExpansion(plugin).onRequest(null, "total_players"));
-        assertNull(new PapiExpansion(other).onRequest(null, "total_players"));
+        assertEquals("0", new PapiExpansion(other).onRequest(null, "total_players"));
     }
 
-    /**
-     * The exact reported defect, in its reported order: ExyliaSandBox enabled
-     * last and took the slot, so {@code %exyliaffa_total_players%} used to run
-     * ExyliaSandBox's resolver and return its real {@code 0}. It must return
-     * nothing instead, leaving the text visible.
-     */
+    /** The same, with the plugins enabling the other way around. */
     @Test
-    void doesNotAnswerWithAnotherPluginsValue() {
+    void theOrderPluginsEnableInDoesNotDecideWhoAnswers() {
         Plugin other = FakeServer.newPlugin("ExyliaSandBox");
         Placeholders.register(plugin, "total_players", request -> 42);
         Placeholders.register(other, "total_players", request -> 0);
 
+        assertEquals("42", new PapiExpansion(plugin).onRequest(null, "total_players"));
+        assertEquals("0", new PapiExpansion(other).onRequest(null, "total_players"));
+    }
+
+    /** A shared name is still this plugin's, so PlaceholderAPI lists it. */
+    @Test
+    void listsASharedNameUnderBothPlugins() {
+        Plugin other = FakeServer.newPlugin("ExyliaSandBox");
+        Placeholders.register(other, "total_players", request -> 0);
+        Placeholders.register(plugin, "total_players", request -> 42);
+
+        assertEquals(List.of("total_players"), new PapiExpansion(plugin).getPlaceholders());
+        assertEquals(List.of("total_players"), new PapiExpansion(other).getPlaceholders());
+    }
+
+    /**
+     * Disabling the plugin that held the bare name gives it back to the plugin
+     * that still registers it, rather than to nobody: the other plugin never
+     * withdrew it, it was only hidden while both were on.
+     */
+    @Test
+    void aSharedNameGoesBackWhenItsHolderIsDisabled() {
+        Plugin other = FakeServer.newPlugin("ExyliaSandBox");
+        Placeholders.register(other, "total_players", request -> 0);
+        Placeholders.register(plugin, "total_players", request -> 42);
+
+        Placeholders.unregisterAll(plugin.getName());
+
         assertNull(new PapiExpansion(plugin).onRequest(null, "total_players"));
         assertEquals("0", new PapiExpansion(other).onRequest(null, "total_players"));
+        assertEquals("0", Placeholders.apply("%total_players%"));
     }
 
     @Test
@@ -102,6 +128,11 @@ class PapiExpansionTest {
         assertNull(new PapiExpansion(plugin).onRequest(null, "stats_top_2"));
     }
 
+    /**
+     * Both plugins keep answering, so the warning is no longer about one of
+     * them going quiet — it is about what the bare {@code %total_players%}
+     * means, which can only be one of them.
+     */
     @Test
     void warnsOnceWhenADifferentPluginTakesOverAName() {
         Plugin other = FakeServer.newPlugin("ExyliaSandBox");
