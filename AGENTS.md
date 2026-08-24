@@ -880,6 +880,45 @@ Todo lo que un jugador gana pasa por `net.exylia.lib.util.reward`. Nunca un
   `resolvedIcon()` dibujan sin servidor, y `RewardCodec` va y viene. Un editor
   construido sobre eso no toca nada interno.
 
+### Loot — el formato es de commons, los bugs tampoco
+
+Todo lo que sale de un cofre, un spawner o un bloque roto pasa por
+`net.exylia.lib.util.loot`. Nunca una lista de ItemStacks a mano ni un
+`nextDouble` suelto contra un peso.
+
+- **El formato almacenado no se elige.** Hay filas escritas por commons en
+  producción (`sc_loot_chest_templates`, las tablas de spawners, cada
+  configuración de evento). `LootCodec` lee y escribe exactamente esa forma: los
+  nombres de campo son los del bean Lombok viejo en su orden de declaración, los
+  nulos se omiten, y una lista vacía se guarda como `NULL` y no como `[]`.
+- **Una fila sin `type` es un ítem.** Se escribió antes de que existieran las
+  entradas de comando, y eso significaba. Un tipo desconocido también se lee como
+  ítem y se reporta: cuesta el payload, no la tabla.
+- **Una entrada a medio configurar se conserva y se reporta.** Un ítem sin ítem
+  es justo lo que un editor está para arreglar; tirarla la perdería en cuanto se
+  guardase la tabla.
+- **El peso significa dos cosas y las dos son de commons.** `roll` lo lee como
+  porcentaje y tira línea por línea (cofre, spawner); `pick` lo lee como parte de
+  un total y saca una sola (relleno de survival games). No se convierte entre
+  ellas: las tablas de ahí fuera ya significan una u otra según quién las lea.
+- **La línea forzada cuando no salió nada se elige uniforme, no por peso.** Es lo
+  que hacía commons, y cambiarlo volvería comunes los ítems raros justo en las
+  tablas donde toda línea es improbable.
+- **Nunca un stack de cero.** Commons devolvía `minAmount` tal cual, así que una
+  entrada guardada con `0` producía un ítem de cantidad cero que desaparecía de
+  camino al cofre. `amountOf` nunca baja de uno, y un rango al revés da el
+  extremo bajo en vez de nada.
+- **El módulo no guarda nada.** Sin registro, sin caché, sin dueño por plugin:
+  una tabla es una `List<LootEntry>` de quien la tiene (plantilla de cofre,
+  spawner, configuración de evento). Un registro en la librería sería un segundo
+  sitio que mantener sincronizado.
+- **Construir el `ItemStack` está detrás de `LootItems`.** Es la única parte que
+  necesita servidor; la gramática escrita, el dado, las cantidades y el códec se
+  prueban sin uno.
+- **`LootEntry` es inmutable** con `toBuilder()` que conserva el id y `copy()`
+  que duplica, así que un admin guardando la tabla no cambia una línea por debajo
+  de un cofre que se está llenando.
+
 ### Comandos — siempre Lamp, nunca un executor a mano
 
 Todo comando se escribe con **Lamp** (`io.github.revxrsal:lamp.*`), la base
@@ -1262,6 +1301,7 @@ Raíz de código: `src/main/java/net/exylia/lib/`. Raíz de tests:
 | panel | `panel/Panels`, `PluginPanels`, `PanelSession`, `PanelDiff` | `panel/internal/` (`PanelRuntime`, `Session`, `PanelHolder`, `WorkingCopy`, `Diff`, `Layouts`, `PanelRenderer`, `PanelPrompts`, `UnsupportedTypes`, `ControlKind`) | [docs/panels.md](docs/panels.md) | 1.50.0 |
 | settings panel | `panel/SettingsPanel`, `PluginPanels.settings` | `panel/internal/` (`SettingsEngine`, `ControlMapper`, `RecordRebuilder`, `PanelListener`) | [docs/panels.md](docs/panels.md) | 1.50.0 |
 | list panel | `panel/ListPanel`, `FieldDescriptor`, `PluginPanels.list` | `panel/internal/` (`ListEngine`, `ListEntries`) | [docs/panels.md](docs/panels.md) | 1.50.0 |
+| util (loot) | `util/loot/Loot`, `LootEntry`, `LootType`, `LootCodec` | `util/loot/internal/` (`LootLines`, `LootRolls`, `LootItems`) | [docs/loot.md](docs/loot.md) | 1.56.0 |
 
 Clases raíz que no son módulo: `ExyliaLib.java` (ciclo de vida y limpieza),
 `platform/Platform.java`, `internal/LibrarySettings`, `internal/ExyliaLibUpdater`.
@@ -1295,6 +1335,8 @@ Son package-private a propósito; los tests viven del mismo paquete:
 | `panel/internal/SettingsEngine` | `forTests(...)` (un panel de ajustes sin ventana: el mapeo, los prompts y el rebuild se prueban sin dibujar, que es lo único que exige un servidor) |
 | `panel/internal/ListEngine` | `forTests(...)` (una lista sin ventana) y `reorderForTests(...)` (mueve la lista **entre el draw y el clic**: es la única forma en que "resolvió el índice correcto" y "resolvió el elemento correcto" dan respuestas distintas, así que sin esta costura el bug del editor de pociones de commons pasa los tests. No es un artificio: un plugin que edita la misma lista desde un comando con el panel abierto hace exactamente esto) |
 | `panel/FieldDescriptor` (tests) | `TestDescriptors.Notes` sobre un `record Note(String id, String text)` declarado en los tests. Si paginar, buscar, copiar, borrar, deshacer y guardar funcionan sobre un tipo que la librería nunca vio, funcionan porque el motor es genérico — un test escrito sobre un descriptor incluido pasaría por el motivo equivocado |
+| `util/loot/internal/LootRolls` | `Dice` (los dados: tirada, rango y barajado). El resto del módulo decide sobre strings y números, así que con esta costura toda la lógica de una tabla de loot se prueba sin azar |
+| `util/loot/internal/LootItems` | la interfaz que construye el `ItemStack` — la única parte del módulo que necesita servidor; un doble la sustituye y la gramática escrita se prueba entera sin registro |
 | tests compartidos | `src/test/java/net/exylia/lib/FakeServer.java`, `FakePlayer.java`, `debug/DebugCapture.java`; `FakeServer.runAsyncForReal()` ejecuta las async en un hilo real |
 
 **Los fakes no son gratis, y un benchmark que los llama se mide a sí mismo.**
