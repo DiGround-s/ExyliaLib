@@ -14,9 +14,20 @@ import org.bukkit.plugin.Plugin;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+import java.io.IOException;
+import java.net.URI;
+import java.net.URISyntaxException;
+import java.net.URL;
+import java.nio.file.AtomicMoveNotSupportedException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
+import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Optional;
+import java.util.jar.JarEntry;
+import java.util.jar.JarFile;
 
 /**
  * The menus belonging to one plugin.
@@ -142,6 +153,73 @@ public final class PluginMenus {
         runtime.clearDefinitions();
     }
 
+    /**
+     * Replaces a directory in this plugin's data folder with its packaged files.
+     *
+     * <p>Call this during startup before loading bundled menus, so updated files
+     * replace old defaults while administrator changes outside this directory
+     * remain untouched.
+     *
+     * <pre>{@code
+     * Menus.of(this).refreshBundledDirectory(MyPlugin.class, "menus/admin");
+     * }</pre>
+     *
+     * <p>The directory is read recursively from {@code anchor}'s artifact and is
+     * staged before the existing target is replaced. If extracting or replacing
+     * it fails, the previous target remains in place and a warning is logged.
+     *
+     * @param anchor the consumer plugin class packaged with the resources
+     * @param resourceDirectory a relative resource and data-folder directory
+     * @return whether the packaged directory replaced the target
+     * @throws IllegalArgumentException if the directory is blank, absolute, or escapes the data folder
+     */
+    public boolean refreshBundledDirectory(@NotNull Class<?> anchor, @NotNull String resourceDirectory) {
+        Path relative = bundledDirectory(resourceDirectory);
+        Path dataFolder = plugin.getDataFolder().toPath().toAbsolutePath().normalize();
+        Path target = dataFolder.resolve(relative).normalize();
+        if (!target.startsWith(dataFolder)) {
+            throw new IllegalArgumentException("Resource directory must stay inside the plugin data folder.");
+        }
+
+        Path staging = null;
+        Path backup = null;
+        try {
+            Files.createDirectories(dataFolder);
+            staging = Files.createTempDirectory(dataFolder, ".bundled-");
+            extractBundledDirectory(anchor, relative, staging);
+
+            backup = Files.createTempDirectory(dataFolder, ".previous-");
+            Files.delete(backup);
+            Files.createDirectories(target.getParent());
+            if (Files.exists(target)) {
+                move(target, backup);
+            }
+            try {
+                move(staging, target);
+            } catch (IOException replacementFailure) {
+                try {
+                    if (Files.exists(backup)) {
+                        move(backup, target);
+                        backup = null;
+                    }
+                } catch (IOException restorationFailure) {
+                    replacementFailure.addSuppressed(restorationFailure);
+                }
+                throw replacementFailure;
+            }
+            staging = null;
+            deleteTree(backup);
+            backup = null;
+            return true;
+        } catch (IOException | URISyntaxException | SecurityException failure) {
+            debug.warn("Could not refresh bundled directory \"" + resourceDirectory + "\": "
+                    + failure.getMessage());
+            return false;
+        } finally {
+            deleteTree(staging);
+        }
+    }
+
     // ------------------------------------------------------------------ opening
 
     /**
@@ -255,6 +333,89 @@ public final class PluginMenus {
     /** Qualifies a short id with this plugin's namespace, for readable logs. */
     private String qualify(String id) {
         return id.indexOf(':') >= 0 ? id : actions.namespace() + ':' + id;
+    }
+
+    private static Path bundledDirectory(String resourceDirectory) {
+        if (resourceDirectory.isBlank()) {
+            throw new IllegalArgumentException("Resource directory cannot be blank.");
+        }
+        Path directory = Path.of(resourceDirectory).normalize();
+        if (directory.toString().isEmpty() || directory.isAbsolute() || directory.startsWith("..")) {
+            throw new IllegalArgumentException("Resource directory must be relative and cannot escape its plugin.");
+        }
+        return directory;
+    }
+
+    private static void extractBundledDirectory(Class<?> anchor, Path resourceDirectory, Path staging)
+            throws IOException, URISyntaxException {
+        if (anchor.getProtectionDomain().getCodeSource() == null) {
+            throw new IOException("The anchor has no artifact location.");
+        }
+        URL location = anchor.getProtectionDomain().getCodeSource().getLocation();
+        URI artifact = location.toURI();
+        if ("file".equals(artifact.getScheme()) && Files.isDirectory(Path.of(artifact))) {
+            Path source = Path.of(artifact).resolve(resourceDirectory).normalize();
+            if (!source.startsWith(Path.of(artifact)) || !Files.isDirectory(source)) {
+                throw new IOException("Packaged directory does not exist.");
+            }
+            try (var files = Files.walk(source)) {
+                for (Path file : files.filter(Files::isRegularFile).toList()) {
+                    Path destination = staging.resolve(source.relativize(file));
+                    Files.createDirectories(destination.getParent());
+                    Files.copy(file, destination);
+                }
+            }
+            return;
+        }
+
+        String prefix = resourceDirectory.toString().replace('\\', '/');
+        prefix = prefix.endsWith("/") ? prefix : prefix + "/";
+        try (JarFile jar = new JarFile(Path.of(artifact).toFile())) {
+            boolean found = false;
+            for (var entries = jar.entries(); entries.hasMoreElements(); ) {
+                JarEntry entry = entries.nextElement();
+                if (entry.isDirectory() || !entry.getName().startsWith(prefix)) {
+                    continue;
+                }
+                found = true;
+                Path destination = staging.resolve(entry.getName().substring(prefix.length())).normalize();
+                if (!destination.startsWith(staging)) {
+                    throw new IOException("Packaged entry escapes the requested directory.");
+                }
+                Files.createDirectories(destination.getParent());
+                try (var input = jar.getInputStream(entry)) {
+                    Files.copy(input, destination);
+                }
+            }
+            if (!found) {
+                throw new IOException("Packaged directory does not exist.");
+            }
+        }
+    }
+
+    private static void move(Path source, Path target) throws IOException {
+        try {
+            Files.move(source, target, StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
+        } catch (AtomicMoveNotSupportedException ignored) {
+            Files.move(source, target, StandardCopyOption.REPLACE_EXISTING);
+        }
+    }
+
+    private static void deleteTree(Path directory) {
+        if (directory == null || !Files.exists(directory)) {
+            return;
+        }
+        try (var files = Files.walk(directory)) {
+            files.sorted(Comparator.reverseOrder()).forEach(path -> {
+                try {
+                    Files.deleteIfExists(path);
+                } catch (IOException ignored) {
+                    // A failed cleanup must not change the refresh result.
+                }
+            });
+        } catch (IOException ignored) {
+            // A failed cleanup must not change the refresh result.
+        }
     }
 
     /** The definitions this plugin registered, for diagnostics. */

@@ -40,6 +40,20 @@ menus.unload();                          // forget them all, for a reload
 menus.sounds(UiSounds.DEFAULTS);         // what this plugin's menus sound like
 ```
 
+### Refreshing bundled menus
+
+At startup, refresh a directory of packaged defaults before loading its files:
+
+```java
+menus.refreshBundledDirectory(MyPlugin.class, "menus/admin");
+```
+
+The method discovers all regular files recursively from the plugin artifact and
+atomically replaces only `plugins/MyPlugin/menus/admin`. Files removed from the
+artifact disappear from that directory; other data-folder files remain untouched.
+The path must be relative and cannot be blank or escape the plugin data folder.
+Failure leaves the previous directory intact and logs a warning; success is quiet.
+
 A part that will not compile — an action that does not exist, a mistyped
 enchantment — becomes a dead button and a line in the console, and the other
 fifty buttons still work. A file that does not describe a menu throws, because
