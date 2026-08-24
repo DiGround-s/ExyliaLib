@@ -93,6 +93,15 @@ final class DialogPackets {
     private static final int BODY_WIDTH = 300;
     private static final int TEXT_LIMIT = 32_767;
 
+    /**
+     * Pixels one line of a multiline box takes.
+     *
+     * <p>The client sizes a text box in pixels, and a line of the default font
+     * is nine of them plus a pixel of spacing. Asking for lines rather than
+     * pixels is what keeps the number a caller writes meaningful.
+     */
+    private static final int LINE_HEIGHT = 10;
+
     private static final ConcurrentMap<String, State> STATES = new ConcurrentHashMap<>();
     private static final AtomicBoolean REGISTERED = new AtomicBoolean();
 
@@ -274,7 +283,7 @@ final class DialogPackets {
             control = new BooleanInputControl(label, Boolean.parseBoolean(initial), "true", "false");
         } else {
             control = new TextInputControl(CONTROL_WIDTH, label, validation != null,
-                    initial, TEXT_LIMIT, null);
+                    initial, TEXT_LIMIT, multiline(request.lines()));
         }
         return new Input("value", control);
     }
@@ -292,11 +301,24 @@ final class DialogPackets {
                 // FormField currently exposes parser semantics but no choice option list. A text
                 // control is therefore the only lossless raw-value control until such metadata exists.
                 case TEXT, INTEGER, DECIMAL, AMOUNT, DURATION, CHOICE ->
-                        new TextInputControl(CONTROL_WIDTH, label, true, initial, TEXT_LIMIT, null);
+                        new TextInputControl(CONTROL_WIDTH, label, true, initial, TEXT_LIMIT,
+                                multiline(field.lines()));
             };
             inputs.add(new Input(name, control));
         }
         return inputs;
+    }
+
+    /**
+     * The tall box, when the caller asked for one.
+     *
+     * <p>{@code null} for a single line, which is what the client draws by
+     * default and what every request wanted before this existed. The height is
+     * given in lines and the line cap left open: what the caller is asking for
+     * is room to read, not a limit on what can be typed.
+     */
+    private static TextInputControl.MultilineOptions multiline(int lines) {
+        return lines > 1 ? new TextInputControl.MultilineOptions(null, lines * LINE_HEIGHT) : null;
     }
 
     private static ActionButton button(String label, String action) {

@@ -41,6 +41,7 @@ public abstract class InputRequest<T, SELF extends InputRequest<T, SELF>>
     private T defaultValue;
     private UnaryOperator<String> transform = UnaryOperator.identity();
     private List<TransportKind> preferredTransports = List.of();
+    private int lines = 1;
 
     InputRequest(String pluginName, Player player, String prompt, InputParser<T> parser) {
         this.pluginName = Inputs.requireText(pluginName, "pluginName");
@@ -199,6 +200,35 @@ public abstract class InputRequest<T, SELF extends InputRequest<T, SELF>>
     @ApiStatus.Internal
     public final @Nullable T defaultValue() {
         return defaultValue;
+    }
+
+    /**
+     * How many lines tall a transport should draw the box, at least one.
+     *
+     * <p>A hint, not a constraint: a one-line box still accepts a long answer,
+     * and a transport with no notion of height ignores it. What it changes is
+     * whether somebody editing a display name full of colour tokens can see
+     * what they are editing.
+     *
+     * @return the requested height in lines
+     * @since 1.56.0
+     */
+    @ApiStatus.Internal
+    public final int lines() {
+        return lines;
+    }
+
+    /**
+     * Sets how many lines tall a transport should draw the box.
+     *
+     * <p>Package-private on the base so only the requests where height means
+     * something expose it: a number field is one line by definition.
+     */
+    final void setLines(int lines) {
+        if (lines < 1) {
+            throw new InputException("lines must be at least one");
+        }
+        this.lines = lines;
     }
 
     /** Immutable validation descriptors for diagnostics and rich transports. */

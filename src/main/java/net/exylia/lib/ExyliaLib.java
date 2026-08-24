@@ -20,6 +20,8 @@ import net.exylia.lib.input.internal.Bedrocks;
 import net.exylia.lib.input.internal.ChatTransport;
 import net.exylia.lib.input.internal.DialogTransport;
 import net.exylia.lib.input.internal.InputListener;
+import net.exylia.lib.util.editor.internal.EditorListener;
+import net.exylia.lib.util.editor.internal.EditorRuntime;
 import net.exylia.lib.input.internal.InputRuntime;
 import net.exylia.lib.format.internal.FormatPlaceholders;
 import net.exylia.lib.skull.internal.SkullRuntime;
@@ -123,6 +125,12 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         // One listener for every plugin's questions, for the same reason: a
         // chat or inventory event fires once and the session says whose it is.
         getServer().getPluginManager().registerEvents(new InputListener(), this);
+        // And one for every plugin's list editors and icon pickers. Separate
+        // from the menu listener because an editor window is not a menu window:
+        // it carries its own holder, and a click in it is a row or a control
+        // rather than a UiItem.
+        EditorRuntime.init(this);
+        getServer().getPluginManager().registerEvents(new EditorListener(), this);
         RegionRuntime.init(this);
         getServer().getPluginManager().registerEvents(new RegionListener(), this);
         // Block ownership, for the regions that declare they need it. Dormant
@@ -397,6 +405,10 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         // told the server is stopping.
         InputRuntime.shutdown();
         Inputs.releaseAll();
+        // Before the menu module, for the same reason its per-plugin release
+        // goes first: an editor lives in a window, and closing the window first
+        // would strand the working copy nobody approved.
+        EditorRuntime.releaseAll();
         Menus.releaseAll();
         Regions.releaseAll();
         // Before the database module, for the same reason a plugin's release is:
@@ -450,6 +462,10 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         ClanRuntime.forget(event.getPlayer().getUniqueId());
         CombatRuntime.forget(event.getPlayer().getUniqueId());
         Cooldowns.forget(event.getPlayer().getUniqueId());
+        // Before the menu module: an editor is a window, and a player who left
+        // is not coming back to a working copy nobody can see. Their clipboard
+        // goes with them.
+        EditorRuntime.forget(event.getPlayer().getUniqueId());
         MenuRuntime.forgetEverywhere(event.getPlayer().getUniqueId());
         // Before the input module: ending a run cancels the question it was
         // waiting on, and a question already forgotten cannot be cancelled.
@@ -567,6 +583,10 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         // menu it promised to reopen. Released after any of them, a run would
         // be reaching into a module that is already gone.
         Wizards.release(pluginName);
+        // Before the menu module, and for the reason its own release runs early:
+        // an editor is shown in a window, so closing the menus first would take
+        // the screen away and leave the working copy behind.
+        EditorRuntime.release(pluginName);
         // Before the task module: closing a window cancels what its buttons
         // started, and a menu whose actions come from a dying classloader
         // must not answer another click.

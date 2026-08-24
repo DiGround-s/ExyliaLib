@@ -32,6 +32,7 @@ public final class FormField<T> {
     private final List<Rule<T>> validations = new ArrayList<>();
     private boolean required = true;
     private T defaultValue;
+    private int lines = 1;
 
     private FormField(FormKey<T> key, String label, InputParser<T> parser, Kind kind) {
         this.key = Inputs.require(key, "key");
@@ -97,6 +98,36 @@ public final class FormField<T> {
     }
 
     /** Sets the initial value a transport may display. */
+    /**
+     * Draws this field tall enough to read, where the transport can.
+     *
+     * <p>The default is one line. A field holding a display name, a lore line or
+     * a command with placeholders is edited blind in a box that shows twenty
+     * characters at a time.
+     *
+     * @param lines how many lines tall, at least one
+     * @return this field
+     * @since 1.56.0
+     */
+    public @NotNull FormField<T> lines(int lines) {
+        if (lines < 1) {
+            throw new InputException("lines must be at least one");
+        }
+        this.lines = lines;
+        return this;
+    }
+
+    /**
+     * How many lines tall a transport should draw this field.
+     *
+     * @return the requested height, at least one
+     * @since 1.56.0
+     */
+    @ApiStatus.Internal
+    public int lines() {
+        return lines;
+    }
+
     public @NotNull FormField<T> defaultValue(@Nullable T defaultValue) {
         this.defaultValue = defaultValue;
         return this;
