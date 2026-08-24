@@ -3,6 +3,7 @@ package net.exylia.lib.config.internal;
 import net.exylia.lib.config.ConfigFile;
 import net.exylia.lib.config.ConfigIssue;
 import net.exylia.lib.config.Migration;
+import net.exylia.lib.config.Schema;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.InvalidConfigurationException;
 import org.bukkit.configuration.file.YamlConfiguration;
@@ -49,6 +50,8 @@ public final class ConfigFileImpl<T> implements ConfigFile<T> {
     private final String name;
     private final Class<T> schemaType;
     private final SchemaNode schema;
+    /** Taken once: the analysis behind it is cached, and the copy is a value. */
+    private final Schema projection;
     private final int currentVersion;
     private final Map<Integer, Migration> migrations;
     private final File file;
@@ -64,6 +67,7 @@ public final class ConfigFileImpl<T> implements ConfigFile<T> {
         this.name = name;
         this.schemaType = schemaType;
         this.schema = SchemaCache.of(schemaType, plugin.getName());
+        this.projection = SchemaProjection.of(schemaType, plugin.getName());
         this.currentVersion = currentVersion;
         this.migrations = migrations;
         this.file = new File(plugin.getDataFolder(), name.replace('/', File.separatorChar) + ".yml");
@@ -152,6 +156,11 @@ public final class ConfigFileImpl<T> implements ConfigFile<T> {
     @Override
     public @NotNull String name() {
         return name;
+    }
+
+    @Override
+    public @NotNull Schema schema() {
+        return projection;
     }
 
     /** Returns whether this file belongs to the given plugin. */

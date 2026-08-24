@@ -1203,7 +1203,7 @@ Raíz de código: `src/main/java/net/exylia/lib/`. Raíz de tests:
 | Módulo | API pública | Interno | Doc | Desde |
 | --- | --- | --- | --- | --- |
 | task | `task/Tasks`, `TaskScheduler`, `TaskHandle`; `platform/Platform` | `task/internal/` | [docs/task.md](docs/task.md) | 1.0.0 |
-| config | `config/Configs`, `ConfigFile`, `MutableConfig`, `Key`, `Comment`, `Migration`, `ConfigIssue` | `config/internal/` | [docs/config.md](docs/config.md) | 1.1.0 |
+| config | `config/Configs`, `ConfigFile`, `MutableConfig`, `Key`, `Comment`, `Migration`, `ConfigIssue`, `Schema` (1.50.0) | `config/internal/` (+ `SchemaProjection`) | [docs/config.md](docs/config.md) | 1.1.0 |
 | text | `text/Text`, `Colors`, `Palette`, `Lines` (1.48.0) | `text/internal/` | [docs/text.md](docs/text.md) | 1.2.0 |
 | placeholder | `placeholder/Placeholders`, `Template`, `Resolver`, `Request` | `placeholder/internal/` | [docs/placeholders.md](docs/placeholders.md) | 1.3.0 |
 | effect | `effect/Effects`, `Timer`, `Ticks`, `Display`, `EffectConfig` | `effect/internal/` | [docs/effects.md](docs/effects.md) | 1.4.0 |

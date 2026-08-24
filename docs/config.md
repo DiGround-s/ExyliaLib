@@ -56,9 +56,62 @@ records become nested YAML sections.
 | `update(UnaryOperator<T>)` | change and persist in one step |
 | `issues()` | problems found on the last load |
 | `name()` | the file's name |
+| `schema()` → `Schema` | a read-only description of the record type; never `null`. Since 1.50.0 |
 
 `MutableConfig` (low-level, path-based): `get(path)`, `set(path, value)`,
 `remove(path)`, `contains(path)`.
+
+## Schema projection
+
+Since 1.50.0. A config file can describe its own record — keys, declared types,
+`@Comment` lines, nesting — so a UI can be generated from it without the caller
+reflecting over the record or reaching into `config.internal`.
+
+```java
+for (Schema.Field field : storage.schema().fields()) {
+    render(field.key(), field.type(), field.comments());
+}
+```
+
+`Schema` is a record: `Schema(Class<?> type, List<String> comments, List<Field> fields)`.
+
+| Accessor | Contract |
+| --- | --- |
+| `type()` | the record class described |
+| `comments()` | the section's `@Comment` lines, in declaration order; empty when undocumented |
+| `fields()` | the components, in canonical-constructor order |
+
+`Schema.Field` is a nested record:
+`Field(String name, String key, Class<?> type, Type generic, List<String> comments, Schema nested)`.
+
+| Accessor | Contract |
+| --- | --- |
+| `name()` | the Java component name — what an error message should quote |
+| `key()` | the YAML key: the `@Key` value, or the kebab-case form of `name()` |
+| `type()` | the declared type, erased |
+| `generic()` | the declared generic type, so the element type of a `List<String>` is recoverable |
+| `comments()` | this key's `@Comment` lines, in declaration order |
+| `nested()` | the nested `Schema` when the component is a record, otherwise `null` |
+| `isSection()` | `nested() != null`, named for the question a caller is actually asking |
+
+Contracts:
+
+- **It is a value, not a handle.** A schema describes the *type*, never the
+  values. Two `ConfigFile`s of one record type holding different settings project
+  **equal** schemas, and a schema taken before a `reload()` is unchanged after
+  it. Reading values stays `get()`; writing stays `update(...)`.
+- **Nothing live leaks.** It holds no reference back to the file, the backing
+  YAML, or the canonical constructor. `SchemaNode` stays package-private; a
+  reflection sweep over the package's public signatures enforces it.
+- **Deeply immutable.** Every list is copied on construction and rejects
+  mutation with `UnsupportedOperationException`. `nested()` is the only accessor
+  that can answer `null`.
+- **Any thread.** Building one touches no Bukkit API, no server and no
+  filesystem, so it is identical on Spigot, Paper, Purpur and Folia.
+- **Exempt from `invalidateAll()`.** It caches nothing derived from the palette,
+  so it has nothing to invalidate on reload.
+- The projection deliberately carries no current values, no defaults, no
+  `FileConfiguration`, no migration history and no `ConfigIssue` state.
 
 ## Migrations
 
@@ -93,7 +146,8 @@ default value is used.
 ## Source and tests
 
 - Public: `config/Configs`, `ConfigFile`, `MutableConfig`, `Key`, `Comment`,
-  `Migration`, `ConfigIssue`.
+  `Migration`, `ConfigIssue`, `Schema` (with `Schema.Field`).
 - Internal: `config/internal/` (`Binder`, `Coercions`, `ConfigFileImpl`,
-  `SchemaCache`, `SchemaNode`, `YamlMutableConfig`).
-- Tests: `src/test/java/net/exylia/lib/config/ConfigModuleTest.java`.
+  `SchemaCache`, `SchemaNode`, `SchemaProjection`, `YamlMutableConfig`).
+- Tests: `src/test/java/net/exylia/lib/config/ConfigModuleTest.java`,
+  `SchemaProjectionTest.java`, `PublicSignatureSweepTest.java`.

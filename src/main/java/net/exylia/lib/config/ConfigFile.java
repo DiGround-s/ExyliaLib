@@ -129,4 +129,32 @@ public interface ConfigFile<T> {
      * @return for example {@code config} or {@code menus/main}
      */
     @NotNull String name();
+
+    /**
+     * Returns a read-only description of this file's record type: its keys,
+     * declared types and {@link Comment} lines.
+     *
+     * <pre>{@code
+     * for (Schema.Field field : storage.schema().fields()) {
+     *     render(field.key(), field.type(), field.comments());
+     * }
+     * }</pre>
+     *
+     * <p>It describes the <b>type</b>, not the values, so it does not change
+     * when the file does: a schema taken before a {@link #reload()} is still
+     * valid after it, and two files of one record type project equal schemas.
+     * Reading values stays {@link #get()}; writing stays {@link #update}.
+     *
+     * <p>Safe to call from any thread. The projection is taken once per file, so
+     * this is a field read rather than a fresh analysis.
+     *
+     * <p>This accessor was added in 1.50.0 to an interface the library has
+     * always implemented alone ({@code config.internal.ConfigFileImpl}); it was
+     * never documented as an extension point, so no third-party implementation
+     * is stranded by it.
+     *
+     * @return the projection; never {@code null}
+     * @since 1.50.0
+     */
+    @NotNull Schema schema();
 }
