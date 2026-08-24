@@ -22,6 +22,7 @@ import java.nio.file.AtomicMoveNotSupportedException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
+import java.util.Collection;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -291,6 +292,28 @@ public final class PluginMenus {
     public @NotNull UiSession openNow(@NotNull Player viewer, @NotNull UiDefinition definition,
                                       @NotNull Map<String, Object> context) {
         return runtime.open(viewer, definition, new LinkedHashMap<>(context));
+    }
+
+    /**
+     * Opens a menu with its lists already filled.
+     *
+     * <p>What the caller that fills a list right away should use instead of
+     * {@link #openNow(Player, UiDefinition, Map)} followed by
+     * {@link UiSession#entries(String, java.util.Collection)}: the rows are in
+     * before the menu is drawn, so every list slot is rendered once rather
+     * than drawn as the pagination filler and immediately painted over. Must
+     * be called on the thread that owns the player.
+     *
+     * @param viewer     who to show it to
+     * @param definition what to show
+     * @param context    what it is about
+     * @param sections   the rows of each list, by section id
+     * @return the session
+     */
+    public @NotNull UiSession openNow(@NotNull Player viewer, @NotNull UiDefinition definition,
+                                      @NotNull Map<String, Object> context,
+                                      @NotNull Map<String, ? extends Collection<UiEntry>> sections) {
+        return runtime.open(viewer, definition, new LinkedHashMap<>(context), sections);
     }
 
     // ------------------------------------------------------------------ open ones

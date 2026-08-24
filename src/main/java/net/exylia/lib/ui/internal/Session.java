@@ -206,6 +206,38 @@ final class Session implements UiSession {
         }
     }
 
+    /**
+     * Fills the lists before the menu has been drawn once.
+     *
+     * <p>{@link #entries(String, Collection)} without the redraw or the
+     * retitle, for the only moment neither is needed: between building the
+     * session and its first {@code draw}. A menu opened by a caller that
+     * already has its rows drew every list slot twice otherwise — once as the
+     * pagination filler, and again over the top of it a statement later — and
+     * an item is not cheap to render.
+     *
+     * <p>The title is recorded rather than sent, because the window was
+     * created with the page count these rows imply. Sending it again would be
+     * a packet saying what the client already has.
+     */
+    void seed(Map<String, ? extends Collection<UiEntry>> sections) {
+        for (Map.Entry<String, ? extends Collection<UiEntry>> section : sections.entrySet()) {
+            UiSection list = definition.section(section.getKey());
+            if (list == null) {
+                continue;
+            }
+            List<UiEntry> rows = List.copyOf(section.getValue());
+            entries.put(section.getKey(), rows);
+            pages.put(section.getKey(), Pages.clamp(page(section.getKey()), rows.size(),
+                    list.perPage()));
+        }
+        UiSection only = definition.section();
+        if (only != null && namesAPage(definition.title())) {
+            lastTitle = filledTitle(definition.title(), context, page(only.id()),
+                    only.pagesFor(entries(only.id()).size()));
+        }
+    }
+
     @Override
     public @NotNull Optional<UiEntry> entryAt(int slot) {
         Rendered rendered = slots.get(slot);
@@ -918,7 +950,23 @@ final class Session implements UiSession {
      * both read one. What they say afterwards is {@link #retitle()}'s job.
      */
     static String title(UiDefinition definition, Player viewer, Map<String, Object> context) {
-        return Text.of(filledTitle(definition.title(), context, 1, 1)).forPlayer(viewer).legacy();
+        return title(definition, viewer, context, Map.of());
+    }
+
+    /**
+     * The same title, for a window whose rows are already known.
+     *
+     * <p>Counted from the rows it is about to be seeded with, so a paginated
+     * menu opens saying {@code 1/5} instead of opening on {@code 1/1} and
+     * spending a retitle packet to correct itself before anybody read it.
+     */
+    static String title(UiDefinition definition, Player viewer, Map<String, Object> context,
+                        Map<String, ? extends Collection<UiEntry>> sections) {
+        UiSection only = definition.section();
+        Collection<UiEntry> rows = only == null ? null : sections.get(only.id());
+        int pages = rows == null ? 1 : only.pagesFor(rows.size());
+        return Text.of(filledTitle(definition.title(), context, 1, pages))
+                .forPlayer(viewer).legacy();
     }
 
     /**
@@ -961,7 +1009,14 @@ final class Session implements UiSession {
      */
     static Inventory inventoryFor(MenuHolder holder, UiDefinition definition, Player viewer,
                                   Map<String, Object> context) {
-        String title = title(definition, viewer, context);
+        return inventoryFor(holder, definition, viewer, context, Map.of());
+    }
+
+    /** The same window, titled for the rows it is about to be seeded with. */
+    static Inventory inventoryFor(MenuHolder holder, UiDefinition definition, Player viewer,
+                                  Map<String, Object> context,
+                                  Map<String, ? extends Collection<UiEntry>> sections) {
+        String title = title(definition, viewer, context, sections);
         org.bukkit.event.inventory.InventoryType type = definition.kind().type();
         // A chest is created by slot count because its size is configured;
         // everything else has a fixed shape the server already knows.

@@ -10,6 +10,7 @@ import net.exylia.lib.item.Items;
 import net.exylia.lib.item.PluginItems;
 import net.exylia.lib.task.Tasks;
 import net.exylia.lib.ui.UiDefinition;
+import net.exylia.lib.ui.UiEntry;
 import net.exylia.lib.ui.UiKeys;
 import net.exylia.lib.ui.UiSession;
 import org.bukkit.entity.Player;
@@ -18,6 +19,7 @@ import org.bukkit.plugin.Plugin;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -157,6 +159,26 @@ public final class MenuRuntime {
      * @return the session
      */
     public Session open(Player viewer, UiDefinition definition, Map<String, Object> context) {
+        return open(viewer, definition, context, Map.of());
+    }
+
+    /**
+     * Opens a menu whose lists are already filled.
+     *
+     * <p>The rows go in before the first draw rather than after it. A caller
+     * that has them either handed them over a statement later — drawing every
+     * list slot twice, once as the pagination filler and once for real — or
+     * accepted that filler flashing on screen. Neither is necessary when the
+     * rows were there all along.
+     *
+     * @param viewer     who to show it to
+     * @param definition what to show
+     * @param context    values the menu is about
+     * @param sections   the rows of each list, by section id
+     * @return the session
+     */
+    public Session open(Player viewer, UiDefinition definition, Map<String, Object> context,
+                        Map<String, ? extends Collection<UiEntry>> sections) {
         Session previous = sessionOf(viewer);
         if (previous != null) {
             // Remember where they were, so back has somewhere to go. Recorded
@@ -166,11 +188,12 @@ public final class MenuRuntime {
         }
 
         MenuHolder holder = new MenuHolder();
-        Inventory inventory = Session.inventoryFor(holder, definition, viewer, context);
+        Inventory inventory = Session.inventoryFor(holder, definition, viewer, context, sections);
         Session session = new Session(this, viewer, definition, items, inventory,
                 generations.incrementAndGet(), context);
         holder.bind(session, inventory);
 
+        session.seed(sections);
         session.draw();
         viewer.openInventory(inventory);
         play(viewer, definition.sounds().open());
