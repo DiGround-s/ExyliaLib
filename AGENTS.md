@@ -1336,9 +1336,6 @@ Raíz de código: `src/main/java/net/exylia/lib/`. Raíz de tests:
 | columna heredada de commons que la tabla exige | — | `database/internal/SqlSchema.relaxOrphanedColumns`, `Dialect.dropNotNull`, `SchemaReport.relaxedColumns` | [docs/database.md](docs/database.md) | 1.42.0 |
 | valor de fila multilínea | `<nl>` en un valor de `UiEntry`/`PluginItems.render` | `item/internal/ItemRenderer.lore`, `spans`, `segment` | [docs/menus.md](docs/menus.md), [docs/items.md](docs/items.md) | 1.38.0 |
 | schematic | `schematic/Schematics`, `PluginSchematics`, `SchematicResult`, `SchematicOutcome`, `RegenerateOptions` | `schematic/internal/` (`SchematicRuntime`, `SchematicStore`, `SchematicNames`, `Bounds`, `Engines`, `SchematicEngine`; FAWE confinado en `FaweEngine`) | [docs/schematics.md](docs/schematics.md) | 1.48.0 |
-| panel | `panel/Panels`, `PluginPanels`, `PanelSession`, `PanelDiff` | `panel/internal/` (`PanelRuntime`, `Session`, `PanelHolder`, `WorkingCopy`, `Diff`, `Layouts`, `PanelRenderer`, `PanelPrompts`, `UnsupportedTypes`, `ControlKind`) | [docs/panels.md](docs/panels.md) | 1.50.0 |
-| settings panel | `panel/SettingsPanel`, `PluginPanels.settings` | `panel/internal/` (`SettingsEngine`, `ControlMapper`, `RecordRebuilder`, `PanelListener`) | [docs/panels.md](docs/panels.md) | 1.50.0 |
-| list panel | `panel/ListPanel`, `FieldDescriptor`, `PluginPanels.list` | `panel/internal/` (`ListEngine`, `ListEntries`) | [docs/panels.md](docs/panels.md) | 1.50.0 |
 | util (loot) | `util/loot/Loot`, `LootEntry`, `LootType`, `LootCodec` | `util/loot/internal/` (`LootLines`, `LootRolls`, `LootItems`) | [docs/loot.md](docs/loot.md) | 1.56.0 |
 
 Clases raíz que no son módulo: `ExyliaLib.java` (ciclo de vida y limpieza),
@@ -1365,14 +1362,6 @@ Son package-private a propósito; los tests viven del mismo paquete:
 | `internal/TransferAccess` | la interfaz que el comando usa para exportar e importar; `live()` es la real, un fake la sustituye sin base de datos ni fichero |
 | `schematic/internal/Engines` | `install(...)` (el motor: un fake sustituye a FastAsyncWorldEdit, así que **todo** lo que decide el módulo — nombre, carpeta, orden de las etapas, qué pasa cuando una revienta — se testea sin FAWE y sin servidor) |
 | `schematic/internal/SchematicEngine` | la interfaz que se instala ahí; su única implementación real es la que nombra FAWE |
-| `panel/internal/PanelRenderer` | `sink(DrawSink)` (qué control cayó en qué slot: leerlo del `ItemStack` exige un servidor vivo, y devolver el anterior en vez de ofrecer un reset permite restaurar exactamente lo que había) |
-| `panel/internal/PanelPrompts` | `install(Prompts)` (las tres preguntas que hace un panel; **el motor nunca llama a `Inputs`**, así que un fake aquí sustituye todos los transportes a la vez) |
-| `panel/internal/PanelRuntime` | `setClock/resetClock` (el reloj del módulo) |
-| `panel/internal/UnsupportedTypes` | `forgetReportedForTests` (el aviso ya dicho: "una vez por servidor" solo se puede afirmar dos veces si se puede olvidar) |
-| `panel/internal/Session` | `forTests(...)` (una sesión sin ventana: `Bukkit.createInventory` devuelve `null` sin servidor y un `ItemStack` ni siquiera inicializa su clase, y lo que prueban los tests de ciclo de vida es la liberación, no el dibujado) |
-| `panel/internal/SettingsEngine` | `forTests(...)` (un panel de ajustes sin ventana: el mapeo, los prompts y el rebuild se prueban sin dibujar, que es lo único que exige un servidor) |
-| `panel/internal/ListEngine` | `forTests(...)` (una lista sin ventana) y `reorderForTests(...)` (mueve la lista **entre el draw y el clic**: es la única forma en que "resolvió el índice correcto" y "resolvió el elemento correcto" dan respuestas distintas, así que sin esta costura el bug del editor de pociones de commons pasa los tests. No es un artificio: un plugin que edita la misma lista desde un comando con el panel abierto hace exactamente esto) |
-| `panel/FieldDescriptor` (tests) | `TestDescriptors.Notes` sobre un `record Note(String id, String text)` declarado en los tests. Si paginar, buscar, copiar, borrar, deshacer y guardar funcionan sobre un tipo que la librería nunca vio, funcionan porque el motor es genérico — un test escrito sobre un descriptor incluido pasaría por el motivo equivocado |
 | `region/internal/SelectionRuntime` | `installWand/resetWand` (cómo el selector llega al jugador: construir un `ItemStack` resuelve el registro de ítems, que ningún entorno de test tiene) |
 | `util/loot/internal/LootRolls` | `Dice` (los dados: tirada, rango y barajado). El resto del módulo decide sobre strings y números, así que con esta costura toda la lógica de una tabla de loot se prueba sin azar |
 | `util/loot/internal/LootItems` | la interfaz que construye el `ItemStack` — la única parte del módulo que necesita servidor; un doble la sustituye y la gramática escrita se prueba entera sin registro |

@@ -292,9 +292,16 @@ public final class SelectionRuntime {
             });
         }
 
-        /** Takes it back, however this session ended. */
+        /**
+         * Sweeps the player's selection axes, however this session ended.
+         *
+         * <p>Runs whether or not this session handed one over: an axe left
+         * behind by a crash, a restart or a plugin that went away is rubbish in
+         * an admin's inventory, and the end of a selection is the one moment we
+         * know for certain none of them is in use.
+         */
         private void unequip() {
-            if (!equipped) {
+            if (!equipped && !options.giveSelector()) {
                 return;
             }
             equipped = false;
@@ -304,7 +311,7 @@ public final class SelectionRuntime {
                 // is inert: without a session, a click with it is a click.
                 return;
             }
-            onPlayerThread(player, () -> wand.take(player, plugin));
+            onPlayerThread(player, () -> wand.take(player));
         }
 
         // ------------------------------------------------------------- corners

@@ -42,13 +42,13 @@ class PublicSignatureSweepTest {
     /**
      * The packages whose public surface is swept.
      *
-     * <p>{@code panel} is here because it is the consumer the projection exists
-     * for: a panel that handed back a {@code SchemaNode}, or grew a public method
-     * taking one of its own {@code internal} types, would defeat the boundary
-     * from the other side.
+     * <p>A second package is listed on purpose, and it is a module with an
+     * {@code internal} package of its own: a sweep that read one classpath root
+     * would pass every leak assertion while covering half the contract, which is
+     * the failure this class was written after.
      */
     private static final List<String> GUARDED_PACKAGES =
-            List.of("net.exylia.lib.config", "net.exylia.lib.panel");
+            List.of("net.exylia.lib.config", "net.exylia.lib.util.reward");
 
     @Test
     @DisplayName("no internal type appears in a public signature of the guarded packages")
@@ -119,10 +119,10 @@ class PublicSignatureSweepTest {
         // the contract, which is exactly the failure this test class was written
         // after: the first sweep here read one classpath root and swept nothing.
         List<String> names = types.stream().map(Class::getName).toList();
-        assertTrue(names.contains("net.exylia.lib.panel.Panels"),
-                "the sweep must cover the panel entry point, found: " + names);
-        assertTrue(names.contains("net.exylia.lib.panel.PanelSession"),
-                "the sweep must cover PanelSession, found: " + names);
+        assertTrue(names.contains("net.exylia.lib.util.reward.Rewards"),
+                "the sweep must cover the reward entry point, found: " + names);
+        assertTrue(names.contains("net.exylia.lib.util.reward.RewardEntry"),
+                "the sweep must cover RewardEntry, found: " + names);
     }
 
     // ------------------------------------------------------------------

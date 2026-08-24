@@ -17,6 +17,7 @@ import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 
 /**
  * Handing a player the tool, and taking it back.
@@ -61,13 +62,18 @@ public interface SelectorWand {
     int give(@NotNull Player player, @NotNull ItemStack wand);
 
     /**
-     * Takes back every selector this owner handed this player.
+     * Takes back every selection axe the player is carrying.
      *
-     * @param player who has it
-     * @param owner  the plugin the selection belonged to
+     * <p>Every one, not only the one this session handed over. A selector that
+     * outlived its session — a crash, a restart, a plugin that went away with a
+     * screen open — is rubbish in an admin's inventory, and the player has at
+     * most one selection at a time across the whole server, so nothing anybody
+     * is still using can be swept up by this.
+     *
+     * @param player who has them
      * @return how many stacks were removed
      */
-    int take(@NotNull Player player, @NotNull Plugin owner);
+    int take(@NotNull Player player);
 
     /** The real one. */
     SelectorWand BUKKIT = new SelectorWand() {
@@ -94,7 +100,7 @@ public interface SelectorWand {
             if (glint != null) {
                 meta.addEnchant(glint, 1, true);
             }
-            meta.getPersistentDataContainer().set(key(owner), PersistentDataType.BYTE, (byte) 1);
+            meta.getPersistentDataContainer().set(KEY, PersistentDataType.BYTE, (byte) 1);
             wand.setItemMeta(meta);
             return wand;
         }
@@ -119,13 +125,11 @@ public interface SelectorWand {
         }
 
         @Override
-        public int take(@NotNull Player player, @NotNull Plugin owner) {
+        public int take(@NotNull Player player) {
             Inventory inventory = player.getInventory();
-            NamespacedKey key = key(owner);
             int removed = 0;
             for (int slot = 0; slot < inventory.getSize(); slot++) {
-                ItemStack item = inventory.getItem(slot);
-                if (isWand(item, key)) {
+                if (isWand(inventory.getItem(slot))) {
                     inventory.setItem(slot, null);
                     removed++;
                 }
@@ -135,28 +139,30 @@ public interface SelectorWand {
     };
 
     /**
-     * Whether an item is a selector this owner handed out.
+     * Whether an item is one of the library's selection axes.
      *
-     * @param item  the item, possibly nothing
-     * @param owner the plugin
-     * @return whether it is ours
+     * @param item the item, possibly nothing
+     * @return whether the library handed it out
      */
-    static boolean isWand(@Nullable ItemStack item, @NotNull Plugin owner) {
-        return isWand(item, key(owner));
-    }
-
-    /** The persistent-data key a selector of this owner's carries. */
-    static @NotNull NamespacedKey key(@NotNull Plugin owner) {
-        return new NamespacedKey(owner, "exylia_region_selector");
-    }
-
-    private static boolean isWand(@Nullable ItemStack item, NamespacedKey key) {
+    static boolean isWand(@Nullable ItemStack item) {
         if (isEmpty(item)) {
             return false;
         }
         ItemMeta meta = item.getItemMeta();
-        return meta != null && meta.getPersistentDataContainer().has(key, PersistentDataType.BYTE);
+        return meta != null && meta.getPersistentDataContainer().has(KEY, PersistentDataType.BYTE);
     }
+
+    /**
+     * The mark every selection axe carries.
+     *
+     * <p>The library's own key rather than the owning plugin's, deliberately: a
+     * selector left behind by a plugin that is no longer running still has to be
+     * recognisable as rubbish by whichever plugin sweeps next. A player has one
+     * selection at a time across the whole server, so a single key cannot
+     * confuse two live sessions.
+     */
+    NamespacedKey KEY = Objects.requireNonNull(
+            NamespacedKey.fromString("exylialib:region_selector"), "selector key");
 
     /**
      * Whether a slot holds nothing.

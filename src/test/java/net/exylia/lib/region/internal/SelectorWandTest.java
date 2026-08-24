@@ -97,6 +97,18 @@ class SelectorWandTest {
     }
 
     @Test
+    @DisplayName("axes left behind by an earlier session are swept too")
+    void sweepsEveryAxe() {
+        SelectionSession session =
+                begin(SelectionOptions.builder().feedback(false).previewParticle(null).build());
+        wand.carried = 3;
+
+        assertTrue(session.cancel());
+        assertEquals(3, wand.removed,
+                "Every selection axe goes, not only the one this session handed over");
+    }
+
+    @Test
     @DisplayName("the owning plugin being released takes the tool back")
     void takenOnRelease() {
         begin(SelectionOptions.builder().feedback(false).previewParticle(null).build());
@@ -116,7 +128,8 @@ class SelectorWandTest {
 
         assertEquals(0, wand.given);
         session.cancel();
-        assertEquals(0, wand.taken, "Nothing was handed over, so nothing is taken back");
+        assertEquals(0, wand.taken,
+                "A caller that hands out nothing does not sweep the player's inventory either");
     }
 
     // ---------------------------------------------------------------- the slot
@@ -179,6 +192,8 @@ class SelectorWandTest {
 
         private int given;
         private int taken;
+        private int carried;
+        private int removed;
 
         @Override
         public ItemStack build(Plugin owner, SelectionOptions options) {
@@ -192,9 +207,10 @@ class SelectorWandTest {
         }
 
         @Override
-        public int take(Player player, Plugin owner) {
+        public int take(Player player) {
             taken++;
-            return 1;
+            removed = carried > 0 ? carried : 1;
+            return removed;
         }
     }
 

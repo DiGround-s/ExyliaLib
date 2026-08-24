@@ -30,9 +30,6 @@ import net.exylia.lib.util.combat.internal.CombatRuntime;
 import net.exylia.lib.hologram.internal.HologramRuntime;
 import net.exylia.lib.internal.ExyliaLibUpdater;
 import net.exylia.lib.item.internal.ItemCache;
-import net.exylia.lib.panel.Panels;
-import net.exylia.lib.panel.internal.PanelListener;
-import net.exylia.lib.panel.internal.PanelRuntime;
 import net.exylia.lib.ui.Menus;
 import net.exylia.lib.ui.internal.MenuListener;
 import net.exylia.lib.ui.internal.MenuRuntime;
@@ -123,11 +120,6 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         // One listener for every plugin's menus: an inventory event fires once,
         // and the window's holder says whose menu it is.
         getServer().getPluginManager().registerEvents(new MenuListener(), this);
-        // And one for every plugin's panels. Registered separately from the menu
-        // listener because a panel window is not a menu window: it carries a
-        // PanelHolder, and a click in it is validated against the panel session
-        // rather than against a UiDefinition.
-        getServer().getPluginManager().registerEvents(new PanelListener(), this);
         // One listener for every plugin's questions, for the same reason: a
         // chat or inventory event fires once and the session says whose it is.
         getServer().getPluginManager().registerEvents(new InputListener(), this);
@@ -405,10 +397,6 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         // told the server is stopping.
         InputRuntime.shutdown();
         Inputs.releaseAll();
-        // Before the menu module, for the same reason its per-plugin release
-        // goes first: a panel lives in a window, and closing the window first
-        // would strand the session that owns the working copy.
-        Panels.releaseAll();
         Menus.releaseAll();
         Regions.releaseAll();
         // Before the database module, for the same reason a plugin's release is:
@@ -462,10 +450,6 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         ClanRuntime.forget(event.getPlayer().getUniqueId());
         CombatRuntime.forget(event.getPlayer().getUniqueId());
         Cooldowns.forget(event.getPlayer().getUniqueId());
-        // Before the menu module: a panel is a window, and releasing it cancels
-        // the delayed steps its buttons started. A player who left is not coming
-        // back to a working copy nobody can see.
-        PanelRuntime.forget(event.getPlayer().getUniqueId());
         MenuRuntime.forgetEverywhere(event.getPlayer().getUniqueId());
         // Before the input module: ending a run cancels the question it was
         // waiting on, and a question already forgotten cannot be cancelled.
@@ -583,12 +567,6 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         // menu it promised to reopen. Released after any of them, a run would
         // be reaching into a module that is already gone.
         Wizards.release(pluginName);
-        // Before the menu module, and for one reason more than it: a panel is
-        // shown in a window, so releasing the menus first would close the screen
-        // and leave the panel session behind, still holding the working copy and
-        // the delayed steps its buttons started. Releasing here closes the panel
-        // and cancels those while the task module is still up to cancel them.
-        Panels.release(pluginName);
         // Before the task module: closing a window cancels what its buttons
         // started, and a menu whose actions come from a dying classloader
         // must not answer another click.
