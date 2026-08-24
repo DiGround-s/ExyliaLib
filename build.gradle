@@ -377,42 +377,20 @@ def requireStrictSemver = { String value, String propertyName ->
     }
 }
 
-tasks.register('publishDev') {
+tasks.register('publishRelease') {
     group = 'exylia'
-    description = 'Dispatches the authenticated Dev release workflow on the dev branch; the workflow builds, tags dev-vX.Y.Z, publishes the prerelease, and updates the Dev manifest.'
+    description = 'Dispatches the release workflow on main; the workflow builds, tags vX.Y.Z, publishes the release, and updates the manifest.'
 
     doLast {
         requireStrictSemver(project.version.toString(), 'project version')
         def dryRun = project.findProperty('dryRun')?.toString()?.toBoolean() ?: false
-        def command = ['gh', 'workflow', 'run', 'release.yml', '--ref', 'dev', '-f', 'channel=dev']
+        def command = ['gh', 'workflow', 'run', 'release.yml', '--ref', 'main']
         if (dryRun) {
             logger.lifecycle("Dry run: ${command.join(' ')}")
         } else {
             requireGh()
             exec { commandLine command }
-            logger.lifecycle('Dev release workflow dispatched for ref dev. It builds and publishes remotely; no local push was performed.')
-        }
-    }
-}
-
-tasks.register('promoteMain') {
-    group = 'exylia'
-    description = 'Promotes an exact already-published Dev release to stable main. Requires -Pversion=X.Y.Z; the workflow validates the Dev release, manifest, SHA-256, tag, and source identity before publishing.'
-
-    doLast {
-        def requestedVersion = project.providers.gradleProperty('version').orNull
-        if (requestedVersion == null || requestedVersion.isBlank()) {
-            throw new GradleException('promoteMain requires -Pversion=<dev-version>.')
-        }
-        requireStrictSemver(requestedVersion, 'promotion version')
-        def dryRun = project.findProperty('dryRun')?.toString()?.toBoolean() ?: false
-        def command = ['gh', 'workflow', 'run', 'promote-main.yml', '-f', "version=${requestedVersion}"]
-        if (dryRun) {
-            logger.lifecycle("Dry run: ${command.join(' ')}")
-        } else {
-            requireGh()
-            exec { commandLine command }
-            logger.lifecycle("Promotion workflow dispatched for Dev version ${requestedVersion}. It promotes the exact Dev release bytes; no local push was performed.")
+            logger.lifecycle('Release workflow dispatched for main. It builds and publishes remotely; no local push was performed.')
         }
     }
 }

@@ -2,15 +2,8 @@ name: Release
 
 on:
   push:
-    branches: [main, dev]
+    branches: [main]
   workflow_dispatch:
-    inputs:
-      channel:
-        description: Release channel to publish
-        required: true
-        default: stable
-        type: choice
-        options: [stable, dev]
 
 concurrency:
   group: release-${{ github.ref_name }}
@@ -59,26 +52,11 @@ jobs:
             exit 1
           fi
 
-          channel="stable"
-          if [[ "$GITHUB_REF_NAME" == "dev" || "${{ inputs.channel }}" == "dev" ]]; then
-            channel="dev"
-          fi
-          if [[ "$channel" == "dev" && "$GITHUB_REF_NAME" != "dev" ]]; then
-            echo "The dev channel must run from the dev branch." >&2
-            exit 1
-          fi
-          if [[ "$channel" == "stable" && "$GITHUB_REF_NAME" != "main" ]]; then
-            echo "The stable channel must run from the main branch." >&2
-            exit 1
-          fi
           releases="$(gh api --paginate --slurp "repos/${GITHUB_REPOSITORY}/releases?per_page=100")"
           latest_tag="$(jq -r 'flatten | map(select(.draft == false and (.tag_name | startswith("v")))) | sort_by(.published_at) | last | .tag_name // empty' <<< "$releases")"
           tag="v${version}"
-          if [[ "$channel" == "dev" ]]; then
-            tag="dev-v${version}"
-          fi
 
-          if [[ "$channel" == "stable" && -n "$latest_tag" ]]; then
+          if [[ -n "$latest_tag" ]]; then
 
             latest_version="${latest_tag#v}"
             if [[ ! "$latest_version" =~ $semver_re ]]; then
@@ -132,7 +110,6 @@ jobs:
 
           echo "version=$version" >> "$GITHUB_OUTPUT"
           echo "tag=$tag" >> "$GITHUB_OUTPUT"
-          echo "channel=$channel" >> "$GITHUB_OUTPUT"
           echo "source_commit=$GITHUB_SHA" >> "$GITHUB_OUTPUT"
           echo "release_needed=true" >> "$GITHUB_OUTPUT"
 
@@ -150,27 +127,22 @@ jobs:
           set -euo pipefail
           jar="build/libs/ExyliaLib-${VERSION}.jar"
           test -f "$jar"
-          args=(gh release create "$TAG" "$jar" \
+          gh release create "$TAG" "$jar" \
             --target "$GITHUB_SHA" \
             --title "ExyliaLib ${VERSION}" \
-            --generate-notes)
-          if [[ "${{ steps.release_guard.outputs.channel }}" == "dev" ]]; then
-            args+=(--prerelease)
-          fi
-          "${args[@]}"
+            --generate-notes
           [[ "$(gh release view "$TAG" --json tagName --jq .tagName)" == "$TAG" ]]
 
       - name: Update and publish manifest
         if: steps.release_guard.outputs.release_needed == 'true'
         env:
           VERSION: ${{ steps.release_guard.outputs.version }}
-          CHANNEL: ${{ steps.release_guard.outputs.channel }}
           SOURCE_COMMIT: ${{ steps.release_guard.outputs.source_commit }}
           TAG: ${{ steps.release_guard.outputs.tag }}
         run: |
           set -euo pipefail
           jar="build/libs/ExyliaLib-${VERSION}.jar"
-          ./update-lib-manifest.sh "$VERSION" "$jar" "$CHANNEL" "$SOURCE_COMMIT" "$TAG"
+          ./update-lib-manifest.sh "$VERSION" "$jar" stable "$SOURCE_COMMIT" "$TAG"
 
           changed_files="$(git diff --name-only)"
           if [[ -z "$changed_files" ]]; then
@@ -186,4 +158,4 @@ jobs:
           git config user.email 41898282+github-actions[bot]@users.noreply.github.com
           git add lib-manifest.json
           git commit -m "chore: point the manifest at ${VERSION}"
-          git push origin "HEAD:${GITHUB_REF_NAME}"
+          git push origin "HEAD:main"
