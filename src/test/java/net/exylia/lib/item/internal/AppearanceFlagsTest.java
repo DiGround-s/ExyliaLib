@@ -45,6 +45,29 @@ class AppearanceFlagsTest {
     }
 
     @Test
+    @DisplayName("an amount past what the material stacks to raises the limit to match")
+    void anAmountRaisesTheStackLimit() {
+        // A sword stacks to one, so "40" on a kit icon was dropped and the menu
+        // drew a single sword. This is what commons did for every item, and the
+        // reason every menu with a count had to know about max_stack_size.
+        assertEquals(40, ItemRenderer.stackLimit(Appearance.PLAIN, 40, 1),
+                "the count is the whole point of the icon");
+
+        // Already allowed, so nothing is written: a stack of 16 arrows needs no
+        // component, and stamping one onto every icon in every menu is how an
+        // item stops matching the plain one beside it.
+        assertEquals(-1, ItemRenderer.stackLimit(Appearance.PLAIN, 16, 64),
+                "a material that already allows the count is left alone");
+        assertEquals(-1, ItemRenderer.stackLimit(Appearance.PLAIN, 1, 1),
+                "one of a one-stack item is not a raise");
+
+        // A file that names a limit means it, whichever way it points.
+        Appearance named = Appearance.builder().maxStackSize(8).build();
+        assertEquals(8, ItemRenderer.stackLimit(named, 40, 1),
+                "an explicit max_stack_size still wins");
+    }
+
+    @Test
     @DisplayName("hiding attributes hides everything vanilla writes by itself")
     void hideAttributesCoversTheWholeTooltip() {
         // The report: a smithing template drawn in a menu still said "Smithing

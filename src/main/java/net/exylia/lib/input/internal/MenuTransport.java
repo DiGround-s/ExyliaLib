@@ -270,10 +270,11 @@ public final class MenuTransport implements Transport {
         String prompt = request instanceof InputRequest<?, ?> input
                 ? input.prompt() : "Choose an option";
         if (pages == 1) {
-            return Text.of("%prompt%").with("%prompt%", prompt).build();
+            return Text.of("%prompt%").withFormatted("%prompt%", prompt).build();
         }
         return Text.of("%prompt% {muted}(%page%/%pages%)")
-                .with("%prompt%", prompt)
+                // The plugin's own text, in the plugin's own notation.
+                .withFormatted("%prompt%", prompt)
                 .with("%page%", page + 1)
                 .with("%pages%", pages)
                 .build();

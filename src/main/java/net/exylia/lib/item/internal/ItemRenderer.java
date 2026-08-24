@@ -300,7 +300,45 @@ public final class ItemRenderer {
         }
         enchantments(meta, definition.enchantments(), resolve, problems);
         appearance(meta, definition.appearance(), problems);
+        int limit = stackLimit(definition.appearance(), item.getAmount(),
+                item.getType().getMaxStackSize());
+        if (limit > 0) {
+            meta.setMaxStackSize(limit);
+        }
         item.setItemMeta(meta);
+    }
+
+    /**
+     * The stack limit an item has to carry for its own count to be visible.
+     *
+     * <p>Since 1.20.5 the count is validated against the {@code max_stack_size}
+     * component, so a menu icon written as {@code amount: 40} on a sword shows
+     * as one sword: the material stacks to one and the number is quietly
+     * dropped. The number is nearly always the whole point of the icon &mdash;
+     * kills, tokens, how many of a thing a player owns &mdash; and every menu
+     * that wanted one had to know to also write {@code max_stack_size}.
+     *
+     * <p>So an amount past the material's own limit raises the limit to match,
+     * which is what ExyliaCommons did for every item it ever built. Two
+     * differences, both deliberate: an explicit {@code max_stack_size} still
+     * wins, because a file that names one means it; and an amount the material
+     * already allows leaves the component off entirely, rather than stamping a
+     * redundant one onto every icon in every menu.
+     *
+     * <p>No reflection. {@code ItemMeta.setMaxStackSize} is API as of 1.20.5 and
+     * this library targets above it, so the method commons had to look up by
+     * name is simply called.
+     *
+     * @param appearance   what the file asked for
+     * @param amount       the count the item is being drawn with, already clamped
+     * @param vanillaLimit what the material stacks to by itself
+     * @return the limit to write, or {@code -1} to leave the material's own
+     */
+    static int stackLimit(Appearance appearance, int amount, int vanillaLimit) {
+        if (appearance.maxStackSize() > 0) {
+            return appearance.maxStackSize();
+        }
+        return amount > vanillaLimit ? amount : -1;
     }
 
     /**
@@ -552,9 +590,6 @@ public final class ItemRenderer {
         }
         if (appearance.modelData() >= 0) {
             meta.setCustomModelData(appearance.modelData());
-        }
-        if (appearance.maxStackSize() > 0) {
-            meta.setMaxStackSize(appearance.maxStackSize());
         }
         // Parsed by nobody in commons, so files asking to hide enchantment
         // lines have been showing them for years.

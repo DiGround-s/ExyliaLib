@@ -20,7 +20,10 @@ import java.util.List;
  *                       carries
  * @param unbreakable    marks the item unbreakable
  * @param modelData      the custom model data, or {@code -1} for none
- * @param maxStackSize   the stack limit, or {@code -1} to leave the vanilla one
+ * @param maxStackSize   the stack limit, or {@code -1} to derive it: an amount
+ *                       past what the material stacks to raises the limit to
+ *                       match, so an icon written {@code amount: 40} on a sword
+ *                       draws forty rather than one
  * @param flags          {@link org.bukkit.inventory.ItemFlag} names to hide
  * @param model          an item model key, {@code namespace:key}, or {@code null}
  * @param tooltipStyle   a tooltip style key, {@code namespace:key}, or {@code null}

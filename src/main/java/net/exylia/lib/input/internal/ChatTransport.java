@@ -91,7 +91,7 @@ public final class ChatTransport implements Transport {
         } else if (request instanceof FormInput form) {
             FormProgress progress = new FormProgress(form);
             forms.put(session.id(), progress);
-            Text.of("{primary}%prompt%").with("%prompt%", form.prompt()).send(player);
+            Text.of("{primary}%prompt%").withFormatted("%prompt%", form.prompt()).send(player);
             sendFormField(player, progress);
         } else {
             return false;
@@ -211,8 +211,18 @@ public final class ChatTransport implements Transport {
         return 0;
     }
 
+    /**
+     * Shows the question.
+     *
+     * <p>Formatted rather than inserted literally: a prompt is written by the
+     * plugin asking, and it writes {@code {warning}Choose an icon} in the same
+     * notation as every other line it owns. Inserted as text, that reached the
+     * player as the characters {@code {warning}} — visible in the anvil's title
+     * and in chat, while the native dialog showed it in colour, so the same
+     * prompt looked different depending on which transport answered.
+     */
     private static void sendPrompt(Player player, String prompt) {
-        Text.of("{primary}%prompt%").with("%prompt%", prompt).send(player);
+        Text.of("{primary}%prompt%").withFormatted("%prompt%", prompt).send(player);
     }
 
     private static void sendHint(Player player, boolean form) {

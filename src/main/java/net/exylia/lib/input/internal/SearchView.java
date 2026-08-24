@@ -248,7 +248,10 @@ final class SearchView<T> implements InventoryHolder {
      * counter lives in the info button instead, where it redraws in place.
      */
     @NotNull Component title() {
-        return Text.of("%prompt%").with("%prompt%", request.prompt()).build();
+        // Formatted, not literal: the prompt is the asking plugin's own text and
+        // is written in the same notation as its messages. As a literal value,
+        // "{warning}Search a material" arrived in the anvil with the braces.
+        return Text.of("%prompt%").withFormatted("%prompt%", request.prompt()).build();
     }
 
     /**
