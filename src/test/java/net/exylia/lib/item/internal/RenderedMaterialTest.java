@@ -130,8 +130,14 @@ class RenderedMaterialTest {
     @Test
     @DisplayName("a serialised stack a row hands back is still a serialised stack")
     void resolvedSnapshotIsReadAgain() {
+        // A real icon, off a live server: what an admin's held item is stored
+        // as, gzip and all — serializeAsBytes writes compressed NBT, which is
+        // why every one of these starts H4sI.
+        String stored = "bytes:H4sIAAAAAAAA/+NiYGBm4HZJLEkMSy0qzszPY2AQsudgYMpMYRDMzcxL"
+                + "TS5KTCuxKinKTEnNK2FmYE3OL80rYWBgYGQAAEehIHY6AAAA";
+
         Source effective = ItemRenderer.effective(Source.of("%kit_icon%"),
-                fill("kit_icon", "bytes:rO0ABXNy"));
+                fill("kit_icon", stored));
 
         assertInstanceOf(Source.OfSnapshot.class, effective);
     }
