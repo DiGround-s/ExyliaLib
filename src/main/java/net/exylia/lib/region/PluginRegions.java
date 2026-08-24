@@ -1,9 +1,11 @@
 package net.exylia.lib.region;
 
+import net.exylia.lib.region.internal.PlacedBlockRuntime;
 import net.exylia.lib.region.internal.RegionRuntime;
 import net.exylia.lib.region.internal.SelectionRuntime;
 import net.exylia.lib.region.internal.VisualizationRuntime;
 import org.bukkit.Location;
+import org.bukkit.block.Block;
 import org.bukkit.World;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
@@ -127,6 +129,52 @@ public final class PluginRegions {
                                                      double x, double y, double z,
                                                      @NotNull PolicyKey<T> key) {
         return RegionRuntime.resolveOwner(owner, worldId, x, y, z, key);
+    }
+
+    /**
+     * Whether a player put this block here, inside one of this plugin's regions.
+     *
+     * <p>The library records the block a player places in any region declaring
+     * {@code player_build_only} or {@code temporary_blocks}, and forgets it when the
+     * block is broken or the region goes away. This is the question that record
+     * answers; cancelling the break is still this plugin's call, exactly as with
+     * every other policy.
+     *
+     * <pre>{@code
+     * if (regions.resolve(location, CommonRegionPolicies.PLAYER_BUILD_ONLY).value()
+     *         && !regions.placedByPlayer(event.getBlock())) {
+     *     event.setCancelled(true);
+     * }
+     * }</pre>
+     *
+     * <p>{@code false} for a region that declares neither policy: nothing was recorded
+     * there, so nothing can be attributed.
+     *
+     * @param block block to attribute
+     * @return {@code true} when a player placed it inside one of this plugin's regions
+     */
+    public boolean placedByPlayer(@NotNull Block block) {
+        Objects.requireNonNull(block, "block");
+        return placedByPlayer(block.getWorld().getUID(),
+                block.getX(), block.getY(), block.getZ());
+    }
+
+    /** Whether a player placed the block containing a location. */
+    public boolean placedByPlayer(@NotNull Location location) {
+        Objects.requireNonNull(location, "location");
+        World world = Objects.requireNonNull(location.getWorld(), "location world");
+        return placedByPlayer(world.getUID(),
+                location.getBlockX(), location.getBlockY(), location.getBlockZ());
+    }
+
+    /** Whether a player placed the block at a primitive position. */
+    public boolean placedByPlayer(@NotNull UUID worldId, int x, int y, int z) {
+        List<RegionSnapshot> regions = RegionRuntime.queryOwner(owner,
+                Objects.requireNonNull(worldId, "worldId"), x, y, z);
+        for (int index = 0; index < regions.size(); index++) {
+            if (PlacedBlockRuntime.tracked(regions.get(index).id(), x, y, z)) return true;
+        }
+        return false;
     }
 
     /**

@@ -1,5 +1,6 @@
 package net.exylia.lib.region;
 
+import net.exylia.lib.region.internal.PlacedBlockRuntime;
 import net.exylia.lib.region.internal.RegionRuntime;
 import net.exylia.lib.region.internal.SelectionRuntime;
 import net.exylia.lib.region.internal.VisualizationRuntime;
@@ -88,6 +89,7 @@ public final class Regions {
     public static void releaseAll() {
         SelectionRuntime.releaseAll();
         VisualizationRuntime.releaseAll();
+        PlacedBlockRuntime.releaseAll();
         RegionRuntime.releaseAll();
     }
 }

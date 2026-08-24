@@ -43,6 +43,7 @@ import net.exylia.lib.placeholder.Placeholders;
 import net.exylia.lib.redis.internal.RedisRuntime;
 import net.exylia.lib.reload.Reloads;
 import net.exylia.lib.region.Regions;
+import net.exylia.lib.region.internal.PlacedBlockListener;
 import net.exylia.lib.region.internal.RegionListener;
 import net.exylia.lib.region.internal.RegionRuntime;
 import net.exylia.lib.region.internal.SelectionListener;
@@ -131,6 +132,9 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         getServer().getPluginManager().registerEvents(new InputListener(), this);
         RegionRuntime.init(this);
         getServer().getPluginManager().registerEvents(new RegionListener(), this);
+        // Block ownership, for the regions that declare they need it. Dormant
+        // otherwise: both handlers read one volatile flag and return.
+        getServer().getPluginManager().registerEvents(new PlacedBlockListener(), this);
         getServer().getPluginManager().registerEvents(new SelectionListener(), this);
         loadPalette();
         loadFormats();

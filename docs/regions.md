@@ -72,7 +72,7 @@ A region that does not declare a key is skipped rather than answering for it.
 The old system let the top region decide everything, so a small high-priority
 region silently switched off every rule of the one it sat in.
 
-`CommonRegionPolicies` carries the fifteen keys the ecosystem already uses,
+`CommonRegionPolicies` carries the sixteen keys the ecosystem already uses,
 with the same names and the same defaults. Policies are open namespaced keys,
 not an enum, so a plugin can add its own without changing the library.
 
@@ -206,6 +206,60 @@ Without it, an admin who makes a region and does not move sees nothing happen.
 Joining inside a region does **not** fire an enter — they did not walk in — and
 quitting does not fire an exit.
 
+## Who placed this block
+
+The region module never cancels an event on a plugin's behalf. It says what a
+region declares; acting on it is the consumer's. `player_build_only` is the one
+policy a consumer cannot act on alone, because the answer is not in the event:
+whether a block was put there by a player is state that outlives every event,
+and every plugin keeping its own copy would mean every plugin paying for the
+same table and disagreeing wherever regions overlap.
+
+So the library keeps the record, and the decision stays where the others are:
+
+```java
+if (regions.resolve(location, CommonRegionPolicies.PLAYER_BUILD_ONLY).value()
+        && !regions.placedByPlayer(event.getBlock())) {
+    event.setCancelled(true);
+}
+```
+
+Blocks are recorded only for regions that declare `player_build_only` or
+`temporary_blocks`, and forgotten when the block is broken or when the region
+is unregistered, replaced without the policy, or released with its plugin. There
+is no separate expiry and nothing to clean up: the record lives exactly as long
+as the region does.
+
+A server whose regions declare neither policy pays one volatile read per block
+place and break, and nothing else — no lookup, no query, no allocation. When it
+is armed, a position costs sixteen bytes rather than the fifty-six a set of
+boxed keys would: positions are packed into a `long` and held in a flat table.
+
+### Temporary blocks
+
+`temporary_blocks` is the exception, because nothing about it is a decision. A
+block placed in a region declaring it disappears after
+`temporary_blocks_seconds`, and comes back to the player's inventory when the
+region also declares `re_give_blocks`:
+
+```java
+PolicySet.of(CommonRegionPolicies.TEMPORARY_BLOCKS, true)
+        .with(CommonRegionPolicies.TEMPORARY_BLOCKS_SECONDS, 10)
+        .with(CommonRegionPolicies.RE_GIVE_BLOCKS, true)
+```
+
+Commons carried the lifetime as a field on the region object, so every consumer
+read it from somewhere else and ran its own clock. It is a policy here, which is
+what lets the library own the whole behaviour.
+
+One timer serves the whole server, not one task per block: a region's blocks all
+carry the same lifetime, so they expire in the order they were placed and a
+queue per region has the earliest at its head. The timer starts with the first
+temporary block and cancels itself when the last one is gone, so a server with
+none holds no timer at all. Removal runs on the thread that owns the block, and
+the material is checked again first — a block broken and replaced with something
+else is not the one that was placed.
+
 ## Selecting
 
 ```java
@@ -277,5 +331,5 @@ ExyliaLib registers one listener for the whole server.
 | | |
 | --- | --- |
 | Public API | `region/Regions`, `PluginRegions`, `RegionSnapshot`, `RegionId`, `WorldIdentity`, `BlockPosition`, `RegionShape` (`Cuboid`, `UnboundedYRectangle`, `Sphere`, `HorizontalCylinder`), `HorizontalBounds`, `VerticalBounds`, `PolicyKey`, `PolicySet`, `PolicyResolution`, `CommonRegionPolicies`, `RegionData`, `RegionCodec`, `PlayerRegionChangeEvent`, `RegionChangeCause`, `SelectionOptions`, `SelectionSession`, `SelectionResult`, `SelectionState`, `VisualizationOptions`, `RegionVisualization` |
-| Internal | `region/internal/RegionIndex`, `RegionRuntime`, `RegionListener`, `SelectionRuntime`, `SelectionListener`, `VisualizationRuntime`, `OutlineSampler` |
+| Internal | `region/internal/RegionIndex`, `RegionRuntime`, `RegionListener`, `PlacedBlockRuntime`, `PlacedBlockListener`, `PositionSet`, `SelectionRuntime`, `SelectionListener`, `VisualizationRuntime`, `OutlineSampler` |
 | Lifecycle | `ExyliaLib` — listener registration, release before `Tasks.release` |

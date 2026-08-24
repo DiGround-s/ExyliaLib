@@ -44,6 +44,7 @@ public final class RegionRuntime {
     /** Initializes the scheduling owner used for lifecycle-safe reconciliation. */
     public static void init(@NotNull Plugin plugin) {
         libraryPlugin = Objects.requireNonNull(plugin, "plugin");
+        PlacedBlockRuntime.init(plugin);
     }
 
     public static @NotNull List<RegionSnapshot> all() {
@@ -210,6 +211,9 @@ public final class RegionRuntime {
     private static void publish(RegionIndex oldIndex, RegionIndex newIndex,
                                  RegionChangeCause cause) {
         INDEX.set(newIndex);
+        // Before reconciliation: block ownership belongs to a region, and a
+        // revision that drops one must not leave its blocks addressable.
+        PlacedBlockRuntime.onPublish(newIndex);
         reconcile(newIndex.revision(), cause);
     }
 
