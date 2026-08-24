@@ -428,7 +428,7 @@ Tried in this order. The first that can represent the request and returns
 
 | Order | `TransportKind` | Chosen when | Can represent |
 | --- | --- | --- | --- |
-| 1 | `DIALOG` | `prefer-dialogs` is on, PacketEvents is loaded, and the client is **1.21.6 or newer** | everything except `SearchInput`; choices up to 12 options |
+| 1 | `DIALOG` | `prefer-dialogs` is on, PacketEvents is loaded, and the client is **1.21.6 or newer** | everything except `SearchInput`; a choice is one button per option, up to 12 of them |
 | 2 | `BEDROCK` | the player is on Bedrock and Floodgate is installed and enabled | forms and single requests, except `SearchInput` |
 | 3 | `ANVIL_SEARCH` | the request is a `SearchInput` | searchable choices only |
 | 4 | `MENU` | an inventory of buttons can express it | `ChoiceInput`, `ConfirmInput`, `FlagInput` |

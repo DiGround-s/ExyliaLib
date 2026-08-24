@@ -18,7 +18,6 @@ import com.github.retrooper.packetevents.protocol.dialog.button.CommonButtonData
 import com.github.retrooper.packetevents.protocol.dialog.input.BooleanInputControl;
 import com.github.retrooper.packetevents.protocol.dialog.input.Input;
 import com.github.retrooper.packetevents.protocol.dialog.input.InputControl;
-import com.github.retrooper.packetevents.protocol.dialog.input.SingleOptionInputControl;
 import com.github.retrooper.packetevents.protocol.dialog.input.TextInputControl;
 import com.github.retrooper.packetevents.protocol.nbt.NBT;
 import com.github.retrooper.packetevents.protocol.nbt.NBTByte;
@@ -75,16 +74,21 @@ import java.util.concurrent.atomic.AtomicBoolean;
  * those symbols while {@link DialogTransport} is discovered. The class is first
  * touched only after that transport's dependency probe succeeds.
  *
- * <p>Choices are intentionally limited to {@value #SMALL_CHOICE_LIMIT} entries.
- * Native dialog drop-downs are useful for a short, immediately scannable list;
- * beyond that size search or a paged menu is faster and the transport returns
- * {@code false} so the runtime can select one.
+ * <p>A choice is drawn as one button per option and not as the dialog's own
+ * option control, which is a single button whose label changes as it is clicked:
+ * answering with that means cycling to the right label and then pressing Submit,
+ * and a button that only changes its own text reads as a broken one. Choices are
+ * therefore also limited to {@value #SMALL_CHOICE_LIMIT} entries — that many
+ * buttons is still a screen somebody can read; beyond it, search or a paged menu
+ * is faster and the transport returns {@code false} so the runtime picks one.
  */
 final class DialogPackets {
 
     static final int SMALL_CHOICE_LIMIT = 12;
 
     private static final String NAMESPACE = "exylialib";
+    /** Action id prefix carrying which option was pressed, by position. */
+    private static final String CHOOSE = "choose";
     private static final int CONTROL_WIDTH = 260;
     private static final int BODY_WIDTH = 300;
     private static final int TEXT_LIMIT = 32_767;
@@ -221,16 +225,44 @@ final class DialogPackets {
 
     private static Dialog dialog(State state) {
         Object request = state.session().request();
+        ActionButton cancel = button("Cancel", "cancel/" + state.key());
+        List<DialogBody> body = errorBody(state.validation());
+        if (request instanceof ChoiceInput<?> choice) {
+            return new MultiActionDialog(new CommonDialogData(Text.component(prompt(request)),
+                    null, true, false, DialogAction.CLOSE, body, List.of()),
+                    choiceButtons(choice, state.key()), cancel, 1);
+        }
         List<Input> inputs = request instanceof FormInput form
                 ? formInputs(form, state.values(), state.validation())
                 : List.of(singleInput((InputRequest<?, ?>) request, state.values().get("value"), state.validation()));
-        List<DialogBody> body = errorBody(state.validation());
         String submitLabel = request instanceof FormInput form ? form.submitLabel() : "Submit";
         ActionButton submit = button(submitLabel, "submit/" + state.key());
-        ActionButton cancel = button("Cancel", "cancel/" + state.key());
         CommonDialogData common = new CommonDialogData(
                 Text.component(prompt(request)), null, true, false, DialogAction.CLOSE, body, inputs);
         return new MultiActionDialog(common, List.of(submit), cancel, 1);
+    }
+
+    /**
+     * One button per option, rather than one control the player cycles.
+     *
+     * <p>A dialog's option control is a single button whose label changes as it
+     * is clicked, and answering with it means finding the right label and then
+     * pressing Submit: two steps, one of which reads as a broken button. Three
+     * choices are three buttons, and choosing one is choosing it — the same
+     * shape the menu transport has always had.
+     *
+     * <p>The option is carried in the action id by position rather than by its
+     * key, because a key is a plugin's own string — {@code MATERIAL}, an id with
+     * a colon in it — and an action id is a namespaced resource location, which
+     * accepts neither.
+     */
+    private static List<ActionButton> choiceButtons(ChoiceInput<?> choice, String stateKey) {
+        List<String> labels = ChoiceOptions.labels(choice);
+        List<ActionButton> buttons = new ArrayList<>(labels.size());
+        for (int index = 0; index < labels.size(); index++) {
+            buttons.add(button(labels.get(index), CHOOSE + index + "/" + stateKey));
+        }
+        return buttons;
     }
 
     private static Input singleInput(InputRequest<?, ?> request, @Nullable String value,
@@ -240,8 +272,6 @@ final class DialogPackets {
         InputControl control;
         if (request instanceof FlagInput || request instanceof ConfirmInput) {
             control = new BooleanInputControl(label, Boolean.parseBoolean(initial), "true", "false");
-        } else if (request instanceof ChoiceInput<?> choice) {
-            control = choiceControl(choice, initial, label);
         } else {
             control = new TextInputControl(CONTROL_WIDTH, label, validation != null,
                     initial, TEXT_LIMIT, null);
@@ -267,23 +297,6 @@ final class DialogPackets {
             inputs.add(new Input(name, control));
         }
         return inputs;
-    }
-
-    private static InputControl choiceControl(ChoiceInput<?> choice, String initial, Component label) {
-        List<SingleOptionInputControl.Entry> entries = new ArrayList<>(choice.choices().size());
-        for (Object option : choice.choices()) {
-            entries.add(choiceEntry(choice, option, initial));
-        }
-        return new SingleOptionInputControl(CONTROL_WIDTH, entries, label, true);
-    }
-
-    @SuppressWarnings("unchecked")
-    private static <T> SingleOptionInputControl.Entry choiceEntry(ChoiceInput<?> untyped,
-                                                                   Object option, String initial) {
-        ChoiceInput<T> choice = (ChoiceInput<T>) untyped;
-        T typed = (T) option;
-        String key = choice.keyOf(typed);
-        return new SingleOptionInputControl.Entry(key, Text.component(choice.labelOf(typed)), key.equals(initial));
     }
 
     private static ActionButton button(String label, String action) {
@@ -326,6 +339,10 @@ final class DialogPackets {
             state.session().end(InputOutcome.CANCELLED);
             return;
         }
+        if (action.startsWith(CHOOSE)) {
+            chosen(state, action.substring(CHOOSE.length(), slash));
+            return;
+        }
         if (!action.startsWith("submit/")) {
             return;
         }
@@ -344,15 +361,40 @@ final class DialogPackets {
             }
             return;
         }
-        InputRequest<?, ?> single = (InputRequest<?, ?>) request;
-        InputParser.Parsed<?> parsed = single.parseRaw(raw.getOrDefault("value", ""));
+        answer(state, (InputRequest<?, ?>) request, raw.getOrDefault("value", ""));
+    }
+
+    /**
+     * Answers with the option a button stood for.
+     *
+     * <p>Parsed from its key rather than completed with the object, so a
+     * {@code validate} rule on the request is checked here exactly as it is
+     * when the same choice arrives from chat or from a menu.
+     */
+    private static void chosen(State state, String position) {
+        if (!(state.session().request() instanceof ChoiceInput<?> choice)) {
+            return;
+        }
+        String key = ChoiceOptions.keyAt(choice, position);
+        if (key == null) {
+            // A dialog left open across a reload, whose options are no longer
+            // these. Answering position 2 of a list that changed would answer
+            // with something the player never read.
+            return;
+        }
+        answer(state, choice, key);
+    }
+
+    /** Parses one raw value, completing the session or re-showing the error. */
+    private static void answer(State state, InputRequest<?, ?> request, String raw) {
+        InputParser.Parsed<?> parsed = request.parseRaw(raw);
         if (parsed.ok()) {
             STATES.remove(state.key(), state);
             state.session().complete(parsed.value());
-        } else {
-            String error = parsed.error() == null ? "That value is not accepted." : parsed.error();
-            reshow(new State(state.session(), state.key(), raw, Validation.error(error)));
+            return;
         }
+        String error = parsed.error() == null ? "That value is not accepted." : parsed.error();
+        reshow(new State(state.session(), state.key(), Map.of("value", raw), Validation.error(error)));
     }
 
     private static Map<String, String> rawValues(Object request, NBTCompound compound) {
