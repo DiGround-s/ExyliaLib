@@ -89,9 +89,23 @@ Placeholders.apply(raw, player, Map.of("class", "Warrior", "time", "3"));
   fallback (`%x|default%`) or leaves the placeholder visible so a typo shows.
 - A resolver that throws is reported once and treated as no-value. Nothing
   else dies.
+- **The registry is flat, keyed by name alone.** Two plugins that pick the same
+  name share one slot, and the last to register holds it. Same-plugin
+  re-registration is silent — that is a reload replacing its own resolver — but a
+  **different** plugin taking a name over is reported once to the console,
+  naming both plugins and the name. Rename one of them to keep both.
 - PlaceholderAPI, when installed, gets registered expansions through a bridge
   confined to `placeholder/internal/PapiBridge` + `PapiExpansion`; its external
   placeholders also resolve in `Template` and `Text` renders for a player.
+- **An expansion only answers for names its own plugin registered.** Anything
+  else is `null`, so PlaceholderAPI leaves the text alone and another expansion
+  can answer. Without this, two plugins registering `total_players` meant
+  `%exyliaffa_total_players%` ran whichever plugin registered last and returned
+  a real number from the wrong plugin. Arguments still work: the name is split
+  from its arguments by longest **owned** prefix, so `%plugin_stats_top_kills_1%`
+  finds that plugin's `stats_top_kills` and never another plugin's `stats_top`.
+  The plugin that lost the flat slot gets no answer at all rather than a wrong
+  one.
 - **That fallback is main-thread only.** PlaceholderAPI runs third-party
   expansions, and those read the world; off the main thread the server answers
   with `IllegalStateException: Asynchronous ... access`, thrown through whoever
@@ -122,4 +136,6 @@ Registered by the library itself:
 - Internal: `placeholder/internal/` (`Registry`, `TemplateCompiler`,
   `CompiledTemplate`, `TemplateCache`, `BuiltIn`, `Formats`, `PapiBridge`,
   `PapiExpansion`, `Part`, `Loggers`).
-- Tests: `src/test/java/net/exylia/lib/placeholder/PlaceholderModuleTest.java`.
+- Tests: `src/test/java/net/exylia/lib/placeholder/PlaceholderModuleTest.java`,
+  `placeholder/internal/PapiExpansionTest.java` (ownership of PAPI answers,
+  cross-plugin overwrite warning).

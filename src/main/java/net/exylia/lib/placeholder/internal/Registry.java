@@ -29,6 +29,9 @@ public final class Registry {
     /** Names that failed, so a broken resolver is reported once and not per render. */
     private static final Set<String> REPORTED = ConcurrentHashMap.newKeySet();
 
+    /** Names already reported as stolen, so a reload loop does not repeat it. */
+    private static final Set<String> REPORTED_OVERWRITE = ConcurrentHashMap.newKeySet();
+
     private Registry() {
     }
 
@@ -46,11 +49,29 @@ public final class Registry {
     /**
      * Registers a placeholder, replacing any previous one with the same name.
      *
+     * <p>The same plugin re-registering a name is silent: that is a reload
+     * replacing its own resolver, which is documented behaviour.
+     *
+     * <p>A <em>different</em> plugin taking the name over is reported once. The
+     * map is flat and keyed by name alone, so this used to be a plain put: two
+     * plugins picking {@code total_players} left whichever enabled last owning
+     * the slot, and the other one's placeholder silently started answering with
+     * a number from the wrong plugin. It is still allowed — the flat registry is
+     * the design — but it no longer happens without a word.
+     *
      * @param name  the full name, already lower case
      * @param entry the registration
      */
     public static void register(String name, Entry entry) {
-        ENTRIES.put(name, entry);
+        Entry previous = ENTRIES.put(name, entry);
+        if (previous != null && !previous.owner().equals(entry.owner())
+                && REPORTED_OVERWRITE.add(name)) {
+            Loggers.get().warning("Placeholder %" + name + "% was registered by "
+                    + previous.owner() + " and has been taken over by " + entry.owner()
+                    + ". The registry is keyed by name alone, so only the last plugin"
+                    + " to register answers for it. Rename one of them to keep both."
+                    + " This is reported once per name.");
+        }
         REPORTED.remove(name);
         // Registering late clears the complaint, so a plugin that loads after
         // the first render is not blamed forever.
@@ -186,6 +207,7 @@ public final class Registry {
         ENTRIES.clear();
         REPORTED.clear();
         REPORTED_UNKNOWN.clear();
+        REPORTED_OVERWRITE.clear();
         TemplateCache.invalidate();
     }
 }

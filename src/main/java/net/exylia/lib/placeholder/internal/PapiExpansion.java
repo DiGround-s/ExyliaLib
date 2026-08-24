@@ -108,14 +108,41 @@ final class PapiExpansion extends PlaceholderExpansion implements Relational {
      * <p>PlaceholderAPI hands over the text without its own identifier prefix.
      * The registry stays keyed by the original plugin name for lifecycle cleanup,
      * while the expansion identifier is lower-case for PlaceholderAPI.
+     *
+     * <p>An expansion only answers for names its own plugin registered.
+     * {@link Registry} is flat and keyed by name alone, so two plugins that pick
+     * the same name share one slot: without this check
+     * {@code %exyliaffa_total_players%} would run whichever plugin registered
+     * last and hand back a real number from the wrong plugin. Anything not owned
+     * here comes back as {@code null}, which is how PlaceholderAPI is told to
+     * leave the text alone and let another expansion answer.
      */
     private String resolve(Player viewer, OfflinePlayer target, String params) {
-        CompiledTemplate template = TemplateCache.get("%" + params + "%",
-                net.exylia.lib.placeholder.internal.Loggers.get());
+        String text = "%" + params + "%";
 
-        String rendered = template.renderFor(new Request(viewer, target, List.of(), Map.of()));
+        // Compiled against this plugin's names only, so the longest-prefix rule
+        // that splits a name from its arguments cannot settle on a name someone
+        // else owns: "stats_top_kills_1" has to find this plugin's
+        // "stats_top_kills", not another plugin's "stats_top".
+        List<Part> parts = TemplateCompiler.compile(text, this::owns);
+        for (Part part : parts) {
+            // No owned prefix matched, so the compiler kept the whole body as
+            // the name. Not ours to answer.
+            if (!part.isLiteral() && !owns(part.name())) {
+                return null;
+            }
+        }
+
+        String rendered = new CompiledTemplate(text, parts, Loggers.get())
+                .renderFor(new Request(viewer, target, List.of(), Map.of()));
         // A placeholder this expansion does not know comes back unchanged, and
         // PlaceholderAPI expects null so it can leave the text alone.
-        return rendered.equals("%" + params + "%") ? null : rendered;
+        return rendered.equals(text) ? null : rendered;
+    }
+
+    /** Whether this expansion's plugin is the one that registered a name. */
+    private boolean owns(String name) {
+        Registry.Entry entry = Registry.get(name);
+        return entry != null && entry.owner().equals(owner);
     }
 }
