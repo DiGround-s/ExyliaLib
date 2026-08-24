@@ -449,7 +449,7 @@ final class WizardSession implements WizardRun {
     private void pick(WizardStep.Pick step) {
         nextGeneration();
         waiting = Waiting.PICK;
-        Text.of(step.prompt()).forPlayer(player).send(player);
+        Text.from(plugin, step.prompt()).forPlayer(player).send(player);
     }
 
     /**
@@ -489,7 +489,7 @@ final class WizardSession implements WizardRun {
     private void select(WizardStep.Region step) {
         long mine = nextGeneration();
         waiting = Waiting.REGION;
-        Text.of(step.prompt()).forPlayer(player).send(player);
+        Text.from(plugin, step.prompt()).forPlayer(player).send(player);
 
         SelectionSession session;
         try {
