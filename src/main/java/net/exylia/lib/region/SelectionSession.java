@@ -59,6 +59,18 @@ public interface SelectionSession extends AutoCloseable {
     @NotNull CompletionStage<SelectionResult> result();
 
     /**
+     * Accepts the two corners this session is holding.
+     *
+     * <p>What a shift + left-click does, exposed so a plugin driving its own
+     * screen can accept a selection from a button. Does nothing unless the
+     * session is in {@link SelectionState#AWAITING_CONFIRMATION}.
+     *
+     * @return {@code true} when this call completed the selection
+     * @since 1.56.0
+     */
+    boolean confirm();
+
+    /**
      * Cancels this session if it remains active.
      *
      * @return {@code true} when this call changed the state

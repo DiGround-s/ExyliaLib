@@ -17,9 +17,15 @@ class SelectionModelTest {
     @DisplayName("Selection options provide safe immutable defaults and reject non-items")
     void optionsDefaultsAndValidation() {
         SelectionOptions defaults = SelectionOptions.defaults();
-        assertEquals(Material.WOODEN_AXE, defaults.selectorMaterial());
+        // A golden axe, handed over, drawn and confirmed: the ExyliaCommons
+        // selector. A wooden axe nobody was given is WorldEdit's.
+        assertEquals(Material.GOLDEN_AXE, defaults.selectorMaterial());
         assertTrue(defaults.cancelInteractions());
         assertTrue(defaults.requireSameWorld());
+        assertTrue(defaults.giveSelector());
+        assertTrue(defaults.requireConfirmation());
+        assertTrue(defaults.feedback());
+        assertTrue(defaults.hasPreview());
         assertEquals(defaults, new SelectionOptions());
 
         SelectionOptions custom = new SelectionOptions(Material.STICK, false, false);
@@ -33,6 +39,30 @@ class SelectionModelTest {
                 () -> new SelectionOptions(Material.WATER, true, true));
         assertThrows(NullPointerException.class,
                 () -> new SelectionOptions(null, true, true));
+
+        // The three-argument form is the old one, so it must leave everything
+        // it never knew about at its default.
+        assertTrue(custom.giveSelector());
+        assertTrue(custom.requireConfirmation());
+
+        SelectionOptions quiet = SelectionOptions.builder()
+                .giveSelector(false)
+                .requireConfirmation(false)
+                .feedback(false)
+                .previewParticle(null)
+                .build();
+        assertFalse(quiet.giveSelector());
+        assertFalse(quiet.requireConfirmation());
+        assertFalse(quiet.feedback());
+        assertFalse(quiet.hasPreview());
+        assertEquals(quiet, quiet.toBuilder().build());
+
+        assertThrows(IllegalArgumentException.class,
+                () -> SelectionOptions.builder().previewParticle(" "));
+        assertThrows(IllegalArgumentException.class,
+                () -> SelectionOptions.builder().previewSpacing(0.0));
+        assertThrows(IllegalArgumentException.class,
+                () -> SelectionOptions.builder().previewPeriodTicks(0L));
     }
 
     @Test

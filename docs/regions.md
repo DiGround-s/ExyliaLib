@@ -267,9 +267,79 @@ regions.beginSelection(player).result()
         .thenAccept(result -> save(result.cuboid()));
 ```
 
-Left-click a corner, right-click the other. The result is coordinates; what to
-do with them is the plugin's business. One selection per player, and it is
-cancelled when they leave or when the plugin is disabled.
+That one line hands the player a golden axe, draws the box as they pick it, and
+answers only once they confirm. The result is coordinates; what to do with them
+is the plugin's business. One selection per player across the whole server, and
+it ends when they leave, when the plugin is disabled, or when they walk away.
+
+### What the player actually does
+
+| Gesture | What happens |
+| --- | --- |
+| Left-click a block | first corner |
+| Right-click a block | second corner |
+| **Shift + left-click** | accepts the box; a block under the cursor is not needed |
+
+Either corner can be moved for as long as the box is unconfirmed, and the
+outline follows it. Nothing is answered until the confirmation, so a misclick
+costs a click rather than an arena.
+
+The selector is put in a **free slot** — the main hand only when the main hand
+is empty — and taken back however the selection ends. ExyliaCommons wrote it
+straight into the main hand, which destroyed whatever was there; that is not
+reproduced. A player with no room is told to hold the material themselves, and
+the selection still runs: what selects is the material, not the item we gave.
+
+### The switches
+
+Every part of that is a switch on `SelectionOptions`, and the defaults are the
+ExyliaCommons selector rather than WorldEdit's wand:
+
+```java
+SelectionOptions quiet = SelectionOptions.builder()
+        .selectorMaterial(Material.GOLDEN_AXE)   // default
+        .giveSelector(true)                      // default — hand it over
+        .requireConfirmation(true)               // default — shift + left-click
+        .previewParticle("END_ROD")              // default; null draws nothing
+        .previewSpacing(1.0)
+        .previewPeriodTicks(5L)
+        .feedback(true)                          // default — coordinates and volume
+        .selectorName("{primary}&lARENA SELECTOR")
+        .selectorLore(List.of("{letters}Pick two corners"))
+        .build();
+```
+
+A plugin that draws its own outline turns the preview off; one asking for a
+corner inside its own flow turns the confirmation off and answers on the second
+click. `feedback(false)` silences the library's own messages for a plugin that
+words them itself.
+
+### The states
+
+| State | Means |
+| --- | --- |
+| `ACTIVE` | fewer than two corners are set |
+| `AWAITING_CONFIRMATION` | both corners are set and the box is a proposal |
+| `COMPLETED` | confirmed, and the stage has the result |
+| `CANCELLED` | ended without one |
+
+`SelectionSession.confirm()` is the same door the shift-click uses, for a plugin
+that accepts a selection from its own button. Without a confirmation the second
+corner still answers — and only the second: a left click never completes, so
+correcting a corner already placed cannot end the selection.
+
+### Threads and endings
+
+The outline and the two inventory writes run on **ExyliaLib's** scheduler, not
+the owning plugin's: a plugin is already disabled by the time its selections are
+released, and a disabled plugin cannot schedule the return of its own tool. On
+Spigot and Paper the write happens inline when the caller is already on the main
+thread, so the player has the axe the moment they are told to select.
+
+Nothing about giving the tool back can strand a selection. The session leaves the
+registry and completes its stage first, and the inventory work runs after that,
+guarded — a failed write costs a console line, never the player's ability to
+select again with any plugin.
 
 ## Showing a region
 
@@ -331,5 +401,5 @@ ExyliaLib registers one listener for the whole server.
 | | |
 | --- | --- |
 | Public API | `region/Regions`, `PluginRegions`, `RegionSnapshot`, `RegionId`, `WorldIdentity`, `BlockPosition`, `RegionShape` (`Cuboid`, `UnboundedYRectangle`, `Sphere`, `HorizontalCylinder`), `HorizontalBounds`, `VerticalBounds`, `PolicyKey`, `PolicySet`, `PolicyResolution`, `CommonRegionPolicies`, `RegionData`, `RegionCodec`, `PlayerRegionChangeEvent`, `RegionChangeCause`, `SelectionOptions`, `SelectionSession`, `SelectionResult`, `SelectionState`, `VisualizationOptions`, `RegionVisualization` |
-| Internal | `region/internal/RegionIndex`, `RegionRuntime`, `RegionListener`, `PlacedBlockRuntime`, `PlacedBlockListener`, `PositionSet`, `SelectionRuntime`, `SelectionListener`, `VisualizationRuntime`, `OutlineSampler` |
+| Internal | `region/internal/RegionIndex`, `RegionRuntime`, `RegionListener`, `PlacedBlockRuntime`, `PlacedBlockListener`, `PositionSet`, `SelectionRuntime`, `SelectionListener`, `SelectorWand`, `SelectionPreview`, `VisualizationRuntime`, `OutlineSampler` |
 | Lifecycle | `ExyliaLib` — listener registration, release before `Tasks.release` |

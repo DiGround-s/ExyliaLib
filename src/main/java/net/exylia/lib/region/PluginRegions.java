@@ -183,6 +183,10 @@ public final class PluginRegions {
      * <p>Routing is globally exclusive per player. Starting while any plugin owns an active
      * selector for the player fails rather than allowing one click to mutate two sessions.
      *
+     * <p>Hands the player a golden axe, draws the box while they pick it, and
+     * waits for a shift + left-click before answering. Every one of those is a
+     * switch on {@link SelectionOptions}.
+     *
      * @param player player whose UUID is selected; the player object is not retained
      * @return active owner-scoped selection session
      * @throws IllegalStateException if the player already has an active selection
@@ -195,14 +199,14 @@ public final class PluginRegions {
      * Begins a block selection with immutable options.
      *
      * @param player player whose UUID is selected; the player object is not retained
-     * @param options selector material and interaction rules
+     * @param options the selector, the preview and the confirmation rules
      * @return active owner-scoped selection session
      * @throws IllegalStateException if the player already has an active selection
      */
     public @NotNull SelectionSession beginSelection(@NotNull Player player,
                                                      @NotNull SelectionOptions options) {
         Objects.requireNonNull(player, "player");
-        return SelectionRuntime.begin(plugin, player.getUniqueId(), options);
+        return SelectionRuntime.begin(plugin, player, options);
     }
 
     /**

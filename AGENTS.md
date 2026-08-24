@@ -919,6 +919,43 @@ Todo lo que sale de un cofre, un spawner o un bloque roto pasa por
   que duplica, así que un admin guardando la tabla no cambia una línea por debajo
   de un cofre que se está llenando.
 
+### Selección de regiones — la herramienta se entrega, el resultado se confirma
+
+El selector de bloques de `region` es producto, no una API cruda. Lo que ve un
+admin es lo que veía en ExyliaCommons, sin sus bugs.
+
+- **Hacha de oro, no de madera.** El hacha de madera es la varita de WorldEdit y
+  se confunde con ella. El default es `GOLDEN_AXE`, con nombre, lore y brillo.
+- **Se entrega de verdad.** Decirle a alguien que seleccione con una herramienta
+  que no tiene es no decirle nada. Va a un hueco **libre**: a la mano solo si la
+  mano está vacía. Commons hacía `setItemInMainHand` y destruía lo que hubiera —
+  eso no se reproduce.
+- **Se devuelve pase lo que pase.** Confirmar, cancelar, salir del servidor y
+  deshabilitar el plugin pasan por la misma ruta de liberación.
+- **Se ve mientras se elige.** Una esquina se dibuja como el bloque que es; dos,
+  como la caja que forman. El sampler del outline es el mismo que usa
+  `visualize`, así que el coste ya estaba medido y acotado.
+- **Dos esquinas son una propuesta, no una respuesta.** Shift + clic izquierdo
+  confirma. La primera versión de este módulo respondía en el segundo clic, así
+  que un admin que fallaba el bloque ya había creado la arena.
+- **Sin confirmación, solo el clic derecho cierra.** Un clic izquierdo nunca
+  completa, ni siquiera si ya había una segunda esquina: corregir la que ya
+  pusiste no puede terminar la selección.
+- **Devolver la herramienta jamás puede dejar colgada la sesión.** Se saca del
+  registro y se completa el futuro **antes** de tocar el inventario, y esa parte
+  va protegida. Al revés, un `getInventory()` que reventaba dejaba al jugador sin
+  poder seleccionar con ningún plugin hasta reconectar. Se captura
+  `LinkageError` además de `RuntimeException`: construir un `ItemStack` resuelve
+  el registro de ítems y eso llega como `Error`.
+- **Nada de `isAir()` en rutas testeables.** Se compara contra `AIR`/`CAVE_AIR`/
+  `VOID_AIR`, como ya documenta `item/Source`: `isAir()` pregunta al registro de
+  bloques y solo un servidor vivo lo tiene.
+- **El scheduler es el de ExyliaLib, no el del consumidor.** Un plugin ya está
+  deshabilitado cuando se liberan sus selecciones, y un plugin deshabilitado no
+  puede programar la devolución de su propia herramienta. En Spigot y Paper, si
+  el llamante ya está en el hilo principal, se escribe en línea: un tick de
+  retraso es tiempo suficiente para hacer clic y preguntarse por qué no pasa nada.
+
 ### Comandos — siempre Lamp, nunca un executor a mano
 
 Todo comando se escribe con **Lamp** (`io.github.revxrsal:lamp.*`), la base
@@ -1263,6 +1300,7 @@ Raíz de código: `src/main/java/net/exylia/lib/`. Raíz de tests:
 | skull | `skull/Skulls`, `SkullSource`, `SkullBuilder`, `SkullHandle` | `skull/internal/` | [docs/skulls.md](docs/skulls.md) | 1.19.0 |
 | action | `action/Actions`, `PluginActions`, `ActionCall`, `ActionContext`, `ActionSequence` y tipos auxiliares | `action/internal/` | [docs/actions.md](docs/actions.md) | 1.20.0 |
 | region | `region/Regions`, `PluginRegions`, `RegionSnapshot`, `RegionShape` y formas, `PolicyKey`/`PolicySet`, `RegionData`/`RegionCodec`, `PlayerRegionChangeEvent` (filtro por dueño 1.48.0), selección y visualización | `region/internal/` | [docs/regions.md](docs/regions.md) | 1.23.0 |
+| selector como el de commons | `region/SelectionOptions` (builder), `SelectionState.AWAITING_CONFIRMATION`, `SelectionSession.confirm` | `region/internal/SelectorWand`, `SelectionPreview`, `SelectionRuntime`, `SelectionListener` | [docs/regions.md](docs/regions.md) | 1.56.0 |
 | database | `database/Databases`, `PluginDatabase`, `Repository`, `Query`, `Table`, `Column`, `Id`, `Indexed`, `Index`, `Codec`, `DatabaseException`, `DatabaseSettings` | `database/internal/` | [docs/database.md](docs/database.md) | 1.24.0 |
 | format | `format/Formats`, `Numbers`, `Amounts`, `Dates`, `FormatSettings`; `util/TimeFormats` | `format/internal/` | [docs/formats.md](docs/formats.md) | 1.25.0 |
 | economy | `economy/Economy`, `CurrencyProvider`, `EconomyResponse`, `TransferResult`, `EconomySettings`, `EconomyException` | `economy/internal/` | [docs/economy.md](docs/economy.md) | 1.26.0 |
@@ -1335,6 +1373,7 @@ Son package-private a propósito; los tests viven del mismo paquete:
 | `panel/internal/SettingsEngine` | `forTests(...)` (un panel de ajustes sin ventana: el mapeo, los prompts y el rebuild se prueban sin dibujar, que es lo único que exige un servidor) |
 | `panel/internal/ListEngine` | `forTests(...)` (una lista sin ventana) y `reorderForTests(...)` (mueve la lista **entre el draw y el clic**: es la única forma en que "resolvió el índice correcto" y "resolvió el elemento correcto" dan respuestas distintas, así que sin esta costura el bug del editor de pociones de commons pasa los tests. No es un artificio: un plugin que edita la misma lista desde un comando con el panel abierto hace exactamente esto) |
 | `panel/FieldDescriptor` (tests) | `TestDescriptors.Notes` sobre un `record Note(String id, String text)` declarado en los tests. Si paginar, buscar, copiar, borrar, deshacer y guardar funcionan sobre un tipo que la librería nunca vio, funcionan porque el motor es genérico — un test escrito sobre un descriptor incluido pasaría por el motivo equivocado |
+| `region/internal/SelectionRuntime` | `installWand/resetWand` (cómo el selector llega al jugador: construir un `ItemStack` resuelve el registro de ítems, que ningún entorno de test tiene) |
 | `util/loot/internal/LootRolls` | `Dice` (los dados: tirada, rango y barajado). El resto del módulo decide sobre strings y números, así que con esta costura toda la lógica de una tabla de loot se prueba sin azar |
 | `util/loot/internal/LootItems` | la interfaz que construye el `ItemStack` — la única parte del módulo que necesita servidor; un doble la sustituye y la gramática escrita se prueba entera sin registro |
 | tests compartidos | `src/test/java/net/exylia/lib/FakeServer.java`, `FakePlayer.java`, `debug/DebugCapture.java`; `FakeServer.runAsyncForReal()` ejecuta las async en un hilo real |

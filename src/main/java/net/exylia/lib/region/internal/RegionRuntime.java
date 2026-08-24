@@ -42,6 +42,19 @@ public final class RegionRuntime {
     }
 
     /** Initializes the scheduling owner used for lifecycle-safe reconciliation. */
+    /**
+     * The library's own plugin, for work that must outlive a consumer.
+     *
+     * <p>A consumer is already disabled when its regions are released, and a
+     * disabled plugin cannot schedule anything — so anything that has to run
+     * during that release runs here instead.
+     *
+     * @return ExyliaLib's plugin, or {@code null} before it enabled
+     */
+    static @Nullable Plugin library() {
+        return libraryPlugin;
+    }
+
     public static void init(@NotNull Plugin plugin) {
         libraryPlugin = Objects.requireNonNull(plugin, "plugin");
         PlacedBlockRuntime.init(plugin);

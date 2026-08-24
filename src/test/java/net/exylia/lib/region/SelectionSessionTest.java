@@ -30,7 +30,7 @@ class SelectionSessionTest {
         Plugin plugin = plugin("Owner");
         UUID playerId = UUID.randomUUID();
         WorldIdentity world = new WorldIdentity(UUID.randomUUID(), "world");
-        SelectionSession session = SelectionRuntime.begin(plugin, playerId, SelectionOptions.DEFAULT);
+        SelectionSession session = SelectionRuntime.begin(plugin, player(playerId), bare());
 
         assertEquals(SelectionState.ACTIVE, session.state());
         assertTrue(SelectionRuntime.select(playerId, false,
@@ -58,8 +58,8 @@ class SelectionSessionTest {
         UUID playerId = UUID.randomUUID();
         WorldIdentity firstWorld = new WorldIdentity(UUID.randomUUID(), "first");
         WorldIdentity secondWorld = new WorldIdentity(UUID.randomUUID(), "second");
-        SelectionSession session = SelectionRuntime.begin(plugin("Owner"), playerId,
-                new SelectionOptions(Material.STICK, true, true));
+        SelectionSession session = SelectionRuntime.begin(plugin("Owner"), player(playerId),
+                bare().toBuilder().selectorMaterial(Material.STICK).build());
 
         SelectionRuntime.select(playerId, true, new BlockPosition(firstWorld, 1, 2, 3));
         SelectionRuntime.select(playerId, false, new BlockPosition(secondWorld, 4, 5, 6));
@@ -75,18 +75,18 @@ class SelectionSessionTest {
     @DisplayName("A player has one globally routed selector across plugin owners")
     void globalPlayerExclusivity() {
         UUID playerId = UUID.randomUUID();
-        SelectionSession first = SelectionRuntime.begin(plugin("First"), playerId,
-                SelectionOptions.DEFAULT);
+        SelectionSession first = SelectionRuntime.begin(plugin("First"), player(playerId),
+                bare());
 
         IllegalStateException failure = assertThrows(IllegalStateException.class,
-                () -> SelectionRuntime.begin(plugin("Second"), playerId, SelectionOptions.DEFAULT));
+                () -> SelectionRuntime.begin(plugin("Second"), player(playerId), bare()));
         assertTrue(failure.getMessage().contains("First"));
         assertTrue(SelectionRuntime.selection("First", playerId).isPresent());
         assertTrue(SelectionRuntime.selection("Second", playerId).isEmpty());
 
         assertTrue(first.cancel());
-        SelectionSession second = SelectionRuntime.begin(plugin("Second"), playerId,
-                SelectionOptions.DEFAULT);
+        SelectionSession second = SelectionRuntime.begin(plugin("Second"), player(playerId),
+                bare());
         assertEquals("Second", second.owner());
     }
 
@@ -95,10 +95,10 @@ class SelectionSessionTest {
     void cancellationAndReleaseLifecycle() {
         UUID firstId = UUID.randomUUID();
         UUID secondId = UUID.randomUUID();
-        SelectionSession first = SelectionRuntime.begin(plugin("Owner"), firstId,
-                SelectionOptions.DEFAULT);
-        SelectionSession second = SelectionRuntime.begin(plugin("Other"), secondId,
-                SelectionOptions.DEFAULT);
+        SelectionSession first = SelectionRuntime.begin(plugin("Owner"), player(firstId),
+                bare());
+        SelectionSession second = SelectionRuntime.begin(plugin("Other"), player(secondId),
+                bare());
 
         assertEquals(1, SelectionRuntime.release("Owner"));
         assertCancelled(first);
@@ -108,8 +108,8 @@ class SelectionSessionTest {
         assertCancelled(second);
         assertFalse(second.cancel());
 
-        SelectionSession third = SelectionRuntime.begin(plugin("Third"), UUID.randomUUID(),
-                SelectionOptions.DEFAULT);
+        SelectionSession third = SelectionRuntime.begin(plugin("Third"), player(UUID.randomUUID()),
+                bare());
         SelectionRuntime.releaseAll();
         assertCancelled(third);
     }
@@ -119,6 +119,35 @@ class SelectionSessionTest {
         CompletionException failure = assertThrows(CompletionException.class,
                 () -> session.result().toCompletableFuture().join());
         assertTrue(failure.getCause() instanceof CancellationException);
+    }
+
+    /**
+     * A selection with nothing but the state machine.
+     *
+     * <p>No tool handed over, no outline, no messages — so nothing here needs a
+     * running server, and what is asserted is the routing and the lifecycle.
+     * The selector, the preview and the confirmation have their own tests.
+     */
+    private static SelectionOptions bare() {
+        return SelectionOptions.builder()
+                .giveSelector(false)
+                .requireConfirmation(false)
+                .feedback(false)
+                .previewParticle(null)
+                .build();
+    }
+
+    private static org.bukkit.entity.Player player(UUID id) {
+        return (org.bukkit.entity.Player) Proxy.newProxyInstance(
+                org.bukkit.entity.Player.class.getClassLoader(),
+                new Class<?>[]{org.bukkit.entity.Player.class},
+                (proxy, method, args) -> switch (method.getName()) {
+                    case "getUniqueId" -> id;
+                    case "toString" -> "Player[" + id + ']';
+                    case "hashCode" -> System.identityHashCode(proxy);
+                    case "equals" -> proxy == args[0];
+                    default -> defaultValue(method.getReturnType());
+                });
     }
 
     private static Plugin plugin(String name) {
