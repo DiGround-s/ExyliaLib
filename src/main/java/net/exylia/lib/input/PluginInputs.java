@@ -91,6 +91,16 @@ public final class PluginInputs {
         return new SearchInput<>(pluginName, player, prompt, choices);
     }
 
+    /**
+     * Starts a request for an icon: a material, the item in hand, or a head.
+     *
+     * <p>Answers with a {@code material} value, which is what a menu file
+     * writes and what a column stores.
+     */
+    public @NotNull IconInput icon(@NotNull Player player, @NotNull String prompt) {
+        return new IconInput(this, player, prompt);
+    }
+
     /** Starts a multi-field form. */
     public @NotNull FormInput form(@NotNull Player player, @NotNull String prompt) {
         return new FormInput(pluginName, player, prompt);

@@ -92,6 +92,7 @@ consumer only when there is an answer.
 | `choice(player, prompt, choices)` | `T` | one of a few options |
 | `search(player, prompt, choices)` | `T` | one of very many options |
 | `form(player, prompt)` | `FormValues` | several things in one window |
+| `icon(player, prompt)` | `String` | what something is drawn as |
 
 ### Modifiers every request has
 
@@ -380,6 +381,46 @@ and that it scales to a real registry.
 
 ---
 
+## Icons
+
+What an arena, a kit, a warp or a reward is drawn as. The answer is a
+`material` value — the same string a menu file writes, read by the same grammar
+([items.md](items.md)) — so it goes straight into a column and straight into
+`material: "%arena_icon%"`.
+
+```java
+inputs.icon(player, "{warning}Choose an icon")
+      .open(icon -> arenas.save(arena.withIcon(icon)));
+```
+
+One question, three answers, because an icon is three different things:
+
+| Way | What the player does | What is stored |
+| --- | --- | --- |
+| `MATERIAL` | the search picker, over every item the server has | `DIAMOND_SWORD` |
+| `HELD` | holds the item they mean | its material name, or `bytes:` when it carries meta |
+| `HEAD` | pastes a head string | `playerhead-Notch`, `basehead-…`, `urlhead-…` |
+
+A material is chosen from a list nobody can spell from memory, a custom item is
+easiest to point at by holding it, and a head can only be pasted. ExyliaCommons
+had a menu of its own for each of those, in every plugin that needed one.
+
+| Method | |
+| --- | --- |
+| `ways(Way...)` | which ways are offered, in that order; **one way skips the question** |
+| `maxLength(int)` | how long an answer may be; 512 by default |
+| `timeout(Duration)` | how long the player has, per step |
+
+`maxLength` defaults to 512 because that is what every table storing an icon
+allows. A serialised item can be longer, and finding that out at the database is
+finding out after the screen already said yes.
+
+Endings pass through unchanged, so a timeout stays a timeout and a caller that
+reopens its menu on a cancel keeps working. An empty hand says so and ends as
+`CANCELLED`: there is nothing to ask again, the item is either held or it is not.
+
+---
+
 ## The five transports
 
 Tried in this order. The first that can represent the request and returns
@@ -661,7 +702,7 @@ name and a switch in the same window instead of a second prompt afterwards.
 
 | | |
 | --- | --- |
-| Public API | `input/Inputs`, `PluginInputs`, `InputRequest`, `TextInput`, `NumberInput`, `AmountInput`, `DurationInput`, `FlagInput`, `ConfirmInput`, `ChoiceInput`, `SearchInput`, `FormInput`, `FormField`, `FormKey`, `FormValues`, `InputResult`, `InputOutcome`, `Validation`, `InputParser`, `InputException`, `InputSettings` |
+| Public API | `input/Inputs`, `PluginInputs`, `InputRequest`, `TextInput`, `NumberInput`, `AmountInput`, `DurationInput`, `FlagInput`, `ConfirmInput`, `ChoiceInput`, `SearchInput`, `IconInput`, `FormInput`, `FormField`, `FormKey`, `FormValues`, `InputResult`, `InputOutcome`, `Validation`, `InputParser`, `InputException`, `InputSettings` |
 | Internal | `input/internal/` — `InputRuntime`, `InputSession`, `Transport`, `TransportKind`, `InputListener`, `DialogTransport`/`DialogPackets`, `BedrockTransport`/`Bedrocks`/`BedrockForms`, `SearchTransport`/`SearchView`, `MenuTransport`, `ChatTransport` |
 | Lifecycle | `ExyliaLib` — `input.yml` read and applied at enable, re-applied on `/exylialib reload`; sessions ended on quit, on plugin disable and on shutdown |
-| Tests | `src/test/java/net/exylia/lib/input/` — `InputParserTest`, `FormInputTest`, `SearchInputTest`, `internal/InputSessionTest` |
+| Tests | `src/test/java/net/exylia/lib/input/` — `InputParserTest`, `FormInputTest`, `SearchInputTest`, `IconInputTest`, `internal/InputSessionTest` |
