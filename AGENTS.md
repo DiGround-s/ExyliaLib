@@ -991,6 +991,33 @@ tipo, nunca un mapa de sesiones por jugador.
 - **Los pickers leen el registro, no `values()`.** Varios de esos tipos dejaron
   de ser enums y un data pack puede añadir a cualquiera.
 
+### Efectos condicionales — la carga es una secuencia, no cuarenta campos
+
+Lo que en ExyliaCommons era `EffectEntry` aquí son dos cosas ya escritas.
+
+- **El `EffectEntry` de commons eran 40 campos y 8 tipos**, con un `switch` que
+  crecía con cada tipo nuevo. Su propio javadoc decía que copiaba a
+  `RewardEntry`. Aquí la carga es una secuencia y el gating son diez campos.
+- **La secuencia ya expresa esos 8 tipos y 5 más**: partículas, sonidos,
+  pociones, fuegos, títulos, action bar, chat, rayos, explosiones, romper
+  bloques, comandos, formas y pausas. Y compila una vez en vez de reparsear en
+  cada play sobre el hilo de región, que es lo que hacía commons.
+- **El público es un número, no un enum y un número.** `0` o menos es el jugador
+  solo, un número finito son los bloques de radio, `WHOLE_WORLD` es el mundo
+  entero. Un enum cuyo significado es "mira el otro campo" son dos formas de
+  decir lo mismo y una de decir algo contradictorio.
+- **Permiso y condición van antes del dado**, igual que en rewards y por el mismo
+  motivo: quién *puede* ver algo no depende de la suerte.
+- **`delayTicks` no es un `[DELAY]`.** El de la línea retrasa lo que viene
+  detrás; el del entry retrasa ese efecto y deja que los de al lado salgan a
+  tiempo.
+- **Se lee lo que commons dejó escrito.** `EffectCodec.decode` acepta las dos
+  formas y traduce la vieja al vuelo; nadie reautoriza los efectos de una mina.
+  La traducción es de ida solo: volver a escribir la forma vieja ataría cada
+  efecto otra vez a los ocho tipos que conocía.
+- **Una condición rota se avisa una vez, no una por play.** Un efecto de mina se
+  dispara miles de veces.
+
 ### Comandos — siempre Lamp, nunca un executor a mano
 
 Todo comando se escribe con **Lamp** (`io.github.revxrsal:lamp.*`), la base
@@ -1346,6 +1373,8 @@ Raíz de código: `src/main/java/net/exylia/lib/`. Raíz de tests:
 | valores de fila con formato | `ui/UiEntry.Builder.withFormatted`; `item/PluginItems.render(item, viewer, values, formatted)` | `item/internal/ItemRenderer.text` | [docs/menus.md](docs/menus.md), [docs/items.md](docs/items.md) | 1.28.0 |
 | small text | `small-text` en `internal/LibrarySettings`; medida en `text/Centering` | `text/internal/SmallText`, `TextEngine.smallText` | [docs/text.md](docs/text.md) | 1.29.0 |
 | util (sequence) | `util/sequence/Sequences`, `PluginSequences`, `Sequence`, `SequenceTarget`, `SequenceRun`, `SequenceStep`, `Shape` | `util/sequence/internal/` | [docs/sequences.md](docs/sequences.md) | 1.30.0 |
+| efectos con dado, condición y público | `util/sequence/EffectEntry`, `EffectCodec`, `PluginSequences.play(List, target)`/`editor` | `util/sequence/internal/EffectPlayer`, `util/sequence/EffectDescriptor`; `[MESSAGE]` en `SequenceCompiler` | [docs/sequences.md](docs/sequences.md) | 1.57.0 |
+| condiciones compartidas | — | `util/internal/Conditions` (movido desde `util/reward/internal`) | [docs/rewards.md](docs/rewards.md) | 1.57.0 |
 | util (preview) | `util/preview/Previews`, `PluginPreviews`, `Preview`, `PreviewSettings` | `util/preview/internal/` | [docs/previews.md](docs/previews.md) | 1.30.0 |
 | redis | `redis/Redis`, `RedisSettings` | `redis/internal/` (Jedis confinado en `JedisClient`) | [docs/redis.md](docs/redis.md) | 1.31.0 |
 | poll de auto-actualización | `update-check-minutes` en `internal/LibrarySettings` | `internal/ExyliaLibUpdater` (ETag), timer en `ExyliaLib.startUpdateCheck` | [docs/reload.md](docs/reload.md) | 1.30.0 |
@@ -1401,6 +1430,7 @@ Son package-private a propósito; los tests viven del mismo paquete:
 | `internal/TransferAccess` | la interfaz que el comando usa para exportar e importar; `live()` es la real, un fake la sustituye sin base de datos ni fichero |
 | `schematic/internal/Engines` | `install(...)` (el motor: un fake sustituye a FastAsyncWorldEdit, así que **todo** lo que decide el módulo — nombre, carpeta, orden de las etapas, qué pasa cuando una revienta — se testea sin FAWE y sin servidor) |
 | `schematic/internal/SchematicEngine` | la interfaz que se instala ahí; su única implementación real es la que nombra FAWE |
+| `util/sequence/internal/EffectPlayer` | `forgetReportedForTests` (los avisos ya dados y las secuencias compiladas: "una vez" solo se puede afirmar dos veces si se puede olvidar) |
 | `util/editor/internal/EditorHolder` | package-private entero: la copia de trabajo, las páginas y el final único se prueban sin ventana, que es la única parte que exige servidor |
 | `region/internal/SelectionRuntime` | `installWand/resetWand` (cómo el selector llega al jugador: construir un `ItemStack` resuelve el registro de ítems, que ningún entorno de test tiene) |
 | `util/loot/internal/LootRolls` | `Dice` (los dados: tirada, rango y barajado). El resto del módulo decide sobre strings y números, así que con esta costura toda la lógica de una tabla de loot se prueba sin azar |

@@ -87,6 +87,7 @@ public final class SequenceCompiler {
             case "BLOCK_BREAK" -> blockBreak(args, line, onArg);
             case "TITLE" -> title(args, rest, onArg);
             case "ACTION_BAR" -> rest.isEmpty() ? null : new Steps.ActionBarStep(rest);
+            case "MESSAGE" -> rest.isEmpty() ? null : new Steps.Message(rest);
             default -> {
                 problems.found(line, "there is no effect called \"" + token + "\"");
                 yield null;

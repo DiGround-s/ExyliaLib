@@ -4,7 +4,7 @@ import net.exylia.lib.debug.Debug;
 import net.exylia.lib.task.TaskScheduler;
 import net.exylia.lib.task.Tasks;
 import net.exylia.lib.text.Text;
-import net.exylia.lib.util.reward.internal.Conditions;
+import net.exylia.lib.util.internal.Conditions;
 import net.exylia.lib.util.reward.internal.ItemGiver;
 import net.exylia.lib.util.reward.internal.Providers;
 import net.exylia.lib.util.reward.internal.Rolls;

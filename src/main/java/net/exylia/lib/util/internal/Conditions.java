@@ -1,4 +1,4 @@
-package net.exylia.lib.util.reward.internal;
+package net.exylia.lib.util.internal;
 
 import net.exylia.lib.placeholder.Placeholders;
 import org.bukkit.entity.Player;
@@ -9,7 +9,12 @@ import java.util.Locale;
 import java.util.function.BiConsumer;
 
 /**
- * Whether a reward's condition holds.
+ * Whether a condition holds.
+ *
+ * <p>Shared rather than owned by one module: rewards ask it before handing
+ * something out and effects ask it before playing, and two copies of a toy
+ * expression parser is how the two would drift into meaning different things by
+ * the same words.
  *
  * <p>The notation is ExyliaCommons': a left side, an operator and a right side,
  * with placeholders resolved on both. {@code %player_level% >= 10}. It is a toy
@@ -27,6 +32,8 @@ import java.util.function.BiConsumer;
  * unreadable condition hides a slot. Hiding a button is invisible; handing out a
  * reward that should have been withheld is loud, and loud is what gets a typo
  * fixed.
+ *
+ * @since 1.9.0
  */
 public final class Conditions {
 
@@ -49,7 +56,7 @@ public final class Conditions {
      * @param condition the condition as written
      * @param player    whose placeholders to resolve, or {@code null}
      * @param problems  told the subject and the message, when it cannot be read
-     * @return whether the reward should be given
+     * @return whether the thing it guards should happen
      */
     public static boolean holds(@NotNull String condition,
                                 @Nullable Player player,

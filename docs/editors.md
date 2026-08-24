@@ -25,6 +25,7 @@ library ships the editors as well as the machine.
 | `Loot.editor(plugin, entries)` | [loot tables](loot.md) |
 | `NamedCommands.editor(plugin, commands)` | named console commands |
 | `Effects.editor(plugin, effects)` | potion effects |
+| `Sequences.of(plugin).editor(effects)` | effects with odds, conditions and an audience |
 | `Editors.of(plugin).items(items)` | real items — kits, shop stock |
 | `Editors.of(plugin).locations(places)` | spawn points, arena corners |
 | `Editors.of(plugin).list(descriptor, type, entries)` | the sixth thing, the one only your plugin has |
@@ -231,19 +232,16 @@ player does not.
 
 ## What is not here
 
-**An editor for ExyliaCommons' `EffectEntry`** — the particle/sound/firework/
-title/sequence entry with its own chance, condition, delay and scope. That is a
-domain module ExyliaLib does not have yet, not a screen: this library's `effect`
-module is configuration-driven, and there is no list-of-effect-entries type to
-edit. `Effects.editor` covers potion effects, which is what
-`SelectorAPI.potionEffectEditor` did.
+Nothing, now. The effect editor that ExyliaCommons had is
+`PluginSequences.editor` — see [sequences.md](sequences.md), where an effect is
+its gating plus a sequence rather than a forty-field bean over eight types.
 
 ## Where the code lives
 
 | Part | Where |
 | --- | --- |
 | Public API | `util/editor/Editors`, `PluginEditors`, `ListEditor`, `EditorDescriptor`, `EditorForm`, `Clipboard`, `IconPicker`, `Pickers` |
-| Shipped descriptors | `util/reward/RewardDescriptor`, `util/loot/LootDescriptor`, `util/command/NamedCommandDescriptor`, `util/PotionEffectDescriptor`, `util/editor/ItemListEditor`, `LocationDescriptor` |
+| Shipped descriptors | `util/reward/RewardDescriptor`, `util/loot/LootDescriptor`, `util/command/NamedCommandDescriptor`, `util/sequence/EffectDescriptor`, `util/PotionEffectDescriptor`, `util/editor/ItemListEditor`, `LocationDescriptor` |
 | Internal | `util/editor/internal/` — `EditorRuntime`, `EditorHolder`, `EditorListener`, `InsertWindow`, `Icons` |
 | Tests | `src/test/java/net/exylia/lib/util/editor/` |
 

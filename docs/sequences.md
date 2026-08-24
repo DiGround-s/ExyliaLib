@@ -39,6 +39,109 @@ effects:
 A menu's open sound is an `EffectConfig`. A hundred-line firework display is a
 `Sequence`.
 
+## Effects that may or may not play
+
+Since 1.57.0.
+
+A sequence says **what** happens. An `EffectEntry` says whether it happens, to
+whom, and when:
+
+```java
+EffectEntry crit = EffectEntry.of(List.of(
+                "[SOUND] ENTITY_PLAYER_ATTACK_CRIT;1;1.4",
+                "[PARTICLE] CRIT;count:20"))
+        .name("Critical hit")
+        .chance(25.0)
+        .condition("%player_level% >= 10")
+        .nearby(12.0)
+        .build();
+
+sequences.play(mine.breakEffects(), SequenceTarget.at(block.getLocation()).by(miner));
+```
+
+| Field | Means |
+| --- | --- |
+| `lines` | what plays, in the notation above |
+| `name`, `icon` | what an editor shows |
+| `chance` | the percentage chance of playing at all |
+| `condition`, `permission` | who it may play for |
+| `priority` | higher plays first; equal priorities keep their written order |
+| `delayTicks` | how long after the trigger **this one** starts |
+| `radius` | how far it reaches |
+
+`delayTicks` is not a `[DELAY]` line. A delay inside the sequence holds up the
+lines after it; this holds up the whole effect and lets the ones beside it play
+on time.
+
+`radius` says everything the ExyliaCommons `EffectScope` enum said, in one
+number: `0` or less is the player it is about and nobody else, a finite number
+is everyone within that many blocks, and `EffectEntry.WHOLE_WORLD` is everyone
+in the world it happens in. One number rather than an enum *and* a number,
+because an enum whose meaning is "read the other field" is two ways to say one
+thing and a way to say a contradiction.
+
+**Permission and condition run before the dice.** Who *may* see something does
+not depend on luck, and asking in the other order is what made a rare effect
+report "it did not come up" when the truth was a misspelled permission.
+
+**Compiled once.** The lines are compiled the first time they play and kept,
+keyed by the lines themselves, so an effect that fires on every block break in a
+mine parses nothing after the first one. An edited entry is a different list and
+misses the cache, which is exactly right.
+
+**A broken condition is reported once, not once per play.** An effect on a mine
+fires thousands of times; a console line per firing is how a log becomes
+unreadable in the minute somebody most needs to read it.
+
+### Why ten fields and not forty
+
+ExyliaCommons' effect entry carried a field for every property of every type it
+knew — eight types, forty fields, and a `switch` that had to grow for a ninth.
+Its own javadoc said it mirrored `RewardEntry`.
+
+Splitting it in two is what makes this small: the payload is a sequence, which
+already expresses **every one of those eight types and five more** — lightning,
+explosions, block breaks, commands and shapes — and the gating is the ten fields
+above. The value never grows again, and the payload already does more than the
+forty fields did.
+
+### Stored, and read from what commons stored
+
+```java
+List<EffectEntry> effects = EffectCodec.decode(mine.effectsJson());
+String stored = EffectCodec.encode(effects);
+```
+
+`decode` reads **both shapes**. A row carrying a `type` key is an ExyliaCommons
+row and is translated on the way in — its particle, sound, potion, firework,
+title, action bar, message or sequence becomes the line that plays the same
+thing, and its gating comes across untouched. Nothing has to be re-authored.
+
+The one unit conversion is the title: commons stored its three times in ticks
+and a `[TITLE]` line writes them in seconds, because a file that says `0.5`
+means half a second everywhere else in it.
+
+Translation is one way on purpose. Writing the old form again would pin every
+effect back to the eight types it knew, which is the ceiling this replaced. A
+type this library cannot play keeps its gating, arrives with nothing to play and
+is reported: the row said something, and losing it silently is worse than showing
+it empty.
+
+An empty list stores as `NULL` rather than `[]`, like every other codec here.
+
+### Editing them
+
+```java
+sequences.editor(mine.breakEffects())
+         .title("{primary}&lBREAK EFFECTS")
+         .onSave(edited -> mines.save(mine, edited))
+         .open(player);
+```
+
+The [editor](editors.md) screen. One form per row — the gating, and a tall box
+of lines — rather than the type-select menu and eight per-type screens commons
+needed, because the payload is text.
+
 ## Contracts
 
 - **Compiled once, played many times.** `compile` resolves every name, parses
@@ -79,6 +182,7 @@ arguments — so a migrating plugin edits no configuration files.
 | `[TITLE] title;subtitle;in;stay;out` | times in **seconds** |
 | `[ACTION_BAR] text` | |
 | `[COMMAND] give {player} ...` | `{player}` `{world}` `{x}` `{y}` `{z}` |
+| `[MESSAGE] text` | a chat line, since 1.57.0; centre it with `<center>` like any other message |
 
 ### Shapes
 

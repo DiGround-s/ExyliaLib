@@ -39,7 +39,8 @@ class EditorIsGenericTest {
     private static final List<String> FORBIDDEN = List.of(
             "net/exylia/lib/util/reward",
             "net/exylia/lib/util/loot",
-            "net/exylia/lib/util/command");
+            "net/exylia/lib/util/command",
+            "net/exylia/lib/util/sequence");
 
     @Test
     @DisplayName("no class in the editor module names a domain module")
@@ -82,7 +83,7 @@ class EditorIsGenericTest {
         assertTrue(bytes.contains("net/exylia/lib/util/reward"),
                 "the detector must find a reference that is really there");
         assertFalse(FORBIDDEN.isEmpty());
-        assertEquals(3, FORBIDDEN.size());
+        assertEquals(4, FORBIDDEN.size());
     }
 
     private static List<Path> classFiles() throws IOException, URISyntaxException {

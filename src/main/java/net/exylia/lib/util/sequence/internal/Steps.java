@@ -185,6 +185,24 @@ final class Steps {
         }
     }
 
+    /**
+     * A line of chat, to whoever the sequence is for.
+     *
+     * <p>The one thing ExyliaCommons' effect entries could do that a sequence
+     * could not. Centring is {@code Text}'s, through the same {@code <center>}
+     * tag every other message in the ecosystem uses, so there is no flag here.
+     */
+    record Message(String text) implements SequenceStep {
+        @Override
+        public void play(@NotNull SequenceTarget target, @NotNull SequenceRun run) {
+            Player source = target.source();
+            if (source == null) {
+                return;
+            }
+            source.sendMessage(Text.of(text).forPlayer(source).build());
+        }
+    }
+
     /** A pause before the rest of the sequence. */
     record Delay(long millis) implements SequenceStep {
         @Override

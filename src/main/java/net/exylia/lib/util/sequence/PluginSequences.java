@@ -3,6 +3,7 @@ package net.exylia.lib.util.sequence;
 import net.exylia.lib.debug.Debug;
 import net.exylia.lib.task.TaskScheduler;
 import net.exylia.lib.task.Tasks;
+import net.exylia.lib.util.sequence.internal.EffectPlayer;
 import net.exylia.lib.util.sequence.internal.SequenceAccess;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
@@ -128,6 +129,57 @@ public final class PluginSequences {
             playing.put(run, Boolean.TRUE);
         }
         return run;
+    }
+
+    /**
+     * Plays every effect in a list that passes its own gating.
+     *
+     * <pre>{@code
+     * sequences.play(mine.breakEffects(), SequenceTarget.at(block.getLocation()).by(miner));
+     * }</pre>
+     *
+     * <p>Each {@link EffectEntry} decides for itself whether it plays — its
+     * permission, its condition and then its chance, in that order — how far it
+     * reaches, and how long after the trigger it starts. Highest priority goes
+     * first, and equal priorities keep the order they were written in.
+     *
+     * <p>The lines are compiled the first time they play and kept, so an effect
+     * that fires on every block break in a mine parses nothing after the first
+     * one.
+     *
+     * @param effects what might happen
+     * @param target  where, and who is nearby
+     * @return the runs that started immediately; a delayed effect is not among
+     *         them, because it has not started
+     * @since 1.57.0
+     */
+    public @NotNull List<SequenceRun> play(@NotNull List<EffectEntry> effects,
+                                           @NotNull SequenceTarget target) {
+        return EffectPlayer.play(this, tasks, debug, effects, target);
+    }
+
+    /**
+     * A screen for editing a list of effects.
+     *
+     * <pre>{@code
+     * sequences.editor(mine.breakEffects())
+     *          .title("{primary}&lBREAK EFFECTS")
+     *          .onSave(edited -> mines.save(mine, edited))
+     *          .open(player);
+     * }</pre>
+     *
+     * <p>The list editor, over effects. A row is edited as its gating plus its
+     * lines, and the lines are the sequence notation — which is why there is one
+     * screen here rather than the eight-type menu ExyliaCommons needed.
+     *
+     * @param effects what is being edited; copied, never held
+     * @return the editor, ready to open
+     * @since 1.57.0
+     */
+    public @NotNull net.exylia.lib.util.editor.ListEditor<EffectEntry> editor(
+            @NotNull List<EffectEntry> effects) {
+        return net.exylia.lib.util.editor.Editors.of(plugin)
+                .list(new EffectDescriptor(plugin), EffectEntry.class, effects);
     }
 
     /**
