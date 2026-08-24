@@ -16,19 +16,20 @@ import org.jetbrains.annotations.Nullable;
  *
  * <p>Mirrors {@code ui/internal/MenuHolder}, which exists for the same reason.
  */
-final class PanelHolder implements InventoryHolder {
+@org.jetbrains.annotations.ApiStatus.Internal
+public final class PanelHolder implements InventoryHolder {
 
     private Session session;
     private Inventory inventory;
 
     /** Binds the window to its session, once, as it is opened. */
-    void bind(Session session, Inventory inventory) {
+    public void bind(Session session, Inventory inventory) {
         this.session = session;
         this.inventory = inventory;
     }
 
     /** The panel this window is showing, or {@code null} before it is bound. */
-    @Nullable Session session() {
+    public @Nullable Session session() {
         return session;
     }
 

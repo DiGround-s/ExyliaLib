@@ -1260,6 +1260,8 @@ Raíz de código: `src/main/java/net/exylia/lib/`. Raíz de tests:
 | valor de fila multilínea | `<nl>` en un valor de `UiEntry`/`PluginItems.render` | `item/internal/ItemRenderer.lore`, `spans`, `segment` | [docs/menus.md](docs/menus.md), [docs/items.md](docs/items.md) | 1.38.0 |
 | schematic | `schematic/Schematics`, `PluginSchematics`, `SchematicResult`, `SchematicOutcome`, `RegenerateOptions` | `schematic/internal/` (`SchematicRuntime`, `SchematicStore`, `SchematicNames`, `Bounds`, `Engines`, `SchematicEngine`; FAWE confinado en `FaweEngine`) | [docs/schematics.md](docs/schematics.md) | 1.48.0 |
 | panel | `panel/Panels`, `PluginPanels`, `PanelSession`, `PanelDiff` | `panel/internal/` (`PanelRuntime`, `Session`, `PanelHolder`, `WorkingCopy`, `Diff`, `Layouts`, `PanelRenderer`, `PanelPrompts`, `UnsupportedTypes`, `ControlKind`) | [docs/panels.md](docs/panels.md) | 1.50.0 |
+| settings panel | `panel/SettingsPanel`, `PluginPanels.settings` | `panel/internal/` (`SettingsEngine`, `ControlMapper`, `RecordRebuilder`, `PanelListener`) | [docs/panels.md](docs/panels.md) | 1.50.0 |
+| list panel | `panel/ListPanel`, `FieldDescriptor`, `PluginPanels.list` | `panel/internal/` (`ListEngine`, `ListEntries`) | [docs/panels.md](docs/panels.md) | 1.50.0 |
 
 Clases raíz que no son módulo: `ExyliaLib.java` (ciclo de vida y limpieza),
 `platform/Platform.java`, `internal/LibrarySettings`, `internal/ExyliaLibUpdater`.
@@ -1290,6 +1292,9 @@ Son package-private a propósito; los tests viven del mismo paquete:
 | `panel/internal/PanelRuntime` | `setClock/resetClock` (el reloj del módulo) |
 | `panel/internal/UnsupportedTypes` | `forgetReportedForTests` (el aviso ya dicho: "una vez por servidor" solo se puede afirmar dos veces si se puede olvidar) |
 | `panel/internal/Session` | `forTests(...)` (una sesión sin ventana: `Bukkit.createInventory` devuelve `null` sin servidor y un `ItemStack` ni siquiera inicializa su clase, y lo que prueban los tests de ciclo de vida es la liberación, no el dibujado) |
+| `panel/internal/SettingsEngine` | `forTests(...)` (un panel de ajustes sin ventana: el mapeo, los prompts y el rebuild se prueban sin dibujar, que es lo único que exige un servidor) |
+| `panel/internal/ListEngine` | `forTests(...)` (una lista sin ventana) y `reorderForTests(...)` (mueve la lista **entre el draw y el clic**: es la única forma en que "resolvió el índice correcto" y "resolvió el elemento correcto" dan respuestas distintas, así que sin esta costura el bug del editor de pociones de commons pasa los tests. No es un artificio: un plugin que edita la misma lista desde un comando con el panel abierto hace exactamente esto) |
+| `panel/FieldDescriptor` (tests) | `TestDescriptors.Notes` sobre un `record Note(String id, String text)` declarado en los tests. Si paginar, buscar, copiar, borrar, deshacer y guardar funcionan sobre un tipo que la librería nunca vio, funcionan porque el motor es genérico — un test escrito sobre un descriptor incluido pasaría por el motivo equivocado |
 | tests compartidos | `src/test/java/net/exylia/lib/FakeServer.java`, `FakePlayer.java`, `debug/DebugCapture.java`; `FakeServer.runAsyncForReal()` ejecuta las async en un hilo real |
 
 **Los fakes no son gratis, y un benchmark que los llama se mide a sí mismo.**

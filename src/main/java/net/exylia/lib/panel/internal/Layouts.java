@@ -31,7 +31,7 @@ import java.util.Map;
 public final class Layouts {
 
     /** Six rows: five for controls, the last for chrome. */
-    private static final int CHEST_SIZE = 54;
+    static final int SIZE = 54;
 
     /** Where the working area ends and the button row begins. */
     static final int CONTROL_SLOTS = 45;
@@ -41,6 +41,20 @@ public final class Layouts {
     static final int UNDO_SLOT = 47;
     static final int PREVIOUS_SLOT = 48;
     static final int NEXT_SLOT = 50;
+
+    /**
+     * How many rows a list panel shows at once.
+     *
+     * <p>Three rows of nine rather than the settings panel's five, because a
+     * list is read down rather than scanned: a page a viewer cannot take in is a
+     * page they scroll past. The rest of the window is deliberately quiet.
+     */
+    static final int LIST_ROW_SLOTS = 27;
+
+    /** The list's own buttons, which sit beside the panel's on the last row. */
+    static final int SEARCH_SLOT = 46;
+    static final int ADD_SLOT = 51;
+    static final int PASTE_SLOT = 52;
 
     /**
      * The panel every panel falls back to.
@@ -69,7 +83,7 @@ public final class Layouts {
                 "exylialib:panel",
                 "{primary}&lSETTINGS",
                 UiDefinition.UiKind.CHEST,
-                CHEST_SIZE,
+                SIZE,
                 Map.of(
                         CANCEL_SLOT, chrome("BARRIER", "{error}&lCANCEL"),
                         UNDO_SLOT, chrome("CLOCK", "{warning}&lUNDO"),

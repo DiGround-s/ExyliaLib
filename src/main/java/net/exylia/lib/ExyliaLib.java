@@ -31,6 +31,7 @@ import net.exylia.lib.hologram.internal.HologramRuntime;
 import net.exylia.lib.internal.ExyliaLibUpdater;
 import net.exylia.lib.item.internal.ItemCache;
 import net.exylia.lib.panel.Panels;
+import net.exylia.lib.panel.internal.PanelListener;
 import net.exylia.lib.panel.internal.PanelRuntime;
 import net.exylia.lib.ui.Menus;
 import net.exylia.lib.ui.internal.MenuListener;
@@ -120,6 +121,11 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         // One listener for every plugin's menus: an inventory event fires once,
         // and the window's holder says whose menu it is.
         getServer().getPluginManager().registerEvents(new MenuListener(), this);
+        // And one for every plugin's panels. Registered separately from the menu
+        // listener because a panel window is not a menu window: it carries a
+        // PanelHolder, and a click in it is validated against the panel session
+        // rather than against a UiDefinition.
+        getServer().getPluginManager().registerEvents(new PanelListener(), this);
         // One listener for every plugin's questions, for the same reason: a
         // chat or inventory event fires once and the session says whose it is.
         getServer().getPluginManager().registerEvents(new InputListener(), this);

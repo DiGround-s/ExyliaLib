@@ -4,8 +4,8 @@ Configuration panels: a record edited on screen, with bounded undo and a diff
 before anything is written.
 
 > **Status.** This page documents the engine core shipped in 1.50.0 — the
-> session, the working copy, undo, the diff, and release. The generated
-> settings and list panels build on it.
+> session, the working copy, undo, the diff, and release — and the **settings
+> panel** built on it. The list panel is documented separately.
 
 ```java
 Panels.of(this).settings(effectConfigFile).open(player);
@@ -218,3 +218,351 @@ put eighteen identical lines in the console for a single screen. Which types
 this library has no control for is a fact about the library, not an incident of
 the panel that happened to open. That is the `ItemComponents` lesson, applied
 before it could be re-learned.
+
+---
+
+# The settings panel
+
+A configuration editor **generated from a config record's schema**, with no
+per-record code:
+
+```java
+Panels.of(this).settings(effectConfigFile).open(player);
+```
+
+That line is the entire effects editor. There is nothing to register, nothing to
+describe, and no screen to keep in step with the record — a record this library
+has never seen edits exactly as well as one it ships.
+
+## The API
+
+```java
+public final class PluginPanels {
+    public <T extends Record> SettingsPanel<T> settings(ConfigFile<T> file);
+}
+
+public final class SettingsPanel<T extends Record> {
+    public SettingsPanel<T> title(String title);       // Exylia text notation
+    public SettingsPanel<T> onSaved(Consumer<T> action);
+    public void open(Player viewer);                   // any thread
+}
+```
+
+`open` is safe from anywhere; it relocates itself onto the thread that owns the
+player. There is deliberately **no `openNow`** — see *Threads* above.
+
+## One control per component, chosen from the declared type
+
+| Declared type | Control |
+| --- | --- |
+| `int`, `long`, `short`, `byte` (and boxed) | integral number |
+| `double`, `float` (and boxed) | decimal number |
+| `boolean` | toggle |
+| enum | searchable choice over the constants |
+| `String` | text input |
+| `List<E>` | list sub-panel |
+| nested record | sub-panel over the nested schema |
+| anything else | read-only (see below) |
+
+Controls appear in **canonical-constructor order**, so reading order on screen is
+declaration order in the record.
+
+Chosen from the *declared* type, never from the value: a `long` holding zero is
+still a number control, and a null `String` is still text. Deciding from the
+value would make a screen change shape as it is edited.
+
+The mapping is a **table**, not control flow. `ControlMapper` takes a
+`Schema.Field` and returns a `ControlKind`; there is no `switch` over any domain
+type anywhere, and adding a supported type is one entry. `SettingsControlMappingTest`
+asserts the mapper's whole public input is the projection, so a branch that
+learned something about a particular record fails the build.
+
+An enum is offered through the input module's **`SearchInput`**, not a
+hand-rolled picker — an enum can be longer than a screen, and the input module
+already solved paging, filtering and every transport.
+
+## `@Comment` lines become the lore
+
+The comment lines above a component are its tooltip, in declaration order:
+
+```java
+record Settings(
+        @Comment("Connections kept open.")
+        @Comment("Rule of thumb: cores × 2.")
+        int poolSize) { }
+```
+
+Those two lines are already the server owner's manual by doctrine. Until now, the
+only way anybody read them was by opening the `.yml`.
+
+## Persistence goes only through `ConfigFile.update`
+
+Save rebuilds the whole record through its canonical constructor, in declared
+component order, and hands the **finished record** to
+`ConfigFile.update(UnaryOperator<T>)`.
+
+The panel never writes YAML and never touches a `FileConfiguration`. Migrations,
+key pruning and comment preservation stay owned by the `config` module, which is
+the only thing that knows how to keep them.
+
+Save is atomic at record level: the whole rebuilt record, or nothing. Editing one
+component of five leaves the other four equal to what they were, because they are
+carried through the rebuild rather than re-read.
+
+An empty diff **writes nothing at all** — opening a panel to look at something
+must not rewrite the owner's file. `cancel` discards the working copy; a save
+afterwards never reaches `update`.
+
+## The rebuild is pure, and it happens first
+
+`RecordRebuilder` returns a record **or a rejection**, and never throws for a bad
+value. Two things can go wrong and both are answers:
+
+- a value of the wrong type — `IllegalArgumentException`
+- a compact constructor that refused — `InvocationTargetException`
+
+A compact constructor is allowed to say no. `Effects.ParsedEffect` throws on a
+blank name; `EffectConfig.Title` has one. The cause's message becomes a
+player-facing `Validation` failure — "an effect needs a name", not
+"InvocationTargetException" — **the working copy is not mutated, and the config
+file is never opened**.
+
+That ordering is the point. Wrapping `ConfigFile.update` in a try/catch would put
+the refusal on the wrong side of the decision to write; doing it first means
+there is no write path to unwind, because none has been entered.
+
+Both entry points are guarded independently: the panel's own save button, and a
+plugin calling `PanelSession.save()` on a session it is holding. A guard on only
+one is a guard the other caller walks straight past.
+
+`RecordRebuilder` uses `java.lang.reflect` — `Class.getRecordComponents()` plus
+the canonical constructor, public JDK API on a public class. It never reaches
+into `config.internal`, which is what keeps `Schema` a pure value and let the
+schema projection and the panel ship as independent slices.
+
+## Sub-panels share the parent's working copy
+
+A nested record is not a second panel with a second working copy. Entering one
+pushes a frame; every edit rebuilds the nested record and writes it straight into
+the parent's component, all the way to the root.
+
+So leaving a sub-panel has nothing to gather, and losing one loses nothing. Inside
+a sub-panel, cancel is a **way back**, not a way out — leaving the whole panel from
+a nested screen would throw away edits made two levels up without saying so.
+
+## Components with no control
+
+A component whose declared type this library cannot edit — a `UUID`, a
+`BigDecimal` — is:
+
+- **drawn read-only**, with its `@Comment` lore and a line saying why
+- **passed through a save untouched**, by identity: not rebuilt, not defaulted,
+  not dropped
+- **reported once per server**, per type
+
+and it never prevents opening, editing the other components, or saving.
+
+Clicking it does nothing and opens no input request. A value nobody can see is a
+value nobody notices losing, and refusing a whole screen over one field would
+lose the other twelve.
+
+**Once per server, not once per item.** That is the `ItemComponents` lesson,
+applied before it could be re-learned: opening a settings panel renders every
+component, so reporting per drawn control put eighteen identical lines in the
+console for a single screen. Which types this library has no control for is a
+fact about the library, not an incident of the panel that happened to open.
+
+`UnsupportedComponentTest` proves the silence is the *memory* and not a component
+that quietly stopped being drawn: it forgets, reopens, and asserts both that every
+component is still drawn and that the line comes back.
+
+## The effects editor is this panel, and that is testable
+
+```java
+Panels.of(this).settings(effectConfigFile).open(player);
+```
+
+`EffectConfig` is already a record with 45 `@Comment` lines across six nested
+records. It gets a sub-panel per nested record, a control per component, and its
+comments on screen — with **zero** `EffectConfig`-specific code in the library.
+
+`EffectConfigGenericPathTest` enforces that from **compiled bytecode**, not from
+source text: a reference is what actually couples two classes, and an import can
+be absent while a fully-qualified name inline does the coupling anyway. It sweeps
+every class under `panel` and `panel.internal` and fails if any constant pool
+names `EffectConfig` or one of its nested records.
+
+Three guards, because an absence assertion that examined nothing passes for the
+wrong reason: the assertion itself, a non-vacuity check naming the classes the
+sweep must have read, and a detector check fed a class that *does* reference the
+banned type.
+
+That test is the evidence the abstraction is right. One branch there, and the next
+config record needs its own screen too.
+
+## Threads (settings panel)
+
+| What | Where |
+| --- | --- |
+| `SettingsPanel.open` | any thread — relocates via `runAtEntity` |
+| control mapping, rebuild, diff, undo | any thread; no Bukkit API |
+| drawing, click handling | the thread that owns the viewer |
+| the write | `runAsync` → `ConfigFile.update` → back via `runAtEntity` |
+
+`onSaved` runs on the viewer's thread with the record that was persisted, so it is
+safe to touch the game from it. It is not run when nothing changed, because
+nothing was written.
+
+# The list panel
+
+One paginated editor for every element type, parameterised by a
+`FieldDescriptor<T>`. ExyliaCommons had five of these — rewards, potions,
+commands, messages, items — copy-pasted from each other and drifting apart.
+Here there is one, and adding an element type is one interface implementation.
+
+```java
+Panels.of(this).list(new WarpDescriptor(store)).open(player);
+
+Panels.of(this).list(new WarpDescriptor(store))
+        .title("{primary}&lWARPS")
+        .onSaved(warps -> reloadSigns(warps))
+        .open(player);
+```
+
+The viewer gets pagination, search, add, copy, paste, edit, delete, undo, save
+and cancel. **No panel, menu, session, registry or clipboard class is written for
+a new element type** — that requirement is stated as a test
+(`ListConfirmDeleteTest`, "a consumer-owned record gets every capability from a
+descriptor alone") over a record declared in the test sources, which the library
+has never heard of.
+
+## The API
+
+```java
+public final class ListPanel<T> {
+    public ListPanel<T> title(String title);
+    public ListPanel<T> onSaved(Consumer<List<T>> action);
+    public void open(Player viewer);                 // any thread
+}
+
+public interface FieldDescriptor<T> {
+    String label(T entry);                           // never null, never blank
+    String icon(T entry);                            // material or head source
+    String identity(T entry);                        // never null, never blank
+    T create();
+    T duplicate(T entry);                            // a NEW identity
+    CompletionStage<InputResult<T>> edit(Player viewer, T entry);
+    List<T> load();
+    void save(List<T> entries);                      // called off the viewer thread
+
+    default boolean matches(T entry, String query);  // searches label()
+}
+```
+
+`PluginPanels` gains one method: `<T> ListPanel<T> list(FieldDescriptor<T>)`.
+
+## Rows are addressed by what they carry, never by index
+
+Every drawn row is a `UiEntry` carrying its element, and every operation — edit,
+copy, delete — resolves its target from that carried value. No slot number, page
+number or list index is ever entry identity.
+
+This is not tidiness. It is the verified Commons bug: four of its five editors
+addressed a row by a UUID, and the potion editor addressed it by list index
+(`commons:potion_delete 1`), so pagination plus a deletion removed the wrong
+effect.
+
+`ListEntryIdentityTest` proves it in three shapes, because **a naive delete test
+catches none of them** — on page one with no filter, a row's index and its
+element agree:
+
+| Shape | Why it separates the two lookups |
+| --- | --- |
+| a later **page** | the row's page index is not its list index |
+| a non-contiguous **filter** | the first shown row is not list index 0 |
+| a **reorder between draw and click** | fails even an implementation whose page arithmetic is right |
+
+The third is the strongest and the specification asks for it by name. A plugin
+editing the same list from a command while a panel is open does exactly this,
+which is why `reorderForTests` is a seam rather than a contrivance.
+
+There is a structural guard as well: no field of `ListEngine` may be a
+`Map<Integer, Integer>`, and exactly one must be a `Map<Integer, UiEntry>` — with
+a detector test fed both shapes, so the sweep cannot pass by recognising nothing.
+
+## Search filters the view, never the working copy
+
+A search narrows what is drawn. The working copy is untouched, which is what
+makes clearing a search free — and what stops a save after a search from
+persisting a **truncated list**, silently, because the screen would look exactly
+right.
+
+Searching reuses the existing `SearchInput` through the `PanelPrompts` seam. The
+engine never calls `Inputs` directly, which is both why a test can script the
+answer and why there is no second search implementation to keep in step.
+
+A filter is not an undo step either: a viewer taking back their last change gets
+the change back, not the search.
+
+**An empty result explains itself.** The three fillers are three things
+(`AGENTS.md` §Menús): the background is decoration, and this one *says why*. A
+viewer whose search matched nothing has a search to clear; one whose list is
+genuinely empty has an entry to add, and the two read differently on purpose —
+somebody who cannot tell them apart clears a search that was not the problem.
+
+## Copy, paste, delete, undo
+
+- **Copy** is not an edit. Nothing about the list changed, so nothing is pushed
+  onto undo: a viewer who copies and then undoes wants their last real change
+  back, not the copy taken away.
+- **Paste** inserts `duplicate(entry)`, never the entry itself. Where the
+  descriptor defines an identity the pasted row gets a new one, or the two rows
+  address each other's deletes — the same class of bug as addressing a row by
+  index.
+- **Paste with an empty clipboard is a no-op**, not an error. Pressing paste
+  before copying is an ordinary thing a person does.
+- **Delete asks through `ConfirmInput.dangerous()`** — typed rather than clicked.
+  An unanswered question is not a yes, and a timeout is how most confirmations
+  end.
+- **Everything is undoable**, bounded at `Panels.undoLimit()` (20).
+
+**The clipboard dies with the session.** It is a field of `Session`, not a
+`static Map<UUID, T>` — that shape survives the panel, the player *and* the
+plugin, so a copy made an hour ago still pins an object nobody can reach.
+`ListClipboardTest` asserts it is gone after close, after quit and after the
+owning plugin is disabled, **separately**, plus a structural check that no static
+collection exists on the engine to be cleared in the first place.
+
+## Diff before save, all-or-nothing cancel
+
+The diff names **entries**, not components: a list panel edits one component, so
+a component diff could only ever say "one thing changed". Entries are paired by
+`identity()`, which is what makes an edit distinguishable from a removal plus an
+addition — the identity survives an edit and a new row's does not.
+
+Save persists only through `FieldDescriptor.save`, once, off the viewer's thread,
+with the whole list. A save whose diff is empty writes nothing at all.
+
+**Both save doors carry the guard.** The panel's own button and a plugin calling
+`PanelSession.save()` take the same path, and both are asserted independently.
+That is not belt-and-braces: a sabotage on the settings panel found exactly this
+hole, where a guard sat on one door and the other caller walked past it.
+
+Cancel discards the **whole** working copy — deletions, pastes and edits alike.
+So does closing the window, quitting, and the owning plugin being disabled.
+
+## Threads (list panel)
+
+| What | Where |
+| --- | --- |
+| `ListPanel.open` | any thread — relocates via `runAtEntity` |
+| `label`, `icon`, `identity`, `create`, `duplicate`, `matches` | **any thread, must be pure** — they run while filtering and drawing |
+| `load` | once, as the panel opens, on the viewer's thread |
+| `edit` | the viewer's thread; answers whenever it likes, hence the stage |
+| filtering, paging arithmetic, diff, undo | any thread; no Bukkit API |
+| drawing, click handling | the thread that owns the viewer |
+| `save` | `runAsync`, then back via `runAtEntity` for `onSaved` |
+
+A descriptor is a description, not a session: one instance may serve every viewer
+and every open panel, and it is never told a panel closed. Anything per-viewer
+belongs to the panel, which gives it back when the screen goes.

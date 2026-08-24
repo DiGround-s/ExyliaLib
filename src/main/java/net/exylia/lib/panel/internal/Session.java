@@ -4,6 +4,7 @@ import net.exylia.lib.action.ActionExecution;
 import net.exylia.lib.effect.Effects;
 import net.exylia.lib.panel.PanelDiff;
 import net.exylia.lib.panel.PanelSession;
+import net.exylia.lib.ui.ClickKind;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
 import org.jetbrains.annotations.ApiStatus;
@@ -52,6 +53,18 @@ public final class Session implements PanelSession {
 
     private final long openedAt;
 
+    /**
+     * What a click in this window is handed to.
+     *
+     * <p>Set once, when the window is bound. A session created for a test has
+     * none, which is why this is nullable rather than final: the lifecycle tests
+     * are about release, and release does not draw.
+     */
+    private @Nullable Clicks clicks;
+
+    /** The window, or {@code null} for a session that was never drawn. */
+    private @Nullable org.bukkit.inventory.Inventory window;
+
     private Session(PanelRuntime runtime, Player viewer, Map<String, Object> original,
                     java.util.function.Consumer<Map<String, Object>> store) {
         this.runtime = runtime;
@@ -74,6 +87,55 @@ public final class Session implements PanelSession {
                                @NotNull Map<String, Object> original,
                                @NotNull java.util.function.Consumer<Map<String, Object>> store) {
         return new Session(runtime, viewer, original, store);
+    }
+
+    /**
+     * What a panel does with a click.
+     *
+     * <p>An interface rather than a field of engine code, so the settings panel
+     * and the list panel each answer their own clicks without the session
+     * knowing which it is holding. The session's job is to say <em>whose</em>
+     * click it is; what the click means belongs to whoever drew the slot.
+     */
+    public interface Clicks {
+
+        /**
+         * Acts on a click in a slot of this panel's window.
+         *
+         * <p>Runs on the thread that owns the viewer, which is where the
+         * inventory event already is.
+         *
+         * @param slot the raw slot, as the client reported it
+         * @return whether the click meant anything
+         */
+        boolean activate(int slot);
+    }
+
+    /**
+     * Binds this session to the window it is drawn in.
+     *
+     * <p>Called once, as the panel opens. Until it happens the session exists
+     * but nothing can find it, which is exactly right: a click cannot arrive in
+     * a window that has not been shown.
+     */
+    void bind(@NotNull org.bukkit.inventory.Inventory window, @NotNull Clicks clicks) {
+        this.window = window;
+        this.clicks = clicks;
+    }
+
+    /** The window this panel is drawn in, or {@code null} before it is bound. */
+    public @Nullable org.bukkit.inventory.Inventory window() {
+        return window;
+    }
+
+    /**
+     * Hands a click to whoever drew the slot.
+     *
+     * <p>Answers {@code false} for a session with nothing bound, so a click that
+     * arrives between opening and drawing is ignored rather than thrown.
+     */
+    public boolean click(int slot) {
+        return clicks != null && open.get() && clicks.activate(slot);
     }
 
     // ---------------------------------------------------------------- public
@@ -139,6 +201,37 @@ public final class Session implements PanelSession {
         return values.current().get(name);
     }
 
+    /** Every component value the panel is holding, as one map. */
+    @NotNull Map<String, Object> values() {
+        return values.current();
+    }
+
+    /**
+     * What the panel opened with.
+     *
+     * <p>What a save would be measured against, and what a cancel restores. A
+     * list panel needs it to answer a richer question than {@link #diff()} can —
+     * which <em>entries</em> were added, removed and changed, rather than which
+     * components — and it must be the same "before" the save path uses, or the
+     * diff shown to a viewer describes a different write than the one performed.
+     */
+    @NotNull Map<String, Object> originalValues() {
+        return values.original();
+    }
+
+    /**
+     * Replaces the whole set of component values, remembering what it replaced.
+     *
+     * <p>For an edit that changes more than one component at once — a nested
+     * record rebuilt into its parent changes exactly one, but the frame it was
+     * rebuilt through may sit several levels down. One snapshot per player
+     * action, rather than one per level, is what makes undo take back what they
+     * think they did.
+     */
+    void editAll(@NotNull Map<String, Object> replacement) {
+        values.edit(Map.copyOf(replacement));
+    }
+
     /**
      * Commits an edit and remembers what it replaced.
      *
@@ -190,6 +283,10 @@ public final class Session implements PanelSession {
             execution.cancel("panel closed");
         }
         pending.clear();
+        // Dropped explicitly rather than left to the session going out of scope:
+        // whoever holds a PanelSession holds this too, and a copied entry is
+        // exactly the kind of thing that keeps a whole graph alive.
+        clipboard = null;
         values.release();
         runtime.untrack(this);
     }
@@ -203,6 +300,66 @@ public final class Session implements PanelSession {
     }
 
     // ------------------------------------------------------------ test seam
+
+    // ------------------------------------------------------- list panels
+
+    /**
+     * What the panel on this screen has copied, if anything.
+     *
+     * <p>On the session and nowhere else. The alternative — a
+     * {@code static Map<UUID, Object>} — outlives the panel, the player and the
+     * plugin, so a copy made an hour ago still pins an object nobody can reach.
+     * One field of one session cannot do that: it is reachable only through the
+     * window it belongs to, and that window is gone.
+     */
+    private volatile @Nullable Object clipboard;
+
+    /**
+     * The kind of the click currently being handled.
+     *
+     * <p>An inventory event carries it and the routing does not, because most
+     * panels do not care: a settings control means the same thing however it was
+     * clicked. A list row does not — right is delete and shift-left is copy —
+     * so the kind is recorded as the event passes and read by whoever answers
+     * the click.
+     *
+     * <p>Defaults to {@link ClickKind#LEFT}, which is what a click of a kind
+     * nothing binds should be treated as rather than dropped.
+     */
+    private volatile @NotNull ClickKind observed = ClickKind.LEFT;
+
+    /** Remembers what kind of click is being routed. Called before {@link #click(int)}. */
+    void observed(@Nullable ClickKind kind) {
+        this.observed = kind == null ? ClickKind.LEFT : kind;
+    }
+
+    /** The kind of the click being handled right now. */
+    public @NotNull ClickKind observedClick() {
+        return observed;
+    }
+
+    /**
+     * Puts something on this screen's clipboard.
+     *
+     * <p>Refused once the screen has gone: a panel nobody is looking at must not
+     * start holding references.
+     */
+    void clipboard(@Nullable Object value) {
+        this.clipboard = open.get() ? value : null;
+    }
+
+    /**
+     * What this screen has copied, or {@code null}.
+     *
+     * <p>A released session holds nothing, and says so by dropping the reference
+     * as it answers rather than merely reporting empty.
+     */
+    @Nullable Object clipboard() {
+        if (!open.get()) {
+            clipboard = null;
+        }
+        return clipboard;
+    }
 
     /**
      * Test seam: a session with no window and nothing to save to.

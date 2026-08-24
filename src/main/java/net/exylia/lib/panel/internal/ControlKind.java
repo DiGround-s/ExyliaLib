@@ -73,5 +73,27 @@ public enum ControlKind {
     PAGE_NEXT,
 
     /** Moves a list back. */
-    PAGE_PREVIOUS
+    PAGE_PREVIOUS,
+
+    /**
+     * One entry of a list, drawn as a row.
+     *
+     * <p>Announced with the {@link net.exylia.lib.ui.UiEntry} it was drawn from,
+     * so what a test reads is the element the row carries rather than the item it
+     * became — which is also exactly what a click reads.
+     */
+    ROW,
+
+    /**
+     * What a list with nothing to show is drawn as.
+     *
+     * <p>A different thing from {@link #BACKGROUND}, and deliberately so: this
+     * one <em>says why</em>. A viewer whose search matched nothing and a viewer
+     * whose list is genuinely empty are in two different situations, and one of
+     * them has a search to clear.
+     */
+    EMPTY,
+
+    /** Whatever fills a slot no control claimed. */
+    BACKGROUND
 }

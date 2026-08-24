@@ -101,45 +101,45 @@ Seams first — RED cannot be written without them.
 
 ## Unit 3 — `settings-panel` (~650 lines, depends on 1 and 2a)
 
-- [ ] 3.1 RED: create `panel/RecordRebuilderTest.java` — rebuilding through the canonical constructor in declared order preserves untouched components; a type mismatch returns a rejection carrying the cause's message and **does not mutate** the working copy.
-- [ ] 3.2 RED: extend it — a compact constructor that throws (`InvocationTargetException`, e.g. a blank-name `ParsedEffect`) is caught, surfaced as a `Validation` failure, and leaves the working copy intact. `ConfigFile.update` is never reached (decision 4).
-- [ ] 3.3 RED: create `panel/SettingsControlMappingTest.java` — a record of `int`, `double`, `boolean`, enum, `String`, `List<String>`, nested record yields **seven** controls in canonical order: integral / decimal / toggle / searchable choice / text / list sub-panel / sub-panel, read via the draw sink (seam 2).
-- [ ] 3.4 RED: extend it — two `@Comment` lines render as lore in declaration order; an enum control opens a `SearchInput` over the constants (asserted via `PanelPrompts.install`, seam 5) and selecting one sets the working copy; a nested record opens a sub-panel whose edits reach the parent working copy before save.
-- [ ] 3.5 RED: create `panel/UnsupportedComponentTest.java` — a record of `int`, `String`, and an uncontrollable type opens, saves the edited `int`, keeps the `String`, and **passes the unsupported value through untouched**.
-- [ ] 3.6 RED: extend it — clicking the unsupported control changes nothing and opens no input request, while its `@Comment` lore still shows; and three opens by two players yield **exactly one** report naming record type and component, repeatable across methods via `UnsupportedTypes.forgetReportedForTests()` (seam 4).
-- [ ] 3.7 RED: create `panel/EffectConfigGenericPathTest.java` — scan every class under `net.exylia.lib.panel` for a reference to `EffectConfig` or its nested record types; assert none outside test sources.
-- [ ] 3.8 RED: extend it — a `ConfigFile<EffectConfig>` generates controls and nested sub-panels, and editing a nested value then saving persists through `ConfigFile.update`.
-- [ ] 3.9 RED: add a round-trip case per supported type — edit, save, reload, read back equal; and a cancel case where `ConfigFile.update` is **never** called.
-- [ ] 3.10 GREEN: create `panel/internal/RecordRebuilder.java` — `Class.getRecordComponents()` + `getDeclaredConstructor`, pure, returning `Optional<T>` or a rejection reason. Plain JDK reflection on a public class; never touches `config.internal` or `SchemaNode.canonical()` (decision 3).
-- [ ] 3.11 GREEN: create `panel/internal/ControlMapper.java` — declared type → `ControlKind`, driven by unit 1's `Schema`, with **no** per-record code and no `switch` over any domain type.
-- [ ] 3.12 GREEN: complete `panel/internal/UnsupportedTypes.java` — read-only control, not-editable marker, `@Comment` lore retained, excluded from the edit path, reported once per server.
-- [ ] 3.13 GREEN: create `panel/internal/SettingsEngine.java` and public `panel/SettingsPanel.java` (`title`, `onSaved`, `open`).
-- [ ] 3.14 GREEN: wire save — `runAsync` → `ConfigFile.update(UnaryOperator<T>)` → back via `runAtEntity`. No YAML write, no `FileConfiguration`, no other write path. Atomic at record level.
-- [ ] 3.15 REFACTOR: assert `ControlMapper` reads only `Schema`, so adding a supported type touches one mapping table and nothing else.
-- [ ] 3.16 Javadoc: `SettingsPanel` — English, `@since 1.50.0`, with the `Panels.of(this).settings(file).open(player)` example, the any-thread `open` contract, and the unsupported-type degrade rule.
-- [ ] 3.17 **Sabotage**: swallow the rebuild rejection and write anyway → `RecordRebuilderTest` must fail. Report the unsupported type per open → 3.6 must fail. Restore; record in the PR body.
-- [ ] 3.18 Verify: `./gradlew clean build` green, zero warnings.
+- [x] 3.1 RED: create `panel/RecordRebuilderTest.java` — rebuilding through the canonical constructor in declared order preserves untouched components; a type mismatch returns a rejection carrying the cause's message and **does not mutate** the working copy.
+- [x] 3.2 RED: extend it — a compact constructor that throws (`InvocationTargetException`, e.g. a blank-name `ParsedEffect`) is caught, surfaced as a `Validation` failure, and leaves the working copy intact. `ConfigFile.update` is never reached (decision 4).
+- [x] 3.3 RED: create `panel/SettingsControlMappingTest.java` — a record of `int`, `double`, `boolean`, enum, `String`, `List<String>`, nested record yields **seven** controls in canonical order: integral / decimal / toggle / searchable choice / text / list sub-panel / sub-panel, read via the draw sink (seam 2).
+- [x] 3.4 RED: extend it — two `@Comment` lines render as lore in declaration order; an enum control opens a `SearchInput` over the constants (asserted via `PanelPrompts.install`, seam 5) and selecting one sets the working copy; a nested record opens a sub-panel whose edits reach the parent working copy before save.
+- [x] 3.5 RED: create `panel/UnsupportedComponentTest.java` — a record of `int`, `String`, and an uncontrollable type opens, saves the edited `int`, keeps the `String`, and **passes the unsupported value through untouched**.
+- [x] 3.6 RED: extend it — clicking the unsupported control changes nothing and opens no input request, while its `@Comment` lore still shows; and three opens by two players yield **exactly one** report naming record type and component, repeatable across methods via `UnsupportedTypes.forgetReportedForTests()` (seam 4).
+- [x] 3.7 RED: create `panel/EffectConfigGenericPathTest.java` — scan every class under `net.exylia.lib.panel` for a reference to `EffectConfig` or its nested record types; assert none outside test sources.
+- [x] 3.8 RED: extend it — a `ConfigFile<EffectConfig>` generates controls and nested sub-panels, and editing a nested value then saving persists through `ConfigFile.update`.
+- [x] 3.9 RED: add a round-trip case per supported type — edit, save, reload, read back equal; and a cancel case where `ConfigFile.update` is **never** called.
+- [x] 3.10 GREEN: create `panel/internal/RecordRebuilder.java` — `Class.getRecordComponents()` + `getDeclaredConstructor`, pure, returning `Optional<T>` or a rejection reason. Plain JDK reflection on a public class; never touches `config.internal` or `SchemaNode.canonical()` (decision 3).
+- [x] 3.11 GREEN: create `panel/internal/ControlMapper.java` — declared type → `ControlKind`, driven by unit 1's `Schema`, with **no** per-record code and no `switch` over any domain type.
+- [x] 3.12 GREEN: complete `panel/internal/UnsupportedTypes.java` — read-only control, not-editable marker, `@Comment` lore retained, excluded from the edit path, reported once per server.
+- [x] 3.13 GREEN: create `panel/internal/SettingsEngine.java` and public `panel/SettingsPanel.java` (`title`, `onSaved`, `open`).
+- [x] 3.14 GREEN: wire save — `runAsync` → `ConfigFile.update(UnaryOperator<T>)` → back via `runAtEntity`. No YAML write, no `FileConfiguration`, no other write path. Atomic at record level.
+- [x] 3.15 REFACTOR: assert `ControlMapper` reads only `Schema`, so adding a supported type touches one mapping table and nothing else.
+- [x] 3.16 Javadoc: `SettingsPanel` — English, `@since 1.50.0`, with the `Panels.of(this).settings(file).open(player)` example, the any-thread `open` contract, and the unsupported-type degrade rule.
+- [x] 3.17 **Sabotage**: swallow the rebuild rejection and write anyway → `RecordRebuilderTest` must fail. Report the unsupported type per open → 3.6 must fail. Restore; record in the PR body.
+- [x] 3.18 Verify: `./gradlew clean build` green, zero warnings.
 
 ## Unit 4 — `list-panel` (~550 lines, depends on 2a — **not** on 3)
 
-- [ ] 4.1 SEAM: create `panel/TestDescriptors.java` (test source only) — a `FieldDescriptor<Note>` over `record Note(String id, String text)`. Proves list behaviour independently of either built-in descriptor.
-- [ ] 4.2 RED: create `panel/ListEntryIdentityTest.java` — 60 entries over three pages; deleting the second row on page 3 removes the element **that row carried**, leaving list indices 1 and 2 untouched. The verified Commons potion bug.
-- [ ] 4.3 RED: extend it — deleting the first row of a non-contiguous search result removes the carried element, not index 0 of the unfiltered list; and reordering the backing list between draw and click still resolves through `UiKeys.ENTRY`.
-- [ ] 4.4 RED: create `panel/ListSearchTest.java` — 20 entries, a search matching 3 shows 3 rows and restores 20 on clear, the working copy holding 20 throughout; next-page redraws list slots only, leaving unrelated slots un-re-sent.
-- [ ] 4.5 RED: extend it — a search matching nothing draws the **pagination filler stating why**, distinct from the background filler (`AGENTS.md` §Menús: the three fillers are three things).
-- [ ] 4.6 RED: create `panel/ListClipboardTest.java` — copy then paste yields two entries with matching payloads and **different identities**; paste with an empty clipboard is a no-op, not an error; the clipboard is gone after close, quit, and plugin disable.
-- [ ] 4.7 RED: create `panel/ListConfirmDeleteTest.java` — delete routes through `ConfirmInput.dangerous()` (`input/ConfirmInput.java:36`), scripted via `PanelPrompts.install`; denial leaves the working copy unchanged; confirm-then-undo restores all 5 entries, the restored one equal to the deleted.
-- [ ] 4.8 RED: add a save/cancel case — the diff reports exactly one addition, one removal, one change and persists only through the descriptor's write path; an unmodified list writes nothing; cancel discards deletions, pastes, and edits alike.
-- [ ] 4.9 RED: add the extension-point case — `TestDescriptors`' consumer-owned record gets paginate, search, copy, paste, delete, undo, save, cancel with **no additional class**.
-- [ ] 4.10 GREEN: create public `panel/FieldDescriptor.java` — `label`, `icon`, `identity`, `create`, `duplicate`, `edit`, `load`, `save`, default `matches`. `label` and `identity` never return null.
-- [ ] 4.11 GREEN: create `panel/internal/ListEngine.java` — one generic implementation, entries carried through `UiKeys.ENTRY`, page numbers taken from the `UiSection`, never from the caller.
-- [ ] 4.12 GREEN: create public `panel/ListPanel.java` (`title`, `onSaved`, `open`).
-- [ ] 4.13 GREEN: route search through the existing `SearchInput` and confirmation through `ConfirmInput.dangerous()` — both via `PanelPrompts`, neither reimplemented. Filter affects the view only, never the working copy.
-- [ ] 4.14 GREEN: session-scoped clipboard on `Session` (unit 2a) — no static map, dies with the session.
-- [ ] 4.15 REFACTOR: assert no slot number, page number, or list index is used as entry identity anywhere in `ListEngine`.
-- [ ] 4.16 Javadoc: `ListPanel`, `FieldDescriptor` — English, `@since 1.50.0`, stating that descriptor callbacks for identity, creation, and copying are pure and any-thread, and that persistence runs off the viewer thread.
-- [ ] 4.17 **Sabotage**: resolve the delete target by list index instead of `UiKeys.ENTRY` → `ListEntryIdentityTest` must fail. Let the filter mutate the working copy → `ListSearchTest` must fail. Restore; record in the PR body.
-- [ ] 4.18 Verify: `./gradlew clean build` green, zero warnings.
+- [x] 4.1 SEAM: create `panel/TestDescriptors.java` (test source only) — a `FieldDescriptor<Note>` over `record Note(String id, String text)`. Proves list behaviour independently of either built-in descriptor.
+- [x] 4.2 RED: create `panel/ListEntryIdentityTest.java` — 60 entries over three pages; deleting the second row on page 3 removes the element **that row carried**, leaving list indices 1 and 2 untouched. The verified Commons potion bug.
+- [x] 4.3 RED: extend it — deleting the first row of a non-contiguous search result removes the carried element, not index 0 of the unfiltered list; and reordering the backing list between draw and click still resolves through `UiKeys.ENTRY`.
+- [x] 4.4 RED: create `panel/ListSearchTest.java` — 20 entries, a search matching 3 shows 3 rows and restores 20 on clear, the working copy holding 20 throughout; next-page redraws list slots only, leaving unrelated slots un-re-sent.
+- [x] 4.5 RED: extend it — a search matching nothing draws the **pagination filler stating why**, distinct from the background filler (`AGENTS.md` §Menús: the three fillers are three things).
+- [x] 4.6 RED: create `panel/ListClipboardTest.java` — copy then paste yields two entries with matching payloads and **different identities**; paste with an empty clipboard is a no-op, not an error; the clipboard is gone after close, quit, and plugin disable.
+- [x] 4.7 RED: create `panel/ListConfirmDeleteTest.java` — delete routes through `ConfirmInput.dangerous()` (`input/ConfirmInput.java:36`), scripted via `PanelPrompts.install`; denial leaves the working copy unchanged; confirm-then-undo restores all 5 entries, the restored one equal to the deleted.
+- [x] 4.8 RED: add a save/cancel case — the diff reports exactly one addition, one removal, one change and persists only through the descriptor's write path; an unmodified list writes nothing; cancel discards deletions, pastes, and edits alike.
+- [x] 4.9 RED: add the extension-point case — `TestDescriptors`' consumer-owned record gets paginate, search, copy, paste, delete, undo, save, cancel with **no additional class**.
+- [x] 4.10 GREEN: create public `panel/FieldDescriptor.java` — `label`, `icon`, `identity`, `create`, `duplicate`, `edit`, `load`, `save`, default `matches`. `label` and `identity` never return null.
+- [x] 4.11 GREEN: create `panel/internal/ListEngine.java` — one generic implementation, entries carried through `UiKeys.ENTRY`, page numbers taken from the `UiSection`, never from the caller.
+- [x] 4.12 GREEN: create public `panel/ListPanel.java` (`title`, `onSaved`, `open`).
+- [x] 4.13 GREEN: route search through the existing `SearchInput` and confirmation through `ConfirmInput.dangerous()` — both via `PanelPrompts`, neither reimplemented. Filter affects the view only, never the working copy.
+- [x] 4.14 GREEN: session-scoped clipboard on `Session` (unit 2a) — no static map, dies with the session.
+- [x] 4.15 REFACTOR: assert no slot number, page number, or list index is used as entry identity anywhere in `ListEngine`.
+- [x] 4.16 Javadoc: `ListPanel`, `FieldDescriptor` — English, `@since 1.50.0`, stating that descriptor callbacks for identity, creation, and copying are pure and any-thread, and that persistence runs off the viewer thread.
+- [x] 4.17 **Sabotage**: resolve the delete target by list index instead of `UiKeys.ENTRY` → `ListEntryIdentityTest` must fail. Let the filter mutate the working copy → `ListSearchTest` must fail. Restore; record in the PR body.
+- [x] 4.18 Verify: `./gradlew clean build` green, zero warnings.
 
 ## Unit 5 — descriptors, docs, doctrine (~400 lines, depends on 4)
 
