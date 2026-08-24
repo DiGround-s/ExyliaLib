@@ -150,6 +150,16 @@ public final class Registry {
         }
     }
 
+    /**
+     * Whether a name has already been called unregistered.
+     *
+     * <p>A seam: this is reported once for the life of the JVM, so a wrong
+     * report is not just noise — it also silences the right one later.
+     */
+    static boolean wasReportedUnknownForTests(String name) {
+        return REPORTED_UNKNOWN.contains(name);
+    }
+
     /** Returns every registered name. */
     public static Set<String> names() {
         return Set.copyOf(ENTRIES.keySet());

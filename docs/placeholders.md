@@ -92,6 +92,19 @@ Placeholders.apply(raw, player, Map.of("class", "Warrior", "time", "3"));
 - PlaceholderAPI, when installed, gets registered expansions through a bridge
   confined to `placeholder/internal/PapiBridge` + `PapiExpansion`; its external
   placeholders also resolve in `Template` and `Text` renders for a player.
+- **That fallback is main-thread only.** PlaceholderAPI runs third-party
+  expansions, and those read the world; off the main thread the server answers
+  with `IllegalStateException: Asynchronous ... access`, thrown through whoever
+  was rendering. A scoreboard renders on an async timer, so one such expansion
+  took the whole sidebar down. Asked off the main thread, an external
+  placeholder is left as written — and is **not** reported as unregistered,
+  because nobody was asked.
+- **It is only ever consulted for a name nothing else owns**, after the registry
+  and the values attached to this render have both missed, so it can never
+  answer for a placeholder ExyliaLib should have resolved itself.
+- A PlaceholderAPI that fails — absent, half-loaded, or an expansion that throws
+  — leaves the text as written and is reported once per server, with the stack.
+  Text never disappears because of it.
 
 ## Built-in placeholders
 

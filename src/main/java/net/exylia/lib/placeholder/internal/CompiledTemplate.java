@@ -175,7 +175,13 @@ public final class CompiledTemplate implements Template {
 
     /** Whether anything claims this name: a resolver, or a value for this render. */
     private boolean isKnown(Part part, Request request) {
-        return Registry.has(part.name()) || request.data().containsKey(part.name());
+        return Registry.has(part.name())
+                || request.data().containsKey(part.name())
+                // PlaceholderAPI is installed but was not asked, because this
+                // render is off the main thread. Nobody has answered "no" yet,
+                // so calling it unregistered sends its author to the wrong
+                // registry.
+                || (request.viewer() != null && PapiBridge.deferred());
     }
 
     @Override

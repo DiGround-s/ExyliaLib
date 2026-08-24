@@ -14,6 +14,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.logging.Level;
 
 /**
  * The scoreboard engine: one instance per board shown to a player.
@@ -61,6 +62,8 @@ final class BoardImpl implements Board {
     private volatile boolean paused;
     /** Set to make the next render ignore the diff and re-send everything. */
     private volatile boolean invalidated = true;
+    /** Whether a render failure has already been reported for this board. */
+    private volatile boolean reportedFailure;
 
     private int frame;
     private String lastTitle;
@@ -177,8 +180,15 @@ final class BoardImpl implements Board {
 
             invalidated = false;
         } catch (Throwable t) {
-            BoardManager.logger().warning("Could not render the scoreboard of "
-                    + player.getName() + ": " + t.getMessage());
+            // Once per board, with the stack: a board renders every interval
+            // for as long as its player is online, so a message per tick per
+            // player buries the one line that says where the failure came
+            // from — and getMessage() alone never said.
+            if (!reportedFailure) {
+                reportedFailure = true;
+                BoardManager.logger().log(Level.WARNING, "Could not render the scoreboard of "
+                        + player.getName() + ". Reported once per board.", t);
+            }
         } finally {
             rendering.set(false);
         }

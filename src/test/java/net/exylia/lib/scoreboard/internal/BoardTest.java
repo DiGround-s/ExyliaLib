@@ -3,6 +3,7 @@ package net.exylia.lib.scoreboard.internal;
 import net.exylia.lib.FakePlayer;
 import net.exylia.lib.FakeServer;
 import net.exylia.lib.placeholder.Placeholders;
+import net.exylia.lib.placeholder.internal.PapiBridge;
 import net.exylia.lib.scoreboard.Board;
 import net.exylia.lib.scoreboard.Scoreboards;
 import net.exylia.lib.scoreboard.SidebarConfig;
@@ -19,9 +20,12 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.logging.Handler;
+import java.util.logging.LogRecord;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -75,6 +79,7 @@ class BoardTest {
         BoardManager.stopEverything();
         BoardManager.clock(null);
         Placeholders.unregisterAll(PLUGIN);
+        PapiBridge.resetForTests();
         FakeServer.reset();
     }
 
@@ -324,5 +329,66 @@ class BoardTest {
         drive();
 
         assertTrue(sidebar().lines().contains("1=Kills: 0"));
+    }
+
+    @Test
+    @DisplayName("a PlaceholderAPI expansion that refuses async work does not blank the sidebar")
+    void asyncPapiDoesNotAbortTheRender() {
+        // Boards render on an async timer, and PlaceholderAPI runs third-party
+        // expansions that read the world. Reached from there, Paper answers
+        // with "Asynchronous ... access" — thrown through the render, so not a
+        // single line reached the player and the sidebar went blank.
+        PapiBridge.setApplierForTests((viewer, text) -> {
+            throw new IllegalStateException("Asynchronous entity world add!");
+        });
+        FakeServer.setPrimaryThread(false);
+
+        Scoreboards.show(plugin, viewer.player(),
+                config(List.of("FFA"), List.of("Kills: %test_kills%", "%external_value%")));
+        drive();
+
+        assertEquals(List.of("FFA"), sidebar().titles());
+        assertEquals(List.of("0=Kills: 0", "1=%external_value%"), sidebar().lines());
+    }
+
+    @Test
+    @DisplayName("a render that fails is reported once per board, not once per tick")
+    void renderFailureIsReportedOncePerBoard() {
+        List<LogRecord> reported = new ArrayList<>();
+        Handler handler = new Handler() {
+            @Override
+            public void publish(LogRecord record) {
+                reported.add(record);
+            }
+
+            @Override
+            public void flush() {
+            }
+
+            @Override
+            public void close() {
+            }
+        };
+        BoardManager.logger().addHandler(handler);
+        try {
+            Scoreboards.show(plugin, viewer.player(),
+                    config(List.of("FFA"), List.of("Kills: %test_kills%")));
+            // Not the resolver: that failure is swallowed one level down. This
+            // is the sidebar itself refusing, which is what an async
+            // PlaceholderAPI used to look like from here.
+            created.get(0).failOnEveryCall();
+
+            drive();
+            advanceSeconds(5);
+            drive();
+            advanceSeconds(5);
+            drive();
+
+            assertEquals(1, reported.size());
+            // getMessage() alone never said where it came from.
+            assertNotNull(reported.get(0).getThrown());
+        } finally {
+            BoardManager.logger().removeHandler(handler);
+        }
     }
 }

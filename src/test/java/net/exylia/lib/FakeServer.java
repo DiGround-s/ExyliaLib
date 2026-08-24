@@ -341,8 +341,14 @@ public final class FakeServer {
         consoleAcceptsCommands = false;
     }
 
-    /** Controls what {@code Bukkit.isPrimaryThread()} reports. */
-    static void setPrimaryThread(boolean value) {
+    /**
+     * Controls what {@code Bukkit.isPrimaryThread()} reports.
+     *
+     * <p>Public because the modules that must behave differently off the main
+     * thread — scoreboards render on an async timer — are tested from their own
+     * packages.
+     */
+    public static void setPrimaryThread(boolean value) {
         primaryThread = value;
     }
 
@@ -412,6 +418,17 @@ public final class FakeServer {
                         }
                         if (method.getName().equals("getPlugins")) {
                             return PLUGINS.toArray(new Plugin[0]);
+                        }
+                        if (method.getName().equals("getPlugin")) {
+                            // So a test can have a plugin appear between two
+                            // calls, which is what load order does to an
+                            // optional dependency of a load: STARTUP plugin.
+                            for (Plugin plugin : PLUGINS) {
+                                if (plugin.getName().equals(args[0])) {
+                                    return plugin;
+                                }
+                            }
+                            return null;
                         }
                         return defaultValue(method.getReturnType());
                     });

@@ -24,6 +24,18 @@ final class FakeSidebar implements SidebarHandle {
 
     private volatile boolean visible;
     private volatile boolean closed;
+    private volatile boolean failing;
+
+    /**
+     * Makes every write throw, as a sidebar whose packet path is broken would.
+     *
+     * <p>The seam for the report-once path: a resolver that throws is caught a
+     * level below, so the only way to reach the board's own catch is to break
+     * what it writes to.
+     */
+    void failOnEveryCall() {
+        failing = true;
+    }
 
     @Override
     public void show() {
@@ -50,6 +62,9 @@ final class FakeSidebar implements SidebarHandle {
 
     @Override
     public void title(Component title) {
+        if (failing) {
+            throw new IllegalStateException("Asynchronous scoreboard write!");
+        }
         titles.add(plain(title));
         calls.add("title:" + plain(title));
     }

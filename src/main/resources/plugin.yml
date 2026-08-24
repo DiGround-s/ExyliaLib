@@ -7,6 +7,10 @@ website: https://github.com/DiGround-s/ExyliaLib
 authors: [Exylia]
 load: STARTUP
 folia-supported: true
+# Optional, and only for load order: with load: STARTUP the first placeholder
+# render can otherwise happen before PlaceholderAPI enables. The bridge re-checks
+# availability anyway, because a softdepend is a preference, not a guarantee.
+softdepend: [PlaceholderAPI]
 # Runtime dependencies the server's library loader fetches from Maven Central,
 # exactly as every consumer plugin declares its own. Everything else ExyliaLib
 # touches is either shaded into the jar (scoreboard-library, jfiglet), provided

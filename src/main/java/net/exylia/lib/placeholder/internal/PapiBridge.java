@@ -6,7 +6,9 @@ import org.bukkit.plugin.Plugin;
 
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.BiFunction;
+import java.util.logging.Level;
 
 /**
  * Connects the module to PlaceholderAPI, when it happens to be installed.
@@ -28,8 +30,10 @@ public final class PapiBridge {
     /** One expansion per owning plugin, so unloading one does not affect others. */
     private static final Map<String, Object> EXPANSIONS = new ConcurrentHashMap<>();
 
-    private static volatile Boolean available;
+    private static volatile boolean available;
     private static volatile BiFunction<Player, String, String> testApplier;
+    /** So a broken PlaceholderAPI names itself once instead of once per render. */
+    private static final AtomicBoolean FAILURE_REPORTED = new AtomicBoolean();
 
     private PapiBridge() {
     }
@@ -37,13 +41,17 @@ public final class PapiBridge {
     /**
      * Returns whether PlaceholderAPI is installed.
      *
-     * <p>Checked once. A plugin cannot appear halfway through a server's life
-     * without a restart, so caching this is safe and keeps it off the hot path.
+     * <p>Only a positive answer is cached. ExyliaLib is {@code load: STARTUP},
+     * so the first call can happen before PlaceholderAPI has enabled; latching
+     * that "no" left the bridge dead for the rest of the server's life, and the
+     * {@code softdepend} that orders the load only helps once someone asks
+     * again. A negative answer costs a map lookup on the plugin manager, and it
+     * is only reached after the registry and the render's own values have both
+     * missed.
      */
     public static boolean available() {
-        Boolean known = available;
-        if (known != null) {
-            return known;
+        if (available) {
+            return true;
         }
         boolean found;
         try {
@@ -52,8 +60,48 @@ public final class PapiBridge {
             // No server running, which happens in tests.
             found = false;
         }
-        available = found;
+        if (found) {
+            available = true;
+        }
         return found;
+    }
+
+    /**
+     * Returns whether PlaceholderAPI can be consulted from the calling thread.
+     *
+     * <p>PlaceholderAPI runs third-party expansions, and those read the world,
+     * scoreboards and entities. Off the main thread Paper answers that with
+     * {@code IllegalStateException: Asynchronous ... access}, which is thrown
+     * <em>through</em> whoever was rendering. Scoreboards render on an async
+     * timer, so one such expansion aborted the render before a single line was
+     * sent and the sidebar went blank.
+     */
+    private static boolean usable() {
+        if (!onMainThread()) {
+            return false;
+        }
+        return testApplier != null || available();
+    }
+
+    /**
+     * Returns whether PlaceholderAPI is installed but could not be consulted.
+     *
+     * <p>Read by the template so it does not call a placeholder unknown when it
+     * never got to ask the one thing that might own it. Saying "register it
+     * with Placeholders.register" about a PlaceholderAPI placeholder sends its
+     * author looking for the wrong registration.
+     */
+    public static boolean deferred() {
+        return !onMainThread() && (testApplier != null || available());
+    }
+
+    private static boolean onMainThread() {
+        try {
+            return Bukkit.isPrimaryThread();
+        } catch (Throwable ignored) {
+            // No server running, which happens in tests: nothing to protect.
+            return true;
+        }
     }
 
     /**
@@ -80,25 +128,41 @@ public final class PapiBridge {
      * @return the filled text, or the original when PlaceholderAPI is absent
      */
     public static String apply(Player player, String text) {
-        BiFunction<Player, String, String> applier = testApplier;
-        if (applier != null) {
-            return applier.apply(player, text);
-        }
-        if (!available() || player == null) {
+        if (player == null || !usable()) {
             return text;
         }
-        return PapiExpansion.apply(player, text);
+        try {
+            BiFunction<Player, String, String> applier = testApplier;
+            return applier != null ? applier.apply(player, text) : PapiExpansion.apply(player, text);
+        } catch (Throwable t) {
+            // Throwable, not Exception: an absent or half-loaded PlaceholderAPI
+            // fails with NoClassDefFoundError, and an expansion that touches the
+            // server from the wrong place fails with IllegalStateException.
+            // Neither is a reason for the text that mentioned it to disappear.
+            if (FAILURE_REPORTED.compareAndSet(false, true)) {
+                Loggers.get().log(Level.WARNING, "PlaceholderAPI could not fill in \"" + text
+                        + "\", so it is left as written. Reported once per server.", t);
+            }
+            return text;
+        }
     }
 
-    /** Installs a stand-in for tests without loading PlaceholderAPI's runtime. */
-    static void setApplierForTests(BiFunction<Player, String, String> applier) {
+    /**
+     * Installs a stand-in for tests without loading PlaceholderAPI's runtime.
+     *
+     * <p>Public inside {@code internal} because the modules that render through
+     * this bridge — the scoreboard, off the main thread — are tested from their
+     * own packages.
+     */
+    public static void setApplierForTests(BiFunction<Player, String, String> applier) {
         testApplier = applier;
     }
 
-    /** Removes the test stand-in and availability cache. */
-    static void resetForTests() {
+    /** Removes the test stand-in, the availability cache and the reported failure. */
+    public static void resetForTests() {
         testApplier = null;
-        available = null;
+        available = false;
+        FAILURE_REPORTED.set(false);
     }
 
     /** Removes a plugin's expansion. */

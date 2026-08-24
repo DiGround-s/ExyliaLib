@@ -50,7 +50,12 @@ the library follows — an existing `interval: 15` must keep meaning 15 ticks.
 - **The raw template is parsed, not the resolved one** — measured 26.8µs for
   a full re-render vs 4.2µs per changed line.
 - **One async timer moves all boards**, offset by UUID so renders do not pile
-  into the same tick.
+  into the same tick. That is also why a PlaceholderAPI placeholder in a line is
+  left as written rather than resolved: see [placeholders](placeholders.md).
+- **A render that fails is reported once per board, with the stack.** A board
+  renders every interval for as long as its player is online, so the message
+  used to repeat per player per tick and carried only `getMessage()` — enough
+  noise to bury the one line that said where the failure came from.
 - Nothing outlives its owner: quit, plugin disable and palette reload (which
   re-sends everything, since the text is the same but what parses it changed)
   all clean up.
