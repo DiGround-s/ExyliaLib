@@ -254,4 +254,31 @@ class SkullCacheTest {
         assertEquals(0, stats.pending());
         assertFalse(stats.backedOff());
     }
+
+    @Test
+    @DisplayName("the fallback head starts as the library default")
+    void fallbackDefaultsToTheLibraryTexture() {
+        assertEquals(net.exylia.lib.internal.LibrarySettings.DEFAULT_FALLBACK_HEAD,
+                SkullRuntime.fallback());
+    }
+
+    @Test
+    @DisplayName("a valid configured fallback replaces the default")
+    void validFallbackIsAccepted() {
+        SkullRuntime.fallback(STEVE);
+
+        assertEquals(STEVE, SkullRuntime.fallback());
+    }
+
+    @Test
+    @DisplayName("an unreadable fallback keeps the previous one, not a blank head")
+    void invalidFallbackKeepsThePreviousOne() {
+        SkullRuntime.fallback(STEVE);
+
+        SkullRuntime.fallback("not-a-real-texture");
+
+        assertEquals(net.exylia.lib.internal.LibrarySettings.DEFAULT_FALLBACK_HEAD,
+                SkullRuntime.fallback(),
+                "an invalid value must fall back to the library default, not stay corrupt");
+    }
 }

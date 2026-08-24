@@ -42,6 +42,12 @@ import net.exylia.lib.config.Configs;
 @Comment("rather than in input.yml because who is on Bedrock is a fact about")
 @Comment("your players, not about asking them questions: menus, forms and")
 @Comment("anything else that adapts to the client reads the same value.")
+@Comment("")
+@Comment("fallback-head: the texture a head is drawn with when it has none of")
+@Comment("its own — a lookup that failed, or a source that never carried one.")
+@Comment("Same base64 texture property every source in this module accepts.")
+@Comment("An invalid value falls back to the library default and is reported")
+@Comment("once, the same as any other unreadable config value.")
 public record LibrarySettings(
         @Comment("Whether to check for and download newer versions automatically.")
         boolean autoUpdate,
@@ -57,12 +63,24 @@ public record LibrarySettings(
 
         @Comment("The prefix Floodgate adds to a Bedrock player's name.")
         @Comment("Leave it empty if your Bedrock players have no prefix.")
-        String bedrockPrefix
+        String bedrockPrefix,
+
+        @Comment("The base64 texture drawn on a head with no texture of its own.")
+        String fallbackHead
 ) {
+
+    /**
+     * The neutral head texture ExyliaCommons shipped as its default, kept so
+     * a config written by neither library still draws the same fallback.
+     */
+    public static final String DEFAULT_FALLBACK_HEAD =
+            "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0"
+                    + "L3RleHR1cmUvYmFkYzA0OGE3Y2U3OGY3ZGFkNzJhMDdkYTI3ZDg1YzA5MTY4ODFlNTUyMmVl"
+                    + "ZWQxZTNkYWYyMTdhMzhjMWEifX19";
 
     /** Safe defaults used when no config file exists yet. */
     public LibrarySettings() {
-        this(true, 30, false, true, "*");
+        this(true, 30, false, true, "*", DEFAULT_FALLBACK_HEAD);
     }
 
     private static volatile LibrarySettings instance;

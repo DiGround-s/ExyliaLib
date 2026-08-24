@@ -29,8 +29,9 @@ public interface SkullHandle {
     /**
      * The item to show right now.
      *
-     * <p>The finished head when it is known, and a plain player head when it
-     * is not. Never {@code null}, so a menu never has an empty slot.
+     * <p>The finished head when it is known, and the library's configured
+     * fallback texture when it is not. Never {@code null}, so a menu never
+     * has an empty slot.
      *
      * <p>A fresh copy each time: item stacks are mutable, and a cached one
      * handed out directly would be renamed by the first caller for everybody.

@@ -186,6 +186,7 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         // during startup is drawn in the style the owner asked for rather
         // than being cached in the other one.
         TextEngine.smallText(settings.smallText());
+        SkullRuntime.fallback(settings.fallbackHead());
         Thread updateThread = new Thread(
             () -> ExyliaLibUpdater.checkForUpdate(this),
             "ExyliaLib-Updater");
@@ -316,6 +317,10 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         // Applying it afterwards would leave all of them holding the previous
         // style until something else happened to invalidate them.
         TextEngine.smallText(settings.smallText());
+        // Before ItemCache is invalidated below, so a menu rebuilt by the
+        // palette listener already sees the new fallback rather than the old
+        // one baked in.
+        SkullRuntime.fallback(settings.fallbackHead());
         palette.reload();
         // Both files are the library's own shared configuration, and a server
         // owner running one reload command means both. Keeping formats.yml on a

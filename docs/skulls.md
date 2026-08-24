@@ -35,8 +35,8 @@ nothing at all: their skin arrived with them.
 
 ## Heads that are not ready yet
 `build()` returns a `SkullHandle` immediately. It carries an item right away —
-the finished head if it is known, a plain one if it is not — and calls back
-when the real one lands.
+the finished head if it is known, the library's fallback head if it is not —
+and calls back when the real one lands.
 
 ```java
 SkullHandle handle = Skulls.player("Notch").viewer(viewer).build();
@@ -94,6 +94,14 @@ A name Mojang has never heard of is remembered as unknown for thirty minutes,
 so a typo in a config is not asked about every time a menu opens. A lookup that
 failed *because* of a rate limit is not remembered that way — being unable to
 ask is not evidence the player is fake.
+
+## The fallback head
+A head with no texture of its own — a lookup that has not landed yet, or one
+that failed — is drawn with a configured fallback texture rather than a plain
+grey head. It comes from `fallback-head` in `plugins/ExyliaLib/config.yml`,
+defaults to the same neutral head ExyliaCommons shipped, and is applied on
+startup and on every `/exylialib reload`. An unreadable value is reported
+once and the previous fallback stays in force.
 
 ## Persistence
 Textures are written to `plugins/ExyliaLib/skull-cache.txt` on shutdown and

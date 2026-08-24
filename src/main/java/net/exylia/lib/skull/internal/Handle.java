@@ -47,7 +47,7 @@ public final class Handle implements SkullHandle {
     public @NotNull ItemStack item() {
         String known = texture;
         ItemStack head = known == null
-                ? new ItemStack(org.bukkit.Material.PLAYER_HEAD)
+                ? HeadFactory.create(SkullRuntime.fallback())
                 : HeadFactory.create(known);
         return decorator.apply(head);
     }

@@ -23,18 +23,20 @@ conventionally gated by one node.
 ### `/exylialib reload`
 
 Reloads **five files**, not just `colors.yml`: `config.yml`
-(`LibrarySettings` — debug, small text, auto-update), `colors.yml` (the
-palette), `formats.yml`, `economy.yml` and `input.yml`. All five are the
-library's own shared configuration, and a server owner running one reload
-command means all of it — see `ExyliaLib.reloadPalette()`, whose name is a
-holdover from when the palette was the only file, kept for the smaller diff.
+(`LibrarySettings` — debug, small text, auto-update, fallback head),
+`colors.yml` (the palette), `formats.yml`, `economy.yml` and `input.yml`. All
+five are the library's own shared configuration, and a server owner running
+one reload command means all of it — see `ExyliaLib.reloadPalette()`, whose
+name is a holdover from when the palette was the only file, kept for the
+smaller diff.
 
 The chain, verified in code:
 
 ```
 /exylialib reload
-  → LibrarySettings.reload()                   config.yml: debug, small text, auto-update
+  → LibrarySettings.reload()                   config.yml: debug, small text, auto-update, fallback head
   → TextEngine.smallText(...)                  applied before the palette, so nothing renders stale
+  → SkullRuntime.fallback(...)                 before ItemCache is invalidated below
   → palette.reload()
       → Colors.apply(new palette)              palette tokens mean new colours
       → TextEngine cache dropped               nothing stale is re-shown

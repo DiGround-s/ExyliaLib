@@ -15,6 +15,7 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 
 /**
@@ -78,7 +79,50 @@ public final class SkullRuntime {
     private static volatile SkullStore store;
     private static volatile Logger logger = Logger.getLogger("ExyliaLib");
 
+    /**
+     * The texture drawn on a head that has none of its own.
+     *
+     * <p>Defaults to the library's own neutral head so a server that never
+     * touches {@code config.yml} still gets a real texture instead of the
+     * platform's plain grey head.
+     */
+    private static volatile String fallback =
+            net.exylia.lib.internal.LibrarySettings.DEFAULT_FALLBACK_HEAD;
+
+    /** Whether an invalid {@code fallback-head} has already been reported. */
+    private static volatile boolean invalidFallbackReported;
+
     private SkullRuntime() {
+    }
+
+    /**
+     * Sets the fallback texture from {@code config.yml}, called on load and on
+     * every {@code /exylialib reload}.
+     *
+     * <p>An unreadable value keeps the previous fallback rather than leaving
+     * heads with no texture at all, and is reported once per server run — the
+     * same policy as any other config value nobody can act on twice.
+     *
+     * @param base64 the configured fallback, or an invalid one
+     */
+    public static void fallback(String base64) {
+        if (Textures.isValid(base64)) {
+            fallback = base64;
+            invalidFallbackReported = false;
+            return;
+        }
+        fallback = net.exylia.lib.internal.LibrarySettings.DEFAULT_FALLBACK_HEAD;
+        if (!invalidFallbackReported) {
+            invalidFallbackReported = true;
+            logger.log(Level.WARNING,
+                    "Skulls: fallback-head in config.yml is not a usable texture; "
+                            + "using the library default instead.");
+        }
+    }
+
+    /** The texture currently used for a head with none of its own. */
+    public static String fallback() {
+        return fallback;
     }
 
     /**
@@ -316,6 +360,8 @@ public final class SkullRuntime {
         TEXTURES.invalidateAll();
         UNKNOWN.invalidateAll();
         IN_FLIGHT.clear();
+        fallback = net.exylia.lib.internal.LibrarySettings.DEFAULT_FALLBACK_HEAD;
+        invalidFallbackReported = false;
     }
 
     /** Test seam: pre-seeds a texture without going near the network. */

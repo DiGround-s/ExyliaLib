@@ -39,12 +39,13 @@ public final class HeadFactory {
      * not thread-safe, so callers hop back to the main thread first.
      *
      * @param base64 the texture property
-     * @return the head, or a plain one when the texture cannot be applied
+     * @return the head, wearing the library's fallback texture when this one
+     *         cannot be applied
      */
     public static ItemStack create(String base64) {
         ItemStack head = new ItemStack(Material.PLAYER_HEAD);
         if (!Textures.isValid(base64)) {
-            return head;
+            return withFallback(head);
         }
         if (!(head.getItemMeta() instanceof SkullMeta meta)) {
             return head;
@@ -101,6 +102,27 @@ public final class HeadFactory {
      */
     private static UUID idFor(String base64) {
         return UUID.nameUUIDFromBytes(base64.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+    }
+
+    /**
+     * Applies the library's configured fallback texture.
+     *
+     * <p>The fallback is validated when it is set, not here, so this never
+     * recurses: a head is built plain only if the fallback itself somehow
+     * fails to apply, which {@link Textures#isValid} already prevents.
+     */
+    private static ItemStack withFallback(ItemStack head) {
+        String fallback = SkullRuntime.fallback();
+        if (!(head.getItemMeta() instanceof SkullMeta meta)) {
+            return head;
+        }
+        if (PAPER_PROFILES) {
+            applyPaperProfile(meta, fallback);
+        } else {
+            applyBukkitProfile(meta, fallback);
+        }
+        head.setItemMeta(meta);
+        return head;
     }
 
     private static boolean detectPaperProfiles() {
