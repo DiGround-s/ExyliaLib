@@ -2,6 +2,7 @@ package net.exylia.lib.item.internal;
 
 import net.exylia.lib.FakePlayer;
 import net.exylia.lib.FakeServer;
+import net.exylia.lib.item.Source;
 import net.exylia.lib.text.internal.TextEngine;
 import org.bukkit.entity.Player;
 import org.junit.jupiter.api.AfterEach;
@@ -11,7 +12,11 @@ import org.junit.jupiter.api.Test;
 
 import java.util.Map;
 
+import java.util.function.UnaryOperator;
+
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+import static org.junit.jupiter.api.Assertions.assertSame;
 
 /**
  * What a placeholder resolves to when it names a thing rather than says one.
@@ -83,5 +88,88 @@ class RenderedMaterialTest {
         String resolved = ItemRenderer.value("%nothing%", viewer, Map.of());
 
         assertEquals("%nothing%", resolved);
+    }
+
+    // ------------------------------------------------------------------
+    // What a resolved material turns out to be
+    // ------------------------------------------------------------------
+    //
+    // A menu row writes material: "%arena_icon%", and the value comes from
+    // whatever the admin picked — which is a head far more often than a block,
+    // because that is what an icon picker stores. Source has to read it once
+    // the row has filled it in; reading it only when the file was loaded left
+    // the registry being asked for a material called "headbase-eyJ0…", which
+    // drew every icon in the menu as stone.
+
+    /** A real texture, as an icon picker writes one. */
+    private static final String TEXTURE =
+            "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQu"
+                    + "bmV0L3RleHR1cmUvOWZkMTA4MzgzZGZhNWIwMmU4NjYzNTYwOTU0MTUyMGU0ZTE1"
+                    + "ODk1MmQ2OGMxYzhmOGYyMDBlYzdlODg2NDJkIn19fQ==";
+
+    @Test
+    @DisplayName("a head a row hands back is a head, not a material nobody has")
+    void resolvedHeadIsReadAgain() {
+        Source effective = ItemRenderer.effective(Source.of("%arena_icon%"),
+                fill("arena_icon", "headbase-" + TEXTURE));
+
+        assertInstanceOf(Source.OfHead.class, effective);
+    }
+
+    @Test
+    @DisplayName("both head spellings survive the trip through a row value")
+    void bothHeadSpellingsAreRead() {
+        for (String written : new String[] {"basehead-" + TEXTURE, "headbase-" + TEXTURE,
+                "playerhead-DiGround", "urlhead-https://textures.minecraft.net/texture/abc"}) {
+            assertInstanceOf(Source.OfHead.class,
+                    ItemRenderer.effective(Source.of("%kit_icon%"), fill("kit_icon", written)),
+                    written);
+        }
+    }
+
+    @Test
+    @DisplayName("a serialised stack a row hands back is still a serialised stack")
+    void resolvedSnapshotIsReadAgain() {
+        Source effective = ItemRenderer.effective(Source.of("%kit_icon%"),
+                fill("kit_icon", "bytes:rO0ABXNy"));
+
+        assertInstanceOf(Source.OfSnapshot.class, effective);
+    }
+
+    @Test
+    @DisplayName("a material a row hands back is the resolved name, not the placeholder")
+    void resolvedMaterialCarriesTheAnswer() {
+        Source effective = ItemRenderer.effective(Source.of("%effect_material%"),
+                fill("effect_material", "FIRE_CHARGE"));
+
+        assertInstanceOf(Source.OfMaterial.class, effective);
+        assertEquals("FIRE_CHARGE", effective.raw());
+    }
+
+    @Test
+    @DisplayName("a material written literally is not read a second time")
+    void literalSourceIsUntouched() {
+        // The common case, and it must stay free: whatever the file said was
+        // decided when the file was read.
+        Source declared = Source.of("PACKED_ICE");
+
+        assertSame(declared, ItemRenderer.effective(declared, value -> {
+            throw new AssertionError("a literal material must not be resolved");
+        }));
+    }
+
+    @Test
+    @DisplayName("a head decided in the file is not read a second time either")
+    void literalHeadIsUntouched() {
+        Source declared = Source.of("basehead-" + TEXTURE);
+
+        assertSame(declared, ItemRenderer.effective(declared, value -> {
+            throw new AssertionError("a decided head must not be resolved");
+        }));
+    }
+
+    /** The resolver a row with one value gives the renderer. */
+    private UnaryOperator<String> fill(String name, String value) {
+        return written -> ItemRenderer.value(written, viewer, Map.of(name, value));
     }
 }

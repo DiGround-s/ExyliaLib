@@ -95,6 +95,29 @@ case-insensitively. Heads go through [`Skulls`](skulls.md): a texture or a URL
 never touches the network, and a player head that has not been fetched comes
 back plain rather than blocking.
 
+**A placeholder is read again once it resolves.** `material: "%arena_icon%"` is
+a material when the file is read, because that is all it can be before anybody
+fills it in — but what a row hands back is very often a head, since that is what
+an icon picker stores. So the resolved text goes through the same table above
+rather than straight to the registry, and `%arena_icon%` holding
+`headbase-eyJ0…` draws the head. Only values that carried a placeholder are read
+twice; a literal material was decided when the file was loaded.
+
+### Storing an item somebody is holding
+
+The other direction, for an icon picker: `Source.of(ItemStack)` returns what to
+store, and what it returns is always something the table above can read back.
+
+```java
+String icon = Source.of(player.getInventory().getItemInMainHand()).raw();
+```
+
+A plain item is stored as its material name — `STONE`, not four hundred
+characters of base64 — so the common case stays short enough for a column and
+legible enough to edit by hand. Anything carrying meta, which is to say a
+textured head or a custom model, is stored whole as `bytes:`, because that is
+the only spelling that keeps it. An empty hand is `AIR`.
+
 ### Text
 
 | Key | Meaning |

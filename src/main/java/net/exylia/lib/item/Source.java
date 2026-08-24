@@ -1,8 +1,11 @@
 package net.exylia.lib.item;
 
 import net.exylia.lib.skull.SkullSource;
+import org.bukkit.Material;
+import org.bukkit.inventory.ItemStack;
 import org.jetbrains.annotations.NotNull;
 
+import java.util.Base64;
 import java.util.Locale;
 
 /**
@@ -86,6 +89,49 @@ public sealed interface Source {
             return new OfHeadTemplate(trimmed, kind);
         }
         return new OfHead(trimmed, kind.sourceOf(payload));
+    }
+
+    /**
+     * Reads an item somebody is holding, so it can be stored as a
+     * {@code material} value and drawn again later.
+     *
+     * <p>This is the other half of {@link #of(String)}, and it exists because
+     * every icon picker in the ecosystem needs it: an admin holds the item they
+     * want a kit, an arena or a reward to be drawn as, and what gets written to
+     * the database has to be readable by the same grammar the menus already
+     * speak.
+     *
+     * <p>A plain item is stored as its material name — {@code STONE}, not four
+     * hundred characters of base64 — so the common case stays short enough to
+     * fit a column and legible enough to edit by hand. Anything carrying meta,
+     * which is to say a textured head or a custom model, is stored whole as a
+     * {@code bytes:} snapshot, because that is the only spelling that keeps it.
+     *
+     * @param item the item, which may be nothing at all
+     * @return what to store; never a value {@link #of(String)} cannot read
+     */
+    static @NotNull Source of(@NotNull ItemStack item) {
+        Material type = item.getType();
+        // Compared against the constants rather than asked isAir(): that answer
+        // comes from the block registry, which only a running server has, and
+        // an item module that cannot be tested without one is how the render
+        // path went unchecked in the first place.
+        if (type == Material.AIR || type == Material.CAVE_AIR || type == Material.VOID_AIR) {
+            // What ExyliaCommons wrote for an empty hand, and still readable:
+            // "AIR" is a material name like any other.
+            return new OfMaterial("AIR");
+        }
+        if (!item.hasItemMeta()) {
+            return new OfMaterial(type.name());
+        }
+        try {
+            String base64 = Base64.getEncoder().encodeToString(item.serializeAsBytes());
+            return new OfSnapshot("bytes:" + base64, base64);
+        } catch (RuntimeException unwritable) {
+            // A stack the server cannot serialise. Its type is still true, and
+            // an icon that lost its custom model beats an icon that is nothing.
+            return new OfMaterial(type.name());
+        }
     }
 
     /** A plain material, possibly named by a placeholder. */

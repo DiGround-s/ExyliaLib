@@ -1,8 +1,13 @@
 package net.exylia.lib.item;
 
 import net.exylia.lib.skull.SkullSource;
+import org.bukkit.Material;
+import org.bukkit.inventory.ItemStack;
+import org.jetbrains.annotations.NotNull;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+
+import java.util.Base64;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -107,5 +112,91 @@ class SourceTest {
     @DisplayName("surrounding whitespace does not change what a value means")
     void trimmed() {
         assertInstanceOf(Source.OfHead.class, Source.of("  playerhead-Notch  "));
+    }
+
+    // ------------------------------------------------------------------
+    // Reading an item somebody is holding
+    // ------------------------------------------------------------------
+
+    @Test
+    @DisplayName("a plain item is stored as its material name")
+    void plainItemIsItsName() {
+        // Not four hundred characters of base64 for a block: an icon column is
+        // 512 characters wide across the ecosystem, and a value a human can
+        // read is a value a human can fix.
+        Source source = Source.of(new Stack(Material.PACKED_ICE, false));
+
+        assertEquals("PACKED_ICE", assertInstanceOf(Source.OfMaterial.class, source).raw());
+    }
+
+    @Test
+    @DisplayName("an item carrying meta is stored whole")
+    void itemWithMetaIsASnapshot() {
+        // A textured head or a custom model lives in the meta; a material name
+        // would throw away the only part that made it worth picking.
+        Source source = Source.of(new Stack(Material.PLAYER_HEAD, true));
+
+        Source.OfSnapshot snapshot = assertInstanceOf(Source.OfSnapshot.class, source);
+        assertEquals("bytes:" + Base64.getEncoder().encodeToString(Stack.BYTES), snapshot.raw());
+        // And what was written reads back as the same thing.
+        assertInstanceOf(Source.OfSnapshot.class, Source.of(snapshot.raw()));
+    }
+
+    @Test
+    @DisplayName("an empty hand is AIR, which is still a material")
+    void emptyHand() {
+        Source source = Source.of(new Stack(Material.AIR, false));
+
+        assertEquals("AIR", assertInstanceOf(Source.OfMaterial.class, source).raw());
+    }
+
+    @Test
+    @DisplayName("an item the server cannot serialise falls back to its type")
+    void unserialisableItemFallsBack() {
+        Source source = Source.of(new Stack(Material.DIAMOND_SWORD, true) {
+            @Override
+            public byte @NotNull [] serializeAsBytes() {
+                throw new IllegalStateException("no server here");
+            }
+        });
+
+        assertEquals("DIAMOND_SWORD", assertInstanceOf(Source.OfMaterial.class, source).raw());
+    }
+
+    /**
+     * An item with nothing behind it.
+     *
+     * <p>Subclassed rather than constructed: {@code new ItemStack(...)} reaches
+     * through {@code Bukkit.getUnsafe()} for a real server, and there is not one
+     * here. Reading an item is three questions long — its type, whether it has
+     * meta, and its bytes — so those are the three this answers.
+     */
+    private static class Stack extends ItemStack {
+
+        /** Stands in for a serialised stack; its contents mean nothing. */
+        static final byte[] BYTES = {1, 2, 3, 4};
+
+        private final Material type;
+        private final boolean meta;
+
+        private Stack(Material type, boolean meta) {
+            this.type = type;
+            this.meta = meta;
+        }
+
+        @Override
+        public @NotNull Material getType() {
+            return type;
+        }
+
+        @Override
+        public boolean hasItemMeta() {
+            return meta;
+        }
+
+        @Override
+        public byte @NotNull [] serializeAsBytes() {
+            return BYTES;
+        }
     }
 }

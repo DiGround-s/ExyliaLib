@@ -195,10 +195,11 @@ public final class ItemRenderer {
     }
 
     /** Builds the object the item starts as. */
-    private static ItemStack base(Source source, UnaryOperator<String> resolve,
+    private static ItemStack base(Source declared, UnaryOperator<String> resolve,
                                   TraitApplier.Reporter problems) {
-        return switch (source) {
-            case Source.OfMaterial material -> material(resolve.apply(material.raw()), problems);
+        return switch (effective(declared, resolve)) {
+            // Already resolved by effective(), so the text is final here.
+            case Source.OfMaterial material -> material(material.raw(), problems);
             // Whatever Skulls has now. A head it has not fetched comes back
             // plain rather than blocking; the caller that wants the finished
             // one asks for a handle instead.
@@ -206,6 +207,38 @@ public final class ItemRenderer {
             case Source.OfHeadTemplate template -> head(template, resolve, problems);
             case Source.OfSnapshot snapshot -> snapshot(snapshot, problems);
         };
+    }
+
+    /**
+     * What a source turns out to be once its placeholders are filled.
+     *
+     * <p>{@link Source} classifies a value when the file is read, and at that
+     * point {@code material: "%arena_icon%"} is a material: no prefix, nothing
+     * to read. What the row hands back very often is not one — an icon a server
+     * owner picked is a head far more often than it is a block, and every icon
+     * picker in the ecosystem stores {@code headbase-eyJ0…}, {@code playerhead-}
+     * or a {@code bytes:} stack under exactly that key.
+     *
+     * <p>So a material that was written as a placeholder is read once more,
+     * through the same grammar, rather than handed straight to the registry —
+     * which has never heard of {@code headbase-eyJ0…} and answers with a stone
+     * block and a console line per row. That is the whole bug this exists for.
+     *
+     * <p>Only a value that carried a placeholder comes through here: a literal
+     * material was decided when the file was read and is not read twice. Nor is
+     * the answer: whatever this returns is what gets built, so a placeholder
+     * that resolved to another placeholder is reported by whoever it lands on
+     * rather than chased around in a loop.
+     *
+     * @param declared what the file said
+     * @param resolve  how a value carrying placeholders is filled in
+     * @return what to build
+     */
+    static Source effective(Source declared, UnaryOperator<String> resolve) {
+        if (declared instanceof Source.OfMaterial material && material.isDynamic()) {
+            return Source.of(resolve.apply(material.raw()));
+        }
+        return declared;
     }
 
     private static ItemStack material(String name, TraitApplier.Reporter problems) {
