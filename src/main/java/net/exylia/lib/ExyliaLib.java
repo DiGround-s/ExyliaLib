@@ -60,6 +60,7 @@ import net.exylia.lib.util.wizard.internal.WizardRuntime;
 import net.exylia.lib.placeholder.internal.BuiltIn;
 import net.exylia.lib.platform.Platform;
 import net.exylia.lib.scoreboard.internal.BoardManager;
+import net.exylia.lib.session.Sessions;
 import net.exylia.lib.scoreboard.internal.SidebarLibrary;
 import net.exylia.lib.task.Tasks;
 import net.exylia.lib.text.Colors;
@@ -173,6 +174,10 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         // compile a model that uses it: a codec registered afterwards never
         // reaches a model that is already compiled.
         SnapshotRuntime.init(this);
+        // Only binds the debug view. The registry itself is a plain map with no
+        // lifecycle: a claim exists because a plugin took one, and the module
+        // has nothing to start.
+        Sessions.init(this);
         Cooldowns.init(this, task -> Tasks.of(this).runAsync(task));
         // Long cooldowns are written every few minutes as well as on quit, so
         // a server that dies without a clean shutdown loses minutes rather
@@ -433,6 +438,7 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         Commands.releaseAll();
         Prefixes.releaseAll();
         Reloads.releaseAll();
+        Sessions.releaseAll();
         Debug.releaseAll();
     }
 
@@ -465,6 +471,13 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         // waiting on, and a question already forgotten cannot be cancelled.
         WizardRuntime.forget(event.getPlayer().getUniqueId());
         InputRuntime.forget(event.getPlayer().getUniqueId());
+        // A tick later, not now: every plugin's own quit handling has to have
+        // had its turn first, because a mode that puts a leaving player's
+        // things back releases its own claim as part of doing so. What is left
+        // by then is a claim somebody forgot, and dropping it is the difference
+        // between a player who can rejoin and one nothing will accept.
+        java.util.UUID left = event.getPlayer().getUniqueId();
+        Tasks.of(this).runLater(1L, () -> Sessions.forget(left));
     }
 
     /**
@@ -605,6 +618,11 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         Commands.release(pluginName);
         Prefixes.release(pluginName);
         Reloads.release(pluginName);
+        // Only the record, never the handlers: undoing a hold means calling
+        // into a classloader that is being dismantled. A player left mid
+        // activity by a plugin that is going away is free again, which is the
+        // one state the rest of the server can still act on.
+        Sessions.forgetPlugin(pluginName);
 
         // Everything a plugin still uses from its own onDisable, which has not
         // run yet. Scheduled on the library's scheduler, which is still up:
