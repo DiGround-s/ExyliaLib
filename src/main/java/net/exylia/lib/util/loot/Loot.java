@@ -1,9 +1,12 @@
 package net.exylia.lib.util.loot;
 
+import net.exylia.lib.util.editor.Editors;
+import net.exylia.lib.util.editor.ListEditor;
 import net.exylia.lib.util.loot.internal.LootItems;
 import net.exylia.lib.util.loot.internal.LootLines;
 import net.exylia.lib.util.loot.internal.LootRolls;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.plugin.Plugin;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -59,6 +62,34 @@ public final class Loot {
 
     /** Ignores what it cannot read, which is what a stored table deserves. */
     private static final BiConsumer<String, String> SILENT = (line, problem) -> { };
+
+    // ---------------------------------------------------------------- editing
+
+    /**
+     * A screen for editing a loot table.
+     *
+     * <pre>{@code
+     * Loot.editor(this, template.entries())
+     *     .title("{primary}&lLOOT TABLE")
+     *     .onSave(entries -> manager.save(template, entries))
+     *     .onCancel(() -> setupMenu.open(player))
+     *     .open(player);
+     * }</pre>
+     *
+     * <p>Pagination, add, edit, delete, copy, paste, save and cancel, over the
+     * one screen every list editor in the library shares. A table copied here
+     * pastes into any other loot editor — a chest into a spawner, a spawner into
+     * an event — because they are the same rows in the same format.
+     *
+     * @param plugin  the plugin the screen belongs to
+     * @param entries what is being edited; copied, never held
+     * @return the editor, ready to open
+     * @since 1.56.0
+     */
+    public static @NotNull ListEditor<LootEntry> editor(@NotNull Plugin plugin,
+                                                        @NotNull List<LootEntry> entries) {
+        return Editors.of(plugin).list(new LootDescriptor(plugin), LootEntry.class, entries);
+    }
 
     // ---------------------------------------------------------------- writing
 

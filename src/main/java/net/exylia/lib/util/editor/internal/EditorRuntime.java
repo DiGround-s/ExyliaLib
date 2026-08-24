@@ -109,11 +109,19 @@ public final class EditorRuntime {
         });
     }
 
-    /** Closes a window without the close being read as the viewer giving up. */
+    /**
+     * Closes a window without the close being read as the viewer giving up.
+     *
+     * <p>Does nothing when the editor is not the window on screen. Adding asks
+     * two questions in a row, and the second must not close whatever window the
+     * first one opened — an anvil search is an inventory too.
+     */
     static void closeForQuestion(EditorHolder<?> holder, Player viewer) {
+        if (!OPEN.remove(holder)) {
+            return;
+        }
         holder.reopening(true);
         try {
-            forget(holder);
             viewer.closeInventory();
         } finally {
             holder.reopening(false);
@@ -122,6 +130,38 @@ public final class EditorRuntime {
 
     static void forget(EditorHolder<?> holder) {
         OPEN.remove(holder);
+    }
+
+    /**
+     * Asks for a new element, then configures it.
+     *
+     * <p>Two questions rather than one, because for some types creating the
+     * thing is itself a question — a reward has to be told what it gives before
+     * a form over it can name its own fields. A type that has nothing to ask
+     * answers the first one instantly and the viewer only sees the second.
+     */
+    static <T> void add(EditorHolder<T> holder, Player viewer) {
+        closeForQuestion(holder, viewer);
+        created(holder, viewer).whenComplete((created, failure) -> {
+            if (failure != null) {
+                Debug.of(holder.plugin()).error("An editor could not create an entry for "
+                        + viewer.getName() + '.', failure);
+            }
+            if (failure == null && created != null && created.isPresent()) {
+                edit(holder, viewer, created.get(), true);
+                return;
+            }
+            reopen(holder);
+        });
+    }
+
+    private static <T> java.util.concurrent.CompletionStage<Optional<T>> created(
+            EditorHolder<T> holder, Player viewer) {
+        try {
+            return holder.descriptor().create(viewer);
+        } catch (RuntimeException broken) {
+            return java.util.concurrent.CompletableFuture.failedFuture(broken);
+        }
     }
 
     /**

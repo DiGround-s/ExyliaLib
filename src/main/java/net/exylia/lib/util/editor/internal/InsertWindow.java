@@ -50,7 +50,7 @@ public final class InsertWindow implements InventoryHolder {
 
     private final Plugin plugin;
     private final UUID viewerId;
-    private final CompletableFuture<Optional<String>> answer = new CompletableFuture<>();
+    private final CompletableFuture<Optional<ItemStack>> answer = new CompletableFuture<>();
     private Inventory inventory;
     private boolean finished;
 
@@ -60,7 +60,7 @@ public final class InsertWindow implements InventoryHolder {
     }
 
     /**
-     * Opens the window.
+     * Opens the window and answers with a stored icon source.
      *
      * @param plugin who is asking
      * @param viewer who is inserting
@@ -70,6 +70,26 @@ public final class InsertWindow implements InventoryHolder {
     public static @NotNull CompletionStage<Optional<String>> open(@NotNull Plugin plugin,
                                                                   @NotNull Player viewer,
                                                                   @NotNull String title) {
+        return openForItem(plugin, viewer, title)
+                .thenApply(item -> item.map(stack -> Source.of(stack).raw()));
+    }
+
+    /**
+     * Opens the window and answers with the item itself.
+     *
+     * <p>For a list of real items — a kit, a shop's stock — where the stack size
+     * and every detail of the object matter. The answer is a clone: the item the
+     * player lent goes back to them, and what the caller keeps cannot be changed
+     * out from under it by the next thing they do with their inventory.
+     *
+     * @param plugin who is asking
+     * @param viewer who is inserting
+     * @param title  the window title
+     * @return the item, or nothing
+     */
+    public static @NotNull CompletionStage<Optional<ItemStack>> openForItem(@NotNull Plugin plugin,
+                                                                            @NotNull Player viewer,
+                                                                            @NotNull String title) {
         InsertWindow window = new InsertWindow(plugin, viewer);
         Tasks.of(plugin).runAtEntity(viewer, () -> {
             Inventory inventory = Bukkit.createInventory(window, SIZE,
@@ -112,8 +132,9 @@ public final class InsertWindow implements InventoryHolder {
         if (inserted == null || inserted.getType() == Material.AIR) {
             return;
         }
-        // Described, not taken: the source is what a menu file would write.
-        complete(Optional.of(Source.of(inserted).raw()));
+        // Cloned, not taken: the caller keeps a copy and the player keeps the
+        // item they lent.
+        complete(Optional.of(inserted.clone()));
         viewer.closeInventory();
     }
 
@@ -139,7 +160,7 @@ public final class InsertWindow implements InventoryHolder {
         }
     }
 
-    private void complete(Optional<String> value) {
+    private void complete(Optional<ItemStack> value) {
         if (finished) {
             return;
         }

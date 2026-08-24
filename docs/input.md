@@ -110,11 +110,32 @@ From `InputRequest`, so they read the same whatever is being asked:
 `validate` and `transform` live here rather than in each transport, and that is
 what stops case folding from working in chat but not in a dialog.
 
+### Room to read, and the value already in the box
+
+Since 1.56.0. Two settings that turn "answer this" into "correct this":
+
+```java
+inputs.text(player, "{primary}New display name")
+      .defaultValue(item.displayName())   // prefilled, ready to edit
+      .lines(4)                           // four lines tall, not one
+      .open(name -> item.rename(name));
+```
+
+`defaultValue` is what a dialog puts **in** the box, so editing a name is
+correcting it rather than retyping thirty characters of colour tokens from
+memory. It was always there and simply never used.
+
+`lines` asks for a taller box. A one-line dialog field shows about twenty
+characters, which is editing a display name or a command blind. It is a hint: a
+transport with no notion of height — chat — ignores it, and a one-line box never
+refused a long answer to begin with. `FormField.lines(int)` is the same setting
+per field, so a form can hold a one-line id next to a five-line lore.
+
 ### Modifiers particular types add
 
 | Type | Method | |
 | --- | --- | --- |
-| `TextInput` | `maxLength(int)`, `minLength(int)` | counted in Unicode code points, not chars |
+| `TextInput` | `maxLength(int)`, `minLength(int)`, `lines(int)` | lengths counted in Unicode code points, not chars; `lines` asks a transport for a taller box |
 | `NumberInput<T>` | `range(min, max)`, `min(T)`, `max(T)` | inclusive; an inverted range throws |
 | `AmountInput` | `minimum(BigDecimal)`, `maximum(BigDecimal)` | inclusive |
 | `DurationInput` | `atLeast(Duration)`, `atMost(Duration)` | inclusive; a negative bound throws |

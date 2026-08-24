@@ -1,0 +1,255 @@
+# Editors
+
+Since 1.56.0.
+
+One paginated screen for editing a list of anything, the pickers that go with
+it, and the editors for the types the library already owns. Lives in
+`net.exylia.lib.util.editor`.
+
+```java
+Rewards.of(this).editor(zone.rewards())
+        .title("{primary}&lPOWER-UP REWARDS")
+        .onSave(edited -> manager.save(zone, edited))
+        .onCancel(() -> setupMenu.open(player))
+        .open(player);
+```
+
+## What comes in the box
+
+A generic engine nobody has a use for is a generic engine nobody uses, so the
+library ships the editors as well as the machine.
+
+| Call | Edits |
+| --- | --- |
+| `Rewards.of(plugin).editor(rewards)` | [rewards](rewards.md) |
+| `Loot.editor(plugin, entries)` | [loot tables](loot.md) |
+| `NamedCommands.editor(plugin, commands)` | named console commands |
+| `Effects.editor(plugin, effects)` | potion effects |
+| `Editors.of(plugin).items(items)` | real items — kits, shop stock |
+| `Editors.of(plugin).locations(places)` | spawn points, arena corners |
+| `Editors.of(plugin).list(descriptor, type, entries)` | the sixth thing, the one only your plugin has |
+
+The entry point lives with the type, not with the engine: `PluginRewards` knows
+about editors, and the editor knows nothing about rewards. `EditorIsGenericTest`
+reads the compiled bytecode and fails if it ever does — that is what keeps
+adding a seventh editor from meaning touching the engine.
+
+## What the viewer gets
+
+Pagination, add, edit, delete, copy, paste, save and cancel, on every list.
+
+| Gesture | What happens |
+| --- | --- |
+| Left click a row | edit it |
+| Right click a row | delete it |
+| **Shift + left** a row | copy it |
+| `ADD` | create a row and configure it |
+| `PASTE` | add whatever is on the clipboard |
+| `COPY ALL` | put the whole list on the clipboard |
+| `SAVE` | keep everything |
+| `CANCEL` | keep nothing |
+
+A row that is not finished — a command entry with no command — is drawn with a
+mark rather than hidden or refused. An editor is where a half-configured row
+gets finished, and one that vanished would take its place in the list with it.
+
+## Nothing is written until save
+
+The list handed in is copied. Every change goes into the copy, so cancel is free
+and an editor opened just to look writes nothing at all.
+
+An editor ends five ways — save, cancel, closing the window, leaving the server,
+the owning plugin being disabled — and the first one there wins. Four of them
+are cancel: a screen taken away was never confirmed, and writing a working copy
+nobody approved is worse than losing it.
+
+## The clipboard
+
+```java
+Clipboard.copy(player, "exylia:loot", entries);
+List<LootEntry> pending = Clipboard.take(player, "exylia:loot", LootEntry.class);
+```
+
+The clipboard belongs to the **player**, not to a screen, so a loot table copied
+out of one chest pastes into the next twelve — and into a spawner, and into an
+event's pool, because they are the same rows in the same format.
+
+| Method | Contract |
+| --- | --- |
+| `copy(player, typeKey, elements)` | replaces the bucket; an empty list clears it |
+| `take(player, typeKey, type)` | reads it **without emptying it** |
+| `size` / `has` / `clear` | what is waiting, and how to drop it |
+| `forget(playerId)` | called when they leave; consumers do not call it |
+
+One bucket holding however many elements were copied, not ExyliaCommons' two
+with four buttons between them. Pasting does not consume: an admin pasting the
+same table onto twelve chests presses paste twelve times.
+
+Which bucket comes from `EditorDescriptor.typeKey()`. Two editors sharing a key
+can paste into each other, which is the point; two that do not, cannot, which is
+also the point. Elements are type-checked one at a time on the way out, so a key
+somebody reused for their own type answers with nothing rather than a class cast.
+
+## Editing a row
+
+One dialog with every field of the row already filled in.
+
+```java
+return EditorForm.of(plugin, viewer, "{primary}&lEDIT ENTRY")
+        .text(NAME, "Display name", entry.name(), 3)      // three lines tall
+        .integer(WEIGHT, "Weight", entry.weight())
+        .text(COMMAND, "Command", entry.command(), 3)
+        .ask(values -> entry.toBuilder()
+                .name(values.getText(NAME))
+                .weight(values.getLong(WEIGHT))
+                .build());
+```
+
+Where ExyliaCommons drew a menu with an icon per field and asked one question
+per click, this is one trip. Every field takes the value it is editing, which is
+the difference between correcting a display name and retyping thirty characters
+of colour tokens from memory.
+
+The height argument is why the tall box exists: a one-line dialog field shows
+about twenty characters, and a display name is a dozen colour tokens around six
+words. See [input.md](input.md) — `TextInput.lines` and `FormField.lines` are
+the same setting, and chat, which has no notion of height, ignores it.
+
+A client too old for dialogs, or a Bedrock player, is asked the same fields
+through whichever transport can. The editor never knows which one answered.
+
+## Pickers
+
+```java
+editors.pick().particle(player).thenAccept(name -> name.ifPresent(entry::setParticle));
+```
+
+| Method | Answers with |
+| --- | --- |
+| `particle`, `sound`, `enchantment`, `potionEffect`, `material` | the name, uppercase |
+| `colour` | a vanilla colour name, or a `#rrggbb` the viewer typed |
+
+Each is a `SearchInput` underneath, so paging, filtering and every transport
+were already solved. The lists are read from the **registry** rather than from
+an enum's `values()`: several of these stopped being enums, and a data pack can
+add to any of them.
+
+The answer is a name rather than an object because a name is what goes in a
+config column, and a caller that wants the object looks it up once.
+
+## The icon picker
+
+```java
+editors.icon()
+       .title("{primary}&lARENA ICON")
+       .open(player, icon -> arenas.save(arena.withIcon(icon)));
+```
+
+The answer is a `material` value — the same string a menu file writes, read by
+the same grammar — so it goes straight into a column and straight into
+`material: "%arena_icon%"`.
+
+| Way | What it is |
+| --- | --- |
+| `MATERIAL` | the searchable list of everything the server has |
+| `INSERT` | a window with one slot: put the item in, and that item is the answer |
+| `HEAD` | a base64 texture or skin URL, pasted |
+
+`ways(...)` restricts and reorders them; one way is not a question, so the
+picker goes straight to it.
+
+**`INSERT` replaces reading the player's main hand.** That meant closing the
+screen you were on, finding the item, holding it and reopening — and from inside
+a menu it could not be done at all. The item is read exactly as it is, custom
+model and all, and **comes back to you on every ending**: confirming, closing
+the window, leaving the server, the plugin being disabled. Whatever will not fit
+is dropped at your feet. An icon picker that ate a diamond sword would be a
+theft, not a feature.
+
+The same window is what `items(...)` uses to add and to replace a row, because
+an item is not something you type.
+
+## Writing an editor for your own type
+
+One interface. No screen, session, holder or clipboard.
+
+```java
+public interface EditorDescriptor<T> {
+    String label(T entry);                  // the row's name
+    String icon(T entry);                   // material, head string or bytes: snapshot
+    List<String> lore(T entry);             // the detail lines
+    T create();                             // a blank element
+    T copy(T entry);                        // a duplicate, under a new identity
+    CompletionStage<Optional<T>> edit(Player viewer, T entry);
+
+    default CompletionStage<Optional<T>> create(Player viewer);  // when creating is a question
+    default String typeKey();                                    // the clipboard bucket
+    default boolean isComplete(T entry);                         // whether to mark the row
+}
+```
+
+Everything except `edit` and `create(viewer)` is called while drawing a page, up
+to 45 rows at a time and again after every click, so it must be cheap and pure.
+Nothing may throw: a row nobody can describe is still drawn, as itself, so an
+admin can delete it.
+
+Override `create(viewer)` where creating the thing **is** a question. A reward
+has to be told whether it gives an item, a command or money before a form over
+it can even name its fields; a warp does not.
+
+`copy` must produce a new identity. An implementation that returns the element
+unchanged makes two rows that are the same object, and deleting one deletes both.
+
+## Rows are addressed by what they carry
+
+Never by slot, page or index. Four of ExyliaCommons' five editors resolved a row
+from its slot number, so an edit that landed after the list had changed
+underneath — a paste, a delete, a second screen — edited a different row.
+`EditorHolderTest` keeps that out with two equal elements and an edit that must
+land on exactly one of them.
+
+## Threads
+
+| What | Where |
+| --- | --- |
+| `open` | any thread — it relocates itself onto the thread that owns the viewer |
+| `onSave`, `onCancel` | the viewer's thread |
+| descriptor `label`/`icon`/`lore` | the viewer's thread, while drawing |
+| `Clipboard` | any thread |
+
+Everything goes through `net.exylia.lib.task`, so it behaves identically on
+Spigot, Paper and Folia. The owning plugin's scheduler runs the screens while it
+is alive, and ExyliaLib's runs the closing of them when it is not — a disabled
+plugin cannot schedule anything, including its own cleanup.
+
+## State lives on the window
+
+Never in a `Map<UUID, Session>`. A player with a chest open on top of an editor
+is looking at the chest; a map would still say "this player has an editor", so a
+click in the chest would be handed to it. The holder knows what a window is; the
+player does not.
+
+## What is not here
+
+**An editor for ExyliaCommons' `EffectEntry`** — the particle/sound/firework/
+title/sequence entry with its own chance, condition, delay and scope. That is a
+domain module ExyliaLib does not have yet, not a screen: this library's `effect`
+module is configuration-driven, and there is no list-of-effect-entries type to
+edit. `Effects.editor` covers potion effects, which is what
+`SelectorAPI.potionEffectEditor` did.
+
+## Where the code lives
+
+| Part | Where |
+| --- | --- |
+| Public API | `util/editor/Editors`, `PluginEditors`, `ListEditor`, `EditorDescriptor`, `EditorForm`, `Clipboard`, `IconPicker`, `Pickers` |
+| Shipped descriptors | `util/reward/RewardDescriptor`, `util/loot/LootDescriptor`, `util/command/NamedCommandDescriptor`, `util/PotionEffectDescriptor`, `util/editor/ItemListEditor`, `LocationDescriptor` |
+| Internal | `util/editor/internal/` — `EditorRuntime`, `EditorHolder`, `EditorListener`, `InsertWindow`, `Icons` |
+| Tests | `src/test/java/net/exylia/lib/util/editor/` |
+
+## Reload
+
+The module keeps nothing derived from the palette. Buttons are built when a page
+is drawn, from raw text such as `{primary}&lSAVE`, and a page is redrawn after
+every click — so there is no `invalidateAll()` and no hook in
+`ExyliaLib.loadPalette`. See [reload.md](reload.md).

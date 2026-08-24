@@ -956,6 +956,41 @@ admin es lo que veía en ExyliaCommons, sin sus bugs.
   el llamante ya está en el hilo principal, se escribe en línea: un tick de
   retraso es tiempo suficiente para hacer clic y preguntarse por qué no pasa nada.
 
+### Editores — un motor, y con pilas dentro
+
+Todo lo que un admin edita en pantalla (recompensas, loot, comandos, efectos,
+ítems, sitios) pasa por `net.exylia.lib.util.editor`. Nunca un menú propio por
+tipo, nunca un mapa de sesiones por jugador.
+
+- **Commons tenía cinco copias de la misma pantalla** — rewards, loot, pociones,
+  comandos, mensajes — y cuatro resolvían la fila por número de slot, así que una
+  edición que caía después de que la lista cambiara editaba otra fila. Aquí hay
+  una pantalla y las filas llevan su elemento.
+- **El motor no sabe qué edita.** El dominio conoce al editor
+  (`PluginRewards.editor`), nunca al revés. `EditorIsGenericTest` lee el bytecode
+  y falla si `util.editor` nombra `util.reward`, `util.loot` o `util.command`.
+- **Un motor genérico sin editores no lo usa nadie.** Eso fue exactamente lo que
+  pasó con `panel`: se borró sin que ningún plugin lo hubiera tocado. La
+  librería trae los descriptores de los tipos que ya son suyos.
+- **Nada se escribe hasta guardar.** La lista se copia; cancelar es gratis. Cinco
+  finales (guardar, cancelar, cerrar, salir, deshabilitar) y el primero gana;
+  cuatro son cancelar, porque una pantalla que te quitan nunca se confirmó.
+- **El portapapeles es del jugador, no de la pantalla.** Un cubo por `typeKey`,
+  con los elementos que se copiaran — uno o cuarenta —, y pegar no lo vacía:
+  pegar la misma tabla en doce cofres son doce clics.
+- **Editar una fila es un diálogo, no siete clics.** Todos los campos a la vez y
+  **siempre prerellenados**: corregir un nombre no es reescribirlo de memoria.
+  Los campos largos piden altura (`lines`), porque una caja de una línea enseña
+  veinte caracteres y un display name son doce tokens de color.
+- **El icono se inserta, no se sostiene.** Commons leía la mano, lo que obligaba
+  a cerrar la pantalla, buscar el ítem y volver — y desde un menú no se podía. Es
+  una ventana con un hueco, y el ítem **vuelve siempre**: al confirmar, al
+  cerrar, al salir y al deshabilitar el plugin.
+- **El estado vive en la ventana.** Nunca un `Map<UUID, Session>`: un jugador con
+  un cofre abierto encima de un editor está mirando el cofre.
+- **Los pickers leen el registro, no `values()`.** Varios de esos tipos dejaron
+  de ser enums y un data pack puede añadir a cualquiera.
+
 ### Comandos — siempre Lamp, nunca un executor a mano
 
 Todo comando se escribe con **Lamp** (`io.github.revxrsal:lamp.*`), la base
@@ -1337,6 +1372,10 @@ Raíz de código: `src/main/java/net/exylia/lib/`. Raíz de tests:
 | valor de fila multilínea | `<nl>` en un valor de `UiEntry`/`PluginItems.render` | `item/internal/ItemRenderer.lore`, `spans`, `segment` | [docs/menus.md](docs/menus.md), [docs/items.md](docs/items.md) | 1.38.0 |
 | schematic | `schematic/Schematics`, `PluginSchematics`, `SchematicResult`, `SchematicOutcome`, `RegenerateOptions` | `schematic/internal/` (`SchematicRuntime`, `SchematicStore`, `SchematicNames`, `Bounds`, `Engines`, `SchematicEngine`; FAWE confinado en `FaweEngine`) | [docs/schematics.md](docs/schematics.md) | 1.48.0 |
 | util (loot) | `util/loot/Loot`, `LootEntry`, `LootType`, `LootCodec` | `util/loot/internal/` (`LootLines`, `LootRolls`, `LootItems`) | [docs/loot.md](docs/loot.md) | 1.56.0 |
+| util (editor) | `util/editor/Editors`, `PluginEditors`, `ListEditor`, `EditorDescriptor`, `EditorForm`, `Clipboard`, `IconPicker`, `Pickers` | `util/editor/internal/` (`EditorRuntime`, `EditorHolder`, `EditorListener`, `InsertWindow`, `Icons`) | [docs/editors.md](docs/editors.md) | 1.56.0 |
+| util (named commands) | `util/command/NamedCommand`, `NamedCommands` | `util/command/NamedCommandDescriptor` | [docs/editors.md](docs/editors.md) | 1.56.0 |
+| editores incluidos | `PluginRewards.editor`, `Loot.editor`, `NamedCommands.editor`, `Effects.editor`, `PluginEditors.items`/`locations`/`pick`/`icon` | `util/reward/RewardDescriptor`, `util/loot/LootDescriptor`, `util/PotionEffectDescriptor`, `util/editor/ItemListEditor`, `LocationDescriptor` | [docs/editors.md](docs/editors.md) | 1.56.0 |
+| diálogo alto y prerellenado | `input/TextInput.lines`, `FormField.lines` | `input/internal/DialogPackets.multiline` | [docs/input.md](docs/input.md) | 1.56.0 |
 
 Clases raíz que no son módulo: `ExyliaLib.java` (ciclo de vida y limpieza),
 `platform/Platform.java`, `internal/LibrarySettings`, `internal/ExyliaLibUpdater`.
@@ -1362,6 +1401,7 @@ Son package-private a propósito; los tests viven del mismo paquete:
 | `internal/TransferAccess` | la interfaz que el comando usa para exportar e importar; `live()` es la real, un fake la sustituye sin base de datos ni fichero |
 | `schematic/internal/Engines` | `install(...)` (el motor: un fake sustituye a FastAsyncWorldEdit, así que **todo** lo que decide el módulo — nombre, carpeta, orden de las etapas, qué pasa cuando una revienta — se testea sin FAWE y sin servidor) |
 | `schematic/internal/SchematicEngine` | la interfaz que se instala ahí; su única implementación real es la que nombra FAWE |
+| `util/editor/internal/EditorHolder` | package-private entero: la copia de trabajo, las páginas y el final único se prueban sin ventana, que es la única parte que exige servidor |
 | `region/internal/SelectionRuntime` | `installWand/resetWand` (cómo el selector llega al jugador: construir un `ItemStack` resuelve el registro de ítems, que ningún entorno de test tiene) |
 | `util/loot/internal/LootRolls` | `Dice` (los dados: tirada, rango y barajado). El resto del módulo decide sobre strings y números, así que con esta costura toda la lógica de una tabla de loot se prueba sin azar |
 | `util/loot/internal/LootItems` | la interfaz que construye el `ItemStack` — la única parte del módulo que necesita servidor; un doble la sustituye y la gramática escrita se prueba entera sin registro |

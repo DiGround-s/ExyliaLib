@@ -157,13 +157,7 @@ public final class EditorListener implements Listener {
     }
 
     private static <T> void add(EditorHolder<T> holder, Player viewer) {
-        T created;
-        try {
-            created = holder.descriptor().create();
-        } catch (RuntimeException broken) {
-            return;
-        }
-        EditorRuntime.edit(holder, viewer, created, true);
+        EditorRuntime.add(holder, viewer);
     }
 
     private static <T> void paste(EditorHolder<T> holder, Player viewer) {

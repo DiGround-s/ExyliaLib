@@ -86,6 +86,24 @@ public interface EditorDescriptor<T> {
     @NotNull T create();
 
     /**
+     * A new element, asked for rather than assumed.
+     *
+     * <p>The default hands back {@link #create()} without asking anything, which
+     * is right for a type whose blank state is obvious — a warp, a message, a
+     * location. Override it where creating the thing <em>is</em> a question: a
+     * reward has to be told whether it gives an item, a command or money before
+     * a form over it can even name its fields.
+     *
+     * <p>Answering with nothing cancels the add, and no row appears.
+     *
+     * @param viewer who is adding
+     * @return the new element, or nothing
+     */
+    default @NotNull CompletionStage<Optional<T>> create(@NotNull Player viewer) {
+        return java.util.concurrent.CompletableFuture.completedFuture(Optional.of(create()));
+    }
+
+    /**
      * The same element again, under a new identity.
      *
      * <p>What paste means. An implementation that returns the element unchanged

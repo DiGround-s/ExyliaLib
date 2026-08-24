@@ -48,6 +48,24 @@ Effects.remove(player, classDef.passiveEffects());
 
 `applyInfinite` forces the infinite duration regardless of what the line
 says; writing `|infinite` on the line achieves the same through `apply`.
+`Effects.INFINITE` is that duration as a constant, for building a `ParsedEffect`
+in code.
+
+### Editing a list of effects
+
+Since 1.56.0.
+
+```java
+Effects.editor(this, kit.passiveEffects())
+       .title("{primary}&lPASSIVE EFFECTS")
+       .onSave(edited -> kits.save(kit, edited))
+       .open(player);
+```
+
+The [editor](editors.md) screen, over `ParsedEffect`. Levels are shown and asked
+for the way a player reads them — Speed II, not amplifier 1 — and stored the way
+Bukkit wants them. That one piece of arithmetic is what made the ExyliaCommons
+potion editor hand back effects a level weaker than the admin asked for.
 
 Pair those two, never `applyInfinite` with `clear`: the player may be carrying
 effects from a potion they drank or from another plugin, and those are not the

@@ -8,6 +8,8 @@ import net.exylia.lib.util.reward.internal.Conditions;
 import net.exylia.lib.util.reward.internal.ItemGiver;
 import net.exylia.lib.util.reward.internal.Providers;
 import net.exylia.lib.util.reward.internal.Rolls;
+import net.exylia.lib.util.editor.Editors;
+import net.exylia.lib.util.editor.ListEditor;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
 import org.jetbrains.annotations.NotNull;
@@ -125,6 +127,29 @@ public final class PluginRewards {
      * @param rewards what they get
      * @return what became of each
      */
+    /**
+     * A screen for editing a list of rewards.
+     *
+     * <pre>{@code
+     * rewards.editor(zone.rewards())
+     *        .title("{primary}&lPOWER-UP REWARDS")
+     *        .onSave(edited -> manager.save(zone, edited))
+     *        .onCancel(() -> setupMenu.open(player))
+     *        .open(player);
+     * }</pre>
+     *
+     * <p>Pagination, add, edit, delete, copy, paste, save and cancel, over the
+     * one screen every list editor in the library shares. A reward copied here
+     * pastes into any other reward editor, in this plugin or another.
+     *
+     * @param rewards what is being edited; copied, never held
+     * @return the editor, ready to open
+     * @since 1.56.0
+     */
+    public @NotNull ListEditor<RewardEntry> editor(@NotNull List<RewardEntry> rewards) {
+        return Editors.of(plugin()).list(new RewardDescriptor(plugin()), RewardEntry.class, rewards);
+    }
+
     public @NotNull RewardDelivery give(@NotNull Player player,
                                         @NotNull List<RewardEntry> rewards) {
         if (rewards.isEmpty()) {

@@ -115,6 +115,23 @@ item module decodes it again when the row is really drawn. Such a line reads as
 my hand" button stores — and returns a builder, so the row can be given its odds
 in the same breath.
 
+## Editing a table on screen
+
+Since 1.56.0.
+
+```java
+Loot.editor(this, template.entries())
+    .title("{primary}&lLOOT TABLE")
+    .onSave(entries -> manager.save(template, entries))
+    .onCancel(() -> setupMenu.open(player))
+    .open(player);
+```
+
+The [editor](editors.md) screen: pagination, add, edit, delete, copy, paste,
+save and cancel. A table copied here pastes into any other loot editor — a chest
+into a spawner, a spawner into an event — because they are the same rows in the
+same format.
+
 ## The written form
 
 `Loot.parseAll` reads the compact grammar every event config already holds:

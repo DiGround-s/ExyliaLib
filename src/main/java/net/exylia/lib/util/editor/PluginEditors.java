@@ -44,6 +44,50 @@ public final class PluginEditors {
     }
 
     /**
+     * A screen for editing a list of real items.
+     *
+     * <p>Kits, shop stock, the contents of a crate. Adding and editing both open
+     * the one-slot window, so the whole item is kept: stack size, model,
+     * enchantments and all.
+     *
+     * @param items what is being edited; copied, never held
+     * @return the editor, ready to open
+     */
+    public @NotNull ListEditor<org.bukkit.inventory.ItemStack> items(
+            @NotNull List<org.bukkit.inventory.ItemStack> items) {
+        return list(new ItemListEditor(plugin), org.bukkit.inventory.ItemStack.class, items);
+    }
+
+    /**
+     * A screen for editing a list of places.
+     *
+     * <p>Spawn points, arena corners, warp targets. Adding a row takes the
+     * viewer's own position, and so does editing one: nobody types coordinates.
+     *
+     * @param locations what is being edited; copied, never held
+     * @return the editor, ready to open
+     */
+    public @NotNull ListEditor<net.exylia.lib.util.teleport.ExyliaLocation> locations(
+            @NotNull List<net.exylia.lib.util.teleport.ExyliaLocation> locations) {
+        return list(new LocationDescriptor(plugin),
+                net.exylia.lib.util.teleport.ExyliaLocation.class, locations);
+    }
+
+    /**
+     * Choosing one thing out of a list the server owns.
+     *
+     * <pre>{@code
+     * editors.pick().particle(player)
+     *        .thenAccept(name -> name.ifPresent(entry::setParticle));
+     * }</pre>
+     *
+     * @return the pickers
+     */
+    public @NotNull Pickers pick() {
+        return new Pickers(plugin);
+    }
+
+    /**
      * Asks what something should be drawn as.
      *
      * <pre>{@code

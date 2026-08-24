@@ -71,6 +71,26 @@ List<RewardEntry> owed = RewardCodec.decodeLegacyCommands(row.commandsJson());
 
 ---
 
+## Editing a list on screen
+
+Since 1.56.0.
+
+```java
+Rewards.of(this).editor(zone.rewards())
+        .title("{primary}&lPOWER-UP REWARDS")
+        .onSave(edited -> manager.save(zone, edited))
+        .onCancel(() -> setupMenu.open(player))
+        .open(player);
+```
+
+The [editor](editors.md) screen: pagination, add, edit, delete, copy, paste,
+save and cancel. Creating a reward asks what it gives first, because the type
+decides which fields the form can even name; an item reward then opens the icon
+picker, and everything else goes straight to one prefilled dialog.
+
+A reward copied here pastes into any other reward editor, in this plugin or
+another.
+
 ## Reward types
 
 | Type | Payload | Since |

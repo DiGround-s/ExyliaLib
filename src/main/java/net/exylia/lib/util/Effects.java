@@ -243,6 +243,32 @@ public final class Effects {
     }
 
     /**
+     * A screen for editing a list of potion effects.
+     *
+     * <pre>{@code
+     * Effects.editor(this, kit.passiveEffects())
+     *        .title("{primary}&lPASSIVE EFFECTS")
+     *        .onSave(edited -> kits.save(kit, edited))
+     *        .open(player);
+     * }</pre>
+     *
+     * <p>Levels are shown and asked for the way a player reads them — Speed II,
+     * not amplifier 1 — and stored the way Bukkit wants them. That one piece of
+     * arithmetic is what made the ExyliaCommons potion editor hand back effects
+     * a level weaker than the admin asked for.
+     *
+     * @param plugin  the plugin the screen belongs to
+     * @param effects what is being edited; copied, never held
+     * @return the editor, ready to open
+     * @since 1.56.0
+     */
+    public static @NotNull net.exylia.lib.util.editor.ListEditor<ParsedEffect> editor(
+            @NotNull org.bukkit.plugin.Plugin plugin, @NotNull List<ParsedEffect> effects) {
+        return net.exylia.lib.util.editor.Editors.of(plugin)
+                .list(new PotionEffectDescriptor(plugin), ParsedEffect.class, effects);
+    }
+
+    /**
      * An effect spec: name, amplifier and duration in ticks. No Bukkit types.
      *
      * <p>The amplifier is Bukkit's — zero-based, so what a config writes as
@@ -296,13 +322,20 @@ public final class Effects {
     // ------------------------------------------------------------------
 
     /**
-     * What the server takes to mean "until removed".
+     * What a duration of "until removed" is written as.
+     *
+     * <p>What {@code |infinite} and {@code |-1} on a line both mean, and what
+     * {@link ParsedEffect#duration()} carries for one. Public because anybody
+     * building a {@link ParsedEffect} in code needs the same constant the parser
+     * produces.
      *
      * <p>Spelled out rather than taken from {@code PotionEffect.INFINITE_DURATION}
      * so this class keeps compiling against older server API, which is the
      * same reason the rest of the module avoids Bukkit types where it can.
+     *
+     * @since 1.56.0
      */
-    private static final int INFINITE = -1;
+    public static final int INFINITE = -1;
 
     private static final int DEFAULT_DURATION = 200; // 10 seconds
 
