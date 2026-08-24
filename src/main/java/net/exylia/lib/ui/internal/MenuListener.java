@@ -16,6 +16,7 @@ import net.exylia.lib.ui.UiEntry;
 import net.exylia.lib.ui.UiItem;
 import net.exylia.lib.ui.UiKeys;
 import net.exylia.lib.ui.UiSounds;
+import org.bukkit.GameMode;
 import org.bukkit.entity.HumanEntity;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
@@ -50,15 +51,18 @@ public final class MenuListener implements Listener {
      * Handles a click in one of our windows.
      *
      * <p>At {@code HIGH} rather than {@code MONITOR}: the event has to be
-     * cancelled, and a monitor listener must not change anything. Another
-     * plugin cancelling first is respected — that is what a protection plugin
-     * cancelling a click means.
+     * cancelled, and a monitor listener must not change anything. A
+     * non-spectator cancellation is still respected; spectator mode pre-cancels
+     * inventory interaction before this listener can run.
      */
-    @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
+    @EventHandler(priority = EventPriority.HIGH)
     public void onClick(InventoryClickEvent event) {
         Inventory top = event.getView().getTopInventory();
         Session session = MenuRuntime.sessionOf(top);
         if (session == null || !(event.getWhoClicked() instanceof Player viewer)) {
+            return;
+        }
+        if (!handlesCancelledClick(event.isCancelled(), viewer.getGameMode() == GameMode.SPECTATOR)) {
             return;
         }
 
@@ -90,6 +94,16 @@ public final class MenuListener implements Listener {
             return;
         }
         handle(session, viewer, slot, kind, rendered, event.getCurrentItem());
+    }
+
+    /**
+     * Bukkit pre-cancels inventory interaction while a player is spectating.
+     *
+     * <p>That cancellation is the game mode's item-movement restriction, not a
+     * veto of a button action. Other pre-cancelled clicks remain untouched.
+     */
+    static boolean handlesCancelledClick(boolean cancelled, boolean spectator) {
+        return !cancelled || spectator;
     }
 
     /**

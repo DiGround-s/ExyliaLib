@@ -28,16 +28,18 @@ import java.util.Map;
 final class PapiExpansion extends PlaceholderExpansion implements Relational {
 
     private final String identifier;
+    private final String owner;
     private final String author;
     private final String version;
 
     @SuppressWarnings("deprecation") // getDescription() is the portable one; see below.
-    private PapiExpansion(Plugin plugin) {
-        this.identifier = plugin.getName().toLowerCase(Locale.ROOT);
+    PapiExpansion(Plugin plugin) {
+        this.owner = plugin.getName();
+        this.identifier = owner.toLowerCase(Locale.ROOT);
         // Paper prefers getPluginMeta(), which does not exist on Spigot. The
         // deprecated call is the one that works on every platform.
         List<String> authors = plugin.getDescription().getAuthors();
-        this.author = authors.isEmpty() ? "Exylia" : authors.get(0);
+        this.author = authors == null || authors.isEmpty() ? "Exylia" : authors.get(0);
         this.version = plugin.getDescription().getVersion();
     }
 
@@ -84,7 +86,7 @@ final class PapiExpansion extends PlaceholderExpansion implements Relational {
 
     @Override
     public List<String> getPlaceholders() {
-        List<String> names = new ArrayList<>(Registry.namesOf(identifier));
+        List<String> names = new ArrayList<>(Registry.namesOf(owner));
         names.sort(String::compareTo);
         return names;
     }
@@ -103,20 +105,17 @@ final class PapiExpansion extends PlaceholderExpansion implements Relational {
     /**
      * Resolves one placeholder for PlaceholderAPI.
      *
-     * <p>PlaceholderAPI hands over the text without its own identifier prefix,
-     * so the full ExyliaLib name is rebuilt before looking it up. Reusing the
-     * template compiler keeps argument splitting, formats and fallbacks working
-     * identically whether the placeholder came from Exylia text or from another
-     * plugin.
+     * <p>PlaceholderAPI hands over the text without its own identifier prefix.
+     * The registry stays keyed by the original plugin name for lifecycle cleanup,
+     * while the expansion identifier is lower-case for PlaceholderAPI.
      */
     private String resolve(Player viewer, OfflinePlayer target, String params) {
-        String full = identifier + "_" + params;
-        CompiledTemplate template = TemplateCache.get("%" + full + "%",
+        CompiledTemplate template = TemplateCache.get("%" + params + "%",
                 net.exylia.lib.placeholder.internal.Loggers.get());
 
         String rendered = template.renderFor(new Request(viewer, target, List.of(), Map.of()));
         // A placeholder this expansion does not know comes back unchanged, and
         // PlaceholderAPI expects null so it can leave the text alone.
-        return rendered.equals("%" + full + "%") ? null : rendered;
+        return rendered.equals("%" + params + "%") ? null : rendered;
     }
 }

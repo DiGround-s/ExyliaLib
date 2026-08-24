@@ -8,7 +8,7 @@ plugins {
 }
 
 group = 'net.exylia'
-version = '1.49.1'
+version = '1.49.2'
 description = 'Shared high-performance library for Exylia Minecraft plugins.'
 
 def targetJavaVersion = 21
@@ -169,6 +169,7 @@ dependencies {
     testImplementation 'io.github.revxrsal:lamp.common:4.0.0-rc.17'
     testImplementation 'io.github.revxrsal:lamp.bukkit:4.0.0-rc.17'
     testImplementation 'com.github.ben-manes.caffeine:caffeine:3.2.4'
+    testImplementation 'me.clip:placeholderapi:2.11.5'
 }
 
 java {

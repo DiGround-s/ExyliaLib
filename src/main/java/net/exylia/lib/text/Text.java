@@ -295,7 +295,7 @@ public final class Text {
     private static final ValueRenderer FORMATTED_RENDERER = TextEngine::parseUncached;
 
     /**
-     * The placeholder names this text substitutes itself, so the resolver does
+     * The placeholder tokens this text substitutes itself, so the resolver does
      * not report them as unknown.
      */
     private Set<String> handledNames() {
@@ -308,12 +308,12 @@ public final class Text {
         for (Substitution substitution : substitutions) {
             String key = substitution.key();
             if (key.length() > 2 && key.startsWith("%") && key.endsWith("%")) {
-                names.add(key.substring(1, key.length() - 1));
+                names.add(key);
             }
         }
         if (owner != null) {
             // The prefix is substituted on the string before parsing.
-            names.add("prefix");
+            names.add(PREFIX_TOKEN);
         }
         return names;
     }

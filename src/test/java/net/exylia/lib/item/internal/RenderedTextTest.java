@@ -1,7 +1,12 @@
 package net.exylia.lib.item.internal;
 
 import net.exylia.lib.FakeServer;
+import net.exylia.lib.FakePlayer;
+import net.exylia.lib.placeholder.Placeholders;
+import net.exylia.lib.placeholder.internal.Registry;
 import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
+import org.bukkit.plugin.Plugin;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -24,9 +29,18 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  */
 class RenderedTextTest {
 
+    private Plugin plugin;
+
     @BeforeEach
     void setUp() {
         FakeServer.install();
+        Registry.clear();
+        plugin = FakeServer.newPlugin("TestPlugin");
+    }
+
+    @AfterEach
+    void tearDown() {
+        Registry.clear();
     }
 
     private static String legacy(String written, Map<String, String> values,
@@ -71,6 +85,33 @@ class RenderedTextTest {
 
         assertFalse(drawn.contains("{highlight}"), "the owner's value is parsed: " + drawn);
         assertTrue(drawn.contains("{error}Steve"), "the player's value is not: " + drawn);
+    }
+
+    @Test
+    @DisplayName("a literal row player name overrides the viewer placeholder")
+    void literalRowPlayerNameOverridesResolver() {
+        FakePlayer viewer = new FakePlayer("Viewer");
+        Placeholders.register(plugin, "player_name", request -> request.requireViewer().getName());
+
+        String drawn = LegacyComponentSerializer.legacySection().serialize(ItemRenderer.text("%player_name%",
+                viewer.player(), Map.of("player_name", "Row"), Set.of()));
+
+        assertTrue(drawn.contains("Row"), drawn);
+        assertFalse(drawn.contains("Viewer"), drawn);
+    }
+
+    @Test
+    @DisplayName("a formatted row player name overrides the viewer placeholder")
+    void formattedRowPlayerNameOverridesResolver() {
+        FakePlayer viewer = new FakePlayer("Viewer");
+        Placeholders.register(plugin, "player_name", request -> request.requireViewer().getName());
+
+        String drawn = LegacyComponentSerializer.legacySection().serialize(ItemRenderer.text("%player_name%",
+                viewer.player(), Map.of("player_name", "{accent}Row"), Set.of("player_name")));
+
+        assertTrue(drawn.contains("Row"), drawn);
+        assertFalse(drawn.contains("Viewer"), drawn);
+        assertFalse(drawn.contains("{accent}"), drawn);
     }
 
     private static List<String> lore(List<String> written, Map<String, String> values,

@@ -162,7 +162,15 @@ public final class CompiledTemplate implements Template {
         if (Registry.has(part.name())) {
             return null;
         }
-        return request.data().get(part.name());
+        Object attached = request.data().get(part.name());
+        if (attached != null || request.data().containsKey(part.name())) {
+            return attached;
+        }
+        if (request.viewer() == null) {
+            return null;
+        }
+        String resolved = PapiBridge.apply(request.viewer(), part.original());
+        return resolved.equals(part.original()) ? null : resolved;
     }
 
     /** Whether anything claims this name: a resolver, or a value for this render. */
@@ -235,6 +243,11 @@ public final class CompiledTemplate implements Template {
             if (part.isLiteral()) {
                 continue;
             }
+            // Text replaces exact tokens on the component tree after this pass,
+            // so only that spelling is allowed to override a global resolver.
+            if (handledHere.contains(part.original())) {
+                continue;
+            }
             Request scoped = part.args().isEmpty()
                     ? request
                     : new Request(request.viewer(), request.target(), part.args(), request.data());
@@ -242,7 +255,7 @@ public final class CompiledTemplate implements Template {
             Object value = resolveWith(part, scoped);
             if (value == null) {
                 if (part.fallback() == null) {
-                    if (!handledHere.contains(part.name()) && !isKnown(part, request)) {
+                    if (!handledHere.contains(part.original()) && !isKnown(part, request)) {
                         Registry.reportUnknown(part.name(), logger);
                     }
                     // Left alone either way: the caller substitutes it, or a

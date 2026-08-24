@@ -1,10 +1,12 @@
 package net.exylia.lib.placeholder.internal;
 
 import org.bukkit.Bukkit;
+import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
 
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.BiFunction;
 
 /**
  * Connects the module to PlaceholderAPI, when it happens to be installed.
@@ -27,6 +29,7 @@ public final class PapiBridge {
     private static final Map<String, Object> EXPANSIONS = new ConcurrentHashMap<>();
 
     private static volatile Boolean available;
+    private static volatile BiFunction<Player, String, String> testApplier;
 
     private PapiBridge() {
     }
@@ -76,11 +79,26 @@ public final class PapiBridge {
      * @param text   the text to fill in
      * @return the filled text, or the original when PlaceholderAPI is absent
      */
-    public static String apply(org.bukkit.entity.Player player, String text) {
+    public static String apply(Player player, String text) {
+        BiFunction<Player, String, String> applier = testApplier;
+        if (applier != null) {
+            return applier.apply(player, text);
+        }
         if (!available() || player == null) {
             return text;
         }
         return PapiExpansion.apply(player, text);
+    }
+
+    /** Installs a stand-in for tests without loading PlaceholderAPI's runtime. */
+    static void setApplierForTests(BiFunction<Player, String, String> applier) {
+        testApplier = applier;
+    }
+
+    /** Removes the test stand-in and availability cache. */
+    static void resetForTests() {
+        testApplier = null;
+        available = null;
     }
 
     /** Removes a plugin's expansion. */

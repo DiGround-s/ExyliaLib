@@ -73,6 +73,9 @@ Placeholders.apply(raw, player, Map.of("class", "Warrior", "time", "3"));
 - A **registered resolver always wins.** It is the considered, server-wide
   answer, and a value attached to one message must not shadow `%player_name%`
   by accident.
+- `Text.with("%name%", value)` and `withFormatted(...)` deliberately override
+  that exact token in their own prepared text. They are the explicit local
+  substitution API; the `data` map keeps the resolver-first contract above.
 - The map is consulted only when no resolver owns the name. A resolver that
   legitimately returned nothing is not overridden by stray data.
 - Formats still apply: `%coins:comma%` with `coins = 1234567` gives `1,234,567`.
@@ -87,7 +90,8 @@ Placeholders.apply(raw, player, Map.of("class", "Warrior", "time", "3"));
 - A resolver that throws is reported once and treated as no-value. Nothing
   else dies.
 - PlaceholderAPI, when installed, gets registered expansions through a bridge
-  confined to `placeholder/internal/PapiBridge` + `PapiExpansion`.
+  confined to `placeholder/internal/PapiBridge` + `PapiExpansion`; its external
+  placeholders also resolve in `Template` and `Text` renders for a player.
 
 ## Built-in placeholders
 

@@ -90,6 +90,34 @@ class FormattedValuesTest {
     }
 
     @Test
+    @DisplayName("with() overrides a registered placeholder for that text")
+    void literalValueOverridesResolver() {
+        FakePlayer player = new FakePlayer("Viewer");
+        Placeholders.register(plugin, "player_name", request -> request.requireViewer().getName());
+
+        assertEquals("Row", Text.of("%player_name%")
+                .with("%player_name%", "Row")
+                .forPlayer(player.player())
+                .plain());
+    }
+
+    @Test
+    @DisplayName("withFormatted() overrides a registered placeholder for that text")
+    void formattedValueOverridesResolver() {
+        FakePlayer player = new FakePlayer("Viewer");
+        Placeholders.register(plugin, "player_name", request -> request.requireViewer().getName());
+
+        String rendered = Text.of("%player_name%")
+                .withFormatted("%player_name%", "{accent}Row")
+                .forPlayer(player.player())
+                .legacy();
+
+        assertTrue(rendered.contains("Row"), rendered);
+        assertFalse(rendered.contains("Viewer"), rendered);
+        assertFalse(rendered.contains("{accent}"), rendered);
+    }
+
+    @Test
     @DisplayName("the warmup message renders the way the old file intended")
     void theMessageFromTheReport() {
         Prefixes.set(plugin, "&d&lEXYLIA CLASSES &8•&r");
