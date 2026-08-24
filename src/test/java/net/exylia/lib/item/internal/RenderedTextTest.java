@@ -155,4 +155,18 @@ class RenderedTextTest {
         assertFalse(drawn.get(0).contains("&7"), "the code is resolved: " + drawn);
         assertFalse(drawn.get(1).contains("&7"), "on the second line too: " + drawn);
     }
+
+    @Test
+    @DisplayName("a literal \\n in a row value expands the way <nl> does")
+    void literalBackslashNExpands() {
+        // A value read from a config arrives with the spelling commons used.
+        // Folding it in one place keeps every plugin from normalising its own.
+        List<String> drawn = lore(List.of("{muted}%description%"),
+                Map.of("description", "First line\\nSecond line"), Set.of());
+
+        assertEquals(2, drawn.size(), "the literal \\n becomes two lines: " + drawn);
+        assertTrue(drawn.get(0).contains("First line"), drawn.toString());
+        assertTrue(drawn.get(1).contains("Second line"), drawn.toString());
+        assertFalse(drawn.toString().contains("\\n"), "no raw marker survives: " + drawn);
+    }
 }
