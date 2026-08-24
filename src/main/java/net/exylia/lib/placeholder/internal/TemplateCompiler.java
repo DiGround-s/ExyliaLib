@@ -147,7 +147,14 @@ public final class TemplateCompiler {
                 String candidate = lower.substring(0, split);
                 if (resolved.test(candidate)) {
                     name = candidate;
-                    args = splitArgs(lower.substring(split + 1));
+                    // Cut from the text as written, not from the lower-cased
+                    // copy. A name is a registry key and is matched folded; an
+                    // argument is a value — an arena id, a world, somebody's
+                    // name — and the thing it names knows its own capitals.
+                    // Folded, %clan_players_CrystalHole% asked for an arena
+                    // called "crystalhole", which does not exist, and the
+                    // placeholder stayed on the screen.
+                    args = splitArgs(remaining.substring(split + 1));
                     break;
                 }
                 split = lower.lastIndexOf('_', split - 1);

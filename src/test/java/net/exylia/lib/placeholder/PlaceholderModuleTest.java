@@ -55,6 +55,24 @@ class PlaceholderModuleTest {
     // ------------------------------------------------------------------
 
     @Test
+    @DisplayName("an argument keeps the capitals it was written with")
+    void argumentsAreNotFolded() {
+        // The name is a registry key and is matched folded. An argument is a
+        // value — an arena id, a world, somebody's name — and the thing it
+        // names knows its own capitals: %arena_players_CrystalHole% asked for
+        // an arena called "crystalhole", which does not exist, so the
+        // placeholder stayed on the screen while lower-case ids worked.
+        Placeholders.group(plugin, "arena")
+                .add("players", request -> request.arg(0, ""))
+                .register();
+
+        assertEquals("CrystalHole", Placeholders.apply("%arena_players_CrystalHole%"));
+        assertEquals("nethpot", Placeholders.apply("%arena_players_nethpot%"));
+        // The name itself is still found however it is written.
+        assertEquals("CrystalHole", Placeholders.apply("%ARENA_PLAYERS_CrystalHole%"));
+    }
+
+    @Test
     @DisplayName("a registered placeholder is replaced by its value")
     void resolvesValue() {
         Placeholders.group(plugin, "test").add("name", request -> "Steve").register();
