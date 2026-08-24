@@ -5,6 +5,7 @@ import org.jetbrains.annotations.Nullable;
 
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.BooleanSupplier;
 
 /**
  * One plugin's exclusive hold on one player.
@@ -46,11 +47,11 @@ public final class Claim {
     private final String plugin;
     private final long token;
     private final long since;
-    private final Runnable onEvict;
+    private final BooleanSupplier onEvict;
     private volatile String kind;
     private final AtomicBoolean evicting = new AtomicBoolean();
 
-    Claim(UUID player, String plugin, String kind, long token, @Nullable Runnable onEvict) {
+    Claim(UUID player, String plugin, String kind, long token, @Nullable BooleanSupplier onEvict) {
         this.player = player;
         this.plugin = plugin;
         this.kind = kind;
@@ -167,30 +168,45 @@ public final class Claim {
     /**
      * Asks the owner to give the player back.
      *
-     * <p>Runs the handler the owner registered, which is expected to end with
-     * the owner calling {@link #release()} itself. If the owner registered no
-     * handler the claim is dropped outright, which is the honest outcome: a
-     * plugin that did not say how to undo its hold cannot be asked to undo it
-     * gracefully.
+     * <p>Runs the handler the owner registered and reports whether the request
+     * was <em>accepted</em>, not whether it has finished. Handing a player back
+     * is almost never instant — it is a teleport, an inventory restore, a
+     * snapshot read — so a handler that accepts releases the claim from its own
+     * callback some ticks later. Reading this as "the player is free now" was
+     * wrong for every mode on the server: each one accepted, went away to do
+     * the work, and was reported as having refused.
      *
-     * <p>Re-entrant calls are ignored, so a handler that reaches this method
-     * again through some other path cannot loop.
+     * <p>False means refused, and refusing is a real answer: a player tagged in
+     * combat, or halfway through building a kit, is not available to be taken
+     * and the asker needs to know that rather than assume it worked.
      *
-     * @return true if the player is free afterwards
+     * <p>If the owner registered no handler the claim is dropped outright,
+     * which is the honest outcome: a plugin that did not say how to undo its
+     * hold cannot be asked to undo it gracefully.
+     *
+     * <p>Once a handler has accepted, further calls are answered yes without
+     * running it again. A player already on their way out must not be sent out
+     * twice, and a handler that reaches this method again through some other
+     * path cannot loop.
+     *
+     * @return true if the player is free, or on their way to being free
      */
     public boolean evict() {
         if (!isCurrent()) return true;
-        if (!evicting.compareAndSet(false, true)) return false;
+        if (onEvict == null) return release();
+        if (!evicting.compareAndSet(false, true)) return true;
+        boolean accepted;
         try {
-            if (onEvict == null) return release();
-            onEvict.run();
-            // The handler is expected to release. If it did not — it refused,
-            // or it failed — the claim stands and the caller is told so rather
-            // than being left to assume a free player.
-            return !isCurrent();
-        } finally {
+            accepted = onEvict.getAsBoolean();
+        } catch (Throwable failed) {
             evicting.set(false);
+            throw failed;
         }
+        // Only a refusal is retryable. An acceptance leaves the flag set until
+        // the claim itself goes away, which is what stops a second ask from
+        // starting a second departure.
+        if (!accepted) evicting.set(false);
+        return accepted || !isCurrent();
     }
 
     @Override

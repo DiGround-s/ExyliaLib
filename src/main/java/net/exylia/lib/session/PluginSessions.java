@@ -6,6 +6,7 @@ import org.jetbrains.annotations.Nullable;
 
 import java.util.Optional;
 import java.util.UUID;
+import java.util.function.BooleanSupplier;
 
 /**
  * One plugin's way in and out of {@link Sessions}.
@@ -40,12 +41,16 @@ public final class PluginSessions {
      *
      * @param player   the player
      * @param kind     what they will be doing, in this plugin's own words
-     * @param onRelease how to give the player back when somebody asks; runs on
-     *                  whatever thread asked, and is expected to end with
-     *                  {@link Claim#release()}
+     * @param onRelease how to give the player back when somebody asks. Runs on
+     *                  whatever thread asked. Returns whether the request is
+     *                  accepted — not whether it has finished, because handing
+     *                  a player back is a teleport and a restore and those end
+     *                  later. An accepting handler releases the claim from its
+     *                  own callback; a refusing one keeps it, and the asker is
+     *                  told no.
      * @return the claim, or empty if another plugin has the player
      */
-    public @NotNull Optional<Claim> claim(@NotNull Player player, @NotNull String kind, @Nullable Runnable onRelease) {
+    public @NotNull Optional<Claim> claim(@NotNull Player player, @NotNull String kind, @Nullable BooleanSupplier onRelease) {
         return claim(player.getUniqueId(), kind, onRelease);
     }
 
@@ -54,10 +59,10 @@ public final class PluginSessions {
      *
      * @param player    the player
      * @param kind      what they will be doing
-     * @param onRelease how to give the player back
+     * @param onRelease how to give the player back; see the overload above
      * @return the claim, or empty if another plugin has the player
      */
-    public @NotNull Optional<Claim> claim(@NotNull UUID player, @NotNull String kind, @Nullable Runnable onRelease) {
+    public @NotNull Optional<Claim> claim(@NotNull UUID player, @NotNull String kind, @Nullable BooleanSupplier onRelease) {
         Claim mine = Sessions.current(player);
         if (mine != null && mine.plugin().equals(plugin)) {
             return Optional.of(mine.as(kind));

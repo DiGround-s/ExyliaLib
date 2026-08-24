@@ -80,6 +80,7 @@ class SessionsTest {
             // must not send the module round in circles.
             Sessions.release(player);
             ffa.release(player);
+            return true;
         }).orElseThrow();
 
         assertTrue(Sessions.release(player));
@@ -89,10 +90,40 @@ class SessionsTest {
     }
 
     @Test
+    void anAcceptedEvictionIsReportedYesEvenWhileStillInFlight() {
+        // Every real handler is asynchronous: it teleports, restores an
+        // inventory, and releases from a callback some ticks later. Reporting
+        // that as a refusal told every asker the mode had said no.
+        AtomicInteger handlerRuns = new AtomicInteger();
+        Claim owned = ffa.claim(player, "arena", () -> {
+            handlerRuns.incrementAndGet();
+            return true;
+        }).orElseThrow();
+
+        assertTrue(Sessions.release(player), "accepted, even though nothing has finished yet");
+        assertTrue(owned.isCurrent(), "and the claim stands until the owner lets go");
+
+        // Asking again must not start a second departure.
+        assertTrue(Sessions.release(player));
+        assertEquals(1, handlerRuns.get());
+
+        owned.release();
+        assertTrue(Sessions.isFree(player));
+    }
+
+    @Test
     void aHandlerThatRefusesLeavesTheClaimStanding() {
-        ffa.claim(player, "arena", () -> { /* combat tagged: refuses */ }).orElseThrow();
+        AtomicInteger asked = new AtomicInteger();
+        ffa.claim(player, "arena", () -> {
+            asked.incrementAndGet();
+            return false; // combat tagged
+        }).orElseThrow();
+
         assertFalse(Sessions.release(player));
         assertFalse(Sessions.isFree(player));
+        // A refusal is retryable: the player may stop being tagged.
+        assertFalse(Sessions.release(player));
+        assertEquals(2, asked.get());
     }
 
     @Test

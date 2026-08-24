@@ -190,8 +190,9 @@ public final class Sessions {
      * registered how to undo its own hold when it took the claim.
      *
      * @param player the player
-     * @return true if the player is free afterwards, including when they
-     *         already were
+     * @return true if the player is free or on their way to being free —
+     *         see {@link Claim#evict()} for why that is not the same thing.
+     *         False means the holder refused.
      */
     public static boolean release(@NotNull UUID player) {
         Claim claim = CLAIMS.get(player);
@@ -202,7 +203,7 @@ public final class Sessions {
      * Asks whoever has this player to give them back.
      *
      * @param player the player
-     * @return true if the player is free afterwards
+     * @return true if the player is free or on their way to being free
      */
     public static boolean release(@NotNull Player player) {
         return release(player.getUniqueId());
@@ -306,7 +307,7 @@ public final class Sessions {
      * for the same player is decided, and deciding it with a get followed by a
      * put is the bug the whole module exists to remove.
      */
-    static @Nullable Claim open(UUID player, String plugin, String kind, @Nullable Runnable onEvict) {
+    static @Nullable Claim open(UUID player, String plugin, String kind, @Nullable java.util.function.BooleanSupplier onEvict) {
         Claim taken = new Claim(player, plugin, kind, TOKENS.incrementAndGet(), onEvict);
         Claim existing = CLAIMS.putIfAbsent(player, taken);
         if (existing != null) return null;
