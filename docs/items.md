@@ -101,7 +101,7 @@ back plain rather than blocking.
 | --- | --- |
 | `name` | the name painted on the item |
 | `display-name` | the name in plain form, for messages and logs |
-| `lore` | the tooltip lines; `<nl>` splits one entry into several, in the file or in a substituted value |
+| `lore` | the tooltip lines; `<nl>`, real CRLF/LF/CR, and literal `\n` split one entry into several, in the file or in a substituted value ([`Lines`](text.md#lines-written-for-several-lines) reads the same shape from your own keys) |
 | `amount` | the stack size, as a number or a placeholder |
 
 `name` and `display-name` are **separate**, not a fallback pair. `name` is what

@@ -6,6 +6,7 @@ import net.exylia.lib.item.Source;
 import net.exylia.lib.placeholder.Placeholders;
 import net.exylia.lib.skull.SkullSource;
 import net.exylia.lib.skull.Skulls;
+import net.exylia.lib.text.Lines;
 import net.exylia.lib.text.Text;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.TextDecoration;
@@ -42,7 +43,7 @@ public final class ItemRenderer {
      * <p>The same spelling {@link ItemReader} splits templates on, so a value a
      * plugin passes in and a line written in a file mean the same thing by it.
      */
-    private static final String NEWLINE = "<nl>";
+    private static final String NEWLINE = Lines.NEWLINE;
 
     private ItemRenderer() {
     }
@@ -351,17 +352,42 @@ public final class ItemRenderer {
     static List<Component> lore(List<String> written, Player viewer,
                                 Map<String, String> values, Set<String> formatted) {
         List<Component> lines = new ArrayList<>(written.size());
+        Map<String, String> normalized = normalized(values);
         for (String line : written) {
-            int spans = spans(line, values);
+            int spans = spans(line, normalized);
             if (spans == 1) {
-                lines.add(text(line, viewer, values, formatted));
+                lines.add(text(line, viewer, normalized, formatted));
                 continue;
             }
             for (int index = 0; index < spans; index++) {
-                lines.add(text(line, viewer, segment(values, index), formatted));
+                lines.add(text(line, viewer, segment(normalized, index), formatted));
             }
         }
         return lines;
+    }
+
+    /**
+     * Row values with every line-break spelling folded to the canonical marker.
+     *
+     * <p>A value read from a config arrives with a literal {@code \n}, the way
+     * commons wrote it, and {@code spans} and {@code segment} only recognise
+     * {@code <nl>}. Folding here keeps the writer's spellings honest in one
+     * place instead of asking every plugin to normalise its own descriptions.
+     */
+    private static Map<String, String> normalized(Map<String, String> values) {
+        boolean folded = false;
+        Map<String, String> out = values;
+        for (Map.Entry<String, String> entry : values.entrySet()) {
+            String foldedValue = Lines.join(Lines.split(entry.getValue()));
+            if (!foldedValue.equals(entry.getValue())) {
+                if (!folded) {
+                    out = new LinkedHashMap<>(values);
+                    folded = true;
+                }
+                out.put(entry.getKey(), foldedValue);
+            }
+        }
+        return out;
     }
 
     /**

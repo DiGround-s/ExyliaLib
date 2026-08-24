@@ -14,7 +14,7 @@ against the source — rules and routes are in `AGENTS.md` under
 | [Effects](effects.md) | Titles, action bars, boss bars, sounds, particles, fireworks — from config | 1.4.0 |
 | [Scoreboard](scoreboard.md) | Packet sidebars declared in config | 1.5.0 |
 | [Hologram](hologram.md) | Packet holograms declared in config | 1.6.0 |
-| [Client](client.md) | Lunar/Feather waypoints, client cooldowns, teammate markers and teams | 1.7.0 |
+| [Client](client.md) | Lunar/Feather waypoints, client cooldowns, teammate markers and teams; owned per plugin since 1.48.0 | 1.7.0 |
 | [Clan](clan.md) | One API over SimpleClans, Kingdoms, UltimateClans and external bridges | 1.8.0 |
 | [Cooldowns](cooldowns.md) | The base every cooldown in the ecosystem sits on | 1.10.0 |
 | [Utilities](util.md) | `util.Effects` (potions from strings) and `TimeFormats` | 1.9.0 |
@@ -40,7 +40,11 @@ against the source — rules and routes are in `AGENTS.md` under
 | [Combat](combat.md) | Whether a player is in combat, over DeluxeCombat, PvPManager or a bridge you write | 1.36.0 |
 | [World](world.md) | Creating and deleting worlds through the Worlds plugin, from any thread — and doing nothing loudly when it is absent | 1.36.0 |
 | [Transfer](transfer.md) | A plugin's whole database out to one file and back — moving from H2 to MySQL, or onto another server | 1.36.0 |
-| [Schematics](schematics.md) | Saving a box of the world and pasting it back — arenas regenerated between matches, with their chests still full | 1.47.0 |
+| [Schematics](schematics.md) | Saving a box of the world and pasting it back — arenas regenerated between matches, with their chests still full | 1.48.0 |
+Migration notes:
+
+- [Migrating ExyliaFFA](migration-ffa.md) — what FFA needs, and the four things
+  that change behaviour rather than moving.
 
 Root classes that are not a module:
 

@@ -235,11 +235,15 @@ owner wrote it, or a player typed it.
 
 ### A value that spans several lore lines
 
-A value containing `<nl>` becomes several lore lines. This is for descriptions
-that live in a config and are too long for one:
+A value containing `<nl>` becomes several lore lines. `Lines.value` normalizes
+real CRLF/LF/CR breaks and literal `\n` from configuration into that canonical
+form. This is for descriptions that live in a config and are too long for one:
 
 ```java
 .withFormatted("description", String.join("<nl>", effect.lore()))
+
+// Straight from a config key that may be a String or a list:
+.withFormatted("description", Lines.value(section, "description"))
 ```
 
 ```yaml
@@ -252,10 +256,12 @@ second line gets the same bullet as the first. Values beside it repeat on every
 line rather than vanishing after the first, and only lines that actually mention
 the multi-line value are stretched.
 
-`<nl>` written in the **file** is split when the file is read, so it costs
-nothing at render time. In a **value** it is split as the row is drawn — every
-expanded line comes from the same template string, so they share one parse and
-the cost is a substitution per line, never a parse per line.
+Supported separators written in the **file** are normalized and split when the
+file is read, so they cost nothing at render time. In a **value**, the canonical
+`<nl>` is split as the row is drawn — every expanded line comes from the same
+template string, so they share one parse and the cost is a substitution per line,
+never a parse per line. Reading your own config key into either shape is
+[`Lines`](text.md#lines-written-for-several-lines).
 
 An expanded value is still literal unless you asked for `withFormatted`:
 expanding is not a second door into the parser.

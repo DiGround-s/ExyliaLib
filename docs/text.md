@@ -175,6 +175,63 @@ Flipping the switch and running `/exylialib reload` restyles the server live —
 the parse cache is dropped, and boards, holograms, effects and items re-send
 themselves, exactly as a palette change does.
 
+## Lines written for several lines
+
+Since 1.49.0. A description belongs next to the thing it describes, so a server
+owner writes it on the one YAML line that already names that thing. Drawn as
+written it is a tooltip running off the screen, so `<nl>`, a real line break, or
+the literal `\n` sequence marks where it should break — one written line,
+several readable ones.
+
+The same key is a String in one file and a list in the next, because one
+sentence reads as a String and five bullets read as a list. `Lines` accepts both
+rather than making the owner learn which shape a key wanted:
+
+```yaml
+# Either of these, and both read the same.
+description: "Hits nearby players<nl>and knocks them back."
+
+description:
+  - "Hits nearby players"
+  - "and knocks them back."
+
+# YAML double quotes turn \n into a real line break; either form is accepted.
+description: "Hits nearby players\nand knocks them back."
+
+# A literal backslash plus n is also a separator.
+description: "Hits nearby players\\nand knocks them back."
+```
+
+```java
+List<String> lore = Lines.read(section, "description", "lore");
+
+// Or as one value for a menu row, expanded into lore lines as it is drawn.
+entry.withFormatted("description", Lines.value(section, "description"));
+```
+
+| Method | Contract |
+| --- | --- |
+| `Lines.NEWLINE` | the canonical `<nl>` token |
+| `read(section, keys...)` | the lines a key describes; String or list, all supported separators split, never `null` |
+| `value(section, keys...)` | the same read back as one canonical `<nl>` value, or `""` |
+| `split(String)` | split an already-resolved value; normalizes CRLF, LF, CR, and literal `\n`; `List.of()` for null or empty |
+| `join(List)` | join lines into canonical `<nl>` format; `""` for null or empty |
+
+Contracts:
+
+- **Keys are tried in order and the first one the file carries answers.** That
+  is how a renamed key keeps reading files written before the rename.
+- **A key holding nothing falls through** to the next spelling, so an empty list
+  does not shadow the key that has the text.
+- **Trailing blank lines survive.** A lore block ends on a blank line on
+  purpose, and dropping it closes the gap the owner asked for.
+- **What comes back cannot be modified**, and is never `null`.
+
+`<nl>`, real CRLF/LF/CR breaks, and literal `\n` written in a **file** are
+normalized and split when the file is read, so they cost nothing at render time.
+In a **value** the canonical `<nl>` form is split as the row is drawn — see
+[menus](menus.md).
+
 ## Performance
 
 - Text with no formatting characters skips the parser entirely.
@@ -194,8 +251,9 @@ themselves, exactly as a palette change does.
 
 ## Source and tests
 
-- Public: `text/Text.java`, `text/Colors.java`, `text/Palette.java`.
+- Public: `text/Text.java`, `text/Colors.java`, `text/Palette.java`,
+  `text/Lines.java`.
 - Internal: `text/internal/` (`TextEngine`, `FormatScanner`,
   `LegacyTranslator`, `TokenResolver`, `SmallText`).
 - Tests: `src/test/java/net/exylia/lib/text/TextModuleTest.java`,
-  `SmallTextTest.java`.
+  `SmallTextTest.java`, `LinesTest.java`.
