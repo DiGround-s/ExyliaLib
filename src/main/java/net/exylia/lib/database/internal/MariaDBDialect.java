@@ -75,7 +75,7 @@ final class MariaDBDialect extends MySQLDialect {
     @NotNull Map<String, String> urlParameters() {
         Map<String, String> parameters = new LinkedHashMap<>();
         parameters.put("rewriteBatchedStatements", "true");
-        parameters.put("characterEncoding", "utf8mb4");
+        parameters.put("characterEncoding", "UTF-8");
         return parameters;
     }
 

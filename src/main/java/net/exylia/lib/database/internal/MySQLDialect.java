@@ -89,9 +89,13 @@ class MySQLDialect extends AnsiDialect {
      *       multi-row statement instead of one round trip per row. Measured at
      *       8.8x on a 1000-row batch. Off by default, so a batch without it is
      *       a loop with extra steps.</li>
-     *   <li>{@code characterEncoding=utf8mb4} — a chat message or an item name
+     *   <li>{@code characterEncoding=UTF-8} — a chat message or an item name
      *       with an emoji in it is four bytes per character, and the older
-     *       three-byte {@code utf8} truncates the row at the first one.</li>
+     *       three-byte {@code utf8} truncates the row at the first one. The
+     *       value is a Java encoding name, not a MySQL charset name: connector-j
+     *       maps {@code UTF-8} onto {@code utf8mb4} on MySQL 8, and rejects the
+     *       literal {@code utf8mb4} outright since connector 9 with
+     *       "Unsupported character encoding".</li>
      *   <li>{@code connectionTimeZone=SERVER}, not the {@code serverTimezone}
      *       every old guide still shows: that name is deprecated in
      *       connector 8.x and dropped later.</li>
@@ -111,7 +115,7 @@ class MySQLDialect extends AnsiDialect {
     @NotNull Map<String, String> urlParameters() {
         Map<String, String> parameters = new LinkedHashMap<>();
         parameters.put("rewriteBatchedStatements", "true");
-        parameters.put("characterEncoding", "utf8mb4");
+        parameters.put("characterEncoding", "UTF-8");
         parameters.put("connectionTimeZone", "SERVER");
         parameters.put("sslMode", "PREFERRED");
         parameters.put("allowPublicKeyRetrieval", "true");

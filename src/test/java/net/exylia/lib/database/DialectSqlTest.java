@@ -641,7 +641,7 @@ class DialectSqlTest {
         String url = MYSQL.jdbcUrl(SqlSettings.remote("mysql", "db.local", 0, "practice", "u", "p"));
         assertEquals("jdbc:mysql://db.local:3306/practice"
                         + "?rewriteBatchedStatements=true"      // 8.8x on a batch, off by default
-                        + "&characterEncoding=utf8mb4"          // an emoji is four bytes
+                        + "&characterEncoding=UTF-8"            // a Java encoding name; utf8mb4 is not one
                         + "&connectionTimeZone=SERVER"          // serverTimezone is deprecated
                         + "&sslMode=PREFERRED"                  // useSSL is deprecated
                         + "&allowPublicKeyRetrieval=true",      // caching_sha2_password needs it
@@ -653,7 +653,7 @@ class DialectSqlTest {
     void mariadbUrl() {
         String url = MARIADB.jdbcUrl(SqlSettings.remote("mariadb", "db.local", 3307, "practice", "u", "p"));
         assertEquals("jdbc:mariadb://db.local:3307/practice"
-                        + "?rewriteBatchedStatements=true&characterEncoding=utf8mb4", url);
+                        + "?rewriteBatchedStatements=true&characterEncoding=UTF-8", url);
         assertFalse(url.contains("allowPublicKeyRetrieval"));
         assertFalse(url.contains("sslMode"));
     }
