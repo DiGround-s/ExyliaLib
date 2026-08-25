@@ -194,6 +194,38 @@ public final class ItemRenderer {
         return filled;
     }
 
+    /**
+     * Builds the object an icon string names, with nothing written on it.
+     *
+     * <p>The same grammar {@link #base} reads, asked without a definition, a
+     * viewer or anywhere to report to — which is the question a stored icon is:
+     * a column holds {@code DIAMOND_SWORD} or {@code bytes:...}, and something
+     * has to draw it.
+     *
+     * <p>Falls back to paper rather than to stone, and swallows what
+     * {@link #base} would have reported. A row nobody can see is a row nobody
+     * can delete, and paper reads as "this could not be read" where a stone
+     * block reads as somebody's configuration.
+     */
+    public static ItemStack icon(String source) {
+        try {
+            return switch (Source.of(source)) {
+                case Source.OfSnapshot snapshot -> ItemStack.deserializeBytes(
+                        Base64.getDecoder().decode(snapshot.base64()));
+                case Source.OfMaterial material -> {
+                    Material type = Registries.material(material.raw());
+                    yield new ItemStack(type == null ? Material.PAPER : type);
+                }
+                case Source.OfHead head -> Skulls.of(head.head()).item();
+                // No viewer, so there is nobody to resolve the owner against.
+                // It draws as the plain head it will become.
+                case Source.OfHeadTemplate ignored -> new ItemStack(Material.PLAYER_HEAD);
+            };
+        } catch (RuntimeException | LinkageError unreadable) {
+            return new ItemStack(Material.PAPER);
+        }
+    }
+
     /** Builds the object the item starts as. */
     private static ItemStack base(Source declared, UnaryOperator<String> resolve,
                                   TraitApplier.Reporter problems) {

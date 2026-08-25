@@ -34,6 +34,7 @@ together on every render.
 | `Items.of(plugin)` | the reader belonging to a plugin |
 | `Items.parse(section)` | read an item with no owner |
 | `Items.parse(section, problems)` | the same, reporting bad parts |
+| `Items.icon(source)` | build the item an icon string names |
 | `Items.banner(base64)` | decode a saved banner design |
 | `Items.encode(banner)` | encode one |
 
@@ -125,6 +126,32 @@ configuration. They are also nearly all of an item's size. A kit sword's name
 and lore are gradients and palette tokens, which serialise as component JSON and
 run past the 512 characters an icon column allows, so keeping them meant a real
 kit item could not be used as an icon at all.
+
+### Drawing a stored icon
+
+The round trip's other end. `Source.of(ItemStack)` gives you the string to
+store; `Items.icon(...)` gives you the item back:
+
+```java
+ItemStack icon = Items.icon(home.icon());
+```
+
+One call, the whole grammar, nothing written on it. No plugin, no viewer and no
+section, because a column holding `DIAMOND_SWORD` or `bytes:...` has none of
+those. It is what every editor row in the library is drawn with.
+
+**A menu icon does not need this.** Write `material: "%home_icon%"` in the file
+and the row resolves it with the viewer, the placeholders and whatever traits
+the definition asks for. `Items.icon` is for the caller holding a bare string
+and nothing else — a `Material` for a comparison, an item for an inventory.
+
+Two answers are worth knowing before relying on them. A string that names
+nothing, or a `bytes:` value that cannot be decoded, comes back as **paper**
+rather than as nothing at all: an unreadable row is still a row somebody has to
+be able to see and delete, and paper reads as "this could not be read" where a
+stone block reads as somebody's configuration. And a head whose owner is written
+as a placeholder comes back plain, since there is no viewer here to resolve it
+against — render the definition instead if you need the finished one.
 
 ### Text
 

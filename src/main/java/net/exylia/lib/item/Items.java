@@ -2,7 +2,9 @@ package net.exylia.lib.item;
 
 import net.exylia.lib.item.internal.BannerCodec;
 import net.exylia.lib.item.internal.ItemReader;
+import net.exylia.lib.item.internal.ItemRenderer;
 import org.bukkit.configuration.ConfigurationSection;
+import org.bukkit.inventory.ItemStack;
 import org.bukkit.plugin.Plugin;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -78,6 +80,38 @@ public final class Items {
     public static @NotNull Item parse(@NotNull ConfigurationSection section,
                                       @NotNull Problems problems) {
         return ItemReader.read(section, problems);
+    }
+
+    /**
+     * Builds the object an icon string names.
+     *
+     * <p>The whole grammar {@link Source} reads, in one call and with nothing
+     * written on it: a material name, a {@code bytes:} snapshot of an item
+     * somebody held, or a head. What a database column holds when a plugin
+     * stored "what this should be drawn as", which is a kit, a warp, a home, an
+     * arena and a reward in every plugin in the ecosystem.
+     *
+     * <pre>{@code
+     * ItemStack icon = Items.icon(home.icon());
+     * }</pre>
+     *
+     * <p>This is the short way for a caller holding a bare string and nothing
+     * else. An icon that belongs to a menu does not need it: write
+     * {@code material: "%home_icon%"} in the file and the row resolves it,
+     * with the viewer, the placeholders and the traits the definition asks for.
+     *
+     * <p>A string that names nothing, or a snapshot that cannot be read, comes
+     * back as paper rather than as nothing at all — an unreadable row is still
+     * a row somebody has to be able to select and delete. A head whose owner is
+     * written as a placeholder comes back plain, since there is no viewer here
+     * to resolve it against.
+     *
+     * @param source the icon value as stored
+     * @return the item; never {@code null}
+     * @since 1.58.0
+     */
+    public static @NotNull ItemStack icon(@NotNull String source) {
+        return ItemRenderer.icon(source);
     }
 
     /**

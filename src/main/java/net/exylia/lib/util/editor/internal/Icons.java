@@ -1,7 +1,6 @@
 package net.exylia.lib.util.editor.internal;
 
-import net.exylia.lib.item.Source;
-import net.exylia.lib.skull.Skulls;
+import net.exylia.lib.item.Items;
 import net.exylia.lib.text.Text;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.TextDecoration;
@@ -12,7 +11,6 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
-import java.util.Base64;
 import java.util.List;
 
 /**
@@ -26,9 +24,6 @@ import java.util.List;
  * otherwise be rendered in a style nobody asked for.
  */
 public final class Icons {
-
-    /** What a row draws as when its icon string names nothing. */
-    private static final Material FALLBACK = Material.PAPER;
 
     private Icons() {
         throw new AssertionError("No instances.");
@@ -99,25 +94,7 @@ public final class Icons {
      * @return the item; never {@code null}
      */
     public static @NotNull ItemStack base(@NotNull String icon) {
-        try {
-            return switch (Source.of(icon)) {
-                case Source.OfSnapshot bytes -> ItemStack.deserializeBytes(
-                        Base64.getDecoder().decode(bytes.base64()));
-                case Source.OfMaterial material -> material(material.raw());
-                // A head whose texture is already known is free to draw; one that
-                // depends on a placeholder has no viewer here, so it draws as the
-                // plain head it will become.
-                case Source.OfHead head -> Skulls.of(head.head()).item();
-                case Source.OfHeadTemplate ignored -> new ItemStack(Material.PLAYER_HEAD);
-            };
-        } catch (RuntimeException | LinkageError unreadable) {
-            return new ItemStack(FALLBACK);
-        }
-    }
-
-    private static ItemStack material(String name) {
-        Material material = Material.matchMaterial(name);
-        return new ItemStack(material == null ? FALLBACK : material);
+        return Items.icon(icon);
     }
 
     private static ItemStack write(ItemStack item, String name, List<String> lore, boolean glow) {
