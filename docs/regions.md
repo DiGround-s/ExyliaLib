@@ -260,6 +260,38 @@ none holds no timer at all. Removal runs on the thread that owns the block, and
 the material is checked again first — a block broken and replaced with something
 else is not the one that was placed.
 
+## Clearing what a region collected
+
+A region that hosts rounds fills up with what the last one dropped. Clearing it
+is one call, and it is about geometry rather than ownership — the snapshot is
+already in the caller's hand:
+
+```java
+regions.get("arena").ifPresent(regions::clearEntities);
+```
+
+Loose means dropped items, experience orbs, projectiles, minecarts, end crystals
+and fireworks. Armour stands, item frames, paintings and mobs are **not**
+touched: a decorated region cleared between rounds would lose its decoration
+once and never say so. Widen or narrow it with a predicate, which sees every
+non-player entity inside the shape:
+
+```java
+int removed = regions.clearEntities(arena, entity -> entity instanceof Monster);
+```
+
+Players are never removed, whatever the predicate answers. Membership is the
+shape's own, not its bounding box's, so a spherical region leaves the corners of
+the cube around it alone; the box only narrows the world read.
+
+It is a world read, so it runs on the thread that owns the region — hop through
+`Tasks.of(plugin).runAtLocation(...)` first. A region whose world is not loaded
+returns `0` rather than throwing.
+
+For the regeneration case there is nothing to call: `RegenerateOptions` already
+carries `clearEntities`, and [schematics](schematics.md) does it inside the same
+pipeline. This is for clearing without regenerating.
+
 ## Selecting
 
 ```java
@@ -401,5 +433,5 @@ ExyliaLib registers one listener for the whole server.
 | | |
 | --- | --- |
 | Public API | `region/Regions`, `PluginRegions`, `RegionSnapshot`, `RegionId`, `WorldIdentity`, `BlockPosition`, `RegionShape` (`Cuboid`, `UnboundedYRectangle`, `Sphere`, `HorizontalCylinder`), `HorizontalBounds`, `VerticalBounds`, `PolicyKey`, `PolicySet`, `PolicyResolution`, `CommonRegionPolicies`, `RegionData`, `RegionCodec`, `PlayerRegionChangeEvent`, `RegionChangeCause`, `SelectionOptions`, `SelectionSession`, `SelectionResult`, `SelectionState`, `VisualizationOptions`, `RegionVisualization` |
-| Internal | `region/internal/RegionIndex`, `RegionRuntime`, `RegionListener`, `PlacedBlockRuntime`, `PlacedBlockListener`, `PositionSet`, `SelectionRuntime`, `SelectionListener`, `SelectorWand`, `SelectionPreview`, `VisualizationRuntime`, `OutlineSampler` |
+| Internal | `region/internal/RegionIndex`, `RegionRuntime`, `RegionListener`, `PlacedBlockRuntime`, `PlacedBlockListener`, `PositionSet`, `RegionEntities`, `SelectionRuntime`, `SelectionListener`, `SelectorWand`, `SelectionPreview`, `VisualizationRuntime`, `OutlineSampler` |
 | Lifecycle | `ExyliaLib` — listener registration, release before `Tasks.release` |

@@ -1,12 +1,15 @@
 package net.exylia.lib.region;
 
 import net.exylia.lib.region.internal.PlacedBlockRuntime;
+import net.exylia.lib.region.internal.RegionEntities;
 import net.exylia.lib.region.internal.RegionRuntime;
 import net.exylia.lib.region.internal.SelectionRuntime;
 import net.exylia.lib.region.internal.VisualizationRuntime;
+import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.block.Block;
 import org.bukkit.World;
+import org.bukkit.entity.Entity;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
 
@@ -17,6 +20,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.function.Predicate;
 
 /** Owner-scoped access to the shared region runtime for one exact plugin instance. */
 public final class PluginRegions {
@@ -175,6 +179,65 @@ public final class PluginRegions {
             if (PlacedBlockRuntime.tracked(regions.get(index).id(), x, y, z)) return true;
         }
         return false;
+    }
+
+    /**
+     * Removes the loose entities a region contains.
+     *
+     * <p>Loose means what a round leaves behind: dropped items, experience
+     * orbs, projectiles, minecarts, end crystals and fireworks. Armour stands,
+     * item frames, paintings and mobs are left alone, because a decorated
+     * region cleared between rounds would lose its decoration once and never
+     * say so. Pass a predicate to widen or narrow that.
+     *
+     * <p>Membership is the shape's, not its bounding box's: a spherical region
+     * does not clear the corners of the cube around it. Players are never
+     * removed.
+     *
+     * <pre>{@code
+     * regions.get("arena").ifPresent(regions::clearEntities);
+     * }</pre>
+     *
+     * <p>Ownership is not checked. The region is read as geometry, and the
+     * caller already holds the snapshot.
+     *
+     * <h2>Threading</h2>
+     * A world read, so it runs on the thread that owns the region — hop through
+     * {@code Tasks.of(plugin).runAtLocation(...)} first. Returns {@code 0} when
+     * the region's world is not loaded.
+     *
+     * @param region the region to clear
+     * @return how many entities were removed
+     * @since 1.58.0
+     */
+    public int clearEntities(@NotNull RegionSnapshot region) {
+        return clearEntities(region, RegionEntities::loose);
+    }
+
+    /**
+     * Removes the entities a region contains that a predicate accepts.
+     *
+     * <p>The predicate sees every non-player entity inside the shape, so it
+     * decides alone: {@code entity -> true} clears everything a player is not.
+     *
+     * <h2>Threading</h2>
+     * A world read, so it runs on the thread that owns the region — hop through
+     * {@code Tasks.of(plugin).runAtLocation(...)} first. Returns {@code 0} when
+     * the region's world is not loaded.
+     *
+     * @param region the region to clear
+     * @param which  what to remove among the entities inside
+     * @return how many entities were removed
+     * @since 1.58.0
+     */
+    public int clearEntities(@NotNull RegionSnapshot region, @NotNull Predicate<Entity> which) {
+        Objects.requireNonNull(region, "region");
+        Objects.requireNonNull(which, "which");
+        World world = Bukkit.getWorld(region.worldId());
+        if (world == null) {
+            return 0;
+        }
+        return RegionEntities.clear(world, region.shape(), which);
     }
 
     /**
