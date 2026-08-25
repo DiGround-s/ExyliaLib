@@ -1,12 +1,13 @@
 # Migrating ExyliaCapture
 
-What ExyliaCapture needs from this library, what is genuinely missing, and the
-things that change behaviour rather than just moving. Written against the source
-of both repositories, not from memory.
+**Done.** ExyliaCapture builds against ExyliaLib 1.61.0 and carries no
+ExyliaCommons import. This is what the move consisted of, kept because the
+column formats and the behaviour changes below are the parts somebody will have
+to check against a live server.
 
-ExyliaCapture is 76 files and about 10,900 lines. It is the second-largest
-migration after ExyliaFFA, which is finished and is the reference for every
-mechanical part of this one — see [migration-ffa.md](migration-ffa.md).
+ExyliaCapture was 76 files and about 10,900 lines. It is the second-largest
+migration after ExyliaFFA, which is the reference for every mechanical part of
+this one — see [migration-ffa.md](migration-ffa.md).
 
 ## Nothing blocks the migration
 
