@@ -17,6 +17,10 @@ import org.bukkit.entity.Player;
  * reading "Waiting for players" is a constant, and re-rendering it sixty times a
  * second would be pure waste.
  *
+ * <p>{@code %time_formatted%} is the name ExyliaCommons wrote the same value
+ * under, and it still means the same thing: a server carrying a config from
+ * before the move does not have to edit it to get its countdowns back.
+ *
  * <p>Second, {@code %time%} is handled here rather than being registered as a
  * global placeholder. A timer belongs to one effect, so a global registration
  * would have no way of knowing which one is being asked about, and two
@@ -40,6 +44,8 @@ final class Rendered {
      * walks per player per tick for nothing.
      */
     private final boolean hasTime;
+    /** ExyliaCommons' name for the same value, so an old config keeps working. */
+    private final boolean hasFormatted;
     private final boolean hasTotal;
     private final boolean hasElapsed;
     private final boolean hasRemaining;
@@ -52,6 +58,7 @@ final class Rendered {
         this.timeStyle = timeStyle;
         boolean anyTime = raw.indexOf("%time") >= 0;
         this.hasTime = anyTime && raw.contains("%time%");
+        this.hasFormatted = anyTime && raw.contains("%time_formatted%");
         this.hasTotal = anyTime && raw.contains("%time_total%");
         this.hasElapsed = anyTime && raw.contains("%time_elapsed%");
         this.hasRemaining = anyTime && raw.contains("%time_remaining%");
@@ -87,6 +94,10 @@ final class Rendered {
         if (timer != null) {
             if (hasTime) {
                 text = text.with("%time%", TimeFormats.render(timer.displayed(), timeStyle));
+            }
+            if (hasFormatted) {
+                text = text.with("%time_formatted%",
+                        TimeFormats.render(timer.displayed(), timeStyle));
             }
             if (hasTotal) {
                 text = text.with("%time_total%", TimeFormats.render(timer.total(), timeStyle));

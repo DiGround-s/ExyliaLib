@@ -84,6 +84,23 @@ class DisplayTest {
         assertEquals("0.9", seen.get(1));
     }
 
+    /**
+     * ExyliaCommons wrote the same number into %time_formatted%, and a server
+     * carrying that config over must not have to edit it to get its countdowns
+     * back.
+     */
+    @Test
+    @DisplayName("the old name for the countdown still counts")
+    void countdownCountsUnderItsOldName() {
+        Effects.actionBar("%time_formatted%").countdown(1.0).timeStyle("tenths").show(viewer.player());
+        FakeServer.tick(1);
+        viewer.clear();
+
+        FakeServer.tick(1);
+
+        assertEquals("0.9", viewer.actionBars().get(0));
+    }
+
     @Test
     @DisplayName("a countdown ends by itself and stops its task")
     void countdownEndsItself() {
