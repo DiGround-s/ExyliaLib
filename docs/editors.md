@@ -141,35 +141,17 @@ config column, and a caller that wants the object looks it up once.
 
 ## The icon picker
 
+It is not here: an icon is a question, and questions live in the input module.
+
 ```java
-editors.icon()
-       .title("{primary}&lARENA ICON")
-       .open(player, icon -> arenas.save(arena.withIcon(icon)));
+Inputs.of(this).icon(player, "{primary}&lARENA ICON")
+      .open(icon -> arenas.save(arena.withIcon(icon)));
 ```
 
-The answer is a `material` value — the same string a menu file writes, read by
-the same grammar — so it goes straight into a column and straight into
-`material: "%arena_icon%"`.
-
-| Way | What it is |
-| --- | --- |
-| `MATERIAL` | the searchable list of everything the server has |
-| `INSERT` | a window with one slot: put the item in, and that item is the answer |
-| `HEAD` | a base64 texture or skin URL, pasted |
-
-`ways(...)` restricts and reorders them; one way is not a question, so the
-picker goes straight to it.
-
-**`INSERT` replaces reading the player's main hand.** That meant closing the
-screen you were on, finding the item, holding it and reopening — and from inside
-a menu it could not be done at all. The item is read exactly as it is, custom
-model and all, and **comes back to you on every ending**: confirming, closing
-the window, leaving the server, the plugin being disabled. Whatever will not fit
-is dropped at your feet. An icon picker that ate a diamond sword would be a
-theft, not a feature.
-
-The same window is what `items(...)` uses to add and to replace a row, because
-an item is not something you type.
+Its three ways — the searchable material list, a one-slot **insert** window, and
+a pasted head — are documented in [input.md](input.md). The reward and loot
+editors call it when a row needs an item, and `items(...)` uses the same window
+to add and to replace a row, because an item is not something you type.
 
 ## Buttons of your own
 
@@ -298,9 +280,9 @@ its gating plus a sequence rather than a forty-field bean over eight types.
 
 | Part | Where |
 | --- | --- |
-| Public API | `util/editor/Editors`, `PluginEditors`, `ListEditor`, `EditorDescriptor`, `EditorForm`, `EditorButton`, `EditorView`, `Clipboard`, `IconPicker`, `Pickers` |
+| Public API | `util/editor/Editors`, `PluginEditors`, `ListEditor`, `EditorDescriptor`, `EditorForm`, `EditorButton`, `EditorView`, `Clipboard`, `Pickers` |
 | Shipped descriptors | `util/reward/RewardDescriptor`, `util/loot/LootDescriptor`, `util/command/NamedCommandDescriptor`, `util/sequence/EffectDescriptor`, `util/PotionEffectDescriptor`, `util/editor/ItemListEditor`, `LocationDescriptor` |
-| Internal | `util/editor/internal/` — `EditorRuntime`, `EditorHolder`, `EditorListener`, `InsertWindow`, `Icons` |
+| Internal | `util/editor/internal/` — `EditorRuntime`, `EditorHolder`, `EditorListener`, `Icons` |
 | Tests | `src/test/java/net/exylia/lib/util/editor/` |
 
 ## Reload

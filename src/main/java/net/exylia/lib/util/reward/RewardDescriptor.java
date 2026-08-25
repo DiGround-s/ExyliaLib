@@ -5,7 +5,6 @@ import net.exylia.lib.input.FormValues;
 import net.exylia.lib.input.Inputs;
 import net.exylia.lib.util.editor.EditorDescriptor;
 import net.exylia.lib.util.editor.EditorForm;
-import net.exylia.lib.util.editor.Editors;
 import org.bukkit.Material;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
@@ -143,12 +142,11 @@ public final class RewardDescriptor implements EditorDescriptor<RewardEntry> {
     public @NotNull CompletionStage<Optional<RewardEntry>> edit(@NotNull Player viewer,
                                                                 @NotNull RewardEntry entry) {
         if (entry.type() == RewardType.ITEM) {
-            return Editors.of(plugin).icon()
-                    .title("{primary}&lWHAT ITEM?")
-                    .open(viewer)
-                    .thenCompose(icon -> icon.isEmpty()
-                            ? CompletableFuture.completedFuture(Optional.<RewardEntry>empty())
-                            : form(viewer, entry.toBuilder().itemSnapshot(icon.get()).build()));
+            return Inputs.of(plugin).icon(viewer, "{primary}&lWHAT ITEM?")
+                    .open()
+                    .thenCompose(icon -> icon.completed()
+                            ? form(viewer, entry.toBuilder().itemSnapshot(icon.value()).build())
+                            : CompletableFuture.completedFuture(Optional.<RewardEntry>empty()));
         }
         return form(viewer, entry);
     }

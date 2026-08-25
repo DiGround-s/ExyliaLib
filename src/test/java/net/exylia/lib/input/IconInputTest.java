@@ -8,6 +8,12 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
+import org.bukkit.Material;
+
+import java.util.ArrayList;
+import java.util.List;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -88,4 +94,21 @@ class IconInputTest {
         assertThrows(InputException.class, () -> inputs.icon(player, "  "));
         assertThrows(InputException.class, () -> inputs.icon(null, "Pick"));
     }
+    @Test
+    @DisplayName("an icon is asked for by inserting the item, not by holding it")
+    void insertReplacedHeld() {
+        List<String> ways = new ArrayList<>();
+        for (IconInput.Way way : IconInput.Way.values()) {
+            ways.add(way.name());
+        }
+
+        // The one that went: holding the item meant closing the screen you were
+        // on, finding it, holding it and reopening — and from a menu it could
+        // not be done at all.
+        assertEquals(List.of("MATERIAL", "INSERT", "HEAD"), ways);
+        assertEquals("Insert an item", IconInput.Way.INSERT.label());
+        assertSame(Material.HOPPER, IconInput.Way.INSERT.icon());
+    }
+
+
 }

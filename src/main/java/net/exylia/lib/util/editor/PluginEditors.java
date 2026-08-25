@@ -87,16 +87,4 @@ public final class PluginEditors {
         return new Pickers(plugin);
     }
 
-    /**
-     * Asks what something should be drawn as.
-     *
-     * <pre>{@code
-     * editors.icon().open(player, icon -> arenas.save(arena.withIcon(icon)));
-     * }</pre>
-     *
-     * @return the picker, ready to open
-     */
-    public @NotNull IconPicker icon() {
-        return new IconPicker(plugin);
-    }
 }

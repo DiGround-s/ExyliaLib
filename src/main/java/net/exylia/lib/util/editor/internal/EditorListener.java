@@ -34,10 +34,6 @@ public final class EditorListener implements Listener {
         if (!(event.getWhoClicked() instanceof Player viewer)) {
             return;
         }
-        if (event.getView().getTopInventory().getHolder(false) instanceof InsertWindow window) {
-            insertClick(window, viewer, event);
-            return;
-        }
         EditorHolder<?> holder = EditorRuntime.holderOf(event.getView().getTopInventory());
         if (holder == null) {
             return;
@@ -49,25 +45,11 @@ public final class EditorListener implements Listener {
         handle(holder, viewer, event.getSlot(), event.getClick());
     }
 
-    /**
-     * An editor window is never dragged into, and an insert window only into its
-     * one slot.
-     */
+    /** An editor window is never dragged into. */
     @EventHandler(priority = EventPriority.NORMAL)
     public void onDrag(InventoryDragEvent event) {
         if (EditorRuntime.holderOf(event.getView().getTopInventory()) != null) {
             event.setCancelled(true);
-            return;
-        }
-        if (!(event.getView().getTopInventory().getHolder(false) instanceof InsertWindow)) {
-            return;
-        }
-        int top = event.getView().getTopInventory().getSize();
-        for (int slot : event.getRawSlots()) {
-            if (slot < top && slot != InsertWindow.SLOT) {
-                event.setCancelled(true);
-                return;
-            }
         }
     }
 
@@ -80,45 +62,12 @@ public final class EditorListener implements Listener {
      */
     @EventHandler(priority = EventPriority.MONITOR)
     public void onClose(InventoryCloseEvent event) {
-        if (event.getInventory().getHolder(false) instanceof InsertWindow window) {
-            // Whatever was lent to the window goes back, on every ending.
-            window.release(event.getPlayer() instanceof Player viewer ? viewer : null);
-            return;
-        }
         EditorHolder<?> holder = EditorRuntime.holderOf(event.getInventory());
         if (holder == null || holder.isReopening()) {
             return;
         }
         EditorRuntime.forget(holder);
         holder.cancel();
-    }
-
-    /**
-     * A click in the one-slot window.
-     *
-     * <p>The slot itself behaves like a real container slot — that is the whole
-     * point of the window — and every other slot in it is a screen. A click in
-     * the player's own inventory is left alone so items can be moved in.
-     */
-    private static void insertClick(InsertWindow window, Player viewer, InventoryClickEvent event) {
-        if (window.isFinished()) {
-            event.setCancelled(true);
-            return;
-        }
-        boolean inWindow = event.getClickedInventory() == event.getView().getTopInventory();
-        if (!inWindow) {
-            // Shift-clicking from below lands in the only slot that is empty,
-            // which is the one we want, so it is left to Bukkit.
-            return;
-        }
-        if (event.getSlot() == InsertWindow.confirmSlot()) {
-            event.setCancelled(true);
-            window.confirm(viewer);
-            return;
-        }
-        if (!window.isFree(event.getSlot())) {
-            event.setCancelled(true);
-        }
     }
 
     // ------------------------------------------------------------------

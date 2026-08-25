@@ -45,6 +45,11 @@ public final class InputListener implements Listener {
     /** Routes clicks; both transports cancel first and fail closed. */
     @EventHandler(priority = EventPriority.HIGHEST)
     public void onClick(InventoryClickEvent event) {
+        if (event.getView().getTopInventory().getHolder(false) instanceof InsertWindow window
+                && event.getWhoClicked() instanceof Player viewer) {
+            window.click(viewer, event);
+            return;
+        }
         MenuTransport menu = MenuTransport.transportOf(event.getView().getTopInventory());
         if (menu != null) {
             menu.click(event);
@@ -59,6 +64,10 @@ public final class InputListener implements Listener {
     /** Routes drags so no drag variant can write into an input window. */
     @EventHandler(priority = EventPriority.HIGHEST)
     public void onDrag(InventoryDragEvent event) {
+        if (event.getView().getTopInventory().getHolder(false) instanceof InsertWindow) {
+            InsertWindow.drag(event);
+            return;
+        }
         MenuTransport menu = MenuTransport.transportOf(event.getView().getTopInventory());
         if (menu != null) {
             menu.drag(event);
@@ -73,6 +82,11 @@ public final class InputListener implements Listener {
     /** Routes final close notification after other inventory handlers have run. */
     @EventHandler(priority = EventPriority.MONITOR)
     public void onClose(InventoryCloseEvent event) {
+        if (event.getInventory().getHolder(false) instanceof InsertWindow window) {
+            // Whatever was lent to the window goes back, on every ending.
+            window.release(event.getPlayer() instanceof Player viewer ? viewer : null);
+            return;
+        }
         MenuTransport menu = MenuTransport.transportOf(event.getInventory());
         if (menu != null) {
             menu.closed(event);

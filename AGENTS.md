@@ -986,6 +986,11 @@ tipo, nunca un mapa de sesiones por jugador.
   a cerrar la pantalla, buscar el ítem y volver — y desde un menú no se podía. Es
   una ventana con un hueco, y el ítem **vuelve siempre**: al confirmar, al
   cerrar, al salir y al deshabilitar el plugin.
+- **Y hay un solo picker de icono, en `input`.** Preguntar por algo es del módulo
+  de input; el editor ya depende de él para `choice`, `search` y `form`, así que
+  `IconInput` es el único y `util.editor` no tiene copia. De 1.56.0 a 1.58.0
+  hubo dos — uno con `HELD` y otro con `INSERT` — que es exactamente la
+  duplicación contra la que existe este módulo.
 - **El estado vive en la ventana.** Nunca un `Map<UUID, Session>`: un jugador con
   un cofre abierto encima de un editor está mirando el cofre.
 - **Los pickers leen el registro, no `values()`.** Varios de esos tipos dejaron
@@ -1414,7 +1419,8 @@ Raíz de código: `src/main/java/net/exylia/lib/`. Raíz de tests:
 | valor de fila multilínea | `<nl>` en un valor de `UiEntry`/`PluginItems.render` | `item/internal/ItemRenderer.lore`, `spans`, `segment` | [docs/menus.md](docs/menus.md), [docs/items.md](docs/items.md) | 1.38.0 |
 | schematic | `schematic/Schematics`, `PluginSchematics`, `SchematicResult`, `SchematicOutcome`, `RegenerateOptions` | `schematic/internal/` (`SchematicRuntime`, `SchematicStore`, `SchematicNames`, `Bounds`, `Engines`, `SchematicEngine`; FAWE confinado en `FaweEngine`) | [docs/schematics.md](docs/schematics.md) | 1.48.0 |
 | util (loot) | `util/loot/Loot`, `LootEntry`, `LootType`, `LootCodec` | `util/loot/internal/` (`LootLines`, `LootRolls`, `LootItems`) | [docs/loot.md](docs/loot.md) | 1.56.0 |
-| util (editor) | `util/editor/Editors`, `PluginEditors`, `ListEditor`, `EditorDescriptor`, `EditorForm`, `Clipboard`, `IconPicker`, `Pickers` | `util/editor/internal/` (`EditorRuntime`, `EditorHolder`, `EditorListener`, `InsertWindow`, `Icons`) | [docs/editors.md](docs/editors.md) | 1.56.0 |
+| util (editor) | `util/editor/Editors`, `PluginEditors`, `ListEditor`, `EditorDescriptor`, `EditorForm`, `Clipboard`, `Pickers` | `util/editor/internal/` (`EditorRuntime`, `EditorHolder`, `EditorListener`, `Icons`) | [docs/editors.md](docs/editors.md) | 1.56.0 |
+| icono por inserción, no por la mano | `input/IconInput.Way.INSERT` (sustituye a `HELD`) | `input/internal/InsertWindow`, ruteo en `input/internal/InputListener` | [docs/input.md](docs/input.md) | 1.59.0 |
 | botones propios en un editor | `util/editor/EditorButton`, `EditorView`, `ListEditor.button` | `util/editor/internal/EditorHolder` (banda y tamaño de página) | [docs/editors.md](docs/editors.md) | 1.58.0 |
 | util (named commands) | `util/command/NamedCommand`, `NamedCommands` | `util/command/NamedCommandDescriptor` | [docs/editors.md](docs/editors.md) | 1.56.0 |
 | editores incluidos | `PluginRewards.editor`, `Loot.editor`, `NamedCommands.editor`, `Effects.editor`, `PluginEditors.items`/`locations`/`pick`/`icon` | `util/reward/RewardDescriptor`, `util/loot/LootDescriptor`, `util/PotionEffectDescriptor`, `util/editor/ItemListEditor`, `LocationDescriptor` | [docs/editors.md](docs/editors.md) | 1.56.0 |

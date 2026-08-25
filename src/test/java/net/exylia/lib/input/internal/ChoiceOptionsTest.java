@@ -42,14 +42,14 @@ class ChoiceOptionsTest {
     }
 
     private ChoiceInput<String> ways() {
-        return inputs.choice(player, "Choose an icon", List.of("material", "held", "head"))
+        return inputs.choice(player, "Choose an icon", List.of("material", "insert", "head"))
                 .label(way -> way.toUpperCase(java.util.Locale.ROOT));
     }
 
     @Test
     @DisplayName("a button per option, labelled as the choice says")
     void labelsAreTheChoicesOwn() {
-        assertEquals(List.of("MATERIAL", "HELD", "HEAD"), ChoiceOptions.labels(ways()));
+        assertEquals(List.of("MATERIAL", "INSERT", "HEAD"), ChoiceOptions.labels(ways()));
     }
 
     @Test
@@ -58,7 +58,7 @@ class ChoiceOptionsTest {
         ChoiceInput<String> choice = ways();
 
         assertEquals("material", ChoiceOptions.keyAt(choice, "0"));
-        assertEquals("held", ChoiceOptions.keyAt(choice, "1"));
+        assertEquals("insert", ChoiceOptions.keyAt(choice, "1"));
         assertEquals("head", ChoiceOptions.keyAt(choice, "2"));
     }
 

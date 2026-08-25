@@ -419,12 +419,25 @@ One question, three answers, because an icon is three different things:
 | Way | What the player does | What is stored |
 | --- | --- | --- |
 | `MATERIAL` | the search picker, over every item the server has | `DIAMOND_SWORD` |
-| `HELD` | holds the item they mean | its material name, or `bytes:` when it carries meta |
+| `INSERT` | puts the item in a slot | its material name, or `bytes:` when it carries meta |
 | `HEAD` | pastes a head string | `playerhead-Notch`, `basehead-…`, `urlhead-…` |
 
 A material is chosen from a list nobody can spell from memory, a custom item is
-easiest to point at by holding it, and a head can only be pasted. ExyliaCommons
-had a menu of its own for each of those, in every plugin that needed one.
+easiest to point at by putting it down, and a head can only be pasted.
+ExyliaCommons had a menu of its own for each of those, in every plugin that
+needed one.
+
+**`INSERT` replaced reading the player's main hand**, in 1.59.0. Holding the
+item meant closing whatever screen you were on, finding it, holding it and
+reopening — and from inside a menu it could not be done at all. A window with
+one slot works from inside the screen that asked.
+
+The item is described, never taken: whatever is in the slot **goes back to the
+player on every ending** — confirming, closing the window, leaving the server,
+the plugin being disabled — and what will not fit is dropped at their feet. An
+icon picker that ate a diamond sword would be a theft, not a feature. Every
+other slot in the window is a screen, so only that one accepts a click or a
+drag.
 
 | Method | |
 | --- | --- |
@@ -437,8 +450,9 @@ allows. A serialised item can be longer, and finding that out at the database is
 finding out after the screen already said yes.
 
 Endings pass through unchanged, so a timeout stays a timeout and a caller that
-reopens its menu on a cancel keeps working. An empty hand says so and ends as
-`CANCELLED`: there is nothing to ask again, the item is either held or it is not.
+reopens its menu on a cancel keeps working. A window closed with nothing in the
+slot ends as `CANCELLED`: there is nothing to ask again, the slot is either
+filled or it is not.
 
 ---
 

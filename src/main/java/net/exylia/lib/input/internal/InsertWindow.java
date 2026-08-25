@@ -1,19 +1,25 @@
-package net.exylia.lib.util.editor.internal;
+package net.exylia.lib.input.internal;
 
 import net.exylia.lib.item.Source;
 import net.exylia.lib.task.Tasks;
 import net.exylia.lib.text.Text;
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.format.TextDecoration;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.entity.Player;
+import org.bukkit.event.inventory.InventoryClickEvent;
+import org.bukkit.event.inventory.InventoryDragEvent;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.InventoryHolder;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.plugin.Plugin;
 import org.jetbrains.annotations.ApiStatus;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -107,27 +113,66 @@ public final class InsertWindow implements InventoryHolder {
     }
 
     private void draw() {
-        ItemStack filler = Icons.button(Material.GRAY_STAINED_GLASS_PANE, " ", List.of());
+        ItemStack filler = pane();
         for (int slot = 0; slot < SIZE; slot++) {
             inventory.setItem(slot, filler);
         }
         inventory.setItem(SLOT, null);
-        inventory.setItem(SLOT_CONFIRM, Icons.glowing(Material.LIME_DYE, "{success}&lUSE THIS ITEM",
-                List.of("{letters_black}▎ {letters}Read the item above and use",
-                        "{letters_black}▎ {letters}it as the icon.",
-                        "",
-                        "{letters_black}▎ {letters}You get the item back either way.",
-                        "",
-                        "{warning}➥ Click to confirm")));
+        inventory.setItem(SLOT_CONFIRM, button(Material.LIME_DYE, "{success}&lUSE THIS ITEM",
+                "{letters_black}▎ {letters}Read the item above and use",
+                "{letters_black}▎ {letters}it as the icon.",
+                "",
+                "{letters_black}▎ {letters}You get the item back either way.",
+                "",
+                "{warning}➥ Click to confirm"));
     }
 
-    /** Whether a slot may be clicked normally rather than cancelled. */
-    boolean isFree(int slot) {
-        return slot == SLOT;
+    /**
+     * A click in the window.
+     *
+     * <p>The one slot behaves like a real container slot &mdash; that is the
+     * whole point of the window &mdash; and every other slot in it is a screen.
+     * A click in the player's own inventory is left alone so items can be
+     * shift-moved in; the only empty slot up here is the one we want.
+     *
+     * @param viewer who clicked
+     * @param event  the click
+     */
+    public void click(@NotNull Player viewer, @NotNull InventoryClickEvent event) {
+        if (finished) {
+            event.setCancelled(true);
+            return;
+        }
+        if (event.getClickedInventory() != event.getView().getTopInventory()) {
+            return;
+        }
+        if (event.getSlot() == SLOT_CONFIRM) {
+            event.setCancelled(true);
+            confirm(viewer);
+            return;
+        }
+        if (event.getSlot() != SLOT) {
+            event.setCancelled(true);
+        }
+    }
+
+    /**
+     * A drag over the window: allowed into the one slot and nowhere else.
+     *
+     * @param event the drag
+     */
+    public static void drag(@NotNull InventoryDragEvent event) {
+        int top = event.getView().getTopInventory().getSize();
+        for (int slot : event.getRawSlots()) {
+            if (slot < top && slot != SLOT) {
+                event.setCancelled(true);
+                return;
+            }
+        }
     }
 
     /** What the confirm button does. */
-    void confirm(Player viewer) {
+    private void confirm(Player viewer) {
         ItemStack inserted = inventory.getItem(SLOT);
         if (inserted == null || inserted.getType() == Material.AIR) {
             return;
@@ -145,7 +190,7 @@ public final class InsertWindow implements InventoryHolder {
      * feet rather than discarded — the item was theirs before they lent it to
      * this window.
      */
-    void release(@Nullable Player viewer) {
+    public void release(@Nullable Player viewer) {
         ItemStack inserted = inventory == null ? null : inventory.getItem(SLOT);
         if (inventory != null) {
             inventory.setItem(SLOT, null);
@@ -160,6 +205,40 @@ public final class InsertWindow implements InventoryHolder {
         }
     }
 
+    private static ItemStack pane() {
+        return button(Material.GRAY_STAINED_GLASS_PANE, " ");
+    }
+
+    /**
+     * Builds one of the window's own items.
+     *
+     * <p>Italics are switched off explicitly, because vanilla italicises any
+     * name or lore a plugin sets and the palette's intent would otherwise be
+     * rendered in a style nobody asked for.
+     */
+    private static ItemStack button(Material material, String name, String... lore) {
+        ItemStack item = new ItemStack(material);
+        ItemMeta meta = item.getItemMeta();
+        if (meta == null) {
+            return item;
+        }
+        meta.displayName(plain(name));
+        if (lore.length > 0) {
+            List<Component> lines = new ArrayList<>(lore.length);
+            for (String line : lore) {
+                lines.add(plain(line));
+            }
+            meta.lore(lines);
+        }
+        item.setItemMeta(meta);
+        return item;
+    }
+
+    private static Component plain(String text) {
+        return Text.of(text).build()
+                .decorationIfAbsent(TextDecoration.ITALIC, TextDecoration.State.FALSE);
+    }
+
     private void complete(Optional<ItemStack> value) {
         if (finished) {
             return;
@@ -168,19 +247,4 @@ public final class InsertWindow implements InventoryHolder {
         answer.complete(value);
     }
 
-    boolean isFinished() {
-        return finished;
-    }
-
-    UUID viewerId() {
-        return viewerId;
-    }
-
-    Plugin plugin() {
-        return plugin;
-    }
-
-    static int confirmSlot() {
-        return SLOT_CONFIRM;
-    }
 }

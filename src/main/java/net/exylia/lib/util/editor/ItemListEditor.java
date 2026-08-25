@@ -1,7 +1,7 @@
 package net.exylia.lib.util.editor;
 
 import net.exylia.lib.item.Source;
-import net.exylia.lib.util.editor.internal.InsertWindow;
+import net.exylia.lib.input.internal.InsertWindow;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.plugin.Plugin;

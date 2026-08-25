@@ -1,5 +1,6 @@
 package net.exylia.lib.input;
 
+import net.exylia.lib.input.internal.InsertWindow;
 import net.exylia.lib.item.Source;
 import net.exylia.lib.text.Text;
 import org.bukkit.Material;
@@ -40,8 +41,9 @@ import java.util.function.Function;
  *   <li>{@link Way#MATERIAL} — the {@link SearchInput} picker: the admin types,
  *       the matches refilter as they do, and the list is every item the server
  *       has rather than a hand-picked page.</li>
- *   <li>{@link Way#HELD} — read off the player's hand, so an icon with a custom
- *       model is one click and keeps its model.</li>
+ *   <li>{@link Way#INSERT} — a window with one slot. Put the item in and that
+ *       item, exactly as it is, is the answer: its model, its colour, its
+ *       enchantments. It comes straight back to you afterwards.</li>
  *   <li>{@link Way#HEAD} — the one case that has to be pasted, so it is the
  *       only one that asks for text.</li>
  * </ul>
@@ -174,7 +176,7 @@ public final class IconInput {
                     .icon(material -> material))
                     .open()
                     .thenApply(result -> map(result, Material::name));
-            case HELD -> CompletableFuture.completedFuture(held());
+            case INSERT -> insert();
             case HEAD -> timed(inputs.text(player, "{warning}Paste a head"
                     + " {muted}(playerhead-Notch, basehead-<base64>, urlhead-<url>)")
                     .validate(IconInput::isHead, "{error}That is not a head.")
@@ -186,18 +188,25 @@ public final class IconInput {
     }
 
     /**
-     * Takes the item the player is holding.
+     * Asks for the item in a window with one slot.
      *
-     * <p>Read here rather than asked for, because a request delivers its result
-     * on the thread that owns the player and this runs inside one of those.
+     * <p>What this replaced was reading the player's main hand, which meant
+     * closing whatever screen you were on, finding the item, holding it and
+     * reopening &mdash; and from inside a menu it could not be done at all. A
+     * slot works from inside the screen that asked.
+     *
+     * <p>The item is described, never taken: it goes back to the player on
+     * every ending, including the plugin being disabled.
      */
-    private InputResult<String> held() {
-        ItemStack item = player.getInventory().getItemInMainHand();
-        String icon = Source.of(item).raw();
-        if ("AIR".equals(icon)) {
-            Text.of("{error}Hold the item you want as the icon.").send(player);
-            return InputResult.ended(InputOutcome.CANCELLED);
-        }
+    private CompletionStage<InputResult<String>> insert() {
+        return InsertWindow.open(inputs.plugin(), player, prompt)
+                .thenApply(inserted -> inserted
+                        .map(item -> stored(Source.of(item).raw()))
+                        .orElseGet(() -> InputResult.ended(InputOutcome.CANCELLED)));
+    }
+
+    /** Checks an icon against the column it is going into before saying yes. */
+    private InputResult<String> stored(String icon) {
         if (icon.length() > maxLength) {
             Text.of("{error}That item is too big to store as an icon."
                     + " Pick a material or a head instead.").send(player);
@@ -238,8 +247,12 @@ public final class IconInput {
         /** Chosen from every item the server has. */
         MATERIAL("Material", Material.GRASS_BLOCK),
 
-        /** Whatever the player is holding, custom model and all. */
-        HELD("The item in your hand", Material.CHEST),
+        /**
+         * Put in a slot, read exactly as it is, and handed straight back.
+         *
+         * @since 1.59.0
+         */
+        INSERT("Insert an item", Material.HOPPER),
 
         /** A head, pasted as a texture, a URL or a player name. */
         HEAD("A head", Material.PLAYER_HEAD);
