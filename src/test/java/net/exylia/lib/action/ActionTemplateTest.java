@@ -11,6 +11,7 @@ import org.junit.jupiter.api.Test;
 
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -87,6 +88,29 @@ class ActionTemplateTest {
                 .execute(context).toCompletableFuture().get();
 
         assertEquals(7, kicked.get());
+    }
+
+    /**
+     * The reported defect: %player_name% is a built-in meaning the viewer, so a
+     * spectator menu's teleport button carried the name of whoever opened the
+     * menu — while the head above it was drawn from the row. The button teleported
+     * the spectator to themselves and looked like it did nothing.
+     */
+    @Test
+    @DisplayName("the row wins over a placeholder of the same name")
+    void rowValuesShadowARegisteredName() throws Exception {
+        Placeholders.register(plugin, "player_name", request -> "Steve");
+        AtomicReference<String> teleportedTo = new AtomicReference<>();
+        actions.registerSync("teleport", (ctx, args) -> {
+            teleportedTo.set(args.string(0, ""));
+            return ActionResult.success();
+        });
+        ActionTemplate template = actions.template("practice:teleport %player_name%");
+
+        template.resolve(viewer.player(), Map.of("player_name", "Alex"))
+                .execute(context).toCompletableFuture().get();
+
+        assertEquals("Alex", teleportedTo.get(), "the row's player, not the viewer");
     }
 
     @Test

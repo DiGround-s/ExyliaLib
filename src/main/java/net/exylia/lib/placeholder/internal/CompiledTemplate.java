@@ -87,6 +87,22 @@ public final class CompiledTemplate implements Template {
 
     @Override
     public @NotNull String renderFor(@NotNull Request request) {
+        return renderFor(request, false);
+    }
+
+    /**
+     * Renders, optionally letting the caller's values shadow a registered name.
+     *
+     * <p>A menu row is what needs this: a list of players draws each row's
+     * {@code %player_name%} rather than the viewer's, which is how the item is
+     * already rendered, and the button under it has to mean the same player as
+     * the head above it.
+     *
+     * @param request     who is asking, about whom, and with what values
+     * @param valuesFirst whether the attached values win over a registration
+     * @return the finished text
+     */
+    public @NotNull String renderFor(@NotNull Request request, boolean valuesFirst) {
         if (constant != null) {
             return constant;
         }
@@ -107,7 +123,7 @@ public final class CompiledTemplate implements Template {
                     ? request
                     : new Request(request.viewer(), request.target(), part.args(), request.data());
 
-            Object value = resolveWith(part, scoped);
+            Object value = resolveWith(part, scoped, valuesFirst);
 
             if (value == null) {
                 if (part.fallback() != null) {
@@ -153,6 +169,13 @@ public final class CompiledTemplate implements Template {
      * @return the value, or {@code null} when nothing supplies one
      */
     private Object resolveWith(Part part, Request request) {
+        return resolveWith(part, request, false);
+    }
+
+    private Object resolveWith(Part part, Request request, boolean valuesFirst) {
+        if (valuesFirst && request.data().containsKey(part.name())) {
+            return request.data().get(part.name());
+        }
         Object value = Registry.resolve(part.name(), request, logger);
         if (value != null) {
             return value;

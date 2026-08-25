@@ -75,13 +75,19 @@ public final class ActionTemplate {
     /**
      * Resolves the action with extra values the placeholders can read.
      *
+     * <p>The values win over a registered placeholder of the same name, so a
+     * row's button means the row: a spectator menu listing players draws each
+     * head from the row's {@code %player_name%} and its button has to teleport
+     * to that player rather than to whoever is looking at the menu.
+     *
      * @param viewer who the placeholders are rendered for
      * @param data   values for the resolvers, such as the row being drawn
      * @return the compiled call
      * @throws IllegalArgumentException if the rendered action does not exist
      */
     public @NotNull ActionCall resolve(Player viewer, @NotNull Map<String, Object> data) {
-        return fixed != null ? fixed : ActionCompiler.compile(template.render(viewer, data), namespace);
+        return fixed != null ? fixed : ActionCompiler.compile(
+                Placeholders.renderValuesFirst(template, viewer, data), namespace);
     }
 
     /**

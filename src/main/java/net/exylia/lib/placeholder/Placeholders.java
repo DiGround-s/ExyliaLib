@@ -291,6 +291,30 @@ public final class Placeholders {
         return compiled.resolvePairs(request);
     }
 
+    /**
+     * Renders a template with the caller's values shadowing registered names.
+     *
+     * <p>For a string built from one row of a list: a menu drawing a player per
+     * row fills its item text from the row, so the button under that head has to
+     * read the same {@code %player_name%} the head was made from rather than the
+     * viewer's own. Everywhere else a registration wins, which is what keeps a
+     * stray value from redefining what a placeholder means server-wide.
+     *
+     * @param template a template from {@link #compile}
+     * @param viewer   who to resolve for
+     * @param data     the values for this render, which win over a registration
+     * @return the finished text
+     */
+    @org.jetbrains.annotations.ApiStatus.Internal
+    public static @NotNull String renderValuesFirst(@NotNull Template template,
+                                                    @Nullable Player viewer,
+                                                    @NotNull Map<String, Object> data) {
+        if (!(template instanceof CompiledTemplate compiled)) {
+            return template.render(viewer, data);
+        }
+        return compiled.renderFor(new Request(viewer, viewer, List.of(), data), true);
+    }
+
     /** Drops every registration. Called by ExyliaLib on shutdown. */
     public static void releaseAll() {
         PapiBridge.releaseAll();

@@ -115,12 +115,15 @@ public final class CommandLine {
     /**
      * The command to run, with extra values the placeholders can read.
      *
+     * <p>The values win over a registered placeholder of the same name: the row
+     * a button was drawn from is what the command it runs is about.
+     *
      * @param viewer who the placeholders are rendered for
      * @param data   values for the resolvers, such as the row being drawn
      * @return the command, without a leading slash
      */
     public @NotNull String render(Player viewer, @NotNull Map<String, Object> data) {
-        return fixed != null ? fixed : template.render(viewer, data);
+        return fixed != null ? fixed : Placeholders.renderValuesFirst(template, viewer, data);
     }
 
     @Override
