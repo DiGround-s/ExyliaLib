@@ -121,6 +121,22 @@ final class PapiExpansion extends PlaceholderExpansion implements Relational {
      * which is how PlaceholderAPI is told to leave the text alone.
      */
     private String resolve(Player viewer, OfflinePlayer target, String params) {
+        String answer = answer(viewer, target, params);
+        if (answer != null) {
+            return answer;
+        }
+        // A group whose prefix is already the plugin's own name registers
+        // "exyliaevents_team_color", while PlaceholderAPI strips that same word
+        // as the identifier and asks for "team_color". Without this the whole
+        // group answered nothing, and writing %exyliaevents_exyliaevents_...%
+        // is not what anybody has in their config.
+        return params.startsWith(identifier + "_")
+                ? null
+                : answer(viewer, target, identifier + "_" + params);
+    }
+
+    /** Resolves one name against what this plugin registered. */
+    private String answer(Player viewer, OfflinePlayer target, String params) {
         String text = "%" + params + "%";
 
         // Compiled against this plugin's names only, so the longest-prefix rule

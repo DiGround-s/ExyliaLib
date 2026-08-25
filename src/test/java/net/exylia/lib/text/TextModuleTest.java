@@ -333,4 +333,49 @@ class TextModuleTest {
         }
         return false;
     }
+
+    // ------------------------------------------------------------------
+    // Clicks
+    // ------------------------------------------------------------------
+
+    /**
+     * The reported defect: the value reached the message a player reads and the
+     * button still ran "/events join %event_id%" verbatim, because a command is
+     * not text and replaceText only walks text.
+     */
+    @Test
+    @DisplayName("a substitution reaches the command a click runs")
+    void substitutionReachesTheClickCommand() {
+        Component component = Text
+                .of("<click:run_command:'/events join %event_id%'>{success}CLICK TO JOIN</click>")
+                .with("%event_id%", "koth_1")
+                .build();
+
+        assertEquals("/events join koth_1", firstClick(component).value());
+        assertEquals("CLICK TO JOIN", plain(component));
+    }
+
+    @Test
+    @DisplayName("a click with nothing to substitute is left alone")
+    void clickWithoutPlaceholder() {
+        Component component = Text.of("<click:run_command:'/events list'>LIST</click>")
+                .with("%event_id%", "koth_1")
+                .build();
+
+        assertEquals("/events list", firstClick(component).value());
+    }
+
+    /** Reads the click of the first part that has one. */
+    private static net.kyori.adventure.text.event.ClickEvent firstClick(Component component) {
+        if (component.clickEvent() != null) {
+            return component.clickEvent();
+        }
+        for (Component child : component.children()) {
+            net.kyori.adventure.text.event.ClickEvent found = firstClick(child);
+            if (found != null) {
+                return found;
+            }
+        }
+        return null;
+    }
 }

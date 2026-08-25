@@ -109,6 +109,20 @@ class PapiExpansionTest {
         assertEquals("0", Placeholders.apply("%total_players%"));
     }
 
+    /**
+     * The reported defect: a group whose prefix is the plugin's own name
+     * registers {@code exyliaffa_team_color}, and PlaceholderAPI strips that
+     * same word before asking, so nothing under that identifier answered.
+     */
+    @Test
+    void answersAGroupWhosePrefixIsThePluginName() {
+        Placeholders.group(plugin, "exyliaffa").add("team_color", request -> "red").register();
+
+        assertEquals("red", new PapiExpansion(plugin).onRequest(null, "team_color"));
+        // Written the long way it still resolves, rather than doubling again.
+        assertEquals("red", new PapiExpansion(plugin).onRequest(null, "exyliaffa_team_color"));
+    }
+
     @Test
     void doesNotAnswerForAnUnregisteredName() {
         assertNull(new PapiExpansion(plugin).onRequest(null, "nobody_registered_this"));

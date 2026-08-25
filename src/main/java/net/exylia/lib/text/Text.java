@@ -9,6 +9,7 @@ import net.exylia.lib.text.internal.EffectTag;
 import net.exylia.lib.text.internal.EffectTagPlayer;
 import net.exylia.lib.text.internal.TextEngine;
 import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.event.ClickEvent;
 import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
 import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
 import org.bukkit.command.CommandSender;
@@ -257,6 +258,11 @@ public final class Text {
         }
         Component component = TextEngine.parse(source);
 
+        // What has to be substituted into a click's command as well as into the
+        // text: replaceText only walks what is read, and a run_command is not.
+        boolean clickable = source.contains("click:");
+        Map<String, String> commands = clickable ? new java.util.LinkedHashMap<>() : Map.of();
+
         if (viewer != null) {
             // The names this class substitutes itself are told to the resolver,
             // so a value supplied through with() is not reported as unknown
@@ -277,6 +283,9 @@ public final class Text {
                 component = component.replaceText(builder -> builder
                         .matchLiteral(placeholder)
                         .replacement(replacement));
+                if (clickable) {
+                    commands.put(placeholder, value);
+                }
             }
         }
 
@@ -287,8 +296,48 @@ public final class Text {
             component = component.replaceText(builder -> builder
                     .matchLiteral(substitution.key())
                     .replacement(replacement));
+            if (clickable) {
+                commands.put(substitution.key(), substitution.value());
+            }
         }
-        return component;
+        return commands.isEmpty() ? component : fillClicks(component, commands);
+    }
+
+    /**
+     * Substitutes into the commands and links a click carries.
+     *
+     * <p>{@code <click:run_command:'/events join %event_id%'>} is the shape
+     * every "click to join" line in Exylia is written in, and the command is not
+     * text: {@code replaceText} renders what a player reads, so the value landed
+     * in the message and the button still ran the placeholder verbatim.
+     *
+     * <p>The value goes in as written, so a click runs the same command the text
+     * shows. Values from players reach this through {@link #with}, which is
+     * already the literal side of the split.
+     */
+    private static Component fillClicks(Component component, Map<String, String> values) {
+        Component result = component;
+        ClickEvent click = result.clickEvent();
+        if (click != null) {
+            String command = click.value();
+            for (Map.Entry<String, String> value : values.entrySet()) {
+                if (command.contains(value.getKey())) {
+                    command = command.replace(value.getKey(), value.getValue());
+                }
+            }
+            if (!command.equals(click.value())) {
+                result = result.clickEvent(ClickEvent.clickEvent(click.action(), command));
+            }
+        }
+        List<Component> children = result.children();
+        if (children.isEmpty()) {
+            return result;
+        }
+        List<Component> filled = new ArrayList<>(children.size());
+        for (Component child : children) {
+            filled.add(fillClicks(child, values));
+        }
+        return result.children(filled);
     }
 
     /** Parses a trusted value, honouring its formatting. */
