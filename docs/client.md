@@ -112,10 +112,35 @@ red.delete();              // clears every member's markers
 - **Detection is cached per player** and asked one second after join: the
   client announces itself after joining, and asking earlier caches "vanilla"
   for the whole session.
-- **The library remembers what it sent and re-sends it** on reconnect and on
-  world change (only what belongs to the new world). In memory only.
+- **The library remembers what it sent and re-sends it** while the player is
+  connected: after a world change, only what belongs to the new world. In
+  memory only, and forgotten the moment they leave — see below.
 - A failure inside an integration is contained: it is the other plugin's bug,
   not yours.
+
+## Coming back
+
+A player who disconnects is forgotten. Nothing is held for them, on purpose: a
+marker is drawn from a row in a plugin's own table, and that row is the only
+copy that is still true after the player has been away. A home deleted while its
+owner was offline must not come back as a waypoint.
+
+So the plugin keeps the truth, and the library keeps the timing:
+
+```java
+clients.waypoints().restoreWith(player -> homes.waypointsOf(player));
+```
+
+The timing is the half a plugin cannot get right alone. A modified client
+announces itself a moment **after** joining, so anything sent from a
+`PlayerJoinEvent` goes out while the player still looks vanilla and is dropped
+on the floor. This runs once that has settled, and only then: a world change
+re-sends what is already remembered, so asking the owner there would draw
+everything twice.
+
+One function per plugin — registering again replaces it. It is called on the
+thread that owns the player, so read memory rather than a database, and return
+an empty collection when there is nothing to show.
 
 ## Source and tests
 

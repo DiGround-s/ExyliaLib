@@ -445,6 +445,32 @@ final class Session implements UiSession {
         return left;
     }
 
+    @Override
+    public void input(int slot, ItemStack item) {
+        requireInput(slot);
+        inventory.setItem(slot, item);
+    }
+
+    @Override
+    public void inputs(@NotNull Map<Integer, ItemStack> items) {
+        java.util.Objects.requireNonNull(items, "items");
+        // Checked in full first: a layout that arrives half-written is one the
+        // player cannot tell apart from the one they meant to load.
+        for (Integer slot : items.keySet()) {
+            requireInput(slot == null ? -1 : slot);
+        }
+        for (Map.Entry<Integer, ItemStack> entry : items.entrySet()) {
+            inventory.setItem(entry.getKey(), entry.getValue());
+        }
+    }
+
+    private void requireInput(int slot) {
+        if (!inputSlots().contains(slot)) {
+            throw new IllegalArgumentException("Slot " + slot + " is not an input slot of menu \""
+                    + definition.id() + "\"; its input slots are " + inputSlots());
+        }
+    }
+
     // -------------------------------------------------------------- lifecycle
 
     @Override

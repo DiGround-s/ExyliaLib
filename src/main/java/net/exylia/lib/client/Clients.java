@@ -181,6 +181,37 @@ public final class Clients {
         void clear(@NotNull Player player);
 
         /**
+         * Says what a player should be seeing, whenever their client is ready.
+         *
+         * <p>Nothing survives a disconnect: a client that reconnects has an
+         * empty minimap, and the library deliberately does not hold what it
+         * sent a player who left. The row that says a player has a home is in
+         * the plugin's own table, which is the only copy that can be trusted —
+         * a home deleted while its owner was offline must not come back as a
+         * marker.
+         *
+         * <pre>{@code
+         * clients.waypoints().restoreWith(player -> homes.waypointsOf(player));
+         * }</pre>
+         *
+         * <p>So the plugin keeps the truth and the library keeps the timing.
+         * The timing is the part a plugin cannot get right on its own: a
+         * modified client announces itself a moment <em>after</em> joining, so
+         * anything sent from a {@code PlayerJoinEvent} goes out while the
+         * player still looks vanilla and is dropped. This is called once that
+         * has settled, and again after nothing else — a world change re-sends
+         * what is already remembered.
+         *
+         * <p>One function per owner; registering again replaces it. Called on
+         * the thread that owns the player, so it should read memory rather
+         * than a database. Returning an empty collection is normal and means
+         * this plugin has nothing to show them.
+         *
+         * @param waypoints what this plugin's waypoints are for a player
+         */
+        void restoreWith(@NotNull java.util.function.Function<Player, Collection<Waypoint>> waypoints);
+
+        /**
          * Returns whether the player's client draws waypoints at all.
          *
          * @param player the player

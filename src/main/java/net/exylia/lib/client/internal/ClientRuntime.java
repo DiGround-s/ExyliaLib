@@ -11,7 +11,11 @@ import org.jetbrains.annotations.NotNull;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Function;
 
 /**
  * The client module's working parts.
@@ -69,6 +73,7 @@ public final class ClientRuntime {
      */
     public static void release(String pluginName) {
         TeamRegistry.release(pluginName);
+        RESTORERS.remove(pluginName);
         for (UUID id : ClientState.waypointViewers(pluginName)) {
             Player player = org.bukkit.Bukkit.getPlayer(id);
             if (player != null) {
@@ -149,6 +154,38 @@ public final class ClientRuntime {
                 ClientState.rememberWaypoint(id, entry.getKey().owner(), waypoint, handle);
             }
         }
+
+        if (!worldChange) {
+            restore(player);
+        }
+    }
+
+    /**
+     * Asks every plugin what this player should be seeing, and sends it.
+     *
+     * <p>Only after a join. A world change still has everything remembered, so
+     * asking again there would send each waypoint twice — once from the loop
+     * above and once from its owner.
+     */
+    private static void restore(Player player) {
+        for (Map.Entry<String, Function<Player, Collection<Waypoint>>> entry : RESTORERS.entrySet()) {
+            Collection<Waypoint> waypoints;
+            try {
+                waypoints = entry.getValue().apply(player);
+            } catch (RuntimeException failure) {
+                // One plugin's bad answer is not a reason for the next plugin's
+                // markers to go missing.
+                ClientState.logger().warning("A plugin failed to say what waypoints "
+                        + player.getName() + " should see: " + failure);
+                continue;
+            }
+            if (waypoints == null) {
+                continue;
+            }
+            for (Waypoint waypoint : waypoints) {
+                showAs(entry.getKey(), player, waypoint);
+            }
+        }
     }
 
     /**
@@ -171,11 +208,22 @@ public final class ClientRuntime {
         ClientRegistry.clear();
         ClientState.clear();
         TeamRegistry.clear();
+        RESTORERS.clear();
     }
 
     // ------------------------------------------------------------------
     // Waypoints
     // ------------------------------------------------------------------
+
+    /**
+     * What each plugin says a player should be seeing, by owner.
+     *
+     * <p>Held rather than the waypoints themselves: a function cannot go stale,
+     * and a plugin's own table is the only copy of the answer that is still
+     * true after the player has been away.
+     */
+    private static final Map<String, Function<Player, Collection<Waypoint>>> RESTORERS =
+            new ConcurrentHashMap<>();
 
     private static final class WaypointsImpl implements Clients.Waypoints {
 
@@ -226,6 +274,12 @@ public final class ClientRuntime {
                 return;
             }
             removeAllOf(owner, player);
+        }
+
+        @Override
+        public void restoreWith(@NotNull Function<Player, Collection<Waypoint>> waypoints) {
+            Objects.requireNonNull(waypoints, "waypoints");
+            RESTORERS.put(owner == null ? "" : owner, waypoints);
         }
 
         @Override

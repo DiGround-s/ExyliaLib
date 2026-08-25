@@ -8,6 +8,7 @@ import net.exylia.lib.client.Cooldown;
 import net.exylia.lib.client.Waypoint;
 import org.bukkit.Location;
 import org.bukkit.World;
+import org.bukkit.plugin.Plugin;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -205,6 +206,70 @@ class ClientTest {
         lunarLink.clear();
 
         lunar.disconnect();
+        ClientRuntime.forget(lunar.player());
+        ClientRuntime.resend(lunar.player(), false);
+
+        assertEquals(List.of(), lunarLink.calls("waypoint"));
+    }
+
+    // ------------------------------------------------------------------
+    // Restoring after a rejoin
+    // ------------------------------------------------------------------
+
+    @Test
+    @DisplayName("a plugin is asked what a player should see once their client is ready")
+    void restorerIsAskedOnJoin() {
+        Plugin homes = FakeServer.newPlugin("Homes", null);
+        Clients.of(homes).waypoints().restoreWith(player -> List.of(waypoint()));
+
+        // A rejoin: nothing is remembered, so the plugin's own answer is the
+        // only source there is.
+        ClientRuntime.forget(lunar.player());
+        ClientRuntime.resend(lunar.player(), false);
+
+        assertEquals(List.of("waypoint:Lunar:Koth:world"), lunarLink.calls("waypoint"));
+    }
+
+    @Test
+    @DisplayName("a world change does not ask again")
+    void restorerIsNotAskedOnWorldChange() {
+        // Feather, because it is the client that drops waypoints with the world
+        // and therefore the one a world change re-sends to at all.
+        Plugin homes = FakeServer.newPlugin("Homes", null);
+        Clients.of(homes).waypoints().restoreWith(player -> List.of(waypoint()));
+        Clients.of(homes).waypoints().show(feather.player(), waypoint());
+        featherLink.clear();
+
+        // What was sent is still remembered, so asking the owner too would send
+        // the same waypoint a second time.
+        ClientRuntime.resend(feather.player(), true);
+
+        assertEquals(List.of("waypoint:Feather:Koth:world"), featherLink.calls("waypoint"));
+    }
+
+    @Test
+    @DisplayName("one plugin answering badly does not cost another its markers")
+    void abrokenRestorerIsIsolated() {
+        Plugin broken = FakeServer.newPlugin("Broken", null);
+        Plugin homes = FakeServer.newPlugin("Homes", null);
+        Clients.of(broken).waypoints().restoreWith(player -> {
+            throw new IllegalStateException("no");
+        });
+        Clients.of(homes).waypoints().restoreWith(player -> List.of(waypoint()));
+
+        ClientRuntime.forget(lunar.player());
+        ClientRuntime.resend(lunar.player(), false);
+
+        assertEquals(List.of("waypoint:Lunar:Koth:world"), lunarLink.calls("waypoint"));
+    }
+
+    @Test
+    @DisplayName("a plugin that goes away stops being asked")
+    void releasingForgetsTheRestorer() {
+        Plugin homes = FakeServer.newPlugin("Homes", null);
+        Clients.of(homes).waypoints().restoreWith(player -> List.of(waypoint()));
+
+        ClientRuntime.release("Homes");
         ClientRuntime.forget(lunar.player());
         ClientRuntime.resend(lunar.player(), false);
 

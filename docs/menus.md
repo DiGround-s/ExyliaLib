@@ -490,6 +490,31 @@ A button is never picked up, and a drag touching any button is refused. Slots
 listed under `editable_slots` stay the player's, and `session.inputs()` returns
 whatever they left in them.
 
+### A grid of editable slots is an editor
+
+`editable_slots` plus buttons around them is how a kit layout, a shop's stock or
+an arena loadout is edited: the admin puts real items in real slots, and the
+slots themselves are the record. Nothing is paginated and nothing is retyped, so
+armour stays in the armour slots and the hotbar stays the hotbar.
+
+```yaml
+size: 54
+editable_slots: '0-4,9-44'
+```
+
+The buttons around them write into the same slots, which is what makes it an
+editor rather than a drop box:
+
+```java
+session.input(slot, null);                          // clear one
+session.inputs(fromInventory(player));              // fill from what they carry
+Map<Integer, ItemStack> layout = session.inputs();  // read it back to save
+```
+
+Both writers refuse a slot that is not an input slot, and `inputs(map)` checks
+every slot before writing any of them — a half-applied layout is one the player
+cannot tell apart from the one they asked for.
+
 Click kinds: `left`, `right`, `middle`, `shift_left`, `shift_right`, `drop`,
 `control_drop`, `swap`, `double`, `number_key`, and `any` for a line with no
 prefix.

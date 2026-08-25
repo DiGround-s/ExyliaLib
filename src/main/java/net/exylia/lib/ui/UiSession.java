@@ -5,6 +5,7 @@ import org.bukkit.entity.Player;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.Collection;
 import java.util.List;
@@ -175,6 +176,37 @@ public interface UiSession {
 
     /** Whatever the player has left in the input slots. */
     @NotNull Map<Integer, ItemStack> inputs();
+
+    /**
+     * Puts an item into one of the menu's input slots.
+     *
+     * <p>The other direction of {@link #inputs()}, for the buttons an editing
+     * screen puts around its slots: "clear", "fill from my inventory", "load
+     * the last saved layout". Those are the actions that make a grid of input
+     * slots an editor rather than a drop box.
+     *
+     * <pre>{@code
+     * session.input(slot, null);                 // empty it
+     * session.input(0, player.getInventory().getHelmet());
+     * }</pre>
+     *
+     * @param slot the slot, which must be one of {@link #inputSlots()}
+     * @param item what to put there, or {@code null} to empty it
+     * @throws IllegalArgumentException if the slot is not an input slot
+     */
+    void input(int slot, @Nullable ItemStack item);
+
+    /**
+     * Puts several items into input slots at once.
+     *
+     * <p>Every slot named must be an input slot, and it is checked before
+     * anything is written: a half-applied layout is worse than a rejected one,
+     * because the player cannot tell which half arrived.
+     *
+     * @param items what to put where; a {@code null} value empties that slot
+     * @throws IllegalArgumentException if any slot is not an input slot
+     */
+    void inputs(@NotNull Map<Integer, ItemStack> items);
 
     // -------------------------------------------------------------- lifecycle
 

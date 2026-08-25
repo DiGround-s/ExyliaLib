@@ -1371,6 +1371,8 @@ Raíz de código: `src/main/java/net/exylia/lib/`. Raíz de tests:
 | skull | `skull/Skulls`, `SkullSource`, `SkullBuilder`, `SkullHandle` | `skull/internal/` | [docs/skulls.md](docs/skulls.md) | 1.19.0 |
 | action | `action/Actions`, `PluginActions`, `ActionCall`, `ActionContext`, `ActionSequence` y tipos auxiliares | `action/internal/` | [docs/actions.md](docs/actions.md) | 1.20.0 |
 | region | `region/Regions`, `PluginRegions`, `RegionSnapshot`, `RegionShape` y formas, `PolicyKey`/`PolicySet`, `RegionData`/`RegionCodec`, `PlayerRegionChangeEvent` (filtro por dueño 1.48.0), selección y visualización | `region/internal/` | [docs/regions.md](docs/regions.md) | 1.23.0 |
+| lo que un jugador debe ver al volver | `client/Clients.Waypoints.restoreWith` | `client/internal/ClientRuntime.restore` (RESTORERS por dueño) | [docs/client.md](docs/client.md) | 1.58.0 |
+| escribir en los slots editables de un menú | `ui/UiSession.input`, `inputs(Map)` | `ui/internal/Session.requireInput` | [docs/menus.md](docs/menus.md) | 1.58.0 |
 | dibujar un icono guardado | `item/Items.icon` | `item/internal/ItemRenderer.icon` (una sola copia: `util/editor/internal/Icons.base` delega) | [docs/items.md](docs/items.md) | 1.58.0 |
 | limpiar entidades de una región | `region/PluginRegions.clearEntities` (con y sin predicado) | `region/internal/RegionEntities` | [docs/regions.md](docs/regions.md) | 1.58.0 |
 | selector como el de commons | `region/SelectionOptions` (builder), `SelectionState.AWAITING_CONFIRMATION`, `SelectionSession.confirm` | `region/internal/SelectorWand`, `SelectionPreview`, `SelectionRuntime`, `SelectionListener` | [docs/regions.md](docs/regions.md) | 1.56.0 |
