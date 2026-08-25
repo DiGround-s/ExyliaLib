@@ -72,6 +72,24 @@ class PapiBridgeTest {
     }
 
     @Test
+    @DisplayName("an async render shows what the main-thread pass resolved")
+    void asyncRendersUseTheRefreshedValue() {
+        FakeServer.online(player.player());
+        PapiBridge.setApplierForTests((viewer, text) -> text.replace("%external_value%", "outside"));
+        FakeServer.setPrimaryThread(false);
+
+        // Nothing has been resolved yet, so this render still shows the
+        // placeholder as written — and asks for it.
+        assertEquals("%external_value%", Placeholders.apply("%external_value%", player.player()));
+
+        FakeServer.setPrimaryThread(true);
+        PapiBridge.refreshWanted();
+        FakeServer.setPrimaryThread(false);
+
+        assertEquals("outside", Placeholders.apply("%external_value%", player.player()));
+    }
+
+    @Test
     @DisplayName("a placeholder deferred off the main thread is not called unregistered")
     void deferredPlaceholderIsNotReportedAsUnknown() {
         PapiBridge.setApplierForTests((viewer, text) -> text.replace("%external_value%", "outside"));

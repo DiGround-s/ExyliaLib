@@ -1,10 +1,15 @@
 package net.exylia.lib.placeholder.internal;
 
+import net.exylia.lib.task.TaskHandle;
+import net.exylia.lib.task.Tasks;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
 
+import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.BiFunction;
@@ -30,8 +35,15 @@ public final class PapiBridge {
     /** One expansion per owning plugin, so unloading one does not affect others. */
     private static final Map<String, Object> EXPANSIONS = new ConcurrentHashMap<>();
 
+    /** The last value PlaceholderAPI gave for a piece of text, per player. */
+    private static final Map<UUID, Map<String, String>> VALUES = new ConcurrentHashMap<>();
+
+    /** Text an off-thread render asked about, waiting for the next main-thread pass. */
+    private static final Map<UUID, Set<String>> WANTED = new ConcurrentHashMap<>();
+
     private static volatile boolean available;
     private static volatile BiFunction<Player, String, String> testApplier;
+    private static volatile TaskHandle refresher;
     /** So a broken PlaceholderAPI names itself once instead of once per render. */
     private static final AtomicBoolean FAILURE_REPORTED = new AtomicBoolean();
 
@@ -66,20 +78,8 @@ public final class PapiBridge {
         return found;
     }
 
-    /**
-     * Returns whether PlaceholderAPI can be consulted from the calling thread.
-     *
-     * <p>PlaceholderAPI runs third-party expansions, and those read the world,
-     * scoreboards and entities. Off the main thread Paper answers that with
-     * {@code IllegalStateException: Asynchronous ... access}, which is thrown
-     * <em>through</em> whoever was rendering. Scoreboards render on an async
-     * timer, so one such expansion aborted the render before a single line was
-     * sent and the sidebar went blank.
-     */
-    private static boolean usable() {
-        if (!onMainThread()) {
-            return false;
-        }
+    /** Whether PlaceholderAPI, or the test stand-in, can answer at all. */
+    private static boolean installed() {
         return testApplier != null || available();
     }
 
@@ -92,7 +92,7 @@ public final class PapiBridge {
      * author looking for the wrong registration.
      */
     public static boolean deferred() {
-        return !onMainThread() && (testApplier != null || available());
+        return !onMainThread() && installed();
     }
 
     private static boolean onMainThread() {
@@ -123,14 +123,51 @@ public final class PapiBridge {
     /**
      * Resolves PlaceholderAPI placeholders in text.
      *
+     * <p>On the main thread this asks PlaceholderAPI. Off it — which is where
+     * scoreboards and holograms render — the answer is the one the last
+     * main-thread pass got, and the text is remembered so {@link #refreshWanted}
+     * has it next tick.
+     *
+     * <p>Asking from the render thread is what this avoids, not what it fixes:
+     * PlaceholderAPI runs third-party expansions, and those read the world,
+     * scoreboards and entities. Off the main thread Paper answers that with
+     * {@code IllegalStateException: Asynchronous ... access}, thrown
+     * <em>through</em> whoever was rendering, which blanked the sidebar before a
+     * single line was sent. Refusing to ask kept the sidebar alive but left
+     * every PlaceholderAPI placeholder on it written out as {@code %name%},
+     * which is what remembering the values is for.
+     *
      * @param player the viewer
      * @param text   the text to fill in
      * @return the filled text, or the original when PlaceholderAPI is absent
      */
     public static String apply(Player player, String text) {
-        if (player == null || !usable()) {
+        if (player == null || !installed()) {
             return text;
         }
+        if (!onMainThread()) {
+            return remembered(player, text);
+        }
+        return resolve(player, text);
+    }
+
+    /**
+     * The value from the last main-thread pass, asking for the next one.
+     *
+     * <p>So the first render of a placeholder shows it as written and the render
+     * after it shows the value. A board refreshing every half second is that far
+     * behind, which nobody sees on a rank, a balance or a clock.
+     */
+    private static String remembered(Player player, String text) {
+        UUID id = player.getUniqueId();
+        WANTED.computeIfAbsent(id, key -> ConcurrentHashMap.newKeySet()).add(text);
+        Map<String, String> values = VALUES.get(id);
+        String value = values == null ? null : values.get(text);
+        return value == null ? text : value;
+    }
+
+    /** Asks PlaceholderAPI, from a thread that is allowed to. */
+    private static String resolve(Player player, String text) {
         try {
             BiFunction<Player, String, String> applier = testApplier;
             return applier != null ? applier.apply(player, text) : PapiExpansion.apply(player, text);
@@ -148,6 +185,58 @@ public final class PapiBridge {
     }
 
     /**
+     * Starts the main-thread pass that keeps {@link #apply} answerable off it.
+     *
+     * <p>Every tick, but its work is only what an async render asked for since
+     * the last one: a server whose boards use no PlaceholderAPI placeholder
+     * resolves nothing. A board refreshing every half second costs two
+     * resolutions a second per placeholder, which is what rendering it on the
+     * main thread would have cost anyway.
+     */
+    public static void startRefreshing(Plugin plugin) {
+        if (refresher != null) {
+            return;
+        }
+        refresher = Tasks.of(plugin).runTimer(1L, 1L, PapiBridge::refreshWanted);
+    }
+
+    /** Stops the pass and forgets every remembered value. */
+    public static void stopRefreshing() {
+        TaskHandle handle = refresher;
+        refresher = null;
+        if (handle != null) {
+            handle.cancel();
+        }
+        WANTED.clear();
+        VALUES.clear();
+    }
+
+    /** Resolves what the last renders asked about. Runs on the main thread. */
+    static void refreshWanted() {
+        for (UUID id : List.copyOf(WANTED.keySet())) {
+            Set<String> texts = WANTED.remove(id);
+            Player player = Bukkit.getPlayer(id);
+            if (player == null || !player.isOnline()) {
+                VALUES.remove(id);
+                continue;
+            }
+            if (texts == null || texts.isEmpty()) {
+                continue;
+            }
+            Map<String, String> values =
+                    VALUES.computeIfAbsent(id, key -> new ConcurrentHashMap<>());
+            for (String text : texts) {
+                values.put(text, resolve(player, text));
+            }
+        }
+        // Somebody who left stops asking, so their values are only dropped here.
+        // One entry per player who ever saw a board, so the sweep is cheap.
+        if (!VALUES.isEmpty()) {
+            VALUES.keySet().removeIf(id -> Bukkit.getPlayer(id) == null);
+        }
+    }
+
+    /**
      * Installs a stand-in for tests without loading PlaceholderAPI's runtime.
      *
      * <p>Public inside {@code internal} because the modules that render through
@@ -158,10 +247,13 @@ public final class PapiBridge {
         testApplier = applier;
     }
 
-    /** Removes the test stand-in, the availability cache and the reported failure. */
+    /** Removes the test stand-in, the caches and the reported failure. */
     public static void resetForTests() {
         testApplier = null;
         available = false;
+        refresher = null;
+        WANTED.clear();
+        VALUES.clear();
         FAILURE_REPORTED.set(false);
     }
 
@@ -173,9 +265,10 @@ public final class PapiBridge {
         }
     }
 
-    /** Removes every expansion. */
+    /** Removes every expansion and stops the refreshing pass. */
     public static void releaseAll() {
         EXPANSIONS.values().forEach(PapiExpansion::unregister);
         EXPANSIONS.clear();
+        stopRefreshing();
     }
 }

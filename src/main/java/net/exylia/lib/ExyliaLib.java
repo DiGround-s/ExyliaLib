@@ -57,6 +57,7 @@ import net.exylia.lib.util.snapshot.internal.SnapshotRuntime;
 import net.exylia.lib.util.wizard.Wizards;
 import net.exylia.lib.util.wizard.internal.WizardRuntime;
 import net.exylia.lib.placeholder.internal.BuiltIn;
+import net.exylia.lib.placeholder.internal.PapiBridge;
 import net.exylia.lib.platform.Platform;
 import net.exylia.lib.scoreboard.internal.BoardManager;
 import net.exylia.lib.session.Sessions;
@@ -144,6 +145,9 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         Placeholders.logger(getLogger());
         BuiltIn.register(this);
         FormatPlaceholders.register(this);
+        // Scoreboards and holograms render off the main thread, where
+        // PlaceholderAPI cannot be asked. This is the pass that asks for them.
+        PapiBridge.startRefreshing(this);
         BoardManager.init(this, SidebarLibrary.load(this, getLogger()));
         HologramRuntime.init(this);
         ClientRuntime.init(this);
