@@ -75,8 +75,7 @@ class EditorIsGenericTest {
         // An absence assertion that examined nothing passes for the wrong
         // reason, and so does one whose detector cannot detect. A reward class
         // does name its own package, so the same check must find it there.
-        Path reward = files.get(0).getParent().getParent()
-                .resolve("reward").resolve("RewardDescriptor.class");
+        Path reward = classesRoot().resolve("net/exylia/lib/util/reward/RewardDescriptor.class");
         assertTrue(Files.exists(reward), "expected a reward class to test the detector against");
         String bytes = new String(Files.readAllBytes(reward),
                 java.nio.charset.StandardCharsets.ISO_8859_1);
@@ -86,10 +85,14 @@ class EditorIsGenericTest {
         assertEquals(4, FORBIDDEN.size());
     }
 
+    /** Where the compiled classes are, which is what both sweeps read. */
+    private static Path classesRoot() throws URISyntaxException {
+        return Path.of(Editors.class.getProtectionDomain().getCodeSource()
+                .getLocation().toURI());
+    }
+
     private static List<Path> classFiles() throws IOException, URISyntaxException {
-        Path root = Path.of(Editors.class.getProtectionDomain().getCodeSource()
-                .getLocation().toURI())
-                .resolve("net/exylia/lib/util/editor");
+        Path root = classesRoot().resolve("net/exylia/lib/util/editor");
         try (Stream<Path> files = Files.walk(root)) {
             return files.filter(path -> path.toString().endsWith(".class")).toList();
         }
