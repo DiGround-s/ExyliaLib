@@ -449,6 +449,7 @@ final class WizardSession implements WizardRun {
     private void pick(WizardStep.Pick step) {
         nextGeneration();
         waiting = Waiting.PICK;
+        announce(step.prompt());
         Text.from(plugin, step.prompt()).forPlayer(player).send(player);
     }
 
@@ -502,6 +503,7 @@ final class WizardSession implements WizardRun {
     private void select(WizardStep.Region step) {
         long mine = nextGeneration();
         waiting = Waiting.REGION;
+        announce(step.prompt());
         Text.from(plugin, step.prompt()).forPlayer(player).send(player);
 
         SelectionSession session;
@@ -1139,6 +1141,46 @@ final class WizardSession implements WizardRun {
                 .replace("%steps%", String.valueOf(total))
                 .replace("%title%", wizard.title());
         bar.text(text).progress(Math.clamp((float) answered / total, 0f, 1f));
+    }
+
+    /**
+     * Puts a title on screen naming the step that just began.
+     *
+     * <p>Only for the steps that open <b>no window</b>: standing somewhere,
+     * clicking a block, selecting an area. Without this the only thing telling
+     * an admin what the server is waiting for is one chat line that scrolls
+     * away. Everything else — a question, and the confirm a hand step opens —
+     * already draws its prompt in the dialog, the anvil or the chat request it
+     * opens, and a title over that says it twice.
+     *
+     * <p>The chat line is sent as well and is not the same thing: the title says
+     * what is happening now, the line is the record that survives it.
+     */
+    private void announce(String prompt) {
+        if (!settings.announce()) {
+            return;
+        }
+        String title = fill(settings.announceTitle(), prompt);
+        String subtitle = fill(settings.announceSubtitle(), prompt);
+        if (title.isBlank() && subtitle.isBlank()) {
+            return;
+        }
+        effects.title(title)
+                .subtitle(subtitle)
+                // No fade: an admin who is being asked to click something wants
+                // to read it now, not watch it arrive.
+                .times(0, settings.announceSeconds(), 0.25)
+                .show(player);
+    }
+
+    /** A template with what this step is asking filled in. */
+    private String fill(String template, String prompt) {
+        int total = Math.max(1, stepCount());
+        return template
+                .replace("%prompt%", prompt)
+                .replace("%step%", String.valueOf(Math.min(answered + 1, total)))
+                .replace("%steps%", String.valueOf(total))
+                .replace("%title%", wizard.title());
     }
 
     private String progressText() {

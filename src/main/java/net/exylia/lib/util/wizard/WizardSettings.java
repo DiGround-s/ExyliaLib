@@ -58,15 +58,61 @@ public record WizardSettings(
         @Comment("What the progress bar says. %step% is the question they are")
         @Comment("on, %steps% is how many there are, and %title% is the name of")
         @Comment("the flow.")
-        String progressText
+        String progressText,
+
+        @Comment("Whether a title announces each step the player answers with a")
+        @Comment("gesture — standing somewhere, clicking a block, selecting an")
+        @Comment("area, holding an item. A question asked in a dialog or an")
+        @Comment("anvil already carries its own prompt and is never announced.")
+        boolean announce,
+
+        @Key("announce-title")
+        @Comment("The big line. %title% is the name of the flow, %step% and")
+        @Comment("%steps% count the questions.")
+        String announceTitle,
+
+        @Key("announce-subtitle")
+        @Comment("The smaller line under it. %prompt% is what the step asks.")
+        String announceSubtitle,
+
+        @Key("announce-seconds")
+        @Comment("How long that title stays on screen.")
+        double announceSeconds
 ) {
 
     /** The Exylia defaults: five minutes, three redos, a bar that names the step. */
     public WizardSettings() {
-        this(300, 3, true, "{primary}%title% {muted}(%step%/%steps%)");
+        this(300, 3, true, "{primary}%title% {muted}(%step%/%steps%)",
+                true, "{primary}&l%title%", "{letters}%prompt%", 2.5);
+    }
+
+    /**
+     * The settings a file written before titles existed describes.
+     *
+     * <p>Kept so a plugin that constructs these in code, and every test that
+     * does, does not have to name four values it never had an opinion about.
+     * The announcement takes its defaults.
+     *
+     * @param timeoutSeconds how long the whole flow may last
+     * @param maxRedos       how many times the review may be sent back
+     * @param progress       whether a boss bar shows the step count
+     * @param progressText   what that bar says
+     */
+    public WizardSettings(int timeoutSeconds, int maxRedos, boolean progress, String progressText) {
+        this(timeoutSeconds, maxRedos, progress, progressText,
+                true, "{primary}&l%title%", "{letters}%prompt%", 2.5);
     }
 
     public WizardSettings {
+        if (announceTitle == null) {
+            announceTitle = "";
+        }
+        if (announceSubtitle == null) {
+            announceSubtitle = "";
+        }
+        if (announceSeconds <= 0) {
+            announceSeconds = 2.5;
+        }
         // A run shorter than a single question's default timeout would end the
         // flow while the player is still looking at the first prompt.
         timeoutSeconds = Math.max(30, timeoutSeconds);

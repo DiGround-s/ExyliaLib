@@ -96,6 +96,24 @@ The `title` names *what is being set*, because it is what the progress bar
 draws — `LOBBY SPAWN Park (1/1)`. The `prompt` is the plugin's own text, out of
 its own messages file: what the library supplies is the shape, not the wording.
 
+### What the player sees
+
+A step answered with a gesture — standing somewhere, clicking a block,
+selecting an area — opens no window, so it announces itself with a title and a
+subtitle as well as the chat line:
+
+```
+        LOBBY SPAWN
+  ➥ Stand where you want it and sneak + click.
+
+           LOBBY SPAWN (1/1)          <- the progress bar
+```
+
+The wording is `wizard.announce-title` and `announce-subtitle` in the plugin's
+settings, with `%title%`, `%prompt%`, `%step%` and `%steps%`; `announce: false`
+turns it off. Questions are never announced — a dialog, an anvil or a chat
+request already carries its own prompt, and a title over it says it twice.
+
 For anything longer than one question — a flow with branches, a review, several
 answers that build one object — declare it with `define` and keep it.
 

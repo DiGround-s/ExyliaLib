@@ -1,6 +1,7 @@
 package net.exylia.lib.util.wizard;
 
 import net.exylia.lib.FakeServer;
+import net.exylia.lib.effect.internal.EffectRuntime;
 import net.exylia.lib.util.wizard.internal.WizardPeek;
 import org.bukkit.Location;
 import org.bukkit.World;
@@ -95,6 +96,18 @@ class WizardAskTest {
 
         assertEquals("lobby-spawn-park", run.wizard().id(),
                 "colours and tags are not part of an id, the words are");
+    }
+
+    @Test
+    @DisplayName("a step with no window announces itself on screen")
+    void gestureStepsAnnounceThemselves() {
+        harness.wizards().askStand(harness.player(), "{primary}&lLOBBY SPAWN",
+                "Stand where it goes", location -> {}, null);
+        harness.settle();
+
+        // The progress bar is one display; a title on top of it is the second.
+        assertTrue(EffectRuntime.active() > 1,
+                "a step that opens no window has to say what it is waiting for");
     }
 
     @Test
