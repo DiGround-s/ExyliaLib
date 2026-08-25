@@ -60,6 +60,45 @@ Here the flow is a `Wizard`, one player's pass through it is a `WizardRun` that
 nothing outside the module can reach into, and every ending goes through one
 cleanup path.
 
+## Asking one thing
+
+Most of what a setup menu needs is one question: where does this spawn go, which
+area is the arena, what icon does this use. Four shortcuts cover it, and every
+plugin gets the same boss bar, the same prompt placement and the same cancel
+behaviour without writing the flow again.
+
+```java
+wizards.askStand(player, "{primary}&lLOBBY SPAWN " + arena.name(),
+        messages.admin().pointPrompt(),
+        where -> save(arena.withLobby(where)),
+        () -> openArenaMenu(player));
+```
+
+| Call | The player | Answer |
+| --- | --- | --- |
+| `askStand(player, title, prompt, accepted, abandoned)` | stands where they mean and sneak-clicks | `Location`, facing included |
+| `askPoint(...)` | clicks a block | `Location` of the block |
+| `askRegion(...)` | selects a volume with the shared selector | `SelectionResult` |
+| `askItem(...)` | holds an item and confirms | `ItemStack` |
+
+`askStand` is the one for anywhere a player is later **put** — a spawn, a lobby,
+a warp. A clicked block names a whole cube and carries no yaw, so an aimed pick
+has to guess both, and a player spawned from one faces whatever direction the
+corner happened to be.
+
+**`abandoned` runs only when the player backed out**, never after a finish. That
+is the part every hand-written version of this flow got slightly differently: a
+caller that reopens its menu in both places opens it over the screen its own
+`accepted` just opened. It runs on the player's thread, and not at all for a
+player who is no longer there to see it.
+
+The `title` names *what is being set*, because it is what the progress bar
+draws — `LOBBY SPAWN Park (1/1)`. The `prompt` is the plugin's own text, out of
+its own messages file: what the library supplies is the shape, not the wording.
+
+For anything longer than one question — a flow with branches, a review, several
+answers that build one object — declare it with `define` and keep it.
+
 ## Declaring a flow
 
 `define(id)` returns a `WizardBuilder`. Do this once, when the plugin reads its
