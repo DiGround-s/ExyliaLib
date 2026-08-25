@@ -137,6 +137,19 @@ public final class EditorListener implements Listener {
     }
 
     private static <T> void row(EditorHolder<T> holder, Player viewer, int slot, ClickType click) {
+        net.exylia.lib.util.editor.EditorButton<T> button = holder.buttonAt(slot);
+        if (button != null) {
+            // A plugin's own button. It changes the working copy and stops; the
+            // redraw is ours, so a handler never has to reopen anything.
+            try {
+                button.click(holder.view(viewer));
+            } catch (RuntimeException broken) {
+                net.exylia.lib.debug.Debug.of(holder.plugin())
+                        .error("A button in a list editor failed.", broken);
+            }
+            holder.draw();
+            return;
+        }
         T entry = holder.at(slot);
         if (entry == null) {
             return;

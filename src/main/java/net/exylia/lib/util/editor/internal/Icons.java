@@ -75,7 +75,21 @@ public final class Icons {
      */
     public static @NotNull ItemStack row(@NotNull String icon, @NotNull String name,
                                          @NotNull List<String> lore) {
-        return write(base(icon), name, lore, false);
+        return row(icon, name, lore, false);
+    }
+
+    /**
+     * The same, drawn with the glint when it is the one that matters.
+     *
+     * @param icon the icon source
+     * @param name the name
+     * @param lore the lore lines
+     * @param glow whether to add the enchantment glint
+     * @return the item
+     */
+    public static @NotNull ItemStack row(@NotNull String icon, @NotNull String name,
+                                         @NotNull List<String> lore, boolean glow) {
+        return write(base(icon), name, lore, glow);
     }
 
     /**

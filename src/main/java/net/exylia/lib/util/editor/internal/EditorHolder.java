@@ -1,7 +1,9 @@
 package net.exylia.lib.util.editor.internal;
 
 import net.exylia.lib.util.editor.Clipboard;
+import net.exylia.lib.util.editor.EditorButton;
 import net.exylia.lib.util.editor.EditorDescriptor;
+import net.exylia.lib.util.editor.EditorView;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.entity.Player;
@@ -35,8 +37,21 @@ import java.util.function.Consumer;
  */
 public final class EditorHolder<T> implements InventoryHolder {
 
-    /** Rows on a page: six lines of nine, less the control row. */
-    static final int PAGE_SIZE = 45;
+    /** Rows on a page when the editor has no buttons of its own. */
+    static final int FULL_PAGE = 45;
+
+    /**
+     * Rows on a page when it does.
+     *
+     * <p>The bottom row of entries becomes the band the buttons sit in. Nine
+     * fewer rows per page is the price of them, and it is only paid by a screen
+     * that has any &mdash; ExyliaCommons charged every editor that row whether
+     * it used it or not.
+     */
+    static final int SHORT_PAGE = 36;
+
+    /** Where the button band starts, on a screen that has one. */
+    static final int BAND = SHORT_PAGE;
 
     static final int SLOT_ADD = 45;
     static final int SLOT_PASTE = 46;
@@ -52,6 +67,7 @@ public final class EditorHolder<T> implements InventoryHolder {
     private final Class<T> type;
     private final String title;
     private final List<T> entries;
+    private final List<EditorButton<T>> buttons;
     private final Consumer<List<T>> onSave;
     private final Runnable onCancel;
     private final UUID viewerId;
@@ -62,12 +78,14 @@ public final class EditorHolder<T> implements InventoryHolder {
     private boolean finished;
 
     EditorHolder(Plugin plugin, EditorDescriptor<T> descriptor, Class<T> type, String title,
-                 List<T> entries, Consumer<List<T>> onSave, Runnable onCancel, Player viewer) {
+                 List<T> entries, List<EditorButton<T>> buttons, Consumer<List<T>> onSave,
+                 Runnable onCancel, Player viewer) {
         this.plugin = plugin;
         this.descriptor = descriptor;
         this.type = type;
         this.title = title;
         this.entries = new ArrayList<>(entries);
+        this.buttons = List.copyOf(buttons);
         this.onSave = onSave;
         this.onCancel = onCancel;
         this.viewerId = viewer.getUniqueId();
@@ -119,7 +137,50 @@ public final class EditorHolder<T> implements InventoryHolder {
     }
 
     int pages() {
-        return Math.max(1, (entries.size() + PAGE_SIZE - 1) / PAGE_SIZE);
+        int size = pageSize();
+        return Math.max(1, (entries.size() + size - 1) / size);
+    }
+
+    /** How many rows fit on a page, which depends on whether there is a band. */
+    int pageSize() {
+        return buttons.isEmpty() ? FULL_PAGE : SHORT_PAGE;
+    }
+
+    List<EditorButton<T>> buttons() {
+        return buttons;
+    }
+
+    /** The button a band slot holds, or {@code null} when the slot is not one. */
+    @Nullable EditorButton<T> buttonAt(int slot) {
+        if (buttons.isEmpty() || slot < BAND || slot >= BAND + buttons.size()) {
+            return null;
+        }
+        return buttons.get(slot - BAND);
+    }
+
+    /** The open editor, as a button sees it. */
+    @NotNull EditorView<T> view(Player viewer) {
+        return new EditorView<>() {
+
+            @Override
+            public @NotNull Player viewer() {
+                return viewer;
+            }
+
+            @Override
+            public @NotNull List<T> entries() {
+                return List.copyOf(entries);
+            }
+
+            @Override
+            public void replaceAll(@NotNull List<T> replacement) {
+                entries.clear();
+                entries.addAll(replacement);
+                // Clamped, so a button that shortens the list does not leave the
+                // viewer looking at a page that is no longer there.
+                page(page());
+            }
+        };
     }
 
     /**
@@ -175,10 +236,10 @@ public final class EditorHolder<T> implements InventoryHolder {
 
     /** The element a slot on the current page is showing, if any. */
     @Nullable T at(int slot) {
-        if (slot < 0 || slot >= PAGE_SIZE) {
+        if (slot < 0 || slot >= pageSize()) {
             return null;
         }
-        int index = page * PAGE_SIZE + slot;
+        int index = page * pageSize() + slot;
         return index < entries.size() ? entries.get(index) : null;
     }
 
@@ -238,10 +299,16 @@ public final class EditorHolder<T> implements InventoryHolder {
     }
 
     private void drawRows() {
-        int start = page * PAGE_SIZE;
-        int end = Math.min(start + PAGE_SIZE, entries.size());
+        int size = pageSize();
+        int start = page * size;
+        int end = Math.min(start + size, entries.size());
         for (int index = start; index < end; index++) {
             inventory.setItem(index - start, rowItem(entries.get(index)));
+        }
+        for (int index = 0; index < buttons.size(); index++) {
+            EditorButton<T> button = buttons.get(index);
+            inventory.setItem(BAND + index,
+                    Icons.row(button.icon(), button.name(), button.lore(), button.isGlowing()));
         }
     }
 

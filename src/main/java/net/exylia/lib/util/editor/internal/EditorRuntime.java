@@ -55,6 +55,7 @@ public final class EditorRuntime {
      * @param type       the element type, for the clipboard's per-element check
      * @param title      the window title, in Exylia text notation
      * @param entries    what is being edited; copied, never held
+     * @param buttons    the plugin's own buttons, drawn in a band under the rows
      * @param onSave     told the finished list
      * @param onCancel   told nothing was kept
      * @param viewer     who is editing
@@ -65,12 +66,13 @@ public final class EditorRuntime {
                                 @NotNull Class<T> type,
                                 @NotNull String title,
                                 @NotNull List<T> entries,
+                                @NotNull List<net.exylia.lib.util.editor.EditorButton<T>> buttons,
                                 @NotNull Consumer<List<T>> onSave,
                                 @NotNull Runnable onCancel,
                                 @NotNull Player viewer) {
         Tasks.of(scheduler(plugin)).runAtEntity(viewer, () -> {
             EditorHolder<T> holder = new EditorHolder<>(plugin, descriptor, type, title,
-                    entries, onSave, onCancel, viewer);
+                    entries, buttons, onSave, onCancel, viewer);
             show(holder, viewer);
         });
     }

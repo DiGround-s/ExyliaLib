@@ -5,6 +5,7 @@ import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
 import org.jetbrains.annotations.NotNull;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.function.Consumer;
@@ -45,6 +46,7 @@ public final class ListEditor<T> {
     private final Class<T> type;
     private final List<T> entries;
 
+    private final List<EditorButton<T>> buttons = new ArrayList<>();
     private String title = "{primary}&lEDITOR";
     private Consumer<List<T>> onSave = edited -> { };
     private Runnable onCancel = () -> { };
@@ -95,6 +97,38 @@ public final class ListEditor<T> {
     }
 
     /**
+     * Adds a button of this plugin's own.
+     *
+     * <pre>{@code
+     * .button(EditorButton.preset(() -> Loot.parseAll(config.defaultPool())))
+     * }</pre>
+     *
+     * <p>The way to extend an editor without forking it: a recommended preset, a
+     * bulk import, a jump to a related screen. The editor decides where they go
+     * — a screen with buttons gives up its bottom row of entries to hold them,
+     * so a page shows 36 rows instead of 45 — and a caller never names a slot.
+     *
+     * <p>Nothing a button does is persisted. It changes the working copy, so
+     * even one that replaces the whole list is undone by cancel.
+     *
+     * @param button what to add
+     * @return this editor
+     * @throws IllegalStateException if more buttons are added than the row holds
+     * @since 1.58.0
+     */
+    public @NotNull ListEditor<T> button(@NotNull EditorButton<T> button) {
+        Objects.requireNonNull(button, "button");
+        if (buttons.size() >= EditorButton.LIMIT) {
+            // Refused rather than dropped: a button that is silently not drawn
+            // is a feature the admin was promised and cannot find.
+            throw new IllegalStateException("a list editor holds at most "
+                    + EditorButton.LIMIT + " buttons");
+        }
+        buttons.add(button);
+        return this;
+    }
+
+    /**
      * Puts the editor on screen.
      *
      * <p>Safe from any thread: it relocates itself onto the thread that owns the
@@ -106,6 +140,7 @@ public final class ListEditor<T> {
      */
     public void open(@NotNull Player viewer) {
         Objects.requireNonNull(viewer, "viewer");
-        EditorRuntime.open(plugin, descriptor, type, title, entries, onSave, onCancel, viewer);
+        EditorRuntime.open(plugin, descriptor, type, title, entries, List.copyOf(buttons),
+                onSave, onCancel, viewer);
     }
 }

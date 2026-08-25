@@ -990,6 +990,15 @@ tipo, nunca un mapa de sesiones por jugador.
   un cofre abierto encima de un editor está mirando el cofre.
 - **Los pickers leen el registro, no `values()`.** Varios de esos tipos dejaron
   de ser enums y un data pack puede añadir a cualquiera.
+- **Un plugin mete sus botones, pero no elige el slot.** La pantalla decide: si
+  hay botones, la fila de abajo de filas pasa a ser la banda y la página baja de
+  45 a 36; si no hay, se quedan las 45. En commons el slot lo escribía el
+  llamante, que es como un botón acaba encima del de guardar cuando alguien
+  cambia la pantalla. Caben nueve; el décimo se rechaza al construir, no se deja
+  de dibujar en silencio.
+- **Un botón toca la copia de trabajo, nada más.** Cargar un preset de 40 líneas
+  se deshace con cancelar igual que cualquier otra edición, que es lo único que
+  hace seguro ofrecer un botón destructivo.
 
 ### Efectos condicionales — la carga es una secuencia, no cuarenta campos
 
@@ -1402,6 +1411,7 @@ Raíz de código: `src/main/java/net/exylia/lib/`. Raíz de tests:
 | schematic | `schematic/Schematics`, `PluginSchematics`, `SchematicResult`, `SchematicOutcome`, `RegenerateOptions` | `schematic/internal/` (`SchematicRuntime`, `SchematicStore`, `SchematicNames`, `Bounds`, `Engines`, `SchematicEngine`; FAWE confinado en `FaweEngine`) | [docs/schematics.md](docs/schematics.md) | 1.48.0 |
 | util (loot) | `util/loot/Loot`, `LootEntry`, `LootType`, `LootCodec` | `util/loot/internal/` (`LootLines`, `LootRolls`, `LootItems`) | [docs/loot.md](docs/loot.md) | 1.56.0 |
 | util (editor) | `util/editor/Editors`, `PluginEditors`, `ListEditor`, `EditorDescriptor`, `EditorForm`, `Clipboard`, `IconPicker`, `Pickers` | `util/editor/internal/` (`EditorRuntime`, `EditorHolder`, `EditorListener`, `InsertWindow`, `Icons`) | [docs/editors.md](docs/editors.md) | 1.56.0 |
+| botones propios en un editor | `util/editor/EditorButton`, `EditorView`, `ListEditor.button` | `util/editor/internal/EditorHolder` (banda y tamaño de página) | [docs/editors.md](docs/editors.md) | 1.58.0 |
 | util (named commands) | `util/command/NamedCommand`, `NamedCommands` | `util/command/NamedCommandDescriptor` | [docs/editors.md](docs/editors.md) | 1.56.0 |
 | editores incluidos | `PluginRewards.editor`, `Loot.editor`, `NamedCommands.editor`, `Effects.editor`, `PluginEditors.items`/`locations`/`pick`/`icon` | `util/reward/RewardDescriptor`, `util/loot/LootDescriptor`, `util/PotionEffectDescriptor`, `util/editor/ItemListEditor`, `LocationDescriptor` | [docs/editors.md](docs/editors.md) | 1.56.0 |
 | diálogo alto y prerellenado | `input/TextInput.lines`, `FormField.lines` | `input/internal/DialogPackets.multiline` | [docs/input.md](docs/input.md) | 1.56.0 |

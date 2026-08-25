@@ -44,6 +44,7 @@ Pagination, add, edit, delete, copy, paste, save and cancel, on every list.
 | Left click a row | edit it |
 | Right click a row | delete it |
 | **Shift + left** a row | copy it |
+| A button in the bottom band | whatever the plugin made it do |
 | `ADD` | create a row and configure it |
 | `PASTE` | add whatever is on the clipboard |
 | `COPY ALL` | put the whole list on the clipboard |
@@ -170,6 +171,63 @@ theft, not a feature.
 The same window is what `items(...)` uses to add and to replace a row, because
 an item is not something you type.
 
+## Buttons of your own
+
+```java
+Loot.editor(this, table.entries())
+    .button(EditorButton.preset(() -> Loot.parseAll(config.defaultPool())))
+    .onSave(store::save)
+    .open(player);
+```
+
+The way to extend an editor without forking it: a recommended preset, a bulk
+import, a jump to a related screen.
+
+```java
+EditorButton.<LootEntry>of("CHEST_MINECART")
+        .name("{highlight}&lLOAD DEFAULTS")
+        .lore(" {letters_black}▎ {letters}Replaces this table with the preset.")
+        .glowing()
+        .onClick(view -> {
+            view.replaceAll(Loot.parseAll(preset));
+            Text.from(this, "{success}Preset loaded").send(view.viewer());
+        })
+        .build();
+```
+
+| On the view | |
+| --- | --- |
+| `viewer()` | who clicked |
+| `entries()` | the list as it stands, unsaved edits included; unmodifiable |
+| `replaceAll(list)` | what the list should hold now |
+
+`replaceAll` is the only mutator, because it is the only one a button has ever
+needed: appending is `replaceAll` over the current list plus the new rows, and
+it reads as what it is. The page is clamped afterwards, so a button that
+shortens the list does not leave the viewer on a page that is gone. The screen
+redraws by itself; a handler changes the list and stops.
+
+**Nothing a button does is persisted.** It changes the working copy, so even one
+that replaces forty rows is undone by cancel — which is what makes a destructive
+button safe to offer at all.
+
+### Where they go
+
+The editor decides; **a caller never names a slot**. A screen with buttons gives
+up its bottom row of entries to hold them, so a page shows 36 rows instead of
+45, and they sit in the order they were added. A screen with none keeps all 45.
+
+Slots were the one thing ExyliaCommons made callers write, and it is how a
+button ends up on top of the save button on a screen somebody later changed. Nine
+buttons fit; a tenth is refused when the editor is built rather than silently not
+drawn, because a button an admin was promised and cannot find is worse than an
+exception in the log.
+
+`EditorButton.preset(supplier)` is the one every editor eventually grows, worded
+and drawn the way commons drew it. The supplier is asked when the button is
+pressed rather than when the editor opens, so a config reloaded in between is the
+one that answers.
+
 ## Writing an editor for your own type
 
 One interface. No screen, session, holder or clipboard.
@@ -240,7 +298,7 @@ its gating plus a sequence rather than a forty-field bean over eight types.
 
 | Part | Where |
 | --- | --- |
-| Public API | `util/editor/Editors`, `PluginEditors`, `ListEditor`, `EditorDescriptor`, `EditorForm`, `Clipboard`, `IconPicker`, `Pickers` |
+| Public API | `util/editor/Editors`, `PluginEditors`, `ListEditor`, `EditorDescriptor`, `EditorForm`, `EditorButton`, `EditorView`, `Clipboard`, `IconPicker`, `Pickers` |
 | Shipped descriptors | `util/reward/RewardDescriptor`, `util/loot/LootDescriptor`, `util/command/NamedCommandDescriptor`, `util/sequence/EffectDescriptor`, `util/PotionEffectDescriptor`, `util/editor/ItemListEditor`, `LocationDescriptor` |
 | Internal | `util/editor/internal/` — `EditorRuntime`, `EditorHolder`, `EditorListener`, `InsertWindow`, `Icons` |
 | Tests | `src/test/java/net/exylia/lib/util/editor/` |
