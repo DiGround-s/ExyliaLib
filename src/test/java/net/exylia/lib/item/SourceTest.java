@@ -179,6 +179,41 @@ class SourceTest {
         assertEquals("DIAMOND_SWORD", assertInstanceOf(Source.OfMaterial.class, source).raw());
     }
 
+    @Test
+    @DisplayName("a material is named as words, not as a registry key")
+    void materialLabel() {
+        // The lore line an admin reads says which icon is set. NETHER_STAR is
+        // how it is stored; it is not how anybody writes it.
+        assertEquals("Nether Star", Source.of("NETHER_STAR").label());
+        assertEquals("Stone", Source.of("stone").label());
+    }
+
+    @Test
+    @DisplayName("a placeholder is left as written rather than prettified")
+    void templateMaterialLabel() {
+        // Nobody is looking yet, so there is no material to name: turning
+        // %icon_material% into "Icon Material" would invent one.
+        assertEquals("%icon_material%", Source.of("%icon_material%").label());
+    }
+
+    @Test
+    @DisplayName("a head is named by what makes it that head")
+    void headLabels() {
+        assertEquals("Notch's Head", Source.of("playerhead-Notch").label());
+        assertEquals("Custom Head", Source.of("basehead-" + TEXTURE).label());
+        assertEquals("Custom Head",
+                Source.of("urlhead-http://textures.minecraft.net/texture/abc").label());
+        // Whose head it is depends on the viewer, so it is named as a kind.
+        assertEquals("Player Head", Source.of("playerhead-%player_name%").label());
+    }
+
+    @Test
+    @DisplayName("an unreadable snapshot is still named")
+    void unreadableSnapshotLabel() {
+        // A lore line is being drawn. Throwing here takes the screen with it.
+        assertEquals("Custom Item", Source.of("bytes:not-base64").label());
+    }
+
     /**
      * An item with nothing behind it.
      *

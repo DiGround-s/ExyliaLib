@@ -1,9 +1,12 @@
 package net.exylia.lib.region.internal;
 
 import net.exylia.lib.effect.Effects;
+import net.exylia.lib.region.HorizontalBounds;
 import net.exylia.lib.region.RegionId;
+import net.exylia.lib.region.RegionShape;
 import net.exylia.lib.region.RegionSnapshot;
 import net.exylia.lib.region.RegionVisualization;
+import net.exylia.lib.region.VerticalBounds;
 import net.exylia.lib.region.VisualizationOptions;
 import net.exylia.lib.task.TaskHandle;
 import net.exylia.lib.task.Tasks;
@@ -15,6 +18,7 @@ import org.bukkit.plugin.Plugin;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.Objects;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
@@ -83,6 +87,35 @@ public final class VisualizationRuntime {
         return ACTIVE.size();
     }
 
+    /**
+     * Squared distance from a point to the nearest point of a shape's bounds.
+     *
+     * <p>Against the bounds rather than the centre, because "am I near this
+     * region" for a region a hundred blocks wide is not a question about where
+     * its middle is: standing on an arena's edge is standing at it.
+     *
+     * <p>A shape with no ceiling is measured flat. Its outline is drawn at the
+     * viewer's own height, so the vertical distance to it is always zero.
+     */
+    static double squaredGap(RegionShape shape, Location point) {
+        HorizontalBounds horizontal = shape.horizontalBounds();
+        double gapX = axisGap(point.getX(), horizontal.minX(), horizontal.maxX());
+        double gapZ = axisGap(point.getZ(), horizontal.minZ(), horizontal.maxZ());
+        Optional<VerticalBounds> vertical = shape.verticalBounds();
+        double gapY = vertical.isPresent()
+                ? axisGap(point.getY(), vertical.get().minY(), vertical.get().maxY())
+                : 0.0;
+        return gapX * gapX + gapY * gapY + gapZ * gapZ;
+    }
+
+    /** How far outside {@code [min, max]} a coordinate is; zero when inside. */
+    private static double axisGap(double value, double min, double max) {
+        if (value < min) {
+            return min - value;
+        }
+        return value > max ? value - max : 0.0;
+    }
+
     private static final class Visualization implements RegionVisualization {
 
         private final UUID handleId;
@@ -115,7 +148,7 @@ public final class VisualizationRuntime {
                 timer.cancel();
                 return;
             }
-            if (elapsedTicks >= options.durationTicks()) {
+            if (!options.isUntilClosed() && elapsedTicks >= options.durationTicks()) {
                 stop();
                 return;
             }
@@ -140,8 +173,17 @@ public final class VisualizationRuntime {
                 return;
             }
 
+            Location viewer = player.getLocation();
+            double reach = options.viewDistance();
+            // Before the outline is worked out, not after: a viewer who cannot
+            // see it should not pay for the points either.
+            if (squaredGap(region.shape(), viewer) > reach * reach) {
+                elapsedTicks += options.periodTicks();
+                return;
+            }
+
             OutlineSampler.Outline outline = OutlineSampler.sample(region.shape(), options.spacing());
-            double dynamicY = player.getLocation().getBlockY() + 1.0;
+            double dynamicY = viewer.getBlockY() + 1.0;
             double[] coordinates = outline.coordinates();
             for (int offset = 0; offset < coordinates.length; offset += 3) {
                 double y = outline.dynamicY() ? dynamicY : coordinates[offset + 1];

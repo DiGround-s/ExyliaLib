@@ -47,6 +47,9 @@ Migration notes:
 
 - [Migrating ExyliaFFA](migration-ffa.md) — what FFA needs, and the four things
   that change behaviour rather than moving.
+- [Migrating ExyliaCapture](migration-capture.md) — the full module audit, the
+  three things the library does not have, and the zone column that must keep its
+  exact JSON.
 
 Root classes that are not a module:
 

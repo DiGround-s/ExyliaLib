@@ -391,6 +391,41 @@ would produce eight hundred thousand points to keep five hundred.
 Shapes with no ceiling — a claim, a safe zone — are drawn at the viewer's own
 height, because a rectangle drawn at y=0 is underground.
 
+### An outline that belongs to a match
+
+The defaults describe an admin being shown where a region is: two hundred ticks
+and gone. A zone that is part of a game is the other case — drawn for as long as
+the game lasts, to everybody online, and paid for every frame by every viewer.
+
+```java
+VisualizationOptions zone = VisualizationOptions.builder()
+        .particleName("WAX_ON")
+        .periodTicks(40L)
+        .untilClosed()          // the event decides when, not a tick count
+        .viewDistance(48.0)     // the default; the far side of the map is skipped
+        .build();
+
+handles.add(regions.visualize(player, zoneId, zone));
+```
+
+`untilClosed()` is what makes that possible without naming a duration nobody can
+know in advance. It is not "forever": the visualization still stops on its own
+when the viewer leaves, when the region is unregistered and when the owning
+plugin is disabled, so an event that ends badly cannot leave particles running.
+Closing the handle is the fourth way, and the one the event itself uses.
+
+`viewDistance` is what keeps it affordable. A viewer farther than that from the
+**nearest point of the region's bounds** is skipped *before* the outline is
+worked out — measured to the bounds rather than to the centre, because standing
+on the edge of a hundred-block arena is standing at it, and a centre-based check
+would stop drawing the border to the players actually on it. The default is 48
+blocks, the same as a hologram's, and for the same reason: past it the client has
+nothing to draw, so the packets were only ever bandwidth.
+
+`VisualizationOptions` is a builder rather than a record since 1.61.0, the way
+`SelectionOptions` already was. The four-argument constructor still compiles and
+picks up the view distance it never knew about.
+
 ## Storing regions
 
 The region module does not talk to a database. It offers the value that one

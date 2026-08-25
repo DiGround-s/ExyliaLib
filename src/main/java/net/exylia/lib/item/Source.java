@@ -44,6 +44,27 @@ public sealed interface Source {
     boolean isDynamic();
 
     /**
+     * The name of this source as a person reads it.
+     *
+     * <p>For the screens where an admin is choosing an icon and the lore has to
+     * say which one is set: {@code NETHER_STAR} reads as {@code Nether Star},
+     * and a head reads as what makes it that head rather than as four hundred
+     * characters of base64.
+     *
+     * <pre>{@code
+     * Source.of(config.icon()).label();   // "Nether Star"
+     * }</pre>
+     *
+     * <p>This is for a human, never for storage: {@link #raw()} is what goes
+     * back into a config or a column. A source whose object depends on the
+     * viewer is named by what kind of thing it is, since nobody is looking yet.
+     *
+     * @return a label to show, never blank
+     * @since 1.61.0
+     */
+    @NotNull String label();
+
+    /**
      * The text this source was written as.
      *
      * @return the original {@code material} value
@@ -171,6 +192,13 @@ public sealed interface Source {
         public boolean isDynamic() {
             return raw.indexOf('%') >= 0;
         }
+
+        @Override
+        public @NotNull String label() {
+            // A placeholder is shown as written: prettifying %icon_material%
+            // would name a material nobody chose.
+            return isDynamic() ? raw : words(raw);
+        }
     }
 
     /**
@@ -183,6 +211,16 @@ public sealed interface Source {
         @Override
         public boolean isDynamic() {
             return false;
+        }
+
+        @Override
+        public @NotNull String label() {
+            return switch (head) {
+                case SkullSource.PlayerName player -> player.name() + "'s Head";
+                case SkullSource.PlayerId ignored -> "Player Head";
+                case SkullSource.Texture ignored -> "Custom Head";
+                case SkullSource.Url ignored -> "Custom Head";
+            };
         }
     }
 
@@ -199,6 +237,11 @@ public sealed interface Source {
         public boolean isDynamic() {
             return true;
         }
+
+        @Override
+        public @NotNull String label() {
+            return kind == Kind.PLAYER ? "Player Head" : "Custom Head";
+        }
     }
 
     /** A serialised item, carried whole in the config. */
@@ -206,6 +249,25 @@ public sealed interface Source {
         @Override
         public boolean isDynamic() {
             return false;
+        }
+
+        /**
+         * The material inside the snapshot, or that it is a custom item.
+         *
+         * <p>Decoded on demand rather than at parse time: a snapshot is drawn
+         * far more often than it is named, and the icon path already has the
+         * item. This runs once per screen that asks, not per render.
+         */
+        @Override
+        public @NotNull String label() {
+            try {
+                ItemStack item = ItemStack.deserializeBytes(Base64.getDecoder().decode(base64));
+                return words(item.getType().name());
+            } catch (RuntimeException unreadable) {
+                // An icon nobody can name is still an icon somebody set. Saying
+                // so beats an exception thrown while drawing a lore line.
+                return "Custom Item";
+            }
         }
     }
 
@@ -268,5 +330,31 @@ public sealed interface Source {
 
     private static boolean startsWith(String value, String prefix) {
         return value.regionMatches(true, 0, prefix, 0, prefix.length());
+    }
+
+    /**
+     * Turns a registry name into words: {@code NETHER_STAR} to
+     * {@code Nether Star}.
+     *
+     * <p>Built in one pass over the characters. The obvious spelling — split,
+     * stream, capitalise, join — allocates an array, a stream and a string per
+     * word for a value that is nearly always two words long.
+     */
+    private static String words(String name) {
+        StringBuilder label = new StringBuilder(name.length());
+        boolean starting = true;
+        for (int index = 0; index < name.length(); index++) {
+            char character = name.charAt(index);
+            if (character == '_') {
+                label.append(' ');
+                starting = true;
+                continue;
+            }
+            label.append(starting
+                    ? Character.toUpperCase(character)
+                    : Character.toLowerCase(character));
+            starting = false;
+        }
+        return label.toString();
     }
 }

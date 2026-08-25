@@ -127,6 +127,35 @@ and lore are gradients and palette tokens, which serialise as component JSON and
 run past the 512 characters an icon column allows, so keeping them meant a real
 kit item could not be used as an icon at all.
 
+### Naming a stored icon
+
+An admin screen that lets somebody choose an icon has to say which one is set,
+and the stored string is not it: `NETHER_STAR` is a registry key, and a head is
+four hundred characters of base64.
+
+```java
+Source.of(config.icon()).label();      // "Nether Star"
+```
+
+| Stored as | Reads as |
+| --- | --- |
+| `NETHER_STAR` | `Nether Star` |
+| `playerhead-Notch` | `Notch's Head` |
+| `basehead-eyJ0…`, `urlhead-…` | `Custom Head` |
+| `playerhead-%player_name%` | `Player Head` |
+| `bytes:…` | the material inside it, or `Custom Item` |
+| `%arena_icon%` | `%arena_icon%` |
+
+It is for a person, never for storage — `raw()` is what goes back into a config
+or a column. A source whose object depends on the viewer is named by what kind
+of thing it is, because nobody is looking yet: prettifying `%icon_material%`
+into `Icon Material` would name a material nobody chose.
+
+A `bytes:` snapshot is decoded when it is asked, not when the file is read: an
+icon is drawn far more often than it is named, and the drawing path already has
+the item. One that will not decode reads as `Custom Item` rather than throwing
+while a lore line is being built.
+
 ### Drawing a stored icon
 
 The round trip's other end. `Source.of(ItemStack)` gives you the string to
