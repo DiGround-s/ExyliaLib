@@ -3,6 +3,7 @@ package net.exylia.lib.reload;
 import net.exylia.lib.FakeServer;
 import net.exylia.lib.debug.Debug;
 import net.exylia.lib.debug.DebugCapture;
+import net.exylia.lib.text.Prefixes;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
 import org.bukkit.command.CommandSender;
@@ -38,6 +39,7 @@ class ReloadsTest {
         FakeServer.reset();
         Reloads.releaseAll();
         Debug.releaseAll();
+        Prefixes.releaseAll();
         console = DebugCapture.start();
 
         plugin = FakeServer.newPlugin("MyPlugin");
@@ -58,6 +60,7 @@ class ReloadsTest {
         DebugCapture.stop();
         Debug.releaseAll();
         Reloads.releaseAll();
+        Prefixes.releaseAll();
         FakeServer.reset();
     }
 
@@ -159,6 +162,38 @@ class ReloadsTest {
 
         assertEquals(1, toSender.size());
         assertTrue(toSender.get(0).contains("Reloaded"), toSender.get(0));
+    }
+
+    @Test
+    @DisplayName("the sender's line carries the plugin's prefix")
+    void senderLineIsPrefixed() {
+        Prefixes.set(plugin, "[MyPlugin]");
+
+        Reloads.of(plugin).step("a", () -> { }).run(sender);
+
+        assertTrue(toSender.get(0).startsWith("[MyPlugin]"), toSender.get(0));
+    }
+
+    @Test
+    @DisplayName("a plugin with no prefix is not sent a literal %prefix%")
+    void senderLineWithoutPrefix() {
+        Reloads.of(plugin).step("a", () -> { }).run(sender);
+
+        assertFalse(toSender.get(0).contains("%prefix%"), toSender.get(0));
+    }
+
+    @Test
+    @DisplayName("the sender is told which step failed, not only the console")
+    void senderIsToldWhatFailed() {
+        Reloads.of(plugin)
+                .step("menus", () -> {
+                    throw new IllegalStateException("boom");
+                })
+                .step("configs", () -> { })
+                .run(sender);
+
+        assertTrue(toSender.get(0).contains("1/2"), toSender.get(0));
+        assertTrue(toSender.get(0).contains("menus"), toSender.get(0));
     }
 
     @Test

@@ -1,6 +1,8 @@
 package net.exylia.lib.reload;
 
 import net.exylia.lib.debug.Debug;
+import net.exylia.lib.text.Prefixes;
+import net.exylia.lib.text.Text;
 import org.bukkit.command.CommandSender;
 import org.bukkit.plugin.Plugin;
 import org.jetbrains.annotations.NotNull;
@@ -140,10 +142,37 @@ public final class Reloads {
         }
         if (sender != null && !(sender instanceof org.bukkit.command.ConsoleCommandSender)) {
             // The console already saw it through the debug line above.
-            net.exylia.lib.text.Text.of((report.ok() ? "{success}" : "{warning}")
-                    + report.describe()).send(sender);
+            Text.from(plugin, chatLine(report)).send(sender);
         }
         return report;
+    }
+
+    /**
+     * Writes the line the player sees.
+     *
+     * <p>The console gets {@link Report#describe()}, which is one plain
+     * sentence a log can be grepped for. A player gets the same facts as a
+     * message from this plugin: its prefix, a sound, and the numbers picked
+     * out, because on a server running several of these plugins an unbranded
+     * {@code Reloaded 4 steps} does not say who answered.
+     *
+     * <p>{@code %prefix%} is only written when the plugin has one. Text with a
+     * plugin but no registered prefix leaves the token in place, and a literal
+     * {@code %prefix%} in chat is worse than no prefix at all.
+     */
+    private String chatLine(Report report) {
+        String prefix = Prefixes.get(plugin) == null ? "" : "%prefix% ";
+        if (report.ok()) {
+            return "[sound:ENTITY_EXPERIENCE_ORB_PICKUP|1.0|1.0]" + prefix
+                    + "{success}Reloaded {highlight}" + report.steps()
+                    + " {success}" + (report.steps() == 1 ? "step" : "steps")
+                    + " in {info}" + report.millis() + "ms";
+        }
+        return "[sound:ENTITY_VILLAGER_NO|1.0|1.0]" + prefix
+                + "{warning}Reloaded {highlight}"
+                + (report.steps() - report.failed().size()) + "/" + report.steps()
+                + " {warning}steps in {info}" + report.millis() + "ms"
+                + " {letters_black}» {error}" + String.join(", ", report.failed());
     }
 
     /** Returns how many steps are declared. */
