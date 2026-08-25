@@ -42,6 +42,7 @@ public abstract class InputRequest<T, SELF extends InputRequest<T, SELF>>
     private UnaryOperator<String> transform = UnaryOperator.identity();
     private List<TransportKind> preferredTransports = List.of();
     private int lines = 1;
+    private String hint;
 
     InputRequest(String pluginName, Player player, String prompt, InputParser<T> parser) {
         this.pluginName = Inputs.requireText(pluginName, "pluginName");
@@ -216,6 +217,31 @@ public abstract class InputRequest<T, SELF extends InputRequest<T, SELF>>
     @ApiStatus.Internal
     public final int lines() {
         return lines;
+    }
+
+    /**
+     * The short note a transport shows beside the box, or {@code null}.
+     *
+     * <p>The prompt says what is being asked; the hint says what a valid answer
+     * looks like. A transport with a native placeholder uses one, the dialog
+     * draws it under the box in muted text, and chat sends it as its own line.
+     *
+     * @return the hint, never blank
+     * @since 1.60.0
+     */
+    @ApiStatus.Internal
+    public final @Nullable String hint() {
+        return hint;
+    }
+
+    /**
+     * Sets the note shown beside the box.
+     *
+     * <p>Package-private on the base so only the requests where a worked example
+     * helps expose it: a yes-or-no answer needs no hint.
+     */
+    final void setHint(@Nullable String hint) {
+        this.hint = hint == null || hint.isBlank() ? null : hint;
     }
 
     /**

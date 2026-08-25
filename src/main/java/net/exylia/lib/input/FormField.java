@@ -33,6 +33,7 @@ public final class FormField<T> {
     private boolean required = true;
     private T defaultValue;
     private int lines = 1;
+    private String hint;
 
     private FormField(FormKey<T> key, String label, InputParser<T> parser, Kind kind) {
         this.key = Inputs.require(key, "key");
@@ -126,6 +127,43 @@ public final class FormField<T> {
     @ApiStatus.Internal
     public int lines() {
         return lines;
+    }
+
+    /**
+     * Sets the short note a transport shows beside this field.
+     *
+     * <p>A label says what the field is; a hint says what a valid answer looks
+     * like. A command field labelled {@code Command the console runs} still
+     * leaves the player guessing whether the player is {@code %player%} or
+     * {@code %player_name%}, and guessing wrong is discovered later, in a
+     * reward that silently does nothing.
+     *
+     * <pre>{@code
+     * FormField.text(COMMAND, "{primary}Command the console runs")
+     *          .hint("Use %player_name% for the player, no leading slash");
+     * }</pre>
+     *
+     * <p>Where a transport has a native placeholder it uses one; otherwise the
+     * hint is drawn under the label in muted text. Chat shows it as its own
+     * line, and a transport with nowhere to put it drops it.
+     *
+     * @param hint the note, or {@code null} to remove it
+     * @return this field
+     * @since 1.60.0
+     */
+    public @NotNull FormField<T> hint(@Nullable String hint) {
+        this.hint = hint == null || hint.isBlank() ? null : hint;
+        return this;
+    }
+
+    /**
+     * The note shown beside this field, or {@code null} when none was set.
+     *
+     * @return the hint, never blank
+     * @since 1.60.0
+     */
+    public @Nullable String hint() {
+        return hint;
     }
 
     public @NotNull FormField<T> defaultValue(@Nullable T defaultValue) {

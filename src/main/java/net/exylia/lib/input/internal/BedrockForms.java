@@ -117,7 +117,7 @@ final class BedrockForms {
             ACCESS.slider.invoke(builder, label("", state.validation(), null),
                     range.minimum(), range.maximum(), 1.0F, initial);
         } else {
-            ACCESS.input.invoke(builder, label("", state.validation(), null), "",
+            ACCESS.input.invoke(builder, label("", state.validation(), null), plain(request.hint()),
                     state.values().getOrDefault("value", ""));
         }
         handlers(builder, state, response -> {
@@ -180,7 +180,9 @@ final class BedrockForms {
             } else {
                 // FormField.Kind.CHOICE currently carries no options. An input preserves the
                 // raw key and still obeys form.parseRaw; inventing a dropdown would lose data.
-                ACCESS.input.invoke(builder, label, "", initial);
+                // A Bedrock input has a real placeholder, so the hint goes where the client
+                // already draws one: inside the empty box, gone as soon as the player types.
+                ACCESS.input.invoke(builder, label, plain(field.hint()), initial);
             }
         }
         handlers(builder, state, response -> {

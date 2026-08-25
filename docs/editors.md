@@ -101,6 +101,7 @@ return EditorForm.of(plugin, viewer, "{primary}&lEDIT ENTRY")
         .text(NAME, "Display name", entry.name(), 3)      // three lines tall
         .integer(WEIGHT, "Weight", entry.weight())
         .text(COMMAND, "Command", entry.command(), 3)
+        .hint("%player_name% is the player. No leading slash.")
         .ask(values -> entry.toBuilder()
                 .name(values.getText(NAME))
                 .weight(values.getLong(WEIGHT))
@@ -116,6 +117,12 @@ The height argument is why the tall box exists: a one-line dialog field shows
 about twenty characters, and a display name is a dozen colour tokens around six
 words. See [input.md](input.md) — `TextInput.lines` and `FormField.lines` are
 the same setting, and chat, which has no notion of height, ignores it.
+
+`hint` (1.60.0) attaches a note to the field just added, and answers what the
+label leaves open — `Command` does not say whether the player is `%player%` or
+`%player_name%`, and a wrong guess is found later, in a row that silently does
+nothing. A Bedrock form draws it as a placeholder, a dialog as a muted line
+under the label, chat as its own line.
 
 A client too old for dialogs, or a Bedrock player, is asked the same fields
 through whichever transport can. The editor never knows which one answered.

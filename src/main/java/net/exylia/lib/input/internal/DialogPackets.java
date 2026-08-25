@@ -277,7 +277,8 @@ final class DialogPackets {
     private static Input singleInput(InputRequest<?, ?> request, @Nullable String value,
                                      @Nullable Validation validation) {
         String initial = value != null ? value : stringify(request.defaultValue());
-        Component label = fieldLabel("", validation == null ? null : validation.generalError());
+        Component label = fieldLabel("", request.hint(),
+                validation == null ? null : validation.generalError());
         InputControl control;
         if (request instanceof FlagInput || request instanceof ConfirmInput) {
             control = new BooleanInputControl(label, Boolean.parseBoolean(initial), "true", "false");
@@ -295,7 +296,7 @@ final class DialogPackets {
             String name = field.key().name();
             String initial = values.getOrDefault(name, stringify(field.defaultValue()));
             String error = validation == null ? null : validation.fieldErrors().get(name);
-            Component label = fieldLabel(field.label(), error);
+            Component label = fieldLabel(field.label(), field.hint(), error);
             InputControl control = switch (field.kind()) {
                 case FLAG -> new BooleanInputControl(label, Boolean.parseBoolean(initial), "true", "false");
                 // FormField currently exposes parser semantics but no choice option list. A text
@@ -334,12 +335,30 @@ final class DialogPackets {
                 new PlainMessage(Text.component("{error}" + validation.generalError()), BODY_WIDTH)));
     }
 
-    private static Component fieldLabel(String label, @Nullable String error) {
-        String text = label;
-        if (error != null && !error.isBlank()) {
-            text = text.isBlank() ? "{error}" + error : text + "\n{error}" + error;
+    /**
+     * Label, then hint, then error, each on its own line.
+     *
+     * <p>A dialog control has no placeholder of its own, so the hint lives in
+     * the label above the box, muted so it reads as guidance and not as part of
+     * the question. The error stays last: it is the line the player is looking
+     * for after a rejected submit.
+     */
+    private static Component fieldLabel(String label, @Nullable String hint, @Nullable String error) {
+        StringBuilder text = new StringBuilder(label);
+        if (hint != null && !hint.isBlank()) {
+            append(text, "{muted}" + hint);
         }
-        return Text.component(text);
+        if (error != null && !error.isBlank()) {
+            append(text, "{error}" + error);
+        }
+        return Text.component(text.toString());
+    }
+
+    private static void append(StringBuilder text, String line) {
+        if (!text.isEmpty()) {
+            text.append('\n');
+        }
+        text.append(line);
     }
 
     private static void receive(WrapperCommonClientCustomClickAction<?> packet, UUID sender) {

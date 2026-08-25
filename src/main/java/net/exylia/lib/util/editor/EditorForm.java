@@ -56,6 +56,7 @@ public final class EditorForm {
 
     private final FormInput form;
     private final List<Consumer<FormInput>> pending = new ArrayList<>();
+    private FormField<?> last;
 
     private EditorForm(FormInput form) {
         this.form = form;
@@ -108,8 +109,7 @@ public final class EditorForm {
         if (current == null || current.isEmpty()) {
             field.optional();
         }
-        pending.add(input -> input.field(key, field));
-        return this;
+        return add(key, field);
     }
 
     /**
@@ -122,9 +122,7 @@ public final class EditorForm {
      */
     public @NotNull EditorForm integer(@NotNull FormKey<Long> key, @NotNull String label,
                                        long current) {
-        pending.add(input -> input.field(key,
-                FormField.integer(key, label).defaultValue(current)));
-        return this;
+        return add(key, FormField.integer(key, label).defaultValue(current));
     }
 
     /**
@@ -138,9 +136,7 @@ public final class EditorForm {
     public @NotNull EditorForm decimal(@NotNull FormKey<java.math.BigDecimal> key,
                                        @NotNull String label,
                                        @NotNull java.math.BigDecimal current) {
-        pending.add(input -> input.field(key,
-                FormField.decimal(key, label).defaultValue(current)));
-        return this;
+        return add(key, FormField.decimal(key, label).defaultValue(current));
     }
 
     /**
@@ -153,9 +149,7 @@ public final class EditorForm {
      */
     public @NotNull EditorForm flag(@NotNull FormKey<Boolean> key, @NotNull String label,
                                     boolean current) {
-        pending.add(input -> input.field(key,
-                FormField.flag(key, label).defaultValue(current)));
-        return this;
+        return add(key, FormField.flag(key, label).defaultValue(current));
     }
 
     /**
@@ -167,6 +161,41 @@ public final class EditorForm {
      * @return this form
      */
     public @NotNull <T> EditorForm field(@NotNull FormKey<T> key, @NotNull FormField<T> field) {
+        return add(key, field);
+    }
+
+    /**
+     * Says what a valid answer to the field just added looks like.
+     *
+     * <p>A label names the field; a hint answers the question the label leaves
+     * open. {@code Command the console runs} does not say whether the player is
+     * {@code %player%} or {@code %player_name%}, and a wrong guess is only found
+     * later, in a reward that silently does nothing.
+     *
+     * <pre>{@code
+     * .text(COMMAND, "Command the console runs", entry.command(), 3)
+     * .hint("%player_name% is the player. No leading slash.")
+     * }</pre>
+     *
+     * <p>Where the client draws it is the transport's business: a Bedrock form
+     * has a real placeholder, a dialog gets a muted line under the label, and
+     * chat sends it as its own line.
+     *
+     * @param hint the note, or {@code null} to remove one
+     * @return this form
+     * @throws IllegalStateException if no field has been added yet
+     * @since 1.60.0
+     */
+    public @NotNull EditorForm hint(String hint) {
+        if (last == null) {
+            throw new IllegalStateException("hint() describes the field before it; add a field first");
+        }
+        last.hint(hint);
+        return this;
+    }
+
+    private <T> EditorForm add(FormKey<T> key, FormField<T> field) {
+        last = field;
         pending.add(input -> input.field(key, field));
         return this;
     }

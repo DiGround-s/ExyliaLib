@@ -2,6 +2,7 @@ package net.exylia.lib.input;
 
 import org.bukkit.entity.Player;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 /**
  * A request for free-form text.
@@ -47,6 +48,29 @@ public final class TextInput extends InputRequest<String, TextInput> {
      */
     public @NotNull TextInput lines(int lines) {
         setLines(lines);
+        return this;
+    }
+
+    /**
+     * Sets the short note shown beside the box.
+     *
+     * <p>The prompt says what is being asked; the hint says what a valid answer
+     * looks like. Asked for a command, a player still has to guess whether the
+     * player is {@code %player%} or {@code %player_name%}, and a wrong guess is
+     * only discovered later, when the command silently does nothing.
+     *
+     * <pre>{@code
+     * inputs.text(player, "{primary}Command the console runs")
+     *       .hint("Use %player_name% for the player, no leading slash")
+     *       .open(command -> reward.command(command));
+     * }</pre>
+     *
+     * @param hint the note, or {@code null} to remove it
+     * @return this request
+     * @since 1.60.0
+     */
+    public @NotNull TextInput hint(@Nullable String hint) {
+        setHint(hint);
         return this;
     }
 

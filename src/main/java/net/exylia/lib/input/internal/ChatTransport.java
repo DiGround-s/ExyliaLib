@@ -14,6 +14,7 @@ import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
 import org.jetbrains.annotations.ApiStatus;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -88,6 +89,7 @@ public final class ChatTransport implements Transport {
         Object request = session.request();
         if (request instanceof InputRequest<?, ?> single) {
             sendPrompt(player, single.prompt());
+            sendFieldHint(player, single.hint());
         } else if (request instanceof FormInput form) {
             FormProgress progress = new FormProgress(form);
             forms.put(session.id(), progress);
@@ -246,6 +248,15 @@ public final class ChatTransport implements Transport {
                 .with("%position%", progress.index() + 1)
                 .with("%total%", progress.fields().size())
                 .send(player);
+        sendFieldHint(player, field.hint());
+    }
+
+    /** Chat has no box to put a hint in, so it gets its own muted line. */
+    private static void sendFieldHint(Player player, @Nullable String hint) {
+        if (hint == null || hint.isBlank()) {
+            return;
+        }
+        Text.of("{muted}%hint%").with("%hint%", hint).send(player);
     }
 
     private static void sendError(Player player, String error) {

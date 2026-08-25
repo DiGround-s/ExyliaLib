@@ -131,11 +131,32 @@ transport with no notion of height — chat — ignores it, and a one-line box n
 refused a long answer to begin with. `FormField.lines(int)` is the same setting
 per field, so a form can hold a one-line id next to a five-line lore.
 
+### Saying what a valid answer looks like
+
+Since 1.60.0. A label names the field; a hint answers what the label leaves
+open.
+
+```java
+inputs.text(player, "{primary}Command the console runs")
+      .hint("%player_name% is the player. No leading slash.")
+      .open(command -> reward.command(command));
+```
+
+`FormField.hint(String)` is the same setting per field, and `EditorForm.hint`
+attaches one to the field just added. `Command the console runs` does not say
+whether the player is `%player%` or `%player_name%` — both work in
+`NamedCommands` and in `CommandLine` — nor whether a slash belongs in front, and
+a wrong guess is found later, in a reward that silently does nothing.
+
+Where it is drawn belongs to the transport: a Bedrock input has a real
+placeholder and uses it, a dialog draws the hint muted under the label, chat
+sends it as its own line, and a transport with nowhere to put it drops it.
+
 ### Modifiers particular types add
 
 | Type | Method | |
 | --- | --- | --- |
-| `TextInput` | `maxLength(int)`, `minLength(int)`, `lines(int)` | lengths counted in Unicode code points, not chars; `lines` asks a transport for a taller box |
+| `TextInput` | `maxLength(int)`, `minLength(int)`, `lines(int)`, `hint(String)` | lengths counted in Unicode code points, not chars; `lines` asks a transport for a taller box; `hint` says what a valid answer looks like |
 | `NumberInput<T>` | `range(min, max)`, `min(T)`, `max(T)` | inclusive; an inverted range throws |
 | `AmountInput` | `minimum(BigDecimal)`, `maximum(BigDecimal)` | inclusive |
 | `DurationInput` | `atLeast(Duration)`, `atMost(Duration)` | inclusive; a negative bound throws |
