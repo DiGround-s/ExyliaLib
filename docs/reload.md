@@ -123,12 +123,22 @@ so the newest release always wins and simply overwrites what is waiting. A
 staged jar whose hash already matches is left alone rather than downloaded
 again.
 
-Polling is cheap and does not touch any rate limit. The manifest is served
-from `raw.githubusercontent.com`, which is a CDN rather than the GitHub API —
-the 60-requests-per-hour limit does not apply to it. Checks are conditional
-on the file's ETag, so an unchanged manifest answers `304` with an empty
-body: measured at 4340 bytes for a changed manifest against 0 for an
-unchanged one. At 30 minutes that is 48 round trips a day.
+Polling is cheap and does not touch any rate limit. The manifest is read
+from the newest release — `releases/latest/download/lib-manifest.json` —
+which is neither the GitHub API nor a cached branch file, so the
+60-requests-per-hour limit does not apply and a release is visible the moment
+it exists. Checks are conditional on the file's ETag, so an unchanged
+manifest answers `304` with an empty body: measured at 4340 bytes for a
+changed manifest against 0 for an unchanged one. At 30 minutes that is 48
+round trips a day.
+
+The copy on `main` is still written by the same release job and is still
+read, but only as a fallback when the release asset cannot be fetched. It is
+served by `raw.githubusercontent.com` with `cache-control: max-age=300`, so
+for up to five minutes after a release it still names the version before it —
+a window that cannot be shortened from the client side, since a cache-busting
+query string is normalised away and a `no-cache` request header is ignored.
+That is why the release asset is the one the updater asks for first.
 
 ## A plugin: `Reloads` (since 1.15.0)
 

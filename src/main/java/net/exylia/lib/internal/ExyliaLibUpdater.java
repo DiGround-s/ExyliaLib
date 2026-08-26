@@ -32,12 +32,30 @@ public final class ExyliaLibUpdater {
     /**
      * Where the version manifest lives.
      *
-     * <p>Served straight from the repository's default branch rather than a
-     * site: it updates with the same push that publishes the release, needs no
-     * hosting to keep alive, and sits on the same domain as the release assets
-     * it points at. The loader reads the same URL.
+     * <p>Read from the newest release rather than from the default branch. The
+     * branch copy is served by {@code raw.githubusercontent.com}, which is a
+     * CDN answering {@code cache-control: max-age=300}: for five minutes after
+     * a release, servers are told the previous version is the latest one. The
+     * window cannot be shortened from this side — a cache-busting query string
+     * is normalised away and a {@code no-cache} request header is ignored, both
+     * measured against a live edge. This URL is resolved per request and
+     * answers {@code no-cache}, so a release is visible the moment it exists.
+     *
+     * <p>It also cannot point at a release that is not published yet, which the
+     * branch copy could: the manifest commit and the release are two steps of
+     * the same job.
      */
     private static final String DEFAULT_MANIFEST_URL =
+        "https://github.com/DiGround-s/ExyliaLib/releases/latest/download/lib-manifest.json";
+
+    /**
+     * The branch copy, used only when the release asset cannot be read.
+     *
+     * <p>A release published without its manifest asset would otherwise stop
+     * every server from ever updating again, with no way to fix it except
+     * replacing jars by hand. Five minutes of staleness is the better failure.
+     */
+    private static final String FALLBACK_MANIFEST_URL =
         "https://raw.githubusercontent.com/DiGround-s/ExyliaLib/main/lib-manifest.json";
     private static final String MANIFEST_URL_PROPERTY = "exylialib.manifest-url";
     private static final int TIMEOUT_MS = 15_000;
@@ -90,9 +108,23 @@ public final class ExyliaLibUpdater {
         try {
             manifestJson = fetchString(manifestUrl);
         } catch (IOException e) {
-            plugin.getLogger().log(Level.WARNING,
-                "Could not check for ExyliaLib updates: " + e.getMessage());
-            return;
+            // Only for the default URL: an operator or a loader that named its
+            // own manifest means that one, and quietly reading a different file
+            // would update a server from a channel it did not ask for.
+            if (!manifestUrl.equals(DEFAULT_MANIFEST_URL)) {
+                plugin.getLogger().log(Level.WARNING,
+                    "Could not check for ExyliaLib updates: " + e.getMessage());
+                return;
+            }
+            plugin.getLogger().fine(
+                "Manifest asset unreadable (" + e.getMessage() + ") — falling back to the branch copy.");
+            try {
+                manifestJson = fetchString(FALLBACK_MANIFEST_URL);
+            } catch (IOException fallbackFailure) {
+                plugin.getLogger().log(Level.WARNING,
+                    "Could not check for ExyliaLib updates: " + fallbackFailure.getMessage());
+                return;
+            }
         }
 
         ManifestEntry best = findNewerVersion(manifestJson, currentVersion);

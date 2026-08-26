@@ -136,12 +136,23 @@ jobs:
       - name: Update and publish manifest
         if: steps.release_guard.outputs.release_needed == 'true'
         env:
+          GH_TOKEN: ${{ github.token }}
           VERSION: ${{ steps.release_guard.outputs.version }}
           SOURCE_COMMIT: ${{ steps.release_guard.outputs.source_commit }}
           TAG: ${{ steps.release_guard.outputs.tag }}
         run: |
           set -euo pipefail
           jar="build/libs/ExyliaLib-${VERSION}.jar"
+
+          # The manifest ships with the release as well as on the branch. The
+          # branch copy is served by a CDN that holds it for five minutes, so a
+          # server restarted right after a release is told the previous version
+          # is still the latest one; the release asset is resolved per request
+          # and answers no-cache. Uploaded from the same step that generates it,
+          # so the two copies cannot disagree.
+          publish_asset() {
+            gh release upload "$TAG" lib-manifest.json --clobber
+          }
 
           git config user.name github-actions[bot]
           git config user.email 41898282+github-actions[bot]@users.noreply.github.com
@@ -160,6 +171,7 @@ jobs:
             changed_files="$(git diff --name-only)"
             if [[ -z "$changed_files" ]]; then
               echo "Manifest already points at ${VERSION}; no commit needed."
+              publish_asset
               exit 0
             fi
             if [[ "$changed_files" != "lib-manifest.json" ]]; then
@@ -170,6 +182,7 @@ jobs:
             git add lib-manifest.json
             git commit -m "chore: point the manifest at ${VERSION}"
             if git push origin "HEAD:main"; then
+              publish_asset
               exit 0
             fi
 
