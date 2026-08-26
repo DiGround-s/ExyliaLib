@@ -171,6 +171,28 @@ class AppearanceFlagsTest {
     }
 
     @Test
+    @DisplayName("hiding attributes hides what the flags hide, not only the type block")
+    void theComponentCoversWhatTheFlagsCover() {
+        // The report: armour, weapons and trims kept their extra lines with
+        // hide-attributes: true. On 1.21.5+ an ItemFlag is an entry in
+        // tooltip_display, and this write replaces that component whole — so
+        // hiding the type-written block handed the flagged lines straight back.
+        List<String> hidden = ItemComponents.hiddenNamesForTests();
+
+        assertTrue(hidden.contains("attribute_modifiers"),
+                "the armour and damage lines: " + hidden);
+        assertTrue(hidden.contains("trim"), "a trim on armour: " + hidden);
+        assertTrue(hidden.contains("dyed_color"), "a dye on leather: " + hidden);
+        assertTrue(hidden.contains("provides_trim_material"),
+                "and the block a template writes for itself: " + hidden);
+
+        assertFalse(hidden.contains("enchantments"),
+                "hiding an enchantment stays something a file asks for: " + hidden);
+        assertFalse(hidden.contains("unbreakable"),
+                "and so does hiding the unbreakable line: " + hidden);
+    }
+
+    @Test
     @DisplayName("an item that did not ask keeps the block its type writes")
     void withoutHideAttributesTheComponentIsLeftAlone() {
         // A potion listing its effects is usually the point of drawing it.

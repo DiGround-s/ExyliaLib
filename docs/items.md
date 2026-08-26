@@ -233,9 +233,17 @@ neither, the flags are the whole of what happens — the block may stay visible,
 the menu opens either way, and it is said once rather than once per item. A
 tooltip is not worth a screen that fails to draw.
 
+On `tooltip_display` versions the component is written as a set of the
+components to hide, and an `ItemFlag` is nothing but an entry in that same set.
+Writing it replaces what the flags put there, so the set names the flagged
+components too — `attribute_modifiers`, `trim`, `dyed_color` — and merges onto
+whatever the item already hides. Without that, armour, weapons and trims kept
+their extra lines on 1.21.5+ while the flags looked correctly set.
+
 It leaves enchantments alone. ExyliaCommons applied every flag here, so an item
 hiding its attributes also lost the enchantment lines it meant to show; hiding
-those stays something a file asks for, through `flags`.
+those stays something a file asks for, through `flags` — and the merge is what
+keeps that flag alive next to `hide-attributes`.
 
 ### Traits
 

@@ -82,6 +82,26 @@ final class ItemComponents implements ItemRenderer.Components {
             "bucket_entity_data",
             "suspicious_stew_effects");
 
+    /**
+     * What the flags cover, named here as well.
+     *
+     * <p>From 1.21.5 an {@code ItemFlag} <em>is</em> an entry in this same
+     * component, so writing the component below replaces what
+     * {@code addItemFlags} put in it. That is why an item with
+     * {@code hide-attributes: true} still showed its armour and damage lines,
+     * its trim and its dye: the flags were set on the meta, and then the write
+     * that hid the type-written block threw them away.
+     *
+     * <p>The three named here are the ones
+     * {@code ItemRenderer.appearance} asks for alongside the additional
+     * tooltip. Anything else already on the item is kept by merging, not by
+     * being listed.
+     */
+    private static final List<String> HIDDEN_BY_FLAGS = List.of(
+            "attribute_modifiers",
+            "trim",
+            "dyed_color");
+
     /** Reported once per server, not once per item drawn. */
     private static volatile boolean reported;
 
@@ -135,6 +155,10 @@ final class ItemComponents implements ItemRenderer.Components {
      * and the like — is drawn by the client because the component is declared
      * for the item's <em>type</em>, and {@code getDataTypes()} does not report
      * those: hiding only the ones it does leaves the block on screen.
+     *
+     * <p>Merged onto whatever is already hidden. This is the component an
+     * {@code ItemFlag} writes on these versions, so overwriting it undid every
+     * flag the meta had set.
      */
     @SuppressWarnings("unchecked")
     private static boolean hideThroughTooltipDisplay(ItemStack item) throws Exception {
@@ -142,7 +166,7 @@ final class ItemComponents implements ItemRenderer.Components {
                 instanceof DataComponentType.Valued<?> type)) {
             return false;
         }
-        Set<DataComponentType> hidden = writtenByType();
+        Set<DataComponentType> hidden = hiddenComponents();
         if (hidden.isEmpty()) {
             return false;
         }
@@ -157,6 +181,16 @@ final class ItemComponents implements ItemRenderer.Components {
         // this deliberately does not use. The interfaces are public API.
         Class<?> tooltipDisplay = Class.forName(
                 "io.papermc.paper.datacomponent.item.TooltipDisplay");
+
+        // Whatever is already hidden stays hidden. The flags write this same
+        // component, so replacing it wholesale is how a file naming
+        // HIDE_ENCHANTS next to hide-attributes got its enchantment lines back.
+        Object present = item.getData(type);
+        if (present != null) {
+            hidden.addAll((Set<DataComponentType>) tooltipDisplay
+                    .getMethod("hiddenComponents").invoke(present));
+        }
+
         Object builder = tooltipDisplay.getMethod("tooltipDisplay").invoke(null);
 
         Class<?> builderType = Class.forName(
@@ -177,23 +211,32 @@ final class ItemComponents implements ItemRenderer.Components {
     }
 
     /**
-     * The type-written components this server knows.
+     * The components to hide: the type-written ones and the ones the flags
+     * cover.
      *
      * <p>Not filtered against the item: a component declared for the item's
      * type does not appear in {@code getDataTypes()}, and that declared
      * component — not one written onto the stack — is what draws the block
      * being hidden. Commons hid them all by name; so does this.
      */
-    private static Set<DataComponentType> writtenByType() {
+    private static Set<DataComponentType> hiddenComponents() {
         Set<DataComponentType> hidden = new LinkedHashSet<>();
         for (String name : WRITTEN_BY_TYPE) {
-            DataComponentType type =
-                    Registry.DATA_COMPONENT_TYPE.get(NamespacedKey.minecraft(name));
-            if (type != null) {
-                hidden.add(type);
-            }
+            add(hidden, name);
+        }
+        for (String name : HIDDEN_BY_FLAGS) {
+            add(hidden, name);
         }
         return hidden;
+    }
+
+    /** Adds a component by name, if this server has one. */
+    private static void add(Set<DataComponentType> hidden, String name) {
+        DataComponentType type =
+                Registry.DATA_COMPONENT_TYPE.get(NamespacedKey.minecraft(name));
+        if (type != null) {
+            hidden.add(type);
+        }
     }
 
     /** Their names, for the diagnostic line. */
@@ -250,6 +293,13 @@ final class ItemComponents implements ItemRenderer.Components {
         }
         reported = true;
         problems.found("hide-attributes", problem);
+    }
+
+    /** The component names this hides, by name. Tests only. */
+    static List<String> hiddenNamesForTests() {
+        List<String> names = new ArrayList<>(WRITTEN_BY_TYPE);
+        names.addAll(HIDDEN_BY_FLAGS);
+        return names;
     }
 
     /** Forgets what has been said. Tests only. */
