@@ -127,7 +127,14 @@ jobs:
           set -euo pipefail
           jar="build/libs/ExyliaLib-${VERSION}.jar"
           test -f "$jar"
-          gh release create "$TAG" "$jar" \
+
+          # The versioned asset is what the manifest and every updater resolve.
+          # The second copy carries a fixed name so that
+          # releases/latest/download/ExyliaLib.jar is a link that keeps working
+          # across releases, for people installing the library by hand.
+          cp "$jar" build/libs/ExyliaLib.jar
+
+          gh release create "$TAG" "$jar" build/libs/ExyliaLib.jar \
             --target "$GITHUB_SHA" \
             --title "ExyliaLib ${VERSION}" \
             --generate-notes
@@ -206,12 +213,6 @@ jobs:
           MODRINTH_PROJECT: ${{ vars.MODRINTH_PROJECT_ID }}
           VERSION: ${{ steps.release_guard.outputs.version }}
           TAG: ${{ steps.release_guard.outputs.tag }}
-          # The build compiles against paper-api 1.21.4 and the jar runs on
-          # everything from there up. Widen this list here as new versions ship.
-          GAME_VERSIONS: >-
-            ["1.21.4","1.21.5","1.21.6","1.21.7","1.21.8","1.21.9","1.21.10",
-             "1.21.11","26.1","26.1.1","26.1.2","26.2"]
-          LOADERS: '["folia","paper","purpur"]'
         run: |
           set -euo pipefail
 
@@ -220,60 +221,5 @@ jobs:
             exit 0
           fi
 
-          jar="build/libs/ExyliaLib-${VERSION}.jar"
-          test -f "$jar"
-
-          user_agent="DiGround-s/ExyliaLib/${VERSION} (release workflow)"
-
-          # A re-run of this job would otherwise fail on Modrinth's uniqueness
-          # check for the version number, with the GitHub release already
-          # published and nothing left to fix by hand. The listing is a
-          # convenience, not a gate: an unpublished project answers 404 here
-          # while still accepting versions, so a failed check carries on and
-          # lets the upload itself be the one to object.
-          status="$(curl -sS -o modrinth-versions.json -w '%{http_code}' \
-            -H "Authorization: ${MODRINTH_TOKEN}" \
-            -H "User-Agent: ${user_agent}" \
-            "https://api.modrinth.com/v2/project/${MODRINTH_PROJECT}/version" || echo 000)"
-          if [[ "$status" == "200" ]]; then
-            if jq -e --arg v "$VERSION" 'any(.[]; .version_number == $v)' modrinth-versions.json >/dev/null; then
-              echo "Modrinth already has version ${VERSION}; nothing to do."
-              exit 0
-            fi
-          else
-            echo "Could not list existing versions (HTTP ${status}); uploading anyway."
-          fi
-
-          changelog="$(gh release view "$TAG" --json body --jq .body)"
-
-          # Written to a file rather than passed inline: curl splits an inline
-          # -F value on ';', and release notes are arbitrary text.
-          jq -nc \
-            --arg name "ExyliaLib ${VERSION}" \
-            --arg number "$VERSION" \
-            --arg changelog "$changelog" \
-            --arg project "$MODRINTH_PROJECT" \
-            --argjson game_versions "$GAME_VERSIONS" \
-            --argjson loaders "$LOADERS" \
-            '{
-               name: $name,
-               version_number: $number,
-               changelog: $changelog,
-               project_id: $project,
-               dependencies: [],
-               game_versions: $game_versions,
-               loaders: $loaders,
-               version_type: "release",
-               featured: true,
-               file_parts: ["file"],
-               primary_file: "file"
-             }' > modrinth-version.json
-
-          response="$(curl -sS --fail-with-body -X POST \
-            "https://api.modrinth.com/v2/version" \
-            -H "Authorization: ${MODRINTH_TOKEN}" \
-            -H "User-Agent: ${user_agent}" \
-            -F "data=<modrinth-version.json;type=application/json" \
-            -F "file=@${jar};type=application/java-archive;filename=ExyliaLib-${VERSION}.jar")"
-
-          echo "Published ${VERSION} to Modrinth as version $(jq -r '.id' <<< "$response")."
+          gh release view "$TAG" --json body --jq .body > modrinth-changelog.md
+          ./publish-modrinth.sh "$VERSION" "build/libs/ExyliaLib-${VERSION}.jar" modrinth-changelog.md

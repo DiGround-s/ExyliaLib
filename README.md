@@ -1252,13 +1252,24 @@ a log line when either is missing:
 | `MODRINTH_TOKEN` | Repository *secret* | A Modrinth PAT with the `Create versions` scope |
 | `MODRINTH_PROJECT_ID` | Repository *variable* | The project ID or slug on Modrinth |
 
-Game versions and loaders are declared as `GAME_VERSIONS` and `LOADERS` in the
-workflow step; widen them there as new Minecraft versions ship. Re-running a
-finished release is safe: the step asks Modrinth for the project's versions
-first and does nothing when the version number is already published. That
-listing is a convenience rather than a gate — an unpublished project answers
-404 to it while still accepting uploads — so a failed check carries on and lets
-Modrinth itself reject a duplicate.
+The upload itself lives in `publish-modrinth.sh`, where the declared game
+versions and loaders are; widen them there as new Minecraft versions ship. The
+script is also runnable by hand, which is how a release whose upload failed is
+retried without spending a new version number:
+
+```bash
+gh release download v1.64.2 -p 'ExyliaLib-*.jar'
+MODRINTH_TOKEN=... MODRINTH_PROJECT=exylialib ./publish-modrinth.sh 1.64.2 ExyliaLib-1.64.2.jar
+```
+
+Re-running is safe: the script asks Modrinth for the project's versions first
+and does nothing when the version number is already published. That listing is
+advisory rather than a gate — a project still in draft answers 404 to it while
+accepting uploads perfectly well — so a failed check carries on and lets
+Modrinth itself reject a genuine duplicate.
+
+The PAT needs three scopes: **Create versions** for the upload, and **Read
+projects** plus **Read versions** for that check.
 
 ### Dev channel
 
