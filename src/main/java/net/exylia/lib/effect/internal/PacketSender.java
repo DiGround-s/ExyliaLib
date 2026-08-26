@@ -9,12 +9,8 @@ import com.github.retrooper.packetevents.protocol.sound.Sounds;
 import com.github.retrooper.packetevents.util.Vector3d;
 import com.github.retrooper.packetevents.util.Vector3f;
 import com.github.retrooper.packetevents.wrapper.PacketWrapper;
-import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerActionBar;
 import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerBossBar;
 import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerParticle;
-import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerSetTitleSubtitle;
-import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerSetTitleText;
-import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerSetTitleTimes;
 import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerSoundEffect;
 import net.kyori.adventure.bossbar.BossBar;
 import net.kyori.adventure.text.Component;
@@ -31,9 +27,11 @@ import java.util.UUID;
  * so a server without the plugin never loads this class and never sees a missing
  * one. {@link Packets} decides whether it is safe to call.
  *
- * <p>Sending a packet costs the server nothing beyond the write: there is no
- * entity to tick, no boss bar object to keep in a registry, and nothing to clean
- * up if a player disconnects mid-effect.
+ * <p>Only the effects that would otherwise leave server-side state live here: a
+ * boss bar sent as a packet is nothing the server has to track, and a sound or a
+ * particle skips the enum round trip. Titles and action bars went back to the
+ * server's own Adventure API, which serialises off the server thread; see
+ * {@link Bars}.
  */
 final class PacketSender {
 
@@ -52,43 +50,6 @@ final class PacketSender {
 
     private static void send(Player player, PacketWrapper<?> packet) {
         PacketEvents.getAPI().getPlayerManager().sendPacket(player, packet);
-    }
-
-    // ------------------------------------------------------------------
-    // Titles
-    // ------------------------------------------------------------------
-
-    /**
-     * Sends a title, its subtitle and its timings.
-     *
-     * <p>Times are sent first: the client applies whichever timings it holds
-     * when the text arrives, so sending them afterwards would show the first
-     * title with the previous effect's timings.
-     */
-    static void title(Player player, Component title, Component subtitle,
-                      int fadeIn, int stay, int fadeOut) {
-        send(player, new WrapperPlayServerSetTitleTimes(fadeIn, stay, fadeOut));
-        send(player, new WrapperPlayServerSetTitleSubtitle(subtitle));
-        send(player, new WrapperPlayServerSetTitleText(title));
-    }
-
-    /**
-     * Replaces only the text of a showing title.
-     *
-     * <p>For a ticking countdown: re-sending the timings would restart the fade
-     * and make the title pulse once a tick.
-     */
-    static void titleText(Player player, Component title, Component subtitle) {
-        send(player, new WrapperPlayServerSetTitleSubtitle(subtitle));
-        send(player, new WrapperPlayServerSetTitleText(title));
-    }
-
-    // ------------------------------------------------------------------
-    // Action bar
-    // ------------------------------------------------------------------
-
-    static void actionBar(Player player, Component text) {
-        send(player, new WrapperPlayServerActionBar(text));
     }
 
     // ------------------------------------------------------------------

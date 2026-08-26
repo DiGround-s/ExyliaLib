@@ -29,6 +29,7 @@ public final class FakePlayer {
     private final List<String> bossBarsHidden = new CopyOnWriteArrayList<>();
 
     private final List<Component> actionBarComponents = new ArrayList<>();
+    private final List<String> titleParts = new CopyOnWriteArrayList<>();
     private final List<String> messages = new ArrayList<>();
     private final List<String> sounds = new ArrayList<>();
     private final List<String> commands = new CopyOnWriteArrayList<>();
@@ -87,6 +88,14 @@ public final class FakePlayer {
                     }
                     case "showTitle" -> {
                         titles.add(String.valueOf(args[0]));
+                        yield null;
+                    }
+                    // Paper's part-wise title, which is how a countdown replaces
+                    // its text without restarting the fade. Recorded separately
+                    // from showTitle so a test can tell the two apart: a redraw
+                    // that arrives as a whole Title is the pulsing bug.
+                    case "sendTitlePart" -> {
+                        titleParts.add(String.valueOf(args[0]) + "=" + plain(args[1]));
                         yield null;
                     }
                     case "clearTitle" -> {
@@ -231,6 +240,11 @@ public final class FakePlayer {
     }
 
     /** Every title event, in order. */
+    /** The title parts sent, as {@code PART=text}. */
+    public List<String> titleParts() {
+        return new ArrayList<>(titleParts);
+    }
+
     public List<String> titles() {
         return new ArrayList<>(titles);
     }
@@ -284,6 +298,7 @@ public final class FakePlayer {
     public void clear() {
         actionBars.clear();
         actionBarComponents.clear();
+        titleParts.clear();
         messages.clear();
         sounds.clear();
         titles.clear();

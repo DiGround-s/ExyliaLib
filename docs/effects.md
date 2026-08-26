@@ -89,6 +89,11 @@ ends), `progress(float)`.
   not know a name — or PacketEvents cannot even be seen through the classloader
   — the effect goes out through the Bukkit API instead. A false from the packet
   path means "I do not know this name", not "it played".
+- **Titles and action bars never take the packet path.** They hold no server
+  state either way, so it bought nothing, while PacketEvents serialises the
+  component to NBT on the calling thread for every send. An action bar re-sends
+  about three times a second per viewer or the client fades it; Paper hands the
+  component to the netty encoder and serialises it off the server thread.
 - **A sound name resolves through the enum, not through string rules.**
   `BLOCK_NOTE_BLOCK_PLING` is `block.note_block.pling` — an underscore *inside*
   the key — while `ENTITY_PLAYER_LEVELUP` is `entity.player.levelup`. No

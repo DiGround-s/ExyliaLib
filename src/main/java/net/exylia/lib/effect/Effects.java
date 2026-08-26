@@ -56,10 +56,15 @@ import org.jetbrains.annotations.NotNull;
  * See {@link EffectConfig}.
  *
  * <h2>How it reaches the player</h2>
- * Effects are sent as packets when PacketEvents is installed, so the server
- * holds no state: no boss bar object in a registry, no entity to tick, nothing
- * to clean up if a player disconnects. Without PacketEvents everything still
- * works through the Bukkit API.
+ * Boss bars, sounds and particles are sent as packets when PacketEvents is
+ * installed, so the server holds no state: no boss bar object in a registry, no
+ * entity to tick, nothing to clean up if a player disconnects. Without
+ * PacketEvents everything still works through the Bukkit API.
+ *
+ * <p>Titles and action bars always take the server's own Adventure API. They
+ * leave no server state either way, so packets bought nothing there and cost a
+ * component-to-NBT serialisation on the server thread for every redraw — which
+ * an action bar does about three times a second, per viewer, forever.
  *
  * <p>Text goes through the colour palette and the placeholder module, so
  * {@code {primary}} and {@code %player_name%} work everywhere an effect takes

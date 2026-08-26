@@ -49,7 +49,7 @@ final class Displays {
 
         @Override
         void redraw(Player viewer, Rendered rendered, Timer timer) {
-            Bars.titleText(viewer, rendered.build(viewer, timer), subtitle.build(viewer, timer), stay);
+            Bars.titleText(viewer, rendered.build(viewer, timer), subtitle.build(viewer, timer));
         }
 
         @Override

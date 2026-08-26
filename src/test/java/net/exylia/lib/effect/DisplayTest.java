@@ -61,6 +61,21 @@ class DisplayTest {
     // ------------------------------------------------------------------
 
     @Test
+    @DisplayName("a ticking title replaces its text without restarting the fade")
+    void titleRedrawsAsPartsOnly() {
+        Effects.title("%time%").countdown(1.0).timeStyle("tenths").show(viewer.player());
+        FakeServer.tick(3);
+
+        // The first draw carries the timings, so it is a whole Title. Every
+        // redraw after it must be parts alone: re-sending the times would make
+        // the countdown pulse once a tick.
+        assertEquals(1, viewer.titles().size(), "only the first draw sends timings");
+        assertFalse(viewer.titleParts().isEmpty(), "a redraw must arrive as title parts");
+        assertTrue(viewer.titleParts().stream().anyMatch(part -> part.startsWith("TitlePart.TITLE=")),
+                "the title text is what changes: " + viewer.titleParts());
+    }
+
+    @Test
     @DisplayName("an action bar reaches the player")
     void actionBarIsShown() {
         Effects.actionBar("{success}Saved").show(viewer.player());

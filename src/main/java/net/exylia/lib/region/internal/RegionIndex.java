@@ -356,11 +356,14 @@ final class RegionIndex {
     private static RegionSnapshot nextCandidate(WorldIndex world, double x, double z,
                                                  RegionSnapshot previous) {
         RegionSnapshot selected = null;
-        for (int level = MIN_LEVEL; level <= MAX_LEVEL; level++) {
+        // Only the levels that hold something. A world's regions are almost
+        // always all about one size, so this is one or two levels rather than
+        // the thirty-three the hierarchy allows — and this runs once per
+        // candidate, on every step every player takes.
+        int[] active = world.activeLevels;
+        for (int index = 0; index < active.length; index++) {
+            int level = active[index];
             Map<Long, RegionSnapshot[]> levelMap = world.levels[level];
-            if (levelMap == null) {
-                continue;
-            }
             RegionSnapshot[] bucket = levelMap.get(cellKey(cell(x, level), cell(z, level)));
             if (bucket == null) {
                 continue;
@@ -496,11 +499,15 @@ final class RegionIndex {
             long referenceCount = 0L;
             int maxBucketCandidates = 0;
 
+            int[] active = new int[LEVEL_COUNT];
+            int activeCount = 0;
+
             for (int level = MIN_LEVEL; level <= MAX_LEVEL; level++) {
                 Map<Long, List<RegionSnapshot>> mutableLevel = levels[level];
                 if (mutableLevel == null) {
                     continue;
                 }
+                active[activeCount++] = level;
                 Map<Long, RegionSnapshot[]> immutableLevel = new HashMap<>(mapCapacity(mutableLevel.size()));
                 for (Map.Entry<Long, List<RegionSnapshot>> entry : mutableLevel.entrySet()) {
                     List<RegionSnapshot> candidates = entry.getValue();
@@ -513,7 +520,8 @@ final class RegionIndex {
                 }
                 frozen[level] = Map.copyOf(immutableLevel);
             }
-            return new WorldIndex(frozen, bucketCount, referenceCount, maxBucketCandidates);
+            return new WorldIndex(frozen, java.util.Arrays.copyOf(active, activeCount),
+                bucketCount, referenceCount, maxBucketCandidates);
         }
     }
 
@@ -577,15 +585,19 @@ final class RegionIndex {
     private static final class WorldIndex {
 
         private final Map<Long, RegionSnapshot[]>[] levels;
+        /** Ascending, and exactly the levels of {@link #levels} that are not null. */
+        private final int[] activeLevels;
         private final int bucketCount;
         private final long referenceCount;
         private final int maxBucketCandidates;
 
         private WorldIndex(Map<Long, RegionSnapshot[]>[] levels,
+                           int[] activeLevels,
                            int bucketCount,
                            long referenceCount,
                            int maxBucketCandidates) {
             this.levels = levels;
+            this.activeLevels = activeLevels;
             this.bucketCount = bucketCount;
             this.referenceCount = referenceCount;
             this.maxBucketCandidates = maxBucketCandidates;

@@ -1,10 +1,12 @@
 package net.exylia.lib.effect.internal;
 
-import net.exylia.lib.effect.Timer;
 import net.kyori.adventure.bossbar.BossBar;
 import net.kyori.adventure.text.Component;
+import net.kyori.adventure.title.Title;
+import net.kyori.adventure.title.TitlePart;
 import org.bukkit.entity.Player;
 
+import java.time.Duration;
 import java.util.Locale;
 import java.util.Map;
 import java.util.UUID;
@@ -13,14 +15,27 @@ import java.util.concurrent.ConcurrentHashMap;
 /**
  * Draws the effects that show text.
  *
- * <p>Each method sends packets when PacketEvents is available and falls back to
- * the Bukkit API when it is not, so the caller never has to know which path is
- * in use.
+ * <p>Boss bars go out as packets when PacketEvents is available, and fall back
+ * to the Bukkit API when it is not. Titles and action bars always take the
+ * server's own Adventure API.
  *
- * <p>The packet path is preferred because the server keeps nothing: a boss bar
- * sent as a packet exists only on the client, identified by a UUID this class
- * made up. The Bukkit path has to keep the {@link BossBar} object alive to be
- * able to remove it later, which is what the fallback map below is for.
+ * <h2>Why boss bars are the only packet path</h2>
+ * A boss bar sent as a packet exists only on the client, identified by a UUID
+ * this class made up. The Bukkit path has to keep the {@link BossBar} object
+ * alive to be able to remove it later, which is what the fallback map below is
+ * for. That saving is real, and it is why the packet path stays.
+ *
+ * <h2>Why titles and action bars do not</h2>
+ * Neither holds server state on either path, so the packet path bought nothing
+ * — and it cost a great deal. PacketEvents serialises the component to NBT
+ * eagerly, on the calling thread, on every send: an action bar has to be re-sent
+ * about three times a second per viewer or the client fades it out, and a
+ * countdown title redraws every tick. Paper hands the component to the netty
+ * encoder instead and serialises it there, off the server thread entirely.
+ *
+ * <p>This showed up as the single most expensive thing the library did on a
+ * profiled server: {@code AdventureSerializer.asNbtTag} and
+ * {@code NBTSerializer.writeTag} under every action bar redraw.
  */
 final class Bars {
 
@@ -41,40 +56,25 @@ final class Bars {
 
     static void title(Player viewer, Component title, Component subtitle,
                       int fadeIn, int stay, int fadeOut) {
-        if (Packets.available()) {
-            PacketSender.title(viewer, title, subtitle, fadeIn, stay, fadeOut);
-            return;
-        }
-        viewer.showTitle(net.kyori.adventure.title.Title.title(title, subtitle,
-                net.kyori.adventure.title.Title.Times.times(
-                        java.time.Duration.ofMillis(fadeIn * 50L),
-                        java.time.Duration.ofMillis(stay * 50L),
-                        java.time.Duration.ofMillis(fadeOut * 50L))));
+        viewer.showTitle(Title.title(title, subtitle, Title.Times.times(
+                Duration.ofMillis(fadeIn * 50L),
+                Duration.ofMillis(stay * 50L),
+                Duration.ofMillis(fadeOut * 50L))));
     }
 
     /**
      * Replaces the text of a showing title without restarting its fade.
      *
-     * <p>The Bukkit API has no way to express this, so the fallback re-sends the
-     * title with no fade at all: a countdown that pulsed once a second would be
-     * worse than one that simply does not fade.
+     * <p>The title parts are exactly the two text packets and nothing else, so
+     * the timings the title is already running under are left alone. Re-sending
+     * them would restart the fade and make a countdown pulse once a tick.
      */
-    static void titleText(Player viewer, Component title, Component subtitle,
-                          int stay) {
-        if (Packets.available()) {
-            PacketSender.titleText(viewer, title, subtitle);
-            return;
-        }
-        title(viewer, title, subtitle, 0, stay, 0);
+    static void titleText(Player viewer, Component title, Component subtitle) {
+        viewer.sendTitlePart(TitlePart.SUBTITLE, subtitle);
+        viewer.sendTitlePart(TitlePart.TITLE, title);
     }
 
     static void clearTitle(Player viewer) {
-        if (Packets.available()) {
-            // An empty title with zero timings is how a title is cleared on the
-            // wire; there is no dedicated packet before it expires.
-            PacketSender.title(viewer, Component.empty(), Component.empty(), 0, 1, 0);
-            return;
-        }
         viewer.clearTitle();
     }
 
@@ -83,10 +83,6 @@ final class Bars {
     // ------------------------------------------------------------------
 
     static void actionBar(Player viewer, Component text) {
-        if (Packets.available()) {
-            PacketSender.actionBar(viewer, text);
-            return;
-        }
         viewer.sendActionBar(text);
     }
 
