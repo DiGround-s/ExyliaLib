@@ -142,10 +142,54 @@ Contracts:
   reads `0.0`, never `-1.2`.
 - Thread-safe: `DecimalFormat` is not, so each thread gets its own.
 
+## Expressions — arithmetic from a config file
+
+Since 1.63.0.
+
+```java
+double damage  = Expressions.evaluate("2 + %distance% * 0.5", player, 4.0);
+double clamped = Expressions.evaluate("min(20, %hearts% * 2)", player, 20.0);
+```
+
+The companion of the condition parser: that one answers *whether*, this one
+answers *how much*. A config that can say `damage: 2 + %kills% * 0.5` is the
+difference between a server owner tuning a number and asking for a plugin
+update.
+
+Understood: `+ - * / % ^`, parentheses, unary sign, and the functions `min`,
+`max`, `abs`, `floor`, `ceil`, `round`, `sqrt`. Nothing else, deliberately —
+this is a formula in a YAML file, not a scripting language. `^` binds right,
+so `2 ^ 3 ^ 2` is 512.
+
+API:
+
+| Call | Contract |
+| --- | --- |
+| `evaluate(formula, fallback)` | no placeholder pass |
+| `evaluate(formula, player, fallback)` | player's placeholders resolved first |
+| `evaluate(formula, player, data, fallback)` | with extra values, as `Placeholders.apply` takes them |
+| `tryEvaluate(resolved)` | `OptionalDouble`; empty when unreadable |
+
+Contracts:
+
+- **An unreadable formula returns the fallback.** A typo costs the owner their
+  tuning, not the feature. `tryEvaluate` is for callers who need to tell "the
+  formula said zero" from "the formula was broken" — to report the typo.
+- **A division by zero is a broken formula, not an infinity.** So is any
+  non-finite result: `Infinity` propagates into damage and cooldown numbers
+  where it does far more harm than the fallback would.
+- **A leftover placeholder is unreadable, not zero.** `%missing% + 1` returns
+  the fallback rather than quietly becoming 1.
+- **Deep nesting is a typo, not a crash.** `((((((...` is caught and reported
+  as unreadable.
+- Parsing touches no Bukkit state and is safe anywhere. Resolving placeholders
+  is only as thread safe as the resolvers involved, which for PlaceholderAPI
+  means the main thread; pass a `null` player from elsewhere.
+
 ## Source and tests
 
-- Public: `util/Effects.java`, `util/TimeFormats.java` (plus the cooldown
-  classes on their own page).
+- Public: `util/Effects.java`, `util/TimeFormats.java`,
+  `util/Expressions.java` (plus the cooldown classes on their own page).
 - Internal: `util/internal/CooldownStore.java`.
 - Tests: `src/test/java/net/exylia/lib/util/EffectsTest.java`,
-  `TimeFormatsTest.java`.
+  `TimeFormatsTest.java`, `ExpressionsTest.java`.

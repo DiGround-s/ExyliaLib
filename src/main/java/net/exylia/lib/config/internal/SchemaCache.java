@@ -94,6 +94,7 @@ public final class SchemaCache {
 
         Class<?> type = component.getType();
         SchemaNode nested = type.isRecord() ? analyse(type) : null;
+        SchemaNode.MapEntry map = Map.class.isAssignableFrom(type) ? analyseMap(component) : null;
 
         return new SchemaNode.SchemaComponent(
                 component.getName(),
@@ -101,7 +102,64 @@ public final class SchemaCache {
                 type,
                 component.getGenericType(),
                 commentsOf(component.getAnnotationsByType(Comment.class)),
-                nested);
+                nested,
+                map);
+    }
+
+    /**
+     * Describes the value side of a {@code Map} component.
+     *
+     * <p>A map is how a config says "the owner names these": worlds, regions,
+     * materials. Everything else in a schema is a key the code decided on, and
+     * a key no component declares is deleted on load — which is exactly wrong
+     * for an owner-extensible block. Declaring it as a map is what tells the
+     * loader to keep whatever it finds.
+     *
+     * <p>Only {@code String} keys are accepted. YAML keys are text, so any
+     * other key type would need a parse step whose failure has nowhere to go:
+     * the entry it belongs to would have to vanish silently.
+     */
+    private static SchemaNode.MapEntry analyseMap(RecordComponent component) {
+        String where = component.getDeclaringRecord().getSimpleName() + "." + component.getName();
+
+        if (!(component.getGenericType() instanceof java.lang.reflect.ParameterizedType parameterized)) {
+            throw new IllegalArgumentException(
+                    "Map " + where + " must declare its types, for example Map<String, Double>. "
+                            + "A raw Map has nothing to read the entries into.");
+        }
+
+        java.lang.reflect.Type[] arguments = parameterized.getActualTypeArguments();
+        if (arguments.length != 2 || arguments[0] != String.class) {
+            throw new IllegalArgumentException(
+                    "Map " + where + " must be keyed by String, because YAML keys are text.");
+        }
+
+        java.lang.reflect.Type valueGeneric = arguments[1];
+        Class<?> valueType = erase(valueGeneric);
+        if (valueType == null) {
+            throw new IllegalArgumentException(
+                    "Map " + where + " has a value type this config cannot read: " + valueGeneric);
+        }
+        if (Map.class.isAssignableFrom(valueType)) {
+            throw new IllegalArgumentException(
+                    "Map " + where + " holds another Map. Nest a record instead, so the inner block "
+                            + "has a name, comments and defaults of its own.");
+        }
+
+        return new SchemaNode.MapEntry(valueType, valueGeneric,
+                valueType.isRecord() ? analyse(valueType) : null);
+    }
+
+    /** The raw class behind a generic type, or {@code null} when there is none. */
+    private static Class<?> erase(java.lang.reflect.Type type) {
+        if (type instanceof Class<?> raw) {
+            return raw;
+        }
+        if (type instanceof java.lang.reflect.ParameterizedType parameterized
+                && parameterized.getRawType() instanceof Class<?> raw) {
+            return raw;
+        }
+        return null;
     }
 
     /**

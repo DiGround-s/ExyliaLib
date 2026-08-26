@@ -12,6 +12,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -71,6 +72,29 @@ class ConfigModuleTest {
     }
 
     record NoDefaults(int value) {
+    }
+
+    /** A schema whose two blocks are named by the server owner, not by the code. */
+    record Limits(
+            @Comment("Per-world multiplier. Add the worlds this server has.")
+            Map<String, Double> worlds,
+            Map<String, Item> items
+    ) {
+        Limits() {
+            this(Map.of("world", 7.0), Map.of("ender-pearl", new Item()));
+        }
+
+        record Item(double cooldown, int maxUses, String trigger) {
+            Item() {
+                this(14.0, 1, "USE");
+            }
+        }
+    }
+
+    record BadKeys(Map<Integer, String> byNumber) {
+        BadKeys() {
+            this(Map.of());
+        }
     }
 
     @BeforeEach
@@ -464,5 +488,112 @@ class ConfigModuleTest {
         assertTrue(sectionLine > 0, "the nested record becomes a section");
         assertTrue(lines.subList(0, sectionLine).contains(""),
                 "there should be blank lines separating blocks");
+    }
+
+    // ------------------------------------------------------------------
+    // Maps: the blocks whose keys the server owner chooses
+    // ------------------------------------------------------------------
+
+    @Test
+    @DisplayName("writes the default entries of a map on first run")
+    void generatesMapEntries() throws IOException {
+        ConfigFile<Limits> config = Configs.define(plugin, "limits", Limits.class).load();
+
+        assertEquals(7.0, config.get().worlds().get("world"));
+        assertEquals(1, config.get().items().get("ender-pearl").maxUses());
+
+        String yaml = contents("limits");
+        assertTrue(yaml.contains("world: 7.0"), "a leaf map writes one key per entry:\n" + yaml);
+        assertTrue(yaml.contains("ender-pearl:"), "a record map writes one block per entry:\n" + yaml);
+        assertTrue(yaml.contains("max-uses: 1"), "and the block holds the record's keys:\n" + yaml);
+    }
+
+    @Test
+    @DisplayName("keeps the entries a server owner invented")
+    void keepsOwnerInventedEntries() throws IOException {
+        Configs.define(plugin, "limits", Limits.class).load();
+        Configs.releaseAll();
+
+        Files.writeString(file("limits"), """
+                worlds:
+                  arena: 2.5
+                  survival: 9.0
+                items:
+                  totem-of-undying:
+                    cooldown: 30.0
+                    max-uses: 4
+                """);
+
+        ConfigFile<Limits> config = Configs.define(plugin, "limits", Limits.class).load();
+
+        assertEquals(Map.of("arena", 2.5, "survival", 9.0), config.get().worlds(),
+                "every key the owner wrote is an entry, and no default is re-added");
+        assertEquals(4, config.get().items().get("totem-of-undying").maxUses());
+        assertFalse(config.get().items().containsKey("ender-pearl"),
+                "an entry the owner deleted stays deleted");
+
+        assertTrue(config.issues().stream().noneMatch(i -> i.type() == ConfigIssue.Type.UNKNOWN_KEY),
+                "a key inside a map is the owner's to choose, so nothing is pruned: " + config.issues());
+        assertTrue(contents("limits").contains("survival: 9.0"),
+                "and the written file still holds it:\n" + contents("limits"));
+    }
+
+    @Test
+    @DisplayName("fills in what a new entry left out, from the record's own defaults")
+    void newEntryGetsRecordDefaults() throws IOException {
+        Files.writeString(file("limits"), """
+                items:
+                  mace:
+                    cooldown: 12.0
+                """);
+
+        ConfigFile<Limits> config = Configs.define(plugin, "limits", Limits.class).load();
+
+        Limits.Item mace = config.get().items().get("mace");
+        assertEquals(12.0, mace.cooldown());
+        assertEquals(1, mace.maxUses(), "the key the owner omitted comes from the record's defaults");
+        assertEquals("USE", mace.trigger());
+    }
+
+    @Test
+    @DisplayName("skips an unreadable entry and keeps the rest")
+    void skipsBrokenEntry() throws IOException {
+        Files.writeString(file("limits"), """
+                worlds:
+                  arena: banana
+                  survival: 9.0
+                """);
+
+        ConfigFile<Limits> config = Configs.define(plugin, "limits", Limits.class).load();
+
+        assertEquals(Map.of("survival", 9.0), config.get().worlds(),
+                "one bad entry costs that entry, not the block");
+        assertTrue(config.issues().stream().anyMatch(i -> i.type() == ConfigIssue.Type.INVALID_VALUE
+                        && i.path().equals("worlds.arena")),
+                "and it is reported by path: " + config.issues());
+    }
+
+    @Test
+    @DisplayName("an emptied map stays empty")
+    void emptiedMapStaysEmpty() throws IOException {
+        Configs.define(plugin, "limits", Limits.class).load();
+        Configs.releaseAll();
+
+        Files.writeString(file("limits"), "worlds: {}\nitems: {}\n");
+
+        ConfigFile<Limits> config = Configs.define(plugin, "limits", Limits.class).load();
+
+        assertTrue(config.get().worlds().isEmpty(),
+                "putting the examples back would make the block impossible to clear");
+        assertTrue(config.get().items().isEmpty());
+    }
+
+    @Test
+    @DisplayName("a map keyed by something other than String is rejected at declaration")
+    void rejectsNonStringKeys() {
+        IllegalArgumentException failure = assertThrows(IllegalArgumentException.class,
+                () -> Configs.define(plugin, "bad", BadKeys.class).load());
+
+        assertTrue(failure.getMessage().contains("keyed by String"), failure.getMessage());
     }
 }

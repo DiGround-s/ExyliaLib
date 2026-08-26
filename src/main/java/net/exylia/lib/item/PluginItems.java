@@ -36,15 +36,30 @@ public final class PluginItems {
 
     private final Plugin plugin;
     private final Debug debug;
+    private final ItemValues values;
 
     PluginItems(Plugin plugin) {
         this.plugin = plugin;
         this.debug = Debug.of(plugin);
+        this.values = new ItemValues(plugin);
     }
 
     /** The plugin these items belong to. */
     public @NotNull Plugin plugin() {
         return plugin;
+    }
+
+    /**
+     * Values stored on live items under this plugin's namespace.
+     *
+     * <p>The runtime half of the {@code nbt} block: a use counter, a stat
+     * track, which tool an {@code ItemStack} is. Same namespace, so a value
+     * declared in a file and a value written from code are the same value.
+     *
+     * @return this plugin's item value store; the same instance every time
+     */
+    public @NotNull ItemValues values() {
+        return values;
     }
 
     /**

@@ -49,6 +49,7 @@ On a `PluginItems`:
 | `render(item, viewer, values)` | the same, with extra placeholder values |
 | `render(item, viewer, values, formatted)` | the same, naming the values that carry formatting |
 | `build(section, viewer)` | read and build in one call |
+| `values()` | values stored on live items, under this plugin's namespace |
 | `plugin()` | the plugin these belong to |
 
 `viewer` may be `null`, which means nobody in particular: placeholders are left
@@ -327,6 +328,53 @@ A placeholder nothing resolves, or a value that is not a design, draws no banner
 and is reported. A row that quietly loses its picture is a bug somebody has to
 notice; a reported one is a bug somebody can find.
 
+## Values on a live item
+
+Since 1.63.0. `Items.of(this).values()` is the runtime half of the `nbt` block:
+a use counter, a stat track, which tool an `ItemStack` is.
+
+```java
+ItemValues values = Items.of(this).values();
+
+values.set(sword, "kills", kills + 1);
+long kills = values.number(sword, "kills", 0);
+boolean ours = values.has(sword, "id");
+```
+
+| Call | Answers |
+| --- | --- |
+| `has(item, key)` | whether a value is there, of any type |
+| `text(item, key)` | the value as text, or empty |
+| `text(item, key, fallback)` | the value as text, or the fallback |
+| `number(item, key, fallback)` | a `long` |
+| `decimal(item, key, fallback)` | a `double` |
+| `flag(item, key, fallback)` | a `boolean` |
+| `keys(item)` | every key this plugin stored, without the namespace |
+| `set(item, key, value)` | store text, a `long`, a `double` or a `boolean` |
+| `clear(item, key)` | remove one |
+| `plugin()` | whose namespace this is |
+
+Contracts:
+
+- **The namespace is the plugin's**, the same one `nbt` writes under. A value
+  declared in a file is readable here, and a value written here survives a
+  restart. An item written by an ExyliaCommons-era build of the same plugin is
+  found where it was left: Commons keyed by the consumer plugin too.
+- **Reading does not insist on the type it was written as.** `text` on a stored
+  number answers with its digits, `number` on `"5"` answers `5`. The
+  declarative writer picks the type from what the value *looks* like, so
+  `uses: 3` in a file is an integer while the same key set from code might be a
+  string. Commons was strict here and the mismatch read as "the key is
+  missing" — indistinguishable from a fresh item, and it cost players their
+  charges.
+- **It will not invent one.** `number` on `"banana"` gives the fallback, not
+  zero.
+- **`null` and air are no-ops**, read and written without complaint. These calls
+  sit on interact and block-break paths where the hand is often empty.
+- **Nothing is cached.** An `ItemStack` is a value the caller holds; a cache
+  keyed on one is wrong the moment it is copied.
+- Main-thread work, like anything that touches an inventory.
+
 ## Problems are reported, not swallowed
 
 An item is many independent pieces, and one bad enchantment should not cost the
@@ -386,7 +434,7 @@ item back to a player quoted its bold, gradient-filled tooltip name.
 
 | | |
 | --- | --- |
-| Public API | `item/Items`, `PluginItems`, `Item`, `Source`, `Appearance`, `Traits`, `Potion`, `Trim`, `Banner`, `Consumable`, `Modifier`, `Problems` |
+| Public API | `item/Items`, `PluginItems`, `ItemValues`, `Item`, `Source`, `Appearance`, `Traits`, `Potion`, `Trim`, `Banner`, `Consumable`, `Modifier`, `Problems` |
 | Internal | `item/internal/ItemReader`, `ItemRenderer`, `TraitApplier`, `Registries`, `BannerCodec`, `ItemCache` |
 | Tests | `src/test/java/net/exylia/lib/item/` |
 

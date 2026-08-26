@@ -126,16 +126,72 @@ on `Migration`:
 Renaming a key without a migration silently loses what the owner configured.
 Do not do it.
 
+## Blocks the owner names
+
+Since 1.63.0. A component declared `Map<String, V>` is a section whose keys the
+server owner chooses — worlds, regions, materials — rather than keys the code
+decided on.
+
+```java
+public record Limits(
+        @Comment("Per-world multiplier. Add the worlds this server has.")
+        Map<String, Double> worlds,
+        Map<String, Item> items) {
+
+    public Limits() {
+        this(Map.of("world", 7.0), Map.of("ender-pearl", new Item()));
+    }
+
+    public record Item(double cooldown, int maxUses) {
+        public Item() {
+            this(14.0, 1);
+        }
+    }
+}
+```
+
+```yaml
+worlds:
+  arena: 2.5
+  survival: 9.0
+items:
+  ender-pearl:
+    cooldown: 14.0
+    max-uses: 1
+```
+
+`V` may be a leaf (`String`, a number, `boolean`, an enum, a `List`) or a
+record, which becomes a block per entry. The key type must be `String`, because
+YAML keys are text; anything else is rejected at declaration. A `Map` of `Map`
+is rejected too — nest a record instead, so the inner block gets a name,
+comments and defaults of its own.
+
+Contracts:
+
+- **Nothing inside is pruned.** This is the point: the keys belong to the
+  owner, so [Housekeeping](#housekeeping) does not apply inside the block.
+  Keys *within* a record entry are still the code's, and are pruned normally.
+- **The no-arg constructor's entries are examples**, written once when the file
+  is generated. They are not re-added afterwards: an entry the owner deleted
+  stays deleted, and an emptied block stays empty.
+- **An entry the owner invented gets the record's own defaults** for whatever
+  it left out.
+- **One unreadable entry costs that entry, not the block.** It is reported as
+  an `INVALID_VALUE` issue at its own path, and the rest load.
+- **Insertion order is kept**, so the file does not reshuffle on every save.
+
 ## Housekeeping
 
 A config outlives the code that wrote it: fields get renamed, features get cut.
 A key no record declares is **removed from the file on load**, and each removal
 is reported as an `UNKNOWN_KEY` issue so the log says exactly what left and from
-where. This is the strict cleanup ExyliaCommons performed. Two guarantees:
+where. This is the strict cleanup ExyliaCommons performed. Three guarantees:
 
 - Migrations run first, so a migration can still read the old layout before it
   goes.
 - The library's own `config-version` marker is never touched.
+- Nothing inside a `Map` block is touched — see
+  [Blocks the owner names](#blocks-the-owner-names).
 
 ## When the file is wrong
 

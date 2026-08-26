@@ -17,12 +17,12 @@ against the source — rules and routes are in `AGENTS.md` under
 | [Client](client.md) | Lunar/Feather waypoints, client cooldowns, teammate markers and teams; owned per plugin since 1.48.0 | 1.7.0 |
 | [Clan](clan.md) | One API over eight clan plugins and external bridges | 1.8.0 |
 | [Cooldowns](cooldowns.md) | The base every cooldown in the ecosystem sits on | 1.10.0 |
-| [Utilities](util.md) | `util.Effects` (potions from strings) and `TimeFormats` | 1.9.0 |
+| [Utilities](util.md) | `util.Effects` (potions from strings), `TimeFormats` and `Expressions` | 1.9.0 |
 | [Debug](debug.md) | Coloured console output: log, success, warn, error, debug — and the banner; server-wide switch since 1.27.0, gradient name and type labels since 1.35.0 | 1.13.0 |
 | [Reloading](reload.md) | `Reloads` steps, library-reload listeners, and `/exylialib` (`reload`, `info`, `stats`) | 1.14.0 |
 | [Skulls](skulls.md) | Player heads from base64, a URL or a name — cached, shared and never blocking | 1.19.0 |
 | [Actions](actions.md) | Compiled, namespaced actions shared by menus, items and other event boundaries | 1.20.0 |
-| [Items](items.md) | Items described in configuration — menu icons, special items, kits, shields — read once and drawn per player | 1.22.0 |
+| [Items](items.md) | Items described in configuration — menu icons, special items, kits, shields — read once and drawn per player; values stored on live items since 1.63.0 | 1.22.0 |
 | [Menus](menus.md) | Menus written in configuration: paginated lists, reactive redrawing, clicks bound to actions | 1.22.0 |
 | [Regions](regions.md) | Areas of the world: shapes, an immutable spatial index, overlapping policies, enter/exit events, selection and outlines | 1.23.0 |
 | [Database](database.md) | Records stored in H2, MySQL, MariaDB, PostgreSQL or MongoDB — one pool for the server, no reflection per row, no blocking calls | 1.24.0 |
@@ -50,6 +50,9 @@ Migration notes:
 - [Migrating ExyliaCapture](migration-capture.md) — the full module audit, the
   three things the library does not have, and the zone column that must keep its
   exact JSON.
+- [Migrating ExyliaPracticeCore](migration-practicecore.md) — the largest one:
+  the config migrations, the region columns, and what stopped blocking the
+  enable.
 
 Root classes that are not a module:
 

@@ -5,8 +5,11 @@ import org.bukkit.configuration.ConfigurationSection;
 
 import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 /**
@@ -55,6 +58,11 @@ final class Binder {
                 continue;
             }
 
+            if (component.isMap()) {
+                arguments[i] = readMap(section, component, fallback, childPath, file, issues);
+                continue;
+            }
+
             if (section == null || !section.contains(component.key())) {
                 issues.add(new ConfigIssue(ConfigIssue.Type.MISSING_KEY, childPath,
                         "was missing and has been added with its default value", file));
@@ -83,6 +91,89 @@ final class Binder {
             throw new IllegalStateException(
                     "The constructor of " + schema.type().getSimpleName() + " rejected the values in "
                             + file + ".yml: " + exception.getCause().getMessage(), exception.getCause());
+        }
+    }
+
+    /**
+     * Reads a {@code Map} component: one entry per key the owner wrote.
+     *
+     * <p>Absent means "never configured", so the defaults are written back the
+     * way a missing leaf is. Present and empty means the owner emptied it on
+     * purpose, and an empty map is what they get — putting the examples back
+     * would make the block impossible to clear.
+     *
+     * <p>Insertion order is kept so the file round-trips in the order it was
+     * written, rather than being reshuffled on every save.
+     */
+    @SuppressWarnings("unchecked")
+    private static Object readMap(ConfigurationSection section, SchemaNode.SchemaComponent component,
+                                  Object fallback, String path, String file, List<ConfigIssue> issues) {
+        if (section == null || !section.contains(component.key())) {
+            issues.add(new ConfigIssue(ConfigIssue.Type.MISSING_KEY, path,
+                    "was missing and has been added with its default entries", file));
+            return fallback == null ? Map.of() : fallback;
+        }
+
+        ConfigurationSection entries = section.getConfigurationSection(component.key());
+        if (entries == null) {
+            issues.add(ConfigIssue.invalidValue(file, path, "a group of settings",
+                    section.get(component.key()), "the defaults"));
+            return fallback == null ? Map.of() : fallback;
+        }
+
+        SchemaNode.MapEntry value = component.map();
+        Map<String, Object> read = new LinkedHashMap<>();
+        Map<String, Object> defaults = fallback instanceof Map<?, ?> map
+                ? (Map<String, Object>) map
+                : Map.of();
+
+        for (String key : entries.getKeys(false)) {
+            String childPath = path + "." + key;
+
+            if (value.nested() != null) {
+                ConfigurationSection child = entries.getConfigurationSection(key);
+                if (child == null) {
+                    issues.add(ConfigIssue.invalidValue(file, childPath, "a group of settings",
+                            entries.get(key), "skipped"));
+                    continue;
+                }
+                // An entry the owner added has no default of its own, so the
+                // record's own defaults fill whatever it left out.
+                Object entryDefaults = defaults.get(key);
+                if (entryDefaults == null) {
+                    entryDefaults = blank(value.nested());
+                }
+                read.put(key, read(child, value.nested(), entryDefaults, childPath, file, issues));
+                continue;
+            }
+
+            Coercions.Result result = Coercions.coerce(entries.get(key), value.type(), value.generic());
+            if (result.failed()) {
+                issues.add(ConfigIssue.invalidValue(file, childPath, result.expected(),
+                        entries.get(key), "skipped"));
+                continue;
+            }
+            read.put(key, result.value());
+        }
+
+        return Collections.unmodifiableMap(read);
+    }
+
+    /**
+     * A record built from its own no-argument constructor.
+     *
+     * <p>Used as the fallback for a map entry the owner invented: it has no
+     * default anywhere else, and every key it omits still needs a value.
+     */
+    private static Object blank(SchemaNode schema) {
+        try {
+            var defaults = schema.type().getDeclaredConstructor();
+            defaults.setAccessible(true);
+            return defaults.newInstance();
+        } catch (ReflectiveOperationException exception) {
+            // SchemaCache proves this constructor exists before a file is read.
+            throw new IllegalStateException(
+                    "Could not build the defaults of " + schema.type().getSimpleName(), exception);
         }
     }
 
@@ -150,6 +241,8 @@ final class Binder {
                     section.createSection(childPath);
                 }
                 writeSection(section, component.nested(), value, childPath);
+            } else if (component.isMap()) {
+                writeMap(section, component, value, childPath);
             } else {
                 section.set(childPath, serialise(value));
             }
@@ -159,6 +252,34 @@ final class Binder {
                 // comment or the file header above it; another blank line there
                 // just adds noise, and inside a section it would be indented.
                 section.setComments(childPath, i == 0 ? component.comments() : spaced(component.comments()));
+            }
+        }
+    }
+
+    /**
+     * Writes a {@code Map} component back out, one key per entry.
+     *
+     * <p>The block is replaced rather than merged: the snapshot is the whole
+     * truth about what the map holds, so an entry removed in code has to leave
+     * the file too. An empty map writes an empty block, which is what keeps the
+     * key visible for an owner who wants to add entries back.
+     */
+    private static void writeMap(ConfigurationSection section, SchemaNode.SchemaComponent component,
+                                 Object value, String path) {
+        section.set(path, null);
+        ConfigurationSection entries = section.createSection(path);
+        if (!(value instanceof Map<?, ?> map)) {
+            return;
+        }
+
+        SchemaNode.MapEntry declared = component.map();
+        for (Map.Entry<?, ?> entry : map.entrySet()) {
+            String key = String.valueOf(entry.getKey());
+            if (declared.nested() != null) {
+                entries.createSection(key);
+                writeSection(entries, declared.nested(), entry.getValue(), key);
+            } else {
+                entries.set(key, serialise(entry.getValue()));
             }
         }
     }

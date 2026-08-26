@@ -1363,7 +1363,7 @@ Raíz de código: `src/main/java/net/exylia/lib/`. Raíz de tests:
 | Módulo | API pública | Interno | Doc | Desde |
 | --- | --- | --- | --- | --- |
 | task | `task/Tasks`, `TaskScheduler`, `TaskHandle`; `platform/Platform` | `task/internal/` | [docs/task.md](docs/task.md) | 1.0.0 |
-| config | `config/Configs`, `ConfigFile`, `MutableConfig`, `Key`, `Comment`, `Migration`, `ConfigIssue`, `Schema` (1.50.0) | `config/internal/` (+ `SchemaProjection`) | [docs/config.md](docs/config.md) | 1.1.0 |
+| config | `config/Configs`, `ConfigFile`, `MutableConfig`, `Key`, `Comment`, `Migration`, `ConfigIssue`, `Schema` (1.50.0); secciones `Map<String, V>` (1.63.0) | `config/internal/` (+ `SchemaProjection`) | [docs/config.md](docs/config.md) | 1.1.0 |
 | text | `text/Text`, `Colors`, `Palette`, `Lines` (1.48.0) | `text/internal/` | [docs/text.md](docs/text.md) | 1.2.0 |
 | placeholder | `placeholder/Placeholders`, `Template`, `Resolver`, `Request` | `placeholder/internal/` | [docs/placeholders.md](docs/placeholders.md) | 1.3.0 |
 | effect | `effect/Effects`, `Timer`, `Ticks`, `Display`, `EffectConfig` | `effect/internal/` | [docs/effects.md](docs/effects.md) | 1.4.0 |
@@ -1395,6 +1395,8 @@ Raíz de código: `src/main/java/net/exylia/lib/`. Raíz de tests:
 | input | `input/Inputs`, `PluginInputs`, `InputRequest` y tipos por valor, `ChoiceInput`, `SearchInput`, `FormInput`, `FormField`, `FormKey`, `FormValues`, `InputResult`, `InputOutcome`, `Validation`, `InputParser`, `InputException`, `InputSettings` | `input/internal/` | [docs/input.md](docs/input.md) | 1.31.0 |
 | command | `command/Commands`, `PluginCommands`, `CommandLine`, `CommandActor`, `CommandResult` | — | — | 1.21.0 |
 | item | `item/Items`, `PluginItems`, `Item`, `Source`, `Appearance`, `Traits`, `Potion`, `Trim`, `Banner`, `Consumable`, `Modifier`, `Problems` | `item/internal/` | [docs/items.md](docs/items.md) | 1.22.0 |
+| valores en un ítem vivo | `item/ItemValues`, `PluginItems.values()` | — | [docs/items.md](docs/items.md) | 1.63.0 |
+| util (expresiones) | `util/Expressions` | — | [docs/util.md](docs/util.md) | 1.63.0 |
 | ui | `ui/Menus`, `PluginMenus`, `UiSession`, `UiDefinition`, `UiSection`, `UiEntry`, `UiItem`, `UiKeys`, `UiFillers`, `UiRefresh`, `UiSounds`, `UiAnimationSpec`, `ClickBindings`, `ClickKind`, `ClickPolicy`, `Pages`, `Slots` | `ui/internal/` | [docs/menus.md](docs/menus.md) | 1.22.0 |
 | valores de fila con formato | `ui/UiEntry.Builder.withFormatted`; `item/PluginItems.render(item, viewer, values, formatted)` | `item/internal/ItemRenderer.text` | [docs/menus.md](docs/menus.md), [docs/items.md](docs/items.md) | 1.28.0 |
 | small text | `small-text` en `internal/LibrarySettings`; medida en `text/Centering` | `text/internal/SmallText`, `TextEngine.smallText` | [docs/text.md](docs/text.md) | 1.29.0 |
