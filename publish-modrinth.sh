@@ -16,9 +16,16 @@ changelog_file="${3:-}"
 : "${MODRINTH_TOKEN:?MODRINTH_TOKEN is not set}"
 : "${MODRINTH_PROJECT:?MODRINTH_PROJECT is not set}"
 
-# Everything the build runs on. Widen as new Minecraft versions ship.
-game_versions="${GAME_VERSIONS:-["1.21.4","1.21.5","1.21.6","1.21.7","1.21.8","1.21.9","1.21.10","1.21.11","26.1","26.1.1","26.1.2","26.2"]}"
-loaders="${LOADERS:-["folia","paper","purpur"]}"
+# Everything the build runs on. Widen as new Minecraft versions ship. Assigned
+# before the expansion below because a default written inline would have its
+# quotes eaten by the surrounding ones, and reach jq as invalid JSON.
+default_game_versions='["1.21.4","1.21.5","1.21.6","1.21.7","1.21.8","1.21.9","1.21.10","1.21.11","26.1","26.1.1","26.1.2","26.2"]'
+default_loaders='["folia","paper","purpur"]'
+game_versions="${GAME_VERSIONS:-$default_game_versions}"
+loaders="${LOADERS:-$default_loaders}"
+
+jq -e . >/dev/null <<< "$game_versions"
+jq -e . >/dev/null <<< "$loaders"
 
 test -f "$jar"
 user_agent="DiGround-s/ExyliaLib/${version} (release workflow)"
