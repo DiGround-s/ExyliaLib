@@ -106,12 +106,31 @@ public final class Debug {
      * @return its debug instance
      */
     public static @NotNull Debug of(@NotNull Plugin plugin) {
+        // Reloaded in place: an instance owned by a different Plugin object
+        // belongs to the previous load, whose cleanup runs a tick after it was
+        // disabled and has not had a tick yet.
+        BY_PLUGIN.computeIfPresent(plugin.getName(),
+                (ignored, debug) -> debug.plugin.equals(plugin) ? debug : null);
         return BY_PLUGIN.computeIfAbsent(plugin.getName(), key -> new Debug(plugin));
     }
 
     /** Drops one plugin's instance. Called when the plugin disables. */
     public static void release(@NotNull String pluginName) {
         BY_PLUGIN.remove(pluginName);
+    }
+
+    /**
+     * Drops one load of a plugin's instance, leaving a newer load's alone.
+     *
+     * <p>A plugin reloaded in place has two loads alive at once, because the
+     * tool that reloaded it disabled and enabled within a single tick.
+     *
+     * @param plugin the load being let go
+     * @since 1.64.0
+     */
+    public static void release(@NotNull Plugin plugin) {
+        BY_PLUGIN.computeIfPresent(plugin.getName(),
+                (ignored, debug) -> debug.plugin.equals(plugin) ? null : debug);
     }
 
     /** Drops every instance. Called by the library on shutdown. */

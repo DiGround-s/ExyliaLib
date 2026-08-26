@@ -553,7 +553,7 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
      * sent on behalf of code that is going away. What a plugin legitimately
      * uses <em>from</em> {@code onDisable} — its repositories above all, since
      * a last save is the single most common thing an {@code onDisable} does —
-     * is deferred by {@link #releaseAfterDisable(String)} instead.
+     * is deferred by {@link #releaseAfterDisable(org.bukkit.plugin.Plugin)} instead.
      *
      * @param event the disable event
      */
@@ -629,7 +629,7 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         // Everything a plugin still uses from its own onDisable, which has not
         // run yet. Scheduled on the library's scheduler, which is still up:
         // the dying plugin's own was just cancelled above.
-        Tasks.of(this).run(() -> releaseAfterDisable(pluginName));
+        Tasks.of(this).run(() -> releaseAfterDisable(event.getPlugin()));
     }
 
     /**
@@ -653,26 +653,32 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
      * this one does. This method exists for the case the shutdown path cannot
      * cover — a single plugin disabled while the server keeps running.
      *
-     * @param pluginName the plugin that was disabled
+     * <p>Takes the {@code Plugin} object rather than its name, because a
+     * reload tool disables and enables within one tick: by the time this runs,
+     * a second load of the same plugin can already be up and holding state of
+     * its own under the same name. Every module released here is asked to let
+     * go of <em>this</em> load only.
+     *
+     * @param plugin the load that was disabled
      */
-    private void releaseAfterDisable(String pluginName) {
+    private void releaseAfterDisable(org.bukkit.plugin.Plugin plugin) {
         // Before the database module: a claim reads the plugin's pending table,
         // and a reward handed to a player whose plugin is going away must not be
         // marked as claimed by a repository that is about to close.
-        Rewards.release(pluginName);
+        Rewards.release(plugin);
         // Before the database module for the same reason, and for no other: a
         // snapshot this plugin took is already a row, so nothing has to be
         // written on the way out. Forgetting the repository is the whole job.
-        Snapshots.release(pluginName);
+        Snapshots.release(plugin);
         // Drops the plugin's repositories and datasource lease. A target closes
         // only after its last owning plugin releases it.
-        Databases.release(pluginName);
+        Databases.release(plugin);
         // After the database module: resolving a datasource reads the plugin's
         // database.yml through Configs, so forgetting its files first would
         // strand a repository asked for during the plugin's own teardown.
-        Configs.release(pluginName);
+        Configs.release(plugin);
         // Last: everything above reports through it, so a line written while
         // the plugin lets go still names the plugin it belongs to.
-        Debug.release(pluginName);
+        Debug.release(plugin);
     }
 }

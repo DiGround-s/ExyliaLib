@@ -72,6 +72,11 @@ public final class PluginRewards {
     private volatile Rolls.Dice dice = Rolls.RANDOM;
     private volatile ItemGiver items = ItemGiver.BUKKIT;
 
+    /** Returns whether this view belongs to the given load of its plugin. */
+    boolean ownedBy(@NotNull Plugin other) {
+        return plugin.equals(other);
+    }
+
     PluginRewards(@NotNull Plugin plugin) {
         this.plugin = plugin;
         this.tasks = Tasks.of(plugin);

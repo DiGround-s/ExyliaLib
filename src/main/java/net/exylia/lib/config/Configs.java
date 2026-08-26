@@ -114,6 +114,24 @@ public final class Configs {
     }
 
     /**
+     * Forgets the config files of one load of a plugin.
+     *
+     * <p>The same plugin reloaded in place is a different {@code Plugin} object
+     * from a different classloader, and both loads can be present at once: a
+     * reload tool disables and enables within one tick, so the new load has
+     * already read its files by the time the old one's cleanup runs. Releasing
+     * by name there would throw away the files the new load just read. This
+     * releases only what the given load owns.
+     *
+     * @param plugin the load being let go
+     * @since 1.64.0
+     */
+    public static void release(@NotNull Plugin plugin) {
+        FILES.values().removeIf(file -> file.ownedBy(plugin));
+        SchemaCache.release(plugin.getName(), plugin.getClass().getClassLoader());
+    }
+
+    /**
      * Forgets every config file of every plugin.
      *
      * <p>Called by ExyliaLib on shutdown. Consumers do not need to call this.
@@ -201,6 +219,17 @@ public final class Configs {
         @SuppressWarnings("unchecked")
         public @NotNull ConfigFile<T> load() {
             String key = plugin.getName() + ":" + name;
+            // A handle cached under this name but owned by a different Plugin
+            // object belongs to a previous load: the plugin was reloaded in
+            // place and ExyliaLib's cleanup for the old load, which runs a tick
+            // after it is disabled, has not had a tick yet. Handing that handle
+            // back would hand back a record built by the old classloader, and
+            // assigning it fails as a ClassCastException between two versions of
+            // the same class. Let the previous load go and read the file again.
+            ConfigFileImpl<?> cached = FILES.get(key);
+            if (cached != null && !cached.ownedBy(plugin)) {
+                release(cached.owner());
+            }
             return (ConfigFile<T>) FILES.computeIfAbsent(key, ignored -> {
                 ConfigFileImpl<T> file = new ConfigFileImpl<>(plugin, name, schema, version, Map.copyOf(migrations));
                 file.initialLoad();

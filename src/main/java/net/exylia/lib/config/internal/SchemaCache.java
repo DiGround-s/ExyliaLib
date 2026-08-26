@@ -222,6 +222,30 @@ public final class SchemaCache {
         }
     }
 
+    /**
+     * Drops the schemas declared by one load of a plugin, leaving a newer
+     * load's alone.
+     *
+     * <p>A plugin reloaded in place declares the same schema names again from a
+     * new classloader, so the classes are what tell the two loads apart.
+     */
+    public static void release(String pluginName, ClassLoader loader) {
+        List<Class<?>> declared = BY_PLUGIN.get(pluginName);
+        if (declared == null) {
+            return;
+        }
+        declared.removeIf(type -> {
+            if (type.getClassLoader() != loader) {
+                return false;
+            }
+            NODES.remove(type);
+            return true;
+        });
+        if (declared.isEmpty()) {
+            BY_PLUGIN.remove(pluginName, declared);
+        }
+    }
+
     /** Drops every cached schema. */
     public static void releaseAll() {
         NODES.clear();

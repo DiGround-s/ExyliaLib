@@ -198,6 +198,11 @@ public final class PluginDatabase {
      * need to. The tables stay exactly where they are — this drops the objects
      * that address them, not the data.
      */
+    /** Returns whether this view belongs to the given load of its plugin. */
+    boolean ownedBy(Plugin other) {
+        return plugin.equals(other);
+    }
+
     public synchronized void release() {
         released = true;
         repositories.clear();

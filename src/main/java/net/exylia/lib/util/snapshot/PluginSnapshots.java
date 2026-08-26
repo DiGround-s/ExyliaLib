@@ -487,6 +487,11 @@ public final class PluginSnapshots {
      * and nothing is restored: every snapshot this plugin took is already a row,
      * which is exactly what a plugin being disabled needs it to be.
      */
+    /** Returns whether this store belongs to the given load of its plugin. */
+    boolean ownedBy(Plugin other) {
+        return plugin.equals(other);
+    }
+
     void release() {
         synchronized (lock) {
             rows = null;

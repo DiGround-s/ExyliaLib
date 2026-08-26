@@ -62,9 +62,10 @@ public final class Databases {
     /**
      * One view per plugin.
      *
-     * <p>Keyed by name rather than by instance, so that the view a plugin gets
-     * survives a {@code /reload} handing out a new {@code Plugin} object, and so
-     * that {@link #release(String)} — which only has the name — finds it.
+     * <p>Keyed by name, so that {@link #release(String)} — which only has the
+     * name — finds it. The view still remembers which {@code Plugin} object
+     * asked for it: a plugin reloaded in place is a new object from a new
+     * classloader, and it must not inherit the previous load's repositories.
      */
     private static final Map<String, PluginDatabase> VIEWS = new ConcurrentHashMap<>();
 
@@ -82,6 +83,12 @@ public final class Databases {
      * @return its view of the shared database
      */
     public static @NotNull PluginDatabase of(@NotNull Plugin plugin) {
+        // Reloaded in place: a view cached under this name but owned by a
+        // different Plugin object belongs to the previous load, whose cleanup
+        // runs a tick after it was disabled and has not had a tick yet. Let it
+        // go here, or the new load would inherit repositories and a datasource
+        // lease that the pending cleanup is about to close underneath it.
+        releaseUnless(plugin);
         return VIEWS.computeIfAbsent(plugin.getName(), ignored -> new PluginDatabase(plugin));
     }
 
@@ -215,6 +222,38 @@ public final class Databases {
         if (view != null) {
             view.release();
         }
+    }
+
+    /**
+     * Closes the repositories of one load of a plugin.
+     *
+     * <p>A plugin reloaded in place has two loads alive at once, because the
+     * tool that reloaded it disabled and enabled within a single tick. Releasing
+     * by name alone would close the datasource the new load is already using —
+     * which is what a "connection is closed" a second after a reload was.
+     *
+     * @param plugin the load being let go
+     * @since 1.64.0
+     */
+    public static void release(@NotNull Plugin plugin) {
+        VIEWS.computeIfPresent(plugin.getName(), (ignored, view) -> {
+            if (!view.ownedBy(plugin)) {
+                return view;
+            }
+            view.release();
+            return null;
+        });
+    }
+
+    /** Drops the cached view when it belongs to an earlier load of the plugin. */
+    private static void releaseUnless(@NotNull Plugin plugin) {
+        VIEWS.computeIfPresent(plugin.getName(), (ignored, view) -> {
+            if (view.ownedBy(plugin)) {
+                return view;
+            }
+            view.release();
+            return null;
+        });
     }
 
     /**

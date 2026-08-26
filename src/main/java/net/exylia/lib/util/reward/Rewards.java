@@ -73,6 +73,11 @@ public final class Rewards {
      * @return its view, the same instance every time
      */
     public static @NotNull PluginRewards of(@NotNull Plugin plugin) {
+        // Reloaded in place: a view owned by a different Plugin object belongs
+        // to the previous load, whose cleanup runs a tick after it was disabled
+        // and has not had a tick yet.
+        BY_PLUGIN.computeIfPresent(plugin.getName(),
+                (ignored, rewards) -> rewards.ownedBy(plugin) ? rewards : null);
         return BY_PLUGIN.computeIfAbsent(plugin.getName(), key -> new PluginRewards(plugin));
     }
 
@@ -188,6 +193,20 @@ public final class Rewards {
      */
     public static void release(@NotNull String pluginName) {
         BY_PLUGIN.remove(pluginName);
+    }
+
+    /**
+     * Forgets one load of a plugin's view, leaving a newer load's alone.
+     *
+     * <p>A plugin reloaded in place has two loads alive at once, because the
+     * tool that reloaded it disabled and enabled within a single tick.
+     *
+     * @param plugin the load being let go
+     * @since 1.64.0
+     */
+    public static void release(@NotNull Plugin plugin) {
+        BY_PLUGIN.computeIfPresent(plugin.getName(),
+                (ignored, rewards) -> rewards.ownedBy(plugin) ? null : rewards);
     }
 
     /** Forgets every plugin's view, on shutdown. */

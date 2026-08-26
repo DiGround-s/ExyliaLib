@@ -18,6 +18,8 @@ import java.util.concurrent.atomic.AtomicReference;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertLinesMatch;
+import static org.junit.jupiter.api.Assertions.assertNotSame;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -102,6 +104,25 @@ class ConfigModuleTest {
         FakeServer.install();
         Configs.releaseAll();
         plugin = FakeServer.newPlugin("ConfigTestPlugin", folder.toFile());
+    }
+
+    @Test
+    @DisplayName("a plugin reloaded in place reads its own file, not the previous load's")
+    void reloadInPlaceDropsThePreviousLoad() {
+        ConfigFile<Settings> first = Configs.define(plugin, "config", Settings.class).load();
+
+        // What a reload tool does: a second Plugin object under the same name,
+        // enabled before the first one's cleanup has had a tick to run. Handing
+        // back the first load's handle here is a ClassCastException in the
+        // consumer, between two versions of the same record class.
+        Plugin reloaded = FakeServer.newPlugin("ConfigTestPlugin", folder.toFile());
+        ConfigFile<Settings> second = Configs.define(reloaded, "config", Settings.class).load();
+        assertNotSame(first, second);
+
+        // And the cleanup that follows a tick later lets go of the load that
+        // died, not of the one that replaced it.
+        Configs.release(plugin);
+        assertSame(second, Configs.define(reloaded, "config", Settings.class).load());
     }
 
     private Path file(String name) {

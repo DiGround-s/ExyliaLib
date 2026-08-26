@@ -168,6 +168,11 @@ public final class ConfigFileImpl<T> implements ConfigFile<T> {
         return plugin.equals(other);
     }
 
+    /** Returns the owning plugin, which identifies one load of it. */
+    public Plugin owner() {
+        return plugin;
+    }
+
     /** Returns the owning plugin's name. */
     public String pluginName() {
         return plugin.getName();
