@@ -1239,6 +1239,24 @@ The workflow builds and tests the version from `build.gradle`, creates the GitHu
 release and tag, and updates and pushes `lib-manifest.json` automatically. Local
 `publishToMavenLocal` is only for local consumer validation.
 
+### Modrinth
+
+Every stable release is mirrored to Modrinth by the last step of the same
+workflow, after the manifest has been published: the manifest is what each
+server's updater reads, so a Modrinth outage can never leave a release that no
+server is offered. The step needs two repository settings, and skips itself with
+a log line when either is missing:
+
+| Setting | Where | What |
+| --- | --- | --- |
+| `MODRINTH_TOKEN` | Repository *secret* | A Modrinth PAT with the `Create versions` scope |
+| `MODRINTH_PROJECT_ID` | Repository *variable* | The project ID or slug on Modrinth |
+
+Game versions and loaders are declared as `GAME_VERSIONS` and `LOADERS` in the
+workflow step; widen them there when the compile target moves. Re-running a
+finished release is safe: the step asks Modrinth for the project's versions
+first and does nothing when the version number is already published.
+
 ### Dev channel
 
 Dev releases run on the separate `dev` branch and use `dev-vX.Y.Z` GitHub
@@ -1263,4 +1281,4 @@ same bytes as stable `vX.Y.Z` and updates the main manifest. Use
 
 ## License
 
-[MIT](LICENSE)
+[All Rights Reserved](LICENSE) — Copyright (c) 2026 Exylia.

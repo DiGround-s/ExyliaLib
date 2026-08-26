@@ -193,3 +193,79 @@ jobs:
 
           echo "Could not publish the manifest for ${VERSION}: main kept moving." >&2
           exit 1
+
+      # Modrinth mirrors the release; the manifest above is what every server's
+      # updater actually reads, so this runs after it and a Modrinth outage can
+      # never leave a release published with a stale manifest. Not configured
+      # (a fork, or before the secret exists) means skipped, not failed.
+      - name: Publish to Modrinth
+        if: steps.release_guard.outputs.release_needed == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          MODRINTH_TOKEN: ${{ secrets.MODRINTH_TOKEN }}
+          MODRINTH_PROJECT: ${{ vars.MODRINTH_PROJECT_ID }}
+          VERSION: ${{ steps.release_guard.outputs.version }}
+          TAG: ${{ steps.release_guard.outputs.tag }}
+          # plugin.yml declares api-version 1.21, so the server loads the jar on
+          # any 1.21.x; the build compiles against paper-api 1.21.4. Widen this
+          # list here when the compile target moves.
+          GAME_VERSIONS: '["1.21","1.21.1","1.21.2","1.21.3","1.21.4"]'
+          LOADERS: '["bukkit","spigot","paper","purpur","folia"]'
+        run: |
+          set -euo pipefail
+
+          if [[ -z "${MODRINTH_TOKEN:-}" || -z "${MODRINTH_PROJECT:-}" ]]; then
+            echo "MODRINTH_TOKEN or MODRINTH_PROJECT_ID is not configured; skipping Modrinth."
+            exit 0
+          fi
+
+          jar="build/libs/ExyliaLib-${VERSION}.jar"
+          test -f "$jar"
+
+          user_agent="DiGround-s/ExyliaLib/${VERSION} (release workflow)"
+
+          # A re-run of this job would otherwise fail on Modrinth's uniqueness
+          # check for the version number, with the GitHub release already
+          # published and nothing left to fix by hand.
+          existing="$(curl -sS --fail-with-body \
+            -H "Authorization: ${MODRINTH_TOKEN}" \
+            -H "User-Agent: ${user_agent}" \
+            "https://api.modrinth.com/v2/project/${MODRINTH_PROJECT}/version")"
+          if jq -e --arg v "$VERSION" 'any(.[]; .version_number == $v)' <<< "$existing" >/dev/null; then
+            echo "Modrinth already has version ${VERSION}; nothing to do."
+            exit 0
+          fi
+
+          changelog="$(gh release view "$TAG" --json body --jq .body)"
+
+          # Written to a file rather than passed inline: curl splits an inline
+          # -F value on ';', and release notes are arbitrary text.
+          jq -nc \
+            --arg name "ExyliaLib ${VERSION}" \
+            --arg number "$VERSION" \
+            --arg changelog "$changelog" \
+            --arg project "$MODRINTH_PROJECT" \
+            --argjson game_versions "$GAME_VERSIONS" \
+            --argjson loaders "$LOADERS" \
+            '{
+               name: $name,
+               version_number: $number,
+               changelog: $changelog,
+               project_id: $project,
+               dependencies: [],
+               game_versions: $game_versions,
+               loaders: $loaders,
+               version_type: "release",
+               featured: true,
+               file_parts: ["file"],
+               primary_file: "file"
+             }' > modrinth-version.json
+
+          response="$(curl -sS --fail-with-body -X POST \
+            "https://api.modrinth.com/v2/version" \
+            -H "Authorization: ${MODRINTH_TOKEN}" \
+            -H "User-Agent: ${user_agent}" \
+            -F "data=<modrinth-version.json;type=application/json" \
+            -F "file=@${jar};type=application/java-archive;filename=ExyliaLib-${VERSION}.jar")"
+
+          echo "Published ${VERSION} to Modrinth as version $(jq -r '.id' <<< "$response")."

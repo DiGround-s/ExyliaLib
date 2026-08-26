@@ -1,16 +1,33 @@
-MIT License
+ExyliaLib — All Rights Reserved
 
-Copyright (c) 2026 Exylia
+Copyright (c) 2026 Exylia. All rights reserved.
 
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
+This software and its source code are proprietary and confidential. No licence
+is granted, expressly or by implication, other than the permission stated below.
 
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
+Permitted:
+
+  - Running unmodified official builds of ExyliaLib on a Minecraft server.
+  - Compiling a plugin against the published API and distributing that plugin,
+    provided ExyliaLib itself is not bundled, shaded or redistributed with it.
+
+Not permitted without prior written permission from Exylia:
+
+  - Copying, redistributing, publishing, sublicensing or selling this software
+    or any part of it.
+  - Modifying, adapting, translating or creating derivative works.
+  - Reverse engineering, decompiling or disassembling the software, except to
+    the extent that applicable law expressly forbids this restriction.
+  - Removing or altering this notice or any copyright or attribution notice.
+
+Versions of ExyliaLib released before this notice took effect remain available
+under the terms they were published with; this notice governs every release
+made after it.
+
+Third-party components bundled inside the distributed jar remain under their own
+licences: net.megavex scoreboard-library (MIT) and com.github.lalyos jfiglet
+(Apache License 2.0). Nothing in this notice restricts the rights those licences
+grant over those components.
 
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
