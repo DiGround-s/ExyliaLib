@@ -90,14 +90,18 @@ final class ConfigPlayer {
                 .subtitle(config.subtitle())
                 .timeStyle(config.timeStyle());
 
+        // Times first, and always: a countdown replaces the stay and the fade
+        // out, but never the fade in, and a title whose file asks for no fade
+        // used to get the builder's default half-second one and visibly swim
+        // into view while its number was already counting.
+        builder.times(config.fadeIn(), config.stay(), config.fadeOut());
+
         if (config.countdown() > 0) {
             builder.countdown(config.countdown());
         } else if (config.stay() <= 0) {
             // A stay of zero is how an owner asks for a title that does not go
             // away by itself.
             builder.permanent();
-        } else {
-            builder.times(config.fadeIn(), config.stay(), config.fadeOut());
         }
         return builder;
     }

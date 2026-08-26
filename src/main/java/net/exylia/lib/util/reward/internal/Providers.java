@@ -3,6 +3,7 @@ package net.exylia.lib.util.reward.internal;
 import net.exylia.lib.economy.Economy;
 import net.exylia.lib.economy.EconomyResponse;
 import net.exylia.lib.placeholder.Placeholders;
+import net.exylia.lib.task.TaskScheduler;
 import net.exylia.lib.text.Text;
 import net.exylia.lib.util.Effects;
 import net.exylia.lib.util.reward.RewardEntry;
@@ -14,6 +15,7 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.math.BigDecimal;
+import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * Handing one reward to one player.
@@ -21,6 +23,13 @@ import java.math.BigDecimal;
  * <p>Every method here runs on the thread that owns the player: the runtime puts
  * it there. None of them decide whether the reward <em>should</em> be given, only
  * how.
+ *
+ * <p>The one exception is a command reward. A regionised server dispatches
+ * commands on the global tick thread and throws {@code IllegalStateException:
+ * Dispatching command async} anywhere else, and the thread that owns a player is
+ * their region's, not the global one. So a command is handed to the scheduler,
+ * which runs it in place when this already is the global thread and hops when it
+ * is not.
  */
 public final class Providers {
 
@@ -51,16 +60,18 @@ public final class Providers {
      * @param amount   how many, already rolled
      * @param overflow what to do with an item that does not fit
      * @param items    how an item reaches a player
+     * @param tasks    the owner's scheduler, for the one reward that cannot run here
      * @return how it ended
      */
     public static @NotNull RewardResult give(@NotNull RewardEntry entry,
                                              @NotNull Player player,
                                              int amount,
                                              @NotNull Overflow overflow,
-                                             @NotNull ItemGiver items) {
+                                             @NotNull ItemGiver items,
+                                             @NotNull TaskScheduler tasks) {
         try {
             return switch (entry.type()) {
-                case COMMAND -> command(entry, player);
+                case COMMAND -> command(entry, player, tasks);
                 case MESSAGE -> message(entry, player);
                 case ITEM -> item(entry, player, amount, overflow, items);
                 case ECONOMY -> economy(entry, player, amount);
@@ -77,7 +88,7 @@ public final class Providers {
 
     // ------------------------------------------------------------------ types
 
-    private static RewardResult command(RewardEntry entry, Player player) {
+    private static RewardResult command(RewardEntry entry, Player player, TaskScheduler tasks) {
         String command = entry.command();
         if (command == null || command.isBlank()) {
             return RewardResult.failed(entry, "names no command");
@@ -89,10 +100,26 @@ public final class Providers {
         if (resolved.isEmpty()) {
             return RewardResult.failed(entry, "resolves to an empty command");
         }
-        boolean ran = Bukkit.dispatchCommand(Bukkit.getConsoleSender(), resolved);
-        return ran
+        // Dispatched through the scheduler rather than called here: on a
+        // regionised server this thread is the player's region and dispatching
+        // from it throws. `execute` runs the command in place when this already
+        // is the right thread, which is every ordinary server and most of a
+        // regionised one, and only hops when it is not.
+        String queued = resolved;
+        AtomicReference<Boolean> ran = new AtomicReference<>();
+        tasks.execute(() -> ran.set(Bukkit.dispatchCommand(Bukkit.getConsoleSender(), queued)));
+
+        Boolean answer = ran.get();
+        if (answer == null) {
+            // It was queued for the global thread, so whether the console takes
+            // it is not known yet and cannot be waited for without holding a
+            // region tick. The reward counts as given; a command the console
+            // refuses is reported by the server itself.
+            return RewardResult.given(entry);
+        }
+        return answer
                 ? RewardResult.given(entry)
-                : RewardResult.failed(entry, "the console refused \"" + resolved + "\"");
+                : RewardResult.failed(entry, "the console refused \"" + queued + "\"");
     }
 
     private static RewardResult message(RewardEntry entry, Player player) {

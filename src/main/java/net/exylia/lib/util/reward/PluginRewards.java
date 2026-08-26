@@ -311,7 +311,7 @@ public final class PluginRewards {
         }
 
         int amount = Rolls.amount(entry, dice);
-        RewardResult result = Providers.give(entry, player, amount, this::leftOver, items);
+        RewardResult result = Providers.give(entry, player, amount, this::leftOver, items, tasks);
         record(entry, result, player);
         return result;
     }
