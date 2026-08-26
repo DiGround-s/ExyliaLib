@@ -51,6 +51,27 @@ three things true:
 The static groups still work and still share one unowned bucket. They are for a
 one-off, not for a plugin that keeps state.
 
+### One name, one slot on Lunar
+
+Lunar has a single waypoint per name per player and no handle of its own:
+Apollo's `displayWaypoint` and `removeWaypoint` both take the name. So two
+plugins showing `spawn` really are sharing one marker there, and the player sees
+whichever was shown last. Feather is not like this — it returns a `UUID` per
+waypoint and keeps as many as it is sent.
+
+What the library guarantees on both is that neither plugin can delete the
+other's:
+
+- Removing a waypoint another plugin is currently showing takes nothing off the
+  screen. Your record goes; the marker is not yours to remove.
+- Removing one that **is** on screen hands the slot to whoever else still
+  registers that name, in one packet rather than a removal followed by a show.
+- Everything above applies to `clear(player)` on an owned view and to a plugin
+  being disabled, which are the same path.
+
+Distinct names avoid the question entirely, which is why ExyliaFFA names a spawn
+waypoint after the spawn id rather than its display name.
+
 Each group has `show(...)` (returns `boolean` — false when nobody could draw
 it), `remove(player, name)`, `clear(player)` and `supported(player)`.
 `Markers` has `update(viewer, teammates)`, `updateTeam(team)`,
@@ -59,8 +80,14 @@ it), `remove(player, name)`, `clear(player)` and `supported(player)`.
 `Waypoint`: `at(name, Location)` / `at(name, x, y, z, world)`, then
 `.colour(hex | Colour)`, `.lasting(Duration)`, `.locked()`,
 `.startHidden()`. `Waypoint.Colour`: `of(r,g,b)`, `hex(String)`, `rainbow()`,
-`WHITE`, `argb()`. `.lasting()` is enforced client-side only by Feather; on
-Lunar the library removes it when time is up, so behavior matches.
+`WHITE`, `argb()`. `.lasting()` is enforced client-side only by Feather, which
+is sent the duration; Lunar has no such field, so the library schedules the
+removal itself and the behaviour matches. Either way it is a marker and not a
+promise: a player who logs out before it expires comes back to a clean minimap.
+
+`.locked()` and `.startHidden()` are Lunar only. Feather's `WaypointBuilder`
+takes a name, a colour, a duration and a world id and nothing else, so both are
+ignored there rather than the waypoint being refused.
 
 `Cooldown` (client-drawn — whether the action is actually on cooldown is the
 plugin's business; this only draws): `of(name, Duration)` /

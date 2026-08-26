@@ -46,7 +46,7 @@ public final class ClanRuntime {
      * cache is a separate loading layer inside each provider if needed. */
     private static final Cache<UUID, Optional<Clan>> playerCache = Caffeine.newBuilder()
             .maximumSize(4096)
-            
+            .expireAfterWrite(CACHE_TTL)
             .build();
 
     private static final Object LOCK = new Object();
@@ -93,9 +93,14 @@ public final class ClanRuntime {
 
     private static List<ClanProvider.Factory> builtIn() {
         List<ClanProvider.Factory> factories = new ArrayList<>();
-        factories.add(SimpleClansProvider::tryCreate);
-        factories.add(KingdomsProvider::tryCreate);
+        factories.add(FactionsProvider::tryCreate);
+        factories.add(HuskTownsProvider::tryCreate);
+        factories.add(ZelTeamsProvider::tryCreate);
+        factories.add(RunithClansProvider::tryCreate);
         factories.add(UltimateClansProvider::tryCreate);
+        factories.add(KingdomsProvider::tryCreate);
+        factories.add(SimpleClansProvider::tryCreate);
+        factories.add(ExyliaClansProvider::tryCreate);
         return factories;
     }
 
@@ -108,7 +113,7 @@ public final class ClanRuntime {
         if (provider == null) {
             return Optional.empty();
         }
-        return playerCache.get(player, id -> Optional.empty());
+        return playerCache.get(player, provider::clanOf);
     }
 
     public static Optional<Clan> clanOf(Player player) {
@@ -225,7 +230,7 @@ public final class ClanRuntime {
         synchronized (LOCK) {
             active = null;
             bridges.clear();
-            
+            playerCache.invalidateAll();
         }
     }
 

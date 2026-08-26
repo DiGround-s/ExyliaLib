@@ -27,9 +27,15 @@ import java.util.UUID;
  *
  * <h2>The provider</h2>
  * One clan plugin is active at a time. The library detects whichever of
- * SimpleClans, Kingdoms or UltimateClans is installed. An external plugin can
- * register its own through the {@link ClanBridge} interface, with a priority
- * that keeps it above automatic detection.
+ * FactionsUUID, HuskTowns, ZelTeams, RunithClans, UltimateClans, Kingdoms,
+ * SimpleClans or ExyliaClans is installed, in that order, so a server running
+ * two of them gets the one that owns the most of the player's identity. An
+ * external plugin can register its own through the {@link ClanBridge}
+ * interface, with a priority that keeps it above automatic detection.
+
+ * <p>Not every plugin has every concept. One without alliances answers no to
+ * {@link #areAllied} rather than failing, and a caller never branches on which
+ * plugin runs underneath.
  *
  * <h2>Caching</h2>
  * A player's clan is resolved once and remembered for a short time, because

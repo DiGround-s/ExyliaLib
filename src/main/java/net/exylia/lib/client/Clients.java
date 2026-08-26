@@ -51,6 +51,13 @@ public final class Clients {
      * what it drew without wiping somebody else's, and everything it sent is
      * removed on its own when the plugin is disabled.
      *
+     * <p>Lunar has only one waypoint per name per player, so two plugins using
+     * the same name really are sharing one marker there and the player sees
+     * whichever was shown last. What the library guarantees even then is that
+     * neither plugin can delete the other's: only the one on screen removes it,
+     * and when it does, the other's comes back. Distinct names avoid the whole
+     * question — which is why ExyliaFFA names a waypoint after the spawn id.
+     *
      * @param plugin the owning plugin
      * @return its view
      * @since 1.48.0
@@ -149,7 +156,7 @@ public final class Clients {
     public interface Waypoints {
 
         /**
-         * Shows a waypoint, replacing any with the same name.
+         * Shows a waypoint, replacing this owner's own with the same name.
          *
          * @param player   who sees it
          * @param waypoint what to show
@@ -167,6 +174,11 @@ public final class Clients {
 
         /**
          * Removes a waypoint by name.
+         *
+         * <p>Only this owner's. On a client with one slot per name, removing
+         * one that another plugin is currently showing takes nothing off the
+         * screen, and removing one that <em>is</em> on screen hands the slot
+         * to whoever else still wants that name.
          *
          * @param player who sees it
          * @param name   the name it was shown with

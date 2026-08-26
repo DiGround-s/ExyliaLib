@@ -31,8 +31,10 @@ import java.util.UUID;
  * @param worldId       the world id, which is what Feather matches on
  * @param colour        the marker colour
  * @param duration      how long it lives, or {@code null} to stay until removed
- * @param preventRemoval whether the player is allowed to delete it themselves
- * @param hidden        whether it is created already hidden
+ * @param preventRemoval whether the player is allowed to delete it themselves;
+ *                      Lunar only, Feather has no such field and ignores it
+ * @param hidden        whether it is created already hidden; Lunar only, for
+ *                      the same reason
  * @since 1.7.0
  */
 public record Waypoint(
@@ -113,8 +115,11 @@ public record Waypoint(
     /**
      * The same waypoint, expiring on its own.
      *
-     * <p>Only Feather enforces this client-side; on Lunar the library removes
-     * it when the time is up, so the behaviour matches either way.
+     * <p>Only Feather enforces this client-side; on Lunar, which has no such
+     * field, the library takes it down itself when the time is up, so the
+     * behaviour matches either way. Either way it is a marker on a screen and
+     * not a promise: a player who logs out before it expires comes back to a
+     * clean minimap, and nothing puts it back.
      *
      * @param duration how long it lives
      * @return a new waypoint

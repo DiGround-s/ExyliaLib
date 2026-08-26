@@ -5,7 +5,6 @@ import org.bukkit.entity.Player;
 
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -31,14 +30,33 @@ import java.util.logging.Logger;
  * the second one delete the first one's marker off the player's screen. The
  * same key is what lets a plugin that is being disabled take down its own
  * waypoints and leave everybody else's alone.
+ *
+ * <h2>And it also has a place in a queue</h2>
+ * Lunar has one waypoint slot per name per player, whatever this map thinks,
+ * so the two plugins above really are competing for one marker on that screen.
+ * Every registration carries the order it was made in, which is what says who
+ * is holding the slot right now — the last one shown — and who gets it back
+ * when that one goes away. See {@link #heir}.
  */
 public final class ClientState {
 
     /**
      * Waypoints per player, keyed by owner and name so re-showing one replaces
      * it and two plugins cannot replace each other's.
+     *
+     * <p>Concurrent all the way down. The inner map used to be a plain
+     * {@code LinkedHashMap}, which made a documented promise — every method on
+     * {@code Clients} is safe from any thread — false for the one feature most
+     * likely to be shown from a task: two {@code show} calls for the same
+     * player from two threads were an unsynchronised {@code HashMap} write.
+     * Insertion order went with it, which is what {@link Sent#sequence} is now
+     * for.
      */
     private static final Map<UUID, Map<Key, Sent>> WAYPOINTS = new ConcurrentHashMap<>();
+
+    /** Counts registrations, so "who was shown last" survives a concurrent map. */
+    private static final java.util.concurrent.atomic.AtomicLong SEQUENCE =
+            new java.util.concurrent.atomic.AtomicLong();
 
     /** Cooldown keys per player, so they can be cleared without guessing. */
     private static final Map<UUID, Collection<Key>> COOLDOWNS = new ConcurrentHashMap<>();
@@ -68,17 +86,35 @@ public final class ClientState {
     record Key(String owner, String name) {
     }
 
-    /** A waypoint and whatever the client handed back to remove it by. */
-    record Sent(Waypoint waypoint, Object handle) {
+    /**
+     * A waypoint and whatever the client handed back to remove it by.
+     *
+     * @param waypoint what was sent
+     * @param handle   what the client removes it by
+     * @param sequence when it was sent, counting registrations; the highest for
+     *                 a given name is the one a name-keyed client is showing,
+     *                 and it is also the claim an expiry task checks before it
+     *                 takes anything down
+     */
+    record Sent(Waypoint waypoint, Object handle, long sequence) {
     }
 
     // ------------------------------------------------------------------
     // Waypoints
     // ------------------------------------------------------------------
 
-    static void rememberWaypoint(UUID player, String owner, Waypoint waypoint, Object handle) {
-        WAYPOINTS.computeIfAbsent(player, id -> new LinkedHashMap<>())
-                .put(new Key(owner, waypoint.name()), new Sent(waypoint, handle));
+    /**
+     * Records a waypoint as sent, and returns the record.
+     *
+     * <p>The caller needs the sequence back: an expiry task has to know which
+     * registration it was scheduled for, or a waypoint re-shown before its
+     * time would be taken down by the old task.
+     */
+    static Sent rememberWaypoint(UUID player, String owner, Waypoint waypoint, Object handle) {
+        Sent record = new Sent(waypoint, handle, SEQUENCE.incrementAndGet());
+        WAYPOINTS.computeIfAbsent(player, id -> new ConcurrentHashMap<>())
+                .put(new Key(owner, waypoint.name()), record);
+        return record;
     }
 
     static Sent forgetWaypoint(UUID player, String owner, String name) {
@@ -86,9 +122,50 @@ public final class ClientState {
         return sent == null ? null : sent.remove(new Key(owner, name));
     }
 
+    /** The registration under one key, or {@code null}. */
+    static Sent waypoint(UUID player, String owner, String name) {
+        Map<Key, Sent> sent = WAYPOINTS.get(player);
+        return sent == null ? null : sent.get(new Key(owner, name));
+    }
+
     static Collection<Sent> waypointsOf(UUID player) {
         Map<Key, Sent> sent = WAYPOINTS.get(player);
         return sent == null ? List.of() : List.copyOf(sent.values());
+    }
+
+    /**
+     * Who is on screen under a name, or who should be next.
+     *
+     * <p>The most recent registration: a client with one slot per name ends up
+     * holding whichever was shown last, whatever order this map remembers them
+     * in.
+     *
+     * <p>The same rule as the placeholder registry: a name another plugin took
+     * over goes back to whoever still wants it rather than to nobody, because
+     * that plugin never stopped asking for it and was only hidden while the
+     * other one held the slot.
+     *
+     * @param player  the player
+     * @param name    the waypoint name
+     * @param leaving the owner giving it up, skipped
+     * @return the next registration, or {@code null} when there is none
+     */
+    static Map.Entry<Key, Sent> heir(UUID player, String name, String leaving) {
+        Map<Key, Sent> sent = WAYPOINTS.get(player);
+        if (sent == null) {
+            return null;
+        }
+        Map.Entry<Key, Sent> best = null;
+        for (Map.Entry<Key, Sent> entry : sent.entrySet()) {
+            if (!entry.getKey().name().equals(name)
+                    || (leaving != null && leaving.equals(entry.getKey().owner()))) {
+                continue;
+            }
+            if (best == null || entry.getValue().sequence() > best.getValue().sequence()) {
+                best = entry;
+            }
+        }
+        return best;
     }
 
     /**
@@ -100,7 +177,14 @@ public final class ClientState {
      */
     static Collection<Map.Entry<Key, Sent>> waypointEntriesOf(UUID player) {
         Map<Key, Sent> sent = WAYPOINTS.get(player);
-        return sent == null ? List.of() : List.copyOf(sent.entrySet());
+        if (sent == null) {
+            return List.of();
+        }
+        // In the order they were shown, so a client that keeps one slot per
+        // name ends up holding the same one it held before.
+        List<Map.Entry<Key, Sent>> entries = new ArrayList<>(sent.entrySet());
+        entries.sort(java.util.Comparator.comparingLong(entry -> entry.getValue().sequence()));
+        return entries;
     }
 
     /** The waypoints one plugin sent a player, for taking them all down. */

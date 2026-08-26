@@ -36,7 +36,21 @@ public final class ClientRuntime {
     /** The marker API handed out by {@link Clients#markers()}. */
     public static final Clients.Markers MARKERS = new MarkersImpl();
 
+    /**
+     * The library plugin, for the one thing this module has to schedule.
+     *
+     * <p>A waypoint's duration on a client that does not count it down itself.
+     * Held rather than looked up because {@link #showAs} is on the path of
+     * every waypoint sent.
+     */
+    private static volatile Plugin library;
+
     private ClientRuntime() {
+    }
+
+    /** A seam for tests, which have no {@code onEnable} to call {@link #init}. */
+    static void library(Plugin plugin) {
+        library = plugin;
     }
 
     /**
@@ -96,6 +110,7 @@ public final class ClientRuntime {
      * @param plugin the library plugin
      */
     public static void init(Plugin plugin) {
+        library = plugin;
         ClientState.logger(plugin.getLogger());
         ClientRegistry.load(plugin.getLogger());
     }
@@ -183,7 +198,11 @@ public final class ClientRuntime {
                 continue;
             }
             for (Waypoint waypoint : waypoints) {
-                showAs(entry.getKey(), player, waypoint);
+                // Back to null for the unowned API: the restorer map cannot
+                // hold a null key, but the waypoint key can, and putting these
+                // under "" left the static remove() unable to find its own.
+                String owner = entry.getKey().isEmpty() ? null : entry.getKey();
+                showAs(owner, player, waypoint);
             }
         }
     }
@@ -209,6 +228,7 @@ public final class ClientRuntime {
         ClientState.clear();
         TeamRegistry.clear();
         RESTORERS.clear();
+        library = null;
     }
 
     // ------------------------------------------------------------------
@@ -248,12 +268,7 @@ public final class ClientRuntime {
 
         @Override
         public void remove(@NotNull Player player, @NotNull String name) {
-            ClientState.Sent sent = ClientState.forgetWaypoint(player.getUniqueId(), owner, name);
-            if (sent == null) {
-                return;
-            }
-            ClientLink link = ClientRegistry.of(player);
-            safely(() -> link.removeWaypoint(player, sent.waypoint(), sent.handle()));
+            removeOne(owner, player, name);
         }
 
         /**
@@ -295,10 +310,13 @@ public final class ClientRuntime {
             return false;
         }
         UUID id = player.getUniqueId();
-        // Showing the same name twice is a move, not a duplicate: the old
-        // one goes first so clients that key by name do not keep both.
+        // Showing the same name twice is a move, not a duplicate: the old one
+        // goes first so clients that keep a handle per waypoint do not keep
+        // both. A client that keys by name replaces it on its own, and sending
+        // the removal there would delete whatever is in that one slot —
+        // possibly another plugin's — a tick before this one takes it.
         ClientState.Sent previous = ClientState.forgetWaypoint(id, owner, waypoint.name());
-        if (previous != null) {
+        if (previous != null && !link.keysWaypointsByName()) {
             safely(() -> link.removeWaypoint(player, previous.waypoint(), previous.handle()));
         }
 
@@ -306,19 +324,115 @@ public final class ClientRuntime {
         if (handle == null) {
             return false;
         }
-        ClientState.rememberWaypoint(id, owner, waypoint, handle);
+        ClientState.Sent sent = ClientState.rememberWaypoint(id, owner, waypoint, handle);
+        expire(player, owner, waypoint, sent.sequence(), link);
         return true;
+    }
+
+    /**
+     * Takes a waypoint down when its duration is up, for a client that will
+     * not.
+     *
+     * <p>{@code lasting(...)} said the library did this and it did not: only
+     * Feather was ever told a duration, so on Lunar a waypoint meant to last
+     * five minutes stayed on the minimap until the player logged out.
+     *
+     * <p>The task carries the sequence it was scheduled for and checks it
+     * before removing anything, so a waypoint re-shown in the meantime is not
+     * taken down by the previous registration's timer. Bound to the player, so
+     * one who leaves cancels it without anything here noticing.
+     */
+    private static void expire(Player player, String owner, Waypoint waypoint,
+                               long sequence, ClientLink link) {
+        java.time.Duration duration = waypoint.duration();
+        if (duration == null || duration.isZero() || duration.isNegative()
+                || link.expiresWaypoints()) {
+            return;
+        }
+        Plugin plugin = library;
+        if (plugin == null) {
+            // Before init, which is only reachable from a test that never
+            // enabled the library. Nothing to schedule on.
+            return;
+        }
+        long ticks = Math.max(1L, duration.toMillis() / 50L);
+        UUID id = player.getUniqueId();
+        String name = waypoint.name();
+        net.exylia.lib.task.Tasks.of(plugin).runAtEntityLater(player, ticks, () -> {
+            ClientState.Sent current = ClientState.waypoint(id, owner, name);
+            if (current != null && current.sequence() == sequence) {
+                removeOne(owner, player, name);
+            }
+        });
+    }
+
+    /**
+     * Takes down one waypoint, and hands its slot back if anyone else wants it.
+     *
+     * <p>The whole of the name-keying problem lives here. On Lunar the client
+     * has one waypoint per name per player and no handle of its own, so two
+     * plugins showing {@code "spawn"} are sharing one marker whatever this
+     * library remembers. Removing used to send the removal unconditionally,
+     * which meant the plugin that was <em>not</em> on screen could delete the
+     * marker of the one that was, and the library would never put it back —
+     * exactly the promise {@code Clients.of(plugin)} makes, broken on half the
+     * clients on the server.
+     *
+     * <p>So: only the plugin holding the slot removes it, and when it does,
+     * whoever else still registers that name gets it back.
+     */
+    private static void removeOne(String owner, Player player, String name) {
+        UUID id = player.getUniqueId();
+        ClientState.Sent sent = ClientState.forgetWaypoint(id, owner, name);
+        if (sent == null) {
+            return;
+        }
+        ClientLink link = ClientRegistry.of(player);
+        if (!link.keysWaypointsByName()) {
+            safely(() -> link.removeWaypoint(player, sent.waypoint(), sent.handle()));
+            return;
+        }
+        // The record just removed was the latest, so it was the one on screen,
+        // unless somebody registered that name after it.
+        Map.Entry<ClientState.Key, ClientState.Sent> heir = ClientState.heir(id, name, owner);
+        if (heir != null && heir.getValue().sequence() > sent.sequence()) {
+            // Another plugin's marker is in that slot; ours was never on the
+            // screen to take down. Forgetting our record is the whole job.
+            return;
+        }
+        if (heir == null) {
+            safely(() -> link.removeWaypoint(player, sent.waypoint(), sent.handle()));
+            return;
+        }
+        // Showing the heir replaces the slot outright, so no removal is sent:
+        // one packet instead of two, and no gap where the marker is missing.
+        Object handle;
+        try {
+            handle = link.showWaypoint(player, heir.getValue().waypoint());
+        } catch (Throwable failure) {
+            // An integration that throws is their bug, and the caller only
+            // asked to remove something.
+            ClientState.logger().warning("A client integration failed: " + failure.getMessage());
+            handle = null;
+        }
+        if (handle == null) {
+            safely(() -> link.removeWaypoint(player, sent.waypoint(), sent.handle()));
+            return;
+        }
+        ClientState.Sent restored = ClientState.rememberWaypoint(id, heir.getKey().owner(),
+                heir.getValue().waypoint(), handle);
+        // A new registration needs a new timer: the heir's original one was
+        // scheduled against the sequence it has just stopped having.
+        expire(player, heir.getKey().owner(), heir.getValue().waypoint(),
+                restored.sequence(), link);
     }
 
     /** Takes down one owner's waypoints on one player. */
     private static void removeAllOf(String owner, Player player) {
         UUID id = player.getUniqueId();
-        ClientLink link = ClientRegistry.of(player);
         for (java.util.Map.Entry<ClientState.Key, ClientState.Sent> entry
                 : ClientState.waypointsOf(id, owner)) {
-            ClientState.Sent sent = entry.getValue();
-            ClientState.forgetWaypoint(id, owner, entry.getKey().name());
-            safely(() -> link.removeWaypoint(player, sent.waypoint(), sent.handle()));
+            removeOne(owner, player, entry.getKey().name());
         }
     }
 

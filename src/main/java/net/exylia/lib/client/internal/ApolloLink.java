@@ -108,6 +108,19 @@ final class ApolloLink implements ClientLink {
         return waypoints != null;
     }
 
+    /**
+     * Lunar has one waypoint per name per player, and no handle of its own.
+     *
+     * <p>Which is why {@link #showWaypoint} can only give the name back: there
+     * is nothing else to remove it by. {@code ClientRuntime} reads this and
+     * arbitrates the slot, so a second plugin using the same name no longer
+     * deletes the first one's marker on its way out.
+     */
+    @Override
+    public boolean keysWaypointsByName() {
+        return true;
+    }
+
     @Override
     public Object showWaypoint(Player player, net.exylia.lib.client.Waypoint waypoint) {
         ApolloPlayer target = apollo(player).orElse(null);

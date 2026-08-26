@@ -30,7 +30,7 @@ rules live in [AGENTS.md](AGENTS.md).
 | `scoreboard` | Available | Packet-level sidebars declared in config, refreshed off the main thread and diffed line by line |
 | `hologram` | Available | Floating text, items and blocks sent as display-entity packets, per-player or shared |
 | `client` | Available | Waypoints, cooldowns and teammate markers on Lunar and Feather, without the caller knowing which |
-| `clan` | Available | One API for SimpleClans, Kingdoms, UltimateClans or any external provider; alliances and rivalries included |
+| `clan` | Available | One API for eight clan plugins or any external provider; alliances and rivalries included |
 | `util` | Available | Small, self-contained utilities: potion effects from compact strings, and the cooldown base every other cooldown builds on |
 | `debug` | Available | Coloured console output with the plugin's name: log, success, warn, error and toggleable debug lines, plus the ASCII-art banner |
 | `reload` | Available | Named reload steps with contained failures, plus listeners for when the shared configuration changes |
@@ -52,7 +52,8 @@ server instead of one per plugin.
 
 The clan module answers questions about clans — whose clan, are they allied,
 are they enemies — without the caller knowing which clan plugin is underneath.
-Built-in detection covers SimpleClans, Kingdoms and UltimateClans; an external
+Built-in detection covers FactionsUUID, HuskTowns, ZelTeams, RunithClans,
+UltimateClans, Kingdoms, SimpleClans and ExyliaClans; an external
 plugin hands in a bridge. The `util` module is where small, self-contained tools
 live — today the potion-effect parser; tomorrow cooldowns, inventory helpers,
 or whatever is useful across plugins.
@@ -981,21 +982,33 @@ boolean friendlyFire = Clans.areAllied(attacker, defender);
 boolean war = Clans.areRivals(attacker, defender);
 ```
 
-### Three providers built in
+### Eight providers built in
 
-SimpleClans, Kingdoms and UltimateClans are detected automatically when their
-plugin is enabled. All three go through reflection — nothing is compiled
-against, so a server with none of them never tries to load a missing class.
+Each is detected automatically when its plugin is enabled, in the order below,
+so a server running two of them gets the one that owns more of the player's
+identity. All eight go through reflection — nothing is compiled against, so a
+server with none of them never tries to load a missing class.
 
-| Feature | SimpleClans | Kingdoms | UltimateClans |
+| Plugin | Ranks | Alliances | Rivalries |
 |---|---|---|---|
-| Members, leaders, moderators | yes | yes | leader and members |
-| Alliances | yes | yes | no |
-| Rivalries | yes | yes | no |
+| FactionsUUID | leader, co-leader and moderator, members | yes | yes |
+| HuskTowns | mayor, ranks between the extremes, residents | no | no |
+| ZelTeams | owner, priority above zero, members | no | no |
+| RunithClans | leader and admin, co-leader and mod, members | no | no |
+| UltimateClans | leader and members | no | no |
+| Kingdoms | leader, moderators, members | yes | yes |
+| SimpleClans | leader and members | yes | yes |
+| ExyliaClans | leader and members | yes | yes |
 
 What a plugin does not have returns an empty set. The caller never needs to know
 whether "no allies" means the plugin lacks the concept or the clan simply has
 none — the answer is the same either way.
+
+FactionsUUID and ExyliaClans keep relations between two clans rather than on
+each clan, so `areAllied` and `areRivals` ask one direct question, while
+`alliesOf` and `rivalsOf` walk every clan to build the list. A snapshot from
+those two therefore carries no allies or rivals: filling it would mean that walk
+on every lookup, and these lookups sit on damage events.
 
 ### External providers
 

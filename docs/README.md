@@ -15,7 +15,7 @@ against the source — rules and routes are in `AGENTS.md` under
 | [Scoreboard](scoreboard.md) | Packet sidebars declared in config | 1.5.0 |
 | [Hologram](hologram.md) | Packet holograms declared in config | 1.6.0 |
 | [Client](client.md) | Lunar/Feather waypoints, client cooldowns, teammate markers and teams; owned per plugin since 1.48.0 | 1.7.0 |
-| [Clan](clan.md) | One API over SimpleClans, Kingdoms, UltimateClans and external bridges | 1.8.0 |
+| [Clan](clan.md) | One API over eight clan plugins and external bridges | 1.8.0 |
 | [Cooldowns](cooldowns.md) | The base every cooldown in the ecosystem sits on | 1.10.0 |
 | [Utilities](util.md) | `util.Effects` (potions from strings) and `TimeFormats` | 1.9.0 |
 | [Debug](debug.md) | Coloured console output: log, success, warn, error, debug — and the banner; server-wide switch since 1.27.0, gradient name and type labels since 1.35.0 | 1.13.0 |

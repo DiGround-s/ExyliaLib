@@ -39,6 +39,10 @@ class ClientTest {
     private FakeLink lunarLink;
     private FakeLink featherLink;
 
+    private Plugin lobby;
+    private Plugin game;
+    private Plugin library;
+
     @BeforeEach
     void setUp() {
         FakeServer.install();
@@ -49,6 +53,10 @@ class ClientTest {
         feather = new FakePlayer("Feather").at(new Location(world, 0, 64, 0));
         vanilla = new FakePlayer("Vanilla").at(new Location(world, 0, 64, 0));
         FakeServer.online(lunar.player(), feather.player(), vanilla.player());
+
+        lobby = FakeServer.newPlugin("ExyliaLobby");
+        game = FakeServer.newPlugin("ExyliaFFA");
+        library = FakeServer.newPlugin("ExyliaLib");
 
         lunarLink = FakeLink.full(ClientBrand.LUNAR).owning(lunar.player());
         featherLink = FakeLink.waypointsOnly(ClientBrand.FEATHER).owning(feather.player());
@@ -63,6 +71,11 @@ class ClientTest {
 
     private Waypoint waypoint() {
         return Waypoint.at("Koth", new Location(world, 100, 70, 200));
+    }
+
+    /** The name two plugins both have every right to. */
+    private Waypoint spawn() {
+        return Waypoint.at("spawn", new Location(world, 0, 64, 0));
     }
 
     // ------------------------------------------------------------------
@@ -115,24 +128,164 @@ class ClientTest {
     @Test
     @DisplayName("showing the same name twice moves it rather than duplicating it")
     void showingTwiceReplaces() {
+        Clients.waypoints().show(feather.player(), waypoint());
+        featherLink.clear();
+
+        Clients.waypoints().show(feather.player(), waypoint());
+
+        assertEquals(List.of("unwaypoint:Feather:Koth:handle-1"), featherLink.calls("unwaypoint"));
+        assertEquals(List.of("waypoint:Feather:Koth:world"), featherLink.calls("waypoint"));
+    }
+
+    @Test
+    @DisplayName("a client with one slot per name is not told to remove what it is about to replace")
+    void showingTwiceOnANameKeyedClientOnlySends() {
         Clients.waypoints().show(lunar.player(), waypoint());
         lunarLink.clear();
 
         Clients.waypoints().show(lunar.player(), waypoint());
 
-        assertEquals(List.of("unwaypoint:Lunar:Koth:handle-1"), lunarLink.calls("unwaypoint"));
+        // Sending the removal first would empty the one slot that name has,
+        // which on a shared name is somebody else's marker.
+        assertEquals(List.of(), lunarLink.calls("unwaypoint"));
         assertEquals(List.of("waypoint:Lunar:Koth:world"), lunarLink.calls("waypoint"));
     }
 
     @Test
     @DisplayName("removing a waypoint uses the handle the client gave back")
     void removeUsesTheClientHandle() {
-        Clients.waypoints().show(lunar.player(), waypoint());
+        Clients.waypoints().show(feather.player(), waypoint());
+        featherLink.clear();
+
+        Clients.waypoints().remove(feather.player(), "Koth");
+
+        assertEquals(List.of("unwaypoint:Feather:Koth:handle-1"), featherLink.calls("unwaypoint"));
+    }
+
+    // ------------------------------------------------------------------
+    // Two plugins, one name, one slot
+    // ------------------------------------------------------------------
+
+    @Test
+    @DisplayName("a plugin that is not the one on screen removes nothing from it")
+    void theSlotBelongsToWhoeverShowedItLast() {
+        Clients.of(lobby).waypoints().show(lunar.player(), spawn());
+        Clients.of(game).waypoints().show(lunar.player(), spawn());
         lunarLink.clear();
 
-        Clients.waypoints().remove(lunar.player(), "Koth");
+        // The lobby's marker was replaced by the game's the moment the game
+        // showed it. Taking the lobby's down must not empty that slot.
+        Clients.of(lobby).waypoints().remove(lunar.player(), "spawn");
 
-        assertEquals(List.of("unwaypoint:Lunar:Koth:handle-1"), lunarLink.calls("unwaypoint"));
+        assertEquals(List.of(), lunarLink.calls());
+    }
+
+    @Test
+    @DisplayName("giving up the slot hands it back to the plugin that still wants the name")
+    void theSlotGoesBackToTheOtherPlugin() {
+        Clients.of(lobby).waypoints().show(lunar.player(), spawn());
+        Clients.of(game).waypoints().show(lunar.player(), spawn());
+        lunarLink.clear();
+
+        Clients.of(game).waypoints().clear(lunar.player());
+
+        // Shown, not removed and then shown: one packet, and no tick where the
+        // player is looking at an empty minimap.
+        assertEquals(List.of("waypoint:Lunar:spawn:world"), lunarLink.calls("waypoint"));
+        assertEquals(List.of(), lunarLink.calls("unwaypoint"));
+        // And the lobby can still take its own down afterwards.
+        lunarLink.clear();
+        Clients.of(lobby).waypoints().remove(lunar.player(), "spawn");
+        assertEquals(List.of("unwaypoint:Lunar:spawn:spawn"), lunarLink.calls("unwaypoint"));
+    }
+
+    @Test
+    @DisplayName("the last plugin holding a name does remove it")
+    void theLastOneOutTurnsItOff() {
+        Clients.of(game).waypoints().show(lunar.player(), spawn());
+        lunarLink.clear();
+
+        Clients.of(game).waypoints().remove(lunar.player(), "spawn");
+
+        assertEquals(List.of("unwaypoint:Lunar:spawn:spawn"), lunarLink.calls("unwaypoint"));
+    }
+
+    @Test
+    @DisplayName("a client that keeps a handle per waypoint keeps both plugins' markers")
+    void aHandleKeyedClientHasNoSlotToFightOver() {
+        Clients.of(lobby).waypoints().show(feather.player(), spawn());
+        Clients.of(game).waypoints().show(feather.player(), spawn());
+        featherLink.clear();
+
+        Clients.of(game).waypoints().remove(feather.player(), "spawn");
+
+        // Nothing to hand back: the lobby's was never off the screen.
+        assertEquals(List.of("unwaypoint:Feather:spawn:handle-2"), featherLink.calls("unwaypoint"));
+        assertEquals(List.of(), featherLink.calls("waypoint"));
+    }
+
+    // ------------------------------------------------------------------
+    // Durations
+    // ------------------------------------------------------------------
+
+    @Test
+    @DisplayName("a waypoint with a duration comes down when the time is up")
+    void durationIsEnforcedForAClientThatWillNot() {
+        ClientRuntime.library(library);
+        Clients.of(game).waypoints().show(lunar.player(),
+                spawn().lasting(Duration.ofSeconds(2)));
+        lunarLink.clear();
+
+        // Two seconds is forty ticks, and the fake scheduler counts the delay
+        // down before it runs the body, exactly as the real one does.
+        FakeServer.tick(40);
+        assertEquals(List.of(), lunarLink.calls("unwaypoint"));
+
+        FakeServer.tick(1);
+        assertEquals(List.of("unwaypoint:Lunar:spawn:spawn"), lunarLink.calls("unwaypoint"));
+    }
+
+    @Test
+    @DisplayName("re-showing before the time is up cancels the old expiry")
+    void anExpiryOnlyTakesDownItsOwnRegistration() {
+        ClientRuntime.library(library);
+        Clients.of(game).waypoints().show(lunar.player(),
+                spawn().lasting(Duration.ofSeconds(2)));
+        FakeServer.tick(20);
+        Clients.of(game).waypoints().show(lunar.player(), spawn());
+        lunarLink.clear();
+
+        FakeServer.tick(40);
+
+        assertEquals(List.of(), lunarLink.calls("unwaypoint"));
+    }
+
+    @Test
+    @DisplayName("a waypoint handed back its slot still expires on time")
+    void theHeirKeepsItsDuration() {
+        ClientRuntime.library(library);
+        Clients.of(lobby).waypoints().show(lunar.player(),
+                spawn().lasting(Duration.ofSeconds(2)));
+        Clients.of(game).waypoints().show(lunar.player(), spawn());
+        Clients.of(game).waypoints().remove(lunar.player(), "spawn");
+        lunarLink.clear();
+
+        FakeServer.tick(41);
+
+        assertEquals(List.of("unwaypoint:Lunar:spawn:spawn"), lunarLink.calls("unwaypoint"));
+    }
+
+    @Test
+    @DisplayName("a client that counts the duration down itself is left to do it")
+    void noTimerForAClientThatExpiresItsOwn() {
+        ClientRuntime.library(library);
+        Clients.of(game).waypoints().show(feather.player(),
+                spawn().lasting(Duration.ofSeconds(2)));
+        featherLink.clear();
+
+        FakeServer.tick(60);
+
+        assertEquals(List.of(), featherLink.calls("unwaypoint"));
     }
 
     @Test
@@ -264,6 +417,23 @@ class ClientTest {
     }
 
     @Test
+    @DisplayName("the unowned API can take down what its own restorer put back")
+    void aRestoredWaypointKeepsTheOwnerItWasShownUnder() {
+        Clients.waypoints().restoreWith(player -> List.of(waypoint()));
+
+        ClientRuntime.forget(lunar.player());
+        ClientRuntime.resend(lunar.player(), false);
+        lunarLink.clear();
+
+        // The restorer map cannot hold a null key, so the unowned API is filed
+        // under "" there. Restoring under that name rather than under nobody
+        // left a marker the static remove() could not find.
+        Clients.waypoints().remove(lunar.player(), "Koth");
+
+        assertEquals(List.of("unwaypoint:Lunar:Koth:Koth"), lunarLink.calls("unwaypoint"));
+    }
+
+    @Test
     @DisplayName("a plugin that goes away stops being asked")
     void releasingForgetsTheRestorer() {
         Plugin homes = FakeServer.newPlugin("Homes", null);
@@ -274,6 +444,37 @@ class ClientTest {
         ClientRuntime.resend(lunar.player(), false);
 
         assertEquals(List.of(), lunarLink.calls("waypoint"));
+    }
+
+    @Test
+    @DisplayName("showing waypoints from many threads at once loses none of them")
+    void waypointsSurviveConcurrentShows() throws Exception {
+        int threads = 8;
+        int each = 50;
+        java.util.concurrent.ExecutorService pool =
+                java.util.concurrent.Executors.newFixedThreadPool(threads);
+        java.util.concurrent.CountDownLatch start = new java.util.concurrent.CountDownLatch(1);
+        java.util.List<java.util.concurrent.Future<?>> running = new java.util.ArrayList<>();
+        for (int thread = 0; thread < threads; thread++) {
+            int mine = thread;
+            running.add(pool.submit(() -> {
+                start.await();
+                for (int i = 0; i < each; i++) {
+                    Clients.of(game).waypoints().show(lunar.player(),
+                            Waypoint.at("point-" + mine + "-" + i, new Location(world, i, 64, 0)));
+                }
+                return null;
+            }));
+        }
+        start.countDown();
+        for (java.util.concurrent.Future<?> task : running) {
+            task.get();
+        }
+        pool.shutdownNow();
+
+        // A plain HashMap under the player would drop entries here, or spin.
+        assertEquals(threads * each, lunarLink.calls("waypoint").size());
+        assertEquals(threads * each, ClientState.waypointsOf(lunar.player().getUniqueId()).size());
     }
 
     // ------------------------------------------------------------------

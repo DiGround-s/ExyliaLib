@@ -767,8 +767,11 @@ Todo lo que dependa de un plugin de clanes pasa por `net.exylia.lib.clan`.
 - **El plugin nunca pregunta qué plugin de clanes hay.** Pregunta lo que quiere
   saber (`Clans.areAllied(...)`) y la lib responde con los datos que tenga.
 - **Un proveedor es una clase que implementa `ClanProvider`.** Cada una
-  referencia su plugin por reflexión (SimpleClans, Kingdoms, UltimateClans) o
-  adapta un `ClanBridge` externo. Añadir una no toca nada más.
+  referencia su plugin por reflexión, a través del helper compartido `Reflect`
+  (FactionsUUID, HuskTowns, ZelTeams, RunithClans, UltimateClans, Kingdoms,
+  SimpleClans, ExyliaClans), o adapta un `ClanBridge` externo. Nada se compila
+  contra un plugin de clanes, así que su ausencia nunca es un error. Añadir una
+  no toca nada más.
 - **La detección prioriza bridges externos sobre built-ins.** Un bridge
   registrado con prioridad 10 gana a cualquier detección automática.
 - **La caché es Caffeine con TTL de 3 segundos**, porque estas llamadas van en
@@ -777,6 +780,11 @@ Todo lo que dependa de un plugin de clanes pasa por `net.exylia.lib.clan`.
 - **Lo que un plugin no tiene se devuelve vacío.** UltimateClans no tiene
   alianzas → `alliesOf()` devuelve `[]`, no tira excepción. Preguntar si dos
   clanes son aliados cuando uno no existe devuelve `false`.
+- **Las relaciones que son un grafo se preguntan, no se listan.** FactionsUUID
+  y ExyliaClans guardan la relación entre dos clanes, no en cada clan: por eso
+  `areAllied` / `areRivals` hacen una sola pregunta y `alliesOf` / `rivalsOf`
+  recorren todos los clanes. Por lo mismo el snapshot de esos dos viene sin
+  aliados ni rivales — llenarlo sería ese recorrido en cada evento de daño.
 
 ### Utils — modular, auto-contenidas, sin dependencias entre ellas
 

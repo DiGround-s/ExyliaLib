@@ -1,7 +1,8 @@
 # Clan module
 
-One API over clan plugins — SimpleClans, Kingdoms, UltimateClans — plus
-externally registered bridges. The consuming plugin never asks which clan
+One API over clan plugins — FactionsUUID, HuskTowns, ZelTeams, RunithClans,
+UltimateClans, Kingdoms, SimpleClans, ExyliaClans — plus externally registered
+bridges. The consuming plugin never asks which clan
 plugin is installed. Since 1.8.0.
 
 Entry point: `net.exylia.lib.clan.Clans`.
@@ -31,19 +32,28 @@ Entry point: `net.exylia.lib.clan.Clans`.
 ## Behavior
 
 - **One provider is active at a time.** Each built-in provider references its
-  plugin by reflection (`SimpleClansProvider`, `KingdomsProvider`,
-  `UltimateClansProvider`); a `BridgeAdapter` wraps external `ClanBridge`s.
-  Adding a provider touches nothing else.
+  plugin by reflection through the shared `Reflect` helper, so nothing is
+  compiled against a clan plugin and a missing one is never an error; a
+  `BridgeAdapter` wraps external `ClanBridge`s. Adding a provider touches
+  nothing else.
 - **External bridges beat built-ins** by priority.
 - **The cache is Caffeine with a 3-second TTL**, because these calls sit on
   the hot path of damage events, kill messages and scoreboards. Dropped by
   `invalidate()` and by player quit.
 - **What a plugin does not have comes back empty.** UltimateClans has no
   alliances → `alliesOf()` returns an empty set, not an exception.
+- **Relations that are a graph are asked, not listed.** FactionsUUID and
+  ExyliaClans store relations between two clans rather than on each clan, so
+  `areAllied` / `areRivals` ask one question while `alliesOf` / `rivalsOf` walk
+  every clan. For the same reason a snapshot from those two carries no allies
+  or rivals — filling it would mean that walk on a damage event.
 
 ## Source and tests
 
 - Public: `clan/Clans.java`, `Clan.java`, `ClanBridge.java`.
 - Internal: `clan/internal/` (`ClanProvider`, `ClanRuntime`, `BridgeAdapter`,
-  `SimpleClansProvider`, `KingdomsProvider`, `UltimateClansProvider`).
+  `Reflect`, and one provider per plugin: `FactionsProvider`,
+  `HuskTownsProvider`, `ZelTeamsProvider`, `RunithClansProvider`,
+  `UltimateClansProvider`, `KingdomsProvider`, `SimpleClansProvider`,
+  `ExyliaClansProvider`).
 - Tests: `src/test/java/net/exylia/lib/clan/`.

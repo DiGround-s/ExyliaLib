@@ -26,6 +26,8 @@ final class FakeLink implements ClientLink {
     private final boolean cooldowns;
     private final boolean markers;
     private final boolean resendsOnWorld;
+    private final boolean keysByName;
+    private final boolean expiresItself;
 
     /** Players this client claims as its own. */
     private final Collection<UUID> owned = new CopyOnWriteArrayList<>();
@@ -41,22 +43,31 @@ final class FakeLink implements ClientLink {
     private int nextHandle = 1;
 
     FakeLink(ClientBrand brand, boolean waypoints, boolean cooldowns, boolean markers,
-             boolean resendsOnWorld) {
+             boolean resendsOnWorld, boolean keysByName, boolean expiresItself) {
         this.brand = brand;
         this.waypoints = waypoints;
         this.cooldowns = cooldowns;
         this.markers = markers;
         this.resendsOnWorld = resendsOnWorld;
+        this.keysByName = keysByName;
+        this.expiresItself = expiresItself;
     }
 
-    /** A client that does everything, like Lunar. */
+    /**
+     * A client that does everything, like Lunar.
+     *
+     * <p>Including the awkward parts: one waypoint slot per name, no handle of
+     * its own, and no idea what a duration is. A fake that kept a tidy handle
+     * per waypoint would never have caught either of the bugs those two facts
+     * caused.
+     */
     static FakeLink full(ClientBrand brand) {
-        return new FakeLink(brand, true, true, true, false);
+        return new FakeLink(brand, true, true, true, false, true, false);
     }
 
     /** A client that only draws waypoints and forgets them on world change, like Feather. */
     static FakeLink waypointsOnly(ClientBrand brand) {
-        return new FakeLink(brand, true, false, false, true);
+        return new FakeLink(brand, true, false, false, true, false, true);
     }
 
     FakeLink owning(Player... players) {
@@ -95,11 +106,24 @@ final class FakeLink implements ClientLink {
     }
 
     @Override
+    public boolean keysWaypointsByName() {
+        return keysByName;
+    }
+
+    @Override
+    public boolean expiresWaypoints() {
+        return expiresItself;
+    }
+
+    @Override
     public Object showWaypoint(Player player, Waypoint waypoint) {
         fail();
         calls.add("waypoint:" + player.getName() + ":" + waypoint.name()
                 + ":" + waypoint.worldName());
-        return refuseWaypoints ? null : "handle-" + (nextHandle++);
+        // A name-keyed client has nothing else to hand back, exactly as Apollo
+        // has nothing else to hand back.
+        return refuseWaypoints ? null
+                : keysByName ? waypoint.name() : "handle-" + (nextHandle++);
     }
 
     @Override

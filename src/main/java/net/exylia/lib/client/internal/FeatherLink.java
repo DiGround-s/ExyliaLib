@@ -91,6 +91,22 @@ final class FeatherLink implements ClientLink {
         return true;
     }
 
+    /** Feather counts a waypoint's duration down itself, from what it was sent. */
+    @Override
+    public boolean expiresWaypoints() {
+        return true;
+    }
+
+    /**
+     * Sends a waypoint, as much of one as Feather's builder accepts.
+     *
+     * <p>{@code preventRemoval} and {@code hidden} have no counterpart there —
+     * {@code WaypointBuilder} offers a name, a colour, a duration and a world
+     * id, and nothing else. A player on Feather can therefore delete a locked
+     * waypoint, and one created hidden is visible from the start. Refusing to
+     * send it would be worse: a marker the game needs the player to see is the
+     * point, and the two flags are a preference on top of it.
+     */
     @Override
     public Object showWaypoint(Player player, Waypoint waypoint) {
         FeatherPlayer target = feather(player);

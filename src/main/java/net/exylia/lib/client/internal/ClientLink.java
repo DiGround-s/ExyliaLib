@@ -71,6 +71,37 @@ public interface ClientLink {
         return false;
     }
 
+    /**
+     * Returns whether this client has one waypoint slot per name and per
+     * player, rather than a handle of its own.
+     *
+     * <p>Lunar does: {@code displayWaypoint} and {@code removeWaypoint} both
+     * take the name, so two plugins showing a {@code "spawn"} waypoint are
+     * competing for one slot on that player's screen no matter how carefully
+     * the library keys them apart. Feather does not: it hands back a
+     * {@code UUID} per waypoint and keeps as many as it is sent.
+     *
+     * <p>This is the difference {@link ClientRuntime} needs in order to keep
+     * its promise that one plugin cannot take down another's marker. On a
+     * client that keys by name, only the plugin that currently holds the slot
+     * may remove it, and whoever else still wants that name gets it back.
+     */
+    default boolean keysWaypointsByName() {
+        return false;
+    }
+
+    /**
+     * Returns whether the client expires a waypoint's duration on its own.
+     *
+     * <p>Feather does, from {@code WaypointDuration}. Lunar has no such field,
+     * so the library has to take the waypoint down itself when the time is up
+     * — otherwise {@code lasting(...)} would quietly mean "forever" on half
+     * the clients on the server.
+     */
+    default boolean expiresWaypoints() {
+        return false;
+    }
+
     // ------------------------------------------------------------------
     // Cooldowns
     // ------------------------------------------------------------------
