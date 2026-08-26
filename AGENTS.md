@@ -336,7 +336,8 @@ parser dentro de un plugin.
   tragaba, así que un encantamiento mal escrito era indistinguible de uno bien.
 - **Cuatro bugs de commons se arreglan a propósito**, y cada uno tiene su test:
   `flags` no se parseaba en ningún sitio; `hide-attributes` era
-  `getBoolean(a,true) || getBoolean(b,true)` y no se podía apagar; `upgraded`
+  `getBoolean(a,true) || getBoolean(b,true)` y no se podía apagar (ahora se
+  apaga escribiendo `false`, y sigue encendido por defecto); `upgraded`
   se guardaba y no se leía, así que un refill de Instant Health II daba I; y
   `display-name` era fallback de `name`.
 - **`hide-attributes` esconde todo lo que el cliente escribe solo**, no solo las

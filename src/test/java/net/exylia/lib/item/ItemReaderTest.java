@@ -205,11 +205,15 @@ class ItemReaderTest {
     }
 
     @Test
-    @DisplayName("an item with nothing unusual shares the plain appearance")
+    @DisplayName("an item with nothing unusual shares one appearance, which hides the vanilla block")
     void plainItemsShareTheirParts() {
         Item item = read("material: STONE\nname: \"Rock\"\n");
+        Item another = read("material: DIRT\nname: \"Soil\"\n");
 
-        assertSame(Appearance.PLAIN, item.appearance());
+        // Not Appearance.PLAIN: a file that says nothing means what commons
+        // did, which is a tooltip with nothing vanilla wrote in it.
+        assertTrue(item.appearance().hideAttributes());
+        assertSame(item.appearance(), another.appearance());
         assertSame(Traits.NONE, item.traits());
     }
 

@@ -32,6 +32,22 @@ import java.util.Map;
  */
 public final class ItemReader {
 
+    /**
+     * What a file that says nothing about its appearance means.
+     *
+     * <p>{@code hide-attributes} defaults to on: commons hid the block vanilla
+     * writes for every configured item, no file in the ecosystem was ever
+     * written expecting to see it, and turning the default off left menus
+     * showing "Applies to: Armor" and damage lines under names their author
+     * chose. Writing {@code false} still turns it off, which is the part
+     * commons made impossible.
+     *
+     * <p>Shared rather than rebuilt: most items in a menu say nothing about
+     * their appearance, and this is what they all mean.
+     */
+    private static final Appearance DEFAULT =
+            Appearance.builder().hideAttributes(true).build();
+
     private ItemReader() {
     }
 
@@ -75,13 +91,15 @@ public final class ItemReader {
     }
 
     private static Appearance appearance(ConfigurationSection section) {
-        return Appearance.builder()
+        Appearance built = Appearance.builder()
                 .glow(flag(section, "glow", "glowing"))
                 .hideTooltip(flag(section, "hide-tooltip", "hide_tooltip"))
                 // Commons wrote getBoolean(a, true) || getBoolean(b, true), whose
                 // value is true whatever the file says. Writing false now turns
-                // it off, which is what everyone who wrote it expected.
-                .hideAttributes(flag(section, "hide-attributes", "hide_attributes"))
+                // it off, which is what everyone who wrote it expected; saying
+                // nothing still hides, because that is what every deployed file
+                // was written against.
+                .hideAttributes(flag(section, true, "hide-attributes", "hide_attributes"))
                 .unbreakable(section.getBoolean("unbreakable", false))
                 .modelData(number(section, -1, "custom-model-data", "custom_model_data"))
                 .maxStackSize(number(section, -1, "max_stack_size", "max-stack-size",
@@ -92,6 +110,7 @@ public final class ItemReader {
                 .model(first(section, "item_model", "item-model"))
                 .tooltipStyle(first(section, "tooltip_style", "tooltip-style"))
                 .build();
+        return built.equals(DEFAULT) ? DEFAULT : built;
     }
 
     /**
@@ -357,12 +376,18 @@ public final class ItemReader {
      * write both.
      */
     private static boolean flag(ConfigurationSection section, String... keys) {
+        return flag(section, false, keys);
+    }
+
+    /** The same, for a key whose absence does not mean off. */
+    private static boolean flag(ConfigurationSection section, boolean fallback,
+                                String... keys) {
         for (String key : keys) {
             if (section.contains(key)) {
                 return section.getBoolean(key);
             }
         }
-        return false;
+        return fallback;
     }
 
     private static int number(ConfigurationSection section, int fallback, String... keys) {

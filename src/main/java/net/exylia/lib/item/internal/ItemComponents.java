@@ -220,6 +220,11 @@ final class ItemComponents implements ItemRenderer.Components {
      * being hidden. Commons hid them all by name; so does this.
      */
     private static Set<DataComponentType> hiddenComponents() {
+        Set<DataComponentType> known = resolved;
+        if (known != null) {
+            // Copied: the caller merges what the item already hides into it.
+            return new LinkedHashSet<>(known);
+        }
         Set<DataComponentType> hidden = new LinkedHashSet<>();
         for (String name : WRITTEN_BY_TYPE) {
             add(hidden, name);
@@ -227,8 +232,18 @@ final class ItemComponents implements ItemRenderer.Components {
         for (String name : HIDDEN_BY_FLAGS) {
             add(hidden, name);
         }
-        return hidden;
+        resolved = hidden;
+        return new LinkedHashSet<>(hidden);
     }
+
+    /**
+     * The lookup's answer, kept.
+     *
+     * <p>The registry does not change while the server runs, and every
+     * configured item hides these now: resolving twenty names per drawn item
+     * is work a menu pays for on every redraw.
+     */
+    private static volatile Set<DataComponentType> resolved;
 
     /** Adds a component by name, if this server has one. */
     private static void add(Set<DataComponentType> hidden, String name) {
@@ -306,5 +321,6 @@ final class ItemComponents implements ItemRenderer.Components {
     static void forgetReportedForTests() {
         reported = false;
         explained = false;
+        resolved = null;
     }
 }

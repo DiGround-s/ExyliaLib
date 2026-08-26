@@ -206,7 +206,7 @@ legacy codes all work, and italics are off unless asked for.
 | --- | --- |
 | `glow`, `glowing` | the enchantment shimmer, with no line in the tooltip |
 | `hide-tooltip`, `hide_tooltip` | hides the tooltip entirely |
-| `hide-attributes`, `hide_attributes` | hides everything vanilla writes by itself |
+| `hide-attributes`, `hide_attributes` | hides everything vanilla writes by itself; on unless the file says `false` |
 | `unbreakable` | marks it unbreakable |
 | `custom-model-data`, `custom_model_data` | the model number |
 | `max_stack_size`, `max-stack-size` | the stack limit |
@@ -215,8 +215,8 @@ legacy codes all work, and italics are off unless asked for.
 | `tooltip_style`, `tooltip-style` | a tooltip style key |
 | `enchantments` | a section of `NAME: level`, or a list of `NAME:level` |
 
-`hide-attributes` covers the whole of what the client writes on its own: the
-damage and speed lines on a tool, and the block a smithing template, a potion, a
+`hide-attributes` is on unless a file writes `false`, and covers the whole of
+what the client writes on its own: the damage and speed lines on a tool, and the block a smithing template, a potion, a
 firework or a banner adds to describe itself. A menu asking for a clean tooltip
 means all of it — a smithing template in a list otherwise still says *"Applies
 to: Armor"*.
@@ -420,8 +420,11 @@ hide their enchantment lines for years and been showing them.
 
 **`hide-attributes` could not be turned off.** Commons wrote
 `getBoolean(a, true) || getBoolean(b, true)`, whose value is `true` whatever the
-file says. Writing `false` now turns it off — which also means a file that never
-wrote the key at all gets the vanilla tooltip, where commons silently hid it.
+file says. Writing `false` now turns it off. Saying nothing still hides, as it
+always did: no file in the ecosystem was written expecting the vanilla block,
+and defaulting it off left menus showing *"Applies to: Armor"* and damage lines
+under names their author chose. Items built in code rather than read from a file
+start from `Appearance.PLAIN` and hide nothing until asked.
 
 **`upgraded` was dropped.** `PotionConfig` stored it and `PotionProcessor` never
 read it, so a refill kit configured for Instant Health II handed out Instant
