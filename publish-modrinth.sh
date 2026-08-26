@@ -92,7 +92,10 @@ if [[ "$http" != "200" ]]; then
   cat "$work/response.json" >&2
   echo >&2
   if [[ "$http" == "401" ]]; then
-    echo "401 means the token was not accepted. The PAT needs the Create versions scope, and Read projects plus Read versions for the duplicate check above." >&2
+    echo "401 has two shapes here. 'Invalid Authentication Credentials' is the token itself:" >&2
+    echo "the PAT needs Create versions, plus Read projects and Read versions for the check above." >&2
+    echo "'You don't have permission to upload this version' means the token is fine but its" >&2
+    echo "account is not on the project's team — check which account created the PAT." >&2
   fi
   exit 1
 fi
