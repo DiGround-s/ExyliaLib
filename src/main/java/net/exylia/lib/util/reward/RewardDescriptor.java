@@ -48,6 +48,12 @@ public final class RewardDescriptor implements EditorDescriptor<RewardEntry> {
     private static final FormKey<String> CONDITION = FormKey.text("condition");
     private static final FormKey<String> MESSAGE = FormKey.text("message");
 
+    /** Said under the command field, where the wrong guess fails silently. */
+    private static final String COMMAND_HINT = "%player_name% is the player. No leading slash.";
+
+    /** Said under the fields the player reads, which take markup as well. */
+    private static final String TEXT_HINT = "%player_name% and colour codes work here.";
+
     private final Plugin plugin;
 
     RewardDescriptor(Plugin plugin) {
@@ -157,7 +163,8 @@ public final class RewardDescriptor implements EditorDescriptor<RewardEntry> {
 
         boolean payload = entry.type() != RewardType.ITEM;
         if (payload) {
-            form.text(PAYLOAD, payloadLabel(entry.type()), payloadOf(entry), payloadLines(entry.type()));
+            form.text(PAYLOAD, payloadLabel(entry.type()), payloadOf(entry), payloadLines(entry.type()))
+                    .hint(payloadHint(entry.type()));
         }
         if (entry.type() == RewardType.ECONOMY) {
             form.text(CURRENCY, "Currency (blank for the default)", entry.currency());
@@ -171,7 +178,8 @@ public final class RewardDescriptor implements EditorDescriptor<RewardEntry> {
                 .decimal(WEIGHT, "Weight against its siblings", BigDecimal.valueOf(entry.weight()))
                 .text(PERMISSION, "Permission needed (blank for none)", entry.permission())
                 .text(CONDITION, "Condition (blank for none)", entry.condition(), 2)
-                .text(MESSAGE, "Message when it lands (blank for none)", entry.deliveryMessage(), 3);
+                .text(MESSAGE, "Message when it lands (blank for none)", entry.deliveryMessage(), 3)
+                .hint(TEXT_HINT);
 
         boolean withPayload = payload;
         boolean withAmounts = counted;
@@ -222,6 +230,19 @@ public final class RewardDescriptor implements EditorDescriptor<RewardEntry> {
             case EXPERIENCE -> "How much experience";
             case POTION -> "Effect, as SPEED:1:300";
             case ITEM -> "Item";
+        };
+    }
+
+    /**
+     * What a valid payload looks like, for the fields where the label leaves it
+     * open. A command that guesses {@code %player%} runs, does nothing, and is
+     * only found much later; the note costs a line and saves that.
+     */
+    private static String payloadHint(RewardType type) {
+        return switch (type) {
+            case COMMAND -> COMMAND_HINT;
+            case MESSAGE -> TEXT_HINT;
+            default -> null;
         };
     }
 
