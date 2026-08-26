@@ -256,6 +256,25 @@ public final class Text {
         if (parsed.centered()) {
             source = Centering.center(source);
         }
+
+        // Every value is stood in for by a single private-use character before
+        // the text is parsed. A gradient colours one character at a time, so
+        // "%streak%" written inside one comes back as eight components and
+        // matchLiteral on the whole token matches nothing — which is how a
+        // streak announcement reached players with the token still in it. A
+        // one-character marker is always a component of its own, whatever the
+        // formatting around it. The marker does not carry the value, so the
+        // parse still caches per template rather than per player.
+        List<Marked> marked = new ArrayList<>();
+        for (Substitution substitution : allValues()) {
+            if (!source.contains(substitution.key())) {
+                continue;
+            }
+            String marker = String.valueOf((char) (MARKER_BASE + marked.size()));
+            source = source.replace(substitution.key(), marker);
+            marked.add(new Marked(marker, substitution.value(), substitution.formatted()));
+        }
+
         Component component = TextEngine.parse(source);
 
         // What has to be substituted into a click's command as well as into the
@@ -263,44 +282,55 @@ public final class Text {
         boolean clickable = source.contains("click:");
         Map<String, String> commands = clickable ? new java.util.LinkedHashMap<>() : Map.of();
 
-        if (viewer != null) {
-            // The names this class substitutes itself are told to the resolver,
-            // so a value supplied through with() is not reported as unknown
-            // moments before being substituted — which is exactly the false
-            // alarm that fired on a live server.
-            Template template = Placeholders.compile(raw);
-            List<String> triples = template instanceof CompiledTemplate compiled
-                    ? compiled.resolveTriples(new Request(viewer, viewer, List.of(), Map.of()),
-                            resolveFormatted ? FORMATTED_RENDERER : ValueRenderer.LITERAL,
-                            handledNames())
-                    : List.of();
-            for (int i = 0; i < triples.size(); i += 3) {
-                String placeholder = triples.get(i);
-                String value = triples.get(i + 1);
-                Component replacement = triples.get(i + 2).equals("formatted")
-                        ? TextEngine.parseUncached(value)
-                        : Component.text(value);
-                component = component.replaceText(builder -> builder
-                        .matchLiteral(placeholder)
-                        .replacement(replacement));
-                if (clickable) {
-                    commands.put(placeholder, value);
-                }
-            }
-        }
-
-        for (Substitution substitution : substitutions) {
-            Component replacement = substitution.formatted()
-                    ? TextEngine.parseUncached(substitution.value())
-                    : Component.text(substitution.value());
+        for (Marked value : marked) {
+            Component replacement = value.formatted()
+                    ? TextEngine.parseUncached(value.value())
+                    : Component.text(value.value());
             component = component.replaceText(builder -> builder
-                    .matchLiteral(substitution.key())
+                    .matchLiteral(value.marker())
                     .replacement(replacement));
             if (clickable) {
-                commands.put(substitution.key(), substitution.value());
+                commands.put(value.marker(), value.value());
             }
         }
         return commands.isEmpty() ? component : fillClicks(component, commands);
+    }
+
+    /** Where the private-use markers start, well clear of anything a font draws. */
+    private static final char MARKER_BASE = '\uE000';
+
+    /** A value and the marker standing in for it while the text is parsed. */
+    private record Marked(String marker, String value, boolean formatted) {
+    }
+
+    /**
+     * Every value this text substitutes: the resolver's first, then the ones
+     * given through {@link #with}.
+     */
+    private List<Substitution> allValues() {
+        if (viewer == null) {
+            return substitutions;
+        }
+        // The names this class substitutes itself are told to the resolver,
+        // so a value supplied through with() is not reported as unknown
+        // moments before being substituted — which is exactly the false
+        // alarm that fired on a live server.
+        Template template = Placeholders.compile(raw);
+        List<String> triples = template instanceof CompiledTemplate compiled
+                ? compiled.resolveTriples(new Request(viewer, viewer, List.of(), Map.of()),
+                        resolveFormatted ? FORMATTED_RENDERER : ValueRenderer.LITERAL,
+                        handledNames())
+                : List.of();
+        if (triples.isEmpty()) {
+            return substitutions;
+        }
+        List<Substitution> values = new ArrayList<>(triples.size() / 3 + substitutions.size());
+        for (int i = 0; i < triples.size(); i += 3) {
+            values.add(new Substitution(triples.get(i), triples.get(i + 1),
+                    triples.get(i + 2).equals("formatted")));
+        }
+        values.addAll(substitutions);
+        return values;
     }
 
     /**

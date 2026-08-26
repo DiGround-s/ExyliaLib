@@ -250,6 +250,18 @@ class TextModuleTest {
     }
 
     @Test
+    @DisplayName("a value written inside a gradient is substituted")
+    void substitutionInsideGradient() {
+        // A gradient colours one character at a time, so the token is split
+        // across components before anything is replaced.
+        Component component = Text.of("<gradient:#ff4d4d:#ffd700>%streak% kill streak</gradient>")
+                .with("%streak%", 7)
+                .build();
+
+        assertEquals("7 kill streak", plain(component));
+    }
+
+    @Test
     @DisplayName("a substituted value cannot inject formatting")
     void substitutionIsNotParsed() {
         // A player calling themselves "&cX" must not get coloured text.
