@@ -206,11 +206,12 @@ jobs:
           MODRINTH_PROJECT: ${{ vars.MODRINTH_PROJECT_ID }}
           VERSION: ${{ steps.release_guard.outputs.version }}
           TAG: ${{ steps.release_guard.outputs.tag }}
-          # plugin.yml declares api-version 1.21, so the server loads the jar on
-          # any 1.21.x; the build compiles against paper-api 1.21.4. Widen this
-          # list here when the compile target moves.
-          GAME_VERSIONS: '["1.21","1.21.1","1.21.2","1.21.3","1.21.4"]'
-          LOADERS: '["bukkit","spigot","paper","purpur","folia"]'
+          # The build compiles against paper-api 1.21.4 and the jar runs on
+          # everything from there up. Widen this list here as new versions ship.
+          GAME_VERSIONS: >-
+            ["1.21.4","1.21.5","1.21.6","1.21.7","1.21.8","1.21.9","1.21.10",
+             "1.21.11","26.1","26.1.1","26.1.2","26.2"]
+          LOADERS: '["folia","paper","purpur"]'
         run: |
           set -euo pipefail
 
@@ -226,14 +227,21 @@ jobs:
 
           # A re-run of this job would otherwise fail on Modrinth's uniqueness
           # check for the version number, with the GitHub release already
-          # published and nothing left to fix by hand.
-          existing="$(curl -sS --fail-with-body \
+          # published and nothing left to fix by hand. The listing is a
+          # convenience, not a gate: an unpublished project answers 404 here
+          # while still accepting versions, so a failed check carries on and
+          # lets the upload itself be the one to object.
+          status="$(curl -sS -o modrinth-versions.json -w '%{http_code}' \
             -H "Authorization: ${MODRINTH_TOKEN}" \
             -H "User-Agent: ${user_agent}" \
-            "https://api.modrinth.com/v2/project/${MODRINTH_PROJECT}/version")"
-          if jq -e --arg v "$VERSION" 'any(.[]; .version_number == $v)' <<< "$existing" >/dev/null; then
-            echo "Modrinth already has version ${VERSION}; nothing to do."
-            exit 0
+            "https://api.modrinth.com/v2/project/${MODRINTH_PROJECT}/version" || echo 000)"
+          if [[ "$status" == "200" ]]; then
+            if jq -e --arg v "$VERSION" 'any(.[]; .version_number == $v)' modrinth-versions.json >/dev/null; then
+              echo "Modrinth already has version ${VERSION}; nothing to do."
+              exit 0
+            fi
+          else
+            echo "Could not list existing versions (HTTP ${status}); uploading anyway."
           fi
 
           changelog="$(gh release view "$TAG" --json body --jq .body)"

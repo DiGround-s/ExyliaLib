@@ -1253,9 +1253,12 @@ a log line when either is missing:
 | `MODRINTH_PROJECT_ID` | Repository *variable* | The project ID or slug on Modrinth |
 
 Game versions and loaders are declared as `GAME_VERSIONS` and `LOADERS` in the
-workflow step; widen them there when the compile target moves. Re-running a
+workflow step; widen them there as new Minecraft versions ship. Re-running a
 finished release is safe: the step asks Modrinth for the project's versions
-first and does nothing when the version number is already published.
+first and does nothing when the version number is already published. That
+listing is a convenience rather than a gate — an unpublished project answers
+404 to it while still accepting uploads — so a failed check carries on and lets
+Modrinth itself reject a duplicate.
 
 ### Dev channel
 
