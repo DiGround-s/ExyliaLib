@@ -142,20 +142,41 @@ jobs:
         run: |
           set -euo pipefail
           jar="build/libs/ExyliaLib-${VERSION}.jar"
-          ./update-lib-manifest.sh "$VERSION" "$jar" stable "$SOURCE_COMMIT" "$TAG"
-
-          changed_files="$(git diff --name-only)"
-          if [[ -z "$changed_files" ]]; then
-            echo "Manifest already points at ${VERSION}; no commit needed."
-            exit 0
-          fi
-          if [[ "$changed_files" != "lib-manifest.json" ]]; then
-            echo "Unexpected files changed by manifest generation: $changed_files" >&2
-            exit 1
-          fi
 
           git config user.name github-actions[bot]
           git config user.email 41898282+github-actions[bot]@users.noreply.github.com
-          git add lib-manifest.json
-          git commit -m "chore: point the manifest at ${VERSION}"
-          git push origin "HEAD:main"
+
+          # main moves while a release builds, and a commit pushed during those
+          # two minutes makes this push a non-fast-forward. That used to end the
+          # job right here, with the release published and the manifest still
+          # naming the previous version — which is invisible from the outside:
+          # every server's updater reads the manifest, so the release exists and
+          # nothing ever offers it. The manifest is generated rather than
+          # authored, so the answer to a main that moved is to generate it again
+          # on top of whatever landed.
+          for attempt in 1 2 3; do
+            ./update-lib-manifest.sh "$VERSION" "$jar" stable "$SOURCE_COMMIT" "$TAG"
+
+            changed_files="$(git diff --name-only)"
+            if [[ -z "$changed_files" ]]; then
+              echo "Manifest already points at ${VERSION}; no commit needed."
+              exit 0
+            fi
+            if [[ "$changed_files" != "lib-manifest.json" ]]; then
+              echo "Unexpected files changed by manifest generation: $changed_files" >&2
+              exit 1
+            fi
+
+            git add lib-manifest.json
+            git commit -m "chore: point the manifest at ${VERSION}"
+            if git push origin "HEAD:main"; then
+              exit 0
+            fi
+
+            echo "main moved while this release was building; regenerating the manifest on top of it (attempt ${attempt})."
+            git fetch origin main
+            git reset --hard FETCH_HEAD
+          done
+
+          echo "Could not publish the manifest for ${VERSION}: main kept moving." >&2
+          exit 1
