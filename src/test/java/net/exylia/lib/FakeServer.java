@@ -419,6 +419,19 @@ public final class FakeServer {
                         if (method.getName().equals("getPlugins")) {
                             return PLUGINS.toArray(new Plugin[0]);
                         }
+                        if (method.getName().equals("isPluginEnabled")) {
+                            // A module that integrates with another plugin asks
+                            // this before it asks anything else, so a fake that
+                            // always says no makes those modules untestable.
+                            for (Plugin plugin : PLUGINS) {
+                                if (args[0] instanceof Plugin asked
+                                        ? plugin == asked
+                                        : plugin.getName().equals(args[0])) {
+                                    return true;
+                                }
+                            }
+                            return false;
+                        }
                         if (method.getName().equals("getPlugin")) {
                             // So a test can have a plugin appear between two
                             // calls, which is what load order does to an

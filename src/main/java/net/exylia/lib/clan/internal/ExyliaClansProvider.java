@@ -168,7 +168,7 @@ final class ExyliaClansProvider implements ClanProvider {
                 || Boolean.TRUE.equals(api(method, secondId, firstId));
     }
 
-    private List<String> related(String method, String clanId) {
+    private List<String> related(String clanId, String method) {
         List<String> ids = new ArrayList<>();
         for (Object other : rawClans()) {
             String otherId = idOf(other);
