@@ -75,6 +75,26 @@ public interface EditorDescriptor<T> {
     @NotNull List<String> lore(@NotNull T entry);
 
     /**
+     * The same lines, with the rest of the list in view.
+     *
+     * <p>What {@link #lore(Object)} cannot say: an entry's odds mean nothing on
+     * their own. Twenty rows at twenty percent and five rows at twenty percent
+     * read identically row by row, and are not the same table. Override this
+     * where a row's share of its siblings is worth drawing.
+     *
+     * <p>Called instead of {@link #lore(Object)} while drawing, so an override
+     * replaces it rather than adding to it. The list is the editor's own and
+     * must not be modified.
+     *
+     * @param entry    the row's element
+     * @param siblings every element on the screen, this one included
+     * @return the lines, possibly none
+     */
+    default @NotNull List<String> lore(@NotNull T entry, @NotNull List<T> siblings) {
+        return lore(entry);
+    }
+
+    /**
      * A new element, for the add button.
      *
      * <p>Returned blank rather than asked for: the editor opens {@link #edit} on

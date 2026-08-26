@@ -319,7 +319,7 @@ public final class EditorHolder<T> implements InventoryHolder {
         try {
             icon = descriptor.icon(entry);
             label = descriptor.label(entry);
-            details = descriptor.lore(entry);
+            details = descriptor.lore(entry, entries);
         } catch (RuntimeException brokenElement) {
             // One unreadable element must not blank the page: the row still
             // draws and stays deletable, which is the only thing an admin can

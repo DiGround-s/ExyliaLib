@@ -72,7 +72,21 @@ public final class RewardDescriptor implements EditorDescriptor<RewardEntry> {
 
     @Override
     public @NotNull List<String> lore(@NotNull RewardEntry entry) {
-        List<String> lore = new ArrayList<>(8);
+        return lore(entry, List.of(entry));
+    }
+
+    /**
+     * The same, plus what this reward is worth against the others.
+     *
+     * <p>A chance read alone lies by omission: twenty rewards at forty percent
+     * and three rewards at forty percent are the same row and a different table.
+     * The extra line is each reward's share of everything the list hands out,
+     * which is the number an admin is actually balancing.
+     */
+    @Override
+    public @NotNull List<String> lore(@NotNull RewardEntry entry,
+                                      @NotNull List<RewardEntry> siblings) {
+        List<String> lore = new ArrayList<>(9);
         lore.add("{secondary}Reward:");
         lore.add(" {letters_black}▎ {letters}Gives {letters_black}» {info}" + readable(entry.type()));
         lore.add(" {letters_black}▎ {letters}Value {letters_black}» {highlight}" + entry.preview());
@@ -80,6 +94,11 @@ public final class RewardDescriptor implements EditorDescriptor<RewardEntry> {
         lore.add("{secondary}Odds:");
         lore.add(" {letters_black}▎ {letters}Chance {letters_black}» " + chance(entry));
         lore.add(" {letters_black}▎ {letters}Weight 🎲 {letters_black}» {info}" + number(entry.weight()));
+        String share = share(entry.chance(), siblings);
+        if (share != null) {
+            lore.add(" {letters_black}▎ {letters}Real {letters_black}» {success}" + share
+                    + "% {muted}of all drops");
+        }
         if (entry.permission() != null || entry.condition() != null) {
             lore.add("");
             lore.add("{secondary}Only for:");
@@ -274,6 +293,30 @@ public final class RewardDescriptor implements EditorDescriptor<RewardEntry> {
         return entry.isGuaranteed()
                 ? "{success}always"
                 : "{highlight}" + number(entry.chance()) + "%";
+    }
+
+    /**
+     * A reward's share of everything the list gives out, as a percentage.
+     *
+     * <p>Rewards roll independently, so a reward's chance is its expected count
+     * and the shares are those counts normalised. Nothing is drawn for a list of
+     * one &mdash; the answer is always a hundred percent &mdash; nor for a list
+     * nothing can ever drop out of.
+     *
+     * @return the share, or {@code null} when there is no useful one
+     */
+    private static String share(double chance, List<RewardEntry> siblings) {
+        if (siblings.size() < 2) {
+            return null;
+        }
+        double total = 0.0;
+        for (RewardEntry sibling : siblings) {
+            total += Math.max(0.0, sibling.chance());
+        }
+        if (total <= 0.0) {
+            return null;
+        }
+        return number(Math.round(Math.max(0.0, chance) * 1000.0 / total) / 10.0);
     }
 
     private static String number(double value) {

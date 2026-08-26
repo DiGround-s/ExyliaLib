@@ -61,7 +61,20 @@ public final class LootDescriptor implements EditorDescriptor<LootEntry> {
 
     @Override
     public @NotNull List<String> lore(@NotNull LootEntry entry) {
-        List<String> lore = new ArrayList<>(7);
+        return lore(entry, List.of(entry));
+    }
+
+    /**
+     * The same, plus what this line is worth against the others.
+     *
+     * <p>A weight read alone says nothing: a weight of one is common in a table
+     * of three and rare in a table of forty. The extra line is the line's share
+     * of everything the table drops, which is what an admin is balancing.
+     */
+    @Override
+    public @NotNull List<String> lore(@NotNull LootEntry entry,
+                                      @NotNull List<LootEntry> siblings) {
+        List<String> lore = new ArrayList<>(8);
         lore.add("{secondary}Gives:");
         if (entry.isCommand()) {
             lore.add(" {letters_black}▎ {letters}Command {letters_black}» {warning}"
@@ -74,6 +87,11 @@ public final class LootDescriptor implements EditorDescriptor<LootEntry> {
         lore.add("{secondary}Odds:");
         lore.add(" {letters_black}▎ {letters}Weight 🎲 {letters_black}» {highlight}"
                 + number(entry.weight()));
+        String share = share(entry.weight(), siblings);
+        if (share != null) {
+            lore.add(" {letters_black}▎ {letters}Real {letters_black}» {success}" + share
+                    + "% {muted}of all drops");
+        }
         if (entry.tier() != null && !entry.tier().isBlank()) {
             lore.add(" {letters_black}▎ {letters}Tier {letters_black}» {info}" + entry.tier());
         }
@@ -164,6 +182,30 @@ public final class LootDescriptor implements EditorDescriptor<LootEntry> {
     private static Material iconOf(LootType type) {
         Material material = Material.matchMaterial(type.defaultIcon());
         return material == null ? Material.PAPER : material;
+    }
+
+    /**
+     * A line's share of everything the table drops, as a percentage.
+     *
+     * <p>The same number under both readings of a weight: as a per-line
+     * percentage the shares are the expected counts normalised, and as a share
+     * of the total they are the weights normalised. Nothing is drawn for a table
+     * of one, nor for one nothing can ever drop out of.
+     *
+     * @return the share, or {@code null} when there is no useful one
+     */
+    private static String share(double weight, List<LootEntry> siblings) {
+        if (siblings.size() < 2) {
+            return null;
+        }
+        double total = 0.0;
+        for (LootEntry sibling : siblings) {
+            total += Math.max(0.0, sibling.weight());
+        }
+        if (total <= 0.0) {
+            return null;
+        }
+        return number(Math.round(Math.max(0.0, weight) * 1000.0 / total) / 10.0);
     }
 
     private static String number(double value) {
