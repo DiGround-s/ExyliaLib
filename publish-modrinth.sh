@@ -32,6 +32,22 @@ user_agent="DiGround-s/ExyliaLib/${version} (release workflow)"
 work="$(mktemp -d)"
 trap 'rm -rf "$work"' EXIT
 
+# The upload wants the base62 project ID, and a slug in its place does not fail
+# as a slug: it parses as an ID, matches no project, and comes back as "You
+# don't have permission to upload this version" — which reads as a token
+# problem and is not one. So the slug is resolved here, and only what this
+# returns is ever sent.
+project="$MODRINTH_PROJECT"
+if curl -sS -o "$work/project.json" -f \
+  -H "Authorization: ${MODRINTH_TOKEN}" \
+  -H "User-Agent: ${user_agent}" \
+  "https://api.modrinth.com/v2/project/${MODRINTH_PROJECT}"; then
+  project="$(jq -r '.id' "$work/project.json")"
+  echo "Publishing to $(jq -r '.title' "$work/project.json") (${project})."
+else
+  echo "Could not resolve ${MODRINTH_PROJECT}; sending it as given."
+fi
+
 # Only to make a retry idempotent, so it is advisory: a project that is still a
 # draft answers 404 here while accepting versions perfectly well, and a token
 # without the read scopes answers 401. Neither is a reason not to try the
@@ -39,7 +55,7 @@ trap 'rm -rf "$work"' EXIT
 status="$(curl -sS -o "$work/versions.json" -w '%{http_code}' \
   -H "Authorization: ${MODRINTH_TOKEN}" \
   -H "User-Agent: ${user_agent}" \
-  "https://api.modrinth.com/v2/project/${MODRINTH_PROJECT}/version" || echo 000)"
+  "https://api.modrinth.com/v2/project/${project}/version" || echo 000)"
 if [[ "$status" == "200" ]]; then
   if jq -e --arg v "$version" 'any(.[]; .version_number == $v)' "$work/versions.json" >/dev/null; then
     echo "Modrinth already has version ${version}; nothing to do."
@@ -60,7 +76,7 @@ jq -nc \
   --arg name "ExyliaLib ${version}" \
   --arg number "$version" \
   --arg changelog "$changelog" \
-  --arg project "$MODRINTH_PROJECT" \
+  --arg project "$project" \
   --argjson game_versions "$game_versions" \
   --argjson loaders "$loaders" \
   '{
@@ -94,8 +110,9 @@ if [[ "$http" != "200" ]]; then
   if [[ "$http" == "401" ]]; then
     echo "401 has two shapes here. 'Invalid Authentication Credentials' is the token itself:" >&2
     echo "the PAT needs Create versions, plus Read projects and Read versions for the check above." >&2
-    echo "'You don't have permission to upload this version' means the token is fine but its" >&2
-    echo "account is not on the project's team — check which account created the PAT." >&2
+    echo "'You don't have permission to upload this version' means the token is fine but the" >&2
+    echo "project it names is not one it can write to — the wrong account, or an ID that" >&2
+    echo "matches no project at all." >&2
   fi
   exit 1
 fi

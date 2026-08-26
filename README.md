@@ -1266,6 +1266,11 @@ a log line when either is missing:
 | `MODRINTH_TOKEN` | Repository *secret* | A Modrinth PAT with the `Create versions` scope |
 | `MODRINTH_PROJECT_ID` | Repository *variable* | The project ID or slug on Modrinth |
 
+A slug is resolved to the project ID before anything is uploaded. Sending one
+straight through would not fail as a slug: Modrinth reads it as an ID, matches
+no project, and answers *You don't have permission to upload this version* —
+which reads as a token problem and is not one.
+
 The upload itself lives in `publish-modrinth.sh`, where the declared game
 versions and loaders are; widen them there as new Minecraft versions ship. The
 script is also runnable by hand, which is how a release whose upload failed is
@@ -1283,7 +1288,7 @@ accepting uploads perfectly well — so a failed check carries on and lets
 Modrinth itself reject a genuine duplicate.
 
 The PAT needs three scopes: **Create versions** for the upload, and **Read
-projects** plus **Read versions** for that check.
+projects** plus **Read versions** to resolve the project and run that check.
 
 ---
 
