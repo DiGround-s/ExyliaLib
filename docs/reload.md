@@ -17,6 +17,7 @@ conventionally gated by one node.
 | `/exylialib reload` | Reloads the library's own runtime settings |
 | `/exylialib info` (since 1.35.0) | Version, platform, `config.yml` switches, and which plugins depend on the library |
 | `/exylialib stats` (since 1.35.0) | Live counters from every module |
+| `/exylialib update` (since 1.65.0) | Checks GitHub now and stages a newer release |
 | `/exylialib export <plugin>` (since 1.36.0) | Writes that plugin's tables to a dump |
 | `/exylialib import <plugin> <file> [force]` (since 1.36.0) | Reads one back; `force` **merges**, it does not replace |
 
@@ -99,13 +100,36 @@ the SHA-256 in the manifest, and written to `plugins/update/`, which the
 server applies while it discovers plugins — so the update costs one restart,
 not two.
 
-Three moments trigger a check:
+Four moments trigger a check:
 
 | When | Why |
 | --- | --- |
 | Startup | Covers a server that was killed rather than stopped |
 | Every 30 minutes | Covers a server that crashes before it can stop cleanly |
 | Shutdown | Runs inline, so the very next start is already up to date |
+| `/exylialib update` | Covers the admin who published a release a minute ago |
+
+### `/exylialib update` (since 1.65.0)
+
+Does exactly what the automatic passes do — same manifest, same hash check,
+same staged jar — but when asked rather than on a timer, and it answers the
+sender instead of the console:
+
+```
+/exylialib update
+  → Checking » asking GitHub for the newest release...
+  → Staged » 1.65.0 downloaded and verified.
+    ➥ Restart the server to apply it
+```
+
+Two things it deliberately does not do. It does not honour `auto-update:
+false`: that switch governs the checks nobody asked for, and this one was
+typed by somebody holding `exylialib.admin`. And it never reports success as
+"done" — a staged jar is applied by the next start, and no reload can swap a
+library every plugin on the server is already bound to.
+
+The check runs off the main thread. It is an HTTP round trip and, when there
+is something to fetch, a two-megabyte download.
 
 Without the periodic check, a server that dies to a crash, a `kill -9` or a
 host reboot never reaches `onDisable` and sits on an old jar until someone

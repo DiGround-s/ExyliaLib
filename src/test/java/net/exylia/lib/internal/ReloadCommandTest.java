@@ -4,6 +4,8 @@ import net.exylia.lib.FakeServer;
 import net.exylia.lib.database.transfer.TableTransfer;
 import net.exylia.lib.database.transfer.TransferOutcome;
 import net.exylia.lib.database.transfer.TransferReport;
+import net.exylia.lib.internal.ExyliaLibUpdater.UpdateOutcome;
+import net.exylia.lib.internal.ExyliaLibUpdater.UpdateStatus;
 import net.exylia.lib.platform.Platform;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
@@ -325,6 +327,63 @@ class ReloadCommandTest {
             lastForce = force;
             return CompletableFuture.completedFuture(answer);
         }
+    }
+
+    // --------------------------------------------------------------- update
+
+    private ReloadCommand withUpdate(UpdateOutcome outcome) {
+        return new ReloadCommand(reloads::incrementAndGet, () -> "1.64.0", () -> Platform.BUKKIT,
+                LibrarySettings::new, List::of, () -> Path.of("/srv/dumps"),
+                new FakeTransfers(), () -> CompletableFuture.completedFuture(outcome));
+    }
+
+    @Test
+    @DisplayName("update says what it is doing before it waits on GitHub")
+    void updateAnnouncesTheCheck() {
+        withUpdate(new UpdateOutcome(UpdateStatus.UP_TO_DATE, "1.64.0", null)).update(sender);
+
+        assertEquals(2, sent.size(), "one line before the check, one after");
+        assertTrue(sent.get(0).contains("Checking"), "got: " + sent.get(0));
+    }
+
+    @Test
+    @DisplayName("a staged release tells the admin to restart, not that it is done")
+    void updateStagedAsksForARestart() {
+        withUpdate(new UpdateOutcome(UpdateStatus.STAGED, "1.65.0", null)).update(sender);
+
+        String text = sent.get(1);
+        assertTrue(text.contains("1.65.0"), "got: " + text);
+        assertTrue(text.contains("Restart"), "a staged jar is not applied yet, got: " + text);
+    }
+
+    @Test
+    @DisplayName("a jar already waiting is not announced as a fresh download")
+    void updateAlreadyStagedSaysSo() {
+        withUpdate(new UpdateOutcome(UpdateStatus.ALREADY_STAGED, "1.65.0", null)).update(sender);
+
+        String text = sent.get(1);
+        assertTrue(text.contains("Already staged"), "got: " + text);
+        assertTrue(text.contains("Restart"), "got: " + text);
+    }
+
+    @Test
+    @DisplayName("a failed check says nothing changed and which version is still running")
+    void updateFailureIsHonest() {
+        withUpdate(new UpdateOutcome(UpdateStatus.FAILED, "1.64.0", "Manifest fetch returned HTTP 404"))
+                .update(sender);
+
+        String text = sent.get(1);
+        assertTrue(text.contains("HTTP 404"), "the sender is told why, got: " + text);
+        assertTrue(text.contains("1.64.0"), "got: " + text);
+        assertTrue(text.contains("Nothing was changed"), "got: " + text);
+    }
+
+    @Test
+    @DisplayName("auto-update being off does not make the typed command refuse")
+    void updateDisabledStillAnswers() {
+        withUpdate(new UpdateOutcome(UpdateStatus.DISABLED, "1.64.0", null)).update(sender);
+
+        assertTrue(sent.get(1).contains("Up to date"), "got: " + sent.get(1));
     }
 
     private FakeTransfers transfers;

@@ -92,14 +92,30 @@ public final class ExyliaLibUpdater {
      *
      * @param plugin the ExyliaLib plugin instance
      */
-    public static void checkForUpdate(ExyliaLib plugin) {
+    public static UpdateOutcome checkForUpdate(ExyliaLib plugin) {
         LibrarySettings settings = LibrarySettings.load(plugin);
 
         if (!settings.autoUpdate()) {
             plugin.getLogger().fine("Auto-update is disabled — skipping update check.");
-            return;
+            return new UpdateOutcome(UpdateStatus.DISABLED, version(plugin), null);
         }
 
+        return stageNow(plugin);
+    }
+
+    /**
+     * Checks and stages regardless of {@code auto-update}.
+     *
+     * <p>What {@code /exylialib update} runs. The setting governs the passes
+     * nobody asked for — startup, shutdown, the poll — and an admin typing the
+     * command has asked. Nothing else differs: the same manifest, the same
+     * hash check, the same staged jar applied on the next restart.
+     *
+     * @param plugin the ExyliaLib plugin instance
+     * @return what happened, for a caller that has somebody to tell
+     * @since 1.65.0
+     */
+    public static UpdateOutcome stageNow(ExyliaLib plugin) {
         String currentVersion = version(plugin);
         String manifestUrl = configuredManifestUrl();
 
@@ -114,7 +130,7 @@ public final class ExyliaLibUpdater {
             if (!manifestUrl.equals(DEFAULT_MANIFEST_URL)) {
                 plugin.getLogger().log(Level.WARNING,
                     "Could not check for ExyliaLib updates: " + e.getMessage());
-                return;
+                return new UpdateOutcome(UpdateStatus.FAILED, currentVersion, e.getMessage());
             }
             plugin.getLogger().fine(
                 "Manifest asset unreadable (" + e.getMessage() + ") — falling back to the branch copy.");
@@ -123,14 +139,14 @@ public final class ExyliaLibUpdater {
             } catch (IOException fallbackFailure) {
                 plugin.getLogger().log(Level.WARNING,
                     "Could not check for ExyliaLib updates: " + fallbackFailure.getMessage());
-                return;
+                return new UpdateOutcome(UpdateStatus.FAILED, currentVersion, fallbackFailure.getMessage());
             }
         }
 
         ManifestEntry best = findNewerVersion(manifestJson, currentVersion);
         if (best == null) {
             plugin.getLogger().fine("ExyliaLib " + currentVersion + " is up to date.");
-            return;
+            return new UpdateOutcome(UpdateStatus.UP_TO_DATE, currentVersion, null);
         }
 
         try {
@@ -149,7 +165,7 @@ public final class ExyliaLibUpdater {
                 plugin.getLogger().fine(String.format(
                     "ExyliaLib %s is already staged — will be applied on next restart.",
                     best.version));
-                return;
+                return new UpdateOutcome(UpdateStatus.ALREADY_STAGED, best.version, null);
             }
 
             plugin.getLogger().info(String.format(
@@ -159,10 +175,37 @@ public final class ExyliaLibUpdater {
             downloadWithVerification(best, dest, plugin);
             plugin.getLogger().info(String.format(
                 "ExyliaLib %s ready — will be applied on next restart.", best.version));
+            return new UpdateOutcome(UpdateStatus.STAGED, best.version, null);
         } catch (Exception e) {
             plugin.getLogger().log(Level.WARNING,
                 "Failed to download ExyliaLib " + best.version + ": " + e.getMessage(), e);
+            return new UpdateOutcome(UpdateStatus.FAILED, currentVersion, e.getMessage());
         }
+    }
+
+    /**
+     * What an update check found.
+     *
+     * @param status  what happened
+     * @param version the version the status is about: the one running for
+     *                everything except a staged jar, which names the new one
+     * @param detail  why it failed, or {@code null} when it did not
+     * @since 1.65.0
+     */
+    public record UpdateOutcome(UpdateStatus status, String version, String detail) {}
+
+    /** The outcomes an update check has. */
+    public enum UpdateStatus {
+        /** {@code auto-update} is off, so the automatic passes did nothing. */
+        DISABLED,
+        /** Nothing newer within this major. */
+        UP_TO_DATE,
+        /** The newer jar was already sitting in the update folder. */
+        ALREADY_STAGED,
+        /** The newer jar was downloaded, verified and staged. */
+        STAGED,
+        /** The manifest or the download could not be read. */
+        FAILED
     }
 
     /**

@@ -14,6 +14,9 @@ import net.exylia.lib.platform.Platform;
 import net.exylia.lib.redis.Redis;
 import net.exylia.lib.region.Regions;
 import net.exylia.lib.scoreboard.internal.BoardManager;
+import net.exylia.lib.internal.ExyliaLibUpdater.UpdateOutcome;
+import net.exylia.lib.internal.ExyliaLibUpdater.UpdateStatus;
+import net.exylia.lib.task.Tasks;
 import net.exylia.lib.text.Text;
 import net.exylia.lib.ui.Menus;
 import org.bukkit.Bukkit;
@@ -33,6 +36,7 @@ import revxrsal.commands.node.ExecutionContext;
 
 import java.nio.file.Path;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 import java.util.function.Supplier;
 
 /**
@@ -87,11 +91,18 @@ public final class ReloadCommand {
     /** How a transfer is started, injected so a test does not need a database. */
     private final TransferAccess transfers;
 
+    /**
+     * How an update check is started, injected so a test does not need a
+     * network. Returns a future because the check talks to GitHub and the
+     * command runs on the main thread.
+     */
+    private final Supplier<CompletableFuture<UpdateOutcome>> updateCheck;
+
     public ReloadCommand(@NotNull ExyliaLib plugin) {
         this(plugin::reloadPalette, plugin::version, Platform::current,
                 LibrarySettings::get, () -> dependentsOf(plugin),
                 () -> plugin.getDataFolder().toPath().resolve("dumps"),
-                TransferAccess.live());
+                TransferAccess.live(), () -> checkAsync(plugin));
     }
 
     /** Test seam: every data source is injected. */
@@ -105,6 +116,16 @@ public final class ReloadCommand {
     ReloadCommand(Runnable paletteReload, Supplier<String> version, Supplier<Platform> platform,
                   Supplier<LibrarySettings> settings, Supplier<List<Dependent>> dependents,
                   Supplier<Path> dumpFolder, TransferAccess transfers) {
+        this(paletteReload, version, platform, settings, dependents, dumpFolder, transfers,
+                () -> CompletableFuture.completedFuture(
+                        new UpdateOutcome(UpdateStatus.UP_TO_DATE, version.get(), null)));
+    }
+
+    /** Test seam: the update side too, so no network has to exist. */
+    ReloadCommand(Runnable paletteReload, Supplier<String> version, Supplier<Platform> platform,
+                  Supplier<LibrarySettings> settings, Supplier<List<Dependent>> dependents,
+                  Supplier<Path> dumpFolder, TransferAccess transfers,
+                  Supplier<CompletableFuture<UpdateOutcome>> updateCheck) {
         this.paletteReload = paletteReload;
         this.version = version;
         this.platform = platform;
@@ -112,6 +133,30 @@ public final class ReloadCommand {
         this.dependents = dependents;
         this.dumpFolder = dumpFolder;
         this.transfers = transfers;
+        this.updateCheck = updateCheck;
+    }
+
+    /**
+     * Runs the check off the main thread and hands back its answer.
+     *
+     * <p>The check is an HTTP round trip and, when there is something to fetch,
+     * a two-megabyte download. On the main thread that is the server frozen for
+     * as long as GitHub takes.
+     */
+    private static CompletableFuture<UpdateOutcome> checkAsync(ExyliaLib plugin) {
+        CompletableFuture<UpdateOutcome> answer = new CompletableFuture<>();
+        Tasks.of(plugin).runAsync(() -> {
+            try {
+                answer.complete(ExyliaLibUpdater.stageNow(plugin));
+            } catch (Throwable failure) {
+                // Completed rather than rethrown: a sender who typed the
+                // command is owed an answer, and an uncaught throwable on the
+                // async thread would leave them watching nothing happen.
+                answer.complete(new UpdateOutcome(
+                        UpdateStatus.FAILED, plugin.version(), String.valueOf(failure.getMessage())));
+            }
+        });
+        return answer;
     }
 
     /**
@@ -129,6 +174,8 @@ public final class ReloadCommand {
                 + "{muted}/exylialib info{letters} — version, platform and who depends on this library."
                 + "\n{letters_black}▎ {secondary}Stats {letters_black}» {letters}"
                 + "{muted}/exylialib stats{letters} — live counters from every module."
+                + "\n{letters_black}▎ {secondary}Update {letters_black}» {letters}"
+                + "{muted}/exylialib update{letters} — checks GitHub now and stages a newer release."
                 + "\n{letters_black}▎ {secondary}Export {letters_black}» {letters}"
                 + "{muted}/exylialib export <plugin>{letters} — writes that plugin's tables to a dump."
                 + "\n{letters_black}▎ {secondary}Import {letters_black}» {letters}"
@@ -242,6 +289,68 @@ public final class ReloadCommand {
                 .append(Redis.isActive() ? "{success}on {letters_black}(" + Redis.stats() + ")" : "{muted}off");
 
         Text.of(text.toString()).send(sender);
+    }
+
+    // ---------------------------------------------------------------- update
+
+    /**
+     * Checks GitHub now and stages a newer release if there is one.
+     *
+     * <p>Runs regardless of {@code auto-update}: that setting governs the
+     * checks nobody asked for, and this one was typed. The jar is verified
+     * against the manifest's hash and written to the update folder, which the
+     * server applies while it discovers plugins — so the answer is always
+     * "restart", never "done".
+     *
+     * @param sender who asked
+     */
+    @Subcommand("update")
+    @CommandPermission("exylialib.admin")
+    public void update(@NotNull CommandSender sender) {
+        Text.of(header()
+                + "\n{letters_black}▎ {secondary}Checking {letters_black}» {letters}"
+                + "asking GitHub for the newest release..."
+        ).send(sender);
+
+        updateCheck.get().thenAccept(outcome ->
+                Text.of(updatePanel(outcome)).send(sender));
+    }
+
+    /**
+     * The panel a finished check prints.
+     *
+     * <p>A pure function of the outcome, so every branch is testable without a
+     * network.
+     *
+     * @param outcome what the check found
+     * @return the text, palette tokens included
+     */
+    static String updatePanel(UpdateOutcome outcome) {
+        StringBuilder text = new StringBuilder("{primary}&lEXYLIALIB&r {muted}update");
+        switch (outcome.status()) {
+            case UP_TO_DATE, DISABLED -> text
+                    .append("\n{letters_black}▎ {success}Up to date {letters_black}» {letters}running {info}")
+                    .append(outcome.version())
+                    .append("{letters}, which is the newest release.");
+            case STAGED -> text
+                    .append("\n{letters_black}▎ {success}Staged {letters_black}» {info}")
+                    .append(outcome.version())
+                    .append(" {letters}downloaded and verified.")
+                    .append("\n\n{warning}➥ Restart the server to apply it")
+                    .append("\n{letters_black}▎ {muted}A reload cannot swap a library every plugin is bound to.");
+            case ALREADY_STAGED -> text
+                    .append("\n{letters_black}▎ {secondary}Already staged {letters_black}» {info}")
+                    .append(outcome.version())
+                    .append(" {letters}is waiting in the update folder.")
+                    .append("\n\n{warning}➥ Restart the server to apply it");
+            case FAILED -> text
+                    .append("\n{letters_black}▎ {error}Failed {letters_black}» {letters}")
+                    .append(outcome.detail() == null ? "the check did not finish" : outcome.detail())
+                    .append("\n{letters_black}▎ {muted}Still running {letters}")
+                    .append(outcome.version())
+                    .append("{muted}. Nothing was changed.");
+        }
+        return text.toString();
     }
 
     // -------------------------------------------------------------- transfer
