@@ -298,7 +298,7 @@ public final class ReloadCommand {
      *
      * <p>Runs regardless of {@code auto-update}: that setting governs the
      * checks nobody asked for, and this one was typed. The jar is verified
-     * against the manifest's hash and written to the update folder, which the
+     * to be the release it claims and written to the update folder, which the
      * server applies while it discovers plugins — so the answer is always
      * "restart", never "done".
      *

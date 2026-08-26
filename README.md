@@ -44,7 +44,15 @@ Full per-module API references live in [docs/](docs/README.md).
 ### Server
 
 Drop `ExyliaLib.jar` into `plugins/`. Plugins that depend on it will refuse to
-load without it.
+load without it. Every release publishes the jar under that fixed name, so one
+link always serves the newest one:
+
+```
+https://github.com/DiGround-s/ExyliaLib/releases/latest/download/ExyliaLib.jar
+```
+
+After the first start the library keeps itself current from that same link —
+see [reload.md](docs/reload.md).
 
 Scoreboards need nothing extra installed: the packet-level sidebar library
 travels inside the jar, relocated, so there is exactly one copy of it on the
@@ -1239,12 +1247,18 @@ The workflow builds and tests the version from `build.gradle`, creates the GitHu
 release and tag, and updates and pushes `lib-manifest.json` automatically. Local
 `publishToMavenLocal` is only for local consumer validation.
 
+`lib-manifest.json` is no longer read by the library itself — the updater
+resolves `releases/latest/download/ExyliaLib.jar` — but the bootstrap
+installers in ExyliaCommons and the Lukittu loader still fetch it, and the
+copies of those already sitting on servers cannot be changed. It keeps being
+published for them; it can be dropped once no deployed jar reads it.
+
 ### Modrinth
 
 Every stable release is mirrored to Modrinth by the last step of the same
-workflow, after the manifest has been published: the manifest is what each
-server's updater reads, so a Modrinth outage can never leave a release that no
-server is offered. The step needs two repository settings, and skips itself with
+workflow, after the release itself: the GitHub release is what every server's
+updater reads, so a Modrinth outage can never leave a release that no server is
+offered. The step needs two repository settings, and skips itself with
 a log line when either is missing:
 
 | Setting | Where | What |
@@ -1270,26 +1284,6 @@ Modrinth itself reject a genuine duplicate.
 
 The PAT needs three scopes: **Create versions** for the upload, and **Read
 projects** plus **Read versions** for that check.
-
-### Dev channel
-
-Dev releases run on the separate `dev` branch and use `dev-vX.Y.Z` GitHub
-release tags plus the `dev` branch's `lib-manifest.json`. They are intended for
-test servers that never run beside production. The plugin name and file remain
-`ExyliaLib`.
-
-```bash
-./gradlew publishDev
-./gradlew promoteMain -Pversion=1.47.2
-```
-
-`publishDev` requires an authenticated GitHub CLI and dispatches the release
-workflow on `dev`; the remote workflow builds, tests, publishes the prerelease,
-and updates the Dev manifest. `promoteMain` requires the exact published Dev
-version. Its workflow downloads that Dev release, validates the release tag,
-asset bytes, SHA-256, Dev manifest entry, and source commit, then publishes the
-same bytes as stable `vX.Y.Z` and updates the main manifest. Use
-`-PdryRun=true` to print either dispatch without contacting GitHub.
 
 ---
 

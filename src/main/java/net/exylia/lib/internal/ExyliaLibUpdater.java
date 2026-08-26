@@ -3,23 +3,36 @@ package net.exylia.lib.internal;
 import net.exylia.lib.ExyliaLib;
 import org.bukkit.Bukkit;
 
-import java.io.*;
+import java.io.BufferedReader;
+import java.io.File;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.*;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
+import java.nio.file.AtomicMoveNotSupportedException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
+import java.util.jar.JarFile;
 import java.util.logging.Level;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+import java.util.zip.ZipEntry;
 
 /**
  * Checks for a newer version of ExyliaLib after the server has started,
- * downloads it if the major matches, and writes it to
- * {@code plugins/update/} so the server applies it on the next restart.
+ * downloads it and writes it to {@code plugins/update/} so the server applies
+ * it on the next restart.
  *
- * <p>This runs asynchronously — it never blocks the main thread. The
- * manifest is fetched over HTTPS; the downloaded JAR is verified against
- * its SHA-256 from the manifest before being written.
+ * <p>This runs asynchronously — it never blocks the main thread. Everything
+ * it reads comes from one URL: {@code releases/latest/download/ExyliaLib.jar},
+ * which every release publishes under that fixed name. Asking for it without
+ * following the redirect answers with the release it currently points at, so
+ * the newest version is read from the {@code Location} header without
+ * downloading anything.
  *
  * <p>The update is gated by {@code auto-update: true} in
  * {@code plugins/ExyliaLib/config.yml}. If that file is absent, the
@@ -30,51 +43,20 @@ import java.util.logging.Level;
 public final class ExyliaLibUpdater {
 
     /**
-     * Where the version manifest lives.
+     * The download that always names the newest release.
      *
-     * <p>Read from the newest release rather than from the default branch. The
-     * branch copy is served by {@code raw.githubusercontent.com}, which is a
-     * CDN answering {@code cache-control: max-age=300}: for five minutes after
-     * a release, servers are told the previous version is the latest one. The
-     * window cannot be shortened from this side — a cache-busting query string
-     * is normalised away and a {@code no-cache} request header is ignored, both
-     * measured against a live edge. This URL is resolved per request and
-     * answers {@code no-cache}, so a release is visible the moment it exists.
-     *
-     * <p>It also cannot point at a release that is not published yet, which the
-     * branch copy could: the manifest commit and the release are two steps of
-     * the same job.
+     * <p>Resolved by GitHub per request, so a release is visible the moment it
+     * exists — unlike a file on the default branch, which is served by a CDN
+     * that holds it for five minutes.
      */
-    private static final String DEFAULT_MANIFEST_URL =
-        "https://github.com/DiGround-s/ExyliaLib/releases/latest/download/lib-manifest.json";
+    private static final String LATEST_JAR_URL =
+        "https://github.com/DiGround-s/ExyliaLib/releases/latest/download/ExyliaLib.jar";
 
-    /**
-     * The branch copy, used only when the release asset cannot be read.
-     *
-     * <p>A release published without its manifest asset would otherwise stop
-     * every server from ever updating again, with no way to fix it except
-     * replacing jars by hand. Five minutes of staleness is the better failure.
-     */
-    private static final String FALLBACK_MANIFEST_URL =
-        "https://raw.githubusercontent.com/DiGround-s/ExyliaLib/main/lib-manifest.json";
-    private static final String MANIFEST_URL_PROPERTY = "exylialib.manifest-url";
+    /** Pulls {@code 1.64.3} out of {@code .../releases/download/v1.64.3/ExyliaLib.jar}. */
+    private static final Pattern RELEASE_IN_LOCATION =
+        Pattern.compile("/releases/download/v(\\d+\\.\\d+\\.\\d+)/");
+
     private static final int TIMEOUT_MS = 15_000;
-
-    /**
-     * The manifest's ETag as of the last successful fetch, and the body that
-     * came with it.
-     *
-     * <p>Polling every half hour would otherwise re-download a file that
-     * changes a few times a month. The host answers a conditional request with
-     * 304 and no body, so an unchanged manifest costs a round trip and zero
-     * bytes — measured: 4340 bytes against 0.
-     *
-     * <p>Written and read only from the updater thread, which runs one check at
-     * a time; volatile so the shutdown pass on the main thread sees them.
-     */
-    private static volatile String cachedEtag;
-    private static volatile String cachedManifest;
-    private static volatile String cachedManifestUrl;
 
     private ExyliaLibUpdater() {
         throw new AssertionError("No instances.");
@@ -108,8 +90,8 @@ public final class ExyliaLibUpdater {
      *
      * <p>What {@code /exylialib update} runs. The setting governs the passes
      * nobody asked for — startup, shutdown, the poll — and an admin typing the
-     * command has asked. Nothing else differs: the same manifest, the same
-     * hash check, the same staged jar applied on the next restart.
+     * command has asked. Nothing else differs: the same release, the same
+     * checks, the same staged jar applied on the next restart.
      *
      * @param plugin the ExyliaLib plugin instance
      * @return what happened, for a caller that has somebody to tell
@@ -117,34 +99,17 @@ public final class ExyliaLibUpdater {
      */
     public static UpdateOutcome stageNow(ExyliaLib plugin) {
         String currentVersion = version(plugin);
-        String manifestUrl = configuredManifestUrl();
 
-        // Fetch the manifest over HTTPS
-        String manifestJson;
+        Release latest;
         try {
-            manifestJson = fetchString(manifestUrl);
+            latest = resolveLatest();
         } catch (IOException e) {
-            // Only for the default URL: an operator or a loader that named its
-            // own manifest means that one, and quietly reading a different file
-            // would update a server from a channel it did not ask for.
-            if (!manifestUrl.equals(DEFAULT_MANIFEST_URL)) {
-                plugin.getLogger().log(Level.WARNING,
-                    "Could not check for ExyliaLib updates: " + e.getMessage());
-                return new UpdateOutcome(UpdateStatus.FAILED, currentVersion, e.getMessage());
-            }
-            plugin.getLogger().fine(
-                "Manifest asset unreadable (" + e.getMessage() + ") — falling back to the branch copy.");
-            try {
-                manifestJson = fetchString(FALLBACK_MANIFEST_URL);
-            } catch (IOException fallbackFailure) {
-                plugin.getLogger().log(Level.WARNING,
-                    "Could not check for ExyliaLib updates: " + fallbackFailure.getMessage());
-                return new UpdateOutcome(UpdateStatus.FAILED, currentVersion, fallbackFailure.getMessage());
-            }
+            plugin.getLogger().log(Level.WARNING,
+                "Could not check for ExyliaLib updates: " + e.getMessage());
+            return new UpdateOutcome(UpdateStatus.FAILED, currentVersion, e.getMessage());
         }
 
-        ManifestEntry best = findNewerVersion(manifestJson, currentVersion);
-        if (best == null) {
+        if (!isNewer(latest.version, currentVersion)) {
             plugin.getLogger().fine("ExyliaLib " + currentVersion + " is up to date.");
             return new UpdateOutcome(UpdateStatus.UP_TO_DATE, currentVersion, null);
         }
@@ -156,29 +121,29 @@ public final class ExyliaLibUpdater {
 
             // Startup already staged this one, or a previous shutdown did.
             // Downloading it again would cost the admin a slower stop for a
-            // file that is byte for byte what is already sitting there.
+            // file that is already the release we would fetch.
             //
             // Checked before announcing anything: on a poll this is the usual
             // outcome, and a line every half hour about a jar that has not
             // moved is noise the console does not need.
-            if (isAlready(dest, best.sha256)) {
+            if (isAlready(dest, latest.version)) {
                 plugin.getLogger().fine(String.format(
                     "ExyliaLib %s is already staged — will be applied on next restart.",
-                    best.version));
-                return new UpdateOutcome(UpdateStatus.ALREADY_STAGED, best.version, null);
+                    latest.version));
+                return new UpdateOutcome(UpdateStatus.ALREADY_STAGED, latest.version, null);
             }
 
             plugin.getLogger().info(String.format(
                 "ExyliaLib %s is available (current: %s). Downloading...",
-                best.version, currentVersion));
+                latest.version, currentVersion));
 
-            downloadWithVerification(best, dest, plugin);
+            downloadWithVerification(latest, dest);
             plugin.getLogger().info(String.format(
-                "ExyliaLib %s ready — will be applied on next restart.", best.version));
-            return new UpdateOutcome(UpdateStatus.STAGED, best.version, null);
+                "ExyliaLib %s ready — will be applied on next restart.", latest.version));
+            return new UpdateOutcome(UpdateStatus.STAGED, latest.version, null);
         } catch (Exception e) {
             plugin.getLogger().log(Level.WARNING,
-                "Failed to download ExyliaLib " + best.version + ": " + e.getMessage(), e);
+                "Failed to download ExyliaLib " + latest.version + ": " + e.getMessage(), e);
             return new UpdateOutcome(UpdateStatus.FAILED, currentVersion, e.getMessage());
         }
     }
@@ -198,37 +163,26 @@ public final class ExyliaLibUpdater {
     public enum UpdateStatus {
         /** {@code auto-update} is off, so the automatic passes did nothing. */
         DISABLED,
-        /** Nothing newer within this major. */
+        /** Nothing newer has been released. */
         UP_TO_DATE,
         /** The newer jar was already sitting in the update folder. */
         ALREADY_STAGED,
         /** The newer jar was downloaded, verified and staged. */
         STAGED,
-        /** The manifest or the download could not be read. */
+        /** The release or the download could not be read. */
         FAILED
     }
 
     /**
      * Returns whether {@code file} already holds exactly the expected release.
      *
-     * <p>Compares the hash rather than trusting the file name: a staged jar
-     * from an interrupted download would carry the right name and the wrong
-     * bytes, and skipping on name alone would keep serving it forever.
+     * <p>Reads the version out of the jar rather than trusting the file name: a
+     * staged jar from an interrupted download carries the right name and is not
+     * a readable jar at all, and skipping on name alone would keep serving it
+     * forever.
      */
-    private static boolean isAlready(Path file, String expectedSha256) {
-        if (expectedSha256 == null || !expectedSha256.matches("^[a-fA-F0-9]{64}$")) return false;
-        if (!Files.isRegularFile(file)) return false;
-        try {
-            MessageDigest md = MessageDigest.getInstance("SHA-256");
-            byte[] digest = md.digest(Files.readAllBytes(file));
-            StringBuilder sb = new StringBuilder();
-            for (byte b : digest) sb.append(String.format("%02x", b));
-            return sb.toString().equalsIgnoreCase(expectedSha256);
-        } catch (NoSuchAlgorithmException e) {
-            throw new AssertionError("SHA-256 required", e);
-        } catch (IOException e) {
-            return false;
-        }
+    private static boolean isAlready(Path file, String expectedVersion) {
+        return expectedVersion != null && expectedVersion.equals(jarVersion(file));
     }
 
     // ---- internal ----
@@ -236,16 +190,6 @@ public final class ExyliaLibUpdater {
     @SuppressWarnings("deprecation")
     private static String version(ExyliaLib plugin) {
         return plugin.getDescription().getVersion();
-    }
-
-    /**
-     * Uses the URL embedded by a Lukittu loader when one is present. A library
-     * started without a loader, or by an older stable loader, keeps the stable
-     * main-branch behavior.
-     */
-    private static String configuredManifestUrl() {
-        String configured = System.getProperty(MANIFEST_URL_PROPERTY);
-        return configured == null || configured.isBlank() ? DEFAULT_MANIFEST_URL : configured;
     }
 
     /**
@@ -259,121 +203,104 @@ public final class ExyliaLibUpdater {
         return updateFolder.toPath();
     }
 
-    private static String fetchString(String urlStr) throws IOException {
+    /**
+     * Asks GitHub which release {@code latest} points at, without downloading
+     * it.
+     *
+     * <p>A {@code HEAD} that does not follow the redirect costs a round trip
+     * and no body, and neither touches the API nor its 60-requests-per-hour
+     * limit. The versioned URL it answers with is what the download then uses:
+     * a release published between these two calls cannot swap the bytes
+     * underneath a download that is already running.
+     */
+    private static Release resolveLatest() throws IOException {
+        HttpURLConnection conn = null;
         try {
-            if (!urlStr.equals(cachedManifestUrl)) {
-                cachedEtag = null;
-                cachedManifest = null;
-                cachedManifestUrl = null;
-            }
-
-            URI uri = new URI(urlStr);
-            HttpURLConnection conn = (HttpURLConnection) uri.toURL().openConnection();
+            conn = (HttpURLConnection) URI.create(LATEST_JAR_URL).toURL().openConnection();
+            conn.setRequestMethod("HEAD");
+            conn.setInstanceFollowRedirects(false);
             conn.setConnectTimeout(TIMEOUT_MS);
             conn.setReadTimeout(TIMEOUT_MS);
-            conn.setRequestProperty("Accept", "application/json");
             conn.setRequestProperty("User-Agent", "ExyliaLib-Updater/1.0");
 
-            String etag = cachedEtag;
-            String body = cachedManifest;
-            if (etag != null && body != null) {
-                conn.setRequestProperty("If-None-Match", etag);
-            }
-
             int code = conn.getResponseCode();
-            if (code == HttpURLConnection.HTTP_NOT_MODIFIED && body != null) {
-                return body;
-            }
-            if (code != 200) {
-                throw new IOException("Manifest fetch returned HTTP " + code);
+            String location = conn.getHeaderField("Location");
+            if (code / 100 != 3 || location == null) {
+                throw new IOException("Latest release lookup returned HTTP " + code);
             }
 
-            try (InputStream in = conn.getInputStream();
-                 ByteArrayOutputStream out = new ByteArrayOutputStream()) {
-                byte[] buf = new byte[4096];
-                int n;
-                while ((n = in.read(buf)) != -1) out.write(buf, 0, n);
-                String fetched = out.toString(StandardCharsets.UTF_8);
-                // Cached together so a 304 can never pair an old body with a
-                // new tag: either both are replaced or neither is.
-                cachedManifest = fetched;
-                cachedEtag = conn.getHeaderField("ETag");
-                cachedManifestUrl = urlStr;
-                return fetched;
+            String version = versionFromLocation(location);
+            if (version == null) {
+                throw new IOException("Could not read a version out of " + location);
             }
-        } catch (Exception e) {
-            throw new IOException("Failed to fetch " + urlStr + ": " + e.getMessage(), e);
+            return new Release(version, location);
+        } catch (IOException e) {
+            throw e;
+        } catch (RuntimeException e) {
+            throw new IOException("Failed to reach " + LATEST_JAR_URL + ": " + e.getMessage(), e);
+        } finally {
+            if (conn != null) conn.disconnect();
         }
     }
 
     /**
-     * Parses the manifest and returns the best version newer than
-     * {@code current} within the same major.
+     * Reads the release version out of the URL {@code latest} redirects to, or
+     * {@code null} when it is not a release download at all.
      */
-    private static ManifestEntry findNewerVersion(String json, String current) {
-        // Manual parsing to avoid depending on Gson at runtime.
-        // The manifest format is simple enough for string-based extraction.
-        int currentMajor = majorOf(current);
-        int[] currentTriple = parseTriple(current);
-
-        String bestVersion = null;
-        String bestUrl = null;
-        String bestSha256 = null;
-        int[] bestTriple = null;
-
-        // Find the "latest" marker for this major
-        String latestKey = "\"major" + currentMajor + "\"";
-        int latestIdx = json.indexOf(latestKey);
-        if (latestIdx < 0) return null;
-
-        // Extract the latest version string for this major
-        int colonIdx = json.indexOf(':', latestIdx + latestKey.length());
-        if (colonIdx < 0) return null;
-        int openQuote = json.indexOf('"', colonIdx + 1);
-        if (openQuote < 0) return null;
-        int closeQuote = json.indexOf('"', openQuote + 1);
-        if (closeQuote < 0) return null;
-        String latestVersion = json.substring(openQuote + 1, closeQuote);
-
-        // Is it actually newer?
-        int[] latestTriple = parseTriple(latestVersion);
-        if (latestTriple == null) return null;
-        if (compareSemver(latestTriple, currentTriple) <= 0) return null;
-
-        // Find the version entry in the "versions" block
-        String search = "\"" + latestVersion + "\"";
-        int versionIdx = json.indexOf(search);
-        if (versionIdx < 0) return null;
-
-        // Extract URL
-        String urlKey = "\"url\"";
-        int urlKeyIdx = json.indexOf(urlKey, versionIdx);
-        if (urlKeyIdx < 0) return null;
-        int urlOpenQuote = json.indexOf('"', urlKeyIdx + urlKey.length());
-        if (urlOpenQuote < 0) return null;
-        int urlCloseQuote = json.indexOf('"', urlOpenQuote + 1);
-        if (urlCloseQuote < 0) return null;
-        String url = json.substring(urlOpenQuote + 1, urlCloseQuote);
-
-        // Extract SHA-256
-        String shaKey = "\"sha256\"";
-        int shaKeyIdx = json.indexOf(shaKey, versionIdx);
-        if (shaKeyIdx < 0) return null;
-        int shaOpenQuote = json.indexOf('"', shaKeyIdx + shaKey.length());
-        if (shaOpenQuote < 0) return null;
-        int shaCloseQuote = json.indexOf('"', shaOpenQuote + 1);
-        if (shaCloseQuote < 0) return null;
-        String sha256 = json.substring(shaOpenQuote + 1, shaCloseQuote);
-
-        return new ManifestEntry(latestVersion, url, sha256);
+    private static String versionFromLocation(String location) {
+        if (location == null) return null;
+        Matcher matcher = RELEASE_IN_LOCATION.matcher(location);
+        return matcher.find() ? matcher.group(1) : null;
     }
 
-    private static void downloadWithVerification(ManifestEntry entry, Path dest,
-                                                  ExyliaLib plugin) throws IOException {
+    /**
+     * Reads the version a jar declares in its {@code plugin.yml}, or
+     * {@code null} when the file is absent, unreadable, or not an ExyliaLib
+     * jar.
+     */
+    private static String jarVersion(Path jar) {
+        if (!Files.isRegularFile(jar)) return null;
+        try (JarFile file = new JarFile(jar.toFile())) {
+            ZipEntry entry = file.getEntry("plugin.yml");
+            if (entry == null) return null;
+            try (BufferedReader reader = new BufferedReader(
+                new InputStreamReader(file.getInputStream(entry), StandardCharsets.UTF_8))) {
+                String line;
+                while ((line = reader.readLine()) != null) {
+                    if (!line.startsWith("version:")) continue;
+                    String value = line.substring("version:".length()).trim();
+                    if (value.length() >= 2
+                        && (value.charAt(0) == '\'' || value.charAt(0) == '"')
+                        && value.charAt(value.length() - 1) == value.charAt(0)) {
+                        value = value.substring(1, value.length() - 1);
+                    }
+                    return value.isBlank() ? null : value;
+                }
+            }
+            return null;
+        } catch (IOException e) {
+            // Truncated, half-written, or not a zip: not the release we want.
+            return null;
+        }
+    }
+
+    private static void downloadWithVerification(Release release, Path dest) throws IOException {
         Path tmp = Files.createTempFile(dest.getParent(), "ExyliaLib", ".tmp");
         try {
-            downloadFile(entry.url, tmp);
-            verifySha256(tmp, entry.sha256);
+            downloadFile(release.url, tmp);
+
+            // What a hash used to cover: a download cut short by a dropped
+            // connection is not a readable jar, and one that somehow answered
+            // with a different release does not declare this version. Both
+            // leave the staged jar untouched instead of handing the server a
+            // library it cannot load.
+            String downloaded = jarVersion(tmp);
+            if (!release.version.equals(downloaded)) {
+                throw new IOException(downloaded == null
+                    ? "The download is not a readable ExyliaLib jar"
+                    : "The download declares " + downloaded + ", expected " + release.version);
+            }
+
             try {
                 Files.move(tmp, dest, StandardCopyOption.REPLACE_EXISTING,
                            StandardCopyOption.ATOMIC_MOVE);
@@ -413,32 +340,23 @@ public final class ExyliaLibUpdater {
         }
     }
 
-    private static void verifySha256(Path file, String expected) throws IOException {
-        if (expected == null || !expected.matches("^[a-fA-F0-9]{64}$")) {
-            throw new IOException("Invalid SHA-256 hash in ExyliaLib manifest");
-        }
-        try {
-            MessageDigest md = MessageDigest.getInstance("SHA-256");
-            byte[] digest = md.digest(Files.readAllBytes(file));
-            StringBuilder sb = new StringBuilder();
-            for (byte b : digest) sb.append(String.format("%02x", b));
-            String actual = sb.toString();
-            if (!actual.equalsIgnoreCase(expected)) {
-                throw new IOException(String.format(
-                    "SHA-256 mismatch.%nExpected: %s%nGot:      %s", expected, actual));
-            }
-        } catch (NoSuchAlgorithmException e) {
-            throw new AssertionError("SHA-256 required", e);
-        }
-    }
-
     // --- semver helpers ---
 
-    private static int majorOf(String v) {
-        int dot = v.indexOf('.');
-        if (dot <= 0) return 0;
-        try { return Integer.parseInt(v.substring(0, dot)); }
-        catch (NumberFormatException e) { return 0; }
+    /**
+     * Returns whether {@code candidate} is a release worth installing over
+     * {@code current}.
+     *
+     * <p>Only the direction is checked, not the major: a server runs whatever
+     * is newest. What it does refuse is going backwards — a build ahead of the
+     * newest release, which is what a developer running a local jar has, is
+     * left alone rather than pulled back to it.
+     */
+    private static boolean isNewer(String candidate, String current) {
+        int[] a = parseTriple(candidate);
+        int[] b = parseTriple(current);
+        if (a == null) return false;
+        if (b == null) return true;
+        return compareSemver(a, b) > 0;
     }
 
     private static int[] parseTriple(String v) {
@@ -462,7 +380,7 @@ public final class ExyliaLibUpdater {
         return 0;
     }
 
-    // --- manifest entry ---
+    // --- the release `latest` currently points at ---
 
-    private record ManifestEntry(String version, String url, String sha256) {}
+    private record Release(String version, String url) {}
 }

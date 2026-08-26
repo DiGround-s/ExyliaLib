@@ -95,10 +95,9 @@ known limitation actually bites. See [transfer.md](transfer.md).
 
 ## Staying up to date (since 1.30.0)
 
-The library updates itself. A newer release is downloaded, verified against
-the SHA-256 in the manifest, and written to `plugins/update/`, which the
-server applies while it discovers plugins — so the update costs one restart,
-not two.
+The library updates itself. A newer release is downloaded, checked to be the
+release it claims, and written to `plugins/update/`, which the server applies
+while it discovers plugins — so the update costs one restart, not two.
 
 Four moments trigger a check:
 
@@ -111,9 +110,9 @@ Four moments trigger a check:
 
 ### `/exylialib update` (since 1.65.0)
 
-Does exactly what the automatic passes do — same manifest, same hash check,
-same staged jar — but when asked rather than on a timer, and it answers the
-sender instead of the console:
+Does exactly what the automatic passes do — same release, same checks, same
+staged jar — but when asked rather than on a timer, and it answers the sender
+instead of the console:
 
 ```
 /exylialib update
@@ -144,25 +143,31 @@ update-check-minutes: 30   # 0 leaves only the startup and shutdown checks
 **Several releases before one restart is the normal case.** Each check
 compares against the version *running*, not against the jar already staged,
 so the newest release always wins and simply overwrites what is waiting. A
-staged jar whose hash already matches is left alone rather than downloaded
-again.
+staged jar that already declares the release being offered is left alone
+rather than downloaded again.
 
-Polling is cheap and does not touch any rate limit. The manifest is read
-from the newest release — `releases/latest/download/lib-manifest.json` —
-which is neither the GitHub API nor a cached branch file, so the
+Polling is cheap and does not touch any rate limit. Everything the updater
+reads comes from one URL — `releases/latest/download/ExyliaLib.jar` — which
+every release publishes under that fixed name. Asked with `HEAD` and without
+following the redirect, it answers with the release it currently points at
+(`.../releases/download/v1.64.3/ExyliaLib.jar`) and no body at all: the
+newest version is read out of that header for the cost of a round trip. It is
+neither the GitHub API nor a cached branch file, so the
 60-requests-per-hour limit does not apply and a release is visible the moment
-it exists. Checks are conditional on the file's ETag, so an unchanged
-manifest answers `304` with an empty body: measured at 4340 bytes for a
-changed manifest against 0 for an unchanged one. At 30 minutes that is 48
-round trips a day.
+it exists. At 30 minutes that is 48 round trips a day.
 
-The copy on `main` is still written by the same release job and is still
-read, but only as a fallback when the release asset cannot be fetched. It is
-served by `raw.githubusercontent.com` with `cache-control: max-age=300`, so
-for up to five minutes after a release it still names the version before it —
-a window that cannot be shortened from the client side, since a cache-busting
-query string is normalised away and a `no-cache` request header is ignored.
-That is why the release asset is the one the updater asks for first.
+The download then uses the versioned URL the redirect named rather than
+following `latest` a second time, so a release published in between cannot
+swap the bytes underneath a download already running. What arrives is opened
+as a jar and has to declare exactly that version before it replaces anything
+staged: a download cut short is not a readable jar, and one that answered
+with something else does not carry the version. Both leave the staged jar
+untouched.
+
+**The major is not a gate.** A server is offered whatever is newest, 2.0.0
+included. The only direction that is refused is backwards: a build ahead of
+the newest release — what a developer running a local jar has — is left
+alone.
 
 ## A plugin: `Reloads` (since 1.15.0)
 
