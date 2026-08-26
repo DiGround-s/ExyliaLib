@@ -39,6 +39,10 @@ public record UiAnimationSpec(@NotNull String type, int speed) {
 
     public UiAnimationSpec {
         type = type.trim().toLowerCase(Locale.ROOT);
+        // An empty name is how a file says "no animation", not a typo.
+        if (type.isEmpty()) {
+            type = "none";
+        }
         speed = Math.max(1, speed);
     }
 

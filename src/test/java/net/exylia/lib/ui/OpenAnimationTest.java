@@ -262,6 +262,16 @@ class OpenAnimationTest {
     }
 
     @Test
+    @DisplayName("an empty name is no animation, not an unknown one")
+    void blankIsNone() {
+        // "animation: ''" is how a file turns the animation off; warning about
+        // it would be a warning about working configuration.
+        assertEquals("none", UiAnimationSpec.of("").type());
+        assertEquals("none", UiAnimationSpec.of("   ").type());
+        assertTrue(frames("", 54).isEmpty());
+    }
+
+    @Test
     @DisplayName("the same shape and size is worked out once")
     void framesAreCached() {
         // 81 menus asking the same question should not be 81 answers. This one
