@@ -1283,9 +1283,9 @@ MODRINTH_TOKEN=... MODRINTH_PROJECT=exylialib ./publish-modrinth.sh 1.64.2 Exyli
 
 Re-running is safe: the script asks Modrinth for the project's versions first
 and does nothing when the version number is already published. That listing is
-advisory rather than a gate — a project still in draft answers 404 to it while
-accepting uploads perfectly well — so a failed check carries on and lets
-Modrinth itself reject a genuine duplicate.
+the whole of the guard — Modrinth does not enforce unique version numbers, and
+uploading `1.2.3` twice leaves two of them on the page — so a token that cannot
+read it stops the upload rather than risking a duplicate.
 
 The PAT needs three scopes: **Create versions** for the upload, and **Read
 projects** plus **Read versions** to resolve the project and run that check.

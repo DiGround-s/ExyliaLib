@@ -37,32 +37,31 @@ trap 'rm -rf "$work"' EXIT
 # don't have permission to upload this version" — which reads as a token
 # problem and is not one. So the slug is resolved here, and only what this
 # returns is ever sent.
-project="$MODRINTH_PROJECT"
-if curl -sS -o "$work/project.json" -f \
+if ! curl -sS -o "$work/project.json" -f \
   -H "Authorization: ${MODRINTH_TOKEN}" \
   -H "User-Agent: ${user_agent}" \
   "https://api.modrinth.com/v2/project/${MODRINTH_PROJECT}"; then
-  project="$(jq -r '.id' "$work/project.json")"
-  echo "Publishing to $(jq -r '.title' "$work/project.json") (${project})."
-else
-  echo "Could not resolve ${MODRINTH_PROJECT}; sending it as given."
+  echo "Could not read project ${MODRINTH_PROJECT}. The token needs the Read projects scope." >&2
+  exit 1
 fi
+project="$(jq -r '.id' "$work/project.json")"
+echo "Publishing to $(jq -r '.title' "$work/project.json") (${project})."
 
-# Only to make a retry idempotent, so it is advisory: a project that is still a
-# draft answers 404 here while accepting versions perfectly well, and a token
-# without the read scopes answers 401. Neither is a reason not to try the
-# upload, which reports a genuine duplicate itself.
-status="$(curl -sS -o "$work/versions.json" -w '%{http_code}' \
+# Modrinth does not enforce unique version numbers: uploading 1.2.3 twice leaves
+# two of them on the page, which is what a re-run of the release job does. This
+# listing is the only thing standing between a retry and a duplicate, so it is a
+# gate rather than a hint, and not being able to read it stops the upload.
+if ! curl -sS -o "$work/versions.json" -f \
   -H "Authorization: ${MODRINTH_TOKEN}" \
   -H "User-Agent: ${user_agent}" \
-  "https://api.modrinth.com/v2/project/${project}/version" || echo 000)"
-if [[ "$status" == "200" ]]; then
-  if jq -e --arg v "$version" 'any(.[]; .version_number == $v)' "$work/versions.json" >/dev/null; then
-    echo "Modrinth already has version ${version}; nothing to do."
-    exit 0
-  fi
-else
-  echo "Could not list existing versions (HTTP ${status}); uploading anyway."
+  "https://api.modrinth.com/v2/project/${project}/version"; then
+  echo "Could not list existing versions. The token needs the Read versions scope." >&2
+  echo "Uploading without this check would publish a second copy of a version that is already there." >&2
+  exit 1
+fi
+if jq -e --arg v "$version" 'any(.[]; .version_number == $v)' "$work/versions.json" >/dev/null; then
+  echo "Modrinth already has version ${version}; nothing to do."
+  exit 0
 fi
 
 changelog=""
