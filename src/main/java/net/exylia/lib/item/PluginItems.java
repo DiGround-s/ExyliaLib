@@ -192,7 +192,7 @@ public final class PluginItems {
      * @param values     placeholder names to what they resolve to
      * @param formatted  which of those names are parsed rather than inserted literally
      * @return the item
-     * @since 1.67.0
+     * @since 1.68.0
      */
     public @NotNull ItemStack renderIcon(@NotNull Item definition, @Nullable Player viewer,
                                          @NotNull Map<String, String> values,

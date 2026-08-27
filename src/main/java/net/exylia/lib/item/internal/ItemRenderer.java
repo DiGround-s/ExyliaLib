@@ -124,7 +124,7 @@ public final class ItemRenderer {
      * @param formatted  which of those values are parsed rather than inserted literally
      * @param problems   where to report parts that could not be applied
      * @return the item
-     * @since 1.67.0
+     * @since 1.68.0
      */
     public static ItemStack renderIcon(Item definition, Player viewer, Plugin owner,
                                        Map<String, String> values, Set<String> formatted,
