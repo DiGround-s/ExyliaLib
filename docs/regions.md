@@ -335,7 +335,7 @@ SelectionOptions quiet = SelectionOptions.builder()
         .previewParticle("END_ROD")              // default; null draws nothing
         .previewSpacing(1.0)
         .previewPeriodTicks(5L)
-        .feedback(true)                          // default — coordinates and volume
+        .feedback(true)                          // default — coordinates, volume, standing prompt
         .selectorName("{primary}&lARENA SELECTOR")
         .selectorLore(List.of("{letters}Pick two corners"))
         .build();
@@ -345,6 +345,12 @@ A plugin that draws its own outline turns the preview off; one asking for a
 corner inside its own flow turns the confirmation off and answers on the second
 click. `feedback(false)` silences the library's own messages for a plugin that
 words them itself.
+
+`feedback(true)` also keeps a standing action bar up for as long as the session
+lives: what to click next while corners are missing, and `shift + left-click to
+confirm` with the volume once the box is complete. It names the selector's own
+material, so a plugin that changes it never has a prompt saying otherwise, and
+it goes away with the session rather than after a couple of seconds.
 
 ### The states
 

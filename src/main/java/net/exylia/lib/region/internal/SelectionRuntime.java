@@ -1,6 +1,7 @@
 package net.exylia.lib.region.internal;
 
 import net.exylia.lib.debug.Debug;
+import net.exylia.lib.effect.Display;
 import net.exylia.lib.effect.Effects;
 import net.exylia.lib.region.BlockPosition;
 import net.exylia.lib.region.Cuboid;
@@ -21,6 +22,7 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.HashMap;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
@@ -98,6 +100,7 @@ public final class SelectionRuntime {
             BY_PLAYER.put(playerId, session);
         }
         session.equip(player);
+        session.guide();
         return session;
     }
 
@@ -198,6 +201,7 @@ public final class SelectionRuntime {
         private BlockPosition first;
         private BlockPosition second;
         private volatile SelectionPreview preview;
+        private volatile Display guidance;
         private volatile boolean equipped;
 
         private Session(Key key, Plugin plugin, SelectionOptions options) {
@@ -285,7 +289,7 @@ public final class SelectionRuntime {
                     // admin with their own axe carries on. Saying nothing would
                     // leave them clicking with an empty hand wondering why.
                     say(player, "{warning}● {letters}No room for the selector — hold a {highlight}"
-                            + options.selectorMaterial().name() + " {letters}instead");
+                            + selectorLabel() + " {letters}instead");
                     return;
                 }
                 equipped = true;
@@ -352,6 +356,7 @@ public final class SelectionRuntime {
             Player player = watching();
             if (player != null) {
                 announce(player, selectingFirst, position, bothSet);
+                guide();
                 redraw(player);
             }
             if (!bothSet && first != null && second != null && options.requireSameWorld()) {
@@ -406,9 +411,73 @@ public final class SelectionRuntime {
                 return;
             }
             say(player, "{secondary}Selection: {info}" + volume() + " {letters}blocks");
-            if (options.requireConfirmation()) {
-                Effects.actionBar("{warning}➥ Shift + left-click to confirm").show(player);
+        }
+
+        /**
+         * Keeps what to do next on screen for as long as the selection is open.
+         *
+         * <p>An action bar rather than a chat line, and a standing one rather
+         * than a two-second one: the instruction is only useful while the
+         * player is still clicking, and a message that scrolls away leaves an
+         * admin mid-selection with nothing on screen telling them the box they
+         * are looking at still has to be confirmed. That standing prompt is
+         * what ExyliaCommons had and what the first port dropped.
+         *
+         * <p>The text is fixed once a bar is showing, so a state change stops
+         * the old one and shows the new: three of those in a whole selection.
+         */
+        private void guide() {
+            if (!options.feedback()) {
+                return;
             }
+            Player player = Bukkit.getPlayer(playerId());
+            if (player == null) {
+                return;
+            }
+            stopGuidance();
+            String text = guidanceText();
+            Plugin scheduler = RegionRuntime.library();
+            guidance = (scheduler == null
+                    ? Effects.actionBar(text)
+                    : Effects.of(scheduler).actionBar(text))
+                    .permanent()
+                    .show(player);
+        }
+
+        private String guidanceText() {
+            SelectionState now;
+            boolean hasFirst;
+            boolean hasSecond;
+            synchronized (this) {
+                now = state;
+                hasFirst = first != null;
+                hasSecond = second != null;
+            }
+            if (now == SelectionState.AWAITING_CONFIRMATION) {
+                return "{warning}➥ {letters}Shift + left-click to confirm {letters_black}» {info}"
+                        + volume() + " {letters}blocks";
+            }
+            if (hasFirst && !hasSecond) {
+                return "{letters}Right-click the {error}second corner";
+            }
+            if (hasSecond && !hasFirst) {
+                return "{letters}Left-click the {success}first corner";
+            }
+            return "{letters}Left-click and right-click two corners with the {highlight}"
+                    + selectorLabel();
+        }
+
+        private void stopGuidance() {
+            Display showing = guidance;
+            guidance = null;
+            if (showing != null) {
+                showing.stop();
+            }
+        }
+
+        /** The selector as a player would name it: {@code golden axe}, not {@code GOLDEN_AXE}. */
+        private String selectorLabel() {
+            return options.selectorMaterial().name().toLowerCase(Locale.ROOT).replace('_', ' ');
         }
 
         /** How many blocks the two corners enclose, both ends included. */
@@ -472,6 +541,7 @@ public final class SelectionRuntime {
          */
         private void releaseHeld() {
             try {
+                stopGuidance();
                 stopPreview();
                 unequip();
             } catch (RuntimeException | LinkageError broken) {
