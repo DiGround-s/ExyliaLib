@@ -49,7 +49,10 @@ menus.refreshBundledDirectory(MyPlugin.class, "menus/admin");
 ```
 
 The method discovers all regular files recursively from the plugin artifact and
-atomically replaces only `plugins/MyPlugin/menus/admin`. Files removed from the
+atomically replaces only `plugins/MyPlugin/menus/admin`. A plugin with no
+artifact on disk — one whose classes a bootstrap loader defined from bytes it
+decrypted in memory — is read from its classloader instead, so the same call
+works there. Files removed from the
 artifact disappear from that directory; other data-folder files remain untouched.
 The path must be relative and cannot be blank or escape the plugin data folder.
 Failure leaves the previous directory intact and logs a warning; success is quiet.

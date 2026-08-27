@@ -12,9 +12,11 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.net.URL;
 import java.net.URLClassLoader;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
+import java.util.Map;
 import java.util.jar.JarEntry;
 import java.util.jar.JarOutputStream;
 
@@ -82,6 +84,23 @@ class PluginMenusBundledDirectoryTest {
     }
 
     @Test
+    void readsPackagedFilesFromAClassLoaderWithNoArtifact() throws Exception {
+        List<String> messages = DebugCapture.start();
+        InMemoryClassLoader loader = new InMemoryClassLoader(Map.of(
+                "menus/admin/main.yml", "memory main".getBytes(StandardCharsets.UTF_8),
+                "menus/admin/nested/settings.yml", "memory settings".getBytes(StandardCharsets.UTF_8),
+                "menus/other/elsewhere.yml", "not mine".getBytes(StandardCharsets.UTF_8)));
+        Class<?> anchor = loader.define(JarAnchor.class.getName());
+
+        assertTrue(menus.refreshBundledDirectory(anchor, "menus/admin"), messages::toString);
+
+        assertEquals("memory main", Files.readString(folder.resolve("menus/admin/main.yml")));
+        assertEquals("memory settings", Files.readString(folder.resolve("menus/admin/nested/settings.yml")));
+        assertFalse(Files.exists(folder.resolve("menus/admin/elsewhere.yml")));
+        assertTrue(messages.isEmpty());
+    }
+
+    @Test
     void rejectsBlankAbsoluteAndTraversalPaths() {
         for (String path : List.of("", " ", ".", "menus/..", "/menus/admin", "../menus/admin", "menus/../../outside")) {
             assertThrows(IllegalArgumentException.class,
@@ -126,6 +145,35 @@ class PluginMenusBundledDirectoryTest {
     }
 
     static final class DirectoryAnchor {
+    }
+
+    /**
+     * A loader in the shape of a bootstrap loader's: classes defined from bytes,
+     * so they carry no artifact location, and resources kept in a map that only
+     * {@code getResourceAsStream} can reach.
+     */
+    private static final class InMemoryClassLoader extends java.security.SecureClassLoader {
+
+        private final Map<String, byte[]> resources;
+
+        private InMemoryClassLoader(Map<String, byte[]> resources) {
+            super(PluginMenusBundledDirectoryTest.class.getClassLoader());
+            this.resources = resources;
+        }
+
+        private Class<?> define(String name) throws IOException {
+            String path = name.replace('.', '/') + ".class";
+            try (InputStream bytecode = PluginMenusBundledDirectoryTest.class.getResourceAsStream("/" + path)) {
+                byte[] bytes = bytecode.readAllBytes();
+                return defineClass(name, bytes, 0, bytes.length);
+            }
+        }
+
+        @Override
+        public InputStream getResourceAsStream(String name) {
+            byte[] bytes = resources.get(name);
+            return bytes != null ? new java.io.ByteArrayInputStream(bytes) : super.getResourceAsStream(name);
+        }
     }
 
     static final class JarAnchor {

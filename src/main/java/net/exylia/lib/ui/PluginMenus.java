@@ -15,6 +15,8 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.io.IOException;
+import java.lang.reflect.Field;
+import java.lang.reflect.Modifier;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
@@ -22,9 +24,12 @@ import java.nio.file.AtomicMoveNotSupportedException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
+import java.security.CodeSource;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.jar.JarEntry;
@@ -371,10 +376,15 @@ public final class PluginMenus {
 
     private static void extractBundledDirectory(Class<?> anchor, Path resourceDirectory, Path staging)
             throws IOException, URISyntaxException {
-        if (anchor.getProtectionDomain().getCodeSource() == null) {
-            throw new IOException("The anchor has no artifact location.");
+        URL location = artifactOf(anchor);
+        if (location == null) {
+            // No artifact on disk to walk. A plugin whose classes were defined
+            // from bytes — a bootstrap loader that decrypts its payload in
+            // memory — has neither a jar to open nor a directory to list, and
+            // its resources live only inside its classloader.
+            extractFromClassLoader(anchor, resourceDirectory, staging);
+            return;
         }
-        URL location = anchor.getProtectionDomain().getCodeSource().getLocation();
         URI artifact = location.toURI();
         if ("file".equals(artifact.getScheme()) && Files.isDirectory(Path.of(artifact))) {
             Path source = Path.of(artifact).resolve(resourceDirectory).normalize();
@@ -391,8 +401,7 @@ public final class PluginMenus {
             return;
         }
 
-        String prefix = resourceDirectory.toString().replace('\\', '/');
-        prefix = prefix.endsWith("/") ? prefix : prefix + "/";
+        String prefix = prefixOf(resourceDirectory);
         try (JarFile jar = new JarFile(Path.of(artifact).toFile())) {
             boolean found = false;
             for (var entries = jar.entries(); entries.hasMoreElements(); ) {
@@ -414,6 +423,96 @@ public final class PluginMenus {
                 throw new IOException("Packaged directory does not exist.");
             }
         }
+    }
+
+    /**
+     * The artifact the class was loaded from, or {@code null} when there is
+     * none to read.
+     *
+     * <p>A class defined from a byte array carries the classloader's default
+     * protection domain, whose code source is present but locationless. Both
+     * that and a missing code source mean the same thing here: there is no jar
+     * or directory to walk.
+     */
+    private static URL artifactOf(Class<?> anchor) {
+        CodeSource source = anchor.getProtectionDomain().getCodeSource();
+        return source == null ? null : source.getLocation();
+    }
+
+    /** The resource path of a directory, always ending in a slash. */
+    private static String prefixOf(Path resourceDirectory) {
+        String prefix = resourceDirectory.toString().replace('\\', '/');
+        return prefix.endsWith("/") ? prefix : prefix + "/";
+    }
+
+    /**
+     * Copies a packaged directory out of the classloader itself.
+     *
+     * <p>The names come from the loader's own resource table and the bytes come
+     * back through {@link ClassLoader#getResourceAsStream}, so nothing here
+     * depends on the payload existing as a file.
+     */
+    private static void extractFromClassLoader(Class<?> anchor, Path resourceDirectory, Path staging)
+            throws IOException {
+        String prefix = prefixOf(resourceDirectory);
+        ClassLoader loader = anchor.getClassLoader();
+        Collection<String> names = bundledResourceNames(loader, prefix);
+        if (names.isEmpty()) {
+            throw new IOException("Packaged directory does not exist.");
+        }
+        for (String name : names) {
+            Path destination = staging.resolve(name.substring(prefix.length())).normalize();
+            if (!destination.startsWith(staging)) {
+                throw new IOException("Packaged entry escapes the requested directory.");
+            }
+            try (var input = loader.getResourceAsStream(name)) {
+                if (input == null) {
+                    continue;
+                }
+                Files.createDirectories(destination.getParent());
+                Files.copy(input, destination, StandardCopyOption.REPLACE_EXISTING);
+            }
+        }
+    }
+
+    /**
+     * The resources a classloader holds under a directory.
+     *
+     * <p>{@code ClassLoader} can hand back a resource by name but cannot list
+     * one, so a loader that keeps its payload in memory is asked for its table
+     * directly: every map it declares is read, and the keys that sit under the
+     * directory are the entries. Reflection is the only door there is, and a
+     * loader that does not open it simply reports nothing, which the caller
+     * reads as "no packaged directory".
+     */
+    private static Collection<String> bundledResourceNames(ClassLoader loader, String prefix) {
+        if (loader == null) {
+            return List.of();
+        }
+        List<String> names = new ArrayList<>();
+        for (Class<?> type = loader.getClass(); type != null && type != ClassLoader.class; type = type.getSuperclass()) {
+            for (Field field : type.getDeclaredFields()) {
+                if (!Map.class.isAssignableFrom(field.getType())) {
+                    continue;
+                }
+                try {
+                    field.setAccessible(true);
+                    Object value = field.get(Modifier.isStatic(field.getModifiers()) ? null : loader);
+                    if (!(value instanceof Map<?, ?> table)) {
+                        continue;
+                    }
+                    for (Object key : table.keySet()) {
+                        if (key instanceof String name && name.startsWith(prefix) && !name.endsWith("/")) {
+                            names.add(name);
+                        }
+                    }
+                } catch (RuntimeException | ReflectiveOperationException ignored) {
+                    // A table this loader will not open is a table with nothing
+                    // in it, as far as looking for packaged menus goes.
+                }
+            }
+        }
+        return names;
     }
 
     private static void move(Path source, Path target) throws IOException {
