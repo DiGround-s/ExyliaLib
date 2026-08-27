@@ -284,7 +284,17 @@ public final class PluginSchedules {
      * @return whether it was kept
      */
     public boolean fireNow(@NotNull Schedule schedule) {
-        return keep(schedule, System.currentTimeMillis(), null);
+        // Through its own slot where it has one, so the cooldown counts and the
+        // run is remembered. A schedule that is not in the set — one built by
+        // hand for a command — has no cooldown to check against.
+        Slot slot = null;
+        for (Slot candidate : slots) {
+            if (candidate.schedule.id().equals(schedule.id())) {
+                slot = candidate;
+                break;
+            }
+        }
+        return keep(schedule, System.currentTimeMillis(), slot);
     }
 
     // ---------------------------------------------------------------- the tick
@@ -324,7 +334,13 @@ public final class PluginSchedules {
                 soonest = slot.nextFire;
             }
         }
-        earliest = soonest;
+        // Only when the set is still the one that was walked. A reload racing
+        // this tick has already computed its own, and writing a value derived
+        // from the previous list over it could park the timetable on a moment
+        // that no longer belongs to anything.
+        if (slots == current) {
+            earliest = soonest;
+        }
     }
 
     private void dispatch(Slot slot, long now) {
