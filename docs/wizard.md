@@ -60,11 +60,63 @@ Here the flow is a `Wizard`, one player's pass through it is a `WizardRun` that
 nothing outside the module can reach into, and every ending goes through one
 cleanup path.
 
+## Setting one thing up
+
+A setup menu asks for the same few things everywhere: where a spawn goes, what
+area an arena covers, which block is the core. `setup` is how a plugin asks,
+and it names the thing being set rather than the gesture that sets it.
+
+```java
+wizards.setup(player, () -> ArenaSetupMenu.open(player))
+       .spawn("LOBBY SPAWN", arena.id(), where -> save(arena.withLobby(where)));
+```
+
+| Call | What it is for | The gesture it fixes |
+| --- | --- | --- |
+| `spawn(name[, context], accepted)` | Anywhere a player is later put: a spawn, a lobby, a warp, a return point | Stand there and sneak-click, so the answer carries a facing |
+| `block(name[, context], accepted)` | A block that stays a block: a spawner, a core, a pedestal, a trigger | Click it |
+| `area(name[, context], accepted)` | A volume | The shared selector |
+
+Three things are decided here rather than at the call site, because each of them
+was decided differently in four plugins before this existed.
+
+**The gesture follows from the thing.** `askStand` and `askPoint` are named for
+what the player does, so choosing between them means knowing that a spawn is
+somewhere a player is later *put* and a clicked block has no yaw. That rule was
+written down, in this file, and seven spawns across the ecosystem were still set
+with a pick — facing whatever direction the plugin decided afterwards. There is
+no argument to `spawn` that would produce a location without a facing.
+
+**The title is built, not passed.** A caller hands over a plain name and, if
+there is one, the id of what it belongs to:
+
+```
+{primary}&lLOBBY SPAWN {muted}arena_1
+```
+
+Passing the whole string invited a dialect per plugin, and four of them arrived:
+`{warning}` on a title warning about nothing, an icon each (`⚡ ⏰ ❋ ⟳`), a
+separator each. A name that carries formatting of its own is a `WizardException`
+rather than a rendered string, so a dialect cannot come back in through the
+argument.
+
+**The way back is not optional.** It is how a `Setup` is obtained, so no step
+can forget it — which is what happened everywhere the old `abandoned` argument
+was filled in with `null` and an admin who cancelled was left staring at
+nothing. A flow genuinely started from a command says so with `setup(player)`.
+
+Icons are not here: `inputs.icon(...)` already asks for one three ways — the
+material picker, an insert window, or a pasted head — and answers with the
+material string that goes into config, which is what a stored icon is.
+
+For anything longer than one thing — a flow with branches, a review, several
+answers that build one object — declare it with `define` and keep it.
+
 ## Asking one thing
 
-Most of what a setup menu needs is one question: where does this spawn go, which
-area is the arena, what icon does this use. Four shortcuts cover it, and every
-plugin gets the same boss bar, the same prompt placement and the same cancel
+The gesture shortcuts `setup` is built on. Reach for these directly only when a
+step genuinely is about the gesture, such as aiming a jump pad. Every one of
+them gets the same boss bar, the same prompt placement and the same cancel
 behaviour without writing the flow again.
 
 ```java
@@ -121,9 +173,6 @@ The wording is `announce-title` and `announce-subtitle` in the plugin's own
 `WizardSettings`, with `%title%`, `%prompt%`, `%step%` and `%steps%`;
 `announce: false` turns it off. Questions are never announced — a dialog, an anvil or a chat
 request already carries its own prompt, and a title over it says it twice.
-
-For anything longer than one question — a flow with branches, a review, several
-answers that build one object — declare it with `define` and keep it.
 
 ## Declaring a flow
 

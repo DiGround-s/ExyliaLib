@@ -177,6 +177,50 @@ public final class PluginWizards {
     }
 
     // ------------------------------------------------------------------
+    // One thing being set, named by what it is
+    // ------------------------------------------------------------------
+
+    /**
+     * An admin setting things up, with the menu they came from.
+     *
+     * <pre>{@code
+     * wizards.setup(player, () -> ArenaSetupMenu.open(player))
+     *        .spawn("LOBBY SPAWN", arena.id(), where -> save(arena.withLobby(where)));
+     * }</pre>
+     *
+     * <p>Prefer this over the {@code ask} shortcuts below for anything an admin
+     * configures from a menu. Those name the gesture, so picking the right one
+     * means knowing why a spawn needs a facing; {@link Setup} names the thing
+     * being set, builds the title, and cannot be handed a way back that is
+     * missing.
+     *
+     * @param player who is setting it up
+     * @param backTo the menu to reopen if they back out
+     * @return the facade its steps are asked through
+     * @since 1.71.0
+     */
+    public @NotNull Setup setup(@NotNull Player player, @NotNull Runnable backTo) {
+        Objects.requireNonNull(player, "player");
+        Objects.requireNonNull(backTo, "backTo");
+        return new Setup(this, player, backTo);
+    }
+
+    /**
+     * An admin setting things up with nothing to go back to.
+     *
+     * <p>For a flow started by a command rather than a button. Backing out
+     * leaves the player where they are, which is where they were anyway.
+     *
+     * @param player who is setting it up
+     * @return the facade its steps are asked through
+     * @since 1.71.0
+     */
+    public @NotNull Setup setup(@NotNull Player player) {
+        Objects.requireNonNull(player, "player");
+        return new Setup(this, player, null);
+    }
+
+    // ------------------------------------------------------------------
     // One question, asked the same way everywhere
     // ------------------------------------------------------------------
 
