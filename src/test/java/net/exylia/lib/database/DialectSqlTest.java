@@ -1,5 +1,6 @@
 package net.exylia.lib.database;
 
+import net.exylia.lib.database.internal.ColumnModel;
 import net.exylia.lib.database.internal.Dialect;
 import net.exylia.lib.database.internal.EntityModel;
 import net.exylia.lib.database.internal.IndexModel;
@@ -516,6 +517,37 @@ class DialectSqlTest {
                 MYSQL.addColumn("t", model.column("name")));
         // ...while a table created from scratch does get the constraint.
         assertTrue(H2.createTable(model).contains("\"name\" VARCHAR(255) NOT NULL"));
+    }
+
+    @Test
+    @DisplayName("ALTER TABLE widens a text column, in each engine's own spelling")
+    void widenColumn() {
+        @Table("t")
+        record Icons(@Id String id,
+                     @Column(length = Column.UNBOUNDED) String icon,
+                     @Column(nullable = false, length = 128) String material) {
+        }
+        EntityModel<Icons> model = EntityModel.of(Icons.class);
+        ColumnModel icon = model.column("icon");
+
+        // SET DATA TYPE, not Postgres' shorter TYPE: H2 2.x only parses the
+        // standard spelling, and Postgres takes both.
+        assertEquals("ALTER TABLE \"t\" ALTER COLUMN \"icon\" SET DATA TYPE TEXT",
+                H2.widenColumn("t", icon));
+        assertEquals("ALTER TABLE \"t\" ALTER COLUMN \"icon\" SET DATA TYPE TEXT",
+                POSTGRES.widenColumn("t", icon));
+        assertEquals("ALTER TABLE `t` MODIFY `icon` LONGTEXT NULL",
+                MYSQL.widenColumn("t", icon));
+        assertEquals("ALTER TABLE `t` MODIFY `icon` LONGTEXT NULL",
+                MARIADB.widenColumn("t", icon));
+
+        // MODIFY resets everything it does not restate, so a NOT NULL column
+        // that is widened without the constraint spelled out quietly stops
+        // being one and the table starts taking the rows the record refuses.
+        assertEquals("ALTER TABLE `t` MODIFY `material` VARCHAR(128) NOT NULL",
+                MYSQL.widenColumn("t", model.column("material")));
+        assertEquals("ALTER TABLE `t` MODIFY `material` VARCHAR(128) NOT NULL",
+                MARIADB.widenColumn("t", model.column("material")));
     }
 
     // ------------------------------------------------------------------- DML

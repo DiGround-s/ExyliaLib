@@ -287,6 +287,29 @@ Only columns with no default and no generated value are touched, so an identity
 column or one the engine fills in for itself is left alone. A database that
 refuses the alteration is left exactly as it was rather than kept from starting.
 
+### A column too narrow for what the record now writes
+
+A column declared `@Column(length = 64)` when an icon was a material name, and
+`@Column(length = Column.UNBOUNDED)` now that it can hold a head or a whole
+serialised item, is still `VARCHAR(64)` on every server that already has the
+table. The first long value is refused, or — on a MySQL that is not strict —
+truncated into something that no longer parses back:
+
+```
+Data too long for column 'icon' at row 1
+```
+
+Since 1.72.0, a **text** column narrower than the record declares is widened in
+place on the start that finds it, and the change is named in the schema summary.
+Its data and its name are untouched, and a `NOT NULL` column stays `NOT NULL`.
+
+It never goes the other way. A column stored wider than the record declares is
+left exactly as it is: it may be another plugin's view of the same table, and
+narrowing it truncates rows. Numeric columns are not touched at all — precision
+is not a width. A database that refuses the alteration is left as it was rather
+than kept from starting, with a warning naming the table and the column, because
+the next long write will fail.
+
 ### A table an older plugin created unquoted
 
 Since 1.27.0, a table stored under the engine's own folding — `PLAYER_DATA`
