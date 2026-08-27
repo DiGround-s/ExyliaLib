@@ -235,7 +235,7 @@ final class DialogPackets {
     private static Dialog dialog(State state) {
         Object request = state.session().request();
         ActionButton cancel = button("Cancel", "cancel/" + state.key());
-        List<DialogBody> body = errorBody(state.validation());
+        List<DialogBody> body = notes(request, state.validation());
         if (request instanceof ChoiceInput<?> choice) {
             return new MultiActionDialog(new CommonDialogData(Text.component(prompt(request)),
                     null, true, false, DialogAction.CLOSE, body, List.of()),
@@ -277,8 +277,7 @@ final class DialogPackets {
     private static Input singleInput(InputRequest<?, ?> request, @Nullable String value,
                                      @Nullable Validation validation) {
         String initial = value != null ? value : stringify(request.defaultValue());
-        Component label = fieldLabel("", request.hint(),
-                validation == null ? null : validation.generalError());
+        Component label = Text.component("");
         InputControl control;
         if (request instanceof FlagInput || request instanceof ConfirmInput) {
             control = new BooleanInputControl(label, Boolean.parseBoolean(initial), "true", "false");
@@ -295,8 +294,7 @@ final class DialogPackets {
         for (FormField<?> field : form.fields()) {
             String name = field.key().name();
             String initial = values.getOrDefault(name, stringify(field.defaultValue()));
-            String error = validation == null ? null : validation.fieldErrors().get(name);
-            Component label = fieldLabel(field.label(), field.hint(), error);
+            Component label = Text.component(field.label());
             InputControl control = switch (field.kind()) {
                 case FLAG -> new BooleanInputControl(label, Boolean.parseBoolean(initial), "true", "false");
                 // FormField currently exposes parser semantics but no choice option list. A text
@@ -327,42 +325,41 @@ final class DialogPackets {
                 new DynamicCustomAction(new ResourceLocation(NAMESPACE, action), null));
     }
 
-    private static List<DialogBody> errorBody(@Nullable Validation validation) {
-        if (validation == null || validation.valid() || validation.generalError() == null) {
-            return List.of();
-        }
-        return List.of(new PlainMessageDialogBody(
-                new PlainMessage(Text.component("{error}" + validation.generalError()), BODY_WIDTH)));
-    }
-
     /**
-     * Label, then hint, then error, on one line.
+     * The lines above the boxes: what went wrong, then what a valid answer is.
      *
-     * <p>A dialog control has no placeholder of its own, so the hint lives in
-     * the label above the box, muted so it reads as guidance and not as part of
-     * the question. The error stays last: it is what the player is looking for
-     * after a rejected submit.
-     *
-     * <p>One line, not three: a control label is drawn as a single line and the
-     * client renders a newline in it as a missing glyph rather than a break, so
-     * the parts are separated by a marker instead.
+     * <p>A control label is drawn as a single line that neither wraps nor
+     * breaks, so a hint appended to one either runs off the dialog or reaches
+     * the client as a missing-glyph box. A body wraps at a width and sits above
+     * the fields, which is where a note that is not part of the question
+     * belongs; the field it is about is named in front of it so two notes are
+     * still told apart.
      */
-    private static Component fieldLabel(String label, @Nullable String hint, @Nullable String error) {
-        StringBuilder text = new StringBuilder(label);
-        if (hint != null && !hint.isBlank()) {
-            append(text, "{muted}\u00bb " + hint);
+    private static List<DialogBody> notes(Object request, @Nullable Validation validation) {
+        List<DialogBody> body = new ArrayList<>();
+        if (validation != null && !validation.valid()) {
+            note(body, "", "{error}", validation.generalError());
         }
-        if (error != null && !error.isBlank()) {
-            append(text, "{error}\u00bb " + error);
+        if (request instanceof FormInput form) {
+            for (FormField<?> field : form.fields()) {
+                String error = validation == null ? null : validation.fieldErrors().get(field.key().name());
+                note(body, field.label(), "{error}", error);
+            }
+            for (FormField<?> field : form.fields()) {
+                note(body, field.label(), "{muted}", field.hint());
+            }
+        } else if (request instanceof InputRequest<?, ?> single) {
+            note(body, "", "{muted}", single.hint());
         }
-        return Text.component(text.toString());
+        return body;
     }
 
-    private static void append(StringBuilder text, String part) {
-        if (!text.isEmpty()) {
-            text.append(' ');
+    private static void note(List<DialogBody> body, String label, String colour, @Nullable String line) {
+        if (line == null || line.isBlank()) {
+            return;
         }
-        text.append(part);
+        String text = label == null || label.isBlank() ? line : label + " \u00bb " + line;
+        body.add(new PlainMessageDialogBody(new PlainMessage(Text.component(colour + text), BODY_WIDTH)));
     }
 
     private static void receive(WrapperCommonClientCustomClickAction<?> packet, UUID sender) {
