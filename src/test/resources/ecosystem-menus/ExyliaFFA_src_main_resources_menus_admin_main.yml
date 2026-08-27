@@ -5,7 +5,7 @@
 # ╚══════════════════════════════════════════════════════════════════╝
 
 title: "{primary}&lADMIN FFA"
-size: 36
+size: 54
 type: SIMPLE
 refresh:
   mode: ON_CLICK
@@ -23,7 +23,7 @@ filler:
 
 items:
   manage-arenas:
-    slot: 11
+    slot: 37
     material: COMPASS
     name: "{info}&lMANAGE ARENAS"
     lore:
@@ -39,7 +39,7 @@ items:
       - "ffa:open_ffa_list"
 
   info:
-    slot: 13
+    slot: 4
     material: DIAMOND_SWORD
     name: "{warning}&lEXYLIA FFA"
     lore:
@@ -50,7 +50,7 @@ items:
       - " {muted}❙ {letters}Players fighting: {highlight}%total_players%"
 
   set-lobby:
-    slot: 35
+    slot: 38
     material: "%lobby_material%"
     name: "{warning}&lLOBBY LOCATION"
     lore:
@@ -62,7 +62,7 @@ items:
       - "ffa:set_lobby"
 
   set-kit-editor:
-    slot: 34
+    slot: 39
     material: "%kit_editor_material%"
     name: "{warning}&lKIT EDITOR LOCATION"
     lore:
@@ -74,7 +74,7 @@ items:
       - "ffa:set_kit_editor_location"
 
   data-management:
-    slot: 15
+    slot: 40
     material: COMPARATOR
     name: "{error}&lDATA MANAGEMENT"
     lore:
@@ -87,7 +87,7 @@ items:
       - "ffa:open_admin_data"
 
   reload:
-    slot: 31
+    slot: 41
     material: REDSTONE
     name: "{error}&lRELOAD CONFIGS"
     lore:

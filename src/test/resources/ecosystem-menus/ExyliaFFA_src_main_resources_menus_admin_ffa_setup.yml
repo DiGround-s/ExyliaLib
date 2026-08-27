@@ -23,7 +23,7 @@ filler:
 
 items:
   display-name:
-    slot: 2
+    slot: 3
     material: NAME_TAG
     name: "{highlight}&lNAME"
     lore:
@@ -35,7 +35,7 @@ items:
       - "ffa:edit_arena_name"
 
   icon:
-    slot: 4
+    slot: 2
     material: "%icon_material%"
     name: "{highlight}&lICON"
     lore:
@@ -47,7 +47,7 @@ items:
       - "ffa:set_arena_icon"
 
   max-players:
-    slot: 6
+    slot: 22
     material: PLAYER_HEAD
     name: "{info}&lMAX PLAYERS"
     lore:
@@ -63,7 +63,7 @@ items:
       - "shift_left: ffa:input_max_players"
 
   kit-mode:
-    slot: 19
+    slot: 25
     material: ENCHANTED_BOOK
     name: "{warning}&lKIT MODE"
     lore:
@@ -78,8 +78,8 @@ items:
       - "ffa:toggle_kit_mode"
 
   reset-kit:
-    slot: 20
-    material: "%reset_kit_material%"
+    slot: 53
+    material: 'basehead-eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvYmUwZmQxMDE5OWU4ZTRmY2RhYmNhZTRmODVjODU5MTgxMjdhN2M1NTUzYWQyMzVmMDFjNTZkMThiYjk0NzBkMyJ9fX0='
     name: "{warning}&lRESET KIT AFTER KILL"
     lore:
       - ""
@@ -105,7 +105,7 @@ items:
       - "ffa:open_kit_list"
 
   spawns:
-    slot: 22
+    slot: 28
     material: "%spawn_material%"
     name: "{warning}&lMANAGE SPAWNS"
     lore:
@@ -117,7 +117,7 @@ items:
       - "ffa:open_spawn_list"
 
   bounds:
-    slot: 23
+    slot: 19
     material: "%bounds_material%"
     name: "{warning}&lSET BOUNDS"
     lore:
@@ -129,7 +129,7 @@ items:
       - "ffa:set_bounds"
 
   schematic:
-    slot: 24
+    slot: 20
     material: "%schematic_material%"
     name: "{warning}&lSCHEMATIC"
     lore:
@@ -143,7 +143,7 @@ items:
       - "right: ffa:restore_schematic"
 
   protected-radius:
-    slot: 28
+    slot: 29
     material: SHIELD
     name: "{info}&lPROTECTED RADIUS"
     lore:
@@ -161,7 +161,7 @@ items:
       - "shift_right: ffa:adjust_protected_radius -5"
 
   save-inventory-on-leave:
-    slot: 29
+    slot: 30
     material: "%save_inventory_material%"
     name: "{warning}&lSAVE INVENTORY ON LEAVE"
     lore:
@@ -177,7 +177,7 @@ items:
       - "ffa:toggle_save_inventory_on_leave"
 
   permission:
-    slot: 30
+    slot: 6
     material: TRIPWIRE_HOOK
     name: "{info}&lPERMISSION"
     lore:
@@ -191,7 +191,7 @@ items:
       - "ffa:input_permission"
 
   regen-time:
-    slot: 32
+    slot: 24
     material: CLOCK
     name: "{info}&lREGENERATION TIME"
     lore:
@@ -206,7 +206,7 @@ items:
       - "right: ffa:adjust_regen_time -30"
 
   priority:
-    slot: 34
+    slot: 23
     material: HOPPER
     name: "{info}&lPRIORITY"
     lore:
@@ -224,7 +224,7 @@ items:
       - "shift_right: ffa:adjust_arena_priority -10"
 
   rules:
-    slot: 25
+    slot: 31
     material: COMMAND_BLOCK
     name: "{warning}&lRULES"
     lore:
@@ -237,7 +237,7 @@ items:
       - "ffa:open_rules_menu"
 
   protected-shape:
-    slot: 37
+    slot: 32
     material: COMPASS
     name: "{info}&lPROTECTED SHAPE"
     lore:
@@ -252,7 +252,7 @@ items:
       - "ffa:toggle_protected_shape"
 
   protected-mode:
-    slot: 38
+    slot: 33
     material: SPYGLASS
     name: "{info}&lPROTECTED MODE"
     lore:
@@ -267,7 +267,7 @@ items:
       - "ffa:toggle_protected_mode"
 
   toggle-enabled:
-    slot: 42
+    slot: 34
     material: "%enabled_material%"
     name: "{warning}&lTOGGLE ARENA"
     lore:
@@ -282,7 +282,7 @@ items:
       - "ffa:toggle_arena_enabled"
 
   expel-all:
-    slot: 40
+    slot: 37
     material: BARRIER
     name: "{error}&lEXPEL ALL PLAYERS"
     lore:
@@ -295,8 +295,8 @@ items:
       - "ffa:confirm_expel_all"
 
   force-regen:
-    slot: 41
-    material: RECOVERY_COMPASS
+    slot: 52
+    material: 'basehead-eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvYmUwZmQxMDE5OWU4ZTRmY2RhYmNhZTRmODVjODU5MTgxMjdhN2M1NTUzYWQyMzVmMDFjNTZkMThiYjk0NzBkMyJ9fX0='
     name: "{warning}&lFORCE REGENERATE"
     lore:
       - ""

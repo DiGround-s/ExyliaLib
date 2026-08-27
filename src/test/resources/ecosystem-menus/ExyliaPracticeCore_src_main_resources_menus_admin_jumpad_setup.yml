@@ -17,7 +17,7 @@ filler:
 
 items:
   display-name:
-    slot: 2
+    slot: 3
     material: NAME_TAG
     name: "{highlight}&lNAME"
     lore:
@@ -29,7 +29,7 @@ items:
       - "practice:jumpad_edit_name"
 
   direction:
-    slot: 4
+    slot: 39
     material: COMPASS
     name: "{highlight}&lLAUNCH DIRECTION"
     lore:
@@ -44,7 +44,7 @@ items:
       - "practice:jumpad_set_yaw"
 
   power:
-    slot: 21
+    slot: 37
     material: SLIME_BALL
     name: "{highlight}&lHORIZONTAL POWER"
     lore:
@@ -62,7 +62,7 @@ items:
       - "shift_right: practice:jumpad_adjust_power -0.5"
 
   vertical-power:
-    slot: 22
+    slot: 38
     material: FEATHER
     name: "{highlight}&lVERTICAL POWER"
     lore:
@@ -80,7 +80,7 @@ items:
       - "shift_right: practice:jumpad_adjust_vertical -0.5"
 
   enabled:
-    slot: 6
+    slot: 5
     material: "%enabled_material%"
     name: "{highlight}&lENABLED"
     lore:
@@ -94,7 +94,7 @@ items:
       - "practice:jumpad_toggle_enabled"
 
   locations:
-    slot: 20
+    slot: 22
     material: LODESTONE
     name: "{highlight}&lTRIGGER LOCATIONS"
     lore:
@@ -109,8 +109,8 @@ items:
       - "practice:jumpad_open_locations"
 
   delete:
-    slot: 47
-    material: BARRIER
+    slot: 53
+    material: 'basehead-eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvYmUwZmQxMDE5OWU4ZTRmY2RhYmNhZTRmODVjODU5MTgxMjdhN2M1NTUzYWQyMzVmMDFjNTZkMThiYjk0NzBkMyJ9fX0='
     name: "{error}&lDELETE"
     lore:
       - ""

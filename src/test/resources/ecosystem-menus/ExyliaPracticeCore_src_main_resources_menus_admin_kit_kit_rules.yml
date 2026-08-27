@@ -17,7 +17,7 @@ filler:
 
 items:
   build:
-    slot: 19
+    slot: 12
     material: "%build_material%"
     name: "{highlight}&lBUILD"
     lore:
@@ -29,7 +29,7 @@ items:
       - "practice:toggle_rule build"
 
   block-break:
-    slot: 20
+    slot: 30
     material: "%block_break_material%"
     name: "{highlight}&lBREAK"
     lore:
@@ -41,7 +41,7 @@ items:
       - "practice:toggle_rule block_break"
 
   interact:
-    slot: 21
+    slot: 32
     material: "%interact_material%"
     name: "{highlight}&lINTERACT"
     lore:
@@ -53,7 +53,7 @@ items:
       - "practice:toggle_rule interact"
 
   player-build-only:
-    slot: 22
+    slot: 33
     material: "%player_build_only_material%"
     name: "{highlight}&lPLAYER BUILD ONLY"
     lore:
@@ -67,7 +67,7 @@ items:
       - "practice:toggle_rule player_build_only"
 
   disappearing-blocks:
-    slot: 23
+    slot: 13
     material: SAND
     name: "{highlight}&lDISAPPEARING BLOCKS"
     lore:
@@ -84,7 +84,7 @@ items:
       - "shift_right: practice:adjust_rule disappearing_blocks_delay -5"
 
   re-give-blocks:
-    slot: 39
+    slot: 34
     material: "%re_give_blocks_material%"
     name: "{highlight}&lRE-GIVE BLOCKS"
     lore:
@@ -98,7 +98,7 @@ items:
       - "practice:toggle_rule re_give_blocks"
 
   item-drop:
-    slot: 24
+    slot: 14
     material: "%item_drop_material%"
     name: "{highlight}&lITEM DROP"
     lore:
@@ -110,7 +110,7 @@ items:
       - "practice:toggle_rule item_drop"
 
   item-pickup:
-    slot: 25
+    slot: 15
     material: "%item_pickup_material%"
     name: "{highlight}&lITEM PICKUP"
     lore:
@@ -122,7 +122,7 @@ items:
       - "practice:toggle_rule item_pickup"
 
   fall-damage:
-    slot: 28
+    slot: 29
     material: "%fall_damage_material%"
     name: "{highlight}&lFALL DAMAGE"
     lore:
@@ -134,7 +134,7 @@ items:
       - "practice:toggle_rule fall_damage"
 
   pvp:
-    slot: 29
+    slot: 28
     material: "%pvp_material%"
     name: "{highlight}&lPVP"
     lore:
@@ -146,7 +146,7 @@ items:
       - "practice:toggle_rule pvp"
 
   disabled-damage:
-    slot: 30
+    slot: 11
     material: "%disabled_damage_material%"
     name: "{highlight}&lDISABLED DAMAGE"
     lore:
@@ -159,7 +159,7 @@ items:
       - "practice:toggle_rule disabled_damage"
 
   health-regen:
-    slot: 31
+    slot: 10
     material: "%health_regen_material%"
     name: "{highlight}&lHEALTH REGENERATION"
     lore:
@@ -171,7 +171,7 @@ items:
       - "practice:toggle_rule health_regeneration"
 
   food-decreasing:
-    slot: 32
+    slot: 20
     material: "%food_decreasing_material%"
     name: "{highlight}&lFOOD DECREASING"
     lore:
@@ -183,7 +183,7 @@ items:
       - "practice:toggle_rule food_decreasing"
 
   hits-to-win:
-    slot: 37
+    slot: 22
     material: IRON_SWORD
     name: "{highlight}&lHITS TO WIN"
     lore:
@@ -199,7 +199,7 @@ items:
       - "shift_right: practice:adjust_rule hits_to_win -5"
 
   hit-delay:
-    slot: 38
+    slot: 23
     material: CLOCK
     name: "{highlight}&lHIT DELAY"
     lore:
@@ -216,7 +216,7 @@ items:
       - "shift_right: practice:adjust_rule hit_delay -5"
 
   kills-give-points:
-    slot: 33
+    slot: 24
     material: "%kills_give_points_material%"
     name: "{highlight}&lKILLS GIVE POINTS"
     lore:
@@ -228,7 +228,7 @@ items:
       - "practice:toggle_rule kills_give_points"
 
   revive-time:
-    slot: 41
+    slot: 25
     material: CLOCK
     name: "{highlight}&lREVIVE TIME"
     lore:
@@ -246,7 +246,7 @@ items:
       - "shift_right: practice:adjust_rule revive_time -5"
 
   points-to-win:
-    slot: 43
+    slot: 21
     material: GOLD_NUGGET
     name: "{highlight}&lPOINTS TO WIN"
     lore:
@@ -262,7 +262,7 @@ items:
       - "shift_right: practice:adjust_rule points_to_win -5"
 
   iron-plate-checkpoints:
-    slot: 35
+    slot: 31
     material: "%iron_plate_material%"
     name: "{highlight}&lIRON PLATE CHECKPOINTS"
     lore:
@@ -276,7 +276,7 @@ items:
       - "practice:toggle_rule iron_plate_checkpoints"
 
   regen-after-point:
-    slot: 34
+    slot: 37
     material: "%regen_point_material%"
     name: "{highlight}&lREGENERATE AFTER POINT"
     lore:
@@ -288,7 +288,7 @@ items:
       - "practice:toggle_rule regenerate_after_point"
 
   ender-pearl-cooldown:
-    slot: 42
+    slot: 16
     material: ENDER_PEARL
     name: "{highlight}&lENDER PEARL COOLDOWN"
     lore:
@@ -305,7 +305,7 @@ items:
       - "shift_right: practice:adjust_rule ender_pearl_cooldown -10"
 
   golden-apple-cooldown:
-    slot: 40
+    slot: 19
     material: GOLDEN_APPLE
     name: "{highlight}&lGOLDEN APPLE COOLDOWN"
     lore:
@@ -323,7 +323,7 @@ items:
       - "shift_right: practice:adjust_rule golden_apple_cooldown -10"
 
   potion-effects:
-    slot: 2
+    slot: 38
     material: BREWING_STAND
     name: "{highlight}&lPOTION EFFECTS"
     lore:
@@ -335,7 +335,7 @@ items:
       - "practice:open_kit_potion_effects"
 
   attributes:
-    slot: 4
+    slot: 39
     material: NETHER_STAR
     name: "{highlight}&lATTRIBUTES"
     lore:
@@ -349,7 +349,7 @@ items:
       - "practice:open_kit_attributes"
 
   special-conditions:
-    slot: 6
+    slot: 40
     material: TRIPWIRE_HOOK
     name: "{highlight}&lSPECIAL CONDITIONS"
     lore:

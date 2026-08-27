@@ -23,7 +23,7 @@ filler:
 
 items:
   kills-to-win:
-    slot: 10
+    slot: 37
     material: BLAZE_ROD
     name: "{info}&lFRAGS TO WIN"
     lore:
@@ -39,7 +39,7 @@ items:
       - "shift_left: events:input_setting kills-to-win"
 
   respawn-delay:
-    slot: 11
+    slot: 39
     material: ENDER_PEARL
     name: "{info}&lRESPAWN TIME"
     lore:
@@ -55,7 +55,7 @@ items:
       - "shift_left: events:input_setting respawn-delay"
 
   grace-period:
-    slot: 12
+    slot: 38
     material: CLOCK
     name: "{info}&lGRACE PERIOD"
     lore:
@@ -71,7 +71,7 @@ items:
       - "shift_left: events:input_setting grace-period"
 
   weapon-cooldown:
-    slot: 14
+    slot: 41
     material: BLAZE_POWDER
     name: "{info}&lRAILGUN COOLDOWN"
     lore:
@@ -88,7 +88,7 @@ items:
       - "shift_left: events:input_setting weapon-cooldown"
 
   dash-cooldown:
-    slot: 15
+    slot: 42
     material: FEATHER
     name: "{info}&lDASH COOLDOWN"
     lore:
@@ -104,7 +104,7 @@ items:
       - "shift_left: events:input_setting dash-cooldown"
 
   dash-power:
-    slot: 16
+    slot: 43
     material: WIND_CHARGE
     name: "{info}&lDASH POWER"
     lore:
@@ -120,7 +120,7 @@ items:
       - "shift_left: events:input_double_setting dash-power"
 
   team-selector:
-    slot: 46
+    slot: 40
     condition: "%has_teams% == true"
     material: "%team_selector_material%"
     name: "{warning}&lTEAM SELECTOR"

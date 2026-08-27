@@ -22,7 +22,7 @@ filler:
 
 items:
   name:
-    slot: 1
+    slot: 3
     material: NAME_TAG
     name: "{highlight}&lDISPLAY NAME"
     lore:
@@ -34,7 +34,7 @@ items:
       - "survivalcore:mine_edit_name"
 
   enabled:
-    slot: 3
+    slot: 5
     material: "%enabled_material%"
     name: "{highlight}&lENABLED"
     lore:
@@ -46,7 +46,7 @@ items:
       - "survivalcore:mine_toggle_enabled"
 
   region:
-    slot: 5
+    slot: 19
     material: "%region_material%"
     name: "{highlight}&lMINE REGION"
     lore:
@@ -60,7 +60,7 @@ items:
       - "survivalcore:mine_set_region"
 
   permission:
-    slot: 7
+    slot: 6
     material: PAPER
     name: "{highlight}&lACCESS PERMISSION"
     lore:
@@ -76,7 +76,7 @@ items:
       - "shift_left: survivalcore:mine_clear_permission"
 
   composition:
-    slot: 19
+    slot: 20
     material: CHEST
     name: "{highlight}&lBLOCK COMPOSITION"
     lore:
@@ -91,7 +91,7 @@ items:
       - "survivalcore:mine_open_composition"
 
   break-effects:
-    slot: 28
+    slot: 21
     material: NOTE_BLOCK
     name: "{highlight}&lBREAK EFFECTS"
     lore:
@@ -110,7 +110,7 @@ items:
       - "survivalcore:mine_open_effects"
 
   interval:
-    slot: 20
+    slot: 24
     material: CLOCK
     name: "{highlight}&lRESET INTERVAL"
     lore:
@@ -130,7 +130,7 @@ items:
       - "middle: survivalcore:mine_set_interval"
 
   warning:
-    slot: 21
+    slot: 22
     material: BELL
     name: "{highlight}&lRESET WARNING"
     lore:
@@ -148,7 +148,7 @@ items:
       - "middle: survivalcore:mine_set_warning"
 
   threshold:
-    slot: 22
+    slot: 23
     material: TARGET
     name: "{highlight}&lRESET THRESHOLD"
     lore:
@@ -167,7 +167,7 @@ items:
       - "middle: survivalcore:mine_set_threshold"
 
   safe-teleport:
-    slot: 23
+    slot: 25
     material: "%safe_teleport_material%"
     name: "{highlight}&lSAFE TELEPORT"
     lore:
@@ -184,7 +184,7 @@ items:
       - "shift_left: survivalcore:mine_clear_safe_teleport"
 
   entry-teleport:
-    slot: 24
+    slot: 28
     material: "%entry_teleport_material%"
     name: "{highlight}&lENTRY TELEPORT"
     lore:
@@ -201,7 +201,7 @@ items:
       - "shift_left: survivalcore:mine_clear_entry_teleport"
 
   auto-pickup:
-    slot: 25
+    slot: 29
     material: "%auto_pickup_material%"
     name: "{highlight}&lAUTO-PICKUP"
     lore:
@@ -218,7 +218,7 @@ items:
       - "survivalcore:mine_toggle_auto_pickup"
 
   restrict-breaking:
-    slot: 29
+    slot: 30
     material: "%restrict_breaking_material%"
     name: "{highlight}&lRESTRICT BREAKING"
     lore:
@@ -234,8 +234,8 @@ items:
       - "survivalcore:mine_toggle_restrict_breaking"
 
   force-reset:
-    slot: 40
-    material: TNT
+    slot: 52
+    material: 'basehead-eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvYmUwZmQxMDE5OWU4ZTRmY2RhYmNhZTRmODVjODU5MTgxMjdhN2M1NTUzYWQyMzVmMDFjNTZkMThiYjk0NzBkMyJ9fX0='
     name: "{error}&lFORCE RESET NOW"
     lore:
       - ""
@@ -256,8 +256,8 @@ items:
       - "survivalcore:mine_open_list"
 
   delete:
-    slot: 47
-    material: BARRIER
+    slot: 53
+    material: 'basehead-eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvYmUwZmQxMDE5OWU4ZTRmY2RhYmNhZTRmODVjODU5MTgxMjdhN2M1NTUzYWQyMzVmMDFjNTZkMThiYjk0NzBkMyJ9fX0='
     name: "{error}&lDELETE MINE"
     lore:
       - ""

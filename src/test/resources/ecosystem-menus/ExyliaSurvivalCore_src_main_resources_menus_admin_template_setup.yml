@@ -22,7 +22,7 @@ filler:
 
 items:
   name:
-    slot: 13
+    slot: 3
     material: NAME_TAG
     name: "{highlight}&lDISPLAY NAME"
     lore:
@@ -34,7 +34,7 @@ items:
       - "survivalcore:lc_edit_template_name"
 
   loot:
-    slot: 29
+    slot: 37
     material: CHEST
     name: "{highlight}&lLOOT TABLE"
     lore:
@@ -46,7 +46,7 @@ items:
       - "survivalcore:lc_open_loot"
 
   chests:
-    slot: 31
+    slot: 38
     material: ENDER_CHEST
     name: "{highlight}&lPLACED CHESTS"
     lore:
@@ -58,7 +58,7 @@ items:
       - "survivalcore:lc_open_template_chests"
 
   place:
-    slot: 33
+    slot: 39
     material: BLAZE_ROD
     name: "{warning}&l⚡ PLACE CHEST"
     lore:
@@ -76,7 +76,7 @@ items:
 
   delete:
     slot: 53
-    material: BARRIER
+    material: 'basehead-eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvYmUwZmQxMDE5OWU4ZTRmY2RhYmNhZTRmODVjODU5MTgxMjdhN2M1NTUzYWQyMzVmMDFjNTZkMThiYjk0NzBkMyJ9fX0='
     name: "{error}&lDELETE TEMPLATE"
     lore:
       - ""

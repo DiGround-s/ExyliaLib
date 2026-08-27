@@ -22,7 +22,7 @@ filler:
 
 items:
   region:
-    slot: 2
+    slot: 19
     material: "%region_material%"
     name: "{highlight}&lZONE REGION"
     lore:
@@ -36,7 +36,7 @@ items:
       - "survivalcore:afkzone_set_region"
 
   name:
-    slot: 4
+    slot: 3
     material: NAME_TAG
     name: "{highlight}&lDISPLAY NAME"
     lore:
@@ -50,7 +50,7 @@ items:
       - "survivalcore:afkzone_edit_name"
 
   interval:
-    slot: 6
+    slot: 24
     material: CLOCK
     name: "{highlight}&lREWARD INTERVAL"
     lore:
@@ -64,7 +64,7 @@ items:
       - "survivalcore:afkzone_set_interval"
 
   enabled:
-    slot: 20
+    slot: 5
     material: "%enabled_material%"
     name: "{highlight}&lENABLED"
     lore:
@@ -78,7 +78,7 @@ items:
       - "survivalcore:afkzone_toggle_enabled"
 
   rewards:
-    slot: 24
+    slot: 37
     material: CHEST
     name: "{highlight}&lREWARDS"
     lore:
@@ -102,8 +102,8 @@ items:
       - "survivalcore:afkzone_open_list"
 
   delete:
-    slot: 47
-    material: BARRIER
+    slot: 53
+    material: 'basehead-eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvYmUwZmQxMDE5OWU4ZTRmY2RhYmNhZTRmODVjODU5MTgxMjdhN2M1NTUzYWQyMzVmMDFjNTZkMThiYjk0NzBkMyJ9fX0='
     name: "{error}&lDELETE ZONE"
     lore:
       - ""

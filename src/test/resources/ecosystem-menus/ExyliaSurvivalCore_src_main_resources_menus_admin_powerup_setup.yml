@@ -22,7 +22,7 @@ filler:
 
 items:
   name:
-    slot: 1
+    slot: 3
     material: NAME_TAG
     name: "{highlight}&lDISPLAY NAME"
     lore:
@@ -36,7 +36,7 @@ items:
       - "survivalcore:pu_edit_name"
 
   icon:
-    slot: 3
+    slot: 2
     material: "%pu_icon%"
     name: "{highlight}&lICON"
     lore:
@@ -50,7 +50,7 @@ items:
       - "survivalcore:pu_set_icon"
 
   glow:
-    slot: 5
+    slot: 37
     material: "%pu_glow_material%"
     name: "{highlight}&lGLOW"
     lore:
@@ -64,7 +64,7 @@ items:
       - "survivalcore:pu_toggle_glow"
 
   glow-color:
-    slot: 7
+    slot: 38
     material: "%pu_glow_color_material%"
     name: "{highlight}&lGLOW COLOR"
     lore:
@@ -78,7 +78,7 @@ items:
       - "survivalcore:pu_cycle_glow_color"
 
   weight:
-    slot: 11
+    slot: 39
     material: COMPARATOR
     name: "{highlight}&lWEIGHT"
     lore:
@@ -98,7 +98,7 @@ items:
       - "shift_right: survivalcore:pu_adjust_weight -50"
 
   effects:
-    slot: 29
+    slot: 40
     material: SPLASH_POTION
     name: "{highlight}&lPOTION EFFECTS"
     lore:
@@ -112,7 +112,7 @@ items:
       - "survivalcore:pu_open_effects"
 
   rewards:
-    slot: 33
+    slot: 41
     material: CHEST
     name: "{highlight}&lREWARDS"
     lore:
@@ -137,7 +137,7 @@ items:
 
   remove:
     slot: 53
-    material: BARRIER
+    material: 'basehead-eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvYmUwZmQxMDE5OWU4ZTRmY2RhYmNhZTRmODVjODU5MTgxMjdhN2M1NTUzYWQyMzVmMDFjNTZkMThiYjk0NzBkMyJ9fX0='
     name: "{error}&lREMOVE FROM ZONE"
     lore:
       - ""

@@ -17,7 +17,7 @@ filler:
 
 items:
   overview:
-    slot: 4
+    slot: 37
     material: BOOK
     name: "{warning}&lGLOBAL OVERVIEW"
     lore:
@@ -32,7 +32,7 @@ items:
       - ""
 
   kit-stats:
-    slot: 19
+    slot: 38
     material: DIAMOND_SWORD
     name: "{info}&lKIT STATISTICS"
     lore:
@@ -47,7 +47,7 @@ items:
       - "practice:open_admin_kit_stats"
 
   arena-stats:
-    slot: 22
+    slot: 39
     material: COMPASS
     name: "{info}&lARENA STATISTICS"
     lore:
@@ -62,7 +62,7 @@ items:
       - "practice:open_admin_arena_stats"
 
   category-stats:
-    slot: 25
+    slot: 40
     material: BOOKSHELF
     name: "{info}&lCATEGORY STATISTICS"
     lore:

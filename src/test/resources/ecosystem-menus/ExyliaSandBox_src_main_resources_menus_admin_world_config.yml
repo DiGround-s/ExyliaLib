@@ -23,7 +23,7 @@ filler:
 
 items:
   display-name:
-    slot: 2
+    slot: 3
     material: NAME_TAG
     name: "{highlight}&lNAME"
     lore:
@@ -46,7 +46,7 @@ items:
     hide_tooltip: false
 
   icon:
-    slot: 6
+    slot: 2
     material: "%world_icon%"
     name: "{highlight}&lICON"
     lore:
@@ -58,7 +58,7 @@ items:
       - "sandbox:input_world_field icon"
 
   biome:
-    slot: 19
+    slot: 37
     material: GRASS_BLOCK
     name: "{info}&lBIOME"
     lore:
@@ -70,7 +70,7 @@ items:
       - "sandbox:input_world_field biome"
 
   seed:
-    slot: 20
+    slot: 38
     material: WHEAT_SEEDS
     name: "{info}&lSEED"
     lore:
@@ -84,7 +84,7 @@ items:
       - "shift_left: sandbox:random_world_seed"
 
   generation-preset:
-    slot: 24
+    slot: 39
     material: BOOKSHELF
     name: "{secondary}&lGENERATION"
     lore:
@@ -97,7 +97,7 @@ items:
       - "sandbox:cycle_world_preset"
 
   border:
-    slot: 25
+    slot: 40
     material: GLASS
     name: "{info}&lBORDER"
     lore:
@@ -113,7 +113,7 @@ items:
       - "shift_left: sandbox:input_world_field border"
 
   gamerules:
-    slot: 33
+    slot: 41
     material: COMMAND_BLOCK
     name: "{secondary}&lGAMERULES"
     lore:
@@ -135,7 +135,7 @@ items:
       - "sandbox:open_world_list"
 
   teleport:
-    slot: 47
+    slot: 21
     material: ENDER_PEARL
     name: "{warning}&lTELEPORT"
     lore:
@@ -148,7 +148,7 @@ items:
       - "sandbox:teleport_to_world %world_id%"
 
   save:
-    slot: 46
+    slot: 42
     material: EMERALD
     name: "{success}&lSAVE WORLD"
     lore:
@@ -158,8 +158,8 @@ items:
       - "sandbox:save_world"
 
   delete:
-    slot: 51
-    material: "%world_delete_material%"
+    slot: 53
+    material: 'basehead-eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvYmUwZmQxMDE5OWU4ZTRmY2RhYmNhZTRmODVjODU5MTgxMjdhN2M1NTUzYWQyMzVmMDFjNTZkMThiYjk0NzBkMyJ9fX0='
     name: "%world_delete_name%"
     lore:
       - ""
@@ -170,7 +170,7 @@ items:
       - "sandbox:confirm_delete_world %world_id%"
 
   players:
-    slot: 53
+    slot: 43
     material: PLAYER_HEAD
     name: "{highlight}&lPLAYERS"
     lore:

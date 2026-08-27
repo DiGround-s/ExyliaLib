@@ -23,7 +23,7 @@ filler:
 
 items:
   enabled:
-    slot: 10
+    slot: 5
     material: "%weapon_enabled_material%"
     name: "{info}&lENABLED"
     lore:
@@ -35,7 +35,7 @@ items:
       - "events:toggle_csgo_weapon_setting weapon-sniper-enabled"
 
   damage:
-    slot: 11
+    slot: 19
     material: GOLDEN_HOE
     name: "{info}&lDAMAGE"
     lore:
@@ -51,7 +51,7 @@ items:
       - "shift_left: events:input_csgo_weapon_double weapon-sniper-damage"
 
   cooldown:
-    slot: 12
+    slot: 24
     material: CLOCK
     name: "{info}&lCOOLDOWN"
     lore:
@@ -67,7 +67,7 @@ items:
       - "shift_left: events:input_csgo_weapon_int weapon-sniper-cooldown"
 
   range:
-    slot: 13
+    slot: 20
     material: ENDER_EYE
     name: "{info}&lRANGE"
     lore:
@@ -83,7 +83,7 @@ items:
       - "shift_left: events:input_csgo_weapon_double weapon-sniper-range"
 
   oneshot:
-    slot: 14
+    slot: 21
     material: "%weapon_oneshot_material%"
     name: "{info}&lONE SHOT KILL"
     lore:
@@ -95,7 +95,7 @@ items:
       - "events:toggle_csgo_weapon_setting weapon-sniper-oneshot"
 
   spread-perfect:
-    slot: 19
+    slot: 22
     material: TARGET
     name: "{info}&lSPREAD {muted}(Crouching, Still, Grounded)"
     lore:
@@ -112,7 +112,7 @@ items:
       - "shift_left: events:input_csgo_weapon_double weapon-sniper-spread-perfect"
 
   spread-crouch-still:
-    slot: 20
+    slot: 23
     material: LEATHER_BOOTS
     name: "{info}&lSPREAD {muted}(Crouching, Still)"
     lore:
@@ -128,7 +128,7 @@ items:
       - "shift_left: events:input_csgo_weapon_double weapon-sniper-spread-crouch-still"
 
   spread-crouch-moving:
-    slot: 21
+    slot: 25
     material: IRON_BOOTS
     name: "{info}&lSPREAD {muted}(Crouching, Moving)"
     lore:
@@ -144,7 +144,7 @@ items:
       - "shift_left: events:input_csgo_weapon_double weapon-sniper-spread-crouch-moving"
 
   spread-stand-still:
-    slot: 22
+    slot: 28
     material: DIAMOND_BOOTS
     name: "{info}&lSPREAD {muted}(Standing, Still)"
     lore:
@@ -160,7 +160,7 @@ items:
       - "shift_left: events:input_csgo_weapon_double weapon-sniper-spread-stand-still"
 
   spread-stand-moving:
-    slot: 23
+    slot: 29
     material: NETHERITE_BOOTS
     name: "{info}&lSPREAD {muted}(Standing, Moving)"
     lore:
@@ -176,7 +176,7 @@ items:
       - "shift_left: events:input_csgo_weapon_double weapon-sniper-spread-stand-moving"
 
   spread-airborne:
-    slot: 24
+    slot: 30
     material: ELYTRA
     name: "{info}&lSPREAD {muted}(Airborne)"
     lore:

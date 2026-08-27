@@ -1,5 +1,5 @@
 title: "{warning}&lEDIT ZONE: {highlight}%zone_name%"
-size: 45
+size: 54
 type: SIMPLE
 refresh:
   mode: ON_CLICK
@@ -17,7 +17,7 @@ filler:
 
 items:
   rename:
-    slot: 10
+    slot: 3
     material: WRITABLE_BOOK
     name: "{success}&lRENAME"
     lore:
@@ -29,7 +29,7 @@ items:
       - "capture:edit_zone_name"
 
   color:
-    slot: 12
+    slot: 37
     material: LIME_DYE
     name: "{success}&lCOLOR"
     lore:
@@ -42,7 +42,7 @@ items:
       - "capture:edit_zone_color"
 
   points:
-    slot: 14
+    slot: 38
     material: EMERALD
     name: "{info}&lPOINTS PER CAPTURE"
     lore:
@@ -58,7 +58,7 @@ items:
       - "shift_left: capture:input_zone_pts"
 
   capture-time:
-    slot: 16
+    slot: 39
     material: CLOCK
     name: "{info}&lCAPTURE TIME"
     lore:
@@ -75,7 +75,7 @@ items:
       - "shift_left: capture:input_zone_capture_time"
 
   reselect:
-    slot: 30
+    slot: 40
     material: MAP
     name: "{warning}&lRE-SELECT AREA"
     lore:
@@ -87,8 +87,8 @@ items:
       - "capture:reselect_zone_area"
 
   delete:
-    slot: 32
-    material: BARRIER
+    slot: 53
+    material: 'basehead-eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvYmUwZmQxMDE5OWU4ZTRmY2RhYmNhZTRmODVjODU5MTgxMjdhN2M1NTUzYWQyMzVmMDFjNTZkMThiYjk0NzBkMyJ9fX0='
     name: "{error}&lDELETE ZONE"
     lore:
       - ""
@@ -99,7 +99,7 @@ items:
       - "capture:delete_zone_by_index"
 
   back:
-    slot: 40
+    slot: 49
     material: 'basehead-eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvMjIzZmI2NzQyOTcxNmIyMWJjNmU4ZTdkNjY5Y2VkZGY2NWIxM2UwNzkwYTVjZTU1YjJlMDc3YjgyZDE5ZTEyNCJ9fX0='
     name: '{error}&lBACK'
     lore:

@@ -17,7 +17,7 @@ filler:
 
 items:
   party-ffa:
-    slot: 20
+    slot: 37
     material: "%party_ffa_material%"
     name: "{highlight}&lPARTY FFA"
     lore:
@@ -32,7 +32,7 @@ items:
       - "practice:toggle_kit_party_ffa"
 
   party-split:
-    slot: 21
+    slot: 38
     material: "%party_split_material%"
     name: "{highlight}&lPARTY SPLIT"
     lore:
@@ -47,7 +47,7 @@ items:
       - "practice:toggle_kit_party_split"
 
   party-duel:
-    slot: 22
+    slot: 39
     material: "%party_duel_material%"
     name: "{highlight}&lPARTY DUEL"
     lore:
@@ -62,7 +62,7 @@ items:
       - "practice:toggle_kit_party_duel"
 
   duel:
-    slot: 23
+    slot: 40
     material: "%duel_material%"
     name: "{highlight}&lDUEL"
     lore:
@@ -77,7 +77,7 @@ items:
       - "practice:toggle_kit_duel"
 
   queue:
-    slot: 24
+    slot: 41
     material: "%queue_material%"
     name: "{highlight}&lQUEUE"
     lore:
@@ -92,7 +92,7 @@ items:
       - "practice:toggle_kit_queue"
 
   ranked:
-    slot: 31
+    slot: 42
     material: "%ranked_material%"
     name: "{highlight}&lRANKED"
     lore:
@@ -107,7 +107,7 @@ items:
       - "practice:toggle_kit_ranked"
 
   bot-practice:
-    slot: 40
+    slot: 43
     material: "%bot_mode_material%"
     name: "{highlight}&lBOT PRACTICE"
     lore:

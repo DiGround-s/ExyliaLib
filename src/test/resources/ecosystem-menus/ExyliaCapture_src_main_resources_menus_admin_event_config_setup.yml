@@ -17,7 +17,7 @@ filler:
 
 items:
   display-name:
-    slot: 2
+    slot: 3
     material: NAME_TAG
     name: "{highlight}&lDISPLAY NAME"
     lore:
@@ -29,7 +29,7 @@ items:
       - "capture:edit_config_name"
 
   event-type:
-    slot: 4
+    slot: 25
     material: PAPER
     name: "{highlight}&lEVENT TYPE"
     lore:
@@ -39,7 +39,7 @@ items:
       - " {muted}❙ {letters}Cannot be changed"
 
   icon:
-    slot: 6
+    slot: 2
     material: "%icon_material%"
     name: "{highlight}&lICON"
     lore:
@@ -51,7 +51,7 @@ items:
       - "capture:set_config_icon"
 
   color:
-    slot: 29
+    slot: 23
     material: ORANGE_DYE
     name: "{highlight}&lEVENT COLOR"
     lore:
@@ -77,7 +77,7 @@ items:
       - "capture:set_config_zone"
 
   max-duration:
-    slot: 20
+    slot: 24
     material: CLOCK
     name: "{info}&lMAX DURATION"
     lore:
@@ -109,7 +109,7 @@ items:
       - "capture:open_type_settings"
 
   commands:
-    slot: 24
+    slot: 20
     material: COMMAND_BLOCK
     name: "{warning}&lCOMMANDS"
     lore:
@@ -123,7 +123,7 @@ items:
       - "capture:open_commands_setup"
 
   schedules:
-    slot: 25
+    slot: 21
     material: REPEATER
     name: "{info}&lSCHEDULES"
     lore:
@@ -154,7 +154,7 @@ items:
       - "shift_left: capture:input_leaderboard_points"
 
   toggle:
-    slot: 31
+    slot: 5
     material: "%toggle_material%"
     name: "%toggle_name%"
     lore:
@@ -164,7 +164,7 @@ items:
       - "capture:toggle_config"
 
   scoreboard-toggle:
-    slot: 32
+    slot: 29
     material: "%scoreboard_material%"
     name: "{highlight}&lSCOREBOARD"
     lore:
@@ -176,7 +176,7 @@ items:
       - "capture:toggle_scoreboard"
 
   bossbar-toggle:
-    slot: 33
+    slot: 30
     material: "%bossbar_material%"
     name: "{highlight}&lBOSSBAR"
     lore:

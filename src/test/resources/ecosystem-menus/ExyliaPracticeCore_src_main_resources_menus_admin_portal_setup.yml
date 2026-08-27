@@ -17,7 +17,7 @@ filler:
 
 items:
   display-name:
-    slot: 2
+    slot: 3
     material: NAME_TAG
     name: "{highlight}&lNAME"
     lore:
@@ -29,7 +29,7 @@ items:
       - "practice:portal_edit_name"
 
   region:
-    slot: 4
+    slot: 19
     material: "%region_material%"
     name: "{highlight}&lPORTAL REGION"
     lore:
@@ -43,7 +43,7 @@ items:
       - "practice:portal_set_region"
 
   command:
-    slot: 6
+    slot: 37
     material: PAPER
     name: "{highlight}&lCOMMAND"
     lore:
@@ -57,7 +57,7 @@ items:
       - "practice:portal_set_command"
 
   teleport:
-    slot: 13
+    slot: 21
     material: "%teleport_material%"
     name: "{highlight}&lTELEPORT"
     lore:
@@ -73,8 +73,8 @@ items:
       - "right: practice:portal_clear_teleport"
 
   delete:
-    slot: 47
-    material: BARRIER
+    slot: 53
+    material: 'basehead-eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvYmUwZmQxMDE5OWU4ZTRmY2RhYmNhZTRmODVjODU5MTgxMjdhN2M1NTUzYWQyMzVmMDFjNTZkMThiYjk0NzBkMyJ9fX0='
     name: "{error}&lDELETE"
     lore:
       - ""

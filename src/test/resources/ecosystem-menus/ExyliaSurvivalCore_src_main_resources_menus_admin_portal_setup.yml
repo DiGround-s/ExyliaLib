@@ -22,7 +22,7 @@ filler:
 
 items:
   region:
-    slot: 2
+    slot: 19
     material: "%region_material%"
     name: "{highlight}&lPORTAL REGION"
     lore:
@@ -36,7 +36,7 @@ items:
       - "survivalcore:portal_set_region"
 
   commands:
-    slot: 4
+    slot: 37
     material: PAPER
     name: "{highlight}&lCOMMANDS"
     lore:
@@ -50,7 +50,7 @@ items:
       - "survivalcore:portal_open_commands"
 
   teleport:
-    slot: 6
+    slot: 21
     material: "%teleport_material%"
     name: "{highlight}&lTELEPORT"
     lore:
@@ -75,8 +75,8 @@ items:
       - "survivalcore:portal_open_list"
 
   delete:
-    slot: 47
-    material: BARRIER
+    slot: 53
+    material: 'basehead-eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvYmUwZmQxMDE5OWU4ZTRmY2RhYmNhZTRmODVjODU5MTgxMjdhN2M1NTUzYWQyMzVmMDFjNTZkMThiYjk0NzBkMyJ9fX0='
     name: "{error}&lDELETE PORTAL"
     lore:
       - ""

@@ -5,7 +5,7 @@
 # ╚══════════════════════════════════════════════════════════════════╝
 
 title: "{primary}&lADMIN EVENTS"
-size: 36
+size: 54
 type: SIMPLE
 refresh:
   mode: ON_CLICK
@@ -23,7 +23,7 @@ filler:
 
 items:
   manage-events:
-    slot: 15
+    slot: 37
     material: COMPASS
     name: "{warning}&lMANAGE EVENTS"
     lore:
@@ -38,7 +38,7 @@ items:
       - "events:open_event_list"
 
   events-setup:
-    slot: 11
+    slot: 38
     material: SCAFFOLDING
     name: "{info}&lCONFIGURATIONS"
     lore:
@@ -53,7 +53,7 @@ items:
       - "events:open_category_list"
 
   set-lobby:
-    slot: 32
+    slot: 39
     material: RED_BED
     name: "{secondary}&lSET MAIN LOBBY"
     lore:
@@ -66,7 +66,7 @@ items:
       - "events:set_lobby"
 
   reload:
-    slot: 30
+    slot: 40
     material: REDSTONE
     name: "{error}&lRELOAD CONFIGS"
     lore:

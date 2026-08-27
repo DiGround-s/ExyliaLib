@@ -17,7 +17,7 @@ filler:
 
 items:
   display-name:
-    slot: 2
+    slot: 3
     material: NAME_TAG
     name: "{highlight}&lNAME"
     lore:
@@ -29,7 +29,7 @@ items:
       - "practice:edit_arena_name"
 
   icon:
-    slot: 4
+    slot: 2
     material: "%icon_material%"
     name: "{highlight}&lICON"
     lore:
@@ -41,7 +41,7 @@ items:
       - "practice:set_arena_icon"
 
   enabled:
-    slot: 6
+    slot: 5
     material: "%enabled_material%"
     name: "{highlight}&lSTATUS"
     lore:
@@ -53,7 +53,7 @@ items:
       - "practice:toggle_arena_enabled"
 
   spawn1:
-    slot: 19
+    slot: 22
     material: "%spawn1_material%"
     name: "{warning}&lSPAWN 1"
     lore:
@@ -67,7 +67,7 @@ items:
       - "right: practice:tp_spawn spawn1"
 
   spawn2:
-    slot: 20
+    slot: 24
     material: "%spawn2_material%"
     name: "{warning}&lSPAWN 2"
     lore:
@@ -95,7 +95,7 @@ items:
       - "right: practice:tp_spawn spectator"
 
   partyffa-spawn:
-    slot: 22
+    slot: 25
     material: "%partyffa_material%"
     name: "{warning}&lPARTY FFA SPAWN"
     lore:
@@ -137,7 +137,7 @@ items:
       - "practice:set_copy_region"
 
   schematic:
-    slot: 30
+    slot: 20
     material: "%schematic_material%"
     name: "{info}&lSCHEMATIC"
     lore:
@@ -154,7 +154,7 @@ items:
       - "right: practice:regen_schematic"
 
   extra-regions:
-    slot: 32
+    slot: 30
     material: END_PORTAL_FRAME
     name: "{info}&lEXTRA REGIONS"
     lore:
@@ -168,7 +168,7 @@ items:
       - "practice:open_extra_regions_list"
 
   kits:
-    slot: 34
+    slot: 19
     material: BOOK
     name: "{info}&lKITS"
     lore:
@@ -182,7 +182,7 @@ items:
       - "practice:open_arena_kit_select"
 
   protection-radius:
-    slot: 37
+    slot: 31
     material: SHIELD
     name: "{info}&lSPAWN PROTECTION"
     lore:
@@ -200,7 +200,7 @@ items:
       - "shift_right: practice:adjust_protection_radius -5"
 
   extra-region-protection-radius:
-    slot: 39
+    slot: 32
     material: END_PORTAL_FRAME
     name: "{info}&lEXTRA REGION PROTECTION"
     lore:
@@ -218,7 +218,7 @@ items:
       - "shift_right: practice:adjust_extra_region_protection_radius -5"
 
   priority:
-    slot: 38
+    slot: 23
     material: HOPPER
     name: "{info}&lPRIORITY"
     lore:
@@ -236,7 +236,7 @@ items:
       - "shift_right: practice:adjust_priority -10"
 
   view-clones:
-    slot: 52
+    slot: 33
     material: ENDER_EYE
     name: "{info}&lVIEW CLONES"
     lore:
@@ -249,7 +249,7 @@ items:
 
   force-load-clones:
     slot: 53
-    material: SPAWNER
+    material: 'basehead-eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvYmUwZmQxMDE5OWU4ZTRmY2RhYmNhZTRmODVjODU5MTgxMjdhN2M1NTUzYWQyMzVmMDFjNTZkMThiYjk0NzBkMyJ9fX0='
     name: "{warning}&lFORCE LOAD CLONES"
     lore:
       - ""

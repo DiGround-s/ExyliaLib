@@ -1,5 +1,5 @@
 title: "{primary}&lPRACTICE ADMIN"
-size: 36
+size: 54
 type: SIMPLE
 refresh:
   mode: ON_CLICK
@@ -17,7 +17,7 @@ filler:
 
 items:
   manage-arenas:
-    slot: 11
+    slot: 19
     material: COMPASS
     name: "{info}&lMANAGE ARENAS"
     lore:
@@ -32,7 +32,7 @@ items:
       - "practice:open_arena_list"
 
   manage-kits:
-    slot: 13
+    slot: 20
     material: DIAMOND_SWORD
     name: "{info}&lMANAGE KITS"
     lore:
@@ -48,7 +48,7 @@ items:
       - "practice:open_kit_hub"
 
   info:
-    slot: 27
+    slot: 4
     material: PAPER
     name: "{warning}&lEXYLIA PRACTICE"
     lore:
@@ -63,7 +63,7 @@ items:
       - ""
 
   manage-pvp-regions:
-    slot: 20
+    slot: 21
     material: IRON_SWORD
     name: "{secondary}&lPVP REGIONS"
     lore:
@@ -78,7 +78,7 @@ items:
       - "practice:pvp_open_regions"
 
   manage-jumpads:
-    slot: 21
+    slot: 22
     material: SLIME_BLOCK
     name: "{secondary}&lJUMPADS"
     lore:
@@ -93,7 +93,7 @@ items:
       - "practice:jumpad_open_list"
 
   manage-portals:
-    slot: 22
+    slot: 23
     material: ENDER_EYE
     name: "{secondary}&lPORTALS"
     lore:
@@ -118,7 +118,7 @@ items:
       - "practice:reload"
 
   manage-data:
-    slot: 15
+    slot: 25
     material: HOPPER
     name: "{secondary}&lDATA MANAGEMENT"
     lore:
@@ -131,7 +131,7 @@ items:
       - "practice:open_data_management"
 
   server-stats:
-    slot: 17
+    slot: 28
     material: KNOWLEDGE_BOOK
     name: "{info}&lSERVER STATISTICS"
     lore:
@@ -144,7 +144,7 @@ items:
       - "practice:open_admin_stats"
 
   set-kit-editor:
-    slot: 34
+    slot: 29
     material: CRAFTING_TABLE
     name: "{secondary}&lSET KIT EDITOR SPAWN"
     lore:
@@ -156,7 +156,7 @@ items:
       - "practice:set_kit_editor_spawn"
 
   set-lobby:
-    slot: 35
+    slot: 30
     material: RED_BED
     name: "{secondary}&lSET LOBBY SPAWN"
     lore:

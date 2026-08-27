@@ -23,7 +23,7 @@ filler:
 
 items:
   difficulty:
-    slot: 10
+    slot: 19
     material: "%difficulty_material%"
     name: "{info}&lDIFFICULTY"
     lore:
@@ -35,7 +35,7 @@ items:
       - "sandbox:cycle_world_difficulty"
 
   mob-spawning:
-    slot: 12
+    slot: 20
     material: "%mob_spawning_material%"
     name: "{info}&lMOB SPAWNING"
     lore:
@@ -48,7 +48,7 @@ items:
       - "sandbox:toggle_world_setting mob_spawning"
 
   spawn-mobs:
-    slot: 14
+    slot: 21
     material: "%spawn_mobs_material%"
     name: "{info}&lSPAWN MONSTERS"
     lore:
@@ -61,7 +61,7 @@ items:
       - "sandbox:toggle_world_setting spawn_mobs"
 
   spawn-animals:
-    slot: 16
+    slot: 22
     material: "%spawn_animals_material%"
     name: "{info}&lSPAWN ANIMALS"
     lore:
@@ -74,7 +74,7 @@ items:
       - "sandbox:toggle_world_setting spawn_animals"
 
   announce-advancements:
-    slot: 19
+    slot: 23
     material: "%announce_advancements_material%"
     name: "{info}&lANNOUNCE ADVANCEMENTS"
     lore:
@@ -87,7 +87,7 @@ items:
       - "sandbox:toggle_world_setting announce_advancements"
 
   daylight-cycle:
-    slot: 21
+    slot: 24
     material: "%daylight_cycle_material%"
     name: "{info}&lDAYLIGHT CYCLE"
     lore:
@@ -100,7 +100,7 @@ items:
       - "sandbox:toggle_world_setting daylight_cycle"
 
   weather-cycle:
-    slot: 23
+    slot: 25
     material: "%weather_cycle_material%"
     name: "{info}&lWEATHER CYCLE"
     lore:
@@ -113,7 +113,7 @@ items:
       - "sandbox:toggle_world_setting weather_cycle"
 
   mob-griefing:
-    slot: 25
+    slot: 28
     material: "%mob_griefing_material%"
     name: "{info}&lMOB GRIEFING"
     lore:
@@ -126,7 +126,7 @@ items:
       - "sandbox:toggle_world_setting mob_griefing"
 
   show-death-messages:
-    slot: 30
+    slot: 29
     material: "%show_death_messages_material%"
     name: "{info}&lDEATH MESSAGES"
     lore:
@@ -139,7 +139,7 @@ items:
       - "sandbox:toggle_world_setting show_death_messages"
 
   tile-drops:
-    slot: 32
+    slot: 30
     material: "%tile_drops_material%"
     name: "{info}&lTILE DROPS"
     lore:
@@ -152,7 +152,7 @@ items:
       - "sandbox:toggle_world_setting tile_drops"
 
   entity-drops:
-    slot: 34
+    slot: 31
     material: "%entity_drops_material%"
     name: "{info}&lENTITY DROPS"
     lore:
@@ -165,7 +165,7 @@ items:
       - "sandbox:toggle_world_setting entity_drops"
 
   immediate-respawn:
-    slot: 28
+    slot: 32
     material: "%immediate_respawn_material%"
     name: "{info}&lIMMEDIATE RESPAWN"
     lore:
@@ -178,7 +178,7 @@ items:
       - "sandbox:toggle_world_setting immediate_respawn"
 
   disable-item-drops:
-    slot: 37
+    slot: 33
     material: "%disable_item_drops_material%"
     name: "{info}&lDISABLE ITEM DROPS"
     lore:
@@ -190,7 +190,7 @@ items:
       - "sandbox:toggle_world_setting disable_item_drops"
 
   disable-powder-snow:
-    slot: 39
+    slot: 34
     material: "%disable_powder_snow_material%"
     name: "{info}&lDISABLE POWDER SNOW"
     lore:

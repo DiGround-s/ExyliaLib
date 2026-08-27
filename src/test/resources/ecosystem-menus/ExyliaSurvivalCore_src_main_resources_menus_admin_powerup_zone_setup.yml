@@ -22,7 +22,7 @@ filler:
 
 items:
   name:
-    slot: 1
+    slot: 3
     material: NAME_TAG
     name: "{highlight}&lDISPLAY NAME"
     lore:
@@ -34,7 +34,7 @@ items:
       - "survivalcore:pu_zone_edit_name"
 
   enabled:
-    slot: 3
+    slot: 5
     material: "%zone_enabled_material%"
     name: "{highlight}&lENABLED"
     lore:
@@ -46,7 +46,7 @@ items:
       - "survivalcore:pu_zone_toggle_enabled"
 
   mode-area:
-    slot: 5
+    slot: 19
     material: "%zone_mode_is_area%"
     name: "{highlight}&lMODE: AREA"
     lore:
@@ -58,7 +58,7 @@ items:
       - "survivalcore:pu_zone_set_mode_area"
 
   mode-locations:
-    slot: 7
+    slot: 20
     material: "%zone_mode_is_locations%"
     name: "{highlight}&lMODE: LOCATIONS"
     lore:
@@ -70,7 +70,7 @@ items:
       - "survivalcore:pu_zone_set_mode_locations"
 
   area:
-    slot: 10
+    slot: 21
     material: "%zone_area_material%"
     name: "{highlight}&lAREA REGION"
     lore:
@@ -84,7 +84,7 @@ items:
       - "survivalcore:pu_zone_set_area"
 
   locations:
-    slot: 12
+    slot: 22
     material: PAPER
     name: "{highlight}&lSPAWN LOCATIONS"
     lore:
@@ -98,7 +98,7 @@ items:
       - "survivalcore:pu_zone_open_locations"
 
   entries:
-    slot: 14
+    slot: 23
     material: NETHER_STAR
     name: "{highlight}&lPOWERUPS"
     lore:
@@ -112,7 +112,7 @@ items:
       - "survivalcore:pu_zone_open_entries"
 
   interval:
-    slot: 20
+    slot: 24
     material: CLOCK
     name: "{highlight}&lSPAWN INTERVAL"
     lore:
@@ -130,7 +130,7 @@ items:
       - "shift_right: survivalcore:pu_zone_adjust_interval -10"
 
   max-active:
-    slot: 22
+    slot: 25
     material: HOPPER
     name: "{highlight}&lMAX ACTIVE"
     lore:
@@ -144,7 +144,7 @@ items:
       - "right: survivalcore:pu_zone_adjust_max_active -1"
 
   lifetime:
-    slot: 24
+    slot: 28
     material: RECOVERY_COMPASS
     name: "{highlight}&lLIFETIME"
     lore:
@@ -179,7 +179,7 @@ items:
       - "survivalcore:pu_zone_toggle_auto_respawn"
 
   random:
-    slot: 33
+    slot: 30
     material: "%zone_random_material%"
     name: "{highlight}&lSELECTION MODE"
     lore:
@@ -194,7 +194,7 @@ items:
       - "survivalcore:pu_zone_toggle_random"
 
   solid-below:
-    slot: 38
+    slot: 31
     material: "%zone_solid_below_material%"
     name: "{highlight}&lREQUIRE SOLID BELOW"
     lore:
@@ -208,7 +208,7 @@ items:
       - "survivalcore:pu_zone_toggle_solid_below"
 
   allow-air:
-    slot: 40
+    slot: 32
     material: "%zone_allow_air_material%"
     name: "{highlight}&lALLOW IN AIR"
     lore:
@@ -233,7 +233,7 @@ items:
 
   delete:
     slot: 53
-    material: BARRIER
+    material: 'basehead-eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvYmUwZmQxMDE5OWU4ZTRmY2RhYmNhZTRmODVjODU5MTgxMjdhN2M1NTUzYWQyMzVmMDFjNTZkMThiYjk0NzBkMyJ9fX0='
     name: "{error}&lDELETE ZONE"
     lore:
       - ""

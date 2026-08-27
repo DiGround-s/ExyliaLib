@@ -17,7 +17,7 @@ filler:
 
 items:
   new-season:
-    slot: 31
+    slot: 45
     material: END_CRYSTAL
     name: "{error}&lNEW SEASON"
     lore:
@@ -35,7 +35,7 @@ items:
       - "practice:data_new_season"
 
   clear-kit-stats:
-    slot: 10
+    slot: 19
     material: ORANGE_DYE
     name: "{warning}&lCLEAR KIT STATS"
     lore:
@@ -48,7 +48,7 @@ items:
       - "practice:data_clear_kit_stats"
 
   clear-all-stats:
-    slot: 19
+    slot: 20
     material: TNT
     name: "{error}&lCLEAR ALL STATS"
     lore:
@@ -61,7 +61,7 @@ items:
       - "practice:data_clear_all_stats"
 
   reset-kit-elo:
-    slot: 13
+    slot: 21
     material: EXPERIENCE_BOTTLE
     name: "{warning}&lRESET KIT ELO"
     lore:
@@ -87,7 +87,7 @@ items:
       - "practice:data_reset_all_elo"
 
   clear-kit-loadouts:
-    slot: 16
+    slot: 23
     material: CRAFTING_TABLE
     name: "{warning}&lCLEAR KIT LOADOUTS"
     lore:
@@ -100,7 +100,7 @@ items:
       - "practice:data_clear_kit_customizations"
 
   clear-all-loadouts:
-    slot: 25
+    slot: 24
     material: FIRE_CHARGE
     name: "{error}&lCLEAR ALL LOADOUTS"
     lore:
@@ -113,7 +113,7 @@ items:
       - "practice:data_clear_all_customizations"
 
   purge-match-history:
-    slot: 28
+    slot: 25
     material: BOOKSHELF
     name: "{error}&lPURGE MATCH HISTORY"
     lore:
@@ -128,7 +128,7 @@ items:
       - "practice:data_purge_match_history"
 
   export:
-    slot: 37
+    slot: 28
     material: ENDER_CHEST
     name: "{success}&lEXPORT DATABASE"
     lore:
@@ -141,7 +141,7 @@ items:
       - "practice:data_export"
 
   import:
-    slot: 43
+    slot: 46
     material: BUNDLE
     name: "{warning}&lIMPORT DATABASE"
     lore:

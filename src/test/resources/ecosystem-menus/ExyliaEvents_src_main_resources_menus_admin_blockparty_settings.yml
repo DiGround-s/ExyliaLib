@@ -23,7 +23,7 @@ filler:
 
 items:
   info:
-    slot: 0
+    slot: 4
     material: BOOK
     name: "{info}&lHOW TO SETUP"
     lore:
@@ -42,7 +42,7 @@ items:
       - " {muted}❙ {error}a player"
 
   round-duration:
-    slot: 10
+    slot: 19
     material: CLOCK
     name: "{warning}&lROUND DURATION"
     lore:
@@ -60,7 +60,7 @@ items:
       - "shift_left: events:input_setting round-duration"
 
   round-pause:
-    slot: 11
+    slot: 20
     material: REPEATER
     name: "{info}&lROUND PAUSE"
     lore:
@@ -79,7 +79,7 @@ items:
       - "shift_left: events:input_setting round-pause"
 
   time-reduction:
-    slot: 12
+    slot: 21
     material: SUGAR
     name: "{info}&lTIME REDUCTION"
     lore:
@@ -98,7 +98,7 @@ items:
       - "shift_left: events:input_setting time-reduction-per-round"
 
   min-round-duration:
-    slot: 13
+    slot: 22
     material: BARRIER
     name: "{error}&lMIN ROUND DURATION"
     lore:
@@ -116,7 +116,7 @@ items:
       - "shift_left: events:input_setting min-round-duration"
 
   pvp-round:
-    slot: 16
+    slot: 23
     material: IRON_SWORD
     name: "{error}&lPVP ROUND"
     lore:
@@ -135,7 +135,7 @@ items:
       - "shift_left: events:input_setting pvp-round"
 
   initial-colors:
-    slot: 28
+    slot: 24
     material: ORANGE_CONCRETE
     name: "{warning}&lINITIAL COLORS"
     lore:
@@ -154,7 +154,7 @@ items:
       - "shift_left: events:input_setting initial-colors"
 
   max-colors:
-    slot: 29
+    slot: 25
     material: RED_CONCRETE
     name: "{error}&lMAX COLORS"
     lore:
@@ -172,7 +172,7 @@ items:
       - "shift_left: events:input_setting max-colors"
 
   color-increase-interval:
-    slot: 30
+    slot: 28
     material: MAGENTA_CONCRETE
     name: "{info}&lCOLOR INTERVAL"
     lore:
@@ -191,7 +191,7 @@ items:
       - "shift_left: events:input_setting color-increase-interval"
 
   colors-per-increase:
-    slot: 31
+    slot: 29
     material: LIGHT_BLUE_CONCRETE
     name: "{info}&lCOLORS PER INCREASE"
     lore:
@@ -210,7 +210,7 @@ items:
       - "shift_left: events:input_setting colors-per-increase"
 
   square-size:
-    slot: 32
+    slot: 30
     material: WHITE_CONCRETE
     name: "{success}&lSQUARE SIZE"
     lore:

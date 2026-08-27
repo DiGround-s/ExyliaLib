@@ -5,7 +5,7 @@
 # ╚══════════════════════════════════════════════════════════════════╝
 
 title: "{primary}&lANVIL RUNNING SETTINGS"
-size: 45
+size: 54
 type: SIMPLE
 refresh:
   mode: ON_CLICK
@@ -23,7 +23,7 @@ filler:
 
 items:
   info:
-    slot: 0
+    slot: 4
     material: BOOK
     name: "{info}&lHOW TO SETUP"
     lore:
@@ -39,7 +39,7 @@ items:
       - " {muted}❙ {letters}players that stand still"
 
   grace-period:
-    slot: 10
+    slot: 19
     material: CLOCK
     name: "{info}&lGRACE PERIOD"
     lore:
@@ -56,7 +56,7 @@ items:
       - "shift_left: events:input_setting grace-period"
 
   initial-anvil-rate:
-    slot: 12
+    slot: 20
     material: ANVIL
     name: "{warning}&lINITIAL RATE"
     lore:
@@ -73,7 +73,7 @@ items:
       - "shift_left: events:input_setting initial-anvil-rate"
 
   min-anvil-rate:
-    slot: 14
+    slot: 21
     material: DAMAGED_ANVIL
     name: "{error}&lMIN RATE"
     lore:
@@ -90,7 +90,7 @@ items:
       - "shift_left: events:input_setting min-anvil-rate"
 
   rate-decrease-interval:
-    slot: 16
+    slot: 22
     material: REPEATER
     name: "{info}&lREDUCTION INTERVAL"
     lore:
@@ -108,7 +108,7 @@ items:
       - "shift_left: events:input_setting rate-decrease-interval"
 
   rate-decrease-amount:
-    slot: 19
+    slot: 23
     material: COMPARATOR
     name: "{warning}&lREDUCTION AMOUNT"
     lore:
@@ -126,7 +126,7 @@ items:
       - "shift_left: events:input_setting rate-decrease-amount"
 
   anvils-per-wave:
-    slot: 21
+    slot: 24
     material: IRON_BLOCK
     name: "{info}&lANVILS PER WAVE"
     lore:
@@ -161,7 +161,7 @@ items:
       - "shift_left: events:input_setting anvils-increase-interval"
 
   target-anvil-interval:
-    slot: 23
+    slot: 28
     material: TARGET
     name: "{warning}&lTARGETED INTERVAL"
     lore:
@@ -179,7 +179,7 @@ items:
       - "shift_left: events:input_setting target-anvil-interval"
 
   target-anvils:
-    slot: 28
+    slot: 29
     material: "%target_anvils_material%"
     name: "{info}&lTARGETED ANVILS"
     lore:
@@ -207,7 +207,7 @@ items:
       - "events:toggle_anvilrunning_setting break-ground-blocks"
 
   anvil-damage:
-    slot: 32
+    slot: 31
     material: "%anvil_damage_material%"
     name: "{error}&lANVIL DAMAGE"
     lore:
@@ -221,7 +221,7 @@ items:
       - "events:toggle_anvilrunning_setting anvil-damage"
 
   back:
-    slot: 40
+    slot: 49
     material: 'basehead-eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvMjIzZmI2NzQyOTcxNmIyMWJjNmU4ZTdkNjY5Y2VkZGY2NWIxM2UwNzkwYTVjZTU1YjJlMDc3YjgyZDE5ZTEyNCJ9fX0='
     name: '{error}&lBACK'
     lore:

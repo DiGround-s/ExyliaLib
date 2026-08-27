@@ -4,7 +4,7 @@
 # disk after that is what you left here. Reload the plugin to apply an edit.
 
 title: "{primary}&lREALISTIC MINE: %mine_id%"
-size: 45
+size: 54
 type: SIMPLE
 refresh:
   mode: ON_CLICK
@@ -22,7 +22,7 @@ filler:
 
 items:
   name:
-    slot: 1
+    slot: 3
     material: NAME_TAG
     name: "{highlight}&lDISPLAY NAME"
     lore:
@@ -34,7 +34,7 @@ items:
       - "survivalcore:mine_edit_name"
 
   enabled:
-    slot: 3
+    slot: 5
     material: "%enabled_material%"
     name: "{highlight}&lENABLED"
     lore:
@@ -46,7 +46,7 @@ items:
       - "survivalcore:mine_toggle_enabled"
 
   region:
-    slot: 5
+    slot: 19
     material: "%region_material%"
     name: "{highlight}&lMINE AREA"
     lore:
@@ -61,7 +61,7 @@ items:
       - "survivalcore:mine_set_region"
 
   permission:
-    slot: 7
+    slot: 6
     material: PAPER
     name: "{highlight}&lACCESS PERMISSION"
     lore:
@@ -77,7 +77,7 @@ items:
       - "shift_left: survivalcore:mine_clear_permission"
 
   levels:
-    slot: 20
+    slot: 37
     material: DIAMOND_PICKAXE
     name: "{highlight}&lREGEN LEVELS"
     lore:
@@ -93,7 +93,7 @@ items:
       - "survivalcore:mine_open_levels"
 
   break-effects:
-    slot: 21
+    slot: 38
     material: NOTE_BLOCK
     name: "{highlight}&lBREAK EFFECTS"
     lore:
@@ -112,7 +112,7 @@ items:
       - "survivalcore:mine_open_effects"
 
   auto-pickup:
-    slot: 23
+    slot: 39
     material: "%auto_pickup_material%"
     name: "{highlight}&lAUTO-PICKUP"
     lore:
@@ -129,7 +129,7 @@ items:
       - "survivalcore:mine_toggle_auto_pickup"
 
   restrict-breaking:
-    slot: 24
+    slot: 40
     material: "%restrict_breaking_material%"
     name: "{highlight}&lRESTRICT BREAKING"
     lore:
@@ -146,7 +146,7 @@ items:
       - "survivalcore:mine_toggle_restrict_breaking"
 
   back:
-    slot: 40
+    slot: 49
     material: 'basehead-eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvMjIzZmI2NzQyOTcxNmIyMWJjNmU4ZTdkNjY5Y2VkZGY2NWIxM2UwNzkwYTVjZTU1YjJlMDc3YjgyZDE5ZTEyNCJ9fX0='
     name: '{error}&lBACK'
     lore:
@@ -155,8 +155,8 @@ items:
       - "survivalcore:mine_open_list"
 
   delete:
-    slot: 38
-    material: BARRIER
+    slot: 53
+    material: 'basehead-eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvYmUwZmQxMDE5OWU4ZTRmY2RhYmNhZTRmODVjODU5MTgxMjdhN2M1NTUzYWQyMzVmMDFjNTZkMThiYjk0NzBkMyJ9fX0='
     name: "{error}&lDELETE MINE"
     lore:
       - ""

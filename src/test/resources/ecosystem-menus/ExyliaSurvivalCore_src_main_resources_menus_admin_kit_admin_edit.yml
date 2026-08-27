@@ -28,7 +28,7 @@ filler:
 
 items:
   enabled:
-    slot: 4
+    slot: 5
     material: "%enabled_material%"
     name: "{primary}&lSTATUS"
     lore:
@@ -42,7 +42,7 @@ items:
       - "survivalcore:kit_admin_toggle_enabled"
 
   display-name:
-    slot: 19
+    slot: 3
     material: NAME_TAG
     name: "{primary}&lDISPLAY NAME"
     lore:
@@ -55,7 +55,7 @@ items:
       - "survivalcore:kit_admin_edit_name"
 
   description:
-    slot: 20
+    slot: 4
     material: BOOK
     name: "{primary}&lDESCRIPTION"
     lore:
@@ -69,7 +69,7 @@ items:
       - "survivalcore:kit_admin_edit_description"
 
   permission:
-    slot: 21
+    slot: 6
     material: TRIPWIRE_HOOK
     name: "{primary}&lPERMISSION"
     lore:
@@ -83,7 +83,7 @@ items:
       - "survivalcore:kit_admin_edit_permission"
 
   cooldown:
-    slot: 22
+    slot: 24
     material: CLOCK
     name: "{primary}&lCOOLDOWN"
     lore:
@@ -97,7 +97,7 @@ items:
       - "survivalcore:kit_admin_set_cooldown"
 
   max-uses:
-    slot: 23
+    slot: 20
     material: PAPER
     name: "{primary}&lMAX USES"
     lore:
@@ -112,7 +112,7 @@ items:
       - "survivalcore:kit_admin_set_max_uses"
 
   sort-order:
-    slot: 24
+    slot: 21
     material: COMPARATOR
     name: "{primary}&lSORT ORDER"
     lore:
@@ -126,7 +126,7 @@ items:
       - "survivalcore:kit_admin_set_sort_order"
 
   auto-equip:
-    slot: 28
+    slot: 22
     material: "%auto_equip_material%"
     name: "{primary}&lEQUIP ARMOUR"
     lore:
@@ -141,7 +141,7 @@ items:
       - "survivalcore:kit_admin_toggle_auto_equip"
 
   drop-when-full:
-    slot: 29
+    slot: 23
     material: "%drop_full_material%"
     name: "{primary}&lDROP WHEN FULL"
     lore:
@@ -156,7 +156,7 @@ items:
       - "survivalcore:kit_admin_toggle_drop_when_full"
 
   first-join:
-    slot: 30
+    slot: 25
     material: "%first_join_material%"
     name: "{primary}&lFIRST JOIN KIT"
     lore:
@@ -170,7 +170,7 @@ items:
       - "survivalcore:kit_admin_toggle_first_join"
 
   icon:
-    slot: 31
+    slot: 2
     material: "%kit_icon%"
     name: "{primary}&lICON"
     lore:
@@ -183,7 +183,7 @@ items:
       - "survivalcore:kit_admin_set_icon"
 
   edit-items:
-    slot: 33
+    slot: 28
     material: CHEST
     name: "{primary}&lITEMS"
     lore:
@@ -197,7 +197,7 @@ items:
       - "survivalcore:kit_admin_edit_items"
 
   edit-commands:
-    slot: 34
+    slot: 29
     material: COMMAND_BLOCK
     name: "{primary}&lBONUSES"
     lore:
@@ -222,7 +222,7 @@ items:
       - "survivalcore:kit_admin_open_list"
 
   preview:
-    slot: 48
+    slot: 19
     material: ENDER_EYE
     name: "{info}&lPREVIEW"
     lore:
@@ -235,7 +235,7 @@ items:
       - "survivalcore:kit_admin_preview"
 
   clone:
-    slot: 50
+    slot: 30
     material: BOOK
     name: "{success}&lCLONE"
     lore:
@@ -250,7 +250,7 @@ items:
 
   delete:
     slot: 53
-    material: BARRIER
+    material: 'basehead-eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvYmUwZmQxMDE5OWU4ZTRmY2RhYmNhZTRmODVjODU5MTgxMjdhN2M1NTUzYWQyMzVmMDFjNTZkMThiYjk0NzBkMyJ9fX0='
     name: "{error}&lDELETE KIT"
     lore:
       - ""

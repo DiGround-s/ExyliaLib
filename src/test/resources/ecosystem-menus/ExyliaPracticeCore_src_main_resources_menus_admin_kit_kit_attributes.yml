@@ -17,7 +17,7 @@ filler:
 
 items:
   max-health:
-    slot: 11
+    slot: 37
     material: "%max_health_material%"
     name: "{highlight}&lMAX HEALTH"
     lore:
@@ -32,7 +32,7 @@ items:
       - "right: practice:reset_kit_attribute max_health"
 
   attack-damage:
-    slot: 12
+    slot: 38
     material: "%attack_damage_material%"
     name: "{highlight}&lATTACK DAMAGE"
     lore:
@@ -47,7 +47,7 @@ items:
       - "right: practice:reset_kit_attribute attack_damage"
 
   movement-speed:
-    slot: 14
+    slot: 39
     material: "%movement_speed_material%"
     name: "{highlight}&lMOVEMENT SPEED"
     lore:
@@ -62,7 +62,7 @@ items:
       - "right: practice:reset_kit_attribute movement_speed"
 
   knockback-resistance:
-    slot: 15
+    slot: 40
     material: "%knockback_resistance_material%"
     name: "{highlight}&lKNOCKBACK RESISTANCE"
     lore:
@@ -77,7 +77,7 @@ items:
       - "right: practice:reset_kit_attribute knockback_resistance"
 
   start-health:
-    slot: 20
+    slot: 41
     material: "%start_health_material%"
     name: "{highlight}&lSTART HEALTH"
     lore:
@@ -93,7 +93,7 @@ items:
       - "right: practice:reset_kit_attribute start_health"
 
   start-food:
-    slot: 22
+    slot: 42
     material: "%start_food_material%"
     name: "{highlight}&lSTART FOOD LEVEL"
     lore:
@@ -109,7 +109,7 @@ items:
       - "right: practice:reset_kit_attribute start_food"
 
   start-saturation:
-    slot: 24
+    slot: 43
     material: "%start_saturation_material%"
     name: "{highlight}&lSTART SATURATION"
     lore:
