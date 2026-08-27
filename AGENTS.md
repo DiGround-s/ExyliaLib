@@ -1053,7 +1053,7 @@ que el servidor la descargue de Maven Central. Nunca `onCommand`, ni un
 - **No hay sistema de reload.** `Configs.reloadAll(plugin)` + `onReload` lo
   cubren; un plugin se recarga a sí mismo en tres líneas y nunca toca la lib.
 - **`/exylialib reload` recarga los seis ficheros de la lib** (`config.yml`,
-  `colors.yml`, `formats.yml`, `economy.yml`, `input.yml`, `wizard.yml`) y nada
+  `colors.yml`, `formats.yml`, `economy.yml`, `input.yml`, `messages.yml`) y nada
   de un consumidor. La paleta sola basta para recolorear todo el servidor:
   `Colors.apply` → se descarta la caché de `TextEngine` → `BoardManager` y
   `HologramRuntime` se re-envían enteros. `reloadPalette()` conserva el nombre
@@ -1365,7 +1365,7 @@ Raíz de código: `src/main/java/net/exylia/lib/`. Raíz de tests:
 | --- | --- | --- | --- | --- |
 | task | `task/Tasks`, `TaskScheduler`, `TaskHandle`; `platform/Platform` | `task/internal/` | [docs/task.md](docs/task.md) | 1.0.0 |
 | config | `config/Configs`, `ConfigFile`, `MutableConfig`, `Key`, `Comment`, `Migration`, `ConfigIssue`, `Schema` (1.50.0); secciones `Map<String, V>` (1.63.0) | `config/internal/` (+ `SchemaProjection`) | [docs/config.md](docs/config.md) | 1.1.0 |
-| text | `text/Text`, `Colors`, `Palette`, `Lines` (1.48.0) | `text/internal/` | [docs/text.md](docs/text.md) | 1.2.0 |
+| text | `text/Text`, `Colors`, `Palette`, `Lines` (1.48.0), `LibraryMessages` (1.67.0) | `text/internal/` | [docs/text.md](docs/text.md) | 1.2.0 |
 | placeholder | `placeholder/Placeholders`, `Template`, `Resolver`, `Request` | `placeholder/internal/` | [docs/placeholders.md](docs/placeholders.md) | 1.3.0 |
 | effect | `effect/Effects`, `Timer`, `Ticks`, `Display`, `EffectConfig` | `effect/internal/` | [docs/effects.md](docs/effects.md) | 1.4.0 |
 | scoreboard | `scoreboard/Scoreboards`, `Board`, `SidebarConfig` | `scoreboard/internal/` | [docs/scoreboard.md](docs/scoreboard.md) | 1.5.0 |

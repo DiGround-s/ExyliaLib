@@ -79,41 +79,8 @@ public final class Wizards {
 
     private static final Map<String, PluginWizards> BY_PLUGIN = new ConcurrentHashMap<>();
 
-    /** The server-wide settings, read from ExyliaLib's own {@code wizard.yml}. */
-    private static volatile WizardSettings shared = new WizardSettings();
-
     private Wizards() {
         throw new AssertionError("No instances.");
-    }
-
-    /**
-     * The settings every plugin's flows use unless that plugin overrode them.
-     *
-     * <p>Timeouts, the progress bar and the four gesture prompts &mdash; the
-     * wording for standing somewhere, clicking a block, selecting a box and
-     * holding an item. One file for the whole server, because the gestures are
-     * the library's and a plugin wording them itself is how the same four lines
-     * end up copied six times and wrong in two of them.
-     *
-     * @return the shared settings
-     * @since 1.66.0
-     */
-    public static @NotNull WizardSettings defaults() {
-        return shared;
-    }
-
-    /**
-     * Replaces the server-wide settings.
-     *
-     * <p>ExyliaLib calls this when {@code wizard.yml} is read and on every
-     * reload of it. A plugin wanting different limits calls
-     * {@link PluginWizards#using} instead, which affects only its own flows.
-     *
-     * @param settings the new shared settings
-     * @since 1.66.0
-     */
-    public static void defaults(@NotNull WizardSettings settings) {
-        shared = java.util.Objects.requireNonNull(settings, "settings");
     }
 
     /**

@@ -10,6 +10,7 @@ import net.exylia.lib.region.Regions;
 import net.exylia.lib.task.TaskScheduler;
 import net.exylia.lib.task.Tasks;
 import net.exylia.lib.region.SelectionResult;
+import net.exylia.lib.text.LibraryMessages;
 import net.exylia.lib.util.wizard.internal.WizardRuntime;
 import org.bukkit.Location;
 import org.bukkit.entity.Player;
@@ -63,8 +64,7 @@ public final class PluginWizards {
     private final PluginInputs inputs;
     private final PluginEffects effects;
 
-    /** This plugin's own limits, or {@code null} while it uses the shared ones. */
-    private volatile WizardSettings settings;
+    private volatile WizardSettings settings = new WizardSettings();
 
     /**
      * Resolved on first use rather than in the constructor: the region module
@@ -116,8 +116,7 @@ public final class PluginWizards {
      * @return the settings
      */
     public @NotNull WizardSettings settings() {
-        WizardSettings own = settings;
-        return own != null ? own : Wizards.defaults();
+        return settings;
     }
 
     /**
@@ -212,8 +211,8 @@ public final class PluginWizards {
      * Asks a player to stand where they mean, worded by the library.
      *
      * <p>The gesture is the library's, so its wording is too: one line in
-     * ExyliaLib's {@code wizard.yml} rather than the same line copied into every
-     * plugin's messages. Pass a prompt only for a step that genuinely says
+     * ExyliaLib's own {@code messages.yml} rather than the same line copied into
+     * every plugin's messages. Pass a prompt only for a step that genuinely says
      * something the gesture does not.
      *
      * @param player    who is asked
@@ -226,7 +225,7 @@ public final class PluginWizards {
     public @NotNull WizardRun askStand(@NotNull Player player, @NotNull String title,
                                        @NotNull Consumer<Location> accepted,
                                        @Nullable Runnable abandoned) {
-        return askStand(player, title, settings().standPrompt(), accepted, abandoned);
+        return askStand(player, title, LibraryMessages.get().wizard().stand(), accepted, abandoned);
     }
 
     public @NotNull WizardRun askStand(@NotNull Player player, @NotNull String title,
@@ -264,7 +263,7 @@ public final class PluginWizards {
     public @NotNull WizardRun askPoint(@NotNull Player player, @NotNull String title,
                                        @NotNull Consumer<Location> accepted,
                                        @Nullable Runnable abandoned) {
-        return askPoint(player, title, settings().pointPrompt(), accepted, abandoned);
+        return askPoint(player, title, LibraryMessages.get().wizard().point(), accepted, abandoned);
     }
 
     public @NotNull WizardRun askPoint(@NotNull Player player, @NotNull String title,
@@ -306,7 +305,7 @@ public final class PluginWizards {
     public @NotNull WizardRun askRegion(@NotNull Player player, @NotNull String title,
                                         @NotNull Consumer<SelectionResult> accepted,
                                         @Nullable Runnable abandoned) {
-        return askRegion(player, title, settings().regionPrompt(), accepted, abandoned);
+        return askRegion(player, title, LibraryMessages.get().wizard().region(), accepted, abandoned);
     }
 
     public @NotNull WizardRun askRegion(@NotNull Player player, @NotNull String title,
@@ -341,7 +340,7 @@ public final class PluginWizards {
     public @NotNull WizardRun askItem(@NotNull Player player, @NotNull String title,
                                       @NotNull Consumer<ItemStack> accepted,
                                       @Nullable Runnable abandoned) {
-        return askItem(player, title, settings().itemPrompt(), accepted, abandoned);
+        return askItem(player, title, LibraryMessages.get().wizard().item(), accepted, abandoned);
     }
 
     public @NotNull WizardRun askItem(@NotNull Player player, @NotNull String title,

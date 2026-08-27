@@ -249,30 +249,6 @@ class WizardValueTypesTest {
     }
 
     @Test
-    @DisplayName("a deleted gesture prompt falls back, so no step is asked silently")
-    void settingsFallBackOnBlankPrompts() {
-        WizardSettings emptied = new WizardSettings(300, 3, true, "x", true, "t", "s", 2.5,
-                "  ", null, "", " ");
-        assertEquals(WizardSettings.DEFAULT_STAND_PROMPT, emptied.standPrompt());
-        assertEquals(WizardSettings.DEFAULT_POINT_PROMPT, emptied.pointPrompt());
-        assertEquals(WizardSettings.DEFAULT_REGION_PROMPT, emptied.regionPrompt());
-        assertEquals(WizardSettings.DEFAULT_ITEM_PROMPT, emptied.itemPrompt());
-        assertEquals("pick it", new WizardSettings(300, 3, true, "x", true, "t", "s", 2.5,
-                "stand", "pick it", "box", "hold").pointPrompt());
-    }
-
-    @Test
-    @DisplayName("the prompts describe the gesture the library actually asks for")
-    void settingsPromptsNameTheRealGesture() {
-        WizardSettings defaults = new WizardSettings();
-        // The selector handed out is a golden axe. A prompt naming another tool
-        // is the bug these prompts were moved into the library to end.
-        assertFalse(defaults.regionPrompt().toLowerCase(java.util.Locale.ROOT).contains("wooden"));
-        assertTrue(defaults.regionPrompt().contains("confirm"));
-        assertTrue(defaults.standPrompt().contains("sneak"));
-    }
-
-    @Test
     @DisplayName("a blank progress text falls back rather than drawing an empty bar")
     void settingsFallBackOnBlankText() {
         assertFalse(new WizardSettings(300, 3, true, "  ").progressText().isBlank());

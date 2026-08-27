@@ -240,6 +240,26 @@ In a **value** the canonical `<nl>` form is split as the row is drawn — see
   scoreboard and action bar loops.
 - Concatenating values into the string breaks that cache — use `.with()`.
 
+## What the library itself says — `messages.yml`
+
+Some player-facing text belongs to no plugin: the gestures a guided flow asks
+for, and the lines the block selector sends while somebody picks two corners.
+Those describe the *library's* tools, so they live in the library's own file,
+`plugins/ExyliaLib/messages.yml`, generated on first start and reloaded by
+`/exylialib reload`.
+
+```java
+String prompt = LibraryMessages.get().wizard().region();
+String confirmed = LibraryMessages.get().selection().confirmed();
+```
+
+Two sections today, `wizard` and `selection`. A deleted line falls back to the
+Exylia default rather than reaching a player empty, and a whole section deleted
+falls back the same way. A plugin's own messages file keeps everything the
+plugin has an opinion about; what lands here is only what the library would
+otherwise make each plugin invent — six copies of one sentence, five of which go
+stale.
+
 ## Rules
 
 - Return `Component`, not `String`.
@@ -252,8 +272,8 @@ In a **value** the canonical `<nl>` form is split as the row is drawn — see
 ## Source and tests
 
 - Public: `text/Text.java`, `text/Colors.java`, `text/Palette.java`,
-  `text/Lines.java`.
+  `text/Lines.java`, `text/LibraryMessages.java`.
 - Internal: `text/internal/` (`TextEngine`, `FormatScanner`,
   `LegacyTranslator`, `TokenResolver`, `SmallText`).
 - Tests: `src/test/java/net/exylia/lib/text/TextModuleTest.java`,
-  `SmallTextTest.java`, `LinesTest.java`.
+  `SmallTextTest.java`, `LinesTest.java`, `LibraryMessagesTest.java`.

@@ -12,6 +12,7 @@ import net.exylia.lib.region.SelectionSession;
 import net.exylia.lib.region.SelectionState;
 import net.exylia.lib.platform.Platform;
 import net.exylia.lib.task.Tasks;
+import net.exylia.lib.text.LibraryMessages;
 import net.exylia.lib.text.Text;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
@@ -374,7 +375,7 @@ public final class SelectionRuntime {
             if (options.feedback()) {
                 Player player = Bukkit.getPlayer(playerId());
                 if (player != null) {
-                    say(player, "{success}● {letters}Selection confirmed");
+                    say(player, LibraryMessages.get().selection().confirmed());
                 }
             }
             finish(completed);
@@ -394,14 +395,18 @@ public final class SelectionRuntime {
             if (!options.feedback()) {
                 return;
             }
-            String corner = selectingFirst
-                    ? "{success}● {letters}First corner {letters_black}» {info}"
-                    : "{error}● {letters}Second corner {letters_black}» {info}";
-            say(player, corner + position.x() + ", " + position.y() + ", " + position.z());
+            LibraryMessages.Selection lines = LibraryMessages.get().selection();
+            say(player, at(selectingFirst ? lines.firstCorner() : lines.secondCorner(), position));
             if (!bothSet) {
                 return;
             }
-            say(player, "{secondary}Selection: {info}" + volume() + " {letters}blocks");
+            say(player, lines.volume().replace("%blocks%", String.valueOf(volume())));
+        }
+
+        private static String at(String line, BlockPosition position) {
+            return line.replace("%x%", String.valueOf(position.x()))
+                    .replace("%y%", String.valueOf(position.y()))
+                    .replace("%z%", String.valueOf(position.z()));
         }
 
         /**
@@ -444,18 +449,17 @@ public final class SelectionRuntime {
                 hasFirst = first != null;
                 hasSecond = second != null;
             }
+            LibraryMessages.Selection lines = LibraryMessages.get().selection();
             if (now == SelectionState.AWAITING_CONFIRMATION) {
-                return "{warning}➥ {letters}Shift + left-click to confirm {letters_black}» {info}"
-                        + volume() + " {letters}blocks";
+                return lines.guideConfirm().replace("%blocks%", String.valueOf(volume()));
             }
             if (hasFirst && !hasSecond) {
-                return "{letters}Right-click the {error}second corner";
+                return lines.guideFirst();
             }
             if (hasSecond && !hasFirst) {
-                return "{letters}Left-click the {success}first corner";
+                return lines.guideSecond();
             }
-            return "{letters}Left-click and right-click two corners with the {highlight}"
-                    + selectorLabel();
+            return lines.guideCorners().replace("%selector%", selectorLabel());
         }
 
         private void stopGuidance() {
