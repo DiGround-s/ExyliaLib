@@ -121,6 +121,50 @@ class RegionListenerTest {
     }
 
     @Test
+    @DisplayName("a move nothing announced is caught by the poll")
+    void pollCatchesASilentMove() {
+        // Folia does not put every teleport through PlayerTeleportEvent, and a
+        // player moved by packet produces none at all. Without the poll they
+        // stand in a region the server says they left.
+        FakePlayer player = playerAt(world, 100, 5, 100);
+
+        player.at(new Location(world, 5, 5, 5));
+        assertTrue(FakeServer.events(PlayerRegionChangeEvent.class).isEmpty(), "nothing was fired");
+
+        FakeServer.tick(6);
+
+        List<PlayerRegionChangeEvent> fired = FakeServer.events(PlayerRegionChangeEvent.class);
+        assertEquals(1, fired.size(), "the poll found them inside");
+        assertEquals(regions.id("spawn"), fired.getFirst().entered().getFirst().id());
+        assertEquals(RegionChangeCause.SYNC, fired.getFirst().cause());
+    }
+
+    @Test
+    @DisplayName("the poll says nothing while the player stands still")
+    void pollIsSilentWhenNothingMoved() {
+        playerAt(world, 5, 5, 5);
+
+        FakeServer.tick(40);
+
+        assertTrue(FakeServer.events(PlayerRegionChangeEvent.class).isEmpty());
+    }
+
+    @Test
+    @DisplayName("quitting stops the poll")
+    void quitStopsThePoll() {
+        FakePlayer player = playerAt(world, 5, 5, 5);
+
+        listener.onQuit(new org.bukkit.event.player.PlayerQuitEvent(player.player(),
+                (net.kyori.adventure.text.Component) null,
+                org.bukkit.event.player.PlayerQuitEvent.QuitReason.DISCONNECTED));
+        player.at(new Location(world, 100, 5, 100));
+        FakeServer.tick(20);
+
+        assertTrue(FakeServer.events(PlayerRegionChangeEvent.class).isEmpty(),
+                "a player who left the server is not walked out of anything");
+    }
+
+    @Test
     @DisplayName("a teleport that does not leave the block says nothing")
     void teleportInsideTheBlockIsSilent() {
         FakePlayer player = playerAt(world, 5.1, 5, 5.1);

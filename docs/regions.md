@@ -196,6 +196,7 @@ What causes an event:
 | --- | --- |
 | `MOVE` | crossed into a different block |
 | `TELEPORT` | arrived somewhere else |
+| `SYNC` | the poll found them somewhere no event reported |
 | `WORLD_CHANGE` | changed world |
 | `REGISTER`, `REPLACE`, `UNREGISTER`, `RELEASE` | a region changed under a standing player |
 
@@ -204,7 +205,29 @@ already standing there enters them; deleting the region they are in exits them.
 Without it, an admin who makes a region and does not move sees nothing happen.
 
 Joining inside a region does **not** fire an enter — they did not walk in — and
-quitting does not fire an exit.
+quitting does not fire an exit. Firing them would mean every portal teleporting
+at login and every arena eliminating whoever disconnects, which is why the
+library refuses to invent a crossing that did not happen. A plugin that needs to
+know where somebody landed asks, and a plugin that closes a session on quit
+already has `PlayerQuitEvent`:
+
+```java
+@EventHandler
+public void onJoin(PlayerJoinEvent event) {
+    for (RegionSnapshot region : regions.at(event.getPlayer().getLocation())) {
+        zones.getByRegion(region).ifPresent(zone -> service.enter(event.getPlayer(), zone));
+    }
+}
+```
+
+Events are the fast path, not the only one. Every tracked player also carries a
+poll on their own thread, four times a second, that compares where the server
+says they are with where the tracker last put them. It costs the same point
+lookup a step costs and stays silent when nothing changed, and it is what makes
+membership true on a server whose events do not tell the whole story: Folia does
+not put every teleport through `PlayerTeleportEvent`, a plugin can move somebody
+by packet, and a passenger's movement belongs to the vehicle. Anything the
+listeners miss is corrected within a quarter of a second and arrives as `SYNC`.
 
 `TELEPORT` is listened for separately rather than as a move. `PlayerTeleportEvent`
 extends `PlayerMoveEvent`, so it reads like one, but it declares its own handler

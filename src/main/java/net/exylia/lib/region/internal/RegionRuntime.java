@@ -8,6 +8,7 @@ import net.exylia.lib.region.RegionChangeCause;
 import net.exylia.lib.region.RegionId;
 import net.exylia.lib.region.RegionSnapshot;
 import net.exylia.lib.region.WorldIdentity;
+import net.exylia.lib.task.TaskHandle;
 import net.exylia.lib.task.Tasks;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
@@ -36,6 +37,25 @@ public final class RegionRuntime {
     private static final Map<String, Plugin> ACTIVE_OWNERS = new HashMap<>();
     private static final Map<UUID, Membership> MEMBERSHIPS = new ConcurrentHashMap<>();
 
+    /**
+     * The per-player poll that catches a move no event reported.
+     *
+     * <p>Events are the fast path and stay the fast path: a step is answered in
+     * the same tick it happened. They are not, however, the whole truth. Folia
+     * does not put every teleport through {@code PlayerTeleportEvent}, a plugin
+     * can move somebody by packet, and a passenger's movement is the vehicle's.
+     * A tracker that believes only what it is told leaves a player standing in
+     * a region the server says they left.
+     *
+     * <p>Quarter of a second, on the thread that owns the player, and it costs a
+     * point lookup that returns the same regions it returned last time — the
+     * same work one step already does, done five times a second instead of
+     * twenty.
+     */
+    private static final Map<UUID, TaskHandle> POLLS = new ConcurrentHashMap<>();
+
+    private static final long POLL_TICKS = 5;
+
     private static volatile Plugin libraryPlugin;
 
     private RegionRuntime() {
@@ -58,6 +78,12 @@ public final class RegionRuntime {
     public static void init(@NotNull Plugin plugin) {
         libraryPlugin = Objects.requireNonNull(plugin, "plugin");
         PlacedBlockRuntime.init(plugin);
+        // Empty on a normal boot, and not on a reload: a player who was already
+        // online has no join to be tracked from, and without this their first
+        // step would arrive as an entry into every region they were standing in.
+        for (Player player : Bukkit.getOnlinePlayers()) {
+            initialize(player);
+        }
     }
 
     public static @NotNull List<RegionSnapshot> all() {
@@ -265,6 +291,31 @@ public final class RegionRuntime {
                 WorldIdentity.from(world),
                 floor(location.getX()), floor(location.getY()), floor(location.getZ()),
                 regions, index.revision()));
+        poll(player);
+    }
+
+    /**
+     * Starts this player's reconciliation timer.
+     *
+     * <p>It runs at the entity rather than on a global tick, which is what makes
+     * it correct on a regionised server: the task follows the player across
+     * regions and reads a location it is allowed to read.
+     */
+    private static void poll(Player player) {
+        Plugin owner = libraryPlugin;
+        if (owner == null) return;
+        UUID playerId = player.getUniqueId();
+        TaskHandle previous = POLLS.remove(playerId);
+        if (previous != null) previous.cancel();
+        POLLS.put(playerId, Tasks.of(owner).runAtEntityTimer(player, POLL_TICKS, POLL_TICKS, () -> {
+            if (!player.isOnline() || !MEMBERSHIPS.containsKey(playerId)) return;
+            Location location = player.getLocation();
+            World world = location.getWorld();
+            if (world == null) return;
+            update(player, world.getUID(), world.getName(),
+                    location.getX(), location.getY(), location.getZ(),
+                    RegionChangeCause.SYNC, true);
+        }));
     }
 
     public static void move(@NotNull Player player, @NotNull UUID worldId,
@@ -374,6 +425,8 @@ public final class RegionRuntime {
 
     public static void forget(@NotNull UUID playerId) {
         MEMBERSHIPS.remove(Objects.requireNonNull(playerId, "playerId"));
+        TaskHandle poll = POLLS.remove(playerId);
+        if (poll != null) poll.cancel();
     }
 
     /**
