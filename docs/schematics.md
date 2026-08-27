@@ -49,12 +49,13 @@ WorldEdit on one server is a classloading accident waiting to happen.
 
 ## What it does not do
 
-**Folia.** FastAsyncWorldEdit does not support region threading, so on Folia
-`isSupported()` is `false` with that as its reason. The server starts, every
-other module keeps working, and this one does nothing — loudly. Everything
-outside the engine is already scheduled the Folia way (`runAtLocation` for
-blocks, `runAtEntity` for players), so the day FAWE supports it, this is one
-line.
+**Folia without a Folia-capable FAWE.** Folia refuses to load a plugin that does
+not declare `folia-supported`, so a FAWE the plugin manager knows about on Folia
+is a FAWE built for region threading, and the engine binds normally. When the
+server has no such build `isSupported()` is `false` with that as its reason: the
+server starts, every other module keeps working, and this one does nothing —
+loudly. Everything outside the engine is already scheduled the Folia way
+(`runAtLocation` for blocks, `runAtEntity` for players).
 
 **Entities, by default.** A schematic carries its block entities for free — that
 is the point above — but loose entities are opt-in:
@@ -87,7 +88,7 @@ schematics.paste("arena_1", origin).thenAccept(result -> {
 | --- | --- |
 | `SUCCESS` | the whole operation completed |
 | `NOT_FOUND` | there is no such schematic; nothing went wrong |
-| `UNSUPPORTED` | no engine — FAWE absent, unbindable, or Folia |
+| `UNSUPPORTED` | no engine — FAWE absent or unbindable |
 | `FAILED` | it was attempted and did not finish; `reason()` says why |
 
 ExyliaCommons answered all four with `false`, so a menu that greys out a button,

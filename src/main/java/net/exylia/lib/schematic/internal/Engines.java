@@ -1,6 +1,7 @@
 package net.exylia.lib.schematic.internal;
 
 import net.exylia.lib.platform.Platform;
+import org.bukkit.Bukkit;
 import org.jetbrains.annotations.ApiStatus;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -23,8 +24,10 @@ public final class Engines {
             "FastAsyncWorldEdit is not installed, so schematics cannot be saved or pasted.";
 
     static final String FOLIA =
-            "FastAsyncWorldEdit does not support Folia's region threading, "
-                    + "so schematics are unavailable on this server.";
+            "FastAsyncWorldEdit is not loaded on this Folia server, so schematics "
+                    + "cannot be saved or pasted. Folia only loads plugins that "
+                    + "declare folia-supported, so a FAWE build with Folia support "
+                    + "is what is missing.";
 
     static final String BOUND = "FastAsyncWorldEdit is bound.";
 
@@ -38,12 +41,15 @@ public final class Engines {
     /**
      * Binds an engine, if the server has one.
      *
-     * <p>Called once, by the library. Folia is refused before FAWE is even
-     * asked: everything outside the engine is already scheduled the Folia way,
-     * so the day FAWE supports it, this is one line.
+     * <p>Called once, by the library. On Folia the engine is bound only when
+     * the server actually loaded FAWE: Folia refuses to load a plugin that does
+     * not declare {@code folia-supported}, so a FAWE the plugin manager knows
+     * about is a FAWE built for region threading. That makes the version check
+     * the server's job rather than a hardcoded number here, and it keeps the
+     * refusal for the builds that really cannot run.
      */
     static void bind() {
-        if (Platform.isFolia()) {
+        if (Platform.isFolia() && !isFaweLoaded()) {
             engine = null;
             reason = FOLIA;
             return;
@@ -60,6 +66,22 @@ public final class Engines {
         }
         engine = bound;
         reason = bound == null ? NO_FAWE : BOUND;
+    }
+
+    /**
+     * Whether the server registered FastAsyncWorldEdit at all.
+     *
+     * <p>Asked of the plugin manager rather than of a class, because a class is
+     * present on a Folia server that refused to enable the plugin owning it.
+     * Guards {@link Throwable} for the same reason everything else here does: a
+     * server without a plugin manager is a test, not a failure.
+     */
+    private static boolean isFaweLoaded() {
+        try {
+            return Bukkit.getPluginManager().getPlugin("FastAsyncWorldEdit") != null;
+        } catch (Throwable absent) {
+            return false;
+        }
     }
 
     /** The bound engine, or {@code null} when there is none. */

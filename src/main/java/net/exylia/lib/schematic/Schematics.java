@@ -71,9 +71,10 @@ public final class Schematics {
     /**
      * Returns whether anything can be saved or pasted at all.
      *
-     * <p>{@code false} when FastAsyncWorldEdit is not installed, cannot be
-     * bound, or the server is Folia — FAWE does not support region threading.
-     * Every call still works and completes with
+     * <p>{@code false} when FastAsyncWorldEdit is not installed or cannot be
+     * bound — on Folia that includes a FAWE build the server refused to load
+     * because it does not declare {@code folia-supported}. Every call still
+     * works and completes with
      * {@link SchematicOutcome#UNSUPPORTED}.
      *
      * @return {@code true} when an engine is bound
