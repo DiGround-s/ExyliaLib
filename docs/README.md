@@ -43,6 +43,7 @@ against the source — rules and routes are in `AGENTS.md` under
 | [Schematics](schematics.md) | Saving a box of the world and pasting it back — arenas regenerated between matches, with their chests still full | 1.48.0 |
 | [Loot](loot.md) | What comes out of a chest, a spawner or a broken block — the ExyliaCommons tables, read and written unchanged | 1.56.0 |
 | [Editors](editors.md) | Screens for editing the lists a plugin configures: rewards, loot, commands, effects, items, places — one engine, batteries included | 1.56.0 |
+| [Schedules](schedules.md) | Timetables: what starts by itself, at what times, on what days, and under what conditions — one asynchronous timer for the whole server | 1.70.0 |
 Migration notes:
 
 - [Migrating ExyliaFFA](migration-ffa.md) — what FFA needs, and the four things

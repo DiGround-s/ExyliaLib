@@ -60,6 +60,8 @@ import net.exylia.lib.util.wizard.internal.WizardRuntime;
 import net.exylia.lib.placeholder.internal.BuiltIn;
 import net.exylia.lib.placeholder.internal.PapiBridge;
 import net.exylia.lib.platform.Platform;
+import net.exylia.lib.schedule.Schedules;
+import net.exylia.lib.schedule.internal.ScheduleRuntime;
 import net.exylia.lib.scoreboard.internal.BoardManager;
 import net.exylia.lib.session.Sessions;
 import net.exylia.lib.scoreboard.internal.SidebarLibrary;
@@ -184,6 +186,11 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         // lifecycle: a claim exists because a plugin took one, and the module
         // has nothing to start.
         Sessions.init(this);
+        // One asynchronous timer for every plugin's timetable. Started after the
+        // modules a fire reaches into — a schedule that fires the moment the
+        // server is up runs a plugin's handler, and that handler expects the
+        // library it was written against to be there.
+        ScheduleRuntime.init(this);
         Cooldowns.init(this, task -> Tasks.of(this).runAsync(task));
         // Long cooldowns are written every few minutes as well as on quit, so
         // a server that dies without a clean shutdown loses minutes rather
@@ -413,6 +420,11 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         // plus one: releasing the engine drops every loaded clipboard, and
         // those are tens of megabytes each.
         SchematicRuntime.shutdown();
+        // Before the task module, because the shared timer is one of its tasks,
+        // and because a fire dispatched on the way down would schedule work on
+        // a plugin that has already stopped.
+        ScheduleRuntime.stop();
+        Schedules.releaseAll();
         // Writes whatever is pending before the maps are emptied.
         Cooldowns.clearEverything();
         SidebarLibrary.close();
@@ -630,6 +642,11 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         // completes the future unable to run — a caller waiting forever, which
         // is exactly the ExyliaCommons bug this module exists to fix.
         SchematicRuntime.release(pluginName);
+        // Before the task module too, though for the opposite reason: the
+        // timetable's own timer belongs to the library and survives, so what
+        // has to stop is the shared tick walking a list whose handler is about
+        // to be a dead classloader.
+        Schedules.release(pluginName);
         Tasks.release(pluginName);
         Placeholders.unregisterAll(pluginName);
         Actions.release(pluginName);

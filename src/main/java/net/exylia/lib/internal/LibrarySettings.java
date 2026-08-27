@@ -43,6 +43,13 @@ import net.exylia.lib.config.Configs;
 @Comment("your players, not about asking them questions: menus, forms and")
 @Comment("anything else that adapts to the client reads the same value.")
 @Comment("")
+@Comment("timezone: the calendar every scheduled thing is read in — the times")
+@Comment("an event starts at, and any other timetable a plugin keeps. Empty")
+@Comment("means the host's own zone, which is right until the host and the")
+@Comment("players are in different countries. Any IANA name works, such as")
+@Comment("Europe/Madrid or America/Bogota. It lives here rather than in each")
+@Comment("plugin because a network runs on one clock.")
+@Comment("")
 @Comment("fallback-head: the texture a head is drawn with when it has none of")
 @Comment("its own — a lookup that failed, or a source that never carried one.")
 @Comment("Same base64 texture property every source in this module accepts.")
@@ -66,7 +73,11 @@ public record LibrarySettings(
         String bedrockPrefix,
 
         @Comment("The base64 texture drawn on a head with no texture of its own.")
-        String fallbackHead
+        String fallbackHead,
+
+        @Comment("The zone every schedule's times are read in.")
+        @Comment("Empty means the machine's own. Example: Europe/Madrid")
+        String timezone
 ) {
 
     /**
@@ -80,7 +91,7 @@ public record LibrarySettings(
 
     /** Safe defaults used when no config file exists yet. */
     public LibrarySettings() {
-        this(true, 30, false, true, "*", DEFAULT_FALLBACK_HEAD);
+        this(true, 30, false, true, "*", DEFAULT_FALLBACK_HEAD, "");
     }
 
     private static volatile LibrarySettings instance;
