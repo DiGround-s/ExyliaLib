@@ -163,14 +163,25 @@ public final class ConfigFileImpl<T> implements ConfigFile<T> {
         return projection;
     }
 
-    /** Returns whether this file belongs to the given plugin. */
+    /**
+     * Returns whether this file belongs to the given load of its plugin.
+     *
+     * <p>Compared by identity on purpose: {@code Plugin.equals} is final and
+     * compares names, so the two loads a reload tool leaves alive at once look
+     * equal to it. Telling them apart is the entire point of the check.
+     */
     public boolean ownedBy(Plugin other) {
-        return plugin.equals(other);
+        return plugin == other;
     }
 
     /** Returns the owning plugin, which identifies one load of it. */
     public Plugin owner() {
         return plugin;
+    }
+
+    /** Returns the record type this file was declared with. */
+    public Class<T> schemaType() {
+        return schemaType;
     }
 
     /** Returns the owning plugin's name. */

@@ -127,8 +127,13 @@ public final class Configs {
      * @since 1.64.0
      */
     public static void release(@NotNull Plugin plugin) {
-        FILES.values().removeIf(file -> file.ownedBy(plugin));
-        SchemaCache.release(plugin.getName(), plugin.getClass().getClassLoader());
+        for (ConfigFileImpl<?> file : List.copyOf(FILES.values())) {
+            if (!file.ownedBy(plugin)) {
+                continue;
+            }
+            FILES.values().remove(file);
+            SchemaCache.release(plugin.getName(), file.schemaType());
+        }
     }
 
     /**

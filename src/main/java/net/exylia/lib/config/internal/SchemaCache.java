@@ -218,31 +218,53 @@ public final class SchemaCache {
     public static void release(String pluginName) {
         List<Class<?>> declared = BY_PLUGIN.remove(pluginName);
         if (declared != null) {
-            declared.forEach(NODES::remove);
+            declared.forEach(SchemaCache::forget);
         }
     }
 
     /**
-     * Drops the schemas declared by one load of a plugin, leaving a newer
-     * load's alone.
+     * Drops one schema declared by a plugin, leaving a newer load's alone.
      *
      * <p>A plugin reloaded in place declares the same schema names again from a
-     * new classloader, so the classes are what tell the two loads apart.
+     * new classloader, so the class objects are what tell the two loads apart.
+     * The caller passes the class it is letting go rather than a classloader to
+     * match against: a plugin loaded by a bootstrap loader is not itself loaded
+     * by the loader its schemas are, so a guess from the plugin object would
+     * match nothing and pin the dead load's classloader forever.
      */
-    public static void release(String pluginName, ClassLoader loader) {
+    public static void release(String pluginName, Class<?> schema) {
         List<Class<?>> declared = BY_PLUGIN.get(pluginName);
         if (declared == null) {
             return;
         }
-        declared.removeIf(type -> {
-            if (type.getClassLoader() != loader) {
-                return false;
-            }
-            NODES.remove(type);
-            return true;
-        });
+        if (declared.remove(schema)) {
+            forget(schema);
+        }
         if (declared.isEmpty()) {
             BY_PLUGIN.remove(pluginName, declared);
+        }
+    }
+
+    /**
+     * Drops a schema and every record nested inside it.
+     *
+     * <p>Only the top-level schema is recorded per plugin, but analysing it
+     * caches a node for each nested record too. Leaving those behind keeps the
+     * classloader that defined them alive, which on a server reloaded often
+     * enough is a leak with a name: metaspace.
+     */
+    private static void forget(Class<?> type) {
+        SchemaNode node = NODES.remove(type);
+        if (node == null) {
+            return;
+        }
+        for (SchemaNode.SchemaComponent component : node.components()) {
+            if (component.nested() != null) {
+                forget(component.nested().type());
+            }
+            if (component.map() != null && component.map().nested() != null) {
+                forget(component.map().nested().type());
+            }
         }
     }
 

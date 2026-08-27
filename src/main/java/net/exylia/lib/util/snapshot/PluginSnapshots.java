@@ -487,9 +487,14 @@ public final class PluginSnapshots {
      * and nothing is restored: every snapshot this plugin took is already a row,
      * which is exactly what a plugin being disabled needs it to be.
      */
-    /** Returns whether this store belongs to the given load of its plugin. */
+    /**
+     * Returns whether this store belongs to the given load of its plugin.
+     *
+     * <p>Identity, not {@code equals}: that one is final on {@code Plugin} and
+     * compares names, which is what two loads of the same plugin share.
+     */
     boolean ownedBy(Plugin other) {
-        return plugin.equals(other);
+        return plugin == other;
     }
 
     void release() {

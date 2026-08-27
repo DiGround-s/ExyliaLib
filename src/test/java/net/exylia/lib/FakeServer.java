@@ -590,8 +590,11 @@ public final class FakeServer {
                     case "isEnabled" -> true;
                     case "getDataFolder" -> dataFolder;
                     case "getDescription" -> description;
-                    case "hashCode" -> System.identityHashCode(proxy);
-                    case "equals" -> proxy == args[0];
+                    // As PluginBase does it, and it is final there: two loads of
+                    // the same plugin are equal, so anything that needs to tell
+                    // them apart has to compare identity.
+                    case "hashCode" -> name.hashCode();
+                    case "equals" -> args[0] instanceof Plugin other && name.equals(other.getName());
                     case "toString" -> name;
                     default -> defaultValue(method.getReturnType());
                 });

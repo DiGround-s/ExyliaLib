@@ -72,9 +72,14 @@ public final class PluginRewards {
     private volatile Rolls.Dice dice = Rolls.RANDOM;
     private volatile ItemGiver items = ItemGiver.BUKKIT;
 
-    /** Returns whether this view belongs to the given load of its plugin. */
+    /**
+     * Returns whether this view belongs to the given load of its plugin.
+     *
+     * <p>Identity, not {@code equals}: that one is final on {@code Plugin} and
+     * compares names, which is what two loads of the same plugin share.
+     */
     boolean ownedBy(@NotNull Plugin other) {
-        return plugin.equals(other);
+        return plugin == other;
     }
 
     PluginRewards(@NotNull Plugin plugin) {
