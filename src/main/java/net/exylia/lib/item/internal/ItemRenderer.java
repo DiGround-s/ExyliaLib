@@ -369,7 +369,7 @@ public final class ItemRenderer {
             meta.lore(lore(definition.lore(), viewer, values, formatted));
         }
         enchantments(meta, definition.enchantments(), resolve, problems);
-        appearance(meta, definition.appearance(), problems);
+        appearance(meta, definition.appearance(), resolve, problems);
         int limit = stackLimit(definition.appearance(), item.getAmount(),
                 item.getType().getMaxStackSize());
         if (limit > 0) {
@@ -498,6 +498,20 @@ public final class ItemRenderer {
      * legitimately arrive as zero — a player who owns none of something — and
      * an empty slot is not what the menu meant to show.
      */
+    /**
+     * Whether the shimmer is on for this viewer.
+     *
+     * <p>The written value is resolved first, so a file that says
+     * {@code glow: "%kit_enabled%"} shimmers exactly while the plugin puts
+     * {@code true} there. Anything else is off.
+     */
+    private static boolean glowing(String written, UnaryOperator<String> resolve) {
+        if (written == null) {
+            return false;
+        }
+        return Boolean.parseBoolean(resolve.apply(written).trim());
+    }
+
     private static void amount(ItemStack item, String written, UnaryOperator<String> resolve) {
         String value = resolve.apply(written);
         try {
@@ -691,11 +705,12 @@ public final class ItemRenderer {
     // the whole of this decision, and an ItemMeta can be stood in for, while an
     // ItemStack cannot be built at all without the server's registry.
     static void appearance(ItemMeta meta, Appearance appearance,
+                           UnaryOperator<String> resolve,
                            TraitApplier.Reporter problems) {
         if (appearance.isPlain()) {
             return;
         }
-        if (appearance.glow()) {
+        if (glowing(appearance.glow(), resolve)) {
             // The override rather than a fake enchantment: it glows without
             // putting a line in the tooltip, which is what the flag meant all
             // along and what commons faked with Unbreaking plus HIDE_ENCHANTS.

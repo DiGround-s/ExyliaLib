@@ -70,7 +70,7 @@ class ItemReaderTest {
 
         assertEquals("&#3fa9f5Refill Kit", item.displayName());
         assertEquals("&#3fa9f5Refill Kit", item.label());
-        assertTrue(item.appearance().glow());
+        assertEquals("true", item.appearance().glow());
         assertTrue(item.appearance().hideAttributes());
         assertEquals(1, item.appearance().maxStackSize());
     }
@@ -155,8 +155,8 @@ class ItemReaderTest {
     @Test
     @DisplayName("both spellings of a flag work on their own")
     void eitherSpelling() {
-        assertTrue(read("material: STONE\nglow: true\n").appearance().glow());
-        assertTrue(read("material: STONE\nglowing: true\n").appearance().glow());
+        assertEquals("true", read("material: STONE\nglow: true\n").appearance().glow());
+        assertEquals("true", read("material: STONE\nglowing: true\n").appearance().glow());
         assertTrue(read("material: STONE\nhide_tooltip: true\n").appearance().hideTooltip());
         assertTrue(read("material: STONE\nhide-tooltip: true\n").appearance().hideTooltip());
     }
@@ -478,5 +478,21 @@ class ItemReaderTest {
         Item item = read("name: \"Nothing\"\n");
 
         assertEquals("STONE", assertInstanceOf(Source.OfMaterial.class, item.source()).raw());
+    }
+
+    @Test
+    @DisplayName("glow survives as a placeholder and decides itself per viewer")
+    void glowFollowsAPlaceholder() {
+        Item item = read("material: STONE\nglow: \"%kit_enabled%\"\n");
+        assertEquals("%kit_enabled%", item.appearance().glow());
+        // A slot whose shimmer depends on state has to be redrawn, or it is
+        // painted once and never follows the toggle it is reporting.
+        assertTrue(item.isDynamic());
+    }
+
+    @Test
+    @DisplayName("glow: false reads back as nothing written")
+    void glowOffIsAbsent() {
+        assertNull(read("material: STONE\nglow: false\n").appearance().glow());
     }
 }

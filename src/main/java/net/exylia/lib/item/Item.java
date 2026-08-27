@@ -66,6 +66,7 @@ public record Item(
                 || traits.isDynamic()
                 || hasPlaceholder(name)
                 || hasPlaceholder(amount)
+                || hasPlaceholder(appearance.glow())
                 || loreHasPlaceholder();
     }
 

@@ -92,7 +92,7 @@ public final class ItemReader {
 
     private static Appearance appearance(ConfigurationSection section) {
         Appearance built = Appearance.builder()
-                .glow(flag(section, "glow", "glowing"))
+                .glow(text(section, "glow", "glowing"))
                 .hideTooltip(flag(section, "hide-tooltip", "hide_tooltip"))
                 // Commons wrote getBoolean(a, true) || getBoolean(b, true), whose
                 // value is true whatever the file says. Writing false now turns
@@ -375,6 +375,26 @@ public final class ItemReader {
      * true could not be disabled by writing one spelling — you had to know to
      * write both.
      */
+    /**
+     * A flag that may still be a placeholder.
+     *
+     * <p>Read as written so {@code glow: "%enabled%"} survives to render time;
+     * {@code glow: false} reads back as {@code null}, which is the same as not
+     * writing it at all.
+     */
+    private static String text(ConfigurationSection section, String... keys) {
+        for (String key : keys) {
+            if (section.contains(key)) {
+                String written = section.getString(key);
+                if (written == null) {
+                    return section.getBoolean(key) ? "true" : null;
+                }
+                return written.equalsIgnoreCase("false") ? null : written;
+            }
+        }
+        return null;
+    }
+
     private static boolean flag(ConfigurationSection section, String... keys) {
         return flag(section, false, keys);
     }

@@ -41,7 +41,8 @@ class AppearanceFlagsTest {
                     }
                     return net.exylia.lib.FakeServer.defaultValue(method.getReturnType());
                 });
-        ItemRenderer.appearance(meta, appearance, (where, problem) -> { });
+        ItemRenderer.appearance(meta, appearance, java.util.function.UnaryOperator.identity(),
+                (where, problem) -> { });
         return added;
     }
 

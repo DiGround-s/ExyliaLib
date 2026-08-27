@@ -12,7 +12,11 @@ import java.util.List;
  * who is looking: an appearance is decided when the file is read and applied
  * unchanged to every copy of the item.
  *
- * @param glow           adds the enchantment shimmer without an enchantment in the tooltip
+ * @param glow           adds the enchantment shimmer without an enchantment in
+ *                       the tooltip. Written as text rather than a flag so a
+ *                       file can say {@code glow: "%kit_enabled%"} and have the
+ *                       shimmer follow whatever the plugin puts there, the same
+ *                       way {@code amount} already works. {@code null} is off.
  * @param hideTooltip    hides the tooltip entirely, for decorative slots
  * @param hideAttributes hides everything vanilla adds to the tooltip by itself:
  *                       the damage and speed lines on a tool, and the extra
@@ -30,7 +34,7 @@ import java.util.List;
  * @since 1.22.0
  */
 public record Appearance(
-        boolean glow,
+        @Nullable String glow,
         boolean hideTooltip,
         boolean hideAttributes,
         boolean unbreakable,
@@ -47,7 +51,7 @@ public record Appearance(
      * record with nine components is not free to build a few hundred times.
      */
     public static final Appearance PLAIN =
-            new Appearance(false, false, false, false, -1, -1, List.of(), null, null);
+            new Appearance(null, false, false, false, -1, -1, List.of(), null, null);
 
     public Appearance {
         flags = List.copyOf(flags);
@@ -65,7 +69,7 @@ public record Appearance(
 
     /** Builds an appearance. */
     public static final class Builder {
-        private boolean glow;
+        private String glow;
         private boolean hideTooltip;
         private boolean hideAttributes;
         private boolean unbreakable;
@@ -79,6 +83,17 @@ public record Appearance(
         }
 
         public @NotNull Builder glow(boolean glow) {
+            this.glow = glow ? "true" : null;
+            return this;
+        }
+
+        /**
+         * The same, from text that may still hold a placeholder.
+         *
+         * <p>Resolved once per viewer at render time and read as a boolean, so
+         * anything other than {@code true} leaves the item unglowing.
+         */
+        public @NotNull Builder glow(@Nullable String glow) {
             this.glow = glow;
             return this;
         }

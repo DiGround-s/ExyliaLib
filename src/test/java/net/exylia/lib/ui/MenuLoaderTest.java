@@ -348,8 +348,8 @@ class MenuLoaderTest {
                     glowing: true
                 """);
 
-        assertFalse(menu.items().get(0).item().appearance().glow());
-        assertTrue(menu.items().get(1).item().appearance().glow());
+        assertNull(menu.items().get(0).item().appearance().glow());
+        assertEquals("true", menu.items().get(1).item().appearance().glow());
     }
 
     @Test
@@ -834,7 +834,7 @@ class MenuLoaderTest {
         assertTrue(effects.hasTemplate("no_permissions"));
         assertTrue(effects.hasTemplate("not_selected"));
         assertTrue(effects.hasTemplate("selected"));
-        assertTrue(effects.template("selected").item().appearance().glow());
+        assertEquals("true", effects.template("selected").item().appearance().glow());
         // A name the file does not declare draws the ordinary row rather than
         // leaving an empty slot, which is far easier to notice and recover from.
         assertNotNull(effects.template("invented_by_a_plugin"));
