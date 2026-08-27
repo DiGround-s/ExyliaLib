@@ -49,10 +49,10 @@ public final class RewardDescriptor implements EditorDescriptor<RewardEntry> {
     private static final FormKey<String> MESSAGE = FormKey.text("message");
 
     /** Said under the command field, where the wrong guess fails silently. */
-    private static final String COMMAND_HINT = "%player_name% is the player. No leading slash.";
+    private static final String COMMAND_HINT = "%player_name% is the player, no leading slash";
 
     /** Said under the fields the player reads, which take markup as well. */
-    private static final String TEXT_HINT = "%player_name% and colour codes work here.";
+    private static final String TEXT_HINT = "%player_name% and colour codes work";
 
     private final Plugin plugin;
 

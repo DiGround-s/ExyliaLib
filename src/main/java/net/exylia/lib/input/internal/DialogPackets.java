@@ -336,29 +336,33 @@ final class DialogPackets {
     }
 
     /**
-     * Label, then hint, then error, each on its own line.
+     * Label, then hint, then error, on one line.
      *
      * <p>A dialog control has no placeholder of its own, so the hint lives in
      * the label above the box, muted so it reads as guidance and not as part of
-     * the question. The error stays last: it is the line the player is looking
-     * for after a rejected submit.
+     * the question. The error stays last: it is what the player is looking for
+     * after a rejected submit.
+     *
+     * <p>One line, not three: a control label is drawn as a single line and the
+     * client renders a newline in it as a missing glyph rather than a break, so
+     * the parts are separated by a marker instead.
      */
     private static Component fieldLabel(String label, @Nullable String hint, @Nullable String error) {
         StringBuilder text = new StringBuilder(label);
         if (hint != null && !hint.isBlank()) {
-            append(text, "{muted}" + hint);
+            append(text, "{muted}\u00bb " + hint);
         }
         if (error != null && !error.isBlank()) {
-            append(text, "{error}" + error);
+            append(text, "{error}\u00bb " + error);
         }
         return Text.component(text.toString());
     }
 
-    private static void append(StringBuilder text, String line) {
+    private static void append(StringBuilder text, String part) {
         if (!text.isEmpty()) {
-            text.append('\n');
+            text.append(' ');
         }
-        text.append(line);
+        text.append(part);
     }
 
     private static void receive(WrapperCommonClientCustomClickAction<?> packet, UUID sender) {

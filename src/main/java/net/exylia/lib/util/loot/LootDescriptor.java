@@ -151,7 +151,7 @@ public final class LootDescriptor implements EditorDescriptor<LootEntry> {
         EditorForm form = EditorForm.of(plugin, viewer, "{primary}&lEDIT LOOT");
         if (entry.isCommand()) {
             form.text(COMMAND, "Command the console runs", entry.command(), 3)
-                    .hint("%player_name% is the player. No leading slash.");
+                    .hint("%player_name% is the player, no leading slash");
         } else {
             form.integer(MINIMUM, "Least amount", entry.minAmount())
                     .integer(MAXIMUM, "Most amount", entry.maxAmount());

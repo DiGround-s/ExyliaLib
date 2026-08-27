@@ -6,6 +6,7 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import net.exylia.lib.util.editor.Editors;
 import net.exylia.lib.util.editor.ListEditor;
+import net.exylia.lib.task.Tasks;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
@@ -76,9 +77,10 @@ public final class NamedCommands {
      * ecosystem already writes. Anything else is left to whatever placeholder
      * support the command's own plugin has.
      *
-     * <p>Must be called from the thread that owns the player: dispatching a
-     * command is running somebody else's plugin, and none of them expect to be
-     * called from a scheduler thread.
+     * <p>Must be called from the global tick thread. A caller that is not on it
+     * — a listener on a regionised server is on the player's region instead —
+     * wants {@link #run(Plugin, Player, List)}, which puts the dispatch on the
+     * right thread rather than throwing.
      *
      * @param player   who the commands are about
      * @param commands the list
@@ -88,13 +90,48 @@ public final class NamedCommands {
         Objects.requireNonNull(player, "player");
         int dispatched = 0;
         for (String body : NamedCommand.bodies(commands)) {
-            String resolved = body
-                    .replace("%player_name%", player.getName())
-                    .replace("%player%", player.getName());
-            Bukkit.dispatchCommand(Bukkit.getConsoleSender(), resolved);
+            Bukkit.dispatchCommand(Bukkit.getConsoleSender(), resolve(body, player));
             dispatched++;
         }
         return dispatched;
+    }
+
+    /**
+     * The same, on whichever thread is allowed to dispatch.
+     *
+     * <p>What a listener wants. A regionised server dispatches commands on the
+     * global tick thread only, and a listener runs on the player's region, so
+     * dispatching from one throws {@code IllegalStateException: Dispatching
+     * command async} and the commands quietly do nothing. This hands them to
+     * the plugin's scheduler, which runs them in place when the caller already
+     * is on the global thread — every ordinary server — and hops when it is not.
+     *
+     * @param plugin   whose scheduler carries the dispatch
+     * @param player   who the commands are about
+     * @param commands the list
+     * @return how many were handed over
+     */
+    public static int run(@NotNull Plugin plugin, @NotNull Player player,
+                          @NotNull List<NamedCommand> commands) {
+        Objects.requireNonNull(plugin, "plugin");
+        Objects.requireNonNull(player, "player");
+        List<String> bodies = NamedCommand.bodies(commands);
+        if (bodies.isEmpty()) {
+            return 0;
+        }
+        // Resolved here rather than inside the task: the player's name is read
+        // on the caller's thread, and the task may run a tick later.
+        List<String> resolved = bodies.stream().map(body -> resolve(body, player)).toList();
+        Tasks.of(plugin).execute(() -> resolved.forEach(command ->
+                Bukkit.dispatchCommand(Bukkit.getConsoleSender(), command)));
+        return resolved.size();
+    }
+
+    /** One stored line, with the player's name in it. */
+    private static String resolve(String body, Player player) {
+        return body
+                .replace("%player_name%", player.getName())
+                .replace("%player%", player.getName());
     }
 
     /**

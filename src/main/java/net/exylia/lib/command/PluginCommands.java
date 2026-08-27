@@ -175,10 +175,17 @@ public final class PluginCommands {
     /**
      * Hands a command to this server, on the thread allowed to run it.
      *
-     * <p>Both dispatch paths touch the player and the world, so they belong on
-     * the player's thread. Running them inline when already there keeps a
-     * button press within the same tick, which is what makes a menu feel
-     * immediate.
+     * <p>The two actors want different threads, which is the whole of this
+     * method. A player command runs through the player, so it belongs on the
+     * player's own thread; running it inline when already there keeps a button
+     * press within the same tick, which is what makes a menu feel immediate. A
+     * console command is dispatched by the server, and a regionised server
+     * dispatches only on the global tick thread — from a player's region it
+     * throws {@code IllegalStateException: Dispatching command async}.
+     *
+     * <p>Both used to take the player's thread, so on a regionised server every
+     * console line a config file listed threw, the throw was caught into a
+     * failed result, and the reward it was paying quietly paid nothing.
      */
     private CompletableFuture<CommandResult> dispatch(CommandActor actor, String command,
                                                       Player player) {
@@ -200,6 +207,14 @@ public final class PluginCommands {
                 result.complete(CommandResult.failed(command, failure));
             }
         };
+
+        if (actor != CommandActor.PLAYER) {
+            // Runs in place on an ordinary server, where the global thread and
+            // the player's are the same one, so nothing waits a tick for a
+            // reward it could have paid immediately.
+            tasks.execute(body);
+            return result;
+        }
         if (tasks.isOwnedBy(player)) {
             body.run();
         } else {
