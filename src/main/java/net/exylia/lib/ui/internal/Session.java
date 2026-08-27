@@ -882,9 +882,9 @@ final class Session implements UiSession {
      */
     private ItemStack render(UiItem item, Map<String, String> values, Set<String> formatted) {
         if (context.isEmpty()) {
-            return items.render(item.item(), viewer, values, formatted);
+            return items.renderIcon(item.item(), viewer, values, formatted);
         }
-        return items.render(item.item(), viewer,
+        return items.renderIcon(item.item(), viewer,
                 merged(context, values), parsed(context, values, formatted));
     }
 

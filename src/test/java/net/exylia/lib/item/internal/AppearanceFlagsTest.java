@@ -1,6 +1,7 @@
 package net.exylia.lib.item.internal;
 
 import net.exylia.lib.item.Appearance;
+import org.bukkit.Material;
 import org.bukkit.inventory.ItemFlag;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.junit.jupiter.api.DisplayName;
@@ -123,6 +124,22 @@ class AppearanceFlagsTest {
         assertEquals(Set.of(ItemFlag.HIDE_UNBREAKABLE), flags);
     }
 
+    @Test
+    @DisplayName("the two types nothing can hide are the two that get drawn as their model")
+    void selfDescribingTypes() {
+        // Paper closed this as a vanilla limitation: since 1.21.5 the block
+        // these two write is reachable by nothing short of hiding the whole
+        // tooltip, name included.
+        assertTrue(ItemRenderer.describesItself(Material.HOST_ARMOR_TRIM_SMITHING_TEMPLATE));
+        assertTrue(ItemRenderer.describesItself(Material.NETHERITE_UPGRADE_SMITHING_TEMPLATE));
+        assertTrue(ItemRenderer.describesItself(Material.DISC_FRAGMENT_5));
+
+        // Everything else is a component, and a component is hidden by name.
+        assertFalse(ItemRenderer.describesItself(Material.NETHERITE_SWORD));
+        assertFalse(ItemRenderer.describesItself(Material.POTION));
+        assertFalse(ItemRenderer.describesItself(Material.PAPER));
+    }
+
     /** Records whether the additional-tooltip component was written. */
     private static final class RecordingComponents implements ItemRenderer.Components {
         private int hidden;
@@ -131,6 +148,11 @@ class AppearanceFlagsTest {
         public void hideAdditionalTooltip(org.bukkit.inventory.ItemStack item,
                                           TraitApplier.Reporter problems) {
             hidden++;
+        }
+
+        @Override
+        public boolean hidesWhatATypeWrites() {
+            return true;
         }
     }
 

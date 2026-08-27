@@ -174,6 +174,34 @@ public final class PluginItems {
     }
 
     /**
+     * Builds an item for a slot the player only looks at.
+     *
+     * <p>The same as {@link #render(Item, Player, Map, java.util.Set)}, for a
+     * menu icon rather than an item anybody keeps. Two item types — a smithing
+     * template and a disc fragment — write a tooltip block of their own that no
+     * server can hide since 1.21.5, and an icon asking for a clean tooltip is
+     * drawn as its model instead of as itself. An item a player receives is
+     * never disguised that way, which is why this is a separate call: a kit
+     * handing out a smithing template must hand out a smithing template.
+     *
+     * <p>The menus in this library use it for every slot they draw. A plugin
+     * building its own inventory wants it too.
+     *
+     * @param definition what to build
+     * @param viewer     who it is for, or {@code null}
+     * @param values     placeholder names to what they resolve to
+     * @param formatted  which of those names are parsed rather than inserted literally
+     * @return the item
+     * @since 1.67.0
+     */
+    public @NotNull ItemStack renderIcon(@NotNull Item definition, @Nullable Player viewer,
+                                         @NotNull Map<String, String> values,
+                                         @NotNull java.util.Set<String> formatted) {
+        return ItemRenderer.renderIcon(definition, viewer, plugin, values, formatted,
+                (where, problem) -> debug.warn("Rendering an item, " + where + ": " + problem));
+    }
+
+    /**
      * Reads and builds in one call.
      *
      * <p>For the one-off case — an item read from a config and handed straight

@@ -135,6 +135,18 @@ final class ItemComponents implements ItemRenderer.Components {
         }
     }
 
+    @Override
+    public boolean hidesWhatATypeWrites() {
+        try {
+            // The old component was checked before an item wrote its own block,
+            // so having it means every type is covered. tooltip_display hides
+            // components instead, and a smithing template's block is not one.
+            return Registry.DATA_COMPONENT_TYPE.get(HIDE_ADDITIONAL_TOOLTIP) != null;
+        } catch (Throwable unsupported) {
+            return false;
+        }
+    }
+
     /** The 1.21.4 way: a non-valued component, set and done. */
     private static boolean hideThroughOldComponent(ItemStack item) {
         DataComponentType type = Registry.DATA_COMPONENT_TYPE.get(HIDE_ADDITIONAL_TOOLTIP);

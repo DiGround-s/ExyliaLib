@@ -106,16 +106,49 @@ public final class ItemRenderer {
     public static ItemStack render(Item definition, Player viewer, Plugin owner,
                                    Map<String, String> values, Set<String> formatted,
                                    TraitApplier.Reporter problems) {
+        return render(definition, viewer, owner, values, formatted, false, problems);
+    }
+
+    /**
+     * Builds an item that is only ever looked at.
+     *
+     * <p>The same thing, with one liberty a menu slot can take and an item a
+     * player keeps cannot: two item types describe themselves in a tooltip
+     * nothing can hide, and drawing them as their model rather than as
+     * themselves is the only way to a clean icon. See {@link #undescribed}.
+     *
+     * @param definition what to build
+     * @param viewer     who it is for, or {@code null} for nobody in particular
+     * @param owner      whose namespace stored values go under, or {@code null}
+     * @param values     placeholder names to what they resolve to, without percent signs
+     * @param formatted  which of those values are parsed rather than inserted literally
+     * @param problems   where to report parts that could not be applied
+     * @return the item
+     * @since 1.67.0
+     */
+    public static ItemStack renderIcon(Item definition, Player viewer, Plugin owner,
+                                       Map<String, String> values, Set<String> formatted,
+                                       TraitApplier.Reporter problems) {
+        return render(definition, viewer, owner, values, formatted, true, problems);
+    }
+
+    private static ItemStack render(Item definition, Player viewer, Plugin owner,
+                                    Map<String, String> values, Set<String> formatted,
+                                    boolean icon, TraitApplier.Reporter problems) {
         // Row values make the result specific to that row, so an item that
-        // would otherwise be shared is not.
-        boolean cacheable = values.isEmpty() && ItemCache.isCacheable(definition);
+        // would otherwise be shared is not. Nor is an icon that comes out as a
+        // different item than the definition names: the cache is keyed by the
+        // definition alone, and a disguise stored under it would be handed to
+        // whoever renders the same definition to give it away.
+        boolean cacheable = values.isEmpty() && ItemCache.isCacheable(definition)
+                && !(icon && disguises(definition));
         if (cacheable) {
             ItemStack held = ItemCache.get(definition);
             if (held != null) {
                 return held;
             }
         }
-        ItemStack item = build(definition, viewer, owner, values, formatted, problems);
+        ItemStack item = build(definition, viewer, owner, values, formatted, icon, problems);
         if (cacheable) {
             ItemCache.put(definition, item);
         }
@@ -124,9 +157,14 @@ public final class ItemRenderer {
 
     private static ItemStack build(Item definition, Player viewer, Plugin owner,
                                    Map<String, String> values, Set<String> formatted,
-                                   TraitApplier.Reporter problems) {
+                                   boolean icon, TraitApplier.Reporter problems) {
         UnaryOperator<String> resolve = resolver(viewer, values);
         ItemStack item = base(definition.source(), resolve, problems);
+        // Before anything is written, so the writing lands on the item that
+        // ends up on the screen rather than on the one it stood in for.
+        if (icon) {
+            item = undescribed(item, definition.appearance());
+        }
         write(item, definition, viewer, values, formatted, resolve, problems);
         TraitApplier.apply(item, definition.traits(), owner, resolve, problems);
         // Last of all, and that is the whole point: every setItemMeta replaces
@@ -393,6 +431,67 @@ public final class ItemRenderer {
     }
 
     /**
+     * The two item types whose tooltip block nothing can hide.
+     *
+     * <p>{@code hide_additional_tooltip} was checked before an item was asked
+     * to describe itself; {@code tooltip_display}, which replaced it in 1.21.5,
+     * hides <em>components</em>, and the text a smithing template and a disc
+     * fragment write comes from neither a component nor anything a server can
+     * reach. Paper closed it as a vanilla limitation: hiding it is not possible
+     * without hiding the whole tooltip, name included.
+     *
+     * <p>So the icon is drawn as a sheet of paper wearing the template's model.
+     * The picture is the same one, the block is gone, and the model is only
+     * filled in where the file did not name its own.
+     *
+     * <p>Icons only, and never an item a player keeps: a kit handing out a real
+     * smithing template must hand out a smithing template. That is the whole
+     * reason {@link #renderIcon} exists as a separate door.
+     */
+    private static ItemStack undescribed(ItemStack item, Appearance appearance) {
+        if (!appearance.hideAttributes() || !describesItself(item.getType())
+                || components.hidesWhatATypeWrites()) {
+            return item;
+        }
+        ItemStack drawn = new ItemStack(Material.PAPER, item.getAmount());
+        ItemMeta meta = drawn.getItemMeta();
+        if (meta == null) {
+            return item;
+        }
+        NamespacedKey written = appearance.model() == null
+                ? null
+                : NamespacedKey.fromString(appearance.model());
+        // The type's own model where the file named none, and where it named
+        // one nobody can read — appearance() reports that, and an icon drawn as
+        // a blank sheet of paper is worse than the block it was hiding.
+        meta.setItemModel(written == null ? item.getType().getKey() : written);
+        drawn.setItemMeta(meta);
+        return drawn;
+    }
+
+    /** Whether this type writes a tooltip block of its own that nothing hides. */
+    static boolean describesItself(Material type) {
+        return type.name().endsWith("SMITHING_TEMPLATE") || type == Material.DISC_FRAGMENT_5;
+    }
+
+    /**
+     * Whether a definition would be drawn as something else.
+     *
+     * <p>Asked of the definition rather than of the finished item, because the
+     * question is whether the answer may be cached, and that is decided before
+     * anything is built. Only a literal material is ever cacheable — a source
+     * written as a placeholder is dynamic — so reading the source is enough.
+     */
+    private static boolean disguises(Item definition) {
+        if (!definition.appearance().hideAttributes()
+                || !(definition.source() instanceof Source.OfMaterial written)) {
+            return false;
+        }
+        Material type = Registries.material(written.raw());
+        return type != null && describesItself(type) && !components.hidesWhatATypeWrites();
+    }
+
+    /**
      * Sets the stack size.
      *
      * <p>Clamped rather than rejected: an amount driven by a placeholder can
@@ -566,6 +665,16 @@ public final class ItemRenderer {
          * a tooltip is not worth a menu that fails to open.
          */
         void hideAdditionalTooltip(ItemStack item, TraitApplier.Reporter problems);
+
+        /**
+         * Whether hiding it reaches the block an item type writes for itself.
+         *
+         * <p>True on the versions with {@code hide_additional_tooltip}, which
+         * was checked before the item was asked to describe itself. False from
+         * 1.21.5 on, where {@code tooltip_display} hides components and two
+         * item types write text no component owns.
+         */
+        boolean hidesWhatATypeWrites();
     }
 
     /** The real one, kept out of line so the class above stays loadable. */

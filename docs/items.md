@@ -241,6 +241,20 @@ components too — `attribute_modifiers`, `trim`, `dyed_color` — and merges on
 whatever the item already hides. Without that, armour, weapons and trims kept
 their extra lines on 1.21.5+ while the flags looked correctly set.
 
+Two item types are beyond all of this. A smithing template and a disc fragment
+write their block from neither a component nor anything a plugin can reach —
+`hide_additional_tooltip` was checked before the item was asked to describe
+itself, and `tooltip_display` hides components instead — so since 1.21.5 vanilla
+offers no way to hide *"Applies to: Armor"* short of hiding the whole tooltip,
+name included. Paper closed it as an upstream limitation.
+
+Menu icons take the way out that leaves: a slot asking for a clean tooltip is
+drawn as a sheet of paper wearing the template's model, which looks the same and
+says nothing. Only icons — `PluginItems.renderIcon`, which the menus use for
+every slot they draw. `render` never disguises anything, because a kit handing
+out a smithing template has to hand out a smithing template. On 1.21.4 and
+earlier nothing is disguised at all: the component reaches it there.
+
 It leaves enchantments alone. ExyliaCommons applied every flag here, so an item
 hiding its attributes also lost the enchantment lines it meant to show; hiding
 those stays something a file asks for, through `flags` — and the merge is what
