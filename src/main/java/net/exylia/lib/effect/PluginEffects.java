@@ -48,4 +48,25 @@ public final class PluginEffects {
     public @NotNull BossBarBuilder bossBar(@NotNull String text) {
         return Effects.bossBar(text).ownedBy(plugin.getName());
     }
+
+    /**
+     * Plays an effect declared in a config file, bound to this plugin.
+     *
+     * @param effect the configured effect
+     * @param viewer who should see it
+     * @return the display when the effect stays on screen, otherwise
+     *         {@code null}
+     */
+    public Display play(@NotNull EffectConfig effect, @NotNull org.bukkit.entity.Player viewer) {
+        return net.exylia.lib.effect.internal.EffectRuntime.play(effect, viewer, plugin.getName());
+    }
+
+    /**
+     * Plays a configured effect for everybody online, bound to this plugin.
+     *
+     * @param effect the configured effect
+     */
+    public void playAll(@NotNull EffectConfig effect) {
+        net.exylia.lib.effect.internal.EffectRuntime.playAll(effect, plugin.getName());
+    }
 }

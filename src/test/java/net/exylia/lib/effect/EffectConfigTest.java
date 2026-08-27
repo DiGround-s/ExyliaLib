@@ -211,4 +211,31 @@ class EffectConfigTest {
         assertFalse(display.isShowing());
         assertEquals(0, EffectRuntime.active());
     }
+
+    @Test
+    @DisplayName("a configured effect plays under the plugin that owns it")
+    void ownedConfigEffectBelongsToItsPlugin() throws Exception {
+        // A second owner is what breaks the static path: with more than one
+        // registration the owner has to come from the caller's classloader,
+        // which a shaded or externally loaded plugin does not have.
+        Plugin other = FakeServer.newPlugin("OtherPlugin", folder.toFile());
+        Effects.owner(other);
+        try {
+            Files.writeString(new File(folder.toFile(), "arena.yml").toPath(), """
+                    on-win:
+                      boss-bar:
+                        text: 'Owned'
+                    """);
+
+            Arena arena = Configs.define(plugin, "arena", Arena.class).load().get();
+            Display display = Effects.of(plugin).play(arena.onWin(), viewer.player());
+            FakeServer.tick(1);
+
+            assertNotNull(display, "the owner-scoped form must not need to guess a caller");
+            assertEquals(1, EffectRuntime.stopAll("ArenaPlugin"),
+                    "the display must be cleaned up with the plugin that played it");
+        } finally {
+            EffectRuntime.release("OtherPlugin");
+        }
+    }
 }

@@ -341,7 +341,11 @@ final class RunningTeleport implements TeleportHandle {
             return;
         }
         try {
-            Effects.play(effect, plan.player());
+            // Owner-scoped rather than static: the static form works the owner
+            // out from the calling class, and the caller here is the library
+            // itself, which under a shading or loader classloader resolves to
+            // nothing at all.
+            Effects.of(plan.plugin()).play(effect, plan.player());
         } catch (RuntimeException failed) {
             // A misconfigured sound name should not stop a teleport: the point
             // of the module is the move, and the effect is decoration on it.

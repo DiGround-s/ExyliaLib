@@ -251,14 +251,32 @@ public final class EffectRuntime {
      * @return the display when it stays on screen, otherwise {@code null}
      */
     public static Display play(EffectConfig effect, Player viewer) {
-        return ConfigPlayer.play(effect, viewer);
+        return play(effect, viewer, null);
+    }
+
+    /**
+     * Plays an effect declared in config, under a known owner.
+     *
+     * @param effect the configured effect
+     * @param viewer who sees it
+     * @param owner  the owning plugin's name, or {@code null} to work it out
+     *               from the caller
+     * @return the display when it stays on screen, otherwise {@code null}
+     */
+    public static Display play(EffectConfig effect, Player viewer, @Nullable String owner) {
+        return ConfigPlayer.play(effect, viewer, owner);
     }
 
     /** Plays a configured effect for everybody online. */
     public static void playAll(EffectConfig effect) {
+        playAll(effect, null);
+    }
+
+    /** Plays a configured effect for everybody online, under a known owner. */
+    public static void playAll(EffectConfig effect, @Nullable String owner) {
         Collection<? extends Player> players = Bukkit.getOnlinePlayers();
         for (Player player : players) {
-            ConfigPlayer.play(effect, player);
+            ConfigPlayer.play(effect, player, owner);
         }
     }
 }

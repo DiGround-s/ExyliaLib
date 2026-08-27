@@ -11,6 +11,12 @@ import org.bukkit.entity.Player;
  * so an owner who wants only a sound gets only a sound, and one who wants a
  * title, a sound and fireworks gets all three from the same block.
  *
+ * <p>A configured effect played through {@code Effects.of(plugin)} carries that
+ * plugin's name, which is what lets it tick and be cleaned up under its owner.
+ * Played through the static {@link net.exylia.lib.effect.Effects#play} the owner
+ * is worked out from the caller instead, which cannot be done under every
+ * classloader.
+ *
  * <p>Where several parts stay on screen, the boss bar is returned as the handle:
  * it is the one an owner is most likely to want to stop early, and returning
  * several would make the common case awkward for the sake of the rare one.
@@ -20,7 +26,7 @@ final class ConfigPlayer {
     private ConfigPlayer() {
     }
 
-    static Display play(EffectConfig effect, Player viewer) {
+    static Display play(EffectConfig effect, Player viewer, String owner) {
         if (effect == null || viewer == null) {
             return null;
         }
@@ -29,12 +35,12 @@ final class ConfigPlayer {
 
         EffectConfig.BossBar bossBar = effect.bossBar();
         if (bossBar != null && !bossBar.text().isEmpty()) {
-            handle = bossBar(bossBar).show(viewer);
+            handle = own(bossBar(bossBar), owner).show(viewer);
         }
 
         EffectConfig.Title title = effect.title();
         if (title != null && (!title.text().isEmpty() || !title.subtitle().isEmpty())) {
-            Display shown = title(title).show(viewer);
+            Display shown = own(title(title), owner).show(viewer);
             if (handle == null) {
                 handle = shown;
             }
@@ -42,7 +48,7 @@ final class ConfigPlayer {
 
         EffectConfig.ActionBar actionBar = effect.actionBar();
         if (actionBar != null && !actionBar.text().isEmpty()) {
-            Display shown = actionBar(actionBar).show(viewer);
+            Display shown = own(actionBar(actionBar), owner).show(viewer);
             if (handle == null) {
                 handle = shown;
             }
@@ -83,6 +89,18 @@ final class ConfigPlayer {
         }
 
         return handle;
+    }
+
+    private static TitleBuilder own(TitleBuilder builder, String owner) {
+        return owner == null ? builder : builder.ownedBy(owner);
+    }
+
+    private static ActionBarBuilder own(ActionBarBuilder builder, String owner) {
+        return owner == null ? builder : builder.ownedBy(owner);
+    }
+
+    private static BossBarBuilder own(BossBarBuilder builder, String owner) {
+        return owner == null ? builder : builder.ownedBy(owner);
     }
 
     private static TitleBuilder title(EffectConfig.Title config) {
