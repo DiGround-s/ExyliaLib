@@ -1052,9 +1052,9 @@ que el servidor la descargue de Maven Central. Nunca `onCommand`, ni un
 
 - **No hay sistema de reload.** `Configs.reloadAll(plugin)` + `onReload` lo
   cubren; un plugin se recarga a sí mismo en tres líneas y nunca toca la lib.
-- **`/exylialib reload` recarga los cinco ficheros de la lib** (`config.yml`,
-  `colors.yml`, `formats.yml`, `economy.yml`, `input.yml`) y nada de un
-  consumidor. La paleta sola basta para recolorear todo el servidor:
+- **`/exylialib reload` recarga los seis ficheros de la lib** (`config.yml`,
+  `colors.yml`, `formats.yml`, `economy.yml`, `input.yml`, `wizard.yml`) y nada
+  de un consumidor. La paleta sola basta para recolorear todo el servidor:
   `Colors.apply` → se descarta la caché de `TextEngine` → `BoardManager` y
   `HologramRuntime` se re-envían enteros. `reloadPalette()` conserva el nombre
   de cuando la paleta era el único fichero.

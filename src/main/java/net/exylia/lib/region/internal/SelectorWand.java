@@ -26,12 +26,12 @@ import java.util.Objects;
  * a seam: everything the session decides — corners, confirmation, what it tells
  * the player — is tested without one.
  *
- * <h2>Nothing is destroyed to make room</h2>
- * ExyliaCommons put the wand straight into the main hand with
- * {@code setItemInMainHand}, so an admin holding a stack of blocks lost it. Here
- * it goes into a free slot, the main hand only when the main hand is empty, and
- * a full inventory means the selection still runs — the player just has to find
- * their own golden axe.
+ * <h2>The main hand, always</h2>
+ * The selector goes where the player is already looking, so nobody has to hunt
+ * their hotbar for it. Whatever was in that hand is moved to a free slot; an
+ * inventory with no free slot loses it, which is the trade this was asked for —
+ * a selection that silently did not arrive is worse than a stack an admin can
+ * get back, and admins are who selects.
  *
  * <h2>Which item is ours is written on it</h2>
  * The wand carries the owning plugin's name in its persistent data, so taking it
@@ -39,9 +39,6 @@ import java.util.Objects;
  * already had.
  */
 public interface SelectorWand {
-
-    /** What {@link #give} returns when there was nowhere to put it. */
-    int NO_ROOM = -1;
 
     /**
      * Builds the selector for a session.
@@ -53,11 +50,11 @@ public interface SelectorWand {
     @NotNull ItemStack build(@NotNull Plugin owner, @NotNull SelectionOptions options);
 
     /**
-     * Puts the selector in a free slot.
+     * Puts the selector in the player's main hand.
      *
      * @param player  who gets it
      * @param wand    the item
-     * @return the slot it went into, or {@link #NO_ROOM}
+     * @return the slot it went into
      */
     int give(@NotNull Player player, @NotNull ItemStack wand);
 
@@ -108,20 +105,20 @@ public interface SelectorWand {
         @Override
         public int give(@NotNull Player player, @NotNull ItemStack wand) {
             var inventory = player.getInventory();
-            // The hand first, but only when it is empty: a selector that lands
-            // where the player is already looking needs no explaining, and one
-            // that overwrites what they were holding is a bug report.
             int held = inventory.getHeldItemSlot();
-            if (isEmpty(inventory.getItem(held))) {
-                inventory.setItem(held, wand);
+            ItemStack displaced = inventory.getItem(held);
+            inventory.setItem(held, wand);
+            if (isEmpty(displaced)) {
                 return held;
             }
             int free = inventory.firstEmpty();
-            if (free < 0) {
-                return NO_ROOM;
+            if (free >= 0) {
+                inventory.setItem(free, displaced);
             }
-            inventory.setItem(free, wand);
-            return free;
+            // free < 0 destroys it. Asked for deliberately: the selector has to
+            // be in the hand, and an inventory with no room has nowhere else to
+            // put what was there.
+            return held;
         }
 
         @Override

@@ -63,7 +63,8 @@ public final class PluginWizards {
     private final PluginInputs inputs;
     private final PluginEffects effects;
 
-    private volatile WizardSettings settings = new WizardSettings();
+    /** This plugin's own limits, or {@code null} while it uses the shared ones. */
+    private volatile WizardSettings settings;
 
     /**
      * Resolved on first use rather than in the constructor: the region module
@@ -115,7 +116,8 @@ public final class PluginWizards {
      * @return the settings
      */
     public @NotNull WizardSettings settings() {
-        return settings;
+        WizardSettings own = settings;
+        return own != null ? own : Wizards.defaults();
     }
 
     /**
@@ -135,7 +137,7 @@ public final class PluginWizards {
         if (id.isBlank()) {
             throw new WizardException("A wizard needs an id, so a log line can name it.");
         }
-        return new WizardBuilder(id, settings.progress());
+        return new WizardBuilder(id, settings().progress());
     }
 
     /**
@@ -172,7 +174,7 @@ public final class PluginWizards {
         Objects.requireNonNull(player, "player");
         Objects.requireNonNull(wizard, "wizard");
         return WizardRuntime.start(plugin, player, wizard, tasks, debug, inputs, effects,
-                this::regions, settings, afterwards);
+                this::regions, settings(), afterwards);
     }
 
     // ------------------------------------------------------------------
@@ -206,6 +208,27 @@ public final class PluginWizards {
      * @return the running flow
      * @since 1.59.0
      */
+    /**
+     * Asks a player to stand where they mean, worded by the library.
+     *
+     * <p>The gesture is the library's, so its wording is too: one line in
+     * ExyliaLib's {@code wizard.yml} rather than the same line copied into every
+     * plugin's messages. Pass a prompt only for a step that genuinely says
+     * something the gesture does not.
+     *
+     * @param player    who is asked
+     * @param title     what the progress bar names
+     * @param accepted  told where they stood, on the player's thread
+     * @param abandoned run when they backed out instead, or {@code null}
+     * @return the running flow
+     * @since 1.66.0
+     */
+    public @NotNull WizardRun askStand(@NotNull Player player, @NotNull String title,
+                                       @NotNull Consumer<Location> accepted,
+                                       @Nullable Runnable abandoned) {
+        return askStand(player, title, settings().standPrompt(), accepted, abandoned);
+    }
+
     public @NotNull WizardRun askStand(@NotNull Player player, @NotNull String title,
                                        @NotNull String prompt,
                                        @NotNull Consumer<Location> accepted,
@@ -228,6 +251,22 @@ public final class PluginWizards {
      * @return the running flow
      * @since 1.59.0
      */
+    /**
+     * Asks a player to click a block, worded by the library.
+     *
+     * @param player    who is asked
+     * @param title     what the progress bar names
+     * @param accepted  told which block, on the player's thread
+     * @param abandoned run when they backed out instead, or {@code null}
+     * @return the running flow
+     * @since 1.66.0
+     */
+    public @NotNull WizardRun askPoint(@NotNull Player player, @NotNull String title,
+                                       @NotNull Consumer<Location> accepted,
+                                       @Nullable Runnable abandoned) {
+        return askPoint(player, title, settings().pointPrompt(), accepted, abandoned);
+    }
+
     public @NotNull WizardRun askPoint(@NotNull Player player, @NotNull String title,
                                        @NotNull String prompt,
                                        @NotNull Consumer<Location> accepted,
@@ -250,6 +289,26 @@ public final class PluginWizards {
      * @return the running flow
      * @since 1.59.0
      */
+    /**
+     * Asks a player to select a volume, worded by the library.
+     *
+     * <p>The selector, the preview, the confirmation and now the sentence that
+     * describes them all come from the same place, so a plugin cannot tell an
+     * admin to hold something the library does not hand out.
+     *
+     * @param player    who is asked
+     * @param title     what the progress bar names
+     * @param accepted  told what they selected, on the player's thread
+     * @param abandoned run when they backed out instead, or {@code null}
+     * @return the running flow
+     * @since 1.66.0
+     */
+    public @NotNull WizardRun askRegion(@NotNull Player player, @NotNull String title,
+                                        @NotNull Consumer<SelectionResult> accepted,
+                                        @Nullable Runnable abandoned) {
+        return askRegion(player, title, settings().regionPrompt(), accepted, abandoned);
+    }
+
     public @NotNull WizardRun askRegion(@NotNull Player player, @NotNull String title,
                                         @NotNull String prompt,
                                         @NotNull Consumer<SelectionResult> accepted,
@@ -269,6 +328,22 @@ public final class PluginWizards {
      * @return the running flow
      * @since 1.59.0
      */
+    /**
+     * Asks a player to hold an item and confirm, worded by the library.
+     *
+     * @param player    who is asked
+     * @param title     what the progress bar names
+     * @param accepted  told which item, on the player's thread
+     * @param abandoned run when they backed out instead, or {@code null}
+     * @return the running flow
+     * @since 1.66.0
+     */
+    public @NotNull WizardRun askItem(@NotNull Player player, @NotNull String title,
+                                      @NotNull Consumer<ItemStack> accepted,
+                                      @Nullable Runnable abandoned) {
+        return askItem(player, title, settings().itemPrompt(), accepted, abandoned);
+    }
+
     public @NotNull WizardRun askItem(@NotNull Player player, @NotNull String title,
                                       @NotNull String prompt,
                                       @NotNull Consumer<ItemStack> accepted,

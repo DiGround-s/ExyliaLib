@@ -316,11 +316,11 @@ Either corner can be moved for as long as the box is unconfirmed, and the
 outline follows it. Nothing is answered until the confirmation, so a misclick
 costs a click rather than an arena.
 
-The selector is put in a **free slot** — the main hand only when the main hand
-is empty — and taken back however the selection ends. ExyliaCommons wrote it
-straight into the main hand, which destroyed whatever was there; that is not
-reproduced. A player with no room is told to hold the material themselves, and
-the selection still runs: what selects is the material, not the item we gave.
+The selector goes into the **main hand**, always, and is taken back however the
+selection ends. Whatever was in that hand moves to the first free slot; an
+inventory with no free slot loses it. The tool being where the player is already
+looking is what that trade buys — and what the player was holding is only ever
+moved out of the way, never swapped with another slot's contents.
 
 ### The switches
 

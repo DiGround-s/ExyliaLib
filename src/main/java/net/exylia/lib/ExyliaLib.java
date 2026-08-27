@@ -15,6 +15,8 @@ import net.exylia.lib.economy.internal.BalanceCache;
 import net.exylia.lib.economy.internal.CurrencyRegistry;
 import net.exylia.lib.format.Formats;
 import net.exylia.lib.input.InputSettings;
+import net.exylia.lib.util.wizard.WizardSettings;
+import net.exylia.lib.util.wizard.Wizards;
 import net.exylia.lib.input.Inputs;
 import net.exylia.lib.input.internal.Bedrocks;
 import net.exylia.lib.input.internal.ChatTransport;
@@ -110,6 +112,7 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
     private ConfigFile<FormatSettings> formats;
     private ConfigFile<EconomySettings> economy;
     private ConfigFile<InputSettings> input;
+    private ConfigFile<WizardSettings> wizard;
 
     @Override
     public void onEnable() {
@@ -142,6 +145,7 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         loadFormats();
         loadEconomy();
         loadInput();
+        loadWizards();
         Placeholders.logger(getLogger());
         BuiltIn.register(this);
         FormatPlaceholders.register(this);
@@ -315,6 +319,22 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         InputRuntime.init(this);
     }
 
+    /**
+     * Reads {@code wizard.yml}, the wording every plugin's flows use.
+     *
+     * <p>Here rather than in each plugin's own messages: standing somewhere,
+     * clicking a block, selecting a box and holding an item are the library's
+     * gestures, performed with the library's selector. A plugin that had to
+     * word them was copying the same four lines, and a copy goes stale — which
+     * is how prompts naming a wooden axe outlived the golden one this hands
+     * out.
+     */
+    private void loadWizards() {
+        wizard = Configs.define(this, "wizard", WizardSettings.class).load();
+        Wizards.defaults(wizard.get());
+        wizard.onReload(Wizards::defaults);
+    }
+
     private void applyInput(InputSettings settings) {
         Inputs.defaultTimeout(java.time.Duration.ofSeconds(Math.max(1, settings.timeoutSeconds())));
         ChatTransport.setCancelWord(settings.cancelWord());
@@ -350,6 +370,7 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         formats.reload();
         economy.reload();
         input.reload();
+        wizard.reload();
     }
 
     /**

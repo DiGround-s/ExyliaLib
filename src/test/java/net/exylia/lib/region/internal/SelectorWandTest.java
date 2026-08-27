@@ -21,6 +21,8 @@ import java.util.List;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotSame;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -145,25 +147,33 @@ class SelectorWandTest {
     }
 
     @Test
-    @DisplayName("a full hand is never overwritten — that is the item commons destroyed")
-    void neverOverwritesTheHand() {
+    @DisplayName("a full hand is emptied into the inventory, and the tool takes the hand")
+    void movesWhatWasHeld() {
         Slots inventory = new Slots(9, 3);
-        inventory.put(3, new Stack());
+        ItemStack held = new Stack();
+        inventory.put(3, held);
         player.inventory(inventory.proxy());
 
-        assertEquals(0, SelectorWand.BUKKIT.give(player.player(), new Stack()),
-                "The first free slot, not the one somebody was holding");
+        ItemStack tool = new Stack();
+        assertEquals(3, SelectorWand.BUKKIT.give(player.player(), tool),
+                "The hand, always: that is where the player is looking");
+        assertSame(tool, inventory.at(3));
+        assertSame(held, inventory.at(0), "What was held goes to the first free slot");
     }
 
     @Test
-    @DisplayName("a full inventory is answered, not forced")
-    void noRoom() {
+    @DisplayName("an inventory with no free slot loses what was held, and still gets the tool")
+    void destroysWhatCannotBeMoved() {
         Slots inventory = new Slots(2, 0);
-        inventory.put(0, new Stack());
+        ItemStack held = new Stack();
+        inventory.put(0, held);
         inventory.put(1, new Stack());
         player.inventory(inventory.proxy());
 
-        assertEquals(SelectorWand.NO_ROOM, SelectorWand.BUKKIT.give(player.player(), new Stack()));
+        ItemStack tool = new Stack();
+        assertEquals(0, SelectorWand.BUKKIT.give(player.player(), tool));
+        assertSame(tool, inventory.at(0));
+        assertNotSame(held, inventory.at(1), "Nowhere to put it, so it is gone rather than duplicated");
     }
 
     // ------------------------------------------------------------------
@@ -227,6 +237,10 @@ class SelectorWandTest {
 
         private void put(int slot, ItemStack item) {
             contents.set(slot, item);
+        }
+
+        private ItemStack at(int slot) {
+            return contents.get(slot);
         }
 
         private int filled() {

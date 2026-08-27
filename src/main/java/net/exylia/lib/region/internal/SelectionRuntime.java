@@ -276,20 +276,11 @@ public final class SelectionRuntime {
                             + player.getName() + '.', unbuildable);
                     return;
                 }
-                int slot;
                 try {
-                    slot = wand.give(player, item);
+                    wand.give(player, item);
                 } catch (RuntimeException | LinkageError unwritable) {
                     Debug.of(plugin).error("Could not hand the region selector to "
                             + player.getName() + '.', unwritable);
-                    return;
-                }
-                if (slot == SelectorWand.NO_ROOM) {
-                    // Not a failure: the material check is what selects, so an
-                    // admin with their own axe carries on. Saying nothing would
-                    // leave them clicking with an empty hand wondering why.
-                    say(player, "{warning}● {letters}No room for the selector — hold a {highlight}"
-                            + selectorLabel() + " {letters}instead");
                     return;
                 }
                 equipped = true;

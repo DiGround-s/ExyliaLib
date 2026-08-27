@@ -69,17 +69,25 @@ behaviour without writing the flow again.
 
 ```java
 wizards.askStand(player, "{primary}&lLOBBY SPAWN " + arena.name(),
-        messages.admin().pointPrompt(),
         where -> save(arena.withLobby(where)),
         () -> openArenaMenu(player));
 ```
 
 | Call | The player | Answer |
 | --- | --- | --- |
-| `askStand(player, title, prompt, accepted, abandoned)` | stands where they mean and sneak-clicks | `Location`, facing included |
+| `askStand(player, title, accepted, abandoned)` | stands where they mean and sneak-clicks | `Location`, facing included |
 | `askPoint(...)` | clicks a block | `Location` of the block |
 | `askRegion(...)` | selects a volume with the shared selector | `SelectionResult` |
 | `askItem(...)` | holds an item and confirms | `ItemStack` |
+
+**The prompt is the library's**, out of `plugins/ExyliaLib/wizard.yml`. Standing
+somewhere, clicking a block, selecting a box and holding an item are the
+library's gestures, done with the library's selector and answered by the
+library's listener, so the sentence describing them belongs in one file rather
+than copied into six plugins' messages — where copies go stale, which is how
+prompts naming a wooden axe outlived the golden one the selector hands out. Each
+call still takes an explicit `prompt` as its third argument for a step that
+genuinely says something the gesture does not.
 
 `askStand` is the one for anywhere a player is later **put** — a spawn, a lobby,
 a warp. A clicked block names a whole cube and carries no yaw, so an aimed pick
@@ -93,8 +101,8 @@ caller that reopens its menu in both places opens it over the screen its own
 player who is no longer there to see it.
 
 The `title` names *what is being set*, because it is what the progress bar
-draws — `LOBBY SPAWN Park (1/1)`. The `prompt` is the plugin's own text, out of
-its own messages file: what the library supplies is the shape, not the wording.
+draws — `LOBBY SPAWN Park (1/1)`. The prompt names *the gesture*, which is the
+library's, so it comes from the library.
 
 ### What the player sees
 
@@ -109,9 +117,9 @@ subtitle as well as the chat line:
            LOBBY SPAWN (1/1)          <- the progress bar
 ```
 
-The wording is `wizard.announce-title` and `announce-subtitle` in the plugin's
-settings, with `%title%`, `%prompt%`, `%step%` and `%steps%`; `announce: false`
-turns it off. Questions are never announced — a dialog, an anvil or a chat
+The wording is `announce-title` and `announce-subtitle` in
+`plugins/ExyliaLib/wizard.yml`, with `%title%`, `%prompt%`, `%step%` and
+`%steps%`; `announce: false` turns it off. Questions are never announced — a dialog, an anvil or a chat
 request already carries its own prompt, and a title over it says it twice.
 
 For anything longer than one question — a flow with branches, a review, several
@@ -363,18 +371,27 @@ block they were told to click.
 
 ## Configuration
 
-`WizardSettings` nests in a plugin's own config record, and is applied with
-`Wizards.of(this).using(...)`. It affects runs started after that call: a live
-run keeps the settings it began with, so a reload cannot move a deadline a
-player is already racing.
+Every plugin's flows read `plugins/ExyliaLib/wizard.yml`, generated on first
+start and reloaded by `/exylialib reload` alongside the palette, `formats.yml`,
+`economy.yml` and `input.yml`. One file, because a flow behaves the same
+wherever it runs and a server owner changing how patient it is means everywhere.
 
 ```yaml
-wizard:
-  timeout-seconds: 300                          # the whole run, not one question
-  max-redos: 3                                  # denials of the review before it gives up
-  progress: true                                # the boss bar
-  progress-text: '{primary}%title% {muted}(%step%/%steps%)'
+timeout-seconds: 300                          # the whole run, not one question
+max-redos: 3                                  # denials of the review before it gives up
+progress: true                                # the boss bar
+progress-text: '{primary}%title% {muted}(%step%/%steps%)'
+stand-prompt: '{warning}➥ {letters}Stand where you want it and {highlight}sneak + click{letters}.'
+point-prompt: '{warning}➥ {letters}Left-click the block you want.'
+region-prompt: '{warning}➥ {letters}Left-click one corner and right-click the other, then {highlight}shift + left-click {letters}to confirm.'
+item-prompt: '{warning}➥ {letters}Hold the item you want, then confirm.'
 ```
+
+A plugin with a genuine reason to differ still keeps `WizardSettings` in its own
+config record and applies it with `Wizards.of(this).using(...)`; that affects
+only its own runs, and only those started after the call — a live run keeps the
+settings it began with, so a reload cannot move a deadline a player is already
+racing.
 
 `%step%` is the question they are on, `%steps%` how many there are, `%title%` the
 name of the flow.

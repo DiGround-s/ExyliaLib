@@ -154,9 +154,10 @@ public final class SelectionOptions {
     /**
      * Whether the player is handed the selector when the session starts.
      *
-     * <p>It goes into a <em>free</em> slot and is taken back when the session
-     * ends, however it ends. Commons put it straight into the main hand, which
-     * destroyed whatever was there; that is not reproduced.
+     * <p>It goes into the <em>main hand</em> and is taken back when the session
+     * ends, however it ends. Whatever was in that hand moves to a free slot, and
+     * is lost when there is no free slot: the selector being where the player is
+     * already looking is worth more than a stack an admin can get back.
      *
      * @since 1.56.0
      */
