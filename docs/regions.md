@@ -206,6 +206,14 @@ Without it, an admin who makes a region and does not move sees nothing happen.
 Joining inside a region does **not** fire an enter — they did not walk in — and
 quitting does not fire an exit.
 
+`TELEPORT` is listened for separately rather than as a move. `PlayerTeleportEvent`
+extends `PlayerMoveEvent`, so it reads like one, but it declares its own handler
+list and Bukkit delivers an event only to the list its concrete class returns —
+a move listener never sees a teleport, and neither does it see the portal and
+respawn events that move a player without one. All four feed the tracker, which
+is what stops a player who was teleported into a zone from counting as outside it
+until their first step.
+
 ## Who placed this block
 
 The region module never cancels an event on a plugin's behalf. It says what a
