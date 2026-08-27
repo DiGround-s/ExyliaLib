@@ -1,5 +1,6 @@
 package net.exylia.lib.database.internal;
 
+import net.exylia.lib.database.Column;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -8,6 +9,7 @@ import java.sql.DatabaseMetaData;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.sql.Types;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -28,10 +30,11 @@ import java.util.TreeMap;
  * swallowed vendor code second.
  *
  * <h2>What it will and will not do</h2>
- * It creates a table, adds a column a record has gained, creates an index, and
+ * It creates a table, adds a column a record has gained, creates an index,
  * renames a table or column that is there under the engine's own folding into
- * the case this library addresses it by. It never drops, narrows or retypes
- * anything, and it never touches a column the record does not declare — in
+ * the case this library addresses it by, and widens a text column a record now
+ * declares wider than the table stores it. It never drops, narrows or otherwise
+ * retypes anything, and it never touches a column the record does not declare — in
  * either direction. A schema tool that removes a column because a record
  * stopped declaring it is a schema tool that deletes a live server's data the
  * first time somebody deploys an old jar, and one that renames a column it does
@@ -97,15 +100,17 @@ final class SqlSchema {
         List<String> addedColumns = new ArrayList<>(0);
         List<String> renamedColumns = new ArrayList<>(0);
         List<String> relaxedColumns = new ArrayList<>(0);
+        List<String> widenedColumns = new ArrayList<>(0);
+        List<String> narrowColumns = new ArrayList<>(0);
         if (!created) {
             reconcileColumns(connection, model, table, addedColumns, renamedColumns,
-                    relaxedColumns);
+                    relaxedColumns, widenedColumns, narrowColumns);
         }
         List<String> createdIndexes = new ArrayList<>(0);
         List<String> blockedIndexes = new ArrayList<>(0);
         createIndexes(connection, model, table, created, createdIndexes, blockedIndexes);
         return new SchemaReport(table, created, addedColumns, renamedColumns, relaxedColumns,
-                createdIndexes, blockedIndexes);
+                widenedColumns, createdIndexes, blockedIndexes, narrowColumns);
     }
 
     // ----------------------------------------------------------- inspection
@@ -195,10 +200,10 @@ final class SqlSchema {
      * @return the columns, possibly empty when the table does not exist or when
      *         the driver scoped the query differently than expected
      */
-    private @NotNull Map<String, String> storedColumnNames(@NotNull Connection connection,
-                                                           @NotNull String table) throws SQLException {
+    private @NotNull Map<String, Stored> storedColumns(@NotNull Connection connection,
+                                                       @NotNull String table) throws SQLException {
         DatabaseMetaData metadata = connection.getMetaData();
-        Map<String, String> found = new LinkedHashMap<>();
+        Map<String, Stored> found = new LinkedHashMap<>();
         for (String candidate : metadataForms(table)) {
             try (ResultSet columns = metadata.getColumns(connection.getCatalog(), schemaOf(connection),
                     candidate, null)) {
@@ -211,7 +216,13 @@ final class SqlSchema {
                         continue;
                     }
                     String name = columns.getString("COLUMN_NAME");
-                    found.put(name.toLowerCase(Locale.ROOT), name);
+                    // The width comes off the same row as the name. It is the
+                    // same question about the same column, and a second pass
+                    // over getColumns would be a metadata round trip per table
+                    // per start for an answer this one already has.
+                    found.put(name.toLowerCase(Locale.ROOT),
+                            new Stored(name, columns.getInt("DATA_TYPE"),
+                                    columns.getInt("COLUMN_SIZE")));
                 }
             }
             if (!found.isEmpty()) {
@@ -219,6 +230,16 @@ final class SqlSchema {
             }
         }
         return found;
+    }
+
+    /**
+     * A column as the live table has it.
+     *
+     * @param name     the name the driver reports, in the engine's own case
+     * @param dataType the {@link java.sql.Types} constant the driver reports
+     * @param size     {@code COLUMN_SIZE}: characters for a text column
+     */
+    record Stored(@NotNull String name, int dataType, int size) {
     }
 
     /**
@@ -422,14 +443,18 @@ final class SqlSchema {
      * @param table      the folded table name
      * @param added      collects the columns added, in model order
      * @param renamed    collects the columns reconciled, in model order
+     * @param widened    collects the text columns made wider, in model order
+     * @param narrow     collects the ones that had to be widened and could not
      */
     private void reconcileColumns(@NotNull Connection connection,
                                   @NotNull EntityModel<?> model,
                                   @NotNull String table,
                                   @NotNull List<String> added,
                                   @NotNull List<String> renamed,
-                                  @NotNull List<String> relaxed) throws SQLException {
-        Map<String, String> stored = storedColumnNames(connection, table);
+                                  @NotNull List<String> relaxed,
+                                  @NotNull List<String> widened,
+                                  @NotNull List<String> narrow) throws SQLException {
+        Map<String, Stored> stored = storedColumns(connection, table);
         if (stored.isEmpty()) {
             // The table exists but nothing could be read about it — a driver
             // that scoped the query differently than expected. Adding every
@@ -439,32 +464,119 @@ final class SqlSchema {
         }
         for (ColumnModel column : model.columns()) {
             String wanted = dialect.identifier(column.name());
-            String actual = stored.get(wanted);
-            if (wanted.equals(actual)) {
+            Stored actual = stored.get(wanted);
+            if (actual == null) {
+                try {
+                    execute(connection, dialect.addColumn(model.table(), column));
+                    added.add(wanted);
+                } catch (SQLException failure) {
+                    if (!dialect.isDuplicateColumn(failure)) {
+                        throw failure;
+                    }
+                    // Lost a race with another server on the same database. The
+                    // column is there, which is all that was wanted.
+                }
                 continue;
             }
-            if (actual != null) {
+            if (!wanted.equals(actual.name())) {
                 // There, but spelled in the engine's own folding. Renaming once
                 // is what makes the existing rows reachable; the alternative,
                 // addressing it in its own case forever, spreads the engine's
                 // folding rules through every statement the library emits.
-                execute(connection, dialect.renameColumn(table, actual, wanted));
+                execute(connection, dialect.renameColumn(table, actual.name(), wanted));
                 renamed.add(wanted);
-                continue;
             }
-            try {
-                execute(connection, dialect.addColumn(model.table(), column));
-                added.add(wanted);
-            } catch (SQLException failure) {
-                if (!dialect.isDuplicateColumn(failure)) {
-                    throw failure;
+            // Asked of a renamed column too: the case it was stored under has
+            // nothing to do with how wide it is.
+            if (needsWidening(actual, widthOf(dialect.columnType(column)))) {
+                try {
+                    execute(connection, dialect.widenColumn(table, column));
+                    widened.add(wanted);
+                } catch (SQLException refused) {
+                    // Best-effort, like relaxOrphanedColumns: a database that
+                    // refuses the alteration must not keep the plugin from
+                    // starting. Unlike it, this one is worth saying out loud —
+                    // the column is still too narrow, so the first value that
+                    // does not fit is refused or, on a non-strict MySQL,
+                    // truncated into something that no longer parses back.
+                    narrow.add(wanted);
                 }
-                // Lost a race with another server on the same database. The
-                // column is there, which is all that was wanted.
             }
         }
         relaxOrphanedColumns(connection, model, table, relaxed);
     }
+
+    /**
+     * How many characters a dialect's type string declares, if it says.
+     *
+     * <p>Read back off {@link Dialect#columnType(ColumnModel)} rather than off
+     * the annotation, because the two do not always agree and the type is the
+     * one that decides: a {@code UUID} is stored as {@code VARCHAR(36)} on every
+     * engine whatever {@code length} was asked for, so comparing the annotation
+     * against the live column would read a 36-character column as 219
+     * characters too narrow and "widen" it into something smaller.
+     *
+     * @param type a type from a dialect
+     * @return the width, or {@link Column#UNBOUNDED} when the type names none
+     */
+    static int widthOf(@NotNull String type) {
+        int open = type.indexOf('(');
+        int close = type.indexOf(')', open + 1);
+        if (open < 0 || close < 0) {
+            return Column.UNBOUNDED;
+        }
+        try {
+            return Integer.parseInt(type.substring(open + 1, close).trim());
+        } catch (NumberFormatException notAWidth) {
+            // DECIMAL(38,10) and friends. Not text, so nothing to widen.
+            return Column.UNBOUNDED;
+        }
+    }
+
+    /**
+     * Whether a live column is narrower than the record now needs it.
+     *
+     * <p>Only bounded text is ever a candidate. A numeric column is left alone
+     * outright — precision is not a width and changing it is not this method's
+     * business — and so is a column the engine already stores unboundedly,
+     * whether it says so by type ({@code CLOB}, {@code TEXT} reported as
+     * {@code LONGVARCHAR}) or by reporting a size no {@code VARCHAR} anybody
+     * declares could reach: Postgres and H2 both report their unlimited text as
+     * a {@code VARCHAR} of {@link Integer#MAX_VALUE}, and treating that as a
+     * bounded column would emit an {@code ALTER} on every single start.
+     *
+     * <p>Never narrows, in either direction. A column stored wider than the
+     * record declares is left exactly as it is: it may be another plugin's view
+     * of the same table, and shrinking it truncates rows. That is the same rule
+     * the rest of this class applies to a column no record declares.
+     *
+     * @param stored   the column as the table has it
+     * @param declared the width the model's type asks for, or
+     *                 {@link Column#UNBOUNDED}
+     */
+    static boolean needsWidening(@NotNull Stored stored, int declared) {
+        boolean boundedText = switch (stored.dataType()) {
+            case Types.CHAR, Types.VARCHAR, Types.NCHAR, Types.NVARCHAR -> true;
+            default -> false;
+        };
+        if (!boundedText || stored.size() <= 0 || stored.size() >= EFFECTIVELY_UNBOUNDED) {
+            return false;
+        }
+        return declared == Column.UNBOUNDED || declared > stored.size();
+    }
+
+    /**
+     * The size at which a reported {@code VARCHAR} is really the engine's
+     * unlimited text type.
+     *
+     * <p>A million characters, which is nothing any schema declares as a bound
+     * — MySQL cannot store a {@code VARCHAR} past 65,535 bytes at all — and far
+     * below what the engines report for text that has no bound: H2 answers
+     * 1,000,000,000 for its unlimited {@code CHARACTER VARYING} and Postgres
+     * answers {@link Integer#MAX_VALUE} for {@code text}. Reading either as a
+     * bounded column would emit an {@code ALTER} on every single start.
+     */
+    private static final int EFFECTIVELY_UNBOUNDED = 1_000_000;
 
     /**
      * Lets a table accept a row without the columns the record dropped.

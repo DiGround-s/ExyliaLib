@@ -69,6 +69,22 @@ class MySQLDialect extends AnsiDialect {
                 + " " + type + " NULL";
     }
 
+    /**
+     * {@code MODIFY} again, and with the nullability spelled out.
+     *
+     * <p>Everything a {@code MODIFY} omits is reset to its default, which is
+     * exactly the trap {@link #dropNotNull} exploits — in the other direction it
+     * is a bug: widening a {@code NOT NULL} column with the constraint left out
+     * of the statement silently drops it, and the table starts accepting the
+     * rows the record was written to refuse.
+     */
+    @Override
+    public @NotNull String widenColumn(@NotNull String table, @NotNull ColumnModel column) {
+        return "ALTER TABLE " + quote(identifier(table)) + " MODIFY "
+                + quote(identifier(column.name())) + " " + columnType(column)
+                + (column.nullable() ? " NULL" : " NOT NULL");
+    }
+
     @Override
     public @NotNull String driverClassName() {
         return "com.mysql.cj.jdbc.Driver";

@@ -23,9 +23,13 @@ import java.util.List;
  * @param relaxedColumns   columns the table required and no record declares,
  *                         which stopped being required so that a plugin
  *                         migrated off the previous library can write its rows
+ * @param widenedColumns   text columns the record declares wider than the table
+ *                         stored them, made as wide as the record asks
  * @param createdIndexes   indexes created, by name
  * @param blockedIndexes   indexes that could not be created because their name
  *                         is held by an index over different columns
+ * @param narrowColumns    columns that had to be widened and could not be,
+ *                         because the database refused the alteration
  * @since 1.24.0
  */
 public record SchemaReport(@NotNull String table,
@@ -33,16 +37,20 @@ public record SchemaReport(@NotNull String table,
                            @NotNull List<String> addedColumns,
                            @NotNull List<String> renamedColumns,
                            @NotNull List<String> relaxedColumns,
+                           @NotNull List<String> widenedColumns,
                            @NotNull List<String> createdIndexes,
-                           @NotNull List<String> blockedIndexes) {
+                           @NotNull List<String> blockedIndexes,
+                           @NotNull List<String> narrowColumns) {
 
     /** Compact constructor, defensive: the lists outlive the builder that made them. */
     public SchemaReport {
         addedColumns = List.copyOf(addedColumns);
         renamedColumns = List.copyOf(renamedColumns);
         relaxedColumns = List.copyOf(relaxedColumns);
+        widenedColumns = List.copyOf(widenedColumns);
         createdIndexes = List.copyOf(createdIndexes);
         blockedIndexes = List.copyOf(blockedIndexes);
+        narrowColumns = List.copyOf(narrowColumns);
     }
 
     /**
@@ -61,7 +69,8 @@ public record SchemaReport(@NotNull String table,
                         boolean createdTable,
                         @NotNull List<String> addedColumns,
                         @NotNull List<String> createdIndexes) {
-        this(table, createdTable, addedColumns, List.of(), List.of(), createdIndexes, List.of());
+        this(table, createdTable, addedColumns, List.of(), List.of(), List.of(), createdIndexes,
+                List.of(), List.of());
     }
 
     /**
@@ -74,11 +83,12 @@ public record SchemaReport(@NotNull String table,
      */
     public boolean changed() {
         return createdTable || !addedColumns.isEmpty() || !renamedColumns.isEmpty()
-                || !relaxedColumns.isEmpty() || !createdIndexes.isEmpty();
+                || !relaxedColumns.isEmpty() || !widenedColumns.isEmpty()
+                || !createdIndexes.isEmpty();
     }
 
     /**
-     * A line naming the indexes that could not be created, or {@code null}.
+     * A line naming what could not be repaired, or {@code null}.
      *
      * <p>Separate from {@link #summary()} because it is not news about a
      * successful start: it is a problem, it is permanent until somebody acts, and
@@ -88,16 +98,38 @@ public record SchemaReport(@NotNull String table,
      * fails as a duplicate, and without this the table would silently go without
      * the index the code now asks for, on every start, forever.
      *
+     * <p>A column that had to be widened and could not be is here for the same
+     * reason: the next value too long for it is refused, or truncated into
+     * something that no longer parses back on a MySQL that is not strict, and
+     * nothing else in the start would say so.
+     *
      * @return the warning, or {@code null} when nothing was blocked
      */
     public @Nullable String blocked() {
-        if (blockedIndexes.isEmpty()) {
+        if (blockedIndexes.isEmpty() && narrowColumns.isEmpty()) {
             return null;
         }
-        return table + ": the index" + (blockedIndexes.size() == 1 ? " " : "es ") + blockedIndexes
-                + " could not be created, because an index of that name already exists over"
-                + " different columns. The table is running without it. Drop the old index, or"
-                + " give the new one a different name on its @Index.";
+        StringBuilder warning = new StringBuilder(128);
+        if (!blockedIndexes.isEmpty()) {
+            warning.append(table).append(": the index")
+                    .append(blockedIndexes.size() == 1 ? " " : "es ").append(blockedIndexes)
+                    .append(" could not be created, because an index of that name already exists over")
+                    .append(" different columns. The table is running without it. Drop the old index,")
+                    .append(" or give the new one a different name on its @Index.");
+        }
+        if (!narrowColumns.isEmpty()) {
+            if (!warning.isEmpty()) {
+                warning.append(' ');
+            }
+            warning.append(table).append(": the column")
+                    .append(narrowColumns.size() == 1 ? " " : "s ").append(narrowColumns)
+                    .append(" could not be widened, so ").append(narrowColumns.size() == 1 ? "it is" : "they are")
+                    .append(" still narrower than the plugin now writes. A value that does not fit")
+                    .append(" is refused, or silently truncated on a MySQL that is not strict.")
+                    .append(" Widen ").append(narrowColumns.size() == 1 ? "it" : "them")
+                    .append(" by hand, or grant the database user the right to alter the table.");
+        }
+        return warning.toString();
     }
 
     /**
@@ -126,6 +158,10 @@ public record SchemaReport(@NotNull String table,
         if (!relaxedColumns.isEmpty()) {
             line.append(said ? ", " : "").append("no longer requires ").append(relaxedColumns)
                     .append(" (the table asks for them and no record declares them)");
+            said = true;
+        }
+        if (!widenedColumns.isEmpty()) {
+            line.append(said ? ", " : "").append("widened ").append(widenedColumns);
             said = true;
         }
         if (!createdIndexes.isEmpty()) {

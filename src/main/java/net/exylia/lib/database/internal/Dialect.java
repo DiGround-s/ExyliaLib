@@ -366,6 +366,32 @@ public interface Dialect {
                 + " DROP NOT NULL";
     }
 
+    /**
+     * {@code ALTER TABLE ... ALTER COLUMN ... SET DATA TYPE} for a text column
+     * the record now declares wider than the table stores it.
+     *
+     * <p>The type comes straight from {@link #columnType(ColumnModel)}, so a
+     * widened column ends up spelled exactly as a freshly created one — the
+     * alternative, a type built here, is a second place that has to agree with
+     * {@code CREATE TABLE} forever.
+     *
+     * <p>{@code SET DATA TYPE} rather than Postgres' shorter {@code TYPE}: it is
+     * the standard spelling and the only one H2 2.x parses, and Postgres takes
+     * both.
+     *
+     * <p>Only ever called to make a column wider. MySQL and MariaDB restate the
+     * whole column to change its type and override this.
+     *
+     * @param table  the table, already in the case this library uses
+     * @param column the column as the record declares it
+     * @return one statement
+     * @since 1.72.0
+     */
+    default @NotNull String widenColumn(@NotNull String table, @NotNull ColumnModel column) {
+        return "ALTER TABLE " + quote(identifier(table)) + " ALTER COLUMN "
+                + quote(identifier(column.name())) + " SET DATA TYPE " + columnType(column);
+    }
+
     // ------------------------------------------------------------------- DML
 
     /**

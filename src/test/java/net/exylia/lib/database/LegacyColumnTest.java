@@ -54,6 +54,19 @@ class LegacyColumnTest {
     record PlayerRow(@Id UUID uuid, @Column("shield_count") int count) {
     }
 
+    /**
+     * A kit icon: a material name when the column was declared, anything an
+     * icon input returns now — a head, or a whole serialised item.
+     */
+    @Table("sandbox_player_kits")
+    record Kit(@Id String id, @Column(length = Column.UNBOUNDED) String icon) {
+    }
+
+    /** The other direction: a record that declares less than the table stores. */
+    @Table("sandbox_worlds")
+    record World(@Id String id, @Column(length = 64) String icon) {
+    }
+
     private Plugin plugin;
     private String url;
 
@@ -149,6 +162,48 @@ class LegacyColumnTest {
         assertDoesNotThrow(() -> await(repository.save(row)),
                 "a player row saves into a table Commons created");
         assertEquals(3, await(repository.find(row.uuid())).orElseThrow().count());
+    }
+
+    @Test
+    @DisplayName("a column too narrow for what the record now writes is widened")
+    void narrowTextColumnIsWidened() {
+        // Exactly what is on every server that ever ran an older SandBox: the
+        // column was VARCHAR(64) when an icon was a material name. The record
+        // says UNBOUNDED now, and without widening the first head or serialised
+        // item is refused outright, or truncated by a MySQL that is not strict
+        // into an icon that can no longer be parsed back.
+        createLegacyTable("""
+                CREATE TABLE "sandbox_player_kits" (
+                  "id" VARCHAR(255) PRIMARY KEY,
+                  "icon" VARCHAR(64)
+                )""");
+
+        Repository<Kit> repository = Databases.of(plugin).repository(Kit.class);
+        String serialisedItem = "item:".repeat(1000);
+
+        assertDoesNotThrow(() -> await(repository.save(new Kit("pvp", serialisedItem))),
+                "an icon longer than the old column saves");
+        assertEquals(serialisedItem, await(repository.find("pvp")).orElseThrow().icon(),
+                "and comes back whole rather than truncated");
+    }
+
+    @Test
+    @DisplayName("a column wider than the record declares is left as it is")
+    void widerTextColumnIsNotNarrowed() {
+        // The column may be another plugin's view of the same table, and
+        // narrowing it truncates rows that are already in it.
+        createLegacyTable("""
+                CREATE TABLE "sandbox_worlds" (
+                  "id" VARCHAR(255) PRIMARY KEY,
+                  "icon" CHARACTER VARYING
+                )""");
+
+        Repository<World> repository = Databases.of(plugin).repository(World.class);
+        String longIcon = "x".repeat(5000);
+
+        assertDoesNotThrow(() -> await(repository.save(new World("lobby", longIcon))),
+                "the column still takes what it took before");
+        assertEquals(longIcon, await(repository.find("lobby")).orElseThrow().icon());
     }
 
     @Test
