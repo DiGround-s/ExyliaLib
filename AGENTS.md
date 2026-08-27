@@ -1013,6 +1013,12 @@ tipo, nunca un mapa de sesiones por jugador.
 - **Un botón toca la copia de trabajo, nada más.** Cargar un preset de 40 líneas
   se deshace con cancelar igual que cualquier otra edición, que es lo único que
   hace seguro ofrecer un botón destructivo.
+- **Y si un botón necesita preguntar, `EditorView.ask`.** Un diálogo, un yunque
+  y un buscador necesitan la pantalla, así que un botón no puede abrirlos por su
+  cuenta: el cierre se leería como que el jugador se va y el editor tiraría su
+  copia de trabajo. `ask` es la misma puerta que usa `EditorDescriptor.edit` —
+  la ventana baja para la pregunta y vuelve en la página en la que estaba. Desde
+  1.71.0.
 
 ### Efectos condicionales — la carga es una secuencia, no cuarenta campos
 
@@ -1040,6 +1046,19 @@ Lo que en ExyliaCommons era `EffectEntry` aquí son dos cosas ya escritas.
   efecto otra vez a los ocho tipos que conocía.
 - **Una condición rota se avisa una vez, no una por play.** Un efecto de mina se
   dispara miles de veces.
+- **La notación es el formato de guardado, no la interfaz.** Desde 1.71.0 un
+  efecto se edita como *lista de líneas*: añadir una pregunta qué toca (todos
+  los tokens, formas incluidas), luego cuál — el mismo buscador del picker de
+  iconos, leído del registro del servidor — y solo entonces abre un formulario
+  con los campos que ese token lee de verdad. Nadie escribe
+  `[CIRCLE] FLAME;radius:1.5` para tener un círculo de llamas, y nadie tiene que
+  recordar que en un círculo se llama `radius` y en unas alas `span`.
+- **Lo vacío no se escribe.** Un campo en blanco se omite en vez de guardarse con
+  su valor por defecto: la línea que sale de la pantalla es la misma línea corta
+  que habría escrito una persona, y un fichero hecho a mano y uno hecho a clics
+  son la misma cosa. Un token que la librería no reconoce sigue siendo editable
+  como texto y vuelve tal cual: un editor que borra lo que no sabe describir se
+  come una config que funcionaba.
 
 ### Comandos — siempre Lamp, nunca un executor a mano
 
@@ -1403,6 +1422,7 @@ Raíz de código: `src/main/java/net/exylia/lib/`. Raíz de tests:
 | small text | `small-text` en `internal/LibrarySettings`; medida en `text/Centering` | `text/internal/SmallText`, `TextEngine.smallText` | [docs/text.md](docs/text.md) | 1.29.0 |
 | util (sequence) | `util/sequence/Sequences`, `PluginSequences`, `Sequence`, `SequenceTarget`, `SequenceRun`, `SequenceStep`, `Shape` | `util/sequence/internal/` | [docs/sequences.md](docs/sequences.md) | 1.30.0 |
 | efectos con dado, condición y público | `util/sequence/EffectEntry`, `EffectCodec`, `PluginSequences.play(List, target)`/`editor` | `util/sequence/internal/EffectPlayer`, `util/sequence/EffectDescriptor`; `[MESSAGE]` en `SequenceCompiler` | [docs/sequences.md](docs/sequences.md) | 1.57.0 |
+| editar un efecto línea a línea (elegir qué toca, buscarlo, y un formulario con los campos de ese token) | — | `util/sequence/SequenceLine`, `util/sequence/LineDescriptor` | [docs/sequences.md](docs/sequences.md) | 1.71.0 |
 | condiciones compartidas | — | `util/internal/Conditions` (movido desde `util/reward/internal`) | [docs/rewards.md](docs/rewards.md) | 1.57.0 |
 | util (preview) | `util/preview/Previews`, `PluginPreviews`, `Preview`, `PreviewSettings` | `util/preview/internal/` | [docs/previews.md](docs/previews.md) | 1.30.0 |
 | redis | `redis/Redis`, `RedisSettings` | `redis/internal/` (Jedis confinado en `JedisClient`) | [docs/redis.md](docs/redis.md) | 1.31.0 |
@@ -1432,7 +1452,7 @@ Raíz de código: `src/main/java/net/exylia/lib/`. Raíz de tests:
 | util (loot) | `util/loot/Loot`, `LootEntry`, `LootType`, `LootCodec` | `util/loot/internal/` (`LootLines`, `LootRolls`, `LootItems`) | [docs/loot.md](docs/loot.md) | 1.56.0 |
 | util (editor) | `util/editor/Editors`, `PluginEditors`, `ListEditor`, `EditorDescriptor`, `EditorForm`, `Clipboard`, `Pickers` | `util/editor/internal/` (`EditorRuntime`, `EditorHolder`, `EditorListener`, `Icons`) | [docs/editors.md](docs/editors.md) | 1.56.0 |
 | icono por inserción, no por la mano | `input/IconInput.Way.INSERT` (sustituye a `HELD`) | `input/internal/InsertWindow`, ruteo en `input/internal/InputListener` | [docs/input.md](docs/input.md) | 1.59.0 |
-| botones propios en un editor | `util/editor/EditorButton`, `EditorView`, `ListEditor.button` | `util/editor/internal/EditorHolder` (banda y tamaño de página) | [docs/editors.md](docs/editors.md) | 1.58.0 |
+| botones propios en un editor | `util/editor/EditorButton`, `EditorView`, `ListEditor.button` (`EditorView.ask` 1.71.0) | `util/editor/internal/EditorHolder` (banda, tamaño de página y la puerta de `ask`) | [docs/editors.md](docs/editors.md) | 1.58.0 |
 | util (named commands) | `util/command/NamedCommand`, `NamedCommands` | `util/command/NamedCommandDescriptor` | [docs/editors.md](docs/editors.md) | 1.56.0 |
 | editores incluidos | `PluginRewards.editor`, `Loot.editor`, `NamedCommands.editor`, `Effects.editor`, `PluginEditors.items`/`locations`/`pick`/`icon` | `util/reward/RewardDescriptor`, `util/loot/LootDescriptor`, `util/PotionEffectDescriptor`, `util/editor/ItemListEditor`, `LocationDescriptor` | [docs/editors.md](docs/editors.md) | 1.56.0 |
 | diálogo alto y prerellenado | `input/TextInput.lines`, `FormField.lines` | `input/internal/DialogPackets.multiline` | [docs/input.md](docs/input.md) | 1.56.0 |

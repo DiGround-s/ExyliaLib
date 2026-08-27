@@ -189,6 +189,7 @@ EditorButton.<LootEntry>of("CHEST_MINECART")
 | `viewer()` | who clicked |
 | `entries()` | the list as it stands, unsaved edits included; unmodifiable |
 | `replaceAll(list)` | what the list should hold now |
+| `ask(question)` | ask something, then bring the editor back |
 
 `replaceAll` is the only mutator, because it is the only one a button has ever
 needed: appending is `replaceAll` over the current list plus the new rows, and
@@ -199,6 +200,28 @@ redraws by itself; a handler changes the list and stops.
 **Nothing a button does is persisted.** It changes the working copy, so even one
 that replaces forty rows is undone by cancel — which is what makes a destructive
 button safe to offer at all.
+
+### A button that asks something
+
+```java
+.onClick(view -> view.ask(() -> EditorForm.of(this, view.viewer(), "{primary}&lSETTINGS")
+        .decimal(CHANCE, "Chance out of 100", BigDecimal.valueOf(settings.chance()))
+        .ask(values -> values.getDecimal(CHANCE).doubleValue())
+        .thenAccept(chance -> chance.ifPresent(settings::chance))))
+```
+
+A dialog, an anvil and a search all need the screen, so a button cannot simply
+open one: the close would read as the viewer walking away and the editor would
+throw its working copy out. `ask` is the same door `EditorDescriptor.edit` goes
+through — the window comes down for the question and back up on the page it was
+on, with the answer already applied.
+
+The stage is waited on, never read: what the answer *means* is the caller's
+business. A button that changes the list does it in the stage's own callback
+through `replaceAll`; one that changes something else — the gating around the
+list, a setting — writes it wherever it keeps it. A question that fails is
+logged and the editor still comes back, because a screen that never reopens is
+worse than an answer that was lost.
 
 ### Where they go
 

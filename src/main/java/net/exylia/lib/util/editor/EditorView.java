@@ -4,6 +4,8 @@ import org.bukkit.entity.Player;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.List;
+import java.util.concurrent.CompletionStage;
+import java.util.function.Supplier;
 
 /**
  * The open editor, as a custom button sees it.
@@ -59,4 +61,35 @@ public interface EditorView<T> {
      * @param entries what the list should hold now
      */
     void replaceAll(@NotNull List<T> entries);
+
+    /**
+     * Asks the viewer something, then brings the editor back.
+     *
+     * <pre>{@code
+     * .onClick(view -> view.ask(() -> EditorForm.of(plugin, view.viewer(), "{primary}&lSETTINGS")
+     *         .text(NAME, "Name", settings.name())
+     *         .ask(values -> values.getText(NAME))
+     *         .thenAccept(name -> name.ifPresent(settings::name))))
+     * }</pre>
+     *
+     * <p>A button that opens a dialog, an anvil or a search cannot simply open
+     * it: every one of those needs the screen, and the close would read as the
+     * viewer walking away from the editor. This is the same door
+     * {@link EditorDescriptor#edit} goes through — the window is taken down for
+     * the question and put back, on the page it was on, when the answer arrives.
+     *
+     * <p>What the answer <em>means</em> is the caller's business: the stage is
+     * waited on, never read. A button that changes the list does it in the
+     * stage's own callback, through {@link #replaceAll}, and one that changes
+     * something else — the gating around the list, a setting — writes it
+     * wherever it keeps it.
+     *
+     * <p>A question that fails is logged and the editor still comes back: a
+     * screen that never reopens is worse than an answer that was lost.
+     *
+     * @param question asked once, on the viewer's own thread; must not be
+     *                 {@code null} and must not answer with {@code null}
+     * @since 1.71.0
+     */
+    void ask(@NotNull Supplier<CompletionStage<?>> question);
 }

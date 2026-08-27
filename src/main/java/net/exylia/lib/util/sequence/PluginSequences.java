@@ -179,7 +179,7 @@ public final class PluginSequences {
     public @NotNull net.exylia.lib.util.editor.ListEditor<EffectEntry> editor(
             @NotNull List<EffectEntry> effects) {
         return net.exylia.lib.util.editor.Editors.of(plugin)
-                .list(new EffectDescriptor(plugin), EffectEntry.class, effects);
+                .list(new EffectDescriptor(plugin, shapeNames()), EffectEntry.class, effects);
     }
 
     /**

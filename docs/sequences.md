@@ -138,9 +138,36 @@ sequences.editor(mine.breakEffects())
          .open(player);
 ```
 
-The [editor](editors.md) screen. One form per row — the gating, and a tall box
-of lines — rather than the type-select menu and eight per-type screens commons
-needed, because the payload is text.
+The [editor](editors.md) screen, over two levels. Clicking an effect opens **its
+lines as their own list**: one row per thing it plays, added by picking what it
+plays and then searching for it, exactly the way the icon picker searches.
+Nobody types notation to get a circle of flame.
+
+| Adding a line asks | |
+| --- | --- |
+| what it plays | `PARTICLE`, `SOUND`, every shape, `TITLE`, `COMMAND`, `DELAY` — every token the notation has |
+| which one | the particle, sound, effect or block, as a search over the server's own registry |
+| its settings | one prefilled dialog, holding **the fields that token actually reads** — a circle is asked for its radius, a pair of wings for its span |
+
+Blank fields are left out rather than written as their defaults, so a line built
+by clicking is the same short line somebody would have written by hand:
+`[CIRCLE] FLAME;radius:1.5`. A file authored by hand and a line built on screen
+are the same thing, and either can edit the other.
+
+The gating — odds, audience, delay, priority, condition, permission — sits
+behind the **`WHEN IT PLAYS`** button on that screen, and the two halves are
+kept or dropped together: the lines screen's save writes both, its cancel throws
+away both.
+
+A token the library does not recognise — a shape a plugin registered and later
+removed, a line typed by hand — is still drawn, still editable as its own text,
+and comes back exactly as it was written. An editor that deletes what it cannot
+describe is an editor that eats a working config.
+
+So the type-select menu commons had is back, and it is the only screen anybody
+asked for. What went with it was the eight-way `switch` behind it and the eight
+per-type screens; what replaced them is every token the notation has, shapes
+included.
 
 ## Contracts
 
@@ -254,4 +281,6 @@ bugs.
 - Tests: `ShapeGeometryTest` asserts the maths of every shape as numbers,
   including the fixes and every count set to zero at once;
   `SequenceCompileTest` compiles real lines from ExyliaArrows and
-  ExyliaKillEffect unchanged.
+  ExyliaKillEffect unchanged; `SequenceLineTest` asserts that a line taken apart
+  by the editor and written back is the line it started as, and that every token
+  the compiler plays is one the picker offers.

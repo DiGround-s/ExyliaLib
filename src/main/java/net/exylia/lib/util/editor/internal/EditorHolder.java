@@ -1,5 +1,6 @@
 package net.exylia.lib.util.editor.internal;
 
+import net.exylia.lib.debug.Debug;
 import net.exylia.lib.util.editor.Clipboard;
 import net.exylia.lib.util.editor.EditorButton;
 import net.exylia.lib.util.editor.EditorDescriptor;
@@ -16,8 +17,11 @@ import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.UUID;
+import java.util.concurrent.CompletionStage;
 import java.util.function.Consumer;
+import java.util.function.Supplier;
 
 /**
  * One open list editor, and the window it is drawn in.
@@ -180,7 +184,43 @@ public final class EditorHolder<T> implements InventoryHolder {
                 // viewer looking at a page that is no longer there.
                 page(page());
             }
+
+            @Override
+            public void ask(@NotNull Supplier<CompletionStage<?>> question) {
+                EditorHolder.this.ask(viewer, question);
+            }
         };
+    }
+
+    /**
+     * Takes the window down for a button's question and puts it back after.
+     *
+     * <p>The same door {@code EditorRuntime.edit} uses, offered to a plugin's
+     * own button: without it a button that opens a dialog closes the editor
+     * under itself, because a close nobody claimed is the viewer walking away.
+     */
+    private void ask(Player viewer, Supplier<CompletionStage<?>> question) {
+        Objects.requireNonNull(question, "question");
+        EditorRuntime.closeForQuestion(this, viewer);
+        CompletionStage<?> asked;
+        try {
+            asked = question.get();
+        } catch (RuntimeException broken) {
+            Debug.of(plugin).error("A button in a list editor could not ask its question.", broken);
+            EditorRuntime.reopen(this);
+            return;
+        }
+        if (asked == null) {
+            EditorRuntime.reopen(this);
+            return;
+        }
+        asked.whenComplete((answer, failure) -> {
+            if (failure != null) {
+                Debug.of(plugin)
+                        .error("A button in a list editor asked a question that failed.", failure);
+            }
+            EditorRuntime.reopen(this);
+        });
     }
 
     /**
