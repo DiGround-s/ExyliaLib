@@ -1,79 +1,102 @@
-title: "{primary}&lKIT ITEMS {muted}— {highlight}%kit_id%"
+# DO NOT EDIT — REGENERATED ON EVERY STARTUP.
+#
+# The grid a kit is laid out in. It is the player's own inventory, in the same
+# order it will arrive in:
+#
+#   0-4    helmet, chestplate, leggings, boots, offhand
+#   9-35   the twenty-seven storage slots
+#   36-44  the nine hotbar slots
+#
+# Whatever closes this screen — the save button, the cancel button, or Escape —
+# what is left in the grid is read back and saved.
+
+title: "{primary}&lKIT ITEMS {letters_black}» {highlight}%kit_id%"
 size: 54
 type: ITEM_INPUT
 
 open_sounds:
-  - "BLOCK_CHEST_OPEN|1.0|1.0"
+  - "BLOCK_CHEST_OPEN|0.7|1.4"
 
 editable_slots: "0-4,9-44"
 
+close-actions:
+  - "survivalcore:kit_admin_save_items"
+
 filler:
   global:
-    material: GRAY_STAINED_GLASS_PANE
+    material: BLACK_STAINED_GLASS_PANE
     hide_tooltip: true
 
 items:
   armor-label:
     slot: 5
-    material: LIGHT_BLUE_STAINED_GLASS_PANE
-    name: "{info}&l← ARMOR / OFFHAND"
+    material: ARMOR_STAND
+    name: "{primary}&l← ARMOUR & OFFHAND"
     lore:
       - ""
-      - " {muted}Slot {highlight}1 {muted}→ Helmet"
-      - " {muted}Slot {highlight}2 {muted}→ Chestplate"
-      - " {muted}Slot {highlight}3 {muted}→ Leggings"
-      - " {muted}Slot {highlight}4 {muted}→ Boots"
-      - " {muted}Slot {highlight}5 {muted}→ Offhand"
+      - "{secondary}The five slots to the left:"
+      - " {letters_black}▎ {letters}1 {letters_black}» {letters}Helmet"
+      - " {letters_black}▎ {letters}2 {letters_black}» {letters}Chestplate"
+      - " {letters_black}▎ {letters}3 {letters_black}» {letters}Leggings"
+      - " {letters_black}▎ {letters}4 {letters_black}» {letters}Boots"
+      - " {letters_black}▎ {letters}5 {letters_black}» {letters}Offhand"
+      - ""
+      - " {letters_black}▎ {letters_black}The rows below are the inventory,"
+      - " {letters_black}▎ {letters_black}the last one being the hotbar."
+      - ""
 
   import:
     slot: 6
     material: HOPPER
-    name: "{success}&lIMPORT INVENTORY"
+    name: "{success}&lIMPORT MY INVENTORY"
     lore:
       - ""
-      - " {letters}Imports your current inventory,"
-      - " {letters}armor and offhand into this kit."
+      - " {letters_black}▎ {letters}Lays your own armour, offhand,"
+      - " {letters_black}▎ {letters}inventory and hotbar into the grid."
+      - " {letters_black}▎ {letters_black}Replaces whatever is there now."
       - ""
-      - " {info}» Click to import"
+      - "{warning}➥ Click to import"
+      - ""
     actions:
       - "survivalcore:kit_admin_import_inventory"
-
-  separator:
-    slot: 7
-    material: GRAY_STAINED_GLASS_PANE
-    hide_tooltip: true
 
   clear:
     slot: 8
     material: TNT
-    name: "{error}&lCLEAR ALL"
+    name: "{error}&lCLEAR THE GRID"
     lore:
       - ""
-      - " {error}Removes all items from this kit."
+      - " {letters_black}▎ {letters}Empties every slot."
+      - " {letters_black}▎ {letters_black}Nothing is saved until you leave."
       - ""
-      - " {error}» Click to clear"
+      - "{error}➥ Click to clear"
+      - ""
     actions:
       - "survivalcore:kit_admin_clear_items"
 
   cancel:
-    slot: 45
-    material: BARRIER
-    name: "{error}&lCANCEL"
+    slot: 49
+    material: 'basehead-eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvMjIzZmI2NzQyOTcxNmIyMWJjNmU4ZTdkNjY5Y2VkZGY2NWIxM2UwNzkwYTVjZTU1YjJlMDc3YjgyZDE5ZTEyNCJ9fX0='
+    name: '{error}&lCANCEL'
     lore:
       - ""
-      - " {error}Discards all changes and returns"
-      - " {error}without saving."
+      - " {letters_black}▎ {letters}Leaves the kit exactly as it was."
       - ""
-      - " {error}» Click to cancel"
+      - "{error}➥ Click to discard"
+      - ""
     actions:
       - "survivalcore:kit_admin_cancel_items"
 
-  back:
+  save:
     slot: 53
     material: EMERALD
     name: "{success}&lSAVE & BACK"
     lore:
       - ""
-      - " {info}» Saves items and returns"
+      - " {letters_black}▎ {letters}Saves the layout and returns"
+      - " {letters_black}▎ {letters}to the kit."
+      - ""
+      - "{warning}➥ Click to save"
+      - ""
     actions:
       - "close"

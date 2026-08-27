@@ -23,7 +23,7 @@ filler:
 
 items:
   worlds:
-    slot: 11
+    slot: 10
     material: GRASS_BLOCK
     name: "{info}&lMANAGE WORLDS"
     lore:
@@ -39,7 +39,7 @@ items:
       - "sandbox:open_world_list"
 
   kitroom:
-    slot: 13
+    slot: 12
     material: CHEST
     name: "{accent}&lKIT ROOM"
     lore:
@@ -51,9 +51,21 @@ items:
     actions:
       - "sandbox:open_kitroom_category_list"
 
+  predefined-kits:
+    slot: 14
+    material: DIAMOND_CHESTPLATE
+    name: "{accent}&lPREDEFINED KITS"
+    lore:
+      - ""
+      - " {muted}❙ {letters}Build kits once, players"
+      - " {muted}❙ {letters}copy them into their slots"
+      - ""
+      - "{info}» Click to manage"
+    actions:
+      - "sandbox:open_predefined_kit_list"
 
   tp-regions:
-    slot: 15
+    slot: 16
     material: BEACON
     name: "{accent}&lTP REGIONS"
     lore:

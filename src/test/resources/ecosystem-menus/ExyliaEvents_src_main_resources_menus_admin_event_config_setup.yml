@@ -256,6 +256,19 @@ items:
     actions:
       - "events:open_participant_rewards"
 
+  schedules:
+    slot: 43
+    material: CLOCK
+    name: "{warning}&lSCHEDULES"
+    lore:
+      - ""
+      - " {muted}❙ {letters}Lines: {highlight}%schedule_count%"
+      - " {muted}❙ {letters}Next: {info}%schedule_next%"
+      - ""
+      - "{info}» Click to manage"
+    actions:
+      - "events:open_schedules"
+
   toggle:
     slot: 7
     material: "%toggle_material%"
@@ -267,9 +280,9 @@ items:
       - "events:toggle_config"
 
   back:
-    slot: 45
-    material: ARROW
-    name: "{error}&lBack"
+    slot: 49
+    material: 'basehead-eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvMjIzZmI2NzQyOTcxNmIyMWJjNmU4ZTdkNjY5Y2VkZGY2NWIxM2UwNzkwYTVjZTU1YjJlMDc3YjgyZDE5ZTEyNCJ9fX0='
+    name: '{error}&lBACK'
     lore:
       - "{muted}Go back to event list"
     actions:

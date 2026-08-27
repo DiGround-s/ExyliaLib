@@ -1,4 +1,9 @@
-title: "{primary}&lKIT {muted}— {highlight}%kit_id%"
+# DO NOT EDIT — REGENERATED ON EVERY STARTUP.
+#
+# One kit. Every field of it, and the two grids that hold its items and its
+# bonus commands.
+
+title: "{primary}&lKIT {letters_black}» {highlight}%kit_id%"
 size: 54
 type: SIMPLE
 refresh:
@@ -6,185 +11,242 @@ refresh:
   click_delay: 4
 
 open_sounds:
-  - "ENTITY_EXPERIENCE_ORB_PICKUP|1.0|1.2"
+  - "BLOCK_CHEST_OPEN|0.7|1.4"
 click_sounds:
-  - "UI_BUTTON_CLICK|1.0|1.5"
+  - "UI_BUTTON_CLICK|0.6|1.6"
 
 filler:
   global:
-    material: GRAY_STAINED_GLASS_PANE
+    material: BLACK_STAINED_GLASS_PANE
     hide_tooltip: true
+
+  custom:
+    frame:
+      material: GRAY_STAINED_GLASS_PANE
+      hide_tooltip: true
+      slots: "0-8,45-53"
 
 items:
   enabled:
     slot: 4
     material: "%enabled_material%"
-    name: "{highlight}&lSTATUS"
+    name: "{primary}&lSTATUS"
     lore:
       - ""
-      - " {muted}❙ {letters}Current: %enabled_status%"
+      - " {letters_black}▎ {letters}Current {letters_black}» %enabled_status%"
+      - " {letters_black}▎ {letters_black}A disabled kit is hidden from players."
       - ""
-      - " {info}» Click to toggle"
+      - "{warning}➥ Click to toggle"
+      - ""
     actions:
       - "survivalcore:kit_admin_toggle_enabled"
 
   display-name:
     slot: 19
     material: NAME_TAG
-    name: "{highlight}&lDISPLAY NAME"
+    name: "{primary}&lDISPLAY NAME"
     lore:
       - ""
-      - " {muted}❙ {letters}Current: {highlight}%kit_name%"
+      - " {letters_black}▎ {letters}Current {letters_black}» {highlight}%kit_name%"
       - ""
-      - " {info}» Click to rename"
+      - "{warning}➥ Click to rename"
+      - ""
     actions:
       - "survivalcore:kit_admin_edit_name"
 
   description:
     slot: 20
     material: BOOK
-    name: "{highlight}&lDESCRIPTION"
+    name: "{primary}&lDESCRIPTION"
     lore:
       - ""
-      - " {muted}❙ {letters}Current: {highlight}%kit_description%"
+      - " {letters_black}▎ {letters}Current {letters_black}» {highlight}%kit_description%"
+      - " {letters_black}▎ {letters_black}Shown in the kit list and the preview."
       - ""
-      - " {info}» Click to set description"
+      - "{warning}➥ Click to set it"
+      - ""
     actions:
       - "survivalcore:kit_admin_edit_description"
 
   permission:
     slot: 21
     material: TRIPWIRE_HOOK
-    name: "{highlight}&lPERMISSION"
+    name: "{primary}&lPERMISSION"
     lore:
       - ""
-      - " {muted}❙ {letters}Current: {highlight}%kit_permission%"
+      - " {letters_black}▎ {letters}Current {letters_black}» {highlight}%kit_permission%"
+      - " {letters_black}▎ {letters_black}Type clear for no permission at all."
       - ""
-      - " {info}» Click to set required permission"
-      - " {muted}  Leave blank for no permission required"
+      - "{warning}➥ Click to set it"
+      - ""
     actions:
       - "survivalcore:kit_admin_edit_permission"
 
   cooldown:
     slot: 22
     material: CLOCK
-    name: "{highlight}&lCOOLDOWN"
+    name: "{primary}&lCOOLDOWN"
     lore:
       - ""
-      - " {muted}❙ {letters}Current: {highlight}%kit_cooldown_ms% ms"
+      - " {letters_black}▎ {letters}Current {letters_black}» {info}%kit_cooldown%"
+      - " {letters_black}▎ {letters_black}Typed as 1d, 12h30m or 0s for none."
       - ""
-      - " {info}» Click to set cooldown"
-      - " {muted}  Value in milliseconds (0 = no cooldown)"
+      - "{warning}➥ Click to set it"
+      - ""
     actions:
       - "survivalcore:kit_admin_set_cooldown"
 
   max-uses:
     slot: 23
     material: PAPER
-    name: "{highlight}&lMAX USES"
+    name: "{primary}&lMAX USES"
     lore:
       - ""
-      - " {muted}❙ {letters}Current: {highlight}%kit_max_uses%"
+      - " {letters_black}▎ {letters}Current {letters_black}» {info}%kit_max_uses%"
+      - " {letters_black}▎ {letters_black}How often one player may claim it."
+      - " {letters_black}▎ {letters_black}Use -1 for unlimited."
       - ""
-      - " {info}» Click to set max uses"
-      - " {muted}  Set to -1 for unlimited"
+      - "{warning}➥ Click to set it"
+      - ""
     actions:
       - "survivalcore:kit_admin_set_max_uses"
 
   sort-order:
     slot: 24
     material: COMPARATOR
-    name: "{highlight}&lSORT ORDER"
+    name: "{primary}&lSORT ORDER"
     lore:
       - ""
-      - " {muted}❙ {letters}Current: {highlight}%kit_sort_order%"
+      - " {letters_black}▎ {letters}Current {letters_black}» {info}%kit_sort_order%"
+      - " {letters_black}▎ {letters_black}Lower is shown first."
       - ""
-      - " {info}» Click to set sort order"
+      - "{warning}➥ Click to set it"
+      - ""
     actions:
       - "survivalcore:kit_admin_set_sort_order"
 
   auto-equip:
     slot: 28
     material: "%auto_equip_material%"
-    name: "{highlight}&lAUTO EQUIP ARMOR"
+    name: "{primary}&lEQUIP ARMOUR"
     lore:
       - ""
-      - " {muted}❙ {letters}Current: %auto_equip_status%"
+      - " {letters_black}▎ {letters}Current {letters_black}» %auto_equip_status%"
+      - " {letters_black}▎ {letters_black}Off puts the armour in the inventory"
+      - " {letters_black}▎ {letters_black}instead of onto the player."
       - ""
-      - " {info}» Click to toggle"
+      - "{warning}➥ Click to toggle"
+      - ""
     actions:
       - "survivalcore:kit_admin_toggle_auto_equip"
 
   drop-when-full:
     slot: 29
     material: "%drop_full_material%"
-    name: "{highlight}&lDROP WHEN FULL"
+    name: "{primary}&lDROP WHEN FULL"
     lore:
       - ""
-      - " {muted}❙ {letters}Current: %drop_full_status%"
+      - " {letters_black}▎ {letters}Current {letters_black}» %drop_full_status%"
+      - " {letters_black}▎ {letters_black}On drops what does not fit at their feet."
+      - " {letters_black}▎ {letters_black}Off refuses the claim until they make room."
       - ""
-      - " {info}» Click to toggle"
+      - "{warning}➥ Click to toggle"
+      - ""
     actions:
       - "survivalcore:kit_admin_toggle_drop_when_full"
 
   first-join:
     slot: 30
     material: "%first_join_material%"
-    name: "{highlight}&lFIRST JOIN KIT"
+    name: "{primary}&lFIRST JOIN KIT"
     lore:
       - ""
-      - " {muted}❙ {letters}Current: %first_join_status%"
+      - " {letters_black}▎ {letters}Current {letters_black}» %first_join_status%"
+      - " {letters_black}▎ {letters_black}Handed out once, when a player first joins."
       - ""
-      - " {info}» Click to toggle"
+      - "{warning}➥ Click to toggle"
+      - ""
     actions:
       - "survivalcore:kit_admin_toggle_first_join"
 
   icon:
     slot: 31
     material: "%kit_icon%"
-    name: "{highlight}&lICON"
+    name: "{primary}&lICON"
     lore:
       - ""
-      - " {muted}❙ {letters}Current: {highlight}%kit_icon_preview%"
+      - " {letters_black}▎ {letters}Current {letters_black}» {highlight}%kit_icon_preview%"
       - ""
-      - " {info}» Click to change icon"
-      - " {muted}  Select an item with the icon picker"
+      - "{warning}➥ Click to choose one"
+      - ""
     actions:
       - "survivalcore:kit_admin_set_icon"
 
   edit-items:
     slot: 33
     material: CHEST
-    name: "{highlight}&lEDIT ITEMS"
+    name: "{primary}&lITEMS"
     lore:
       - ""
-      - " {muted}❙ {letters}Items: {highlight}%kit_items%"
+      - " {letters_black}▎ {letters}Holding {letters_black}» {info}%kit_items% {letters}item(s)"
+      - " {letters_black}▎ {letters_black}Laid out as the player will receive it."
       - ""
-      - " {info}» Click to manage items"
+      - "{warning}➥ Click to lay the kit out"
+      - ""
     actions:
       - "survivalcore:kit_admin_edit_items"
 
   edit-commands:
     slot: 34
     material: COMMAND_BLOCK
-    name: "{highlight}&lEDIT COMMANDS"
+    name: "{primary}&lBONUSES"
     lore:
       - ""
-      - " {muted}❙ {letters}Commands: {highlight}%kit_commands%"
+      - " {letters_black}▎ {letters}Running {letters_black}» {info}%kit_commands% {letters}command(s)"
+      - " {letters_black}▎ {letters_black}Named ones are shown in the preview."
       - ""
-      - " {info}» Click to manage commands"
+      - "{warning}➥ Click to manage them"
+      - ""
     actions:
       - "survivalcore:kit_admin_open_commands"
 
   back:
-    slot: 45
-    material: ARROW
-    name: "{letters}&lBACK"
+    slot: 49
+    material: 'basehead-eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvMjIzZmI2NzQyOTcxNmIyMWJjNmU4ZTdkNjY5Y2VkZGY2NWIxM2UwNzkwYTVjZTU1YjJlMDc3YjgyZDE5ZTEyNCJ9fX0='
+    name: '{error}&lBACK'
     lore:
       - ""
-      - " {info}» Return to kit list"
+      - " {letters_black}▎ {letters}Return to the kit list"
+      - ""
     actions:
       - "survivalcore:kit_admin_open_list"
+
+  preview:
+    slot: 48
+    material: ENDER_EYE
+    name: "{info}&lPREVIEW"
+    lore:
+      - ""
+      - " {letters_black}▎ {letters}See the kit exactly as a player does."
+      - ""
+      - "{warning}➥ Click to preview"
+      - ""
+    actions:
+      - "survivalcore:kit_admin_preview"
+
+  clone:
+    slot: 50
+    material: BOOK
+    name: "{success}&lCLONE"
+    lore:
+      - ""
+      - " {letters_black}▎ {letters}Copies everything into a new kit"
+      - " {letters_black}▎ {letters}under an id you choose."
+      - ""
+      - "{warning}➥ Click to clone"
+      - ""
+    actions:
+      - "survivalcore:kit_admin_clone"
 
   delete:
     slot: 53
@@ -192,6 +254,10 @@ items:
     name: "{error}&lDELETE KIT"
     lore:
       - ""
-      - " {error}» Click to permanently delete"
+      - " {letters_black}▎ {letters}Removes the kit and everything in it."
+      - " {letters_black}▎ {letters_black}You will be asked to confirm."
+      - ""
+      - "{error}➥ Click to delete"
+      - ""
     actions:
       - "survivalcore:kit_admin_delete %kit_id%"

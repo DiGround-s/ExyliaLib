@@ -20,33 +20,57 @@ pagination:
 
   item_template:
     material: "%pattern_template%"
-    name: "%name_color%&l%pattern_name%"
+    hide-attributes: true
+    name: "{accent}&l%pattern_name%"
     lore:
       - "{muted} ┃ {letters}Pattern: {info}%pattern_id%"
       - ""
-      - "%status_line%"
+      - "{accent}⚡ Click to select"
     actions:
-      - "%action%"
+      - "armortrim:select_pattern %armor_piece% %pattern_id%"
+
+  selected_template:
+    material: "%pattern_template%"
+    hide-attributes: true
+    name: "{success}&l%pattern_name%"
+    lore:
+      - "{muted} ┃ {letters}Pattern: {info}%pattern_id%"
+      - ""
+      - "{success}✔ Currently selected"
+    glowing: true
+
+  no_permissions_template:
+    material: "%pattern_template%"
+    hide-attributes: true
+    name: "{muted}&l%pattern_name%"
+    lore:
+      - "{muted} ┃ {letters}Pattern: {info}%pattern_id%"
+      - ""
+      - "{error}🔒 No permission"
 
   navigation:
     previous:
-      slot: 18
-      material: "headbase-eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvZDk5YjQ5YjQ2Yjg1Y2Q0NzA0Y2E1MjY3OTM2MjIwZjQ3YjIzNjMwYjg3ZjQ3YjY2YjQ2YmJlZmQ0In19fQ=="
-      name: "{letters}Previous"
+      slot: 48
+      material: 'basehead-eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvZGExZDU1YjNmOTg5NDEwYTM0NzUyNjUwZTI0OGM5YjZjMTc4M2E3ZWMyYWEzZmQ3Nzg3YmRjNGQwZTYzN2QzOSJ9fX0='
+      name: '{error}&l← PREVIOUS PAGE'
       lore:
         - "{muted} ┃ {neutral}Previous page"
+      actions:
+        - "previous_page"
     next:
-      slot: 26
-      material: "headbase-eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvZmE4N2UzZDk2ZTFjZmViOWNjZmIzYmE1M2EyMTdmYWY1MjQ5ZTI4NTUzM2IyNzFhMmZiMjg0YzMwZGJkOTgyOSJ9fX0="
-      name: "{letters}Next"
+      slot: 50
+      material: 'basehead-eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvZmE4N2UzZDk2ZTFjZmViOWNjZmIzYmE1M2EyMTdmYWY1MjQ5ZTI4NTUzM2IyNzFhMmZiMjg0YzMwZGJkOTgyOSJ9fX0='
+      name: '{success}&lNEXT PAGE →'
       lore:
         - "{muted} ┃ {neutral}Next page"
+      actions:
+        - "next_page"
 
 items:
   back:
     slot: 49
-    material: RED_DYE
-    name: "{error}&lBACK"
+    material: 'basehead-eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvMjIzZmI2NzQyOTcxNmIyMWJjNmU4ZTdkNjY5Y2VkZGY2NWIxM2UwNzkwYTVjZTU1YjJlMDc3YjgyZDE5ZTEyNCJ9fX0='
+    name: '{error}&lBACK'
     lore:
       - "{muted} ┃ {letters}Return to armor selection"
     actions:

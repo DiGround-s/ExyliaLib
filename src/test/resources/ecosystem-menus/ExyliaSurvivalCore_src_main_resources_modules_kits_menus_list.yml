@@ -1,0 +1,148 @@
+# The kits a player can take.
+#
+# A row is drawn by the state the kit is in for whoever is looking: ready, on
+# cooldown, used up, or locked behind a permission. Each state is a template of
+# its own below, so what a locked kit looks like — and whether it can even be
+# clicked — is decided here and nowhere else.
+#
+# Values a row can use:
+#   %kit_id%  %kit_name%  %kit_description%  %kit_icon%
+#   %kit_cooldown%  %kit_uses%  %kit_items%  %kit_permission%
+#
+# Replaces the older kits_list.yml, which is no longer read and may be deleted.
+
+title: "{primary}&lKITS {letters_black}%current_page%/%total_pages%"
+size: 54
+type: PAGINATION
+
+open_sounds:
+  - "BLOCK_CHEST_OPEN|0.7|1.4"
+click_sounds:
+  - "UI_BUTTON_CLICK|0.6|1.6"
+
+filler:
+  global:
+    material: BLACK_STAINED_GLASS_PANE
+    hide_tooltip: true
+
+  custom:
+    frame:
+      material: GRAY_STAINED_GLASS_PANE
+      hide_tooltip: true
+      slots: "0-8,45-53"
+
+  pagination:
+    material: LIGHT_GRAY_STAINED_GLASS_PANE
+    name: "{letters_black}&lEMPTY"
+    lore:
+      - ""
+      - " {letters_black}▎ {letters}No kits are available to you yet."
+      - ""
+
+pagination:
+  slots: '10-16,19-25,28-34'
+
+  # Ready to take.
+  item_template:
+    material: "%kit_icon%"
+    name: "{primary}&l%kit_name%"
+    lore:
+      - ""
+      - "{secondary}About:"
+      - " {letters_black}▎ {letters}%kit_description%"
+      - " {letters_black}▎ {letters}Holds {highlight}%kit_items% {letters}item(s)"
+      - ""
+      - "{secondary}Status:"
+      - " {letters_black}▎ {letters}Cooldown {letters_black}» {info}%kit_cooldown%"
+      - " {letters_black}▎ {letters}Uses left {letters_black}» {info}%kit_uses%"
+      - ""
+      - "{warning}➥ Left-click to claim"
+      - "{warning}➥ Right-click to preview"
+      - ""
+    actions:
+      - "left: survivalcore:kit_claim %kit_id%"
+      - "right: survivalcore:kit_preview %kit_id%"
+
+  # Taken too recently.
+  cooldown_template:
+    material: "%kit_icon%"
+    name: "{letters_black}&l%kit_name%"
+    lore:
+      - ""
+      - "{secondary}About:"
+      - " {letters_black}▎ {letters}%kit_description%"
+      - " {letters_black}▎ {letters}Holds {highlight}%kit_items% {letters}item(s)"
+      - ""
+      - "{secondary}Status:"
+      - " {letters_black}▎ {letters}Ready in {letters_black}» {warning}%kit_cooldown% ⏱"
+      - " {letters_black}▎ {letters}Uses left {letters_black}» {info}%kit_uses%"
+      - ""
+      - "{warning}➥ Right-click to preview"
+      - ""
+    actions:
+      - "right: survivalcore:kit_preview %kit_id%"
+
+  # Claimed as often as the kit allows.
+  used_template:
+    material: "%kit_icon%"
+    name: "{letters_black}&l%kit_name%"
+    lore:
+      - ""
+      - "{secondary}About:"
+      - " {letters_black}▎ {letters}%kit_description%"
+      - ""
+      - "{secondary}Status:"
+      - " {letters_black}▎ {error}You have used this kit as often as it allows."
+      - ""
+      - "{warning}➥ Right-click to preview"
+      - ""
+    actions:
+      - "right: survivalcore:kit_preview %kit_id%"
+
+  # Behind a permission the viewer does not hold.
+  locked_template:
+    material: "%kit_icon%"
+    name: "{letters_black}&l%kit_name% {error}&l🔒"
+    lore:
+      - ""
+      - "{secondary}About:"
+      - " {letters_black}▎ {letters}%kit_description%"
+      - " {letters_black}▎ {letters}Holds {highlight}%kit_items% {letters}item(s)"
+      - ""
+      - "{secondary}Status:"
+      - " {letters_black}▎ {error}You do not have access to this kit."
+      - ""
+      - "{warning}➥ Right-click to preview"
+      - ""
+    actions:
+      - "right: survivalcore:kit_preview %kit_id%"
+
+  navigation:
+    previous:
+      slot: 48
+      material: 'basehead-eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvZGExZDU1YjNmOTg5NDEwYTM0NzUyNjUwZTI0OGM5YjZjMTc4M2E3ZWMyYWEzZmQ3Nzg3YmRjNGQwZTYzN2QzOSJ9fX0='
+      name: '{error}&l← PREVIOUS PAGE'
+      lore:
+        - ""
+        - " {letters_black}▎ {letters}Page {info}%current_page%{letters_black}/{info}%total_pages%"
+        - ""
+    next:
+      slot: 50
+      material: 'basehead-eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvZmE4N2UzZDk2ZTFjZmViOWNjZmIzYmE1M2EyMTdmYWY1MjQ5ZTI4NTUzM2IyNzFhMmZiMjg0YzMwZGJkOTgyOSJ9fX0='
+      name: '{success}&lNEXT PAGE →'
+      lore:
+        - ""
+        - " {letters_black}▎ {letters}Page {info}%current_page%{letters_black}/{info}%total_pages%"
+        - ""
+
+items:
+  close:
+    slot: 49
+    material: 'basehead-eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvMjIzZmI2NzQyOTcxNmIyMWJjNmU4ZTdkNjY5Y2VkZGY2NWIxM2UwNzkwYTVjZTU1YjJlMDc3YjgyZDE5ZTEyNCJ9fX0='
+    name: '{error}&lCLOSE'
+    lore:
+      - ""
+      - "{warning}➥ Click to close"
+      - ""
+    actions:
+      - "close"

@@ -1,0 +1,251 @@
+# What a kit holds, laid out the way the player will receive it.
+#
+#   row 1  (0-8)    the kit, and the button that claims it
+#   row 2  (9-17)   armour and offhand
+#   rows 3-5 (18-44) the twenty-seven storage slots
+#   row 6  (45-53)  the nine hotbar slots
+#
+# The four lists below are filled by the plugin in that order, so moving their
+# slots moves the items with them. Every list needs as many slots as it has
+# positions — armour four, offhand one, storage twenty-seven, hotbar nine —
+# and anything short of that simply pages.
+#
+# A shulker box or a bundle is drawn with the lore configured under
+# `preview.container-hint` in modules/kits/config.yml and opens when clicked.
+#
+# Values: %kit_id% %kit_name% %kit_description% %kit_icon% %kit_items%
+#         %kit_cooldown% %kit_uses% %kit_extras% %kit_extras_count%
+#
+# Replaces the older kit_preview.yml, which is no longer read and may be deleted.
+
+title: "{primary}&lPREVIEW {letters_black}» {highlight}%kit_name%"
+size: 54
+type: SIMPLE
+
+open_sounds:
+  - "BLOCK_CHEST_OPEN|0.7|1.4"
+click_sounds:
+  - "UI_BUTTON_CLICK|0.6|1.6"
+
+filler:
+  global:
+    material: BLACK_STAINED_GLASS_PANE
+    hide_tooltip: true
+
+  custom:
+    header:
+      material: GRAY_STAINED_GLASS_PANE
+      hide_tooltip: true
+      slots: "1,2,3,5,7"
+
+    equipment:
+      material: GRAY_STAINED_GLASS_PANE
+      hide_tooltip: true
+      slots: "16,17"
+
+items:
+  back:
+    slot: 49
+    material: 'basehead-eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvMjIzZmI2NzQyOTcxNmIyMWJjNmU4ZTdkNjY5Y2VkZGY2NWIxM2UwNzkwYTVjZTU1YjJlMDc3YjgyZDE5ZTEyNCJ9fX0='
+    name: '{error}&lBACK'
+    lore:
+      - ""
+      - " {letters_black}▎ {letters}Return to the kit list"
+      - ""
+    actions:
+      - "survivalcore:kit_open_list"
+
+  info:
+    slot: 4
+    material: "%kit_icon%"
+    name: "{primary}&l%kit_name%"
+    lore:
+      - ""
+      - "{secondary}About:"
+      - " {letters_black}▎ {letters}%kit_description%"
+      - ""
+      - "{secondary}Contents:"
+      - " {letters_black}▎ {letters}Items {letters_black}» {info}%kit_items%"
+      - " {letters_black}▎ {letters}Cooldown {letters_black}» {info}%kit_cooldown%"
+      - " {letters_black}▎ {letters}Uses left {letters_black}» {info}%kit_uses%"
+      - ""
+
+  armor_label:
+    slot: 9
+    material: ARMOR_STAND
+    name: "{secondary}&lARMOUR"
+    lore:
+      - ""
+      - " {letters_black}▎ {letters}Worn on claim when the kit"
+      - " {letters_black}▎ {letters}is set to equip it."
+      - ""
+
+  offhand_label:
+    slot: 14
+    material: SHIELD
+    name: "{secondary}&lOFFHAND"
+    lore:
+      - ""
+      - " {letters_black}▎ {letters}Held in the left hand."
+      - ""
+
+sections:
+
+  # The bonuses a kit hands out besides its items — the named commands, and
+  # only those: a player has no use for the text of a console command. A kit
+  # with none has no row here, so the slot falls back to this list's filler
+  # rather than to a hole in the row.
+  bonuses:
+    slots: "6"
+    item_template:
+      material: NETHER_STAR
+      name: "{primary}&lBONUSES"
+      lore:
+        - ""
+        - "{secondary}Also included:"
+        - " {letters_black}▎ {letters}%kit_extras%"
+        - ""
+        - " {letters_black}▎ {letters_black}Handed over with the items."
+        - ""
+    filler:
+      material: GRAY_STAINED_GLASS_PANE
+      hide_tooltip: true
+
+  # The claim button. One slot, drawn by what the viewer may do right now.
+  claim:
+    slots: "8"
+
+    ready_template:
+      material: LIME_DYE
+      name: "{success}&lCLAIM KIT"
+      lore:
+        - ""
+        - " {letters_black}▎ {letters}Everything here is yours to take."
+        - ""
+        - "{warning}➥ Click to claim"
+        - ""
+      actions:
+        - "survivalcore:kit_claim %kit_id%"
+
+    cooldown_template:
+      material: CLOCK
+      name: "{warning}&lON COOLDOWN"
+      lore:
+        - ""
+        - " {letters_black}▎ {letters}Ready in {warning}%kit_cooldown% ⏱"
+        - ""
+
+    used_template:
+      material: GRAY_DYE
+      name: "{error}&lUSED UP"
+      lore:
+        - ""
+        - " {letters_black}▎ {letters}You have taken this kit as often"
+        - " {letters_black}▎ {letters}as it allows."
+        - ""
+
+    locked_template:
+      material: IRON_BARS
+      name: "{error}&lLOCKED"
+      lore:
+        - ""
+        - " {letters_black}▎ {letters}You do not have access to this kit."
+        - ""
+
+    full_template:
+      material: HOPPER
+      name: "{warning}&lNO ROOM"
+      lore:
+        - ""
+        - " {letters_black}▎ {letters}Make space in your inventory"
+        - " {letters_black}▎ {letters}before claiming this kit."
+        - ""
+
+    disabled_template:
+      material: BARRIER
+      name: "{error}&lUNAVAILABLE"
+      lore:
+        - ""
+        - " {letters_black}▎ {letters}This kit is switched off."
+        - ""
+
+  # The four armour pieces, helmet first. An empty one is drawn by the template
+  # named after it, which is what labels the row.
+  armor:
+    slots: "10-13"
+    # Never drawn: a row here always brings the real item. It is declared so
+    # that a plain item is the list's default and cannot fall through to the
+    # template that opens a container.
+    item_template:
+      material: PAPER
+    container_template:
+      material: PAPER
+      actions:
+        - "survivalcore:kit_preview %kit_id% %path%"
+    helmet_template:
+      material: LIGHT_GRAY_STAINED_GLASS_PANE
+      name: "{letters_black}Helmet"
+      lore:
+        - " {letters_black}▎ {letters_black}Empty"
+    chestplate_template:
+      material: LIGHT_GRAY_STAINED_GLASS_PANE
+      name: "{letters_black}Chestplate"
+      lore:
+        - " {letters_black}▎ {letters_black}Empty"
+    leggings_template:
+      material: LIGHT_GRAY_STAINED_GLASS_PANE
+      name: "{letters_black}Leggings"
+      lore:
+        - " {letters_black}▎ {letters_black}Empty"
+    boots_template:
+      material: LIGHT_GRAY_STAINED_GLASS_PANE
+      name: "{letters_black}Boots"
+      lore:
+        - " {letters_black}▎ {letters_black}Empty"
+
+  offhand:
+    slots: "15"
+    # Never drawn: a row here always brings the real item. It is declared so
+    # that a plain item is the list's default and cannot fall through to the
+    # template that opens a container.
+    item_template:
+      material: PAPER
+    container_template:
+      material: PAPER
+      actions:
+        - "survivalcore:kit_preview %kit_id% %path%"
+    empty_template:
+      material: LIGHT_GRAY_STAINED_GLASS_PANE
+      name: "{letters_black}Offhand"
+      lore:
+        - " {letters_black}▎ {letters_black}Empty"
+
+  storage:
+    slots: "18-44"
+    # Never drawn: a row here always brings the real item. It is declared so
+    # that a plain item is the list's default and cannot fall through to the
+    # template that opens a container.
+    item_template:
+      material: PAPER
+    container_template:
+      material: PAPER
+      actions:
+        - "survivalcore:kit_preview %kit_id% %path%"
+    empty_template:
+      material: BLACK_STAINED_GLASS_PANE
+      hide_tooltip: true
+
+  hotbar:
+    slots: "45-53"
+    # Never drawn: a row here always brings the real item. It is declared so
+    # that a plain item is the list's default and cannot fall through to the
+    # template that opens a container.
+    item_template:
+      material: PAPER
+    container_template:
+      material: PAPER
+      actions:
+        - "survivalcore:kit_preview %kit_id% %path%"
+    empty_template:
+      material: GRAY_STAINED_GLASS_PANE
+      hide_tooltip: true

@@ -1,55 +1,89 @@
-title: "{primary}&lKITS {muted}%current_page%/%total_pages%"
+# DO NOT EDIT — REGENERATED ON EVERY STARTUP.
+#
+# Every kit there is. A row is drawn by whether the kit is switched on.
+
+title: "{primary}&lKIT ADMIN {letters_black}%current_page%/%total_pages%"
 size: 54
 type: PAGINATION
 
 open_sounds:
-  - "ENTITY_EXPERIENCE_ORB_PICKUP|1.0|1.2"
+  - "BLOCK_CHEST_OPEN|0.7|1.4"
 click_sounds:
-  - "UI_BUTTON_CLICK|1.0|1.5"
+  - "UI_BUTTON_CLICK|0.6|1.6"
 
 filler:
   global:
-    material: GRAY_STAINED_GLASS_PANE
+    material: BLACK_STAINED_GLASS_PANE
     hide_tooltip: true
+
+  custom:
+    frame:
+      material: GRAY_STAINED_GLASS_PANE
+      hide_tooltip: true
+      slots: "0-8,45-53"
+
   pagination:
     material: LIGHT_GRAY_STAINED_GLASS_PANE
-    name: "{muted}No kits created"
+    name: "{letters_black}&lNO KITS YET"
     lore:
       - ""
-      - " {muted}Click the button above to create one."
-    hide_tooltip: false
+      - " {letters_black}▎ {letters}Create one with the button above."
+      - ""
 
 pagination:
   slots: '10-16,19-25,28-34'
-  item_template:
+
+  enabled_template:
     material: "%kit_icon%"
-    name: "{warning}&l%kit_name% {muted}— {letters}%kit_id%"
+    name: "{primary}&l%kit_name% {letters_black}%kit_id%"
     lore:
       - ""
-      - " {muted}❙ {letters}Status: {highlight}%kit_enabled%"
-      - " {muted}❙ {letters}Items: {highlight}%kit_items%"
-      - " {muted}❙ {letters}Cooldown: {highlight}%kit_cooldown_ms% ms"
-      - " {muted}❙ {letters}Max Uses: {highlight}%kit_max_uses%"
+      - "{secondary}Setup:"
+      - " {letters_black}▎ {letters}Status {letters_black}» {success}Enabled"
+      - " {letters_black}▎ {letters}Items {letters_black}» {info}%kit_items%"
+      - " {letters_black}▎ {letters}Bonuses {letters_black}» {info}%kit_commands%"
+      - " {letters_black}▎ {letters}Cooldown {letters_black}» {info}%kit_cooldown%"
+      - " {letters_black}▎ {letters}Max uses {letters_black}» {info}%kit_max_uses%"
+      - " {letters_black}▎ {letters}Sort order {letters_black}» {info}%kit_sort_order%"
       - ""
-      - " {success}● {info}Left-click to edit"
-      - " {error}● {info}Right-click to delete"
+      - "{warning}➥ Left-click to edit"
+      - "{warning}➥ Right-click to delete"
+      - ""
+    actions:
+      - "left: survivalcore:kit_admin_edit %kit_id%"
+      - "right: survivalcore:kit_admin_delete %kit_id%"
+
+  disabled_template:
+    material: "%kit_icon%"
+    name: "{letters_black}&l%kit_name% {letters_black}%kit_id%"
+    lore:
+      - ""
+      - "{secondary}Setup:"
+      - " {letters_black}▎ {letters}Status {letters_black}» {error}Disabled"
+      - " {letters_black}▎ {letters}Items {letters_black}» {info}%kit_items%"
+      - " {letters_black}▎ {letters}Bonuses {letters_black}» {info}%kit_commands%"
+      - " {letters_black}▎ {letters}Cooldown {letters_black}» {info}%kit_cooldown%"
+      - " {letters_black}▎ {letters}Max uses {letters_black}» {info}%kit_max_uses%"
+      - " {letters_black}▎ {letters}Sort order {letters_black}» {info}%kit_sort_order%"
+      - ""
+      - " {letters_black}▎ {letters_black}Players cannot see this kit."
+      - ""
+      - "{warning}➥ Left-click to edit"
+      - "{warning}➥ Right-click to delete"
+      - ""
     actions:
       - "left: survivalcore:kit_admin_edit %kit_id%"
       - "right: survivalcore:kit_admin_delete %kit_id%"
 
   navigation:
     previous:
-      slot: 45
-      material: ARROW
-      name: "{error}&l← PREVIOUS"
-      actions:
-        - "previous_page"
+      slot: 48
+      material: 'basehead-eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvZGExZDU1YjNmOTg5NDEwYTM0NzUyNjUwZTI0OGM5YjZjMTc4M2E3ZWMyYWEzZmQ3Nzg3YmRjNGQwZTYzN2QzOSJ9fX0='
+      name: '{error}&l← PREVIOUS PAGE'
     next:
-      slot: 53
-      material: ARROW
-      name: "{success}&lNEXT →"
-      actions:
-        - "next_page"
+      slot: 50
+      material: 'basehead-eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvZmE4N2UzZDk2ZTFjZmViOWNjZmIzYmE1M2EyMTdmYWY1MjQ5ZTI4NTUzM2IyNzFhMmZiMjg0YzMwZGJkOTgyOSJ9fX0='
+      name: '{success}&lNEXT PAGE →'
 
 items:
   create:
@@ -58,13 +92,16 @@ items:
     name: "{success}&lCREATE KIT"
     lore:
       - ""
-      - " {info}Click to create a new kit."
+      - " {letters_black}▎ {letters}Starts a new kit and opens it."
+      - ""
+      - "{warning}➥ Click to create"
+      - ""
     actions:
       - "survivalcore:kit_admin_create"
 
   close:
     slot: 49
-    material: BARRIER
-    name: "{error}&lCLOSE"
+    material: 'basehead-eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvMjIzZmI2NzQyOTcxNmIyMWJjNmU4ZTdkNjY5Y2VkZGY2NWIxM2UwNzkwYTVjZTU1YjJlMDc3YjgyZDE5ZTEyNCJ9fX0='
+    name: '{error}&lCLOSE'
     actions:
-      - "survivalcore:close_menu"
+      - "close"

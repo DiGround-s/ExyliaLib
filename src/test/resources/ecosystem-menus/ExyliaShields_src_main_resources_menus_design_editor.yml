@@ -3,7 +3,7 @@ size: 54
 type: MULTI_PAGINATION
 refresh:
   mode: ON_CLICK
-  click_delay: 4
+  click_delay: 0
 
 open_sounds:
   - "ENTITY_EXPERIENCE_ORB_PICKUP|1.0|1.2"
@@ -26,7 +26,7 @@ items:
       - ""
       - "{accent}» Click to change"
     actions:
-      - "shield:open_color_picker %slot_index% base"
+      - "shield:open_color_picker base"
 
   dye_color:
     slot: 1
@@ -38,7 +38,7 @@ items:
       - ""
       - "{accent}» Click to change"
     actions:
-      - "shield:open_color_picker %slot_index% dye"
+      - "shield:open_color_picker dye"
 
   toggle_preview:
     slot: 2
@@ -50,7 +50,7 @@ items:
       - ""
       - "{accent}» Click to toggle"
     actions:
-      - "shield:toggle_preview %slot_index%"
+      - "shield:toggle_preview"
 
   preview:
     slot: 4
@@ -74,7 +74,7 @@ items:
       - ""
       - "{error}» Click to delete"
     actions:
-      - "shield:delete_slot %slot_index%"
+      - "shield:delete_slot"
 
   reset:
     slot: 7
@@ -86,7 +86,7 @@ items:
       - ""
       - "{error}» Click to reset"
     actions:
-      - "shield:reset_slot %slot_index%"
+      - "shield:reset_slot"
 
   set_active:
     slot: 8
@@ -98,12 +98,12 @@ items:
       - ""
       - "{success}» Click to activate"
     actions:
-      - "shield:select_slot %slot_index%"
+      - "shield:select_slot"
 
   back:
-    slot: 45
-    material: ARROW
-    name: "{error}&lBACK"
+    slot: 49
+    material: 'basehead-eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvMjIzZmI2NzQyOTcxNmIyMWJjNmU4ZTdkNjY5Y2VkZGY2NWIxM2UwNzkwYTVjZTU1YjJlMDc3YjgyZDE5ZTEyNCJ9fX0='
+    name: '{error}&lBACK'
     lore:
       - "{muted}Return to shield list"
     actions:
@@ -124,10 +124,10 @@ sections:
         - ""
         - " {muted}❙ {letters}ID: {info}%pattern_id%"
         - ""
-        - " {muted}❙ {accent}Click to add layer"
+        - " {muted}❙ %pattern_lore_action%"
       hide_attributes: true
       actions:
-        - "shield:add_pattern %slot_index% %pattern_id%"
+        - "shield:add_pattern"
     no_permission_template:
       material: "%pattern_material%"
       banner_design: "%pattern_banner%"
@@ -136,18 +136,18 @@ sections:
         - ""
         - " {muted}❙ {letters}ID: {info}%pattern_id%"
         - ""
-        - " {muted}❙ {error}No permission"
+        - " {muted}❙ %pattern_lore_action%"
       hide_attributes: true
     navigation:
       previous:
         slot: 3
-        material: ARROW
-        name: "{letters}&l← PATTERNS"
+        material: 'basehead-eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvZGExZDU1YjNmOTg5NDEwYTM0NzUyNjUwZTI0OGM5YjZjMTc4M2E3ZWMyYWEzZmQ3Nzg3YmRjNGQwZTYzN2QzOSJ9fX0='
+        name: '{error}&l← PREVIOUS PAGE'
         hide_tooltip: false
       next:
         slot: 5
-        material: ARROW
-        name: "{letters}&lPATTERNS →"
+        material: 'basehead-eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvZmE4N2UzZDk2ZTFjZmViOWNjZmIzYmE1M2EyMTdmYWY1MjQ5ZTI4NTUzM2IyNzFhMmZiMjg0YzMwZGJkOTgyOSJ9fX0='
+        name: '{success}&lNEXT PAGE →'
         hide_tooltip: false
 
   layers:
@@ -167,15 +167,15 @@ sections:
         - " {muted}❙ {error}Click to remove"
       hide_attributes: true
       actions:
-        - "shield:remove_layer %slot_index% %layer_index%"
+        - "shield:remove_layer"
     navigation:
       previous:
         slot: 36
-        material: ARROW
-        name: "{letters}&l← LAYERS"
+        material: 'basehead-eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvZGExZDU1YjNmOTg5NDEwYTM0NzUyNjUwZTI0OGM5YjZjMTc4M2E3ZWMyYWEzZmQ3Nzg3YmRjNGQwZTYzN2QzOSJ9fX0='
+        name: '{error}&l← PREVIOUS PAGE'
         hide_tooltip: false
       next:
         slot: 44
-        material: ARROW
-        name: "{letters}&lLAYERS →"
+        material: 'basehead-eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvZmE4N2UzZDk2ZTFjZmViOWNjZmIzYmE1M2EyMTdmYWY1MjQ5ZTI4NTUzM2IyNzFhMmZiMjg0YzMwZGJkOTgyOSJ9fX0='
+        name: '{success}&lNEXT PAGE →'
         hide_tooltip: false

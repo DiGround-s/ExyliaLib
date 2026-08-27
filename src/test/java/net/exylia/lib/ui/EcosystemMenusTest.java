@@ -30,7 +30,7 @@ import static org.junit.jupiter.api.Assertions.fail;
 /**
  * Every menu the whole ecosystem ships, read unchanged.
  *
- * <p>Two hundred and eighty-nine files from thirteen plugins, copied rather
+ * <p>Two hundred and sixty-nine files from twelve plugins, copied rather
  * than written for the test. {@code RealMenusTest} covers one plugin in depth;
  * this covers the breadth, and the two failures it is here to catch are the
  * ones that pass every hand-written example: a key everybody uses that nothing
@@ -69,7 +69,7 @@ class EcosystemMenusTest {
         try (Stream<Path> walk = Files.walk(menus())) {
             files = walk.filter(path -> path.toString().endsWith(".yml")).sorted().toList();
         }
-        assertTrue(files.size() >= 280, "expected the ecosystem's menus, found " + files.size());
+        assertTrue(files.size() >= 260, "expected the ecosystem's menus, found " + files.size());
         registerEveryReferencedAction(files);
 
         List<String> failures = new ArrayList<>();
@@ -129,19 +129,19 @@ class EcosystemMenusTest {
         // Every one of these is a key the files write and the parser has to
         // read. A count of zero means it is being silently ignored, which is
         // exactly how flags went unparsed in commons for years.
-        assertTrue(paginated >= 160, "menus with a list: " + paginated);
+        assertTrue(paginated >= 145, "menus with a list: " + paginated);
         assertTrue(multiSection >= 12, "menus with several lists: " + multiSection);
-        assertTrue(animated >= 85, "menus with an open animation: " + animated);
-        assertTrue(refreshing >= 130, "menus that redraw themselves: " + refreshing);
-        assertTrue(sounded >= 285, "menus with their own open sound: " + sounded);
-        assertTrue(emptyListFiller >= 140, "menus that say why a list is empty: " + emptyListFiller);
+        assertTrue(animated >= 62, "menus with an open animation: " + animated);
+        assertTrue(refreshing >= 122, "menus that redraw themselves: " + refreshing);
+        assertTrue(sounded >= 255, "menus with their own open sound: " + sounded);
+        assertTrue(emptyListFiller >= 127, "menus that say why a list is empty: " + emptyListFiller);
         assertTrue(conditional >= 20, "slots shown conditionally: " + conditional);
-        assertTrue(items >= 1250, "slots across the ecosystem: " + items);
+        assertTrue(items >= 1190, "slots across the ecosystem: " + items);
 
-        // Eight buttons in the wild really are broken: actions that no plugin
+        // Two buttons in the wild really are broken: actions that no plugin
         // registers under the namespace the file writes. The bound is tight so
         // a change that breaks fifty more cannot pass quietly.
-        assertTrue(deadButtons.size() <= 10,
+        assertTrue(deadButtons.size() <= 5,
                 "more dead buttons than the known ones (" + deadButtons.size() + "):\n  "
                         + String.join("\n  ", deadButtons.subList(0, Math.min(20, deadButtons.size()))));
     }

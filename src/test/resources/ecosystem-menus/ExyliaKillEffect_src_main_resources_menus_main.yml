@@ -62,7 +62,8 @@ sections:
         - "{success}🔓 {letters}Effects with access: {success}%category_effects_access_count%"
         - ""
         - "{accent}⚡ Click to select"
-      glowing: true
+      actions:
+        - "killeffect:select_category %category_id%"
     selected_template:
       material: "%category_material%"
       name: "{success}&l%category_raw_name%"
@@ -77,16 +78,20 @@ sections:
     navigation:
       previous:
         slot: 0
-        material: "headbase-eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvZGExZDU1YjNmOTg5NDEwYTM0NzUyNjUwZTI0OGM5YjZjMTc4M2E3ZWMyYWEzZmQ3Nzg3YmRjNGQwZTYzN2QzOSJ9fX0="
-        name: "{letters}Previous"
+        material: 'basehead-eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvZGExZDU1YjNmOTg5NDEwYTM0NzUyNjUwZTI0OGM5YjZjMTc4M2E3ZWMyYWEzZmQ3Nzg3YmRjNGQwZTYzN2QzOSJ9fX0='
+        name: '{error}&l← PREVIOUS PAGE'
         lore:
           - "{muted} ┃ {neutral}Previous section"
+        actions:
+          - "previous_page categories"
       next:
         slot: 8
-        material: "headbase-eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvZmE4N2UzZDk2ZTFjZmViOWNjZmIzYmE1M2EyMTdmYWY1MjQ5ZTI4NTUzM2IyNzFhMmZiMjg0YzMwZGJkOTgyOSJ9fX0="
-        name: "{letters}Next"
+        material: 'basehead-eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvZmE4N2UzZDk2ZTFjZmViOWNjZmIzYmE1M2EyMTdmYWY1MjQ5ZTI4NTUzM2IyNzFhMmZiMjg0YzMwZGJkOTgyOSJ9fX0='
+        name: '{success}&lNEXT PAGE →'
         lore:
           - "{muted} ┃ {neutral}Next section"
+        actions:
+          - "next_page categories"
 
   effects:
     slots: "19-25,28-34,37-43"
@@ -99,41 +104,54 @@ sections:
       lore:
         - ""
         - "{muted} ┃ {letters}Effect: {info}%effect_id%"
-        - "{muted} ┃ {letters}Description: {neutral}%effect_description%"
+        - "{muted} ┃ {neutral}%effect_description%"
         - ""
         - "{error}🔒 No permission to use this effect"
         - "{accent}⚡ Right-click to preview"
+      actions:
+        - "right: killeffect:preview_effect %effect_id%"
     not_selected_template:
       material: "%effect_material%"
       name: "{muted}&l%effect_raw_name%"
       lore:
         - ""
         - "{muted} ┃ {letters}Effect: {info}%effect_id%"
-        - "{muted} ┃ {letters}Description: {neutral}%effect_description%"
+        - "{muted} ┃ {neutral}%effect_description%"
         - ""
         - "{accent}⚡ Left-click to select"
         - "{muted}⚡ Right-click to preview"
+      actions:
+        - "left: killeffect:select_effect %effect_id%"
+        - "right: killeffect:preview_effect %effect_id%"
     selected_template:
       material: "%effect_material%"
       name: "{success}&l%effect_raw_name%"
       lore:
         - ""
         - "{muted} ┃ {letters}Effect: {info}%effect_id%"
-        - "{muted} ┃ {letters}Description: {neutral}%effect_description%"
+        - "{muted} ┃ {neutral}%effect_description%"
         - ""
         - "{success}✔ Effect selected"
+        - "{warning}➥ Left-click again to remove"
         - "{muted}⚡ Right-click to preview"
       glowing: true
+      actions:
+        - "left: killeffect:select_effect %effect_id%"
+        - "right: killeffect:preview_effect %effect_id%"
     navigation:
       previous:
         slot: 18
-        material: "headbase-eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvZGExZDU1YjNmOTg5NDEwYTM0NzUyNjUwZTI0OGM5YjZjMTc4M2E3ZWMyYWEzZmQ3Nzg3YmRjNGQwZTYzN2QzOSJ9fX0="
-        name: "{letters}Previous"
+        material: 'basehead-eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvZGExZDU1YjNmOTg5NDEwYTM0NzUyNjUwZTI0OGM5YjZjMTc4M2E3ZWMyYWEzZmQ3Nzg3YmRjNGQwZTYzN2QzOSJ9fX0='
+        name: '{error}&l← PREVIOUS PAGE'
         lore:
           - "{muted} ┃ {neutral}Previous section"
+        actions:
+          - "previous_page effects"
       next:
         slot: 26
-        material: "headbase-eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvZmE4N2UzZDk2ZTFjZmViOWNjZmIzYmE1M2EyMTdmYWY1MjQ5ZTI4NTUzM2IyNzFhMmZiMjg0YzMwZGJkOTgyOSJ9fX0="
-        name: "{letters}Next"
+        material: 'basehead-eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvZmE4N2UzZDk2ZTFjZmViOWNjZmIzYmE1M2EyMTdmYWY1MjQ5ZTI4NTUzM2IyNzFhMmZiMjg0YzMwZGJkOTgyOSJ9fX0='
+        name: '{success}&lNEXT PAGE →'
         lore:
           - "{muted} ┃ {neutral}Next section"
+        actions:
+          - "next_page effects"
