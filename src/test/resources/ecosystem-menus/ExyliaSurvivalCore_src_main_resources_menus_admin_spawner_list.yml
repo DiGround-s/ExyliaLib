@@ -25,7 +25,7 @@ filler:
     hide_tooltip: false
 
 pagination:
-  slots: '10-16,19-25,28-34'
+  slots: '0-35'
 
   item_template:
     material: SPAWNER
@@ -66,7 +66,7 @@ pagination:
 
 items:
   create:
-    slot: 4
+    slot: 45
     material: EMERALD
     name: "{success}&lCREATE SPAWNER"
     lore:

@@ -27,7 +27,7 @@ filler:
     hide_tooltip: false
 
 pagination:
-  slots: "0-44"
+  slots: '0-35'
 
   item_template:
     material: "%pk_icon%"
@@ -62,7 +62,7 @@ pagination:
 
 items:
   create:
-    slot: 47
+    slot: 45
     material: LIME_DYE
     name: "{success}&l+ CREATE KIT"
     lore:

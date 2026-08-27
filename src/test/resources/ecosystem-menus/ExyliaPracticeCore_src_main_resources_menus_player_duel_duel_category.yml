@@ -60,4 +60,4 @@ items:
     lore:
       - "{muted}Close menu"
     actions:
-      - "close_menu"
+      - "close"

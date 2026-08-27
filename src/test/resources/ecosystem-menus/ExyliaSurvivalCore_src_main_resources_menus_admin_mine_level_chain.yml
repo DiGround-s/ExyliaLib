@@ -26,7 +26,7 @@ filler:
     hide_tooltip: false
 
 pagination:
-  slots: '10-16,19-25'
+  slots: '0-35'
 
   item_template:
     material: "%stage_material%"
@@ -65,7 +65,7 @@ pagination:
 
 items:
   add:
-    slot: 47
+    slot: 45
     material: EMERALD
     name: "{success}&lADD STAGE"
     lore:

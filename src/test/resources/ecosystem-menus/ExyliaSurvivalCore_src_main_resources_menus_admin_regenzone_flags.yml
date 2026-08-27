@@ -52,7 +52,7 @@ pagination:
 
 items:
   allowed-blocks:
-    slot: 47
+    slot: 45
     material: WRITABLE_BOOK
     name: "{highlight}&lALLOWED BLOCKS LIST"
     lore:
@@ -69,7 +69,7 @@ items:
       - "shift_left: survivalcore:regenzone_clear_allowed_blocks"
 
   temp-blocks-seconds:
-    slot: 51
+    slot: 46
     material: SAND
     name: "{highlight}&lTEMP BLOCKS SECONDS"
     lore:

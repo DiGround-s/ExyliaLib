@@ -165,7 +165,7 @@ items:
       - ""
       - " {muted}❙ {info}Click to manage"
     actions:
-      - "any: player: practice:open_extra_regions_list"
+      - "practice:open_extra_regions_list"
 
   kits:
     slot: 34
