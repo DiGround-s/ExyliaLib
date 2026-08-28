@@ -1,6 +1,7 @@
 package net.exylia.lib.config.internal;
 
 import net.exylia.lib.config.ConfigIssue;
+import net.exylia.lib.config.Sparse;
 import org.bukkit.configuration.ConfigurationSection;
 
 import java.lang.reflect.InvocationTargetException;
@@ -53,6 +54,14 @@ final class Binder {
                 if (child == null && section != null && section.contains(component.key())) {
                     issues.add(ConfigIssue.invalidValue(file, childPath, "a group of settings",
                             section.get(component.key()), "the defaults"));
+                }
+                // A section that does nothing was left out of the file on
+                // purpose. Reporting its keys missing would write the whole
+                // empty block back on the next load, which is the noise this
+                // exists to remove.
+                if (child == null && fallback instanceof Sparse sparse && sparse.isEmpty()) {
+                    arguments[i] = fallback;
+                    continue;
                 }
                 arguments[i] = read(child, component.nested(), fallback, childPath, file, issues);
                 continue;
@@ -237,6 +246,13 @@ final class Binder {
             Object value = valueOf(values, component, i);
 
             if (component.isSection()) {
+                // Nothing to say, so nothing is written — and an empty block a
+                // previous version wrote goes away, rather than sitting in the
+                // file forever with a comment above every key it does not use.
+                if (value instanceof Sparse sparse && sparse.isEmpty()) {
+                    section.set(childPath, null);
+                    continue;
+                }
                 if (!section.isConfigurationSection(childPath)) {
                     section.createSection(childPath);
                 }
@@ -251,7 +267,14 @@ final class Binder {
                 // The first entry of a section already has the section's own
                 // comment or the file header above it; another blank line there
                 // just adds noise, and inside a section it would be indented.
-                section.setComments(childPath, i == 0 ? component.comments() : spaced(component.comments()));
+                //
+                // Blank lines only between the top-level groups, too. They are
+                // what makes a long file scannable; inside a block of seven
+                // keys they double its height and make it harder to read, not
+                // easier.
+                boolean separated = i > 0 && path.isEmpty();
+                section.setComments(childPath,
+                        separated ? spaced(component.comments()) : component.comments());
             }
         }
     }

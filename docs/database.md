@@ -217,6 +217,12 @@ should be rather than through a lowest common denominator:
 | PostgreSQL | `ON CONFLICT (pk) DO UPDATE`, `reWriteBatchedInserts` |
 | MongoDB | real BSON types, `replaceOne` upsert, `bulkWrite`, compound indexes |
 
+`type: mysql` against a MariaDB server is fine. The name picks the driver and
+the URL, and connector-j connects to MariaDB happily; the engine that answers
+is then asked what it is on the first connection, and the upsert form follows
+the answer rather than the config file. The same check covers a MySQL server
+older than 8.0.20, which cannot parse the row alias either.
+
 Some of the differences are traps rather than preferences, and each one is a
 test:
 

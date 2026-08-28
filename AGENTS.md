@@ -129,7 +129,18 @@ int pool = storage.get().poolSize();
   hace que el servidor pierda en silencio lo que el dueño había configurado.
 - **Un typo del usuario nunca tumba el plugin.** Se reporta y se usa el default.
 - Los comentarios de `@Comment` son el manual del dueño del servidor: explican
-  qué cambia el valor, en qué unidad y en qué rango.
+  qué cambia el valor, en qué unidad y en qué rango. **Solo lo que no se deduce
+  del nombre de la clave**: los valores aceptados, la unidad, el placeholder que
+  escribe. `fade-in: 0.5` no necesita "Seconds to fade in".
+- **Un record que implementa `Sparse` no se escribe mientras esté vacío**, y su
+  ausencia no se reporta como clave que falta — si no, el bloque vuelve a
+  aparecer en la siguiente carga. Es lo que evita que un efecto de una sola
+  bossbar escriba además un title, una actionbar, un sonido, partículas y un
+  firework vacíos, con un comentario por clave. Solo para secciones cuyos
+  defaults están vacíos por naturaleza.
+- **Las líneas en blanco separan los grupos de primer nivel, no las claves de
+  dentro.** Dentro de un bloque de siete claves duplican su altura sin hacerlo
+  más legible.
 
 ### Texto y color — siempre `Text`, siempre Components
 
@@ -389,6 +400,14 @@ parser dentro de un plugin.
   pública: un método encontrado ahí no se puede invocar sin `setAccessible`,
   que esto no usa. `TooltipDisplay$Builder` y `DataComponentBuilder` sí son API
   pública.
+- **`hide_tooltip` viaja en ese mismo componente desde 1.21.5, y se conserva.**
+  `hide_tooltip` y `hide-attributes` son claves distintas: la primera esconde el
+  tooltip entero, la segunda solo lo que vanilla escribe solo. Hasta 1.21.4 eran
+  dos componentes y no se estorbaban; desde 1.21.5 `hide_tooltip` es un campo de
+  `tooltip_display`, así que el write que esconde el bloque del tipo devolvía el
+  tooltip de cada decoración escrita con `hide_tooltip: true`. Se lee del ítem
+  antes de reescribir el componente y se vuelve a poner, igual que los
+  `hiddenComponents` que ya traía.
 - **`tooltip_display` esconde componentes, no una categoría**, así que la
   categoría se enumera (`WRITTEN_BY_TYPE`) y se filtra contra el registro: el
   nombre que ese servidor no tiene se salta. Así una lista sirve para varias

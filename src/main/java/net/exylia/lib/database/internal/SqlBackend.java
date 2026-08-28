@@ -16,10 +16,13 @@ import java.sql.Types;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Consumer;
 import java.util.logging.Logger;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * One connection pool and everything that runs statements through it.
@@ -148,7 +151,7 @@ public final class SqlBackend implements AutoCloseable {
 
         try {
             HikariDataSource pool = new HikariDataSource(config);
-            return new SqlBackend(asServed(dialect, pool), pool);
+            return new SqlBackend(serverDialect(dialect, pool), pool);
         } catch (RuntimeException failure) {
             // Hikari opens its first connection eagerly, so a wrong password or
             // an unreachable host arrives here rather than on the first query.
@@ -159,70 +162,91 @@ public final class SqlBackend implements AutoCloseable {
     }
 
     /**
-     * The dialect the server on the other end actually speaks.
+     * The dialect for the server that actually answered, not the one named in
+     * the configuration.
      *
-     * <p>The configured {@code engine} names a driver and a URL, and an operator
-     * writes {@code mysql} for a MariaDB server as often as not — the wire
-     * protocol is compatible, connector-j connects, and every read works. What
-     * does not work is one statement: MariaDB cannot <em>parse</em> MySQL
-     * 8.0.20's {@code INSERT ... AS new} row alias, so every {@code saveAll}
-     * fails with a syntax error at the first write, hours after the start that
-     * would have been the place to notice.
+     * <p>The engine name in a config file picks the driver and the URL, and it
+     * is right about those. It is regularly wrong about the engine:
+     * {@code mysql} is what operators write for a MariaDB server, connector-j
+     * connects to one without complaining, and the difference only surfaces on
+     * the first write, as {@code You have an error in your SQL syntax ... near
+     * 'AS new ON DUPLICATE KEY UPDATE'} — MySQL 8.0.20's row alias, which
+     * MariaDB cannot parse. MySQL 5.7 cannot parse it either.
      *
-     * <p>So the pool is asked what it connected to. Only the SQL is switched;
-     * the connection stays exactly as configured, driver and URL parameters
-     * included, because those are connector-j's and are already working.
+     * <p>So the server is asked once, on a connection the pool has already
+     * opened, and the answer decides. Only the MySQL family needs this: H2 and
+     * Postgres cannot be mistaken for each other through a driver that would
+     * have connected at all. When the probe fails the configured dialect
+     * stands, because a metadata call that threw says nothing about the
+     * engine, and the first real statement will report the truth anyway.
      *
-     * <p>Both directions, and only between these two: {@code mariadb} pointed at
-     * a real MySQL 8 would emit the deprecated {@code VALUES(col)} on every
-     * write, which is a log file a day rather than an outage, but it is the same
-     * mistake and the same fix.
+     * <p>Naming the wrong fork is a configuration mistake and is said out loud
+     * once; running a MySQL older than 8.0.20 is not one, and only changes
+     * which of the two upsert forms is written.
      */
-    private static Dialect asServed(Dialect dialect, HikariDataSource pool) {
-        if (dialect != MySQLDialect.INSTANCE && dialect != MariaDBDialect.INSTANCE) {
-            return dialect;
+    private static Dialect serverDialect(Dialect configured, HikariDataSource pool) {
+        if (!(configured instanceof MySQLDialect)) {
+            return configured;
         }
         try (Connection connection = pool.getConnection()) {
-            DatabaseMetaData server = connection.getMetaData();
-            Dialect served = served(dialect, server.getDatabaseProductName() + " "
-                    + server.getDatabaseProductVersion());
-            if (served != dialect) {
-                LOGGER.warning("The database is configured as " + dialect.id()
+            DatabaseMetaData meta = connection.getMetaData();
+            // MariaDB behind connector-j reports the product name "MySQL" and a
+            // version of "5.5.5-10.11.6-MariaDB": the fork's own name is only
+            // ever in the version string, so both are searched.
+            String banner = meta.getDatabaseProductName() + " " + meta.getDatabaseProductVersion();
+            Dialect served = served(configured, banner);
+            if (served != configured) {
+                LOGGER.warning("The database is configured as " + configured.id()
                         + " but the server reports itself as "
-                        + server.getDatabaseProductVersion()
+                        + meta.getDatabaseProductVersion()
                         + ". Writing " + served.id() + " SQL instead, because the two"
                         + " engines do not share the syntax of an upsert. The connection"
                         + " itself is unchanged; set engine to " + served.id()
                         + " to remove this notice.");
             }
+            if (served == MySQLDialect.INSTANCE && !supportsRowAlias(meta)) {
+                return MySQLDialect.LEGACY;
+            }
             return served;
-        } catch (SQLException unreachable) {
-            // Answering "no" here would swap a working dialect for a guess. The
-            // pool has already opened a connection by this point, so this is a
-            // server that went away in between, and the next query reports it.
-            return dialect;
+        } catch (SQLException | RuntimeException unknown) {
+            return configured;
         }
     }
 
     /**
-     * The dialect a server banner calls for, given the configured one.
+     * Which of the two forks a server banner calls for, given the configured one.
      *
-     * <p>Split from {@link #asServed} so the decision is testable without a
-     * server of each engine to point at.
+     * <p>Split from {@link #serverDialect} so the decision is testable without a
+     * server of each engine to point at. It answers the fork only; the version
+     * within a fork is {@link #supportsRowAlias}'s question.
      *
-     * @param dialect the configured dialect, already known to be one of the two
+     * @param dialect the configured dialect
      * @param banner  the product name and version the driver reports
      */
     static Dialect served(Dialect dialect, String banner) {
-        if (dialect != MySQLDialect.INSTANCE && dialect != MariaDBDialect.INSTANCE) {
+        if (!(dialect instanceof MySQLDialect)) {
             return dialect;
         }
         // The product name is the driver's word, not the server's: connector-j
         // says "MySQL" whatever it is talking to. The version banner is the
         // server's own and carries the fork's name.
-        return banner.toLowerCase(java.util.Locale.ROOT).contains("mariadb")
+        return banner.toLowerCase(Locale.ROOT).contains("mariadb")
                 ? MariaDBDialect.INSTANCE
                 : MySQLDialect.INSTANCE;
+    }
+
+    /** Whether a MySQL server is 8.0.20 or newer, where the row alias landed. */
+    private static boolean supportsRowAlias(DatabaseMetaData meta) throws SQLException {
+        int major = meta.getDatabaseMajorVersion();
+        if (major != 8 || meta.getDatabaseMinorVersion() != 0) {
+            return major >= 8;
+        }
+        // Only the 8.0 line is split by a patch number, and only the driver's
+        // version string carries it. An unreadable one is read as new enough:
+        // 8.0 releases before .20 are years past their end of life.
+        Matcher patch = Pattern.compile("^\\d+\\.\\d+\\.(\\d+)")
+                .matcher(meta.getDatabaseProductVersion());
+        return !patch.find() || Integer.parseInt(patch.group(1)) >= 20;
     }
 
     /** The dialect this backend speaks. */

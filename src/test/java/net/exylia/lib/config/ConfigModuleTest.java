@@ -93,6 +93,29 @@ class ConfigModuleTest {
         }
     }
 
+    /** A schema with a section that only earns its place when it says something. */
+    record Screen(
+            @Comment("The banner shown on join.")
+            Banner banner,
+            @Comment("The banner shown on leave.")
+            Banner farewell
+    ) {
+        Screen() {
+            this(new Banner("Welcome", 3.0), new Banner());
+        }
+
+        record Banner(String text, double seconds) implements Sparse {
+            Banner() {
+                this("", 3.0);
+            }
+
+            @Override
+            public boolean isEmpty() {
+                return text.isEmpty();
+            }
+        }
+    }
+
     record BadKeys(Map<Integer, String> byNumber) {
         BadKeys() {
             this(Map.of());
@@ -616,5 +639,45 @@ class ConfigModuleTest {
                 () -> Configs.define(plugin, "bad", BadKeys.class).load());
 
         assertTrue(failure.getMessage().contains("keyed by String"), failure.getMessage());
+    }
+
+    // ------------------------------------------------------------------
+    // Sections that do nothing
+    // ------------------------------------------------------------------
+
+    @Test
+    @DisplayName("a section that does nothing is left out of the file, and stays out")
+    void anEmptySparseSectionIsNotWritten() throws IOException {
+        // Fifteen effects in a plugin's config wrote a title, an action bar, a
+        // sound, particles and a firework each, every one of them empty and
+        // every key of them commented: a thousand lines describing nothing.
+        ConfigFile<Screen> config = Configs.define(plugin, "screen", Screen.class).load();
+
+        assertTrue(contents("screen").contains("banner:"), "the one that says something stays");
+        assertFalse(contents("screen").contains("farewell:"),
+                "the one that does nothing is not written:\n" + contents("screen"));
+
+        // And it is not reported missing, or the next load would write the
+        // whole empty block straight back.
+        assertFalse(config.issues().stream()
+                        .anyMatch(issue -> issue.path().startsWith("farewell")),
+                "an omitted section is not a missing key: " + config.issues());
+
+        Configs.releaseAll();
+        Configs.define(plugin, "screen", Screen.class).load();
+        assertFalse(contents("screen").contains("farewell:"), "and it stays out on reload");
+    }
+
+    @Test
+    @DisplayName("an owner who fills the section in keeps it, values and all")
+    void aFilledSparseSectionIsKept() throws IOException {
+        Files.writeString(file("screen"),
+                "banner:\n  text: Hello\n  seconds: 1.0\nfarewell:\n  text: Bye\n  seconds: 2.0\n");
+
+        ConfigFile<Screen> config = Configs.define(plugin, "screen", Screen.class).load();
+
+        assertEquals("Bye", config.get().farewell().text());
+        assertEquals(2.0, config.get().farewell().seconds());
+        assertTrue(contents("screen").contains("farewell:"), contents("screen"));
     }
 }
