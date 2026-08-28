@@ -40,6 +40,38 @@ public record RegionId(@NotNull String namespace, @NotNull String value)
         return new RegionId(raw.substring(0, colon), raw.substring(colon + 1));
     }
 
+    /**
+     * Turns text somebody typed into something this grammar accepts.
+     *
+     * <pre>{@code
+     * RegionId.sanitize("Arena Two/zone");   // "arena-two-zone"
+     * }</pre>
+     *
+     * <p>A region id is normally built out of names an admin wrote — a config
+     * id, a zone name, an arena — and those obey no grammar. Without this every
+     * caller either writes the character class out again or, more often,
+     * discovers the rule when a slash reaches the constructor and takes down
+     * whatever was starting.
+     *
+     * <p>Runs of anything unacceptable collapse into a single hyphen, so
+     * {@code "a // b"} is {@code "a-b"} rather than {@code "a---b"}.
+     *
+     * @param raw the text, in whatever shape it arrived
+     * @return an identifier part this record accepts
+     * @throws IllegalArgumentException if nothing usable is left, which needs
+     *         text holding no letter or digit at all
+     * @since 1.72.3
+     */
+    public static @NotNull String sanitize(@NotNull String raw) {
+        Objects.requireNonNull(raw, "raw");
+        String cleaned = raw.trim().toLowerCase(Locale.ROOT).replaceAll("[^a-z0-9_.-]+", "-");
+        if (cleaned.isEmpty() || cleaned.chars().noneMatch(Character::isLetterOrDigit)) {
+            throw new IllegalArgumentException(
+                    "Nothing in \"" + raw + "\" can be part of a region id");
+        }
+        return cleaned;
+    }
+
     private static String normalize(String input, String part) {
         Objects.requireNonNull(input, part);
         String normalized = input.trim().toLowerCase(Locale.ROOT);
