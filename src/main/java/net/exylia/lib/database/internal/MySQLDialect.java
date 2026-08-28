@@ -18,10 +18,13 @@ import java.util.Map;
  * They diverged on the exact statement this library writes most often. MySQL
  * 8.0.20 deprecated {@code VALUES(col)} inside {@code ON DUPLICATE KEY UPDATE}
  * and wants a row alias instead ({@code ... AS new ... col = new.col});
- * MariaDB does not implement that alias and fails to <em>parse</em> it. There
- * is no string that satisfies both, so there are two classes. Sharing one and
- * picking at runtime would mean the deprecation warning on every write on one
- * engine or a syntax error on every write on the other.
+ * MariaDB does not implement that alias and fails to <em>parse</em> it. The
+ * form is a flag here rather than a subclass detail, because the engine name
+ * in a configuration file does not decide it: {@code mysql} is what most
+ * operators write for a MariaDB server, and connector-j connects to one
+ * happily. {@link SqlBackend} asks the server on the first connection and
+ * picks the dialect from the answer; the classes still differ on the driver,
+ * the URL and {@code CREATE INDEX IF NOT EXISTS}.
  *
  * <h2>Types</h2>
  * No {@code BOOLEAN} — the word is accepted and silently means
@@ -41,13 +44,31 @@ class MySQLDialect extends AnsiDialect {
 
     static final MySQLDialect INSTANCE = new MySQLDialect();
 
+    /**
+     * The same engine before 8.0.20, which cannot parse the row alias.
+     *
+     * <p>Chosen by {@link SqlBackend} from what the server actually reports,
+     * not from configuration: an operator who writes {@code mysql} for a 5.7
+     * server is not wrong about the driver, only about the version, and a
+     * syntax error on every write is a poor way to say so.
+     */
+    static final MySQLDialect LEGACY = new MySQLDialect(false);
+
     /** Error 1061: duplicate key name — what a second {@code CREATE INDEX} gets. */
     private static final int DUPLICATE_INDEX = 1061;
 
     /** Error 1060: duplicate column name — what a second {@code ADD COLUMN} gets. */
     private static final int DUPLICATE_COLUMN = 1060;
 
+    /** Whether this server understands {@code INSERT ... AS new}. */
+    private final boolean rowAlias;
+
     MySQLDialect() {
+        this(true);
+    }
+
+    MySQLDialect(boolean rowAlias) {
+        this.rowAlias = rowAlias;
     }
 
     @Override
@@ -199,13 +220,16 @@ class MySQLDialect extends AnsiDialect {
     }
 
     /**
-     * The {@code ON DUPLICATE KEY UPDATE} tail, in the form this engine wants.
+     * The {@code ON DUPLICATE KEY UPDATE} tail, in the form this server wants.
      *
-     * <p>MySQL 8.0.20 and up: a row alias. {@code VALUES(col)} still works and
-     * logs a deprecation on every single write, which on a busy server is a log
-     * file per day. The alias is what MariaDB cannot parse, and it is why
-     * {@link MariaDBDialect} overrides this method rather than this class
-     * covering both.
+     * <p>MySQL 8.0.20 and up: a row alias. {@code VALUES(col)} still works
+     * there and logs a deprecation on every single write. Everything older —
+     * MySQL 5.7, and MariaDB at any version — cannot <em>parse</em> the alias,
+     * so the older form is the only one that runs. Which of the two is emitted
+     * is decided by {@link #rowAlias}, and that flag is set from what the
+     * server reports on the first connection rather than from the engine name
+     * in the configuration, because {@code mysql} in a config file is what
+     * operators write for a MariaDB server too.
      */
     void appendConflict(@NotNull StringBuilder sql,
                         @NotNull EntityModel<?> model,
@@ -219,13 +243,17 @@ class MySQLDialect extends AnsiDialect {
                     .append(quote(keys.get(0))).append(" = ").append(quote(keys.get(0)));
             return;
         }
-        sql.append(" AS new ON DUPLICATE KEY UPDATE ");
+        sql.append(rowAlias ? " AS new ON DUPLICATE KEY UPDATE " : " ON DUPLICATE KEY UPDATE ");
         for (int index = 0; index < updatable.size(); index++) {
             if (index > 0) {
                 sql.append(", ");
             }
             String column = quote(identifier(updatable.get(index).name()));
-            sql.append(column).append(" = new.").append(column);
+            if (rowAlias) {
+                sql.append(column).append(" = new.").append(column);
+            } else {
+                sql.append(column).append(" = VALUES(").append(column).append(')');
+            }
         }
     }
 
