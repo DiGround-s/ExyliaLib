@@ -198,9 +198,18 @@ final class ItemComponents implements ItemRenderer.Components {
         // component, so replacing it wholesale is how a file naming
         // HIDE_ENCHANTS next to hide-attributes got its enchantment lines back.
         Object present = item.getData(type);
+        boolean whole = false;
         if (present != null) {
             hidden.addAll((Set<DataComponentType>) tooltipDisplay
                     .getMethod("hiddenComponents").invoke(present));
+            // And whatever was already hiding the whole tooltip keeps hiding
+            // it. From 1.21.5 hide_tooltip is a field of this same component,
+            // so a decoration written hide_tooltip: true — which the meta set
+            // before this ran — got its tooltip handed straight back by the
+            // write below, and only ever on the versions that merged the two.
+            // hide_tooltip and hide-attributes are different keys, and an item
+            // asking for one must not be answered with the other.
+            whole = (boolean) tooltipDisplay.getMethod("hideTooltip").invoke(present);
         }
 
         Object builder = tooltipDisplay.getMethod("tooltipDisplay").invoke(null);
@@ -209,6 +218,10 @@ final class ItemComponents implements ItemRenderer.Components {
                 "io.papermc.paper.datacomponent.item.TooltipDisplay$Builder");
         Object withHidden = builderType.getMethod("hiddenComponents", Set.class)
                 .invoke(builder, hidden);
+        if (whole) {
+            withHidden = builderType.getMethod("hideTooltip", boolean.class)
+                    .invoke(withHidden, true);
+        }
 
         // build() is declared on DataComponentBuilder, which Builder extends.
         Class<?> componentBuilder = Class.forName(

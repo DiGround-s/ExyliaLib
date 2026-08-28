@@ -389,6 +389,14 @@ parser dentro de un plugin.
   pública: un método encontrado ahí no se puede invocar sin `setAccessible`,
   que esto no usa. `TooltipDisplay$Builder` y `DataComponentBuilder` sí son API
   pública.
+- **`hide_tooltip` viaja en ese mismo componente desde 1.21.5, y se conserva.**
+  `hide_tooltip` y `hide-attributes` son claves distintas: la primera esconde el
+  tooltip entero, la segunda solo lo que vanilla escribe solo. Hasta 1.21.4 eran
+  dos componentes y no se estorbaban; desde 1.21.5 `hide_tooltip` es un campo de
+  `tooltip_display`, así que el write que esconde el bloque del tipo devolvía el
+  tooltip de cada decoración escrita con `hide_tooltip: true`. Se lee del ítem
+  antes de reescribir el componente y se vuelve a poner, igual que los
+  `hiddenComponents` que ya traía.
 - **`tooltip_display` esconde componentes, no una categoría**, así que la
   categoría se enumera (`WRITTEN_BY_TYPE`) y se filtra contra el registro: el
   nombre que ese servidor no tiene se salta. Así una lista sirve para varias
