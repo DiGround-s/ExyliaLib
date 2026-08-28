@@ -22,6 +22,7 @@ class FormKeyTest {
     @DisplayName("an ordinary name is accepted")
     void plainNames() {
         assertNotNull(FormKey.text("name"));
+        assertNotNull(FormKey.integer("minPlayers"));
         assertNotNull(FormKey.integer("min_players"));
         assertNotNull(FormKey.flag("enabled2"));
     }

@@ -44,8 +44,8 @@ final class ScheduleDescriptor implements EditorDescriptor<Schedule> {
     private static final FormKey<String> DAYS = FormKey.text("days");
     private static final FormKey<Duration> EVERY = FormKey.duration("every");
     private static final FormKey<String> WINDOW = FormKey.text("window");
-    private static final FormKey<Long> MIN_PLAYERS = FormKey.integer("min_players");
-    private static final FormKey<Long> MAX_PLAYERS = FormKey.integer("max_players");
+    private static final FormKey<Long> MIN_PLAYERS = FormKey.integer("minPlayers");
+    private static final FormKey<Long> MAX_PLAYERS = FormKey.integer("maxPlayers");
     private static final FormKey<Duration> COOLDOWN = FormKey.duration("cooldown");
     private static final FormKey<String> CONDITION = FormKey.text("condition");
     private static final FormKey<String> REQUIRES = FormKey.text("requires");
