@@ -5,7 +5,7 @@
 # ╚══════════════════════════════════════════════════════════════════╝
 
 title: "{primary}&lTOURNAMENT SETTINGS"
-size: 54
+size: 36
 type: SIMPLE
 refresh:
   mode: ON_CLICK
@@ -23,7 +23,7 @@ filler:
 
 items:
   match-duration:
-    slot: 19
+    slot: 10
     material: CLOCK
     name: "{info}&lMATCH DURATION"
     lore:
@@ -40,7 +40,7 @@ items:
       - "shift_left: events:input_setting match-duration"
 
   match-intro-delay:
-    slot: 20
+    slot: 11
     material: SPYGLASS
     name: "{info}&lMATCH INTRO"
     lore:
@@ -57,7 +57,7 @@ items:
       - "shift_left: events:input_setting match-intro-delay"
 
   match-end-delay:
-    slot: 21
+    slot: 12
     material: ENDER_EYE
     name: "{info}&lPOST-MATCH DELAY"
     lore:
@@ -74,8 +74,8 @@ items:
       - "shift_left: events:input_setting match-end-delay"
 
   round-delay:
-    slot: 22
-    material: HOPPER
+    slot: 13
+    material: CLOCK
     name: "{info}&lROUND PAUSE"
     lore:
       - ""
@@ -91,7 +91,7 @@ items:
       - "shift_left: events:input_setting round-delay"
 
   heal-between-matches:
-    slot: 23
+    slot: 14
     material: "%heal_between_matches_material%"
     name: "%heal_between_matches_color%&lHEAL BETWEEN MATCHES"
     lore:
@@ -104,7 +104,7 @@ items:
       - "events:toggle_tournament_setting heal-between-matches"
 
   disable-hit-damage:
-    slot: 24
+    slot: 15
     material: "%disable_hit_damage_material%"
     name: "%disable_hit_damage_color%&lDISABLE HIT DAMAGE"
     lore:
@@ -117,7 +117,7 @@ items:
       - "events:toggle_tournament_setting disable-hit-damage"
 
   disable-food-drop:
-    slot: 25
+    slot: 16
     material: "%disable_food_drop_material%"
     name: "%disable_food_drop_color%&lDISABLE FOOD DROP"
     lore:
@@ -130,7 +130,7 @@ items:
       - "events:toggle_tournament_setting disable-food-drop"
 
   spectator-mode:
-    slot: 28
+    slot: 22
     material: "%spectator_mode_material%"
     name: "{info}&lSPECTATOR MODE"
     lore:
@@ -145,7 +145,7 @@ items:
       - "events:cycle_tournament_spectator_mode"
 
   freeze-time:
-    slot: 29
+    slot: 23
     material: ICE
     name: "{info}&lFREEZE TIME"
     lore:
@@ -163,7 +163,7 @@ items:
       - "shift_left: events:input_setting freeze-time"
 
   back:
-    slot: 49
+    slot: 31
     material: 'basehead-eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvMjIzZmI2NzQyOTcxNmIyMWJjNmU4ZTdkNjY5Y2VkZGY2NWIxM2UwNzkwYTVjZTU1YjJlMDc3YjgyZDE5ZTEyNCJ9fX0='
     name: '{error}&lBACK'
     lore:

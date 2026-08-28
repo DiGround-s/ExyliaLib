@@ -1,17 +1,18 @@
 # Challenges waiting on you, and the one you sent.
 
-title: '{primary}&lCHALLENGES {muted}%incoming_count%'
+title: '{primary}&lCHALLENGES {muted}%challenge_count% waiting'
 size: 45
 type: MULTI_PAGINATION
+animation: 'center_out'
 
 open_sounds:
-  - 'BLOCK_BARREL_OPEN|0.8|1.4'
+  - 'ENTITY_EXPERIENCE_ORB_PICKUP|1.0|1.2'
 click_sounds:
   - 'UI_BUTTON_CLICK|1.0|1.5'
 
 filler:
   global:
-    material: BLACK_STAINED_GLASS_PANE
+    material: GRAY_STAINED_GLASS_PANE
     hide_tooltip: true
 
 items:
@@ -19,24 +20,31 @@ items:
   header:
     slot: 4
     material: PAPER
-    name: '{primary}&lCHALLENGES'
+    amount: '%challenge_count%'
+    glow: '%has_challenges%'
+    name: '{primary}&lWAITING ON YOU'
     lore:
       - ''
-      - ' {letters_black}▎ {letters}Waiting on you {letters_black}» {info}%incoming_count%'
-      - ' {letters_black}▎ {letters}Sent by you {letters_black}» {info}%outgoing_count%'
+      - ' {muted}❙ {letters}Offered to you: {highlight}%challenge_count%'
       - ''
-      - '{letters_black}A challenge expires on its own.'
+      - ' {muted}❙ {letters}A challenge expires on its own.'
+
+  sent:
+    slot: 22
+    material: FEATHER
+    name: '{secondary}&lSENT BY YOU'
+    lore:
       - ''
-    glow: true
+      - ' {muted}❙ {letters}Waiting on them: {info}%outgoing_count%'
+      - ''
+      - ' {muted}❙ {letters}You can only have one out at a time.'
 
   back:
     slot: 36
-    material: ARROW
+    material: 'basehead-eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvMjIzZmI2NzQyOTcxNmIyMWJjNmU4ZTdkNjY5Y2VkZGY2NWIxM2UwNzkwYTVjZTU1YjJlMDc3YjgyZDE5ZTEyNCJ9fX0='
     name: '{error}&lBACK'
     lore:
-      - ''
-      - '{warning}➥ Click to go back'
-      - ''
+      - '{muted}Return to the game list'
     actions:
       - 'left: betcore:open_main'
 
@@ -45,74 +53,90 @@ items:
     material: BARRIER
     name: '{error}&lCLOSE'
     lore:
-      - ''
-      - '{warning}➥ Click to close'
-      - ''
+      - '{muted}Click to close'
     actions:
       - 'close'
 
 sections:
 
-  # Bets somebody has offered you.
+  # Bets somebody has offered you by name.
   incoming:
     slots: '10-16'
     filler:
       material: LIGHT_GRAY_STAINED_GLASS_PANE
       name: '{muted}Nobody has challenged you'
-    item_template:
-      material: 'playerhead-%player_name%'
-      name: '{letters}&l%player_name%'
       lore:
         - ''
-        - '{secondary}The bet:'
-        - ' {letters_black}▎ {letters}Game {letters_black}» {info}%game_name%'
-        - ' {letters_black}▎ {letters}Mode {letters_black}» {info}%mode_name%'
-        - ' {letters_black}▎ {letters}Stake {letters_black}» {highlight}%wager%'
-        - ' {letters_black}▎ {letters}Rounds {letters_black}» {info}Best of %rounds%'
+        - '{muted}Bets sent to you by name show up here.'
+    item_template:
+      material: 'playerhead-%player_name%'
+      name: '{primary}&l%player_name%'
+      lore:
         - ''
-        - '{success}➥ Left-click to accept'
-        - '{error}➥ Right-click to refuse'
+        - ' {muted}❙ {letters}Game: {info}%game_name%'
+        - ' {muted}❙ {letters}Mode: {info}%mode_name%'
+        - ' {muted}❙ {letters}Stake: {highlight}%wager%'
+        - ' {muted}❙ {letters}Rounds: {info}Best of %rounds%'
         - ''
+        - '{success}▶ Left-click to accept'
+        - '{error}▶ Right-click to refuse'
       actions:
         - 'left: betcore:invite_accept'
         - 'right: betcore:invite_decline'
     rematch_template:
       material: 'playerhead-%player_name%'
       name: '{highlight}&l%player_name% {muted}— rematch'
+      glow: true
       lore:
         - ''
-        - ' {letters_black}▎ {letters}The same bet as last time.'
-        - ' {letters_black}▎ {letters}Stake {letters_black}» {highlight}%wager%'
+        - ' {muted}❙ {letters}The same bet as last time.'
+        - ' {muted}❙ {letters}Stake: {highlight}%wager%'
         - ''
-        - '{success}➥ Left-click to accept'
-        - '{error}➥ Right-click to refuse'
-        - ''
-      glow: true
+        - '{success}▶ Left-click to accept'
+        - '{error}▶ Right-click to refuse'
       actions:
         - 'left: betcore:invite_accept'
         - 'right: betcore:invite_decline'
+    navigation:
+      previous:
+        slot: 9
+        material: 'basehead-eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvZGExZDU1YjNmOTg5NDEwYTM0NzUyNjUwZTI0OGM5YjZjMTc4M2E3ZWMyYWEzZmQ3Nzg3YmRjNGQwZTYzN2QzOSJ9fX0='
+        name: '{error}&l← PREVIOUS PAGE'
+        lore:
+          - '{info}ℹ Current page: {success}%current_page%&8/{error}%total_pages%'
+        actions:
+          - 'previous_page incoming'
+      next:
+        slot: 17
+        material: 'basehead-eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvZmE4N2UzZDk2ZTFjZmViOWNjZmIzYmE1M2EyMTdmYWY1MjQ5ZTI4NTUzM2IyNzFhMmZiMjg0YzMwZGJkOTgyOSJ9fX0='
+        name: '{success}&lNEXT PAGE →'
+        lore:
+          - '{info}ℹ Current page: {success}%current_page%&8/{error}%total_pages%'
+        actions:
+          - 'next_page incoming'
 
   # The one you sent.
   outgoing:
     slots: '28-34'
     filler:
-      material: AIR
-      hide_tooltip: true
+      material: LIGHT_GRAY_STAINED_GLASS_PANE
+      name: '{muted}You have not sent a challenge'
+      lore:
+        - ''
+        - '{muted}Use {highlight}/bet challenge <player>{muted}.'
     item_template:
       material: 'playerhead-%player_name%'
-      name: '{muted}Waiting on {letters}%player_name%'
+      name: '{muted}&lWAITING ON {letters}&l%player_name%'
       lore:
         - ''
-        - ' {letters_black}▎ {letters}Stake {letters_black}» {highlight}%wager%'
-        - ' {letters_black}▎ {letters}Rounds {letters_black}» {info}Best of %rounds%'
+        - ' {muted}❙ {letters}Stake: {highlight}%wager%'
+        - ' {muted}❙ {letters}Rounds: {info}Best of %rounds%'
         - ''
-        - '{letters_black}It expires on its own.'
-        - ''
+        - ' {muted}❙ {letters}It expires on its own.'
     rematch_template:
       material: 'playerhead-%player_name%'
-      name: '{muted}Rematch offered to {letters}%player_name%'
+      name: '{muted}&lREMATCH OFFERED TO {letters}&l%player_name%'
+      glow: true
       lore:
         - ''
-        - ' {letters_black}▎ {letters}Stake {letters_black}» {highlight}%wager%'
-        - ''
-      glow: true
+        - ' {muted}❙ {letters}Stake: {highlight}%wager%'

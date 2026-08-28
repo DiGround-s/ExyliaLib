@@ -3,47 +3,64 @@
 title: '{primary}&lWHO CAN JOIN'
 size: 27
 type: PAGINATION
+animation: 'center_out'
 
+open_sounds:
+  - 'ENTITY_EXPERIENCE_ORB_PICKUP|1.0|1.2'
 click_sounds:
   - 'UI_BUTTON_CLICK|1.0|1.5'
 
 filler:
   global:
-    material: BLACK_STAINED_GLASS_PANE
+    material: GRAY_STAINED_GLASS_PANE
+    hide_tooltip: true
+
+  pagination:
+    material: LIGHT_GRAY_STAINED_GLASS_PANE
     hide_tooltip: true
 
 items:
   back:
-    slot: 22
-    material: ARROW
+    slot: 18
+    material: 'basehead-eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvMjIzZmI2NzQyOTcxNmIyMWJjNmU4ZTdkNjY5Y2VkZGY2NWIxM2UwNzkwYTVjZTU1YjJlMDc3YjgyZDE5ZTEyNCJ9fX0='
     name: '{error}&lBACK'
     lore:
-      - ''
-      - '{warning}➥ Click to go back'
-      - ''
+      - '{muted}Return to the bet'
     actions:
       - 'left: betcore:open_create'
 
+  close:
+    slot: 26
+    material: BARRIER
+    name: '{error}&lCLOSE'
+    lore:
+      - '{muted}Click to close'
+    actions:
+      - 'close'
+
 pagination:
   slots: '11-15'
+
   item_template:
     material: ENDER_PEARL
     name: '{primary}&l%visibility%'
     lore:
       - ''
-      - ' {letters_black}▎ {letters}PUBLIC {letters_black}» {letters}anyone, listed in the lobby'
-      - ' {letters_black}▎ {letters}PRIVATE {letters_black}» {letters}only who you send it to'
-      - ' {letters_black}▎ {letters}DIRECT {letters_black}» {letters}a challenge they accept or refuse'
+      - ' {muted}❙ {letters}{highlight}PUBLIC {letters}— anyone, listed in the lobby'
+      - ' {muted}❙ {letters}{highlight}PRIVATE {letters}— only who you send it to'
+      - ' {muted}❙ {letters}{highlight}DIRECT {letters}— a challenge they accept or refuse'
       - ''
-      - '{warning}➥ Click to pick this'
+      - ' {muted}❙ {letters}Anything but {highlight}PUBLIC {letters}needs a name:'
+      - ' {muted}❙ {letters}use {highlight}/bet challenge <player>{letters}.'
       - ''
+      - '{success}▶ Click to pick this'
     actions:
       - 'left: betcore:set_visibility %visibility%'
+
   selected_template:
     material: ENDER_EYE
     name: '{primary}&l%visibility% {success}✔'
+    glow: true
     lore:
       - ''
       - '{success}This is who can take it.'
-      - ''
-    glow: true

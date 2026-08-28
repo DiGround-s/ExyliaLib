@@ -4,7 +4,7 @@
 # disk after that is what you left here. Reload the plugin to apply an edit.
 
 title: "{primary}&lJUMPAD {muted}— {highlight}%jumpad_id%"
-size: 54
+size: 36
 type: SIMPLE
 refresh:
   mode: ON_CLICK
@@ -48,7 +48,7 @@ items:
       - "survivalcore:jumpad_toggle_direction_mode"
 
   enabled:
-    slot: 5
+    slot: 4
     material: "%enabled_material%"
     name: "{highlight}&lSTATUS"
     lore:
@@ -79,7 +79,7 @@ items:
 
   vertical-power:
     slot: 20
-    material: FEATHER
+    material: PHANTOM_MEMBRANE
     name: "{highlight}&lVERTICAL POWER"
     lore:
       - ""
@@ -121,7 +121,7 @@ items:
       - "survivalcore:jumpad_toggle_glide"
 
   delete:
-    slot: 53
+    slot: 35
     material: 'basehead-eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvYmUwZmQxMDE5OWU4ZTRmY2RhYmNhZTRmODVjODU5MTgxMjdhN2M1NTUzYWQyMzVmMDFjNTZkMThiYjk0NzBkMyJ9fX0='
     name: "{error}&lDELETE JUMPAD"
     lore:
@@ -131,7 +131,7 @@ items:
       - "survivalcore:jumpad_delete %jumpad_id%"
 
   back:
-    slot: 49
+    slot: 31
     material: 'basehead-eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvMjIzZmI2NzQyOTcxNmIyMWJjNmU4ZTdkNjY5Y2VkZGY2NWIxM2UwNzkwYTVjZTU1YjJlMDc3YjgyZDE5ZTEyNCJ9fX0='
     name: '{error}&lBACK'
     lore:

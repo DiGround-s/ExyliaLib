@@ -4,7 +4,7 @@
 # disk after that is what you left here. Reload the plugin to apply an edit.
 
 title: "{primary}&lREGEN ZONE: %zone_id%"
-size: 54
+size: 45
 type: SIMPLE
 refresh:
   mode: ON_CLICK
@@ -47,7 +47,7 @@ items:
       - "survivalcore:regenzone_toggle_enabled"
 
   region:
-    slot: 19
+    slot: 20
     material: "%region_material%"
     name: "%region_color%&lZONE REGION"
     lore:
@@ -62,7 +62,7 @@ items:
       - "survivalcore:regenzone_set_region"
 
   mode:
-    slot: 21
+    slot: 22
     material: "%mode_material%"
     name: "%mode_color%&lREGEN MODE"
     lore:
@@ -78,7 +78,7 @@ items:
       - "survivalcore:regenzone_toggle_mode"
 
   schematic:
-    slot: 20
+    slot: 21
     material: "%schematic_material%"
     name: "%schematic_color%&lSCHEMATIC"
     lore:
@@ -94,7 +94,7 @@ items:
       - "survivalcore:regenzone_save_schematic"
 
   interval:
-    slot: 23
+    slot: 24
     material: CLOCK
     name: "{highlight}&lREGEN INTERVAL"
     lore:
@@ -114,7 +114,7 @@ items:
       - "middle: survivalcore:regenzone_set_interval"
 
   warning:
-    slot: 24
+    slot: 25
     material: BELL
     name: "{highlight}&lREGEN WARNING"
     lore:
@@ -133,7 +133,7 @@ items:
       - "middle: survivalcore:regenzone_set_warning"
 
   teleport:
-    slot: 28
+    slot: 30
     material: "%teleport_material%"
     name: "%teleport_color%&lTELEPORT TO SAFE AIR"
     lore:
@@ -149,7 +149,7 @@ items:
       - "survivalcore:regenzone_toggle_teleport"
 
   clean-entities:
-    slot: 29
+    slot: 31
     material: "%clean_entities_material%"
     name: "%clean_entities_color%&lCLEAN ENTITIES ON REGEN"
     lore:
@@ -165,7 +165,7 @@ items:
       - "survivalcore:regenzone_toggle_clean_entities"
 
   flags:
-    slot: 30
+    slot: 32
     material: SHIELD
     name: "{highlight}&lREGION FLAGS"
     lore:
@@ -181,7 +181,7 @@ items:
       - "survivalcore:regenzone_open_flags"
 
   force-regen:
-    slot: 45
+    slot: 36
     material: ANVIL
     name: "{error}&lFORCE REGEN NOW"
     lore:
@@ -194,7 +194,7 @@ items:
       - "survivalcore:regenzone_force_regen"
 
   back:
-    slot: 49
+    slot: 40
     material: 'basehead-eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvMjIzZmI2NzQyOTcxNmIyMWJjNmU4ZTdkNjY5Y2VkZGY2NWIxM2UwNzkwYTVjZTU1YjJlMDc3YjgyZDE5ZTEyNCJ9fX0='
     name: '{error}&lBACK'
     lore:
@@ -203,7 +203,7 @@ items:
       - "survivalcore:regenzone_open_list"
 
   delete:
-    slot: 53
+    slot: 44
     material: 'basehead-eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvYmUwZmQxMDE5OWU4ZTRmY2RhYmNhZTRmODVjODU5MTgxMjdhN2M1NTUzYWQyMzVmMDFjNTZkMThiYjk0NzBkMyJ9fX0='
     name: "{error}&lDELETE ZONE"
     lore:

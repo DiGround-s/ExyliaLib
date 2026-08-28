@@ -3,16 +3,25 @@
 title: '{primary}&lPAST MATCHES {muted}— %subject%'
 size: 54
 type: PAGINATION
+animation: 'center_out'
 
 open_sounds:
-  - 'BLOCK_BARREL_OPEN|0.8|1.4'
+  - 'ENTITY_EXPERIENCE_ORB_PICKUP|1.0|1.2'
 click_sounds:
   - 'UI_BUTTON_CLICK|1.0|1.5'
 
 filler:
   global:
-    material: BLACK_STAINED_GLASS_PANE
+    material: GRAY_STAINED_GLASS_PANE
     hide_tooltip: true
+
+  pagination:
+    material: LIGHT_GRAY_STAINED_GLASS_PANE
+    name: '{muted}No matches yet'
+    lore:
+      - ''
+      - '{muted}Play one and it shows up here.'
+    hide_tooltip: false
 
 items:
 
@@ -20,22 +29,19 @@ items:
     slot: 4
     material: 'playerhead-%subject%'
     name: '{primary}&l%subject%'
+    glow: true
     lore:
       - ''
-      - ' {letters_black}▎ {letters}Matches kept {letters_black}» {info}%match_count%'
+      - ' {muted}❙ {letters}Matches kept: {highlight}%match_count%'
       - ''
-      - '{letters_black}Older ones are cleared out on a timer.'
-      - ''
-    glow: true
+      - ' {muted}❙ {letters}Older ones are cleared out on a timer.'
 
   back:
     slot: 45
-    material: ARROW
+    material: 'basehead-eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvMjIzZmI2NzQyOTcxNmIyMWJjNmU4ZTdkNjY5Y2VkZGY2NWIxM2UwNzkwYTVjZTU1YjJlMDc3YjgyZDE5ZTEyNCJ9fX0='
     name: '{error}&lBACK'
     lore:
-      - ''
-      - '{warning}➥ Click to go back'
-      - ''
+      - '{muted}Return to the record'
     actions:
       - 'left: betcore:open_stats %subject%'
 
@@ -44,73 +50,68 @@ items:
     material: BARRIER
     name: '{error}&lCLOSE'
     lore:
-      - ''
-      - '{warning}➥ Click to close'
-      - ''
+      - '{muted}Click to close'
     actions:
       - 'close'
 
 pagination:
   slots: '10-16,19-25,28-34'
-  filler:
-    material: LIGHT_GRAY_STAINED_GLASS_PANE
-    name: '{muted}No matches yet'
+
   item_template:
     material: LIME_DYE
     name: '{success}&lWON {muted}vs {letters}%opponent%'
     lore:
       - ''
-      - '{secondary}The match:'
-      - ' {letters_black}▎ {letters}Game {letters_black}» {info}%game_name%'
-      - ' {letters_black}▎ {letters}Mode {letters_black}» {info}%mode%'
-      - ' {letters_black}▎ {letters}Score {letters_black}» {info}%score%'
-      - ' {letters_black}▎ {letters}Ended {letters_black}» {info}%reason%'
+      - ' {muted}❙ {letters}Game: {info}%game_name%'
+      - ' {muted}❙ {letters}Mode: {info}%mode%'
+      - ' {muted}❙ {letters}Score: {info}%score%'
+      - ' {muted}❙ {letters}Ended: {info}%reason%'
       - ''
-      - '{secondary}The money:'
-      - ' {letters_black}▎ {letters}Stake {letters_black}» {info}%wager%'
-      - ' {letters_black}▎ {letters}You took {letters_black}» {success}%payout%'
+      - ' {muted}❙ {letters}Stake: {info}%wager%'
+      - ' {muted}❙ {letters}You took: {success}%payout%'
       - ''
       - '{muted}%age% ago'
-      - ''
+
   lost_template:
     material: RED_DYE
     name: '{error}&lLOST {muted}vs {letters}%opponent%'
     lore:
       - ''
-      - '{secondary}The match:'
-      - ' {letters_black}▎ {letters}Game {letters_black}» {info}%game_name%'
-      - ' {letters_black}▎ {letters}Mode {letters_black}» {info}%mode%'
-      - ' {letters_black}▎ {letters}Score {letters_black}» {info}%score%'
-      - ' {letters_black}▎ {letters}Ended {letters_black}» {info}%reason%'
+      - ' {muted}❙ {letters}Game: {info}%game_name%'
+      - ' {muted}❙ {letters}Mode: {info}%mode%'
+      - ' {muted}❙ {letters}Score: {info}%score%'
+      - ' {muted}❙ {letters}Ended: {info}%reason%'
       - ''
-      - '{secondary}The money:'
-      - ' {letters_black}▎ {letters}Stake {letters_black}» {error}%wager%'
+      - ' {muted}❙ {letters}Stake: {error}%wager%'
       - ''
       - '{muted}%age% ago'
-      - ''
+
   draw_template:
     material: YELLOW_DYE
     name: '{warning}&lDRAW {muted}vs {letters}%opponent%'
     lore:
       - ''
-      - '{secondary}The match:'
-      - ' {letters_black}▎ {letters}Game {letters_black}» {info}%game_name%'
-      - ' {letters_black}▎ {letters}Score {letters_black}» {info}%score%'
+      - ' {muted}❙ {letters}Game: {info}%game_name%'
+      - ' {muted}❙ {letters}Score: {info}%score%'
       - ''
-      - '{letters_black}Both stakes went back.'
+      - ' {muted}❙ {letters}Both stakes went back.'
       - ''
       - '{muted}%age% ago'
-      - ''
+
   navigation:
     previous:
       slot: 48
-      material: ARROW
-      name: '{error}&l← PREVIOUS'
+      material: 'basehead-eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvZGExZDU1YjNmOTg5NDEwYTM0NzUyNjUwZTI0OGM5YjZjMTc4M2E3ZWMyYWEzZmQ3Nzg3YmRjNGQwZTYzN2QzOSJ9fX0='
+      name: '{error}&l← PREVIOUS PAGE'
       lore:
-        - '{info}Page {success}%current_page%{muted}/{error}%total_pages%'
+        - '{info}ℹ Current page: {success}%current_page%&8/{error}%total_pages%'
+      actions:
+        - 'previous_page'
     next:
       slot: 50
-      material: ARROW
-      name: '{success}&lNEXT →'
+      material: 'basehead-eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvZmE4N2UzZDk2ZTFjZmViOWNjZmIzYmE1M2EyMTdmYWY1MjQ5ZTI4NTUzM2IyNzFhMmZiMjg0YzMwZGJkOTgyOSJ9fX0='
+      name: '{success}&lNEXT PAGE →'
       lore:
-        - '{info}Page {success}%current_page%{muted}/{error}%total_pages%'
+        - '{info}ℹ Current page: {success}%current_page%&8/{error}%total_pages%'
+      actions:
+        - 'next_page'

@@ -7,52 +7,49 @@
 title: '{primary}&lLEADERBOARD {muted}— %stat%'
 size: 54
 type: MULTI_PAGINATION
+animation: 'center_out'
 
 open_sounds:
-  - 'BLOCK_BARREL_OPEN|0.8|1.4'
+  - 'ENTITY_EXPERIENCE_ORB_PICKUP|1.0|1.2'
 click_sounds:
   - 'UI_BUTTON_CLICK|1.0|1.5'
 
 filler:
   global:
-    material: BLACK_STAINED_GLASS_PANE
+    material: GRAY_STAINED_GLASS_PANE
     hide_tooltip: true
 
 items:
 
   header:
     slot: 4
-    material: GOLD_INGOT
+    material: NETHER_STAR
     name: '{primary}&lLEADERBOARD'
+    glow: true
     lore:
       - ''
-      - ' {letters_black}▎ {letters}Game {letters_black}» {info}%game_name%'
-      - ' {letters_black}▎ {letters}Sorted by {letters_black}» {highlight}%stat%'
-      - ''
-    glow: true
+      - ' {muted}❙ {letters}Game: {info}%game_name%'
+      - ' {muted}❙ {letters}Sorted by: {highlight}%stat%'
 
   loading:
-    slot: 22
+    slot: 49
     material: CLOCK
-    name: '{muted}&lREADING THE BOARD'
+    name: '{warning}&lREADING THE BOARD'
     lore:
       - ''
-      - '{letters_black}It will be here in a moment.'
+      - ' {muted}❙ {letters}It will be here in a moment.'
       - ''
-      - '{warning}➥ Click to look again'
-      - ''
+      - '{info}» Click to look again'
     condition: '%loading% == true'
     actions:
       - 'refresh'
 
   back:
     slot: 45
-    material: ARROW
+    material: 'basehead-eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvMjIzZmI2NzQyOTcxNmIyMWJjNmU4ZTdkNjY5Y2VkZGY2NWIxM2UwNzkwYTVjZTU1YjJlMDc3YjgyZDE5ZTEyNCJ9fX0='
     name: '{error}&lBACK'
     lore:
-      - ''
-      - '{warning}➥ Click to go back'
-      - ''
+      - '{muted}Return to the game list'
     actions:
       - 'left: betcore:open_main'
 
@@ -61,9 +58,7 @@ items:
     material: BARRIER
     name: '{error}&lCLOSE'
     lore:
-      - ''
-      - '{warning}➥ Click to close'
-      - ''
+      - '{muted}Click to close'
     actions:
       - 'close'
 
@@ -74,56 +69,59 @@ sections:
     filler:
       material: LIGHT_GRAY_STAINED_GLASS_PANE
       name: '{muted}Nobody has played yet'
-    item_template:
-      material: 'playerhead-%player_name%'
-      name: '{muted}#%rank% {letters}&l%player_name%'
       lore:
         - ''
-        - ' {letters_black}▎ {letters}%stat% {letters_black}» {highlight}%value%'
+        - '{muted}Win a match and take the top spot.'
+    item_template:
+      material: 'playerhead-%player_name%'
+      name: '{muted}#%rank% {primary}&l%player_name%'
+      lore:
         - ''
-        - '{secondary}Record:'
-        - ' {letters_black}▎ {letters}Won {letters_black}» {success}%wins%'
-        - ' {letters_black}▎ {letters}Lost {letters_black}» {error}%losses%'
-        - ' {letters_black}▎ {letters}Played {letters_black}» {info}%played%'
+        - ' {muted}❙ {letters}%stat%: {highlight}%value%'
         - ''
-        - '{warning}➥ Click to see their record'
+        - ' {muted}❙ {letters}Won: {success}%wins%'
+        - ' {muted}❙ {letters}Lost: {error}%losses%'
+        - ' {muted}❙ {letters}Played: {info}%played%'
         - ''
+        - '{info}» Click to see their record'
       actions:
         - 'left: betcore:open_stats %player_name%'
     navigation:
       previous:
         slot: 18
-        material: ARROW
-        name: '{error}&l← PREVIOUS'
+        material: 'basehead-eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvZGExZDU1YjNmOTg5NDEwYTM0NzUyNjUwZTI0OGM5YjZjMTc4M2E3ZWMyYWEzZmQ3Nzg3YmRjNGQwZTYzN2QzOSJ9fX0='
+        name: '{error}&l← PREVIOUS PAGE'
         lore:
-          - '{info}Page {success}%current_page%{muted}/{error}%total_pages%'
+          - '{info}ℹ Current page: {success}%current_page%&8/{error}%total_pages%'
+        actions:
+          - 'previous_page players'
       next:
         slot: 26
-        material: ARROW
-        name: '{success}&lNEXT →'
+        material: 'basehead-eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvZmE4N2UzZDk2ZTFjZmViOWNjZmIzYmE1M2EyMTdmYWY1MjQ5ZTI4NTUzM2IyNzFhMmZiMjg0YzMwZGJkOTgyOSJ9fX0='
+        name: '{success}&lNEXT PAGE →'
         lore:
-          - '{info}Page {success}%current_page%{muted}/{error}%total_pages%'
+          - '{info}ℹ Current page: {success}%current_page%&8/{error}%total_pages%'
+        actions:
+          - 'next_page players'
 
   # What the board is sorted by.
   stat_types:
     slots: '28-34'
     item_template:
       material: PAPER
-      name: '{letters}%stat%'
+      name: '{letters}&l%stat%'
       lore:
         - ''
-        - '{warning}➥ Click to sort by this'
-        - ''
+        - '{info}» Click to sort by this'
       actions:
         - 'left: betcore:set_leaderboard_stat %stat%'
     selected_template:
       material: MAP
       name: '{primary}&l%stat% {success}✔'
+      glow: true
       lore:
         - ''
         - '{success}This is what it is sorted by.'
-        - ''
-      glow: true
 
   # Which game the board is for.
   games:
@@ -133,15 +131,13 @@ sections:
       name: '%game_name%'
       lore:
         - ''
-        - '{warning}➥ Click to see this game'
-        - ''
+        - '{info}» Click to see this game'
       actions:
         - 'left: betcore:set_leaderboard_game %game_id%'
     selected_template:
       material: '%game_icon%'
       name: '%game_name% {success}✔'
+      glow: true
       lore:
         - ''
         - '{success}This is the board you are on.'
-        - ''
-      glow: true

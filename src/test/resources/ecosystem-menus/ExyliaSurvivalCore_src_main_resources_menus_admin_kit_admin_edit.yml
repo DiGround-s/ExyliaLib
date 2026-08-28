@@ -4,7 +4,7 @@
 # bonus commands.
 
 title: "{primary}&lKIT {letters_black}» {highlight}%kit_id%"
-size: 54
+size: 45
 type: SIMPLE
 refresh:
   mode: ON_CLICK
@@ -112,7 +112,7 @@ items:
       - "survivalcore:kit_admin_set_max_uses"
 
   sort-order:
-    slot: 31
+    slot: 33
     material: COMPARATOR
     name: "{primary}&lSORT ORDER"
     lore:
@@ -126,7 +126,7 @@ items:
       - "survivalcore:kit_admin_set_sort_order"
 
   auto-equip:
-    slot: 28
+    slot: 30
     material: "%auto_equip_material%"
     name: "%auto_equip_color%&lEQUIP ARMOUR"
     lore:
@@ -141,7 +141,7 @@ items:
       - "survivalcore:kit_admin_toggle_auto_equip"
 
   drop-when-full:
-    slot: 29
+    slot: 31
     material: "%drop_full_material%"
     name: "%drop_full_color%&lDROP WHEN FULL"
     lore:
@@ -211,7 +211,7 @@ items:
       - "survivalcore:kit_admin_open_commands"
 
   back:
-    slot: 49
+    slot: 40
     material: 'basehead-eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvMjIzZmI2NzQyOTcxNmIyMWJjNmU4ZTdkNjY5Y2VkZGY2NWIxM2UwNzkwYTVjZTU1YjJlMDc3YjgyZDE5ZTEyNCJ9fX0='
     name: '{error}&lBACK'
     lore:
@@ -235,7 +235,7 @@ items:
       - "survivalcore:kit_admin_preview"
 
   clone:
-    slot: 45
+    slot: 36
     material: BOOK
     name: "{success}&lCLONE"
     lore:
@@ -249,7 +249,7 @@ items:
       - "survivalcore:kit_admin_clone"
 
   delete:
-    slot: 53
+    slot: 44
     material: 'basehead-eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvYmUwZmQxMDE5OWU4ZTRmY2RhYmNhZTRmODVjODU5MTgxMjdhN2M1NTUzYWQyMzVmMDFjNTZkMThiYjk0NzBkMyJ9fX0='
     name: "{error}&lDELETE KIT"
     lore:

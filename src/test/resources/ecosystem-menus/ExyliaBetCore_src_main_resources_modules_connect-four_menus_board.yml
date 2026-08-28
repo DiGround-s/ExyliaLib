@@ -31,26 +31,22 @@ items:
     name: '{primary}&l%match_mode_name%'
     lore:
       - ''
-      - '{secondary}The match:'
-      - ' {letters_black}▎ {letters}Round {letters_black}» {info}%match_round%{muted}/{info}%match_rounds%'
-      - ' {letters_black}▎ {letters}Score {letters_black}» {info}%match_score%'
-      - ' {letters_black}▎ {letters}Pot {letters_black}» {highlight}%match_pot%'
+      - ' {muted}❙ {letters}Round: {info}%match_round%{muted}/{info}%match_rounds%'
+      - ' {muted}❙ {letters}Score: {info}%match_score%'
+      - ' {muted}❙ {letters}Pot: {highlight}%match_pot%'
       - ''
-      - '{secondary}The clock:'
-      - ' {letters_black}▎ {letters}To move {letters_black}» {highlight}%turn_name%'
-      - ' {letters_black}▎ {letters}Time left {letters_black}» {info}%turn_seconds%s ⏱'
-      - ''
+      - ' {muted}❙ {letters}To move: {highlight}%turn_name%'
+      - ' {muted}❙ {letters}Time left: {info}%turn_seconds%s ⏱'
 
   you:
     slot: 9
     material: 'playerhead-%your_name%'
     name: '{success}&l%your_name%'
+    glow: true
     lore:
       - ''
-      - ' {letters_black}▎ {letters}Rounds won {letters_black}» {info}%your_score%'
-      - ' {letters_black}▎ {letters}Your stake {letters_black}» {highlight}%match_wager%'
-      - ''
-    glow: true
+      - ' {muted}❙ {letters}Rounds won: {info}%your_score%'
+      - ' {muted}❙ {letters}Your stake: {highlight}%match_wager%'
 
   opponent:
     slot: 8
@@ -58,60 +54,31 @@ items:
     name: '{error}&l%opponent_name%'
     lore:
       - ''
-      - ' {letters_black}▎ {letters}Rounds won {letters_black}» {info}%opponent_score%'
-      - ''
+      - ' {muted}❙ {letters}Rounds won: {info}%opponent_score%'
 
   spectators:
     slot: 17
     material: ENDER_EYE
+    amount: '%spectator_count%'
     name: '{primary}&lWATCHING'
     lore:
       - ''
-      - ' {letters_black}▎ {letters}People watching {letters_black}» {info}%spectator_count%'
+      - ' {muted}❙ {letters}People watching: {highlight}%spectator_count%'
       - ''
-      - '{warning}➥ Click to see who'
-      - ''
+      - '{info}» Click to see who'
     actions:
       - 'left: betcore:open_spectators'
-
-  surrender:
-    slot: 45
-    material: WHITE_BANNER
-    name: '{error}&lSURRENDER'
-    lore:
-      - ''
-      - ' {letters_black}▎ {letters}Gives the match to {highlight}%opponent_name%{letters}.'
-      - ' {letters_black}▎ {letters}Your {info}%match_wager% {letters}goes with it.'
-      - ''
-      - '{warning}➥ Click, then confirm'
-      - ''
-    condition: '%spectating% == false'
-    actions:
-      - 'left: betcore:surrender'
-
-  stop_watching:
-    slot: 45
-    material: WHITE_BANNER
-    name: '{warning}&lSTOP WATCHING'
-    lore:
-      - ''
-      - '{warning}➥ Click to leave'
-      - ''
-    condition: '%spectating% == true'
-    actions:
-      - 'left: betcore:leave_spectate'
 
   close:
     slot: 53
     material: BARRIER
-    name: '{muted}&lCLOSE'
+    name: '{error}&lCLOSE'
     lore:
       - ''
-      - ' {letters_black}▎ {letters}The match keeps running and so does'
-      - ' {letters_black}▎ {letters}your clock.'
+      - ' {muted}❙ {letters}The match keeps running and'
+      - ' {muted}❙ {letters}so does your clock.'
       - ''
-      - '{warning}➥ Click to close'
-      - ''
+      - '{muted}Click to close'
     actions:
       - 'close'
 
@@ -126,57 +93,51 @@ sections:
 
     empty_template:
       material: LIGHT_GRAY_STAINED_GLASS_PANE
-      name: '{muted}Column %cell_column%'
+      name: '{letters}&lCOLUMN %cell_column%'
       lore:
         - ''
-        - '{letters_black}Your piece falls to the bottom.'
+        - ' {muted}❙ {letters}Your piece falls to the bottom.'
         - ''
-        - '{warning}➥ Click to drop here'
-        - ''
+        - '{success}▶ Click to drop here'
       actions:
         - 'left: betcore:play_cell'
 
     locked_template:
       material: GRAY_STAINED_GLASS_PANE
-      name: '{muted}Column %cell_column%'
+      name: '{muted}&lCOLUMN %cell_column%'
       lore:
         - ''
-        - '{letters_black}Waiting for %turn_name%.'
-        - ''
+        - ' {muted}❙ {letters}Waiting for {highlight}%turn_name%{letters}.'
 
     red_template:
       material: RED_TERRACOTTA
       name: '{error}&l●'
       lore:
         - ''
-        - ' {letters_black}▎ {letters}Played by {info}%cell_owner%'
-        - ''
+        - ' {muted}❙ {letters}Played by {info}%cell_owner%'
 
     yellow_template:
       material: YELLOW_TERRACOTTA
       name: '{highlight}&l●'
       lore:
         - ''
-        - ' {letters_black}▎ {letters}Played by {info}%cell_owner%'
-        - ''
+        - ' {muted}❙ {letters}Played by {info}%cell_owner%'
 
     red_last_template:
       material: RED_GLAZED_TERRACOTTA
       name: '{error}&l● {muted}— last move'
+      glow: true
       lore:
         - ''
-        - ' {letters_black}▎ {letters}Played by {info}%cell_owner%'
-        - ''
-      glow: true
+        - ' {muted}❙ {letters}Played by {info}%cell_owner%'
 
     yellow_last_template:
       material: YELLOW_GLAZED_TERRACOTTA
       name: '{highlight}&l● {muted}— last move'
+      glow: true
       lore:
         - ''
-        - ' {letters_black}▎ {letters}Played by {info}%cell_owner%'
-        - ''
-      glow: true
+        - ' {muted}❙ {letters}Played by {info}%cell_owner%'
 
     red_winning_template:
       material: RED_CONCRETE
@@ -187,3 +148,33 @@ sections:
       material: YELLOW_CONCRETE
       name: '{success}&l● {muted}— winning line'
       glow: true
+
+  # One slot, two meanings: a player surrenders and a spectator leaves.
+  viewer:
+    slots: '45'
+    filler:
+      material: AIR
+      hide_tooltip: true
+
+    item_template:
+      material: WHITE_BANNER
+      name: '{error}&lSURRENDER'
+      lore:
+        - ''
+        - ' {muted}❙ {letters}Gives the match to {highlight}%opponent_name%{letters}.'
+        - ' {muted}❙ {letters}Your {info}%match_wager% {letters}goes with it.'
+        - ''
+        - '{error}▶ Click, then confirm'
+      actions:
+        - 'left: betcore:surrender'
+
+    watching_template:
+      material: WHITE_BANNER
+      name: '{warning}&lSTOP WATCHING'
+      lore:
+        - ''
+        - ' {muted}❙ {letters}Leaves the match running.'
+        - ''
+        - '{warning}▶ Click to leave'
+      actions:
+        - 'left: betcore:leave_spectate'

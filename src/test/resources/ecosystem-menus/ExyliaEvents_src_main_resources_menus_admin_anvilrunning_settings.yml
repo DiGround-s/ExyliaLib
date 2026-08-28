@@ -5,7 +5,7 @@
 # ╚══════════════════════════════════════════════════════════════════╝
 
 title: "{primary}&lANVIL RUNNING SETTINGS"
-size: 54
+size: 45
 type: SIMPLE
 refresh:
   mode: ON_CLICK
@@ -161,7 +161,7 @@ items:
       - "shift_left: events:input_setting anvils-increase-interval"
 
   target-anvil-interval:
-    slot: 28
+    slot: 30
     material: TARGET
     name: "{warning}&lTARGETED INTERVAL"
     lore:
@@ -179,7 +179,7 @@ items:
       - "shift_left: events:input_setting target-anvil-interval"
 
   target-anvils:
-    slot: 29
+    slot: 31
     material: "%target_anvils_material%"
     name: "%target_anvils_color%&lTARGETED ANVILS"
     lore:
@@ -193,7 +193,7 @@ items:
       - "events:toggle_anvilrunning_setting target-anvils"
 
   break-ground:
-    slot: 30
+    slot: 32
     material: "%break_ground_material%"
     name: "%break_ground_color%&lBREAK BLOCKS"
     lore:
@@ -207,7 +207,7 @@ items:
       - "events:toggle_anvilrunning_setting break-ground-blocks"
 
   anvil-damage:
-    slot: 31
+    slot: 33
     material: "%anvil_damage_material%"
     name: "%anvil_damage_color%&lANVIL DAMAGE"
     lore:
@@ -221,7 +221,7 @@ items:
       - "events:toggle_anvilrunning_setting anvil-damage"
 
   back:
-    slot: 49
+    slot: 40
     material: 'basehead-eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvMjIzZmI2NzQyOTcxNmIyMWJjNmU4ZTdkNjY5Y2VkZGY2NWIxM2UwNzkwYTVjZTU1YjJlMDc3YjgyZDE5ZTEyNCJ9fX0='
     name: '{error}&lBACK'
     lore:

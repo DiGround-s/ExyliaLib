@@ -5,7 +5,7 @@
 # ╚══════════════════════════════════════════════════════════════════╝
 
 title: "{primary}&lCS:GO SETTINGS"
-size: 54
+size: 45
 type: SIMPLE
 refresh:
   mode: ON_CLICK
@@ -23,7 +23,7 @@ filler:
 
 items:
   kills-to-win:
-    slot: 19
+    slot: 11
     material: DIAMOND_SWORD
     name: "{info}&lFRAGS TO WIN"
     lore:
@@ -39,7 +39,7 @@ items:
       - "shift_left: events:input_setting kills-to-win"
 
   respawn-delay:
-    slot: 21
+    slot: 13
     material: ENDER_PEARL
     name: "{info}&lRESPAWN TIME"
     lore:
@@ -55,7 +55,7 @@ items:
       - "shift_left: events:input_setting respawn-delay"
 
   grace-period:
-    slot: 20
+    slot: 12
     material: CLOCK
     name: "{info}&lGRACE PERIOD"
     lore:
@@ -71,7 +71,7 @@ items:
       - "shift_left: events:input_setting grace-period"
 
   no-regen-duration:
-    slot: 28
+    slot: 21
     material: POTION
     name: "{info}&lNO REGEN AFTER HIT"
     lore:
@@ -87,7 +87,7 @@ items:
       - "shift_left: events:input_setting no-regen-duration"
 
   headshot-multiplier:
-    slot: 29
+    slot: 22
     material: SKELETON_SKULL
     name: "{info}&lHEADSHOT MULTIPLIER"
     lore:
@@ -103,7 +103,7 @@ items:
       - "shift_left: events:input_double_setting headshot-multiplier"
 
   weapon-switch-delay:
-    slot: 30
+    slot: 23
     material: COMPARATOR
     name: "{info}&lWEAPON SWITCH DELAY"
     lore:
@@ -119,7 +119,7 @@ items:
       - "shift_left: events:input_setting weapon-switch-delay"
 
   recoil:
-    slot: 31
+    slot: 24
     material: "%recoil_enabled_material%"
     name: "%recoil_enabled_color%&lRECOIL"
     lore:
@@ -131,7 +131,7 @@ items:
       - "events:toggle_csgo_setting recoil-enabled"
 
   reset-kit-on-kill:
-    slot: 24
+    slot: 16
     material: "%reset_kit_material%"
     name: "{info}&lRESET KIT ON KILL"
     lore:
@@ -143,7 +143,7 @@ items:
       - "events:toggle_csgo_setting reset-kit-on-kill"
 
   golden-apple:
-    slot: 23
+    slot: 15
     material: "%golden_apple_material%"
     name: "%golden_apple_color%&lGOLDEN APPLE ON KILL"
     lore:
@@ -158,7 +158,7 @@ items:
       - "right: events:input_setting golden-apple-amount"
 
   pistol:
-    slot: 37
+    slot: 29
     material: "%pistol_enabled_material%"
     name: "%pistol_enabled_color%&lPISTOL"
     lore:
@@ -170,7 +170,7 @@ items:
       - "events:open_csgo_weapon_settings pistol"
 
   ak47:
-    slot: 38
+    slot: 30
     material: "%ak47_enabled_material%"
     name: "%ak47_enabled_color%&lAK-47"
     lore:
@@ -182,7 +182,7 @@ items:
       - "events:open_csgo_weapon_settings ak47"
 
   sniper:
-    slot: 39
+    slot: 31
     material: "%sniper_enabled_material%"
     name: "%sniper_enabled_color%&lSNIPER"
     lore:
@@ -194,7 +194,7 @@ items:
       - "events:open_csgo_weapon_settings sniper"
 
   shotgun:
-    slot: 40
+    slot: 32
     material: "%shotgun_enabled_material%"
     name: "%shotgun_enabled_color%&lSHOTGUN"
     lore:
@@ -206,7 +206,7 @@ items:
       - "events:open_csgo_weapon_settings shotgun"
 
   smg:
-    slot: 41
+    slot: 33
     material: "%smg_enabled_material%"
     name: "%smg_enabled_color%&lSMG"
     lore:
@@ -218,7 +218,7 @@ items:
       - "events:open_csgo_weapon_settings smg"
 
   rocket-launcher:
-    slot: 42
+    slot: 34
     material: "%rocket_launcher_enabled_material%"
     name: "%rocket_launcher_enabled_color%&lROCKET LAUNCHER"
     lore:
@@ -230,7 +230,7 @@ items:
       - "events:open_csgo_weapon_settings rocket-launcher"
 
   team-selector:
-    slot: 22
+    slot: 14
     condition: "%has_teams% == true"
     material: "%team_selector_material%"
     name: "%team_selector_color%&lTEAM SELECTOR"
@@ -245,7 +245,7 @@ items:
       - "events:toggle_team_selector_setting team-selector-enabled"
 
   back:
-    slot: 49
+    slot: 40
     material: 'basehead-eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvMjIzZmI2NzQyOTcxNmIyMWJjNmU4ZTdkNjY5Y2VkZGY2NWIxM2UwNzkwYTVjZTU1YjJlMDc3YjgyZDE5ZTEyNCJ9fX0='
     name: '{error}&lBACK'
     lore:

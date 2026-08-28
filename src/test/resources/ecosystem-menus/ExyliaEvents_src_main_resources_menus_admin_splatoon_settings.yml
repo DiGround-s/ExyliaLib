@@ -42,7 +42,7 @@ items:
       - " {letters_black}▎ {letters}in your team's color"
 
   team-count:
-    slot: 21
+    slot: 23
     material: WHITE_BANNER
     name: "{warning}&lTEAMS"
     lore:
@@ -60,7 +60,7 @@ items:
       - "shift_left: events:input_setting team-count"
 
   weapon-delay:
-    slot: 28
+    slot: 30
     material: WOODEN_HOE
     name: "{info}&lWEAPON DELAY"
     lore:
@@ -74,8 +74,8 @@ items:
       - "events:input_double_setting weapon-delay"
 
   weapon-damage:
-    slot: 29
-    material: IRON_SWORD
+    slot: 31
+    material: NETHERITE_SWORD
     name: "{error}&lWEAPON DAMAGE"
     lore:
       - ""
@@ -88,7 +88,7 @@ items:
       - "events:input_double_setting weapon-damage"
 
   paint-radius:
-    slot: 30
+    slot: 32
     material: BRUSH
     name: "{success}&lPAINT RADIUS"
     lore:
@@ -106,7 +106,7 @@ items:
       - "shift_left: events:input_setting paint-radius"
 
   respawn-delay:
-    slot: 20
+    slot: 22
     material: RED_BED
     name: "{warning}&lRESPAWN DELAY"
     lore:
@@ -124,7 +124,7 @@ items:
       - "shift_left: events:input_setting respawn-delay"
 
   grace-period:
-    slot: 19
+    slot: 21
     material: CLOCK
     name: "{info}&lGRACE PERIOD"
     lore:
@@ -142,7 +142,7 @@ items:
       - "shift_left: events:input_setting grace-period"
 
   ink-trail:
-    slot: 31
+    slot: 33
     material: "%ink_trail_material%"
     name: "%ink_trail_color%&lINK TRAIL"
     lore:
@@ -156,7 +156,7 @@ items:
       - "events:toggle_splatoon_setting ink-trail"
 
   fall-damage:
-    slot: 42
+    slot: 43
     material: "%fall_damage_material%"
     name: "%fall_damage_color%&lFALL DAMAGE"
     lore:
@@ -168,7 +168,7 @@ items:
       - "events:toggle_splatoon_setting fall-damage"
 
   double-jump-enabled:
-    slot: 37
+    slot: 38
     material: "%double_jump_enabled_material%"
     name: "%double_jump_enabled_color%&lDOUBLE JUMP"
     lore:
@@ -180,8 +180,8 @@ items:
       - "events:toggle_splatoon_setting double-jump-enabled"
 
   double-jump-cooldown:
-    slot: 38
-    material: FEATHER
+    slot: 39
+    material: PHANTOM_MEMBRANE
     name: "{info}&lDOUBLE JUMP COOLDOWN"
     lore:
       - ""
@@ -192,7 +192,7 @@ items:
       - "events:input_double_setting double-jump-cooldown"
 
   double-jump-limit:
-    slot: 39
+    slot: 40
     material: RABBIT_FOOT
     name: "{warning}&lDOUBLE JUMP LIMIT"
     lore:
@@ -209,7 +209,7 @@ items:
       - "shift_left: events:input_setting double-jump-limit"
 
   double-jump-power:
-    slot: 40
+    slot: 41
     material: FIREWORK_ROCKET
     name: "{info}&lDOUBLE JUMP POWER"
     lore:
@@ -221,7 +221,7 @@ items:
       - "events:input_double_setting double-jump-power"
 
   team-selector:
-    slot: 22
+    slot: 24
     material: "%team_selector_material%"
     name: "%team_selector_color%&lTEAM SELECTOR"
     lore:

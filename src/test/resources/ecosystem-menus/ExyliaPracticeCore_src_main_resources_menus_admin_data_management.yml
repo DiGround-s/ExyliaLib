@@ -164,7 +164,7 @@ items:
 
   import:
     slot: 46
-    material: BUNDLE
+    material: SHULKER_BOX
     name: "{warning}&lIMPORT DATABASE"
     lore:
       - ""

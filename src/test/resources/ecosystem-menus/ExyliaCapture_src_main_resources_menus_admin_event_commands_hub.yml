@@ -1,5 +1,5 @@
 title: "{primary}&lCOMMANDS {muted}- %config_id%"
-size: 54
+size: 36
 type: SIMPLE
 refresh:
   mode: ON_CLICK
@@ -17,7 +17,7 @@ filler:
 
 items:
   start-commands:
-    slot: 19
+    slot: 12
     material: LIME_DYE
     name: "{success}&lSTART COMMANDS"
     lore:
@@ -33,7 +33,7 @@ items:
       - "capture:open_start_commands"
 
   end-commands:
-    slot: 20
+    slot: 13
     material: RED_DYE
     name: "{error}&lEND COMMANDS"
     lore:
@@ -50,7 +50,7 @@ items:
       - "capture:open_end_commands"
 
   winner-commands:
-    slot: 21
+    slot: 14
     material: NETHER_STAR
     name: "{warning}&lWINNER REWARD"
     lore:
@@ -65,7 +65,7 @@ items:
       - "capture:open_winner_rewards"
 
   top1-reward:
-    slot: 28
+    slot: 21
     material: DIAMOND
     name: "{highlight}&l#1 REWARD"
     lore:
@@ -80,7 +80,7 @@ items:
       - "capture:open_top_rewards 1"
 
   top2-reward:
-    slot: 29
+    slot: 22
     material: IRON_INGOT
     name: "{highlight}&l#2 REWARD"
     lore:
@@ -95,7 +95,7 @@ items:
       - "capture:open_top_rewards 2"
 
   top3-reward:
-    slot: 30
+    slot: 23
     material: GOLD_NUGGET
     name: "{highlight}&l#3 REWARD"
     lore:
@@ -110,7 +110,7 @@ items:
       - "capture:open_top_rewards 3"
 
   back:
-    slot: 49
+    slot: 31
     material: 'basehead-eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvMjIzZmI2NzQyOTcxNmIyMWJjNmU4ZTdkNjY5Y2VkZGY2NWIxM2UwNzkwYTVjZTU1YjJlMDc3YjgyZDE5ZTEyNCJ9fX0='
     name: '{error}&lBACK'
     lore:

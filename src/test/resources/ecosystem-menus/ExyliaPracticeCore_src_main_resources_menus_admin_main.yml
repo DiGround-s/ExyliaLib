@@ -1,5 +1,5 @@
 title: "{primary}&lPRACTICE ADMIN"
-size: 54
+size: 45
 type: SIMPLE
 refresh:
   mode: ON_CLICK
@@ -108,7 +108,7 @@ items:
       - "practice:portal_open_list"
 
   reload:
-    slot: 45
+    slot: 36
     material: REDSTONE
     name: "{error}&lRELOAD"
     lore:
@@ -119,7 +119,7 @@ items:
 
   manage-data:
     slot: 33
-    material: HOPPER
+    material: COMPARATOR
     name: "{secondary}&lDATA MANAGEMENT"
     lore:
       - ""
@@ -132,7 +132,7 @@ items:
 
   server-stats:
     slot: 32
-    material: KNOWLEDGE_BOOK
+    material: PAPER
     name: "{info}&lSERVER STATISTICS"
     lore:
       - ""

@@ -100,7 +100,7 @@ items:
 
   import:
     slot: 46
-    material: NETHER_STAR
+    material: SHULKER_BOX
     name: "{warning}&lIMPORT WORLD"
     lore:
       - ""

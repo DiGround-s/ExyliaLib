@@ -1,17 +1,24 @@
-# Writing a bet. Five choices and a confirm; every one of them starts at what
+# Writing a bet. Five choices and one button; every one of them starts at what
 # config.yml says, so a player who wants the usual bet presses one button.
+#
+# The stake and the button at the bottom are one-slot lists rather than items,
+# because they are not the same thing for everybody: the stake is an amount to
+# type or a free match, and the button posts a bet, joins a queue, or says
+# which thing is still missing. A slot holds one item, so each of those states
+# is a template here and the plugin picks which one is drawn.
 
 title: '{primary}&lNEW MATCH {muted}— %game_name%'
 size: 45
+animation: 'center_out'
 
 open_sounds:
-  - 'BLOCK_BARREL_OPEN|0.8|1.4'
+  - 'ENTITY_EXPERIENCE_ORB_PICKUP|1.0|1.2'
 click_sounds:
   - 'UI_BUTTON_CLICK|1.0|1.5'
 
 filler:
   global:
-    material: BLACK_STAINED_GLASS_PANE
+    material: GRAY_STAINED_GLASS_PANE
     hide_tooltip: true
 
 items:
@@ -20,152 +27,188 @@ items:
     slot: 4
     material: '%game_icon%'
     name: '%game_name%'
+    glow: true
     lore:
       - ''
-      - '{secondary}Your bet:'
-      - ' {letters_black}▎ {letters}Mode {letters_black}» {info}%mode_name%'
-      - ' {letters_black}▎ {letters}Stake {letters_black}» {highlight}%wager%'
-      - ' {letters_black}▎ {letters}Pot {letters_black}» {info}%pot%'
-      - ' {letters_black}▎ {letters}Rounds {letters_black}» {info}Best of %rounds%'
-      - ' {letters_black}▎ {letters}Open to {letters_black}» {info}%visibility%'
-      - ''
-    glow: true
+      - ' {muted}❙ {letters}Mode: {info}%mode_name%'
+      - ' {muted}❙ {letters}Stake: {highlight}%wager%'
+      - ' {muted}❙ {letters}Pot: {info}%pot%'
+      - ' {muted}❙ {letters}Rounds: {info}Best of %rounds%'
+      - ' {muted}❙ {letters}Open to: {info}%visibility%'
 
   mode:
-    slot: 19
+    slot: 20
     material: '%mode_icon%'
-    name: '{secondary}&lMODE'
+    name: '{primary}&lMODE'
     lore:
       - ''
-      - ' {letters_black}▎ {letters}Now {letters_black}» {info}%mode_name%'
+      - ' {muted}❙ {letters}Now: {highlight}%mode_name%'
       - ''
-      - '{warning}➥ Click to change'
-      - ''
+      - '{info}» Click to change'
     actions:
       - 'left: betcore:open_mode_picker'
 
   currency:
     slot: 21
     material: '%currency_icon%'
-    name: '{secondary}&lCURRENCY'
+    name: '{primary}&lCURRENCY'
     lore:
       - ''
-      - ' {letters_black}▎ {letters}Now {letters_black}» {info}%currency_id%'
+      - ' {muted}❙ {letters}Now: {highlight}%currency_id%'
       - ''
-      - '{warning}➥ Click to change'
-      - ''
+      - '{info}» Click to change'
+    condition: '%has_currency% == true'
     actions:
       - 'left: betcore:open_currency_picker'
-
-  amount:
-    slot: 22
-    material: SUNFLOWER
-    name: '{secondary}&lSTAKE'
-    lore:
-      - ''
-      - ' {letters_black}▎ {letters}You put up {letters_black}» {highlight}%wager%'
-      - ' {letters_black}▎ {letters}Winner takes {letters_black}» {info}%pot%'
-      - ''
-      - '{letters_black}Both of you stake the same.'
-      - ''
-      - '{warning}➥ Click to type an amount'
-      - ''
-    actions:
-      - 'left: betcore:prompt_amount'
 
   rounds:
     slot: 23
     material: PAPER
-    name: '{secondary}&lROUNDS'
+    amount: '%rounds%'
+    name: '{primary}&lROUNDS'
     lore:
       - ''
-      - ' {letters_black}▎ {letters}Now {letters_black}» {info}Best of %rounds%'
+      - ' {muted}❙ {letters}Now: {highlight}Best of %rounds%'
       - ''
-      - '{warning}➥ Click to change'
-      - ''
+      - '{info}» Click to change'
     actions:
       - 'left: betcore:open_rounds_picker'
 
   visibility:
-    slot: 25
+    slot: 24
     material: ENDER_EYE
-    name: '{secondary}&lWHO CAN JOIN'
+    name: '{primary}&lWHO CAN JOIN'
     lore:
       - ''
-      - ' {letters_black}▎ {letters}Now {letters_black}» {info}%visibility%'
+      - ' {muted}❙ {letters}Now: {highlight}%visibility%'
       - ''
-      - '{warning}➥ Click to change'
+      - ' {muted}❙ {letters}{highlight}PUBLIC {letters}— anyone, listed in the lobby'
+      - ' {muted}❙ {letters}{highlight}PRIVATE {letters}— only who you send it to'
+      - ' {muted}❙ {letters}{highlight}DIRECT {letters}— a challenge they accept or refuse'
       - ''
+      - '{info}» Click to change'
     condition: '%queueing% == false'
     actions:
       - 'left: betcore:open_visibility_picker'
 
-  # Two endings for one form. Which is shown depends on whether the player
-  # came from "create a match" or from "quick queue".
-  create:
-    slot: 40
-    material: LIME_CONCRETE
-    name: '{success}&lPUT THE BET UP'
-    lore:
-      - ''
-      - ' {letters_black}▎ {letters}Stake {letters_black}» {highlight}%wager%'
-      - ' {letters_black}▎ {letters}Nothing is taken until somebody'
-      - ' {letters_black}▎ {letters}accepts it.'
-      - ''
-      - '{warning}➥ Click to offer it'
-      - ''
-    condition: '%form_action% == create'
-    actions:
-      - 'left: betcore:create_match'
-
-  queue:
-    slot: 40
-    material: LIME_CONCRETE
-    name: '{success}&lFIND ME SOMEBODY'
-    lore:
-      - ''
-      - ' {letters_black}▎ {letters}Stake {letters_black}» {highlight}%wager%'
-      - ' {letters_black}▎ {letters}You are paired with the closest bet,'
-      - ' {letters_black}▎ {letters}at the {highlight}lower {letters}of the two figures,'
-      - ' {letters_black}▎ {letters}so you never pay more than this.'
-      - ''
-      - '{warning}➥ Click to start looking'
-      - ''
-    condition: '%form_action% == queue'
-    actions:
-      - 'left: betcore:queue_join'
-
-  # Nothing is missing, so neither button below is drawn.
-  create_blocked:
-    slot: 40
-    material: GRAY_CONCRETE
-    name: '{muted}&lNOT READY'
-    lore:
-      - ''
-      - '{error}Something is still missing.'
-      - '{letters_black}A private match needs somebody to send it to,'
-      - '{letters_black}and a currency needs its plugin installed.'
-      - ''
-    condition: '%form_action% == blocked'
-
-  visibility_hidden:
-    slot: 25
-    material: GRAY_STAINED_GLASS_PANE
-    name: '{muted}&lWHO CAN JOIN'
-    lore:
-      - ''
-      - '{letters_black}The queue picks your opponent, so this'
-      - '{letters_black}is not yours to choose.'
-      - ''
-    condition: '%queueing% == true'
-
   back:
     slot: 36
-    material: ARROW
+    material: 'basehead-eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvMjIzZmI2NzQyOTcxNmIyMWJjNmU4ZTdkNjY5Y2VkZGY2NWIxM2UwNzkwYTVjZTU1YjJlMDc3YjgyZDE5ZTEyNCJ9fX0='
     name: '{error}&lBACK'
     lore:
-      - ''
-      - '{warning}➥ Click to go back'
-      - ''
+      - '{muted}Return to the lobby'
     actions:
       - 'left: betcore:open_lobby %game_id%'
+
+  close:
+    slot: 44
+    material: BARRIER
+    name: '{error}&lCLOSE'
+    lore:
+      - '{muted}Click to close'
+    actions:
+      - 'close'
+
+sections:
+
+  # What you put up. Either an amount to type, or nothing at all on a server
+  # with no economy plugin — the games still work, they are just played for fun.
+  stake:
+    slots: '22'
+    filler:
+      material: AIR
+      hide_tooltip: true
+
+    item_template:
+      material: SUNFLOWER
+      name: '{primary}&lSTAKE'
+      lore:
+        - ''
+        - ' {muted}❙ {letters}You put up: {highlight}%wager%'
+        - ' {muted}❙ {letters}Winner takes: {info}%pot%'
+        - ''
+        - ' {muted}❙ {letters}Both of you stake the same.'
+        - ''
+        - '{info}» Click to type an amount'
+      actions:
+        - 'left: betcore:prompt_amount'
+
+    free_template:
+      material: GRAY_DYE
+      name: '{muted}&lNO STAKE'
+      lore:
+        - ''
+        - ' {muted}❙ {letters}This match is played for {highlight}nothing{letters}.'
+        - ''
+        - ' {muted}❙ {letters}No economy plugin is installed, so'
+        - ' {muted}❙ {letters}there is nothing to bet. The games'
+        - ' {muted}❙ {letters}still work.'
+
+  # The button at the bottom. One template per ending, so the screen always
+  # says what pressing it does — or which thing is still missing.
+  confirm:
+    slots: '40'
+    filler:
+      material: AIR
+      hide_tooltip: true
+
+    item_template:
+      material: LIME_CONCRETE
+      name: '{success}&lPUT THE BET UP'
+      glow: true
+      lore:
+        - ''
+        - ' {muted}❙ {letters}Stake: {highlight}%wager%'
+        - ' {muted}❙ {letters}Pot: {info}%pot%'
+        - ''
+        - ' {muted}❙ {letters}Nothing is taken until somebody'
+        - ' {muted}❙ {letters}accepts it.'
+        - ''
+        - '{success}▶ Click to offer it'
+      actions:
+        - 'left: betcore:create_match'
+
+    queue_template:
+      material: LIME_CONCRETE
+      name: '{success}&lFIND ME SOMEBODY'
+      glow: true
+      lore:
+        - ''
+        - ' {muted}❙ {letters}Stake: {highlight}%wager%'
+        - ''
+        - ' {muted}❙ {letters}You are paired with the closest bet,'
+        - ' {muted}❙ {letters}at the {highlight}lower {letters}of the two figures,'
+        - ' {muted}❙ {letters}so you never pay more than this.'
+        - ''
+        - '{success}▶ Click to start looking'
+      actions:
+        - 'left: betcore:queue_join'
+
+    blocked_currency_template:
+      material: GRAY_CONCRETE
+      name: '{error}&lNOTHING CAN PAY THIS'
+      lore:
+        - ''
+        - ' {muted}❙ {letters}No economy plugin is installed, or the'
+        - ' {muted}❙ {letters}one you picked is turned off.'
+        - ''
+        - '{warning}➥ Set the stake to nothing to play for free'
+
+    blocked_invite_template:
+      material: GRAY_CONCRETE
+      name: '{error}&lNOBODY TO SEND IT TO'
+      lore:
+        - ''
+        - ' {muted}❙ {letters}A {highlight}%visibility% {letters}match needs somebody'
+        - ' {muted}❙ {letters}to send it to.'
+        - ''
+        - '{warning}➥ Use {highlight}/bet challenge <player>{warning}, or make it public'
+
+    blocked_mode_template:
+      material: GRAY_CONCRETE
+      name: '{error}&lNO MODE'
+      lore:
+        - ''
+        - ' {muted}❙ {letters}This game has no mode turned on.'
+        - ''
+        - '{warning}➥ An admin turns one on in the game''s config.yml'

@@ -131,7 +131,7 @@ items:
       - "ffa:toggle_rule re_give_blocks"
 
   drop-items-on-death:
-    slot: 21
+    slot: 22
     material: "%drop_items_on_death_material%"
     name: "%drop_items_on_death_color%&lDROP ITEMS ON DEATH"
     lore:
@@ -144,7 +144,7 @@ items:
       - "ffa:toggle_rule drop_items_on_death"
 
   item-drop:
-    slot: 19
+    slot: 20
     material: "%item_drop_material%"
     name: "%item_drop_color%&lITEM DROP"
     lore:
@@ -156,7 +156,7 @@ items:
       - "ffa:toggle_rule item_drop"
 
   item-pickup:
-    slot: 20
+    slot: 21
     material: "%item_pickup_material%"
     name: "%item_pickup_color%&lITEM PICKUP"
     lore:
@@ -205,7 +205,7 @@ items:
       - "ffa:toggle_rule food_decrease"
 
   ender-pearl-cooldown:
-    slot: 23
+    slot: 24
     material: ENDER_PEARL
     name: "{info}&lENDER PEARL COOLDOWN"
     lore:
@@ -224,7 +224,7 @@ items:
       - "shift_right: ffa:adjust_rule_ender_pearl -5"
 
   golden-apple-cooldown:
-    slot: 24
+    slot: 25
     material: GOLDEN_APPLE
     name: "{info}&lGOLDEN APPLE COOLDOWN"
     lore:
@@ -270,7 +270,7 @@ items:
       - "ffa:toggle_rule heal_on_kill"
 
   anti-free-hit:
-    slot: 37
+    slot: 39
     material: "%anti_free_hit_material%"
     name: "%anti_free_hit_color%&lANTI FREE-HIT"
     lore:
@@ -284,8 +284,8 @@ items:
       - "ffa:toggle_rule anti_free_hit"
 
   anti-freehit-hits:
-    slot: 38
-    material: IRON_SWORD
+    slot: 40
+    material: TARGET
     name: "{info}&lHITS TO LINK"
     lore:
       - ""
@@ -299,7 +299,7 @@ items:
       - "right: ffa:adjust_rule_anti_freehit_hits -1"
 
   anti-freehit-isolate:
-    slot: 39
+    slot: 41
     material: "%anti_freehit_isolate_material%"
     name: "%anti_freehit_isolate_color%&lISOLATE LINKED PLAYERS"
     lore:

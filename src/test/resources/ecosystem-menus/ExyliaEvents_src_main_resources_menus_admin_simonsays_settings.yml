@@ -5,7 +5,7 @@
 # ╚══════════════════════════════════════════════════════════════════╝
 
 title: "{warning}&lSIMON SAYS SETTINGS"
-size: 54
+size: 27
 type: SIMPLE
 refresh:
   mode: ON_CLICK
@@ -23,7 +23,7 @@ filler:
 
 items:
   action-time:
-    slot: 19
+    slot: 11
     material: CLOCK
     name: "{warning}&lACTION TIME"
     lore:
@@ -42,7 +42,7 @@ items:
       - "shift_left: events:input_setting action-time"
 
   time-decrease-interval:
-    slot: 20
+    slot: 12
     material: REPEATER
     name: "{warning}&lTIME DECREASE INTERVAL"
     lore:
@@ -61,7 +61,7 @@ items:
       - "shift_left: events:input_setting time-decrease-interval"
 
   min-action-time:
-    slot: 21
+    slot: 13
     material: BARRIER
     name: "{error}&lMIN ACTION TIME"
     lore:
@@ -80,8 +80,8 @@ items:
       - "shift_left: events:input_setting min-action-time"
 
   round-pause:
-    slot: 22
-    material: HOPPER
+    slot: 14
+    material: CLOCK
     name: "{info}&lROUND PAUSE"
     lore:
       - ""
@@ -98,7 +98,7 @@ items:
       - "shift_left: events:input_setting round-pause"
 
   min-players:
-    slot: 23
+    slot: 15
     material: PLAYER_HEAD
     name: "{info}&lMIN PLAYERS"
     lore:
@@ -114,7 +114,7 @@ items:
       - "shift_left: events:input_setting min-players"
 
   back:
-    slot: 49
+    slot: 22
     material: 'basehead-eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvMjIzZmI2NzQyOTcxNmIyMWJjNmU4ZTdkNjY5Y2VkZGY2NWIxM2UwNzkwYTVjZTU1YjJlMDc3YjgyZDE5ZTEyNCJ9fX0='
     name: '{error}&lBACK'
     lore:

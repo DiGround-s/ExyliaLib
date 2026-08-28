@@ -5,7 +5,7 @@
 # ╚══════════════════════════════════════════════════════════════════╝
 
 title: "{primary}&lPILLARS OF FORTUNE SETTINGS"
-size: 54
+size: 27
 type: SIMPLE
 refresh:
   mode: ON_CLICK
@@ -23,7 +23,7 @@ filler:
 
 items:
   item-interval:
-    slot: 19
+    slot: 12
     material: NETHER_STAR
     name: "{primary}&lITEM INTERVAL"
     lore:
@@ -42,7 +42,7 @@ items:
       - "shift_left: events:input_setting item-interval"
 
   mode:
-    slot: 20
+    slot: 13
     material: "%pillars_mode_material%"
     name: "{primary}&lITEM MODE"
     lore:
@@ -58,7 +58,7 @@ items:
       - "events:cycle_pillars_mode"
 
   grace-period:
-    slot: 21
+    slot: 14
     material: CLOCK
     name: "{info}&lGRACE PERIOD"
     lore:
@@ -76,7 +76,7 @@ items:
       - "shift_left: events:input_setting grace-period"
 
   item-given-message:
-    slot: 22
+    slot: 15
     material: "%item_given_message_material%"
     name: "%item_given_message_color%&lITEM GIVEN MESSAGE"
     lore:
@@ -91,7 +91,7 @@ items:
       - "events:toggle_pillarsoffortune_setting item-given-message"
 
   back:
-    slot: 49
+    slot: 22
     material: 'basehead-eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvMjIzZmI2NzQyOTcxNmIyMWJjNmU4ZTdkNjY5Y2VkZGY2NWIxM2UwNzkwYTVjZTU1YjJlMDc3YjgyZDE5ZTEyNCJ9fX0='
     name: '{error}&lBACK'
     lore:

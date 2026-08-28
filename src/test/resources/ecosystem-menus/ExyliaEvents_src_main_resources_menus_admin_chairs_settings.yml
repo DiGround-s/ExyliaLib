@@ -5,7 +5,7 @@
 # ╚══════════════════════════════════════════════════════════════════╝
 
 title: "{warning}&lCHAIRS SETTINGS"
-size: 54
+size: 27
 type: SIMPLE
 refresh:
   mode: ON_CLICK
@@ -23,7 +23,7 @@ filler:
 
 items:
   music-duration-min:
-    slot: 19
+    slot: 10
     material: NOTE_BLOCK
     name: "{info}&lMUSIC MIN DURATION"
     lore:
@@ -42,7 +42,7 @@ items:
       - "shift_left: events:input_setting music-duration-min"
 
   music-duration-max:
-    slot: 20
+    slot: 11
     material: JUKEBOX
     name: "{info}&lMUSIC MAX DURATION"
     lore:
@@ -61,7 +61,7 @@ items:
       - "shift_left: events:input_setting music-duration-max"
 
   rush-duration:
-    slot: 21
+    slot: 12
     material: FIREWORK_ROCKET
     name: "{error}&lRUSH DURATION"
     lore:
@@ -80,7 +80,7 @@ items:
       - "shift_left: events:input_setting rush-duration"
 
   round-pause:
-    slot: 22
+    slot: 13
     material: CLOCK
     name: "{info}&lROUND PAUSE"
     lore:
@@ -99,7 +99,7 @@ items:
       - "shift_left: events:input_setting round-pause"
 
   chair-percentage:
-    slot: 23
+    slot: 14
     material: GLOWSTONE_DUST
     name: "{warning}&lCHAIR PERCENTAGE"
     lore:
@@ -118,7 +118,7 @@ items:
       - "shift_left: events:input_setting chair-percentage"
 
   pvp-round:
-    slot: 24
+    slot: 15
     material: DIAMOND_SWORD
     name: "{error}&lPVP ROUND"
     lore:
@@ -137,7 +137,7 @@ items:
       - "shift_left: events:input_setting pvp-round"
 
   chair-color:
-    slot: 25
+    slot: 16
     material: RED_WOOL
     name: "{warning}&lCHAIR COLOR"
     lore:
@@ -151,7 +151,7 @@ items:
       - "events:input_setting chair-color"
 
   back:
-    slot: 49
+    slot: 22
     material: 'basehead-eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvMjIzZmI2NzQyOTcxNmIyMWJjNmU4ZTdkNjY5Y2VkZGY2NWIxM2UwNzkwYTVjZTU1YjJlMDc3YjgyZDE5ZTEyNCJ9fX0='
     name: '{error}&lBACK'
     lore:

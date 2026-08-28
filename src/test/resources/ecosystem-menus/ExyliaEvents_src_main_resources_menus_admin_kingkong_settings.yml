@@ -5,7 +5,7 @@
 # ╚══════════════════════════════════════════════════════════════════╝
 
 title: "{error}&lKING KONG SETTINGS"
-size: 54
+size: 36
 type: SIMPLE
 refresh:
   mode: ON_CLICK
@@ -40,7 +40,7 @@ items:
       - " {letters_black}▎ {success}wins instantly {letters}for everyone"
 
   runner-respawn:
-    slot: 19
+    slot: 20
     material: "%runner_respawn_material%"
     name: "%runner_respawn_color%&lRUNNER RESPAWN"
     lore:
@@ -55,7 +55,7 @@ items:
       - "events:toggle_kingkong_setting runner-respawn"
 
   respawn-delay:
-    slot: 20
+    slot: 21
     material: CLOCK
     name: "{warning}&lRESPAWN DELAY"
     lore:
@@ -73,7 +73,7 @@ items:
       - "shift_left: events:input_setting respawn-delay"
 
   kong-speed-level:
-    slot: 21
+    slot: 22
     material: SUGAR
     name: "{error}&lKONG SPEED"
     lore:
@@ -89,7 +89,7 @@ items:
       - "right: events:adjust_setting kong-speed-level -1"
 
   kong-glow:
-    slot: 22
+    slot: 23
     material: "%kong_glow_material%"
     name: "%kong_glow_color%&lKONG GLOW EFFECT"
     lore:
@@ -104,7 +104,7 @@ items:
       - "events:toggle_kingkong_setting kong-glow"
 
   grace-period:
-    slot: 23
+    slot: 24
     material: CLOCK
     name: "{warning}&lGRACE PERIOD"
     lore:
@@ -122,7 +122,7 @@ items:
       - "shift_left: events:input_setting grace-period"
 
   back:
-    slot: 49
+    slot: 31
     material: 'basehead-eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvMjIzZmI2NzQyOTcxNmIyMWJjNmU4ZTdkNjY5Y2VkZGY2NWIxM2UwNzkwYTVjZTU1YjJlMDc3YjgyZDE5ZTEyNCJ9fX0='
     name: '{error}&lBACK'
     lore:

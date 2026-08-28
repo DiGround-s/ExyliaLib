@@ -1,52 +1,85 @@
-# Which mode to play. One row per mode the game's own config turns on.
+# Which mode to play. One card per mode the game's own config turns on.
 
 title: '{primary}&lMODE {muted}— %game_name%'
 size: 27
 type: PAGINATION
+animation: 'center_out'
 
+open_sounds:
+  - 'ENTITY_EXPERIENCE_ORB_PICKUP|1.0|1.2'
 click_sounds:
   - 'UI_BUTTON_CLICK|1.0|1.5'
 
 filler:
   global:
-    material: BLACK_STAINED_GLASS_PANE
+    material: GRAY_STAINED_GLASS_PANE
     hide_tooltip: true
+
+  pagination:
+    material: LIGHT_GRAY_STAINED_GLASS_PANE
+    name: '{muted}No modes are turned on'
+    lore:
+      - ''
+      - '{muted}An admin turns them on in the game''s config.yml.'
+    hide_tooltip: false
 
 items:
   back:
-    slot: 22
-    material: ARROW
+    slot: 18
+    material: 'basehead-eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvMjIzZmI2NzQyOTcxNmIyMWJjNmU4ZTdkNjY5Y2VkZGY2NWIxM2UwNzkwYTVjZTU1YjJlMDc3YjgyZDE5ZTEyNCJ9fX0='
     name: '{error}&lBACK'
     lore:
-      - ''
-      - '{warning}➥ Click to go back'
-      - ''
+      - '{muted}Return to the bet'
     actions:
       - 'left: betcore:open_create'
 
+  close:
+    slot: 26
+    material: BARRIER
+    name: '{error}&lCLOSE'
+    lore:
+      - '{muted}Click to close'
+    actions:
+      - 'close'
+
 pagination:
   slots: '10-16'
-  filler:
-    material: LIGHT_GRAY_STAINED_GLASS_PANE
-    name: '{muted}No modes are turned on'
+
   item_template:
     material: '%mode_icon%'
     name: '%mode_name%'
     lore:
       - ''
-      - '%mode_description%'
+      - ' {muted}❙ {letters}%mode_description%'
       - ''
-      - '{warning}➥ Click to pick this mode'
-      - ''
+      - '{success}▶ Click to play this mode'
     actions:
       - 'left: betcore:set_mode %mode_id%'
+
   selected_template:
     material: '%mode_icon%'
     name: '%mode_name% {success}✔'
+    glow: true
     lore:
       - ''
-      - '%mode_description%'
+      - ' {muted}❙ {letters}%mode_description%'
       - ''
       - '{success}This is what you are playing.'
-      - ''
-    glow: true
+
+  navigation:
+    previous:
+      slot: 21
+      material: 'basehead-eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvZGExZDU1YjNmOTg5NDEwYTM0NzUyNjUwZTI0OGM5YjZjMTc4M2E3ZWMyYWEzZmQ3Nzg3YmRjNGQwZTYzN2QzOSJ9fX0='
+      name: '{error}&l← PREVIOUS PAGE'
+      lore:
+        - '{info}ℹ Current page: {success}%current_page%&8/{error}%total_pages%'
+      actions:
+        - 'previous_page'
+    next:
+      slot: 23
+      material: 'basehead-eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvZmE4N2UzZDk2ZTFjZmViOWNjZmIzYmE1M2EyMTdmYWY1MjQ5ZTI4NTUzM2IyNzFhMmZiMjg0YzMwZGJkOTgyOSJ9fX0='
+      name: '{success}&lNEXT PAGE →'
+      lore:
+        - '{info}ℹ Current page: {success}%current_page%&8/{error}%total_pages%'
+      actions:
+        - 'next_page'

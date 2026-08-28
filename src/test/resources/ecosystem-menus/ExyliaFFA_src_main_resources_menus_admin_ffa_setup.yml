@@ -47,7 +47,7 @@ items:
       - "ffa:set_arena_icon"
 
   max-players:
-    slot: 30
+    slot: 32
     material: PLAYER_HEAD
     name: "{info}&lMAX PLAYERS"
     lore:
@@ -63,7 +63,7 @@ items:
       - "shift_left: ffa:input_max_players"
 
   kit-mode:
-    slot: 29
+    slot: 31
     material: ENCHANTED_BOOK
     name: "{warning}&lKIT MODE"
     lore:
@@ -78,7 +78,7 @@ items:
       - "ffa:toggle_kit_mode"
 
   reset-kit:
-    slot: 40
+    slot: 42
     material: "%reset_kit_material%"
     name: "%reset_kit_color%&lRESET KIT AFTER KILL"
     lore:
@@ -93,7 +93,7 @@ items:
       - "ffa:toggle_reset_kit"
 
   kits:
-    slot: 28
+    slot: 30
     material: "%kit_material%"
     name: "%kit_color%&lMANAGE KITS"
     lore:
@@ -161,7 +161,7 @@ items:
       - "shift_right: ffa:adjust_protected_radius -5"
 
   save-inventory-on-leave:
-    slot: 39
+    slot: 41
     material: "%save_inventory_material%"
     name: "%save_inventory_color%&lSAVE INVENTORY ON LEAVE"
     lore:
@@ -191,7 +191,7 @@ items:
       - "ffa:input_permission"
 
   regen-time:
-    slot: 38
+    slot: 40
     material: CLOCK
     name: "{info}&lREGENERATION TIME"
     lore:
@@ -206,8 +206,8 @@ items:
       - "right: ffa:adjust_regen_time -30"
 
   priority:
-    slot: 31
-    material: HOPPER
+    slot: 33
+    material: LADDER
     name: "{info}&lPRIORITY"
     lore:
       - ""
@@ -224,7 +224,7 @@ items:
       - "shift_right: ffa:adjust_arena_priority -10"
 
   rules:
-    slot: 37
+    slot: 39
     material: COMMAND_BLOCK
     name: "{warning}&lRULES"
     lore:

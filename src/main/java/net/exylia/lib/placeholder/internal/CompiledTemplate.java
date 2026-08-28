@@ -185,6 +185,14 @@ public final class CompiledTemplate implements Template {
         if (Registry.has(part.name())) {
             return null;
         }
+        // Written with its plugin in front: %exyliasandbox_total_players%. Two
+        // plugins may register one name, and only one of them can hold the bare
+        // spelling; this is how the other one's own files still reach it, and it
+        // is still a registration, so it comes before any per-render value.
+        Registry.Entry owned = Registry.entry(part.name());
+        if (owned != null) {
+            return Registry.resolve(owned, part.name(), request, logger);
+        }
         Object attached = request.data().get(part.name());
         if (attached != null || request.data().containsKey(part.name())) {
             return attached;
@@ -198,7 +206,7 @@ public final class CompiledTemplate implements Template {
 
     /** Whether anything claims this name: a resolver, or a value for this render. */
     private boolean isKnown(Part part, Request request) {
-        return Registry.has(part.name())
+        return Registry.known(part.name())
                 || request.data().containsKey(part.name())
                 // PlaceholderAPI is installed but was not asked, because this
                 // render is off the main thread. Nobody has answered "no" yet,
@@ -309,7 +317,7 @@ public final class CompiledTemplate implements Template {
             if (part.isLiteral()) {
                 continue;
             }
-            Registry.Entry entry = Registry.get(part.name());
+            Registry.Entry entry = Registry.entry(part.name());
             if (entry == null || !entry.async()) {
                 return false;
             }
@@ -321,7 +329,7 @@ public final class CompiledTemplate implements Template {
     public List<String> unresolved() {
         List<String> missing = new ArrayList<>();
         for (Part part : parts) {
-            if (!part.isLiteral() && !Registry.has(part.name())) {
+            if (!part.isLiteral() && !Registry.known(part.name())) {
                 missing.add(part.name());
             }
         }

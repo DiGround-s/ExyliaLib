@@ -100,6 +100,14 @@ Placeholders.apply(raw, player, Map.of("class", "Warrior", "time", "3"));
   Rename one of them to remove the ambiguity. Disabling the plugin that held the
   bare name hands it back to a plugin that still registers it, rather than to
   nobody.
+- **A name written with its plugin in front resolves in ordinary text too.** The
+  plugin that lost the bare name is still reachable from any config file by
+  writing `%exyliasandbox_total_players%`, which asks that plugin and nobody
+  else. This is the placeholder module reading it, not PlaceholderAPI: it works
+  with PlaceholderAPI absent and with no player to render for, and arguments
+  split off it the same way (`%exyliaffa_stats_top_kills_1%`). A plugin that
+  genuinely registered that whole spelling keeps it — the bare name is looked up
+  first.
 - PlaceholderAPI, when installed, gets registered expansions through a bridge
   confined to `placeholder/internal/PapiBridge` + `PapiExpansion`; its external
   placeholders also resolve in `Template` and `Text` renders for a player.

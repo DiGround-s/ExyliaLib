@@ -350,7 +350,7 @@ items:
 
   special-conditions:
     slot: 41
-    material: TRIPWIRE_HOOK
+    material: COMMAND_BLOCK
     name: "{highlight}&lSPECIAL CONDITIONS"
     lore:
       - ""
