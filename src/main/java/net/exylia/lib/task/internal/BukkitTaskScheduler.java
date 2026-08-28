@@ -37,6 +37,8 @@ public final class BukkitTaskScheduler extends AbstractTaskScheduler {
 
     @Override
     public @NotNull TaskHandle run(@NotNull Runnable task) {
+        TaskHandle stopped = runIfStopped(task);
+        if (stopped != null) return stopped;
         TrackedHandle handle = newHandle(false);
         BukkitTask bukkitTask = scheduler.runTask(plugin, once(handle, task));
         bind(handle, bukkitTask::cancel);
@@ -45,6 +47,8 @@ public final class BukkitTaskScheduler extends AbstractTaskScheduler {
 
     @Override
     public @NotNull TaskHandle runLater(long delayTicks, @NotNull Runnable task) {
+        TaskHandle stopped = runIfStopped(task);
+        if (stopped != null) return stopped;
         TrackedHandle handle = newHandle(false);
         BukkitTask bukkitTask = scheduler.runTaskLater(plugin, once(handle, task), normalizeTicks(delayTicks));
         bind(handle, bukkitTask::cancel);
@@ -53,6 +57,8 @@ public final class BukkitTaskScheduler extends AbstractTaskScheduler {
 
     @Override
     public @NotNull TaskHandle runTimer(long delayTicks, long periodTicks, @NotNull Runnable task) {
+        TaskHandle dropped = dropIfStopped();
+        if (dropped != null) return dropped;
         TrackedHandle handle = newHandle(true);
         BukkitTask bukkitTask = scheduler.runTaskTimer(plugin, repeating(handle, task),
                 normalizeTicks(delayTicks), normalizeTicks(periodTicks));
@@ -75,6 +81,8 @@ public final class BukkitTaskScheduler extends AbstractTaskScheduler {
 
     @Override
     public @NotNull TaskHandle runAsync(@NotNull Runnable task) {
+        TaskHandle stopped = runIfStopped(task);
+        if (stopped != null) return stopped;
         TrackedHandle handle = newHandle(false);
         BukkitTask bukkitTask = scheduler.runTaskAsynchronously(plugin, once(handle, task));
         bind(handle, bukkitTask::cancel);
@@ -83,6 +91,8 @@ public final class BukkitTaskScheduler extends AbstractTaskScheduler {
 
     @Override
     public @NotNull TaskHandle runAsyncLater(long delayTicks, @NotNull Runnable task) {
+        TaskHandle stopped = runIfStopped(task);
+        if (stopped != null) return stopped;
         TrackedHandle handle = newHandle(false);
         BukkitTask bukkitTask = scheduler.runTaskLaterAsynchronously(plugin, once(handle, task),
                 normalizeTicks(delayTicks));
@@ -92,6 +102,8 @@ public final class BukkitTaskScheduler extends AbstractTaskScheduler {
 
     @Override
     public @NotNull TaskHandle runAsyncTimer(long delayTicks, long periodTicks, @NotNull Runnable task) {
+        TaskHandle dropped = dropIfStopped();
+        if (dropped != null) return dropped;
         TrackedHandle handle = newHandle(true);
         BukkitTask bukkitTask = scheduler.runTaskTimerAsynchronously(plugin, repeating(handle, task),
                 normalizeTicks(delayTicks), normalizeTicks(periodTicks));
@@ -126,6 +138,8 @@ public final class BukkitTaskScheduler extends AbstractTaskScheduler {
     @Override
     public @NotNull TaskHandle runAtEntityTimer(@NotNull Entity entity, long delayTicks, long periodTicks,
                                                 @NotNull Runnable task) {
+        TaskHandle dropped = dropIfStopped();
+        if (dropped != null) return dropped;
         // Folia stops an entity timer once the entity is gone; mirror that here so
         // behaviour matches on both platforms.
         TrackedHandle handle = newHandle(true);

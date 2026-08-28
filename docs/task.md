@@ -64,6 +64,11 @@ correctly costs nothing.
 - Exception isolation: a task that throws does not kill the scheduler.
 - Tick normalization (delay 0 means "next tick").
 - Entity timers stop on their own when the entity is gone.
+- Scheduling from a plugin that is already disabled, which the server's own
+  scheduler answers by throwing. A one-shot (including `runAsync`) runs inline,
+  on the thread that asked, so a save or a cleanup issued from `onDisable`
+  still happens; a timer is dropped and the handle comes back cancelled, since
+  there is no later left for it to run in.
 
 ## Source and tests
 

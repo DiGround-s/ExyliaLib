@@ -6,6 +6,7 @@ import org.bukkit.Location;
 import org.bukkit.entity.Entity;
 import org.bukkit.plugin.Plugin;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.Collections;
 import java.util.Set;
@@ -129,6 +130,49 @@ public abstract class AbstractTaskScheduler implements TaskScheduler {
                 handle.cancel();
             }
         };
+    }
+
+    /**
+     * What a stopped plugin gets instead of an exception, for one-shot work.
+     *
+     * <p>A plugin's scheduler refuses work from the moment the plugin is
+     * disabled, and refuses it by throwing. That is the wrong answer for the
+     * only situation where it happens in practice: shutdown, where a plugin is
+     * flushing player data, releasing its regions or sending everybody home.
+     * The work was asked for, the server is still standing, and the caller has
+     * no other thread to put it on, so it runs here and now on the thread that
+     * asked.
+     *
+     * @param task the work
+     * @return a finished handle, or {@code null} while the plugin is enabled
+     *         and the caller should schedule the normal way
+     */
+    protected final @Nullable TaskHandle runIfStopped(@NotNull Runnable task) {
+        if (plugin.isEnabled()) {
+            return null;
+        }
+        TrackedHandle handle = newHandle(false);
+        once(handle, task).run();
+        return handle;
+    }
+
+    /**
+     * What a stopped plugin gets instead of an exception, for repeating work.
+     *
+     * <p>A timer cannot be honoured inline the way a one-shot can: there is no
+     * later left for it to run in. It is dropped, and the caller is handed a
+     * handle that already reports itself cancelled rather than an exception
+     * thrown out of a shutdown path.
+     *
+     * @return a cancelled handle, or {@code null} while the plugin is enabled
+     */
+    protected final @Nullable TaskHandle dropIfStopped() {
+        if (plugin.isEnabled()) {
+            return null;
+        }
+        TrackedHandle handle = newHandle(true);
+        handle.cancel();
+        return handle;
     }
 
     private void report(Throwable throwable) {
