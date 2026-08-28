@@ -27,6 +27,16 @@ import java.util.Objects;
  */
 public final class FormKey<T> {
 
+    /**
+     * What a dialog will accept as a field name.
+     *
+     * <p>The client validates the key of every input it is sent, and rejects
+     * anything outside letters, digits and underscores. A hyphen reads fine in
+     * a config file and is fatal here.
+     */
+    private static final java.util.regex.Pattern VALID =
+            java.util.regex.Pattern.compile("[a-zA-Z0-9_]+");
+
     private final String name;
     private final Class<T> type;
 
@@ -46,6 +56,17 @@ public final class FormKey<T> {
     public static <T> @NotNull FormKey<T> of(@NotNull String name, @NotNull Class<T> type) {
         if (name.isBlank()) {
             throw new InputException("A form key needs a name.");
+        }
+        if (!VALID.matcher(name).matches()) {
+            // Refused here rather than at the client. A dialog input carries
+            // its key over the wire, the client validates it, and a key it
+            // will not accept fails the decode of the whole packet — which
+            // does not drop one field, it disconnects the player looking at
+            // the form. Better to fail where the name is written.
+            throw new InputException("A form key may only hold letters, digits and"
+                    + " underscores, because a dialog sends it to the client as a"
+                    + " field name: \"" + name + "\" cannot be one. Try \""
+                    + name.replaceAll("[^a-zA-Z0-9_]", "_") + "\".");
         }
         return new FormKey<>(name, type);
     }

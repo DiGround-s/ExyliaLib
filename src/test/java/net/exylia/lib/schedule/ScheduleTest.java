@@ -190,6 +190,17 @@ class ScheduleTest {
     }
 
     @Test
+    @DisplayName("every field the editor asks for can be sent to a client")
+    void editorFieldsAreSendable() throws Exception {
+        // The descriptor holds its form keys as static finals, so loading the
+        // class builds all of them. Two of them used to be "min-players" and
+        // "max-players", which a dialog cannot carry: the client rejected the
+        // input name and failed the decode of the whole packet, disconnecting
+        // whoever opened the schedule editor.
+        Class.forName("net.exylia.lib.schedule.ScheduleDescriptor");
+    }
+
+    @Test
     @DisplayName("a duration is written the way it is read")
     void writesDurations() {
         assertEquals("2h30m", Schedule.writeDuration(Duration.ofMinutes(150)));

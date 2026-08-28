@@ -16,6 +16,7 @@ import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -349,14 +350,20 @@ public final class Text {
         Component result = component;
         ClickEvent click = result.clickEvent();
         if (click != null) {
-            String command = click.value();
-            for (Map.Entry<String, String> value : values.entrySet()) {
-                if (command.contains(value.getKey())) {
-                    command = command.replace(value.getKey(), value.getValue());
+            String command = commandOf(click);
+            if (command != null) {
+                String filled = command;
+                for (Map.Entry<String, String> value : values.entrySet()) {
+                    if (filled.contains(value.getKey())) {
+                        filled = filled.replace(value.getKey(), value.getValue());
+                    }
                 }
-            }
-            if (!command.equals(click.value())) {
-                result = result.clickEvent(ClickEvent.clickEvent(click.action(), command));
+                if (!filled.equals(command)) {
+                    ClickEvent rebuilt = clickWith(click.action(), filled);
+                    if (rebuilt != null) {
+                        result = result.clickEvent(rebuilt);
+                    }
+                }
             }
         }
         List<Component> children = result.children();
@@ -368,6 +375,71 @@ public final class Text {
             filled.add(fillClicks(child, values));
         }
         return result.children(filled);
+    }
+
+
+    /**
+     * The command or link a click carries, on either Adventure.
+     *
+     * <p>Adventure 5 replaced {@code ClickEvent.value()} with a payload, and a
+     * server running it threw {@code NoSuchMethodError} out of every message
+     * with a click in it. Read reflectively rather than compiled against one of
+     * the two, because the same jar runs on both.
+     *
+     * @param click the click
+     * @return what it carries, or {@code null} when it is not text
+     */
+    private static @Nullable String commandOf(ClickEvent click) {
+        try {
+            // Adventure 5: payload().value(), on the Payload.Text interface —
+            // looked up there rather than on the implementation, which is not
+            // a class this module is allowed to call into.
+            Object payload = ClickEvent.class.getMethod("payload").invoke(click);
+            return payload == null ? null : textOf(payload);
+        } catch (NoSuchMethodException adventureFour) {
+            try {
+                return (String) ClickEvent.class.getMethod("value").invoke(click);
+            } catch (ReflectiveOperationException | ClassCastException unreadable) {
+                return null;
+            }
+        } catch (ReflectiveOperationException unreadable) {
+            return null;
+        }
+    }
+
+    /** A payload's string, when it has one. */
+    private static @Nullable String textOf(Object payload) {
+        for (Class<?> type : payload.getClass().getInterfaces()) {
+            try {
+                Object value = type.getMethod("value").invoke(payload);
+                if (value instanceof String text) {
+                    return text;
+                }
+            } catch (ReflectiveOperationException notThisOne) {
+                // The next interface, or none of them.
+            }
+        }
+        return null;
+    }
+
+    /**
+     * The same click, carrying something else.
+     *
+     * <p>Built through the per-action factories rather than
+     * {@code ClickEvent.clickEvent(action, String)}, which Adventure 5 replaced
+     * with a payload overload: these five kept their signature across both.
+     *
+     * @param action what the click does
+     * @param value  what it should carry
+     * @return the click, or {@code null} for an action that carries no text
+     */
+    private static @Nullable ClickEvent clickWith(ClickEvent.Action action, String value) {
+        if (action == ClickEvent.Action.RUN_COMMAND) return ClickEvent.runCommand(value);
+        if (action == ClickEvent.Action.SUGGEST_COMMAND) return ClickEvent.suggestCommand(value);
+        if (action == ClickEvent.Action.OPEN_URL) return ClickEvent.openUrl(value);
+        if (action == ClickEvent.Action.OPEN_FILE) return ClickEvent.openFile(value);
+        if (action == ClickEvent.Action.COPY_TO_CLIPBOARD) return ClickEvent.copyToClipboard(value);
+        return null;
     }
 
     /** Parses a trusted value, honouring its formatting. */
