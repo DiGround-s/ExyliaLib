@@ -7,6 +7,7 @@ import org.jetbrains.annotations.Nullable;
 
 import java.math.BigDecimal;
 import java.sql.Connection;
+import java.sql.DatabaseMetaData;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -18,6 +19,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Consumer;
+import java.util.logging.Logger;
 
 /**
  * One connection pool and everything that runs statements through it.
@@ -67,6 +69,9 @@ public final class SqlBackend implements AutoCloseable {
      * somebody is still looking at the console.
      */
     private static final long CONNECTION_TIMEOUT_MILLIS = 5_000L;
+
+    /** Where a configured engine that is not the served one is reported. */
+    private static final Logger LOGGER = Logger.getLogger("ExyliaLib");
 
     private final Dialect dialect;
     private final SqlSchema schema;
@@ -142,7 +147,8 @@ public final class SqlBackend implements AutoCloseable {
         config.setAutoCommit(true);
 
         try {
-            return new SqlBackend(dialect, new HikariDataSource(config));
+            HikariDataSource pool = new HikariDataSource(config);
+            return new SqlBackend(asServed(dialect, pool), pool);
         } catch (RuntimeException failure) {
             // Hikari opens its first connection eagerly, so a wrong password or
             // an unreachable host arrives here rather than on the first query.
@@ -150,6 +156,73 @@ public final class SqlBackend implements AutoCloseable {
             throw new IllegalStateException("Could not open a " + dialect.id()
                     + " pool for " + settings, failure);
         }
+    }
+
+    /**
+     * The dialect the server on the other end actually speaks.
+     *
+     * <p>The configured {@code engine} names a driver and a URL, and an operator
+     * writes {@code mysql} for a MariaDB server as often as not — the wire
+     * protocol is compatible, connector-j connects, and every read works. What
+     * does not work is one statement: MariaDB cannot <em>parse</em> MySQL
+     * 8.0.20's {@code INSERT ... AS new} row alias, so every {@code saveAll}
+     * fails with a syntax error at the first write, hours after the start that
+     * would have been the place to notice.
+     *
+     * <p>So the pool is asked what it connected to. Only the SQL is switched;
+     * the connection stays exactly as configured, driver and URL parameters
+     * included, because those are connector-j's and are already working.
+     *
+     * <p>Both directions, and only between these two: {@code mariadb} pointed at
+     * a real MySQL 8 would emit the deprecated {@code VALUES(col)} on every
+     * write, which is a log file a day rather than an outage, but it is the same
+     * mistake and the same fix.
+     */
+    private static Dialect asServed(Dialect dialect, HikariDataSource pool) {
+        if (dialect != MySQLDialect.INSTANCE && dialect != MariaDBDialect.INSTANCE) {
+            return dialect;
+        }
+        try (Connection connection = pool.getConnection()) {
+            DatabaseMetaData server = connection.getMetaData();
+            Dialect served = served(dialect, server.getDatabaseProductName() + " "
+                    + server.getDatabaseProductVersion());
+            if (served != dialect) {
+                LOGGER.warning("The database is configured as " + dialect.id()
+                        + " but the server reports itself as "
+                        + server.getDatabaseProductVersion()
+                        + ". Writing " + served.id() + " SQL instead, because the two"
+                        + " engines do not share the syntax of an upsert. The connection"
+                        + " itself is unchanged; set engine to " + served.id()
+                        + " to remove this notice.");
+            }
+            return served;
+        } catch (SQLException unreachable) {
+            // Answering "no" here would swap a working dialect for a guess. The
+            // pool has already opened a connection by this point, so this is a
+            // server that went away in between, and the next query reports it.
+            return dialect;
+        }
+    }
+
+    /**
+     * The dialect a server banner calls for, given the configured one.
+     *
+     * <p>Split from {@link #asServed} so the decision is testable without a
+     * server of each engine to point at.
+     *
+     * @param dialect the configured dialect, already known to be one of the two
+     * @param banner  the product name and version the driver reports
+     */
+    static Dialect served(Dialect dialect, String banner) {
+        if (dialect != MySQLDialect.INSTANCE && dialect != MariaDBDialect.INSTANCE) {
+            return dialect;
+        }
+        // The product name is the driver's word, not the server's: connector-j
+        // says "MySQL" whatever it is talking to. The version banner is the
+        // server's own and carries the fork's name.
+        return banner.toLowerCase(java.util.Locale.ROOT).contains("mariadb")
+                ? MariaDBDialect.INSTANCE
+                : MySQLDialect.INSTANCE;
     }
 
     /** The dialect this backend speaks. */
