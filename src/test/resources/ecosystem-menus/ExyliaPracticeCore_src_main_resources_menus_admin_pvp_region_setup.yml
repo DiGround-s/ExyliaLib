@@ -1,5 +1,5 @@
 title: "{primary}&lPVP REGION: %pvp_id%"
-size: 54
+size: 45
 type: SIMPLE
 refresh:
   mode: ON_CLICK
@@ -29,7 +29,7 @@ items:
       - "practice:pvp_edit_name"
 
   kit:
-    slot: 20
+    slot: 22
     material: "%kit_material%"
     name: "%kit_color%&lKIT"
     lore:
@@ -46,7 +46,7 @@ items:
       - "right: practice:pvp_clear_kit"
 
   region:
-    slot: 19
+    slot: 21
     material: "%region_material%"
     name: "%region_color%&lPVP REGION"
     lore:
@@ -74,7 +74,7 @@ items:
       - "practice:pvp_toggle_enabled"
 
   combat-tag:
-    slot: 21
+    slot: 23
     material: CLOCK
     name: "{highlight}&lCOMBAT TAG"
     lore:
@@ -94,7 +94,7 @@ items:
       - "shift_right: practice:pvp_adjust_combat_tag -5"
 
   flag-build:
-    slot: 28
+    slot: 29
     material: "%build_material%"
     name: "%build_color%&lFLAG: BUILD"
     lore:
@@ -108,7 +108,7 @@ items:
       - "practice:pvp_toggle_build"
 
   flag-break:
-    slot: 29
+    slot: 30
     material: "%break_material%"
     name: "%break_color%&lFLAG: BREAK"
     lore:
@@ -122,7 +122,7 @@ items:
       - "practice:pvp_toggle_break"
 
   flag-drop:
-    slot: 30
+    slot: 31
     material: "%drop_material%"
     name: "%drop_color%&lFLAG: DROP ITEMS"
     lore:
@@ -136,7 +136,7 @@ items:
       - "practice:pvp_toggle_drop"
 
   flag-regen:
-    slot: 31
+    slot: 32
     material: "%regen_material%"
     name: "%regen_color%&lFLAG: NATURAL REGEN"
     lore:
@@ -150,7 +150,7 @@ items:
       - "practice:pvp_toggle_regen"
 
   flag-hunger:
-    slot: 32
+    slot: 33
     material: "%hunger_material%"
     name: "%hunger_color%&lFLAG: HUNGER"
     lore:
@@ -164,7 +164,7 @@ items:
       - "practice:pvp_toggle_hunger"
 
   delete:
-    slot: 53
+    slot: 44
     material: 'basehead-eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvYmUwZmQxMDE5OWU4ZTRmY2RhYmNhZTRmODVjODU5MTgxMjdhN2M1NTUzYWQyMzVmMDFjNTZkMThiYjk0NzBkMyJ9fX0='
     name: "{error}&lDELETE"
     lore:
@@ -176,7 +176,7 @@ items:
       - "practice:pvp_confirm_delete %pvp_id%"
 
   back:
-    slot: 49
+    slot: 40
     material: 'basehead-eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvMjIzZmI2NzQyOTcxNmIyMWJjNmU4ZTdkNjY5Y2VkZGY2NWIxM2UwNzkwYTVjZTU1YjJlMDc3YjgyZDE5ZTEyNCJ9fX0='
     name: '{error}&lBACK'
     lore:

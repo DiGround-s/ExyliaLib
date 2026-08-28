@@ -46,8 +46,8 @@ items:
       - ""
 
   import:
-    slot: 45
-    material: HOPPER
+    slot: 46
+    material: SHULKER_BOX
     name: "{success}&lIMPORT MY INVENTORY"
     lore:
       - ""
@@ -88,7 +88,7 @@ items:
       - "survivalcore:kit_admin_cancel_items"
 
   save:
-    slot: 46
+    slot: 45
     material: EMERALD
     name: "{success}&lSAVE & BACK"
     lore:

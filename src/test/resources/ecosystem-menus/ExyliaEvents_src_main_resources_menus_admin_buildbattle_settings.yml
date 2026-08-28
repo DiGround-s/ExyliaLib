@@ -5,7 +5,7 @@
 # ╚══════════════════════════════════════════════════════════════════╝
 
 title: "{primary}&lBUILD BATTLE SETTINGS"
-size: 54
+size: 27
 type: SIMPLE
 refresh:
   mode: ON_CLICK
@@ -23,7 +23,7 @@ filler:
 
 items:
   theme-vote-duration:
-    slot: 19
+    slot: 2
     material: BOOK
     name: "{info}&lTHEME VOTE TIME"
     lore:
@@ -40,7 +40,7 @@ items:
       - "shift_left: events:input_setting theme-vote-duration"
 
   theme-options:
-    slot: 20
+    slot: 3
     material: WRITABLE_BOOK
     name: "{info}&lTHEMES PER VOTE"
     lore:
@@ -57,7 +57,7 @@ items:
       - "shift_left: events:input_setting theme-options"
 
   build-duration:
-    slot: 21
+    slot: 4
     material: CLOCK
     name: "{info}&lBUILD DURATION"
     lore:
@@ -74,7 +74,7 @@ items:
       - "shift_left: events:input_setting build-duration"
 
   vote-duration-per-plot:
-    slot: 22
+    slot: 5
     material: PAPER
     name: "{info}&lVOTE TIME PER PLOT"
     lore:
@@ -91,7 +91,7 @@ items:
       - "shift_left: events:input_setting vote-duration-per-plot"
 
   results-duration:
-    slot: 23
+    slot: 6
     material: NETHER_STAR
     name: "{info}&lRESULTS DURATION"
     lore:
@@ -108,7 +108,7 @@ items:
       - "shift_left: events:input_setting results-duration"
 
   restore-themes:
-    slot: 24
+    slot: 7
     material: ENCHANTED_BOOK
     name: "{warning}&lRESTORE DEFAULT THEMES"
     lore:
@@ -126,7 +126,7 @@ items:
       - "events:restore_buildbattle_themes"
 
   back:
-    slot: 49
+    slot: 22
     material: 'basehead-eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvMjIzZmI2NzQyOTcxNmIyMWJjNmU4ZTdkNjY5Y2VkZGY2NWIxM2UwNzkwYTVjZTU1YjJlMDc3YjgyZDE5ZTEyNCJ9fX0='
     name: '{error}&lBACK'
     lore:

@@ -53,7 +53,7 @@ items:
       - "practice:toggle_arena_enabled"
 
   spawn1:
-    slot: 19
+    slot: 21
     material: "%spawn1_material%"
     name: "%spawn1_color%&lSPAWN 1"
     lore:
@@ -67,7 +67,7 @@ items:
       - "right: practice:tp_spawn spawn1"
 
   spawn2:
-    slot: 20
+    slot: 22
     material: "%spawn2_material%"
     name: "%spawn2_color%&lSPAWN 2"
     lore:
@@ -81,7 +81,7 @@ items:
       - "right: practice:tp_spawn spawn2"
 
   spectator-spawn:
-    slot: 21
+    slot: 23
     material: "%spectator_material%"
     name: "%spectator_color%&lSPECTATOR SPAWN"
     lore:
@@ -95,7 +95,7 @@ items:
       - "right: practice:tp_spawn spectator"
 
   partyffa-spawn:
-    slot: 22
+    slot: 24
     material: "%partyffa_material%"
     name: "%partyffa_color%&lPARTY FFA SPAWN"
     lore:
@@ -168,7 +168,7 @@ items:
       - "practice:open_extra_regions_list"
 
   kits:
-    slot: 37
+    slot: 39
     material: BOOK
     name: "{info}&lKITS"
     lore:
@@ -218,8 +218,8 @@ items:
       - "shift_right: practice:adjust_extra_region_protection_radius -5"
 
   priority:
-    slot: 38
-    material: HOPPER
+    slot: 40
+    material: LADDER
     name: "{info}&lPRIORITY"
     lore:
       - ""
@@ -236,7 +236,7 @@ items:
       - "shift_right: practice:adjust_priority -10"
 
   view-clones:
-    slot: 40
+    slot: 42
     material: ENDER_EYE
     name: "{info}&lVIEW CLONES"
     lore:

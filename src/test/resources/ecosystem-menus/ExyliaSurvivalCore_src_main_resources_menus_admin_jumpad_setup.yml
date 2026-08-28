@@ -4,7 +4,7 @@
 # disk after that is what you left here. Reload the plugin to apply an edit.
 
 title: "{primary}&lJUMPAD {muted}— {highlight}%jumpad_id%"
-size: 54
+size: 27
 type: SIMPLE
 refresh:
   mode: ON_CLICK
@@ -22,7 +22,7 @@ filler:
 
 items:
   direction:
-    slot: 21
+    slot: 12
     material: COMPASS
     name: "{highlight}&lLAUNCH DIRECTION"
     lore:
@@ -34,7 +34,7 @@ items:
       - "survivalcore:jumpad_set_yaw"
 
   direction-mode:
-    slot: 22
+    slot: 13
     material: "%direction_mode_material%"
     name: "%direction_mode_color%&lDIRECTION MODE"
     lore:
@@ -60,7 +60,7 @@ items:
       - "survivalcore:jumpad_toggle_enabled"
 
   power:
-    slot: 19
+    slot: 10
     material: SLIME_BALL
     name: "{highlight}&lHORIZONTAL POWER"
     lore:
@@ -78,8 +78,8 @@ items:
       - "shift_right: survivalcore:jumpad_adjust_power -0.5"
 
   vertical-power:
-    slot: 20
-    material: FEATHER
+    slot: 11
+    material: PHANTOM_MEMBRANE
     name: "{highlight}&lVERTICAL POWER"
     lore:
       - ""
@@ -96,7 +96,7 @@ items:
       - "shift_right: survivalcore:jumpad_adjust_vertical -0.5"
 
   locations:
-    slot: 25
+    slot: 16
     material: LODESTONE
     name: "{highlight}&lTRIGGER LOCATIONS"
     lore:
@@ -108,7 +108,7 @@ items:
       - "survivalcore:jumpad_open_locations"
 
   glide:
-    slot: 23
+    slot: 14
     material: "%glide_material%"
     name: "%glide_color%&lGLIDE"
     lore:
@@ -121,7 +121,7 @@ items:
       - "survivalcore:jumpad_toggle_glide"
 
   delete:
-    slot: 53
+    slot: 26
     material: 'basehead-eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvYmUwZmQxMDE5OWU4ZTRmY2RhYmNhZTRmODVjODU5MTgxMjdhN2M1NTUzYWQyMzVmMDFjNTZkMThiYjk0NzBkMyJ9fX0='
     name: "{error}&lDELETE JUMPAD"
     lore:
@@ -131,7 +131,7 @@ items:
       - "survivalcore:jumpad_delete %jumpad_id%"
 
   back:
-    slot: 49
+    slot: 22
     material: 'basehead-eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvMjIzZmI2NzQyOTcxNmIyMWJjNmU4ZTdkNjY5Y2VkZGY2NWIxM2UwNzkwYTVjZTU1YjJlMDc3YjgyZDE5ZTEyNCJ9fX0='
     name: '{error}&lBACK'
     lore:

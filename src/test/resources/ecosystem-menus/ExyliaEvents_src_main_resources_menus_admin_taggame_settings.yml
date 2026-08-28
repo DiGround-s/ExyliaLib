@@ -5,7 +5,7 @@
 # ╚══════════════════════════════════════════════════════════════════╝
 
 title: "{primary}&lTAG GAME SETTINGS"
-size: 54
+size: 36
 type: SIMPLE
 refresh:
   mode: ON_CLICK
@@ -23,7 +23,7 @@ filler:
 
 items:
   round-duration:
-    slot: 19
+    slot: 1
     material: TNT
     name: "{warning}&lROUND DURATION"
     lore:
@@ -41,7 +41,7 @@ items:
       - "shift_left: events:input_setting round-duration"
 
   tagged-percentage:
-    slot: 20
+    slot: 2
     material: GLOWSTONE_DUST
     name: "{warning}&lTNT PERCENTAGE"
     lore:
@@ -60,8 +60,8 @@ items:
       - "shift_left: events:input_setting tagged-percentage"
 
   transfer-cooldown:
-    slot: 21
-    material: HOPPER
+    slot: 3
+    material: CLOCK
     name: "{info}&lTRANSFER COOLDOWN"
     lore:
       - ""
@@ -75,7 +75,7 @@ items:
       - "events:input_double_setting transfer-cooldown"
 
   glow-effect:
-    slot: 29
+    slot: 12
     material: "%glow_effect_material%"
     name: "%glow_effect_color%&lGLOW EFFECT"
     lore:
@@ -89,7 +89,7 @@ items:
       - "events:toggle_taggame_setting glow-effect"
 
   normal-speed:
-    slot: 28
+    slot: 11
     material: SUGAR
     name: "{info}&lNORMAL SPEED"
     lore:
@@ -106,7 +106,7 @@ items:
       - "right: events:adjust_setting normal-player-speed -1"
 
   tnt-speed:
-    slot: 25
+    slot: 7
     material: BLAZE_POWDER
     name: "{info}&lTNT SPEED"
     lore:
@@ -123,7 +123,7 @@ items:
       - "right: events:adjust_setting tnt-player-speed -1"
 
   tnt-item:
-    slot: 24
+    slot: 6
     material: "%tnt_item%"
     name: "{warning}&lTNT ITEM"
     lore:
@@ -138,7 +138,7 @@ items:
       - "events:set_tnt_item"
 
   temporary-blocks:
-    slot: 31
+    slot: 14
     material: "%temporary_blocks_material%"
     name: "%temporary_blocks_color%&lTEMPORARY BLOCKS"
     lore:
@@ -153,7 +153,7 @@ items:
       - "events:toggle_taggame_setting temporary-blocks"
 
   temporary-blocks-seconds:
-    slot: 32
+    slot: 15
     material: CLOCK
     name: "{warning}&lBLOCK TIMER"
     lore:
@@ -172,7 +172,7 @@ items:
       - "shift_left: events:input_setting temporary-blocks-seconds"
 
   re-give-blocks:
-    slot: 33
+    slot: 16
     material: "%re_give_blocks_material%"
     name: "%re_give_blocks_color%&lRETURN BLOCKS"
     lore:
@@ -187,7 +187,7 @@ items:
       - "events:toggle_taggame_setting re-give-blocks"
 
   enderpearl-regive:
-    slot: 37
+    slot: 21
     material: ENDER_EYE
     name: "{warning}&lREGIVE ENDERPEARLS"
     lore:
@@ -206,7 +206,7 @@ items:
       - "shift_left: events:input_setting enderpearl-regive-seconds"
 
   enderpearl-throw-cooldown:
-    slot: 38
+    slot: 22
     material: CLOCK
     name: "{info}&lPEARL THROW COOLDOWN"
     lore:
@@ -225,7 +225,7 @@ items:
       - "shift_left: events:input_setting enderpearl-throw-cooldown"
 
   respawn-after-round:
-    slot: 22
+    slot: 4
     material: ENDER_PEARL
     name: "{info}&lTP SPAWN FROM ROUND"
     lore:
@@ -245,7 +245,7 @@ items:
       - "shift_left: events:input_setting respawn-at-spawn-after-round"
 
   back:
-    slot: 49
+    slot: 31
     material: 'basehead-eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvMjIzZmI2NzQyOTcxNmIyMWJjNmU4ZTdkNjY5Y2VkZGY2NWIxM2UwNzkwYTVjZTU1YjJlMDc3YjgyZDE5ZTEyNCJ9fX0='
     name: '{error}&lBACK'
     lore:

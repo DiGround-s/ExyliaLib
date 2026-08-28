@@ -218,7 +218,7 @@ items:
       - "events:open_kit_list"
 
   type-settings:
-    slot: 37
+    slot: 38
     material: COMPARATOR
     name: "{secondary}&lTYPE SETTINGS"
     lore:
@@ -231,7 +231,7 @@ items:
       - "events:open_type_settings"
 
   winner-rewards:
-    slot: 40
+    slot: 41
     material: DIAMOND
     name: "{success}&lWINNER REWARDS"
     lore:
@@ -244,7 +244,7 @@ items:
       - "events:open_winner_rewards"
 
   participant-rewards:
-    slot: 41
+    slot: 42
     material: COAL
     name: "{info}&lPARTICIPANT REWARDS"
     lore:
@@ -257,7 +257,7 @@ items:
       - "events:open_participant_rewards"
 
   schedules:
-    slot: 38
+    slot: 39
     material: CLOCK
     name: "{warning}&lSCHEDULES"
     lore:

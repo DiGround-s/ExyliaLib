@@ -19,6 +19,6 @@ items:
   save:
     material: EMERALD
     name: "{success}&lSave"
-    slot: 49
+    slot: 45
     actions:
       - "close"

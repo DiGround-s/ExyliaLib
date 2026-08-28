@@ -5,7 +5,7 @@
 # ╚══════════════════════════════════════════════════════════════════╝
 
 title: "{primary}&lSNIPER SETTINGS"
-size: 54
+size: 45
 type: SIMPLE
 refresh:
   mode: ON_CLICK
@@ -144,7 +144,7 @@ items:
       - "shift_left: events:input_csgo_weapon_double weapon-sniper-spread-crouch-moving"
 
   spread-stand-still:
-    slot: 28
+    slot: 30
     material: DIAMOND_BOOTS
     name: "{info}&lSPREAD {muted}(Standing, Still)"
     lore:
@@ -160,7 +160,7 @@ items:
       - "shift_left: events:input_csgo_weapon_double weapon-sniper-spread-stand-still"
 
   spread-stand-moving:
-    slot: 29
+    slot: 31
     material: NETHERITE_BOOTS
     name: "{info}&lSPREAD {muted}(Standing, Moving)"
     lore:
@@ -176,7 +176,7 @@ items:
       - "shift_left: events:input_csgo_weapon_double weapon-sniper-spread-stand-moving"
 
   spread-airborne:
-    slot: 30
+    slot: 32
     material: ELYTRA
     name: "{info}&lSPREAD {muted}(Airborne)"
     lore:
@@ -192,7 +192,7 @@ items:
       - "shift_left: events:input_csgo_weapon_double weapon-sniper-spread-airborne"
 
   back:
-    slot: 49
+    slot: 40
     material: 'basehead-eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvMjIzZmI2NzQyOTcxNmIyMWJjNmU4ZTdkNjY5Y2VkZGY2NWIxM2UwNzkwYTVjZTU1YjJlMDc3YjgyZDE5ZTEyNCJ9fX0='
     name: '{error}&lBACK'
     lore:

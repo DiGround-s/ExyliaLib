@@ -45,7 +45,6 @@ pagination:
       - " {letters_black}▎ {letters}Players: {info}%world_players%"
       - " {letters_black}▎ {letters}Biome: {info}%world_biome%"
       - " {letters_black}▎ {letters}Border: {info}%world_border%"
-      - " {letters_black}▎ {letters}Folder: {info}%world_folder%"
       - ""
       - " {letters_black}▎ {success}Left-click to configure"
       - " {letters_black}▎ {warning}Right-click to teleport"
@@ -100,7 +99,7 @@ items:
 
   import:
     slot: 46
-    material: NETHER_STAR
+    material: SHULKER_BOX
     name: "{warning}&lIMPORT WORLD"
     lore:
       - ""

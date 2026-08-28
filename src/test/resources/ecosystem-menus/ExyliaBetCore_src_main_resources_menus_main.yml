@@ -4,69 +4,185 @@
 # this file. %placeholders% are filled in by the plugin.
 
 title: '{primary}&lBETS'
-size: 45
+size: 36
 type: PAGINATION
+animation: 'center_out'
 
 open_sounds:
-  - 'BLOCK_BARREL_OPEN|0.8|1.4'
+  - 'ENTITY_EXPERIENCE_ORB_PICKUP|1.0|1.2'
 click_sounds:
   - 'UI_BUTTON_CLICK|1.0|1.5'
 
 filler:
   global:
-    material: BLACK_STAINED_GLASS_PANE
+    material: GRAY_STAINED_GLASS_PANE
     hide_tooltip: true
 
-items:
-
-  header:
-    slot: 4
-    material: GOLD_INGOT
-    name: '{primary}&lPLAY FOR IT'
-    lore:
-      - ''
-      - '{secondary}Right now:'
-      - ' {letters_black}▎ {letters}Waiting {letters_black}» {info}%waiting_count%'
-      - ' {letters_black}▎ {letters}Being played {letters_black}» {info}%live_count%'
-      - ''
-      - '{warning}➥ Pick a game below'
-      - ''
-    glow: true
-
-  close:
-    slot: 40
-    material: BARRIER
-    name: '{error}&lCLOSE'
-    lore:
-      - ''
-      - '{warning}➥ Click to close'
-      - ''
-    actions:
-      - 'close'
-
-# One row per game that is on. A game the owner turned off is not here at all.
-pagination:
-  slots: '19-25'
-  filler:
+  pagination:
     material: LIGHT_GRAY_STAINED_GLASS_PANE
-    name: '{muted}No games are turned on'
+    name: '{muted}No games available'
     lore:
       - ''
-      - '{letters_black}Ask an admin to enable one in config.yml.'
-      - ''
+      - '{muted}An admin turns them on in config.yml.'
+    hide_tooltip: false
+
+# One card per game that is on. A game the owner turned off is not here at all.
+pagination:
+  slots: '10-16,19-25'
+
   item_template:
     material: '%game_icon%'
     name: '%game_name%'
+    amount: '%waiting_count%'
     lore:
       - ''
-      - '{secondary}About:'
-      - '%game_description%'
+      - ' {muted}❙ {letters}%game_description%'
       - ''
-      - '{secondary}Right now:'
-      - ' {letters_black}▎ {letters}Waiting {letters_black}» {info}%waiting_count%'
-      - ' {letters_black}▎ {letters}Being played {letters_black}» {info}%live_count%'
+      - ' {muted}❙ {letters}Open bets: {highlight}%waiting_count%'
+      - ' {muted}❙ {letters}Being played: {info}%live_count%'
       - ''
-      - '{warning}➥ Click to open'
-      - ''
+      - '{success}▶ Click to open'
     actions:
       - 'left: betcore:open_lobby %game_id%'
+
+  navigation:
+    previous:
+      slot: 30
+      material: 'basehead-eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvZGExZDU1YjNmOTg5NDEwYTM0NzUyNjUwZTI0OGM5YjZjMTc4M2E3ZWMyYWEzZmQ3Nzg3YmRjNGQwZTYzN2QzOSJ9fX0='
+      name: '{error}&l← PREVIOUS PAGE'
+      lore:
+        - '{info}ℹ Current page: {success}%current_page%&8/{error}%total_pages%'
+      actions:
+        - 'previous_page main'
+    next:
+      slot: 32
+      material: 'basehead-eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvZmE4N2UzZDk2ZTFjZmViOWNjZmIzYmE1M2EyMTdmYWY1MjQ5ZTI4NTUzM2IyNzFhMmZiMjg0YzMwZGJkOTgyOSJ9fX0='
+      name: '{success}&lNEXT PAGE →'
+      lore:
+        - '{info}ℹ Current page: {success}%current_page%&8/{error}%total_pages%'
+      actions:
+        - 'next_page main'
+
+items:
+
+  challenges:
+    slot: 27
+    material: PAPER
+    amount: '%challenge_count%'
+    glow: '%has_challenges%'
+    name: '{primary}&lCHALLENGES'
+    lore:
+      - ''
+      - ' {muted}❙ {letters}Bets offered to you by name.'
+      - ''
+      - ' {muted}❙ {letters}Waiting on you: {highlight}%challenge_count%'
+      - ''
+      - '{info}» Click to open'
+    actions:
+      - 'left: betcore:open_invites'
+
+  record:
+    slot: 29
+    material: 'playerhead-%player_name%'
+    name: '{primary}&lYOUR RECORD'
+    lore:
+      - ''
+      - ' {muted}❙ {letters}Everything you have won,'
+      - ' {muted}❙ {letters}lost and staked.'
+      - ''
+      - '{info}» Click to open'
+    actions:
+      - 'left: betcore:open_stats %player_name%'
+
+  leaderboard:
+    slot: 33
+    material: NETHER_STAR
+    name: '{primary}&lLEADERBOARD'
+    lore:
+      - ''
+      - ' {muted}❙ {letters}Who is winning, and who is'
+      - ' {muted}❙ {letters}paying for it.'
+      - ''
+      - '{info}» Click to open'
+    actions:
+      - 'left: betcore:open_leaderboard'
+
+  close:
+    slot: 35
+    material: BARRIER
+    name: '{error}&lCLOSE'
+    lore:
+      - '{muted}Click to close'
+    actions:
+      - 'close'
+
+sections:
+
+  # One slot, four meanings: the match you are in, the one you are watching,
+  # the bet you have up, the queue you are in — or nothing at all, which is why
+  # this is a list and not four buttons stacked on slot 31.
+  status:
+    slots: '31'
+    filler:
+      material: AIR
+      hide_tooltip: true
+
+    item_template:
+      material: ENDER_EYE
+      name: '{success}&lBACK TO YOUR MATCH'
+      glow: true
+      lore:
+        - ''
+        - ' {muted}❙ {letters}Playing: %game_name%'
+        - ' {muted}❙ {letters}Against: {highlight}%opponent_name%'
+        - ' {muted}❙ {letters}Score: {info}%match_score%'
+        - ' {muted}❙ {letters}Pot: {highlight}%match_pot%'
+        - ''
+        - ' {muted}❙ {letters}Your clock {warning}keeps running {letters}while'
+        - ' {muted}❙ {letters}the board is closed.'
+        - ''
+        - '{success}▶ Click to reopen the board'
+      actions:
+        - 'left: betcore:open_board'
+
+    watching_template:
+      material: ENDER_PEARL
+      name: '{info}&lBACK TO THE MATCH'
+      glow: true
+      lore:
+        - ''
+        - ' {muted}❙ {letters}Watching: %game_name%'
+        - ' {muted}❙ {letters}Score: {info}%match_score%'
+        - ' {muted}❙ {letters}Pot: {highlight}%match_pot%'
+        - ''
+        - '{info}» Click to go back to it'
+      actions:
+        - 'left: betcore:open_board'
+
+    waiting_template:
+      material: CLOCK
+      name: '{warning}&lYOUR BET IS UP'
+      glow: true
+      lore:
+        - ''
+        - ' {muted}❙ {letters}Game: %game_name%'
+        - ' {muted}❙ {letters}Pot: {highlight}%match_pot%'
+        - ''
+        - ' {muted}❙ {letters}Nobody has taken it yet.'
+        - ''
+        - '{error}▶ Click to cancel it and take your stake back'
+      actions:
+        - 'left: betcore:cancel_match'
+
+    queueing_template:
+      material: COMPASS
+      name: '{warning}&lYOU ARE IN THE QUEUE'
+      glow: true
+      lore:
+        - ''
+        - ' {muted}❙ {letters}Looking for somebody betting'
+        - ' {muted}❙ {letters}close to your stake.'
+        - ''
+        - '{error}▶ Click to leave the queue'
+      actions:
+        - 'left: betcore:queue_leave'

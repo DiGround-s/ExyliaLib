@@ -217,11 +217,16 @@ public final class Placeholders {
     /**
      * Returns whether a placeholder name is registered.
      *
+     * <p>Either spelling counts: the bare {@code total_players}, or the same
+     * name with its plugin in front, {@code exyliasandbox_total_players}, which
+     * is how a plugin reaches its own registration when another one holds the
+     * bare name.
+     *
      * @param name the name, without percent signs
      * @return {@code true} when something will resolve it
      */
     public static boolean has(@NotNull String name) {
-        return Registry.has(name.toLowerCase(Locale.ROOT));
+        return Registry.known(name.toLowerCase(Locale.ROOT));
     }
 
     /**

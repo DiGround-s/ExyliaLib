@@ -5,7 +5,7 @@
 # ╚══════════════════════════════════════════════════════════════════╝
 
 title: "{primary}&lADMIN FFA"
-size: 54
+size: 45
 type: SIMPLE
 refresh:
   mode: ON_CLICK
@@ -50,7 +50,7 @@ items:
       - " {letters_black}▎ {letters}Players fighting: {highlight}%total_players%"
 
   set-lobby:
-    slot: 29
+    slot: 30
     material: "%lobby_material%"
     name: "%lobby_color%&lLOBBY LOCATION"
     lore:
@@ -62,7 +62,7 @@ items:
       - "ffa:set_lobby"
 
   set-kit-editor:
-    slot: 30
+    slot: 31
     material: "%kit_editor_material%"
     name: "%kit_editor_color%&lKIT EDITOR LOCATION"
     lore:
@@ -74,7 +74,7 @@ items:
       - "ffa:set_kit_editor_location"
 
   data-management:
-    slot: 32
+    slot: 33
     material: COMPARATOR
     name: "{error}&lDATA MANAGEMENT"
     lore:
@@ -87,7 +87,7 @@ items:
       - "ffa:open_admin_data"
 
   reload:
-    slot: 45
+    slot: 36
     material: REDSTONE
     name: "{error}&lRELOAD CONFIGS"
     lore:

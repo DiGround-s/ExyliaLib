@@ -28,7 +28,7 @@ items:
       - " {letters_black}▎ {error}%confirm_line2%"
 
   confirm:
-    slot: 11
+    slot: 13
     material: LIME_WOOL
     name: "{success}&lCONFIRM"
     lore:

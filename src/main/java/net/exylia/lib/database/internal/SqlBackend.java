@@ -20,6 +20,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Consumer;
+import java.util.logging.Logger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -71,6 +72,9 @@ public final class SqlBackend implements AutoCloseable {
      * somebody is still looking at the console.
      */
     private static final long CONNECTION_TIMEOUT_MILLIS = 5_000L;
+
+    /** Where a configured engine that is not the served one is reported. */
+    private static final Logger LOGGER = Logger.getLogger("ExyliaLib");
 
     private final Dialect dialect;
     private final SqlSchema schema;
@@ -175,6 +179,10 @@ public final class SqlBackend implements AutoCloseable {
      * have connected at all. When the probe fails the configured dialect
      * stands, because a metadata call that threw says nothing about the
      * engine, and the first real statement will report the truth anyway.
+     *
+     * <p>Naming the wrong fork is a configuration mistake and is said out loud
+     * once; running a MySQL older than 8.0.20 is not one, and only changes
+     * which of the two upsert forms is written.
      */
     private static Dialect serverDialect(Dialect configured, HikariDataSource pool) {
         if (!(configured instanceof MySQLDialect)) {
@@ -186,13 +194,45 @@ public final class SqlBackend implements AutoCloseable {
             // version of "5.5.5-10.11.6-MariaDB": the fork's own name is only
             // ever in the version string, so both are searched.
             String banner = meta.getDatabaseProductName() + " " + meta.getDatabaseProductVersion();
-            if (banner.toLowerCase(Locale.ROOT).contains("mariadb")) {
-                return MariaDBDialect.INSTANCE;
+            Dialect served = served(configured, banner);
+            if (served != configured) {
+                LOGGER.warning("The database is configured as " + configured.id()
+                        + " but the server reports itself as "
+                        + meta.getDatabaseProductVersion()
+                        + ". Writing " + served.id() + " SQL instead, because the two"
+                        + " engines do not share the syntax of an upsert. The connection"
+                        + " itself is unchanged; set engine to " + served.id()
+                        + " to remove this notice.");
             }
-            return supportsRowAlias(meta) ? MySQLDialect.INSTANCE : MySQLDialect.LEGACY;
+            if (served == MySQLDialect.INSTANCE && !supportsRowAlias(meta)) {
+                return MySQLDialect.LEGACY;
+            }
+            return served;
         } catch (SQLException | RuntimeException unknown) {
             return configured;
         }
+    }
+
+    /**
+     * Which of the two forks a server banner calls for, given the configured one.
+     *
+     * <p>Split from {@link #serverDialect} so the decision is testable without a
+     * server of each engine to point at. It answers the fork only; the version
+     * within a fork is {@link #supportsRowAlias}'s question.
+     *
+     * @param dialect the configured dialect
+     * @param banner  the product name and version the driver reports
+     */
+    static Dialect served(Dialect dialect, String banner) {
+        if (!(dialect instanceof MySQLDialect)) {
+            return dialect;
+        }
+        // The product name is the driver's word, not the server's: connector-j
+        // says "MySQL" whatever it is talking to. The version banner is the
+        // server's own and carries the fork's name.
+        return banner.toLowerCase(Locale.ROOT).contains("mariadb")
+                ? MariaDBDialect.INSTANCE
+                : MySQLDialect.INSTANCE;
     }
 
     /** Whether a MySQL server is 8.0.20 or newer, where the row alias landed. */

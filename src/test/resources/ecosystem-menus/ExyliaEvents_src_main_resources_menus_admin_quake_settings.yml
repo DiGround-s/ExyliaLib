@@ -5,7 +5,7 @@
 # ╚══════════════════════════════════════════════════════════════════╝
 
 title: "{primary}&lQUAKE SETTINGS"
-size: 54
+size: 27
 type: SIMPLE
 refresh:
   mode: ON_CLICK
@@ -23,7 +23,7 @@ filler:
 
 items:
   kills-to-win:
-    slot: 19
+    slot: 1
     material: BLAZE_ROD
     name: "{info}&lFRAGS TO WIN"
     lore:
@@ -39,7 +39,7 @@ items:
       - "shift_left: events:input_setting kills-to-win"
 
   respawn-delay:
-    slot: 20
+    slot: 2
     material: ENDER_PEARL
     name: "{info}&lRESPAWN TIME"
     lore:
@@ -55,7 +55,7 @@ items:
       - "shift_left: events:input_setting respawn-delay"
 
   grace-period:
-    slot: 21
+    slot: 3
     material: CLOCK
     name: "{info}&lGRACE PERIOD"
     lore:
@@ -71,7 +71,7 @@ items:
       - "shift_left: events:input_setting grace-period"
 
   weapon-cooldown:
-    slot: 22
+    slot: 4
     material: BLAZE_POWDER
     name: "{info}&lRAILGUN COOLDOWN"
     lore:
@@ -88,8 +88,8 @@ items:
       - "shift_left: events:input_setting weapon-cooldown"
 
   dash-cooldown:
-    slot: 23
-    material: FEATHER
+    slot: 5
+    material: PHANTOM_MEMBRANE
     name: "{info}&lDASH COOLDOWN"
     lore:
       - ""
@@ -104,7 +104,7 @@ items:
       - "shift_left: events:input_setting dash-cooldown"
 
   dash-power:
-    slot: 24
+    slot: 6
     material: WIND_CHARGE
     name: "{info}&lDASH POWER"
     lore:
@@ -120,7 +120,7 @@ items:
       - "shift_left: events:input_double_setting dash-power"
 
   team-selector:
-    slot: 25
+    slot: 7
     condition: "%has_teams% == true"
     material: "%team_selector_material%"
     name: "%team_selector_color%&lTEAM SELECTOR"
@@ -135,7 +135,7 @@ items:
       - "events:toggle_team_selector_setting team-selector-enabled"
 
   back:
-    slot: 49
+    slot: 22
     material: 'basehead-eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvMjIzZmI2NzQyOTcxNmIyMWJjNmU4ZTdkNjY5Y2VkZGY2NWIxM2UwNzkwYTVjZTU1YjJlMDc3YjgyZDE5ZTEyNCJ9fX0='
     name: '{error}&lBACK'
     lore:

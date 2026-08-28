@@ -5,7 +5,7 @@
 # ╚══════════════════════════════════════════════════════════════════╝
 
 title: "{primary}&lSLAP SETTINGS"
-size: 54
+size: 27
 type: SIMPLE
 refresh:
   mode: ON_CLICK
@@ -38,7 +38,7 @@ items:
       - " {letters_black}▎ {letters}goal wins instantly"
 
   points-to-win:
-    slot: 19
+    slot: 12
     material: DIAMOND
     name: "{info}&lPOINTS TO WIN"
     lore:
@@ -54,7 +54,7 @@ items:
       - "shift_left: events:input_setting points-to-win"
 
   respawn-delay:
-    slot: 20
+    slot: 13
     material: ENDER_PEARL
     name: "{info}&lRESPAWN TIME"
     lore:
@@ -70,7 +70,7 @@ items:
       - "shift_left: events:input_setting respawn-delay"
 
   back:
-    slot: 49
+    slot: 22
     material: 'basehead-eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvMjIzZmI2NzQyOTcxNmIyMWJjNmU4ZTdkNjY5Y2VkZGY2NWIxM2UwNzkwYTVjZTU1YjJlMDc3YjgyZDE5ZTEyNCJ9fX0='
     name: '{error}&lBACK'
     lore:

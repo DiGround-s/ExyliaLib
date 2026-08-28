@@ -4,7 +4,7 @@
 # disk after that is what you left here. Reload the plugin to apply an edit.
 
 title: "{primary}&lAFK ZONE: %zone_id%"
-size: 54
+size: 27
 type: SIMPLE
 refresh:
   mode: ON_CLICK
@@ -22,7 +22,7 @@ filler:
 
 items:
   region:
-    slot: 19
+    slot: 12
     material: "%region_material%"
     name: "%region_color%&lZONE REGION"
     lore:
@@ -50,7 +50,7 @@ items:
       - "survivalcore:afkzone_edit_name"
 
   interval:
-    slot: 21
+    slot: 14
     material: CLOCK
     name: "{highlight}&lREWARD INTERVAL"
     lore:
@@ -78,7 +78,7 @@ items:
       - "survivalcore:afkzone_toggle_enabled"
 
   rewards:
-    slot: 22
+    slot: 15
     material: CHEST
     name: "{highlight}&lREWARDS"
     lore:
@@ -93,7 +93,7 @@ items:
       - "survivalcore:afkzone_open_rewards"
 
   back:
-    slot: 49
+    slot: 22
     material: 'basehead-eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvMjIzZmI2NzQyOTcxNmIyMWJjNmU4ZTdkNjY5Y2VkZGY2NWIxM2UwNzkwYTVjZTU1YjJlMDc3YjgyZDE5ZTEyNCJ9fX0='
     name: '{error}&lBACK'
     lore:
@@ -102,7 +102,7 @@ items:
       - "survivalcore:afkzone_open_list"
 
   delete:
-    slot: 53
+    slot: 26
     material: 'basehead-eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvYmUwZmQxMDE5OWU4ZTRmY2RhYmNhZTRmODVjODU5MTgxMjdhN2M1NTUzYWQyMzVmMDFjNTZkMThiYjk0NzBkMyJ9fX0='
     name: "{error}&lDELETE ZONE"
     lore:

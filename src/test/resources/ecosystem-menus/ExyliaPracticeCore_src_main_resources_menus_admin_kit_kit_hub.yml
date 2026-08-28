@@ -17,7 +17,7 @@ filler:
 
 items:
   categories:
-    slot: 12
+    slot: 3
     material: BOOKSHELF
     name: "{info}&lCATEGORIES"
     lore:
@@ -31,7 +31,7 @@ items:
       - "practice:open_kit_category_list"
 
   all-kits:
-    slot: 14
+    slot: 4
     material: CHEST
     name: "{info}&lALL KITS"
     lore:

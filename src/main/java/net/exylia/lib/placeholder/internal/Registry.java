@@ -45,6 +45,16 @@ public final class Registry {
     /** Keyed by owner and then by name: what one plugin registered, whoever else did. */
     private static final Map<String, Map<String, Entry>> BY_OWNER = new ConcurrentHashMap<>();
 
+    /**
+     * The plugin name behind a lower case one, so text can name its owner.
+     *
+     * <p>{@code BY_OWNER} is keyed by {@link org.bukkit.plugin.Plugin#getName()}
+     * exactly, capitals and all, while a placeholder in a config file is folded
+     * before anything looks at it. This is the bridge between the two, and it is
+     * a map rather than a scan because it is consulted per placeholder.
+     */
+    private static final Map<String, String> OWNER_IDS = new ConcurrentHashMap<>();
+
     /** Names that failed, so a broken resolver is reported once and not per render. */
     private static final Set<String> REPORTED = ConcurrentHashMap.newKeySet();
 
@@ -84,6 +94,7 @@ public final class Registry {
     public static void register(String name, Entry entry) {
         BY_OWNER.computeIfAbsent(entry.owner(), owner -> new ConcurrentHashMap<>())
                 .put(name, entry);
+        OWNER_IDS.put(entry.owner().toLowerCase(java.util.Locale.ROOT), entry.owner());
         Entry previous = ENTRIES.put(name, entry);
         if (previous != null && !previous.owner().equals(entry.owner())
                 && REPORTED_OVERWRITE.add(name)) {
@@ -120,6 +131,7 @@ public final class Registry {
      */
     public static int unregisterAll(String owner) {
         Map<String, Entry> owned = BY_OWNER.remove(owner);
+        OWNER_IDS.remove(owner.toLowerCase(java.util.Locale.ROOT));
         List<String> names = new ArrayList<>();
         ENTRIES.forEach((name, entry) -> {
             if (entry.owner().equals(owner)) {
@@ -151,6 +163,62 @@ public final class Registry {
     /** Returns whether a name is registered. */
     public static boolean has(String name) {
         return ENTRIES.containsKey(name);
+    }
+
+    /**
+     * Returns whether anything answers a name, bare or written with its plugin
+     * in front.
+     *
+     * <p>What the compiler asks while it decides where a name ends and its
+     * arguments begin, so {@code %exyliaffa_stats_top_kills_1%} splits at
+     * {@code stats_top} the way the bare spelling does.
+     */
+    public static boolean known(String name) {
+        return ENTRIES.containsKey(name) || qualified(name) != null;
+    }
+
+    /**
+     * Returns the registration a name means, bare or qualified.
+     *
+     * <p>The bare name first: a plugin that really registered
+     * {@code exyliaffa_something} owns that spelling, whoever else it looks
+     * like.
+     */
+    public static Entry entry(String name) {
+        Entry bare = ENTRIES.get(name);
+        return bare != null ? bare : qualified(name);
+    }
+
+    /**
+     * Returns what a name written with its plugin in front means, or
+     * {@code null}.
+     *
+     * <p>One name can only have one bare owner, so two plugins registering
+     * {@code total_players} leave one of them unreachable from a config file:
+     * PlaceholderAPI can still be asked for {@code %exyliasandbox_total_players%}
+     * because the identifier says who is meant, but that route needs
+     * PlaceholderAPI installed and a viewer to ask about. Reading the same
+     * spelling here makes it an ordinary placeholder — the way a plugin's own
+     * files disambiguate themselves without renaming anything.
+     *
+     * <p>Every underscore is tried as the boundary rather than only the first,
+     * because a plugin name is free to contain one; the loop stops at the first
+     * owner that really registered the rest.
+     */
+    private static Entry qualified(String name) {
+        int split = name.indexOf('_');
+        while (split > 0) {
+            String owner = OWNER_IDS.get(name.substring(0, split));
+            if (owner != null) {
+                Map<String, Entry> owned = BY_OWNER.get(owner);
+                Entry entry = owned == null ? null : owned.get(name.substring(split + 1));
+                if (entry != null) {
+                    return entry;
+                }
+            }
+            split = name.indexOf('_', split + 1);
+        }
+        return null;
     }
 
     /** Returns the entry for a name, or {@code null}. */
@@ -203,7 +271,7 @@ public final class Registry {
     }
 
     /** Runs one registration, reporting a failure once. */
-    private static Object resolve(Entry entry, String name, Request request, Logger logger) {
+    public static Object resolve(Entry entry, String name, Request request, Logger logger) {
         if (entry == null) {
             return null;
         }
@@ -280,6 +348,7 @@ public final class Registry {
     public static void clear() {
         ENTRIES.clear();
         BY_OWNER.clear();
+        OWNER_IDS.clear();
         REPORTED.clear();
         REPORTED_UNKNOWN.clear();
         REPORTED_OVERWRITE.clear();
