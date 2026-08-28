@@ -48,6 +48,17 @@ class EffectConfigTest {
         }
     }
 
+    /** The same, with one effect that actually says something. */
+    record Round(EffectConfig onWin) {
+
+        Round() {
+            this(new EffectConfig(new EffectConfig.Title("{primary}VICTORY", "", 0, 3, 1, 0, "auto"),
+                    new EffectConfig.ActionBar(), new EffectConfig.BossBar(),
+                    new EffectConfig.Sound(), new EffectConfig.Particle(),
+                    new EffectConfig.Firework()));
+        }
+    }
+
     @BeforeEach
     void setUp() {
         FakeServer.install();
@@ -71,14 +82,43 @@ class EffectConfigTest {
     @Test
     @DisplayName("an effect written in YAML is generated with its manual")
     void yamlIsGeneratedWithComments() throws Exception {
-        Configs.define(plugin, "arena", Arena.class).load();
+        Configs.define(plugin, "round", Round.class).load();
 
-        String yaml = Files.readString(new File(folder.toFile(), "arena.yml").toPath());
+        String yaml = Files.readString(new File(folder.toFile(), "round.yml").toPath());
 
         assertTrue(yaml.contains("on-win:"), "sections are named as written in YAML");
         assertTrue(yaml.contains("title:"), "nested records become nested sections");
         assertTrue(yaml.contains("time-style:"), "camel case becomes dashed keys");
         assertTrue(yaml.contains("# "), "an owner needs the comments to know what to change");
+
+        // The part that made these files unreadable: an effect that is one
+        // title also wrote an action bar, a boss bar, a sound, particles and a
+        // firework, every one of them empty and every key of them commented.
+        // Fifteen effects in a plugin's config was a thousand lines of nothing.
+        assertFalse(yaml.contains("firework:"), "a section that does nothing is not written:\n" + yaml);
+        assertFalse(yaml.contains("particle:"), yaml);
+        assertFalse(yaml.contains("boss-bar:"), yaml);
+    }
+
+    @Test
+    @DisplayName("the empty blocks are not written back on the next load either")
+    void omittedSectionsStayOut() throws Exception {
+        Configs.define(plugin, "round", Round.class).load();
+        Configs.release("ArenaPlugin");
+        Configs.define(plugin, "round", Round.class).load();
+
+        String yaml = Files.readString(new File(folder.toFile(), "round.yml").toPath());
+
+        assertFalse(yaml.contains("firework:"),
+                "an omitted section is not a missing key, or it grows back:\n" + yaml);
+    }
+
+    @Test
+    @DisplayName("a title appears the moment it is sent")
+    void titlesDoNotFadeInByDefault() {
+        // A title reacting to something that just happened has to be on screen
+        // when it happens; half a second of it fading up reads as lag.
+        assertEquals(0.0, new EffectConfig.Title().fadeIn());
     }
 
     @Test

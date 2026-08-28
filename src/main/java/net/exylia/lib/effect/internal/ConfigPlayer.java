@@ -34,12 +34,12 @@ final class ConfigPlayer {
         Display handle = null;
 
         EffectConfig.BossBar bossBar = effect.bossBar();
-        if (bossBar != null && !bossBar.text().isEmpty()) {
+        if (bossBar != null && !bossBar.isEmpty()) {
             handle = own(bossBar(bossBar), owner).show(viewer);
         }
 
         EffectConfig.Title title = effect.title();
-        if (title != null && (!title.text().isEmpty() || !title.subtitle().isEmpty())) {
+        if (title != null && !title.isEmpty()) {
             Display shown = own(title(title), owner).show(viewer);
             if (handle == null) {
                 handle = shown;
@@ -47,7 +47,7 @@ final class ConfigPlayer {
         }
 
         EffectConfig.ActionBar actionBar = effect.actionBar();
-        if (actionBar != null && !actionBar.text().isEmpty()) {
+        if (actionBar != null && !actionBar.isEmpty()) {
             Display shown = own(actionBar(actionBar), owner).show(viewer);
             if (handle == null) {
                 handle = shown;
@@ -55,7 +55,7 @@ final class ConfigPlayer {
         }
 
         EffectConfig.Sound sound = effect.sound();
-        if (sound != null && !sound.name().isEmpty()) {
+        if (sound != null && !sound.isEmpty()) {
             new SoundBuilder(sound.name())
                     .volume(sound.volume() > 0 ? sound.volume() : 1)
                     .pitch(sound.pitch() > 0 ? sound.pitch() : 1)
@@ -64,7 +64,7 @@ final class ConfigPlayer {
         }
 
         EffectConfig.Particle particle = effect.particle();
-        if (particle != null && !particle.name().isEmpty()) {
+        if (particle != null && !particle.isEmpty()) {
             new ParticleBuilder(particle.name())
                     .count(particle.count() > 0 ? particle.count() : 1)
                     .spread(particle.spread())
@@ -74,7 +74,7 @@ final class ConfigPlayer {
         }
 
         EffectConfig.Firework firework = effect.firework();
-        if (firework != null && !firework.colours().isEmpty()) {
+        if (firework != null && !firework.isEmpty()) {
             FireworkBuilder builder = new FireworkBuilder().at(viewer.getLocation());
             firework.colours().forEach(builder::colour);
             firework.fades().forEach(builder::fade);

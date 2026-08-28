@@ -1,6 +1,7 @@
 package net.exylia.lib.effect;
 
 import net.exylia.lib.config.Comment;
+import net.exylia.lib.config.Sparse;
 
 import java.util.List;
 
@@ -90,36 +91,36 @@ public record EffectConfig(
      * @param timeStyle how %time% is written
      */
     public record Title(
-            @Comment("The big line, shown large in the middle of the screen.")
             @Comment("Supports colours like {primary} and placeholders like %player_name%.")
             String text,
 
-            @Comment("The smaller line below it.")
             String subtitle,
 
-            @Comment("Seconds to fade in.")
             double fadeIn,
 
-            @Comment("Seconds the title stays fully visible.")
-            @Comment("Set to 0 to keep it on screen until something stops it.")
+            @Comment("Seconds fully visible. 0 keeps it up until something stops it.")
             double stay,
 
-            @Comment("Seconds to fade out.")
             double fadeOut,
 
-            @Comment("Count down for this many seconds, writing the time into %time%.")
-            @Comment("Set to 0 for a title that does not count.")
+            @Comment("Counts down for this many seconds, writing the time into %time%.")
             double countdown,
 
-            @Comment("How %time% is written.")
             @Comment("auto, seconds, tenths, hundredths, clock or full.")
-            String timeStyle) {
+            String timeStyle) implements Sparse {
 
         /** An empty title, which shows nothing. */
         public Title() {
-            // The vanilla timings, so an owner who only writes text gets the
-            // title they expect.
-            this("", "", 0.5, 3.0, 1.0, 0, "auto");
+            // No fade in: a title that has to appear is nearly always one
+            // reacting to something that just happened, and half a second of
+            // it fading up reads as lag rather than as polish.
+            this("", "", 0, 3.0, 1.0, 0, "auto");
+        }
+
+        /** Returns whether neither line says anything. */
+        @Override
+        public boolean isEmpty() {
+            return text.isEmpty() && subtitle.isEmpty();
         }
 
         /** Defaults matching what a plain title looks like. */
@@ -145,22 +146,27 @@ public record EffectConfig(
      * @param timeStyle how %time% is written
      */
     public record ActionBar(
-            @Comment("The text. Supports colours and placeholders.")
+            @Comment("Supports colours and placeholders.")
             String text,
 
-            @Comment("Seconds to show it.")
-            @Comment("Set to 0 to keep it up until something stops it.")
+            @Comment("Seconds to show it. 0 keeps it up until something stops it.")
             double duration,
 
-            @Comment("Count down for this many seconds, writing the time into %time%.")
+            @Comment("Counts down for this many seconds, writing the time into %time%.")
             double countdown,
 
-            @Comment("How %time% is written: auto, seconds, tenths, hundredths, clock or full.")
-            String timeStyle) {
+            @Comment("auto, seconds, tenths, hundredths, clock or full.")
+            String timeStyle) implements Sparse {
 
         /** An empty action bar, which shows nothing. */
         public ActionBar() {
             this("", 3.0, 0, "auto");
+        }
+
+        /** Returns whether there is nothing to show. */
+        @Override
+        public boolean isEmpty() {
+            return text.isEmpty();
         }
 
         public ActionBar {
@@ -185,7 +191,7 @@ public record EffectConfig(
      * @param timeStyle how %time% is written
      */
     public record BossBar(
-            @Comment("The bar title. Supports colours and placeholders.")
+            @Comment("Supports colours and placeholders.")
             String text,
 
             @Comment("PINK, BLUE, RED, GREEN, YELLOW, PURPLE or WHITE.")
@@ -194,23 +200,27 @@ public record EffectConfig(
             @Comment("PROGRESS, NOTCHED_6, NOTCHED_10, NOTCHED_12 or NOTCHED_20.")
             String overlay,
 
-            @Comment("Count down for this many seconds, emptying the bar.")
-            @Comment("Writes the remaining time into %time%.")
+            @Comment("Counts down for this many seconds, emptying the bar and writing %time%.")
             double countdown,
 
-            @Comment("Count up towards this many seconds, filling the bar.")
-            @Comment("Set both this and countdown to 0 for a bar that just stays.")
+            @Comment("Counts up towards this many seconds, filling the bar.")
             double countUp,
 
             @Comment("Fill from 0.0 to 1.0, used when the bar is not counting.")
             double progress,
 
-            @Comment("How %time% is written: auto, seconds, tenths, hundredths, clock or full.")
-            String timeStyle) {
+            @Comment("auto, seconds, tenths, hundredths, clock or full.")
+            String timeStyle) implements Sparse {
 
         /** An empty boss bar, which shows nothing. */
         public BossBar() {
             this("", "PURPLE", "PROGRESS", 0, 0, 1.0, "auto");
+        }
+
+        /** Returns whether the bar has no title, and so is never shown. */
+        @Override
+        public boolean isEmpty() {
+            return text.isEmpty();
         }
 
         public BossBar {
@@ -238,22 +248,27 @@ public record EffectConfig(
      * @param category which volume slider controls it
      */
     public record Sound(
-            @Comment("A Bukkit name such as ENTITY_PLAYER_LEVELUP,")
-            @Comment("or a key such as minecraft:entity.player.levelup.")
+            @Comment("ENTITY_PLAYER_LEVELUP, or a key such as minecraft:entity.player.levelup.")
             String name,
 
-            @Comment("How loud. Above 1.0 does not get louder, it carries further.")
+            @Comment("Above 1.0 does not get louder, it carries further.")
             double volume,
 
             @Comment("From 0.5 to 2.0.")
             double pitch,
 
             @Comment("MASTER, MUSIC, RECORDS, WEATHER, BLOCKS, HOSTILE, NEUTRAL, PLAYERS, AMBIENT or VOICE.")
-            String category) {
+            String category) implements Sparse {
 
         /** No sound. */
         public Sound() {
             this("", 1.0, 1.0, "MASTER");
+        }
+
+        /** Returns whether no sound was named. */
+        @Override
+        public boolean isEmpty() {
+            return name.isEmpty();
         }
 
         public Sound {
@@ -275,21 +290,26 @@ public record EffectConfig(
      * @param speed  how fast they move
      */
     public record Particle(
-            @Comment("A Bukkit name such as FLAME, or a key such as minecraft:flame.")
+            @Comment("FLAME, or a key such as minecraft:flame.")
             String name,
 
-            @Comment("How many particles to draw.")
             int count,
 
             @Comment("How far they scatter from the centre, in blocks.")
             double spread,
 
-            @Comment("How fast they move. What this means depends on the particle.")
-            double speed) {
+            @Comment("How fast they move, which means something different per particle.")
+            double speed) implements Sparse {
 
         /** No particles. */
         public Particle() {
             this("", 1, 0, 0);
+        }
+
+        /** Returns whether no particle was named. */
+        @Override
+        public boolean isEmpty() {
+            return name.isEmpty();
         }
 
         public Particle {
@@ -312,21 +332,25 @@ public record EffectConfig(
             @Comment("Explosion colours, as hex values such as '#8a51c4'.")
             List<String> colours,
 
-            @Comment("Colours the explosion fades into.")
+            @Comment("Colours the explosion fades into, as hex values.")
             List<String> fades,
 
             @Comment("BALL, BALL_LARGE, STAR, BURST or CREEPER.")
             String shape,
 
-            @Comment("Whether it twinkles.")
             boolean flicker,
 
-            @Comment("Whether it leaves a trail of sparks.")
-            boolean trail) {
+            boolean trail) implements Sparse {
 
         /** No firework. */
         public Firework() {
             this(List.of(), List.of(), "BALL", false, false);
+        }
+
+        /** Returns whether there is no explosion to colour. */
+        @Override
+        public boolean isEmpty() {
+            return colours.isEmpty();
         }
 
         public Firework {

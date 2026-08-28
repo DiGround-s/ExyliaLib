@@ -26,6 +26,15 @@ Effects.play(config.onWin(), player);
 | `Particle` | `name`, `count`, `spread`, `speed` |
 | `Firework` | `colours`, `fades`, `shape`, `flicker`, `trail` |
 
+A section with nothing in it is **not written to the file**: an effect that is
+one boss bar generates the boss bar and nothing else, not five empty blocks
+with a comment above every key. It is read back as empty and stays out of the
+file until an owner writes it. See [Sections that do nothing](config.md#sections-that-do-nothing).
+
+Titles default to **no fade** (`fade-in: 0.0`, `stay: 3.0`, `fade-out: 1.0`): a
+title that reacts to something that just happened has to be on screen when it
+happens, and half a second of it fading up reads as lag.
+
 Times are **seconds with decimals** — `countdown(3.3)` is 3.3 real seconds,
 and `%time%` displays it as `3.3`. `%time%` belongs to the effect, never to
 the global registry: two countdowns on screen must not show the same number.

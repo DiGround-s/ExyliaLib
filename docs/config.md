@@ -34,6 +34,23 @@ records become nested YAML sections.
   `@Comment.Comments`. Comments are the server owner's manual: say what the
   value changes, in what unit, in what range.
 
+## Sections that do nothing
+
+A record implementing `Sparse` decides for itself whether it has anything to
+say. While `isEmpty()` answers `true`, the section is **left out of the file**
+and reading it back is silent: the defaults are used, nothing is reported
+missing, and the block does not grow back on the next load. An empty block a
+previous version wrote is removed the next time the file is saved.
+
+This is what stops an effect with one boss bar from also writing an empty
+title, action bar, sound, particle and firework, each with a comment per key.
+Only for sections whose defaults are empty by nature — a section with real
+defaults must stay in the file, or nobody can find out it exists.
+
+Blank lines separate the **top-level** groups only. Inside a block, comments
+sit directly above their key: a blank line between every one of seven keys
+doubles the height of the block without making it easier to read.
+
 ## API
 
 `Configs`:

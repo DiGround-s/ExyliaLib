@@ -129,7 +129,18 @@ int pool = storage.get().poolSize();
   hace que el servidor pierda en silencio lo que el dueño había configurado.
 - **Un typo del usuario nunca tumba el plugin.** Se reporta y se usa el default.
 - Los comentarios de `@Comment` son el manual del dueño del servidor: explican
-  qué cambia el valor, en qué unidad y en qué rango.
+  qué cambia el valor, en qué unidad y en qué rango. **Solo lo que no se deduce
+  del nombre de la clave**: los valores aceptados, la unidad, el placeholder que
+  escribe. `fade-in: 0.5` no necesita "Seconds to fade in".
+- **Un record que implementa `Sparse` no se escribe mientras esté vacío**, y su
+  ausencia no se reporta como clave que falta — si no, el bloque vuelve a
+  aparecer en la siguiente carga. Es lo que evita que un efecto de una sola
+  bossbar escriba además un title, una actionbar, un sonido, partículas y un
+  firework vacíos, con un comentario por clave. Solo para secciones cuyos
+  defaults están vacíos por naturaleza.
+- **Las líneas en blanco separan los grupos de primer nivel, no las claves de
+  dentro.** Dentro de un bloque de siete claves duplican su altura sin hacerlo
+  más legible.
 
 ### Texto y color — siempre `Text`, siempre Components
 
