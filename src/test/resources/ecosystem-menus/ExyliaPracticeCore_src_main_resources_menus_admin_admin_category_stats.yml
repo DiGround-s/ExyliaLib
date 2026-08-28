@@ -28,10 +28,10 @@ pagination:
     name: "{warning}&l#%rank% {letters}%category_name%"
     lore:
       - ""
-      - " {muted}❙ {letters}ID: {info}%category_id%"
+      - " {letters_black}▎ {letters}ID: {info}%category_id%"
       - ""
-      - " {muted}❙ {letters}Total Games: {highlight}%total_games%"
-      - " {muted}❙ {letters}Kits in category: {highlight}%kit_count%"
+      - " {letters_black}▎ {letters}Total Games: {highlight}%total_games%"
+      - " {letters_black}▎ {letters}Kits in category: {highlight}%kit_count%"
       - ""
 
   navigation:
@@ -59,6 +59,6 @@ items:
     name: '{error}&lBACK'
     lore:
       - ""
-      - "{info}» Click to go back"
+      - "{warning}➥ Click to go back"
     actions:
       - "practice:open_admin_stats"

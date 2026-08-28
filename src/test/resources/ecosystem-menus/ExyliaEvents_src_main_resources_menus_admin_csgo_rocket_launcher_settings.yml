@@ -28,87 +28,87 @@ items:
     name: "{info}&lENABLED"
     lore:
       - ""
-      - " {muted}❙ {letters}Current: %weapon_enabled%"
+      - " {letters_black}▎ {letters}Current: %weapon_enabled%"
       - ""
-      - "{info}» Click to toggle"
+      - "{warning}➥ Click to toggle"
     actions:
       - "events:toggle_csgo_weapon_setting weapon-rocket-launcher-enabled"
 
   damage:
-    slot: 37
+    slot: 19
     material: DIAMOND_HOE
     name: "{info}&lDAMAGE {muted}(max at center)"
     lore:
       - ""
-      - " {muted}❙ {letters}Current: {highlight}%weapon_damage%"
+      - " {letters_black}▎ {letters}Current: {highlight}%weapon_damage%"
       - ""
-      - " {muted}❙ {success}Left-Click +0.5"
-      - " {muted}❙ {error}Right-Click -0.5"
-      - " {muted}❙ {warning}Shift-Click to enter"
+      - " {letters_black}▎ {success}Left-Click +0.5"
+      - " {letters_black}▎ {error}Right-Click -0.5"
+      - " {letters_black}▎ {warning}Shift-Click to enter"
     actions:
       - "left: events:adjust_csgo_weapon_double weapon-rocket-launcher-damage 0.5"
       - "right: events:adjust_csgo_weapon_double weapon-rocket-launcher-damage -0.5"
       - "shift_left: events:input_csgo_weapon_double weapon-rocket-launcher-damage"
 
   cooldown:
-    slot: 24
+    slot: 20
     material: CLOCK
     name: "{info}&lCOOLDOWN"
     lore:
       - ""
-      - " {muted}❙ {letters}Current: {highlight}%weapon_cooldown% ticks"
+      - " {letters_black}▎ {letters}Current: {highlight}%weapon_cooldown% ticks"
       - ""
-      - " {muted}❙ {success}Left-Click +5"
-      - " {muted}❙ {error}Right-Click -5"
-      - " {muted}❙ {warning}Shift-Click to enter"
+      - " {letters_black}▎ {success}Left-Click +5"
+      - " {letters_black}▎ {error}Right-Click -5"
+      - " {letters_black}▎ {warning}Shift-Click to enter"
     actions:
       - "left: events:adjust_csgo_weapon_int weapon-rocket-launcher-cooldown 5"
       - "right: events:adjust_csgo_weapon_int weapon-rocket-launcher-cooldown -5"
       - "shift_left: events:input_csgo_weapon_int weapon-rocket-launcher-cooldown"
 
   range:
-    slot: 38
+    slot: 21
     material: ENDER_EYE
     name: "{info}&lRANGE"
     lore:
       - ""
-      - " {muted}❙ {letters}Current: {highlight}%weapon_range%"
+      - " {letters_black}▎ {letters}Current: {highlight}%weapon_range%"
       - ""
-      - " {muted}❙ {success}Left-Click +1"
-      - " {muted}❙ {error}Right-Click -1"
-      - " {muted}❙ {warning}Shift-Click to enter"
+      - " {letters_black}▎ {success}Left-Click +1"
+      - " {letters_black}▎ {error}Right-Click -1"
+      - " {letters_black}▎ {warning}Shift-Click to enter"
     actions:
       - "left: events:adjust_csgo_weapon_double weapon-rocket-launcher-range 1.0"
       - "right: events:adjust_csgo_weapon_double weapon-rocket-launcher-range -1.0"
       - "shift_left: events:input_csgo_weapon_double weapon-rocket-launcher-range"
 
   explosion-radius:
-    slot: 39
+    slot: 22
     material: TNT
     name: "{info}&lEXPLOSION RADIUS"
     lore:
       - ""
-      - " {muted}❙ {letters}Current: {highlight}%weapon_explosion_radius%"
+      - " {letters_black}▎ {letters}Current: {highlight}%weapon_explosion_radius%"
       - ""
-      - " {muted}❙ {success}Left-Click +0.5"
-      - " {muted}❙ {error}Right-Click -0.5"
-      - " {muted}❙ {warning}Shift-Click to enter"
+      - " {letters_black}▎ {success}Left-Click +0.5"
+      - " {letters_black}▎ {error}Right-Click -0.5"
+      - " {letters_black}▎ {warning}Shift-Click to enter"
     actions:
       - "left: events:adjust_csgo_weapon_double weapon-rocket-launcher-explosion-radius 0.5"
       - "right: events:adjust_csgo_weapon_double weapon-rocket-launcher-explosion-radius -0.5"
       - "shift_left: events:input_csgo_weapon_double weapon-rocket-launcher-explosion-radius"
 
   speed:
-    slot: 40
+    slot: 23
     material: WIND_CHARGE
     name: "{info}&lPROJECTILE SPEED"
     lore:
       - ""
-      - " {muted}❙ {letters}Current: {highlight}%weapon_speed%"
+      - " {letters_black}▎ {letters}Current: {highlight}%weapon_speed%"
       - ""
-      - " {muted}❙ {success}Left-Click +0.5"
-      - " {muted}❙ {error}Right-Click -0.5"
-      - " {muted}❙ {warning}Shift-Click to enter"
+      - " {letters_black}▎ {success}Left-Click +0.5"
+      - " {letters_black}▎ {error}Right-Click -0.5"
+      - " {letters_black}▎ {warning}Shift-Click to enter"
     actions:
       - "left: events:adjust_csgo_weapon_double weapon-rocket-launcher-speed 0.5"
       - "right: events:adjust_csgo_weapon_double weapon-rocket-launcher-speed -0.5"

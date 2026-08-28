@@ -17,78 +17,78 @@ filler:
 
 items:
   capture-time:
-    slot: 37
+    slot: 19
     material: CLOCK
     name: "{info}&lCAPTURE TIME"
     lore:
       - ""
-      - " {muted}❙ {letters}Current: {highlight}%capture_time%"
-      - " {muted}❙ {letters}Time to hold zone to earn 1 point"
+      - " {letters_black}▎ {letters}Current: {highlight}%capture_time%"
+      - " {letters_black}▎ {letters}Time to hold zone to earn 1 point"
       - ""
-      - " {muted}❙ {success}Left-Click +5s"
-      - " {muted}❙ {error}Right-Click -5s"
-      - " {muted}❙ {warning}Shift-Click to enter"
+      - " {letters_black}▎ {success}Left-Click +5s"
+      - " {letters_black}▎ {error}Right-Click -5s"
+      - " {letters_black}▎ {warning}Shift-Click to enter"
     actions:
       - "left: capture:adjust_setting_millis capture-time 5"
       - "right: capture:adjust_setting_millis capture-time -5"
       - "shift_left: capture:input_setting_millis capture-time"
 
   target-points:
-    slot: 38
+    slot: 20
     material: GOLD_INGOT
     name: "{info}&lTARGET POINTS"
     lore:
       - ""
-      - " {muted}❙ {letters}Current: {highlight}%target_points%"
-      - " {muted}❙ {letters}Points needed to win"
+      - " {letters_black}▎ {letters}Current: {highlight}%target_points%"
+      - " {letters_black}▎ {letters}Points needed to win"
       - ""
-      - " {muted}❙ {success}Left-Click +1"
-      - " {muted}❙ {error}Right-Click -1"
-      - " {muted}❙ {warning}Shift-Click to enter"
+      - " {letters_black}▎ {success}Left-Click +1"
+      - " {letters_black}▎ {error}Right-Click -1"
+      - " {letters_black}▎ {warning}Shift-Click to enter"
     actions:
       - "left: capture:adjust_setting target-points 1"
       - "right: capture:adjust_setting target-points -1"
       - "shift_left: capture:input_setting target-points"
 
   clan-mode:
-    slot: 39
+    slot: 22
     material: "%clan_mode_material%"
-    name: "{warning}&lCLAN MODE"
+    name: "%clan_mode_color%&lCLAN MODE"
     lore:
       - ""
-      - " {muted}❙ {letters}Current: {highlight}%clan_mode_status%"
-      - " {muted}❙ {letters}Points accumulate per clan"
-      - " {muted}❙ {letters}Leaderboard shows clans"
+      - " {letters_black}▎ {letters}Current: {highlight}%clan_mode_status%"
+      - " {letters_black}▎ {letters}Points accumulate per clan"
+      - " {letters_black}▎ {letters}Leaderboard shows clans"
       - ""
-      - " {muted}❙ {success}Click to toggle"
+      - " {letters_black}▎ {success}Click to toggle"
     actions:
       - "capture:toggle_boolean_setting clan-mode"
 
   glow-enabled:
-    slot: 40
+    slot: 28
     material: "%glow_enabled_material%"
-    name: "{warning}&lGLOW EFFECT"
+    name: "%glow_enabled_color%&lGLOW EFFECT"
     lore:
       - ""
-      - " {muted}❙ {letters}Current: {highlight}%glow_enabled_status%"
-      - " {muted}❙ {letters}Capturer glows near capture end"
+      - " {letters_black}▎ {letters}Current: {highlight}%glow_enabled_status%"
+      - " {letters_black}▎ {letters}Capturer glows near capture end"
       - ""
-      - " {muted}❙ {success}Click to toggle"
+      - " {letters_black}▎ {success}Click to toggle"
     actions:
       - "capture:toggle_boolean_setting glow-enabled"
 
   glow-last-millis:
-    slot: 41
+    slot: 29
     material: GLOWSTONE_DUST
     name: "{info}&lGLOW THRESHOLD"
     lore:
       - ""
-      - " {muted}❙ {letters}Current: {highlight}%glow_last_seconds%"
-      - " {muted}❙ {letters}Time before end to start glow"
+      - " {letters_black}▎ {letters}Current: {highlight}%glow_last_seconds%"
+      - " {letters_black}▎ {letters}Time before end to start glow"
       - ""
-      - " {muted}❙ {success}Left-Click +1s"
-      - " {muted}❙ {error}Right-Click -1s"
-      - " {muted}❙ {warning}Shift-Click to enter"
+      - " {letters_black}▎ {success}Left-Click +1s"
+      - " {letters_black}▎ {error}Right-Click -1s"
+      - " {letters_black}▎ {warning}Shift-Click to enter"
     actions:
       - "left: capture:adjust_setting_millis glow-last-millis 1"
       - "right: capture:adjust_setting_millis glow-last-millis -1"

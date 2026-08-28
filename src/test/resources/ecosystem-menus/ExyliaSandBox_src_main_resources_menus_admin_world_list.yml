@@ -39,16 +39,16 @@ pagination:
     glow: "%world_glow%"
     lore:
       - ""
-      - " {muted}❙ {letters}ID: {info}%world_id%"
-      - " {muted}❙ {letters}Type: {info}%world_type%"
-      - " {muted}❙ {letters}Status: %world_status%"
-      - " {muted}❙ {letters}Players: {info}%world_players%"
-      - " {muted}❙ {letters}Biome: {info}%world_biome%"
-      - " {muted}❙ {letters}Border: {info}%world_border%"
-      - " {muted}❙ {letters}Folder: {info}%world_folder%"
+      - " {letters_black}▎ {letters}ID: {info}%world_id%"
+      - " {letters_black}▎ {letters}Type: {info}%world_type%"
+      - " {letters_black}▎ {letters}Status: %world_status%"
+      - " {letters_black}▎ {letters}Players: {info}%world_players%"
+      - " {letters_black}▎ {letters}Biome: {info}%world_biome%"
+      - " {letters_black}▎ {letters}Border: {info}%world_border%"
+      - " {letters_black}▎ {letters}Folder: {info}%world_folder%"
       - ""
-      - " {muted}❙ {success}Left-click to configure"
-      - " {muted}❙ {warning}Right-click to teleport"
+      - " {letters_black}▎ {success}Left-click to configure"
+      - " {letters_black}▎ {warning}Right-click to teleport"
     actions:
       - "left: sandbox:open_world_config %world_id%"
       - "right: sandbox:teleport_to_world %world_id%"
@@ -78,10 +78,10 @@ items:
     name: "{error}&lReset to Defaults"
     lore:
       - ""
-      - " {muted}❙ {letters}Removes all world configs"
-      - " {muted}❙ {error}and restores the default ones"
+      - " {letters_black}▎ {letters}Removes all world configs"
+      - " {letters_black}▎ {error}and restores the default ones"
       - ""
-      - "{error}» Click to reset"
+      - "{error}➥ Click to reset"
     actions:
       - "sandbox:confirm_world_reset_defaults"
 
@@ -91,10 +91,10 @@ items:
     name: "{success}&lCREATE WORLD"
     lore:
       - ""
-      - " {muted}❙ {letters}Create a new sandbox world"
-      - " {muted}❙ {letters}with the creation wizard"
+      - " {letters_black}▎ {letters}Create a new sandbox world"
+      - " {letters_black}▎ {letters}with the creation wizard"
       - ""
-      - "{info}» Click to create"
+      - "{warning}➥ Click to create"
     actions:
       - "sandbox:create_world"
 
@@ -104,12 +104,12 @@ items:
     name: "{warning}&lIMPORT WORLD"
     lore:
       - ""
-      - " {muted}❙ {letters}Import an existing world folder"
-      - " {muted}❙ {letters}already on the server"
-      - " {muted}❙ {muted}Generation and seed are yours"
-      - " {muted}❙ {muted}No automatic resets"
+      - " {letters_black}▎ {letters}Import an existing world folder"
+      - " {letters_black}▎ {letters}already on the server"
+      - " {letters_black}▎ {muted}Generation and seed are yours"
+      - " {letters_black}▎ {muted}No automatic resets"
       - ""
-      - "{info}» Click to import"
+      - "{warning}➥ Click to import"
     actions:
       - "sandbox:import_world"
 

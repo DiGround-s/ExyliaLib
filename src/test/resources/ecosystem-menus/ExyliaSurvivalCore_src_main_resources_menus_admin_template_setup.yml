@@ -27,50 +27,50 @@ items:
     name: "{highlight}&lDISPLAY NAME"
     lore:
       - ""
-      - " {muted}❙ {letters}Current: {highlight}%template_name%"
+      - " {letters_black}▎ {letters}Current: {highlight}%template_name%"
       - ""
-      - "{info}» Click to change"
+      - "{warning}➥ Click to change"
     actions:
       - "survivalcore:lc_edit_template_name"
 
   loot:
-    slot: 37
+    slot: 19
     material: CHEST
     name: "{highlight}&lLOOT TABLE"
     lore:
       - ""
-      - " {muted}❙ {letters}Items that can appear in chests"
+      - " {letters_black}▎ {letters}Items that can appear in chests"
       - ""
-      - "{info}» Click to manage"
+      - "{warning}➥ Click to manage"
     actions:
       - "survivalcore:lc_open_loot"
 
   chests:
-    slot: 38
+    slot: 21
     material: ENDER_CHEST
     name: "{highlight}&lPLACED CHESTS"
     lore:
       - ""
-      - " {muted}❙ {letters}Chests linked to this template"
+      - " {letters_black}▎ {letters}Chests linked to this template"
       - ""
-      - "{info}» Click to view"
+      - "{warning}➥ Click to view"
     actions:
       - "survivalcore:lc_open_template_chests"
 
   place:
-    slot: 39
+    slot: 22
     material: BLAZE_ROD
     name: "{warning}&l⚡ PLACE CHEST"
     lore:
       - ""
-      - " {muted}❙ {letters}You will be asked to configure:"
-      - " {muted}❙ {success}Cooldown {muted}— reset time in seconds"
+      - " {letters_black}▎ {letters}You will be asked to configure:"
+      - " {letters_black}▎ {success}Cooldown {muted}— reset time in seconds"
       - ""
-      - " {muted}❙ {letters}The wand remembers the config."
-      - " {muted}❙ {letters}Right-click chests to place them."
-      - " {muted}❙ {letters}Left-click to delete."
+      - " {letters_black}▎ {letters}The wand remembers the config."
+      - " {letters_black}▎ {letters}Right-click chests to place them."
+      - " {letters_black}▎ {letters}Left-click to delete."
       - ""
-      - "{info}» Click to get wand"
+      - "{warning}➥ Click to get wand"
     actions:
       - "survivalcore:lc_give_wand"
 
@@ -80,10 +80,10 @@ items:
     name: "{error}&lDELETE TEMPLATE"
     lore:
       - ""
-      - " {error}» Deletes template and all its entries"
-      - " {error}» Placed chests remain but will be empty"
+      - " {error}➥ Deletes template and all its entries"
+      - " {error}➥ Placed chests remain but will be empty"
       - ""
-      - " {error}» Click to permanently delete"
+      - " {error}➥ Click to permanently delete"
     actions:
       - "survivalcore:lc_delete_template %template_id%"
 
@@ -93,6 +93,6 @@ items:
     name: '{error}&lBACK'
     lore:
       - ""
-      - " {info}» Return to template list"
+      - " {warning}➥ Return to template list"
     actions:
       - "survivalcore:lc_open_template_list"

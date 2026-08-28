@@ -23,107 +23,107 @@ filler:
 
 items:
   kills-to-win:
-    slot: 39
+    slot: 19
     material: DIAMOND_SWORD
     name: "{info}&lKILLS TO WIN"
     lore:
       - ""
-      - " {muted}❙ {letters}Current: {highlight}%kills_to_win%"
+      - " {letters_black}▎ {letters}Current: {highlight}%kills_to_win%"
       - ""
-      - " {muted}❙ {success}Left-Click +5"
-      - " {muted}❙ {error}Right-Click -5"
-      - " {muted}❙ {warning}Shift-Click to enter"
+      - " {letters_black}▎ {success}Left-Click +5"
+      - " {letters_black}▎ {error}Right-Click -5"
+      - " {letters_black}▎ {warning}Shift-Click to enter"
     actions:
       - "left: events:adjust_setting kills-to-win 5"
       - "right: events:adjust_setting kills-to-win -5"
       - "shift_left: events:input_setting kills-to-win"
 
   respawn-delay:
-    slot: 41
+    slot: 20
     material: ENDER_PEARL
     name: "{info}&lRESPAWN TIME"
     lore:
       - ""
-      - " {muted}❙ {letters}Current: {highlight}%respawn_delay%s"
+      - " {letters_black}▎ {letters}Current: {highlight}%respawn_delay%s"
       - ""
-      - " {muted}❙ {success}Left-Click +1s"
-      - " {muted}❙ {error}Right-Click -1s"
-      - " {muted}❙ {warning}Shift-Click to enter"
+      - " {letters_black}▎ {success}Left-Click +1s"
+      - " {letters_black}▎ {error}Right-Click -1s"
+      - " {letters_black}▎ {warning}Shift-Click to enter"
     actions:
       - "left: events:adjust_setting respawn-delay 1"
       - "right: events:adjust_setting respawn-delay -1"
       - "shift_left: events:input_setting respawn-delay"
 
   drop-items:
-    slot: 37
+    slot: 21
     material: "%drop_items_material%"
-    name: "{info}&lDROP ITEMS ON DEATH"
+    name: "%drop_items_color%&lDROP ITEMS ON DEATH"
     lore:
       - ""
-      - " {muted}❙ {letters}Current: %drop_items%"
+      - " {letters_black}▎ {letters}Current: %drop_items%"
       - ""
-      - "{info}» Click to toggle"
+      - "{warning}➥ Click to toggle"
     actions:
       - "events:toggle_topkiller_setting drop-items-on-death"
 
   reset-kit-on-kill:
-    slot: 53
-    material: 'basehead-eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvYmUwZmQxMDE5OWU4ZTRmY2RhYmNhZTRmODVjODU5MTgxMjdhN2M1NTUzYWQyMzVmMDFjNTZkMThiYjk0NzBkMyJ9fX0='
+    slot: 22
+    material: "%reset_kit_material%"
     name: "{info}&lRESET KIT ON KILL"
     lore:
       - ""
-      - " {muted}❙ {letters}Current: %reset_kit%"
-      - " {muted}❙ {letters}Restores full kit"
-      - " {muted}❙ {letters}upon getting a kill"
+      - " {letters_black}▎ {letters}Current: %reset_kit%"
+      - " {letters_black}▎ {letters}Restores full kit"
+      - " {letters_black}▎ {letters}upon getting a kill"
       - ""
-      - "{info}» Click to toggle"
+      - "{warning}➥ Click to toggle"
     actions:
       - "events:toggle_topkiller_setting reset-kit-on-kill"
 
   golden-apple:
-    slot: 38
+    slot: 23
     material: "%golden_apple_material%"
-    name: "{info}&lGOLDEN APPLE ON KILL"
+    name: "%golden_apple_color%&lGOLDEN APPLE ON KILL"
     lore:
       - ""
-      - " {muted}❙ {letters}Current: %golden_apple_on_kill%"
-      - " {muted}❙ {letters}Amount: {highlight}%golden_apple_amount%"
+      - " {letters_black}▎ {letters}Current: %golden_apple_on_kill%"
+      - " {letters_black}▎ {letters}Amount: {highlight}%golden_apple_amount%"
       - ""
-      - " {muted}❙ {success}Left-Click to toggle"
-      - " {muted}❙ {warning}Right-Click to adjust amount"
+      - " {letters_black}▎ {success}Left-Click to toggle"
+      - " {letters_black}▎ {warning}Right-Click to adjust amount"
     actions:
       - "left: events:toggle_topkiller_setting golden-apple-on-kill"
       - "right: events:input_setting golden-apple-amount"
 
   grace-period:
-    slot: 40
+    slot: 24
     material: CLOCK
     name: "{info}&lGRACE PERIOD"
     lore:
       - ""
-      - " {muted}❙ {letters}Current: {highlight}%grace_period%s"
-      - " {muted}❙ {letters}No PvP or damage at start"
+      - " {letters_black}▎ {letters}Current: {highlight}%grace_period%s"
+      - " {letters_black}▎ {letters}No PvP or damage at start"
       - ""
-      - " {muted}❙ {success}Left-Click +5s"
-      - " {muted}❙ {error}Right-Click -5s"
-      - " {muted}❙ {warning}Shift-Click to enter"
+      - " {letters_black}▎ {success}Left-Click +5s"
+      - " {letters_black}▎ {error}Right-Click -5s"
+      - " {letters_black}▎ {warning}Shift-Click to enter"
     actions:
       - "left: events:adjust_setting grace-period 5"
       - "right: events:adjust_setting grace-period -5"
       - "shift_left: events:input_setting grace-period"
 
   team-selector:
-    slot: 42
+    slot: 25
     condition: "%has_teams% == true"
     material: "%team_selector_material%"
-    name: "{warning}&lTEAM SELECTOR"
+    name: "%team_selector_color%&lTEAM SELECTOR"
     lore:
       - ""
-      - " {muted}❙ {letters}Current: %team_selector%"
-      - " {muted}❙ {letters}Allow players to choose"
-      - " {muted}❙ {letters}their team in the lobby"
+      - " {letters_black}▎ {letters}Current: %team_selector%"
+      - " {letters_black}▎ {letters}Allow players to choose"
+      - " {letters_black}▎ {letters}their team in the lobby"
       - ""
-      - "{info}» Click to toggle"
+      - "{warning}➥ Click to toggle"
     actions:
       - "events:toggle_team_selector_setting team-selector-enabled"
 

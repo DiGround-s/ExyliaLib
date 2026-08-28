@@ -27,21 +27,21 @@ items:
     name: "{highlight}&lDISPLAY NAME"
     lore:
       - ""
-      - " {muted}❙ {letters}Current: {info}%zone_name%"
+      - " {letters_black}▎ {letters}Current: {info}%zone_name%"
       - ""
-      - "{info}» Click to change"
+      - "{warning}➥ Click to change"
     actions:
       - "survivalcore:pu_zone_edit_name"
 
   enabled:
     slot: 5
     material: "%zone_enabled_material%"
-    name: "{highlight}&lENABLED"
+    name: "%zone_enabled_color%&lENABLED"
     lore:
       - ""
-      - " {muted}❙ {letters}Status: %zone_enabled_status%"
+      - " {letters_black}▎ {letters}Status: %zone_enabled_status%"
       - ""
-      - "{info}» Click to toggle"
+      - "{warning}➥ Click to toggle"
     actions:
       - "survivalcore:pu_zone_toggle_enabled"
 
@@ -51,9 +51,9 @@ items:
     name: "{highlight}&lMODE: AREA"
     lore:
       - ""
-      - " {muted}❙ {letters}Spawn randomly in a selected area"
+      - " {letters_black}▎ {letters}Spawn randomly in a selected area"
       - ""
-      - "{info}» Click to use AREA mode"
+      - "{warning}➥ Click to use AREA mode"
     actions:
       - "survivalcore:pu_zone_set_mode_area"
 
@@ -63,23 +63,23 @@ items:
     name: "{highlight}&lMODE: LOCATIONS"
     lore:
       - ""
-      - " {muted}❙ {letters}Spawn at predefined locations"
+      - " {letters_black}▎ {letters}Spawn at predefined locations"
       - ""
-      - "{info}» Click to use LOCATIONS mode"
+      - "{warning}➥ Click to use LOCATIONS mode"
     actions:
       - "survivalcore:pu_zone_set_mode_locations"
 
   area:
     slot: 21
     material: "%zone_area_material%"
-    name: "{highlight}&lAREA REGION"
+    name: "%zone_area_color%&lAREA REGION"
     lore:
       - ""
-      - " {muted}❙ {letters}Status: %zone_area_status%"
+      - " {letters_black}▎ {letters}Status: %zone_area_status%"
       - ""
-      - " {muted}❙ {letters}Two-corner selection for AREA mode"
+      - " {letters_black}▎ {letters}Two-corner selection for AREA mode"
       - ""
-      - "{info}» Click to select with wand"
+      - "{warning}➥ Click to select with wand"
     actions:
       - "survivalcore:pu_zone_set_area"
 
@@ -89,35 +89,35 @@ items:
     name: "{highlight}&lSPAWN LOCATIONS"
     lore:
       - ""
-      - " {muted}❙ {letters}Count: {highlight}%zone_locations_count%"
+      - " {letters_black}▎ {letters}Count: {highlight}%zone_locations_count%"
       - ""
-      - " {muted}❙ {letters}Predefined spawn points for LOCATIONS mode"
+      - " {letters_black}▎ {letters}Predefined spawn points for LOCATIONS mode"
       - ""
-      - "{info}» Click to manage"
+      - "{warning}➥ Click to manage"
     actions:
       - "survivalcore:pu_zone_open_locations"
 
   entries:
-    slot: 23
+    slot: 24
     material: NETHER_STAR
     name: "{highlight}&lPOWERUPS"
     lore:
       - ""
-      - " {muted}❙ {letters}Count: {highlight}%zone_powerups_count%"
+      - " {letters_black}▎ {letters}Count: {highlight}%zone_powerups_count%"
       - ""
-      - " {muted}❙ {letters}Powerup types that spawn in this zone"
+      - " {letters_black}▎ {letters}Powerup types that spawn in this zone"
       - ""
-      - "{info}» Click to manage"
+      - "{warning}➥ Click to manage"
     actions:
       - "survivalcore:pu_zone_open_entries"
 
   interval:
-    slot: 24
+    slot: 28
     material: CLOCK
     name: "{highlight}&lSPAWN INTERVAL"
     lore:
       - ""
-      - " {muted}❙ {letters}Current: {highlight}%zone_interval%s"
+      - " {letters_black}▎ {letters}Current: {highlight}%zone_interval%s"
       - ""
       - " {success}● {info}Left-click {muted}+1s"
       - " {error}● {info}Right-click {muted}-1s"
@@ -130,12 +130,12 @@ items:
       - "shift_right: survivalcore:pu_zone_adjust_interval -10"
 
   max-active:
-    slot: 25
+    slot: 29
     material: HOPPER
     name: "{highlight}&lMAX ACTIVE"
     lore:
       - ""
-      - " {muted}❙ {letters}Current: {highlight}%zone_max_active%"
+      - " {letters_black}▎ {letters}Current: {highlight}%zone_max_active%"
       - ""
       - " {success}● {info}Left-click {muted}+1"
       - " {error}● {info}Right-click {muted}-1"
@@ -144,15 +144,15 @@ items:
       - "right: survivalcore:pu_zone_adjust_max_active -1"
 
   lifetime:
-    slot: 28
+    slot: 30
     material: RECOVERY_COMPASS
     name: "{highlight}&lLIFETIME"
     lore:
       - ""
-      - " {muted}❙ {letters}Current: {highlight}%zone_lifetime%"
+      - " {letters_black}▎ {letters}Current: {highlight}%zone_lifetime%"
       - ""
-      - " {muted}❙ {letters}Time before powerup disappears"
-      - " {muted}❙ {letters}Set to {highlight}-1 {letters}for permanent"
+      - " {letters_black}▎ {letters}Time before powerup disappears"
+      - " {letters_black}▎ {letters}Set to {highlight}-1 {letters}for permanent"
       - ""
       - " {success}● {info}Left-click {muted}+10s"
       - " {error}● {info}Right-click {muted}-10s"
@@ -165,59 +165,59 @@ items:
       - "shift_right: survivalcore:pu_zone_adjust_lifetime -60"
 
   auto-respawn:
-    slot: 29
+    slot: 31
     material: "%zone_auto_respawn_material%"
-    name: "{highlight}&lAUTO RESPAWN"
+    name: "%zone_auto_respawn_color%&lAUTO RESPAWN"
     lore:
       - ""
-      - " {muted}❙ {letters}Status: %zone_auto_respawn_status%"
+      - " {letters_black}▎ {letters}Status: %zone_auto_respawn_status%"
       - ""
-      - " {muted}❙ {letters}Respawn after pickup or expiry"
+      - " {letters_black}▎ {letters}Respawn after pickup or expiry"
       - ""
-      - "{info}» Click to toggle"
+      - "{warning}➥ Click to toggle"
     actions:
       - "survivalcore:pu_zone_toggle_auto_respawn"
 
   random:
-    slot: 30
+    slot: 32
     material: "%zone_random_material%"
-    name: "{highlight}&lSELECTION MODE"
+    name: "%zone_random_color%&lSELECTION MODE"
     lore:
       - ""
-      - " {muted}❙ {letters}Mode: %zone_random_status%"
+      - " {letters_black}▎ {letters}Mode: %zone_random_status%"
       - ""
-      - " {muted}❙ {letters}Random: equal chance per powerup"
-      - " {muted}❙ {letters}Weighted: chance by entry weight"
+      - " {letters_black}▎ {letters}Random: equal chance per powerup"
+      - " {letters_black}▎ {letters}Weighted: chance by entry weight"
       - ""
-      - "{info}» Click to toggle"
+      - "{warning}➥ Click to toggle"
     actions:
       - "survivalcore:pu_zone_toggle_random"
 
   solid-below:
-    slot: 31
+    slot: 37
     material: "%zone_solid_below_material%"
-    name: "{highlight}&lREQUIRE SOLID BELOW"
+    name: "%zone_solid_below_color%&lREQUIRE SOLID BELOW"
     lore:
       - ""
-      - " {muted}❙ {letters}Status: %zone_solid_below_status%"
+      - " {letters_black}▎ {letters}Status: %zone_solid_below_status%"
       - ""
-      - " {muted}❙ {letters}AREA mode: only spawn on solid ground"
+      - " {letters_black}▎ {letters}AREA mode: only spawn on solid ground"
       - ""
-      - "{info}» Click to toggle"
+      - "{warning}➥ Click to toggle"
     actions:
       - "survivalcore:pu_zone_toggle_solid_below"
 
   allow-air:
-    slot: 32
+    slot: 38
     material: "%zone_allow_air_material%"
-    name: "{highlight}&lALLOW IN AIR"
+    name: "%zone_allow_air_color%&lALLOW IN AIR"
     lore:
       - ""
-      - " {muted}❙ {letters}Status: %zone_allow_air_status%"
+      - " {letters_black}▎ {letters}Status: %zone_allow_air_status%"
       - ""
-      - " {muted}❙ {letters}AREA mode: allow floating spawns"
+      - " {letters_black}▎ {letters}AREA mode: allow floating spawns"
       - ""
-      - "{info}» Click to toggle"
+      - "{warning}➥ Click to toggle"
     actions:
       - "survivalcore:pu_zone_toggle_allow_air"
 
@@ -227,7 +227,7 @@ items:
     name: '{error}&lBACK'
     lore:
       - ""
-      - " {info}» Return to zone list"
+      - " {warning}➥ Return to zone list"
     actions:
       - "survivalcore:pu_zone_open_list"
 
@@ -237,6 +237,6 @@ items:
     name: "{error}&lDELETE ZONE"
     lore:
       - ""
-      - " {error}» Click to permanently delete"
+      - " {error}➥ Click to permanently delete"
     actions:
       - "survivalcore:pu_zone_delete %zone_id%"

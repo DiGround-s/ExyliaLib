@@ -32,12 +32,12 @@ pagination:
     name: "{highlight}&l%player_name%"
     lore:
       - ""
-      - " {muted}❙ {letters}Gamemode: {info}%player_gamemode%"
-      - " {muted}❙ {letters}Health: {info}%player_health%{muted}/{info}%player_max_health%"
-      - " {muted}❙ {letters}Level: {info}%player_level%"
-      - " {muted}❙ {letters}Position: {info}%player_x%{muted}, {info}%player_y%{muted}, {info}%player_z%"
+      - " {letters_black}▎ {letters}Gamemode: {info}%player_gamemode%"
+      - " {letters_black}▎ {letters}Health: {info}%player_health%{muted}/{info}%player_max_health%"
+      - " {letters_black}▎ {letters}Level: {info}%player_level%"
+      - " {letters_black}▎ {letters}Position: {info}%player_x%{muted}, {info}%player_y%{muted}, {info}%player_z%"
       - ""
-      - "{info}» Click to teleport"
+      - "{warning}➥ Click to teleport"
     actions:
       - "sandbox:admin_tp_to_player %player_name%"
 
@@ -66,8 +66,8 @@ items:
     name: "{highlight}&lWORLD PLAYERS"
     lore:
       - ""
-      - " {muted}❙ {letters}World: {info}%world_display_name%"
-      - " {muted}❙ {letters}Online: {info}%world_player_count% players"
+      - " {letters_black}▎ {letters}World: {info}%world_display_name%"
+      - " {letters_black}▎ {letters}Online: {info}%world_player_count% players"
       - ""
       - "{muted}Click a player to teleport"
     hide_tooltip: false

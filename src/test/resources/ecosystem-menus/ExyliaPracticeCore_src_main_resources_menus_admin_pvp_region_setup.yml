@@ -22,25 +22,25 @@ items:
     name: "{highlight}&lNAME"
     lore:
       - ""
-      - " {muted}❙ {letters}Current: {info}%display_name%"
+      - " {letters_black}▎ {letters}Current: {info}%display_name%"
       - ""
-      - "{info}» Click to edit"
+      - "{warning}➥ Click to edit"
     actions:
       - "practice:pvp_edit_name"
 
   kit:
-    slot: 37
+    slot: 20
     material: "%kit_material%"
-    name: "{highlight}&lKIT"
+    name: "%kit_color%&lKIT"
     lore:
       - ""
-      - " {muted}❙ {letters}Status: %kit_status%"
+      - " {letters_black}▎ {letters}Status: %kit_status%"
       - ""
-      - " {muted}❙ {letters}Hold the desired items in your inventory"
-      - " {muted}❙ {letters}then click to save as the PvP kit"
+      - " {letters_black}▎ {letters}Hold the desired items in your inventory"
+      - " {letters_black}▎ {letters}then click to save as the PvP kit"
       - ""
-      - " {muted}❙ {success}Left-Click to save current inventory"
-      - " {muted}❙ {error}Right-Click to clear kit"
+      - " {letters_black}▎ {success}Left-Click to save current inventory"
+      - " {letters_black}▎ {error}Right-Click to clear kit"
     actions:
       - "left: practice:pvp_set_kit"
       - "right: practice:pvp_clear_kit"
@@ -48,14 +48,14 @@ items:
   region:
     slot: 19
     material: "%region_material%"
-    name: "{highlight}&lPVP REGION"
+    name: "%region_color%&lPVP REGION"
     lore:
       - ""
-      - " {muted}❙ {letters}Status: %region_status%"
+      - " {letters_black}▎ {letters}Status: %region_status%"
       - ""
-      - " {muted}❙ {letters}Area where PvP is allowed"
+      - " {letters_black}▎ {letters}Area where PvP is allowed"
       - ""
-      - "{info}» Click to select"
+      - "{warning}➥ Click to select"
     actions:
       - "practice:pvp_set_region"
 
@@ -65,28 +65,28 @@ items:
     name: "{highlight}&lENABLED"
     lore:
       - ""
-      - " {muted}❙ {letters}Status: %enabled_status%"
+      - " {letters_black}▎ {letters}Status: %enabled_status%"
       - ""
-      - " {muted}❙ {letters}Disable to block entry for maintenance"
+      - " {letters_black}▎ {letters}Disable to block entry for maintenance"
       - ""
-      - "{info}» Click to toggle"
+      - "{warning}➥ Click to toggle"
     actions:
       - "practice:pvp_toggle_enabled"
 
   combat-tag:
-    slot: 38
+    slot: 21
     material: CLOCK
     name: "{highlight}&lCOMBAT TAG"
     lore:
       - ""
-      - " {muted}❙ {letters}Duration: {highlight}%combat_tag%s"
+      - " {letters_black}▎ {letters}Duration: {highlight}%combat_tag%s"
       - ""
-      - " {muted}❙ {letters}Players cannot leave during combat"
+      - " {letters_black}▎ {letters}Players cannot leave during combat"
       - ""
-      - " {muted}❙ {success}Left-Click +1"
-      - " {muted}❙ {error}Right-Click -1"
-      - " {muted}❙ {warning}Shift-Click +5"
-      - " {muted}❙ {error}Shift-Right -5"
+      - " {letters_black}▎ {success}Left-Click +1"
+      - " {letters_black}▎ {error}Right-Click -1"
+      - " {letters_black}▎ {warning}Shift-Click +5"
+      - " {letters_black}▎ {error}Shift-Right -5"
     actions:
       - "left: practice:pvp_adjust_combat_tag 1"
       - "right: practice:pvp_adjust_combat_tag -1"
@@ -94,72 +94,72 @@ items:
       - "shift_right: practice:pvp_adjust_combat_tag -5"
 
   flag-build:
-    slot: 39
+    slot: 28
     material: "%build_material%"
-    name: "{highlight}&lFLAG: BUILD"
+    name: "%build_color%&lFLAG: BUILD"
     lore:
       - ""
-      - " {muted}❙ {letters}Status: %build_status%"
+      - " {letters_black}▎ {letters}Status: %build_status%"
       - ""
-      - " {muted}❙ {letters}Allow placing blocks"
+      - " {letters_black}▎ {letters}Allow placing blocks"
       - ""
-      - "{info}» Click to toggle"
+      - "{warning}➥ Click to toggle"
     actions:
       - "practice:pvp_toggle_build"
 
   flag-break:
-    slot: 40
+    slot: 29
     material: "%break_material%"
-    name: "{highlight}&lFLAG: BREAK"
+    name: "%break_color%&lFLAG: BREAK"
     lore:
       - ""
-      - " {muted}❙ {letters}Status: %break_status%"
+      - " {letters_black}▎ {letters}Status: %break_status%"
       - ""
-      - " {muted}❙ {letters}Allow breaking blocks"
+      - " {letters_black}▎ {letters}Allow breaking blocks"
       - ""
-      - "{info}» Click to toggle"
+      - "{warning}➥ Click to toggle"
     actions:
       - "practice:pvp_toggle_break"
 
   flag-drop:
-    slot: 41
+    slot: 30
     material: "%drop_material%"
-    name: "{highlight}&lFLAG: DROP ITEMS"
+    name: "%drop_color%&lFLAG: DROP ITEMS"
     lore:
       - ""
-      - " {muted}❙ {letters}Status: %drop_status%"
+      - " {letters_black}▎ {letters}Status: %drop_status%"
       - ""
-      - " {muted}❙ {letters}Allow dropping items"
+      - " {letters_black}▎ {letters}Allow dropping items"
       - ""
-      - "{info}» Click to toggle"
+      - "{warning}➥ Click to toggle"
     actions:
       - "practice:pvp_toggle_drop"
 
   flag-regen:
-    slot: 42
+    slot: 31
     material: "%regen_material%"
-    name: "{highlight}&lFLAG: NATURAL REGEN"
+    name: "%regen_color%&lFLAG: NATURAL REGEN"
     lore:
       - ""
-      - " {muted}❙ {letters}Status: %regen_status%"
+      - " {letters_black}▎ {letters}Status: %regen_status%"
       - ""
-      - " {muted}❙ {letters}Allow natural health regen"
+      - " {letters_black}▎ {letters}Allow natural health regen"
       - ""
-      - "{info}» Click to toggle"
+      - "{warning}➥ Click to toggle"
     actions:
       - "practice:pvp_toggle_regen"
 
   flag-hunger:
-    slot: 43
+    slot: 32
     material: "%hunger_material%"
-    name: "{highlight}&lFLAG: HUNGER"
+    name: "%hunger_color%&lFLAG: HUNGER"
     lore:
       - ""
-      - " {muted}❙ {letters}Status: %hunger_status%"
+      - " {letters_black}▎ {letters}Status: %hunger_status%"
       - ""
-      - " {muted}❙ {letters}Allow hunger depletion"
+      - " {letters_black}▎ {letters}Allow hunger depletion"
       - ""
-      - "{info}» Click to toggle"
+      - "{warning}➥ Click to toggle"
     actions:
       - "practice:pvp_toggle_hunger"
 
@@ -169,9 +169,9 @@ items:
     name: "{error}&lDELETE"
     lore:
       - ""
-      - " {muted}❙ {letters}Permanently delete this PvP region"
+      - " {letters_black}▎ {letters}Permanently delete this PvP region"
       - ""
-      - "{error}» Click to delete"
+      - "{error}➥ Click to delete"
     actions:
       - "practice:pvp_confirm_delete %pvp_id%"
 

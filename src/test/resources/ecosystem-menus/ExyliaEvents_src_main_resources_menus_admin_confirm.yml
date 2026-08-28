@@ -24,8 +24,8 @@ items:
     name: "{warning}&lARE YOU SURE?"
     lore:
       - ""
-      - " {muted}❙ {letters}%confirm_line1%"
-      - " {muted}❙ {error}%confirm_line2%"
+      - " {letters_black}▎ {letters}%confirm_line1%"
+      - " {letters_black}▎ {error}%confirm_line2%"
 
   confirm:
     slot: 11
@@ -33,7 +33,7 @@ items:
     name: "{success}&lCONFIRM"
     lore:
       - ""
-      - "{info}» Click to confirm"
+      - "{warning}➥ Click to confirm"
     actions:
       - "%confirm_action%"
 
@@ -43,6 +43,6 @@ items:
     name: '{error}&lCANCEL'
     lore:
       - ""
-      - "{info}» Click to go back"
+      - "{warning}➥ Click to go back"
     actions:
       - "%cancel_action%"

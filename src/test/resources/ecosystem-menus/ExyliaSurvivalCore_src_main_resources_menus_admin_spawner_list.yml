@@ -32,12 +32,12 @@ pagination:
     name: "{warning}&l%spawner_id%"
     lore:
       - ""
-      - " {muted}❙ {letters}Status: %spawner_enabled%"
-      - " {muted}❙ {letters}Locations: {highlight}%spawner_locations%"
-      - " {muted}❙ {letters}Interval: {highlight}%spawner_interval%s"
+      - " {letters_black}▎ {letters}Status: %spawner_enabled%"
+      - " {letters_black}▎ {letters}Locations: {highlight}%spawner_locations%"
+      - " {letters_black}▎ {letters}Interval: {highlight}%spawner_interval%s"
       - ""
-      - " {muted}❙ {success}Left-Click to edit"
-      - " {muted}❙ {error}Right-Click to delete"
+      - " {letters_black}▎ {success}Left-Click to edit"
+      - " {letters_black}▎ {error}Right-Click to delete"
     actions:
       - "left: survivalcore:spawner_edit %spawner_id%"
       - "right: survivalcore:spawner_delete %spawner_id%"
@@ -48,7 +48,7 @@ pagination:
       material: 'basehead-eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvZGExZDU1YjNmOTg5NDEwYTM0NzUyNjUwZTI0OGM5YjZjMTc4M2E3ZWMyYWEzZmQ3Nzg3YmRjNGQwZTYzN2QzOSJ9fX0='
       name: '{error}&l← PREVIOUS PAGE'
       lore:
-        - ' {muted}❙ {letters}Go to the previous page.'
+        - ' {letters_black}▎ {letters}Go to the previous page.'
         - ''
         - '{info}ℹ Page: {success}%current_page%<#475569>/{error}%total_pages%'
       actions:
@@ -58,7 +58,7 @@ pagination:
       material: 'basehead-eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvZmE4N2UzZDk2ZTFjZmViOWNjZmIzYmE1M2EyMTdmYWY1MjQ5ZTI4NTUzM2IyNzFhMmZiMjg0YzMwZGJkOTgyOSJ9fX0='
       name: '{success}&lNEXT PAGE →'
       lore:
-        - ' {muted}❙ {letters}Go to the next page.'
+        - ' {letters_black}▎ {letters}Go to the next page.'
         - ''
         - '{info}ℹ Page: {success}%current_page%<#475569>/{error}%total_pages%'
       actions:
@@ -71,9 +71,9 @@ items:
     name: "{success}&lCREATE SPAWNER"
     lore:
       - ""
-      - " {muted}❙ {letters}Create a new item spawner"
+      - " {letters_black}▎ {letters}Create a new item spawner"
       - ""
-      - "{info}» Click to create"
+      - "{warning}➥ Click to create"
     actions:
       - "survivalcore:spawner_create"
 
@@ -83,6 +83,6 @@ items:
     name: '{error}&lCLOSE'
     lore:
       - ""
-      - "{info}» Click to close"
+      - "{warning}➥ Click to close"
     actions:
       - "survivalcore:close_menu"

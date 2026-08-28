@@ -36,8 +36,8 @@ pagination:
     name: "{warning}&lLOCATION #%loc_index%"
     lore:
       - ""
-      - " {muted}❙ {letters}World: {info}%loc_world%"
-      - " {muted}❙ {letters}X: {info}%loc_x% {muted}Y: {info}%loc_y% {muted}Z: {info}%loc_z%"
+      - " {letters_black}▎ {letters}World: {info}%loc_world%"
+      - " {letters_black}▎ {letters}X: {info}%loc_x% {muted}Y: {info}%loc_y% {muted}Z: {info}%loc_z%"
       - ""
       - " {error}● {info}Right-click to remove"
     actions:
@@ -64,7 +64,7 @@ items:
     name: "{success}&lADD LOCATION"
     lore:
       - ""
-      - " {info}» Click, then right-click a block in-world"
+      - " {warning}➥ Click, then right-click a block in-world"
     actions:
       - "survivalcore:jumpad_add_location"
 
@@ -74,6 +74,6 @@ items:
     name: '{error}&lBACK'
     lore:
       - ""
-      - " {info}» Return to jumpad setup"
+      - " {warning}➥ Return to jumpad setup"
     actions:
       - "survivalcore:jumpad_back_to_setup"

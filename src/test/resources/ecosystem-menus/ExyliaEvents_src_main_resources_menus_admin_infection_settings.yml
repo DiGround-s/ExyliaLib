@@ -23,117 +23,117 @@ filler:
 
 items:
   infected-percentage:
-    slot: 38
+    slot: 19
     material: ZOMBIE_HEAD
     name: "{error}&lINFECTED PERCENTAGE"
     lore:
       - ""
-      - " {muted}❙ {letters}Current: {highlight}%infected_percentage%%"
+      - " {letters_black}▎ {letters}Current: {highlight}%infected_percentage%%"
       - ""
-      - " {muted}❙ {letters}% of infected players"
-      - " {muted}❙ {letters}at game start"
+      - " {letters_black}▎ {letters}% of infected players"
+      - " {letters_black}▎ {letters}at game start"
       - ""
-      - " {muted}❙ {success}Left-Click +5%"
-      - " {muted}❙ {error}Right-Click -5%"
-      - " {muted}❙ {warning}Shift-Click to enter"
+      - " {letters_black}▎ {success}Left-Click +5%"
+      - " {letters_black}▎ {error}Right-Click -5%"
+      - " {letters_black}▎ {warning}Shift-Click to enter"
     actions:
       - "left: events:adjust_setting infected-percentage 5"
       - "right: events:adjust_setting infected-percentage -5"
       - "shift_left: events:input_setting infected-percentage"
 
   infection-cooldown:
-    slot: 39
+    slot: 20
     material: HOPPER
     name: "{info}&lINFECTION COOLDOWN"
     lore:
       - ""
-      - " {muted}❙ {letters}Current: {highlight}%infection_cooldown%s"
+      - " {letters_black}▎ {letters}Current: {highlight}%infection_cooldown%s"
       - ""
-      - " {muted}❙ {letters}Cooldown between each"
-      - " {muted}❙ {letters}infection"
+      - " {letters_black}▎ {letters}Cooldown between each"
+      - " {letters_black}▎ {letters}infection"
       - ""
-      - "{info}» Click to enter"
+      - "{warning}➥ Click to enter"
     actions:
       - "events:input_double_setting infection-cooldown"
 
   glow-effect:
-    slot: 40
+    slot: 21
     material: "%glow_effect_material%"
-    name: "{info}&lGLOW EFFECT"
+    name: "%glow_effect_color%&lGLOW EFFECT"
     lore:
       - ""
-      - " {muted}❙ {letters}Current: %glow_effect%"
+      - " {letters_black}▎ {letters}Current: %glow_effect%"
       - ""
-      - " {muted}❙ {letters}Infected players glow"
+      - " {letters_black}▎ {letters}Infected players glow"
       - ""
-      - "{info}» Click to toggle"
+      - "{warning}➥ Click to toggle"
     actions:
       - "events:toggle_infection_setting glow-effect"
 
   eliminate-on-infect:
-    slot: 41
+    slot: 22
     material: "%eliminate_on_infect_material%"
-    name: "{error}&lELIMINATE ON INFECT"
+    name: "%eliminate_on_infect_color%&lELIMINATE ON INFECT"
     lore:
       - ""
-      - " {muted}❙ {letters}Current: %eliminate_on_infect%"
+      - " {letters_black}▎ {letters}Current: %eliminate_on_infect%"
       - ""
-      - " {muted}❙ {letters}If enabled, the player"
-      - " {muted}❙ {letters}is eliminated when infected"
-      - " {muted}❙ {letters}instead of becoming infected"
+      - " {letters_black}▎ {letters}If enabled, the player"
+      - " {letters_black}▎ {letters}is eliminated when infected"
+      - " {letters_black}▎ {letters}instead of becoming infected"
       - ""
-      - "{info}» Click to toggle"
+      - "{warning}➥ Click to toggle"
     actions:
       - "events:toggle_infection_setting eliminate-on-infect"
 
   infected-speed:
-    slot: 42
+    slot: 23
     material: ROTTEN_FLESH
     name: "{error}&lINFECTED SPEED"
     lore:
       - ""
-      - " {muted}❙ {letters}Level: {highlight}%infected_speed%"
+      - " {letters_black}▎ {letters}Level: {highlight}%infected_speed%"
       - ""
-      - " {muted}❙ {letters}Speed level for"
-      - " {muted}❙ {letters}infected players"
+      - " {letters_black}▎ {letters}Speed level for"
+      - " {letters_black}▎ {letters}infected players"
       - ""
-      - " {muted}❙ {success}Left-Click +1"
-      - " {muted}❙ {error}Right-Click -1"
+      - " {letters_black}▎ {success}Left-Click +1"
+      - " {letters_black}▎ {error}Right-Click -1"
     actions:
       - "left: events:adjust_setting infected-speed 1"
       - "right: events:adjust_setting infected-speed -1"
 
   survivor-speed:
-    slot: 43
+    slot: 24
     material: SUGAR
     name: "{success}&lSURVIVOR SPEED"
     lore:
       - ""
-      - " {muted}❙ {letters}Level: {highlight}%survivor_speed%"
+      - " {letters_black}▎ {letters}Level: {highlight}%survivor_speed%"
       - ""
-      - " {muted}❙ {letters}Speed level for"
-      - " {muted}❙ {letters}survivors"
+      - " {letters_black}▎ {letters}Speed level for"
+      - " {letters_black}▎ {letters}survivors"
       - ""
-      - " {muted}❙ {success}Left-Click +1"
-      - " {muted}❙ {error}Right-Click -1"
+      - " {letters_black}▎ {success}Left-Click +1"
+      - " {letters_black}▎ {error}Right-Click -1"
     actions:
       - "left: events:adjust_setting survivor-speed 1"
       - "right: events:adjust_setting survivor-speed -1"
 
   grace-period:
-    slot: 37
+    slot: 25
     material: CLOCK
     name: "{warning}&lGRACE PERIOD"
     lore:
       - ""
-      - " {muted}❙ {letters}Current: {highlight}%grace_period%s"
+      - " {letters_black}▎ {letters}Current: {highlight}%grace_period%s"
       - ""
-      - " {muted}❙ {letters}Time without infections"
-      - " {muted}❙ {letters}at start"
+      - " {letters_black}▎ {letters}Time without infections"
+      - " {letters_black}▎ {letters}at start"
       - ""
-      - " {muted}❙ {success}Left-Click +5s"
-      - " {muted}❙ {error}Right-Click -5s"
-      - " {muted}❙ {warning}Shift-Click to enter"
+      - " {letters_black}▎ {success}Left-Click +5s"
+      - " {letters_black}▎ {error}Right-Click -5s"
+      - " {letters_black}▎ {warning}Shift-Click to enter"
     actions:
       - "left: events:adjust_setting grace-period 5"
       - "right: events:adjust_setting grace-period -5"

@@ -23,224 +23,224 @@ filler:
 
 items:
   kills-to-win:
-    slot: 20
+    slot: 19
     material: DIAMOND_SWORD
     name: "{info}&lFRAGS TO WIN"
     lore:
       - ""
-      - " {muted}❙ {letters}Current: {highlight}%kills_to_win%"
+      - " {letters_black}▎ {letters}Current: {highlight}%kills_to_win%"
       - ""
-      - " {muted}❙ {success}Left-Click +5"
-      - " {muted}❙ {error}Right-Click -5"
-      - " {muted}❙ {warning}Shift-Click to enter"
+      - " {letters_black}▎ {success}Left-Click +5"
+      - " {letters_black}▎ {error}Right-Click -5"
+      - " {letters_black}▎ {warning}Shift-Click to enter"
     actions:
       - "left: events:adjust_setting kills-to-win 5"
       - "right: events:adjust_setting kills-to-win -5"
       - "shift_left: events:input_setting kills-to-win"
 
   respawn-delay:
-    slot: 22
+    slot: 21
     material: ENDER_PEARL
     name: "{info}&lRESPAWN TIME"
     lore:
       - ""
-      - " {muted}❙ {letters}Current: {highlight}%respawn_delay%s"
+      - " {letters_black}▎ {letters}Current: {highlight}%respawn_delay%s"
       - ""
-      - " {muted}❙ {success}Left-Click +1s"
-      - " {muted}❙ {error}Right-Click -1s"
-      - " {muted}❙ {warning}Shift-Click to enter"
+      - " {letters_black}▎ {success}Left-Click +1s"
+      - " {letters_black}▎ {error}Right-Click -1s"
+      - " {letters_black}▎ {warning}Shift-Click to enter"
     actions:
       - "left: events:adjust_setting respawn-delay 1"
       - "right: events:adjust_setting respawn-delay -1"
       - "shift_left: events:input_setting respawn-delay"
 
   grace-period:
-    slot: 21
+    slot: 20
     material: CLOCK
     name: "{info}&lGRACE PERIOD"
     lore:
       - ""
-      - " {muted}❙ {letters}Current: {highlight}%grace_period%s"
+      - " {letters_black}▎ {letters}Current: {highlight}%grace_period%s"
       - ""
-      - " {muted}❙ {success}Left-Click +5s"
-      - " {muted}❙ {error}Right-Click -5s"
-      - " {muted}❙ {warning}Shift-Click to enter"
+      - " {letters_black}▎ {success}Left-Click +5s"
+      - " {letters_black}▎ {error}Right-Click -5s"
+      - " {letters_black}▎ {warning}Shift-Click to enter"
     actions:
       - "left: events:adjust_setting grace-period 5"
       - "right: events:adjust_setting grace-period -5"
       - "shift_left: events:input_setting grace-period"
 
   no-regen-duration:
-    slot: 24
+    slot: 28
     material: POTION
     name: "{info}&lNO REGEN AFTER HIT"
     lore:
       - ""
-      - " {muted}❙ {letters}Current: {highlight}%no_regen_duration%s"
+      - " {letters_black}▎ {letters}Current: {highlight}%no_regen_duration%s"
       - ""
-      - " {muted}❙ {success}Left-Click +1s"
-      - " {muted}❙ {error}Right-Click -1s"
-      - " {muted}❙ {warning}Shift-Click to enter"
+      - " {letters_black}▎ {success}Left-Click +1s"
+      - " {letters_black}▎ {error}Right-Click -1s"
+      - " {letters_black}▎ {warning}Shift-Click to enter"
     actions:
       - "left: events:adjust_setting no-regen-duration 1"
       - "right: events:adjust_setting no-regen-duration -1"
       - "shift_left: events:input_setting no-regen-duration"
 
   headshot-multiplier:
-    slot: 25
+    slot: 29
     material: SKELETON_SKULL
     name: "{info}&lHEADSHOT MULTIPLIER"
     lore:
       - ""
-      - " {muted}❙ {letters}Current: {highlight}%headshot_multiplier%x"
+      - " {letters_black}▎ {letters}Current: {highlight}%headshot_multiplier%x"
       - ""
-      - " {muted}❙ {success}Left-Click +0.1"
-      - " {muted}❙ {error}Right-Click -0.1"
-      - " {muted}❙ {warning}Shift-Click to enter"
+      - " {letters_black}▎ {success}Left-Click +0.1"
+      - " {letters_black}▎ {error}Right-Click -0.1"
+      - " {letters_black}▎ {warning}Shift-Click to enter"
     actions:
       - "left: events:adjust_double_setting headshot-multiplier 0.1"
       - "right: events:adjust_double_setting headshot-multiplier -0.1"
       - "shift_left: events:input_double_setting headshot-multiplier"
 
   weapon-switch-delay:
-    slot: 28
+    slot: 30
     material: COMPARATOR
     name: "{info}&lWEAPON SWITCH DELAY"
     lore:
       - ""
-      - " {muted}❙ {letters}Current: {highlight}%weapon_switch_delay% ticks"
+      - " {letters_black}▎ {letters}Current: {highlight}%weapon_switch_delay% ticks"
       - ""
-      - " {muted}❙ {success}Left-Click +2"
-      - " {muted}❙ {error}Right-Click -2"
-      - " {muted}❙ {warning}Shift-Click to enter"
+      - " {letters_black}▎ {success}Left-Click +2"
+      - " {letters_black}▎ {error}Right-Click -2"
+      - " {letters_black}▎ {warning}Shift-Click to enter"
     actions:
       - "left: events:adjust_setting weapon-switch-delay 2"
       - "right: events:adjust_setting weapon-switch-delay -2"
       - "shift_left: events:input_setting weapon-switch-delay"
 
   recoil:
-    slot: 29
+    slot: 31
     material: "%recoil_enabled_material%"
-    name: "{info}&lRECOIL"
+    name: "%recoil_enabled_color%&lRECOIL"
     lore:
       - ""
-      - " {muted}❙ {letters}Current: %recoil_enabled%"
+      - " {letters_black}▎ {letters}Current: %recoil_enabled%"
       - ""
-      - "{info}» Click to toggle"
+      - "{warning}➥ Click to toggle"
     actions:
       - "events:toggle_csgo_setting recoil-enabled"
 
   reset-kit-on-kill:
-    slot: 53
-    material: 'basehead-eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvYmUwZmQxMDE5OWU4ZTRmY2RhYmNhZTRmODVjODU5MTgxMjdhN2M1NTUzYWQyMzVmMDFjNTZkMThiYjk0NzBkMyJ9fX0='
+    slot: 24
+    material: "%reset_kit_material%"
     name: "{info}&lRESET KIT ON KILL"
     lore:
       - ""
-      - " {muted}❙ {letters}Current: %reset_kit%"
+      - " {letters_black}▎ {letters}Current: %reset_kit%"
       - ""
-      - "{info}» Click to toggle"
+      - "{warning}➥ Click to toggle"
     actions:
       - "events:toggle_csgo_setting reset-kit-on-kill"
 
   golden-apple:
-    slot: 19
+    slot: 23
     material: "%golden_apple_material%"
-    name: "{info}&lGOLDEN APPLE ON KILL"
+    name: "%golden_apple_color%&lGOLDEN APPLE ON KILL"
     lore:
       - ""
-      - " {muted}❙ {letters}Current: %golden_apple_on_kill%"
-      - " {muted}❙ {letters}Amount: {highlight}%golden_apple_amount%"
+      - " {letters_black}▎ {letters}Current: %golden_apple_on_kill%"
+      - " {letters_black}▎ {letters}Amount: {highlight}%golden_apple_amount%"
       - ""
-      - " {muted}❙ {success}Left-Click to toggle"
-      - " {muted}❙ {warning}Right-Click to adjust amount"
+      - " {letters_black}▎ {success}Left-Click to toggle"
+      - " {letters_black}▎ {warning}Right-Click to adjust amount"
     actions:
       - "left: events:toggle_csgo_setting golden-apple-on-kill"
       - "right: events:input_setting golden-apple-amount"
 
   pistol:
-    slot: 30
+    slot: 37
     material: "%pistol_enabled_material%"
-    name: "{warning}&lPISTOL"
+    name: "%pistol_enabled_color%&lPISTOL"
     lore:
       - ""
-      - " {muted}❙ {letters}Dmg: {highlight}%pistol_damage% {muted}| CD: {highlight}%pistol_cooldown%t {muted}| Range: {highlight}%pistol_range%"
+      - " {letters_black}▎ {letters}Dmg: {highlight}%pistol_damage% {muted}| CD: {highlight}%pistol_cooldown%t {muted}| Range: {highlight}%pistol_range%"
       - ""
-      - "{info}» Click to configure"
+      - "{warning}➥ Click to configure"
     actions:
       - "events:open_csgo_weapon_settings pistol"
 
   ak47:
-    slot: 31
+    slot: 38
     material: "%ak47_enabled_material%"
-    name: "{warning}&lAK-47"
+    name: "%ak47_enabled_color%&lAK-47"
     lore:
       - ""
-      - " {muted}❙ {letters}Dmg: {highlight}%ak47_damage% {muted}| CD: {highlight}%ak47_cooldown%t {muted}| Range: {highlight}%ak47_range%"
+      - " {letters_black}▎ {letters}Dmg: {highlight}%ak47_damage% {muted}| CD: {highlight}%ak47_cooldown%t {muted}| Range: {highlight}%ak47_range%"
       - ""
-      - "{info}» Click to configure"
+      - "{warning}➥ Click to configure"
     actions:
       - "events:open_csgo_weapon_settings ak47"
 
   sniper:
-    slot: 32
+    slot: 39
     material: "%sniper_enabled_material%"
-    name: "{warning}&lSNIPER"
+    name: "%sniper_enabled_color%&lSNIPER"
     lore:
       - ""
-      - " {muted}❙ {letters}Dmg: {highlight}%sniper_damage% {muted}| CD: {highlight}%sniper_cooldown%t {muted}| Range: {highlight}%sniper_range%"
+      - " {letters_black}▎ {letters}Dmg: {highlight}%sniper_damage% {muted}| CD: {highlight}%sniper_cooldown%t {muted}| Range: {highlight}%sniper_range%"
       - ""
-      - "{info}» Click to configure"
+      - "{warning}➥ Click to configure"
     actions:
       - "events:open_csgo_weapon_settings sniper"
 
   shotgun:
-    slot: 33
+    slot: 40
     material: "%shotgun_enabled_material%"
-    name: "{warning}&lSHOTGUN"
+    name: "%shotgun_enabled_color%&lSHOTGUN"
     lore:
       - ""
-      - " {muted}❙ {letters}Dmg: {highlight}%shotgun_damage%x%shotgun_pellets% {muted}| CD: {highlight}%shotgun_cooldown%t {muted}| Range: {highlight}%shotgun_range%"
+      - " {letters_black}▎ {letters}Dmg: {highlight}%shotgun_damage%x%shotgun_pellets% {muted}| CD: {highlight}%shotgun_cooldown%t {muted}| Range: {highlight}%shotgun_range%"
       - ""
-      - "{info}» Click to configure"
+      - "{warning}➥ Click to configure"
     actions:
       - "events:open_csgo_weapon_settings shotgun"
 
   smg:
-    slot: 34
+    slot: 41
     material: "%smg_enabled_material%"
-    name: "{warning}&lSMG"
+    name: "%smg_enabled_color%&lSMG"
     lore:
       - ""
-      - " {muted}❙ {letters}Dmg: {highlight}%smg_damage% {muted}| CD: {highlight}%smg_cooldown%t {muted}| Range: {highlight}%smg_range%"
+      - " {letters_black}▎ {letters}Dmg: {highlight}%smg_damage% {muted}| CD: {highlight}%smg_cooldown%t {muted}| Range: {highlight}%smg_range%"
       - ""
-      - "{info}» Click to configure"
+      - "{warning}➥ Click to configure"
     actions:
       - "events:open_csgo_weapon_settings smg"
 
   rocket-launcher:
-    slot: 37
+    slot: 42
     material: "%rocket_launcher_enabled_material%"
-    name: "{warning}&lROCKET LAUNCHER"
+    name: "%rocket_launcher_enabled_color%&lROCKET LAUNCHER"
     lore:
       - ""
-      - " {muted}❙ {letters}Dmg: {highlight}%rocket_launcher_damage% {muted}| Radius: {highlight}%rocket_launcher_radius% {muted}| Speed: {highlight}%rocket_launcher_speed%"
+      - " {letters_black}▎ {letters}Dmg: {highlight}%rocket_launcher_damage% {muted}| Radius: {highlight}%rocket_launcher_radius% {muted}| Speed: {highlight}%rocket_launcher_speed%"
       - ""
-      - "{info}» Click to configure"
+      - "{warning}➥ Click to configure"
     actions:
       - "events:open_csgo_weapon_settings rocket-launcher"
 
   team-selector:
-    slot: 23
+    slot: 22
     condition: "%has_teams% == true"
     material: "%team_selector_material%"
-    name: "{warning}&lTEAM SELECTOR"
+    name: "%team_selector_color%&lTEAM SELECTOR"
     lore:
       - ""
-      - " {muted}❙ {letters}Current: %team_selector%"
-      - " {muted}❙ {letters}Allow players to choose"
-      - " {muted}❙ {letters}their team in the lobby"
+      - " {letters_black}▎ {letters}Current: %team_selector%"
+      - " {letters_black}▎ {letters}Allow players to choose"
+      - " {letters_black}▎ {letters}their team in the lobby"
       - ""
-      - "{info}» Click to toggle"
+      - "{warning}➥ Click to toggle"
     actions:
       - "events:toggle_team_selector_setting team-selector-enabled"
 

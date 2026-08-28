@@ -28,13 +28,13 @@ pagination:
     name: "{warning}&l%arena_name%"
     lore:
       - ""
-      - " {muted}❙ {letters}ID: {info}%arena_id%"
-      - " {muted}❙ {letters}Enabled: %arena_enabled%"
-      - " {muted}❙ {letters}Instances: {highlight}%arena_instances%"
-      - " {muted}❙ {letters}Available: {highlight}%arena_available%"
+      - " {letters_black}▎ {letters}ID: {info}%arena_id%"
+      - " {letters_black}▎ {letters}Enabled: %arena_enabled%"
+      - " {letters_black}▎ {letters}Instances: {highlight}%arena_instances%"
+      - " {letters_black}▎ {letters}Available: {highlight}%arena_available%"
       - ""
-      - " {muted}❙ {success}Left-Click to edit"
-      - " {muted}❙ {error}Right-Click to delete"
+      - " {letters_black}▎ {success}Left-Click to edit"
+      - " {letters_black}▎ {error}Right-Click to delete"
     actions:
       - "left: practice:edit_arena %arena_id%"
       - "right: practice:confirm_delete_arena %arena_id%"
@@ -64,9 +64,9 @@ items:
     name: "{success}&lCREATE ARENA"
     lore:
       - ""
-      - " {muted}❙ {letters}Create a new practice arena"
+      - " {letters_black}▎ {letters}Create a new practice arena"
       - ""
-      - "{info}» Click to create"
+      - "{warning}➥ Click to create"
     actions:
       - "practice:create_arena"
 

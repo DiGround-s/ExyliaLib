@@ -28,12 +28,12 @@ items:
     name: "{info}&lMATCH DURATION"
     lore:
       - ""
-      - " {muted}❙ {letters}Current: {highlight}%match_duration%s"
-      - " {muted}❙ {letters}Max time per match"
+      - " {letters_black}▎ {letters}Current: {highlight}%match_duration%s"
+      - " {letters_black}▎ {letters}Max time per match"
       - ""
-      - " {muted}❙ {success}Left-Click +15s"
-      - " {muted}❙ {error}Right-Click -15s"
-      - " {muted}❙ {warning}Shift-Click to enter"
+      - " {letters_black}▎ {success}Left-Click +15s"
+      - " {letters_black}▎ {error}Right-Click -15s"
+      - " {letters_black}▎ {warning}Shift-Click to enter"
     actions:
       - "left: events:adjust_setting match-duration 15"
       - "right: events:adjust_setting match-duration -15"
@@ -45,12 +45,12 @@ items:
     name: "{info}&lMATCH INTRO"
     lore:
       - ""
-      - " {muted}❙ {letters}Current: {highlight}%match_intro_delay%s"
-      - " {muted}❙ {letters}Presentation time before fighting"
+      - " {letters_black}▎ {letters}Current: {highlight}%match_intro_delay%s"
+      - " {letters_black}▎ {letters}Presentation time before fighting"
       - ""
-      - " {muted}❙ {success}Left-Click +1s"
-      - " {muted}❙ {error}Right-Click -1s"
-      - " {muted}❙ {warning}Shift-Click to enter"
+      - " {letters_black}▎ {success}Left-Click +1s"
+      - " {letters_black}▎ {error}Right-Click -1s"
+      - " {letters_black}▎ {warning}Shift-Click to enter"
     actions:
       - "left: events:adjust_setting match-intro-delay 1"
       - "right: events:adjust_setting match-intro-delay -1"
@@ -62,12 +62,12 @@ items:
     name: "{info}&lPOST-MATCH DELAY"
     lore:
       - ""
-      - " {muted}❙ {letters}Current: {highlight}%match_end_delay%s"
-      - " {muted}❙ {letters}Pause after each match"
+      - " {letters_black}▎ {letters}Current: {highlight}%match_end_delay%s"
+      - " {letters_black}▎ {letters}Pause after each match"
       - ""
-      - " {muted}❙ {success}Left-Click +1s"
-      - " {muted}❙ {error}Right-Click -1s"
-      - " {muted}❙ {warning}Shift-Click to enter"
+      - " {letters_black}▎ {success}Left-Click +1s"
+      - " {letters_black}▎ {error}Right-Click -1s"
+      - " {letters_black}▎ {warning}Shift-Click to enter"
     actions:
       - "left: events:adjust_setting match-end-delay 1"
       - "right: events:adjust_setting match-end-delay -1"
@@ -79,12 +79,12 @@ items:
     name: "{info}&lROUND PAUSE"
     lore:
       - ""
-      - " {muted}❙ {letters}Current: {highlight}%round_delay%s"
-      - " {muted}❙ {letters}Wait between tournament rounds"
+      - " {letters_black}▎ {letters}Current: {highlight}%round_delay%s"
+      - " {letters_black}▎ {letters}Wait between tournament rounds"
       - ""
-      - " {muted}❙ {success}Left-Click +1s"
-      - " {muted}❙ {error}Right-Click -1s"
-      - " {muted}❙ {warning}Shift-Click to enter"
+      - " {letters_black}▎ {success}Left-Click +1s"
+      - " {letters_black}▎ {error}Right-Click -1s"
+      - " {letters_black}▎ {warning}Shift-Click to enter"
     actions:
       - "left: events:adjust_setting round-delay 1"
       - "right: events:adjust_setting round-delay -1"
@@ -93,39 +93,39 @@ items:
   heal-between-matches:
     slot: 23
     material: "%heal_between_matches_material%"
-    name: "{info}&lHEAL BETWEEN MATCHES"
+    name: "%heal_between_matches_color%&lHEAL BETWEEN MATCHES"
     lore:
       - ""
-      - " {muted}❙ {letters}Current: %heal_between_matches%"
-      - " {muted}❙ {letters}Restore full health between rounds"
+      - " {letters_black}▎ {letters}Current: %heal_between_matches%"
+      - " {letters_black}▎ {letters}Restore full health between rounds"
       - ""
-      - "{info}» Click to toggle"
+      - "{warning}➥ Click to toggle"
     actions:
       - "events:toggle_tournament_setting heal-between-matches"
 
   disable-hit-damage:
     slot: 24
     material: "%disable_hit_damage_material%"
-    name: "{info}&lDISABLE HIT DAMAGE"
+    name: "%disable_hit_damage_color%&lDISABLE HIT DAMAGE"
     lore:
       - ""
-      - " {muted}❙ {letters}Current: %disable_hit_damage%"
-      - " {muted}❙ {letters}Hits deal 0 damage (matches end by time)"
+      - " {letters_black}▎ {letters}Current: %disable_hit_damage%"
+      - " {letters_black}▎ {letters}Hits deal 0 damage (matches end by time)"
       - ""
-      - "{info}» Click to toggle"
+      - "{warning}➥ Click to toggle"
     actions:
       - "events:toggle_tournament_setting disable-hit-damage"
 
   disable-food-drop:
     slot: 25
     material: "%disable_food_drop_material%"
-    name: "{info}&lDISABLE FOOD DROP"
+    name: "%disable_food_drop_color%&lDISABLE FOOD DROP"
     lore:
       - ""
-      - " {muted}❙ {letters}Current: %disable_food_drop%"
-      - " {muted}❙ {letters}Food level never drops"
+      - " {letters_black}▎ {letters}Current: %disable_food_drop%"
+      - " {letters_black}▎ {letters}Food level never drops"
       - ""
-      - "{info}» Click to toggle"
+      - "{warning}➥ Click to toggle"
     actions:
       - "events:toggle_tournament_setting disable-food-drop"
 
@@ -135,12 +135,12 @@ items:
     name: "{info}&lSPECTATOR MODE"
     lore:
       - ""
-      - " {muted}❙ {letters}Current: {highlight}%spectator_mode%"
-      - " {muted}❙ {letters}Mode for alive players awaiting their match"
-      - " {muted}❙ SPECTATOR {muted}» invisible, fly, no interaction"
-      - " {muted}❙ ADVENTURE {muted}» visible, can walk around"
+      - " {letters_black}▎ {letters}Current: {highlight}%spectator_mode%"
+      - " {letters_black}▎ {letters}Mode for alive players awaiting their match"
+      - " {letters_black}▎ SPECTATOR {warning}➥ invisible, fly, no interaction"
+      - " {letters_black}▎ ADVENTURE {warning}➥ visible, can walk around"
       - ""
-      - "{info}» Click to cycle"
+      - "{warning}➥ Click to cycle"
     actions:
       - "events:cycle_tournament_spectator_mode"
 
@@ -150,13 +150,13 @@ items:
     name: "{info}&lFREEZE TIME"
     lore:
       - ""
-      - " {muted}❙ {letters}Current: {highlight}%freeze_time%s"
-      - " {muted}❙ {letters}Seconds players can't move or act at match start"
-      - " {muted}❙ {letters}Set to 0 to disable"
+      - " {letters_black}▎ {letters}Current: {highlight}%freeze_time%s"
+      - " {letters_black}▎ {letters}Seconds players can't move or act at match start"
+      - " {letters_black}▎ {letters}Set to 0 to disable"
       - ""
-      - " {muted}❙ {success}Left-Click +1s"
-      - " {muted}❙ {error}Right-Click -1s"
-      - " {muted}❙ {warning}Shift-Click to enter"
+      - " {letters_black}▎ {success}Left-Click +1s"
+      - " {letters_black}▎ {error}Right-Click -1s"
+      - " {letters_black}▎ {warning}Shift-Click to enter"
     actions:
       - "left: events:adjust_setting freeze-time 1"
       - "right: events:adjust_setting freeze-time -1"

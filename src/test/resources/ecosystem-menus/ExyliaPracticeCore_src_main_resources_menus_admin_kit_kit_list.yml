@@ -14,14 +14,15 @@ filler:
 
 items:
   create:
-    slot: 40
+    # Not 45: the kit list pages from there.
+    slot: 47
     material: EMERALD
     name: "{success}&lCREATE KIT"
     lore:
       - ""
-      - " {muted}❙ {letters}Category: {info}%category_filter_name%"
+      - " {letters_black}▎ {letters}Category: {info}%category_filter_name%"
       - ""
-      - "{info}» Click to create"
+      - "{warning}➥ Click to create"
     actions:
       - "practice:create_kit"
 
@@ -45,17 +46,17 @@ sections:
       name: "{warning}&l%cat_name%"
       lore:
         - ""
-        - " {muted}❙ {letters}ID: {info}%cat_id%"
-        - " {muted}❙ {letters}Kits: {highlight}%cat_kit_count%"
+        - " {letters_black}▎ {letters}ID: {info}%cat_id%"
+        - " {letters_black}▎ {letters}Kits: {highlight}%cat_kit_count%"
         - ""
-        - "{accent}» Click to filter"
+        - "{warning}➥ Click to filter"
     active_template:
       material: "%cat_icon%"
       name: "{success}&l%cat_name%"
       lore:
         - ""
-        - " {muted}❙ {letters}ID: {info}%cat_id%"
-        - " {muted}❙ {letters}Kits: {highlight}%cat_kit_count%"
+        - " {letters_black}▎ {letters}ID: {info}%cat_id%"
+        - " {letters_black}▎ {letters}Kits: {highlight}%cat_kit_count%"
         - ""
         - "{success}✔ Currently viewing"
       glowing: true
@@ -79,20 +80,20 @@ sections:
       lore:
         - ""
         - "{muted}No kits in this category."
-        - "{accent}» Click CREATE KIT to add one"
+        - "{warning}➥ Click CREATE KIT to add one"
       hide_tooltip: false
     kit_template:
       material: "%kit_icon%"
       name: "{warning}&l%kit_name%"
       lore:
         - ""
-        - " {muted}❙ {letters}ID: {info}%kit_id%"
-        - " {muted}❙ {letters}Enabled: %kit_enabled%"
-        - " {muted}❙ {letters}Priority: {highlight}%kit_priority%"
-        - " {muted}❙ {letters}Loadout: %kit_loadout%"
+        - " {letters_black}▎ {letters}ID: {info}%kit_id%"
+        - " {letters_black}▎ {letters}Enabled: %kit_enabled%"
+        - " {letters_black}▎ {letters}Priority: {highlight}%kit_priority%"
+        - " {letters_black}▎ {letters}Loadout: %kit_loadout%"
         - ""
-        - " {muted}❙ {success}Left-Click to edit"
-        - " {muted}❙ {error}Right-Click to delete"
+        - " {letters_black}▎ {success}Left-Click to edit"
+        - " {letters_black}▎ {error}Right-Click to delete"
     navigation:
       previous:
         slot: 45

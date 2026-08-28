@@ -16,8 +16,30 @@ filler:
     hide_tooltip: true
 
 items:
+  scope-kit:
+    slot: 2
+    material: PAPER
+    name: "{secondary}&lONE KIT"
+    lore:
+      - ""
+      - " {letters_black}▎ {letters}Everything in this column asks"
+      - " {letters_black}▎ {letters}which kit first."
+    hide_tooltip: false
+
+  scope-all:
+    slot: 6
+    material: BOOK
+    name: "{error}&lEVERY KIT"
+    lore:
+      - ""
+      - " {letters_black}▎ {letters}Everything in this column runs"
+      - " {letters_black}▎ {letters}on the whole database at once."
+      - ""
+      - " {letters_black}▎ {error}None of it can be undone."
+    hide_tooltip: false
+
   new-season:
-    slot: 45
+    slot: 53
     material: END_CRYSTAL
     name: "{error}&lNEW SEASON"
     lore:
@@ -35,108 +57,108 @@ items:
       - "practice:data_new_season"
 
   clear-kit-stats:
-    slot: 19
+    slot: 11
     material: ORANGE_DYE
     name: "{warning}&lCLEAR KIT STATS"
     lore:
       - ""
-      - " {muted}❙ {letters}Deletes all statistics"
-      - " {muted}❙ {letters}for a specific kit"
+      - " {letters_black}▎ {letters}Deletes all statistics"
+      - " {letters_black}▎ {letters}for a specific kit"
       - ""
-      - "{warning}» Click to select kit"
+      - "{warning}➥ Click to select kit"
     actions:
       - "practice:data_clear_kit_stats"
 
   clear-all-stats:
-    slot: 20
+    slot: 15
     material: TNT
     name: "{error}&lCLEAR ALL STATS"
     lore:
       - ""
-      - " {muted}❙ {error}Deletes ALL statistics"
-      - " {muted}❙ {error}for every kit and player"
+      - " {letters_black}▎ {error}Deletes ALL statistics"
+      - " {letters_black}▎ {error}for every kit and player"
       - ""
-      - "{error}» Click to confirm"
+      - "{error}➥ Click to confirm"
     actions:
       - "practice:data_clear_all_stats"
 
   reset-kit-elo:
-    slot: 21
+    slot: 20
     material: EXPERIENCE_BOTTLE
     name: "{warning}&lRESET KIT ELO"
     lore:
       - ""
-      - " {muted}❙ {letters}Resets ELO to default"
-      - " {muted}❙ {letters}for a specific kit"
+      - " {letters_black}▎ {letters}Resets ELO to default"
+      - " {letters_black}▎ {letters}for a specific kit"
       - ""
-      - "{warning}» Click to select kit"
+      - "{warning}➥ Click to select kit"
     actions:
       - "practice:data_reset_kit_elo"
 
   reset-all-elo:
-    slot: 22
+    slot: 24
     material: NETHER_STAR
     name: "{error}&lRESET ALL ELO"
     lore:
       - ""
-      - " {muted}❙ {error}Resets ELO to default"
-      - " {muted}❙ {error}for ALL players"
+      - " {letters_black}▎ {error}Resets ELO to default"
+      - " {letters_black}▎ {error}for ALL players"
       - ""
-      - "{error}» Click to confirm"
+      - "{error}➥ Click to confirm"
     actions:
       - "practice:data_reset_all_elo"
 
   clear-kit-loadouts:
-    slot: 23
+    slot: 29
     material: CRAFTING_TABLE
     name: "{warning}&lCLEAR KIT LOADOUTS"
     lore:
       - ""
-      - " {muted}❙ {letters}Removes all custom loadouts"
-      - " {muted}❙ {letters}for a specific kit"
+      - " {letters_black}▎ {letters}Removes all custom loadouts"
+      - " {letters_black}▎ {letters}for a specific kit"
       - ""
-      - "{warning}» Click to select kit"
+      - "{warning}➥ Click to select kit"
     actions:
       - "practice:data_clear_kit_customizations"
 
   clear-all-loadouts:
-    slot: 24
+    slot: 33
     material: FIRE_CHARGE
     name: "{error}&lCLEAR ALL LOADOUTS"
     lore:
       - ""
-      - " {muted}❙ {error}Removes ALL custom loadouts"
-      - " {muted}❙ {error}for every player"
+      - " {letters_black}▎ {error}Removes ALL custom loadouts"
+      - " {letters_black}▎ {error}for every player"
       - ""
-      - "{error}» Click to confirm"
+      - "{error}➥ Click to confirm"
     actions:
       - "practice:data_clear_all_customizations"
 
   purge-match-history:
-    slot: 25
+    slot: 42
     material: BOOKSHELF
     name: "{error}&lPURGE MATCH HISTORY"
     lore:
       - ""
-      - " {muted}❙ {letters}Deletes every stored match"
-      - " {muted}❙ {letters}from the history menus"
+      - " {letters_black}▎ {letters}Deletes every stored match"
+      - " {letters_black}▎ {letters}from the history menus"
       - ""
-      - " {muted}❙ {success}Stats and ELO are kept"
+      - " {letters_black}▎ {success}Stats and ELO are kept"
       - ""
-      - "{error}» Click to confirm"
+      - "{error}➥ Click to confirm"
     actions:
       - "practice:data_purge_match_history"
 
   export:
-    slot: 28
+    slot: 45
     material: ENDER_CHEST
     name: "{success}&lEXPORT DATABASE"
     lore:
       - ""
-      - " {muted}❙ {letters}Exports all database tables"
-      - " {muted}❙ {letters}to a JSON file in /exports/"
+      - " {letters_black}▎ {letters}Exports all database tables"
+      - " {letters_black}▎ {letters}to a JSON file in /exports/"
       - ""
-      - "{success}» Click to export"
+      - "{success}➥ Click to export"
     actions:
       - "practice:data_export"
 
@@ -146,13 +168,13 @@ items:
     name: "{warning}&lIMPORT DATABASE"
     lore:
       - ""
-      - " {muted}❙ {letters}Imports data from a JSON"
-      - " {muted}❙ {letters}file in the /exports/ folder"
+      - " {letters_black}▎ {letters}Imports data from a JSON"
+      - " {letters_black}▎ {letters}file in the /exports/ folder"
       - ""
-      - " {muted}❙ {error}WARNING: This will overwrite"
-      - " {muted}❙ {error}existing data!"
+      - " {letters_black}▎ {error}WARNING: This will overwrite"
+      - " {letters_black}▎ {error}existing data!"
       - ""
-      - "{warning}» Click to import"
+      - "{warning}➥ Click to import"
     actions:
       - "practice:data_import"
 
@@ -162,6 +184,6 @@ items:
     name: '{error}&lBACK'
     lore:
       - ""
-      - "{info}» Click to go back"
+      - "{warning}➥ Click to go back"
     actions:
       - "practice:open_admin"

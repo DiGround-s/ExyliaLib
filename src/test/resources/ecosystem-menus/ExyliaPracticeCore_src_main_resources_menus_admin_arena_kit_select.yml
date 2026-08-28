@@ -23,15 +23,16 @@ items:
       - "practice:open_arena_setup"
 
   add_all:
-    slot: 40
+    # Not 45: the kit list pages from there.
+    slot: 47
     material: NETHER_STAR
     name: "{success}&lAdd All — {warning}%category_filter_name%"
     lore:
       - ""
-      - " {muted}❙ Adds ALL kits from the selected category"
-      - " {muted}❙ to this arena at once."
+      - " {letters_black}▎ Adds ALL kits from the selected category"
+      - " {letters_black}▎ to this arena at once."
       - ""
-      - "{success}» Click to add all"
+      - "{success}➥ Click to add all"
     actions:
       - "practice:arena_kit_add_category %category_filter_id%"
 
@@ -46,18 +47,18 @@ sections:
       name: "{warning}&l%cat_name%"
       lore:
         - ""
-        - " {muted}❙ {letters}ID: {info}%cat_id%"
+        - " {letters_black}▎ {letters}ID: {info}%cat_id%"
         - ""
-        - "{accent}» Click to filter by this category"
+        - "{warning}➥ Click to filter by this category"
     active_template:
       material: "%cat_icon%"
       name: "{success}&l%cat_name%"
       lore:
         - ""
-        - " {muted}❙ {letters}ID: {info}%cat_id%"
+        - " {letters_black}▎ {letters}ID: {info}%cat_id%"
         - ""
         - "{success}✔ Currently filtering"
-        - "{accent}» Click again to show all kits"
+        - "{warning}➥ Click again to show all kits"
       glowing: true
     navigation:
       previous:
@@ -85,17 +86,17 @@ sections:
       name: "{error}✗ {warning}&l%kit_name%"
       lore:
         - ""
-        - " {muted}❙ {letters}ID: {info}%kit_id%"
+        - " {letters_black}▎ {letters}ID: {info}%kit_id%"
         - ""
-        - " {muted}❙ {muted}Not in arena — Click to add"
+        - " {letters_black}▎ {muted}Not in arena — Click to add"
     in_arena_template:
       material: "%kit_icon%"
       name: "{success}✔ {warning}&l%kit_name%"
       lore:
         - ""
-        - " {muted}❙ {letters}ID: {info}%kit_id%"
+        - " {letters_black}▎ {letters}ID: {info}%kit_id%"
         - ""
-        - " {muted}❙ {success}In arena — Click to remove"
+        - " {letters_black}▎ {success}In arena — Click to remove"
       glowing: true
     navigation:
       previous:

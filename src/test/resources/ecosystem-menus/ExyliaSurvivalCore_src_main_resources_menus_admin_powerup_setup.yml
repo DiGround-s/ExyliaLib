@@ -27,11 +27,11 @@ items:
     name: "{highlight}&lDISPLAY NAME"
     lore:
       - ""
-      - " {muted}❙ {letters}Current: {info}%pu_name%"
+      - " {letters_black}▎ {letters}Current: {info}%pu_name%"
       - ""
-      - " {muted}❙ {letters}Name shown in holograms"
+      - " {letters_black}▎ {letters}Name shown in holograms"
       - ""
-      - "{info}» Click to change"
+      - "{warning}➥ Click to change"
     actions:
       - "survivalcore:pu_edit_name"
 
@@ -41,51 +41,51 @@ items:
     name: "{highlight}&lICON"
     lore:
       - ""
-      - " {muted}❙ {letters}Current: {info}%pu_icon%"
+      - " {letters_black}▎ {letters}Current: {info}%pu_icon%"
       - ""
-      - " {muted}❙ {letters}Item shown as ItemDisplay"
+      - " {letters_black}▎ {letters}Item shown as ItemDisplay"
       - ""
-      - "{info}» Click to change"
+      - "{warning}➥ Click to change"
     actions:
       - "survivalcore:pu_set_icon"
 
   glow:
-    slot: 37
+    slot: 24
     material: "%pu_glow_material%"
-    name: "{highlight}&lGLOW"
+    name: "%pu_glow_color%&lGLOW"
     lore:
       - ""
-      - " {muted}❙ {letters}Status: %pu_glow_status%"
+      - " {letters_black}▎ {letters}Status: %pu_glow_status%"
       - ""
-      - " {muted}❙ {letters}Makes the item glow"
+      - " {letters_black}▎ {letters}Makes the item glow"
       - ""
-      - "{info}» Click to toggle"
+      - "{warning}➥ Click to toggle"
     actions:
       - "survivalcore:pu_toggle_glow"
 
   glow-color:
-    slot: 38
+    slot: 25
     material: "%pu_glow_color_material%"
     name: "{highlight}&lGLOW COLOR"
     lore:
       - ""
-      - " {muted}❙ {letters}Current: {highlight}%pu_glow_color%"
+      - " {letters_black}▎ {letters}Current: {highlight}%pu_glow_color%"
       - ""
-      - " {muted}❙ {letters}Color of the glow outline"
+      - " {letters_black}▎ {letters}Color of the glow outline"
       - ""
-      - "{info}» Click to cycle"
+      - "{warning}➥ Click to cycle"
     actions:
       - "survivalcore:pu_cycle_glow_color"
 
   weight:
-    slot: 39
+    slot: 19
     material: COMPARATOR
     name: "{highlight}&lWEIGHT"
     lore:
       - ""
-      - " {muted}❙ {letters}Current: {highlight}%pu_weight%"
+      - " {letters_black}▎ {letters}Current: {highlight}%pu_weight%"
       - ""
-      - " {muted}❙ {letters}Relative chance for weighted selection"
+      - " {letters_black}▎ {letters}Relative chance for weighted selection"
       - ""
       - " {success}● {info}Left-click {muted}+10"
       - " {error}● {info}Right-click {muted}-10"
@@ -98,30 +98,30 @@ items:
       - "shift_right: survivalcore:pu_adjust_weight -50"
 
   effects:
-    slot: 40
+    slot: 21
     material: SPLASH_POTION
     name: "{highlight}&lPOTION EFFECTS"
     lore:
       - ""
-      - " {muted}❙ {letters}Count: {highlight}%pu_effects_count%"
+      - " {letters_black}▎ {letters}Count: {highlight}%pu_effects_count%"
       - ""
-      - " {muted}❙ {letters}Effects applied on pickup"
+      - " {letters_black}▎ {letters}Effects applied on pickup"
       - ""
-      - "{info}» Click to manage"
+      - "{warning}➥ Click to manage"
     actions:
       - "survivalcore:pu_open_effects"
 
   rewards:
-    slot: 41
+    slot: 22
     material: CHEST
     name: "{highlight}&lREWARDS"
     lore:
       - ""
-      - " {muted}❙ {letters}Count: {highlight}%pu_rewards_count%"
+      - " {letters_black}▎ {letters}Count: {highlight}%pu_rewards_count%"
       - ""
-      - " {muted}❙ {letters}Rewards given on pickup"
+      - " {letters_black}▎ {letters}Rewards given on pickup"
       - ""
-      - "{info}» Click to manage"
+      - "{warning}➥ Click to manage"
     actions:
       - "survivalcore:pu_open_rewards"
 
@@ -131,7 +131,7 @@ items:
     name: '{error}&lBACK'
     lore:
       - ""
-      - " {info}» Return to zone powerups"
+      - " {warning}➥ Return to zone powerups"
     actions:
       - "survivalcore:pu_zone_open_entries"
 
@@ -141,6 +141,6 @@ items:
     name: "{error}&lREMOVE FROM ZONE"
     lore:
       - ""
-      - " {error}» Click to remove this powerup"
+      - " {error}➥ Click to remove this powerup"
     actions:
       - "survivalcore:pu_zone_remove_entry %pu_id%"

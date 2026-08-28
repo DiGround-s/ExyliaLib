@@ -19,29 +19,29 @@ filler:
 
 items:
   preview:
-    slot: 37
+    slot: 21
     material: "%pk_icon%"
     name: "{letters}&l%pk_name%"
     glow: true
     hide_tooltip: false
     lore:
       - ""
-      - " {muted}❙ {letters}ID: {info}%pk_id%"
-      - " {muted}❙ {letters}Items: {info}%pk_items%"
-      - " {muted}❙ {letters}Desc: {info}%pk_description%"
+      - " {letters_black}▎ {letters}ID: {info}%pk_id%"
+      - " {letters_black}▎ {letters}Items: {info}%pk_items%"
+      - " {letters_black}▎ {letters}Desc: {info}%pk_description%"
 
   contents:
-    slot: 38
+    slot: 23
     material: ANVIL
     name: "{success}&lEdit Contents"
     lore:
       - ""
-      - " {muted}❙ {letters}Opens the Kit Creator with"
-      - " {muted}❙ {letters}this kit already equipped"
+      - " {letters_black}▎ {letters}Opens the Kit Creator with"
+      - " {letters_black}▎ {letters}this kit already equipped"
       - ""
-      - " {muted}❙ {letters}Save it with {highlight}/kitsave"
+      - " {letters_black}▎ {letters}Save it with {highlight}/kitsave"
       - ""
-      - "{info}» Click to edit"
+      - "{warning}➥ Click to edit"
     actions:
       - "sandbox:predefined_kit_edit %pk_id%"
 
@@ -51,9 +51,9 @@ items:
     name: "{info}&lRename Kit"
     lore:
       - ""
-      - " {muted}❙ {letters}Change the displayed name"
+      - " {letters_black}▎ {letters}Change the displayed name"
       - ""
-      - "{info}» Click to rename"
+      - "{warning}➥ Click to rename"
     actions:
       - "sandbox:predefined_kit_rename %pk_id%"
 
@@ -63,9 +63,9 @@ items:
     name: "{highlight}&lChange Icon"
     lore:
       - ""
-      - " {muted}❙ {letters}Set a custom icon material"
+      - " {letters_black}▎ {letters}Set a custom icon material"
       - ""
-      - "{info}» Click to change"
+      - "{warning}➥ Click to change"
     actions:
       - "sandbox:predefined_kit_set_icon %pk_id%"
 
@@ -75,10 +75,10 @@ items:
     name: "{secondary}&lDescription"
     lore:
       - ""
-      - " {muted}❙ {letters}One line players read"
-      - " {muted}❙ {letters}before copying the kit"
+      - " {letters_black}▎ {letters}One line players read"
+      - " {letters_black}▎ {letters}before copying the kit"
       - ""
-      - "{info}» Click to write"
+      - "{warning}➥ Click to write"
     actions:
       - "sandbox:predefined_kit_set_description %pk_id%"
 
@@ -88,9 +88,9 @@ items:
     name: "{error}&lDelete Kit"
     lore:
       - ""
-      - " {muted}❙ {letters}Permanently delete this kit"
+      - " {letters_black}▎ {letters}Permanently delete this kit"
       - ""
-      - "{error}» Click to delete"
+      - "{error}➥ Click to delete"
     actions:
       - "sandbox:confirm_predefined_kit_delete %pk_id%"
 

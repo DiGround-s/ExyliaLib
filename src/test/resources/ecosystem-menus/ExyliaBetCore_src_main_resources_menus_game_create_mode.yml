@@ -1,0 +1,52 @@
+# Which mode to play. One row per mode the game's own config turns on.
+
+title: '{primary}&lMODE {muted}— %game_name%'
+size: 27
+type: PAGINATION
+
+click_sounds:
+  - 'UI_BUTTON_CLICK|1.0|1.5'
+
+filler:
+  global:
+    material: BLACK_STAINED_GLASS_PANE
+    hide_tooltip: true
+
+items:
+  back:
+    slot: 22
+    material: ARROW
+    name: '{error}&lBACK'
+    lore:
+      - ''
+      - '{warning}➥ Click to go back'
+      - ''
+    actions:
+      - 'left: betcore:open_create'
+
+pagination:
+  slots: '10-16'
+  filler:
+    material: LIGHT_GRAY_STAINED_GLASS_PANE
+    name: '{muted}No modes are turned on'
+  item_template:
+    material: '%mode_icon%'
+    name: '%mode_name%'
+    lore:
+      - ''
+      - '%mode_description%'
+      - ''
+      - '{warning}➥ Click to pick this mode'
+      - ''
+    actions:
+      - 'left: betcore:set_mode %mode_id%'
+  selected_template:
+    material: '%mode_icon%'
+    name: '%mode_name% {success}✔'
+    lore:
+      - ''
+      - '%mode_description%'
+      - ''
+      - '{success}This is what you are playing.'
+      - ''
+    glow: true

@@ -28,10 +28,10 @@ pagination:
     name: "{warning}&lLOCATION #%loc_index%"
     lore:
       - ""
-      - " {muted}❙ {letters}World: {info}%loc_world%"
-      - " {muted}❙ {letters}X: {info}%loc_x% {muted}| Y: {info}%loc_y% {muted}| Z: {info}%loc_z%"
+      - " {letters_black}▎ {letters}World: {info}%loc_world%"
+      - " {letters_black}▎ {letters}X: {info}%loc_x% {muted}| Y: {info}%loc_y% {muted}| Z: {info}%loc_z%"
       - ""
-      - " {muted}❙ {error}Right-Click to remove"
+      - " {letters_black}▎ {error}Right-Click to remove"
     actions:
       - "right: practice:jumpad_remove_location %loc_index%"
 
@@ -60,10 +60,10 @@ items:
     name: "{success}&lADD LOCATION"
     lore:
       - ""
-      - " {muted}❙ {letters}Right-click any block to register"
-      - " {muted}❙ {letters}it as a jumpad trigger"
+      - " {letters_black}▎ {letters}Right-click any block to register"
+      - " {letters_black}▎ {letters}it as a jumpad trigger"
       - ""
-      - "{info}» Click to add"
+      - "{warning}➥ Click to add"
     actions:
       - "practice:jumpad_add_location"
 

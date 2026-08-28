@@ -28,42 +28,42 @@ items:
     name: "{info}&lHOW TO SETUP"
     lore:
       - ""
-      - " {muted}❙ {letters}Mark capture areas with"
-      - " {muted}❙ {highlight}Red Concrete"
+      - " {letters_black}▎ {letters}Mark capture areas with"
+      - " {letters_black}▎ {highlight}Red Concrete"
       - ""
-      - " {muted}❙ {letters}Standing on it awards 1 point"
-      - " {muted}❙ {letters}per tick to that player"
+      - " {letters_black}▎ {letters}Standing on it awards 1 point"
+      - " {letters_black}▎ {letters}per tick to that player"
       - ""
-      - " {muted}❙ {letters}First to reach the points"
-      - " {muted}❙ {letters}goal wins instantly"
+      - " {letters_black}▎ {letters}First to reach the points"
+      - " {letters_black}▎ {letters}goal wins instantly"
 
   points-to-win:
-    slot: 37
+    slot: 19
     material: DIAMOND
     name: "{info}&lPOINTS TO WIN"
     lore:
       - ""
-      - " {muted}❙ {letters}Current: {highlight}%points_to_win%"
+      - " {letters_black}▎ {letters}Current: {highlight}%points_to_win%"
       - ""
-      - " {muted}❙ {success}Left-Click +10"
-      - " {muted}❙ {error}Right-Click -10"
-      - " {muted}❙ {warning}Shift-Click to enter"
+      - " {letters_black}▎ {success}Left-Click +10"
+      - " {letters_black}▎ {error}Right-Click -10"
+      - " {letters_black}▎ {warning}Shift-Click to enter"
     actions:
       - "left: events:adjust_setting points-to-win 10"
       - "right: events:adjust_setting points-to-win -10"
       - "shift_left: events:input_setting points-to-win"
 
   respawn-delay:
-    slot: 38
+    slot: 20
     material: ENDER_PEARL
     name: "{info}&lRESPAWN TIME"
     lore:
       - ""
-      - " {muted}❙ {letters}Current: {highlight}%respawn_delay%s"
+      - " {letters_black}▎ {letters}Current: {highlight}%respawn_delay%s"
       - ""
-      - " {muted}❙ {success}Left-Click +1s"
-      - " {muted}❙ {error}Right-Click -1s"
-      - " {muted}❙ {warning}Shift-Click to enter"
+      - " {letters_black}▎ {success}Left-Click +1s"
+      - " {letters_black}▎ {error}Right-Click -1s"
+      - " {letters_black}▎ {warning}Shift-Click to enter"
     actions:
       - "left: events:adjust_setting respawn-delay 1"
       - "right: events:adjust_setting respawn-delay -1"

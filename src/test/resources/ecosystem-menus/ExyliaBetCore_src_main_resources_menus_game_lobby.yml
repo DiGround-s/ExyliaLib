@@ -1,0 +1,263 @@
+# One game's lobby, shared by all of them: the title and the icon come from
+# whichever game opened it, so there is one file to edit rather than three that
+# drift apart.
+#
+# Two lists. 'waiting' is what you can take. 'live' is what you can watch.
+
+title: '%game_name% {muted}%waiting_count% waiting'
+size: 54
+type: MULTI_PAGINATION
+
+open_sounds:
+  - 'BLOCK_BARREL_OPEN|0.8|1.4'
+click_sounds:
+  - 'UI_BUTTON_CLICK|1.0|1.5'
+
+filler:
+  global:
+    material: BLACK_STAINED_GLASS_PANE
+    hide_tooltip: true
+
+items:
+
+  header:
+    slot: 4
+    material: '%game_icon%'
+    name: '%game_name%'
+    lore:
+      - ''
+      - '{secondary}Right now:'
+      - ' {letters_black}▎ {letters}Open bets {letters_black}» {info}%waiting_count%'
+      - ' {letters_black}▎ {letters}Being played {letters_black}» {info}%live_count%'
+      - ''
+    glow: true
+
+  create:
+    slot: 47
+    material: WRITABLE_BOOK
+    name: '{primary}&lCREATE A MATCH'
+    lore:
+      - ''
+      - '{secondary}You choose:'
+      - ' {letters_black}▎ {letters}The mode and how many rounds'
+      - ' {letters_black}▎ {letters}What you bet, and how much'
+      - ' {letters_black}▎ {letters}Who is allowed to take it'
+      - ''
+      - '{warning}➥ Click to set it up'
+      - ''
+    actions:
+      - 'left: betcore:open_create'
+
+  queue:
+    slot: 48
+    material: COMPASS
+    name: '{primary}&lQUICK QUEUE'
+    lore:
+      - ''
+      - '{secondary}How it works:'
+      - ' {letters_black}▎ {letters}Name your stake and wait.'
+      - ' {letters_black}▎ {letters}You are paired with the closest bet,'
+      - ' {letters_black}▎ {letters}at the {highlight}lower {letters}of the two figures.'
+      - ''
+      - '{warning}➥ Click to set your terms'
+      - ''
+    actions:
+      - 'left: betcore:open_queue'
+
+  invites:
+    slot: 46
+    material: PAPER
+    name: '{primary}&lCHALLENGES'
+    lore:
+      - ''
+      - ' {letters_black}▎ {letters}Bets offered to you by name.'
+      - ''
+      - '{warning}➥ Click to see them'
+      - ''
+    actions:
+      - 'left: betcore:open_invites'
+
+  stats:
+    slot: 50
+    material: 'playerhead-%player_name%'
+    name: '{primary}&lYOUR RECORD'
+    lore:
+      - ''
+      - ' {letters_black}▎ {letters}Everything you have won and lost.'
+      - ''
+      - '{warning}➥ Click to open'
+      - ''
+    actions:
+      - 'left: betcore:open_stats %player_name% %game_id%'
+
+  leaderboard:
+    slot: 51
+    material: GOLD_INGOT
+    name: '{primary}&lLEADERBOARD'
+    lore:
+      - ''
+      - ' {letters_black}▎ {letters}Who is winning, and who is paying'
+      - ' {letters_black}▎ {letters}for it.'
+      - ''
+      - '{warning}➥ Click to open'
+      - ''
+    actions:
+      - 'left: betcore:open_leaderboard %game_id%'
+
+  board:
+    slot: 49
+    material: ENDER_EYE
+    name: '{info}&lBACK TO YOUR MATCH'
+    lore:
+      - ''
+      - ' {letters_black}▎ {letters}Reopens the board you are playing on.'
+      - ' {letters_black}▎ {letters}Closing it never forfeits — but your'
+      - ' {letters_black}▎ {letters}clock {highlight}keeps running{letters}.'
+      - ''
+      - '{warning}➥ Click to go back'
+      - ''
+    actions:
+      - 'left: betcore:open_board'
+
+  back:
+    slot: 45
+    material: ARROW
+    name: '{error}&lBACK'
+    lore:
+      - ''
+      - '{warning}➥ Click to go back'
+      - ''
+    actions:
+      - 'left: betcore:open_main'
+
+  close:
+    slot: 53
+    material: BARRIER
+    name: '{error}&lCLOSE'
+    lore:
+      - ''
+      - '{warning}➥ Click to close'
+      - ''
+    actions:
+      - 'close'
+
+sections:
+
+  # Bets nobody has taken yet. Clicking one puts your stake against the host's.
+  waiting:
+    slots: '10-16,19-25'
+    filler:
+      material: LIGHT_GRAY_STAINED_GLASS_PANE
+      name: '{muted}No open bets'
+      lore:
+        - ''
+        - '{letters_black}Create one and be the first.'
+        - ''
+    item_template:
+      material: 'playerhead-%host_name%'
+      name: '{letters}&l%host_name% {muted}— %match_mode_name%'
+      lore:
+        - ''
+        - '{secondary}The bet:'
+        - ' {letters_black}▎ {letters}Stake {letters_black}» {highlight}%match_wager%'
+        - ' {letters_black}▎ {letters}Pot {letters_black}» {info}%match_pot%'
+        - ' {letters_black}▎ {letters}Rounds {letters_black}» {info}Best of %match_rounds%'
+        - ' {letters_black}▎ {letters}Waiting {letters_black}» {info}%match_age%'
+        - ''
+        - '{warning}➥ Click to take this bet'
+        - ''
+      actions:
+        - 'left: betcore:join_match'
+    own_template:
+      material: 'playerhead-%host_name%'
+      name: '{success}&l%host_name% {muted}— your bet'
+      lore:
+        - ''
+        - '{secondary}The bet:'
+        - ' {letters_black}▎ {letters}Stake {letters_black}» {highlight}%match_wager%'
+        - ' {letters_black}▎ {letters}Rounds {letters_black}» {info}Best of %match_rounds%'
+        - ' {letters_black}▎ {letters}Open to {letters_black}» {info}%match_visibility%'
+        - ' {letters_black}▎ {letters}Waiting {letters_black}» {info}%match_age%'
+        - ''
+        - '{warning}➥ Click to cancel and take your stake back'
+        - ''
+      glow: true
+      actions:
+        - 'left: betcore:cancel_match'
+    invited_template:
+      material: 'playerhead-%host_name%'
+      name: '{highlight}&l%host_name% {muted}— for you'
+      lore:
+        - ''
+        - '{secondary}The bet:'
+        - ' {letters_black}▎ {letters}Stake {letters_black}» {highlight}%match_wager%'
+        - ' {letters_black}▎ {letters}Rounds {letters_black}» {info}Best of %match_rounds%'
+        - ''
+        - '{letters_black}Sent to you and to nobody else.'
+        - ''
+        - '{warning}➥ Click to take this bet'
+        - ''
+      glow: true
+      actions:
+        - 'left: betcore:join_match'
+    navigation:
+      previous:
+        slot: 18
+        material: ARROW
+        name: '{error}&l← PREVIOUS'
+        lore:
+          - '{info}Page {success}%current_page%{muted}/{error}%total_pages%'
+      next:
+        slot: 26
+        material: ARROW
+        name: '{success}&lNEXT →'
+        lore:
+          - '{info}Page {success}%current_page%{muted}/{error}%total_pages%'
+
+  # Matches already being played. Clicking one watches it.
+  live:
+    slots: '28-34,37-43'
+    filler:
+      material: AIR
+      hide_tooltip: true
+    item_template:
+      material: 'playerhead-%turn_name%'
+      name: '{letters}%host_name% {muted}vs {letters}%guest_name%'
+      lore:
+        - ''
+        - '{secondary}The bet:'
+        - ' {letters_black}▎ {letters}Pot {letters_black}» {highlight}%match_pot%'
+        - ' {letters_black}▎ {letters}Mode {letters_black}» {info}%match_mode_name%'
+        - ''
+        - '{secondary}Right now:'
+        - ' {letters_black}▎ {letters}Round {letters_black}» {info}%match_round%{muted}/{info}%match_rounds%'
+        - ' {letters_black}▎ {letters}Score {letters_black}» {info}%match_score%'
+        - ' {letters_black}▎ {letters}To move {letters_black}» {highlight}%turn_name% {muted}(%turn_seconds%s)'
+        - ' {letters_black}▎ {letters}Watching {letters_black}» {info}%spectator_count%'
+        - ''
+        - '{warning}➥ Click to watch'
+        - ''
+      actions:
+        - 'left: betcore:spectate_match'
+    full_template:
+      material: BARRIER
+      name: '{muted}%host_name% vs %guest_name%'
+      lore:
+        - ''
+        - ' {letters_black}▎ {letters}Pot {letters_black}» {info}%match_pot%'
+        - ''
+        - '{error}This match has all the watchers it allows.'
+        - ''
+    navigation:
+      previous:
+        slot: 27
+        material: ARROW
+        name: '{error}&l← PREVIOUS'
+        lore:
+          - '{info}Page {success}%current_page%{muted}/{error}%total_pages%'
+      next:
+        slot: 35
+        material: ARROW
+        name: '{success}&lNEXT →'
+        lore:
+          - '{info}Page {success}%current_page%{muted}/{error}%total_pages%'

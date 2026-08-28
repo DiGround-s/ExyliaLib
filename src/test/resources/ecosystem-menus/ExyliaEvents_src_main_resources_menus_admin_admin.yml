@@ -23,57 +23,57 @@ filler:
 
 items:
   manage-events:
-    slot: 37
+    slot: 21
     material: COMPASS
     name: "{warning}&lMANAGE EVENTS"
     lore:
       - ""
-      - " {muted}❙ {letters}View and manage active events"
-      - " {muted}❙ {letters}Stop ongoing events"
+      - " {letters_black}▎ {letters}View and manage active events"
+      - " {letters_black}▎ {letters}Stop ongoing events"
       - ""
-      - " {muted}❙ {letters}Active: {highlight}%active_events%"
+      - " {letters_black}▎ {letters}Active: {highlight}%active_events%"
       - ""
-      - "{info}» Click to open"
+      - "{warning}➥ Click to open"
     actions:
       - "events:open_event_list"
 
   events-setup:
-    slot: 38
+    slot: 22
     material: SCAFFOLDING
     name: "{info}&lCONFIGURATIONS"
     lore:
       - ""
-      - " {muted}❙ {letters}Create and configure events"
-      - " {muted}❙ {letters}Spawns, bounds and parameters"
+      - " {letters_black}▎ {letters}Create and configure events"
+      - " {letters_black}▎ {letters}Spawns, bounds and parameters"
       - ""
-      - " {muted}❙ {letters}Total: {highlight}%total_events%"
+      - " {letters_black}▎ {letters}Total: {highlight}%total_events%"
       - ""
-      - "{info}» Click to manage"
+      - "{warning}➥ Click to manage"
     actions:
       - "events:open_category_list"
 
   set-lobby:
-    slot: 39
+    slot: 29
     material: RED_BED
     name: "{secondary}&lSET MAIN LOBBY"
     lore:
       - ""
-      - " {muted}❙ {letters}Set the main lobby location"
-      - " {muted}❙ {letters}using the wizard"
+      - " {letters_black}▎ {letters}Set the main lobby location"
+      - " {letters_black}▎ {letters}using the wizard"
       - ""
-      - "{info}» Click to set"
+      - "{warning}➥ Click to set"
     actions:
       - "events:set_lobby"
 
   reload:
-    slot: 40
+    slot: 45
     material: REDSTONE
     name: "{error}&lRELOAD CONFIGS"
     lore:
       - ""
-      - " {muted}❙ {letters}Reload all plugin"
-      - " {muted}❙ {letters}configurations"
+      - " {letters_black}▎ {letters}Reload all plugin"
+      - " {letters_black}▎ {letters}configurations"
       - ""
-      - "{info}» Click to reload"
+      - "{warning}➥ Click to reload"
     actions:
       - "events:reload_configs"

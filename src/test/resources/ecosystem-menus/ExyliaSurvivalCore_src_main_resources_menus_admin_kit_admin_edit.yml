@@ -83,7 +83,7 @@ items:
       - "survivalcore:kit_admin_edit_permission"
 
   cooldown:
-    slot: 24
+    slot: 23
     material: CLOCK
     name: "{primary}&lCOOLDOWN"
     lore:
@@ -97,7 +97,7 @@ items:
       - "survivalcore:kit_admin_set_cooldown"
 
   max-uses:
-    slot: 20
+    slot: 24
     material: PAPER
     name: "{primary}&lMAX USES"
     lore:
@@ -112,7 +112,7 @@ items:
       - "survivalcore:kit_admin_set_max_uses"
 
   sort-order:
-    slot: 21
+    slot: 31
     material: COMPARATOR
     name: "{primary}&lSORT ORDER"
     lore:
@@ -126,9 +126,9 @@ items:
       - "survivalcore:kit_admin_set_sort_order"
 
   auto-equip:
-    slot: 22
+    slot: 28
     material: "%auto_equip_material%"
-    name: "{primary}&lEQUIP ARMOUR"
+    name: "%auto_equip_color%&lEQUIP ARMOUR"
     lore:
       - ""
       - " {letters_black}▎ {letters}Current {letters_black}» %auto_equip_status%"
@@ -141,9 +141,9 @@ items:
       - "survivalcore:kit_admin_toggle_auto_equip"
 
   drop-when-full:
-    slot: 23
+    slot: 29
     material: "%drop_full_material%"
-    name: "{primary}&lDROP WHEN FULL"
+    name: "%drop_full_color%&lDROP WHEN FULL"
     lore:
       - ""
       - " {letters_black}▎ {letters}Current {letters_black}» %drop_full_status%"
@@ -158,7 +158,7 @@ items:
   first-join:
     slot: 25
     material: "%first_join_material%"
-    name: "{primary}&lFIRST JOIN KIT"
+    name: "%first_join_color%&lFIRST JOIN KIT"
     lore:
       - ""
       - " {letters_black}▎ {letters}Current {letters_black}» %first_join_status%"
@@ -183,7 +183,7 @@ items:
       - "survivalcore:kit_admin_set_icon"
 
   edit-items:
-    slot: 28
+    slot: 19
     material: CHEST
     name: "{primary}&lITEMS"
     lore:
@@ -197,7 +197,7 @@ items:
       - "survivalcore:kit_admin_edit_items"
 
   edit-commands:
-    slot: 29
+    slot: 20
     material: COMMAND_BLOCK
     name: "{primary}&lBONUSES"
     lore:
@@ -222,7 +222,7 @@ items:
       - "survivalcore:kit_admin_open_list"
 
   preview:
-    slot: 19
+    slot: 21
     material: ENDER_EYE
     name: "{info}&lPREVIEW"
     lore:
@@ -235,7 +235,7 @@ items:
       - "survivalcore:kit_admin_preview"
 
   clone:
-    slot: 30
+    slot: 45
     material: BOOK
     name: "{success}&lCLONE"
     lore:

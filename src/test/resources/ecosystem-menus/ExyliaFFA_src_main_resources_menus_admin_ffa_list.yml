@@ -34,14 +34,14 @@ pagination:
     name: "{warning}&l%arena_name%"
     lore:
       - ""
-      - " {muted}❙ {letters}ID: {info}%arena_id%"
-      - " {muted}❙ {letters}Status: %arena_enabled%"
-      - " {muted}❙ {letters}Players: {highlight}%arena_players%{muted}/{highlight}%arena_max%"
-      - " {muted}❙ {letters}Kits: {highlight}%arena_kits%"
-      - " {muted}❙ {letters}Spawns: {highlight}%arena_spawns%"
+      - " {letters_black}▎ {letters}ID: {info}%arena_id%"
+      - " {letters_black}▎ {letters}Status: %arena_enabled%"
+      - " {letters_black}▎ {letters}Players: {highlight}%arena_players%{muted}/{highlight}%arena_max%"
+      - " {letters_black}▎ {letters}Kits: {highlight}%arena_kits%"
+      - " {letters_black}▎ {letters}Spawns: {highlight}%arena_spawns%"
       - ""
-      - " {muted}❙ {success}Left-Click to edit"
-      - " {muted}❙ {error}Right-Click to delete"
+      - " {letters_black}▎ {success}Left-Click to edit"
+      - " {letters_black}▎ {error}Right-Click to delete"
     actions:
       - "left: ffa:edit_arena %arena_id%"
       - "right: ffa:confirm_delete_arena %arena_id%"
@@ -71,9 +71,9 @@ items:
     name: "{success}&lCREATE ARENA"
     lore:
       - ""
-      - " {muted}❙ {letters}Create a new FFA arena"
+      - " {letters_black}▎ {letters}Create a new FFA arena"
       - ""
-      - "{info}» Click to create"
+      - "{warning}➥ Click to create"
     actions:
       - "ffa:create_arena"
 

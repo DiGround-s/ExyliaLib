@@ -24,8 +24,8 @@ items:
     name: "{warning}&lARE YOU SURE?"
     lore:
       - ""
-      - " {muted}❙ {letters}%confirm_line1%"
-      - " {muted}❙ {error}%confirm_line2%"
+      - " {letters_black}▎ {letters}%confirm_line1%"
+      - " {letters_black}▎ {error}%confirm_line2%"
     hide_tooltip: false
 
   confirm:
@@ -34,16 +34,16 @@ items:
     name: "{success}&lCONFIRM"
     lore:
       - ""
-      - "{info}» Click to confirm"
+      - "{warning}➥ Click to confirm"
     actions:
       - "%confirm_action%"
 
   cancel:
-    slot: 22
+    slot: 15
     material: 'basehead-eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvMjIzZmI2NzQyOTcxNmIyMWJjNmU4ZTdkNjY5Y2VkZGY2NWIxM2UwNzkwYTVjZTU1YjJlMDc3YjgyZDE5ZTEyNCJ9fX0='
     name: '{error}&lCANCEL'
     lore:
       - ""
-      - "{info}» Click to go back"
+      - "{warning}➥ Click to go back"
     actions:
       - "%cancel_action%"

@@ -34,11 +34,11 @@ pagination:
     name: "%category_name%"
     lore:
       - ""
-      - " {muted}❙ {letters}Events: {info}%category_total%"
-      - " {muted}❙ {letters}Enabled: {success}%category_enabled%"
-      - " {muted}❙ {letters}Active: {highlight}%category_active%"
+      - " {letters_black}▎ {letters}Events: {info}%category_total%"
+      - " {letters_black}▎ {letters}Enabled: {success}%category_enabled%"
+      - " {letters_black}▎ {letters}Active: {highlight}%category_active%"
       - ""
-      - "{info}» Click to open"
+      - "{warning}➥ Click to open"
     actions:
       - "events:open_config_list %category_type%"
 
@@ -48,8 +48,8 @@ pagination:
       material: 'basehead-eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvZGExZDU1YjNmOTg5NDEwYTM0NzUyNjUwZTI0OGM5YjZjMTc4M2E3ZWMyYWEzZmQ3Nzg3YmRjNGQwZTYzN2QzOSJ9fX0='
       name: '{error}&l← PREVIOUS PAGE'
       lore:
-        - ' {muted}❙ {letters}Click to go'
-        - ' {muted}❙ {letters}to the previous page.'
+        - ' {letters_black}▎ {letters}Click to go'
+        - ' {letters_black}▎ {letters}to the previous page.'
         - ''
         - '{info}ℹ Current page: {success}%current_page%&8/{error}%total_pages%'
       actions:
@@ -59,8 +59,8 @@ pagination:
       material: 'basehead-eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvZmE4N2UzZDk2ZTFjZmViOWNjZmIzYmE1M2EyMTdmYWY1MjQ5ZTI4NTUzM2IyNzFhMmZiMjg0YzMwZGJkOTgyOSJ9fX0='
       name: '{success}&lNEXT PAGE →'
       lore:
-        - ' {muted}❙ {letters}Click to go'
-        - ' {muted}❙ {letters}to the next page.'
+        - ' {letters_black}▎ {letters}Click to go'
+        - ' {letters_black}▎ {letters}to the next page.'
         - ''
         - '{info}ℹ Current page: {success}%current_page%&8/{error}%total_pages%'
       actions:
@@ -73,10 +73,10 @@ items:
     name: "{success}&lCREATE EVENT"
     lore:
       - ""
-      - " {muted}❙ {letters}Create a new event"
-      - " {muted}❙ {letters}using the wizard"
+      - " {letters_black}▎ {letters}Create a new event"
+      - " {letters_black}▎ {letters}using the wizard"
       - ""
-      - "{info}» Click to create"
+      - "{warning}➥ Click to create"
     actions:
       - "events:start_config_wizard"
 

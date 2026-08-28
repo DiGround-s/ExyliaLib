@@ -31,8 +31,8 @@ pagination:
     name: "{warning}&l%bounty_target%"
     lore:
       - ""
-      - " {muted}❙ {letters}Placed by: {highlight}%bounty_placer%"
-      - " {muted}❙ {letters}Amount: {highlight}%bounty_amount%"
+      - " {letters_black}▎ {letters}Placed by: {highlight}%bounty_placer%"
+      - " {letters_black}▎ {letters}Amount: {highlight}%bounty_amount%"
       - ""
       - " {error}● {info}Click to remove this bounty"
     actions:

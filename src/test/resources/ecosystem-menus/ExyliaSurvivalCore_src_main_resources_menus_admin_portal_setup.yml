@@ -24,43 +24,43 @@ items:
   region:
     slot: 19
     material: "%region_material%"
-    name: "{highlight}&lPORTAL REGION"
+    name: "%region_color%&lPORTAL REGION"
     lore:
       - ""
-      - " {muted}❙ {letters}Status: %region_status%"
+      - " {letters_black}▎ {letters}Status: %region_status%"
       - ""
-      - " {muted}❙ {letters}Area that triggers this portal"
+      - " {letters_black}▎ {letters}Area that triggers this portal"
       - ""
-      - "{info}» Click to select"
+      - "{warning}➥ Click to select"
     actions:
       - "survivalcore:portal_set_region"
 
   commands:
-    slot: 37
+    slot: 22
     material: PAPER
     name: "{highlight}&lCOMMANDS"
     lore:
       - ""
-      - " {muted}❙ {letters}Configured: {info}%command_count%"
+      - " {letters_black}▎ {letters}Configured: {info}%command_count%"
       - ""
-      - " {muted}❙ {letters}Executed on player entry"
+      - " {letters_black}▎ {letters}Executed on player entry"
       - ""
-      - "{info}» Click to manage"
+      - "{warning}➥ Click to manage"
     actions:
       - "survivalcore:portal_open_commands"
 
   teleport:
-    slot: 21
+    slot: 20
     material: "%teleport_material%"
-    name: "{highlight}&lTELEPORT"
+    name: "%teleport_color%&lTELEPORT"
     lore:
       - ""
-      - " {muted}❙ {letters}Status: %teleport_status%"
+      - " {letters_black}▎ {letters}Status: %teleport_status%"
       - ""
-      - " {muted}❙ {letters}Destination after portal trigger"
+      - " {letters_black}▎ {letters}Destination after portal trigger"
       - ""
-      - " {muted}❙ {success}Left-Click to set location"
-      - " {muted}❙ {error}Right-Click to clear"
+      - " {letters_black}▎ {success}Left-Click to set location"
+      - " {letters_black}▎ {error}Right-Click to clear"
     actions:
       - "left: survivalcore:portal_set_teleport"
       - "right: survivalcore:portal_clear_teleport"
@@ -80,8 +80,8 @@ items:
     name: "{error}&lDELETE PORTAL"
     lore:
       - ""
-      - " {muted}❙ {letters}Permanently delete this portal"
+      - " {letters_black}▎ {letters}Permanently delete this portal"
       - ""
-      - "{error}» Click to delete"
+      - "{error}➥ Click to delete"
     actions:
       - "survivalcore:portal_delete %portal_id%"

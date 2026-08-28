@@ -28,97 +28,97 @@ items:
     name: "{info}&lHOW TO SETUP"
     lore:
       - ""
-      - " {muted}❙ {letters}Any block placed directly"
-      - " {muted}❙ {letters}above a {highlight}TNT block"
-      - " {muted}❙ {letters}becomes removable floor"
+      - " {letters_black}▎ {letters}Any block placed directly"
+      - " {letters_black}▎ {letters}above a {highlight}TNT block"
+      - " {letters_black}▎ {letters}becomes removable floor"
       - ""
-      - " {muted}❙ {letters}Both the floor block and the"
-      - " {muted}❙ {letters}TNT below it disappear after"
-      - " {muted}❙ {letters}being stepped on"
+      - " {letters_black}▎ {letters}Both the floor block and the"
+      - " {letters_black}▎ {letters}TNT below it disappear after"
+      - " {letters_black}▎ {letters}being stepped on"
       - ""
-      - " {muted}❙ {error}Touching water eliminates"
-      - " {muted}❙ {error}a player instantly"
+      - " {letters_black}▎ {error}Touching water eliminates"
+      - " {letters_black}▎ {error}a player instantly"
 
   block-break-delay:
-    slot: 38
+    slot: 19
     material: TNT
     name: "{warning}&lBLOCK BREAK DELAY"
     lore:
       - ""
-      - " {muted}❙ {letters}Current: {highlight}%block_break_delay% ticks"
+      - " {letters_black}▎ {letters}Current: {highlight}%block_break_delay% ticks"
       - ""
-      - " {muted}❙ {letters}Delay before the block"
-      - " {muted}❙ {letters}disappears after being stepped on"
+      - " {letters_black}▎ {letters}Delay before the block"
+      - " {letters_black}▎ {letters}disappears after being stepped on"
       - ""
-      - " {muted}❙ {success}Left-Click +2"
-      - " {muted}❙ {error}Right-Click -2"
-      - " {muted}❙ {warning}Shift-Click to enter"
+      - " {letters_black}▎ {success}Left-Click +2"
+      - " {letters_black}▎ {error}Right-Click -2"
+      - " {letters_black}▎ {warning}Shift-Click to enter"
     actions:
       - "left: events:adjust_setting block-break-delay 2"
       - "right: events:adjust_setting block-break-delay -2"
       - "shift_left: events:input_setting block-break-delay"
 
   grace-period:
-    slot: 37
+    slot: 20
     material: CLOCK
     name: "{info}&lGRACE PERIOD"
     lore:
       - ""
-      - " {muted}❙ {letters}Current: {highlight}%grace_period%s"
-      - " {muted}❙ {letters}Blocks don't break at start"
+      - " {letters_black}▎ {letters}Current: {highlight}%grace_period%s"
+      - " {letters_black}▎ {letters}Blocks don't break at start"
       - ""
-      - " {muted}❙ {success}Left-Click +5s"
-      - " {muted}❙ {error}Right-Click -5s"
-      - " {muted}❙ {warning}Shift-Click to enter"
+      - " {letters_black}▎ {success}Left-Click +5s"
+      - " {letters_black}▎ {error}Right-Click -5s"
+      - " {letters_black}▎ {warning}Shift-Click to enter"
     actions:
       - "left: events:adjust_setting grace-period 5"
       - "right: events:adjust_setting grace-period -5"
       - "shift_left: events:input_setting grace-period"
 
   double-jump-cooldown:
-    slot: 39
+    slot: 21
     material: FEATHER
     name: "{info}&lDOUBLE JUMP COOLDOWN"
     lore:
       - ""
-      - " {muted}❙ {letters}Current: {highlight}%double_jump_cooldown%s"
+      - " {letters_black}▎ {letters}Current: {highlight}%double_jump_cooldown%s"
       - ""
-      - " {muted}❙ {letters}Cooldown between double jumps"
+      - " {letters_black}▎ {letters}Cooldown between double jumps"
       - ""
-      - "{info}» Click to enter"
+      - "{warning}➥ Click to enter"
     actions:
       - "events:input_double_setting double-jump-cooldown"
 
   double-jump-limit:
-    slot: 40
+    slot: 22
     material: RABBIT_FOOT
     name: "{warning}&lDOUBLE JUMP LIMIT"
     lore:
       - ""
-      - " {muted}❙ {letters}Current: {highlight}%double_jump_limit%"
+      - " {letters_black}▎ {letters}Current: {highlight}%double_jump_limit%"
       - ""
-      - " {muted}❙ {letters}Maximum double jumps"
-      - " {muted}❙ {letters}per player"
+      - " {letters_black}▎ {letters}Maximum double jumps"
+      - " {letters_black}▎ {letters}per player"
       - ""
-      - " {muted}❙ {success}Left-Click +1"
-      - " {muted}❙ {error}Right-Click -1"
-      - " {muted}❙ {warning}Shift-Click to enter"
+      - " {letters_black}▎ {success}Left-Click +1"
+      - " {letters_black}▎ {error}Right-Click -1"
+      - " {letters_black}▎ {warning}Shift-Click to enter"
     actions:
       - "left: events:adjust_setting double-jump-limit 1"
       - "right: events:adjust_setting double-jump-limit -1"
       - "shift_left: events:input_setting double-jump-limit"
 
   double-jump-power:
-    slot: 41
+    slot: 23
     material: FIREWORK_ROCKET
     name: "{info}&lDOUBLE JUMP POWER"
     lore:
       - ""
-      - " {muted}❙ {letters}Current: {highlight}%double_jump_power%"
+      - " {letters_black}▎ {letters}Current: {highlight}%double_jump_power%"
       - ""
-      - " {muted}❙ {letters}Vertical jump strength"
+      - " {letters_black}▎ {letters}Vertical jump strength"
       - ""
-      - "{info}» Click to enter"
+      - "{warning}➥ Click to enter"
     actions:
       - "events:input_double_setting double-jump-power"
 

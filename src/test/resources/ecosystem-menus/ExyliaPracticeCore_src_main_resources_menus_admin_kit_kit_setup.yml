@@ -22,9 +22,9 @@ items:
     name: "{highlight}&lNAME"
     lore:
       - ""
-      - " {muted}❙ {letters}Current: {info}%display_name%"
+      - " {letters_black}▎ {letters}Current: {info}%display_name%"
       - ""
-      - "{info}» Click to edit"
+      - "{warning}➥ Click to edit"
     actions:
       - "practice:edit_kit_name"
 
@@ -34,9 +34,9 @@ items:
     name: "{highlight}&lICON"
     lore:
       - ""
-      - " {muted}❙ {letters}Current: {info}%icon_material_display%"
+      - " {letters_black}▎ {letters}Current: {info}%icon_material_display%"
       - ""
-      - "{info}» Click to change"
+      - "{warning}➥ Click to change"
     actions:
       - "practice:set_kit_icon"
 
@@ -46,9 +46,9 @@ items:
     name: "{highlight}&lSTATUS"
     lore:
       - ""
-      - " {muted}❙ {letters}Current: %enabled_status%"
+      - " {letters_black}▎ {letters}Current: %enabled_status%"
       - ""
-      - "{info}» Click to toggle"
+      - "{warning}➥ Click to toggle"
     actions:
       - "practice:toggle_kit_enabled"
 
@@ -58,91 +58,91 @@ items:
     name: "{highlight}&lDESCRIPTION"
     lore:
       - ""
-      - " {muted}❙ {letters}Current: {info}%description%"
+      - " {letters_black}▎ {letters}Current: {info}%description%"
       - ""
-      - "{info}» Click to edit"
+      - "{warning}➥ Click to edit"
     actions:
       - "practice:edit_kit_description"
 
   categories:
-    slot: 37
+    slot: 19
     material: "%categories_material%"
-    name: "{info}&lCATEGORIES"
+    name: "%categories_color%&lCATEGORIES"
     lore:
       - ""
-      - " {muted}❙ {info}%categories_list%"
+      - " {letters_black}▎ {info}%categories_list%"
       - ""
-      - "{info}» Click to manage"
+      - "{warning}➥ Click to manage"
     actions:
       - "practice:open_kit_category_select"
 
   compatible-arenas:
-    slot: 38
+    slot: 21
     material: COMPASS
     name: "{info}&lCOMPATIBLE ARENAS"
     lore:
       - ""
-      - " {muted}❙ {info}%arenas_list%"
+      - " {letters_black}▎ {info}%arenas_list%"
       - ""
-      - "{info}» Click to manage"
+      - "{warning}➥ Click to manage"
     actions:
       - "practice:open_kit_arena_select"
 
   loadout:
-    slot: 39
+    slot: 28
     material: "%loadout_material%"
-    name: "{warning}&lLOADOUT"
+    name: "%loadout_color%&lLOADOUT"
     lore:
       - ""
-      - " {muted}❙ {letters}Status: %loadout_status%"
+      - " {letters_black}▎ {letters}Status: %loadout_status%"
       - ""
-      - " {muted}❙ {letters}Arrange your inventory then"
-      - " {muted}❙ {letters}left-click here to capture it"
+      - " {letters_black}▎ {letters}Arrange your inventory then"
+      - " {letters_black}▎ {letters}left-click here to capture it"
       - ""
-      - "{warning}» Left-click to set loadout"
-      - "{info}» Right-click to receive in inventory"
+      - "{warning}➥ Left-click to set loadout"
+      - "{warning}➥ Right-click to receive in inventory"
     actions:
       - "left: practice:set_kit_loadout"
       - "right: practice:give_kit_loadout"
 
   kit-rules:
-    slot: 40
+    slot: 29
     material: KNOWLEDGE_BOOK
     name: "{highlight}&lKIT RULES"
     lore:
       - ""
-      - " {muted}❙ {letters}Effects, Attributes,"
-      - " {muted}❙ {letters}Combat, Special Conditions"
+      - " {letters_black}▎ {letters}Effects, Attributes,"
+      - " {letters_black}▎ {letters}Combat, Special Conditions"
       - ""
-      - "{info}» Click to configure"
+      - "{warning}➥ Click to configure"
     actions:
       - "practice:open_kit_rules"
 
   playability:
-    slot: 41
+    slot: 30
     material: COMPASS
     name: "{highlight}&lPLAYABILITY & RANKED"
     lore:
       - ""
-      - " {muted}❙ {letters}Configure where this kit"
-      - " {muted}❙ {letters}can be played, and ranked status"
+      - " {letters_black}▎ {letters}Configure where this kit"
+      - " {letters_black}▎ {letters}can be played, and ranked status"
       - ""
-      - "{info}» Click to configure"
+      - "{warning}➥ Click to configure"
     actions:
       - "practice:open_kit_playability"
 
   priority:
-    slot: 23
+    slot: 20
     material: HOPPER
     name: "{info}&lPRIORITY"
     lore:
       - ""
-      - " {muted}❙ {letters}Current: {highlight}%priority%"
+      - " {letters_black}▎ {letters}Current: {highlight}%priority%"
       - ""
-      - " {muted}❙ {success}Left-Click +1"
-      - " {muted}❙ {error}Right-Click -1"
-      - " {muted}❙ {warning}Shift-Click +10"
-      - " {muted}❙ {error}Shift-Right -10"
+      - " {letters_black}▎ {success}Left-Click +1"
+      - " {letters_black}▎ {error}Right-Click -1"
+      - " {letters_black}▎ {warning}Shift-Click +10"
+      - " {letters_black}▎ {error}Shift-Right -10"
     actions:
       - "left: practice:adjust_kit_priority 1"
       - "right: practice:adjust_kit_priority -1"

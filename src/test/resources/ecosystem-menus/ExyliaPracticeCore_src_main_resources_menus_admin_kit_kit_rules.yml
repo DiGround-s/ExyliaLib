@@ -17,66 +17,66 @@ filler:
 
 items:
   build:
-    slot: 12
+    slot: 1
     material: "%build_material%"
-    name: "{highlight}&lBUILD"
+    name: "%build_color%&lBUILD"
     lore:
       - ""
-      - " {muted}❙ {letters}Status: %build_status%"
+      - " {letters_black}▎ {letters}Status: %build_status%"
       - ""
-      - "{info}» Click to toggle"
+      - "{warning}➥ Click to toggle"
     actions:
       - "practice:toggle_rule build"
 
   block-break:
-    slot: 30
+    slot: 2
     material: "%block_break_material%"
-    name: "{highlight}&lBREAK"
+    name: "%block_break_color%&lBREAK"
     lore:
       - ""
-      - " {muted}❙ {letters}Status: %block_break_status%"
+      - " {letters_black}▎ {letters}Status: %block_break_status%"
       - ""
-      - "{info}» Click to toggle"
+      - "{warning}➥ Click to toggle"
     actions:
       - "practice:toggle_rule block_break"
 
   interact:
-    slot: 32
+    slot: 3
     material: "%interact_material%"
-    name: "{highlight}&lINTERACT"
+    name: "%interact_color%&lINTERACT"
     lore:
       - ""
-      - " {muted}❙ {letters}Status: %interact_status%"
+      - " {letters_black}▎ {letters}Status: %interact_status%"
       - ""
-      - "{info}» Click to toggle"
+      - "{warning}➥ Click to toggle"
     actions:
       - "practice:toggle_rule interact"
 
   player-build-only:
-    slot: 33
+    slot: 4
     material: "%player_build_only_material%"
-    name: "{highlight}&lPLAYER BUILD ONLY"
+    name: "%player_build_only_color%&lPLAYER BUILD ONLY"
     lore:
       - ""
-      - " {muted}❙ {letters}Status: %player_build_only_status%"
-      - " {muted}❙ {muted}Players can only break"
-      - " {muted}❙ {muted}blocks they placed"
+      - " {letters_black}▎ {letters}Status: %player_build_only_status%"
+      - " {letters_black}▎ {muted}Players can only break"
+      - " {letters_black}▎ {muted}blocks they placed"
       - ""
-      - "{info}» Click to toggle"
+      - "{warning}➥ Click to toggle"
     actions:
       - "practice:toggle_rule player_build_only"
 
   disappearing-blocks:
-    slot: 13
+    slot: 5
     material: SAND
     name: "{highlight}&lDISAPPEARING BLOCKS"
     lore:
       - ""
-      - " {muted}❙ {letters}Delay: {info}%disappearing_blocks_delay%"
-      - " {muted}❙ {muted}0 = disabled"
+      - " {letters_black}▎ {letters}Delay: {info}%disappearing_blocks_delay%"
+      - " {letters_black}▎ {muted}0 = disabled"
       - ""
-      - " {muted}❙ {success}Left +1s {muted}/ {error}Right -1s"
-      - " {muted}❙ {warning}Shift-Left +5s {muted}/ {error}Shift-Right -5s"
+      - " {letters_black}▎ {success}Left +1s {muted}/ {error}Right -1s"
+      - " {letters_black}▎ {warning}Shift-Left +5s {muted}/ {error}Shift-Right -5s"
     actions:
       - "left: practice:adjust_rule disappearing_blocks_delay 1"
       - "right: practice:adjust_rule disappearing_blocks_delay -1"
@@ -84,114 +84,114 @@ items:
       - "shift_right: practice:adjust_rule disappearing_blocks_delay -5"
 
   re-give-blocks:
-    slot: 34
+    slot: 6
     material: "%re_give_blocks_material%"
-    name: "{highlight}&lRE-GIVE BLOCKS"
+    name: "%re_give_blocks_color%&lRE-GIVE BLOCKS"
     lore:
       - ""
-      - " {muted}❙ {letters}Status: %re_give_blocks_status%"
-      - " {muted}❙ {muted}Returns temp blocks to inventory"
-      - " {muted}❙ {muted}when they disappear"
+      - " {letters_black}▎ {letters}Status: %re_give_blocks_status%"
+      - " {letters_black}▎ {muted}Returns temp blocks to inventory"
+      - " {letters_black}▎ {muted}when they disappear"
       - ""
-      - "{info}» Click to toggle"
+      - "{warning}➥ Click to toggle"
     actions:
       - "practice:toggle_rule re_give_blocks"
 
   item-drop:
-    slot: 14
+    slot: 10
     material: "%item_drop_material%"
-    name: "{highlight}&lITEM DROP"
+    name: "%item_drop_color%&lITEM DROP"
     lore:
       - ""
-      - " {muted}❙ {letters}Status: %item_drop_status%"
+      - " {letters_black}▎ {letters}Status: %item_drop_status%"
       - ""
-      - "{info}» Click to toggle"
+      - "{warning}➥ Click to toggle"
     actions:
       - "practice:toggle_rule item_drop"
 
   item-pickup:
-    slot: 15
+    slot: 11
     material: "%item_pickup_material%"
-    name: "{highlight}&lITEM PICKUP"
+    name: "%item_pickup_color%&lITEM PICKUP"
     lore:
       - ""
-      - " {muted}❙ {letters}Status: %item_pickup_status%"
+      - " {letters_black}▎ {letters}Status: %item_pickup_status%"
       - ""
-      - "{info}» Click to toggle"
+      - "{warning}➥ Click to toggle"
     actions:
       - "practice:toggle_rule item_pickup"
 
   fall-damage:
-    slot: 29
+    slot: 20
     material: "%fall_damage_material%"
-    name: "{highlight}&lFALL DAMAGE"
+    name: "%fall_damage_color%&lFALL DAMAGE"
     lore:
       - ""
-      - " {muted}❙ {letters}Status: %fall_damage_status%"
+      - " {letters_black}▎ {letters}Status: %fall_damage_status%"
       - ""
-      - "{info}» Click to toggle"
+      - "{warning}➥ Click to toggle"
     actions:
       - "practice:toggle_rule fall_damage"
 
   pvp:
-    slot: 28
+    slot: 19
     material: "%pvp_material%"
-    name: "{highlight}&lPVP"
+    name: "%pvp_color%&lPVP"
     lore:
       - ""
-      - " {muted}❙ {letters}Status: %pvp_status%"
+      - " {letters_black}▎ {letters}Status: %pvp_status%"
       - ""
-      - "{info}» Click to toggle"
+      - "{warning}➥ Click to toggle"
     actions:
       - "practice:toggle_rule pvp"
 
   disabled-damage:
-    slot: 11
+    slot: 21
     material: "%disabled_damage_material%"
-    name: "{highlight}&lDISABLED DAMAGE"
+    name: "%disabled_damage_color%&lDISABLED DAMAGE"
     lore:
       - ""
-      - " {muted}❙ {letters}Status: %disabled_damage_status%"
-      - " {muted}❙ {muted}Players take no damage"
+      - " {letters_black}▎ {letters}Status: %disabled_damage_status%"
+      - " {letters_black}▎ {muted}Players take no damage"
       - ""
-      - "{info}» Click to toggle"
+      - "{warning}➥ Click to toggle"
     actions:
       - "practice:toggle_rule disabled_damage"
 
   health-regen:
-    slot: 10
+    slot: 22
     material: "%health_regen_material%"
-    name: "{highlight}&lHEALTH REGENERATION"
+    name: "%health_regen_color%&lHEALTH REGENERATION"
     lore:
       - ""
-      - " {muted}❙ {letters}Status: %health_regen_status%"
+      - " {letters_black}▎ {letters}Status: %health_regen_status%"
       - ""
-      - "{info}» Click to toggle"
+      - "{warning}➥ Click to toggle"
     actions:
       - "practice:toggle_rule health_regeneration"
 
   food-decreasing:
-    slot: 20
+    slot: 23
     material: "%food_decreasing_material%"
-    name: "{highlight}&lFOOD DECREASING"
+    name: "%food_decreasing_color%&lFOOD DECREASING"
     lore:
       - ""
-      - " {muted}❙ {letters}Status: %food_decreasing_status%"
+      - " {letters_black}▎ {letters}Status: %food_decreasing_status%"
       - ""
-      - "{info}» Click to toggle"
+      - "{warning}➥ Click to toggle"
     actions:
       - "practice:toggle_rule food_decreasing"
 
   hits-to-win:
-    slot: 22
-    material: IRON_SWORD
+    slot: 28
+    material: TARGET
     name: "{highlight}&lHITS TO WIN"
     lore:
       - ""
-      - " {muted}❙ {letters}Value: {info}%hits_to_win%"
+      - " {letters_black}▎ {letters}Value: {info}%hits_to_win%"
       - ""
-      - " {muted}❙ {success}Left +1 {muted}/ {error}Right -1"
-      - " {muted}❙ {warning}Shift-Left +5 {muted}/ {error}Shift-Right -5"
+      - " {letters_black}▎ {success}Left +1 {muted}/ {error}Right -1"
+      - " {letters_black}▎ {warning}Shift-Left +5 {muted}/ {error}Shift-Right -5"
     actions:
       - "left: practice:adjust_rule hits_to_win 1"
       - "right: practice:adjust_rule hits_to_win -1"
@@ -199,16 +199,16 @@ items:
       - "shift_right: practice:adjust_rule hits_to_win -5"
 
   hit-delay:
-    slot: 23
+    slot: 29
     material: CLOCK
     name: "{highlight}&lHIT DELAY"
     lore:
       - ""
-      - " {muted}❙ {letters}Value: {info}%hit_delay%"
-      - " {muted}❙ {muted}Extra ticks between hits"
+      - " {letters_black}▎ {letters}Value: {info}%hit_delay%"
+      - " {letters_black}▎ {muted}Extra ticks between hits"
       - ""
-      - " {muted}❙ {success}Left +1 {muted}/ {error}Right -1"
-      - " {muted}❙ {warning}Shift-Left +5 {muted}/ {error}Shift-Right -5"
+      - " {letters_black}▎ {success}Left +1 {muted}/ {error}Right -1"
+      - " {letters_black}▎ {warning}Shift-Left +5 {muted}/ {error}Shift-Right -5"
     actions:
       - "left: practice:adjust_rule hit_delay 1"
       - "right: practice:adjust_rule hit_delay -1"
@@ -216,29 +216,29 @@ items:
       - "shift_right: practice:adjust_rule hit_delay -5"
 
   kills-give-points:
-    slot: 24
+    slot: 31
     material: "%kills_give_points_material%"
-    name: "{highlight}&lKILLS GIVE POINTS"
+    name: "%kills_give_points_color%&lKILLS GIVE POINTS"
     lore:
       - ""
-      - " {muted}❙ {letters}Status: %kills_give_points_status%"
+      - " {letters_black}▎ {letters}Status: %kills_give_points_status%"
       - ""
-      - "{info}» Click to toggle"
+      - "{warning}➥ Click to toggle"
     actions:
       - "practice:toggle_rule kills_give_points"
 
   revive-time:
-    slot: 25
-    material: CLOCK
+    slot: 32
+    material: RESPAWN_ANCHOR
     name: "{highlight}&lREVIVE TIME"
     lore:
       - ""
-      - " {muted}❙ {letters}Value: {info}%revive_time%"
-      - " {muted}❙ {muted}Killed players respawn after"
-      - " {muted}❙ {muted}this many seconds (0 = off)"
+      - " {letters_black}▎ {letters}Value: {info}%revive_time%"
+      - " {letters_black}▎ {muted}Killed players respawn after"
+      - " {letters_black}▎ {muted}this many seconds (0 = off)"
       - ""
-      - " {muted}❙ {success}Left +1 {muted}/ {error}Right -1"
-      - " {muted}❙ {warning}Shift-Left +5 {muted}/ {error}Shift-Right -5"
+      - " {letters_black}▎ {success}Left +1 {muted}/ {error}Right -1"
+      - " {letters_black}▎ {warning}Shift-Left +5 {muted}/ {error}Shift-Right -5"
     actions:
       - "left: practice:adjust_rule revive_time 1"
       - "right: practice:adjust_rule revive_time -1"
@@ -246,15 +246,15 @@ items:
       - "shift_right: practice:adjust_rule revive_time -5"
 
   points-to-win:
-    slot: 21
+    slot: 30
     material: GOLD_NUGGET
     name: "{highlight}&lPOINTS TO WIN"
     lore:
       - ""
-      - " {muted}❙ {letters}Value: {info}%points_to_win%"
+      - " {letters_black}▎ {letters}Value: {info}%points_to_win%"
       - ""
-      - " {muted}❙ {success}Left +1 {muted}/ {error}Right -1"
-      - " {muted}❙ {warning}Shift-Left +5 {muted}/ {error}Shift-Right -5"
+      - " {letters_black}▎ {success}Left +1 {muted}/ {error}Right -1"
+      - " {letters_black}▎ {warning}Shift-Left +5 {muted}/ {error}Shift-Right -5"
     actions:
       - "left: practice:adjust_rule points_to_win 1"
       - "right: practice:adjust_rule points_to_win -1"
@@ -262,42 +262,42 @@ items:
       - "shift_right: practice:adjust_rule points_to_win -5"
 
   iron-plate-checkpoints:
-    slot: 31
+    slot: 34
     material: "%iron_plate_material%"
-    name: "{highlight}&lIRON PLATE CHECKPOINTS"
+    name: "%iron_plate_color%&lIRON PLATE CHECKPOINTS"
     lore:
       - ""
-      - " {muted}❙ {letters}Status: %iron_plate_status%"
-      - " {muted}❙ {muted}Triggers when stepping on"
-      - " {muted}❙ {muted}iron pressure plates"
+      - " {letters_black}▎ {letters}Status: %iron_plate_status%"
+      - " {letters_black}▎ {muted}Triggers when stepping on"
+      - " {letters_black}▎ {muted}iron pressure plates"
       - ""
-      - "{info}» Click to toggle"
+      - "{warning}➥ Click to toggle"
     actions:
       - "practice:toggle_rule iron_plate_checkpoints"
 
   regen-after-point:
-    slot: 37
+    slot: 33
     material: "%regen_point_material%"
-    name: "{highlight}&lREGENERATE AFTER POINT"
+    name: "%regen_point_color%&lREGENERATE AFTER POINT"
     lore:
       - ""
-      - " {muted}❙ {letters}Status: %regen_point_status%"
+      - " {letters_black}▎ {letters}Status: %regen_point_status%"
       - ""
-      - "{info}» Click to toggle"
+      - "{warning}➥ Click to toggle"
     actions:
       - "practice:toggle_rule regenerate_after_point"
 
   ender-pearl-cooldown:
-    slot: 16
+    slot: 13
     material: ENDER_PEARL
     name: "{highlight}&lENDER PEARL COOLDOWN"
     lore:
       - ""
-      - " {muted}❙ {letters}Value: {info}%pearl_cd%"
-      - " {muted}❙ {muted}0 = server default"
+      - " {letters_black}▎ {letters}Value: {info}%pearl_cd%"
+      - " {letters_black}▎ {muted}0 = server default"
       - ""
-      - " {muted}❙ {success}Left +1s {muted}/ {error}Right -1s"
-      - " {muted}❙ {warning}Shift-Left +10s {muted}/ {error}Shift-Right -10s"
+      - " {letters_black}▎ {success}Left +1s {muted}/ {error}Right -1s"
+      - " {letters_black}▎ {warning}Shift-Left +10s {muted}/ {error}Shift-Right -10s"
     actions:
       - "left: practice:adjust_rule ender_pearl_cooldown 1"
       - "right: practice:adjust_rule ender_pearl_cooldown -1"
@@ -305,17 +305,17 @@ items:
       - "shift_right: practice:adjust_rule ender_pearl_cooldown -10"
 
   golden-apple-cooldown:
-    slot: 19
+    slot: 14
     material: GOLDEN_APPLE
     name: "{highlight}&lGOLDEN APPLE COOLDOWN"
     lore:
       - ""
-      - " {muted}❙ {letters}Value: {info}%gapple_cd%"
-      - " {muted}❙ {muted}0 = no restriction"
-      - " {muted}❙ {muted}Applies to regular & enchanted"
+      - " {letters_black}▎ {letters}Value: {info}%gapple_cd%"
+      - " {letters_black}▎ {muted}0 = no restriction"
+      - " {letters_black}▎ {muted}Applies to regular & enchanted"
       - ""
-      - " {muted}❙ {success}Left +1s {muted}/ {error}Right -1s"
-      - " {muted}❙ {warning}Shift-Left +10s {muted}/ {error}Shift-Right -10s"
+      - " {letters_black}▎ {success}Left +1s {muted}/ {error}Right -1s"
+      - " {letters_black}▎ {warning}Shift-Left +10s {muted}/ {error}Shift-Right -10s"
     actions:
       - "left: practice:adjust_rule golden_apple_cooldown 1"
       - "right: practice:adjust_rule golden_apple_cooldown -1"
@@ -323,42 +323,42 @@ items:
       - "shift_right: practice:adjust_rule golden_apple_cooldown -10"
 
   potion-effects:
-    slot: 38
+    slot: 39
     material: BREWING_STAND
     name: "{highlight}&lPOTION EFFECTS"
     lore:
       - ""
-      - " {muted}❙ {letters}Active effects: {info}%potion_effects_count%"
+      - " {letters_black}▎ {letters}Active effects: {info}%potion_effects_count%"
       - ""
-      - "{info}» Click to manage"
+      - "{warning}➥ Click to manage"
     actions:
       - "practice:open_kit_potion_effects"
 
   attributes:
-    slot: 39
+    slot: 40
     material: NETHER_STAR
     name: "{highlight}&lATTRIBUTES"
     lore:
       - ""
-      - " {muted}❙ {letters}Overrides active: {info}%attributes_count%"
-      - " {muted}❙ {muted}Max Health, Damage, Speed"
-      - " {muted}❙ {muted}Knockback Resistance"
+      - " {letters_black}▎ {letters}Overrides active: {info}%attributes_count%"
+      - " {letters_black}▎ {muted}Max Health, Damage, Speed"
+      - " {letters_black}▎ {muted}Knockback Resistance"
       - ""
-      - "{info}» Click to manage"
+      - "{warning}➥ Click to manage"
     actions:
       - "practice:open_kit_attributes"
 
   special-conditions:
-    slot: 40
+    slot: 41
     material: TRIPWIRE_HOOK
     name: "{highlight}&lSPECIAL CONDITIONS"
     lore:
       - ""
-      - " {muted}❙ {letters}Active triggers: {info}%conditions_count%"
-      - " {muted}❙ {muted}Touch Water/Lava, Portals,"
-      - " {muted}❙ {muted}Gold Plate, Fall into Void"
+      - " {letters_black}▎ {letters}Active triggers: {info}%conditions_count%"
+      - " {letters_black}▎ {muted}Touch Water/Lava, Portals,"
+      - " {letters_black}▎ {muted}Gold Plate, Fall into Void"
       - ""
-      - "{info}» Click to manage"
+      - "{warning}➥ Click to manage"
     actions:
       - "practice:open_kit_special_conditions"
 

@@ -1,0 +1,189 @@
+# The Connect Four board.
+#
+# Forty-two squares, seven across and six down, in reading order: the first
+# slot is the top-left. The board's shape is in the game's config.yml, and the
+# game refuses to load if the number of slots below does not match it.
+#
+# A click anywhere in a column drops into that column — a player aims at the
+# column, not at the one free square in the stack.
+
+title: '%your_name% {muted}vs %opponent_name% {muted}— %match_score%'
+size: 54
+
+open_sounds:
+  - 'BLOCK_BARREL_OPEN|0.8|1.4'
+click_sounds:
+  - 'BLOCK_STONE_PLACE|0.8|1.2'
+
+refresh:
+  mode: DISABLED
+
+filler:
+  global:
+    material: BLACK_STAINED_GLASS_PANE
+    hide_tooltip: true
+
+items:
+
+  status:
+    slot: 0
+    material: CLOCK
+    name: '{primary}&l%match_mode_name%'
+    lore:
+      - ''
+      - '{secondary}The match:'
+      - ' {letters_black}▎ {letters}Round {letters_black}» {info}%match_round%{muted}/{info}%match_rounds%'
+      - ' {letters_black}▎ {letters}Score {letters_black}» {info}%match_score%'
+      - ' {letters_black}▎ {letters}Pot {letters_black}» {highlight}%match_pot%'
+      - ''
+      - '{secondary}The clock:'
+      - ' {letters_black}▎ {letters}To move {letters_black}» {highlight}%turn_name%'
+      - ' {letters_black}▎ {letters}Time left {letters_black}» {info}%turn_seconds%s ⏱'
+      - ''
+
+  you:
+    slot: 9
+    material: 'playerhead-%your_name%'
+    name: '{success}&l%your_name%'
+    lore:
+      - ''
+      - ' {letters_black}▎ {letters}Rounds won {letters_black}» {info}%your_score%'
+      - ' {letters_black}▎ {letters}Your stake {letters_black}» {highlight}%match_wager%'
+      - ''
+    glow: true
+
+  opponent:
+    slot: 8
+    material: 'playerhead-%opponent_name%'
+    name: '{error}&l%opponent_name%'
+    lore:
+      - ''
+      - ' {letters_black}▎ {letters}Rounds won {letters_black}» {info}%opponent_score%'
+      - ''
+
+  spectators:
+    slot: 17
+    material: ENDER_EYE
+    name: '{primary}&lWATCHING'
+    lore:
+      - ''
+      - ' {letters_black}▎ {letters}People watching {letters_black}» {info}%spectator_count%'
+      - ''
+      - '{warning}➥ Click to see who'
+      - ''
+    actions:
+      - 'left: betcore:open_spectators'
+
+  surrender:
+    slot: 45
+    material: WHITE_BANNER
+    name: '{error}&lSURRENDER'
+    lore:
+      - ''
+      - ' {letters_black}▎ {letters}Gives the match to {highlight}%opponent_name%{letters}.'
+      - ' {letters_black}▎ {letters}Your {info}%match_wager% {letters}goes with it.'
+      - ''
+      - '{warning}➥ Click, then confirm'
+      - ''
+    condition: '%spectating% == false'
+    actions:
+      - 'left: betcore:surrender'
+
+  stop_watching:
+    slot: 45
+    material: WHITE_BANNER
+    name: '{warning}&lSTOP WATCHING'
+    lore:
+      - ''
+      - '{warning}➥ Click to leave'
+      - ''
+    condition: '%spectating% == true'
+    actions:
+      - 'left: betcore:leave_spectate'
+
+  close:
+    slot: 53
+    material: BARRIER
+    name: '{muted}&lCLOSE'
+    lore:
+      - ''
+      - ' {letters_black}▎ {letters}The match keeps running and so does'
+      - ' {letters_black}▎ {letters}your clock.'
+      - ''
+      - '{warning}➥ Click to close'
+      - ''
+    actions:
+      - 'close'
+
+sections:
+
+  # Seven across, six down. Change this and connect-four's config.yml together.
+  board:
+    slots: '1-7,10-16,19-25,28-34,37-43,46-52'
+    filler:
+      material: AIR
+      hide_tooltip: true
+
+    empty_template:
+      material: LIGHT_GRAY_STAINED_GLASS_PANE
+      name: '{muted}Column %cell_column%'
+      lore:
+        - ''
+        - '{letters_black}Your piece falls to the bottom.'
+        - ''
+        - '{warning}➥ Click to drop here'
+        - ''
+      actions:
+        - 'left: betcore:play_cell'
+
+    locked_template:
+      material: GRAY_STAINED_GLASS_PANE
+      name: '{muted}Column %cell_column%'
+      lore:
+        - ''
+        - '{letters_black}Waiting for %turn_name%.'
+        - ''
+
+    red_template:
+      material: RED_TERRACOTTA
+      name: '{error}&l●'
+      lore:
+        - ''
+        - ' {letters_black}▎ {letters}Played by {info}%cell_owner%'
+        - ''
+
+    yellow_template:
+      material: YELLOW_TERRACOTTA
+      name: '{highlight}&l●'
+      lore:
+        - ''
+        - ' {letters_black}▎ {letters}Played by {info}%cell_owner%'
+        - ''
+
+    red_last_template:
+      material: RED_GLAZED_TERRACOTTA
+      name: '{error}&l● {muted}— last move'
+      lore:
+        - ''
+        - ' {letters_black}▎ {letters}Played by {info}%cell_owner%'
+        - ''
+      glow: true
+
+    yellow_last_template:
+      material: YELLOW_GLAZED_TERRACOTTA
+      name: '{highlight}&l● {muted}— last move'
+      lore:
+        - ''
+        - ' {letters_black}▎ {letters}Played by {info}%cell_owner%'
+        - ''
+      glow: true
+
+    red_winning_template:
+      material: RED_CONCRETE
+      name: '{success}&l● {muted}— winning line'
+      glow: true
+
+    yellow_winning_template:
+      material: YELLOW_CONCRETE
+      name: '{success}&l● {muted}— winning line'
+      glow: true

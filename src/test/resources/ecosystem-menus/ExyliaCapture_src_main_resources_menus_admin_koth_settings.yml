@@ -17,61 +17,61 @@ filler:
 
 items:
   capture-time:
-    slot: 37
+    slot: 19
     material: CLOCK
     name: "{info}&lCAPTURE TIME"
     lore:
       - ""
-      - " {muted}❙ {letters}Current: {highlight}%capture_time%"
-      - " {muted}❙ {letters}Time to hold zone to win"
+      - " {letters_black}▎ {letters}Current: {highlight}%capture_time%"
+      - " {letters_black}▎ {letters}Time to hold zone to win"
       - ""
-      - " {muted}❙ {success}Left-Click +5s"
-      - " {muted}❙ {error}Right-Click -5s"
-      - " {muted}❙ {warning}Shift-Click to enter"
+      - " {letters_black}▎ {success}Left-Click +5s"
+      - " {letters_black}▎ {error}Right-Click -5s"
+      - " {letters_black}▎ {warning}Shift-Click to enter"
     actions:
       - "left: capture:adjust_setting_millis capture-time 5"
       - "right: capture:adjust_setting_millis capture-time -5"
       - "shift_left: capture:input_setting_millis capture-time"
 
   infinite:
-    slot: 38
+    slot: 20
     material: "%infinite_material%"
-    name: "{warning}&lINFINITE MODE"
+    name: "%infinite_color%&lINFINITE MODE"
     lore:
       - ""
-      - " {muted}❙ {letters}Current: {highlight}%infinite_status%"
-      - " {muted}❙ {letters}Auto-reset zone after each capture"
-      - " {muted}❙ {letters}Event ends only by timeout or force-stop"
+      - " {letters_black}▎ {letters}Current: {highlight}%infinite_status%"
+      - " {letters_black}▎ {letters}Auto-reset zone after each capture"
+      - " {letters_black}▎ {letters}Event ends only by timeout or force-stop"
       - ""
-      - " {muted}❙ {success}Click to toggle"
+      - " {letters_black}▎ {success}Click to toggle"
     actions:
       - "capture:toggle_boolean_setting infinite"
 
   glow-enabled:
-    slot: 39
+    slot: 22
     material: "%glow_enabled_material%"
-    name: "{warning}&lGLOW EFFECT"
+    name: "%glow_enabled_color%&lGLOW EFFECT"
     lore:
       - ""
-      - " {muted}❙ {letters}Current: {highlight}%glow_enabled_status%"
-      - " {muted}❙ {letters}Capturer glows near capture end"
+      - " {letters_black}▎ {letters}Current: {highlight}%glow_enabled_status%"
+      - " {letters_black}▎ {letters}Capturer glows near capture end"
       - ""
-      - " {muted}❙ {success}Click to toggle"
+      - " {letters_black}▎ {success}Click to toggle"
     actions:
       - "capture:toggle_boolean_setting glow-enabled"
 
   glow-last-millis:
-    slot: 40
+    slot: 23
     material: GLOWSTONE_DUST
     name: "{info}&lGLOW THRESHOLD"
     lore:
       - ""
-      - " {muted}❙ {letters}Current: {highlight}%glow_last_seconds%"
-      - " {muted}❙ {letters}Time before end to start glow"
+      - " {letters_black}▎ {letters}Current: {highlight}%glow_last_seconds%"
+      - " {letters_black}▎ {letters}Time before end to start glow"
       - ""
-      - " {muted}❙ {success}Left-Click +1s"
-      - " {muted}❙ {error}Right-Click -1s"
-      - " {muted}❙ {warning}Shift-Click to enter"
+      - " {letters_black}▎ {success}Left-Click +1s"
+      - " {letters_black}▎ {error}Right-Click -1s"
+      - " {letters_black}▎ {warning}Shift-Click to enter"
     actions:
       - "left: capture:adjust_setting_millis glow-last-millis 1"
       - "right: capture:adjust_setting_millis glow-last-millis -1"

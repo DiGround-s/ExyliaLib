@@ -17,108 +17,108 @@ filler:
 
 items:
   party-ffa:
-    slot: 37
+    slot: 20
     material: "%party_ffa_material%"
-    name: "{highlight}&lPARTY FFA"
+    name: "%party_ffa_color%&lPARTY FFA"
     lore:
       - ""
-      - " {muted}❙ {letters}Current: %party_ffa_status%"
+      - " {letters_black}▎ {letters}Current: %party_ffa_status%"
       - ""
-      - " {muted}❙ {letters}When disabled, this kit won't"
-      - " {muted}❙ {letters}appear in Party FFA game selection"
+      - " {letters_black}▎ {letters}When disabled, this kit won't"
+      - " {letters_black}▎ {letters}appear in Party FFA game selection"
       - ""
-      - "{info}» Click to toggle"
+      - "{warning}➥ Click to toggle"
     actions:
       - "practice:toggle_kit_party_ffa"
 
   party-split:
-    slot: 38
+    slot: 21
     material: "%party_split_material%"
-    name: "{highlight}&lPARTY SPLIT"
+    name: "%party_split_color%&lPARTY SPLIT"
     lore:
       - ""
-      - " {muted}❙ {letters}Current: %party_split_status%"
+      - " {letters_black}▎ {letters}Current: %party_split_status%"
       - ""
-      - " {muted}❙ {letters}When disabled, this kit won't"
-      - " {muted}❙ {letters}appear in Party Split game selection"
+      - " {letters_black}▎ {letters}When disabled, this kit won't"
+      - " {letters_black}▎ {letters}appear in Party Split game selection"
       - ""
-      - "{info}» Click to toggle"
+      - "{warning}➥ Click to toggle"
     actions:
       - "practice:toggle_kit_party_split"
 
   party-duel:
-    slot: 39
+    slot: 22
     material: "%party_duel_material%"
-    name: "{highlight}&lPARTY DUEL"
+    name: "%party_duel_color%&lPARTY DUEL"
     lore:
       - ""
-      - " {muted}❙ {letters}Current: %party_duel_status%"
+      - " {letters_black}▎ {letters}Current: %party_duel_status%"
       - ""
-      - " {muted}❙ {letters}When disabled, this kit won't"
-      - " {muted}❙ {letters}appear in Party Duel game selection"
+      - " {letters_black}▎ {letters}When disabled, this kit won't"
+      - " {letters_black}▎ {letters}appear in Party Duel game selection"
       - ""
-      - "{info}» Click to toggle"
+      - "{warning}➥ Click to toggle"
     actions:
       - "practice:toggle_kit_party_duel"
 
   duel:
-    slot: 40
+    slot: 29
     material: "%duel_material%"
-    name: "{highlight}&lDUEL"
+    name: "%duel_color%&lDUEL"
     lore:
       - ""
-      - " {muted}❙ {letters}Current: %duel_status%"
+      - " {letters_black}▎ {letters}Current: %duel_status%"
       - ""
-      - " {muted}❙ {letters}When disabled, this kit won't"
-      - " {muted}❙ {letters}appear in 1v1 duel requests"
+      - " {letters_black}▎ {letters}When disabled, this kit won't"
+      - " {letters_black}▎ {letters}appear in 1v1 duel requests"
       - ""
-      - "{info}» Click to toggle"
+      - "{warning}➥ Click to toggle"
     actions:
       - "practice:toggle_kit_duel"
 
   queue:
-    slot: 41
+    slot: 30
     material: "%queue_material%"
-    name: "{highlight}&lQUEUE"
+    name: "%queue_color%&lQUEUE"
     lore:
       - ""
-      - " {muted}❙ {letters}Current: %queue_status%"
+      - " {letters_black}▎ {letters}Current: %queue_status%"
       - ""
-      - " {muted}❙ {letters}When disabled, this kit won't"
-      - " {muted}❙ {letters}appear in the queue menu"
+      - " {letters_black}▎ {letters}When disabled, this kit won't"
+      - " {letters_black}▎ {letters}appear in the queue menu"
       - ""
-      - "{info}» Click to toggle"
+      - "{warning}➥ Click to toggle"
     actions:
       - "practice:toggle_kit_queue"
 
   ranked:
-    slot: 42
+    slot: 31
     material: "%ranked_material%"
-    name: "{highlight}&lRANKED"
+    name: "%ranked_color%&lRANKED"
     lore:
       - ""
-      - " {muted}❙ {letters}Current: %ranked_status%"
+      - " {letters_black}▎ {letters}Current: %ranked_status%"
       - ""
-      - " {muted}❙ {letters}When disabled, this kit"
-      - " {muted}❙ {letters}won't affect ELO (kit or global)"
+      - " {letters_black}▎ {letters}When disabled, this kit"
+      - " {letters_black}▎ {letters}won't affect ELO (kit or global)"
       - ""
-      - "{info}» Click to toggle"
+      - "{warning}➥ Click to toggle"
     actions:
       - "practice:toggle_kit_ranked"
 
   bot-practice:
-    slot: 43
+    slot: 40
     material: "%bot_mode_material%"
     name: "{highlight}&lBOT PRACTICE"
     lore:
       - ""
-      - " {muted}❙ {letters}Current: %bot_mode_status%"
+      - " {letters_black}▎ {letters}Current: %bot_mode_status%"
       - ""
-      - " {muted}❙ {letters}Links this kit to one bot combat"
-      - " {muted}❙ {letters}mode, so {highlight}/botpvp {letters}can use it."
-      - " {muted}❙ {letters}Practice only: no stats, no ELO."
+      - " {letters_black}▎ {letters}Links this kit to one bot combat"
+      - " {letters_black}▎ {letters}mode, so {highlight}/botpvp {letters}can use it."
+      - " {letters_black}▎ {letters}Practice only: no stats, no ELO."
       - ""
-      - "{info}» Click to cycle"
+      - "{warning}➥ Click to cycle"
     actions:
       - "practice:cycle_kit_bot_mode"
 

@@ -28,178 +28,178 @@ items:
     name: "{info}&lDIFFICULTY"
     lore:
       - ""
-      - " {muted}❙ {letters}Current: {info}%difficulty%"
+      - " {letters_black}▎ {letters}Current: {info}%difficulty%"
       - ""
-      - "{info}» Click to cycle"
+      - "{warning}➥ Click to cycle"
     actions:
       - "sandbox:cycle_world_difficulty"
 
   mob-spawning:
-    slot: 20
+    slot: 21
     material: "%mob_spawning_material%"
-    name: "{info}&lMOB SPAWNING"
+    name: "%mob_spawning_color%&lMOB SPAWNING"
     lore:
       - ""
-      - " {muted}❙ {letters}GameRule: {muted}doMobSpawning"
-      - " {muted}❙ {letters}State: %mob_spawning_state%"
+      - " {letters_black}▎ {letters}GameRule: {muted}doMobSpawning"
+      - " {letters_black}▎ {letters}State: %mob_spawning_state%"
       - ""
-      - "{info}» Click to toggle"
+      - "{warning}➥ Click to toggle"
     actions:
       - "sandbox:toggle_world_setting mob_spawning"
 
   spawn-mobs:
-    slot: 21
+    slot: 22
     material: "%spawn_mobs_material%"
-    name: "{info}&lSPAWN MONSTERS"
+    name: "%spawn_mobs_color%&lSPAWN MONSTERS"
     lore:
       - ""
-      - " {muted}❙ {letters}spawnFlags (monsters)"
-      - " {muted}❙ {letters}State: %spawn_mobs_state%"
+      - " {letters_black}▎ {letters}spawnFlags (monsters)"
+      - " {letters_black}▎ {letters}State: %spawn_mobs_state%"
       - ""
-      - "{info}» Click to toggle"
+      - "{warning}➥ Click to toggle"
     actions:
       - "sandbox:toggle_world_setting spawn_mobs"
 
   spawn-animals:
-    slot: 22
+    slot: 23
     material: "%spawn_animals_material%"
-    name: "{info}&lSPAWN ANIMALS"
+    name: "%spawn_animals_color%&lSPAWN ANIMALS"
     lore:
       - ""
-      - " {muted}❙ {letters}spawnFlags (animals)"
-      - " {muted}❙ {letters}State: %spawn_animals_state%"
+      - " {letters_black}▎ {letters}spawnFlags (animals)"
+      - " {letters_black}▎ {letters}State: %spawn_animals_state%"
       - ""
-      - "{info}» Click to toggle"
+      - "{warning}➥ Click to toggle"
     actions:
       - "sandbox:toggle_world_setting spawn_animals"
 
   announce-advancements:
-    slot: 23
+    slot: 40
     material: "%announce_advancements_material%"
-    name: "{info}&lANNOUNCE ADVANCEMENTS"
+    name: "%announce_advancements_color%&lANNOUNCE ADVANCEMENTS"
     lore:
       - ""
-      - " {muted}❙ {letters}GameRule: {muted}announceAdvancements"
-      - " {muted}❙ {letters}State: %announce_advancements_state%"
+      - " {letters_black}▎ {letters}GameRule: {muted}announceAdvancements"
+      - " {letters_black}▎ {letters}State: %announce_advancements_state%"
       - ""
-      - "{info}» Click to toggle"
+      - "{warning}➥ Click to toggle"
     actions:
       - "sandbox:toggle_world_setting announce_advancements"
 
   daylight-cycle:
-    slot: 24
+    slot: 28
     material: "%daylight_cycle_material%"
-    name: "{info}&lDAYLIGHT CYCLE"
+    name: "%daylight_cycle_color%&lDAYLIGHT CYCLE"
     lore:
       - ""
-      - " {muted}❙ {letters}GameRule: {muted}doDaylightCycle"
-      - " {muted}❙ {letters}State: %daylight_cycle_state%"
+      - " {letters_black}▎ {letters}GameRule: {muted}doDaylightCycle"
+      - " {letters_black}▎ {letters}State: %daylight_cycle_state%"
       - ""
-      - "{info}» Click to toggle"
+      - "{warning}➥ Click to toggle"
     actions:
       - "sandbox:toggle_world_setting daylight_cycle"
 
   weather-cycle:
-    slot: 25
+    slot: 29
     material: "%weather_cycle_material%"
-    name: "{info}&lWEATHER CYCLE"
+    name: "%weather_cycle_color%&lWEATHER CYCLE"
     lore:
       - ""
-      - " {muted}❙ {letters}GameRule: {muted}doWeatherCycle"
-      - " {muted}❙ {letters}State: %weather_cycle_state%"
+      - " {letters_black}▎ {letters}GameRule: {muted}doWeatherCycle"
+      - " {letters_black}▎ {letters}State: %weather_cycle_state%"
       - ""
-      - "{info}» Click to toggle"
+      - "{warning}➥ Click to toggle"
     actions:
       - "sandbox:toggle_world_setting weather_cycle"
 
   mob-griefing:
-    slot: 28
+    slot: 24
     material: "%mob_griefing_material%"
-    name: "{info}&lMOB GRIEFING"
+    name: "%mob_griefing_color%&lMOB GRIEFING"
     lore:
       - ""
-      - " {muted}❙ {letters}GameRule: {muted}mobGriefing"
-      - " {muted}❙ {letters}State: %mob_griefing_state%"
+      - " {letters_black}▎ {letters}GameRule: {muted}mobGriefing"
+      - " {letters_black}▎ {letters}State: %mob_griefing_state%"
       - ""
-      - "{info}» Click to toggle"
+      - "{warning}➥ Click to toggle"
     actions:
       - "sandbox:toggle_world_setting mob_griefing"
 
   show-death-messages:
-    slot: 29
+    slot: 37
     material: "%show_death_messages_material%"
-    name: "{info}&lDEATH MESSAGES"
+    name: "%show_death_messages_color%&lDEATH MESSAGES"
     lore:
       - ""
-      - " {muted}❙ {letters}GameRule: {muted}showDeathMessages"
-      - " {muted}❙ {letters}State: %show_death_messages_state%"
+      - " {letters_black}▎ {letters}GameRule: {muted}showDeathMessages"
+      - " {letters_black}▎ {letters}State: %show_death_messages_state%"
       - ""
-      - "{info}» Click to toggle"
+      - "{warning}➥ Click to toggle"
     actions:
       - "sandbox:toggle_world_setting show_death_messages"
 
   tile-drops:
-    slot: 30
+    slot: 31
     material: "%tile_drops_material%"
-    name: "{info}&lTILE DROPS"
+    name: "%tile_drops_color%&lTILE DROPS"
     lore:
       - ""
-      - " {muted}❙ {letters}GameRule: {muted}doTileDrops"
-      - " {muted}❙ {letters}State: %tile_drops_state%"
+      - " {letters_black}▎ {letters}GameRule: {muted}doTileDrops"
+      - " {letters_black}▎ {letters}State: %tile_drops_state%"
       - ""
-      - "{info}» Click to toggle"
+      - "{warning}➥ Click to toggle"
     actions:
       - "sandbox:toggle_world_setting tile_drops"
 
   entity-drops:
-    slot: 31
+    slot: 32
     material: "%entity_drops_material%"
-    name: "{info}&lENTITY DROPS"
+    name: "%entity_drops_color%&lENTITY DROPS"
     lore:
       - ""
-      - " {muted}❙ {letters}GameRule: {muted}doEntityDrops"
-      - " {muted}❙ {letters}State: %entity_drops_state%"
+      - " {letters_black}▎ {letters}GameRule: {muted}doEntityDrops"
+      - " {letters_black}▎ {letters}State: %entity_drops_state%"
       - ""
-      - "{info}» Click to toggle"
+      - "{warning}➥ Click to toggle"
     actions:
       - "sandbox:toggle_world_setting entity_drops"
 
   immediate-respawn:
-    slot: 32
+    slot: 38
     material: "%immediate_respawn_material%"
-    name: "{info}&lIMMEDIATE RESPAWN"
+    name: "%immediate_respawn_color%&lIMMEDIATE RESPAWN"
     lore:
       - ""
-      - " {muted}❙ {letters}GameRule: {muted}doImmediateRespawn"
-      - " {muted}❙ {letters}State: %immediate_respawn_state%"
+      - " {letters_black}▎ {letters}GameRule: {muted}doImmediateRespawn"
+      - " {letters_black}▎ {letters}State: %immediate_respawn_state%"
       - ""
-      - "{info}» Click to toggle"
+      - "{warning}➥ Click to toggle"
     actions:
       - "sandbox:toggle_world_setting immediate_respawn"
 
   disable-item-drops:
     slot: 33
     material: "%disable_item_drops_material%"
-    name: "{info}&lDISABLE ITEM DROPS"
+    name: "%disable_item_drops_color%&lDISABLE ITEM DROPS"
     lore:
       - ""
-      - " {muted}❙ {letters}State: %disable_item_drops_state%"
+      - " {letters_black}▎ {letters}State: %disable_item_drops_state%"
       - ""
-      - "{info}» Click to toggle"
+      - "{warning}➥ Click to toggle"
     actions:
       - "sandbox:toggle_world_setting disable_item_drops"
 
   disable-powder-snow:
-    slot: 34
+    slot: 41
     material: "%disable_powder_snow_material%"
-    name: "{info}&lDISABLE POWDER SNOW"
+    name: "%disable_powder_snow_color%&lDISABLE POWDER SNOW"
     lore:
       - ""
-      - " {muted}❙ {letters}Prevents entities from entering"
-      - " {muted}❙ {letters}powder snow blocks"
-      - " {muted}❙ {letters}State: %disable_powder_snow_state%"
+      - " {letters_black}▎ {letters}Prevents entities from entering"
+      - " {letters_black}▎ {letters}powder snow blocks"
+      - " {letters_black}▎ {letters}State: %disable_powder_snow_state%"
       - ""
-      - "{info}» Click to toggle"
+      - "{warning}➥ Click to toggle"
     actions:
       - "sandbox:toggle_world_setting disable_powder_snow"
 

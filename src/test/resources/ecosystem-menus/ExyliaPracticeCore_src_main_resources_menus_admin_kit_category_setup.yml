@@ -22,9 +22,9 @@ items:
     name: "{highlight}&lNAME"
     lore:
       - ""
-      - " {muted}❙ {letters}Current: {info}%display_name%"
+      - " {letters_black}▎ {letters}Current: {info}%display_name%"
       - ""
-      - "{info}» Click to edit"
+      - "{warning}➥ Click to edit"
     actions:
       - "practice:edit_category_name"
 
@@ -34,9 +34,9 @@ items:
     name: "{highlight}&lICON"
     lore:
       - ""
-      - " {muted}❙ {letters}Current: {info}%icon_material_display%"
+      - " {letters_black}▎ {letters}Current: {info}%icon_material_display%"
       - ""
-      - "{info}» Click to change"
+      - "{warning}➥ Click to change"
     actions:
       - "practice:set_category_icon"
 
@@ -46,9 +46,9 @@ items:
     name: "{highlight}&lSTATUS"
     lore:
       - ""
-      - " {muted}❙ {letters}Current: %enabled_status%"
+      - " {letters_black}▎ {letters}Current: %enabled_status%"
       - ""
-      - "{info}» Click to toggle"
+      - "{warning}➥ Click to toggle"
     actions:
       - "practice:toggle_category_enabled"
 
@@ -58,37 +58,37 @@ items:
     name: "{highlight}&lDESCRIPTION"
     lore:
       - ""
-      - " {muted}❙ {letters}Current: {info}%description%"
+      - " {letters_black}▎ {letters}Current: {info}%description%"
       - ""
-      - "{info}» Click to edit"
+      - "{warning}➥ Click to edit"
     actions:
       - "practice:edit_category_description"
 
   manage-kits:
-    slot: 37
+    slot: 20
     material: CHEST
     name: "{info}&lMANAGE KITS"
     lore:
       - ""
-      - " {muted}❙ {letters}Select which kits belong"
-      - " {muted}❙ {letters}to this category"
+      - " {letters_black}▎ {letters}Select which kits belong"
+      - " {letters_black}▎ {letters}to this category"
       - ""
-      - "{info}» Click to manage"
+      - "{warning}➥ Click to manage"
     actions:
       - "practice:open_category_kit_select"
 
   priority:
-    slot: 23
+    slot: 19
     material: HOPPER
     name: "{info}&lPRIORITY"
     lore:
       - ""
-      - " {muted}❙ {letters}Current: {highlight}%priority%"
+      - " {letters_black}▎ {letters}Current: {highlight}%priority%"
       - ""
-      - " {muted}❙ {success}Left-Click +1"
-      - " {muted}❙ {error}Right-Click -1"
-      - " {muted}❙ {warning}Shift-Click +10"
-      - " {muted}❙ {error}Shift-Right -10"
+      - " {letters_black}▎ {success}Left-Click +1"
+      - " {letters_black}▎ {error}Right-Click -1"
+      - " {letters_black}▎ {warning}Shift-Click +10"
+      - " {letters_black}▎ {error}Shift-Right -10"
     actions:
       - "left: practice:adjust_category_priority 1"
       - "right: practice:adjust_category_priority -1"

@@ -34,12 +34,12 @@ pagination:
     name: "{warning}&l%kit_name%"
     lore:
       - ""
-      - " {muted}❙ {letters}Arena: {info}%arena_name%"
+      - " {letters_black}▎ {letters}Arena: {info}%arena_name%"
       - ""
-      - " {muted}❙ {letters}Click to delete all custom"
-      - " {muted}❙ {letters}layouts for this kit"
+      - " {letters_black}▎ {letters}Click to delete all custom"
+      - " {letters_black}▎ {letters}layouts for this kit"
       - ""
-      - "{error}» Click to reset all layouts"
+      - "{error}➥ Click to reset all layouts"
     actions:
       - "ffa:confirm_reset_kit_layouts %kit_id%"
 

@@ -28,11 +28,11 @@ pagination:
     name: "{highlight}&l%flag_label%"
     lore:
       - ""
-      - " {muted}❙ {letters}%flag_description%"
+      - " {letters_black}▎ {letters}%flag_description%"
       - ""
-      - " {muted}❙ {letters}State: %flag_state%"
+      - " {letters_black}▎ {letters}State: %flag_state%"
       - ""
-      - "{info}» Click to cycle ALLOW / DENY / DEFAULT"
+      - "{warning}➥ Click to cycle ALLOW / DENY / DEFAULT"
     actions:
       - "survivalcore:regenzone_flag_cycle %flag_key%"
 
@@ -57,13 +57,13 @@ items:
     name: "{highlight}&lALLOWED BLOCKS LIST"
     lore:
       - ""
-      - " {muted}❙ {letters}Current: {highlight}%allowed_blocks_count% {letters}material(s)"
+      - " {letters_black}▎ {letters}Current: {highlight}%allowed_blocks_count% {letters}material(s)"
       - ""
-      - " {muted}❙ {letters}Used by the {highlight}allowed_blocks_only"
-      - " {muted}❙ {letters}flag above"
+      - " {letters_black}▎ {letters}Used by the {highlight}allowed_blocks_only"
+      - " {letters_black}▎ {letters}flag above"
       - ""
-      - "{info}» Click to add one block"
-      - "{error}» Shift-click to clear all"
+      - "{warning}➥ Click to add one block"
+      - "{error}➥ Shift-click to clear all"
     actions:
       - "left: survivalcore:regenzone_set_allowed_blocks"
       - "shift_left: survivalcore:regenzone_clear_allowed_blocks"
@@ -74,12 +74,12 @@ items:
     name: "{highlight}&lTEMP BLOCKS SECONDS"
     lore:
       - ""
-      - " {muted}❙ {letters}Current: {highlight}%temp_blocks_seconds%s"
+      - " {letters_black}▎ {letters}Current: {highlight}%temp_blocks_seconds%s"
       - ""
-      - " {muted}❙ {letters}Used by the {highlight}temporary_blocks"
-      - " {muted}❙ {letters}flag above"
+      - " {letters_black}▎ {letters}Used by the {highlight}temporary_blocks"
+      - " {letters_black}▎ {letters}flag above"
       - ""
-      - "{info}» Click to set"
+      - "{warning}➥ Click to set"
     actions:
       - "survivalcore:regenzone_set_temp_blocks_seconds"
 
@@ -89,6 +89,6 @@ items:
     name: '{error}&lBACK'
     lore:
       - ""
-      - " {info}» Return to zone setup"
+      - " {warning}➥ Return to zone setup"
     actions:
       - "survivalcore:regenzone_back_to_setup"

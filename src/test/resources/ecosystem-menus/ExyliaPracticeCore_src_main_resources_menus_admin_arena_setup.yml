@@ -22,9 +22,9 @@ items:
     name: "{highlight}&lNAME"
     lore:
       - ""
-      - " {muted}❙ {letters}Current: {info}%display_name%"
+      - " {letters_black}▎ {letters}Current: {info}%display_name%"
       - ""
-      - "{info}» Click to edit"
+      - "{warning}➥ Click to edit"
     actions:
       - "practice:edit_arena_name"
 
@@ -34,9 +34,9 @@ items:
     name: "{highlight}&lICON"
     lore:
       - ""
-      - " {muted}❙ {letters}Current: {info}%icon_material_display%"
+      - " {letters_black}▎ {letters}Current: {info}%icon_material_display%"
       - ""
-      - "{info}» Click to change"
+      - "{warning}➥ Click to change"
     actions:
       - "practice:set_arena_icon"
 
@@ -46,36 +46,36 @@ items:
     name: "{highlight}&lSTATUS"
     lore:
       - ""
-      - " {muted}❙ {letters}Current: %enabled_status%"
+      - " {letters_black}▎ {letters}Current: %enabled_status%"
       - ""
-      - "{info}» Click to toggle"
+      - "{warning}➥ Click to toggle"
     actions:
       - "practice:toggle_arena_enabled"
 
   spawn1:
-    slot: 22
+    slot: 19
     material: "%spawn1_material%"
-    name: "{warning}&lSPAWN 1"
+    name: "%spawn1_color%&lSPAWN 1"
     lore:
       - ""
-      - " {muted}❙ {letters}Status: %spawn1_status%"
+      - " {letters_black}▎ {letters}Status: %spawn1_status%"
       - ""
-      - " {muted}❙ {success}Left-Click to set"
-      - " {muted}❙ {info}Right-Click to teleport"
+      - " {letters_black}▎ {success}Left-Click to set"
+      - " {letters_black}▎ {info}Right-Click to teleport"
     actions:
       - "left: practice:set_spawn1"
       - "right: practice:tp_spawn spawn1"
 
   spawn2:
-    slot: 24
+    slot: 20
     material: "%spawn2_material%"
-    name: "{warning}&lSPAWN 2"
+    name: "%spawn2_color%&lSPAWN 2"
     lore:
       - ""
-      - " {muted}❙ {letters}Status: %spawn2_status%"
+      - " {letters_black}▎ {letters}Status: %spawn2_status%"
       - ""
-      - " {muted}❙ {success}Left-Click to set"
-      - " {muted}❙ {info}Right-Click to teleport"
+      - " {letters_black}▎ {success}Left-Click to set"
+      - " {letters_black}▎ {info}Right-Click to teleport"
     actions:
       - "left: practice:set_spawn2"
       - "right: practice:tp_spawn spawn2"
@@ -83,27 +83,27 @@ items:
   spectator-spawn:
     slot: 21
     material: "%spectator_material%"
-    name: "{warning}&lSPECTATOR SPAWN"
+    name: "%spectator_color%&lSPECTATOR SPAWN"
     lore:
       - ""
-      - " {muted}❙ {letters}Status: %spectator_status%"
+      - " {letters_black}▎ {letters}Status: %spectator_status%"
       - ""
-      - " {muted}❙ {success}Left-Click to set"
-      - " {muted}❙ {info}Right-Click to teleport"
+      - " {letters_black}▎ {success}Left-Click to set"
+      - " {letters_black}▎ {info}Right-Click to teleport"
     actions:
       - "left: practice:set_spectator_spawn"
       - "right: practice:tp_spawn spectator"
 
   partyffa-spawn:
-    slot: 25
+    slot: 22
     material: "%partyffa_material%"
-    name: "{warning}&lPARTY FFA SPAWN"
+    name: "%partyffa_color%&lPARTY FFA SPAWN"
     lore:
       - ""
-      - " {muted}❙ {letters}Status: %partyffa_status%"
+      - " {letters_black}▎ {letters}Status: %partyffa_status%"
       - ""
-      - " {muted}❙ {success}Left-Click to set"
-      - " {muted}❙ {info}Right-Click to teleport"
+      - " {letters_black}▎ {success}Left-Click to set"
+      - " {letters_black}▎ {info}Right-Click to teleport"
     actions:
       - "left: practice:set_partyffa_spawn"
       - "right: practice:tp_spawn partyffa"
@@ -111,44 +111,44 @@ items:
   playable-region:
     slot: 28
     material: "%playable_material%"
-    name: "{info}&lPLAYABLE REGION"
+    name: "%playable_color%&lPLAYABLE REGION"
     lore:
       - ""
-      - " {muted}❙ {letters}Status: %playable_status%"
+      - " {letters_black}▎ {letters}Status: %playable_status%"
       - ""
-      - " {muted}❙ {letters}Area where matches happen"
+      - " {letters_black}▎ {letters}Area where matches happen"
       - ""
-      - "{info}» Click to select"
+      - "{warning}➥ Click to select"
     actions:
       - "practice:set_playable_region"
 
   copy-region:
     slot: 29
     material: "%copy_material%"
-    name: "{info}&lCOPY REGION"
+    name: "%copy_color%&lCOPY REGION"
     lore:
       - ""
-      - " {muted}❙ {letters}Status: %copy_status%"
+      - " {letters_black}▎ {letters}Status: %copy_status%"
       - ""
-      - " {muted}❙ {letters}Template area for cloning"
+      - " {letters_black}▎ {letters}Template area for cloning"
       - ""
-      - "{info}» Click to select"
+      - "{warning}➥ Click to select"
     actions:
       - "practice:set_copy_region"
 
   schematic:
-    slot: 20
+    slot: 31
     material: "%schematic_material%"
-    name: "{info}&lSCHEMATIC"
+    name: "%schematic_color%&lSCHEMATIC"
     lore:
       - ""
-      - " {muted}❙ {letters}Status: %schematic_status%"
+      - " {letters_black}▎ {letters}Status: %schematic_status%"
       - ""
-      - " {muted}❙ {letters}Save from copy region"
-      - " {muted}❙ {letters}Used for regen & clones"
+      - " {letters_black}▎ {letters}Save from copy region"
+      - " {letters_black}▎ {letters}Used for regen & clones"
       - ""
-      - " {muted}❙ {success}Left-Click to save"
-      - " {muted}❙ {warning}Right-Click to restore"
+      - " {letters_black}▎ {success}Left-Click to save"
+      - " {letters_black}▎ {warning}Right-Click to restore"
     actions:
       - "left: practice:save_schematic"
       - "right: practice:regen_schematic"
@@ -159,40 +159,40 @@ items:
     name: "{info}&lEXTRA REGIONS"
     lore:
       - ""
-      - " {muted}❙ {letters}Count: {highlight}%extra_regions_count%"
+      - " {letters_black}▎ {letters}Count: {highlight}%extra_regions_count%"
       - ""
-      - " {muted}❙ {letters}Regions used for portal-like triggers"
+      - " {letters_black}▎ {letters}Regions used for portal-like triggers"
       - ""
-      - " {muted}❙ {info}Click to manage"
+      - " {letters_black}▎ {info}Click to manage"
     actions:
       - "practice:open_extra_regions_list"
 
   kits:
-    slot: 19
+    slot: 37
     material: BOOK
     name: "{info}&lKITS"
     lore:
       - ""
-      - " {muted}❙ {letters}Compatible: {highlight}%kit_count% kit(s)"
+      - " {letters_black}▎ {letters}Compatible: {highlight}%kit_count% kit(s)"
       - ""
-      - " {muted}❙ {letters}Select which kits can use this arena"
+      - " {letters_black}▎ {letters}Select which kits can use this arena"
       - ""
-      - " {muted}❙ {info}Click to manage"
+      - " {letters_black}▎ {info}Click to manage"
     actions:
       - "practice:open_arena_kit_select"
 
   protection-radius:
-    slot: 31
+    slot: 33
     material: SHIELD
     name: "{info}&lSPAWN PROTECTION"
     lore:
       - ""
-      - " {muted}❙ {letters}Radius: {highlight}%protection_radius% {letters}blocks"
+      - " {letters_black}▎ {letters}Radius: {highlight}%protection_radius% {letters}blocks"
       - ""
-      - " {muted}❙ {success}Left-Click +1"
-      - " {muted}❙ {error}Right-Click -1"
-      - " {muted}❙ {warning}Shift-Click +5"
-      - " {muted}❙ {error}Shift-Right -5"
+      - " {letters_black}▎ {success}Left-Click +1"
+      - " {letters_black}▎ {error}Right-Click -1"
+      - " {letters_black}▎ {warning}Shift-Click +5"
+      - " {letters_black}▎ {error}Shift-Right -5"
     actions:
       - "left: practice:adjust_protection_radius 1"
       - "right: practice:adjust_protection_radius -1"
@@ -200,17 +200,17 @@ items:
       - "shift_right: practice:adjust_protection_radius -5"
 
   extra-region-protection-radius:
-    slot: 32
+    slot: 34
     material: END_PORTAL_FRAME
     name: "{info}&lEXTRA REGION PROTECTION"
     lore:
       - ""
-      - " {muted}❙ {letters}Radius: {highlight}%extra_region_protection_radius% {letters}blocks"
+      - " {letters_black}▎ {letters}Radius: {highlight}%extra_region_protection_radius% {letters}blocks"
       - ""
-      - " {muted}❙ {success}Left-Click +1"
-      - " {muted}❙ {error}Right-Click -1"
-      - " {muted}❙ {warning}Shift-Click +5"
-      - " {muted}❙ {error}Shift-Right -5"
+      - " {letters_black}▎ {success}Left-Click +1"
+      - " {letters_black}▎ {error}Right-Click -1"
+      - " {letters_black}▎ {warning}Shift-Click +5"
+      - " {letters_black}▎ {error}Shift-Right -5"
     actions:
       - "left: practice:adjust_extra_region_protection_radius 1"
       - "right: practice:adjust_extra_region_protection_radius -1"
@@ -218,17 +218,17 @@ items:
       - "shift_right: practice:adjust_extra_region_protection_radius -5"
 
   priority:
-    slot: 23
+    slot: 38
     material: HOPPER
     name: "{info}&lPRIORITY"
     lore:
       - ""
-      - " {muted}❙ {letters}Current: {highlight}%priority%"
+      - " {letters_black}▎ {letters}Current: {highlight}%priority%"
       - ""
-      - " {muted}❙ {success}Left-Click +1"
-      - " {muted}❙ {error}Right-Click -1"
-      - " {muted}❙ {warning}Shift-Click +10"
-      - " {muted}❙ {error}Shift-Right -10"
+      - " {letters_black}▎ {success}Left-Click +1"
+      - " {letters_black}▎ {error}Right-Click -1"
+      - " {letters_black}▎ {warning}Shift-Click +10"
+      - " {letters_black}▎ {error}Shift-Right -10"
     actions:
       - "left: practice:adjust_priority 1"
       - "right: practice:adjust_priority -1"
@@ -236,30 +236,17 @@ items:
       - "shift_right: practice:adjust_priority -10"
 
   view-clones:
-    slot: 33
+    slot: 40
     material: ENDER_EYE
     name: "{info}&lVIEW CLONES"
     lore:
       - ""
-      - " {muted}❙ {letters}Active clones: {highlight}%clone_count%"
+      - " {letters_black}▎ {letters}Active clones: {highlight}%clone_count%"
       - ""
-      - "{info}» Click to view"
+      - "{warning}➥ Click to view"
     actions:
       - "practice:open_clone_list"
 
-  force-load-clones:
-    slot: 53
-    material: 'basehead-eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvYmUwZmQxMDE5OWU4ZTRmY2RhYmNhZTRmODVjODU5MTgxMjdhN2M1NTUzYWQyMzVmMDFjNTZkMThiYjk0NzBkMyJ9fX0='
-    name: "{warning}&lFORCE LOAD CLONES"
-    lore:
-      - ""
-      - " {muted}❙ {letters}Active clones: {highlight}%clone_count%"
-      - ""
-      - " {muted}❙ {letters}Force-create N clones for testing"
-      - ""
-      - "{warning}» Click to load clones"
-    actions:
-      - "practice:force_load_clones"
 
   back:
     slot: 49

@@ -1,0 +1,118 @@
+# Challenges waiting on you, and the one you sent.
+
+title: '{primary}&lCHALLENGES {muted}%incoming_count%'
+size: 45
+type: MULTI_PAGINATION
+
+open_sounds:
+  - 'BLOCK_BARREL_OPEN|0.8|1.4'
+click_sounds:
+  - 'UI_BUTTON_CLICK|1.0|1.5'
+
+filler:
+  global:
+    material: BLACK_STAINED_GLASS_PANE
+    hide_tooltip: true
+
+items:
+
+  header:
+    slot: 4
+    material: PAPER
+    name: '{primary}&lCHALLENGES'
+    lore:
+      - ''
+      - ' {letters_black}▎ {letters}Waiting on you {letters_black}» {info}%incoming_count%'
+      - ' {letters_black}▎ {letters}Sent by you {letters_black}» {info}%outgoing_count%'
+      - ''
+      - '{letters_black}A challenge expires on its own.'
+      - ''
+    glow: true
+
+  back:
+    slot: 36
+    material: ARROW
+    name: '{error}&lBACK'
+    lore:
+      - ''
+      - '{warning}➥ Click to go back'
+      - ''
+    actions:
+      - 'left: betcore:open_main'
+
+  close:
+    slot: 44
+    material: BARRIER
+    name: '{error}&lCLOSE'
+    lore:
+      - ''
+      - '{warning}➥ Click to close'
+      - ''
+    actions:
+      - 'close'
+
+sections:
+
+  # Bets somebody has offered you.
+  incoming:
+    slots: '10-16'
+    filler:
+      material: LIGHT_GRAY_STAINED_GLASS_PANE
+      name: '{muted}Nobody has challenged you'
+    item_template:
+      material: 'playerhead-%player_name%'
+      name: '{letters}&l%player_name%'
+      lore:
+        - ''
+        - '{secondary}The bet:'
+        - ' {letters_black}▎ {letters}Game {letters_black}» {info}%game_name%'
+        - ' {letters_black}▎ {letters}Mode {letters_black}» {info}%mode_name%'
+        - ' {letters_black}▎ {letters}Stake {letters_black}» {highlight}%wager%'
+        - ' {letters_black}▎ {letters}Rounds {letters_black}» {info}Best of %rounds%'
+        - ''
+        - '{success}➥ Left-click to accept'
+        - '{error}➥ Right-click to refuse'
+        - ''
+      actions:
+        - 'left: betcore:invite_accept'
+        - 'right: betcore:invite_decline'
+    rematch_template:
+      material: 'playerhead-%player_name%'
+      name: '{highlight}&l%player_name% {muted}— rematch'
+      lore:
+        - ''
+        - ' {letters_black}▎ {letters}The same bet as last time.'
+        - ' {letters_black}▎ {letters}Stake {letters_black}» {highlight}%wager%'
+        - ''
+        - '{success}➥ Left-click to accept'
+        - '{error}➥ Right-click to refuse'
+        - ''
+      glow: true
+      actions:
+        - 'left: betcore:invite_accept'
+        - 'right: betcore:invite_decline'
+
+  # The one you sent.
+  outgoing:
+    slots: '28-34'
+    filler:
+      material: AIR
+      hide_tooltip: true
+    item_template:
+      material: 'playerhead-%player_name%'
+      name: '{muted}Waiting on {letters}%player_name%'
+      lore:
+        - ''
+        - ' {letters_black}▎ {letters}Stake {letters_black}» {highlight}%wager%'
+        - ' {letters_black}▎ {letters}Rounds {letters_black}» {info}Best of %rounds%'
+        - ''
+        - '{letters_black}It expires on its own.'
+        - ''
+    rematch_template:
+      material: 'playerhead-%player_name%'
+      name: '{muted}Rematch offered to {letters}%player_name%'
+      lore:
+        - ''
+        - ' {letters_black}▎ {letters}Stake {letters_black}» {highlight}%wager%'
+        - ''
+      glow: true

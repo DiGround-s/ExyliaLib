@@ -28,99 +28,99 @@ items:
     name: "{info}&lENABLED"
     lore:
       - ""
-      - " {muted}❙ {letters}Current: %weapon_enabled%"
+      - " {letters_black}▎ {letters}Current: %weapon_enabled%"
       - ""
-      - "{info}» Click to toggle"
+      - "{warning}➥ Click to toggle"
     actions:
       - "events:toggle_csgo_weapon_setting weapon-shotgun-enabled"
 
   damage:
-    slot: 38
+    slot: 19
     material: STONE_HOE
     name: "{info}&lDAMAGE {muted}(per pellet)"
     lore:
       - ""
-      - " {muted}❙ {letters}Current: {highlight}%weapon_damage%"
+      - " {letters_black}▎ {letters}Current: {highlight}%weapon_damage%"
       - ""
-      - " {muted}❙ {success}Left-Click +0.5"
-      - " {muted}❙ {error}Right-Click -0.5"
-      - " {muted}❙ {warning}Shift-Click to enter"
+      - " {letters_black}▎ {success}Left-Click +0.5"
+      - " {letters_black}▎ {error}Right-Click -0.5"
+      - " {letters_black}▎ {warning}Shift-Click to enter"
     actions:
       - "left: events:adjust_csgo_weapon_double weapon-shotgun-damage 0.5"
       - "right: events:adjust_csgo_weapon_double weapon-shotgun-damage -0.5"
       - "shift_left: events:input_csgo_weapon_double weapon-shotgun-damage"
 
   cooldown:
-    slot: 24
+    slot: 20
     material: CLOCK
     name: "{info}&lCOOLDOWN"
     lore:
       - ""
-      - " {muted}❙ {letters}Current: {highlight}%weapon_cooldown% ticks"
+      - " {letters_black}▎ {letters}Current: {highlight}%weapon_cooldown% ticks"
       - ""
-      - " {muted}❙ {success}Left-Click +2"
-      - " {muted}❙ {error}Right-Click -2"
-      - " {muted}❙ {warning}Shift-Click to enter"
+      - " {letters_black}▎ {success}Left-Click +2"
+      - " {letters_black}▎ {error}Right-Click -2"
+      - " {letters_black}▎ {warning}Shift-Click to enter"
     actions:
       - "left: events:adjust_csgo_weapon_int weapon-shotgun-cooldown 2"
       - "right: events:adjust_csgo_weapon_int weapon-shotgun-cooldown -2"
       - "shift_left: events:input_csgo_weapon_int weapon-shotgun-cooldown"
 
   range:
-    slot: 39
+    slot: 21
     material: ENDER_EYE
     name: "{info}&lRANGE"
     lore:
       - ""
-      - " {muted}❙ {letters}Current: {highlight}%weapon_range%"
+      - " {letters_black}▎ {letters}Current: {highlight}%weapon_range%"
       - ""
-      - " {muted}❙ {success}Left-Click +1"
-      - " {muted}❙ {error}Right-Click -1"
-      - " {muted}❙ {warning}Shift-Click to enter"
+      - " {letters_black}▎ {success}Left-Click +1"
+      - " {letters_black}▎ {error}Right-Click -1"
+      - " {letters_black}▎ {warning}Shift-Click to enter"
     actions:
       - "left: events:adjust_csgo_weapon_double weapon-shotgun-range 1.0"
       - "right: events:adjust_csgo_weapon_double weapon-shotgun-range -1.0"
       - "shift_left: events:input_csgo_weapon_double weapon-shotgun-range"
 
   oneshot:
-    slot: 40
+    slot: 22
     material: "%weapon_oneshot_material%"
     name: "{info}&lONE SHOT KILL"
     lore:
       - ""
-      - " {muted}❙ {letters}Current: %weapon_oneshot%"
+      - " {letters_black}▎ {letters}Current: %weapon_oneshot%"
       - ""
-      - "{info}» Click to toggle"
+      - "{warning}➥ Click to toggle"
     actions:
       - "events:toggle_csgo_weapon_setting weapon-shotgun-oneshot"
 
   pellets:
-    slot: 41
+    slot: 23
     material: GRAVEL
     name: "{info}&lPELLETS"
     lore:
       - ""
-      - " {muted}❙ {letters}Current: {highlight}%weapon_pellets%"
+      - " {letters_black}▎ {letters}Current: {highlight}%weapon_pellets%"
       - ""
-      - " {muted}❙ {success}Left-Click +1"
-      - " {muted}❙ {error}Right-Click -1"
-      - " {muted}❙ {warning}Shift-Click to enter"
+      - " {letters_black}▎ {success}Left-Click +1"
+      - " {letters_black}▎ {error}Right-Click -1"
+      - " {letters_black}▎ {warning}Shift-Click to enter"
     actions:
       - "left: events:adjust_csgo_weapon_int weapon-shotgun-pellets 1"
       - "right: events:adjust_csgo_weapon_int weapon-shotgun-pellets -1"
       - "shift_left: events:input_csgo_weapon_int weapon-shotgun-pellets"
 
   spread:
-    slot: 37
+    slot: 24
     material: FEATHER
     name: "{info}&lSPREAD"
     lore:
       - ""
-      - " {muted}❙ {letters}Current: {highlight}%weapon_spread%"
+      - " {letters_black}▎ {letters}Current: {highlight}%weapon_spread%"
       - ""
-      - " {muted}❙ {success}Left-Click +0.01"
-      - " {muted}❙ {error}Right-Click -0.01"
-      - " {muted}❙ {warning}Shift-Click to enter"
+      - " {letters_black}▎ {success}Left-Click +0.01"
+      - " {letters_black}▎ {error}Right-Click -0.01"
+      - " {letters_black}▎ {warning}Shift-Click to enter"
     actions:
       - "left: events:adjust_csgo_weapon_double weapon-shotgun-spread 0.01"
       - "right: events:adjust_csgo_weapon_double weapon-shotgun-spread -0.01"

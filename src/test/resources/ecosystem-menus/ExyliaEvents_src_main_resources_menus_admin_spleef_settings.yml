@@ -28,81 +28,81 @@ items:
     name: "{info}&lHOW TO SETUP"
     lore:
       - ""
-      - " {muted}❙ {letters}Build the breakable floor"
-      - " {muted}❙ {letters}out of {highlight}Snow Blocks"
+      - " {letters_black}▎ {letters}Build the breakable floor"
+      - " {letters_black}▎ {letters}out of {highlight}Snow Blocks"
       - ""
-      - " {muted}❙ {letters}Breaking one gives the player"
-      - " {muted}❙ {letters}snowballs to dig out others"
+      - " {letters_black}▎ {letters}Breaking one gives the player"
+      - " {letters_black}▎ {letters}snowballs to dig out others"
       - ""
-      - " {muted}❙ {letters}Snowballs also destroy any"
-      - " {muted}❙ {letters}Snow Block they hit directly"
+      - " {letters_black}▎ {letters}Snowballs also destroy any"
+      - " {letters_black}▎ {letters}Snow Block they hit directly"
       - ""
-      - " {muted}❙ {error}Falling through eliminates"
-      - " {muted}❙ {error}a player"
+      - " {letters_black}▎ {error}Falling through eliminates"
+      - " {letters_black}▎ {error}a player"
 
   grace-period:
-    slot: 37
+    slot: 19
     material: CLOCK
     name: "{info}&lGRACE PERIOD"
     lore:
       - ""
-      - " {muted}❙ {letters}Current: {highlight}%grace_period%s"
-      - " {muted}❙ {letters}Blocks don't break at start"
+      - " {letters_black}▎ {letters}Current: {highlight}%grace_period%s"
+      - " {letters_black}▎ {letters}Blocks don't break at start"
       - ""
-      - " {muted}❙ {success}Left-Click +5s"
-      - " {muted}❙ {error}Right-Click -5s"
-      - " {muted}❙ {warning}Shift-Click to enter"
+      - " {letters_black}▎ {success}Left-Click +5s"
+      - " {letters_black}▎ {error}Right-Click -5s"
+      - " {letters_black}▎ {warning}Shift-Click to enter"
     actions:
       - "left: events:adjust_setting grace-period 5"
       - "right: events:adjust_setting grace-period -5"
       - "shift_left: events:input_setting grace-period"
 
   snowballs-per-break:
-    slot: 38
+    slot: 20
     material: SNOWBALL
     name: "{info}&lSNOWBALLS PER BLOCK"
     lore:
       - ""
-      - " {muted}❙ {letters}Current: {highlight}%snowballs_per_break%"
+      - " {letters_black}▎ {letters}Current: {highlight}%snowballs_per_break%"
       - ""
-      - " {muted}❙ {letters}Snowballs received"
-      - " {muted}❙ {letters}when breaking a snow block"
+      - " {letters_black}▎ {letters}Snowballs received"
+      - " {letters_black}▎ {letters}when breaking a snow block"
       - ""
-      - " {muted}❙ {success}Left-Click +1"
-      - " {muted}❙ {error}Right-Click -1"
-      - " {muted}❙ {warning}Shift-Click to enter"
+      - " {letters_black}▎ {success}Left-Click +1"
+      - " {letters_black}▎ {error}Right-Click -1"
+      - " {letters_black}▎ {warning}Shift-Click to enter"
     actions:
       - "left: events:adjust_setting snowballs-per-break 1"
       - "right: events:adjust_setting snowballs-per-break -1"
       - "shift_left: events:input_setting snowballs-per-break"
 
   snowball-knockback:
-    slot: 39
+    slot: 21
     material: "%snowball_knockback_material%"
-    name: "{info}&lSNOWBALL KNOCKBACK"
+    name: "%snowball_knockback_color%&lSNOWBALL KNOCKBACK"
     lore:
       - ""
-      - " {muted}❙ {letters}Status: %snowball_knockback%"
+      - " {letters_black}▎ {letters}Status: %snowball_knockback%"
       - ""
-      - " {muted}❙ {letters}Snowballs push players"
-      - " {muted}❙ {letters}on impact"
+      - " {letters_black}▎ {letters}Snowballs push players"
+      - " {letters_black}▎ {letters}on impact"
       - ""
-      - "{info}» Click to toggle"
+      - "{warning}➥ Click to toggle"
     actions:
       - "events:toggle_spleef_setting snowball-knockback"
 
   fall-damage:
-    slot: 29
+    slot: 22
     material: "%fall_damage_material%"
-    name: "{warning}&lFALL DAMAGE"
+    name: "%fall_damage_color%&lFALL DAMAGE"
     lore:
       - ""
-      - " {muted}❙ {letters}Status: %fall_damage%"
+      - " {letters_black}▎ {letters}Status: %fall_damage%"
       - ""
-      - " {muted}❙ {letters}If enabled, players"
-      - " {muted}❙ {letters}take fall damage"
+      - " {letters_black}▎ {letters}If enabled, players"
+      - " {letters_black}▎ {letters}take fall damage"
       - ""
-      - "{info}» Click to toggle"
+      - "{warning}➥ Click to toggle"
     actions:
       - "events:toggle_spleef_setting fall-damage"
 

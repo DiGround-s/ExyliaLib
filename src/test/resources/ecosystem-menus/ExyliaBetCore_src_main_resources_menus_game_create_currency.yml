@@ -1,0 +1,62 @@
+# What to bet in. Only currencies whose plugin is actually installed are here:
+# offering one that cannot pay out is the failure this plugin exists to avoid.
+
+title: '{primary}&lCURRENCY'
+size: 27
+type: PAGINATION
+
+click_sounds:
+  - 'UI_BUTTON_CLICK|1.0|1.5'
+
+filler:
+  global:
+    material: BLACK_STAINED_GLASS_PANE
+    hide_tooltip: true
+
+items:
+  back:
+    slot: 22
+    material: ARROW
+    name: '{error}&lBACK'
+    lore:
+      - ''
+      - '{warning}➥ Click to go back'
+      - ''
+    actions:
+      - 'left: betcore:open_create'
+
+pagination:
+  slots: '10-16'
+  filler:
+    material: LIGHT_GRAY_STAINED_GLASS_PANE
+    name: '{muted}No currency is available'
+    lore:
+      - ''
+      - '{letters_black}No economy plugin is installed, or none of the'
+      - '{letters_black}ones in config.yml is turned on.'
+      - ''
+  item_template:
+    material: '%currency_icon%'
+    name: '{primary}&l%currency_id%'
+    lore:
+      - ''
+      - '{secondary}Limits:'
+      - ' {letters_black}▎ {letters}Least {letters_black}» {info}%currency_min%'
+      - ' {letters_black}▎ {letters}Most {letters_black}» {info}%currency_max%'
+      - ''
+      - '{warning}➥ Click to bet in this'
+      - ''
+    actions:
+      - 'left: betcore:set_currency %currency_id%'
+  selected_template:
+    material: '%currency_icon%'
+    name: '{primary}&l%currency_id% {success}✔'
+    lore:
+      - ''
+      - '{secondary}Limits:'
+      - ' {letters_black}▎ {letters}Least {letters_black}» {info}%currency_min%'
+      - ' {letters_black}▎ {letters}Most {letters_black}» {info}%currency_max%'
+      - ''
+      - '{success}This is what you are betting.'
+      - ''
+    glow: true

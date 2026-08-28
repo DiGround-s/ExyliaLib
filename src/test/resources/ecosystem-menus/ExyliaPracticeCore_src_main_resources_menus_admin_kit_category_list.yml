@@ -28,12 +28,12 @@ pagination:
     name: "{warning}&l%category_name%"
     lore:
       - ""
-      - " {muted}❙ {letters}ID: {info}%category_id%"
-      - " {muted}❙ {letters}Enabled: %category_enabled%"
-      - " {muted}❙ {letters}Priority: {highlight}%category_priority%"
+      - " {letters_black}▎ {letters}ID: {info}%category_id%"
+      - " {letters_black}▎ {letters}Enabled: %category_enabled%"
+      - " {letters_black}▎ {letters}Priority: {highlight}%category_priority%"
       - ""
-      - " {muted}❙ {success}Left-Click to edit"
-      - " {muted}❙ {error}Right-Click to delete"
+      - " {letters_black}▎ {success}Left-Click to edit"
+      - " {letters_black}▎ {error}Right-Click to delete"
     actions:
       - "left: practice:edit_kit_category %category_id%"
       - "right: practice:confirm_delete_kit_category %category_id%"
@@ -63,9 +63,9 @@ items:
     name: "{success}&lCREATE CATEGORY"
     lore:
       - ""
-      - " {muted}❙ {letters}Create a new kit category"
+      - " {letters_black}▎ {letters}Create a new kit category"
       - ""
-      - "{info}» Click to create"
+      - "{warning}➥ Click to create"
     actions:
       - "practice:create_kit_category"
 

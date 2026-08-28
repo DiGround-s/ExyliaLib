@@ -19,20 +19,20 @@ items:
     name: "%confirm_title%"
     lore:
       - ""
-      - " {muted}❙ {letters}%confirm_desc%"
+      - " {letters_black}▎ {letters}%confirm_desc%"
       - ""
-      - "{success}» Click to confirm"
+      - "{success}➥ Click to confirm"
     actions:
       - "%confirm_action%"
 
   cancel:
-    slot: 22
+    slot: 15
     material: 'basehead-eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvMjIzZmI2NzQyOTcxNmIyMWJjNmU4ZTdkNjY5Y2VkZGY2NWIxM2UwNzkwYTVjZTU1YjJlMDc3YjgyZDE5ZTEyNCJ9fX0='
     name: '{error}&lCANCEL'
     lore:
       - ""
-      - " {muted}❙ {letters}No changes will be made"
+      - " {letters_black}▎ {letters}No changes will be made"
       - ""
-      - "{error}» Click to cancel"
+      - "{error}➥ Click to cancel"
     actions:
       - "%cancel_action%"

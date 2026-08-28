@@ -17,96 +17,96 @@ filler:
 
 items:
   block-location:
-    slot: 37
+    slot: 19
     material: "%block_material%"
     name: "{info}&lCORE BLOCK"
     lore:
       - ""
-      - " {muted}❙ {letters}Status: {highlight}%block_status%"
-      - " {muted}❙ {letters}The block players must destroy"
+      - " {letters_black}▎ {letters}Status: {highlight}%block_status%"
+      - " {letters_black}▎ {letters}The block players must destroy"
       - ""
-      - " {success}» Click to set"
+      - " {success}➥ Click to set"
     actions:
       - "capture:set_dtc_block"
 
   target-points:
-    slot: 38
+    slot: 22
     material: NETHER_STAR
     name: "{warning}&lTARGET POINTS"
     lore:
       - ""
-      - " {muted}❙ {letters}Current: {highlight}%target_points% pts"
-      - " {muted}❙ {letters}Points required to win"
+      - " {letters_black}▎ {letters}Current: {highlight}%target_points% pts"
+      - " {letters_black}▎ {letters}Points required to win"
       - ""
-      - " {muted}❙ {success}Left-Click +5"
-      - " {muted}❙ {error}Right-Click -5"
-      - " {muted}❙ {warning}Shift-Click to enter"
+      - " {letters_black}▎ {success}Left-Click +5"
+      - " {letters_black}▎ {error}Right-Click -5"
+      - " {letters_black}▎ {warning}Shift-Click to enter"
     actions:
       - "left: capture:adjust_setting target-points 5"
       - "right: capture:adjust_setting target-points -5"
       - "shift_left: capture:input_setting target-points"
 
   points-per-break:
-    slot: 39
+    slot: 23
     material: EXPERIENCE_BOTTLE
     name: "{success}&lPOINTS PER BREAK"
     lore:
       - ""
-      - " {muted}❙ {letters}Current: {highlight}%points_per_break% pts"
-      - " {muted}❙ {letters}Points awarded per block break"
+      - " {letters_black}▎ {letters}Current: {highlight}%points_per_break% pts"
+      - " {letters_black}▎ {letters}Points awarded per block break"
       - ""
-      - " {muted}❙ {success}Left-Click +1"
-      - " {muted}❙ {error}Right-Click -1"
-      - " {muted}❙ {warning}Shift-Click to enter"
+      - " {letters_black}▎ {success}Left-Click +1"
+      - " {letters_black}▎ {error}Right-Click -1"
+      - " {letters_black}▎ {warning}Shift-Click to enter"
     actions:
       - "left: capture:adjust_setting points-per-break 1"
       - "right: capture:adjust_setting points-per-break -1"
       - "shift_left: capture:input_setting points-per-break"
 
   regen-time:
-    slot: 24
+    slot: 20
     material: CLOCK
     name: "{info}&lREGEN TIME"
     lore:
       - ""
-      - " {muted}❙ {letters}Current: {highlight}%regen_time%"
-      - " {muted}❙ {letters}Time for core block to regenerate"
+      - " {letters_black}▎ {letters}Current: {highlight}%regen_time%"
+      - " {letters_black}▎ {letters}Time for core block to regenerate"
       - ""
-      - " {muted}❙ {success}Left-Click +1s"
-      - " {muted}❙ {error}Right-Click -1s"
-      - " {muted}❙ {warning}Shift-Click to enter"
+      - " {letters_black}▎ {success}Left-Click +1s"
+      - " {letters_black}▎ {error}Right-Click -1s"
+      - " {letters_black}▎ {warning}Shift-Click to enter"
     actions:
       - "left: capture:adjust_setting_millis regen-time 1"
       - "right: capture:adjust_setting_millis regen-time -1"
       - "shift_left: capture:input_setting_millis regen-time"
 
   broadcast-every:
-    slot: 40
+    slot: 28
     material: BELL
     name: "{info}&lBROADCAST EVERY"
     lore:
       - ""
-      - " {muted}❙ {letters}Current: {highlight}every %broadcast_every% breaks"
-      - " {muted}❙ {letters}Broadcast message every N breaks"
+      - " {letters_black}▎ {letters}Current: {highlight}every %broadcast_every% breaks"
+      - " {letters_black}▎ {letters}Broadcast message every N breaks"
       - ""
-      - " {muted}❙ {success}Left-Click +1"
-      - " {muted}❙ {error}Right-Click -1"
-      - " {muted}❙ {warning}Shift-Click to enter"
+      - " {letters_black}▎ {success}Left-Click +1"
+      - " {letters_black}▎ {error}Right-Click -1"
+      - " {letters_black}▎ {warning}Shift-Click to enter"
     actions:
       - "left: capture:adjust_setting broadcast-every 1"
       - "right: capture:adjust_setting broadcast-every -1"
       - "shift_left: capture:input_setting broadcast-every"
 
   clan-mode:
-    slot: 41
+    slot: 29
     material: "%clan_mode_material%"
-    name: "{warning}&lCLAN MODE"
+    name: "%clan_mode_color%&lCLAN MODE"
     lore:
       - ""
-      - " {muted}❙ {letters}Current: {highlight}%clan_mode_status%"
-      - " {muted}❙ {letters}Points are attributed to clans"
+      - " {letters_black}▎ {letters}Current: {highlight}%clan_mode_status%"
+      - " {letters_black}▎ {letters}Points are attributed to clans"
       - ""
-      - " {muted}❙ {success}Click to toggle"
+      - " {letters_black}▎ {success}Click to toggle"
     actions:
       - "capture:toggle_boolean_setting clan-mode"
 

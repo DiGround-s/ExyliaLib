@@ -28,9 +28,9 @@ items:
     name: "{highlight}&lNAME"
     lore:
       - ""
-      - " {muted}❙ {letters}Current: {info}%region_name%"
+      - " {letters_black}▎ {letters}Current: {info}%region_name%"
       - ""
-      - "{info}» Click to edit"
+      - "{warning}➥ Click to edit"
     actions:
       - "sandbox:input_tp_region_field name"
 
@@ -40,65 +40,65 @@ items:
     name: "{highlight}&l%region_name%"
     lore:
       - ""
-      - " {muted}❙ {letters}ID: {info}%region_id%"
-      - " {muted}❙ {letters}World: {info}%region_world%"
-      - " {muted}❙ {letters}Interval: {info}%region_interval%s"
-      - " {muted}❙ {letters}Target: {info}%region_target_world%"
-      - " {muted}❙ {letters}Spread: {info}%region_spread% blocks"
+      - " {letters_black}▎ {letters}ID: {info}%region_id%"
+      - " {letters_black}▎ {letters}World: {info}%region_world%"
+      - " {letters_black}▎ {letters}Interval: {info}%region_interval%s"
+      - " {letters_black}▎ {letters}Target: {info}%region_target_world%"
+      - " {letters_black}▎ {letters}Spread: {info}%region_spread% blocks"
     hide_tooltip: false
 
   edit-bounds:
-    slot: 38
+    slot: 19
     material: BLAZE_ROD
     name: "{warning}&lEDIT BOUNDS"
     lore:
       - ""
-      - " {muted}❙ {letters}World: {info}%region_world%"
+      - " {letters_black}▎ {letters}World: {info}%region_world%"
       - ""
-      - "{info}» Click to get wand"
+      - "{warning}➥ Click to get wand"
     actions:
       - "sandbox:tp_region_edit_bounds"
 
   target-world:
-    slot: 39
+    slot: 20
     material: GRASS_BLOCK
     name: "{info}&lTARGET WORLD"
     lore:
       - ""
-      - " {muted}❙ {letters}Current: {info}%region_target_world%"
-      - " {muted}❙ {muted}Random = picks any available world"
+      - " {letters_black}▎ {letters}Current: {info}%region_target_world%"
+      - " {letters_black}▎ {muted}Random = picks any available world"
       - ""
-      - "{info}» Click to cycle"
+      - "{warning}➥ Click to cycle"
     actions:
       - "sandbox:cycle_tp_region_world"
 
   interval:
-    slot: 24
+    slot: 22
     material: CLOCK
     name: "{info}&lINTERVAL"
     lore:
       - ""
-      - " {muted}❙ {letters}Current: {info}%region_interval%s"
+      - " {letters_black}▎ {letters}Current: {info}%region_interval%s"
       - ""
-      - " {muted}❙ {success}Left-Click +10s"
-      - " {muted}❙ {error}Right-Click -10s"
-      - " {muted}❙ {warning}Shift-click to enter"
+      - " {letters_black}▎ {success}Left-Click +10s"
+      - " {letters_black}▎ {error}Right-Click -10s"
+      - " {letters_black}▎ {warning}Shift-click to enter"
     actions:
       - "left: sandbox:adjust_tp_region_field interval 10"
       - "right: sandbox:adjust_tp_region_field interval -10"
       - "shift_left: sandbox:input_tp_region_field interval"
 
   spread:
-    slot: 37
+    slot: 23
     material: FIREWORK_ROCKET
     name: "{info}&lSPREAD RADIUS"
     lore:
       - ""
-      - " {muted}❙ {letters}Current: {info}%region_spread% blocks"
-      - " {muted}❙ {muted}Distance between players on TP"
+      - " {letters_black}▎ {letters}Current: {info}%region_spread% blocks"
+      - " {letters_black}▎ {muted}Distance between players on TP"
       - ""
-      - " {muted}❙ {success}Left-Click +1"
-      - " {muted}❙ {error}Right-Click -1"
+      - " {letters_black}▎ {success}Left-Click +1"
+      - " {letters_black}▎ {error}Right-Click -1"
     actions:
       - "left: sandbox:adjust_tp_region_field spread 1"
       - "right: sandbox:adjust_tp_region_field spread -1"
@@ -113,12 +113,12 @@ items:
       - "sandbox:open_tp_region_list"
 
   save:
-    slot: 40
+    slot: 45
     material: EMERALD
     name: "{success}&lSAVE REGION"
     lore:
       - ""
-      - "{info}» Click to save"
+      - "{warning}➥ Click to save"
     actions:
       - "sandbox:save_tp_region"
 
@@ -128,8 +128,8 @@ items:
     name: "%region_delete_label%"
     lore:
       - ""
-      - " {muted}❙ {error}Delete this TP region permanently"
+      - " {letters_black}▎ {error}Delete this TP region permanently"
       - ""
-      - "{error}» Click to delete"
+      - "{error}➥ Click to delete"
     actions:
       - "sandbox:delete_tp_region %region_id%"

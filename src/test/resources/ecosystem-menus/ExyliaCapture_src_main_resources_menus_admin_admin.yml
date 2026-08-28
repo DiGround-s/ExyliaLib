@@ -17,44 +17,44 @@ filler:
 
 items:
   configurations:
-    slot: 37
+    slot: 21
     material: SCAFFOLDING
     name: "{info}&lCONFIGURATIONS"
     lore:
       - ""
-      - " {muted}❙ {letters}Create and configure"
-      - " {muted}❙ {letters}capture zone events"
+      - " {letters_black}▎ {letters}Create and configure"
+      - " {letters_black}▎ {letters}capture zone events"
       - ""
-      - " {muted}❙ {letters}Total: {highlight}%total_configs%"
+      - " {letters_black}▎ {letters}Total: {highlight}%total_configs%"
       - ""
-      - "{info}» Click to manage"
+      - "{warning}➥ Click to manage"
     actions:
       - "capture:open_config_list"
 
   active-events:
-    slot: 38
+    slot: 23
     material: COMPASS
     name: "{warning}&lACTIVE EVENTS"
     lore:
       - ""
-      - " {muted}❙ {letters}Currently running"
-      - " {muted}❙ {letters}capture events"
+      - " {letters_black}▎ {letters}Currently running"
+      - " {letters_black}▎ {letters}capture events"
       - ""
-      - " {muted}❙ {letters}Active: {highlight}%active_events%"
+      - " {letters_black}▎ {letters}Active: {highlight}%active_events%"
       - ""
-      - "{info}» Click to view"
+      - "{warning}➥ Click to view"
     actions:
       - "capture:open_config_list"
 
   reload:
-    slot: 39
+    slot: 45
     material: REDSTONE
     name: "{error}&lRELOAD"
     lore:
       - ""
-      - " {muted}❙ {letters}Reload all plugin"
-      - " {muted}❙ {letters}configurations"
+      - " {letters_black}▎ {letters}Reload all plugin"
+      - " {letters_black}▎ {letters}configurations"
       - ""
-      - "{info}» Click to reload"
+      - "{warning}➥ Click to reload"
     actions:
       - "capture:reload_configs"

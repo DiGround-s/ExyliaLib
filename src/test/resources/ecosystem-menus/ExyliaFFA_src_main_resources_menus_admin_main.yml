@@ -23,18 +23,18 @@ filler:
 
 items:
   manage-arenas:
-    slot: 37
+    slot: 22
     material: COMPASS
     name: "{info}&lMANAGE ARENAS"
     lore:
       - ""
-      - " {muted}❙ {letters}Create, edit and delete"
-      - " {muted}❙ {letters}FFA arenas"
+      - " {letters_black}▎ {letters}Create, edit and delete"
+      - " {letters_black}▎ {letters}FFA arenas"
       - ""
-      - " {muted}❙ {letters}Total: {highlight}%total_arenas%"
-      - " {muted}❙ {letters}Players online: {highlight}%total_players%"
+      - " {letters_black}▎ {letters}Total: {highlight}%total_arenas%"
+      - " {letters_black}▎ {letters}Players online: {highlight}%total_players%"
       - ""
-      - "{info}» Click to manage"
+      - "{warning}➥ Click to manage"
     actions:
       - "ffa:open_ffa_list"
 
@@ -44,57 +44,57 @@ items:
     name: "{warning}&lEXYLIA FFA"
     lore:
       - ""
-      - " {muted}❙ {letters}Free For All system"
+      - " {letters_black}▎ {letters}Free For All system"
       - ""
-      - " {muted}❙ {letters}Active arenas: {highlight}%total_arenas%"
-      - " {muted}❙ {letters}Players fighting: {highlight}%total_players%"
+      - " {letters_black}▎ {letters}Active arenas: {highlight}%total_arenas%"
+      - " {letters_black}▎ {letters}Players fighting: {highlight}%total_players%"
 
   set-lobby:
-    slot: 38
+    slot: 29
     material: "%lobby_material%"
-    name: "{warning}&lLOBBY LOCATION"
+    name: "%lobby_color%&lLOBBY LOCATION"
     lore:
       - ""
-      - " {muted}❙ {letters}Status: %lobby_status%"
+      - " {letters_black}▎ {letters}Status: %lobby_status%"
       - ""
-      - "{warning}» Click to set lobby"
+      - "{warning}➥ Click to set lobby"
     actions:
       - "ffa:set_lobby"
 
   set-kit-editor:
-    slot: 39
+    slot: 30
     material: "%kit_editor_material%"
-    name: "{warning}&lKIT EDITOR LOCATION"
+    name: "%kit_editor_color%&lKIT EDITOR LOCATION"
     lore:
       - ""
-      - " {muted}❙ {letters}Status: %kit_editor_status%"
+      - " {letters_black}▎ {letters}Status: %kit_editor_status%"
       - ""
-      - "{warning}» Click to set location"
+      - "{warning}➥ Click to set location"
     actions:
       - "ffa:set_kit_editor_location"
 
   data-management:
-    slot: 40
+    slot: 32
     material: COMPARATOR
     name: "{error}&lDATA MANAGEMENT"
     lore:
       - ""
-      - " {muted}❙ {letters}Reset stats & layouts"
-      - " {muted}❙ {letters}for players and arenas"
+      - " {letters_black}▎ {letters}Reset stats & layouts"
+      - " {letters_black}▎ {letters}for players and arenas"
       - ""
-      - "{info}» Click to manage"
+      - "{warning}➥ Click to manage"
     actions:
       - "ffa:open_admin_data"
 
   reload:
-    slot: 41
+    slot: 45
     material: REDSTONE
     name: "{error}&lRELOAD CONFIGS"
     lore:
       - ""
-      - " {muted}❙ {letters}Reload all plugin"
-      - " {muted}❙ {letters}configurations"
+      - " {letters_black}▎ {letters}Reload all plugin"
+      - " {letters_black}▎ {letters}configurations"
       - ""
-      - "{info}» Click to reload"
+      - "{warning}➥ Click to reload"
     actions:
       - "ffa:reload_configs"

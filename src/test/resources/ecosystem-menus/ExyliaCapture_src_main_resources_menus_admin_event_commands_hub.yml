@@ -17,95 +17,95 @@ filler:
 
 items:
   start-commands:
-    slot: 37
+    slot: 19
     material: LIME_DYE
     name: "{success}&lSTART COMMANDS"
     lore:
       - ""
-      - " {muted}❙ {letters}Executed when the event starts"
-      - " {muted}❙ {letters}Count: {highlight}%start_count%"
+      - " {letters_black}▎ {letters}Executed when the event starts"
+      - " {letters_black}▎ {letters}Count: {highlight}%start_count%"
       - ""
-      - " {muted}❙ {info}Supports: {highlight}console: {info}/ {highlight}player:"
-      - " {muted}❙ {info}Placeholder: {highlight}%event_name%"
+      - " {letters_black}▎ {info}Supports: {highlight}console: {info}/ {highlight}player:"
+      - " {letters_black}▎ {info}Placeholder: {highlight}%event_name%"
       - ""
-      - " {muted}❙ {success}Click to manage"
+      - " {letters_black}▎ {success}Click to manage"
     actions:
       - "capture:open_start_commands"
 
   end-commands:
-    slot: 38
+    slot: 20
     material: RED_DYE
     name: "{error}&lEND COMMANDS"
     lore:
       - ""
-      - " {muted}❙ {letters}Executed when the event ends"
-      - " {muted}❙ {letters}Runs regardless of outcome {muted}(win, cancel, timeout)"
-      - " {muted}❙ {letters}Count: {highlight}%end_count%"
+      - " {letters_black}▎ {letters}Executed when the event ends"
+      - " {letters_black}▎ {letters}Runs regardless of outcome {muted}(win, cancel, timeout)"
+      - " {letters_black}▎ {letters}Count: {highlight}%end_count%"
       - ""
-      - " {muted}❙ {info}Supports: {highlight}console: {info}/ {highlight}player:"
-      - " {muted}❙ {info}Placeholder: {highlight}%event_name%"
+      - " {letters_black}▎ {info}Supports: {highlight}console: {info}/ {highlight}player:"
+      - " {letters_black}▎ {info}Placeholder: {highlight}%event_name%"
       - ""
-      - " {muted}❙ {success}Click to manage"
+      - " {letters_black}▎ {success}Click to manage"
     actions:
       - "capture:open_end_commands"
 
   winner-commands:
-    slot: 39
+    slot: 21
     material: NETHER_STAR
     name: "{warning}&lWINNER REWARD"
     lore:
       - ""
-      - " {muted}❙ {letters}Rewards: {highlight}%winner_count%"
+      - " {letters_black}▎ {letters}Rewards: {highlight}%winner_count%"
       - ""
-      - " {muted}❙ {info}Executed only when there is a winner"
-      - " {muted}❙ {info}Supports chance, condition & permission"
+      - " {letters_black}▎ {info}Executed only when there is a winner"
+      - " {letters_black}▎ {info}Supports chance, condition & permission"
       - ""
-      - " {muted}❙ {success}Click to manage"
+      - " {letters_black}▎ {success}Click to manage"
     actions:
       - "capture:open_winner_rewards"
 
   top1-reward:
-    slot: 40
+    slot: 28
     material: DIAMOND
     name: "{highlight}&l#1 REWARD"
     lore:
       - ""
-      - " {muted}❙ {letters}Rewards: {highlight}%top_1_count%"
+      - " {letters_black}▎ {letters}Rewards: {highlight}%top_1_count%"
       - ""
-      - " {muted}❙ {info}Reward for the top 1 player/clan"
-      - " {muted}❙ {info}Supports chance, condition & permission"
+      - " {letters_black}▎ {info}Reward for the top 1 player/clan"
+      - " {letters_black}▎ {info}Supports chance, condition & permission"
       - ""
-      - " {muted}❙ {success}Click to manage"
+      - " {letters_black}▎ {success}Click to manage"
     actions:
       - "capture:open_top_rewards 1"
 
   top2-reward:
-    slot: 41
+    slot: 29
     material: IRON_INGOT
     name: "{highlight}&l#2 REWARD"
     lore:
       - ""
-      - " {muted}❙ {letters}Rewards: {highlight}%top_2_count%"
+      - " {letters_black}▎ {letters}Rewards: {highlight}%top_2_count%"
       - ""
-      - " {muted}❙ {info}Reward for the top 2 player/clan"
-      - " {muted}❙ {info}Supports chance, condition & permission"
+      - " {letters_black}▎ {info}Reward for the top 2 player/clan"
+      - " {letters_black}▎ {info}Supports chance, condition & permission"
       - ""
-      - " {muted}❙ {success}Click to manage"
+      - " {letters_black}▎ {success}Click to manage"
     actions:
       - "capture:open_top_rewards 2"
 
   top3-reward:
-    slot: 42
+    slot: 30
     material: GOLD_NUGGET
     name: "{highlight}&l#3 REWARD"
     lore:
       - ""
-      - " {muted}❙ {letters}Rewards: {highlight}%top_3_count%"
+      - " {letters_black}▎ {letters}Rewards: {highlight}%top_3_count%"
       - ""
-      - " {muted}❙ {info}Reward for the top 3 player/clan"
-      - " {muted}❙ {info}Supports chance, condition & permission"
+      - " {letters_black}▎ {info}Reward for the top 3 player/clan"
+      - " {letters_black}▎ {info}Supports chance, condition & permission"
       - ""
-      - " {muted}❙ {success}Click to manage"
+      - " {letters_black}▎ {success}Click to manage"
     actions:
       - "capture:open_top_rewards 3"
 

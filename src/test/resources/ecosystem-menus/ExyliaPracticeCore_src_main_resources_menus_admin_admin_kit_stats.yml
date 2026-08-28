@@ -28,12 +28,12 @@ pagination:
     name: "{warning}&l#%rank% {letters}%kit_name%"
     lore:
       - ""
-      - " {muted}❙ {letters}ID: {info}%kit_id%"
+      - " {letters_black}▎ {letters}ID: {info}%kit_id%"
       - ""
-      - " {muted}❙ {letters}Total Games: {highlight}%total_games%"
-      - " {muted}❙ {letters}Ranked: {highlight}%ranked_games% {muted}({highlight}%ranked_percent%{muted})"
-      - " {muted}❙ {letters}Casual: {highlight}%casual_games%"
-      - " {muted}❙ {letters}Avg. Duration: {highlight}%avg_duration%"
+      - " {letters_black}▎ {letters}Total Games: {highlight}%total_games%"
+      - " {letters_black}▎ {letters}Ranked: {highlight}%ranked_games% {muted}({highlight}%ranked_percent%{muted})"
+      - " {letters_black}▎ {letters}Casual: {highlight}%casual_games%"
+      - " {letters_black}▎ {letters}Avg. Duration: {highlight}%avg_duration%"
       - ""
 
   navigation:
@@ -61,6 +61,6 @@ items:
     name: '{error}&lBACK'
     lore:
       - ""
-      - "{info}» Click to go back"
+      - "{warning}➥ Click to go back"
     actions:
       - "practice:open_admin_stats"

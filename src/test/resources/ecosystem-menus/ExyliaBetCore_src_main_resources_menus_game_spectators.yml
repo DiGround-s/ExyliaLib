@@ -1,0 +1,43 @@
+# Who is watching a match.
+
+title: '{primary}&lWATCHING {muted}%spectator_count%'
+size: 45
+type: PAGINATION
+
+click_sounds:
+  - 'UI_BUTTON_CLICK|1.0|1.5'
+
+filler:
+  global:
+    material: BLACK_STAINED_GLASS_PANE
+    hide_tooltip: true
+
+items:
+  header:
+    slot: 4
+    material: ENDER_EYE
+    name: '{letters}%host_name% {muted}vs {letters}%guest_name%'
+    lore:
+      - ''
+      - ' {letters_black}▎ {letters}Watching {letters_black}» {info}%spectator_count%'
+      - ''
+
+  back:
+    slot: 40
+    material: ARROW
+    name: '{error}&lBACK'
+    lore:
+      - ''
+      - '{warning}➥ Click to go back to the board'
+      - ''
+    actions:
+      - 'left: betcore:open_board'
+
+pagination:
+  slots: '19-25'
+  filler:
+    material: LIGHT_GRAY_STAINED_GLASS_PANE
+    name: '{muted}Nobody is watching'
+  item_template:
+    material: 'playerhead-%player_name%'
+    name: '{letters}%player_name%'

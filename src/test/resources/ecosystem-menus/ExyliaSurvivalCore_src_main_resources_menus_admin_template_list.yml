@@ -32,12 +32,12 @@ pagination:
     name: "{highlight}&l%template_name%"
     lore:
       - ""
-      - " {muted}❙ {letters}ID: {highlight}%template_id%"
-      - " {muted}❙ {letters}Entries: {highlight}%template_entries%"
-      - " {muted}❙ {letters}Creator: {highlight}%template_creator%"
+      - " {letters_black}▎ {letters}ID: {highlight}%template_id%"
+      - " {letters_black}▎ {letters}Entries: {highlight}%template_entries%"
+      - " {letters_black}▎ {letters}Creator: {highlight}%template_creator%"
       - ""
-      - " {muted}❙ {success}Left-Click to edit"
-      - " {muted}❙ {error}Right-Click to delete"
+      - " {letters_black}▎ {success}Left-Click to edit"
+      - " {letters_black}▎ {error}Right-Click to delete"
     actions:
       - "left: survivalcore:lc_edit_template %template_id%"
       - "right: survivalcore:lc_delete_template %template_id%"
@@ -48,7 +48,7 @@ pagination:
       material: 'basehead-eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvZGExZDU1YjNmOTg5NDEwYTM0NzUyNjUwZTI0OGM5YjZjMTc4M2E3ZWMyYWEzZmQ3Nzg3YmRjNGQwZTYzN2QzOSJ9fX0='
       name: '{error}&l← PREVIOUS PAGE'
       lore:
-        - ' {muted}❙ {letters}Go to the previous page.'
+        - ' {letters_black}▎ {letters}Go to the previous page.'
         - ''
         - '{info}ℹ Page: {success}%current_page%<#475569>/{error}%total_pages%'
       actions:
@@ -58,7 +58,7 @@ pagination:
       material: 'basehead-eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvZmE4N2UzZDk2ZTFjZmViOWNjZmIzYmE1M2EyMTdmYWY1MjQ5ZTI4NTUzM2IyNzFhMmZiMjg0YzMwZGJkOTgyOSJ9fX0='
       name: '{success}&lNEXT PAGE →'
       lore:
-        - ' {muted}❙ {letters}Go to the next page.'
+        - ' {letters_black}▎ {letters}Go to the next page.'
         - ''
         - '{info}ℹ Page: {success}%current_page%<#475569>/{error}%total_pages%'
       actions:
@@ -71,9 +71,9 @@ items:
     name: "{success}&lCREATE TEMPLATE"
     lore:
       - ""
-      - " {muted}❙ {letters}Create a new loot template"
+      - " {letters_black}▎ {letters}Create a new loot template"
       - ""
-      - "{info}» Click to create"
+      - "{warning}➥ Click to create"
     actions:
       - "survivalcore:lc_create_template"
 
@@ -83,9 +83,9 @@ items:
     name: "{highlight}&lALL CHESTS"
     lore:
       - ""
-      - " {muted}❙ {letters}View all placed loot chests"
+      - " {letters_black}▎ {letters}View all placed loot chests"
       - ""
-      - "{info}» Click to open"
+      - "{warning}➥ Click to open"
     actions:
       - "survivalcore:lc_open_chest_list"
 
@@ -95,6 +95,6 @@ items:
     name: '{error}&lCLOSE'
     lore:
       - ""
-      - "{info}» Click to close"
+      - "{warning}➥ Click to close"
     actions:
       - "survivalcore:close_menu"

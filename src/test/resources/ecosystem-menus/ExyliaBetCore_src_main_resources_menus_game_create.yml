@@ -1,0 +1,171 @@
+# Writing a bet. Five choices and a confirm; every one of them starts at what
+# config.yml says, so a player who wants the usual bet presses one button.
+
+title: '{primary}&lNEW MATCH {muted}— %game_name%'
+size: 45
+
+open_sounds:
+  - 'BLOCK_BARREL_OPEN|0.8|1.4'
+click_sounds:
+  - 'UI_BUTTON_CLICK|1.0|1.5'
+
+filler:
+  global:
+    material: BLACK_STAINED_GLASS_PANE
+    hide_tooltip: true
+
+items:
+
+  header:
+    slot: 4
+    material: '%game_icon%'
+    name: '%game_name%'
+    lore:
+      - ''
+      - '{secondary}Your bet:'
+      - ' {letters_black}▎ {letters}Mode {letters_black}» {info}%mode_name%'
+      - ' {letters_black}▎ {letters}Stake {letters_black}» {highlight}%wager%'
+      - ' {letters_black}▎ {letters}Pot {letters_black}» {info}%pot%'
+      - ' {letters_black}▎ {letters}Rounds {letters_black}» {info}Best of %rounds%'
+      - ' {letters_black}▎ {letters}Open to {letters_black}» {info}%visibility%'
+      - ''
+    glow: true
+
+  mode:
+    slot: 19
+    material: '%mode_icon%'
+    name: '{secondary}&lMODE'
+    lore:
+      - ''
+      - ' {letters_black}▎ {letters}Now {letters_black}» {info}%mode_name%'
+      - ''
+      - '{warning}➥ Click to change'
+      - ''
+    actions:
+      - 'left: betcore:open_mode_picker'
+
+  currency:
+    slot: 21
+    material: '%currency_icon%'
+    name: '{secondary}&lCURRENCY'
+    lore:
+      - ''
+      - ' {letters_black}▎ {letters}Now {letters_black}» {info}%currency_id%'
+      - ''
+      - '{warning}➥ Click to change'
+      - ''
+    actions:
+      - 'left: betcore:open_currency_picker'
+
+  amount:
+    slot: 22
+    material: SUNFLOWER
+    name: '{secondary}&lSTAKE'
+    lore:
+      - ''
+      - ' {letters_black}▎ {letters}You put up {letters_black}» {highlight}%wager%'
+      - ' {letters_black}▎ {letters}Winner takes {letters_black}» {info}%pot%'
+      - ''
+      - '{letters_black}Both of you stake the same.'
+      - ''
+      - '{warning}➥ Click to type an amount'
+      - ''
+    actions:
+      - 'left: betcore:prompt_amount'
+
+  rounds:
+    slot: 23
+    material: PAPER
+    name: '{secondary}&lROUNDS'
+    lore:
+      - ''
+      - ' {letters_black}▎ {letters}Now {letters_black}» {info}Best of %rounds%'
+      - ''
+      - '{warning}➥ Click to change'
+      - ''
+    actions:
+      - 'left: betcore:open_rounds_picker'
+
+  visibility:
+    slot: 25
+    material: ENDER_EYE
+    name: '{secondary}&lWHO CAN JOIN'
+    lore:
+      - ''
+      - ' {letters_black}▎ {letters}Now {letters_black}» {info}%visibility%'
+      - ''
+      - '{warning}➥ Click to change'
+      - ''
+    condition: '%queueing% == false'
+    actions:
+      - 'left: betcore:open_visibility_picker'
+
+  # Two endings for one form. Which is shown depends on whether the player
+  # came from "create a match" or from "quick queue".
+  create:
+    slot: 40
+    material: LIME_CONCRETE
+    name: '{success}&lPUT THE BET UP'
+    lore:
+      - ''
+      - ' {letters_black}▎ {letters}Stake {letters_black}» {highlight}%wager%'
+      - ' {letters_black}▎ {letters}Nothing is taken until somebody'
+      - ' {letters_black}▎ {letters}accepts it.'
+      - ''
+      - '{warning}➥ Click to offer it'
+      - ''
+    condition: '%form_action% == create'
+    actions:
+      - 'left: betcore:create_match'
+
+  queue:
+    slot: 40
+    material: LIME_CONCRETE
+    name: '{success}&lFIND ME SOMEBODY'
+    lore:
+      - ''
+      - ' {letters_black}▎ {letters}Stake {letters_black}» {highlight}%wager%'
+      - ' {letters_black}▎ {letters}You are paired with the closest bet,'
+      - ' {letters_black}▎ {letters}at the {highlight}lower {letters}of the two figures,'
+      - ' {letters_black}▎ {letters}so you never pay more than this.'
+      - ''
+      - '{warning}➥ Click to start looking'
+      - ''
+    condition: '%form_action% == queue'
+    actions:
+      - 'left: betcore:queue_join'
+
+  # Nothing is missing, so neither button below is drawn.
+  create_blocked:
+    slot: 40
+    material: GRAY_CONCRETE
+    name: '{muted}&lNOT READY'
+    lore:
+      - ''
+      - '{error}Something is still missing.'
+      - '{letters_black}A private match needs somebody to send it to,'
+      - '{letters_black}and a currency needs its plugin installed.'
+      - ''
+    condition: '%form_action% == blocked'
+
+  visibility_hidden:
+    slot: 25
+    material: GRAY_STAINED_GLASS_PANE
+    name: '{muted}&lWHO CAN JOIN'
+    lore:
+      - ''
+      - '{letters_black}The queue picks your opponent, so this'
+      - '{letters_black}is not yours to choose.'
+      - ''
+    condition: '%queueing% == true'
+
+  back:
+    slot: 36
+    material: ARROW
+    name: '{error}&lBACK'
+    lore:
+      - ''
+      - '{warning}➥ Click to go back'
+      - ''
+    actions:
+      - 'left: betcore:open_lobby %game_id%'

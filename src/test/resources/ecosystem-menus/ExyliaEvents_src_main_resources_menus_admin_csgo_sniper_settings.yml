@@ -28,9 +28,9 @@ items:
     name: "{info}&lENABLED"
     lore:
       - ""
-      - " {muted}❙ {letters}Current: %weapon_enabled%"
+      - " {letters_black}▎ {letters}Current: %weapon_enabled%"
       - ""
-      - "{info}» Click to toggle"
+      - "{warning}➥ Click to toggle"
     actions:
       - "events:toggle_csgo_weapon_setting weapon-sniper-enabled"
 
@@ -40,88 +40,88 @@ items:
     name: "{info}&lDAMAGE"
     lore:
       - ""
-      - " {muted}❙ {letters}Current: {highlight}%weapon_damage%"
+      - " {letters_black}▎ {letters}Current: {highlight}%weapon_damage%"
       - ""
-      - " {muted}❙ {success}Left-Click +0.5"
-      - " {muted}❙ {error}Right-Click -0.5"
-      - " {muted}❙ {warning}Shift-Click to enter"
+      - " {letters_black}▎ {success}Left-Click +0.5"
+      - " {letters_black}▎ {error}Right-Click -0.5"
+      - " {letters_black}▎ {warning}Shift-Click to enter"
     actions:
       - "left: events:adjust_csgo_weapon_double weapon-sniper-damage 0.5"
       - "right: events:adjust_csgo_weapon_double weapon-sniper-damage -0.5"
       - "shift_left: events:input_csgo_weapon_double weapon-sniper-damage"
 
   cooldown:
-    slot: 24
+    slot: 20
     material: CLOCK
     name: "{info}&lCOOLDOWN"
     lore:
       - ""
-      - " {muted}❙ {letters}Current: {highlight}%weapon_cooldown% ticks"
+      - " {letters_black}▎ {letters}Current: {highlight}%weapon_cooldown% ticks"
       - ""
-      - " {muted}❙ {success}Left-Click +5"
-      - " {muted}❙ {error}Right-Click -5"
-      - " {muted}❙ {warning}Shift-Click to enter"
+      - " {letters_black}▎ {success}Left-Click +5"
+      - " {letters_black}▎ {error}Right-Click -5"
+      - " {letters_black}▎ {warning}Shift-Click to enter"
     actions:
       - "left: events:adjust_csgo_weapon_int weapon-sniper-cooldown 5"
       - "right: events:adjust_csgo_weapon_int weapon-sniper-cooldown -5"
       - "shift_left: events:input_csgo_weapon_int weapon-sniper-cooldown"
 
   range:
-    slot: 20
+    slot: 21
     material: ENDER_EYE
     name: "{info}&lRANGE"
     lore:
       - ""
-      - " {muted}❙ {letters}Current: {highlight}%weapon_range%"
+      - " {letters_black}▎ {letters}Current: {highlight}%weapon_range%"
       - ""
-      - " {muted}❙ {success}Left-Click +5"
-      - " {muted}❙ {error}Right-Click -5"
-      - " {muted}❙ {warning}Shift-Click to enter"
+      - " {letters_black}▎ {success}Left-Click +5"
+      - " {letters_black}▎ {error}Right-Click -5"
+      - " {letters_black}▎ {warning}Shift-Click to enter"
     actions:
       - "left: events:adjust_csgo_weapon_double weapon-sniper-range 5.0"
       - "right: events:adjust_csgo_weapon_double weapon-sniper-range -5.0"
       - "shift_left: events:input_csgo_weapon_double weapon-sniper-range"
 
   oneshot:
-    slot: 21
+    slot: 22
     material: "%weapon_oneshot_material%"
     name: "{info}&lONE SHOT KILL"
     lore:
       - ""
-      - " {muted}❙ {letters}Current: %weapon_oneshot%"
+      - " {letters_black}▎ {letters}Current: %weapon_oneshot%"
       - ""
-      - "{info}» Click to toggle"
+      - "{warning}➥ Click to toggle"
     actions:
       - "events:toggle_csgo_weapon_setting weapon-sniper-oneshot"
 
   spread-perfect:
-    slot: 22
+    slot: 23
     material: TARGET
     name: "{info}&lSPREAD {muted}(Crouching, Still, Grounded)"
     lore:
       - ""
-      - " {muted}❙ {letters}Current: {highlight}%spread_perfect%"
-      - " {muted}❙ {muted}Best possible accuracy"
+      - " {letters_black}▎ {letters}Current: {highlight}%spread_perfect%"
+      - " {letters_black}▎ {muted}Best possible accuracy"
       - ""
-      - " {muted}❙ {success}Left-Click +0.01"
-      - " {muted}❙ {error}Right-Click -0.01"
-      - " {muted}❙ {warning}Shift-Click to enter"
+      - " {letters_black}▎ {success}Left-Click +0.01"
+      - " {letters_black}▎ {error}Right-Click -0.01"
+      - " {letters_black}▎ {warning}Shift-Click to enter"
     actions:
       - "left: events:adjust_csgo_weapon_double weapon-sniper-spread-perfect 0.01"
       - "right: events:adjust_csgo_weapon_double weapon-sniper-spread-perfect -0.01"
       - "shift_left: events:input_csgo_weapon_double weapon-sniper-spread-perfect"
 
   spread-crouch-still:
-    slot: 23
+    slot: 24
     material: LEATHER_BOOTS
     name: "{info}&lSPREAD {muted}(Crouching, Still)"
     lore:
       - ""
-      - " {muted}❙ {letters}Current: {highlight}%spread_crouch_still%"
+      - " {letters_black}▎ {letters}Current: {highlight}%spread_crouch_still%"
       - ""
-      - " {muted}❙ {success}Left-Click +0.01"
-      - " {muted}❙ {error}Right-Click -0.01"
-      - " {muted}❙ {warning}Shift-Click to enter"
+      - " {letters_black}▎ {success}Left-Click +0.01"
+      - " {letters_black}▎ {error}Right-Click -0.01"
+      - " {letters_black}▎ {warning}Shift-Click to enter"
     actions:
       - "left: events:adjust_csgo_weapon_double weapon-sniper-spread-crouch-still 0.01"
       - "right: events:adjust_csgo_weapon_double weapon-sniper-spread-crouch-still -0.01"
@@ -133,11 +133,11 @@ items:
     name: "{info}&lSPREAD {muted}(Crouching, Moving)"
     lore:
       - ""
-      - " {muted}❙ {letters}Current: {highlight}%spread_crouch_moving%"
+      - " {letters_black}▎ {letters}Current: {highlight}%spread_crouch_moving%"
       - ""
-      - " {muted}❙ {success}Left-Click +0.01"
-      - " {muted}❙ {error}Right-Click -0.01"
-      - " {muted}❙ {warning}Shift-Click to enter"
+      - " {letters_black}▎ {success}Left-Click +0.01"
+      - " {letters_black}▎ {error}Right-Click -0.01"
+      - " {letters_black}▎ {warning}Shift-Click to enter"
     actions:
       - "left: events:adjust_csgo_weapon_double weapon-sniper-spread-crouch-moving 0.01"
       - "right: events:adjust_csgo_weapon_double weapon-sniper-spread-crouch-moving -0.01"
@@ -149,11 +149,11 @@ items:
     name: "{info}&lSPREAD {muted}(Standing, Still)"
     lore:
       - ""
-      - " {muted}❙ {letters}Current: {highlight}%spread_stand_still%"
+      - " {letters_black}▎ {letters}Current: {highlight}%spread_stand_still%"
       - ""
-      - " {muted}❙ {success}Left-Click +0.01"
-      - " {muted}❙ {error}Right-Click -0.01"
-      - " {muted}❙ {warning}Shift-Click to enter"
+      - " {letters_black}▎ {success}Left-Click +0.01"
+      - " {letters_black}▎ {error}Right-Click -0.01"
+      - " {letters_black}▎ {warning}Shift-Click to enter"
     actions:
       - "left: events:adjust_csgo_weapon_double weapon-sniper-spread-stand-still 0.01"
       - "right: events:adjust_csgo_weapon_double weapon-sniper-spread-stand-still -0.01"
@@ -165,11 +165,11 @@ items:
     name: "{info}&lSPREAD {muted}(Standing, Moving)"
     lore:
       - ""
-      - " {muted}❙ {letters}Current: {highlight}%spread_stand_moving%"
+      - " {letters_black}▎ {letters}Current: {highlight}%spread_stand_moving%"
       - ""
-      - " {muted}❙ {success}Left-Click +0.05"
-      - " {muted}❙ {error}Right-Click -0.05"
-      - " {muted}❙ {warning}Shift-Click to enter"
+      - " {letters_black}▎ {success}Left-Click +0.05"
+      - " {letters_black}▎ {error}Right-Click -0.05"
+      - " {letters_black}▎ {warning}Shift-Click to enter"
     actions:
       - "left: events:adjust_csgo_weapon_double weapon-sniper-spread-stand-moving 0.05"
       - "right: events:adjust_csgo_weapon_double weapon-sniper-spread-stand-moving -0.05"
@@ -181,11 +181,11 @@ items:
     name: "{info}&lSPREAD {muted}(Airborne)"
     lore:
       - ""
-      - " {muted}❙ {letters}Current: {highlight}%spread_airborne%"
+      - " {letters_black}▎ {letters}Current: {highlight}%spread_airborne%"
       - ""
-      - " {muted}❙ {success}Left-Click +0.05"
-      - " {muted}❙ {error}Right-Click -0.05"
-      - " {muted}❙ {warning}Shift-Click to enter"
+      - " {letters_black}▎ {success}Left-Click +0.05"
+      - " {letters_black}▎ {error}Right-Click -0.05"
+      - " {letters_black}▎ {warning}Shift-Click to enter"
     actions:
       - "left: events:adjust_csgo_weapon_double weapon-sniper-spread-airborne 0.05"
       - "right: events:adjust_csgo_weapon_double weapon-sniper-spread-airborne -0.05"

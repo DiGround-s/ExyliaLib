@@ -1,0 +1,147 @@
+# Who is at the top, by whichever stat and whichever game.
+#
+# A board that has never been read shows as loading rather than as empty: the
+# plugin never blocks the server to fill a menu, so the first person to open one
+# after a restart sees it arrive a moment later.
+
+title: '{primary}&lLEADERBOARD {muted}— %stat%'
+size: 54
+type: MULTI_PAGINATION
+
+open_sounds:
+  - 'BLOCK_BARREL_OPEN|0.8|1.4'
+click_sounds:
+  - 'UI_BUTTON_CLICK|1.0|1.5'
+
+filler:
+  global:
+    material: BLACK_STAINED_GLASS_PANE
+    hide_tooltip: true
+
+items:
+
+  header:
+    slot: 4
+    material: GOLD_INGOT
+    name: '{primary}&lLEADERBOARD'
+    lore:
+      - ''
+      - ' {letters_black}▎ {letters}Game {letters_black}» {info}%game_name%'
+      - ' {letters_black}▎ {letters}Sorted by {letters_black}» {highlight}%stat%'
+      - ''
+    glow: true
+
+  loading:
+    slot: 22
+    material: CLOCK
+    name: '{muted}&lREADING THE BOARD'
+    lore:
+      - ''
+      - '{letters_black}It will be here in a moment.'
+      - ''
+      - '{warning}➥ Click to look again'
+      - ''
+    condition: '%loading% == true'
+    actions:
+      - 'refresh'
+
+  back:
+    slot: 45
+    material: ARROW
+    name: '{error}&lBACK'
+    lore:
+      - ''
+      - '{warning}➥ Click to go back'
+      - ''
+    actions:
+      - 'left: betcore:open_main'
+
+  close:
+    slot: 53
+    material: BARRIER
+    name: '{error}&lCLOSE'
+    lore:
+      - ''
+      - '{warning}➥ Click to close'
+      - ''
+    actions:
+      - 'close'
+
+sections:
+
+  players:
+    slots: '10-16,19-25'
+    filler:
+      material: LIGHT_GRAY_STAINED_GLASS_PANE
+      name: '{muted}Nobody has played yet'
+    item_template:
+      material: 'playerhead-%player_name%'
+      name: '{muted}#%rank% {letters}&l%player_name%'
+      lore:
+        - ''
+        - ' {letters_black}▎ {letters}%stat% {letters_black}» {highlight}%value%'
+        - ''
+        - '{secondary}Record:'
+        - ' {letters_black}▎ {letters}Won {letters_black}» {success}%wins%'
+        - ' {letters_black}▎ {letters}Lost {letters_black}» {error}%losses%'
+        - ' {letters_black}▎ {letters}Played {letters_black}» {info}%played%'
+        - ''
+        - '{warning}➥ Click to see their record'
+        - ''
+      actions:
+        - 'left: betcore:open_stats %player_name%'
+    navigation:
+      previous:
+        slot: 18
+        material: ARROW
+        name: '{error}&l← PREVIOUS'
+        lore:
+          - '{info}Page {success}%current_page%{muted}/{error}%total_pages%'
+      next:
+        slot: 26
+        material: ARROW
+        name: '{success}&lNEXT →'
+        lore:
+          - '{info}Page {success}%current_page%{muted}/{error}%total_pages%'
+
+  # What the board is sorted by.
+  stat_types:
+    slots: '28-34'
+    item_template:
+      material: PAPER
+      name: '{letters}%stat%'
+      lore:
+        - ''
+        - '{warning}➥ Click to sort by this'
+        - ''
+      actions:
+        - 'left: betcore:set_leaderboard_stat %stat%'
+    selected_template:
+      material: MAP
+      name: '{primary}&l%stat% {success}✔'
+      lore:
+        - ''
+        - '{success}This is what it is sorted by.'
+        - ''
+      glow: true
+
+  # Which game the board is for.
+  games:
+    slots: '38-42'
+    item_template:
+      material: '%game_icon%'
+      name: '%game_name%'
+      lore:
+        - ''
+        - '{warning}➥ Click to see this game'
+        - ''
+      actions:
+        - 'left: betcore:set_leaderboard_game %game_id%'
+    selected_template:
+      material: '%game_icon%'
+      name: '%game_name% {success}✔'
+      lore:
+        - ''
+        - '{success}This is the board you are on.'
+        - ''
+      glow: true

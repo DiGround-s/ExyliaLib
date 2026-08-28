@@ -38,14 +38,14 @@ pagination:
     name: "{highlight}&l%region_name%"
     lore:
       - ""
-      - " {muted}❙ {letters}ID: {info}%region_id%"
-      - " {muted}❙ {letters}World: {info}%region_world%"
-      - " {muted}❙ {letters}Interval: {info}%region_interval%s"
-      - " {muted}❙ {letters}Target: {info}%region_target_world%"
-      - " {muted}❙ {letters}Spread: {info}%region_spread% blocks"
+      - " {letters_black}▎ {letters}ID: {info}%region_id%"
+      - " {letters_black}▎ {letters}World: {info}%region_world%"
+      - " {letters_black}▎ {letters}Interval: {info}%region_interval%s"
+      - " {letters_black}▎ {letters}Target: {info}%region_target_world%"
+      - " {letters_black}▎ {letters}Spread: {info}%region_spread% blocks"
       - ""
-      - " {muted}❙ {success}Left-click to edit"
-      - " {muted}❙ {error}Right-click to delete"
+      - " {letters_black}▎ {success}Left-click to edit"
+      - " {letters_black}▎ {error}Right-click to delete"
     actions:
       - "left: sandbox:open_tp_region_editor %region_id%"
       - "right: sandbox:delete_tp_region %region_id%"
@@ -75,11 +75,11 @@ items:
     name: "{success}&lCREATE TP REGION"
     lore:
       - ""
-      - " {muted}❙ {letters}Create a new TP region"
-      - " {muted}❙ {letters}Players inside will be"
-      - " {muted}❙ {letters}periodically teleported"
+      - " {letters_black}▎ {letters}Create a new TP region"
+      - " {letters_black}▎ {letters}Players inside will be"
+      - " {letters_black}▎ {letters}periodically teleported"
       - ""
-      - "{info}» Click to create"
+      - "{warning}➥ Click to create"
     actions:
       - "sandbox:create_tp_region"
 

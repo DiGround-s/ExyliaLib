@@ -28,9 +28,9 @@ items:
     name: "{highlight}&lNAME"
     lore:
       - ""
-      - " {muted}❙ {letters}Current: {info}%display_name%"
+      - " {letters_black}▎ {letters}Current: {info}%display_name%"
       - ""
-      - "{info}» Click to edit"
+      - "{warning}➥ Click to edit"
     actions:
       - "ffa:edit_arena_name"
 
@@ -40,120 +40,120 @@ items:
     name: "{highlight}&lICON"
     lore:
       - ""
-      - " {muted}❙ {letters}Current: {info}%icon_material_display%"
+      - " {letters_black}▎ {letters}Current: {info}%icon_material_display%"
       - ""
-      - "{info}» Click to change"
+      - "{warning}➥ Click to change"
     actions:
       - "ffa:set_arena_icon"
 
   max-players:
-    slot: 22
+    slot: 30
     material: PLAYER_HEAD
     name: "{info}&lMAX PLAYERS"
     lore:
       - ""
-      - " {muted}❙ {letters}Current: {highlight}%max_players%"
+      - " {letters_black}▎ {letters}Current: {highlight}%max_players%"
       - ""
-      - " {muted}❙ {success}Left-Click +5"
-      - " {muted}❙ {error}Right-Click -5"
-      - " {muted}❙ {warning}Shift-Click to enter"
+      - " {letters_black}▎ {success}Left-Click +5"
+      - " {letters_black}▎ {error}Right-Click -5"
+      - " {letters_black}▎ {warning}Shift-Click to enter"
     actions:
       - "left: ffa:adjust_max_players 5"
       - "right: ffa:adjust_max_players -5"
       - "shift_left: ffa:input_max_players"
 
   kit-mode:
-    slot: 25
+    slot: 29
     material: ENCHANTED_BOOK
     name: "{warning}&lKIT MODE"
     lore:
       - ""
-      - " {muted}❙ {letters}Current: {highlight}%kit_mode%"
+      - " {letters_black}▎ {letters}Current: {highlight}%kit_mode%"
       - ""
-      - " {muted}❙ {letters}SELECTABLE: Player picks kit"
-      - " {muted}❙ {letters}RANDOM: Random kit assigned"
+      - " {letters_black}▎ {letters}SELECTABLE: Player picks kit"
+      - " {letters_black}▎ {letters}RANDOM: Random kit assigned"
       - ""
-      - "{info}» Click to toggle"
+      - "{warning}➥ Click to toggle"
     actions:
       - "ffa:toggle_kit_mode"
 
   reset-kit:
-    slot: 53
-    material: 'basehead-eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvYmUwZmQxMDE5OWU4ZTRmY2RhYmNhZTRmODVjODU5MTgxMjdhN2M1NTUzYWQyMzVmMDFjNTZkMThiYjk0NzBkMyJ9fX0='
-    name: "{warning}&lRESET KIT AFTER KILL"
+    slot: 40
+    material: "%reset_kit_material%"
+    name: "%reset_kit_color%&lRESET KIT AFTER KILL"
     lore:
       - ""
-      - " {muted}❙ {letters}Current: {highlight}%reset_kit%"
+      - " {letters_black}▎ {letters}Current: {highlight}%reset_kit%"
       - ""
-      - " {muted}❙ {letters}If enabled, killer's kit"
-      - " {muted}❙ {letters}refreshes on each kill"
+      - " {letters_black}▎ {letters}If enabled, killer's kit"
+      - " {letters_black}▎ {letters}refreshes on each kill"
       - ""
-      - "{info}» Click to toggle"
+      - "{warning}➥ Click to toggle"
     actions:
       - "ffa:toggle_reset_kit"
 
   kits:
-    slot: 21
+    slot: 28
     material: "%kit_material%"
-    name: "{warning}&lMANAGE KITS"
+    name: "%kit_color%&lMANAGE KITS"
     lore:
       - ""
-      - " {muted}❙ {letters}Kits: {highlight}%kit_count%"
+      - " {letters_black}▎ {letters}Kits: {highlight}%kit_count%"
       - ""
-      - "{info}» Click to manage"
+      - "{warning}➥ Click to manage"
     actions:
       - "ffa:open_kit_list"
 
   spawns:
-    slot: 28
+    slot: 21
     material: "%spawn_material%"
-    name: "{warning}&lMANAGE SPAWNS"
+    name: "%spawn_color%&lMANAGE SPAWNS"
     lore:
       - ""
-      - " {muted}❙ {letters}Spawns: {highlight}%spawn_count%"
+      - " {letters_black}▎ {letters}Spawns: {highlight}%spawn_count%"
       - ""
-      - "{info}» Click to manage"
+      - "{warning}➥ Click to manage"
     actions:
       - "ffa:open_spawn_list"
 
   bounds:
     slot: 19
     material: "%bounds_material%"
-    name: "{warning}&lSET BOUNDS"
+    name: "%bounds_color%&lSET BOUNDS"
     lore:
       - ""
-      - " {muted}❙ {letters}Bounds: %bounds_status%"
+      - " {letters_black}▎ {letters}Bounds: %bounds_status%"
       - ""
-      - "{info}» Click to select"
+      - "{warning}➥ Click to select"
     actions:
       - "ffa:set_bounds"
 
   schematic:
     slot: 20
     material: "%schematic_material%"
-    name: "{warning}&lSCHEMATIC"
+    name: "%schematic_color%&lSCHEMATIC"
     lore:
       - ""
-      - " {muted}❙ {letters}Status: %schematic_exists%"
+      - " {letters_black}▎ {letters}Status: %schematic_exists%"
       - ""
-      - " {muted}❙ {success}Left-Click to save"
-      - " {muted}❙ {warning}Right-Click to restore"
+      - " {letters_black}▎ {success}Left-Click to save"
+      - " {letters_black}▎ {warning}Right-Click to restore"
     actions:
       - "left: ffa:save_schematic"
       - "right: ffa:restore_schematic"
 
   protected-radius:
-    slot: 29
+    slot: 23
     material: SHIELD
     name: "{info}&lPROTECTED RADIUS"
     lore:
       - ""
-      - " {muted}❙ {letters}Current: {highlight}%protected_radius% {letters}blocks"
+      - " {letters_black}▎ {letters}Current: {highlight}%protected_radius% {letters}blocks"
       - ""
-      - " {muted}❙ {success}Left-Click +1"
-      - " {muted}❙ {error}Right-Click -1"
-      - " {muted}❙ {warning}Shift-Click +5"
-      - " {muted}❙ {error}Shift-Right -5"
+      - " {letters_black}▎ {success}Left-Click +1"
+      - " {letters_black}▎ {error}Right-Click -1"
+      - " {letters_black}▎ {warning}Shift-Click +5"
+      - " {letters_black}▎ {error}Shift-Right -5"
     actions:
       - "left: ffa:adjust_protected_radius 1"
       - "right: ffa:adjust_protected_radius -1"
@@ -161,18 +161,18 @@ items:
       - "shift_right: ffa:adjust_protected_radius -5"
 
   save-inventory-on-leave:
-    slot: 30
+    slot: 39
     material: "%save_inventory_material%"
-    name: "{warning}&lSAVE INVENTORY ON LEAVE"
+    name: "%save_inventory_color%&lSAVE INVENTORY ON LEAVE"
     lore:
       - ""
-      - " {muted}❙ {letters}Current: {highlight}%save_inventory_on_leave%"
+      - " {letters_black}▎ {letters}Current: {highlight}%save_inventory_on_leave%"
       - ""
-      - " {muted}❙ {letters}Saves player inventory"
-      - " {muted}❙ {letters}on clean leave (no combat)"
-      - " {muted}❙ {letters}and restores it on rejoin"
+      - " {letters_black}▎ {letters}Saves player inventory"
+      - " {letters_black}▎ {letters}on clean leave (no combat)"
+      - " {letters_black}▎ {letters}and restores it on rejoin"
       - ""
-      - "{info}» Click to toggle"
+      - "{warning}➥ Click to toggle"
     actions:
       - "ffa:toggle_save_inventory_on_leave"
 
@@ -182,41 +182,41 @@ items:
     name: "{info}&lPERMISSION"
     lore:
       - ""
-      - " {muted}❙ {letters}Current: {info}%permission%"
+      - " {letters_black}▎ {letters}Current: {info}%permission%"
       - ""
-      - " {muted}❙ {letters}Type 'none' to remove"
+      - " {letters_black}▎ {letters}Type 'none' to remove"
       - ""
-      - "{info}» Click to set"
+      - "{warning}➥ Click to set"
     actions:
       - "ffa:input_permission"
 
   regen-time:
-    slot: 24
+    slot: 38
     material: CLOCK
     name: "{info}&lREGENERATION TIME"
     lore:
       - ""
-      - " {muted}❙ {letters}Current: {highlight}%regen_time%"
+      - " {letters_black}▎ {letters}Current: {highlight}%regen_time%"
       - ""
-      - " {muted}❙ {success}Left-Click +30s"
-      - " {muted}❙ {error}Right-Click -30s"
-      - " {muted}❙ {muted}0 = disabled"
+      - " {letters_black}▎ {success}Left-Click +30s"
+      - " {letters_black}▎ {error}Right-Click -30s"
+      - " {letters_black}▎ {muted}0 = disabled"
     actions:
       - "left: ffa:adjust_regen_time 30"
       - "right: ffa:adjust_regen_time -30"
 
   priority:
-    slot: 23
+    slot: 31
     material: HOPPER
     name: "{info}&lPRIORITY"
     lore:
       - ""
-      - " {muted}❙ {letters}Current: {highlight}%arena_priority%"
+      - " {letters_black}▎ {letters}Current: {highlight}%arena_priority%"
       - ""
-      - " {muted}❙ {success}Left-Click +1"
-      - " {muted}❙ {error}Right-Click -1"
-      - " {muted}❙ {warning}Shift-Click +10"
-      - " {muted}❙ {error}Shift-Right -10"
+      - " {letters_black}▎ {success}Left-Click +1"
+      - " {letters_black}▎ {error}Right-Click -1"
+      - " {letters_black}▎ {warning}Shift-Click +10"
+      - " {letters_black}▎ {error}Shift-Right -10"
     actions:
       - "left: ffa:adjust_arena_priority 1"
       - "right: ffa:adjust_arena_priority -1"
@@ -224,86 +224,86 @@ items:
       - "shift_right: ffa:adjust_arena_priority -10"
 
   rules:
-    slot: 31
+    slot: 37
     material: COMMAND_BLOCK
     name: "{warning}&lRULES"
     lore:
       - ""
-      - " {muted}❙ {letters}Configure arena rules"
-      - " {muted}❙ {letters}PvP, building, items..."
+      - " {letters_black}▎ {letters}Configure arena rules"
+      - " {letters_black}▎ {letters}PvP, building, items..."
       - ""
-      - "{info}» Click to configure"
+      - "{warning}➥ Click to configure"
     actions:
       - "ffa:open_rules_menu"
 
   protected-shape:
-    slot: 32
+    slot: 24
     material: COMPASS
     name: "{info}&lPROTECTED SHAPE"
     lore:
       - ""
-      - " {muted}❙ {letters}Current: {highlight}%protected_shape%"
+      - " {letters_black}▎ {letters}Current: {highlight}%protected_shape%"
       - ""
-      - " {muted}❙ {letters}SPHERE: Spherical distance"
-      - " {muted}❙ {letters}CUBOID: Box-shaped"
+      - " {letters_black}▎ {letters}SPHERE: Spherical distance"
+      - " {letters_black}▎ {letters}CUBOID: Box-shaped"
       - ""
-      - "{info}» Click to toggle"
+      - "{warning}➥ Click to toggle"
     actions:
       - "ffa:toggle_protected_shape"
 
   protected-mode:
-    slot: 33
+    slot: 25
     material: SPYGLASS
     name: "{info}&lPROTECTED MODE"
     lore:
       - ""
-      - " {muted}❙ {letters}Current: {highlight}%protected_mode%"
+      - " {letters_black}▎ {letters}Current: {highlight}%protected_mode%"
       - ""
-      - " {muted}❙ {letters}NORMAL: Uses Y axis"
-      - " {muted}❙ {letters}EXPANDED_VERT: Full height"
+      - " {letters_black}▎ {letters}NORMAL: Uses Y axis"
+      - " {letters_black}▎ {letters}EXPANDED_VERT: Full height"
       - ""
-      - "{info}» Click to toggle"
+      - "{warning}➥ Click to toggle"
     actions:
       - "ffa:toggle_protected_mode"
 
   toggle-enabled:
-    slot: 34
+    slot: 5
     material: "%enabled_material%"
-    name: "{warning}&lTOGGLE ARENA"
+    name: "%enabled_color%&lTOGGLE ARENA"
     lore:
       - ""
-      - " {muted}❙ {letters}Status: %enabled_status%"
+      - " {letters_black}▎ {letters}Status: %enabled_status%"
       - ""
-      - " {muted}❙ {letters}Disabled arenas cannot"
-      - " {muted}❙ {letters}be joined or spectated"
+      - " {letters_black}▎ {letters}Disabled arenas cannot"
+      - " {letters_black}▎ {letters}be joined or spectated"
       - ""
-      - "{info}» Click to toggle"
+      - "{warning}➥ Click to toggle"
     actions:
       - "ffa:toggle_arena_enabled"
 
   expel-all:
-    slot: 37
+    slot: 53
     material: BARRIER
     name: "{error}&lEXPEL ALL PLAYERS"
     lore:
       - ""
-      - " {muted}❙ {letters}Remove all players"
-      - " {muted}❙ {letters}from this FFA"
+      - " {letters_black}▎ {letters}Remove all players"
+      - " {letters_black}▎ {letters}from this FFA"
       - ""
-      - "{info}» Click to expel all"
+      - "{warning}➥ Click to expel all"
     actions:
       - "ffa:confirm_expel_all"
 
   force-regen:
-    slot: 52
-    material: 'basehead-eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvYmUwZmQxMDE5OWU4ZTRmY2RhYmNhZTRmODVjODU5MTgxMjdhN2M1NTUzYWQyMzVmMDFjNTZkMThiYjk0NzBkMyJ9fX0='
+    slot: 45
+    material: ANVIL
     name: "{warning}&lFORCE REGENERATE"
     lore:
       - ""
-      - " {muted}❙ {letters}Force arena regeneration"
-      - " {muted}❙ {letters}from saved schematic"
+      - " {letters_black}▎ {letters}Force arena regeneration"
+      - " {letters_black}▎ {letters}from saved schematic"
       - ""
-      - "{info}» Click to regenerate"
+      - "{warning}➥ Click to regenerate"
     actions:
       - "ffa:force_regen"
 

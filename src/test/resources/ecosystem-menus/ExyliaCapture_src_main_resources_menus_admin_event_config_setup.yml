@@ -22,21 +22,21 @@ items:
     name: "{highlight}&lDISPLAY NAME"
     lore:
       - ""
-      - " {muted}❙ {letters}Current: {info}%display_name%"
+      - " {letters_black}▎ {letters}Current: {info}%display_name%"
       - ""
-      - "{info}» Click to edit"
+      - "{warning}➥ Click to edit"
     actions:
       - "capture:edit_config_name"
 
   event-type:
-    slot: 25
+    slot: 19
     material: PAPER
     name: "{highlight}&lEVENT TYPE"
     lore:
       - ""
-      - " {muted}❙ {letters}Type: {info}%event_type%"
+      - " {letters_black}▎ {letters}Type: {info}%event_type%"
       - ""
-      - " {muted}❙ {letters}Cannot be changed"
+      - " {letters_black}▎ {letters}Cannot be changed"
 
   icon:
     slot: 2
@@ -44,51 +44,51 @@ items:
     name: "{highlight}&lICON"
     lore:
       - ""
-      - " {muted}❙ {letters}Current: {info}%icon_material_display%"
+      - " {letters_black}▎ {letters}Current: {info}%icon_material_display%"
       - ""
-      - "{info}» Click to change"
+      - "{warning}➥ Click to change"
     actions:
       - "capture:set_config_icon"
 
   color:
-    slot: 23
+    slot: 4
     material: ORANGE_DYE
     name: "{highlight}&lEVENT COLOR"
     lore:
       - ""
-      - " {muted}❙ {letters}Current: {info}%event_color%"
-      - " {muted}❙ {letters}Used for waypoints & visuals"
+      - " {letters_black}▎ {letters}Current: {info}%event_color%"
+      - " {letters_black}▎ {letters}Used for waypoints & visuals"
       - ""
-      - "{info}» Click to change"
+      - "{warning}➥ Click to change"
     actions:
       - "capture:input_color"
 
   zone:
-    slot: 19
+    slot: 20
     material: "%zone_material%"
-    name: "{warning}&lCAPTURE ZONE"
+    name: "%zone_color%&lCAPTURE ZONE"
     lore:
       - ""
-      - " {muted}❙ {letters}%zone_status%"
-      - " {muted}❙ {letters}%zone_coords%"
+      - " {letters_black}▎ {letters}%zone_status%"
+      - " {letters_black}▎ {letters}%zone_coords%"
       - ""
-      - "{info}» %zone_action_hint%"
+      - "{warning}➥ %zone_action_hint%"
     actions:
       - "capture:set_config_zone"
 
   max-duration:
-    slot: 24
+    slot: 21
     material: CLOCK
     name: "{info}&lMAX DURATION"
     lore:
       - ""
-      - " {muted}❙ {letters}Current: {highlight}%max_duration%"
-      - " {muted}❙ {letters}Infinite: {highlight}%infinite_duration_status%"
+      - " {letters_black}▎ {letters}Current: {highlight}%max_duration%"
+      - " {letters_black}▎ {letters}Infinite: {highlight}%infinite_duration_status%"
       - ""
-      - " {muted}❙ {success}Left-Click +30s"
-      - " {muted}❙ {error}Right-Click -30s"
-      - " {muted}❙ {warning}Shift-Click to enter"
-      - " {muted}❙ {info}Middle-Click to toggle infinite"
+      - " {letters_black}▎ {success}Left-Click +30s"
+      - " {letters_black}▎ {error}Right-Click -30s"
+      - " {letters_black}▎ {warning}Shift-Click to enter"
+      - " {letters_black}▎ {info}Middle-Click to toggle infinite"
     actions:
       - "left: capture:set_max_duration 30"
       - "right: capture:set_max_duration -30"
@@ -96,42 +96,42 @@ items:
       - "middle: capture:toggle_infinite_duration"
 
   type-settings:
-    slot: 22
+    slot: 23
     material: COMPARATOR
     name: "{secondary}&lTYPE SETTINGS"
     lore:
       - ""
-      - " {muted}❙ {letters}Configure type-specific"
-      - " {muted}❙ {letters}parameters"
+      - " {letters_black}▎ {letters}Configure type-specific"
+      - " {letters_black}▎ {letters}parameters"
       - ""
-      - "{info}» Click to open"
+      - "{warning}➥ Click to open"
     actions:
       - "capture:open_type_settings"
 
   commands:
-    slot: 20
+    slot: 24
     material: COMMAND_BLOCK
     name: "{warning}&lCOMMANDS"
     lore:
       - ""
-      - " {muted}❙ {letters}Start: {highlight}%start_commands_count% {letters}commands"
-      - " {muted}❙ {letters}End: {highlight}%end_commands_count% {letters}commands"
-      - " {muted}❙ {letters}Winner: {highlight}%winner_commands_count% {letters}rewards"
+      - " {letters_black}▎ {letters}Start: {highlight}%start_commands_count% {letters}commands"
+      - " {letters_black}▎ {letters}End: {highlight}%end_commands_count% {letters}commands"
+      - " {letters_black}▎ {letters}Winner: {highlight}%winner_commands_count% {letters}rewards"
       - ""
-      - "{info}» Click to manage"
+      - "{warning}➥ Click to manage"
     actions:
       - "capture:open_commands_setup"
 
   schedules:
-    slot: 21
+    slot: 25
     material: REPEATER
     name: "{info}&lSCHEDULES"
     lore:
       - ""
-      - " {muted}❙ {letters}Count: {highlight}%schedules_count%"
-      - " {muted}❙ {letters}Auto-start triggers"
+      - " {letters_black}▎ {letters}Count: {highlight}%schedules_count%"
+      - " {letters_black}▎ {letters}Auto-start triggers"
       - ""
-      - "{info}» Click to manage"
+      - "{warning}➥ Click to manage"
     actions:
       - "capture:open_schedule_list"
 
@@ -141,13 +141,13 @@ items:
     name: "{warning}&lLEADERBOARD POINTS"
     lore:
       - ""
-      - " {muted}❙ {letters}Current: {highlight}%leaderboard_points% {letters}pts/win"
-      - " {muted}❙ {letters}Points earned per win"
-      - " {muted}❙ {letters}for the global ranking"
+      - " {letters_black}▎ {letters}Current: {highlight}%leaderboard_points% {letters}pts/win"
+      - " {letters_black}▎ {letters}Points earned per win"
+      - " {letters_black}▎ {letters}for the global ranking"
       - ""
-      - " {muted}❙ {success}Left-Click +1"
-      - " {muted}❙ {error}Right-Click -1"
-      - " {muted}❙ {warning}Shift-Click to enter"
+      - " {letters_black}▎ {success}Left-Click +1"
+      - " {letters_black}▎ {error}Right-Click -1"
+      - " {letters_black}▎ {warning}Shift-Click to enter"
     actions:
       - "left: capture:set_leaderboard_points 1"
       - "right: capture:set_leaderboard_points -1"
@@ -159,31 +159,31 @@ items:
     name: "%toggle_name%"
     lore:
       - ""
-      - "{info}» Click to toggle"
+      - "{warning}➥ Click to toggle"
     actions:
       - "capture:toggle_config"
 
   scoreboard-toggle:
-    slot: 29
+    slot: 30
     material: "%scoreboard_material%"
-    name: "{highlight}&lSCOREBOARD"
+    name: "%scoreboard_color%&lSCOREBOARD"
     lore:
       - ""
-      - " {muted}❙ {letters}Status: {info}%scoreboard_status%"
+      - " {letters_black}▎ {letters}Status: {info}%scoreboard_status%"
       - ""
-      - "{info}» Click to toggle"
+      - "{warning}➥ Click to toggle"
     actions:
       - "capture:toggle_scoreboard"
 
   bossbar-toggle:
-    slot: 30
+    slot: 31
     material: "%bossbar_material%"
-    name: "{highlight}&lBOSSBAR"
+    name: "%bossbar_color%&lBOSSBAR"
     lore:
       - ""
-      - " {muted}❙ {letters}Status: {info}%bossbar_status%"
+      - " {letters_black}▎ {letters}Status: {info}%bossbar_status%"
       - ""
-      - "{info}» Click to toggle"
+      - "{warning}➥ Click to toggle"
     actions:
       - "capture:toggle_bossbar"
 
@@ -202,8 +202,8 @@ items:
     name: '{error}&lCLOSE'
     lore:
       - ""
-      - " {muted}❙ {success}All changes are auto-saved"
+      - " {letters_black}▎ {success}All changes are auto-saved"
       - ""
-      - "{info}» Click to close"
+      - "{warning}➥ Click to close"
     actions:
       - "capture:save_config"

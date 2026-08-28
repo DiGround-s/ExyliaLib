@@ -28,78 +28,78 @@ items:
     name: "{info}&lHOW TO SETUP"
     lore:
       - ""
-      - " {muted}❙ {letters}Build floors/walls out of any"
-      - " {muted}❙ {letters}color of: {highlight}Wool, Concrete,"
-      - " {muted}❙ {letters}Terracotta, Glazed Terracotta,"
-      - " {muted}❙ {letters}Stained Glass (or Pane), Carpet"
-      - " {muted}❙ {letters}or Concrete Powder"
+      - " {letters_black}▎ {letters}Build floors/walls out of any"
+      - " {letters_black}▎ {letters}color of: {highlight}Wool, Concrete,"
+      - " {letters_black}▎ {letters}Terracotta, Glazed Terracotta,"
+      - " {letters_black}▎ {letters}Stained Glass (or Pane), Carpet"
+      - " {letters_black}▎ {letters}or Concrete Powder"
       - ""
-      - " {muted}❙ {letters}Any starting color works - it"
-      - " {muted}❙ {letters}repaints to the shooter's team"
-      - " {muted}❙ {letters}color on hit"
+      - " {letters_black}▎ {letters}Any starting color works - it"
+      - " {letters_black}▎ {letters}repaints to the shooter's team"
+      - " {letters_black}▎ {letters}color on hit"
       - ""
-      - " {muted}❙ {letters}Score = blocks painted"
-      - " {muted}❙ {letters}in your team's color"
+      - " {letters_black}▎ {letters}Score = blocks painted"
+      - " {letters_black}▎ {letters}in your team's color"
 
   team-count:
-    slot: 22
+    slot: 21
     material: WHITE_BANNER
     name: "{warning}&lTEAMS"
     lore:
       - ""
-      - " {muted}❙ {letters}Current: {highlight}%team_count%"
+      - " {letters_black}▎ {letters}Current: {highlight}%team_count%"
       - ""
-      - " {muted}❙ {letters}Number of teams"
+      - " {letters_black}▎ {letters}Number of teams"
       - ""
-      - " {muted}❙ {success}Left-Click +1"
-      - " {muted}❙ {error}Right-Click -1"
-      - " {muted}❙ {warning}Shift-Click to enter"
+      - " {letters_black}▎ {success}Left-Click +1"
+      - " {letters_black}▎ {error}Right-Click -1"
+      - " {letters_black}▎ {warning}Shift-Click to enter"
     actions:
       - "left: events:adjust_setting team-count 1"
       - "right: events:adjust_setting team-count -1"
       - "shift_left: events:input_setting team-count"
 
   weapon-delay:
-    slot: 23
+    slot: 28
     material: WOODEN_HOE
     name: "{info}&lWEAPON DELAY"
     lore:
       - ""
-      - " {muted}❙ {letters}Current: {highlight}%weapon_delay%s"
+      - " {letters_black}▎ {letters}Current: {highlight}%weapon_delay%s"
       - ""
-      - " {muted}❙ {letters}Seconds between shots"
+      - " {letters_black}▎ {letters}Seconds between shots"
       - ""
-      - "{info}» Click to enter"
+      - "{warning}➥ Click to enter"
     actions:
       - "events:input_double_setting weapon-delay"
 
   weapon-damage:
-    slot: 24
+    slot: 29
     material: IRON_SWORD
     name: "{error}&lWEAPON DAMAGE"
     lore:
       - ""
-      - " {muted}❙ {letters}Current: {highlight}%weapon_damage% ❤"
+      - " {letters_black}▎ {letters}Current: {highlight}%weapon_damage% ❤"
       - ""
-      - " {muted}❙ {letters}Hearts of damage on hit"
+      - " {letters_black}▎ {letters}Hearts of damage on hit"
       - ""
-      - "{info}» Click to enter"
+      - "{warning}➥ Click to enter"
     actions:
       - "events:input_double_setting weapon-damage"
 
   paint-radius:
-    slot: 25
+    slot: 30
     material: BRUSH
     name: "{success}&lPAINT RADIUS"
     lore:
       - ""
-      - " {muted}❙ {letters}Current: {highlight}%paint_radius% blocks"
+      - " {letters_black}▎ {letters}Current: {highlight}%paint_radius% blocks"
       - ""
-      - " {muted}❙ {letters}Paint radius on hit"
+      - " {letters_black}▎ {letters}Paint radius on hit"
       - ""
-      - " {muted}❙ {success}Left-Click +1"
-      - " {muted}❙ {error}Right-Click -1"
-      - " {muted}❙ {warning}Shift-Click to enter"
+      - " {letters_black}▎ {success}Left-Click +1"
+      - " {letters_black}▎ {error}Right-Click -1"
+      - " {letters_black}▎ {warning}Shift-Click to enter"
     actions:
       - "left: events:adjust_setting paint-radius 1"
       - "right: events:adjust_setting paint-radius -1"
@@ -111,13 +111,13 @@ items:
     name: "{warning}&lRESPAWN DELAY"
     lore:
       - ""
-      - " {muted}❙ {letters}Current: {highlight}%respawn_delay%s"
+      - " {letters_black}▎ {letters}Current: {highlight}%respawn_delay%s"
       - ""
-      - " {muted}❙ {letters}Time to respawn"
+      - " {letters_black}▎ {letters}Time to respawn"
       - ""
-      - " {muted}❙ {success}Left-Click +1s"
-      - " {muted}❙ {error}Right-Click -1s"
-      - " {muted}❙ {warning}Shift-Click to enter"
+      - " {letters_black}▎ {success}Left-Click +1s"
+      - " {letters_black}▎ {error}Right-Click -1s"
+      - " {letters_black}▎ {warning}Shift-Click to enter"
     actions:
       - "left: events:adjust_setting respawn-delay 1"
       - "right: events:adjust_setting respawn-delay -1"
@@ -129,108 +129,108 @@ items:
     name: "{info}&lGRACE PERIOD"
     lore:
       - ""
-      - " {muted}❙ {letters}Current: {highlight}%grace_period%s"
+      - " {letters_black}▎ {letters}Current: {highlight}%grace_period%s"
       - ""
-      - " {muted}❙ {letters}No PvP at start"
+      - " {letters_black}▎ {letters}No PvP at start"
       - ""
-      - " {muted}❙ {success}Left-Click +5s"
-      - " {muted}❙ {error}Right-Click -5s"
-      - " {muted}❙ {warning}Shift-Click to enter"
+      - " {letters_black}▎ {success}Left-Click +5s"
+      - " {letters_black}▎ {error}Right-Click -5s"
+      - " {letters_black}▎ {warning}Shift-Click to enter"
     actions:
       - "left: events:adjust_setting grace-period 5"
       - "right: events:adjust_setting grace-period -5"
       - "shift_left: events:input_setting grace-period"
 
   ink-trail:
-    slot: 28
+    slot: 31
     material: "%ink_trail_material%"
-    name: "{success}&lINK TRAIL"
+    name: "%ink_trail_color%&lINK TRAIL"
     lore:
       - ""
-      - " {muted}❙ {letters}Status: %ink_trail%"
+      - " {letters_black}▎ {letters}Status: %ink_trail%"
       - ""
-      - " {muted}❙ {letters}Paint while walking"
+      - " {letters_black}▎ {letters}Paint while walking"
       - ""
-      - "{info}» Click to toggle"
+      - "{warning}➥ Click to toggle"
     actions:
       - "events:toggle_splatoon_setting ink-trail"
 
   fall-damage:
-    slot: 29
+    slot: 42
     material: "%fall_damage_material%"
-    name: "{error}&lFALL DAMAGE"
+    name: "%fall_damage_color%&lFALL DAMAGE"
     lore:
       - ""
-      - " {muted}❙ {letters}Status: %fall_damage%"
+      - " {letters_black}▎ {letters}Status: %fall_damage%"
       - ""
-      - "{info}» Click to toggle"
+      - "{warning}➥ Click to toggle"
     actions:
       - "events:toggle_splatoon_setting fall-damage"
 
   double-jump-enabled:
-    slot: 30
+    slot: 37
     material: "%double_jump_enabled_material%"
-    name: "{info}&lDOUBLE JUMP"
+    name: "%double_jump_enabled_color%&lDOUBLE JUMP"
     lore:
       - ""
-      - " {muted}❙ {letters}Status: %double_jump_enabled%"
+      - " {letters_black}▎ {letters}Status: %double_jump_enabled%"
       - ""
-      - "{info}» Click to toggle"
+      - "{warning}➥ Click to toggle"
     actions:
       - "events:toggle_splatoon_setting double-jump-enabled"
 
   double-jump-cooldown:
-    slot: 31
+    slot: 38
     material: FEATHER
     name: "{info}&lDOUBLE JUMP COOLDOWN"
     lore:
       - ""
-      - " {muted}❙ {letters}Current: {highlight}%double_jump_cooldown%s"
+      - " {letters_black}▎ {letters}Current: {highlight}%double_jump_cooldown%s"
       - ""
-      - "{info}» Click to enter"
+      - "{warning}➥ Click to enter"
     actions:
       - "events:input_double_setting double-jump-cooldown"
 
   double-jump-limit:
-    slot: 32
+    slot: 39
     material: RABBIT_FOOT
     name: "{warning}&lDOUBLE JUMP LIMIT"
     lore:
       - ""
-      - " {muted}❙ {letters}Current: {highlight}%double_jump_limit%"
-      - " {muted}❙ {letters}(-1 = unlimited)"
+      - " {letters_black}▎ {letters}Current: {highlight}%double_jump_limit%"
+      - " {letters_black}▎ {letters}(-1 = unlimited)"
       - ""
-      - " {muted}❙ {success}Left-Click +1"
-      - " {muted}❙ {error}Right-Click -1"
-      - " {muted}❙ {warning}Shift-Click to enter"
+      - " {letters_black}▎ {success}Left-Click +1"
+      - " {letters_black}▎ {error}Right-Click -1"
+      - " {letters_black}▎ {warning}Shift-Click to enter"
     actions:
       - "left: events:adjust_setting double-jump-limit 1"
       - "right: events:adjust_setting double-jump-limit -1"
       - "shift_left: events:input_setting double-jump-limit"
 
   double-jump-power:
-    slot: 33
+    slot: 40
     material: FIREWORK_ROCKET
     name: "{info}&lDOUBLE JUMP POWER"
     lore:
       - ""
-      - " {muted}❙ {letters}Current: {highlight}%double_jump_power%"
+      - " {letters_black}▎ {letters}Current: {highlight}%double_jump_power%"
       - ""
-      - "{info}» Click to enter"
+      - "{warning}➥ Click to enter"
     actions:
       - "events:input_double_setting double-jump-power"
 
   team-selector:
-    slot: 21
+    slot: 22
     material: "%team_selector_material%"
-    name: "{warning}&lTEAM SELECTOR"
+    name: "%team_selector_color%&lTEAM SELECTOR"
     lore:
       - ""
-      - " {muted}❙ {letters}Current: %team_selector%"
-      - " {muted}❙ {letters}Allow players to choose"
-      - " {muted}❙ {letters}their team in the lobby"
+      - " {letters_black}▎ {letters}Current: %team_selector%"
+      - " {letters_black}▎ {letters}Allow players to choose"
+      - " {letters_black}▎ {letters}their team in the lobby"
       - ""
-      - "{info}» Click to toggle"
+      - "{warning}➥ Click to toggle"
     actions:
       - "events:toggle_team_selector_setting team-selector-enabled"
 

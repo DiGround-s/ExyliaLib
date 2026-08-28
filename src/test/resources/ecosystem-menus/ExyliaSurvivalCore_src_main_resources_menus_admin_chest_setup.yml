@@ -22,13 +22,13 @@ filler:
 
 items:
   template:
-    slot: 37
+    slot: 19
     material: "%chest_material%"
-    name: "{highlight}&lTEMPLATE"
+    name: "%chest_color%&lTEMPLATE"
     lore:
       - ""
-      - " {muted}❙ {letters}Current: {highlight}%chest_template%"
-      - " {muted}❙ {letters}Location: {highlight}%chest_location%"
+      - " {letters_black}▎ {letters}Current: {highlight}%chest_template%"
+      - " {letters_black}▎ {letters}Location: {highlight}%chest_location%"
     hide_tooltip: false
 
   enabled:
@@ -37,29 +37,29 @@ items:
     name: "{highlight}&lSTATUS"
     lore:
       - ""
-      - " {muted}❙ {letters}Current: %chest_enabled_status%"
+      - " {letters_black}▎ {letters}Current: %chest_enabled_status%"
       - ""
-      - "{info}» Click to toggle"
+      - "{warning}➥ Click to toggle"
     actions:
       - "survivalcore:lc_chest_toggle_enabled"
 
   dispersed:
-    slot: 38
+    slot: 20
     material: "%chest_dispersed_mat%"
-    name: "{highlight}&lFILL MODE"
+    name: "%chest_dispersed_color%&lFILL MODE"
     lore:
       - ""
-      - " {muted}❙ {letters}Current: %chest_dispersed%"
+      - " {letters_black}▎ {letters}Current: %chest_dispersed%"
       - ""
-      - " {muted}❙ {letters}Stacked: items grouped at start"
-      - " {muted}❙ {letters}Dispersed: items spread randomly"
+      - " {letters_black}▎ {letters}Stacked: items grouped at start"
+      - " {letters_black}▎ {letters}Dispersed: items spread randomly"
       - ""
-      - "{info}» Click to toggle"
+      - "{warning}➥ Click to toggle"
     actions:
       - "survivalcore:lc_chest_toggle_dispersed"
 
   cooldown-down:
-    slot: 39
+    slot: 28
     material: RED_STAINED_GLASS_PANE
     name: "{error}&l▼ COOLDOWN"
     lore:
@@ -74,18 +74,18 @@ items:
       - "right: survivalcore:lc_chest_adjust_cooldown -300"
 
   cooldown-display:
-    slot: 40
+    slot: 29
     material: CLOCK
     name: "{highlight}&lCOOLDOWN"
     lore:
       - ""
-      - " {muted}❙ {letters}Current: {highlight}%chest_cooldown%"
+      - " {letters_black}▎ {letters}Current: {highlight}%chest_cooldown%"
       - ""
-      - " {muted}❙ {letters}Time before chest refills"
+      - " {letters_black}▎ {letters}Time before chest refills"
     hide_tooltip: false
 
   cooldown-up:
-    slot: 41
+    slot: 30
     material: LIME_STAINED_GLASS_PANE
     name: "{success}&l▲ COOLDOWN"
     lore:
@@ -100,14 +100,14 @@ items:
       - "right: survivalcore:lc_chest_adjust_cooldown 300"
 
   teleport:
-    slot: 21
+    slot: 22
     material: ENDER_PEARL
     name: "{highlight}&lTELEPORT"
     lore:
       - ""
-      - " {muted}❙ {letters}Location: {highlight}%chest_location%"
+      - " {letters_black}▎ {letters}Location: {highlight}%chest_location%"
       - ""
-      - "{info}» Click to teleport to chest"
+      - "{warning}➥ Click to teleport to chest"
     actions:
       - "survivalcore:lc_teleport_chest %chest_id%"
 
@@ -117,7 +117,7 @@ items:
     name: "{error}&lDELETE CHEST"
     lore:
       - ""
-      - " {error}» Click to permanently delete"
+      - " {error}➥ Click to permanently delete"
     actions:
       - "survivalcore:lc_delete_chest %chest_id%"
 
@@ -127,6 +127,6 @@ items:
     name: '{error}&lBACK'
     lore:
       - ""
-      - " {info}» Return to chest list"
+      - " {warning}➥ Return to chest list"
     actions:
       - "survivalcore:lc_open_chest_list"

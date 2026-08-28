@@ -28,14 +28,14 @@ pagination:
     name: "{warning}&l%jumpad_name%"
     lore:
       - ""
-      - " {muted}❙ {letters}ID: {info}%jumpad_id%"
-      - " {muted}❙ {letters}Status: %jumpad_enabled%"
-      - " {muted}❙ {letters}Direction: {highlight}%jumpad_yaw%"
-      - " {muted}❙ {letters}Power: {highlight}%jumpad_power% {muted}| Vertical: {highlight}%jumpad_vertical%"
-      - " {muted}❙ {letters}Locations: {highlight}%jumpad_locations%"
+      - " {letters_black}▎ {letters}ID: {info}%jumpad_id%"
+      - " {letters_black}▎ {letters}Status: %jumpad_enabled%"
+      - " {letters_black}▎ {letters}Direction: {highlight}%jumpad_yaw%"
+      - " {letters_black}▎ {letters}Power: {highlight}%jumpad_power% {muted}| Vertical: {highlight}%jumpad_vertical%"
+      - " {letters_black}▎ {letters}Locations: {highlight}%jumpad_locations%"
       - ""
-      - " {muted}❙ {success}Left-Click to edit"
-      - " {muted}❙ {error}Right-Click to delete"
+      - " {letters_black}▎ {success}Left-Click to edit"
+      - " {letters_black}▎ {error}Right-Click to delete"
     actions:
       - "left: practice:jumpad_edit %jumpad_id%"
       - "right: practice:jumpad_confirm_delete %jumpad_id%"
@@ -65,9 +65,9 @@ items:
     name: "{success}&lCREATE JUMPAD"
     lore:
       - ""
-      - " {muted}❙ {letters}Create a new launch pad"
+      - " {letters_black}▎ {letters}Create a new launch pad"
       - ""
-      - "{info}» Click to create"
+      - "{warning}➥ Click to create"
     actions:
       - "practice:jumpad_create"
 

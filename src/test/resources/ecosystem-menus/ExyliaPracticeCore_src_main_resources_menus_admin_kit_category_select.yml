@@ -28,9 +28,9 @@ pagination:
     name: "%selected_icon% {warning}&l%category_name%"
     lore:
       - ""
-      - " {muted}❙ {letters}ID: {info}%category_id%"
+      - " {letters_black}▎ {letters}ID: {info}%category_id%"
       - ""
-      - " {muted}❙ %selected_label%"
+      - " {letters_black}▎ %selected_label%"
     actions:
       - "practice:toggle_kit_category %category_id%"
 

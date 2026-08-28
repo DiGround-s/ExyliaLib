@@ -1,0 +1,49 @@
+# Who is allowed to take the bet.
+
+title: '{primary}&lWHO CAN JOIN'
+size: 27
+type: PAGINATION
+
+click_sounds:
+  - 'UI_BUTTON_CLICK|1.0|1.5'
+
+filler:
+  global:
+    material: BLACK_STAINED_GLASS_PANE
+    hide_tooltip: true
+
+items:
+  back:
+    slot: 22
+    material: ARROW
+    name: '{error}&lBACK'
+    lore:
+      - ''
+      - '{warning}➥ Click to go back'
+      - ''
+    actions:
+      - 'left: betcore:open_create'
+
+pagination:
+  slots: '11-15'
+  item_template:
+    material: ENDER_PEARL
+    name: '{primary}&l%visibility%'
+    lore:
+      - ''
+      - ' {letters_black}▎ {letters}PUBLIC {letters_black}» {letters}anyone, listed in the lobby'
+      - ' {letters_black}▎ {letters}PRIVATE {letters_black}» {letters}only who you send it to'
+      - ' {letters_black}▎ {letters}DIRECT {letters_black}» {letters}a challenge they accept or refuse'
+      - ''
+      - '{warning}➥ Click to pick this'
+      - ''
+    actions:
+      - 'left: betcore:set_visibility %visibility%'
+  selected_template:
+    material: ENDER_EYE
+    name: '{primary}&l%visibility% {success}✔'
+    lore:
+      - ''
+      - '{success}This is who can take it.'
+      - ''
+    glow: true

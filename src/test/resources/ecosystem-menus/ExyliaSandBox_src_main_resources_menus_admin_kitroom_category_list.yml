@@ -35,12 +35,12 @@ pagination:
     name: "{highlight}&l%category_name%"
     lore:
       - ""
-      - " {muted}❙ {letters}ID: {info}%category_id%"
-      - " {muted}❙ {letters}Items: {info}%category_item_count%"
+      - " {letters_black}▎ {letters}ID: {info}%category_id%"
+      - " {letters_black}▎ {letters}Items: {info}%category_item_count%"
       - ""
-      - "{info}» Left-click to edit items"
-      - "{warning}» Right-click to change material"
-      - "{error}» Shift+click to delete"
+      - "{warning}➥ Left-click to edit items"
+      - "{warning}➥ Right-click to change material"
+      - "{error}➥ Shift+click to delete"
     actions:
       - "left: sandbox:open_kitroom_category_editor %category_id%"
       - "right: sandbox:kitroom_set_category_material %category_id%"
@@ -71,9 +71,9 @@ items:
     name: "{success}&l+ CREATE CATEGORY"
     lore:
       - ""
-      - " {muted}❙ {letters}Create a new category"
+      - " {letters_black}▎ {letters}Create a new category"
       - ""
-      - "{success}» Click to create"
+      - "{success}➥ Click to create"
     actions:
       - "sandbox:kitroom_create_category"
 
@@ -83,10 +83,10 @@ items:
     name: "{error}&lReset to Defaults"
     lore:
       - ""
-      - " {muted}❙ {letters}Deletes all categories and items"
-      - " {muted}❙ {error}and restores the default ones"
+      - " {letters_black}▎ {letters}Deletes all categories and items"
+      - " {letters_black}▎ {error}and restores the default ones"
       - ""
-      - "{error}» Click to reset"
+      - "{error}➥ Click to reset"
     actions:
       - "sandbox:confirm_kitroom_reset_defaults"
 

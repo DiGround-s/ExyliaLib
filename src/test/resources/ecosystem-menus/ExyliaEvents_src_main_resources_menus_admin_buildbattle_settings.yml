@@ -23,92 +23,92 @@ filler:
 
 items:
   theme-vote-duration:
-    slot: 37
+    slot: 19
     material: BOOK
     name: "{info}&lTHEME VOTE TIME"
     lore:
       - ""
-      - " {muted}❙ {letters}Current: {highlight}%theme_vote_duration%s"
-      - " {muted}❙ {letters}Time to vote the building theme"
+      - " {letters_black}▎ {letters}Current: {highlight}%theme_vote_duration%s"
+      - " {letters_black}▎ {letters}Time to vote the building theme"
       - ""
-      - " {muted}❙ {success}Left-Click +5s"
-      - " {muted}❙ {error}Right-Click -5s"
-      - " {muted}❙ {warning}Shift-Click to enter"
+      - " {letters_black}▎ {success}Left-Click +5s"
+      - " {letters_black}▎ {error}Right-Click -5s"
+      - " {letters_black}▎ {warning}Shift-Click to enter"
     actions:
       - "left: events:adjust_setting theme-vote-duration 5"
       - "right: events:adjust_setting theme-vote-duration -5"
       - "shift_left: events:input_setting theme-vote-duration"
 
   theme-options:
-    slot: 38
+    slot: 20
     material: WRITABLE_BOOK
     name: "{info}&lTHEMES PER VOTE"
     lore:
       - ""
-      - " {muted}❙ {letters}Current: {highlight}%theme_options%"
-      - " {muted}❙ {letters}Themes offered each round"
+      - " {letters_black}▎ {letters}Current: {highlight}%theme_options%"
+      - " {letters_black}▎ {letters}Themes offered each round"
       - ""
-      - " {muted}❙ {success}Left-Click +1"
-      - " {muted}❙ {error}Right-Click -1"
-      - " {muted}❙ {warning}Shift-Click to enter"
+      - " {letters_black}▎ {success}Left-Click +1"
+      - " {letters_black}▎ {error}Right-Click -1"
+      - " {letters_black}▎ {warning}Shift-Click to enter"
     actions:
       - "left: events:adjust_setting theme-options 1"
       - "right: events:adjust_setting theme-options -1"
       - "shift_left: events:input_setting theme-options"
 
   build-duration:
-    slot: 39
+    slot: 21
     material: CLOCK
     name: "{info}&lBUILD DURATION"
     lore:
       - ""
-      - " {muted}❙ {letters}Current: {highlight}%build_duration%s"
-      - " {muted}❙ {letters}Time each player has to build"
+      - " {letters_black}▎ {letters}Current: {highlight}%build_duration%s"
+      - " {letters_black}▎ {letters}Time each player has to build"
       - ""
-      - " {muted}❙ {success}Left-Click +30s"
-      - " {muted}❙ {error}Right-Click -30s"
-      - " {muted}❙ {warning}Shift-Click to enter"
+      - " {letters_black}▎ {success}Left-Click +30s"
+      - " {letters_black}▎ {error}Right-Click -30s"
+      - " {letters_black}▎ {warning}Shift-Click to enter"
     actions:
       - "left: events:adjust_setting build-duration 30"
       - "right: events:adjust_setting build-duration -30"
       - "shift_left: events:input_setting build-duration"
 
   vote-duration-per-plot:
-    slot: 40
+    slot: 22
     material: PAPER
     name: "{info}&lVOTE TIME PER PLOT"
     lore:
       - ""
-      - " {muted}❙ {letters}Current: {highlight}%vote_duration_per_plot%s"
-      - " {muted}❙ {letters}Time to rate each plot in-world"
+      - " {letters_black}▎ {letters}Current: {highlight}%vote_duration_per_plot%s"
+      - " {letters_black}▎ {letters}Time to rate each plot in-world"
       - ""
-      - " {muted}❙ {success}Left-Click +5s"
-      - " {muted}❙ {error}Right-Click -5s"
-      - " {muted}❙ {warning}Shift-Click to enter"
+      - " {letters_black}▎ {success}Left-Click +5s"
+      - " {letters_black}▎ {error}Right-Click -5s"
+      - " {letters_black}▎ {warning}Shift-Click to enter"
     actions:
       - "left: events:adjust_setting vote-duration-per-plot 5"
       - "right: events:adjust_setting vote-duration-per-plot -5"
       - "shift_left: events:input_setting vote-duration-per-plot"
 
   results-duration:
-    slot: 41
+    slot: 23
     material: NETHER_STAR
     name: "{info}&lRESULTS DURATION"
     lore:
       - ""
-      - " {muted}❙ {letters}Current: {highlight}%results_duration%s"
-      - " {muted}❙ {letters}Time the podium stays visible"
+      - " {letters_black}▎ {letters}Current: {highlight}%results_duration%s"
+      - " {letters_black}▎ {letters}Time the podium stays visible"
       - ""
-      - " {muted}❙ {success}Left-Click +5s"
-      - " {muted}❙ {error}Right-Click -5s"
-      - " {muted}❙ {warning}Shift-Click to enter"
+      - " {letters_black}▎ {success}Left-Click +5s"
+      - " {letters_black}▎ {error}Right-Click -5s"
+      - " {letters_black}▎ {warning}Shift-Click to enter"
     actions:
       - "left: events:adjust_setting results-duration 5"
       - "right: events:adjust_setting results-duration -5"
       - "shift_left: events:input_setting results-duration"
 
   restore-themes:
-    slot: 42
+    slot: 24
     material: ENCHANTED_BOOK
     name: "{warning}&lRESTORE DEFAULT THEMES"
     lore:

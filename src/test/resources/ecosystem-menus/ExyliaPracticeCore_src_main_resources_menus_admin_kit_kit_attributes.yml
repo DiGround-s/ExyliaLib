@@ -17,109 +17,109 @@ filler:
 
 items:
   max-health:
-    slot: 37
+    slot: 19
     material: "%max_health_material%"
     name: "{highlight}&lMAX HEALTH"
     lore:
       - ""
-      - " {muted}❙ {letters}Value: {info}%max_health%"
-      - " {muted}❙ {muted}Default = 20.0"
+      - " {letters_black}▎ {letters}Value: {info}%max_health%"
+      - " {letters_black}▎ {muted}Default = 20.0"
       - ""
-      - " {muted}❙ {success}Left-Click {letters}to set value"
-      - " {muted}❙ {error}Right-Click {letters}to reset"
+      - " {letters_black}▎ {success}Left-Click {letters}to set value"
+      - " {letters_black}▎ {error}Right-Click {letters}to reset"
     actions:
       - "left: practice:set_kit_attribute max_health"
       - "right: practice:reset_kit_attribute max_health"
 
   attack-damage:
-    slot: 38
+    slot: 20
     material: "%attack_damage_material%"
     name: "{highlight}&lATTACK DAMAGE"
     lore:
       - ""
-      - " {muted}❙ {letters}Value: {info}%attack_damage%"
-      - " {muted}❙ {muted}Default = 2.0"
+      - " {letters_black}▎ {letters}Value: {info}%attack_damage%"
+      - " {letters_black}▎ {muted}Default = 2.0"
       - ""
-      - " {muted}❙ {success}Left-Click {letters}to set value"
-      - " {muted}❙ {error}Right-Click {letters}to reset"
+      - " {letters_black}▎ {success}Left-Click {letters}to set value"
+      - " {letters_black}▎ {error}Right-Click {letters}to reset"
     actions:
       - "left: practice:set_kit_attribute attack_damage"
       - "right: practice:reset_kit_attribute attack_damage"
 
   movement-speed:
-    slot: 39
+    slot: 21
     material: "%movement_speed_material%"
     name: "{highlight}&lMOVEMENT SPEED"
     lore:
       - ""
-      - " {muted}❙ {letters}Value: {info}%movement_speed%"
-      - " {muted}❙ {muted}Default = 0.1"
+      - " {letters_black}▎ {letters}Value: {info}%movement_speed%"
+      - " {letters_black}▎ {muted}Default = 0.1"
       - ""
-      - " {muted}❙ {success}Left-Click {letters}to set value"
-      - " {muted}❙ {error}Right-Click {letters}to reset"
+      - " {letters_black}▎ {success}Left-Click {letters}to set value"
+      - " {letters_black}▎ {error}Right-Click {letters}to reset"
     actions:
       - "left: practice:set_kit_attribute movement_speed"
       - "right: practice:reset_kit_attribute movement_speed"
 
   knockback-resistance:
-    slot: 40
+    slot: 22
     material: "%knockback_resistance_material%"
     name: "{highlight}&lKNOCKBACK RESISTANCE"
     lore:
       - ""
-      - " {muted}❙ {letters}Value: {info}%knockback_resistance%"
-      - " {muted}❙ {muted}Default = 0.0 {muted}| Max = 1.0"
+      - " {letters_black}▎ {letters}Value: {info}%knockback_resistance%"
+      - " {letters_black}▎ {muted}Default = 0.0 {muted}| Max = 1.0"
       - ""
-      - " {muted}❙ {success}Left-Click {letters}to set value"
-      - " {muted}❙ {error}Right-Click {letters}to reset"
+      - " {letters_black}▎ {success}Left-Click {letters}to set value"
+      - " {letters_black}▎ {error}Right-Click {letters}to reset"
     actions:
       - "left: practice:set_kit_attribute knockback_resistance"
       - "right: practice:reset_kit_attribute knockback_resistance"
 
   start-health:
-    slot: 41
+    slot: 28
     material: "%start_health_material%"
     name: "{highlight}&lSTART HEALTH"
     lore:
       - ""
-      - " {muted}❙ {letters}Value: {info}%start_health%"
-      - " {muted}❙ {muted}Capped at max health"
-      - " {muted}❙ {muted}-1 = start at max"
+      - " {letters_black}▎ {letters}Value: {info}%start_health%"
+      - " {letters_black}▎ {muted}Capped at max health"
+      - " {letters_black}▎ {muted}-1 = start at max"
       - ""
-      - " {muted}❙ {success}Left-Click {letters}to set value"
-      - " {muted}❙ {error}Right-Click {letters}to reset"
+      - " {letters_black}▎ {success}Left-Click {letters}to set value"
+      - " {letters_black}▎ {error}Right-Click {letters}to reset"
     actions:
       - "left: practice:set_kit_attribute start_health"
       - "right: practice:reset_kit_attribute start_health"
 
   start-food:
-    slot: 42
+    slot: 29
     material: "%start_food_material%"
     name: "{highlight}&lSTART FOOD LEVEL"
     lore:
       - ""
-      - " {muted}❙ {letters}Value: {info}%start_food%"
-      - " {muted}❙ {muted}Range: 0 — 20"
-      - " {muted}❙ {muted}-1 = start at max"
+      - " {letters_black}▎ {letters}Value: {info}%start_food%"
+      - " {letters_black}▎ {muted}Range: 0 — 20"
+      - " {letters_black}▎ {muted}-1 = start at max"
       - ""
-      - " {muted}❙ {success}Left-Click {letters}to set value"
-      - " {muted}❙ {error}Right-Click {letters}to reset"
+      - " {letters_black}▎ {success}Left-Click {letters}to set value"
+      - " {letters_black}▎ {error}Right-Click {letters}to reset"
     actions:
       - "left: practice:set_kit_attribute start_food"
       - "right: practice:reset_kit_attribute start_food"
 
   start-saturation:
-    slot: 43
+    slot: 30
     material: "%start_saturation_material%"
     name: "{highlight}&lSTART SATURATION"
     lore:
       - ""
-      - " {muted}❙ {letters}Value: {info}%start_saturation%"
-      - " {muted}❙ {muted}Range: 0.0 — 20.0"
-      - " {muted}❙ {muted}-1 = start at max"
+      - " {letters_black}▎ {letters}Value: {info}%start_saturation%"
+      - " {letters_black}▎ {muted}Range: 0.0 — 20.0"
+      - " {letters_black}▎ {muted}-1 = start at max"
       - ""
-      - " {muted}❙ {success}Left-Click {letters}to set value"
-      - " {muted}❙ {error}Right-Click {letters}to reset"
+      - " {letters_black}▎ {success}Left-Click {letters}to set value"
+      - " {letters_black}▎ {error}Right-Click {letters}to reset"
     actions:
       - "left: practice:set_kit_attribute start_saturation"
       - "right: practice:reset_kit_attribute start_saturation"

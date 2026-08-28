@@ -28,103 +28,103 @@ items:
     name: "{info}&lHOW TO SETUP"
     lore:
       - ""
-      - " {muted}❙ {letters}Place {highlight}Emerald Blocks"
-      - " {muted}❙ {letters}around the arena as gem"
-      - " {muted}❙ {letters}spawn markers (kept, not consumed)"
+      - " {letters_black}▎ {letters}Place {highlight}Emerald Blocks"
+      - " {letters_black}▎ {letters}around the arena as gem"
+      - " {letters_black}▎ {letters}spawn markers (kept, not consumed)"
       - ""
-      - " {muted}❙ {letters}A gem drops above each marker"
-      - " {muted}❙ {letters}on the interval below"
+      - " {letters_black}▎ {letters}A gem drops above each marker"
+      - " {letters_black}▎ {letters}on the interval below"
       - ""
-      - " {muted}❙ {letters}Killed players drop their gems"
+      - " {letters_black}▎ {letters}Killed players drop their gems"
       - ""
-      - " {muted}❙ {letters}Reach the gem goal and hold"
-      - " {muted}❙ {letters}the lead to win"
+      - " {letters_black}▎ {letters}Reach the gem goal and hold"
+      - " {letters_black}▎ {letters}the lead to win"
 
   win-gems:
-    slot: 39
+    slot: 19
     material: EMERALD
     name: "{success}&lGEMS TO WIN"
     lore:
       - ""
-      - " {muted}❙ {letters}Current: {highlight}%win_gems% 💎"
+      - " {letters_black}▎ {letters}Current: {highlight}%win_gems% 💎"
       - ""
-      - " {muted}❙ {letters}Gems required to start"
-      - " {muted}❙ {letters}the win countdown"
+      - " {letters_black}▎ {letters}Gems required to start"
+      - " {letters_black}▎ {letters}the win countdown"
       - ""
-      - " {muted}❙ {success}Left-Click +1"
-      - " {muted}❙ {error}Right-Click -1"
-      - " {muted}❙ {warning}Shift-Click to enter"
+      - " {letters_black}▎ {success}Left-Click +1"
+      - " {letters_black}▎ {error}Right-Click -1"
+      - " {letters_black}▎ {warning}Shift-Click to enter"
     actions:
       - "left: events:adjust_setting win-gems 1"
       - "right: events:adjust_setting win-gems -1"
       - "shift_left: events:input_setting win-gems"
 
   win-countdown:
-    slot: 40
+    slot: 20
     material: CLOCK
     name: "{warning}&lWIN COUNTDOWN"
     lore:
       - ""
-      - " {muted}❙ {letters}Current: {highlight}%win_countdown%s"
+      - " {letters_black}▎ {letters}Current: {highlight}%win_countdown%s"
       - ""
-      - " {muted}❙ {letters}Seconds the leader must"
-      - " {muted}❙ {letters}hold the lead to win"
+      - " {letters_black}▎ {letters}Seconds the leader must"
+      - " {letters_black}▎ {letters}hold the lead to win"
       - ""
-      - " {muted}❙ {success}Left-Click +5s"
-      - " {muted}❙ {error}Right-Click -5s"
-      - " {muted}❙ {warning}Shift-Click to enter"
+      - " {letters_black}▎ {success}Left-Click +5s"
+      - " {letters_black}▎ {error}Right-Click -5s"
+      - " {letters_black}▎ {warning}Shift-Click to enter"
     actions:
       - "left: events:adjust_setting win-countdown 5"
       - "right: events:adjust_setting win-countdown -5"
       - "shift_left: events:input_setting win-countdown"
 
   gem-spawn-interval:
-    slot: 41
+    slot: 21
     material: EMERALD_BLOCK
     name: "{info}&lGEM SPAWN INTERVAL"
     lore:
       - ""
-      - " {muted}❙ {letters}Current: {highlight}%gem_spawn_interval%s"
+      - " {letters_black}▎ {letters}Current: {highlight}%gem_spawn_interval%s"
       - ""
-      - " {muted}❙ {letters}Seconds between each"
-      - " {muted}❙ {letters}gem spawn"
+      - " {letters_black}▎ {letters}Seconds between each"
+      - " {letters_black}▎ {letters}gem spawn"
       - ""
-      - " {muted}❙ {success}Left-Click +1s"
-      - " {muted}❙ {error}Right-Click -1s"
-      - " {muted}❙ {warning}Shift-Click to enter"
+      - " {letters_black}▎ {success}Left-Click +1s"
+      - " {letters_black}▎ {error}Right-Click -1s"
+      - " {letters_black}▎ {warning}Shift-Click to enter"
     actions:
       - "left: events:adjust_setting gem-spawn-interval 1"
       - "right: events:adjust_setting gem-spawn-interval -1"
       - "shift_left: events:input_setting gem-spawn-interval"
 
   respawn-delay:
-    slot: 37
+    slot: 22
     material: ENDER_PEARL
     name: "{info}&lRESPAWN TIME"
     lore:
       - ""
-      - " {muted}❙ {letters}Current: {highlight}%respawn_delay%s"
+      - " {letters_black}▎ {letters}Current: {highlight}%respawn_delay%s"
       - ""
-      - " {muted}❙ {success}Left-Click +1s"
-      - " {muted}❙ {error}Right-Click -1s"
-      - " {muted}❙ {warning}Shift-Click to enter"
+      - " {letters_black}▎ {success}Left-Click +1s"
+      - " {letters_black}▎ {error}Right-Click -1s"
+      - " {letters_black}▎ {warning}Shift-Click to enter"
     actions:
       - "left: events:adjust_setting respawn-delay 1"
       - "right: events:adjust_setting respawn-delay -1"
       - "shift_left: events:input_setting respawn-delay"
 
   team-selector:
-    slot: 38
+    slot: 23
     condition: "%has_teams% == true"
     material: "%team_selector_material%"
-    name: "{warning}&lTEAM SELECTOR"
+    name: "%team_selector_color%&lTEAM SELECTOR"
     lore:
       - ""
-      - " {muted}❙ {letters}Current: %team_selector%"
-      - " {muted}❙ {letters}Allow players to choose"
-      - " {muted}❙ {letters}their team in the lobby"
+      - " {letters_black}▎ {letters}Current: %team_selector%"
+      - " {letters_black}▎ {letters}Allow players to choose"
+      - " {letters_black}▎ {letters}their team in the lobby"
       - ""
-      - "{info}» Click to toggle"
+      - "{warning}➥ Click to toggle"
     actions:
       - "events:toggle_team_selector_setting team-selector-enabled"
 

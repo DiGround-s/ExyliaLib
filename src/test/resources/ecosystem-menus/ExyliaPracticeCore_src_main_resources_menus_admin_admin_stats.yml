@@ -1,5 +1,5 @@
 title: "{primary}&lSERVER STATISTICS"
-size: 54
+size: 27
 type: SIMPLE
 refresh:
   mode: ON_CLICK
@@ -17,71 +17,71 @@ filler:
 
 items:
   overview:
-    slot: 37
+    slot: 4
     material: BOOK
     name: "{warning}&lGLOBAL OVERVIEW"
     lore:
       - ""
-      - " {muted}❙ {letters}Total Games: {highlight}%total_games%"
-      - " {muted}❙ {letters}Ranked: {highlight}%ranked_games% {muted}({highlight}%ranked_percent%{muted})"
-      - " {muted}❙ {letters}Casual: {highlight}%casual_games%"
-      - " {muted}❙ {letters}Avg. Duration: {highlight}%avg_duration%"
+      - " {letters_black}▎ {letters}Total Games: {highlight}%total_games%"
+      - " {letters_black}▎ {letters}Ranked: {highlight}%ranked_games% {muted}({highlight}%ranked_percent%{muted})"
+      - " {letters_black}▎ {letters}Casual: {highlight}%casual_games%"
+      - " {letters_black}▎ {letters}Avg. Duration: {highlight}%avg_duration%"
       - ""
-      - " {muted}❙ {letters}Top Kit: {success}%top_kit%"
-      - " {muted}❙ {letters}Top Arena: {success}%top_arena%"
+      - " {letters_black}▎ {letters}Top Kit: {success}%top_kit%"
+      - " {letters_black}▎ {letters}Top Arena: {success}%top_arena%"
       - ""
 
   kit-stats:
-    slot: 38
+    slot: 11
     material: DIAMOND_SWORD
     name: "{info}&lKIT STATISTICS"
     lore:
       - ""
-      - " {muted}❙ {letters}See which kits are"
-      - " {muted}❙ {letters}played the most"
+      - " {letters_black}▎ {letters}See which kits are"
+      - " {letters_black}▎ {letters}played the most"
       - ""
-      - " {muted}❙ {letters}Kits tracked: {highlight}%total_kits_tracked%"
+      - " {letters_black}▎ {letters}Kits tracked: {highlight}%total_kits_tracked%"
       - ""
-      - "{info}» Click to view"
+      - "{warning}➥ Click to view"
     actions:
       - "practice:open_admin_kit_stats"
 
   arena-stats:
-    slot: 39
+    slot: 13
     material: COMPASS
     name: "{info}&lARENA STATISTICS"
     lore:
       - ""
-      - " {muted}❙ {letters}See which arenas are"
-      - " {muted}❙ {letters}used the most"
+      - " {letters_black}▎ {letters}See which arenas are"
+      - " {letters_black}▎ {letters}used the most"
       - ""
-      - " {muted}❙ {letters}Arenas tracked: {highlight}%total_arenas_tracked%"
+      - " {letters_black}▎ {letters}Arenas tracked: {highlight}%total_arenas_tracked%"
       - ""
-      - "{info}» Click to view"
+      - "{warning}➥ Click to view"
     actions:
       - "practice:open_admin_arena_stats"
 
   category-stats:
-    slot: 40
+    slot: 15
     material: BOOKSHELF
     name: "{info}&lCATEGORY STATISTICS"
     lore:
       - ""
-      - " {muted}❙ {letters}See which categories"
-      - " {muted}❙ {letters}are the most popular"
+      - " {letters_black}▎ {letters}See which categories"
+      - " {letters_black}▎ {letters}are the most popular"
       - ""
-      - " {muted}❙ {letters}Categories tracked: {highlight}%total_categories_tracked%"
+      - " {letters_black}▎ {letters}Categories tracked: {highlight}%total_categories_tracked%"
       - ""
-      - "{info}» Click to view"
+      - "{warning}➥ Click to view"
     actions:
       - "practice:open_admin_category_stats"
 
   back:
-    slot: 49
+    slot: 22
     material: 'basehead-eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvMjIzZmI2NzQyOTcxNmIyMWJjNmU4ZTdkNjY5Y2VkZGY2NWIxM2UwNzkwYTVjZTU1YjJlMDc3YjgyZDE5ZTEyNCJ9fX0='
     name: '{error}&lBACK'
     lore:
       - ""
-      - "{info}» Click to go back"
+      - "{warning}➥ Click to go back"
     actions:
       - "practice:open_admin"

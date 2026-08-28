@@ -32,17 +32,17 @@ pagination:
     name: "{warning}&l%entry_material%"
     lore:
       - ""
-      - " {muted}❙ {letters}Weight: {highlight}%entry_percentage%"
-      - " {muted}❙ {letters}Chance: {highlight}%entry_chance%%"
-      - " {muted}❙ {letters}Custom loot: %entry_loot_status%"
-      - " {muted}❙ {letters}Break effects: %entry_effects_status%"
+      - " {letters_black}▎ {letters}Weight: {highlight}%entry_percentage%"
+      - " {letters_black}▎ {letters}Chance: {highlight}%entry_chance%%"
+      - " {letters_black}▎ {letters}Custom loot: %entry_loot_status%"
+      - " {letters_black}▎ {letters}Break effects: %entry_effects_status%"
       - ""
       - " {success}● {info}Left-click {muted}+1 weight"
       - " {error}● {info}Right-click {muted}-1 weight"
-      - " {muted}❙ {highlight}Middle-click {muted}to edit loot table"
-      - " {muted}❙ {highlight}Shift + Left-click {muted}type exact weight"
-      - " {muted}❙ {highlight}Drop {muted}to edit break effects"
-      - " {muted}❙ {error}Shift + Right-click to remove"
+      - " {letters_black}▎ {highlight}Middle-click {muted}to edit loot table"
+      - " {letters_black}▎ {highlight}Shift + Left-click {muted}type exact weight"
+      - " {letters_black}▎ {highlight}Drop {muted}to edit break effects"
+      - " {letters_black}▎ {error}Shift + Right-click to remove"
     actions:
       - "left: survivalcore:mine_composition_adjust %entry_index% 1"
       - "right: survivalcore:mine_composition_adjust %entry_index% -1"
@@ -72,7 +72,7 @@ items:
     name: "{success}&lADD BLOCK"
     lore:
       - ""
-      - " {info}» Click to select a block with the icon picker"
+      - " {warning}➥ Click to select a block with the icon picker"
     actions:
       - "survivalcore:mine_composition_add"
 
@@ -82,6 +82,6 @@ items:
     name: '{error}&lBACK'
     lore:
       - ""
-      - " {info}» Return to mine setup"
+      - " {warning}➥ Return to mine setup"
     actions:
       - "survivalcore:mine_back_to_setup"

@@ -28,13 +28,13 @@ pagination:
     name: "{warning}&l%portal_name%"
     lore:
       - ""
-      - " {muted}❙ {letters}ID: {info}%portal_id%"
-      - " {muted}❙ {letters}Region: %portal_region_status%"
-      - " {muted}❙ {letters}Command: {highlight}%portal_command%"
-      - " {muted}❙ {letters}Teleport: %portal_teleport%"
+      - " {letters_black}▎ {letters}ID: {info}%portal_id%"
+      - " {letters_black}▎ {letters}Region: %portal_region_status%"
+      - " {letters_black}▎ {letters}Command: {highlight}%portal_command%"
+      - " {letters_black}▎ {letters}Teleport: %portal_teleport%"
       - ""
-      - " {muted}❙ {success}Left-Click to edit"
-      - " {muted}❙ {error}Right-Click to delete"
+      - " {letters_black}▎ {success}Left-Click to edit"
+      - " {letters_black}▎ {error}Right-Click to delete"
     actions:
       - "left: practice:portal_edit %portal_id%"
       - "right: practice:portal_confirm_delete %portal_id%"
@@ -64,9 +64,9 @@ items:
     name: "{success}&lCREATE PORTAL"
     lore:
       - ""
-      - " {muted}❙ {letters}Create a new portal region"
+      - " {letters_black}▎ {letters}Create a new portal region"
       - ""
-      - "{info}» Click to create"
+      - "{warning}➥ Click to create"
     actions:
       - "practice:portal_create"
 

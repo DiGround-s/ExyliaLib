@@ -34,11 +34,11 @@ pagination:
     name: "{highlight}&l%pk_name%"
     lore:
       - ""
-      - " {muted}❙ {letters}ID: {info}%pk_id%"
-      - " {muted}❙ {letters}Items: {info}%pk_items%"
-      - " {muted}❙ {letters}Desc: {info}%pk_description%"
+      - " {letters_black}▎ {letters}ID: {info}%pk_id%"
+      - " {letters_black}▎ {letters}Items: {info}%pk_items%"
+      - " {letters_black}▎ {letters}Desc: {info}%pk_description%"
       - ""
-      - "{info}» Click to manage"
+      - "{warning}➥ Click to manage"
     actions:
       - "sandbox:open_predefined_kit_editor %pk_id%"
 
@@ -67,12 +67,12 @@ items:
     name: "{success}&l+ CREATE KIT"
     lore:
       - ""
-      - " {muted}❙ {letters}Name it, then fill it in"
-      - " {muted}❙ {letters}the Kit Creator"
+      - " {letters_black}▎ {letters}Name it, then fill it in"
+      - " {letters_black}▎ {letters}the Kit Creator"
       - ""
-      - " {muted}❙ {letters}Save it with {highlight}/kitsave"
+      - " {letters_black}▎ {letters}Save it with {highlight}/kitsave"
       - ""
-      - "{success}» Click to create"
+      - "{success}➥ Click to create"
     actions:
       - "sandbox:predefined_kit_create"
 

@@ -28,13 +28,13 @@ pagination:
     name: "{warning}&l%pvp_name%"
     lore:
       - ""
-      - " {muted}❙ {letters}ID: {info}%pvp_id%"
-      - " {muted}❙ {letters}Region: %pvp_region_status%"
-      - " {muted}❙ {letters}Kit: {highlight}%pvp_kit%"
-      - " {muted}❙ {letters}Combat tag: {highlight}%pvp_combat_tag%s"
+      - " {letters_black}▎ {letters}ID: {info}%pvp_id%"
+      - " {letters_black}▎ {letters}Region: %pvp_region_status%"
+      - " {letters_black}▎ {letters}Kit: {highlight}%pvp_kit%"
+      - " {letters_black}▎ {letters}Combat tag: {highlight}%pvp_combat_tag%s"
       - ""
-      - " {muted}❙ {success}Left-Click to edit"
-      - " {muted}❙ {error}Right-Click to delete"
+      - " {letters_black}▎ {success}Left-Click to edit"
+      - " {letters_black}▎ {error}Right-Click to delete"
     actions:
       - "left: practice:pvp_edit %pvp_id%"
       - "right: practice:pvp_confirm_delete %pvp_id%"
@@ -64,9 +64,9 @@ items:
     name: "{success}&lCREATE PVP REGION"
     lore:
       - ""
-      - " {muted}❙ {letters}Create a new PvP zone"
+      - " {letters_black}▎ {letters}Create a new PvP zone"
       - ""
-      - "{info}» Click to create"
+      - "{warning}➥ Click to create"
     actions:
       - "practice:pvp_create"
 

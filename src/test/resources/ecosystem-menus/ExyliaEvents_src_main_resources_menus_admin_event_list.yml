@@ -34,13 +34,13 @@ pagination:
     name: "%event_name%"
     lore:
       - ""
-      - " {muted}❙ {letters}ID: {info}%event_id%"
-      - " {muted}❙ {letters}Type: {info}%event_type%"
-      - " {muted}❙ {letters}Based on: {info}%event_config%"
-      - " {muted}❙ {letters}Status: %event_state%"
-      - " {muted}❙ {letters}Players: {info}%event_players%/%event_max%"
+      - " {letters_black}▎ {letters}ID: {info}%event_id%"
+      - " {letters_black}▎ {letters}Type: {info}%event_type%"
+      - " {letters_black}▎ {letters}Based on: {info}%event_config%"
+      - " {letters_black}▎ {letters}Status: %event_state%"
+      - " {letters_black}▎ {letters}Players: {info}%event_players%/%event_max%"
       - ""
-      - "{error}» Click to stop"
+      - "{error}➥ Click to stop"
     actions:
       - "events:confirm_stop_event %event_id%"
 
@@ -50,8 +50,8 @@ pagination:
       material: 'basehead-eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvZGExZDU1YjNmOTg5NDEwYTM0NzUyNjUwZTI0OGM5YjZjMTc4M2E3ZWMyYWEzZmQ3Nzg3YmRjNGQwZTYzN2QzOSJ9fX0='
       name: '{error}&l← PREVIOUS PAGE'
       lore:
-        - ' {muted}❙ {letters}Click to go'
-        - ' {muted}❙ {letters}to the previous page.'
+        - ' {letters_black}▎ {letters}Click to go'
+        - ' {letters_black}▎ {letters}to the previous page.'
         - ''
         - '{info}ℹ Current page: {success}%current_page%&8/{error}%total_pages%'
       actions:
@@ -61,8 +61,8 @@ pagination:
       material: 'basehead-eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvZmE4N2UzZDk2ZTFjZmViOWNjZmIzYmE1M2EyMTdmYWY1MjQ5ZTI4NTUzM2IyNzFhMmZiMjg0YzMwZGJkOTgyOSJ9fX0='
       name: '{success}&lNEXT PAGE →'
       lore:
-        - ' {muted}❙ {letters}Click to go'
-        - ' {muted}❙ {letters}to the next page.'
+        - ' {letters_black}▎ {letters}Click to go'
+        - ' {letters_black}▎ {letters}to the next page.'
         - ''
         - '{info}ℹ Current page: {success}%current_page%&8/{error}%total_pages%'
       actions:

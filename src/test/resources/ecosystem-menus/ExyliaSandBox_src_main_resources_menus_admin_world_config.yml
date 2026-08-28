@@ -28,9 +28,9 @@ items:
     name: "{highlight}&lNAME"
     lore:
       - ""
-      - " {muted}❙ {letters}Current: {info}%world_display_name%"
+      - " {letters_black}▎ {letters}Current: {info}%world_display_name%"
       - ""
-      - "{info}» Click to edit"
+      - "{warning}➥ Click to edit"
     actions:
       - "sandbox:input_world_field name"
 
@@ -40,9 +40,9 @@ items:
     name: "{highlight}&l%world_display_name%"
     lore:
       - ""
-      - " {muted}❙ {letters}ID: {info}%world_id%"
-      - " {muted}❙ {letters}Status: %world_status%"
-      - " {muted}❙ {letters}Players: {info}%world_players%"
+      - " {letters_black}▎ {letters}ID: {info}%world_id%"
+      - " {letters_black}▎ {letters}Status: %world_status%"
+      - " {letters_black}▎ {letters}Players: {info}%world_players%"
     hide_tooltip: false
 
   icon:
@@ -51,77 +51,77 @@ items:
     name: "{highlight}&lICON"
     lore:
       - ""
-      - " {muted}❙ {letters}Current: {info}%world_icon%"
+      - " {letters_black}▎ {letters}Current: {info}%world_icon%"
       - ""
-      - "{info}» Click to change"
+      - "{warning}➥ Click to change"
     actions:
       - "sandbox:input_world_field icon"
 
   biome:
-    slot: 37
+    slot: 19
     material: GRASS_BLOCK
     name: "{info}&lBIOME"
     lore:
       - ""
-      - " {muted}❙ {letters}Current: {info}%world_biome%"
+      - " {letters_black}▎ {letters}Current: {info}%world_biome%"
       - ""
-      - "{info}» Click to edit"
+      - "{warning}➥ Click to edit"
     actions:
       - "sandbox:input_world_field biome"
 
   seed:
-    slot: 38
+    slot: 20
     material: WHEAT_SEEDS
     name: "{info}&lSEED"
     lore:
       - ""
-      - " {muted}❙ {letters}Current: {info}%world_seed%"
+      - " {letters_black}▎ {letters}Current: {info}%world_seed%"
       - ""
-      - " {muted}❙ {success}Left-click to edit"
-      - " {muted}❙ {warning}Shift-click for random"
+      - " {letters_black}▎ {success}Left-click to edit"
+      - " {letters_black}▎ {warning}Shift-click for random"
     actions:
       - "left: sandbox:input_world_field seed"
       - "shift_left: sandbox:random_world_seed"
 
   generation-preset:
-    slot: 39
+    slot: 21
     material: BOOKSHELF
     name: "{secondary}&lGENERATION"
     lore:
       - ""
-      - " {muted}❙ {letters}Preset: {info}%world_gen_preset%"
-      - " {muted}❙ {letters}Affects the next reset"
+      - " {letters_black}▎ {letters}Preset: {info}%world_gen_preset%"
+      - " {letters_black}▎ {letters}Affects the next reset"
       - ""
-      - "{info}» Click to change"
+      - "{warning}➥ Click to change"
     actions:
       - "sandbox:cycle_world_preset"
 
   border:
-    slot: 40
+    slot: 23
     material: GLASS
     name: "{info}&lBORDER"
     lore:
       - ""
-      - " {muted}❙ {letters}Current: {info}%world_border%"
+      - " {letters_black}▎ {letters}Current: {info}%world_border%"
       - ""
-      - " {muted}❙ {success}Left-Click +500"
-      - " {muted}❙ {error}Right-Click -500"
-      - " {muted}❙ {warning}Shift-click to enter"
+      - " {letters_black}▎ {success}Left-Click +500"
+      - " {letters_black}▎ {error}Right-Click -500"
+      - " {letters_black}▎ {warning}Shift-click to enter"
     actions:
       - "left: sandbox:adjust_world_field border 500"
       - "right: sandbox:adjust_world_field border -500"
       - "shift_left: sandbox:input_world_field border"
 
   gamerules:
-    slot: 41
+    slot: 24
     material: COMMAND_BLOCK
     name: "{secondary}&lGAMERULES"
     lore:
       - ""
-      - " {muted}❙ {letters}Difficulty: {info}%world_difficulty%"
-      - " {muted}❙ {letters}Configure world rules"
+      - " {letters_black}▎ {letters}Difficulty: {info}%world_difficulty%"
+      - " {letters_black}▎ {letters}Configure world rules"
       - ""
-      - "{info}» Click to open"
+      - "{warning}➥ Click to open"
     actions:
       - "sandbox:open_world_settings"
 
@@ -135,25 +135,25 @@ items:
       - "sandbox:open_world_list"
 
   teleport:
-    slot: 21
+    slot: 28
     material: ENDER_PEARL
     name: "{warning}&lTELEPORT"
     lore:
       - ""
-      - " {muted}❙ {letters}Teleport to the spawn"
-      - " {muted}❙ {letters}of this world"
+      - " {letters_black}▎ {letters}Teleport to the spawn"
+      - " {letters_black}▎ {letters}of this world"
       - ""
-      - "{info}» Click to teleport"
+      - "{warning}➥ Click to teleport"
     actions:
       - "sandbox:teleport_to_world %world_id%"
 
   save:
-    slot: 42
+    slot: 45
     material: EMERALD
     name: "{success}&lSAVE WORLD"
     lore:
       - ""
-      - "{info}» Click to save"
+      - "{warning}➥ Click to save"
     actions:
       - "sandbox:save_world"
 
@@ -163,20 +163,20 @@ items:
     name: "%world_delete_name%"
     lore:
       - ""
-      - " {muted}❙ {error}Delete this world permanently"
+      - " {letters_black}▎ {error}Delete this world permanently"
       - ""
-      - "{error}» Click to delete"
+      - "{error}➥ Click to delete"
     actions:
       - "sandbox:confirm_delete_world %world_id%"
 
   players:
-    slot: 43
+    slot: 29
     material: PLAYER_HEAD
     name: "{highlight}&lPLAYERS"
     lore:
       - ""
-      - " {muted}❙ {letters}Online: {info}%world_players% players"
+      - " {letters_black}▎ {letters}Online: {info}%world_players% players"
       - ""
-      - "{info}» Click to view"
+      - "{warning}➥ Click to view"
     actions:
       - "sandbox:open_world_players %world_id%"

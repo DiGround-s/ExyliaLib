@@ -28,13 +28,13 @@ pagination:
     name: "{warning}&l%zone_name%"
     lore:
       - ""
-      - " {muted}❙ {letters}Color: {info}%zone_color%"
-      - " {muted}❙ {letters}Points per capture: {highlight}%zone_pts%"
-      - " {muted}❙ {letters}Capture time: {highlight}%zone_capture_time%"
-      - " {muted}❙ {letters}World: {info}%zone_world%"
+      - " {letters_black}▎ {letters}Color: {info}%zone_color%"
+      - " {letters_black}▎ {letters}Points per capture: {highlight}%zone_pts%"
+      - " {letters_black}▎ {letters}Capture time: {highlight}%zone_capture_time%"
+      - " {letters_black}▎ {letters}World: {info}%zone_world%"
       - ""
-      - " {muted}❙ {success}Left-Click to edit"
-      - " {muted}❙ {error}Right-Click to delete"
+      - " {letters_black}▎ {success}Left-Click to edit"
+      - " {letters_black}▎ {error}Right-Click to delete"
     actions:
       - "left: capture:edit_conquest_zone %zone_index%"
       - "right: capture:delete_conquest_zone %zone_index%"
@@ -64,10 +64,10 @@ items:
     name: "{success}&lADD ZONE"
     lore:
       - ""
-      - " {muted}❙ {letters}Total zones: {highlight}%zones_count%"
-      - " {muted}❙ {letters}Select area then configure"
+      - " {letters_black}▎ {letters}Total zones: {highlight}%zones_count%"
+      - " {letters_black}▎ {letters}Select area then configure"
       - ""
-      - "{info}» Click to add"
+      - "{warning}➥ Click to add"
     actions:
       - "capture:add_conquest_zone"
 

@@ -23,96 +23,96 @@ filler:
 
 items:
   worlds:
-    slot: 37
+    slot: 20
     material: GRASS_BLOCK
     name: "{info}&lMANAGE WORLDS"
     lore:
       - ""
-      - " {muted}❙ {letters}View and manage worlds"
-      - " {muted}❙ {letters}Reset, teleport, and configure"
+      - " {letters_black}▎ {letters}View and manage worlds"
+      - " {letters_black}▎ {letters}Reset, teleport, and configure"
       - ""
-      - " {muted}❙ {letters}Total: {highlight}%total_worlds%"
-      - " {muted}❙ {letters}Players: {highlight}%online_players%"
+      - " {letters_black}▎ {letters}Total: {highlight}%total_worlds%"
+      - " {letters_black}▎ {letters}Players: {highlight}%online_players%"
       - ""
-      - "{info}» Click to manage"
+      - "{warning}➥ Click to manage"
     actions:
       - "sandbox:open_world_list"
 
   kitroom:
-    slot: 38
+    slot: 21
     material: CHEST
     name: "{accent}&lKIT ROOM"
     lore:
       - ""
-      - " {muted}❙ {letters}Manage categories"
-      - " {muted}❙ {letters}and Kit Room items"
+      - " {letters_black}▎ {letters}Manage categories"
+      - " {letters_black}▎ {letters}and Kit Room items"
       - ""
-      - "{info}» Click to manage"
+      - "{warning}➥ Click to manage"
     actions:
       - "sandbox:open_kitroom_category_list"
 
   predefined-kits:
-    slot: 39
+    slot: 22
     material: DIAMOND_CHESTPLATE
     name: "{accent}&lPREDEFINED KITS"
     lore:
       - ""
-      - " {muted}❙ {letters}Build kits once, players"
-      - " {muted}❙ {letters}copy them into their slots"
+      - " {letters_black}▎ {letters}Build kits once, players"
+      - " {letters_black}▎ {letters}copy them into their slots"
       - ""
-      - "{info}» Click to manage"
+      - "{warning}➥ Click to manage"
     actions:
       - "sandbox:open_predefined_kit_list"
 
   tp-regions:
-    slot: 40
+    slot: 23
     material: BEACON
     name: "{accent}&lTP REGIONS"
     lore:
       - ""
-      - " {muted}❙ {letters}Manage TP regions"
-      - " {muted}❙ {letters}Players inside are periodically"
-      - " {muted}❙ {letters}teleported to sandbox worlds"
+      - " {letters_black}▎ {letters}Manage TP regions"
+      - " {letters_black}▎ {letters}Players inside are periodically"
+      - " {letters_black}▎ {letters}teleported to sandbox worlds"
       - ""
-      - "{info}» Click to manage"
+      - "{warning}➥ Click to manage"
     actions:
       - "sandbox:open_tp_region_list"
 
   set-lobby:
-    slot: 41
+    slot: 29
     material: RED_BED
     name: "{secondary}&lSET LOBBY"
     lore:
       - ""
-      - " {muted}❙ {letters}Set the main lobby"
-      - " {muted}❙ {letters}at your current position"
+      - " {letters_black}▎ {letters}Set the main lobby"
+      - " {letters_black}▎ {letters}at your current position"
       - ""
-      - "{info}» Click to set"
+      - "{warning}➥ Click to set"
     actions:
       - "sandbox:set_lobby"
 
   set-kit-creator-location:
-    slot: 42
+    slot: 30
     material: CRAFTING_TABLE
     name: "{secondary}&lSET KIT CREATOR"
     lore:
       - ""
-      - " {muted}❙ {letters}Set the Kit Creator location"
-      - " {muted}❙ {letters}at your current position"
+      - " {letters_black}▎ {letters}Set the Kit Creator location"
+      - " {letters_black}▎ {letters}at your current position"
       - ""
-      - "{info}» Click to set"
+      - "{warning}➥ Click to set"
     actions:
       - "sandbox:set_kit_creator_location"
 
   reload:
-    slot: 43
+    slot: 45
     material: REDSTONE
     name: "{error}&lRECARGAR CONFIGS"
     lore:
       - ""
-      - " {muted}❙ {letters}Recarga todas las"
-      - " {muted}❙ {letters}configuraciones del plugin"
+      - " {letters_black}▎ {letters}Recarga todas las"
+      - " {letters_black}▎ {letters}configuraciones del plugin"
       - ""
-      - "{info}» Click para recargar"
+      - "{warning}➥ Click para recargar"
     actions:
       - "sandbox:reload_configs"

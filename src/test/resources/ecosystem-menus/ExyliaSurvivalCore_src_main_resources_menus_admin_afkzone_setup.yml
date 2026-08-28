@@ -24,14 +24,14 @@ items:
   region:
     slot: 19
     material: "%region_material%"
-    name: "{highlight}&lZONE REGION"
+    name: "%region_color%&lZONE REGION"
     lore:
       - ""
-      - " {muted}❙ {letters}Status: %region_status%"
+      - " {letters_black}▎ {letters}Status: %region_status%"
       - ""
-      - " {muted}❙ {letters}Area players must stand in to earn rewards"
+      - " {letters_black}▎ {letters}Area players must stand in to earn rewards"
       - ""
-      - "{info}» Click to select"
+      - "{warning}➥ Click to select"
     actions:
       - "survivalcore:afkzone_set_region"
 
@@ -41,25 +41,25 @@ items:
     name: "{highlight}&lDISPLAY NAME"
     lore:
       - ""
-      - " {muted}❙ {letters}Current: {info}%zone_name%"
+      - " {letters_black}▎ {letters}Current: {info}%zone_name%"
       - ""
-      - " {muted}❙ {letters}Shown in title and bossbar"
+      - " {letters_black}▎ {letters}Shown in title and bossbar"
       - ""
-      - "{info}» Click to set"
+      - "{warning}➥ Click to set"
     actions:
       - "survivalcore:afkzone_edit_name"
 
   interval:
-    slot: 24
+    slot: 21
     material: CLOCK
     name: "{highlight}&lREWARD INTERVAL"
     lore:
       - ""
-      - " {muted}❙ {letters}Current: {highlight}%interval_value%s"
+      - " {letters_black}▎ {letters}Current: {highlight}%interval_value%s"
       - ""
-      - " {muted}❙ {letters}Seconds between reward grants"
+      - " {letters_black}▎ {letters}Seconds between reward grants"
       - ""
-      - "{info}» Click to set"
+      - "{warning}➥ Click to set"
     actions:
       - "survivalcore:afkzone_set_interval"
 
@@ -69,26 +69,26 @@ items:
     name: "{highlight}&lENABLED"
     lore:
       - ""
-      - " {muted}❙ {letters}Status: %enabled_status%"
+      - " {letters_black}▎ {letters}Status: %enabled_status%"
       - ""
-      - " {muted}❙ {letters}Toggle zone on or off"
+      - " {letters_black}▎ {letters}Toggle zone on or off"
       - ""
-      - "{info}» Click to toggle"
+      - "{warning}➥ Click to toggle"
     actions:
       - "survivalcore:afkzone_toggle_enabled"
 
   rewards:
-    slot: 37
+    slot: 22
     material: CHEST
     name: "{highlight}&lREWARDS"
     lore:
       - ""
-      - " {muted}❙ {letters}Count: {highlight}%rewards_count%"
+      - " {letters_black}▎ {letters}Count: {highlight}%rewards_count%"
       - ""
-      - " {muted}❙ {letters}Commands, items & messages granted"
-      - " {muted}❙ {letters}with chance, condition & permission"
+      - " {letters_black}▎ {letters}Commands, items & messages granted"
+      - " {letters_black}▎ {letters}with chance, condition & permission"
       - ""
-      - "{info}» Click to manage"
+      - "{warning}➥ Click to manage"
     actions:
       - "survivalcore:afkzone_open_rewards"
 
@@ -107,8 +107,8 @@ items:
     name: "{error}&lDELETE ZONE"
     lore:
       - ""
-      - " {muted}❙ {letters}Permanently delete this AFK zone"
+      - " {letters_black}▎ {letters}Permanently delete this AFK zone"
       - ""
-      - "{error}» Click to delete"
+      - "{error}➥ Click to delete"
     actions:
       - "survivalcore:afkzone_delete %zone_id%"

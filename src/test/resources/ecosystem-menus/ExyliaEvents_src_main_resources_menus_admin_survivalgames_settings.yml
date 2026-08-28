@@ -28,179 +28,179 @@ items:
     name: "{info}&lHOW TO SETUP"
     lore:
       - ""
-      - " {muted}❙ {letters}Place {highlight}Chests {letters}or"
-      - " {muted}❙ {highlight}Trapped Chests"
-      - " {muted}❙ {letters}around the arena - both are"
-      - " {muted}❙ {letters}auto-filled from the loot table"
+      - " {letters_black}▎ {letters}Place {highlight}Chests {letters}or"
+      - " {letters_black}▎ {highlight}Trapped Chests"
+      - " {letters_black}▎ {letters}around the arena - both are"
+      - " {letters_black}▎ {letters}auto-filled from the loot table"
       - ""
-      - " {muted}❙ {letters}After the zone delay, the safe"
-      - " {muted}❙ {letters}zone shrinks toward its final"
-      - " {muted}❙ {letters}size, damaging players outside it"
+      - " {letters_black}▎ {letters}After the zone delay, the safe"
+      - " {letters_black}▎ {letters}zone shrinks toward its final"
+      - " {letters_black}▎ {letters}size, damaging players outside it"
 
   zone-delay:
-    slot: 21
+    slot: 19
     material: CLOCK
     name: "{warning}&lZONE DELAY"
     lore:
       - ""
-      - " {muted}❙ {letters}Current: {highlight}%zone_delay%s"
+      - " {letters_black}▎ {letters}Current: {highlight}%zone_delay%s"
       - ""
-      - " {muted}❙ {letters}Seconds after grace before"
-      - " {muted}❙ {letters}the zone starts closing"
+      - " {letters_black}▎ {letters}Seconds after grace before"
+      - " {letters_black}▎ {letters}the zone starts closing"
       - ""
-      - " {muted}❙ {success}Left-Click +10s"
-      - " {muted}❙ {error}Right-Click -10s"
-      - " {muted}❙ {warning}Shift-Click to enter"
+      - " {letters_black}▎ {success}Left-Click +10s"
+      - " {letters_black}▎ {error}Right-Click -10s"
+      - " {letters_black}▎ {warning}Shift-Click to enter"
     actions:
       - "left: events:adjust_setting zone-delay 10"
       - "right: events:adjust_setting zone-delay -10"
       - "shift_left: events:input_setting zone-delay"
 
   zone-shrink-rate:
-    slot: 22
+    slot: 20
     material: COMPASS
     name: "{error}&lZONE SHRINK RATE"
     lore:
       - ""
-      - " {muted}❙ {letters}Current: {highlight}%zone_shrink_rate% blocks/s"
+      - " {letters_black}▎ {letters}Current: {highlight}%zone_shrink_rate% blocks/s"
       - ""
-      - " {muted}❙ {letters}How many blocks per second"
-      - " {muted}❙ {letters}the zone shrinks"
+      - " {letters_black}▎ {letters}How many blocks per second"
+      - " {letters_black}▎ {letters}the zone shrinks"
       - ""
-      - " {muted}❙ {success}Left-Click +1"
-      - " {muted}❙ {error}Right-Click -1"
-      - " {muted}❙ {warning}Shift-Click to enter"
+      - " {letters_black}▎ {success}Left-Click +1"
+      - " {letters_black}▎ {error}Right-Click -1"
+      - " {letters_black}▎ {warning}Shift-Click to enter"
     actions:
       - "left: events:adjust_setting zone-shrink-rate 1"
       - "right: events:adjust_setting zone-shrink-rate -1"
       - "shift_left: events:input_setting zone-shrink-rate"
 
   zone-final-size:
-    slot: 23
+    slot: 21
     material: TARGET
     name: "{info}&lZONE FINAL SIZE"
     lore:
       - ""
-      - " {muted}❙ {letters}Current: {highlight}%zone_final_size% blocks"
+      - " {letters_black}▎ {letters}Current: {highlight}%zone_final_size% blocks"
       - ""
-      - " {muted}❙ {letters}Minimum zone radius"
-      - " {muted}❙ {letters}once fully closed"
+      - " {letters_black}▎ {letters}Minimum zone radius"
+      - " {letters_black}▎ {letters}once fully closed"
       - ""
-      - " {muted}❙ {success}Left-Click +5"
-      - " {muted}❙ {error}Right-Click -5"
-      - " {muted}❙ {warning}Shift-Click to enter"
+      - " {letters_black}▎ {success}Left-Click +5"
+      - " {letters_black}▎ {error}Right-Click -5"
+      - " {letters_black}▎ {warning}Shift-Click to enter"
     actions:
       - "left: events:adjust_setting zone-final-size 5"
       - "right: events:adjust_setting zone-final-size -5"
       - "shift_left: events:input_setting zone-final-size"
 
   zone-damage:
-    slot: 24
+    slot: 22
     material: NETHER_STAR
     name: "{error}&lZONE DAMAGE"
     lore:
       - ""
-      - " {muted}❙ {letters}Current: {highlight}%zone_damage% ❤/s"
+      - " {letters_black}▎ {letters}Current: {highlight}%zone_damage% ❤/s"
       - ""
-      - " {muted}❙ {letters}Damage per second dealt"
-      - " {muted}❙ {letters}outside the zone"
+      - " {letters_black}▎ {letters}Damage per second dealt"
+      - " {letters_black}▎ {letters}outside the zone"
       - ""
-      - " {muted}❙ {success}Left-Click +1"
-      - " {muted}❙ {error}Right-Click -1"
-      - " {muted}❙ {warning}Shift-Click to enter"
+      - " {letters_black}▎ {success}Left-Click +1"
+      - " {letters_black}▎ {error}Right-Click -1"
+      - " {letters_black}▎ {warning}Shift-Click to enter"
     actions:
       - "left: events:adjust_setting zone-damage 1"
       - "right: events:adjust_setting zone-damage -1"
       - "shift_left: events:input_setting zone-damage"
 
   chest-refill-interval:
-    slot: 25
+    slot: 23
     material: CLOCK
     name: "{warning}&lCHEST REFILL INTERVAL"
     lore:
       - ""
-      - " {muted}❙ {letters}Current: {highlight}%chest_refill_interval%s"
+      - " {letters_black}▎ {letters}Current: {highlight}%chest_refill_interval%s"
       - ""
-      - " {muted}❙ {letters}Seconds between each"
-      - " {muted}❙ {letters}chest refill cycle"
+      - " {letters_black}▎ {letters}Seconds between each"
+      - " {letters_black}▎ {letters}chest refill cycle"
       - ""
-      - " {muted}❙ {success}Left-Click +10s"
-      - " {muted}❙ {error}Right-Click -10s"
-      - " {muted}❙ {warning}Shift-Click to enter"
+      - " {letters_black}▎ {success}Left-Click +10s"
+      - " {letters_black}▎ {error}Right-Click -10s"
+      - " {letters_black}▎ {warning}Shift-Click to enter"
     actions:
       - "left: events:adjust_setting chest-refill-interval 10"
       - "right: events:adjust_setting chest-refill-interval -10"
       - "shift_left: events:input_setting chest-refill-interval"
 
   min-items-per-chest:
-    slot: 28
+    slot: 24
     material: CHEST
     name: "{info}&lMIN ITEMS PER CHEST"
     lore:
       - ""
-      - " {muted}❙ {letters}Current: {highlight}%min_items_per_chest%"
+      - " {letters_black}▎ {letters}Current: {highlight}%min_items_per_chest%"
       - ""
-      - " {muted}❙ {letters}Minimum items placed"
-      - " {muted}❙ {letters}in each chest on fill"
+      - " {letters_black}▎ {letters}Minimum items placed"
+      - " {letters_black}▎ {letters}in each chest on fill"
       - ""
-      - " {muted}❙ {success}Left-Click +1"
-      - " {muted}❙ {error}Right-Click -1"
-      - " {muted}❙ {warning}Shift-Click to enter"
+      - " {letters_black}▎ {success}Left-Click +1"
+      - " {letters_black}▎ {error}Right-Click -1"
+      - " {letters_black}▎ {warning}Shift-Click to enter"
     actions:
       - "left: events:adjust_setting min-items-per-chest 1"
       - "right: events:adjust_setting min-items-per-chest -1"
       - "shift_left: events:input_setting min-items-per-chest"
 
   max-items-per-chest:
-    slot: 29
+    slot: 25
     material: ENDER_CHEST
     name: "{warning}&lMAX ITEMS PER CHEST"
     lore:
       - ""
-      - " {muted}❙ {letters}Current: {highlight}%max_items_per_chest%"
+      - " {letters_black}▎ {letters}Current: {highlight}%max_items_per_chest%"
       - ""
-      - " {muted}❙ {letters}Maximum items placed"
-      - " {muted}❙ {letters}in each chest on fill"
+      - " {letters_black}▎ {letters}Maximum items placed"
+      - " {letters_black}▎ {letters}in each chest on fill"
       - ""
-      - " {muted}❙ {success}Left-Click +1"
-      - " {muted}❙ {error}Right-Click -1"
-      - " {muted}❙ {warning}Shift-Click to enter"
+      - " {letters_black}▎ {success}Left-Click +1"
+      - " {letters_black}▎ {error}Right-Click -1"
+      - " {letters_black}▎ {warning}Shift-Click to enter"
     actions:
       - "left: events:adjust_setting max-items-per-chest 1"
       - "right: events:adjust_setting max-items-per-chest -1"
       - "shift_left: events:input_setting max-items-per-chest"
 
   grace-period:
-    slot: 20
+    slot: 28
     material: SHIELD
     name: "{info}&lGRACE PERIOD"
     lore:
       - ""
-      - " {muted}❙ {letters}Current: {highlight}%grace_period%s"
+      - " {letters_black}▎ {letters}Current: {highlight}%grace_period%s"
       - ""
-      - " {muted}❙ {letters}Seconds of PvP protection"
-      - " {muted}❙ {letters}at the start of the game"
-      - " {muted}❙ {letters}(no PvP, no chest access)"
+      - " {letters_black}▎ {letters}Seconds of PvP protection"
+      - " {letters_black}▎ {letters}at the start of the game"
+      - " {letters_black}▎ {letters}(no PvP, no chest access)"
       - ""
-      - " {muted}❙ {success}Left-Click +5s"
-      - " {muted}❙ {error}Right-Click -5s"
-      - " {muted}❙ {warning}Shift-Click to enter"
+      - " {letters_black}▎ {success}Left-Click +5s"
+      - " {letters_black}▎ {error}Right-Click -5s"
+      - " {letters_black}▎ {warning}Shift-Click to enter"
     actions:
       - "left: events:adjust_setting grace-period 5"
       - "right: events:adjust_setting grace-period -5"
       - "shift_left: events:input_setting grace-period"
 
   min-players:
-    slot: 19
+    slot: 29
     material: PLAYER_HEAD
     name: "{info}&lMIN PLAYERS"
     lore:
       - ""
-      - " {muted}❙ {letters}Current: {highlight}%min_players%"
+      - " {letters_black}▎ {letters}Current: {highlight}%min_players%"
       - ""
-      - " {muted}❙ {success}Left-Click +1"
-      - " {muted}❙ {error}Right-Click -1"
-      - " {muted}❙ {warning}Shift-Click to enter"
+      - " {letters_black}▎ {success}Left-Click +1"
+      - " {letters_black}▎ {error}Right-Click -1"
+      - " {letters_black}▎ {warning}Shift-Click to enter"
     actions:
       - "left: events:adjust_setting min-players 1"
       - "right: events:adjust_setting min-players -1"
@@ -212,10 +212,10 @@ items:
     name: "{warning}&lLOOT TABLE"
     lore:
       - ""
-      - " {muted}❙ {letters}Entries: {highlight}%loot_count%"
-      - " {muted}❙ {letters}Configure chest loot drops"
+      - " {letters_black}▎ {letters}Entries: {highlight}%loot_count%"
+      - " {letters_black}▎ {letters}Configure chest loot drops"
       - ""
-      - "{info}» Click to manage"
+      - "{warning}➥ Click to manage"
     actions:
       - "events:open_loot_table"
 

@@ -23,93 +23,93 @@ filler:
 
 items:
   block-break:
-    slot: 30
+    slot: 11
     material: "%block_break_material%"
-    name: "{highlight}&lBLOCK BREAK"
+    name: "%block_break_color%&lBLOCK BREAK"
     lore:
       - ""
-      - " {muted}❙ {letters}Status: %block_break%"
+      - " {letters_black}▎ {letters}Status: %block_break%"
       - ""
-      - "{info}» Click to toggle"
+      - "{warning}➥ Click to toggle"
     actions:
       - "ffa:toggle_rule block_break"
 
   block-place:
-    slot: 31
+    slot: 10
     material: "%block_place_material%"
-    name: "{highlight}&lBLOCK PLACE"
+    name: "%block_place_color%&lBLOCK PLACE"
     lore:
       - ""
-      - " {muted}❙ {letters}Status: %block_place%"
+      - " {letters_black}▎ {letters}Status: %block_place%"
       - ""
-      - "{info}» Click to toggle"
+      - "{warning}➥ Click to toggle"
     actions:
       - "ffa:toggle_rule block_place"
 
   pvp:
     slot: 28
     material: "%pvp_material%"
-    name: "{highlight}&lPVP"
+    name: "%pvp_color%&lPVP"
     lore:
       - ""
-      - " {muted}❙ {letters}Status: %pvp%"
+      - " {letters_black}▎ {letters}Status: %pvp%"
       - ""
-      - "{info}» Click to toggle"
+      - "{warning}➥ Click to toggle"
     actions:
       - "ffa:toggle_rule pvp"
 
   interact:
-    slot: 32
+    slot: 12
     material: "%interact_material%"
-    name: "{highlight}&lINTERACT"
+    name: "%interact_color%&lINTERACT"
     lore:
       - ""
-      - " {muted}❙ {letters}Status: %interact%"
-      - " {muted}❙ {letters}Buttons, levers, chests..."
+      - " {letters_black}▎ {letters}Status: %interact%"
+      - " {letters_black}▎ {letters}Buttons, levers, chests..."
       - ""
-      - "{info}» Click to toggle"
+      - "{warning}➥ Click to toggle"
     actions:
       - "ffa:toggle_rule interact"
 
   player-build-only:
-    slot: 33
+    slot: 13
     material: "%player_build_only_material%"
-    name: "{warning}&lPLAYER BUILD ONLY"
+    name: "%player_build_only_color%&lPLAYER BUILD ONLY"
     lore:
       - ""
-      - " {muted}❙ {letters}Status: %player_build_only%"
-      - " {muted}❙ {letters}Only break player-placed blocks"
+      - " {letters_black}▎ {letters}Status: %player_build_only%"
+      - " {letters_black}▎ {letters}Only break player-placed blocks"
       - ""
-      - "{info}» Click to toggle"
+      - "{warning}➥ Click to toggle"
     actions:
       - "ffa:toggle_rule player_build_only"
 
   temporary-blocks:
-    slot: 20
+    slot: 14
     material: "%temporary_blocks_material%"
-    name: "{warning}&lTEMPORARY BLOCKS"
+    name: "%temporary_blocks_color%&lTEMPORARY BLOCKS"
     lore:
       - ""
-      - " {muted}❙ {letters}Status: %temporary_blocks%"
-      - " {muted}❙ {letters}Placed blocks disappear after:"
-      - " {muted}❙ {highlight}%temp_seconds%s"
+      - " {letters_black}▎ {letters}Status: %temporary_blocks%"
+      - " {letters_black}▎ {letters}Placed blocks disappear after:"
+      - " {letters_black}▎ {highlight}%temp_seconds%s"
       - ""
-      - "{info}» Click to toggle"
+      - "{warning}➥ Click to toggle"
     actions:
       - "ffa:toggle_rule temporary_blocks"
 
   temp-seconds:
-    slot: 21
+    slot: 15
     material: CLOCK
     name: "{info}&lTEMPORARY BLOCK TIME"
     lore:
       - ""
-      - " {muted}❙ {letters}Current: {highlight}%temp_seconds%s"
+      - " {letters_black}▎ {letters}Current: {highlight}%temp_seconds%s"
       - ""
-      - " {muted}❙ {success}Left-Click +1s"
-      - " {muted}❙ {error}Right-Click -1s"
-      - " {muted}❙ {warning}Shift-Click +5s"
-      - " {muted}❙ {error}Shift-Right -5s"
+      - " {letters_black}▎ {success}Left-Click +1s"
+      - " {letters_black}▎ {error}Right-Click -1s"
+      - " {letters_black}▎ {warning}Shift-Click +5s"
+      - " {letters_black}▎ {error}Shift-Right -5s"
     actions:
       - "left: ffa:adjust_rule_temp_seconds 1"
       - "right: ffa:adjust_rule_temp_seconds -1"
@@ -117,106 +117,106 @@ items:
       - "shift_right: ffa:adjust_rule_temp_seconds -5"
 
   re-give-blocks:
-    slot: 34
+    slot: 16
     material: "%re_give_blocks_material%"
-    name: "{warning}&lRE-GIVE BLOCKS"
+    name: "%re_give_blocks_color%&lRE-GIVE BLOCKS"
     lore:
       - ""
-      - " {muted}❙ {letters}Status: %re_give_blocks%"
-      - " {muted}❙ {letters}Return temp blocks to inventory"
-      - " {muted}❙ {muted}Requires TEMPORARY_BLOCKS active"
+      - " {letters_black}▎ {letters}Status: %re_give_blocks%"
+      - " {letters_black}▎ {letters}Return temp blocks to inventory"
+      - " {letters_black}▎ {muted}Requires TEMPORARY_BLOCKS active"
       - ""
-      - "{info}» Click to toggle"
+      - "{warning}➥ Click to toggle"
     actions:
       - "ffa:toggle_rule re_give_blocks"
 
   drop-items-on-death:
-    slot: 24
+    slot: 21
     material: "%drop_items_on_death_material%"
-    name: "{highlight}&lDROP ITEMS ON DEATH"
+    name: "%drop_items_on_death_color%&lDROP ITEMS ON DEATH"
     lore:
       - ""
-      - " {muted}❙ {letters}Status: %drop_items_on_death%"
-      - " {muted}❙ {letters}Drop inventory items on death"
+      - " {letters_black}▎ {letters}Status: %drop_items_on_death%"
+      - " {letters_black}▎ {letters}Drop inventory items on death"
       - ""
-      - "{info}» Click to toggle"
+      - "{warning}➥ Click to toggle"
     actions:
       - "ffa:toggle_rule drop_items_on_death"
 
   item-drop:
-    slot: 22
+    slot: 19
     material: "%item_drop_material%"
-    name: "{highlight}&lITEM DROP"
+    name: "%item_drop_color%&lITEM DROP"
     lore:
       - ""
-      - " {muted}❙ {letters}Status: %item_drop%"
+      - " {letters_black}▎ {letters}Status: %item_drop%"
       - ""
-      - "{info}» Click to toggle"
+      - "{warning}➥ Click to toggle"
     actions:
       - "ffa:toggle_rule item_drop"
 
   item-pickup:
-    slot: 23
+    slot: 20
     material: "%item_pickup_material%"
-    name: "{highlight}&lITEM PICKUP"
+    name: "%item_pickup_color%&lITEM PICKUP"
     lore:
       - ""
-      - " {muted}❙ {letters}Status: %item_pickup%"
+      - " {letters_black}▎ {letters}Status: %item_pickup%"
       - ""
-      - "{info}» Click to toggle"
+      - "{warning}➥ Click to toggle"
     actions:
       - "ffa:toggle_rule item_pickup"
 
   fall-damage:
     slot: 29
     material: "%fall_damage_material%"
-    name: "{highlight}&lFALL DAMAGE"
+    name: "%fall_damage_color%&lFALL DAMAGE"
     lore:
       - ""
-      - " {muted}❙ {letters}Status: %fall_damage%"
+      - " {letters_black}▎ {letters}Status: %fall_damage%"
       - ""
-      - "{info}» Click to toggle"
+      - "{warning}➥ Click to toggle"
     actions:
       - "ffa:toggle_rule fall_damage"
 
   health-regen:
-    slot: 19
+    slot: 30
     material: "%health_regen_material%"
-    name: "{highlight}&lHEALTH REGENERATION"
+    name: "%health_regen_color%&lHEALTH REGENERATION"
     lore:
       - ""
-      - " {muted}❙ {letters}Status: %health_regen%"
-      - " {muted}❙ {letters}Disable for UHC mode"
+      - " {letters_black}▎ {letters}Status: %health_regen%"
+      - " {letters_black}▎ {letters}Disable for UHC mode"
       - ""
-      - "{info}» Click to toggle"
+      - "{warning}➥ Click to toggle"
     actions:
       - "ffa:toggle_rule health_regen"
 
   food-decrease:
-    slot: 38
+    slot: 31
     material: "%food_decrease_material%"
-    name: "{highlight}&lFOOD DECREASE"
+    name: "%food_decrease_color%&lFOOD DECREASE"
     lore:
       - ""
-      - " {muted}❙ {letters}Status: %food_decrease%"
+      - " {letters_black}▎ {letters}Status: %food_decrease%"
       - ""
-      - "{info}» Click to toggle"
+      - "{warning}➥ Click to toggle"
     actions:
       - "ffa:toggle_rule food_decrease"
 
   ender-pearl-cooldown:
-    slot: 25
+    slot: 23
     material: ENDER_PEARL
     name: "{info}&lENDER PEARL COOLDOWN"
     lore:
       - ""
-      - " {muted}❙ {letters}Current: {highlight}%ender_pearl_cooldown%"
-      - " {muted}❙ {letters}0 = no cooldown"
+      - " {letters_black}▎ {letters}Current: {highlight}%ender_pearl_cooldown%"
+      - " {letters_black}▎ {letters}0 = no cooldown"
       - ""
-      - " {muted}❙ {success}Left-Click +1s"
-      - " {muted}❙ {error}Right-Click -1s"
-      - " {muted}❙ {warning}Shift-Click +5s"
-      - " {muted}❙ {error}Shift-Right -5s"
+      - " {letters_black}▎ {success}Left-Click +1s"
+      - " {letters_black}▎ {error}Right-Click -1s"
+      - " {letters_black}▎ {warning}Shift-Click +5s"
+      - " {letters_black}▎ {error}Shift-Right -5s"
     actions:
       - "left: ffa:adjust_rule_ender_pearl 1"
       - "right: ffa:adjust_rule_ender_pearl -1"
@@ -224,19 +224,19 @@ items:
       - "shift_right: ffa:adjust_rule_ender_pearl -5"
 
   golden-apple-cooldown:
-    slot: 37
+    slot: 24
     material: GOLDEN_APPLE
     name: "{info}&lGOLDEN APPLE COOLDOWN"
     lore:
       - ""
-      - " {muted}❙ {letters}Current: {highlight}%golden_apple_cooldown%"
-      - " {muted}❙ {letters}0 = no cooldown"
-      - " {muted}❙ {letters}Applies to Enchanted Golden Apples too"
+      - " {letters_black}▎ {letters}Current: {highlight}%golden_apple_cooldown%"
+      - " {letters_black}▎ {letters}0 = no cooldown"
+      - " {letters_black}▎ {letters}Applies to Enchanted Golden Apples too"
       - ""
-      - " {muted}❙ {success}Left-Click +1s"
-      - " {muted}❙ {error}Right-Click -1s"
-      - " {muted}❙ {warning}Shift-Click +5s"
-      - " {muted}❙ {error}Shift-Right -5s"
+      - " {letters_black}▎ {success}Left-Click +1s"
+      - " {letters_black}▎ {error}Right-Click -1s"
+      - " {letters_black}▎ {warning}Shift-Click +5s"
+      - " {letters_black}▎ {error}Shift-Right -5s"
     actions:
       - "left: ffa:adjust_rule_golden_apple 1"
       - "right: ffa:adjust_rule_golden_apple -1"
@@ -244,72 +244,72 @@ items:
       - "shift_right: ffa:adjust_rule_golden_apple -5"
 
   clear-effects-on-kill:
-    slot: 53
-    material: 'basehead-eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvYmUwZmQxMDE5OWU4ZTRmY2RhYmNhZTRmODVjODU5MTgxMjdhN2M1NTUzYWQyMzVmMDFjNTZkMThiYjk0NzBkMyJ9fX0='
-    name: "{highlight}&lCLEAR EFFECTS ON KILL"
+    slot: 34
+    material: "%clear_effects_on_kill_material%"
+    name: "%clear_effects_on_kill_color%&lCLEAR EFFECTS ON KILL"
     lore:
       - ""
-      - " {muted}❙ {letters}Status: %clear_effects_on_kill%"
-      - " {muted}❙ {letters}Remove potion effects on kill"
+      - " {letters_black}▎ {letters}Status: %clear_effects_on_kill%"
+      - " {letters_black}▎ {letters}Remove potion effects on kill"
       - ""
-      - "{info}» Click to toggle"
+      - "{warning}➥ Click to toggle"
     actions:
       - "ffa:toggle_rule clear_effects_on_kill"
 
   heal-on-kill:
-    slot: 39
+    slot: 33
     material: "%heal_on_kill_material%"
-    name: "{highlight}&lHEAL ON KILL"
+    name: "%heal_on_kill_color%&lHEAL ON KILL"
     lore:
       - ""
-      - " {muted}❙ {letters}Status: %heal_on_kill%"
-      - " {muted}❙ {letters}Restore health and food on kill"
+      - " {letters_black}▎ {letters}Status: %heal_on_kill%"
+      - " {letters_black}▎ {letters}Restore health and food on kill"
       - ""
-      - "{info}» Click to toggle"
+      - "{warning}➥ Click to toggle"
     actions:
       - "ffa:toggle_rule heal_on_kill"
 
   anti-free-hit:
-    slot: 40
+    slot: 37
     material: "%anti_free_hit_material%"
-    name: "{highlight}&lANTI FREE-HIT"
+    name: "%anti_free_hit_color%&lANTI FREE-HIT"
     lore:
       - ""
-      - " {muted}❙ {letters}Status: %anti_free_hit%"
-      - " {muted}❙ {letters}Prevents 2v1 and gang attacks"
-      - " {muted}❙ {letters}Links players after consecutive hits"
+      - " {letters_black}▎ {letters}Status: %anti_free_hit%"
+      - " {letters_black}▎ {letters}Prevents 2v1 and gang attacks"
+      - " {letters_black}▎ {letters}Links players after consecutive hits"
       - ""
-      - "{info}» Click to toggle"
+      - "{warning}➥ Click to toggle"
     actions:
       - "ffa:toggle_rule anti_free_hit"
 
   anti-freehit-hits:
-    slot: 41
+    slot: 38
     material: IRON_SWORD
     name: "{info}&lHITS TO LINK"
     lore:
       - ""
-      - " {muted}❙ {letters}Current: {highlight}%anti_freehit_hits% hits"
-      - " {muted}❙ {letters}Consecutive hits before linking players"
+      - " {letters_black}▎ {letters}Current: {highlight}%anti_freehit_hits% hits"
+      - " {letters_black}▎ {letters}Consecutive hits before linking players"
       - ""
-      - " {muted}❙ {success}Left-Click +1"
-      - " {muted}❙ {error}Right-Click -1"
+      - " {letters_black}▎ {success}Left-Click +1"
+      - " {letters_black}▎ {error}Right-Click -1"
     actions:
       - "left: ffa:adjust_rule_anti_freehit_hits 1"
       - "right: ffa:adjust_rule_anti_freehit_hits -1"
 
   anti-freehit-isolate:
-    slot: 42
+    slot: 39
     material: "%anti_freehit_isolate_material%"
-    name: "{highlight}&lISOLATE LINKED PLAYERS"
+    name: "%anti_freehit_isolate_color%&lISOLATE LINKED PLAYERS"
     lore:
       - ""
-      - " {muted}❙ {letters}Status: %anti_freehit_isolate%"
-      - " {muted}❙ {letters}Hides linked players from everyone else"
-      - " {muted}❙ {letters}Focused 1v1 while the link lasts"
-      - " {muted}❙ {muted}Requires ANTI FREE-HIT active"
+      - " {letters_black}▎ {letters}Status: %anti_freehit_isolate%"
+      - " {letters_black}▎ {letters}Hides linked players from everyone else"
+      - " {letters_black}▎ {letters}Focused 1v1 while the link lasts"
+      - " {letters_black}▎ {muted}Requires ANTI FREE-HIT active"
       - ""
-      - "{info}» Click to toggle"
+      - "{warning}➥ Click to toggle"
     actions:
       - "ffa:toggle_rule anti_freehit_isolate"
 

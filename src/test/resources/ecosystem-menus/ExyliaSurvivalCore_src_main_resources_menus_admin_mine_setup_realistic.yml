@@ -27,9 +27,9 @@ items:
     name: "{highlight}&lDISPLAY NAME"
     lore:
       - ""
-      - " {muted}❙ {letters}Current: {info}%mine_name%"
+      - " {letters_black}▎ {letters}Current: {info}%mine_name%"
       - ""
-      - "{info}» Click to change"
+      - "{warning}➥ Click to change"
     actions:
       - "survivalcore:mine_edit_name"
 
@@ -39,24 +39,24 @@ items:
     name: "{highlight}&lENABLED"
     lore:
       - ""
-      - " {muted}❙ {letters}Status: %enabled_status%"
+      - " {letters_black}▎ {letters}Status: %enabled_status%"
       - ""
-      - "{info}» Click to toggle"
+      - "{warning}➥ Click to toggle"
     actions:
       - "survivalcore:mine_toggle_enabled"
 
   region:
     slot: 19
     material: "%region_material%"
-    name: "{highlight}&lMINE AREA"
+    name: "%region_color%&lMINE AREA"
     lore:
       - ""
-      - " {muted}❙ {letters}Status: %region_status%"
+      - " {letters_black}▎ {letters}Status: %region_status%"
       - ""
-      - " {muted}❙ {letters}Select the area where configured"
-      - " {muted}❙ {letters}realistic blocks will regenerate"
+      - " {letters_black}▎ {letters}Select the area where configured"
+      - " {letters_black}▎ {letters}realistic blocks will regenerate"
       - ""
-      - "{info}» Click to select with wand"
+      - "{warning}➥ Click to select with wand"
     actions:
       - "survivalcore:mine_set_region"
 
@@ -66,82 +66,82 @@ items:
     name: "{highlight}&lACCESS PERMISSION"
     lore:
       - ""
-      - " {muted}❙ {letters}Current: {info}%permission_value%"
+      - " {letters_black}▎ {letters}Current: {info}%permission_value%"
       - ""
-      - " {muted}❙ {letters}Leave empty to allow everyone"
+      - " {letters_black}▎ {letters}Leave empty to allow everyone"
       - ""
-      - "{info}» Click to set"
-      - "{error}» Shift-Click to clear"
+      - "{warning}➥ Click to set"
+      - "{error}➥ Shift-Click to clear"
     actions:
       - "left: survivalcore:mine_set_permission"
       - "shift_left: survivalcore:mine_clear_permission"
 
   levels:
-    slot: 37
+    slot: 20
     material: DIAMOND_PICKAXE
     name: "{highlight}&lREGEN LEVELS"
     lore:
       - ""
-      - " {muted}❙ {letters}Configured: {highlight}%levels_count%"
+      - " {letters_black}▎ {letters}Configured: {highlight}%levels_count%"
       - ""
-      - " {muted}❙ {letters}Add each block material manually."
-      - " {muted}❙ {letters}Configure regen, degradation and loot"
-      - " {muted}❙ {letters}independently for every level."
+      - " {letters_black}▎ {letters}Add each block material manually."
+      - " {letters_black}▎ {letters}Configure regen, degradation and loot"
+      - " {letters_black}▎ {letters}independently for every level."
       - ""
-      - "{info}» Click to manage and add"
+      - "{warning}➥ Click to manage and add"
     actions:
       - "survivalcore:mine_open_levels"
 
   break-effects:
-    slot: 38
+    slot: 21
     material: NOTE_BLOCK
     name: "{highlight}&lBREAK EFFECTS"
     lore:
       - ""
-      - " {muted}❙ {letters}Configured: %break_effects_status%"
+      - " {letters_black}▎ {letters}Configured: %break_effects_status%"
       - ""
-      - " {muted}❙ {letters}Sounds, particles, titles and more"
-      - " {muted}❙ {letters}played when any block of this mine"
-      - " {muted}❙ {letters}is mined."
+      - " {letters_black}▎ {letters}Sounds, particles, titles and more"
+      - " {letters_black}▎ {letters}played when any block of this mine"
+      - " {letters_black}▎ {letters}is mined."
       - ""
-      - " {muted}❙ {letters}A level with its own effects"
-      - " {muted}❙ {warning}overrides {letters}these."
+      - " {letters_black}▎ {letters}A level with its own effects"
+      - " {letters_black}▎ {warning}overrides {letters}these."
       - ""
-      - "{info}» Click to manage"
+      - "{warning}➥ Click to manage"
     actions:
       - "survivalcore:mine_open_effects"
 
   auto-pickup:
-    slot: 39
+    slot: 23
     material: "%auto_pickup_material%"
-    name: "{highlight}&lAUTO-PICKUP"
+    name: "%auto_pickup_color%&lAUTO-PICKUP"
     lore:
       - ""
-      - " {muted}❙ {letters}Status: %auto_pickup_status%"
+      - " {letters_black}▎ {letters}Status: %auto_pickup_status%"
       - ""
-      - " {muted}❙ {letters}Custom loot goes straight into the"
-      - " {muted}❙ {letters}player's inventory instead of"
-      - " {muted}❙ {letters}dropping on the ground"
-      - " {muted}❙ {muted}(overflow still drops normally)"
+      - " {letters_black}▎ {letters}Custom loot goes straight into the"
+      - " {letters_black}▎ {letters}player's inventory instead of"
+      - " {letters_black}▎ {letters}dropping on the ground"
+      - " {letters_black}▎ {muted}(overflow still drops normally)"
       - ""
-      - "{info}» Click to toggle"
+      - "{warning}➥ Click to toggle"
     actions:
       - "survivalcore:mine_toggle_auto_pickup"
 
   restrict-breaking:
-    slot: 40
+    slot: 24
     material: "%restrict_breaking_material%"
-    name: "{highlight}&lRESTRICT BREAKING"
+    name: "%restrict_breaking_color%&lRESTRICT BREAKING"
     lore:
       - ""
-      - " {muted}❙ {letters}Status: %restrict_breaking_status%"
+      - " {letters_black}▎ {letters}Status: %restrict_breaking_status%"
       - ""
-      - " {muted}❙ {letters}Blocks breaking any material NOT"
-      - " {muted}❙ {letters}listed in the regen levels —"
-      - " {muted}❙ {letters}useful to protect decoration"
-      - " {muted}❙ {letters}like fences, lanterns or signs"
+      - " {letters_black}▎ {letters}Blocks breaking any material NOT"
+      - " {letters_black}▎ {letters}listed in the regen levels —"
+      - " {letters_black}▎ {letters}useful to protect decoration"
+      - " {letters_black}▎ {letters}like fences, lanterns or signs"
       - ""
-      - "{info}» Click to toggle"
+      - "{warning}➥ Click to toggle"
     actions:
       - "survivalcore:mine_toggle_restrict_breaking"
 
@@ -160,8 +160,8 @@ items:
     name: "{error}&lDELETE MINE"
     lore:
       - ""
-      - " {muted}❙ {letters}Permanently delete this mine"
+      - " {letters_black}▎ {letters}Permanently delete this mine"
       - ""
-      - "{error}» Click to delete"
+      - "{error}➥ Click to delete"
     actions:
       - "survivalcore:mine_delete %mine_id%"

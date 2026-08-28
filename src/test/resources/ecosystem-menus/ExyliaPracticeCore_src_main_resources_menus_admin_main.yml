@@ -17,33 +17,33 @@ filler:
 
 items:
   manage-arenas:
-    slot: 19
+    slot: 20
     material: COMPASS
     name: "{info}&lMANAGE ARENAS"
     lore:
       - ""
-      - " {muted}❙ {letters}Create, edit and delete"
-      - " {muted}❙ {letters}practice arenas"
+      - " {letters_black}▎ {letters}Create, edit and delete"
+      - " {letters_black}▎ {letters}practice arenas"
       - ""
-      - " {muted}❙ {letters}Total: {highlight}%total_arenas%"
+      - " {letters_black}▎ {letters}Total: {highlight}%total_arenas%"
       - ""
-      - "{info}» Click to manage"
+      - "{warning}➥ Click to manage"
     actions:
       - "practice:open_arena_list"
 
   manage-kits:
-    slot: 20
+    slot: 21
     material: DIAMOND_SWORD
     name: "{info}&lMANAGE KITS"
     lore:
       - ""
-      - " {muted}❙ {letters}Create, edit and delete"
-      - " {muted}❙ {letters}practice kits"
+      - " {letters_black}▎ {letters}Create, edit and delete"
+      - " {letters_black}▎ {letters}practice kits"
       - ""
-      - " {muted}❙ {letters}Kits: {highlight}%total_kits%"
-      - " {muted}❙ {letters}Categories: {highlight}%total_categories%"
+      - " {letters_black}▎ {letters}Kits: {highlight}%total_kits%"
+      - " {letters_black}▎ {letters}Categories: {highlight}%total_categories%"
       - ""
-      - "{info}» Click to manage"
+      - "{warning}➥ Click to manage"
     actions:
       - "practice:open_kit_hub"
 
@@ -53,116 +53,116 @@ items:
     name: "{warning}&lEXYLIA PRACTICE"
     lore:
       - ""
-      - " {muted}❙ {letters}1v1 Practice system"
+      - " {letters_black}▎ {letters}1v1 Practice system"
       - ""
-      - " {muted}❙ {letters}Arenas: {highlight}%total_arenas%"
-      - " {muted}❙ {letters}Kits: {highlight}%total_kits%"
-      - " {muted}❙ {letters}Registered Players: {highlight}%registered_players%"
-      - " {muted}❙ {letters}Active Games: {highlight}%active_games%"
-      - " {muted}❙ {letters}Queued Players: {highlight}%queued_players%"
+      - " {letters_black}▎ {letters}Arenas: {highlight}%total_arenas%"
+      - " {letters_black}▎ {letters}Kits: {highlight}%total_kits%"
+      - " {letters_black}▎ {letters}Registered Players: {highlight}%registered_players%"
+      - " {letters_black}▎ {letters}Active Games: {highlight}%active_games%"
+      - " {letters_black}▎ {letters}Queued Players: {highlight}%queued_players%"
       - ""
 
   manage-pvp-regions:
-    slot: 21
+    slot: 22
     material: IRON_SWORD
     name: "{secondary}&lPVP REGIONS"
     lore:
       - ""
-      - " {muted}❙ {letters}Create and manage lobby"
-      - " {muted}❙ {letters}PvP zones with kits"
+      - " {letters_black}▎ {letters}Create and manage lobby"
+      - " {letters_black}▎ {letters}PvP zones with kits"
       - ""
-      - " {muted}❙ {letters}Total: {highlight}%total_pvp_regions%"
+      - " {letters_black}▎ {letters}Total: {highlight}%total_pvp_regions%"
       - ""
-      - "{info}» Click to manage"
+      - "{warning}➥ Click to manage"
     actions:
       - "practice:pvp_open_regions"
 
   manage-jumpads:
-    slot: 22
+    slot: 23
     material: SLIME_BLOCK
     name: "{secondary}&lJUMPADS"
     lore:
       - ""
-      - " {muted}❙ {letters}Create and manage lobby"
-      - " {muted}❙ {letters}launch pads"
+      - " {letters_black}▎ {letters}Create and manage lobby"
+      - " {letters_black}▎ {letters}launch pads"
       - ""
-      - " {muted}❙ {letters}Total: {highlight}%total_jumpads%"
+      - " {letters_black}▎ {letters}Total: {highlight}%total_jumpads%"
       - ""
-      - "{info}» Click to manage"
+      - "{warning}➥ Click to manage"
     actions:
       - "practice:jumpad_open_list"
 
   manage-portals:
-    slot: 23
+    slot: 24
     material: ENDER_EYE
     name: "{secondary}&lPORTALS"
     lore:
       - ""
-      - " {muted}❙ {letters}Create and manage portal"
-      - " {muted}❙ {letters}trigger regions"
+      - " {letters_black}▎ {letters}Create and manage portal"
+      - " {letters_black}▎ {letters}trigger regions"
       - ""
-      - " {muted}❙ {letters}Total: {highlight}%total_portals%"
+      - " {letters_black}▎ {letters}Total: {highlight}%total_portals%"
       - ""
-      - "{info}» Click to manage"
+      - "{warning}➥ Click to manage"
     actions:
       - "practice:portal_open_list"
 
   reload:
-    slot: 24
+    slot: 45
     material: REDSTONE
     name: "{error}&lRELOAD"
     lore:
       - ""
-      - "{info}» Click to reload plugin"
+      - "{warning}➥ Click to reload plugin"
     actions:
       - "practice:reload"
 
   manage-data:
-    slot: 25
+    slot: 33
     material: HOPPER
     name: "{secondary}&lDATA MANAGEMENT"
     lore:
       - ""
-      - " {muted}❙ {letters}Clear stats, reset ELO"
-      - " {muted}❙ {letters}and manage player data"
+      - " {letters_black}▎ {letters}Clear stats, reset ELO"
+      - " {letters_black}▎ {letters}and manage player data"
       - ""
-      - "{info}» Click to manage"
+      - "{warning}➥ Click to manage"
     actions:
       - "practice:open_data_management"
 
   server-stats:
-    slot: 28
+    slot: 32
     material: KNOWLEDGE_BOOK
     name: "{info}&lSERVER STATISTICS"
     lore:
       - ""
-      - " {muted}❙ {letters}View kit, arena and"
-      - " {muted}❙ {letters}category usage rankings"
+      - " {letters_black}▎ {letters}View kit, arena and"
+      - " {letters_black}▎ {letters}category usage rankings"
       - ""
-      - "{info}» Click to view"
+      - "{warning}➥ Click to view"
     actions:
       - "practice:open_admin_stats"
 
   set-kit-editor:
-    slot: 29
+    slot: 30
     material: CRAFTING_TABLE
     name: "{secondary}&lSET KIT EDITOR SPAWN"
     lore:
       - ""
-      - " {muted}❙ {letters}Status: %kit_editor_status%"
+      - " {letters_black}▎ {letters}Status: %kit_editor_status%"
       - ""
-      - "{info}» Click to set"
+      - "{warning}➥ Click to set"
     actions:
       - "practice:set_kit_editor_spawn"
 
   set-lobby:
-    slot: 30
+    slot: 29
     material: RED_BED
     name: "{secondary}&lSET LOBBY SPAWN"
     lore:
       - ""
-      - " {muted}❙ {letters}Status: %lobby_status%"
+      - " {letters_black}▎ {letters}Status: %lobby_status%"
       - ""
-      - "{info}» Click to set"
+      - "{warning}➥ Click to set"
     actions:
       - "practice:set_lobby"

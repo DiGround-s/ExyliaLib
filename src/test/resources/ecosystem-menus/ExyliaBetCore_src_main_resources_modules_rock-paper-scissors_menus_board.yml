@@ -1,0 +1,176 @@
+# The Rock Paper Scissors board.
+#
+# Three squares, in the order the game numbers them: rock, paper, scissors.
+# Both players choose at once and neither sees the other's choice until both
+# have made one, so most of what is on screen is about the clock.
+
+title: '%your_name% {muted}vs %opponent_name% {muted}— %match_score%'
+size: 45
+
+open_sounds:
+  - 'BLOCK_BARREL_OPEN|0.8|1.4'
+click_sounds:
+  - 'UI_BUTTON_CLICK|1.0|1.6'
+
+refresh:
+  mode: DISABLED
+
+filler:
+  global:
+    material: BLACK_STAINED_GLASS_PANE
+    hide_tooltip: true
+
+items:
+
+  status:
+    slot: 4
+    material: CLOCK
+    name: '{primary}&l%match_mode_name%'
+    lore:
+      - ''
+      - '{secondary}The match:'
+      - ' {letters_black}▎ {letters}Round {letters_black}» {info}%match_round%{muted}/{info}%match_rounds%'
+      - ' {letters_black}▎ {letters}Score {letters_black}» {info}%match_score%'
+      - ' {letters_black}▎ {letters}Pot {letters_black}» {highlight}%match_pot%'
+      - ''
+      - '{secondary}The clock:'
+      - ' {letters_black}▎ {letters}Time left {letters_black}» {info}%turn_seconds%s ⏱'
+      - ''
+      - '{letters_black}You both choose at once. Pick before the clock'
+      - '{letters_black}runs out or you lose the round.'
+      - ''
+
+  you:
+    slot: 10
+    material: 'playerhead-%your_name%'
+    name: '{success}&l%your_name%'
+    lore:
+      - ''
+      - ' {letters_black}▎ {letters}Rounds won {letters_black}» {info}%your_score%'
+      - ' {letters_black}▎ {letters}Your stake {letters_black}» {highlight}%match_wager%'
+      - ''
+    glow: true
+
+  opponent:
+    slot: 16
+    material: 'playerhead-%opponent_name%'
+    name: '{error}&l%opponent_name%'
+    lore:
+      - ''
+      - ' {letters_black}▎ {letters}Rounds won {letters_black}» {info}%opponent_score%'
+      - ''
+
+  spectators:
+    slot: 38
+    material: ENDER_EYE
+    name: '{primary}&lWATCHING'
+    lore:
+      - ''
+      - ' {letters_black}▎ {letters}People watching {letters_black}» {info}%spectator_count%'
+      - ''
+      - '{warning}➥ Click to see who'
+      - ''
+    actions:
+      - 'left: betcore:open_spectators'
+
+  surrender:
+    slot: 40
+    material: WHITE_BANNER
+    name: '{error}&lSURRENDER'
+    lore:
+      - ''
+      - ' {letters_black}▎ {letters}Gives the match to {highlight}%opponent_name%{letters}.'
+      - ' {letters_black}▎ {letters}Your {info}%match_wager% {letters}goes with it.'
+      - ''
+      - '{warning}➥ Click, then confirm'
+      - ''
+    condition: '%spectating% == false'
+    actions:
+      - 'left: betcore:surrender'
+
+  stop_watching:
+    slot: 40
+    material: WHITE_BANNER
+    name: '{warning}&lSTOP WATCHING'
+    lore:
+      - ''
+      - '{warning}➥ Click to leave'
+      - ''
+    condition: '%spectating% == true'
+    actions:
+      - 'left: betcore:leave_spectate'
+
+  close:
+    slot: 44
+    material: BARRIER
+    name: '{muted}&lCLOSE'
+    lore:
+      - ''
+      - ' {letters_black}▎ {letters}The match keeps running and so does'
+      - ' {letters_black}▎ {letters}the clock.'
+      - ''
+      - '{warning}➥ Click to close'
+      - ''
+    actions:
+      - 'close'
+
+sections:
+
+  # Rock, paper, scissors, in that order.
+  board:
+    slots: '21-23'
+    filler:
+      material: AIR
+      hide_tooltip: true
+
+    # Still choosing, and this one is live.
+    choice_template:
+      material: LIGHT_GRAY_STAINED_GLASS_PANE
+      name: '{letters}&lPICK'
+      lore:
+        - ''
+        - '{letters_black}Rock beats scissors. Scissors beats paper.'
+        - '{letters_black}Paper beats rock.'
+        - ''
+        - '{warning}➥ Click to choose this'
+        - ''
+      actions:
+        - 'left: betcore:play_cell'
+
+    # What this viewer locked in.
+    chosen_template:
+      material: LIME_CONCRETE
+      name: '{success}&lYOUR CHOICE'
+      lore:
+        - ''
+        - '{letters_black}Locked in. No changing your mind.'
+        - ''
+      glow: true
+
+    # What the other one played, once both are on the table.
+    opponent_template:
+      material: RED_CONCRETE
+      name: '{error}&lTHEIRS'
+      lore:
+        - ''
+        - ' {letters_black}▎ {letters}Played by {info}%opponent_name%'
+        - ''
+      glow: true
+
+    # Both played the same thing, which is a draw.
+    both_template:
+      material: YELLOW_CONCRETE
+      name: '{warning}&lBOTH'
+      lore:
+        - ''
+        - '{letters_black}You both played this. A draw.'
+        - ''
+      glow: true
+
+    locked_template:
+      material: GRAY_STAINED_GLASS_PANE
+      name: '{muted}&lNOT THIS ONE'
+      lore:
+        - ''
+        - '{letters_black}Waiting for the other player.'
+        - ''

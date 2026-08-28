@@ -1,5 +1,5 @@
 title: "{primary}&lMANAGE KITS"
-size: 54
+size: 27
 type: SIMPLE
 refresh:
   mode: ON_CLICK
@@ -17,36 +17,36 @@ filler:
 
 items:
   categories:
-    slot: 37
+    slot: 12
     material: BOOKSHELF
     name: "{info}&lCATEGORIES"
     lore:
       - ""
-      - " {muted}❙ {letters}Organize kits by category"
+      - " {letters_black}▎ {letters}Organize kits by category"
       - ""
-      - " {muted}❙ {letters}Total: {highlight}%total_categories%"
+      - " {letters_black}▎ {letters}Total: {highlight}%total_categories%"
       - ""
-      - "{info}» Click to manage"
+      - "{warning}➥ Click to manage"
     actions:
       - "practice:open_kit_category_list"
 
   all-kits:
-    slot: 38
+    slot: 14
     material: CHEST
     name: "{info}&lALL KITS"
     lore:
       - ""
-      - " {muted}❙ {letters}View and edit all kits"
-      - " {muted}❙ {letters}regardless of category"
+      - " {letters_black}▎ {letters}View and edit all kits"
+      - " {letters_black}▎ {letters}regardless of category"
       - ""
-      - " {muted}❙ {letters}Total: {highlight}%total_kits%"
+      - " {letters_black}▎ {letters}Total: {highlight}%total_kits%"
       - ""
-      - "{info}» Click to view"
+      - "{warning}➥ Click to view"
     actions:
       - "practice:open_kit_list_all"
 
   back:
-    slot: 49
+    slot: 22
     material: 'basehead-eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvMjIzZmI2NzQyOTcxNmIyMWJjNmU4ZTdkNjY5Y2VkZGY2NWIxM2UwNzkwYTVjZTU1YjJlMDc3YjgyZDE5ZTEyNCJ9fX0='
     name: '{error}&lBACK'
     lore:

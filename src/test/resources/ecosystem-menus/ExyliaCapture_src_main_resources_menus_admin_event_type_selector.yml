@@ -29,13 +29,13 @@ pagination:
     name: "%event_display_name%"
     lore:
       - ""
-      - " {muted}❙ {letters}%event_desc_1%"
-      - " {muted}❙ {letters}%event_desc_2%"
-      - " {muted}❙ {letters}%event_desc_3%"
+      - " {letters_black}▎ {letters}%event_desc_1%"
+      - " {letters_black}▎ {letters}%event_desc_2%"
+      - " {letters_black}▎ {letters}%event_desc_3%"
       - ""
-      - " {muted}❙ {warning}Category: {highlight}%event_category%"
+      - " {letters_black}▎ {warning}Category: {highlight}%event_category%"
       - ""
-      - "{info}» Click to select"
+      - "{warning}➥ Click to select"
     actions:
       - "capture:select_event_type %event_type%"
 
@@ -64,8 +64,8 @@ items:
     name: '{error}&lCANCEL'
     lore:
       - ""
-      - " {muted}❙ {letters}Cancel event creation."
+      - " {letters_black}▎ {letters}Cancel event creation."
       - ""
-      - "{info}» Click to cancel"
+      - "{warning}➥ Click to cancel"
     actions:
       - "capture:cancel_config_create"

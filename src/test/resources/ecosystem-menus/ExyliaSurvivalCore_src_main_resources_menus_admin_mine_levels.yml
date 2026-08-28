@@ -33,13 +33,13 @@ pagination:
     name: "{warning}&l#%level_position% {highlight}%level_material%"
     lore:
       - ""
-      - " {muted}❙ {letters}Configured manually"
-      - " {muted}❙ {letters}Regen time: {highlight}%level_regen%s"
-      - " {muted}❙ {letters}Degrade stages: {highlight}%level_stages%"
-      - " {muted}❙ {letters}Custom loot: %level_loot_status%"
+      - " {letters_black}▎ {letters}Configured manually"
+      - " {letters_black}▎ {letters}Regen time: {highlight}%level_regen%s"
+      - " {letters_black}▎ {letters}Degrade stages: {highlight}%level_stages%"
+      - " {letters_black}▎ {letters}Custom loot: %level_loot_status%"
       - ""
       - " {success}● {info}Click {muted}to open details"
-      - " {muted}❙ {error}Shift + Right-click to remove"
+      - " {letters_black}▎ {error}Shift + Right-click to remove"
     actions:
       - "left: survivalcore:mine_level_open %level_index%"
       - "right: survivalcore:mine_level_open %level_index%"
@@ -66,10 +66,10 @@ items:
     name: "{success}&lADD MATERIAL"
     lore:
       - ""
-      - " {muted}❙ {letters}Add a block material as a"
-      - " {muted}❙ {letters}realistic regeneration level"
+      - " {letters_black}▎ {letters}Add a block material as a"
+      - " {letters_black}▎ {letters}realistic regeneration level"
       - ""
-      - "{info}» Click to select"
+      - "{warning}➥ Click to select"
     actions:
       - "survivalcore:mine_add_level"
 
@@ -79,6 +79,6 @@ items:
     name: '{error}&lBACK'
     lore:
       - ""
-      - " {info}» Return to mine setup"
+      - " {warning}➥ Return to mine setup"
     actions:
       - "survivalcore:mine_back_to_setup"

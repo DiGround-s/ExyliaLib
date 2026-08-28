@@ -27,9 +27,9 @@ items:
     name: "{highlight}&lDISPLAY NAME"
     lore:
       - ""
-      - " {muted}❙ {letters}Current: {info}%mine_name%"
+      - " {letters_black}▎ {letters}Current: {info}%mine_name%"
       - ""
-      - "{info}» Click to change"
+      - "{warning}➥ Click to change"
     actions:
       - "survivalcore:mine_edit_name"
 
@@ -39,23 +39,23 @@ items:
     name: "{highlight}&lENABLED"
     lore:
       - ""
-      - " {muted}❙ {letters}Status: %enabled_status%"
+      - " {letters_black}▎ {letters}Status: %enabled_status%"
       - ""
-      - "{info}» Click to toggle"
+      - "{warning}➥ Click to toggle"
     actions:
       - "survivalcore:mine_toggle_enabled"
 
   region:
     slot: 19
     material: "%region_material%"
-    name: "{highlight}&lMINE REGION"
+    name: "%region_color%&lMINE REGION"
     lore:
       - ""
-      - " {muted}❙ {letters}Status: %region_status%"
+      - " {letters_black}▎ {letters}Status: %region_status%"
       - ""
-      - " {muted}❙ {letters}Full cuboid that gets filled on reset"
+      - " {letters_black}▎ {letters}Full cuboid that gets filled on reset"
       - ""
-      - "{info}» Click to select with wand"
+      - "{warning}➥ Click to select with wand"
     actions:
       - "survivalcore:mine_set_region"
 
@@ -65,12 +65,12 @@ items:
     name: "{highlight}&lACCESS PERMISSION"
     lore:
       - ""
-      - " {muted}❙ {letters}Current: {info}%permission_value%"
+      - " {letters_black}▎ {letters}Current: {info}%permission_value%"
       - ""
-      - " {muted}❙ {letters}Leave empty to allow everyone"
+      - " {letters_black}▎ {letters}Leave empty to allow everyone"
       - ""
-      - "{info}» Click to set"
-      - "{error}» Shift-Click to clear"
+      - "{warning}➥ Click to set"
+      - "{error}➥ Shift-Click to clear"
     actions:
       - "left: survivalcore:mine_set_permission"
       - "shift_left: survivalcore:mine_clear_permission"
@@ -81,12 +81,12 @@ items:
     name: "{highlight}&lBLOCK COMPOSITION"
     lore:
       - ""
-      - " {muted}❙ {letters}Materials: {highlight}%composition_count%"
+      - " {letters_black}▎ {letters}Materials: {highlight}%composition_count%"
       - ""
-      - " {muted}❙ {letters}Weighted materials used to fill"
-      - " {muted}❙ {letters}the mine on every reset"
+      - " {letters_black}▎ {letters}Weighted materials used to fill"
+      - " {letters_black}▎ {letters}the mine on every reset"
       - ""
-      - "{info}» Click to manage"
+      - "{warning}➥ Click to manage"
     actions:
       - "survivalcore:mine_open_composition"
 
@@ -96,26 +96,26 @@ items:
     name: "{highlight}&lBREAK EFFECTS"
     lore:
       - ""
-      - " {muted}❙ {letters}Configured: %break_effects_status%"
+      - " {letters_black}▎ {letters}Configured: %break_effects_status%"
       - ""
-      - " {muted}❙ {letters}Sounds, particles, titles and more"
-      - " {muted}❙ {letters}played when any block of this mine"
-      - " {muted}❙ {letters}is mined."
+      - " {letters_black}▎ {letters}Sounds, particles, titles and more"
+      - " {letters_black}▎ {letters}played when any block of this mine"
+      - " {letters_black}▎ {letters}is mined."
       - ""
-      - " {muted}❙ {letters}A material with its own effects"
-      - " {muted}❙ {warning}overrides {letters}these."
+      - " {letters_black}▎ {letters}A material with its own effects"
+      - " {letters_black}▎ {warning}overrides {letters}these."
       - ""
-      - "{info}» Click to manage"
+      - "{warning}➥ Click to manage"
     actions:
       - "survivalcore:mine_open_effects"
 
   interval:
-    slot: 24
+    slot: 23
     material: CLOCK
     name: "{highlight}&lRESET INTERVAL"
     lore:
       - ""
-      - " {muted}❙ {letters}Current: {highlight}%interval_value%s"
+      - " {letters_black}▎ {letters}Current: {highlight}%interval_value%s"
       - ""
       - " {success}● {info}Left-click {muted}+10s"
       - " {error}● {info}Right-click {muted}-10s"
@@ -130,14 +130,14 @@ items:
       - "middle: survivalcore:mine_set_interval"
 
   warning:
-    slot: 22
+    slot: 24
     material: BELL
     name: "{highlight}&lRESET WARNING"
     lore:
       - ""
-      - " {muted}❙ {letters}Current: {highlight}%warning_value%s"
+      - " {letters_black}▎ {letters}Current: {highlight}%warning_value%s"
       - ""
-      - " {muted}❙ {letters}Seconds before reset players are warned"
+      - " {letters_black}▎ {letters}Seconds before reset players are warned"
       - ""
       - " {success}● {info}Left-click {muted}+1s"
       - " {error}● {info}Right-click {muted}-1s"
@@ -148,15 +148,15 @@ items:
       - "middle: survivalcore:mine_set_warning"
 
   threshold:
-    slot: 23
+    slot: 25
     material: TARGET
     name: "{highlight}&lRESET THRESHOLD"
     lore:
       - ""
-      - " {muted}❙ {letters}Current: {highlight}%threshold_value%%"
+      - " {letters_black}▎ {letters}Current: {highlight}%threshold_value%%"
       - ""
-      - " {muted}❙ {letters}Force reset when this % of the"
-      - " {muted}❙ {letters}mine has been mined. {highlight}0 {letters}= disabled"
+      - " {letters_black}▎ {letters}Force reset when this % of the"
+      - " {letters_black}▎ {letters}mine has been mined. {highlight}0 {letters}= disabled"
       - ""
       - " {success}● {info}Left-click {muted}+5%"
       - " {error}● {info}Right-click {muted}-5%"
@@ -167,18 +167,18 @@ items:
       - "middle: survivalcore:mine_set_threshold"
 
   safe-teleport:
-    slot: 25
+    slot: 29
     material: "%safe_teleport_material%"
-    name: "{highlight}&lSAFE TELEPORT"
+    name: "%safe_teleport_color%&lSAFE TELEPORT"
     lore:
       - ""
-      - " {muted}❙ {letters}Status: %safe_teleport_status%"
+      - " {letters_black}▎ {letters}Status: %safe_teleport_status%"
       - ""
-      - " {muted}❙ {letters}Players inside are moved here"
-      - " {muted}❙ {letters}right before the mine resets"
+      - " {letters_black}▎ {letters}Players inside are moved here"
+      - " {letters_black}▎ {letters}right before the mine resets"
       - ""
-      - "{info}» Click to set"
-      - "{error}» Shift-Click to clear"
+      - "{warning}➥ Click to set"
+      - "{error}➥ Shift-Click to clear"
     actions:
       - "left: survivalcore:mine_set_safe_teleport"
       - "shift_left: survivalcore:mine_clear_safe_teleport"
@@ -186,63 +186,63 @@ items:
   entry-teleport:
     slot: 28
     material: "%entry_teleport_material%"
-    name: "{highlight}&lENTRY TELEPORT"
+    name: "%entry_teleport_color%&lENTRY TELEPORT"
     lore:
       - ""
-      - " {muted}❙ {letters}Status: %entry_teleport_status%"
+      - " {letters_black}▎ {letters}Status: %entry_teleport_status%"
       - ""
-      - " {muted}❙ {letters}Optional warp point players are"
-      - " {muted}❙ {letters}sent to via /mine <id>"
+      - " {letters_black}▎ {letters}Optional warp point players are"
+      - " {letters_black}▎ {letters}sent to via /mine <id>"
       - ""
-      - "{info}» Click to set"
-      - "{error}» Shift-Click to clear"
+      - "{warning}➥ Click to set"
+      - "{error}➥ Shift-Click to clear"
     actions:
       - "left: survivalcore:mine_set_entry_teleport"
       - "shift_left: survivalcore:mine_clear_entry_teleport"
 
   auto-pickup:
-    slot: 29
+    slot: 31
     material: "%auto_pickup_material%"
-    name: "{highlight}&lAUTO-PICKUP"
+    name: "%auto_pickup_color%&lAUTO-PICKUP"
     lore:
       - ""
-      - " {muted}❙ {letters}Status: %auto_pickup_status%"
+      - " {letters_black}▎ {letters}Status: %auto_pickup_status%"
       - ""
-      - " {muted}❙ {letters}Custom loot goes straight into the"
-      - " {muted}❙ {letters}player's inventory instead of"
-      - " {muted}❙ {letters}dropping on the ground"
-      - " {muted}❙ {muted}(overflow still drops normally)"
+      - " {letters_black}▎ {letters}Custom loot goes straight into the"
+      - " {letters_black}▎ {letters}player's inventory instead of"
+      - " {letters_black}▎ {letters}dropping on the ground"
+      - " {letters_black}▎ {muted}(overflow still drops normally)"
       - ""
-      - "{info}» Click to toggle"
+      - "{warning}➥ Click to toggle"
     actions:
       - "survivalcore:mine_toggle_auto_pickup"
 
   restrict-breaking:
-    slot: 30
+    slot: 32
     material: "%restrict_breaking_material%"
-    name: "{highlight}&lRESTRICT BREAKING"
+    name: "%restrict_breaking_color%&lRESTRICT BREAKING"
     lore:
       - ""
-      - " {muted}❙ {letters}Status: %restrict_breaking_status%"
+      - " {letters_black}▎ {letters}Status: %restrict_breaking_status%"
       - ""
-      - " {muted}❙ {letters}Blocks breaking any material NOT"
-      - " {muted}❙ {letters}listed in the block composition —"
-      - " {muted}❙ {letters}useful to protect decoration"
+      - " {letters_black}▎ {letters}Blocks breaking any material NOT"
+      - " {letters_black}▎ {letters}listed in the block composition —"
+      - " {letters_black}▎ {letters}useful to protect decoration"
       - ""
-      - "{info}» Click to toggle"
+      - "{warning}➥ Click to toggle"
     actions:
       - "survivalcore:mine_toggle_restrict_breaking"
 
   force-reset:
-    slot: 52
-    material: 'basehead-eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvYmUwZmQxMDE5OWU4ZTRmY2RhYmNhZTRmODVjODU5MTgxMjdhN2M1NTUzYWQyMzVmMDFjNTZkMThiYjk0NzBkMyJ9fX0='
+    slot: 45
+    material: ANVIL
     name: "{error}&lFORCE RESET NOW"
     lore:
       - ""
-      - " {muted}❙ {letters}Immediately fills the mine,"
-      - " {muted}❙ {letters}teleporting players to safety"
+      - " {letters_black}▎ {letters}Immediately fills the mine,"
+      - " {letters_black}▎ {letters}teleporting players to safety"
       - ""
-      - "{error}» Click to reset"
+      - "{error}➥ Click to reset"
     actions:
       - "survivalcore:mine_force_reset"
 
@@ -261,8 +261,8 @@ items:
     name: "{error}&lDELETE MINE"
     lore:
       - ""
-      - " {muted}❙ {letters}Permanently delete this mine"
+      - " {letters_black}▎ {letters}Permanently delete this mine"
       - ""
-      - "{error}» Click to delete"
+      - "{error}➥ Click to delete"
     actions:
       - "survivalcore:mine_delete %mine_id%"

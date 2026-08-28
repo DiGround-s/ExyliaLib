@@ -33,16 +33,16 @@ pagination:
     name: "{warning}&lSTAGE #%stage_position% {highlight}%stage_material%"
     lore:
       - ""
-      - " {muted}❙ {letters}Appears {highlight}%stage_seconds%s {letters}after becoming"
-      - " {muted}❙ {letters}the current stage (0 = instant)"
-      - " {muted}❙ {letters}Advances only when the player MINES it"
+      - " {letters_black}▎ {letters}Appears {highlight}%stage_seconds%s {letters}after becoming"
+      - " {letters_black}▎ {letters}the current stage (0 = instant)"
+      - " {letters_black}▎ {letters}Advances only when the player MINES it"
       - ""
-      - " {muted}❙ {letters}Loot: %stage_loot_status%"
+      - " {letters_black}▎ {letters}Loot: %stage_loot_status%"
       - ""
-      - " {muted}❙ {highlight}Left-click {muted}to move up"
-      - " {muted}❙ {highlight}Right-click {muted}to move down"
-      - " {muted}❙ {highlight}Middle-click {muted}to edit loot table"
-      - " {muted}❙ {error}Shift + Right-click {muted}to remove"
+      - " {letters_black}▎ {highlight}Left-click {muted}to move up"
+      - " {letters_black}▎ {highlight}Right-click {muted}to move down"
+      - " {letters_black}▎ {highlight}Middle-click {muted}to edit loot table"
+      - " {letters_black}▎ {error}Shift + Right-click {muted}to remove"
     actions:
       - "left: survivalcore:mine_chain_move %stage_index% -1"
       - "right: survivalcore:mine_chain_move %stage_index% 1"
@@ -70,15 +70,15 @@ items:
     name: "{success}&lADD STAGE"
     lore:
       - ""
-      - " {muted}❙ {letters}Add a new block to show, with"
-      - " {muted}❙ {letters}a delay for how long it takes to"
-      - " {muted}❙ {letters}appear once it becomes current"
+      - " {letters_black}▎ {letters}Add a new block to show, with"
+      - " {letters_black}▎ {letters}a delay for how long it takes to"
+      - " {letters_black}▎ {letters}appear once it becomes current"
       - ""
-      - " {muted}❙ {letters}Stages simulate in the order shown"
-      - " {muted}❙ {letters}below (1st {muted}→{letters} 2nd {muted}→{letters} 3rd), advancing only"
-      - " {muted}❙ {letters}when the player MINES the current one"
+      - " {letters_black}▎ {letters}Stages simulate in the order shown"
+      - " {letters_black}▎ {letters}below (1st {muted}→{letters} 2nd {muted}→{letters} 3rd), advancing only"
+      - " {letters_black}▎ {letters}when the player MINES the current one"
       - ""
-      - "{info}» Click to select a block"
+      - "{warning}➥ Click to select a block"
     actions:
       - "survivalcore:mine_chain_add"
 
@@ -88,6 +88,6 @@ items:
     name: '{error}&lBACK'
     lore:
       - ""
-      - " {info}» Return to level details"
+      - " {warning}➥ Return to level details"
     actions:
       - "survivalcore:mine_level_back_to_detail"

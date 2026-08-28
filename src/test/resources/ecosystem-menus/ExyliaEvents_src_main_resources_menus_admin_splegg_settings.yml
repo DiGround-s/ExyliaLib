@@ -28,14 +28,14 @@ items:
     name: "{info}&lHOW TO SETUP"
     lore:
       - ""
-      - " {muted}❙ {letters}Build the breakable floor"
-      - " {muted}❙ {letters}out of the configured block"
+      - " {letters_black}▎ {letters}Build the breakable floor"
+      - " {letters_black}▎ {letters}out of the configured block"
       - ""
-      - " {muted}❙ {letters}Shoot the projectile to"
-      - " {muted}❙ {letters}break blocks under rivals"
+      - " {letters_black}▎ {letters}Shoot the projectile to"
+      - " {letters_black}▎ {letters}break blocks under rivals"
       - ""
-      - " {muted}❙ {error}Falling through eliminates"
-      - " {muted}❙ {error}a player"
+      - " {letters_black}▎ {error}Falling through eliminates"
+      - " {letters_black}▎ {error}a player"
 
   grace-period:
     slot: 19
@@ -43,12 +43,12 @@ items:
     name: "{info}&lGRACE PERIOD"
     lore:
       - ""
-      - " {muted}❙ {letters}Current: {highlight}%grace_period%s"
-      - " {muted}❙ {letters}Blocks don't break at start"
+      - " {letters_black}▎ {letters}Current: {highlight}%grace_period%s"
+      - " {letters_black}▎ {letters}Blocks don't break at start"
       - ""
-      - " {muted}❙ {success}Left-Click +5s"
-      - " {muted}❙ {error}Right-Click -5s"
-      - " {muted}❙ {warning}Shift-Click to enter"
+      - " {letters_black}▎ {success}Left-Click +5s"
+      - " {letters_black}▎ {error}Right-Click -5s"
+      - " {letters_black}▎ {warning}Shift-Click to enter"
     actions:
       - "left: events:adjust_setting grace-period 5"
       - "right: events:adjust_setting grace-period -5"
@@ -60,12 +60,12 @@ items:
     name: "{info}&lBREAKABLE MATERIAL"
     lore:
       - ""
-      - " {muted}❙ {letters}Current: {highlight}%breakable_material%"
+      - " {letters_black}▎ {letters}Current: {highlight}%breakable_material%"
       - ""
-      - " {muted}❙ {letters}Block type that gets"
-      - " {muted}❙ {letters}destroyed by projectiles"
+      - " {letters_black}▎ {letters}Block type that gets"
+      - " {letters_black}▎ {letters}destroyed by projectiles"
       - ""
-      - "{info}» Click to change"
+      - "{warning}➥ Click to change"
     actions:
       - "events:set_splegg_breakable_material"
 
@@ -75,12 +75,12 @@ items:
     name: "{info}&lPROJECTILE TYPE"
     lore:
       - ""
-      - " {muted}❙ {letters}Current: {highlight}%projectile_type%"
+      - " {letters_black}▎ {letters}Current: {highlight}%projectile_type%"
       - ""
-      - " {muted}❙ {letters}Item used to shoot"
-      - " {muted}❙ {letters}and break blocks"
+      - " {letters_black}▎ {letters}Item used to shoot"
+      - " {letters_black}▎ {letters}and break blocks"
       - ""
-      - "{info}» Click to toggle"
+      - "{warning}➥ Click to toggle"
     actions:
       - "events:cycle_splegg_projectile"
 
@@ -90,12 +90,12 @@ items:
     name: "{info}&lEXPLOSION RADIUS"
     lore:
       - ""
-      - " {muted}❙ {letters}Current: {highlight}%explosion_radius%"
-      - " {muted}❙ {letters}Blocks broken around impact"
+      - " {letters_black}▎ {letters}Current: {highlight}%explosion_radius%"
+      - " {letters_black}▎ {letters}Blocks broken around impact"
       - ""
-      - " {muted}❙ {success}Left-Click +1"
-      - " {muted}❙ {error}Right-Click -1"
-      - " {muted}❙ {warning}Shift-Click to enter"
+      - " {letters_black}▎ {success}Left-Click +1"
+      - " {letters_black}▎ {error}Right-Click -1"
+      - " {letters_black}▎ {warning}Shift-Click to enter"
     actions:
       - "left: events:adjust_setting explosion-radius 1"
       - "right: events:adjust_setting explosion-radius -1"
@@ -107,12 +107,12 @@ items:
     name: "{info}&lSTARTING AMMO"
     lore:
       - ""
-      - " {muted}❙ {letters}Current: {highlight}%starting_ammo%"
-      - " {muted}❙ {letters}Given at game start"
+      - " {letters_black}▎ {letters}Current: {highlight}%starting_ammo%"
+      - " {letters_black}▎ {letters}Given at game start"
       - ""
-      - " {muted}❙ {success}Left-Click +1"
-      - " {muted}❙ {error}Right-Click -1"
-      - " {muted}❙ {warning}Shift-Click to enter"
+      - " {letters_black}▎ {success}Left-Click +1"
+      - " {letters_black}▎ {error}Right-Click -1"
+      - " {letters_black}▎ {warning}Shift-Click to enter"
     actions:
       - "left: events:adjust_setting starting-ammo 1"
       - "right: events:adjust_setting starting-ammo -1"
@@ -124,14 +124,14 @@ items:
     name: "{info}&lAMMO PER BREAK"
     lore:
       - ""
-      - " {muted}❙ {letters}Current: {highlight}%ammo_per_break%"
+      - " {letters_black}▎ {letters}Current: {highlight}%ammo_per_break%"
       - ""
-      - " {muted}❙ {letters}Projectiles received"
-      - " {muted}❙ {letters}when breaking a block"
+      - " {letters_black}▎ {letters}Projectiles received"
+      - " {letters_black}▎ {letters}when breaking a block"
       - ""
-      - " {muted}❙ {success}Left-Click +1"
-      - " {muted}❙ {error}Right-Click -1"
-      - " {muted}❙ {warning}Shift-Click to enter"
+      - " {letters_black}▎ {success}Left-Click +1"
+      - " {letters_black}▎ {error}Right-Click -1"
+      - " {letters_black}▎ {warning}Shift-Click to enter"
     actions:
       - "left: events:adjust_setting ammo-per-break 1"
       - "right: events:adjust_setting ammo-per-break -1"
@@ -143,12 +143,12 @@ items:
     name: "{info}&lMAX AMMO"
     lore:
       - ""
-      - " {muted}❙ {letters}Current: {highlight}%max_ammo%"
-      - " {muted}❙ {letters}0 = unlimited"
+      - " {letters_black}▎ {letters}Current: {highlight}%max_ammo%"
+      - " {letters_black}▎ {letters}0 = unlimited"
       - ""
-      - " {muted}❙ {success}Left-Click +1"
-      - " {muted}❙ {error}Right-Click -1"
-      - " {muted}❙ {warning}Shift-Click to enter"
+      - " {letters_black}▎ {success}Left-Click +1"
+      - " {letters_black}▎ {error}Right-Click -1"
+      - " {letters_black}▎ {warning}Shift-Click to enter"
     actions:
       - "left: events:adjust_setting max-ammo 1"
       - "right: events:adjust_setting max-ammo -1"
@@ -160,44 +160,44 @@ items:
     name: "{info}&lSHOT COOLDOWN"
     lore:
       - ""
-      - " {muted}❙ {letters}Current: {highlight}%shot_cooldown%s"
-      - " {muted}❙ {letters}0 = no cooldown"
+      - " {letters_black}▎ {letters}Current: {highlight}%shot_cooldown%s"
+      - " {letters_black}▎ {letters}0 = no cooldown"
       - ""
-      - " {muted}❙ {success}Left-Click +0.5s"
-      - " {muted}❙ {error}Right-Click -0.5s"
-      - " {muted}❙ {warning}Shift-Click to enter"
+      - " {letters_black}▎ {success}Left-Click +0.5s"
+      - " {letters_black}▎ {error}Right-Click -0.5s"
+      - " {letters_black}▎ {warning}Shift-Click to enter"
     actions:
       - "left: events:adjust_double_setting shot-cooldown 0.5"
       - "right: events:adjust_double_setting shot-cooldown -0.5"
       - "shift_left: events:input_double_setting shot-cooldown"
 
   knockback-enabled:
-    slot: 30
+    slot: 29
     material: "%knockback_enabled_material%"
-    name: "{info}&lKNOCKBACK"
+    name: "%knockback_enabled_color%&lKNOCKBACK"
     lore:
       - ""
-      - " {muted}❙ {letters}Status: %knockback_enabled%"
+      - " {letters_black}▎ {letters}Status: %knockback_enabled%"
       - ""
-      - " {muted}❙ {letters}Projectiles push players"
-      - " {muted}❙ {letters}on impact"
+      - " {letters_black}▎ {letters}Projectiles push players"
+      - " {letters_black}▎ {letters}on impact"
       - ""
-      - "{info}» Click to toggle"
+      - "{warning}➥ Click to toggle"
     actions:
       - "events:toggle_splegg_setting knockback-enabled"
 
   fall-damage:
-    slot: 29
+    slot: 30
     material: "%fall_damage_material%"
-    name: "{warning}&lFALL DAMAGE"
+    name: "%fall_damage_color%&lFALL DAMAGE"
     lore:
       - ""
-      - " {muted}❙ {letters}Status: %fall_damage%"
+      - " {letters_black}▎ {letters}Status: %fall_damage%"
       - ""
-      - " {muted}❙ {letters}If enabled, players"
-      - " {muted}❙ {letters}take fall damage"
+      - " {letters_black}▎ {letters}If enabled, players"
+      - " {letters_black}▎ {letters}take fall damage"
       - ""
-      - "{info}» Click to toggle"
+      - "{warning}➥ Click to toggle"
     actions:
       - "events:toggle_splegg_setting fall-damage"
 

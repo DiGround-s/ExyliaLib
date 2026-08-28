@@ -28,21 +28,21 @@ items:
     name: "{highlight}&lNAME"
     lore:
       - ""
-      - " {muted}❙ {letters}Current: {info}%display_name%"
+      - " {letters_black}▎ {letters}Current: {info}%display_name%"
       - ""
-      - "{info}» Click to edit"
+      - "{warning}➥ Click to edit"
     actions:
       - "events:edit_config_name"
 
   event-type:
-    slot: 25
+    slot: 19
     material: PAPER
     name: "{highlight}&lEVENT TYPE"
     lore:
       - ""
-      - " {muted}❙ {letters}Type: {info}%event_type%"
+      - " {letters_black}▎ {letters}Type: {info}%event_type%"
       - ""
-      - " {muted}❙ {letters}Cannot be changed"
+      - " {letters_black}▎ {letters}Cannot be changed"
 
   icon:
     slot: 2
@@ -50,93 +50,93 @@ items:
     name: "{highlight}&lICON"
     lore:
       - ""
-      - " {muted}❙ {letters}Current: {info}%icon_material_display%"
+      - " {letters_black}▎ {letters}Current: {info}%icon_material_display%"
       - ""
-      - "{info}» Click to change"
+      - "{warning}➥ Click to change"
     actions:
       - "events:set_config_icon"
 
   lobby-spawn:
-    slot: 30
+    slot: 24
     material: "%lobby_material%"
     name: "{warning}&lLOBBY SPAWN"
     lore:
       - ""
-      - " {muted}❙ {letters}%lobby_status%"
-      - " {muted}❙ {letters}%lobby_coords%"
+      - " {letters_black}▎ {letters}%lobby_status%"
+      - " {letters_black}▎ {letters}%lobby_coords%"
       - ""
-      - " {muted}❙ {success}Left-Click to set"
-      - " {muted}❙ {info}Right-Click to teleport"
+      - " {letters_black}▎ {success}Left-Click to set"
+      - " {letters_black}▎ {info}Right-Click to teleport"
     actions:
       - "left: events:set_config_lobby"
       - "right: events:teleport_config_lobby"
 
   spectator-spawn:
-    slot: 21
+    slot: 25
     material: "%spectator_material%"
     name: "{warning}&lSPECTATOR SPAWN"
     lore:
       - ""
-      - " {muted}❙ {letters}%spectator_status%"
-      - " {muted}❙ {letters}%spectator_coords%"
+      - " {letters_black}▎ {letters}%spectator_status%"
+      - " {letters_black}▎ {letters}%spectator_coords%"
       - ""
-      - " {muted}❙ {success}Left-Click to set"
-      - " {muted}❙ {info}Right-Click to teleport"
+      - " {letters_black}▎ {success}Left-Click to set"
+      - " {letters_black}▎ {info}Right-Click to teleport"
     actions:
       - "left: events:set_config_spectator"
       - "right: events:teleport_config_spectator"
 
   spawn-points:
-    slot: 31
+    slot: 28
     material: "%spawns_material%"
     name: "{warning}&lSPAWN POINTS"
     lore:
       - ""
-      - " {muted}❙ {letters}Current: {highlight}%spawn_count%"
+      - " {letters_black}▎ {letters}Current: {highlight}%spawn_count%"
       - ""
-      - " {muted}❙ {success}Left-Click to add"
-      - " {muted}❙ {error}Right-Click to clear"
+      - " {letters_black}▎ {success}Left-Click to add"
+      - " {letters_black}▎ {error}Right-Click to clear"
     actions:
       - "left: events:add_config_spawn"
       - "right: events:clear_config_spawns"
 
   bounds:
-    slot: 19
+    slot: 20
     material: STRUCTURE_BLOCK
     name: "{warning}&lSET BOUNDS"
     lore:
       - ""
-      - " {muted}❙ {letters}Bounds: %bounds_status%"
+      - " {letters_black}▎ {letters}Bounds: %bounds_status%"
       - ""
-      - "{info}» Click to select"
+      - "{warning}➥ Click to select"
     actions:
       - "events:set_config_bounds"
 
   copy-bounds:
-    slot: 32
+    slot: 22
     material: FILLED_MAP
     name: "{warning}&lCOPY REGION"
     condition: "%uses_copy_bounds% == true"
     lore:
       - ""
-      - " {muted}❙ {letters}Status: %copy_bounds_status%"
-      - " {muted}❙ {letters}Region cloned for each arena/plot"
-      - " {muted}❙ {letters}Falls back to Bounds if not set"
+      - " {letters_black}▎ {letters}Status: %copy_bounds_status%"
+      - " {letters_black}▎ {letters}Region cloned for each arena/plot"
+      - " {letters_black}▎ {letters}Falls back to Bounds if not set"
       - ""
-      - "{info}» Click to select"
+      - "{warning}➥ Click to select"
     actions:
       - "events:set_config_copy_bounds"
 
   schematic:
-    slot: 20
+    slot: 21
     material: "%schematic_material%"
     name: "{warning}&lSCHEMATIC"
     lore:
       - ""
-      - " {muted}❙ {letters}Status: %schematic_status%"
+      - " {letters_black}▎ {letters}Status: %schematic_status%"
       - ""
-      - " {muted}❙ {success}Left-Click to save"
-      - " {muted}❙ {warning}Right-Click to restore"
+      - " {letters_black}▎ {success}Left-Click to save"
+      - " {letters_black}▎ {warning}Right-Click to restore"
     actions:
       - "left: events:save_schematic"
       - "right: events:restore_schematic"
@@ -147,11 +147,11 @@ items:
     name: "{info}&lCOUNTDOWN"
     lore:
       - ""
-      - " {muted}❙ {letters}Current: {highlight}%countdown%s"
+      - " {letters_black}▎ {letters}Current: {highlight}%countdown%s"
       - ""
-      - " {muted}❙ {success}Left-Click +5s"
-      - " {muted}❙ {error}Right-Click -5s"
-      - " {muted}❙ {warning}Shift-Click to enter"
+      - " {letters_black}▎ {success}Left-Click +5s"
+      - " {letters_black}▎ {error}Right-Click -5s"
+      - " {letters_black}▎ {warning}Shift-Click to enter"
     actions:
       - "left: events:adjust_setting countdown 5"
       - "right: events:adjust_setting countdown -5"
@@ -163,109 +163,109 @@ items:
     name: "{info}&lDURATION"
     lore:
       - ""
-      - " {muted}❙ {letters}Current: {highlight}%duration%s"
+      - " {letters_black}▎ {letters}Current: {highlight}%duration%s"
       - ""
-      - " {muted}❙ {success}Left-Click +30s"
-      - " {muted}❙ {error}Right-Click -30s"
-      - " {muted}❙ {warning}Shift-Click to enter"
+      - " {letters_black}▎ {success}Left-Click +30s"
+      - " {letters_black}▎ {error}Right-Click -30s"
+      - " {letters_black}▎ {warning}Shift-Click to enter"
     actions:
       - "left: events:adjust_setting duration 30"
       - "right: events:adjust_setting duration -30"
       - "shift_left: events:input_setting duration"
 
   min-players:
-    slot: 24
+    slot: 29
     material: PLAYER_HEAD
     name: "{info}&lMIN PLAYERS"
     lore:
       - ""
-      - " {muted}❙ {letters}Current: {highlight}%min_players%"
+      - " {letters_black}▎ {letters}Current: {highlight}%min_players%"
       - ""
-      - " {muted}❙ {success}Left-Click +1"
-      - " {muted}❙ {error}Right-Click -1"
-      - " {muted}❙ {warning}Shift-Click to enter"
+      - " {letters_black}▎ {success}Left-Click +1"
+      - " {letters_black}▎ {error}Right-Click -1"
+      - " {letters_black}▎ {warning}Shift-Click to enter"
     actions:
       - "left: events:adjust_setting min-players 1"
       - "right: events:adjust_setting min-players -1"
       - "shift_left: events:input_setting min-players"
 
   max-players:
-    slot: 23
+    slot: 30
     material: SKELETON_SKULL
     name: "{info}&lMAX PLAYERS"
     lore:
       - ""
-      - " {muted}❙ {letters}Current: {highlight}%max_players%"
+      - " {letters_black}▎ {letters}Current: {highlight}%max_players%"
       - ""
-      - " {muted}❙ {success}Left-Click +1"
-      - " {muted}❙ {error}Right-Click -1"
-      - " {muted}❙ {warning}Shift-Click to enter"
+      - " {letters_black}▎ {success}Left-Click +1"
+      - " {letters_black}▎ {error}Right-Click -1"
+      - " {letters_black}▎ {warning}Shift-Click to enter"
     actions:
       - "left: events:adjust_setting max-players 1"
       - "right: events:adjust_setting max-players -1"
       - "shift_left: events:input_setting max-players"
 
   kit:
-    slot: 22
+    slot: 31
     material: "%kit_material%"
     name: "{warning}&lMANAGE KITS"
     lore:
       - ""
-      - " {muted}❙ {letters}Kits: {highlight}%kit_count%"
+      - " {letters_black}▎ {letters}Kits: {highlight}%kit_count%"
       - ""
-      - "{info}» Click to manage"
+      - "{warning}➥ Click to manage"
     actions:
       - "events:open_kit_list"
 
   type-settings:
-    slot: 29
+    slot: 37
     material: COMPARATOR
     name: "{secondary}&lTYPE SETTINGS"
     lore:
       - ""
-      - " {muted}❙ {letters}Configure type-specific"
-      - " {muted}❙ {letters}parameters"
+      - " {letters_black}▎ {letters}Configure type-specific"
+      - " {letters_black}▎ {letters}parameters"
       - ""
-      - "{info}» Click to open"
+      - "{warning}➥ Click to open"
     actions:
       - "events:open_type_settings"
 
   winner-rewards:
-    slot: 37
+    slot: 40
     material: DIAMOND
     name: "{success}&lWINNER REWARDS"
     lore:
       - ""
-      - " {muted}❙ {letters}Rewards: {highlight}%reward_winner_count%"
-      - " {muted}❙ {muted}Given to the winner(s)"
+      - " {letters_black}▎ {letters}Rewards: {highlight}%reward_winner_count%"
+      - " {letters_black}▎ {muted}Given to the winner(s)"
       - ""
-      - "{info}» Click to manage"
+      - "{warning}➥ Click to manage"
     actions:
       - "events:open_winner_rewards"
 
   participant-rewards:
-    slot: 38
+    slot: 41
     material: COAL
     name: "{info}&lPARTICIPANT REWARDS"
     lore:
       - ""
-      - " {muted}❙ {letters}Rewards: {highlight}%reward_participant_count%"
-      - " {muted}❙ {muted}Given to all participants"
+      - " {letters_black}▎ {letters}Rewards: {highlight}%reward_participant_count%"
+      - " {letters_black}▎ {muted}Given to all participants"
       - ""
-      - "{info}» Click to manage"
+      - "{warning}➥ Click to manage"
     actions:
       - "events:open_participant_rewards"
 
   schedules:
-    slot: 28
+    slot: 38
     material: CLOCK
     name: "{warning}&lSCHEDULES"
     lore:
       - ""
-      - " {muted}❙ {letters}Lines: {highlight}%schedule_count%"
-      - " {muted}❙ {letters}Next: {info}%schedule_next%"
+      - " {letters_black}▎ {letters}Lines: {highlight}%schedule_count%"
+      - " {letters_black}▎ {letters}Next: {info}%schedule_next%"
       - ""
-      - "{info}» Click to manage"
+      - "{warning}➥ Click to manage"
     actions:
       - "events:open_schedules"
 
@@ -275,7 +275,7 @@ items:
     name: "%toggle_name%"
     lore:
       - ""
-      - "{info}» Click to toggle"
+      - "{warning}➥ Click to toggle"
     actions:
       - "events:toggle_config"
 

@@ -1,0 +1,134 @@
+# One player's record, at one game or across all of them.
+
+title: '{primary}&lRECORD {muted}— %subject%'
+size: 54
+type: MULTI_PAGINATION
+
+open_sounds:
+  - 'BLOCK_BARREL_OPEN|0.8|1.4'
+click_sounds:
+  - 'UI_BUTTON_CLICK|1.0|1.5'
+
+filler:
+  global:
+    material: BLACK_STAINED_GLASS_PANE
+    hide_tooltip: true
+
+items:
+
+  record:
+    slot: 4
+    material: 'playerhead-%subject%'
+    name: '{primary}&l%subject%'
+    lore:
+      - ''
+      - '%game_name%'
+      - ''
+      - '{secondary}Record:'
+      - ' {letters_black}▎ {letters}Won {letters_black}» {success}%wins%'
+      - ' {letters_black}▎ {letters}Lost {letters_black}» {error}%losses%'
+      - ' {letters_black}▎ {letters}Drawn {letters_black}» {warning}%draws%'
+      - ' {letters_black}▎ {letters}Played {letters_black}» {info}%played%'
+      - ' {letters_black}▎ {letters}Win rate {letters_black}» {highlight}%win_rate%%'
+      - ''
+      - '{secondary}Form:'
+      - ' {letters_black}▎ {letters}Streak {letters_black}» {highlight}%streak%'
+      - ' {letters_black}▎ {letters}Best ever {letters_black}» {info}%best_streak%'
+      - ''
+    glow: true
+
+  leaderboard:
+    slot: 48
+    material: GOLD_INGOT
+    name: '{primary}&lLEADERBOARD'
+    lore:
+      - ''
+      - ' {letters_black}▎ {letters}Who is at the top of this game.'
+      - ''
+      - '{warning}➥ Click to open'
+      - ''
+    actions:
+      - 'left: betcore:open_leaderboard'
+
+  history:
+    slot: 50
+    material: BOOK
+    name: '{primary}&lPAST MATCHES'
+    lore:
+      - ''
+      - ' {letters_black}▎ {letters}The last matches %subject% played.'
+      - ''
+      - '{warning}➥ Click to open'
+      - ''
+    actions:
+      - 'left: betcore:open_history %subject%'
+
+  back:
+    slot: 45
+    material: ARROW
+    name: '{error}&lBACK'
+    lore:
+      - ''
+      - '{warning}➥ Click to go back'
+      - ''
+    actions:
+      - 'left: betcore:open_main'
+
+  close:
+    slot: 53
+    material: BARRIER
+    name: '{error}&lCLOSE'
+    lore:
+      - ''
+      - '{warning}➥ Click to close'
+      - ''
+    actions:
+      - 'close'
+
+sections:
+
+  # What has been staked and taken, one row per currency.
+  money:
+    slots: '20-24'
+    filler:
+      material: LIGHT_GRAY_STAINED_GLASS_PANE
+      name: '{muted}Nothing bet yet'
+      lore:
+        - ''
+        - '{letters_black}Free matches are not counted here.'
+        - ''
+    item_template:
+      material: SUNFLOWER
+      name: '{primary}&l%currency_id%'
+      lore:
+        - ''
+        - '{secondary}Staked and taken:'
+        - ' {letters_black}▎ {letters}Put up {letters_black}» {info}%wagered%'
+        - ' {letters_black}▎ {letters}Taken {letters_black}» {success}%won%'
+        - ' {letters_black}▎ {letters}Lost {letters_black}» {error}%lost%'
+        - ''
+        - '{secondary}Overall:'
+        - ' {letters_black}▎ {letters}Up or down {letters_black}» {highlight}%net%'
+        - ' {letters_black}▎ {letters}Biggest pot {letters_black}» {highlight}%biggest_pot%'
+        - ''
+
+  # Which game the numbers above are about.
+  games:
+    slots: '38-42'
+    item_template:
+      material: '%game_icon%'
+      name: '%game_name%'
+      lore:
+        - ''
+        - '{warning}➥ Click to see this game'
+        - ''
+      actions:
+        - 'left: betcore:set_stats_game %game_id%'
+    selected_template:
+      material: '%game_icon%'
+      name: '%game_name% {success}✔'
+      lore:
+        - ''
+        - '{success}This is what you are looking at.'
+        - ''
+      glow: true

@@ -28,14 +28,14 @@ pagination:
     name: "%config_name%"
     lore:
       - ""
-      - " {muted}❙ {letters}ID: {info}%config_id%"
-      - " {muted}❙ {letters}Type: {info}%config_type%"
-      - " {muted}❙ {letters}Status: %config_status%"
-      - " {muted}❙ {letters}Ready: %config_valid%"
-      - " {muted}❙ {letters}Active: %config_active%"
+      - " {letters_black}▎ {letters}ID: {info}%config_id%"
+      - " {letters_black}▎ {letters}Type: {info}%config_type%"
+      - " {letters_black}▎ {letters}Status: %config_status%"
+      - " {letters_black}▎ {letters}Ready: %config_valid%"
+      - " {letters_black}▎ {letters}Active: %config_active%"
       - ""
-      - " {muted}❙ {success}Left-Click to edit"
-      - " {muted}❙ {error}Right-Click to delete"
+      - " {letters_black}▎ {success}Left-Click to edit"
+      - " {letters_black}▎ {error}Right-Click to delete"
     actions:
       - "left: capture:edit_config %config_id%"
       - "right: capture:delete_config %config_id%"
@@ -46,8 +46,8 @@ pagination:
       material: 'basehead-eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvZGExZDU1YjNmOTg5NDEwYTM0NzUyNjUwZTI0OGM5YjZjMTc4M2E3ZWMyYWEzZmQ3Nzg3YmRjNGQwZTYzN2QzOSJ9fX0='
       name: '{error}&l← PREVIOUS PAGE'
       lore:
-        - ' {muted}❙ {letters}Click to go'
-        - ' {muted}❙ {letters}to the previous page.'
+        - ' {letters_black}▎ {letters}Click to go'
+        - ' {letters_black}▎ {letters}to the previous page.'
         - ''
         - '{info}ℹ Current page: {success}%current_page%&8/{error}%total_pages%'
       actions:
@@ -57,8 +57,8 @@ pagination:
       material: 'basehead-eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvZmE4N2UzZDk2ZTFjZmViOWNjZmIzYmE1M2EyMTdmYWY1MjQ5ZTI4NTUzM2IyNzFhMmZiMjg0YzMwZGJkOTgyOSJ9fX0='
       name: '{success}&lNEXT PAGE →'
       lore:
-        - ' {muted}❙ {letters}Click to go'
-        - ' {muted}❙ {letters}to the next page.'
+        - ' {letters_black}▎ {letters}Click to go'
+        - ' {letters_black}▎ {letters}to the next page.'
         - ''
         - '{info}ℹ Current page: {success}%current_page%&8/{error}%total_pages%'
       actions:
@@ -71,10 +71,10 @@ items:
     name: "{success}&lCREATE CONFIG"
     lore:
       - ""
-      - " {muted}❙ {letters}Create a new capture"
-      - " {muted}❙ {letters}zone event config"
+      - " {letters_black}▎ {letters}Create a new capture"
+      - " {letters_black}▎ {letters}zone event config"
       - ""
-      - "{info}» Click to create"
+      - "{warning}➥ Click to create"
     actions:
       - "capture:start_config_create"
 

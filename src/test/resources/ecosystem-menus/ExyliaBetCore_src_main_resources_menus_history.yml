@@ -1,0 +1,116 @@
+# The last matches somebody played. Newest first.
+
+title: '{primary}&lPAST MATCHES {muted}— %subject%'
+size: 54
+type: PAGINATION
+
+open_sounds:
+  - 'BLOCK_BARREL_OPEN|0.8|1.4'
+click_sounds:
+  - 'UI_BUTTON_CLICK|1.0|1.5'
+
+filler:
+  global:
+    material: BLACK_STAINED_GLASS_PANE
+    hide_tooltip: true
+
+items:
+
+  header:
+    slot: 4
+    material: 'playerhead-%subject%'
+    name: '{primary}&l%subject%'
+    lore:
+      - ''
+      - ' {letters_black}▎ {letters}Matches kept {letters_black}» {info}%match_count%'
+      - ''
+      - '{letters_black}Older ones are cleared out on a timer.'
+      - ''
+    glow: true
+
+  back:
+    slot: 45
+    material: ARROW
+    name: '{error}&lBACK'
+    lore:
+      - ''
+      - '{warning}➥ Click to go back'
+      - ''
+    actions:
+      - 'left: betcore:open_stats %subject%'
+
+  close:
+    slot: 53
+    material: BARRIER
+    name: '{error}&lCLOSE'
+    lore:
+      - ''
+      - '{warning}➥ Click to close'
+      - ''
+    actions:
+      - 'close'
+
+pagination:
+  slots: '10-16,19-25,28-34'
+  filler:
+    material: LIGHT_GRAY_STAINED_GLASS_PANE
+    name: '{muted}No matches yet'
+  item_template:
+    material: LIME_DYE
+    name: '{success}&lWON {muted}vs {letters}%opponent%'
+    lore:
+      - ''
+      - '{secondary}The match:'
+      - ' {letters_black}▎ {letters}Game {letters_black}» {info}%game_name%'
+      - ' {letters_black}▎ {letters}Mode {letters_black}» {info}%mode%'
+      - ' {letters_black}▎ {letters}Score {letters_black}» {info}%score%'
+      - ' {letters_black}▎ {letters}Ended {letters_black}» {info}%reason%'
+      - ''
+      - '{secondary}The money:'
+      - ' {letters_black}▎ {letters}Stake {letters_black}» {info}%wager%'
+      - ' {letters_black}▎ {letters}You took {letters_black}» {success}%payout%'
+      - ''
+      - '{muted}%age% ago'
+      - ''
+  lost_template:
+    material: RED_DYE
+    name: '{error}&lLOST {muted}vs {letters}%opponent%'
+    lore:
+      - ''
+      - '{secondary}The match:'
+      - ' {letters_black}▎ {letters}Game {letters_black}» {info}%game_name%'
+      - ' {letters_black}▎ {letters}Mode {letters_black}» {info}%mode%'
+      - ' {letters_black}▎ {letters}Score {letters_black}» {info}%score%'
+      - ' {letters_black}▎ {letters}Ended {letters_black}» {info}%reason%'
+      - ''
+      - '{secondary}The money:'
+      - ' {letters_black}▎ {letters}Stake {letters_black}» {error}%wager%'
+      - ''
+      - '{muted}%age% ago'
+      - ''
+  draw_template:
+    material: YELLOW_DYE
+    name: '{warning}&lDRAW {muted}vs {letters}%opponent%'
+    lore:
+      - ''
+      - '{secondary}The match:'
+      - ' {letters_black}▎ {letters}Game {letters_black}» {info}%game_name%'
+      - ' {letters_black}▎ {letters}Score {letters_black}» {info}%score%'
+      - ''
+      - '{letters_black}Both stakes went back.'
+      - ''
+      - '{muted}%age% ago'
+      - ''
+  navigation:
+    previous:
+      slot: 48
+      material: ARROW
+      name: '{error}&l← PREVIOUS'
+      lore:
+        - '{info}Page {success}%current_page%{muted}/{error}%total_pages%'
+    next:
+      slot: 50
+      material: ARROW
+      name: '{success}&lNEXT →'
+      lore:
+        - '{info}Page {success}%current_page%{muted}/{error}%total_pages%'

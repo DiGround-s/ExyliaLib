@@ -34,12 +34,12 @@ pagination:
     name: "{warning}&l%kit_name%"
     lore:
       - ""
-      - " {muted}❙ {letters}Contents: %kit_has_content%"
+      - " {letters_black}▎ {letters}Contents: %kit_has_content%"
       - ""
-      - " {muted}❙ {success}Left-Click to save inventory"
-      - " {muted}❙ {warning}Shift-Click to edit name"
-      - " {muted}❙ {error}Right-Click to delete"
-      - " {muted}❙ {success}Shift-Right-Click to receive"
+      - " {letters_black}▎ {success}Left-Click to save inventory"
+      - " {letters_black}▎ {warning}Shift-Click to edit name"
+      - " {letters_black}▎ {error}Right-Click to delete"
+      - " {letters_black}▎ {success}Shift-Right-Click to receive"
     actions:
       - "left: events:set_kit_contents %kit_id%"
       - "shift_left: events:edit_kit_name %kit_id%"
@@ -71,10 +71,10 @@ items:
     name: "{success}&lCREATE KIT"
     lore:
       - ""
-      - " {muted}❙ {letters}Create a new kit"
-      - " {muted}❙ {letters}for this event"
+      - " {letters_black}▎ {letters}Create a new kit"
+      - " {letters_black}▎ {letters}for this event"
       - ""
-      - "{info}» Click to create"
+      - "{warning}➥ Click to create"
     actions:
       - "events:create_kit"
 

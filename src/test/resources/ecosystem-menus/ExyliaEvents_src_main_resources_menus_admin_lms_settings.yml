@@ -23,213 +23,213 @@ filler:
 
 items:
   drop-items:
-    slot: 20
+    slot: 24
     material: "%drop_items_material%"
-    name: "{info}&lDROP ITEMS ON DEATH"
+    name: "%drop_items_color%&lDROP ITEMS ON DEATH"
     lore:
       - ""
-      - " {muted}❙ {letters}Current: %drop_items%"
+      - " {letters_black}▎ {letters}Current: %drop_items%"
       - ""
-      - "{info}» Click to toggle"
+      - "{warning}➥ Click to toggle"
     actions:
       - "events:toggle_lms_setting drop-items-on-death"
 
   block-break:
-    slot: 30
+    slot: 28
     material: "%block_break_material%"
-    name: "{info}&lBLOCK BREAK"
+    name: "%block_break_color%&lBLOCK BREAK"
     lore:
       - ""
-      - " {muted}❙ {letters}Current: %block_break%"
+      - " {letters_black}▎ {letters}Current: %block_break%"
       - ""
-      - "{info}» Click to toggle"
+      - "{warning}➥ Click to toggle"
     actions:
       - "events:toggle_lms_setting block-break"
 
   block-place:
-    slot: 31
+    slot: 29
     material: "%block_place_material%"
-    name: "{info}&lBLOCK PLACE"
+    name: "%block_place_color%&lBLOCK PLACE"
     lore:
       - ""
-      - " {muted}❙ {letters}Current: %block_place%"
+      - " {letters_black}▎ {letters}Current: %block_place%"
       - ""
-      - "{info}» Click to toggle"
+      - "{warning}➥ Click to toggle"
     actions:
       - "events:toggle_lms_setting block-place"
 
   player-build-only:
-    slot: 33
+    slot: 30
     material: "%player_build_only_material%"
-    name: "{info}&lPLAYER BLOCKS ONLY"
+    name: "%player_build_only_color%&lPLAYER BLOCKS ONLY"
     lore:
       - ""
-      - " {muted}❙ {letters}Current: %player_build_only%"
-      - " {muted}❙ {letters}Only blocks placed by players"
-      - " {muted}❙ {letters}can be broken"
+      - " {letters_black}▎ {letters}Current: %player_build_only%"
+      - " {letters_black}▎ {letters}Only blocks placed by players"
+      - " {letters_black}▎ {letters}can be broken"
       - ""
-      - "{info}» Click to toggle"
+      - "{warning}➥ Click to toggle"
     actions:
       - "events:toggle_lms_setting player-build-only"
 
   temporary-blocks:
-    slot: 19
+    slot: 25
     material: "%temporary_blocks_material%"
-    name: "{info}&lTEMPORARY BLOCKS"
+    name: "%temporary_blocks_color%&lTEMPORARY BLOCKS"
     lore:
       - ""
-      - " {muted}❙ {letters}Current: %temporary_blocks%"
-      - " {muted}❙ {letters}Disappear in: {highlight}%temporary_blocks_seconds%s"
+      - " {letters_black}▎ {letters}Current: %temporary_blocks%"
+      - " {letters_black}▎ {letters}Disappear in: {highlight}%temporary_blocks_seconds%s"
       - ""
-      - " {muted}❙ {success}Left-Click to toggle"
-      - " {muted}❙ {warning}Right-Click to adjust seconds"
+      - " {letters_black}▎ {success}Left-Click to toggle"
+      - " {letters_black}▎ {warning}Right-Click to adjust seconds"
     actions:
       - "left: events:toggle_lms_setting temporary-blocks"
       - "right: events:input_setting temporary-blocks-seconds"
 
   reset-kit:
-    slot: 53
-    material: 'basehead-eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvYmUwZmQxMDE5OWU4ZTRmY2RhYmNhZTRmODVjODU5MTgxMjdhN2M1NTUzYWQyMzVmMDFjNTZkMThiYjk0NzBkMyJ9fX0='
+    slot: 21
+    material: "%reset_kit_material%"
     name: "{info}&lRESET KIT ON KILL"
     lore:
       - ""
-      - " {muted}❙ {letters}Current: %reset_kit%"
-      - " {muted}❙ {letters}Returns full kit to the killer"
+      - " {letters_black}▎ {letters}Current: %reset_kit%"
+      - " {letters_black}▎ {letters}Returns full kit to the killer"
       - ""
-      - "{info}» Click to toggle"
+      - "{warning}➥ Click to toggle"
     actions:
       - "events:toggle_lms_setting reset-kit-on-kill"
 
   golden-apple:
-    slot: 21
+    slot: 22
     material: "%golden_apple_material%"
-    name: "{info}&lGOLDEN APPLE ON KILL"
+    name: "%golden_apple_color%&lGOLDEN APPLE ON KILL"
     lore:
       - ""
-      - " {muted}❙ {letters}Current: %golden_apple_on_kill%"
-      - " {muted}❙ {letters}Amount: {highlight}%golden_apple_amount%"
+      - " {letters_black}▎ {letters}Current: %golden_apple_on_kill%"
+      - " {letters_black}▎ {letters}Amount: {highlight}%golden_apple_amount%"
       - ""
-      - " {muted}❙ {success}Left-Click to toggle"
-      - " {muted}❙ {warning}Right-Click to adjust amount"
+      - " {letters_black}▎ {success}Left-Click to toggle"
+      - " {letters_black}▎ {warning}Right-Click to adjust amount"
     actions:
       - "left: events:toggle_lms_setting golden-apple-on-kill"
       - "right: events:input_setting golden-apple-amount"
 
   grace-period:
-    slot: 22
+    slot: 19
     material: CLOCK
     name: "{info}&lGRACE PERIOD"
     lore:
       - ""
-      - " {muted}❙ {letters}Current: {highlight}%grace_period%s"
-      - " {muted}❙ {letters}No PvP or damage at start"
+      - " {letters_black}▎ {letters}Current: {highlight}%grace_period%s"
+      - " {letters_black}▎ {letters}No PvP or damage at start"
       - ""
-      - " {muted}❙ {success}Left-Click +5s"
-      - " {muted}❙ {error}Right-Click -5s"
-      - " {muted}❙ {warning}Shift-Click to enter"
+      - " {letters_black}▎ {success}Left-Click +5s"
+      - " {letters_black}▎ {error}Right-Click -5s"
+      - " {letters_black}▎ {warning}Shift-Click to enter"
     actions:
       - "left: events:adjust_setting grace-period 5"
       - "right: events:adjust_setting grace-period -5"
       - "shift_left: events:input_setting grace-period"
 
   zone-enabled:
-    slot: 24
+    slot: 37
     material: "%zone_enabled_material%"
-    name: "{info}&lZONE ENABLED"
+    name: "%zone_enabled_color%&lZONE ENABLED"
     lore:
       - ""
-      - " {muted}❙ {letters}Current: %zone_enabled%"
-      - " {muted}❙ {letters}Shrinking zone that damages"
-      - " {muted}❙ {letters}players outside its border"
+      - " {letters_black}▎ {letters}Current: %zone_enabled%"
+      - " {letters_black}▎ {letters}Shrinking zone that damages"
+      - " {letters_black}▎ {letters}players outside its border"
       - ""
-      - "{info}» Click to toggle"
+      - "{warning}➥ Click to toggle"
     actions:
       - "events:toggle_lms_setting zone-enabled"
 
   zone-delay:
-    slot: 25
+    slot: 38
     material: CLOCK
     name: "{warning}&lZONE DELAY"
     lore:
       - ""
-      - " {muted}❙ {letters}Current: {highlight}%zone_delay%s"
-      - " {muted}❙ {letters}Seconds after grace before"
-      - " {muted}❙ {letters}the zone starts closing"
+      - " {letters_black}▎ {letters}Current: {highlight}%zone_delay%s"
+      - " {letters_black}▎ {letters}Seconds after grace before"
+      - " {letters_black}▎ {letters}the zone starts closing"
       - ""
-      - " {muted}❙ {success}Left-Click +10s"
-      - " {muted}❙ {error}Right-Click -10s"
-      - " {muted}❙ {warning}Shift-Click to enter"
+      - " {letters_black}▎ {success}Left-Click +10s"
+      - " {letters_black}▎ {error}Right-Click -10s"
+      - " {letters_black}▎ {warning}Shift-Click to enter"
     actions:
       - "left: events:adjust_setting zone-delay 10"
       - "right: events:adjust_setting zone-delay -10"
       - "shift_left: events:input_setting zone-delay"
 
   zone-shrink-rate:
-    slot: 28
+    slot: 39
     material: COMPASS
     name: "{error}&lZONE SHRINK RATE"
     lore:
       - ""
-      - " {muted}❙ {letters}Current: {highlight}%zone_shrink_rate% blocks/s"
-      - " {muted}❙ {letters}How many blocks per second"
-      - " {muted}❙ {letters}the zone shrinks"
+      - " {letters_black}▎ {letters}Current: {highlight}%zone_shrink_rate% blocks/s"
+      - " {letters_black}▎ {letters}How many blocks per second"
+      - " {letters_black}▎ {letters}the zone shrinks"
       - ""
-      - " {muted}❙ {success}Left-Click +1"
-      - " {muted}❙ {error}Right-Click -1"
-      - " {muted}❙ {warning}Shift-Click to enter (supports decimals)"
+      - " {letters_black}▎ {success}Left-Click +1"
+      - " {letters_black}▎ {error}Right-Click -1"
+      - " {letters_black}▎ {warning}Shift-Click to enter (supports decimals)"
     actions:
       - "left: events:adjust_setting zone-shrink-rate 1"
       - "right: events:adjust_setting zone-shrink-rate -1"
       - "shift_left: events:input_setting zone-shrink-rate"
 
   zone-final-size:
-    slot: 29
+    slot: 40
     material: TARGET
     name: "{info}&lZONE FINAL SIZE"
     lore:
       - ""
-      - " {muted}❙ {letters}Current: {highlight}%zone_final_size% blocks"
-      - " {muted}❙ {letters}Minimum zone radius"
-      - " {muted}❙ {letters}once fully closed"
+      - " {letters_black}▎ {letters}Current: {highlight}%zone_final_size% blocks"
+      - " {letters_black}▎ {letters}Minimum zone radius"
+      - " {letters_black}▎ {letters}once fully closed"
       - ""
-      - " {muted}❙ {success}Left-Click +5"
-      - " {muted}❙ {error}Right-Click -5"
-      - " {muted}❙ {warning}Shift-Click to enter"
+      - " {letters_black}▎ {success}Left-Click +5"
+      - " {letters_black}▎ {error}Right-Click -5"
+      - " {letters_black}▎ {warning}Shift-Click to enter"
     actions:
       - "left: events:adjust_setting zone-final-size 5"
       - "right: events:adjust_setting zone-final-size -5"
       - "shift_left: events:input_setting zone-final-size"
 
   zone-damage:
-    slot: 32
+    slot: 41
     material: NETHER_STAR
     name: "{error}&lZONE DAMAGE"
     lore:
       - ""
-      - " {muted}❙ {letters}Current: {highlight}%zone_damage% ❤/s"
-      - " {muted}❙ {letters}Damage per second dealt"
-      - " {muted}❙ {letters}outside the zone"
+      - " {letters_black}▎ {letters}Current: {highlight}%zone_damage% ❤/s"
+      - " {letters_black}▎ {letters}Damage per second dealt"
+      - " {letters_black}▎ {letters}outside the zone"
       - ""
-      - " {muted}❙ {success}Left-Click +1"
-      - " {muted}❙ {error}Right-Click -1"
-      - " {muted}❙ {warning}Shift-Click to enter (supports decimals)"
+      - " {letters_black}▎ {success}Left-Click +1"
+      - " {letters_black}▎ {error}Right-Click -1"
+      - " {letters_black}▎ {warning}Shift-Click to enter (supports decimals)"
     actions:
       - "left: events:adjust_setting zone-damage 1"
       - "right: events:adjust_setting zone-damage -1"
       - "shift_left: events:input_setting zone-damage"
 
   team-selector:
-    slot: 23
+    slot: 20
     condition: "%has_teams% == true"
     material: "%team_selector_material%"
-    name: "{warning}&lTEAM SELECTOR"
+    name: "%team_selector_color%&lTEAM SELECTOR"
     lore:
       - ""
-      - " {muted}❙ {letters}Current: %team_selector%"
-      - " {muted}❙ {letters}Allow players to choose"
-      - " {muted}❙ {letters}their team in the lobby"
+      - " {letters_black}▎ {letters}Current: %team_selector%"
+      - " {letters_black}▎ {letters}Allow players to choose"
+      - " {letters_black}▎ {letters}their team in the lobby"
       - ""
-      - "{info}» Click to toggle"
+      - "{warning}➥ Click to toggle"
     actions:
       - "events:toggle_team_selector_setting team-selector-enabled"
 

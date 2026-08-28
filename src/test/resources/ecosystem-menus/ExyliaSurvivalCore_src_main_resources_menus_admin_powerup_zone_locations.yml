@@ -32,10 +32,10 @@ pagination:
     name: "{warning}&lLocation {highlight}#%loc_index%"
     lore:
       - ""
-      - " {muted}❙ {letters}World: {highlight}%loc_world%"
-      - " {muted}❙ {letters}X: {highlight}%loc_x%  Y: {highlight}%loc_y%  Z: {highlight}%loc_z%"
+      - " {letters_black}▎ {letters}World: {highlight}%loc_world%"
+      - " {letters_black}▎ {letters}X: {highlight}%loc_x%  Y: {highlight}%loc_y%  Z: {highlight}%loc_z%"
       - ""
-      - " {muted}❙ {error}Right-Click to remove"
+      - " {letters_black}▎ {error}Right-Click to remove"
     actions:
       - "right: survivalcore:pu_zone_remove_location %loc_index%"
 
@@ -45,7 +45,7 @@ pagination:
       material: 'basehead-eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvZGExZDU1YjNmOTg5NDEwYTM0NzUyNjUwZTI0OGM5YjZjMTc4M2E3ZWMyYWEzZmQ3Nzg3YmRjNGQwZTYzN2QzOSJ9fX0='
       name: '{error}&l← PREVIOUS PAGE'
       lore:
-        - ' {muted}❙ {letters}Go to the previous page.'
+        - ' {letters_black}▎ {letters}Go to the previous page.'
         - ''
         - '{info}ℹ Page: {success}%current_page%<#475569>/{error}%total_pages%'
       actions:
@@ -55,7 +55,7 @@ pagination:
       material: 'basehead-eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvZmE4N2UzZDk2ZTFjZmViOWNjZmIzYmE1M2EyMTdmYWY1MjQ5ZTI4NTUzM2IyNzFhMmZiMjg0YzMwZGJkOTgyOSJ9fX0='
       name: '{success}&lNEXT PAGE →'
       lore:
-        - ' {muted}❙ {letters}Go to the next page.'
+        - ' {letters_black}▎ {letters}Go to the next page.'
         - ''
         - '{info}ℹ Page: {success}%current_page%<#475569>/{error}%total_pages%'
       actions:
@@ -68,10 +68,10 @@ items:
     name: "{success}&lADD LOCATION"
     lore:
       - ""
-      - " {muted}❙ {letters}Right-click a block to register it"
-      - " {muted}❙ {letters}as a spawn point"
+      - " {letters_black}▎ {letters}Right-click a block to register it"
+      - " {letters_black}▎ {letters}as a spawn point"
       - ""
-      - "{info}» Click to start wizard"
+      - "{warning}➥ Click to start wizard"
     actions:
       - "survivalcore:pu_zone_add_location"
 
@@ -81,6 +81,6 @@ items:
     name: '{error}&lBACK'
     lore:
       - ""
-      - " {info}» Return to zone setup"
+      - " {warning}➥ Return to zone setup"
     actions:
       - "survivalcore:pu_zone_back_to_setup"

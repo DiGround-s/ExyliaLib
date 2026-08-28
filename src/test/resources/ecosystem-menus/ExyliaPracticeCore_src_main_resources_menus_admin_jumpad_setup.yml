@@ -22,39 +22,39 @@ items:
     name: "{highlight}&lNAME"
     lore:
       - ""
-      - " {muted}❙ {letters}Current: {info}%display_name%"
+      - " {letters_black}▎ {letters}Current: {info}%display_name%"
       - ""
-      - "{info}» Click to edit"
+      - "{warning}➥ Click to edit"
     actions:
       - "practice:jumpad_edit_name"
 
   direction:
-    slot: 39
+    slot: 21
     material: COMPASS
     name: "{highlight}&lLAUNCH DIRECTION"
     lore:
       - ""
-      - " {muted}❙ {letters}Direction: {highlight}%yaw%"
+      - " {letters_black}▎ {letters}Direction: {highlight}%yaw%"
       - ""
-      - " {muted}❙ {letters}Look toward where players should"
-      - " {muted}❙ {letters}be launched, then SHIFT+LEFT-CLICK"
+      - " {letters_black}▎ {letters}Look toward where players should"
+      - " {letters_black}▎ {letters}be launched, then SHIFT+LEFT-CLICK"
       - ""
-      - "{info}» Click to set via wizard"
+      - "{warning}➥ Click to set via wizard"
     actions:
       - "practice:jumpad_set_yaw"
 
   power:
-    slot: 37
+    slot: 19
     material: SLIME_BALL
     name: "{highlight}&lHORIZONTAL POWER"
     lore:
       - ""
-      - " {muted}❙ {letters}Power: {highlight}%power%"
+      - " {letters_black}▎ {letters}Power: {highlight}%power%"
       - ""
-      - " {muted}❙ {letters}Controls horizontal launch speed"
+      - " {letters_black}▎ {letters}Controls horizontal launch speed"
       - ""
-      - " {muted}❙ {success}Left +0.1 {muted}| {error}Right -0.1"
-      - " {muted}❙ {success}Shift-Left +0.5 {muted}| {error}Shift-Right -0.5"
+      - " {letters_black}▎ {success}Left +0.1 {muted}| {error}Right -0.1"
+      - " {letters_black}▎ {success}Shift-Left +0.5 {muted}| {error}Shift-Right -0.5"
     actions:
       - "left: practice:jumpad_adjust_power 0.1"
       - "right: practice:jumpad_adjust_power -0.1"
@@ -62,17 +62,17 @@ items:
       - "shift_right: practice:jumpad_adjust_power -0.5"
 
   vertical-power:
-    slot: 38
+    slot: 20
     material: FEATHER
     name: "{highlight}&lVERTICAL POWER"
     lore:
       - ""
-      - " {muted}❙ {letters}Power: {highlight}%vertical_power%"
+      - " {letters_black}▎ {letters}Power: {highlight}%vertical_power%"
       - ""
-      - " {muted}❙ {letters}Controls vertical launch height"
+      - " {letters_black}▎ {letters}Controls vertical launch height"
       - ""
-      - " {muted}❙ {success}Left +0.1 {muted}| {error}Right -0.1"
-      - " {muted}❙ {success}Shift-Left +0.5 {muted}| {error}Shift-Right -0.5"
+      - " {letters_black}▎ {success}Left +0.1 {muted}| {error}Right -0.1"
+      - " {letters_black}▎ {success}Shift-Left +0.5 {muted}| {error}Shift-Right -0.5"
     actions:
       - "left: practice:jumpad_adjust_vertical 0.1"
       - "right: practice:jumpad_adjust_vertical -0.1"
@@ -85,26 +85,26 @@ items:
     name: "{highlight}&lENABLED"
     lore:
       - ""
-      - " {muted}❙ {letters}Status: %enabled_status%"
+      - " {letters_black}▎ {letters}Status: %enabled_status%"
       - ""
-      - " {muted}❙ {letters}Disable to deactivate this jumpad"
+      - " {letters_black}▎ {letters}Disable to deactivate this jumpad"
       - ""
-      - "{info}» Click to toggle"
+      - "{warning}➥ Click to toggle"
     actions:
       - "practice:jumpad_toggle_enabled"
 
   locations:
-    slot: 22
+    slot: 23
     material: LODESTONE
     name: "{highlight}&lTRIGGER LOCATIONS"
     lore:
       - ""
-      - " {muted}❙ {letters}Locations: {highlight}%locations_count%"
+      - " {letters_black}▎ {letters}Locations: {highlight}%locations_count%"
       - ""
-      - " {muted}❙ {letters}Block positions that launch players"
-      - " {muted}❙ {letters}when stepped on"
+      - " {letters_black}▎ {letters}Block positions that launch players"
+      - " {letters_black}▎ {letters}when stepped on"
       - ""
-      - "{info}» Click to manage"
+      - "{warning}➥ Click to manage"
     actions:
       - "practice:jumpad_open_locations"
 
@@ -114,9 +114,9 @@ items:
     name: "{error}&lDELETE"
     lore:
       - ""
-      - " {muted}❙ {letters}Permanently delete this jumpad"
+      - " {letters_black}▎ {letters}Permanently delete this jumpad"
       - ""
-      - "{error}» Click to delete"
+      - "{error}➥ Click to delete"
     actions:
       - "practice:jumpad_confirm_delete %jumpad_id%"
 

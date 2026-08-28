@@ -1,0 +1,72 @@
+# The front door: every game this server has turned on.
+#
+# Colours are palette tokens, so recolouring the server never means editing
+# this file. %placeholders% are filled in by the plugin.
+
+title: '{primary}&lBETS'
+size: 45
+type: PAGINATION
+
+open_sounds:
+  - 'BLOCK_BARREL_OPEN|0.8|1.4'
+click_sounds:
+  - 'UI_BUTTON_CLICK|1.0|1.5'
+
+filler:
+  global:
+    material: BLACK_STAINED_GLASS_PANE
+    hide_tooltip: true
+
+items:
+
+  header:
+    slot: 4
+    material: GOLD_INGOT
+    name: '{primary}&lPLAY FOR IT'
+    lore:
+      - ''
+      - '{secondary}Right now:'
+      - ' {letters_black}▎ {letters}Waiting {letters_black}» {info}%waiting_count%'
+      - ' {letters_black}▎ {letters}Being played {letters_black}» {info}%live_count%'
+      - ''
+      - '{warning}➥ Pick a game below'
+      - ''
+    glow: true
+
+  close:
+    slot: 40
+    material: BARRIER
+    name: '{error}&lCLOSE'
+    lore:
+      - ''
+      - '{warning}➥ Click to close'
+      - ''
+    actions:
+      - 'close'
+
+# One row per game that is on. A game the owner turned off is not here at all.
+pagination:
+  slots: '19-25'
+  filler:
+    material: LIGHT_GRAY_STAINED_GLASS_PANE
+    name: '{muted}No games are turned on'
+    lore:
+      - ''
+      - '{letters_black}Ask an admin to enable one in config.yml.'
+      - ''
+  item_template:
+    material: '%game_icon%'
+    name: '%game_name%'
+    lore:
+      - ''
+      - '{secondary}About:'
+      - '%game_description%'
+      - ''
+      - '{secondary}Right now:'
+      - ' {letters_black}▎ {letters}Waiting {letters_black}» {info}%waiting_count%'
+      - ' {letters_black}▎ {letters}Being played {letters_black}» {info}%live_count%'
+      - ''
+      - '{warning}➥ Click to open'
+      - ''
+    actions:
+      - 'left: betcore:open_lobby %game_id%'

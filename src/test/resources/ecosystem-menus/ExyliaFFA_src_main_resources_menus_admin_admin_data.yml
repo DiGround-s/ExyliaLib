@@ -28,24 +28,24 @@ items:
     name: "{error}&lRESET ALL STATS"
     lore:
       - ""
-      - " {muted}❙ {letters}Reset stats of ALL players"
-      - " {muted}❙ {letters}across ALL arenas"
-      - " {muted}❙ {letters}Leaderboards included"
+      - " {letters_black}▎ {letters}Reset stats of ALL players"
+      - " {letters_black}▎ {letters}across ALL arenas"
+      - " {letters_black}▎ {letters}Leaderboards included"
       - ""
-      - "{error}» Click to reset"
+      - "{error}➥ Click to reset"
     actions:
       - "ffa:confirm_reset_all_stats"
 
   kit-layouts:
-    slot: 37
+    slot: 22
     material: CHEST
     name: "{warning}&lKIT LAYOUTS"
     lore:
       - ""
-      - " {muted}❙ {letters}Delete all custom layouts"
-      - " {muted}❙ {letters}for a specific kit"
+      - " {letters_black}▎ {letters}Delete all custom layouts"
+      - " {letters_black}▎ {letters}for a specific kit"
       - ""
-      - "{info}» Click to manage"
+      - "{warning}➥ Click to manage"
     actions:
       - "ffa:open_kit_layout_list"
 

@@ -28,9 +28,9 @@ pagination:
     name: "{highlight}&lEXTRA REGION"
     lore:
       - ""
-      - " {muted}❙ {letters}ID: {info}%region_id%"
+      - " {letters_black}▎ {letters}ID: {info}%region_id%"
       - ""
-      - "{error}» Right-Click to delete"
+      - "{error}➥ Right-Click to delete"
     actions:
       - "right: practice:remove_extra_region %region_id%"
 

@@ -1,0 +1,55 @@
+# How long the series is. Which lengths are offered is series.allowed-rounds
+# in config.yml.
+
+title: '{primary}&lROUNDS'
+size: 27
+type: PAGINATION
+
+click_sounds:
+  - 'UI_BUTTON_CLICK|1.0|1.5'
+
+filler:
+  global:
+    material: BLACK_STAINED_GLASS_PANE
+    hide_tooltip: true
+
+items:
+  back:
+    slot: 22
+    material: ARROW
+    name: '{error}&lBACK'
+    lore:
+      - ''
+      - '{warning}➥ Click to go back'
+      - ''
+    actions:
+      - 'left: betcore:open_create'
+
+pagination:
+  slots: '11-15'
+  filler:
+    material: LIGHT_GRAY_STAINED_GLASS_PANE
+    name: '{muted}No series lengths are allowed'
+  item_template:
+    material: PAPER
+    amount: '%rounds%'
+    name: '{primary}&lBEST OF %rounds%'
+    lore:
+      - ''
+      - ' {letters_black}▎ {letters}First to {highlight}%rounds_to_win% {letters}takes the pot.'
+      - ''
+      - '{warning}➥ Click to pick this'
+      - ''
+    actions:
+      - 'left: betcore:set_rounds %rounds%'
+  selected_template:
+    material: MAP
+    amount: '%rounds%'
+    name: '{primary}&lBEST OF %rounds% {success}✔'
+    lore:
+      - ''
+      - ' {letters_black}▎ {letters}First to {highlight}%rounds_to_win% {letters}takes the pot.'
+      - ''
+      - '{success}This is what you are playing.'
+      - ''
+    glow: true

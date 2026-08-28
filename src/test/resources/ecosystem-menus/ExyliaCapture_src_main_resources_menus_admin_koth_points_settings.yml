@@ -17,51 +17,51 @@ filler:
 
 items:
   target-points:
-    slot: 37
+    slot: 19
     material: GOLD_INGOT
     name: "{info}&lTARGET POINTS"
     lore:
       - ""
-      - " {muted}❙ {letters}Current: {highlight}%target_points%"
-      - " {muted}❙ {letters}Points needed to win"
+      - " {letters_black}▎ {letters}Current: {highlight}%target_points%"
+      - " {letters_black}▎ {letters}Points needed to win"
       - ""
-      - " {muted}❙ {success}Left-Click +10"
-      - " {muted}❙ {error}Right-Click -10"
-      - " {muted}❙ {warning}Shift-Click to enter"
+      - " {letters_black}▎ {success}Left-Click +10"
+      - " {letters_black}▎ {error}Right-Click -10"
+      - " {letters_black}▎ {warning}Shift-Click to enter"
     actions:
       - "left: capture:adjust_setting target-points 10"
       - "right: capture:adjust_setting target-points -10"
       - "shift_left: capture:input_setting target-points"
 
   points-per-second:
-    slot: 38
+    slot: 20
     material: EXPERIENCE_BOTTLE
     name: "{info}&lPOINTS PER SECOND"
     lore:
       - ""
-      - " {muted}❙ {letters}Current: {highlight}%points_per_second%"
-      - " {muted}❙ {letters}Points earned each second"
-      - " {muted}❙ {letters}while holding the zone"
+      - " {letters_black}▎ {letters}Current: {highlight}%points_per_second%"
+      - " {letters_black}▎ {letters}Points earned each second"
+      - " {letters_black}▎ {letters}while holding the zone"
       - ""
-      - " {muted}❙ {success}Left-Click +1"
-      - " {muted}❙ {error}Right-Click -1"
-      - " {muted}❙ {warning}Shift-Click to enter"
+      - " {letters_black}▎ {success}Left-Click +1"
+      - " {letters_black}▎ {error}Right-Click -1"
+      - " {letters_black}▎ {warning}Shift-Click to enter"
     actions:
       - "left: capture:adjust_setting points-per-second 1"
       - "right: capture:adjust_setting points-per-second -1"
       - "shift_left: capture:input_setting points-per-second"
 
   clan-mode:
-    slot: 39
+    slot: 22
     material: "%clan_mode_material%"
-    name: "{warning}&lCLAN MODE"
+    name: "%clan_mode_color%&lCLAN MODE"
     lore:
       - ""
-      - " {muted}❙ {letters}Current: {highlight}%clan_mode_status%"
-      - " {muted}❙ {letters}Points accumulate per clan"
-      - " {muted}❙ {letters}Leaderboard shows clans"
+      - " {letters_black}▎ {letters}Current: {highlight}%clan_mode_status%"
+      - " {letters_black}▎ {letters}Points accumulate per clan"
+      - " {letters_black}▎ {letters}Leaderboard shows clans"
       - ""
-      - " {muted}❙ {success}Click to toggle"
+      - " {letters_black}▎ {success}Click to toggle"
     actions:
       - "capture:toggle_boolean_setting clan-mode"
 

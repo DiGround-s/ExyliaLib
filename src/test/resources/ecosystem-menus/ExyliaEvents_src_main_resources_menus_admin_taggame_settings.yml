@@ -23,84 +23,84 @@ filler:
 
 items:
   round-duration:
-    slot: 20
+    slot: 19
     material: TNT
     name: "{warning}&lROUND DURATION"
     lore:
       - ""
-      - " {muted}❙ {letters}Current: {highlight}%round_duration%s"
+      - " {letters_black}▎ {letters}Current: {highlight}%round_duration%s"
       - ""
-      - " {muted}❙ {letters}Time before exploding"
+      - " {letters_black}▎ {letters}Time before exploding"
       - ""
-      - " {muted}❙ {success}Left-Click +5s"
-      - " {muted}❙ {error}Right-Click -5s"
-      - " {muted}❙ {warning}Shift-Click to enter"
+      - " {letters_black}▎ {success}Left-Click +5s"
+      - " {letters_black}▎ {error}Right-Click -5s"
+      - " {letters_black}▎ {warning}Shift-Click to enter"
     actions:
       - "left: events:adjust_setting round-duration 5"
       - "right: events:adjust_setting round-duration -5"
       - "shift_left: events:input_setting round-duration"
 
   tagged-percentage:
-    slot: 21
+    slot: 20
     material: GLOWSTONE_DUST
     name: "{warning}&lTNT PERCENTAGE"
     lore:
       - ""
-      - " {muted}❙ {letters}Current: {highlight}%tagged_percentage%%"
+      - " {letters_black}▎ {letters}Current: {highlight}%tagged_percentage%%"
       - ""
-      - " {muted}❙ {letters}% of players with TNT"
-      - " {muted}❙ {letters}at the start of each round"
+      - " {letters_black}▎ {letters}% of players with TNT"
+      - " {letters_black}▎ {letters}at the start of each round"
       - ""
-      - " {muted}❙ {success}Left-Click +5%"
-      - " {muted}❙ {error}Right-Click -5%"
-      - " {muted}❙ {warning}Shift-Click to enter"
+      - " {letters_black}▎ {success}Left-Click +5%"
+      - " {letters_black}▎ {error}Right-Click -5%"
+      - " {letters_black}▎ {warning}Shift-Click to enter"
     actions:
       - "left: events:adjust_setting tagged-percentage 5"
       - "right: events:adjust_setting tagged-percentage -5"
       - "shift_left: events:input_setting tagged-percentage"
 
   transfer-cooldown:
-    slot: 22
+    slot: 21
     material: HOPPER
     name: "{info}&lTRANSFER COOLDOWN"
     lore:
       - ""
-      - " {muted}❙ {letters}Current: {highlight}%transfer_cooldown%s"
+      - " {letters_black}▎ {letters}Current: {highlight}%transfer_cooldown%s"
       - ""
-      - " {muted}❙ {letters}Cooldown between each"
-      - " {muted}❙ {letters}TNT transfer"
+      - " {letters_black}▎ {letters}Cooldown between each"
+      - " {letters_black}▎ {letters}TNT transfer"
       - ""
-      - "{info}» Click to enter"
+      - "{warning}➥ Click to enter"
     actions:
       - "events:input_double_setting transfer-cooldown"
 
   glow-effect:
-    slot: 23
+    slot: 29
     material: "%glow_effect_material%"
-    name: "{info}&lGLOW EFFECT"
+    name: "%glow_effect_color%&lGLOW EFFECT"
     lore:
       - ""
-      - " {muted}❙ {letters}Current: %glow_effect%"
+      - " {letters_black}▎ {letters}Current: %glow_effect%"
       - ""
-      - " {muted}❙ {letters}TNT players glow"
+      - " {letters_black}▎ {letters}TNT players glow"
       - ""
-      - "{info}» Click to toggle"
+      - "{warning}➥ Click to toggle"
     actions:
       - "events:toggle_taggame_setting glow-effect"
 
   normal-speed:
-    slot: 24
+    slot: 28
     material: SUGAR
     name: "{info}&lNORMAL SPEED"
     lore:
       - ""
-      - " {muted}❙ {letters}Level: {highlight}%normal_speed%"
+      - " {letters_black}▎ {letters}Level: {highlight}%normal_speed%"
       - ""
-      - " {muted}❙ {letters}Speed level for"
-      - " {muted}❙ {letters}players without TNT"
+      - " {letters_black}▎ {letters}Speed level for"
+      - " {letters_black}▎ {letters}players without TNT"
       - ""
-      - " {muted}❙ {success}Left-Click +1"
-      - " {muted}❙ {error}Right-Click -1"
+      - " {letters_black}▎ {success}Left-Click +1"
+      - " {letters_black}▎ {error}Right-Click -1"
     actions:
       - "left: events:adjust_setting normal-player-speed 1"
       - "right: events:adjust_setting normal-player-speed -1"
@@ -111,134 +111,134 @@ items:
     name: "{info}&lTNT SPEED"
     lore:
       - ""
-      - " {muted}❙ {letters}Level: {highlight}%tnt_speed%"
+      - " {letters_black}▎ {letters}Level: {highlight}%tnt_speed%"
       - ""
-      - " {muted}❙ {letters}Speed level for"
-      - " {muted}❙ {letters}players with TNT"
+      - " {letters_black}▎ {letters}Speed level for"
+      - " {letters_black}▎ {letters}players with TNT"
       - ""
-      - " {muted}❙ {success}Left-Click +1"
-      - " {muted}❙ {error}Right-Click -1"
+      - " {letters_black}▎ {success}Left-Click +1"
+      - " {letters_black}▎ {error}Right-Click -1"
     actions:
       - "left: events:adjust_setting tnt-player-speed 1"
       - "right: events:adjust_setting tnt-player-speed -1"
 
   tnt-item:
-    slot: 28
+    slot: 24
     material: "%tnt_item%"
     name: "{warning}&lTNT ITEM"
     lore:
       - ""
-      - " {muted}❙ {letters}Current: {highlight}%tnt_item%"
+      - " {letters_black}▎ {letters}Current: {highlight}%tnt_item%"
       - ""
-      - " {muted}❙ {letters}Item used for head and"
-      - " {muted}❙ {letters}inventory refill"
+      - " {letters_black}▎ {letters}Item used for head and"
+      - " {letters_black}▎ {letters}inventory refill"
       - ""
-      - "{info}» Click to change"
+      - "{warning}➥ Click to change"
     actions:
       - "events:set_tnt_item"
 
   temporary-blocks:
-    slot: 19
+    slot: 31
     material: "%temporary_blocks_material%"
-    name: "{info}&lTEMPORARY BLOCKS"
+    name: "%temporary_blocks_color%&lTEMPORARY BLOCKS"
     lore:
       - ""
-      - " {muted}❙ {letters}Current: %temporary_blocks%"
+      - " {letters_black}▎ {letters}Current: %temporary_blocks%"
       - ""
-      - " {muted}❙ {letters}Placed blocks disappear"
-      - " {muted}❙ {letters}over time"
+      - " {letters_black}▎ {letters}Placed blocks disappear"
+      - " {letters_black}▎ {letters}over time"
       - ""
-      - "{info}» Click to toggle"
+      - "{warning}➥ Click to toggle"
     actions:
       - "events:toggle_taggame_setting temporary-blocks"
 
   temporary-blocks-seconds:
-    slot: 29
+    slot: 32
     material: CLOCK
     name: "{warning}&lBLOCK TIMER"
     lore:
       - ""
-      - " {muted}❙ {letters}Current: {highlight}%temporary_blocks_seconds%s"
+      - " {letters_black}▎ {letters}Current: {highlight}%temporary_blocks_seconds%s"
       - ""
-      - " {muted}❙ {letters}Seconds before blocks"
-      - " {muted}❙ {letters}disappear"
+      - " {letters_black}▎ {letters}Seconds before blocks"
+      - " {letters_black}▎ {letters}disappear"
       - ""
-      - " {muted}❙ {success}Left-Click +5s"
-      - " {muted}❙ {error}Right-Click -5s"
-      - " {muted}❙ {warning}Shift-Click to enter"
+      - " {letters_black}▎ {success}Left-Click +5s"
+      - " {letters_black}▎ {error}Right-Click -5s"
+      - " {letters_black}▎ {warning}Shift-Click to enter"
     actions:
       - "left: events:adjust_setting temporary-blocks-seconds 5"
       - "right: events:adjust_setting temporary-blocks-seconds -5"
       - "shift_left: events:input_setting temporary-blocks-seconds"
 
   re-give-blocks:
-    slot: 34
+    slot: 33
     material: "%re_give_blocks_material%"
-    name: "{info}&lRETURN BLOCKS"
+    name: "%re_give_blocks_color%&lRETURN BLOCKS"
     lore:
       - ""
-      - " {muted}❙ {letters}Current: %re_give_blocks%"
+      - " {letters_black}▎ {letters}Current: %re_give_blocks%"
       - ""
-      - " {muted}❙ {letters}Returns blocks to inventory"
-      - " {muted}❙ {letters}when they disappear"
+      - " {letters_black}▎ {letters}Returns blocks to inventory"
+      - " {letters_black}▎ {letters}when they disappear"
       - ""
-      - "{info}» Click to toggle"
+      - "{warning}➥ Click to toggle"
     actions:
       - "events:toggle_taggame_setting re-give-blocks"
 
   enderpearl-regive:
-    slot: 30
+    slot: 37
     material: ENDER_EYE
     name: "{warning}&lREGIVE ENDERPEARLS"
     lore:
       - ""
-      - " {muted}❙ {letters}Every: {highlight}%enderpearl_regive%s"
+      - " {letters_black}▎ {letters}Every: {highlight}%enderpearl_regive%s"
       - ""
-      - " {muted}❙ {letters}Seconds between each"
-      - " {muted}❙ {letters}enderpearl refill"
+      - " {letters_black}▎ {letters}Seconds between each"
+      - " {letters_black}▎ {letters}enderpearl refill"
       - ""
-      - " {muted}❙ {success}Left-Click +1s"
-      - " {muted}❙ {error}Right-Click -1s"
-      - " {muted}❙ {warning}Shift-Click to enter"
+      - " {letters_black}▎ {success}Left-Click +1s"
+      - " {letters_black}▎ {error}Right-Click -1s"
+      - " {letters_black}▎ {warning}Shift-Click to enter"
     actions:
       - "left: events:adjust_setting enderpearl-regive-seconds 1"
       - "right: events:adjust_setting enderpearl-regive-seconds -1"
       - "shift_left: events:input_setting enderpearl-regive-seconds"
 
   enderpearl-throw-cooldown:
-    slot: 31
+    slot: 38
     material: CLOCK
     name: "{info}&lPEARL THROW COOLDOWN"
     lore:
       - ""
-      - " {muted}❙ {letters}Current: {highlight}%enderpearl_throw_cooldown%s"
+      - " {letters_black}▎ {letters}Current: {highlight}%enderpearl_throw_cooldown%s"
       - ""
-      - " {muted}❙ {letters}Cooldown between each"
-      - " {muted}❙ {letters}enderpearl throw"
+      - " {letters_black}▎ {letters}Cooldown between each"
+      - " {letters_black}▎ {letters}enderpearl throw"
       - ""
-      - " {muted}❙ {success}Left-Click +1s"
-      - " {muted}❙ {error}Right-Click -1s"
-      - " {muted}❙ {warning}Shift-Click to enter"
+      - " {letters_black}▎ {success}Left-Click +1s"
+      - " {letters_black}▎ {error}Right-Click -1s"
+      - " {letters_black}▎ {warning}Shift-Click to enter"
     actions:
       - "left: events:adjust_setting enderpearl-throw-cooldown 1"
       - "right: events:adjust_setting enderpearl-throw-cooldown -1"
       - "shift_left: events:input_setting enderpearl-throw-cooldown"
 
   respawn-after-round:
-    slot: 32
+    slot: 22
     material: ENDER_PEARL
     name: "{info}&lTP SPAWN FROM ROUND"
     lore:
       - ""
-      - " {muted}❙ {letters}Current: {highlight}Round %respawn_after_round%"
+      - " {letters_black}▎ {letters}Current: {highlight}Round %respawn_after_round%"
       - ""
-      - " {muted}❙ {letters}From this round, players"
-      - " {muted}❙ {letters}are teleported to spawn"
-      - " {muted}❙ {letters}at the start of each round"
+      - " {letters_black}▎ {letters}From this round, players"
+      - " {letters_black}▎ {letters}are teleported to spawn"
+      - " {letters_black}▎ {letters}at the start of each round"
       - ""
-      - " {muted}❙ {success}Left-Click +1"
-      - " {muted}❙ {error}Right-Click -1"
-      - " {muted}❙ {warning}Shift-Click to enter"
+      - " {letters_black}▎ {success}Left-Click +1"
+      - " {letters_black}▎ {error}Right-Click -1"
+      - " {letters_black}▎ {warning}Shift-Click to enter"
     actions:
       - "left: events:adjust_setting respawn-at-spawn-after-round 1"
       - "right: events:adjust_setting respawn-at-spawn-after-round -1"

@@ -28,10 +28,10 @@ pagination:
     name: "%selected_icon% {warning}&l%kit_name%"
     lore:
       - ""
-      - " {muted}❙ {letters}ID: {info}%kit_id%"
-      - " {muted}❙ {letters}Icon: {info}%kit_icon%"
+      - " {letters_black}▎ {letters}ID: {info}%kit_id%"
+      - " {letters_black}▎ {letters}Icon: {info}%kit_icon%"
       - ""
-      - " {muted}❙ %selected_label%"
+      - " {letters_black}▎ %selected_label%"
     actions:
       - "practice:toggle_category_kit %kit_id%"
 

@@ -22,53 +22,53 @@ filler:
 
 items:
   display:
-    slot: 37
+    slot: 19
     material: "%level_material%"
     name: "{highlight}&l%level_material%"
     lore:
       - ""
-      - " {muted}❙ {letters}Position: {highlight}#%level_position% {muted}of %levels_total%"
-      - " {muted}❙ {letters}Configured manually as a regeneration level"
+      - " {letters_black}▎ {letters}Position: {highlight}#%level_position% {muted}of %levels_total%"
+      - " {letters_black}▎ {letters}Configured manually as a regeneration level"
       - ""
       - "{muted}This is the material the block heals"
       - "{muted}back to once fully regenerated."
 
   reorder-up:
-    slot: 38
+    slot: 28
     material: SPECTRAL_ARROW
     name: "{highlight}&l▲ MOVE UP"
     lore:
       - ""
-      - " {muted}❙ {letters}Move this level earlier in the list"
-      - " {muted}❙ {muted}(display order only, no gameplay effect)"
+      - " {letters_black}▎ {letters}Move this level earlier in the list"
+      - " {letters_black}▎ {muted}(display order only, no gameplay effect)"
       - ""
-      - "{info}» Click to move up"
+      - "{warning}➥ Click to move up"
     actions:
       - "survivalcore:mine_level_move %level_index% -1"
 
   reorder-down:
-    slot: 39
+    slot: 29
     material: SPECTRAL_ARROW
     name: "{highlight}&l▼ MOVE DOWN"
     lore:
       - ""
-      - " {muted}❙ {letters}Move this level later in the list"
-      - " {muted}❙ {muted}(display order only, no gameplay effect)"
+      - " {letters_black}▎ {letters}Move this level later in the list"
+      - " {letters_black}▎ {muted}(display order only, no gameplay effect)"
       - ""
-      - "{info}» Click to move down"
+      - "{warning}➥ Click to move down"
     actions:
       - "survivalcore:mine_level_move %level_index% 1"
 
   regen:
-    slot: 40
+    slot: 21
     material: CLOCK
     name: "{highlight}&lREGEN TIME"
     lore:
       - ""
-      - " {muted}❙ {letters}Current: {highlight}%level_regen%s {muted}(%level_regen_formatted%)"
+      - " {letters_black}▎ {letters}Current: {highlight}%level_regen%s {muted}(%level_regen_formatted%)"
       - ""
-      - " {muted}❙ {letters}Total seconds after breaking until"
-      - " {muted}❙ {letters}the block fully heals back"
+      - " {letters_black}▎ {letters}Total seconds after breaking until"
+      - " {letters_black}▎ {letters}the block fully heals back"
       - ""
       - " {success}● {info}Left-click {muted}+10s"
       - " {error}● {info}Right-click {muted}-10s"
@@ -83,53 +83,53 @@ items:
       - "middle: survivalcore:mine_level_set_regen %level_index%"
 
   degrade-chain:
-    slot: 41
+    slot: 25
     material: REPEATING_COMMAND_BLOCK
     name: "{highlight}&lDEGRADE CHAIN"
     lore:
       - ""
-      - " {muted}❙ {letters}Stages: {highlight}%level_stages%"
+      - " {letters_black}▎ {letters}Stages: {highlight}%level_stages%"
       - ""
-      - " {muted}❙ {letters}Visual materials shown while the"
-      - " {muted}❙ {letters}block regenerates, in order"
-      - " {muted}❙ {letters}e.g. STONE @5s {muted}→ {letters}COBBLESTONE @15s"
+      - " {letters_black}▎ {letters}Visual materials shown while the"
+      - " {letters_black}▎ {letters}block regenerates, in order"
+      - " {letters_black}▎ {letters}e.g. STONE @5s {muted}→ {letters}COBBLESTONE @15s"
       - ""
-      - "{info}» Click to manage stages"
+      - "{warning}➥ Click to manage stages"
     actions:
       - "survivalcore:mine_level_open_chain %level_index%"
 
   loot:
-    slot: 42
+    slot: 22
     material: CHEST
     name: "{highlight}&lCUSTOM LOOT TABLE"
     lore:
       - ""
-      - " {muted}❙ {letters}Status: %level_loot_status%"
+      - " {letters_black}▎ {letters}Status: %level_loot_status%"
       - ""
-      - " {muted}❙ {letters}When configured, breaking a block"
-      - " {muted}❙ {letters}of this level drops this table"
-      - " {muted}❙ {letters}instead of the vanilla drop"
+      - " {letters_black}▎ {letters}When configured, breaking a block"
+      - " {letters_black}▎ {letters}of this level drops this table"
+      - " {letters_black}▎ {letters}instead of the vanilla drop"
       - ""
-      - "{info}» Click to edit"
+      - "{warning}➥ Click to edit"
     actions:
       - "survivalcore:mine_level_open_loot %level_index%"
 
   effects:
-    slot: 43
+    slot: 23
     material: NOTE_BLOCK
     name: "{highlight}&lBREAK EFFECTS"
     lore:
       - ""
-      - " {muted}❙ {letters}Status: %level_effects_status%"
+      - " {letters_black}▎ {letters}Status: %level_effects_status%"
       - ""
-      - " {muted}❙ {letters}Sounds, particles, titles and more"
-      - " {muted}❙ {letters}played when a block of this level"
-      - " {muted}❙ {letters}is mined."
+      - " {letters_black}▎ {letters}Sounds, particles, titles and more"
+      - " {letters_black}▎ {letters}played when a block of this level"
+      - " {letters_black}▎ {letters}is mined."
       - ""
-      - " {muted}❙ {warning}Overrides {letters}the mine's global"
-      - " {muted}❙ {letters}effects when configured here."
+      - " {letters_black}▎ {warning}Overrides {letters}the mine's global"
+      - " {letters_black}▎ {letters}effects when configured here."
       - ""
-      - "{info}» Click to edit"
+      - "{warning}➥ Click to edit"
     actions:
       - "survivalcore:mine_level_open_effects %level_index%"
 
@@ -139,7 +139,7 @@ items:
     name: '{error}&lBACK'
     lore:
       - ""
-      - " {info}» Return to level list"
+      - " {warning}➥ Return to level list"
     actions:
       - "survivalcore:mine_open_levels"
 
@@ -149,10 +149,10 @@ items:
     name: "{error}&lREMOVE LEVEL"
     lore:
       - ""
-      - " {muted}❙ {letters}Removes this level entirely."
-      - " {muted}❙ {letters}Blocks of this material will no"
-      - " {muted}❙ {letters}longer regenerate when broken."
+      - " {letters_black}▎ {letters}Removes this level entirely."
+      - " {letters_black}▎ {letters}Blocks of this material will no"
+      - " {letters_black}▎ {letters}longer regenerate when broken."
       - ""
-      - "{error}» Click to remove"
+      - "{error}➥ Click to remove"
     actions:
       - "survivalcore:mine_level_remove %level_index%"

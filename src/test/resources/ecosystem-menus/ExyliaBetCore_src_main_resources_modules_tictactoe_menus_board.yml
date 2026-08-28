@@ -1,0 +1,205 @@
+# The Tic Tac Toe board.
+#
+# The 'board' section's slot list IS the board: the first slot is the top-left
+# square and the ninth is the bottom-right. Moving the board is editing that
+# one line. The game checks that there are nine of them when it loads, and
+# refuses rather than drawing a board with a square missing.
+#
+# The plugin picks a template per square and the templates below decide what
+# that looks like. A template named here that the game never asks for is
+# harmless; one the game asks for and this file does not declare falls back to
+# the first.
+
+title: '%your_name% {muted}vs %opponent_name% {muted}— %match_score%'
+size: 45
+
+open_sounds:
+  - 'BLOCK_BARREL_OPEN|0.8|1.4'
+click_sounds:
+  - 'BLOCK_NOTE_BLOCK_HAT|1.0|1.4'
+
+# The plugin redraws this once a second while the clock runs, so nothing here
+# has to refresh itself.
+refresh:
+  mode: DISABLED
+
+filler:
+  global:
+    material: BLACK_STAINED_GLASS_PANE
+    hide_tooltip: true
+
+items:
+
+  status:
+    slot: 4
+    material: CLOCK
+    name: '{primary}&l%match_mode_name%'
+    lore:
+      - ''
+      - '{secondary}The match:'
+      - ' {letters_black}▎ {letters}Round {letters_black}» {info}%match_round%{muted}/{info}%match_rounds%'
+      - ' {letters_black}▎ {letters}Score {letters_black}» {info}%match_score%'
+      - ' {letters_black}▎ {letters}Pot {letters_black}» {highlight}%match_pot%'
+      - ''
+      - '{secondary}The clock:'
+      - ' {letters_black}▎ {letters}To move {letters_black}» {highlight}%turn_name%'
+      - ' {letters_black}▎ {letters}Time left {letters_black}» {info}%turn_seconds%s ⏱'
+      - ''
+      - '{letters_black}Closing this does not forfeit — but the clock'
+      - '{letters_black}keeps running. Reopen it with /bet board.'
+      - ''
+
+  you:
+    slot: 10
+    material: 'playerhead-%your_name%'
+    name: '{success}&l%your_name%'
+    lore:
+      - ''
+      - '{secondary}You:'
+      - ' {letters_black}▎ {letters}Rounds won {letters_black}» {info}%your_score%'
+      - ' {letters_black}▎ {letters}Your stake {letters_black}» {highlight}%match_wager%'
+      - ''
+    glow: true
+
+  opponent:
+    slot: 16
+    material: 'playerhead-%opponent_name%'
+    name: '{error}&l%opponent_name%'
+    lore:
+      - ''
+      - '{secondary}Them:'
+      - ' {letters_black}▎ {letters}Rounds won {letters_black}» {info}%opponent_score%'
+      - ''
+
+  spectators:
+    slot: 38
+    material: ENDER_EYE
+    name: '{primary}&lWATCHING'
+    lore:
+      - ''
+      - ' {letters_black}▎ {letters}People watching {letters_black}» {info}%spectator_count%'
+      - ''
+      - '{warning}➥ Click to see who'
+      - ''
+    actions:
+      - 'left: betcore:open_spectators'
+
+  surrender:
+    slot: 40
+    material: WHITE_BANNER
+    name: '{error}&lSURRENDER'
+    lore:
+      - ''
+      - ' {letters_black}▎ {letters}Gives the match to {highlight}%opponent_name%{letters}.'
+      - ' {letters_black}▎ {letters}Your {info}%match_wager% {letters}goes with it.'
+      - ''
+      - '{warning}➥ Click, then confirm'
+      - ''
+    condition: '%spectating% == false'
+    actions:
+      - 'left: betcore:surrender'
+
+  stop_watching:
+    slot: 40
+    material: WHITE_BANNER
+    name: '{warning}&lSTOP WATCHING'
+    lore:
+      - ''
+      - '{warning}➥ Click to leave'
+      - ''
+    condition: '%spectating% == true'
+    actions:
+      - 'left: betcore:leave_spectate'
+
+  close:
+    slot: 44
+    material: BARRIER
+    name: '{muted}&lCLOSE'
+    lore:
+      - ''
+      - ' {letters_black}▎ {letters}The match keeps running and so does'
+      - ' {letters_black}▎ {letters}your clock.'
+      - ''
+      - '{warning}➥ Click to close'
+      - ''
+    actions:
+      - 'close'
+
+sections:
+
+  board:
+    slots: '12-14,21-23,30-32'
+    filler:
+      material: AIR
+      hide_tooltip: true
+
+    # A free square, yours to take.
+    empty_template:
+      material: LIGHT_GRAY_STAINED_GLASS_PANE
+      name: '{muted}Square %cell_label%'
+      lore:
+        - ''
+        - '{warning}➥ Click to play here'
+        - ''
+      actions:
+        - 'left: betcore:play_cell'
+
+    # A free square that is not yours to take right now.
+    locked_template:
+      material: GRAY_STAINED_GLASS_PANE
+      name: '{muted}Square %cell_label%'
+      lore:
+        - ''
+        - '{letters_black}Waiting for %turn_name%.'
+        - ''
+
+    x_template:
+      material: RED_TERRACOTTA
+      name: '{error}&lX'
+      lore:
+        - ''
+        - ' {letters_black}▎ {letters}Played by {info}%cell_owner%'
+        - ''
+
+    o_template:
+      material: BLUE_TERRACOTTA
+      name: '{info}&lO'
+      lore:
+        - ''
+        - ' {letters_black}▎ {letters}Played by {info}%cell_owner%'
+        - ''
+
+    # INFINITE mode only. This is the piece that vanishes when its owner plays
+    # their next one — a different block AND a glow, so the cost of a move is
+    # visible before the move is made.
+    x_marked_template:
+      material: RED_GLAZED_TERRACOTTA
+      name: '{error}&lX {warning}— about to vanish'
+      lore:
+        - ''
+        - ' {letters_black}▎ {letters}Played by {info}%cell_owner%'
+        - ''
+        - '{warning}➥ Their next piece removes this one.'
+        - ''
+      glow: true
+
+    o_marked_template:
+      material: BLUE_GLAZED_TERRACOTTA
+      name: '{info}&lO {warning}— about to vanish'
+      lore:
+        - ''
+        - ' {letters_black}▎ {letters}Played by {info}%cell_owner%'
+        - ''
+        - '{warning}➥ Their next piece removes this one.'
+        - ''
+      glow: true
+
+    x_winning_template:
+      material: RED_CONCRETE
+      name: '{success}&lX {muted}— winning line'
+      glow: true
+
+    o_winning_template:
+      material: BLUE_CONCRETE
+      name: '{success}&lO {muted}— winning line'
+      glow: true

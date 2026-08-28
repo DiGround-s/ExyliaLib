@@ -28,15 +28,15 @@ items:
     name: "{info}&lHOW TO SETUP"
     lore:
       - ""
-      - " {muted}❙ {highlight}Heavy Weighted Pressure Plate"
-      - " {muted}❙ {letters}Iron Plate = {success}Checkpoint"
+      - " {letters_black}▎ {highlight}Heavy Weighted Pressure Plate"
+      - " {letters_black}▎ {letters}Iron Plate = {success}Checkpoint"
       - ""
-      - " {muted}❙ {highlight}Light Weighted Pressure Plate"
-      - " {muted}❙ {letters}Gold Plate = {success}Finish / Win"
+      - " {letters_black}▎ {highlight}Light Weighted Pressure Plate"
+      - " {letters_black}▎ {letters}Gold Plate = {success}Finish / Win"
       - ""
-      - " {muted}❙ {letters}A player must touch every"
-      - " {muted}❙ {letters}checkpoint before the finish"
-      - " {muted}❙ {letters}plate will declare them the winner"
+      - " {letters_black}▎ {letters}A player must touch every"
+      - " {letters_black}▎ {letters}checkpoint before the finish"
+      - " {letters_black}▎ {letters}plate will declare them the winner"
 
   back:
     slot: 49
