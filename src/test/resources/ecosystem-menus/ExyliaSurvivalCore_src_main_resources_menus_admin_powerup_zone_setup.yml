@@ -194,7 +194,7 @@ items:
       - "survivalcore:pu_zone_toggle_random"
 
   solid-below:
-    slot: 40
+    slot: 39
     material: "%zone_solid_below_material%"
     name: "%zone_solid_below_color%&lREQUIRE SOLID BELOW"
     lore:
@@ -208,7 +208,7 @@ items:
       - "survivalcore:pu_zone_toggle_solid_below"
 
   allow-air:
-    slot: 41
+    slot: 40
     material: "%zone_allow_air_material%"
     name: "%zone_allow_air_color%&lALLOW IN AIR"
     lore:

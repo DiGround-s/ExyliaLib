@@ -17,7 +17,7 @@ filler:
 
 items:
   capture-time:
-    slot: 11
+    slot: 2
     material: CLOCK
     name: "{info}&lCAPTURE TIME"
     lore:
@@ -34,7 +34,7 @@ items:
       - "shift_left: capture:input_setting_millis capture-time"
 
   infinite:
-    slot: 12
+    slot: 3
     material: "%infinite_material%"
     name: "%infinite_color%&lINFINITE MODE"
     lore:
@@ -48,7 +48,7 @@ items:
       - "capture:toggle_boolean_setting infinite"
 
   glow-enabled:
-    slot: 14
+    slot: 5
     material: "%glow_enabled_material%"
     name: "%glow_enabled_color%&lGLOW EFFECT"
     lore:
@@ -61,7 +61,7 @@ items:
       - "capture:toggle_boolean_setting glow-enabled"
 
   glow-last-millis:
-    slot: 15
+    slot: 6
     material: GLOWSTONE_DUST
     name: "{info}&lGLOW THRESHOLD"
     lore:

@@ -17,7 +17,7 @@ filler:
 
 items:
   start-commands:
-    slot: 12
+    slot: 3
     material: LIME_DYE
     name: "{success}&lSTART COMMANDS"
     lore:
@@ -33,7 +33,7 @@ items:
       - "capture:open_start_commands"
 
   end-commands:
-    slot: 13
+    slot: 4
     material: RED_DYE
     name: "{error}&lEND COMMANDS"
     lore:
@@ -50,7 +50,7 @@ items:
       - "capture:open_end_commands"
 
   winner-commands:
-    slot: 14
+    slot: 5
     material: NETHER_STAR
     name: "{warning}&lWINNER REWARD"
     lore:

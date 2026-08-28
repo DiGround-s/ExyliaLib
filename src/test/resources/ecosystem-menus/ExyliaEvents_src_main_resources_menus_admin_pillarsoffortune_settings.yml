@@ -23,7 +23,7 @@ filler:
 
 items:
   item-interval:
-    slot: 12
+    slot: 3
     material: NETHER_STAR
     name: "{primary}&lITEM INTERVAL"
     lore:
@@ -42,7 +42,7 @@ items:
       - "shift_left: events:input_setting item-interval"
 
   mode:
-    slot: 13
+    slot: 4
     material: "%pillars_mode_material%"
     name: "{primary}&lITEM MODE"
     lore:
@@ -58,7 +58,7 @@ items:
       - "events:cycle_pillars_mode"
 
   grace-period:
-    slot: 14
+    slot: 5
     material: CLOCK
     name: "{info}&lGRACE PERIOD"
     lore:
@@ -76,7 +76,7 @@ items:
       - "shift_left: events:input_setting grace-period"
 
   item-given-message:
-    slot: 15
+    slot: 6
     material: "%item_given_message_material%"
     name: "%item_given_message_color%&lITEM GIVEN MESSAGE"
     lore:

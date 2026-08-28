@@ -37,7 +37,7 @@ items:
       - "ffa:confirm_reset_all_stats"
 
   kit-layouts:
-    slot: 13
+    slot: 4
     material: CHEST
     name: "{warning}&lKIT LAYOUTS"
     lore:

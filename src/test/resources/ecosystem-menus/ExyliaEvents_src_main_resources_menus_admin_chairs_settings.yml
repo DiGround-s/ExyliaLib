@@ -23,7 +23,7 @@ filler:
 
 items:
   music-duration-min:
-    slot: 10
+    slot: 1
     material: NOTE_BLOCK
     name: "{info}&lMUSIC MIN DURATION"
     lore:
@@ -42,7 +42,7 @@ items:
       - "shift_left: events:input_setting music-duration-min"
 
   music-duration-max:
-    slot: 11
+    slot: 2
     material: JUKEBOX
     name: "{info}&lMUSIC MAX DURATION"
     lore:
@@ -61,7 +61,7 @@ items:
       - "shift_left: events:input_setting music-duration-max"
 
   rush-duration:
-    slot: 12
+    slot: 3
     material: FIREWORK_ROCKET
     name: "{error}&lRUSH DURATION"
     lore:
@@ -80,7 +80,7 @@ items:
       - "shift_left: events:input_setting rush-duration"
 
   round-pause:
-    slot: 13
+    slot: 4
     material: CLOCK
     name: "{info}&lROUND PAUSE"
     lore:
@@ -99,7 +99,7 @@ items:
       - "shift_left: events:input_setting round-pause"
 
   chair-percentage:
-    slot: 14
+    slot: 5
     material: GLOWSTONE_DUST
     name: "{warning}&lCHAIR PERCENTAGE"
     lore:
@@ -118,7 +118,7 @@ items:
       - "shift_left: events:input_setting chair-percentage"
 
   pvp-round:
-    slot: 15
+    slot: 6
     material: DIAMOND_SWORD
     name: "{error}&lPVP ROUND"
     lore:
@@ -137,7 +137,7 @@ items:
       - "shift_left: events:input_setting pvp-round"
 
   chair-color:
-    slot: 16
+    slot: 7
     material: RED_WOOL
     name: "{warning}&lCHAIR COLOR"
     lore:

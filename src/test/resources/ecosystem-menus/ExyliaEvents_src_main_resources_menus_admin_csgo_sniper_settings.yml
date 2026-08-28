@@ -23,7 +23,7 @@ filler:
 
 items:
   enabled:
-    slot: 4
+    slot: 5
     material: "%weapon_enabled_material%"
     name: "{info}&lENABLED"
     lore:

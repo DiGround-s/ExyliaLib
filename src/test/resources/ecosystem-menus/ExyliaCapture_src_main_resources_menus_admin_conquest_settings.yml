@@ -17,7 +17,7 @@ filler:
 
 items:
   target-points:
-    slot: 12
+    slot: 3
     material: BEACON
     name: "{info}&lTARGET POINTS"
     lore:
@@ -34,7 +34,7 @@ items:
       - "shift_left: capture:input_setting target-points"
 
   manage-zones:
-    slot: 14
+    slot: 4
     material: FILLED_MAP
     name: "{warning}&lMANAGE ZONES"
     lore:

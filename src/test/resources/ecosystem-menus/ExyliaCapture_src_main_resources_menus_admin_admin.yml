@@ -17,7 +17,7 @@ filler:
 
 items:
   configurations:
-    slot: 12
+    slot: 3
     material: CHISELED_BOOKSHELF
     name: "{info}&lCONFIGURATIONS"
     lore:
@@ -32,7 +32,7 @@ items:
       - "capture:open_config_list"
 
   active-events:
-    slot: 14
+    slot: 4
     material: COMPASS
     name: "{warning}&lACTIVE EVENTS"
     lore:

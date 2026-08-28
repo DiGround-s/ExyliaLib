@@ -5,7 +5,7 @@
 # ╚══════════════════════════════════════════════════════════════════╝
 
 title: "{primary}&lRules: %arena_id%"
-size: 54
+size: 45
 type: SIMPLE
 refresh:
   mode: ON_CLICK
@@ -23,7 +23,7 @@ filler:
 
 items:
   block-break:
-    slot: 11
+    slot: 2
     material: "%block_break_material%"
     name: "%block_break_color%&lBLOCK BREAK"
     lore:
@@ -35,7 +35,7 @@ items:
       - "ffa:toggle_rule block_break"
 
   block-place:
-    slot: 10
+    slot: 1
     material: "%block_place_material%"
     name: "%block_place_color%&lBLOCK PLACE"
     lore:
@@ -47,7 +47,7 @@ items:
       - "ffa:toggle_rule block_place"
 
   pvp:
-    slot: 28
+    slot: 19
     material: "%pvp_material%"
     name: "%pvp_color%&lPVP"
     lore:
@@ -59,7 +59,7 @@ items:
       - "ffa:toggle_rule pvp"
 
   interact:
-    slot: 12
+    slot: 3
     material: "%interact_material%"
     name: "%interact_color%&lINTERACT"
     lore:
@@ -72,7 +72,7 @@ items:
       - "ffa:toggle_rule interact"
 
   player-build-only:
-    slot: 13
+    slot: 4
     material: "%player_build_only_material%"
     name: "%player_build_only_color%&lPLAYER BUILD ONLY"
     lore:
@@ -85,7 +85,7 @@ items:
       - "ffa:toggle_rule player_build_only"
 
   temporary-blocks:
-    slot: 14
+    slot: 5
     material: "%temporary_blocks_material%"
     name: "%temporary_blocks_color%&lTEMPORARY BLOCKS"
     lore:
@@ -99,7 +99,7 @@ items:
       - "ffa:toggle_rule temporary_blocks"
 
   temp-seconds:
-    slot: 15
+    slot: 6
     material: CLOCK
     name: "{info}&lTEMPORARY BLOCK TIME"
     lore:
@@ -117,7 +117,7 @@ items:
       - "shift_right: ffa:adjust_rule_temp_seconds -5"
 
   re-give-blocks:
-    slot: 16
+    slot: 7
     material: "%re_give_blocks_material%"
     name: "%re_give_blocks_color%&lRE-GIVE BLOCKS"
     lore:
@@ -131,7 +131,7 @@ items:
       - "ffa:toggle_rule re_give_blocks"
 
   drop-items-on-death:
-    slot: 22
+    slot: 13
     material: "%drop_items_on_death_material%"
     name: "%drop_items_on_death_color%&lDROP ITEMS ON DEATH"
     lore:
@@ -144,7 +144,7 @@ items:
       - "ffa:toggle_rule drop_items_on_death"
 
   item-drop:
-    slot: 20
+    slot: 11
     material: "%item_drop_material%"
     name: "%item_drop_color%&lITEM DROP"
     lore:
@@ -156,7 +156,7 @@ items:
       - "ffa:toggle_rule item_drop"
 
   item-pickup:
-    slot: 21
+    slot: 12
     material: "%item_pickup_material%"
     name: "%item_pickup_color%&lITEM PICKUP"
     lore:
@@ -168,7 +168,7 @@ items:
       - "ffa:toggle_rule item_pickup"
 
   fall-damage:
-    slot: 29
+    slot: 20
     material: "%fall_damage_material%"
     name: "%fall_damage_color%&lFALL DAMAGE"
     lore:
@@ -180,7 +180,7 @@ items:
       - "ffa:toggle_rule fall_damage"
 
   health-regen:
-    slot: 30
+    slot: 21
     material: "%health_regen_material%"
     name: "%health_regen_color%&lHEALTH REGENERATION"
     lore:
@@ -193,7 +193,7 @@ items:
       - "ffa:toggle_rule health_regen"
 
   food-decrease:
-    slot: 31
+    slot: 22
     material: "%food_decrease_material%"
     name: "%food_decrease_color%&lFOOD DECREASE"
     lore:
@@ -205,7 +205,7 @@ items:
       - "ffa:toggle_rule food_decrease"
 
   ender-pearl-cooldown:
-    slot: 24
+    slot: 15
     material: ENDER_PEARL
     name: "{info}&lENDER PEARL COOLDOWN"
     lore:
@@ -224,7 +224,7 @@ items:
       - "shift_right: ffa:adjust_rule_ender_pearl -5"
 
   golden-apple-cooldown:
-    slot: 25
+    slot: 16
     material: GOLDEN_APPLE
     name: "{info}&lGOLDEN APPLE COOLDOWN"
     lore:
@@ -244,7 +244,7 @@ items:
       - "shift_right: ffa:adjust_rule_golden_apple -5"
 
   clear-effects-on-kill:
-    slot: 34
+    slot: 25
     material: "%clear_effects_on_kill_material%"
     name: "%clear_effects_on_kill_color%&lCLEAR EFFECTS ON KILL"
     lore:
@@ -257,7 +257,7 @@ items:
       - "ffa:toggle_rule clear_effects_on_kill"
 
   heal-on-kill:
-    slot: 33
+    slot: 24
     material: "%heal_on_kill_material%"
     name: "%heal_on_kill_color%&lHEAL ON KILL"
     lore:
@@ -270,7 +270,7 @@ items:
       - "ffa:toggle_rule heal_on_kill"
 
   anti-free-hit:
-    slot: 39
+    slot: 30
     material: "%anti_free_hit_material%"
     name: "%anti_free_hit_color%&lANTI FREE-HIT"
     lore:
@@ -284,7 +284,7 @@ items:
       - "ffa:toggle_rule anti_free_hit"
 
   anti-freehit-hits:
-    slot: 40
+    slot: 31
     material: TARGET
     name: "{info}&lHITS TO LINK"
     lore:
@@ -299,7 +299,7 @@ items:
       - "right: ffa:adjust_rule_anti_freehit_hits -1"
 
   anti-freehit-isolate:
-    slot: 41
+    slot: 32
     material: "%anti_freehit_isolate_material%"
     name: "%anti_freehit_isolate_color%&lISOLATE LINKED PLAYERS"
     lore:
@@ -314,7 +314,7 @@ items:
       - "ffa:toggle_rule anti_freehit_isolate"
 
   back:
-    slot: 49
+    slot: 40
     material: 'basehead-eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvMjIzZmI2NzQyOTcxNmIyMWJjNmU4ZTdkNjY5Y2VkZGY2NWIxM2UwNzkwYTVjZTU1YjJlMDc3YjgyZDE5ZTEyNCJ9fX0='
     name: '{error}&lBACK'
     lore:

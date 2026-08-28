@@ -5,7 +5,7 @@
 # ╚══════════════════════════════════════════════════════════════════╝
 
 title: "{primary}&lROCKET LAUNCHER SETTINGS"
-size: 36
+size: 27
 type: SIMPLE
 refresh:
   mode: ON_CLICK
@@ -23,7 +23,7 @@ filler:
 
 items:
   enabled:
-    slot: 4
+    slot: 5
     material: "%weapon_enabled_material%"
     name: "{info}&lENABLED"
     lore:
@@ -35,7 +35,7 @@ items:
       - "events:toggle_csgo_weapon_setting weapon-rocket-launcher-enabled"
 
   damage:
-    slot: 20
+    slot: 11
     material: DIAMOND_HOE
     name: "{info}&lDAMAGE {muted}(max at center)"
     lore:
@@ -51,7 +51,7 @@ items:
       - "shift_left: events:input_csgo_weapon_double weapon-rocket-launcher-damage"
 
   cooldown:
-    slot: 21
+    slot: 12
     material: CLOCK
     name: "{info}&lCOOLDOWN"
     lore:
@@ -67,7 +67,7 @@ items:
       - "shift_left: events:input_csgo_weapon_int weapon-rocket-launcher-cooldown"
 
   range:
-    slot: 22
+    slot: 13
     material: ENDER_EYE
     name: "{info}&lRANGE"
     lore:
@@ -83,7 +83,7 @@ items:
       - "shift_left: events:input_csgo_weapon_double weapon-rocket-launcher-range"
 
   explosion-radius:
-    slot: 23
+    slot: 14
     material: TNT
     name: "{info}&lEXPLOSION RADIUS"
     lore:
@@ -99,7 +99,7 @@ items:
       - "shift_left: events:input_csgo_weapon_double weapon-rocket-launcher-explosion-radius"
 
   speed:
-    slot: 24
+    slot: 15
     material: WIND_CHARGE
     name: "{info}&lPROJECTILE SPEED"
     lore:
@@ -115,7 +115,7 @@ items:
       - "shift_left: events:input_csgo_weapon_double weapon-rocket-launcher-speed"
 
   back:
-    slot: 31
+    slot: 22
     material: 'basehead-eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvMjIzZmI2NzQyOTcxNmIyMWJjNmU4ZTdkNjY5Y2VkZGY2NWIxM2UwNzkwYTVjZTU1YjJlMDc3YjgyZDE5ZTEyNCJ9fX0='
     name: '{error}&lBACK'
     lore:

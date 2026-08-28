@@ -17,7 +17,7 @@ filler:
 
 items:
   display-name:
-    slot: 4
+    slot: 3
     material: NAME_TAG
     name: "{highlight}&lNAME"
     lore:
@@ -29,7 +29,7 @@ items:
       - "practice:edit_kit_name"
 
   icon:
-    slot: 3
+    slot: 2
     material: "%icon_material%"
     name: "{highlight}&lICON"
     lore:
@@ -41,7 +41,7 @@ items:
       - "practice:set_kit_icon"
 
   enabled:
-    slot: 6
+    slot: 5
     material: "%enabled_material%"
     name: "{highlight}&lSTATUS"
     lore:
@@ -53,7 +53,7 @@ items:
       - "practice:toggle_kit_enabled"
 
   description:
-    slot: 5
+    slot: 4
     material: PAPER
     name: "{highlight}&lDESCRIPTION"
     lore:

@@ -23,7 +23,7 @@ filler:
 
 items:
   display-name:
-    slot: 4
+    slot: 3
     material: NAME_TAG
     name: "{highlight}&lNAME"
     lore:
@@ -45,7 +45,7 @@ items:
       - " {letters_black}▎ {letters}Cannot be changed"
 
   icon:
-    slot: 3
+    slot: 2
     material: "%icon_material%"
     name: "{highlight}&lICON"
     lore:
@@ -270,7 +270,7 @@ items:
       - "events:open_schedules"
 
   toggle:
-    slot: 6
+    slot: 5
     material: "%toggle_material%"
     name: "%toggle_name%"
     lore:

@@ -23,7 +23,7 @@ filler:
 
 items:
   infected-percentage:
-    slot: 10
+    slot: 1
     material: ZOMBIE_HEAD
     name: "{error}&lINFECTED PERCENTAGE"
     lore:
@@ -42,7 +42,7 @@ items:
       - "shift_left: events:input_setting infected-percentage"
 
   infection-cooldown:
-    slot: 11
+    slot: 2
     material: CLOCK
     name: "{info}&lINFECTION COOLDOWN"
     lore:
@@ -57,7 +57,7 @@ items:
       - "events:input_double_setting infection-cooldown"
 
   glow-effect:
-    slot: 12
+    slot: 3
     material: "%glow_effect_material%"
     name: "%glow_effect_color%&lGLOW EFFECT"
     lore:
@@ -71,7 +71,7 @@ items:
       - "events:toggle_infection_setting glow-effect"
 
   eliminate-on-infect:
-    slot: 13
+    slot: 4
     material: "%eliminate_on_infect_material%"
     name: "%eliminate_on_infect_color%&lELIMINATE ON INFECT"
     lore:
@@ -87,7 +87,7 @@ items:
       - "events:toggle_infection_setting eliminate-on-infect"
 
   infected-speed:
-    slot: 14
+    slot: 5
     material: ROTTEN_FLESH
     name: "{error}&lINFECTED SPEED"
     lore:
@@ -104,7 +104,7 @@ items:
       - "right: events:adjust_setting infected-speed -1"
 
   survivor-speed:
-    slot: 15
+    slot: 6
     material: SUGAR
     name: "{success}&lSURVIVOR SPEED"
     lore:
@@ -121,7 +121,7 @@ items:
       - "right: events:adjust_setting survivor-speed -1"
 
   grace-period:
-    slot: 16
+    slot: 7
     material: CLOCK
     name: "{warning}&lGRACE PERIOD"
     lore:

@@ -23,7 +23,7 @@ filler:
 
 items:
   action-time:
-    slot: 11
+    slot: 2
     material: CLOCK
     name: "{warning}&lACTION TIME"
     lore:
@@ -42,7 +42,7 @@ items:
       - "shift_left: events:input_setting action-time"
 
   time-decrease-interval:
-    slot: 12
+    slot: 3
     material: REPEATER
     name: "{warning}&lTIME DECREASE INTERVAL"
     lore:
@@ -61,7 +61,7 @@ items:
       - "shift_left: events:input_setting time-decrease-interval"
 
   min-action-time:
-    slot: 13
+    slot: 4
     material: BARRIER
     name: "{error}&lMIN ACTION TIME"
     lore:
@@ -80,7 +80,7 @@ items:
       - "shift_left: events:input_setting min-action-time"
 
   round-pause:
-    slot: 14
+    slot: 5
     material: CLOCK
     name: "{info}&lROUND PAUSE"
     lore:
@@ -98,7 +98,7 @@ items:
       - "shift_left: events:input_setting round-pause"
 
   min-players:
-    slot: 15
+    slot: 6
     material: PLAYER_HEAD
     name: "{info}&lMIN PLAYERS"
     lore:

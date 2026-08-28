@@ -32,7 +32,7 @@ items:
     hide_tooltip: false
 
   enabled:
-    slot: 4
+    slot: 5
     material: "%chest_enabled_mat%"
     name: "{highlight}&lSTATUS"
     lore:

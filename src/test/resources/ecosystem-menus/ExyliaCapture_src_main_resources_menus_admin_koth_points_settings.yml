@@ -17,7 +17,7 @@ filler:
 
 items:
   target-points:
-    slot: 12
+    slot: 3
     material: GOLD_INGOT
     name: "{info}&lTARGET POINTS"
     lore:
@@ -34,7 +34,7 @@ items:
       - "shift_left: capture:input_setting target-points"
 
   points-per-second:
-    slot: 13
+    slot: 4
     material: EXPERIENCE_BOTTLE
     name: "{info}&lPOINTS PER SECOND"
     lore:
@@ -52,7 +52,7 @@ items:
       - "shift_left: capture:input_setting points-per-second"
 
   clan-mode:
-    slot: 15
+    slot: 6
     material: "%clan_mode_material%"
     name: "%clan_mode_color%&lCLAN MODE"
     lore:

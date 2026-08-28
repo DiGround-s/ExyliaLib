@@ -5,7 +5,7 @@
 # ╚══════════════════════════════════════════════════════════════════╝
 
 title: "{primary}&lADMIN SANDBOX"
-size: 36
+size: 27
 type: SIMPLE
 refresh:
   mode: ON_CLICK
@@ -23,7 +23,7 @@ filler:
 
 items:
   worlds:
-    slot: 12
+    slot: 3
     material: GRASS_BLOCK
     name: "{info}&lMANAGE WORLDS"
     lore:
@@ -39,7 +39,7 @@ items:
       - "sandbox:open_world_list"
 
   kitroom:
-    slot: 13
+    slot: 4
     material: CHEST
     name: "{accent}&lKIT ROOM"
     lore:
@@ -52,7 +52,7 @@ items:
       - "sandbox:open_kitroom_category_list"
 
   predefined-kits:
-    slot: 14
+    slot: 5
     material: DIAMOND_CHESTPLATE
     name: "{accent}&lPREDEFINED KITS"
     lore:
@@ -65,7 +65,7 @@ items:
       - "sandbox:open_predefined_kit_list"
 
   tp-regions:
-    slot: 15
+    slot: 6
     material: BEACON
     name: "{accent}&lTP REGIONS"
     lore:
@@ -79,7 +79,7 @@ items:
       - "sandbox:open_tp_region_list"
 
   set-lobby:
-    slot: 22
+    slot: 12
     material: RED_BED
     name: "{secondary}&lSET LOBBY"
     lore:
@@ -92,7 +92,7 @@ items:
       - "sandbox:set_lobby"
 
   set-kit-creator-location:
-    slot: 23
+    slot: 13
     material: CRAFTING_TABLE
     name: "{secondary}&lSET KIT CREATOR"
     lore:
@@ -105,7 +105,7 @@ items:
       - "sandbox:set_kit_creator_location"
 
   reload:
-    slot: 27
+    slot: 18
     material: REDSTONE
     name: "{error}&lRECARGAR CONFIGS"
     lore:

@@ -5,7 +5,7 @@
 # ╚══════════════════════════════════════════════════════════════════╝
 
 title: "{primary}&lOITC SETTINGS"
-size: 36
+size: 27
 type: SIMPLE
 refresh:
   mode: ON_CLICK
@@ -23,7 +23,7 @@ filler:
 
 items:
   kills-to-win:
-    slot: 10
+    slot: 1
     material: DIAMOND_SWORD
     name: "{info}&lKILLS TO WIN"
     lore:
@@ -39,7 +39,7 @@ items:
       - "shift_left: events:input_setting kills-to-win"
 
   respawn-delay:
-    slot: 11
+    slot: 2
     material: ENDER_PEARL
     name: "{info}&lRESPAWN TIME"
     lore:
@@ -55,7 +55,7 @@ items:
       - "shift_left: events:input_setting respawn-delay"
 
   arrow-limit:
-    slot: 12
+    slot: 3
     material: ARROW
     name: "{info}&lARROW LIMIT"
     lore:
@@ -71,7 +71,7 @@ items:
       - "shift_left: events:input_setting arrow-limit"
 
   drop-items:
-    slot: 13
+    slot: 4
     material: "%drop_items_material%"
     name: "%drop_items_color%&lDROP ITEMS ON DEATH"
     lore:
@@ -83,7 +83,7 @@ items:
       - "events:toggle_oitc_setting drop-items-on-death"
 
   reset-kit-on-kill:
-    slot: 14
+    slot: 5
     material: "%reset_kit_material%"
     name: "{info}&lRESET KIT ON KILL"
     lore:
@@ -97,7 +97,7 @@ items:
       - "events:toggle_oitc_setting reset-kit-on-kill"
 
   golden-apple:
-    slot: 15
+    slot: 6
     material: "%golden_apple_material%"
     name: "%golden_apple_color%&lGOLDEN APPLE ON KILL"
     lore:
@@ -112,7 +112,7 @@ items:
       - "right: events:input_setting golden-apple-amount"
 
   grace-period:
-    slot: 16
+    slot: 7
     material: CLOCK
     name: "{info}&lGRACE PERIOD"
     lore:
@@ -129,7 +129,7 @@ items:
       - "shift_left: events:input_setting grace-period"
 
   team-selector:
-    slot: 22
+    slot: 13
     condition: "%has_teams% == true"
     material: "%team_selector_material%"
     name: "%team_selector_color%&lTEAM SELECTOR"
@@ -144,7 +144,7 @@ items:
       - "events:toggle_team_selector_setting team-selector-enabled"
 
   back:
-    slot: 31
+    slot: 22
     material: 'basehead-eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvMjIzZmI2NzQyOTcxNmIyMWJjNmU4ZTdkNjY5Y2VkZGY2NWIxM2UwNzkwYTVjZTU1YjJlMDc3YjgyZDE5ZTEyNCJ9fX0='
     name: '{error}&lBACK'
     lore:

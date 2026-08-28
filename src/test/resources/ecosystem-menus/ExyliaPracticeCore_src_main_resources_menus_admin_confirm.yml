@@ -14,7 +14,7 @@ filler:
 
 items:
   confirm:
-    slot: 13
+    slot: 4
     material: LIME_WOOL
     name: "%confirm_title%"
     lore:

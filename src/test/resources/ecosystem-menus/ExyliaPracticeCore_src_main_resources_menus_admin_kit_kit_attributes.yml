@@ -1,5 +1,5 @@
 title: "{primary}&lATTRIBUTES&r {muted}— %kit_id%"
-size: 36
+size: 27
 type: SIMPLE
 refresh:
   mode: ON_CLICK
@@ -17,7 +17,7 @@ filler:
 
 items:
   max-health:
-    slot: 12
+    slot: 3
     material: "%max_health_material%"
     name: "{highlight}&lMAX HEALTH"
     lore:
@@ -32,7 +32,7 @@ items:
       - "right: practice:reset_kit_attribute max_health"
 
   attack-damage:
-    slot: 13
+    slot: 4
     material: "%attack_damage_material%"
     name: "{highlight}&lATTACK DAMAGE"
     lore:
@@ -47,7 +47,7 @@ items:
       - "right: practice:reset_kit_attribute attack_damage"
 
   movement-speed:
-    slot: 14
+    slot: 5
     material: "%movement_speed_material%"
     name: "{highlight}&lMOVEMENT SPEED"
     lore:
@@ -62,7 +62,7 @@ items:
       - "right: practice:reset_kit_attribute movement_speed"
 
   knockback-resistance:
-    slot: 15
+    slot: 6
     material: "%knockback_resistance_material%"
     name: "{highlight}&lKNOCKBACK RESISTANCE"
     lore:
@@ -77,7 +77,7 @@ items:
       - "right: practice:reset_kit_attribute knockback_resistance"
 
   start-health:
-    slot: 21
+    slot: 12
     material: "%start_health_material%"
     name: "{highlight}&lSTART HEALTH"
     lore:
@@ -93,7 +93,7 @@ items:
       - "right: practice:reset_kit_attribute start_health"
 
   start-food:
-    slot: 22
+    slot: 13
     material: "%start_food_material%"
     name: "{highlight}&lSTART FOOD LEVEL"
     lore:
@@ -109,7 +109,7 @@ items:
       - "right: practice:reset_kit_attribute start_food"
 
   start-saturation:
-    slot: 23
+    slot: 14
     material: "%start_saturation_material%"
     name: "{highlight}&lSTART SATURATION"
     lore:
@@ -125,7 +125,7 @@ items:
       - "right: practice:reset_kit_attribute start_saturation"
 
   back:
-    slot: 31
+    slot: 22
     material: 'basehead-eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvMjIzZmI2NzQyOTcxNmIyMWJjNmU4ZTdkNjY5Y2VkZGY2NWIxM2UwNzkwYTVjZTU1YjJlMDc3YjgyZDE5ZTEyNCJ9fX0='
     name: '{error}&lBACK'
     lore:

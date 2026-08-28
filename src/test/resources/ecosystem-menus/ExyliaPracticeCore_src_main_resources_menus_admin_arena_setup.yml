@@ -17,7 +17,7 @@ filler:
 
 items:
   display-name:
-    slot: 4
+    slot: 3
     material: NAME_TAG
     name: "{highlight}&lNAME"
     lore:
@@ -29,7 +29,7 @@ items:
       - "practice:edit_arena_name"
 
   icon:
-    slot: 3
+    slot: 2
     material: "%icon_material%"
     name: "{highlight}&lICON"
     lore:
@@ -41,7 +41,7 @@ items:
       - "practice:set_arena_icon"
 
   enabled:
-    slot: 6
+    slot: 5
     material: "%enabled_material%"
     name: "{highlight}&lSTATUS"
     lore:

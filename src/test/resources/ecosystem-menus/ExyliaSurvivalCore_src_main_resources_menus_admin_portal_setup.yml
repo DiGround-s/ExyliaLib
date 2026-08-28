@@ -22,7 +22,7 @@ filler:
 
 items:
   region:
-    slot: 12
+    slot: 3
     material: "%region_material%"
     name: "%region_color%&lPORTAL REGION"
     lore:
@@ -36,7 +36,7 @@ items:
       - "survivalcore:portal_set_region"
 
   commands:
-    slot: 15
+    slot: 6
     material: PAPER
     name: "{highlight}&lCOMMANDS"
     lore:
@@ -50,7 +50,7 @@ items:
       - "survivalcore:portal_open_commands"
 
   teleport:
-    slot: 13
+    slot: 4
     material: "%teleport_material%"
     name: "%teleport_color%&lTELEPORT"
     lore:

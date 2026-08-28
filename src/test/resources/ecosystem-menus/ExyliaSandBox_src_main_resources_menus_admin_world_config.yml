@@ -23,7 +23,7 @@ filler:
 
 items:
   display-name:
-    slot: 4
+    slot: 3
     material: NAME_TAG
     name: "{highlight}&lNAME"
     lore:
@@ -35,7 +35,7 @@ items:
       - "sandbox:input_world_field name"
 
   info:
-    slot: 5
+    slot: 4
     material: "%world_icon%"
     name: "{highlight}&l%world_display_name%"
     lore:
@@ -46,7 +46,7 @@ items:
     hide_tooltip: false
 
   icon:
-    slot: 3
+    slot: 2
     material: "%world_icon%"
     name: "{highlight}&lICON"
     lore:
@@ -69,22 +69,8 @@ items:
     actions:
       - "sandbox:input_world_field biome"
 
-  seed:
-    slot: 21
-    material: WHEAT_SEEDS
-    name: "{info}&lSEED"
-    lore:
-      - ""
-      - " {letters_black}▎ {letters}Current: {info}%world_seed%"
-      - ""
-      - " {letters_black}▎ {success}Left-click to edit"
-      - " {letters_black}▎ {warning}Shift-click for random"
-    actions:
-      - "left: sandbox:input_world_field seed"
-      - "shift_left: sandbox:random_world_seed"
-
   generation-preset:
-    slot: 22
+    slot: 21
     material: BOOKSHELF
     name: "{secondary}&lGENERATION"
     lore:
@@ -97,7 +83,7 @@ items:
       - "sandbox:cycle_world_preset"
 
   border:
-    slot: 24
+    slot: 23
     material: GLASS
     name: "{info}&lBORDER"
     lore:
@@ -113,7 +99,7 @@ items:
       - "shift_left: sandbox:input_world_field border"
 
   gamerules:
-    slot: 25
+    slot: 24
     material: COMMAND_BLOCK
     name: "{secondary}&lGAMERULES"
     lore:
@@ -135,7 +121,7 @@ items:
       - "sandbox:open_world_list"
 
   teleport:
-    slot: 31
+    slot: 30
     material: ENDER_PEARL
     name: "{warning}&lTELEPORT"
     lore:
@@ -170,7 +156,7 @@ items:
       - "sandbox:confirm_delete_world %world_id%"
 
   players:
-    slot: 32
+    slot: 31
     material: PLAYER_HEAD
     name: "{highlight}&lPLAYERS"
     lore:

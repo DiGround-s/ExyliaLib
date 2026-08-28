@@ -17,7 +17,7 @@ filler:
 
 items:
   build:
-    slot: 1
+    slot: 2
     material: "%build_material%"
     name: "%build_color%&lBUILD"
     lore:
@@ -29,7 +29,7 @@ items:
       - "practice:toggle_rule build"
 
   block-break:
-    slot: 2
+    slot: 3
     material: "%block_break_material%"
     name: "%block_break_color%&lBREAK"
     lore:
@@ -41,7 +41,7 @@ items:
       - "practice:toggle_rule block_break"
 
   interact:
-    slot: 3
+    slot: 4
     material: "%interact_material%"
     name: "%interact_color%&lINTERACT"
     lore:
@@ -53,7 +53,7 @@ items:
       - "practice:toggle_rule interact"
 
   player-build-only:
-    slot: 4
+    slot: 5
     material: "%player_build_only_material%"
     name: "%player_build_only_color%&lPLAYER BUILD ONLY"
     lore:
@@ -67,7 +67,7 @@ items:
       - "practice:toggle_rule player_build_only"
 
   disappearing-blocks:
-    slot: 5
+    slot: 6
     material: SAND
     name: "{highlight}&lDISAPPEARING BLOCKS"
     lore:
@@ -84,7 +84,7 @@ items:
       - "shift_right: practice:adjust_rule disappearing_blocks_delay -5"
 
   re-give-blocks:
-    slot: 6
+    slot: 7
     material: "%re_give_blocks_material%"
     name: "%re_give_blocks_color%&lRE-GIVE BLOCKS"
     lore:
@@ -98,7 +98,7 @@ items:
       - "practice:toggle_rule re_give_blocks"
 
   item-drop:
-    slot: 10
+    slot: 11
     material: "%item_drop_material%"
     name: "%item_drop_color%&lITEM DROP"
     lore:
@@ -110,7 +110,7 @@ items:
       - "practice:toggle_rule item_drop"
 
   item-pickup:
-    slot: 11
+    slot: 12
     material: "%item_pickup_material%"
     name: "%item_pickup_color%&lITEM PICKUP"
     lore:
@@ -122,7 +122,7 @@ items:
       - "practice:toggle_rule item_pickup"
 
   fall-damage:
-    slot: 20
+    slot: 21
     material: "%fall_damage_material%"
     name: "%fall_damage_color%&lFALL DAMAGE"
     lore:
@@ -134,7 +134,7 @@ items:
       - "practice:toggle_rule fall_damage"
 
   pvp:
-    slot: 19
+    slot: 20
     material: "%pvp_material%"
     name: "%pvp_color%&lPVP"
     lore:
@@ -146,7 +146,7 @@ items:
       - "practice:toggle_rule pvp"
 
   disabled-damage:
-    slot: 21
+    slot: 22
     material: "%disabled_damage_material%"
     name: "%disabled_damage_color%&lDISABLED DAMAGE"
     lore:
@@ -159,7 +159,7 @@ items:
       - "practice:toggle_rule disabled_damage"
 
   health-regen:
-    slot: 22
+    slot: 23
     material: "%health_regen_material%"
     name: "%health_regen_color%&lHEALTH REGENERATION"
     lore:
@@ -171,7 +171,7 @@ items:
       - "practice:toggle_rule health_regeneration"
 
   food-decreasing:
-    slot: 23
+    slot: 24
     material: "%food_decreasing_material%"
     name: "%food_decreasing_color%&lFOOD DECREASING"
     lore:
@@ -288,7 +288,7 @@ items:
       - "practice:toggle_rule regenerate_after_point"
 
   ender-pearl-cooldown:
-    slot: 13
+    slot: 14
     material: ENDER_PEARL
     name: "{highlight}&lENDER PEARL COOLDOWN"
     lore:
@@ -305,7 +305,7 @@ items:
       - "shift_right: practice:adjust_rule ender_pearl_cooldown -10"
 
   golden-apple-cooldown:
-    slot: 14
+    slot: 15
     material: GOLDEN_APPLE
     name: "{highlight}&lGOLDEN APPLE COOLDOWN"
     lore:
