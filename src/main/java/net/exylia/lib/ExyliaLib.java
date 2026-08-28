@@ -13,6 +13,7 @@ import net.exylia.lib.format.FormatSettings;
 import net.exylia.lib.economy.EconomySettings;
 import net.exylia.lib.economy.internal.BalanceCache;
 import net.exylia.lib.economy.internal.CurrencyRegistry;
+import net.exylia.lib.economy.internal.EconomyWatcher;
 import net.exylia.lib.format.Formats;
 import net.exylia.lib.input.InputSettings;
 import net.exylia.lib.text.LibraryMessages;
@@ -300,6 +301,9 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         CurrencyRegistry.apply(economy.get());
         BalanceCache.apply(economy.get());
         CurrencyRegistry.init(this);
+        // Detection at enable is a race the library loses whenever the economy
+        // plugin starts later, so it also subscribes to them turning up.
+        EconomyWatcher.install(this);
         economy.onReload(settings -> {
             CurrencyRegistry.apply(settings);
             BalanceCache.apply(settings);
