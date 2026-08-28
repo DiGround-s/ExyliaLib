@@ -666,7 +666,17 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         // Everything a plugin still uses from its own onDisable, which has not
         // run yet. Scheduled on the library's scheduler, which is still up:
         // the dying plugin's own was just cancelled above.
-        Tasks.of(this).run(() -> releaseAfterDisable(event.getPlugin()));
+        //
+        // Unless this library is already down, which on a full stop it can be:
+        // the server disables plugins in load order, so ExyliaLib is often
+        // stopped several plugins before the ones that use it. A stopped
+        // plugin has no next tick, so this would run here and now — before the
+        // dying plugin's onDisable rather than after it, taking its database
+        // away one line ahead of its last save. The whole-server teardown in
+        // onDisable() has already released these modules anyway.
+        if (isEnabled()) {
+            Tasks.of(this).run(() -> releaseAfterDisable(event.getPlugin()));
+        }
     }
 
     /**

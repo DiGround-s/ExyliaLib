@@ -26,6 +26,9 @@ public final class FakeServer {
     /** Tasks handed to the scheduler, in submission order. */
     static final List<Scheduled> SCHEDULED = new ArrayList<>();
 
+    /** Plugins {@link #disable(Plugin)} has stopped, by name. */
+    static final java.util.Set<String> DISABLED = new java.util.HashSet<>();
+
     /**
      * Whether asynchronous tasks really run on another thread.
      *
@@ -215,11 +218,24 @@ public final class FakeServer {
         deliverFiredEvents = true;
     }
 
+    /**
+     * Stops a plugin, the way the server does before calling {@code onDisable}.
+     *
+     * <p>From here on the plugin reports itself disabled, which is what makes a
+     * real scheduler refuse its tasks.
+     *
+     * @param plugin the plugin to stop
+     */
+    public static void disable(Plugin plugin) {
+        DISABLED.add(plugin.getName());
+    }
+
     /** Clears recorded tasks between tests. */
     public static void reset() {
         asyncRunsForReal = false;
         deliverFiredEvents = false;
         SCHEDULED.clear();
+        DISABLED.clear();
         ONLINE.clear();
         PLUGINS.clear();
         WORLDS.clear();
@@ -587,7 +603,7 @@ public final class FakeServer {
                 (proxy, method, args) -> switch (method.getName()) {
                     case "getName" -> name;
                     case "getLogger" -> logger;
-                    case "isEnabled" -> true;
+                    case "isEnabled" -> !DISABLED.contains(name);
                     case "getDataFolder" -> dataFolder;
                     case "getDescription" -> description;
                     // As PluginBase does it, and it is final there: two loads of

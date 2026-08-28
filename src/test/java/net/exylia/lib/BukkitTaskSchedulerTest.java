@@ -155,4 +155,44 @@ class BukkitTaskSchedulerTest {
         FakeServer.setPrimaryThread(false);
         assertFalse(tasks.isGlobalThread());
     }
+
+    @Test
+    void aOneShotFromADisabledPluginRunsInline() {
+        FakeServer.disable(plugin);
+        AtomicInteger runs = new AtomicInteger();
+
+        tasks.run(runs::incrementAndGet);
+
+        // The real scheduler throws here, which on a server is a shutdown path
+        // dying halfway: regions never released, players never sent home.
+        assertEquals(1, runs.get(), "work asked for during disable should still run");
+        assertTrue(FakeServer.SCHEDULED.isEmpty(), "nothing can be queued for a stopped plugin");
+        assertEquals(0, tasks.activeTasks(), "an inline task is finished when it returns");
+    }
+
+    @Test
+    void anAsyncTaskFromADisabledPluginRunsInline() {
+        FakeServer.disable(plugin);
+        AtomicInteger runs = new AtomicInteger();
+
+        // The database module's executor is this call, and a plugin's last save
+        // rides on it.
+        tasks.runAsync(runs::incrementAndGet);
+
+        assertEquals(1, runs.get(), "a shutdown save must still reach the database");
+        assertTrue(FakeServer.SCHEDULED.isEmpty());
+    }
+
+    @Test
+    void aTimerFromADisabledPluginIsDroppedRatherThanThrown() {
+        FakeServer.disable(plugin);
+        AtomicInteger runs = new AtomicInteger();
+
+        TaskHandle handle = tasks.runTimer(0L, 20L, runs::incrementAndGet);
+
+        assertEquals(0, runs.get(), "there is no later left for a timer to run in");
+        assertTrue(handle.isCancelled(), "the caller should get a dead handle, not an exception");
+        assertTrue(FakeServer.SCHEDULED.isEmpty());
+        assertEquals(0, tasks.activeTasks());
+    }
 }

@@ -91,6 +91,27 @@ class DisableOrderTest {
     }
 
     @Test
+    @DisplayName("a save still lands after the library itself has been disabled")
+    void saveAfterTheLibraryIsDisabledStillLands() {
+        Repository<PlayerData> repository = Databases.of(plugin).repository(PlayerData.class);
+        UUID uuid = UUID.randomUUID();
+
+        // The server disables plugins in whatever order it loaded them, so
+        // ExyliaLib can be stopped several plugins before the ones that use it.
+        // The database work runs on the library's scheduler, and a stopped
+        // plugin's scheduler refuses tasks by throwing: the save used to come
+        // back as "the database work could not be scheduled" and the rows were
+        // lost.
+        FakeServer.disable(plugin);
+
+        await(repository.saveAll(List.of(new PlayerData(uuid, 64))));
+
+        assertEquals(Optional.of(new PlayerData(uuid, 64)), await(repository.find(uuid)),
+                "A save issued while the library is already disabled must still reach"
+                        + " the table: there is no later thread left to put it on.");
+    }
+
+    @Test
     @DisplayName("the deferred release still closes the plugin's view afterwards")
     void deferredReleaseStillHappens() {
         Databases.of(plugin).repository(PlayerData.class);

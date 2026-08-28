@@ -57,6 +57,8 @@ public final class FoliaTaskScheduler extends AbstractTaskScheduler {
 
     @Override
     public @NotNull TaskHandle run(@NotNull Runnable task) {
+        TaskHandle stopped = runIfStopped(task);
+        if (stopped != null) return stopped;
         TrackedHandle handle = newHandle(false);
         Runnable body = once(handle, task);
         bind(handle, canceller(globalScheduler.run(plugin, scheduled -> body.run())));
@@ -65,6 +67,8 @@ public final class FoliaTaskScheduler extends AbstractTaskScheduler {
 
     @Override
     public @NotNull TaskHandle runLater(long delayTicks, @NotNull Runnable task) {
+        TaskHandle stopped = runIfStopped(task);
+        if (stopped != null) return stopped;
         TrackedHandle handle = newHandle(false);
         Runnable body = once(handle, task);
         bind(handle, canceller(globalScheduler.runDelayed(plugin, scheduled -> body.run(),
@@ -74,6 +78,8 @@ public final class FoliaTaskScheduler extends AbstractTaskScheduler {
 
     @Override
     public @NotNull TaskHandle runTimer(long delayTicks, long periodTicks, @NotNull Runnable task) {
+        TaskHandle dropped = dropIfStopped();
+        if (dropped != null) return dropped;
         TrackedHandle handle = newHandle(true);
         Runnable body = repeating(handle, task);
         bind(handle, canceller(globalScheduler.runAtFixedRate(plugin, scheduled -> body.run(),
@@ -83,7 +89,7 @@ public final class FoliaTaskScheduler extends AbstractTaskScheduler {
 
     @Override
     public void execute(@NotNull Runnable task) {
-        if (Bukkit.isGlobalTickThread()) {
+        if (Bukkit.isGlobalTickThread() || !plugin.isEnabled()) {
             task.run();
             return;
         }
@@ -96,6 +102,8 @@ public final class FoliaTaskScheduler extends AbstractTaskScheduler {
 
     @Override
     public @NotNull TaskHandle runAsync(@NotNull Runnable task) {
+        TaskHandle stopped = runIfStopped(task);
+        if (stopped != null) return stopped;
         TrackedHandle handle = newHandle(false);
         Runnable body = once(handle, task);
         bind(handle, canceller(asyncScheduler.runNow(plugin, scheduled -> body.run())));
@@ -104,6 +112,8 @@ public final class FoliaTaskScheduler extends AbstractTaskScheduler {
 
     @Override
     public @NotNull TaskHandle runAsyncLater(long delayTicks, @NotNull Runnable task) {
+        TaskHandle stopped = runIfStopped(task);
+        if (stopped != null) return stopped;
         TrackedHandle handle = newHandle(false);
         Runnable body = once(handle, task);
         bind(handle, canceller(asyncScheduler.runDelayed(plugin, scheduled -> body.run(),
@@ -113,6 +123,8 @@ public final class FoliaTaskScheduler extends AbstractTaskScheduler {
 
     @Override
     public @NotNull TaskHandle runAsyncTimer(long delayTicks, long periodTicks, @NotNull Runnable task) {
+        TaskHandle dropped = dropIfStopped();
+        if (dropped != null) return dropped;
         TrackedHandle handle = newHandle(true);
         Runnable body = repeating(handle, task);
         bind(handle, canceller(asyncScheduler.runAtFixedRate(plugin, scheduled -> body.run(),
@@ -126,6 +138,14 @@ public final class FoliaTaskScheduler extends AbstractTaskScheduler {
 
     @Override
     public @NotNull TaskHandle runAtEntity(@NotNull Entity entity, @NotNull Runnable task, @Nullable Runnable retired) {
+        TaskHandle stopped = runIfStopped(() -> {
+            if (entity.isValid()) {
+                task.run();
+            } else if (retired != null) {
+                retired.run();
+            }
+        });
+        if (stopped != null) return stopped;
         TrackedHandle handle = newHandle(false);
         Runnable body = once(handle, task);
         Runnable onRetired = () -> {
@@ -149,6 +169,12 @@ public final class FoliaTaskScheduler extends AbstractTaskScheduler {
 
     @Override
     public @NotNull TaskHandle runAtEntityLater(@NotNull Entity entity, long delayTicks, @NotNull Runnable task) {
+        TaskHandle stopped = runIfStopped(() -> {
+            if (entity.isValid()) {
+                task.run();
+            }
+        });
+        if (stopped != null) return stopped;
         TrackedHandle handle = newHandle(false);
         Runnable body = once(handle, task);
 
@@ -165,6 +191,8 @@ public final class FoliaTaskScheduler extends AbstractTaskScheduler {
     @Override
     public @NotNull TaskHandle runAtEntityTimer(@NotNull Entity entity, long delayTicks, long periodTicks,
                                                 @NotNull Runnable task) {
+        TaskHandle dropped = dropIfStopped();
+        if (dropped != null) return dropped;
         TrackedHandle handle = newHandle(true);
         Runnable body = repeating(handle, task);
 
@@ -184,6 +212,8 @@ public final class FoliaTaskScheduler extends AbstractTaskScheduler {
 
     @Override
     public @NotNull TaskHandle runAtLocation(@NotNull Location location, @NotNull Runnable task) {
+        TaskHandle stopped = runIfStopped(task);
+        if (stopped != null) return stopped;
         TrackedHandle handle = newHandle(false);
         Runnable body = once(handle, task);
         bind(handle, canceller(regionScheduler.run(plugin, location, scheduled -> body.run())));
@@ -192,6 +222,8 @@ public final class FoliaTaskScheduler extends AbstractTaskScheduler {
 
     @Override
     public @NotNull TaskHandle runAtLocationLater(@NotNull Location location, long delayTicks, @NotNull Runnable task) {
+        TaskHandle stopped = runIfStopped(task);
+        if (stopped != null) return stopped;
         TrackedHandle handle = newHandle(false);
         Runnable body = once(handle, task);
         bind(handle, canceller(regionScheduler.runDelayed(plugin, location, scheduled -> body.run(),
@@ -202,6 +234,8 @@ public final class FoliaTaskScheduler extends AbstractTaskScheduler {
     @Override
     public @NotNull TaskHandle runAtLocationTimer(@NotNull Location location, long delayTicks, long periodTicks,
                                                   @NotNull Runnable task) {
+        TaskHandle dropped = dropIfStopped();
+        if (dropped != null) return dropped;
         TrackedHandle handle = newHandle(true);
         Runnable body = repeating(handle, task);
         bind(handle, canceller(regionScheduler.runAtFixedRate(plugin, location, scheduled -> body.run(),
