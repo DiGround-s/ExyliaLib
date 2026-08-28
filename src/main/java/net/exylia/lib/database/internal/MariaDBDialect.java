@@ -4,7 +4,6 @@ import org.jetbrains.annotations.NotNull;
 
 import java.sql.SQLException;
 import java.util.LinkedHashMap;
-import java.util.List;
 import java.util.Map;
 
 /**
@@ -18,9 +17,15 @@ import java.util.Map;
  * <h2>The row alias</h2>
  * MariaDB does not implement MySQL 8.0.20's {@code INSERT ... AS new} alias:
  * the statement fails to <em>parse</em>, so it is not a warning, a fallback, or
- * a portability nicety. {@link #appendConflict} therefore emits the older
- * {@code VALUES(col)} form, which MariaDB implements and does not deprecate.
- * This is the whole reason the two engines cannot share one dialect.
+ * a portability nicety. The constructor therefore turns the alias off, and
+ * {@link MySQLDialect#appendConflict} emits the older {@code VALUES(col)}
+ * form, which MariaDB implements and does not deprecate.
+ *
+ * <p>An operator who configures {@code mysql} for a MariaDB server — which is
+ * what most of them write, and which connector-j connects to happily — never
+ * reaches this class by name. {@link SqlBackend} asks the server what it is on
+ * the first connection and switches to this dialect when the answer says
+ * MariaDB, because the alternative is a syntax error on every write.
  *
  * <h2>{@code CREATE INDEX IF NOT EXISTS}</h2>
  * MariaDB has supported it since 10.0, unlike MySQL. It is used, because a
@@ -40,6 +45,9 @@ final class MariaDBDialect extends MySQLDialect {
     static final MariaDBDialect INSTANCE = new MariaDBDialect();
 
     private MariaDBDialect() {
+        // Never the row alias: it is a parse error on this engine, at every
+        // version, on every single write.
+        super(false);
     }
 
     @Override
@@ -82,27 +90,6 @@ final class MariaDBDialect extends MySQLDialect {
     @Override
     public boolean supportsCreateIndexIfNotExists() {
         return true;
-    }
-
-    @Override
-    void appendConflict(@NotNull StringBuilder sql,
-                        @NotNull EntityModel<?> model,
-                        @NotNull List<String> keys) {
-        List<ColumnModel> updatable = updatable(model, keys);
-        sql.append(" ON DUPLICATE KEY UPDATE ");
-        if (updatable.isEmpty()) {
-            sql.append(quote(keys.get(0))).append(" = ").append(quote(keys.get(0)));
-            return;
-        }
-        for (int index = 0; index < updatable.size(); index++) {
-            if (index > 0) {
-                sql.append(", ");
-            }
-            String column = quote(identifier(updatable.get(index).name()));
-            // VALUES(col), never MySQL 8's new.col: the row alias that form
-            // needs is a parse error on this engine, on every single write.
-            sql.append(column).append(" = VALUES(").append(column).append(')');
-        }
     }
 
     @Override

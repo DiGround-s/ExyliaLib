@@ -7,6 +7,7 @@ import org.jetbrains.annotations.Nullable;
 
 import java.math.BigDecimal;
 import java.sql.Connection;
+import java.sql.DatabaseMetaData;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -15,9 +16,12 @@ import java.sql.Types;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Consumer;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * One connection pool and everything that runs statements through it.
@@ -142,7 +146,8 @@ public final class SqlBackend implements AutoCloseable {
         config.setAutoCommit(true);
 
         try {
-            return new SqlBackend(dialect, new HikariDataSource(config));
+            HikariDataSource pool = new HikariDataSource(config);
+            return new SqlBackend(serverDialect(dialect, pool), pool);
         } catch (RuntimeException failure) {
             // Hikari opens its first connection eagerly, so a wrong password or
             // an unreachable host arrives here rather than on the first query.
@@ -150,6 +155,58 @@ public final class SqlBackend implements AutoCloseable {
             throw new IllegalStateException("Could not open a " + dialect.id()
                     + " pool for " + settings, failure);
         }
+    }
+
+    /**
+     * The dialect for the server that actually answered, not the one named in
+     * the configuration.
+     *
+     * <p>The engine name in a config file picks the driver and the URL, and it
+     * is right about those. It is regularly wrong about the engine:
+     * {@code mysql} is what operators write for a MariaDB server, connector-j
+     * connects to one without complaining, and the difference only surfaces on
+     * the first write, as {@code You have an error in your SQL syntax ... near
+     * 'AS new ON DUPLICATE KEY UPDATE'} — MySQL 8.0.20's row alias, which
+     * MariaDB cannot parse. MySQL 5.7 cannot parse it either.
+     *
+     * <p>So the server is asked once, on a connection the pool has already
+     * opened, and the answer decides. Only the MySQL family needs this: H2 and
+     * Postgres cannot be mistaken for each other through a driver that would
+     * have connected at all. When the probe fails the configured dialect
+     * stands, because a metadata call that threw says nothing about the
+     * engine, and the first real statement will report the truth anyway.
+     */
+    private static Dialect serverDialect(Dialect configured, HikariDataSource pool) {
+        if (!(configured instanceof MySQLDialect)) {
+            return configured;
+        }
+        try (Connection connection = pool.getConnection()) {
+            DatabaseMetaData meta = connection.getMetaData();
+            // MariaDB behind connector-j reports the product name "MySQL" and a
+            // version of "5.5.5-10.11.6-MariaDB": the fork's own name is only
+            // ever in the version string, so both are searched.
+            String banner = meta.getDatabaseProductName() + " " + meta.getDatabaseProductVersion();
+            if (banner.toLowerCase(Locale.ROOT).contains("mariadb")) {
+                return MariaDBDialect.INSTANCE;
+            }
+            return supportsRowAlias(meta) ? MySQLDialect.INSTANCE : MySQLDialect.LEGACY;
+        } catch (SQLException | RuntimeException unknown) {
+            return configured;
+        }
+    }
+
+    /** Whether a MySQL server is 8.0.20 or newer, where the row alias landed. */
+    private static boolean supportsRowAlias(DatabaseMetaData meta) throws SQLException {
+        int major = meta.getDatabaseMajorVersion();
+        if (major != 8 || meta.getDatabaseMinorVersion() != 0) {
+            return major >= 8;
+        }
+        // Only the 8.0 line is split by a patch number, and only the driver's
+        // version string carries it. An unreadable one is read as new enough:
+        // 8.0 releases before .20 are years past their end of life.
+        Matcher patch = Pattern.compile("^\\d+\\.\\d+\\.(\\d+)")
+                .matcher(meta.getDatabaseProductVersion());
+        return !patch.find() || Integer.parseInt(patch.group(1)) >= 20;
     }
 
     /** The dialect this backend speaks. */
