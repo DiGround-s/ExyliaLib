@@ -143,19 +143,6 @@ final class NametagPackets extends PacketListenerAbstract implements NametagSink
     }
 
     @Override
-    public void removeFromTeam(Player viewer, String name, Collection<String> members) {
-        User user = userOf(viewer);
-        if (user == null) {
-            return;
-        }
-        user.sendPacket(new WrapperPlayServerTeams(
-                name,
-                WrapperPlayServerTeams.TeamMode.REMOVE_ENTITIES,
-                (WrapperPlayServerTeams.ScoreBoardTeamInfo) null,
-                members));
-    }
-
-    @Override
     public void removeTeam(Player viewer, String name) {
         User user = userOf(viewer);
         if (user == null) {

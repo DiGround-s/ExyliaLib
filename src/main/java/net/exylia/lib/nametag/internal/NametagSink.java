@@ -21,9 +21,6 @@ public interface NametagSink extends AutoCloseable {
     /** Adds members to a team the viewer already knows. */
     void addToTeam(Player viewer, String name, Collection<String> members);
 
-    /** Removes members from a team the viewer knows. */
-    void removeFromTeam(Player viewer, String name, Collection<String> members);
-
     /** Removes a team from the viewer's client. */
     void removeTeam(Player viewer, String name);
 
