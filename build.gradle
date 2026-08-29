@@ -8,7 +8,7 @@ plugins {
 }
 
 group = 'net.exylia'
-version = '1.73.3'
+version = '1.74.1'
 description = 'Shared high-performance library for Exylia Minecraft plugins.'
 
 def targetJavaVersion = 21
@@ -136,6 +136,12 @@ dependencies {
     // classloading accident waiting to happen.
     compileOnly 'com.fastasyncworldedit:FastAsyncWorldEdit-Core:2.8.4'
     compileOnly 'com.fastasyncworldedit:FastAsyncWorldEdit-Bukkit:2.8.4'
+    // WorldGuard: optional, guarded behind a plugin check in WorldGuardRegions.
+    // WorldEdit is excluded because FAWE above already provides those classes
+    // and a second copy on the compile classpath only breeds ambiguity.
+    compileOnly('com.sk89q.worldguard:worldguard-bukkit:7.0.13') {
+        exclude group: 'com.sk89q.worldedit'
+    }
 
     // Lamp: the command framework the whole ecosystem standardises on.
     // compileOnly like everywhere else; the server provides it through the
