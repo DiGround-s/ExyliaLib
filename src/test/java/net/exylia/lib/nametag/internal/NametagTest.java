@@ -107,9 +107,27 @@ class NametagTest {
 
         tags.paint(alice.player(), bob.player(), RED);
 
-        assertEquals(List.of("remove:Alice:" + GREEN.teamName() + ":Bob"), sink.calls("remove"));
+        assertEquals(List.of("delteam:Alice:" + GREEN.teamName()), sink.calls("delteam"));
         assertEquals(List.of("create:Alice:" + RED.teamName() + ":Bob"), sink.calls("create"));
         assertEquals(RED, tags.styleOf(alice.player(), bob.player()));
+    }
+
+    @Test
+    @DisplayName("leaving a shared team rebuilds it with whoever is still in it")
+    void leavingSharedTeamRebuildsIt() {
+        tags.paint(alice.player(), List.of(bob.player(), carol.player()), GREEN);
+        sink.clear();
+
+        tags.reset(alice.player(), bob.player());
+
+        assertEquals(
+                List.of("delteam:Alice:" + GREEN.teamName(),
+                        "create:Alice:" + GREEN.teamName() + ":Carol",
+                        "flags:Alice:Bob"),
+                sink.calls());
+        assertEquals(List.of(), sink.calls("remove"),
+                "a single-member removal disconnects a client that moved them elsewhere");
+        assertEquals(GREEN, tags.styleOf(alice.player(), carol.player()));
     }
 
     @Test
@@ -164,7 +182,7 @@ class NametagTest {
         tags.reset(alice.player(), bob.player());
 
         assertEquals(
-                List.of("remove:Alice:" + GREEN.teamName() + ":Bob", "flags:Alice:Bob"),
+                List.of("delteam:Alice:" + GREEN.teamName(), "flags:Alice:Bob"),
                 sink.calls());
         assertNull(tags.styleOf(alice.player(), bob.player()));
         assertFalse(NametagRuntime.state().anyGlowing(alice.player().getUniqueId()));
@@ -195,9 +213,9 @@ class NametagTest {
 
         // Order is not promised: the viewers come out of a set.
         assertEquals(
-                java.util.Set.of("remove:Alice:" + GREEN.teamName() + ":Carol",
-                        "remove:Bob:" + GREEN.teamName() + ":Carol"),
-                java.util.Set.copyOf(sink.calls("remove")));
+                java.util.Set.of("delteam:Alice:" + GREEN.teamName(),
+                        "delteam:Bob:" + GREEN.teamName()),
+                java.util.Set.copyOf(sink.calls("delteam")));
     }
 
     @Test
@@ -222,7 +240,7 @@ class NametagTest {
 
         NametagRuntime.release(plugin.getName());
 
-        assertEquals(2, sink.calls("remove").size());
+        assertEquals(2, sink.calls("delteam").size());
         assertEquals(0, NametagRuntime.state().tracked());
     }
 

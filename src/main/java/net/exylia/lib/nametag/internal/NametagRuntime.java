@@ -276,16 +276,31 @@ public final class NametagRuntime {
     /**
      * Takes a player out of the team that was painting them.
      *
-     * <p>The team itself is left on the client rather than removed: it is
-     * shared by everyone painted the same way, and it will be reused the moment
-     * anybody else is painted like that. An empty team on a client costs
-     * nothing; deleting and recreating it costs two packets each time.
+     * <p>The client is never asked to remove one member: it throws — and
+     * disconnects — if the player is no longer in that team, which happens
+     * whenever any other team (a server scoreboard, another plugin) claimed
+     * them since, because joining a team silently leaves the previous one.
+     * Deleting the whole team never throws, so the team goes and comes back
+     * with whoever is still painted the same way.
      */
     private static void leaveTeam(NametagSink out, Player viewer, UUID viewerId,
                                   State.Painted painted) {
         String team = painted.style().teamName();
-        if (STATE.knows(viewerId, team)) {
-            out.removeFromTeam(viewer, team, List.of(painted.targetName()));
+        if (!STATE.knows(viewerId, team)) {
+            return;
+        }
+        List<String> remaining = new ArrayList<>();
+        for (State.Painted other : STATE.paintedBy(viewerId).values()) {
+            if (other.style().teamName().equals(team)
+                    && !other.targetName().equals(painted.targetName())) {
+                remaining.add(other.targetName());
+            }
+        }
+        out.removeTeam(viewer, team);
+        if (remaining.isEmpty()) {
+            STATE.forgetTeam(viewerId, team);
+        } else {
+            out.createTeam(viewer, team, painted.style(), remaining);
         }
     }
 
