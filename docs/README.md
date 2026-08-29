@@ -37,6 +37,7 @@ against the source — rules and routes are in `AGENTS.md` under
 | [Teleport](teleport.md) | Moving a player: countdowns that moving or damage calls off, safe landings, `/back`, requests, random spots and handovers to another server | 1.34.0 |
 | [Wizards](wizard.md) | Walking a player through several questions — branches, a review they can go back from, and nothing applied until they confirm | 1.34.0 |
 | [Nametags](nametags.md) | Name colour, glow and collision as one player sees another — vanilla clients included | 1.36.0 |
+| [Packets](packets.md) | Vanish, fake blocks, freezing, a fake spectator and silent chest viewing — packets to one client, nothing on the server | 1.75.0 |
 | [Combat](combat.md) | Whether a player is in combat, over DeluxeCombat, PvPManager or a bridge you write | 1.36.0 |
 | [World](world.md) | Creating and deleting worlds through the Worlds plugin, from any thread — and doing nothing loudly when it is absent | 1.36.0 |
 | [Transfer](transfer.md) | A plugin's whole database out to one file and back — moving from H2 to MySQL, or onto another server | 1.36.0 |

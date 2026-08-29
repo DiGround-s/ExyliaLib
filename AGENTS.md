@@ -1274,6 +1274,12 @@ empiezan a responder desde Redis y a avisar a los demás servidores.
   convertía en hilos parados.
 - **Jedis vive confinado en `JedisClient`.** Verificado en bytecode. Un
   servidor sin la librería no carga esa clase y todo sigue funcionando.
+- **Los canales son para eventos, nunca para estado.** `Channels.of(plugin)
+  .channel(name)` publica y suscribe entre servidores (y dentro del propio,
+  siempre, con o sin Redis). Un mensaje se puede perder si un servidor estaba
+  reiniciando; una fila no. Lo que hay que *saber* va al repositorio; lo que
+  hay que *avisar* va al canal. El handler corre en el hilo del subscriber:
+  `Tasks` antes de tocar Bukkit.
 - **No hay `@PlayerSession` ni flush-on-quit.** En commons era código muerto
   (cero entidades anotadas en todo el ecosistema) y no era lo que hacía
   funcionar el handoff. Aquí las escrituras son durables al completar.
@@ -1445,6 +1451,7 @@ Raíz de código: `src/main/java/net/exylia/lib/`. Raíz de tests:
 | condiciones compartidas | — | `util/internal/Conditions` (movido desde `util/reward/internal`) | [docs/rewards.md](docs/rewards.md) | 1.57.0 |
 | util (preview) | `util/preview/Previews`, `PluginPreviews`, `Preview`, `PreviewSettings` | `util/preview/internal/` | [docs/previews.md](docs/previews.md) | 1.30.0 |
 | redis | `redis/Redis`, `RedisSettings` | `redis/internal/` (Jedis confinado en `JedisClient`) | [docs/redis.md](docs/redis.md) | 1.31.0 |
+| canales pub/sub entre servidores | `redis/Channels`, `PluginChannels`, `Channel`, `Message`, `Redis.serverId(plugin)` | `Channel` enmarca `<server-id>` + pipe + `<payload>` sobre `RedisRuntime.client`; bus local sin Redis | [docs/redis.md](docs/redis.md) | 1.75.0 |
 | poll de auto-actualización | `update-check-minutes` en `internal/LibrarySettings` | `internal/ExyliaLibUpdater` (ETag), timer en `ExyliaLib.startUpdateCheck` | [docs/reload.md](docs/reload.md) | 1.30.0 |
 | claves generadas | `database/Id.generated`, `Repository.insert`/`insertReturning` | `Dialect.insertGenerated`, `SqlBackend.insert` (`getGeneratedKeys`), `MongoBackend.insert` (`$inc`), `EntityModel.withId` | [docs/database.md](docs/database.md) | 1.32.0 |
 | clic que redibuja todo lo que puede cambiar | — | `ui/internal/Session.refreshAfterClick`, `redrawChangeable` | [docs/menus.md](docs/menus.md) | 1.44.0 |
@@ -1457,6 +1464,7 @@ Raíz de código: `src/main/java/net/exylia/lib/`. Raíz de tests:
 | consola con look de commons | `debug/Debug` (degradado, etiqueta por tipo, marco del `motd`) | `gradientName`/`blend` en `Debug` | [docs/debug.md](docs/debug.md) | 1.35.0 |
 | util (world) | `util/world/Worlds` | `util/world/internal/` (`WorldsBackend`, `WorldsBackendDetector`, `WorldsReflection`, `Worlds3Backend`, `Worlds4Backend`) | [docs/world.md](docs/world.md) | 1.36.0 |
 | nametag | `nametag/Nametags`, `PluginNametags`, `NametagStyle` | `nametag/internal/` (`NametagRuntime`, `State`, `NametagSink`; PacketEvents confinado en `NametagPackets`) | [docs/nametags.md](docs/nametags.md) | 1.36.0 |
+| packet | `packet/Packets`, `PluginPackets`, `Visibility`, `VisibilityRule`, `FakeBlocks`, `Movement`, `FakeGameMode`, `SilentContainer` | `packet/internal/` (`PacketRuntime`, `PacketSink`, `SectionGroups`, `Mirrors`; PacketEvents confinado en `PacketHooks`) | [docs/packets.md](docs/packets.md) | 1.75.0 |
 | util (combat) | `util/combat/Combat`, `CombatBridge`, `CombatStats` | `util/combat/internal/` (`CombatRuntime`, `CombatProvider`, `DeluxeCombatProvider`, `PvpManagerProvider`) | [docs/combat.md](docs/combat.md) | 1.36.0 |
 | transfer | `database/transfer/Transfers`, `PluginTransfers`, `TransferReport`, `TableTransfer`, `TransferOutcome` | `database/transfer/internal/` (`DumpFormat`, `DumpWriter`, `DumpReader`, `DumpException`, `TransferRuntime`, `DumpFormatAccess`); comando en `internal/ReloadCommand` sobre `internal/TransferAccess` | [docs/transfer.md](docs/transfer.md) | 1.36.0 |
 | `/exylialib info` y `stats` | — | `internal/ReloadCommand` (`dependentsOf`, `hologramsLine`) | [docs/reload.md](docs/reload.md) | 1.35.0 |
