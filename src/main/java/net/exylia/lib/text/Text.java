@@ -21,6 +21,7 @@ import org.jetbrains.annotations.Nullable;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 
@@ -429,17 +430,24 @@ public final class Text {
      * {@code ClickEvent.clickEvent(action, String)}, which Adventure 5 replaced
      * with a payload overload: these five kept their signature across both.
      *
+     * <p>Matched by name, not by constant: Adventure 5 turned {@code Action}
+     * from an enum into a class whose constants are typed subclasses, so a
+     * {@code getstatic} compiled against 4 throws {@code NoSuchFieldError} on 5.
+     * {@code toString()} is the lowercase name on both.
+     *
      * @param action what the click does
      * @param value  what it should carry
      * @return the click, or {@code null} for an action that carries no text
      */
     private static @Nullable ClickEvent clickWith(ClickEvent.Action action, String value) {
-        if (action == ClickEvent.Action.RUN_COMMAND) return ClickEvent.runCommand(value);
-        if (action == ClickEvent.Action.SUGGEST_COMMAND) return ClickEvent.suggestCommand(value);
-        if (action == ClickEvent.Action.OPEN_URL) return ClickEvent.openUrl(value);
-        if (action == ClickEvent.Action.OPEN_FILE) return ClickEvent.openFile(value);
-        if (action == ClickEvent.Action.COPY_TO_CLIPBOARD) return ClickEvent.copyToClipboard(value);
-        return null;
+        return switch (action.toString().toLowerCase(Locale.ROOT)) {
+            case "run_command" -> ClickEvent.runCommand(value);
+            case "suggest_command" -> ClickEvent.suggestCommand(value);
+            case "open_url" -> ClickEvent.openUrl(value);
+            case "open_file" -> ClickEvent.openFile(value);
+            case "copy_to_clipboard" -> ClickEvent.copyToClipboard(value);
+            default -> null;
+        };
     }
 
     /** Parses a trusted value, honouring its formatting. */
