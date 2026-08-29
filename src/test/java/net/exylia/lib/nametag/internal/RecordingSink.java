@@ -39,12 +39,6 @@ final class RecordingSink implements NametagSink {
     }
 
     @Override
-    public void removeFromTeam(Player viewer, String name, Collection<String> members) {
-        fail();
-        calls.add("remove:" + viewer.getName() + ":" + name + ":" + names(members));
-    }
-
-    @Override
     public void removeTeam(Player viewer, String name) {
         fail();
         calls.add("delteam:" + viewer.getName() + ":" + name);
