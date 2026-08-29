@@ -160,6 +160,23 @@ class PreviewTest {
         assertTrue(viewer.hidden().isEmpty(), "and they must all come back");
     }
 
+    // ------------------------------------------------------------------ lock
+
+    @Test
+    @DisplayName("a player mid-preview can do nothing, and everything afterwards")
+    void actionsAreBlockedWhilePreviewing() {
+        Preview preview = previews.show(viewer.player(), effect);
+
+        var drop = new org.bukkit.event.player.PlayerDropItemEvent(viewer.player(), null);
+        FakeServer.dispatch(drop);
+        assertTrue(drop.isCancelled(), "a drop from the stage lands a thousand blocks down");
+
+        preview.end();
+        var after = new org.bukkit.event.player.PlayerDropItemEvent(viewer.player(), null);
+        FakeServer.dispatch(after);
+        assertFalse(after.isCancelled(), "the lock must go with the preview");
+    }
+
     // ----------------------------------------------------------- interruption
 
     @Test

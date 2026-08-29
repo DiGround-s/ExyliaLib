@@ -9,7 +9,17 @@ import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
+import org.bukkit.event.Cancellable;
+import org.bukkit.event.entity.EntityDamageEvent;
 import org.bukkit.event.entity.PlayerDeathEvent;
+import org.bukkit.event.inventory.InventoryOpenEvent;
+import org.bukkit.event.player.PlayerCommandPreprocessEvent;
+import org.bukkit.event.player.PlayerDropItemEvent;
+import org.bukkit.event.player.PlayerInteractEntityEvent;
+import org.bukkit.event.player.PlayerInteractEvent;
+import org.bukkit.event.player.PlayerMoveEvent;
+import org.bukkit.event.player.PlayerSwapHandItemsEvent;
+import org.bukkit.event.player.PlayerToggleFlightEvent;
 import org.bukkit.event.player.PlayerChangedWorldEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerKickEvent;
@@ -33,6 +43,12 @@ import java.util.concurrent.ConcurrentHashMap;
  * Two overlapping previews would each remember an origin, and the second to
  * finish would put the player back where the first one found them &mdash; which
  * by then is a patch of empty sky.
+ *
+ * <h2>Nothing else gets through</h2>
+ * While on the stage the player is a spectator of their own preview: commands,
+ * chat, movement, interaction, item drops and inventories are all cancelled.
+ * A command that teleported them, or a drop from a thousand blocks up, would
+ * otherwise turn a preview into a support ticket.
  *
  * <h2>Everything that can interrupt</h2>
  * Quit, kick, death, world change, a teleport by another plugin, the owning
@@ -200,6 +216,75 @@ public final class PreviewRuntime implements Listener {
             return;
         }
         session.endWhereTheyAre();
+    }
+
+    // ------------------------------------------------------------------ lock
+
+    private static void cancelIfPreviewing(Player player, Cancellable event) {
+        if (ACTIVE.containsKey(player.getUniqueId())) {
+            event.setCancelled(true);
+        }
+    }
+
+    @EventHandler(priority = EventPriority.LOWEST, ignoreCancelled = true)
+    public void onCommand(PlayerCommandPreprocessEvent event) {
+        cancelIfPreviewing(event.getPlayer(), event);
+    }
+
+    @EventHandler(priority = EventPriority.LOWEST, ignoreCancelled = true)
+    public void onChat(io.papermc.paper.event.player.AsyncChatEvent event) {
+        cancelIfPreviewing(event.getPlayer(), event);
+    }
+
+    @EventHandler(priority = EventPriority.LOWEST, ignoreCancelled = true)
+    public void onMove(PlayerMoveEvent event) {
+        // Looking around is allowed; the effect plays in front of them and
+        // they may want to follow it. Leaving the spot is not.
+        if (event.hasChangedPosition()) {
+            cancelIfPreviewing(event.getPlayer(), event);
+        }
+    }
+
+    @EventHandler(priority = EventPriority.LOWEST, ignoreCancelled = true)
+    public void onToggleFlight(PlayerToggleFlightEvent event) {
+        // Flight is what holds them up. Turning it off would drop them.
+        cancelIfPreviewing(event.getPlayer(), event);
+    }
+
+    @EventHandler(priority = EventPriority.LOWEST, ignoreCancelled = true)
+    public void onInteract(PlayerInteractEvent event) {
+        cancelIfPreviewing(event.getPlayer(), event);
+    }
+
+    @EventHandler(priority = EventPriority.LOWEST, ignoreCancelled = true)
+    public void onInteractEntity(PlayerInteractEntityEvent event) {
+        cancelIfPreviewing(event.getPlayer(), event);
+    }
+
+    @EventHandler(priority = EventPriority.LOWEST, ignoreCancelled = true)
+    public void onDrop(PlayerDropItemEvent event) {
+        cancelIfPreviewing(event.getPlayer(), event);
+    }
+
+    @EventHandler(priority = EventPriority.LOWEST, ignoreCancelled = true)
+    public void onSwapHands(PlayerSwapHandItemsEvent event) {
+        cancelIfPreviewing(event.getPlayer(), event);
+    }
+
+    @EventHandler(priority = EventPriority.LOWEST, ignoreCancelled = true)
+    public void onInventoryOpen(InventoryOpenEvent event) {
+        if (event.getPlayer() instanceof Player player) {
+            cancelIfPreviewing(player, event);
+        }
+    }
+
+    @EventHandler(priority = EventPriority.LOWEST, ignoreCancelled = true)
+    public void onDamage(EntityDamageEvent event) {
+        // Invulnerable already covers most of it; this covers the rest (void,
+        // /kill from another plugin's damage call) so death cannot interrupt.
+        if (event.getEntity() instanceof Player player) {
+            cancelIfPreviewing(player, event);
+        }
     }
 
     private boolean isOurOwnStage(PreviewSession session, PlayerTeleportEvent event) {
