@@ -30,6 +30,8 @@ import net.exylia.lib.skull.internal.SkullRuntime;
 import net.exylia.lib.schematic.internal.SchematicRuntime;
 import net.exylia.lib.client.internal.ClientRuntime;
 import net.exylia.lib.nametag.internal.NametagRuntime;
+import net.exylia.lib.packet.Packets;
+import net.exylia.lib.packet.internal.PacketRuntime;
 import net.exylia.lib.util.combat.internal.CombatRuntime;
 import net.exylia.lib.hologram.internal.HologramRuntime;
 import net.exylia.lib.internal.ExyliaLibUpdater;
@@ -41,6 +43,7 @@ import net.exylia.lib.internal.LibCommands;
 import net.exylia.lib.internal.LibrarySettings;
 import net.exylia.lib.debug.Debug;
 import net.exylia.lib.placeholder.Placeholders;
+import net.exylia.lib.redis.Channels;
 import net.exylia.lib.redis.internal.RedisRuntime;
 import net.exylia.lib.reload.Reloads;
 import net.exylia.lib.region.Regions;
@@ -157,6 +160,7 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         HologramRuntime.init(this);
         ClientRuntime.init(this);
         NametagRuntime.init(this);
+        PacketRuntime.init(this);
         MenuRuntime.init(this);
         ClanRuntime.init(this);
         CombatRuntime.init(this);
@@ -416,6 +420,7 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         HologramRuntime.removeEverything();
         ClientRuntime.shutdown();
         NametagRuntime.shutdown();
+        Packets.releaseAll();
         ClanRuntime.shutdown();
         CombatRuntime.shutdown();
         // Writes the texture cache before tasks go away: the save is inline.
@@ -453,6 +458,9 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         // Same reason, and nothing else: every stored snapshot was durable the
         // moment it was taken, so a shutdown has nothing left to write.
         Snapshots.releaseAll();
+        // Before the datasources and the Redis client it shares: a subscriber
+        // thread must stop before the pool that feeds it is closed.
+        Channels.releaseAll();
         // After every plugin has had its own onDisable — they run before this
         // one — so a last write queued there has already been handed to the
         // pool. Before the task module, because the pool's own close is
@@ -613,6 +621,8 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         // Same reason: putting a nametag back to normal is a packet to a player
         // who is still on the server.
         NametagRuntime.release(pluginName);
+        // Same again: unhiding, unfreezing and restoring blocks are packets.
+        Packets.release(pluginName);
         // Before all three of the modules a run borrows from, because ending
         // one hands work back to each of them: it cancels the question it was
         // waiting on, releases the player's block selector, and schedules the
@@ -717,6 +727,10 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         // snapshot this plugin took is already a row, so nothing has to be
         // written on the way out. Forgetting the repository is the whole job.
         Snapshots.release(plugin);
+        // Here rather than in the event, so a plugin can still announce its
+        // own shutdown from onDisable; before the datasources it shares a
+        // client with.
+        Channels.release(plugin);
         // Drops the plugin's repositories and datasource lease. A target closes
         // only after its last owning plugin releases it.
         Databases.release(plugin);

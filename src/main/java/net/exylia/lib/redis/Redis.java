@@ -1,6 +1,7 @@
 package net.exylia.lib.redis;
 
 import net.exylia.lib.redis.internal.RedisRuntime;
+import org.bukkit.plugin.Plugin;
 import org.jetbrains.annotations.NotNull;
 
 /**
@@ -76,5 +77,20 @@ public final class Redis {
      */
     public static @NotNull String stats() {
         return RedisRuntime.stats();
+    }
+
+    /**
+     * This server's name on the network, as configured in the plugin's
+     * {@code database.yml}.
+     *
+     * <p>{@code server-1} when Redis is off or the block is absent, so the name
+     * is always usable: it is what {@link Message#sender()} carries.
+     *
+     * @param plugin the plugin whose configuration is read
+     * @return the configured {@code server-id}
+     * @since 1.75.0
+     */
+    public static @NotNull String serverId(@NotNull Plugin plugin) {
+        return Channels.settings(plugin).serverId();
     }
 }

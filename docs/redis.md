@@ -107,6 +107,57 @@ Redis.stats();      // hits, misses, failures, rows held
 A low hit rate across a network usually means the servers disagree about
 `key-prefix`, or share a `server-id`.
 
+## Channels
+
+Cross-server events over the same Redis, since 1.75.0. For telling every
+server that something *happened* — a staff alert, a broadcast, a punishment to
+apply — never for carrying state: state lives in a repository, which the cache
+above keeps consistent; a message can be missed by a server that was
+restarting, a row cannot.
+
+Nothing to configure beyond the block above. Without Redis (off, unreachable,
+or library missing) a channel still delivers within this server, so
+single-server code and network code are the same code.
+
+```yaml
+# plugins/<Plugin>/database.yml
+database:
+  redis:
+    enabled: true
+    host: 10.0.0.6
+    server-id: lobby-1
+```
+
+```java
+Channel alerts = Channels.of(plugin).channel("alerts");
+
+alerts.subscribe(message -> {
+    // Subscriber thread, never the main thread: hop before touching Bukkit.
+    Tasks.of(plugin).run(() -> notifyStaff(message.sender(), message.payload()));
+});
+
+alerts.publish(player.getName() + " was reported");
+```
+
+Contracts:
+
+- **Every message reaches every subscriber on every server, this one
+  included, exactly once.** `Message.local()` is true for a message this
+  server published; `Message.sender()` is the sender's `server-id`.
+- **Channels are scoped by plugin and name.** Two plugins asking for
+  `"alerts"` get two channels. Same name, same instance.
+- **`publish` is one Redis round trip on the calling thread.** Publish from
+  `runAsync` on a hot path. An unreachable Redis never throws: the message is
+  delivered to this server only and the console says so once per call.
+- **Handlers run on the subscriber thread.** Go through `Tasks` for anything
+  that touches the Bukkit API. A handler that throws is logged and the rest
+  still run.
+- **Lifecycle is the plugin's.** A `Subscription` closes one handler;
+  `PluginChannels.close()` closes everything, and ExyliaLib does that when the
+  plugin disables — after its `onDisable`, so it can still announce its own
+  shutdown.
+- `Channel.isNetworked()` and `Redis.serverId(plugin)` are diagnostics.
+
 ## Differences from ExyliaCommons
 
 The design is the same one, with four defects fixed:
@@ -136,7 +187,7 @@ is nothing buffered to flush.
 
 | | |
 | --- | --- |
-| Public API | `redis/Redis`, `redis/RedisSettings` |
+| Public API | `redis/Redis`, `redis/RedisSettings`, `redis/Channels`, `PluginChannels`, `Channel`, `Message` |
 | Internal | `redis/internal/RedisRuntime`, `RowCache`, `CachedStorage`, `RowCodec`, `CacheKeys`, `Invalidation`, `RedisClient`, `JedisClient`, `MemoryClient` |
 | Wiring | `database/PluginDatabase` wraps each repository's storage; `database/DatabaseSettings` carries the block |
 | Lifecycle | `ExyliaLib` closes every connection after the datasources, so a last write still reaches the network |
