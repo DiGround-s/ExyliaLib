@@ -19,7 +19,7 @@ import org.jetbrains.annotations.Nullable;
  * <h2>Limits</h2>
  * The mirror is polled once a tick, so a change on the source shows up a tick
  * late. A source that is not a multiple of nine slots (a player inventory)
- * is shown padded to the next row. The source's own view logic — a shulker
+ * is shown padded to the next row; the padding cannot be touched. The source's own view logic — a shulker
  * box that refuses another shulker box, a furnace's fuel slot — is not
  * enforced on an editable mirror.
  *
@@ -40,4 +40,23 @@ public interface SilentContainer {
      */
     @Nullable InventoryView open(@NotNull Player viewer, @NotNull Inventory source,
                                  @NotNull Component title, boolean editable);
+
+    /**
+     * Closes {@code viewer}'s mirror, if this plugin opened one.
+     *
+     * <p>Safe from any thread; nothing happens when they are not looking at
+     * one of ours.
+     *
+     * @param viewer the player
+     * @since 1.75.0
+     */
+    void close(@NotNull Player viewer);
+
+    /**
+     * Closes every mirror this plugin opened. For a feature switched off at
+     * runtime; disabling the plugin does this on its own.
+     *
+     * @since 1.75.0
+     */
+    void closeAll();
 }

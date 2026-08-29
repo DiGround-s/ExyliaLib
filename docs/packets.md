@@ -105,15 +105,23 @@ hit, and interacts with blocks. Pair with `Visibility` and
 ```java
 SilentContainer silentContainer();
 InventoryView open(Player viewer, Inventory source, Component title, boolean editable);
+void close(Player viewer);                   // if this plugin opened their mirror
+void closeAll();                             // every mirror this plugin opened
 ```
 
 Opens a mirror of `source`. No lid, no sound. The mirror follows the source
-once a tick while open; when `editable`, the viewer's clicks are written
-back. Read-only mirrors cancel every click. Call from the viewer's thread.
+once a tick while open; when `editable`, only the slots a click or drag
+changed are written back, so a change the owner makes at the same moment in
+another slot survives. The write lands on the source's thread — its holder
+entity, its block, or the global region — so it is safe on Folia. Read-only
+mirrors cancel every click. Call `open` from the viewer's thread; `close` and
+`closeAll` are safe from any thread.
 
 Limits: changes on the source show a tick late; a source that is not a
-multiple of nine slots is padded to the next row; the source's own slot rules
-(a furnace's fuel slot) are not enforced on an editable mirror.
+multiple of nine slots is padded to the next row and the padding cannot be
+touched (an item a shift-click lands there is handed back to the viewer);
+the source's own slot rules (a furnace's fuel slot) are not enforced on an
+editable mirror.
 
 ## Lifecycle
 
