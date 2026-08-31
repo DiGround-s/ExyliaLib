@@ -59,7 +59,10 @@ final class HologramImpl implements Hologram {
     private volatile boolean removed;
 
     private final long intervalMs;
-    private final boolean dynamic;
+    /** Whether the text resolves to something new on its own. */
+    private volatile boolean dynamic;
+    /** Whether the text was changed and has not been drawn since. */
+    private volatile boolean pending;
     private volatile long lastRender;
 
     HologramImpl(String id, String ownerName, HologramConfig config, Location location) {
@@ -166,6 +169,10 @@ final class HologramImpl implements Hologram {
         boolean sameShape = compiled.length == templates.length
                 && config.type() == HologramConfig.Kind.TEXT;
         this.templates = compiled;
+        // Lines are replaced, so what they resolve from is decided again: text
+        // that had a placeholder may no longer have one, and the other way
+        // round.
+        this.dynamic = config.config().autoUpdate() && isDynamic(compiled);
         if (sameShape) {
             refresh();
             return;
@@ -175,6 +182,7 @@ final class HologramImpl implements Hologram {
 
     @Override
     public void refresh() {
+        pending = true;
         lastRender = -intervalMs;
     }
 
@@ -232,9 +240,17 @@ final class HologramImpl implements Hologram {
         return player.getLocation().distanceSquared(at) <= range * range;
     }
 
-    /** Whether this hologram has anything worth refreshing. */
+    /**
+     * Whether this hologram has anything worth refreshing.
+     *
+     * <p>Text that resolves to something new on its own is redrawn on the
+     * interval. Plain text is not, because it would render the same string
+     * every time — but a caller who changes it, through {@link #lines} or
+     * {@link #updateData}, has made it different exactly once, and that one
+     * render still has to happen.
+     */
     boolean refreshes() {
-        return dynamic;
+        return dynamic || pending;
     }
 
     boolean due(long now) {
@@ -253,6 +269,7 @@ final class HologramImpl implements Hologram {
             return;
         }
         lastRender = HologramRuntime.now();
+        pending = false;
 
         if (config.type() != HologramConfig.Kind.TEXT || templates.length == 0) {
             return;
