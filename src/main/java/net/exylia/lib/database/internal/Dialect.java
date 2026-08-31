@@ -583,6 +583,28 @@ public interface Dialect {
     @NotNull String delete(@NotNull EntityModel<?> model, @NotNull List<String> whereColumns);
 
     /**
+     * {@code DELETE} with no filter, which empties the table.
+     *
+     * <p>Deliberately a second method rather than a filter {@link #delete}
+     * accepts as empty. Emptying a table is not a delete that happens to match
+     * everything: it is the one statement here that destroys data a caller
+     * cannot name, and the call site that wants it should say so in a word a
+     * reviewer can search for.
+     *
+     * <p>{@code DELETE} rather than {@code TRUNCATE}: truncation is DDL on
+     * MySQL and MariaDB — it commits, it cannot be rolled back, and it is
+     * refused outright on a table another one references. A delete reports how
+     * many rows went, which is what a wipe has to show.
+     *
+     * @param model the record model
+     * @return one statement
+     * @since 1.76.0
+     */
+    default @NotNull String deleteAll(@NotNull EntityModel<?> model) {
+        return "DELETE FROM " + quote(identifier(model.table()));
+    }
+
+    /**
      * {@code SELECT COUNT(*)} with an optional filter.
      *
      * @param model        the record model

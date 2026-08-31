@@ -174,6 +174,11 @@ public final class GatedStorage implements Storage {
     }
 
     @Override
+    public @NotNull CompletableFuture<Long> deleteAll(@NotNull EntityModel<?> model) {
+        return after(storage -> storage.deleteAll(model));
+    }
+
+    @Override
     public @NotNull CompletableFuture<SchemaReport> prepare(@NotNull EntityModel<?> model) {
         return after(storage -> storage.prepare(model));
     }

@@ -539,6 +539,29 @@ public final class SqlBackend implements AutoCloseable {
         }
     }
 
+    /**
+     * Removes every row of a table.
+     *
+     * <p>One statement, whatever the table holds. The obvious alternative —
+     * reading the keys and deleting them one at a time, which is what
+     * {@link SqlStorage#deleteWhere} has to do — pulls every row over the wire
+     * to throw it away, and on a table with a serialised inventory column that
+     * is the whole cost of the operation spent on data nobody reads.
+     *
+     * @param model the record model
+     * @return how many rows were removed
+     * @throws SQLException if the delete failed
+     * @since 1.76.0
+     */
+    public long deleteAll(@NotNull EntityModel<?> model) throws SQLException {
+        String sql = statements.computeIfAbsent("deleteAll:" + model.type().getName(),
+                key -> dialect.deleteAll(model));
+        try (Connection connection = pool.getConnection();
+             PreparedStatement statement = connection.prepareStatement(sql)) {
+            return statement.executeUpdate();
+        }
+    }
+
     // ------------------------------------------------------------------- read
 
     /**

@@ -21,6 +21,7 @@ Or, without writing any code at all:
 ```
 /exylialib export <plugin>
 /exylialib import <plugin> <file> [force]
+/exylialib wipe <plugin> <table|*> [code]
 ```
 
 It is **not a backup tool** and does not try to be. It moves rows between two
@@ -43,6 +44,8 @@ databases this library can already talk to.
 | `export(Path destination)` | a folder to write into, or the exact `.exyliadump.gz` to write |
 | `importFrom(Path source)` | refuses any target table that already holds rows |
 | `importFrom(Path source, boolean force)` | writes anyway; see **What force means** |
+| `wipeAll()` (1.76.0) | empties every registered table; **no dump is taken** |
+| `wipe(String table, String... more)` (1.76.0) | empties the named tables; an unknown name refuses all of them |
 
 Both futures **always complete normally**. A failure is a report whose
 `outcome()` is `FAILED`, with the reason in `problems()` — never a thrown
@@ -240,6 +243,45 @@ because nothing is serving from it yet.
 The import command warns when Redis is active *and* the target table was
 non-empty, which is exactly the case where it matters.
 
+## Wiping (since 1.76.0)
+
+Emptying tables is the other half of what an owner does with this module: a
+season reset, a test server that has to start clean, one plugin's data cleared
+without touching the rest.
+
+```java
+Transfers.of(this).wipe("practice_stats")
+        .thenAccept(report -> getLogger().info("Removed " + report.rows() + " rows"));
+```
+
+The same `TransferReport` comes back, with `rows()` as rows **removed** and one
+`TableTransfer` per table emptied. `file()` is `null`: a wipe reads and writes
+no file.
+
+- **Nothing is backed up by the API.** `wipeAll()` deletes. Taking a dump first
+  is an `export(...)` the caller runs and waits on — which is exactly what
+  `/exylialib wipe` does, and why the command cancels the wipe when that export
+  fails.
+- **The names are all-or-nothing.** A name matching no registered table fails
+  the whole wipe before a row goes. Skipping it and emptying the rest is how a
+  typo in `players` empties `kits` and reports success.
+- **`wipeAll()` has to be typed.** `wipe(...)` takes its first table name as a
+  separate parameter, so a computed list that comes back empty cannot quietly
+  become "everything".
+- **Names match ignoring case**, because the engines disagree: the same
+  `@Table("Players")` is `PLAYERS` on H2 and `players` on Postgres.
+- **The rows go, the table stays.** One `DELETE` per table, never `TRUNCATE`
+  (which is DDL on MySQL and MariaDB: it commits, cannot be rolled back, and is
+  refused outright on a referenced table) and never a `DROP`. The plugin keeps
+  working on an empty table exactly as it did on its first start.
+- **Unlike an import, a wipe does invalidate the shared cache.** Every emptied
+  table is dropped here and on every peer, so no server serves rows that no
+  longer exist. It is one message per table, not one per batch, which is why it
+  is affordable here and not there.
+
+The command in front of it is a two-step confirmation with an automatic dump —
+see [reload.md](reload.md#exylialib-wipe-since-1760).
+
 ## Reload
 
 Nothing here is derived from the palette, so this module has **no**
@@ -252,8 +294,9 @@ caches nothing at all between transfers: no listener, no task, no open file.
   in it that this plugin does not claim is skipped and reported.
 - **Schema changes.** The tables must already exist, which they do — a
   repository creates its own.
-- **Selecting tables.** A transfer is all of a plugin's registered tables or
-  none.
+- **Selecting tables on export or import.** A transfer is all of a plugin's
+  registered tables or none. A **wipe** does take names, because "empty the
+  players table" is the thing an admin actually asks for.
 - **Reading a dump from a newer format version.** It is refused by version
   number rather than half-parsed.
 
@@ -263,13 +306,18 @@ caches nothing at all between transfers: no listener, no task, no open file.
   `TransferReport`, `TableTransfer`, `TransferOutcome`.
 - Internal: `database/transfer/internal/` — `DumpFormat`, `DumpWriter`,
   `DumpReader`, `DumpException`, `TransferRuntime`, `DumpFormatAccess`.
-- Command: `internal/ReloadCommand` (`export`, `importDump`) over
-  `internal/TransferAccess`.
+- Command: `internal/ReloadCommand` (`export`, `importDump`, `wipe`,
+  `wipePreview`, `wipePanel`, `wipeAborted`, `badConfirmation`, `WipeTargets`)
+  over `internal/TransferAccess`.
+- Storage seam for the wipe: `Storage.deleteAll(EntityModel)` — one statement
+  on SQL (`SqlBackend.deleteAll`), a filterless `deleteMany` on Mongo, and a
+  table drop in `CachedStorage`.
 - Seams opened for it: `Databases.find(String)`,
   `Databases.registeredPlugins()`, `PluginDatabase.tables()`,
   `Repository.model()` / `Repository.storage()` (both `@ApiStatus.Internal`).
 - Tests: `src/test/java/net/exylia/lib/database/TransferTest.java` — the round
   trip across batches, `BigDecimal` precision, null against empty string, the
   refusal, force merging, generated ids, layout drift, an unknown table, a
-  truncated file and the memory bound; plus the command's output in
-  `internal/ReloadCommandTest.java`.
+  truncated file, the memory bound and the wipe (all tables, one table, an
+  unknown name, and the round trip back from the dump); plus the command's
+  output and its confirmation flow in `internal/ReloadCommandTest.java`.

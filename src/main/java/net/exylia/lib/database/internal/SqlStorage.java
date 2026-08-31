@@ -217,6 +217,11 @@ public final class SqlStorage implements Storage {
         return async(model, "delete", () -> deleteMatching(model, columns, values, limit));
     }
 
+    @Override
+    public @NotNull CompletableFuture<Long> deleteAll(@NotNull EntityModel<?> model) {
+        return async(model, "delete", () -> backend.deleteAll(model));
+    }
+
     /**
      * Removes the rows matching a filter, one key at a time.
      *

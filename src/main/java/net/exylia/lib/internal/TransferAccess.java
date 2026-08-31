@@ -13,7 +13,7 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
 /**
- * Everything {@code /exylialib export|import} needs from the rest of the
+ * Everything {@code /exylialib export|import|wipe} needs from the rest of the
  * library, behind one seam.
  *
  * <p>The command has a plugin <em>name</em> typed into a chat box; the transfer
@@ -56,6 +56,16 @@ interface TransferAccess {
     @NotNull CompletableFuture<TransferReport> importFrom(@NotNull String pluginName,
                                                           @NotNull Path file,
                                                           boolean force);
+
+    /**
+     * Empties one plugin's tables, or the one table named.
+     *
+     * @param pluginName whose tables to empty
+     * @param table      the table, or {@code null} for every registered one
+     * @since 1.76.0
+     */
+    @NotNull CompletableFuture<TransferReport> wipe(@NotNull String pluginName,
+                                                    @Nullable String table);
 
     /** The real one, wired to the modules. */
     static @NotNull TransferAccess live() {
@@ -102,6 +112,19 @@ interface TransferAccess {
                             pluginName + " has no registered tables.", java.time.Duration.ZERO));
                 }
                 return Transfers.of(database.plugin()).importFrom(file, force);
+            }
+
+            @Override
+            public @NotNull CompletableFuture<TransferReport> wipe(@NotNull String pluginName,
+                                                                    @Nullable String table) {
+                PluginDatabase database = Databases.find(pluginName);
+                if (database == null) {
+                    return CompletableFuture.completedFuture(TransferReport.failed(
+                            pluginName + " has no registered tables.", java.time.Duration.ZERO));
+                }
+                return table == null
+                        ? Transfers.of(database.plugin()).wipeAll()
+                        : Transfers.of(database.plugin()).wipe(table);
             }
         };
     }

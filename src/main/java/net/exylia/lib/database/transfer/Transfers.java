@@ -21,9 +21,16 @@ import org.jetbrains.annotations.NotNull;
  * });
  * }</pre>
  *
- * <p>There is also {@code /exylialib export <plugin>} and
- * {@code /exylialib import <plugin> [force]}, which is how an owner uses this
+ * <p>There is also {@code /exylialib export <plugin>},
+ * {@code /exylialib import <plugin> [force]} and, since 1.76.0,
+ * {@code /exylialib wipe <plugin> <table|*>}, which is how an owner uses this
  * without any plugin writing a line of code.
+ *
+ * <h2>Wiping</h2>
+ * {@link PluginTransfers#wipeAll()} and
+ * {@link PluginTransfers#wipe(String, String...)} empty tables rather than
+ * moving them. They take no backup of their own — the command in front of them
+ * exports first and cancels the wipe if that export fails.
  *
  * <h2>The format</h2>
  * One gzip-compressed file of NDJSON: a header line carrying every table's

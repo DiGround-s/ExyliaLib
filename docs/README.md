@@ -40,7 +40,7 @@ against the source — rules and routes are in `AGENTS.md` under
 | [Packets](packets.md) | Vanish, fake blocks, freezing, a fake spectator and silent chest viewing — packets to one client, nothing on the server | 1.75.0 |
 | [Combat](combat.md) | Whether a player is in combat, over DeluxeCombat, PvPManager or a bridge you write | 1.36.0 |
 | [World](world.md) | Creating and deleting worlds through the Worlds plugin, from any thread — and doing nothing loudly when it is absent | 1.36.0 |
-| [Transfer](transfer.md) | A plugin's whole database out to one file and back — moving from H2 to MySQL, or onto another server | 1.36.0 |
+| [Transfer](transfer.md) | A plugin's whole database out to one file and back — moving from H2 to MySQL, or onto another server; and wiping tables (1.76.0) | 1.36.0 |
 | [Schematics](schematics.md) | Saving a box of the world and pasting it back — arenas regenerated between matches, with their chests still full | 1.48.0 |
 | [Loot](loot.md) | What comes out of a chest, a spawner or a broken block — the ExyliaCommons tables, read and written unchanged | 1.56.0 |
 | [Editors](editors.md) | Screens for editing the lists a plugin configures: rewards, loot, commands, effects, items, places — one engine, batteries included | 1.56.0 |

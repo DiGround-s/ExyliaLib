@@ -1,9 +1,12 @@
 package net.exylia.lib.internal;
 
+import com.github.benmanes.caffeine.cache.Cache;
+import com.github.benmanes.caffeine.cache.Caffeine;
 import net.exylia.lib.ExyliaLib;
 import net.exylia.lib.action.Actions;
 import net.exylia.lib.config.Configs;
 import net.exylia.lib.database.Databases;
+import net.exylia.lib.database.PluginDatabase;
 import net.exylia.lib.database.transfer.TableTransfer;
 import net.exylia.lib.database.transfer.TransferOutcome;
 import net.exylia.lib.database.transfer.TransferReport;
@@ -23,6 +26,7 @@ import org.bukkit.Bukkit;
 import org.bukkit.command.CommandSender;
 import org.bukkit.plugin.Plugin;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 import revxrsal.commands.annotation.Command;
 import revxrsal.commands.annotation.CommandPlaceholder;
 import revxrsal.commands.annotation.Default;
@@ -35,8 +39,10 @@ import revxrsal.commands.bukkit.annotation.CommandPermission;
 import revxrsal.commands.node.ExecutionContext;
 
 import java.nio.file.Path;
+import java.time.Duration;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.function.Supplier;
 
 /**
@@ -65,13 +71,22 @@ import java.util.function.Supplier;
  *
  * <h2>Permission</h2>
  * Every subcommand — including the read-only ones — sits behind
- * {@code exylialib.admin}. The values shown (plugin names, module counts) are
+ * {@code exylialib.admin}, except {@code wipe}, which is behind
+ * {@code exylialib.admin.wipe}: it is the only one that destroys data, and a
+ * server that hands the admin node to a moderator should be able to hand it
+ * without that. The values shown (plugin names, module counts) are
  * not secrets, but a server's admin commands are conventionally gated by one
  * node, and splitting the four here would only make that node harder to
  * reason about for no real gain in usability.
  */
 @Command("exylialib")
 public final class ReloadCommand {
+
+    /** How long a wipe confirmation stays typeable. */
+    static final long CONFIRM_SECONDS = 60L;
+
+    /** The table argument that means every table the plugin registered. */
+    static final String ALL_TABLES = "*";
 
     private final Runnable paletteReload;
     private final Supplier<String> version;
@@ -90,6 +105,21 @@ public final class ReloadCommand {
 
     /** How a transfer is started, injected so a test does not need a database. */
     private final TransferAccess transfers;
+
+    /**
+     * Wipes somebody has asked for and not yet confirmed, one per sender.
+     *
+     * <p>Expiring rather than cleared by hand: a confirmation nobody types is
+     * the normal case — somebody reads what it would delete and thinks better
+     * of it — and an entry that outlived that decision is a code still live
+     * minutes later, when the same admin is running something else. Sixty
+     * seconds is long enough to read the panel and short enough that the
+     * command that follows is the one that was being thought about.
+     */
+    private final Cache<String, PendingWipe> pendingWipes = Caffeine.newBuilder()
+            .expireAfterWrite(Duration.ofSeconds(CONFIRM_SECONDS))
+            .maximumSize(64)
+            .build();
 
     /**
      * How an update check is started, injected so a test does not need a
@@ -181,6 +211,9 @@ public final class ReloadCommand {
                 + "\n{letters_black}▎ {secondary}Import {letters_black}» {letters}"
                 + "{muted}/exylialib import <plugin> <file> [force]{letters} — reads one back;"
                 + " force MERGES rather than replacing."
+                + "\n{letters_black}▎ {secondary}Wipe {letters_black}» {letters}"
+                + "{muted}/exylialib wipe <plugin> <table|*>{letters} — empties tables, after a"
+                + " typed confirmation and an automatic dump."
         ).send(sender);
     }
 
@@ -424,6 +457,201 @@ public final class ReloadCommand {
 
         transfers.importFrom(pluginName, file, force).thenAccept(report ->
                 Text.of(importPanel(pluginName, fileName, report)).send(sender));
+    }
+
+    /**
+     * Empties a plugin's tables, in two steps, after a dump is written.
+     *
+     * <p>Two steps because there is no undo. The first run deletes nothing: it
+     * names what would go and hands back a code. The second run is the same
+     * command with that code on the end, and only that sender's code, only
+     * within {@value #CONFIRM_SECONDS} seconds, and only for the same plugin
+     * and table, will do anything. A confirmation that is merely "run it
+     * again" is confirmed by an arrow-up and an enter, which is how the
+     * accident this is guarding against actually happens.
+     *
+     * <p>An export runs first, always, and a wipe whose export failed does not
+     * happen. That is the difference between a mistake somebody recovers from
+     * in one command and a mistake that ends the conversation.
+     *
+     * @param sender     who asked
+     * @param pluginName the plugin whose tables to empty
+     * @param table      one table's name, or {@code *} for every registered one
+     * @param code       the code from the first run, on the second run
+     */
+    @Subcommand("wipe")
+    @CommandPermission("exylialib.admin.wipe")
+    public void wipe(@NotNull CommandSender sender,
+                     @SuggestWith(KnownPlugins.class) @NotNull String pluginName,
+                     @SuggestWith(WipeTargets.class) @NotNull String table,
+                     @Optional String code) {
+        List<String> tables = transfers.tablesOf(pluginName);
+        if (tables == null || tables.isEmpty()) {
+            Text.of(unknownPlugin(pluginName, transfers.plugins())).send(sender);
+            return;
+        }
+        boolean everything = ALL_TABLES.equals(table);
+        if (!everything && tables.stream().noneMatch(known -> known.equalsIgnoreCase(table))) {
+            Text.of(unknownTable(pluginName, table, tables)).send(sender);
+            return;
+        }
+        String target = everything ? null : table;
+
+        String who = String.valueOf(sender.getName());
+        if (code == null) {
+            String issued = newCode();
+            pendingWipes.put(who, new PendingWipe(pluginName, target, issued));
+            Text.of(wipePreview(pluginName, target, everything ? tables : List.of(table),
+                    issued, dumpFolder.get())).send(sender);
+            return;
+        }
+
+        PendingWipe pending = pendingWipes.getIfPresent(who);
+        if (pending == null || !pending.matches(pluginName, target, code)) {
+            Text.of(badConfirmation(pluginName, table)).send(sender);
+            return;
+        }
+        // Taken before the work starts, not after: a code that survives its own
+        // wipe is a second wipe one arrow-up away.
+        pendingWipes.invalidate(who);
+
+        Text.of(header()
+                + "\n{letters_black}▎ {secondary}Wiping {letters_black}» {info}" + pluginName
+                + " {letters}(" + (everything ? tables.size() + " tables" : table) + ")"
+                + "\n{letters_black}▎ {secondary}Backup {letters_black}» {letters}writing a dump"
+                + " first, into " + dumpFolder.get().getFileName()
+        ).send(sender);
+
+        transfers.export(pluginName, dumpFolder.get()).thenCompose(backup -> {
+            if (backup.outcome() == TransferOutcome.FAILED) {
+                Text.of(wipeAborted(pluginName, backup)).send(sender);
+                return CompletableFuture.completedFuture(null);
+            }
+            return transfers.wipe(pluginName, target).thenAccept(report ->
+                    Text.of(wipePanel(pluginName, target, backup, report)).send(sender));
+        });
+    }
+
+    /** A code short enough to type and long enough not to be guessed at. */
+    private static String newCode() {
+        return Integer.toHexString(ThreadLocalRandom.current().nextInt(0x10000, 0x100000));
+    }
+
+    /** One wipe waiting for its code, and what that code was issued for. */
+    record PendingWipe(@NotNull String plugin, @Nullable String table, @NotNull String code) {
+
+        /**
+         * Whether a second command is the one this was issued for.
+         *
+         * <p>The plugin and the table are checked as well as the code, so a
+         * code issued for one table cannot confirm a wipe of another: an admin
+         * who edits the plugin name in the line they are about to re-send has
+         * changed what the command does, and the code they are carrying over
+         * was never shown for it.
+         */
+        boolean matches(String plugin, @Nullable String table, String code) {
+            return this.plugin.equalsIgnoreCase(plugin)
+                    && java.util.Objects.equals(this.table, table)
+                    && this.code.equalsIgnoreCase(code);
+        }
+    }
+
+    /**
+     * What the first run prints: what would go, and the line that would do it.
+     *
+     * <p>Pure, so the wording of the one panel nobody should misread is
+     * testable without a database or a server.
+     */
+    static String wipePreview(String pluginName, @Nullable String table, List<String> tables,
+                              String code, Path dumpFolder) {
+        return "{primary}&lWIPE&r {muted}" + pluginName
+                + "\n{letters_black}▎ {error}This deletes rows. There is no undo."
+                + "\n{letters_black}▎ {secondary}Target {letters_black}» {letters}"
+                + (table == null ? "every registered table (" + tables.size() + ")" : table)
+                + "\n{letters_black}▎ {secondary}Tables {letters_black}» {letters}"
+                + String.join("{letters_black}, {letters}", tables)
+                + "\n{letters_black}▎ {secondary}Backup {letters_black}» {letters}a dump is written"
+                + " into " + dumpFolder.getFileName() + " first, and the wipe is cancelled if it fails"
+                + "\n\n{warning}➥ Confirm within " + CONFIRM_SECONDS + "s:"
+                + "\n{letters_black}▎ {muted}/exylialib wipe " + pluginName + " "
+                + (table == null ? ALL_TABLES : table) + " " + code;
+    }
+
+    /** The refusal when a code is wrong, missing or too late. */
+    static String badConfirmation(String pluginName, String table) {
+        return "{primary}&lWIPE&r {muted}" + pluginName
+                + "\n{letters_black}▎ {error}That confirmation is not valid."
+                + "\n{letters_black}▎ {letters}A code is issued for one sender, one plugin and one"
+                + " table, and expires after " + CONFIRM_SECONDS + " seconds."
+                + "\n{letters_black}▎ {muted}Nothing was deleted."
+                + "\n\n{warning}➥ Start again:"
+                + "\n{letters_black}▎ {muted}/exylialib wipe " + pluginName + " " + table;
+    }
+
+    /** The refusal when a plugin has no table by that name. */
+    static String unknownTable(String pluginName, String table, List<String> known) {
+        return "{primary}&lWIPE&r {muted}" + pluginName
+                + "\n{letters_black}▎ {error}" + pluginName + " has no table named " + table + "."
+                + "\n{letters_black}▎ {secondary}Tables {letters_black}» {letters}"
+                + String.join("{letters_black}, {letters}", known)
+                + "\n{letters_black}▎ {muted}Use " + ALL_TABLES + " to wipe every one of them.";
+    }
+
+    /** What a wipe prints when the dump that would have saved it failed. */
+    static String wipeAborted(String pluginName, TransferReport backup) {
+        StringBuilder text = new StringBuilder("{primary}&lWIPE&r {muted}" + pluginName)
+                .append("\n{letters_black}▎ {error}Cancelled {letters_black}» {letters}the backup"
+                        + " export failed, so nothing was deleted.");
+        for (String problem : backup.problems()) {
+            text.append("\n{letters_black}▎ {warning}").append(problem);
+        }
+        return text.toString();
+    }
+
+    /** What a finished wipe prints: the dump it took first, then the rows it removed. */
+    static String wipePanel(String pluginName, @Nullable String table, TransferReport backup,
+                            TransferReport report) {
+        StringBuilder text = new StringBuilder(reportPanel("Wipe", pluginName, report));
+        if (backup.file() != null) {
+            text.append("\n{letters_black}▎ {secondary}Backup {letters_black}» {letters}")
+                    .append(backup.file().getFileName())
+                    .append(" {muted}(").append(backup.rows()).append(" rows)");
+        }
+        if (report.outcome() != TransferOutcome.FAILED) {
+            text.append("\n\n{warning}➥ Restore it with:")
+                    .append("\n{letters_black}▎ {muted}/exylialib import ").append(pluginName)
+                    .append(' ').append(backup.file() == null ? "<dump>" : backup.file().getFileName())
+                    .append(" true");
+        }
+        return text.toString();
+    }
+
+    /**
+     * The tables an argument can name: the ones the plugin already typed
+     * registers, plus {@code *}.
+     *
+     * <p>Reads the plugin argument out of the context, so the suggestions
+     * follow what is being typed rather than offering every table on the
+     * server. A plugin that has not been typed yet suggests only {@code *},
+     * which is the one answer that is right whatever comes before it.
+     */
+    public static final class WipeTargets implements SuggestionProvider<BukkitCommandActor> {
+
+        @Override
+        public java.util.Collection<String> getSuggestions(
+                @NotNull ExecutionContext<BukkitCommandActor> context) {
+            String plugin = context.getResolvedArgumentOrNull("pluginName");
+            if (plugin == null) {
+                return List.of(ALL_TABLES);
+            }
+            PluginDatabase database = Databases.find(plugin);
+            if (database == null) {
+                return List.of(ALL_TABLES);
+            }
+            List<String> names = new java.util.ArrayList<>(database.tables().keySet());
+            names.add(ALL_TABLES);
+            return names;
+        }
     }
 
     /**

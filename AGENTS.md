@@ -1298,6 +1298,21 @@ gigante escrito por el plugin.
 - **El resultado son tres valores, no un booleano.** `PARTIAL` existe porque el
   importador de commons registraba un lote fallido, seguía, y devolvía
   `success(true)`: perder mil filas y no perder ninguna eran la misma respuesta.
+- **El wipe borra filas, nunca la tabla** (1.76.0). Un `DELETE` por tabla, no
+  `TRUNCATE` — en MySQL y MariaDB es DDL: hace commit, no se puede deshacer, y
+  lo rechaza el motor si otra tabla la referencia — y jamás un `DROP`: el plugin
+  tiene que seguir funcionando sobre la tabla vacía igual que en su primer
+  arranque.
+- **Un nombre de tabla que no existe cancela el wipe entero antes de borrar
+  nada.** Saltárselo y vaciar el resto es cómo un typo en `players` vacía
+  `kits` y contesta `success`.
+- **La confirmación es un código escrito, no repetir el comando.** "Vuelve a
+  ejecutarlo" se confirma con flecha arriba y enter, que es exactamente el
+  accidente del que protege. El código va atado a un remitente, un plugin y una
+  tabla, se gasta al usarse y caduca a los 60 segundos.
+- **El comando exporta antes de borrar y cancela si el export falla.** La API
+  (`wipeAll`) no hace backup por su cuenta: quien ya tiene el suyo no paga un
+  dump, y quien usa el comando no puede olvidarse de él.
   Una tabla saltada, una columna que ya no existe o una fila rechazada bajan a
   `PARTIAL` y nunca vuelven a `SUCCESS`.
 - **Los valores se escriben tipados, jamás inferidos.** Gson sin type token
@@ -1467,8 +1482,10 @@ Raíz de código: `src/main/java/net/exylia/lib/`. Raíz de tests:
 | packet | `packet/Packets`, `PluginPackets`, `Visibility`, `VisibilityRule`, `FakeBlocks`, `Movement`, `FakeGameMode`, `SilentContainer` | `packet/internal/` (`PacketRuntime`, `PacketSink`, `SectionGroups`, `Mirrors`; PacketEvents confinado en `PacketHooks`) | [docs/packets.md](docs/packets.md) | 1.75.0 |
 | util (combat) | `util/combat/Combat`, `CombatBridge`, `CombatStats` | `util/combat/internal/` (`CombatRuntime`, `CombatProvider`, `DeluxeCombatProvider`, `PvpManagerProvider`) | [docs/combat.md](docs/combat.md) | 1.36.0 |
 | transfer | `database/transfer/Transfers`, `PluginTransfers`, `TransferReport`, `TableTransfer`, `TransferOutcome` | `database/transfer/internal/` (`DumpFormat`, `DumpWriter`, `DumpReader`, `DumpException`, `TransferRuntime`, `DumpFormatAccess`); comando en `internal/ReloadCommand` sobre `internal/TransferAccess` | [docs/transfer.md](docs/transfer.md) | 1.36.0 |
+| wipe | `database/transfer/PluginTransfers.wipeAll`, `wipe(String, String...)` | `TransferRuntime.wipe`; `Storage.deleteAll` (+ `SqlBackend.deleteAll`, `Dialect.deleteAll`, `MongoStorage`, `CachedStorage`, `GatedStorage`); comando `wipe` en `internal/ReloadCommand` | [docs/transfer.md](docs/transfer.md) | 1.76.0 |
 | `/exylialib info` y `stats` | — | `internal/ReloadCommand` (`dependentsOf`, `hologramsLine`) | [docs/reload.md](docs/reload.md) | 1.35.0 |
 | `/exylialib export` e `import` | — | `internal/ReloadCommand` (`export`, `importDump`, `reportPanel`, `importPanel`, `safeName`, `KnownPlugins`) | [docs/transfer.md](docs/transfer.md) | 1.36.0 |
+| `/exylialib wipe` | — | `internal/ReloadCommand` (`wipe`, `wipePreview`, `wipePanel`, `wipeAborted`, `badConfirmation`, `unknownTable`, `PendingWipe`, `WipeTargets`) | [docs/reload.md](docs/reload.md) | 1.76.0 |
 | banner por jugador | `item/Banner.template`, `Banner.isDynamic` | `item/internal/ItemReader.banner`, `TraitApplier.resolved` | [docs/items.md](docs/items.md) | 1.37.0 |
 | contexto parseado y título paginado | — | `ui/internal/Session.parsed`, `merged`, `filledTitle` | [docs/menus.md](docs/menus.md) | 1.39.0 |
 | título que sigue a la página | — | `ui/internal/Session.retitle`, `Titles`, `TitlePackets` (PacketEvents confinado) | [docs/menus.md](docs/menus.md) | 1.40.0 |

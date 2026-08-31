@@ -9,7 +9,10 @@ reachable from in-game.
 Registered through Lamp (`io.github.revxrsal:lamp.*:4.0.0-rc.17`, the
 framework the whole ecosystem standardises on). Every subcommand sits behind
 `exylialib.admin`, including the read-only ones — server admin commands are
-conventionally gated by one node.
+conventionally gated by one node. The exception is `wipe`, behind
+`exylialib.admin.wipe`: it is the only subcommand that destroys data, and a
+server handing the admin node to a moderator should be able to hand it without
+that one.
 
 | Subcommand | What it does |
 | --- | --- |
@@ -20,6 +23,7 @@ conventionally gated by one node.
 | `/exylialib update` (since 1.65.0) | Checks GitHub now and stages a newer release |
 | `/exylialib export <plugin>` (since 1.36.0) | Writes that plugin's tables to a dump |
 | `/exylialib import <plugin> <file> [force]` (since 1.36.0) | Reads one back; `force` **merges**, it does not replace |
+| `/exylialib wipe <plugin> <table\|*> [code]` (since 1.76.0) | Empties one table or all of them, after a typed confirmation and an automatic dump |
 
 ### `/exylialib reload`
 
@@ -92,6 +96,48 @@ and how many, and hands back the exact command to re-run — together with the
 sentence that `force` **merges rather than replaces**. It also warns when Redis
 is active and the target was non-empty, which is the one case the module's
 known limitation actually bites. See [transfer.md](transfer.md).
+
+### `/exylialib wipe` (since 1.76.0)
+
+Empties a plugin's tables. There is no undo, so the command is built around
+that fact rather than around the deletion:
+
+```
+/exylialib wipe Practice practice_stats
+» WIPE Practice
+» This deletes rows. There is no undo.
+» Target » practice_stats
+» Backup » a dump is written into dumps first, and the wipe is cancelled if it fails
+» ➥ Confirm within 60s:
+»   /exylialib wipe Practice practice_stats a1b2c
+
+/exylialib wipe Practice practice_stats a1b2c
+» WIPE Practice … Rows » 4213 … Backup » Practice-h2-2026-08-31.exyliadump.gz
+» ➥ Restore it with: /exylialib import Practice Practice-h2-2026-08-31.exyliadump.gz true
+```
+
+Three things make that safe, and each of them is there because of a specific
+way this goes wrong:
+
+- **The first run deletes nothing.** It names what would go and issues a code.
+  A confirmation that is merely "run it again" is confirmed by an arrow-up and
+  an enter, which is how the accident actually happens.
+- **The code is bound to one sender, one plugin and one table, is spent when
+  it is used, and expires after 60 seconds.** Editing the plugin name on a line
+  being re-sent changes what the command does, and the code was never shown
+  for that.
+- **An export runs first, always.** A wipe whose backup export failed does not
+  happen, and a wipe that succeeded prints the `import … true` line that puts
+  the rows back.
+
+`*` in place of a table name means every table the plugin has registered —
+typed, not defaulted, so "wipe these tables" cannot become "wipe everything"
+because a name was left off. A name the plugin does not have is refused with
+the list of names it does, before anything is deleted.
+
+The rows go; the tables stay. Nothing is dropped, no schema changes, and the
+plugin keeps working on an empty table exactly as it did on its first start.
+See [transfer.md](transfer.md) for the API behind it.
 
 ## Staying up to date (since 1.30.0)
 
