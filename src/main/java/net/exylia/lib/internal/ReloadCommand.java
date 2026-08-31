@@ -544,7 +544,7 @@ public final class ReloadCommand {
 
     /** A code short enough to type and long enough not to be guessed at. */
     private static String newCode() {
-        return Integer.toHexString(ThreadLocalRandom.current().nextInt(0x10000, 0x100000));
+        return Integer.toString(ThreadLocalRandom.current().nextInt(100000, 1000000));
     }
 
     /** One wipe waiting for its code, and what that code was issued for. */
