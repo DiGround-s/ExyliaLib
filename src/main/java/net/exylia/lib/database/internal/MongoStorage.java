@@ -213,6 +213,9 @@ public final class MongoStorage implements Storage {
                                                            int limit) {
         List<String> columns = List.copyOf(whereColumns);
         List<Object> values = new ArrayList<>(whereValues);
+        // A filtered delete finds its documents the same way a filtered find
+        // does, so an uncovered filter is the same collection scan.
+        IndexCoverage.check(model, columns, List.of(), warnings);
         // One round trip when there is no limit, and two when there is: Mongo
         // has no DELETE ... LIMIT. See MongoBackend#deleteWhere, which is where
         // that trade and its consequences are written down.

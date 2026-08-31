@@ -98,6 +98,15 @@ class SequenceCompileTest {
     }
 
     @Test
+    @DisplayName("one offset number spreads over all three axes")
+    void aSingleOffsetNumberIsAccepted() {
+        Sequence sequence = compile(List.of("[PARTICLE] SONIC_BOOM;count:1;offset:0;speed:0"));
+
+        assertEquals(1, sequence.steps().size(), "the line still plays");
+        assertTrue(problems.isEmpty(), "nothing to report: " + problems);
+    }
+
+    @Test
     @DisplayName("a line with no token at all is skipped")
     void aLineWithoutATokenIsSkipped() {
         Sequence sequence = compile(List.of("FLAME;count:3", "[PARTICLE] FLAME"));

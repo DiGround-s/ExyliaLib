@@ -82,8 +82,7 @@ public final class SchemaCache {
     }
 
     private static SchemaNode.SchemaComponent analyseComponent(RecordComponent component) {
-        Key key = component.getAnnotation(Key.class);
-        String yamlKey = key != null ? key.value() : toKebabCase(component.getName());
+        String yamlKey = keyOf(component);
 
         if (yamlKey.indexOf('.') >= 0) {
             throw new IllegalArgumentException(
@@ -198,6 +197,19 @@ public final class SchemaCache {
      * Converts a Java component name to the YAML convention, so
      * {@code poolSize} becomes {@code pool-size}.
      */
+    /**
+     * The YAML key one record component is written under.
+     *
+     * <p>Shared with {@link Binder} and {@link Coercions}, which read and write
+     * records that appear inside a list. Those are not schema nodes of their
+     * own, and a second copy of this rule would drift the day somebody adds an
+     * annotation to it.
+     */
+    static String keyOf(RecordComponent component) {
+        Key key = component.getAnnotation(Key.class);
+        return key != null ? key.value() : toKebabCase(component.getName());
+    }
+
     static String toKebabCase(String name) {
         StringBuilder result = new StringBuilder(name.length() + 4);
         for (int i = 0; i < name.length(); i++) {

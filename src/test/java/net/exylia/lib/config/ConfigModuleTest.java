@@ -76,6 +76,19 @@ class ConfigModuleTest {
     record NoDefaults(int value) {
     }
 
+    /** A schema holding a list of records, which is one row per element. */
+    record Quiz(
+            @Comment("Every question needs four answers.")
+            List<Question> questions
+    ) {
+        Quiz() {
+            this(List.of(new Question("How tall is an Enderman?", List.of("2", "3"), 1)));
+        }
+
+        record Question(String question, List<String> answers, int correct) {
+        }
+    }
+
     /** A schema whose two blocks are named by the server owner, not by the code. */
     record Limits(
             @Comment("Per-world multiplier. Add the worlds this server has.")
@@ -179,6 +192,25 @@ class ConfigModuleTest {
         assertTrue(yaml.contains("# Connections kept open."), "comments should be written:\n" + yaml);
         assertTrue(yaml.contains("# Settings for the test plugin."), "header should be written:\n" + yaml);
         assertTrue(yaml.contains("mode: fast"), "enums should be readable:\n" + yaml);
+    }
+
+    @Test
+    @DisplayName("writes a list of records as plain YAML and reads it back")
+    void listOfRecordsRoundTrips() throws IOException {
+        Configs.define(plugin, "quiz", Quiz.class).load();
+        Configs.releaseAll();
+
+        String yaml = contents("quiz");
+        assertFalse(yaml.contains("!!"), "a YAML tag cannot be read back:\n" + yaml);
+        assertTrue(yaml.contains("question: How tall is an Enderman?"), yaml);
+
+        Files.writeString(file("quiz"), yaml.replace("correct: 1", "correct: 0"));
+        Quiz values = Configs.define(plugin, "quiz", Quiz.class).load().get();
+
+        assertEquals(1, values.questions().size());
+        assertEquals("How tall is an Enderman?", values.questions().getFirst().question());
+        assertEquals(List.of("2", "3"), values.questions().getFirst().answers());
+        assertEquals(0, values.questions().getFirst().correct(), "the edit should be read back");
     }
 
     @Test
