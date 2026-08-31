@@ -23,7 +23,7 @@ that one.
 | `/exylialib update` (since 1.65.0) | Checks GitHub now and stages a newer release |
 | `/exylialib export <plugin>` (since 1.36.0) | Writes that plugin's tables to a dump |
 | `/exylialib import <plugin> <file> [force]` (since 1.36.0) | Reads one back; `force` **merges**, it does not replace |
-| `/exylialib wipe <plugin> <table\|*> [code]` (since 1.76.0) | Empties one table or all of them, after a typed confirmation and an automatic dump |
+| `/exylialib wipe <plugin> <table\|*> [code]` (since 1.76.0) | Empties one table or all of them (`*` or `all`), after a typed confirmation and an automatic dump |
 
 ### `/exylialib reload`
 
@@ -116,6 +116,12 @@ that fact rather than around the deletion:
 » ➥ Restore it with: /exylialib import Practice Practice-h2-2026-08-31.exyliadump.gz true
 ```
 
+Both arguments complete as you type: the plugin argument offers only plugins
+that actually store something, and the table argument offers that plugin's own
+tables plus `*` and `all` — it reads the plugin already typed out of the
+command context, so it never offers another plugin's tables. The code is never
+suggested; it has to be read off the panel.
+
 Three things make that safe, and each of them is there because of a specific
 way this goes wrong:
 
@@ -130,9 +136,10 @@ way this goes wrong:
   happen, and a wipe that succeeded prints the `import … true` line that puts
   the rows back.
 
-`*` in place of a table name means every table the plugin has registered —
-typed, not defaulted, so "wipe these tables" cannot become "wipe everything"
-because a name was left off. A name the plugin does not have is refused with
+`*` in place of a table name (or the word `all`, which is accepted and
+suggested too) means every table the plugin has registered — typed, not
+defaulted, so "wipe these tables" cannot become "wipe everything" because a
+name was left off. A name the plugin does not have is refused with
 the list of names it does, before anything is deleted.
 
 The rows go; the tables stay. Nothing is dropped, no schema changes, and the

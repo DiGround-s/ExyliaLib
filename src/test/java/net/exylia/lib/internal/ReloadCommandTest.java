@@ -600,6 +600,19 @@ class ReloadCommandTest {
     }
 
     @Test
+    @DisplayName("all is accepted as * , and the panel still prints the form it suggests")
+    void wipeAcceptsTheWordAll() {
+        ReloadCommand command = withTransfers();
+        transfers.tables.put("Practice", List.of("practice_stats", "practice_kits"));
+
+        command.wipe(sender, "Practice", "all", null);
+        command.wipe(sender, "Practice", "all", codeFrom(sent.get(0)));
+
+        assertEquals(List.of("Practice:*"), transfers.wiped);
+        assertTrue(sent.get(0).contains("every registered table"), "got: " + sent.get(0));
+    }
+
+    @Test
     @DisplayName("a table the plugin does not have is refused, with the ones it does")
     void wipeRefusesAnUnknownTable() {
         ReloadCommand command = withTransfers();

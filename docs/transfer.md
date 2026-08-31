@@ -21,7 +21,7 @@ Or, without writing any code at all:
 ```
 /exylialib export <plugin>
 /exylialib import <plugin> <file> [force]
-/exylialib wipe <plugin> <table|*> [code]
+/exylialib wipe <plugin> <table|*|all> [code]
 ```
 
 It is **not a backup tool** and does not try to be. It moves rows between two

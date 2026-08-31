@@ -88,6 +88,16 @@ public final class ReloadCommand {
     /** The table argument that means every table the plugin registered. */
     static final String ALL_TABLES = "*";
 
+    /**
+     * The word {@link #ALL_TABLES} is also accepted as.
+     *
+     * <p>Both are suggested and both work. {@code *} is what the panels print,
+     * because it cannot be read as a table called "all"; {@code all} is what an
+     * admin types when they are not looking at a panel, and refusing it would
+     * only teach them that the command is fussy.
+     */
+    static final String ALL_TABLES_WORD = "all";
+
     private final Runnable paletteReload;
     private final Supplier<String> version;
     private final Supplier<Platform> platform;
@@ -490,7 +500,7 @@ public final class ReloadCommand {
             Text.of(unknownPlugin(pluginName, transfers.plugins())).send(sender);
             return;
         }
-        boolean everything = ALL_TABLES.equals(table);
+        boolean everything = ALL_TABLES.equals(table) || ALL_TABLES_WORD.equalsIgnoreCase(table);
         if (!everything && tables.stream().noneMatch(known -> known.equalsIgnoreCase(table))) {
             Text.of(unknownTable(pluginName, table, tables)).send(sender);
             return;
@@ -594,7 +604,8 @@ public final class ReloadCommand {
                 + "\n{letters_black}▎ {error}" + pluginName + " has no table named " + table + "."
                 + "\n{letters_black}▎ {secondary}Tables {letters_black}» {letters}"
                 + String.join("{letters_black}, {letters}", known)
-                + "\n{letters_black}▎ {muted}Use " + ALL_TABLES + " to wipe every one of them.";
+                + "\n{letters_black}▎ {muted}Use " + ALL_TABLES + " (or " + ALL_TABLES_WORD
+                + ") to wipe every one of them.";
     }
 
     /** What a wipe prints when the dump that would have saved it failed. */
@@ -642,14 +653,15 @@ public final class ReloadCommand {
                 @NotNull ExecutionContext<BukkitCommandActor> context) {
             String plugin = context.getResolvedArgumentOrNull("pluginName");
             if (plugin == null) {
-                return List.of(ALL_TABLES);
+                return List.of(ALL_TABLES, ALL_TABLES_WORD);
             }
             PluginDatabase database = Databases.find(plugin);
             if (database == null) {
-                return List.of(ALL_TABLES);
+                return List.of(ALL_TABLES, ALL_TABLES_WORD);
             }
             List<String> names = new java.util.ArrayList<>(database.tables().keySet());
             names.add(ALL_TABLES);
+            names.add(ALL_TABLES_WORD);
             return names;
         }
     }
