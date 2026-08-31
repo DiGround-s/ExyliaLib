@@ -1,5 +1,6 @@
 package net.exylia.lib.text;
 
+import net.exylia.lib.text.internal.TextEngine;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -153,5 +154,43 @@ class CenteringTest {
 
         assertTrue(wide.indexOf('H') > narrow.indexOf('H'),
                 "a wider space needs more padding to reach its middle");
+    }
+    // ------------------------------------------------------------------
+    // Placeholders
+    // ------------------------------------------------------------------
+
+    @Test
+    @DisplayName("a centred line is padded for its values, not for its placeholders")
+    void centresAroundSubstitutedValues() {
+        String centred = Text.of("[center]Started by %player% (%players%/%max%)")
+                .with("%player%", "DiGround_")
+                .with("%players%", 0)
+                .with("%max%", 32)
+                .plain();
+
+        // Padding the template instead would count "%players%/%max%" as fifty
+        // pixels of text that never reaches the screen, and drag the line left.
+        assertEquals(Centering.center("Started by DiGround_ (0/32)"), centred);
+    }
+
+    @Test
+    @DisplayName("a literal value is measured as written, small capitals or not")
+    void literalValueIsNotMeasuredAsSmallCapitals() {
+        TextEngine.smallText(true);
+        try {
+            String centred = Text.of("[center]Playing %game%")
+                    .with("%game%", "MACE")
+                    .plain();
+
+            // The line is drawn as small capitals, the value is not: it is
+            // inserted as its own component and never meets the transform.
+            int width = Centering.pixelWidth("Playing ") + Centering.pixelWidth("MACE", false);
+            String padding = Centering.paddingFor(width, Centering.CHAT_WIDTH_PX);
+
+            assertEquals(padding.length(), centred.indexOf('\u1D18'),
+                    "'P' is drawn as the small capital '\u1D18'; the value keeps its capitals");
+        } finally {
+            TextEngine.smallText(false);
+        }
     }
 }

@@ -79,6 +79,25 @@ public final class Centering {
         if (messageWidth > width) {
             return message;
         }
+        return paddingFor(messageWidth, width) + message;
+    }
+
+    /**
+     * Returns the spaces that put a line of the given width in the middle.
+     *
+     * <p>Separate from {@link #centerWithin} because a line whose placeholders
+     * have already been swapped for markers cannot be measured from its own
+     * characters: the caller measures the values instead and asks for the
+     * padding that width deserves.
+     *
+     * @param messageWidth how wide the line is on screen, in pixels
+     * @param width        the space to centre within, in pixels
+     * @return the padding, empty when the line does not fit
+     */
+    static @NotNull String paddingFor(int messageWidth, int width) {
+        if (messageWidth > width) {
+            return "";
+        }
         int toCompensate = width / 2 - messageWidth / 2;
         // A space is three pixels, plus the one-pixel gap after every
         // character.
@@ -88,7 +107,7 @@ public final class Centering {
         for (int compensated = 0; compensated < toCompensate; compensated += spaceWidth) {
             padding.append(' ');
         }
-        return padding + message;
+        return padding.toString();
     }
 
     /**
@@ -101,6 +120,22 @@ public final class Centering {
      * @return its width in pixels
      */
     public static int pixelWidth(@NotNull String message) {
+        return pixelWidth(message, net.exylia.lib.text.internal.SmallText.enabled());
+    }
+
+    /**
+     * Returns how wide a line is on screen, in pixels, saying whether small
+     * capitals apply to it.
+     *
+     * <p>A placeholder value is inserted as a component of its own and never
+     * meets the small-capitals transform, so it is measured as written even
+     * while the line around it is not.
+     *
+     * @param message    the line
+     * @param smallCaps  whether the line will be drawn as small capitals
+     * @return its width in pixels
+     */
+    static int pixelWidth(@NotNull String message, boolean smallCaps) {
         int width = 0;
         boolean bold = false;
 
@@ -155,7 +190,7 @@ public final class Centering {
             // "ᴡᴇʟᴄᴏᴍᴇ", and a capital is five pixels where a small capital is
             // not. Measuring the source would push every centred line right.
             char drawn = current;
-            if (net.exylia.lib.text.internal.SmallText.enabled()) {
+            if (smallCaps) {
                 char small = net.exylia.lib.text.internal.SmallText.glyphFor(current);
                 if (small != 0) {
                     drawn = small;
