@@ -326,6 +326,14 @@ final class Binder {
         if (value instanceof Enum<?> constant) {
             return constant.name().toLowerCase(java.util.Locale.ROOT).replace('_', '-');
         }
+        if (value != null && value.getClass().isRecord()) {
+            // A record component is a section and never reaches this method; a
+            // record inside a list does, and handing it to Bukkit writes it as
+            // a Java object under a global YAML tag. The file that produces
+            // cannot be read back at all — the loader refuses global tags — so
+            // the record is written as the block of keys it describes.
+            return recordToMap(value);
+        }
         if (value instanceof List<?> list) {
             List<Object> converted = new ArrayList<>(list.size());
             for (Object item : list) {
@@ -334,6 +342,29 @@ final class Binder {
             return converted;
         }
         return value;
+    }
+
+    /**
+     * A record as the block of keys it describes, keyed as the schema would.
+     *
+     * <p>Reflection rather than a {@link SchemaNode}: a record that only ever
+     * appears inside a list is not a schema node, and analysing it would demand
+     * the no-argument constructor that only a nested section needs.
+     */
+    private static Map<String, Object> recordToMap(Object record) {
+        java.lang.reflect.RecordComponent[] components = record.getClass().getRecordComponents();
+        Map<String, Object> written = new LinkedHashMap<>(components.length * 2);
+        for (java.lang.reflect.RecordComponent component : components) {
+            try {
+                var accessor = component.getAccessor();
+                accessor.setAccessible(true);
+                written.put(SchemaCache.keyOf(component), serialise(accessor.invoke(record)));
+            } catch (ReflectiveOperationException exception) {
+                throw new IllegalStateException("Could not read " + component.getName() + " of "
+                        + record.getClass().getSimpleName(), exception);
+            }
+        }
+        return written;
     }
 
     /**

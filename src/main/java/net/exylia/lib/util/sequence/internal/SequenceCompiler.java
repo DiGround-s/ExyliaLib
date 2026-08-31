@@ -215,8 +215,14 @@ public final class SequenceCompiler {
                 x = number(parts[0], 0, "offset", onArg);
                 y = number(parts[1], 0, "offset", onArg);
                 z = number(parts[2], 0, "offset", onArg);
+            } else if (parts.length == 1) {
+                // One number is the same spread on all three axes, which is what
+                // "offset:0" plainly means. Refusing it dropped the whole
+                // particle line over a shorthand nobody could misread.
+                x = y = z = number(parts[0], 0, "offset", onArg);
             } else {
-                onArg.found("offset", "needs three numbers, as in offset:0.1,0.1,0.1");
+                onArg.found("offset", "needs three numbers, as in offset:0.1,0.1,0.1,"
+                        + " or one for all three");
             }
         }
         Material material = material(args, onArg);

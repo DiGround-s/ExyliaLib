@@ -3,6 +3,7 @@ package net.exylia.lib.config.internal;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 
 /**
  * Converts raw YAML values into the types a schema declares.
@@ -49,6 +50,12 @@ final class Coercions {
     static Result coerce(Object raw, Class<?> target, java.lang.reflect.Type generic) {
         if (raw == null) {
             return Result.fail("a value");
+        }
+
+        if (target.isRecord() && !target.isInstance(raw)) {
+            // A list of records is written as a list of blocks, so a block is
+            // exactly what a record element is read back from.
+            return toRecord(raw, target);
         }
 
         if (isGroup(raw) && !target.isInstance(raw)) {
@@ -219,6 +226,50 @@ final class Coercions {
             converted.add(result.value());
         }
         return Result.ok(List.copyOf(converted));
+    }
+
+    /**
+     * Builds a record from the block of keys it was written as.
+     *
+     * <p>Every component has to be there and has to convert: an element with a
+     * missing or unreadable key fails, its list falls back to the declared
+     * default and the file's issues say which key was wrong. Filling the gaps
+     * in silently would hand the plugin a half-built question nobody typed.
+     */
+    private static Result toRecord(Object raw, Class<?> target) {
+        Map<?, ?> block;
+        if (raw instanceof org.bukkit.configuration.ConfigurationSection section) {
+            block = section.getValues(false);
+        } else if (raw instanceof Map<?, ?> map) {
+            block = map;
+        } else {
+            return Result.fail(describe(target));
+        }
+
+        java.lang.reflect.RecordComponent[] components = target.getRecordComponents();
+        Class<?>[] parameters = new Class<?>[components.length];
+        Object[] arguments = new Object[components.length];
+        for (int i = 0; i < components.length; i++) {
+            java.lang.reflect.RecordComponent component = components[i];
+            parameters[i] = component.getType();
+            Object value = block.get(SchemaCache.keyOf(component));
+            if (value == null) {
+                return Result.fail(describe(target));
+            }
+            Result result = coerce(value, component.getType(), component.getGenericType());
+            if (result.failed()) {
+                return Result.fail(describe(target));
+            }
+            arguments[i] = result.value();
+        }
+
+        try {
+            var canonical = target.getDeclaredConstructor(parameters);
+            canonical.setAccessible(true);
+            return Result.ok(canonical.newInstance(arguments));
+        } catch (ReflectiveOperationException exception) {
+            return Result.fail(describe(target));
+        }
     }
 
     private static Class<?> elementType(java.lang.reflect.Type generic) {

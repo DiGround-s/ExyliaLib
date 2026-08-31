@@ -214,6 +214,9 @@ public final class SqlStorage implements Storage {
                                                            int limit) {
         List<String> columns = List.copyOf(whereColumns);
         List<Object> values = new ArrayList<>(whereValues);
+        // A filtered delete finds its rows the same way a filtered select does,
+        // so an uncovered filter is the same full scan and the same warning.
+        IndexCoverage.check(model, columns, List.of(), warnings);
         return async(model, "delete", () -> deleteMatching(model, columns, values, limit));
     }
 

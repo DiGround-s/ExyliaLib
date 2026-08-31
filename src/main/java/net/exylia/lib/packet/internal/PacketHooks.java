@@ -102,16 +102,19 @@ final class PacketHooks extends PacketListenerAbstract implements PacketSink {
     @Override
     public void onPacketSend(PacketSendEvent event) {
         User user = event.getUser();
-        if (user == null || !PacketRuntime.hidesAnything(user.getUUID())) {
+        // No UUID before login completes: nothing is hidden from a player who
+        // does not exist yet.
+        UUID viewer = user == null ? null : user.getUUID();
+        if (viewer == null || !PacketRuntime.hidesAnything(viewer)) {
             return;
         }
         PacketTypeCommon type = event.getPacketType();
         if (type == PacketType.Play.Server.PLAYER_INFO_UPDATE) {
-            stripTabEntries(event, user.getUUID());
+            stripTabEntries(event, viewer);
             return;
         }
         int entityId = subjectOf(event, type);
-        if (entityId >= 0 && PacketRuntime.hidesEntity(user.getUUID(), entityId)) {
+        if (entityId >= 0 && PacketRuntime.hidesEntity(viewer, entityId)) {
             event.setCancelled(true);
         }
     }
@@ -201,10 +204,11 @@ final class PacketHooks extends PacketListenerAbstract implements PacketSink {
     @Override
     public void onPacketReceive(PacketReceiveEvent event) {
         User user = event.getUser();
-        if (user == null) {
+        UUID player = user == null ? null : user.getUUID();
+        if (player == null) {
             return;
         }
-        Location anchor = PacketRuntime.anchorOf(user.getUUID());
+        Location anchor = PacketRuntime.anchorOf(player);
         if (anchor == null) {
             return;
         }
