@@ -135,12 +135,16 @@ public final class EditorRuntime {
     }
 
     /**
-     * Asks for a new element, then configures it.
+     * Asks for new elements, then configures the one that needs it.
      *
      * <p>Two questions rather than one, because for some types creating the
      * thing is itself a question — a reward has to be told what it gives before
      * a form over it can name its own fields. A type that has nothing to ask
      * answers the first one instantly and the viewer only sees the second.
+     *
+     * <p>A descriptor that answered with several elements — a chest imported,
+     * a preset loaded — is not asked to configure each of them: the rows go in
+     * as they are, because thirty forms is not what that gesture meant.
      */
     static <T> void add(EditorHolder<T> holder, Player viewer) {
         closeForQuestion(holder, viewer);
@@ -149,18 +153,22 @@ public final class EditorRuntime {
                 Debug.of(holder.plugin()).error("An editor could not create an entry for "
                         + viewer.getName() + '.', failure);
             }
-            if (failure == null && created != null && created.isPresent()) {
-                edit(holder, viewer, created.get(), true);
+            List<T> made = failure == null && created != null ? created : List.of();
+            if (made.size() == 1) {
+                edit(holder, viewer, made.get(0), true);
                 return;
+            }
+            if (!made.isEmpty()) {
+                holder.addAll(made);
             }
             reopen(holder);
         });
     }
 
-    private static <T> java.util.concurrent.CompletionStage<Optional<T>> created(
+    private static <T> java.util.concurrent.CompletionStage<List<T>> created(
             EditorHolder<T> holder, Player viewer) {
         try {
-            return holder.descriptor().create(viewer);
+            return holder.descriptor().createAll(viewer);
         } catch (RuntimeException broken) {
             return java.util.concurrent.CompletableFuture.failedFuture(broken);
         }

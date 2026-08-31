@@ -316,6 +316,22 @@ public final class EditorHolder<T> implements InventoryHolder {
         page(pages() - 1);
     }
 
+    /**
+     * Adds several rows at once, and shows the page they landed on.
+     *
+     * <p>Nulls are dropped rather than stored: the list comes from a
+     * descriptor, and one bad element must not turn every later draw of the
+     * page into an exception.
+     */
+    void addAll(List<T> added) {
+        for (T entry : added) {
+            if (entry != null) {
+                entries.add(entry);
+            }
+        }
+        page(pages() - 1);
+    }
+
     private int indexOf(T entry) {
         for (int index = 0; index < entries.size(); index++) {
             // Identity first: two rows can be equal and be different rows.

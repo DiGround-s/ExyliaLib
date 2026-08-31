@@ -45,7 +45,7 @@ Pagination, add, edit, delete, copy, paste, save and cancel, on every list.
 | Right click a row | delete it |
 | **Shift + left** a row | copy it |
 | A button in the bottom band | whatever the plugin made it do |
-| `ADD` | create a row and configure it |
+| `ADD` | create a row and configure it — or several at once, where the type says so |
 | `PASTE` | add whatever is on the clipboard |
 | `COPY ALL` | put the whole list on the clipboard |
 | `SAVE` | keep everything |
@@ -254,19 +254,27 @@ public interface EditorDescriptor<T> {
     CompletionStage<Optional<T>> edit(Player viewer, T entry);
 
     default CompletionStage<Optional<T>> create(Player viewer);  // when creating is a question
+    default CompletionStage<List<T>> createAll(Player viewer);   // when one press makes several
     default String typeKey();                                    // the clipboard bucket
     default boolean isComplete(T entry);                         // whether to mark the row
 }
 ```
 
-Everything except `edit` and `create(viewer)` is called while drawing a page, up
-to 45 rows at a time and again after every click, so it must be cheap and pure.
-Nothing may throw: a row nobody can describe is still drawn, as itself, so an
+Everything except `edit`, `create(viewer)` and `createAll(viewer)` is called
+while drawing a page, up to 45 rows at a time and again after every click, so it
+must be cheap and pure. Nothing may throw: a row nobody can describe is still drawn, as itself, so an
 admin can delete it.
 
 Override `create(viewer)` where creating the thing **is** a question. A reward
 has to be told whether it gives an item, a command or money before a form over
 it can even name its fields; a warp does not.
+
+Override `createAll(viewer)` (1.77.0) where one press of add can honestly
+produce **several** rows — the loot editor's "everything in a chest" is the
+case it exists for. The default wraps `create(viewer)`, so a descriptor that
+does not override it behaves exactly as before. Exactly one element still goes
+through `edit`; more than one does not, because a form per row is not what
+importing thirty items asked for.
 
 `copy` must produce a new identity. An implementation that returns the element
 unchanged makes two rows that are the same object, and deleting one deletes both.

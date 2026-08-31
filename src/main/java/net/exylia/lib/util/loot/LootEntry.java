@@ -181,9 +181,9 @@ public final class LootEntry {
      * rather than as nothing, so the menu that has to fix it can show it. The
      * four strings are commons' own, down to the brackets.
      *
-     * <p>A {@code bytes:} snapshot is deliberately <em>not</em> decoded — a menu
-     * of forty entries would pay forty NBT reads for a label, and the item
-     * module decodes it again when the row is really drawn.
+     * <p>A {@code bytes:} snapshot is deliberately <em>not</em> decoded for the
+     * name — a menu of forty entries would pay forty NBT reads for a label, and
+     * the row is already drawn as the item itself. See {@link #resolvedIcon()}.
      *
      * @return something a human reads
      */
@@ -195,13 +195,15 @@ public final class LootEntry {
     }
 
     /**
-     * The material a menu should draw for this entry.
+     * What a menu should draw for this entry.
      *
      * <p>An item entry draws as its own item; anything else draws as its type's
-     * {@link LootType#defaultIcon()}. A head string is returned whole, because
-     * that is what the item module expects to be handed.
+     * {@link LootType#defaultIcon()}. A head string and a {@code bytes:}
+     * snapshot are returned whole, because that is what the item module expects
+     * to be handed: a stored item draws as the item it is, custom name, model
+     * and all, which is the only way an admin can tell two of them apart.
      *
-     * @return a material or head string
+     * @return a material name, a head string or a snapshot
      */
     public @NotNull String resolvedIcon() {
         if (isItem() && itemSnapshot != null) {
@@ -215,9 +217,9 @@ public final class LootEntry {
             case Source.OfMaterial value -> value.raw().toUpperCase(Locale.ROOT);
             case Source.OfHead head -> head.raw();
             case Source.OfHeadTemplate template -> template.raw();
-            // Naming it would mean decoding it. Commons decoded, and a chest
-            // reads as an item well enough for a label.
-            case Source.OfSnapshot ignored -> "CHEST";
+            // Handed over whole: decoding it is the item module's job, and a
+            // row that drew every stored item as a chest was a page of chests.
+            case Source.OfSnapshot stored -> stored.raw();
         };
     }
 

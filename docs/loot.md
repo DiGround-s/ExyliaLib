@@ -106,10 +106,14 @@ LootEntry another = bread.copy();                          // a second line
 | `tier()` | `COMMON`, `RARE`, whatever the plugin groups by. **The library never reads it** |
 | `displayName()` / `resolvedIcon()` | what a menu shows and draws, without a server |
 
-`displayName()` and `resolvedIcon()` deliberately do **not** decode a `bytes:`
-snapshot: a menu of forty lines would pay forty NBT reads for a label, and the
-item module decodes it again when the row is really drawn. Such a line reads as
-`ITEM` and draws as a `CHEST`.
+`resolvedIcon()` hands a `bytes:` snapshot over **whole**, so the row draws as
+the item the line actually gives — custom name, model and all. Until 1.77.0 it
+answered `CHEST`, and a table of forty custom items was a page of forty
+identical chests.
+
+`displayName()` still does **not** decode one: a menu of forty lines would pay
+forty NBT reads for a label the row is already showing as an item, so such a
+line reads as `ITEM`.
 
 `Loot.entryOf(item)` is the other direction — what an editor's "add the item in
 my hand" button stores — and returns a builder, so the row can be given its odds
@@ -131,6 +135,36 @@ The [editor](editors.md) screen: pagination, add, edit, delete, copy, paste,
 save and cancel. A table copied here pastes into any other loot editor — a chest
 into a spawner, a spawner into an event — because they are the same rows in the
 same format.
+
+### What add asks (1.77.0)
+
+| Answer | What happens |
+| --- | --- |
+| `AN ITEM` | one line; the one-slot window asks which item, then the form |
+| `A COMMAND` | one line; the form asks for the command |
+| `EVERYTHING IN A CHEST` | the screen closes, the admin left-clicks a container, and **every** item in it becomes a line at weight `100.0`, amount `1—<stack size>` |
+
+The import is the ExyliaCommons feature the migration lost. There, every plugin
+that wanted it wrote its own wand, its own pending-import map and its own
+listener; here it is the loot editor's, so every loot table in the ecosystem has
+it. The chest is read inside the click, on the thread that delivered it — on
+Folia the block belongs to a region, and a read scheduled for later is a read
+from the wrong thread. A block that holds no inventory imports nothing and says
+so; wandering off instead of clicking imports nothing and still brings the
+screen back.
+
+### What edit asks (1.77.0)
+
+Editing a line is editing **its properties** — amounts, weight, tier — with the
+item as one field of the same form. Turning on *Put a different item in* opens
+the one-slot window afterwards; backing out of that window keeps the numbers
+just answered.
+
+Before 1.77.0, editing an item line meant inserting the item again first: an
+admin moving a weight from `50` to `40` had to produce the item to get to the
+number, and a line whose item they could no longer produce was a line they could
+no longer touch. Only a line that has **no** item yet — the one add just made —
+is still asked for it first.
 
 ## The written form
 

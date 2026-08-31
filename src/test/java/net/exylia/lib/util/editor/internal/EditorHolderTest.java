@@ -304,6 +304,39 @@ class EditorHolderTest {
                 .build();
     }
 
+    // ------------------------------------------------------- adding several
+
+    @Test
+    @DisplayName("an import adds every row it brought and lands on the last page")
+    void addAll() {
+        EditorHolder<String> holder = holder("a");
+
+        holder.addAll(List.of(many(50)));
+
+        assertEquals(51, holder.entries().size());
+        assertEquals(2, holder.pages());
+        assertEquals(1, holder.page(), "The rows an admin just imported are the ones to show");
+    }
+
+    @Test
+    @DisplayName("a descriptor that answers with a null row does not poison the page")
+    void addAllSkipsNulls() {
+        EditorHolder<String> holder = holder("a");
+
+        holder.addAll(java.util.Arrays.asList("b", null, "c"));
+
+        assertEquals(List.of("a", "b", "c"), holder.entries());
+    }
+
+    @Test
+    @DisplayName("by default one press of add creates exactly one element")
+    void createAllWrapsCreate() {
+        List<String> created = new Words().createAll(viewer.player())
+                .toCompletableFuture().join();
+
+        assertEquals(List.of("new"), created);
+    }
+
     private static String[] many(int count) {
         String[] values = new String[count];
         for (int index = 0; index < count; index++) {

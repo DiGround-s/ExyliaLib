@@ -363,9 +363,11 @@ A half-configured reward describes itself as such (`(not set)`, `(no item)`)
 rather than as nothing, so a broken row is visible in the menu that has to fix
 it.
 
-Deriving the icon from a `bytes:` snapshot deliberately does **not** decode it —
-a menu drawing forty rewards would pay forty NBT reads for a label. Such a
-reward draws as a chest.
+`resolvedIcon()` hands a `bytes:` snapshot over **whole**, so the row draws as
+the item the reward actually gives. Naming it is what is skipped: deriving a
+*label* from a snapshot would cost an NBT read per row, so `displayName()` calls
+it `item`. Before 1.77.0 the icon was a `CHEST`, and forty custom rewards drew
+as forty identical chests.
 
 ---
 
