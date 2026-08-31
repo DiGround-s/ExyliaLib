@@ -641,21 +641,25 @@ public final class ReloadCommand {
      * The tables an argument can name: the ones the plugin already typed
      * registers, plus {@code *}.
      *
-     * <p>Reads the plugin argument out of the context, so the suggestions
-     * follow what is being typed rather than offering every table on the
-     * server. A plugin that has not been typed yet suggests only {@code *},
-     * which is the one answer that is right whatever comes before it.
+     * <p>Reads the plugin argument out of the raw input rather than out of
+     * {@code context.getResolvedArgumentOrNull}: while this argument is being
+     * completed the one before it is <em>not</em> in the context. Lamp tests
+     * the whole line to build the suggestion context, the test fails on this
+     * very argument being absent, and a failed test calls
+     * {@code clearResolvedArguments()} — so the plugin name that was already
+     * typed and parsed is thrown away before any suggestion provider sees it.
+     * The typed line still has it.
+     *
+     * <p>A plugin that has not been typed yet suggests only {@code *}, which
+     * is the one answer that is right whatever comes before it.
      */
     public static final class WipeTargets implements SuggestionProvider<BukkitCommandActor> {
 
         @Override
         public java.util.Collection<String> getSuggestions(
                 @NotNull ExecutionContext<BukkitCommandActor> context) {
-            String plugin = context.getResolvedArgumentOrNull("pluginName");
-            if (plugin == null) {
-                return List.of(ALL_TABLES, ALL_TABLES_WORD);
-            }
-            PluginDatabase database = Databases.find(plugin);
+            String plugin = typedPlugin(context.input().source());
+            PluginDatabase database = plugin == null ? null : Databases.find(plugin);
             if (database == null) {
                 return List.of(ALL_TABLES, ALL_TABLES_WORD);
             }
@@ -664,6 +668,29 @@ public final class ReloadCommand {
             names.add(ALL_TABLES_WORD);
             return names;
         }
+    }
+
+    /**
+     * The plugin name out of a half-typed {@code wipe} line.
+     *
+     * <p>The word after {@code wipe}, whatever the line is prefixed with: a
+     * slash, a namespace, or nothing, depending on the platform that handed
+     * the completion over.
+     *
+     * @param input the line as typed, without the trailing cursor
+     * @return the plugin name, or {@code null} when it has not been typed yet
+     */
+    static @Nullable String typedPlugin(@Nullable String input) {
+        if (input == null) {
+            return null;
+        }
+        String[] words = input.trim().split("\\s+");
+        for (int i = 0; i < words.length - 1; i++) {
+            if (words[i].equalsIgnoreCase("wipe")) {
+                return words[i + 1];
+            }
+        }
+        return null;
     }
 
     /**
