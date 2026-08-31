@@ -28,6 +28,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -623,6 +624,16 @@ class ReloadCommandTest {
         String text = sent.get(0);
         assertTrue(transfers.wiped.isEmpty());
         assertTrue(text.contains("practice_stats"), "got: " + text);
+    }
+
+    @Test
+    @DisplayName("the table suggestions read the plugin out of the half-typed line")
+    void typedPluginReadsTheWordAfterWipe() {
+        assertEquals("Practice", ReloadCommand.typedPlugin("/exylialib wipe Practice "));
+        assertEquals("Practice", ReloadCommand.typedPlugin("exylialib:exylialib wipe Practice pr"));
+        assertNull(ReloadCommand.typedPlugin("/exylialib wipe "));
+        assertNull(ReloadCommand.typedPlugin("/exylialib export Practice "));
+        assertNull(ReloadCommand.typedPlugin(null));
     }
 
 }
