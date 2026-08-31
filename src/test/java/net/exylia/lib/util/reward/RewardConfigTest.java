@@ -185,8 +185,8 @@ class RewardConfigTest {
         assertEquals("GOLD_INGOT", RewardEntry.economy("500").build().resolvedIcon());
         assertEquals("EXPERIENCE_BOTTLE", RewardEntry.experience(5).build().resolvedIcon());
         assertEquals("DIAMOND", RewardEntry.item("DIAMOND").build().resolvedIcon());
-        assertEquals("CHEST", RewardEntry.item("bytes:AAAA").build().resolvedIcon(),
-                "a serialised item cannot be named without decoding it");
+        assertEquals("bytes:AAAA", RewardEntry.item("bytes:AAAA").build().resolvedIcon(),
+                "a serialised item is handed over whole, for the item module to draw as itself");
     }
 
     @Test

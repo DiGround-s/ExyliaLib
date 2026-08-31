@@ -57,11 +57,11 @@ final class Previews {
     }
 
     /**
-     * The material a snapshot names, without decoding it.
+     * What a snapshot draws as.
      *
-     * <p>A head is returned whole because that is what the item module is given
-     * to draw; a serialised item cannot be named without decoding, so it draws
-     * as a chest.
+     * <p>A head and a serialised item are returned whole because that is what
+     * the item module is given to draw: a stored item draws as the item it is,
+     * rather than as a page of identical chests.
      */
     private static String material(String snapshot) {
         Source source = Source.of(snapshot);
@@ -69,7 +69,7 @@ final class Previews {
             case Source.OfMaterial material -> material.raw().toUpperCase(Locale.ROOT);
             case Source.OfHead head -> head.raw();
             case Source.OfHeadTemplate template -> template.raw();
-            case Source.OfSnapshot ignored -> "CHEST";
+            case Source.OfSnapshot stored -> stored.raw();
         };
     }
 

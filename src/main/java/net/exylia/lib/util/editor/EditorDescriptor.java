@@ -124,6 +124,28 @@ public interface EditorDescriptor<T> {
     }
 
     /**
+     * Everything one press of add should put in the list.
+     *
+     * <p>The default is {@link #create(Player)} wrapped, which is what add has
+     * always meant: one element, configured through {@link #edit} before it
+     * becomes a row. Override it where a single gesture can honestly produce
+     * several — importing a chest's contents, loading a preset — and the rows
+     * are added as they are, without an edit each.
+     *
+     * <p>Answering with nothing cancels the add. Exactly one element still goes
+     * through {@link #edit}; more than one does not, because a form per row is
+     * not what somebody importing thirty items asked for.
+     *
+     * @param viewer who is adding
+     * @return the new elements, possibly none
+     * @since 1.77.0
+     */
+    default @NotNull CompletionStage<List<T>> createAll(@NotNull Player viewer) {
+        return create(viewer).thenApply(created ->
+                created.<List<T>>map(List::of).orElseGet(List::of));
+    }
+
+    /**
      * The same element again, under a new identity.
      *
      * <p>What paste means. An implementation that returns the element unchanged
