@@ -255,9 +255,6 @@ public final class Text {
         // Before parsing and before centring: the prefix carries its own colours
         // and its width counts towards a centred line.
         String source = applyPrefix(parsed.message());
-        if (parsed.centered()) {
-            source = Centering.center(source);
-        }
 
         // Every value is stood in for by a single private-use character before
         // the text is parsed. A gradient colours one character at a time, so
@@ -275,6 +272,23 @@ public final class Text {
             String marker = String.valueOf((char) (MARKER_BASE + marked.size()));
             source = source.replace(substitution.key(), marker);
             marked.add(new Marked(marker, substitution.value(), substitution.formatted()));
+        }
+
+        // Centring is measured on what the player will read, not on the
+        // template: "%players%/%max%" is nine pixels per token wide and "0/32"
+        // is not, so padding a line that still carries its placeholders leaves
+        // it visibly off-centre once the values are in. Each marker is worth
+        // the width of the value standing behind it, and a literal value is
+        // measured as written because it is inserted as a component and never
+        // passes through the small-capitals transform.
+        if (parsed.centered()) {
+            int width = Centering.pixelWidth(source);
+            for (Marked value : marked) {
+                width -= Centering.pixelWidth(value.marker());
+                width += Centering.pixelWidth(value.value(),
+                        value.formatted() && TextEngine.smallText());
+            }
+            source = Centering.paddingFor(width, Centering.CHAT_WIDTH_PX) + source;
         }
 
         Component component = TextEngine.parse(source);
