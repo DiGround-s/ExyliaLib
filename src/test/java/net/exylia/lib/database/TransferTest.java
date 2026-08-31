@@ -311,6 +311,76 @@ class TransferTest {
         assertEquals(2L, await(stats.count()));
     }
 
+    // ------------------------------------------------------------------ wipe
+
+    @Test
+    @DisplayName("wipeAll empties every registered table and reports what went")
+    void wipeAllEmptiesEverything() {
+        await(stats.saveAll(List.of(row(1), row(2), row(3))));
+        await(kits.save(new Kit("sharp", "Sharpness", 10)));
+
+        TransferReport report = await(Transfers.of(plugin).wipeAll());
+
+        assertEquals(TransferOutcome.SUCCESS, report.outcome(), report.problems().toString());
+        assertEquals(4L, report.rows());
+        assertEquals(0L, await(stats.count()));
+        assertEquals(0L, await(kits.count()));
+        // Per table, not only in total: an owner wiping five tables has to see
+        // which of them actually held anything.
+        assertTrue(report.tableNames().containsAll(List.of("transfer_stats", "transfer_kits")),
+                report.tableNames().toString());
+    }
+
+    @Test
+    @DisplayName("wiping one table leaves the others exactly as they were")
+    void wipeOneTableOnly() {
+        await(stats.saveAll(List.of(row(1), row(2))));
+        Kit kit = new Kit("sharp", "Sharpness", 10);
+        await(kits.save(kit));
+
+        TransferReport report = await(Transfers.of(plugin).wipe("transfer_stats"));
+
+        assertEquals(TransferOutcome.SUCCESS, report.outcome(), report.problems().toString());
+        assertEquals(2L, report.rows());
+        assertEquals(0L, await(stats.count()));
+        assertEquals(1L, await(kits.count()));
+        assertEquals(kit, await(kits.find("sharp")).orElseThrow());
+    }
+
+    @Test
+    @DisplayName("a table name that does not exist refuses the whole wipe, deleting nothing")
+    void wipeRefusesAnUnknownTable() {
+        await(stats.save(row(1)));
+        await(kits.save(new Kit("sharp", "Sharpness", 10)));
+
+        // The typo is what this is for: skipping the name and emptying the
+        // rest is how "wipe the stats" empties the kits and reports success.
+        TransferReport refused = await(Transfers.of(plugin).wipe("transfer_stats", "transfer_stast"));
+
+        assertEquals(TransferOutcome.FAILED, refused.outcome());
+        assertEquals(0L, refused.rows());
+        assertTrue(refused.problems().get(0).startsWith("Refused:"), refused.problems().toString());
+        assertTrue(refused.problems().get(0).contains("transfer_kits"),
+                "the names it does have are listed: " + refused.problems());
+        assertEquals(1L, await(stats.count()), "nothing may go before every name resolves");
+        assertEquals(1L, await(kits.count()));
+    }
+
+    @Test
+    @DisplayName("a wiped table is still usable: the dump it came from imports straight back")
+    void wipeIsRecoverableFromADump() {
+        Stats written = row(1);
+        await(stats.save(written));
+        TransferReport export = await(Transfers.of(plugin).export(folder));
+
+        await(Transfers.of(plugin).wipeAll());
+        assertEquals(0L, await(stats.count()));
+
+        TransferReport restored = await(Transfers.of(plugin).importFrom(export.file()));
+        assertNotEquals(TransferOutcome.FAILED, restored.outcome(), restored.problems().toString());
+        assertEquals(written, await(stats.find(written.uuid())).orElseThrow());
+    }
+
     // --------------------------------------------------------- generated ids
 
     @Test

@@ -24,6 +24,7 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.IntConsumer;
 
@@ -455,6 +456,114 @@ public final class TransferRuntime {
             }
             return bound;
         }
+    }
+
+    // --------------------------------------------------------------- wiping
+
+    /**
+     * Empties a plugin's registered tables, or the ones it names.
+     *
+     * <p>Nothing is written to a file here and nothing is read from one: a
+     * wipe deletes rows and reports how many went. The dump an owner wants
+     * taken first is an {@link #export} the caller runs before this, which is
+     * what {@code /exylialib wipe} does — keeping the two apart is what lets a
+     * plugin that already has its own backup skip one.
+     *
+     * <h2>All or nothing on the names</h2>
+     * A name that matches no registered table fails the whole wipe before a
+     * single row is removed. The alternative — skip it and empty the rest — is
+     * how a typo in {@code players} empties {@code kits} and reports success.
+     *
+     * @param owner  the plugin whose scheduler runs the work — the library's
+     * @param plugin the plugin whose tables these are
+     * @param tables the table names to empty, or {@code null} for every
+     *               registered table
+     * @return the report, always; a refusal is a {@link TransferOutcome#FAILED}
+     *         report and not a thrown exception
+     * @since 1.76.0
+     */
+    public static @NotNull CompletableFuture<TransferReport> wipe(@NotNull Plugin owner,
+                                                                  @NotNull Plugin plugin,
+                                                                  @Nullable Set<String> tables) {
+        Set<String> requested = tables == null ? null : Set.copyOf(tables);
+        return on(owner, () -> runWipe(plugin, requested));
+    }
+
+    private static TransferReport runWipe(Plugin plugin, @Nullable Set<String> requested) {
+        Instant started = Instant.now();
+        PluginDatabase database = net.exylia.lib.database.Databases.find(plugin.getName());
+        if (database == null) {
+            return TransferReport.failed(plugin.getName() + " has no registered tables, so there"
+                    + " is nothing to wipe. A plugin appears here once it has asked for its"
+                    + " first repository.", elapsed(started));
+        }
+        Map<String, Repository<?>> registered = database.tables();
+        if (registered.isEmpty()) {
+            return TransferReport.failed(plugin.getName() + " has a database view but no"
+                    + " registered tables yet.", elapsed(started));
+        }
+
+        List<Repository<?>> targets = new ArrayList<>();
+        if (requested == null) {
+            targets.addAll(registered.values());
+        } else {
+            for (String name : requested) {
+                Repository<?> repository = match(registered, name);
+                if (repository == null) {
+                    // Before anything is deleted, deliberately: see the class
+                    // note above. The known names are in the message because
+                    // the answer to a typo is the list somebody meant to pick
+                    // from.
+                    return TransferReport.failed("Refused: " + plugin.getName() + " has no table"
+                            + " named " + name + ". It registers "
+                            + String.join(", ", registered.keySet()) + '.', elapsed(started));
+                }
+                targets.add(repository);
+            }
+        }
+
+        List<String> problems = new ArrayList<>();
+        List<TableTransfer> handled = new ArrayList<>(targets.size());
+        long total = 0L;
+        for (Repository<?> repository : targets) {
+            EntityModel<?> model = repository.model();
+            try {
+                long removed = repository.storage().deleteAll(model).join();
+                handled.add(TableTransfer.of(model.table(), removed));
+                total += removed;
+            } catch (RuntimeException failure) {
+                // One table's failure does not stop the rest: a wipe half done
+                // and fully reported is recoverable, and a wipe that stopped
+                // silently at the second of five tables is what leaves an owner
+                // guessing which ones went.
+                problems.add("Could not empty " + model.table() + ": " + rootMessage(failure));
+                handled.add(TableTransfer.skipped(model.table(), "the delete failed"));
+            }
+        }
+        return new TransferReport(problems.isEmpty() ? TransferOutcome.SUCCESS : TransferOutcome.PARTIAL,
+                null, handled, total, elapsed(started), problems);
+    }
+
+    /**
+     * A registered table by name, ignoring case.
+     *
+     * <p>Case-insensitive because the name arrives from a chat box as often as
+     * from code, and because the engines themselves disagree about it: the same
+     * {@code @Table("Players")} is {@code PLAYERS} on H2 and {@code players} on
+     * Postgres, so an exact match would refuse a name the admin read off the
+     * database.
+     */
+    private static @Nullable Repository<?> match(Map<String, Repository<?>> registered, String name) {
+        Repository<?> exact = registered.get(name);
+        if (exact != null) {
+            return exact;
+        }
+        for (Map.Entry<String, Repository<?>> entry : registered.entrySet()) {
+            if (entry.getKey().equalsIgnoreCase(name)) {
+                return entry.getValue();
+            }
+        }
+        return null;
     }
 
     // ------------------------------------------------------------- machinery

@@ -226,6 +226,14 @@ public final class MongoStorage implements Storage {
         });
     }
 
+    @Override
+    public @NotNull CompletableFuture<Long> deleteAll(@NotNull EntityModel<?> model) {
+        // An empty filter is a legal deleteMany here, and one round trip: Mongo
+        // has no equivalent of the SQL side's problem, where a filterless
+        // delete had to be assembled out of a read and a delete per key.
+        return async(model, "delete", () -> backend.deleteWhere(model, List.of(), List.of(), 0));
+    }
+
     // ------------------------------------------------------------------- DDL
 
     @Override

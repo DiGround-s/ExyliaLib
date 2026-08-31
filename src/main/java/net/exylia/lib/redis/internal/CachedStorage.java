@@ -254,6 +254,18 @@ public final class CachedStorage implements Storage {
         });
     }
 
+    @Override
+    public @NotNull CompletableFuture<Long> deleteAll(@NotNull EntityModel<?> model) {
+        return delegate.deleteAll(model).thenApply(removed -> {
+            // Dropped whether or not anything was there, unlike the filtered
+            // delete above. A wipe of a table this server has cached and
+            // another server has already emptied still has to clear what is
+            // held here, and that is exactly the case where the count is zero.
+            cache.dropTable(model);
+            return removed;
+        });
+    }
+
     // ------------------------------------------------------------- lifecycle
 
     @Override

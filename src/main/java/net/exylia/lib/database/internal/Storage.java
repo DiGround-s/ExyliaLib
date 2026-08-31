@@ -292,6 +292,24 @@ public interface Storage {
                                                     int limit);
 
     /**
+     * Removes every row of a table.
+     *
+     * <p>Separate from {@link #deleteWhere} with an empty filter, and not a
+     * shorthand for it. A filtered delete on SQL reads the matching rows before
+     * removing them by key, which for "all of them" means pulling the whole
+     * table over the wire; this is one statement. It is also the method a wipe
+     * names, so the one call site that destroys a table on purpose is greppable.
+     *
+     * <p>The shared cache treats it as it treats any keyless delete: the
+     * table's entries go, here and on every peer.
+     *
+     * @param model the compiled record model
+     * @return how many rows were removed
+     * @since 1.76.0
+     */
+    @NotNull CompletableFuture<Long> deleteAll(@NotNull EntityModel<?> model);
+
+    /**
      * Makes sure the table or collection behind a model exists, with its
      * indexes.
      *

@@ -5,6 +5,9 @@ import org.bukkit.plugin.Plugin;
 import org.jetbrains.annotations.NotNull;
 
 import java.nio.file.Path;
+import java.util.Collections;
+import java.util.LinkedHashSet;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 
 /**
@@ -120,6 +123,65 @@ public final class PluginTransfers {
     public @NotNull CompletableFuture<TransferReport> importFrom(@NotNull Path source,
                                                                  boolean force) {
         return TransferRuntime.importFrom(library, plugin, source, force);
+    }
+
+    /**
+     * Empties every table this plugin has registered.
+     *
+     * <pre>{@code
+     * Transfers.of(this).wipeAll()
+     *         .thenAccept(report -> getLogger().info("Removed " + report.rows() + " rows"));
+     * }</pre>
+     *
+     * <p><b>Nothing is backed up.</b> This deletes rows and reports how many
+     * went; it does not write a dump first. Take one with {@link #export(Path)}
+     * and wait for it to succeed before calling this — which is exactly what
+     * {@code /exylialib wipe} does for an admin who never writes any code.
+     *
+     * <p>The tables emptied are the ones registered <em>now</em>, with the same
+     * caveat {@link #export(Path)} carries: a plugin that asks for a repository
+     * lazily has fewer here than it eventually will.
+     *
+     * <h2>Redis</h2>
+     * Unlike an import, a wipe does invalidate the shared cache: every emptied
+     * table is dropped here and on every peer, so no server keeps serving rows
+     * that no longer exist.
+     *
+     * @return the report — never fails; a refusal is a
+     *         {@link TransferOutcome#FAILED} report with the reason in it
+     * @since 1.76.0
+     */
+    public @NotNull CompletableFuture<TransferReport> wipeAll() {
+        return TransferRuntime.wipe(library, plugin, null);
+    }
+
+    /**
+     * Empties the named tables and leaves the rest alone.
+     *
+     * <pre>{@code
+     * Transfers.of(this).wipe("practice_stats");
+     * }</pre>
+     *
+     * <p>The names are the ones {@code @Table} spells, matched ignoring case.
+     * A name that matches no registered table refuses the <b>whole</b> wipe
+     * before a row is removed: a typo in one name must not empty the others.
+     *
+     * <p>The signature takes the first name separately so that "wipe these
+     * tables" cannot become "wipe everything" when a computed list turns out
+     * empty. {@link #wipeAll()} is the only way to ask for all of them, and it
+     * has to be typed.
+     *
+     * @param table the first table to empty
+     * @param more  any others
+     * @return the report — never fails
+     * @since 1.76.0
+     */
+    public @NotNull CompletableFuture<TransferReport> wipe(@NotNull String table,
+                                                            @NotNull String... more) {
+        Set<String> names = new LinkedHashSet<>();
+        names.add(table);
+        Collections.addAll(names, more);
+        return TransferRuntime.wipe(library, plugin, names);
     }
 
     @Override

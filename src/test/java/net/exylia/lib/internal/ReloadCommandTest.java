@@ -298,6 +298,10 @@ class ReloadCommandTest {
                 List.of(), 0L, Duration.ZERO, List.of());
         private Path lastFile;
         private Boolean lastForce;
+        private TransferReport exportAnswer = new TransferReport(TransferOutcome.SUCCESS,
+                Path.of("/srv/dumps/Practice-h2.exyliadump.gz"), List.of(), 7L, Duration.ZERO,
+                List.of());
+        private final List<String> wiped = new CopyOnWriteArrayList<>();
 
         @Override
         public List<String> plugins() {
@@ -317,7 +321,15 @@ class ReloadCommandTest {
         @Override
         public CompletableFuture<TransferReport> export(String pluginName, Path folder) {
             lastFile = folder;
-            return CompletableFuture.completedFuture(answer);
+            return CompletableFuture.completedFuture(exportAnswer);
+        }
+
+        @Override
+        public CompletableFuture<TransferReport> wipe(String pluginName, String table) {
+            wiped.add(pluginName + ':' + (table == null ? "*" : table));
+            return CompletableFuture.completedFuture(new TransferReport(TransferOutcome.SUCCESS,
+                    null, List.of(TableTransfer.of("practice_stats", 12L)), 12L, Duration.ZERO,
+                    List.of()));
         }
 
         @Override
@@ -504,4 +516,113 @@ class ReloadCommandTest {
         assertTrue(text.contains("/exylialib import"), "got: " + text);
         assertTrue(text.contains("MERGES"), "got: " + text);
     }
+    // ------------------------------------------------------------------ wipe
+
+    /** The code the preview handed out, read back out of what it printed. */
+    private static String codeFrom(String preview) {
+        String[] words = preview.trim().split("\\s+");
+        return words[words.length - 1];
+    }
+
+    @Test
+    @DisplayName("the first wipe deletes nothing and hands back a code")
+    void wipeAsksBeforeItDeletes() {
+        ReloadCommand command = withTransfers();
+        transfers.tables.put("Practice", List.of("practice_stats", "practice_kits"));
+
+        command.wipe(sender, "Practice", "*", null);
+
+        String text = sent.get(0);
+        assertTrue(transfers.wiped.isEmpty(), "nothing may be deleted before a confirmation");
+        assertTrue(text.contains("no undo"), "got: " + text);
+        assertTrue(text.contains("practice_stats"), "what would go is named, got: " + text);
+        assertTrue(text.contains("/exylialib wipe Practice *"), "got: " + text);
+    }
+
+    @Test
+    @DisplayName("the code confirms, and the wipe takes a dump before it deletes")
+    void wipeRunsAfterTheCode() {
+        ReloadCommand command = withTransfers();
+        transfers.tables.put("Practice", List.of("practice_stats"));
+
+        command.wipe(sender, "Practice", "*", null);
+        command.wipe(sender, "Practice", "*", codeFrom(sent.get(0)));
+
+        assertEquals(List.of("Practice:*"), transfers.wiped);
+        assertEquals(Path.of("/srv/dumps"), transfers.lastFile, "the backup export ran first");
+        String panel = sent.get(sent.size() - 1);
+        assertTrue(panel.contains("Practice-h2.exyliadump.gz"), "the dump is named, got: " + panel);
+        assertTrue(panel.contains("/exylialib import Practice"), "restoring is spelled out, got: " + panel);
+    }
+
+    @Test
+    @DisplayName("a code is spent once: the same line run twice does not wipe twice")
+    void wipeCodeIsSingleUse() {
+        ReloadCommand command = withTransfers();
+        transfers.tables.put("Practice", List.of("practice_stats"));
+
+        command.wipe(sender, "Practice", "*", null);
+        String code = codeFrom(sent.get(0));
+        command.wipe(sender, "Practice", "*", code);
+        command.wipe(sender, "Practice", "*", code);
+
+        assertEquals(1, transfers.wiped.size(), "the second run must refuse: " + transfers.wiped);
+        assertTrue(sent.get(sent.size() - 1).contains("not valid"), "got: " + sent.get(sent.size() - 1));
+    }
+
+    @Test
+    @DisplayName("a code issued for one table does not confirm another")
+    void wipeCodeIsBoundToItsTarget() {
+        ReloadCommand command = withTransfers();
+        transfers.tables.put("Practice", List.of("practice_stats", "practice_kits"));
+
+        command.wipe(sender, "Practice", "practice_stats", null);
+        command.wipe(sender, "Practice", "practice_kits", codeFrom(sent.get(0)));
+
+        assertTrue(transfers.wiped.isEmpty(), "got: " + transfers.wiped);
+        assertTrue(sent.get(1).contains("Nothing was deleted"), "got: " + sent.get(1));
+    }
+
+    @Test
+    @DisplayName("a failed backup cancels the wipe")
+    void wipeStopsWhenTheBackupFails() {
+        ReloadCommand command = withTransfers();
+        transfers.tables.put("Practice", List.of("practice_stats"));
+        transfers.exportAnswer = TransferReport.failed("The disk is full.", Duration.ZERO);
+
+        command.wipe(sender, "Practice", "*", null);
+        command.wipe(sender, "Practice", "*", codeFrom(sent.get(0)));
+
+        assertTrue(transfers.wiped.isEmpty(), "a wipe without its dump must not run");
+        String text = sent.get(sent.size() - 1);
+        assertTrue(text.contains("Cancelled"), "got: " + text);
+        assertTrue(text.contains("disk is full"), "got: " + text);
+    }
+
+    @Test
+    @DisplayName("all is accepted as * , and the panel still prints the form it suggests")
+    void wipeAcceptsTheWordAll() {
+        ReloadCommand command = withTransfers();
+        transfers.tables.put("Practice", List.of("practice_stats", "practice_kits"));
+
+        command.wipe(sender, "Practice", "all", null);
+        command.wipe(sender, "Practice", "all", codeFrom(sent.get(0)));
+
+        assertEquals(List.of("Practice:*"), transfers.wiped);
+        assertTrue(sent.get(0).contains("every registered table"), "got: " + sent.get(0));
+    }
+
+    @Test
+    @DisplayName("a table the plugin does not have is refused, with the ones it does")
+    void wipeRefusesAnUnknownTable() {
+        ReloadCommand command = withTransfers();
+        transfers.tables.put("Practice", List.of("practice_stats"));
+
+        command.wipe(sender, "Practice", "practice_playres", null);
+
+        String text = sent.get(0);
+        assertTrue(transfers.wiped.isEmpty());
+        assertTrue(text.contains("practice_stats"), "got: " + text);
+    }
+
 }
