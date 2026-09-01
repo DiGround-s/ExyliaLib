@@ -352,6 +352,40 @@ class BoardTest {
     }
 
     @Test
+    @DisplayName("a board closed while it renders is not reported as a failure")
+    void closeDuringRenderIsNotReported() {
+        List<LogRecord> reported = new ArrayList<>();
+        Handler handler = new Handler() {
+            @Override
+            public void publish(LogRecord record) {
+                reported.add(record);
+            }
+
+            @Override
+            public void flush() {
+            }
+
+            @Override
+            public void close() {
+            }
+        };
+        BoardManager.logger().addHandler(handler);
+        try {
+            Scoreboards.show(plugin, viewer.player(),
+                    config(List.of("FFA"), List.of("Kills: %test_kills%")));
+            // The driver renders outside the manager lock, so another thread
+            // swapping this board closes the sidebar mid-render.
+            created.get(0).closeOnNextCall();
+
+            drive();
+
+            assertEquals(List.of(), reported);
+        } finally {
+            BoardManager.logger().removeHandler(handler);
+        }
+    }
+
+    @Test
     @DisplayName("a render that fails is reported once per board, not once per tick")
     void renderFailureIsReportedOncePerBoard() {
         List<LogRecord> reported = new ArrayList<>();

@@ -180,6 +180,13 @@ final class BoardImpl implements Board {
 
             invalidated = false;
         } catch (Throwable t) {
+            // A board can be stopped while it renders: the driver renders
+            // outside the manager's lock, so a close() lands between the guard
+            // above and a write, and the sidebar refuses it. The board is gone
+            // either way, so this is a lost render, not a failure.
+            if (stopped || sidebar.closed()) {
+                return;
+            }
             // Once per board, with the stack: a board renders every interval
             // for as long as its player is online, so a message per tick per
             // player buries the one line that says where the failure came

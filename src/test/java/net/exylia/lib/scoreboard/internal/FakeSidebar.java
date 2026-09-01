@@ -25,6 +25,7 @@ final class FakeSidebar implements SidebarHandle {
     private volatile boolean visible;
     private volatile boolean closed;
     private volatile boolean failing;
+    private volatile boolean closingOnWrite;
 
     /**
      * Makes every write throw, as a sidebar whose packet path is broken would.
@@ -35,6 +36,14 @@ final class FakeSidebar implements SidebarHandle {
      */
     void failOnEveryCall() {
         failing = true;
+    }
+
+    /**
+     * Closes itself on the next write and refuses it, as a sidebar closed by
+     * another thread halfway through a render does.
+     */
+    void closeOnNextCall() {
+        closingOnWrite = true;
     }
 
     @Override
@@ -62,6 +71,10 @@ final class FakeSidebar implements SidebarHandle {
 
     @Override
     public void title(Component title) {
+        if (closingOnWrite) {
+            closed = true;
+            throw new IllegalStateException("Sidebar is closed");
+        }
         if (failing) {
             throw new IllegalStateException("Asynchronous scoreboard write!");
         }
