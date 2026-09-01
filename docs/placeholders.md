@@ -140,7 +140,11 @@ Registered by the library itself:
 - `player_*`: `name`, `displayname`, `uuid`, `world`, `health`, `level`,
   `food`, `gamemode`, `ping`, `x`, `y`, `z`.
 - `target_*`: `name`, `uuid`.
-- `server_*`: `online`, `max`, `tps`.
+- `server_*`: `online`, `max`, `tps`, `mspt`, `cpu_system`, `cpu_process`.
+  `mspt` is the average tick time in milliseconds, out of the fifty a tick
+  has. The two loads are whole percentages, and both read `0` on a JVM
+  without the extended operating system bean and on the first call, which
+  is taken before there are two samples to compare.
 
 ## Source and tests
 

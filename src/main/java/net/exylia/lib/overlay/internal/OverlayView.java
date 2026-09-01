@@ -69,6 +69,9 @@ public final class OverlayView {
     private volatile TaskHandle refresher;
     private volatile boolean closed;
 
+    /** Whether another window has the screen, and the overlay has stepped aside. */
+    private volatile boolean suspended;
+
     /** When this player's last press on something in the world was bound, in nanoseconds. */
     private volatile long worldPress = Long.MIN_VALUE / 2;
 
@@ -179,7 +182,7 @@ public final class OverlayView {
      * whose item came out identical is a packet for an item already there.
      */
     void draw() {
-        if (closed) {
+        if (closed || suspended) {
             return;
         }
         for (int index = 0; index < OverlaySlots.SIZE; index++) {
@@ -191,7 +194,7 @@ public final class OverlayView {
 
     /** Redraws only the slots that can actually differ from what is on screen. */
     private void tickRefresh() {
-        if (closed || !viewer.isOnline()) {
+        if (closed || suspended || !viewer.isOnline()) {
             return;
         }
         if (definition.refresh().mode() == UiRefresh.Mode.FULL) {
@@ -244,6 +247,60 @@ public final class OverlayView {
         String condition = item.condition();
         return condition == null
                 || Conditions.test(net.exylia.lib.text.Text.of(condition).forPlayer(viewer).plain());
+    }
+
+    // ------------------------------------------------------------------
+    // Standing aside
+    // ------------------------------------------------------------------
+
+    /**
+     * Returns whether the overlay has stepped aside for another window.
+     *
+     * <p>Read on the Netty thread for every inventory packet, so it is a field
+     * read and nothing else.
+     */
+    public boolean isSuspended() {
+        return suspended;
+    }
+
+    /**
+     * Steps aside while another window is open.
+     *
+     * <p>An overlay draws over the player's own inventory, and the bottom half
+     * of every container window is that same inventory. Kept up, it hides the
+     * player's real items exactly where a player expects to use them: nothing
+     * shift-clicks, drags, or moves out of a chest, because every one of those
+     * lands in a slot the overlay is covering and is refused. What the player
+     * sees is an inventory that takes items and never gives them back.
+     *
+     * <p>So the overlay comes off for as long as the window is open. Its items
+     * were never real, so there is nothing to take back: the window's contents
+     * arrive from the server unrewritten, and the player is simply themselves
+     * again until they close it. The tools live in the hotbar, which is not
+     * where anybody clicks with a chest open.
+     */
+    void suspend() {
+        if (closed) {
+            return;
+        }
+        suspended = true;
+    }
+
+    /**
+     * Puts the overlay back when the window closes.
+     *
+     * <p>Drawn from nothing rather than from what it remembers: the client has
+     * been shown the real inventory since the window opened, so a redraw that
+     * skipped the slots it last drew would leave every one of them real.
+     */
+    void resume() {
+        if (closed || !suspended) {
+            return;
+        }
+        suspended = false;
+        drawn.clear();
+        live.clear();
+        Tasks.of(plugin).runAtEntity(viewer, this::draw);
     }
 
     // ------------------------------------------------------------------

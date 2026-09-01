@@ -123,7 +123,7 @@ the items it really has.
 
 | Value | What it refuses |
 | --- | --- |
-| `FULL` (default) | Everything, on the player's own screen and in the rows below any open menu |
+| `FULL` (default) | Everything on the player's own screen |
 | `OWNED` | Only the slots the overlay draws |
 
 Under both, a click whose destination the server picks rather than the player
@@ -137,6 +137,25 @@ even in `OWNED` when the slot is the overlay's.
 A refused click has already been drawn by the client, so the module asks the
 server to say what it believes and rewrites the answer on its way past. The
 overlay is intact one tick later.
+
+### While another window is open
+
+The overlay steps aside. The bottom half of every chest, menu and inspected
+inventory *is* the player's own inventory, which is the half the overlay is
+drawn over: kept up there, it turns a container into something a player can
+take from and never put anything back into, because every slot the item would
+move to is one the overlay refuses. So from the moment a window opens until it
+closes, the player is shown their real inventory and moves it themselves —
+nothing is rewritten and nothing is refused.
+
+There is nothing to undo. The drawn items were never real, so standing aside is
+a matter of not rewriting the packets the server was already sending; when the
+window closes the overlay draws itself again, from nothing rather than from
+what it last drew.
+
+The tools are in the hotbar, which is not where anybody clicks with a chest
+open, so nothing is lost by the wait. An overlay shown *while* a window is
+already up waits for it in the same way.
 
 ### `pickup`
 

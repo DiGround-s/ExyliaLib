@@ -13,6 +13,7 @@ import net.exylia.lib.ui.UiSounds;
 import org.bukkit.Bukkit;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.entity.Player;
+import org.bukkit.event.inventory.InventoryType;
 import org.bukkit.plugin.Plugin;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -97,6 +98,17 @@ public final class OverlayRuntime {
     /** Whether anybody at all is wearing one, checked before anything else. */
     public static boolean anyActive() {
         return !ACTIVE.isEmpty();
+    }
+
+    /**
+     * Whether a window other than the player's own screen is open.
+     *
+     * <p>Their own inventory is not a window in this sense: nothing else is
+     * using the screen, so the overlay is exactly what should be drawn there.
+     */
+    static boolean hasWindowOpen(Player viewer) {
+        InventoryType type = viewer.getOpenInventory().getType();
+        return type != InventoryType.CRAFTING && type != InventoryType.CREATIVE;
     }
 
     /** The overlay a player is wearing, or {@code null}. */
@@ -282,6 +294,12 @@ public final class OverlayRuntime {
             Tasks.of(plugin).runAtEntity(viewer, () -> {
                 if (view.isClosed()) {
                     return;
+                }
+                if (hasWindowOpen(viewer)) {
+                    // Shown while a chest, a menu or an inspected inventory is
+                    // already up: the overlay waits for it to close rather than
+                    // drawing over the half of the screen that window is using.
+                    view.suspend();
                 }
                 view.draw();
                 // After the draw, never before: this makes the server restate

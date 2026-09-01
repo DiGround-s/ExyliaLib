@@ -163,7 +163,7 @@ final class OverlayPackets extends PacketListenerAbstract implements OverlaySink
         }
         UUID id = uuidOf(event.getUser());
         OverlayView view = OverlayRuntime.viewOf(id);
-        if (view == null) {
+        if (view == null || view.isSuspended()) {
             return;
         }
         if (contents) {
@@ -243,7 +243,9 @@ final class OverlayPackets extends PacketListenerAbstract implements OverlaySink
             return;
         }
         Player player = event.getPlayer();
-        if (player == null) {
+        if (player == null || view.isSuspended()) {
+            // Another window has the screen: what the player sees is their own
+            // inventory, and moving their own items is theirs to do.
             return;
         }
         PacketTypeCommon type = event.getPacketType();

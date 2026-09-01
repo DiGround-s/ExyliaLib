@@ -5,6 +5,8 @@ import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.entity.EntityPickupItemEvent;
+import org.bukkit.event.inventory.InventoryCloseEvent;
+import org.bukkit.event.inventory.InventoryOpenEvent;
 import org.bukkit.event.player.PlayerAttemptPickupItemEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 
@@ -46,6 +48,36 @@ public final class OverlayListener implements Listener {
     public void onPickup(EntityPickupItemEvent event) {
         if (event.getEntity() instanceof Player player && refuses(player)) {
             event.setCancelled(true);
+        }
+    }
+
+    /**
+     * Steps the overlay aside when another window opens.
+     *
+     * <p>The bottom half of a chest is the player's own inventory, which is
+     * what the overlay is drawn over: left up, a player can take from the
+     * chest and never put anything back, because every slot they would move it
+     * to is one the overlay refuses. The items were never real, so standing
+     * aside costs nothing to undo.
+     */
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    public void onOpen(InventoryOpenEvent event) {
+        if (event.getPlayer() instanceof Player player) {
+            OverlayView view = OverlayRuntime.viewOf(player.getUniqueId());
+            if (view != null) {
+                view.suspend();
+            }
+        }
+    }
+
+    /** And puts it back when that window closes. */
+    @EventHandler(priority = EventPriority.MONITOR)
+    public void onClose(InventoryCloseEvent event) {
+        if (event.getPlayer() instanceof Player player) {
+            OverlayView view = OverlayRuntime.viewOf(player.getUniqueId());
+            if (view != null) {
+                view.resume();
+            }
         }
     }
 
