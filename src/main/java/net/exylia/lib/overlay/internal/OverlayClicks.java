@@ -1,6 +1,7 @@
 package net.exylia.lib.overlay.internal;
 
 import net.exylia.lib.overlay.OverlayLock;
+import org.jetbrains.annotations.NotNull;
 
 /**
  * Whether a click has to be refused, decided apart from the packet it came in.
@@ -17,6 +18,59 @@ import net.exylia.lib.overlay.OverlayLock;
 public final class OverlayClicks {
 
     private OverlayClicks() {
+    }
+
+    /**
+     * What to do with a press in the world: a right click, a left click on a
+     * block, or a click on an entity.
+     *
+     * @since 1.81.3
+     */
+    public enum WorldPress {
+
+        /** The overlay draws the held slot, so the press is the overlay's. */
+        PRESS,
+
+        /**
+         * The overlay covers the held slot but draws nothing there, and the
+         * player really is holding something. The client is being shown an
+         * empty hand, so letting the press through would use an item that is
+         * not on the player's screen.
+         */
+        REFUSE,
+
+        /**
+         * Neither: the client and the server agree that the hand is empty, or
+         * the slot is not the overlay's at all.
+         */
+        PASS
+    }
+
+    /**
+     * Decides what a press in the world does.
+     *
+     * <p>An overlay with {@code hide_rest} owns every slot, because drawing
+     * air over the ones it has no item for is the point. Deciding a world
+     * press on ownership alone therefore refuses every right click a staff
+     * member makes with an empty hand — no doors, no chests, and no silent
+     * container inspection, which is the one thing a staff mode most wants.
+     * What matters for a press is whether the overlay <em>draws</em> the slot;
+     * ownership only decides whether a real item is hiding under it.
+     *
+     * @param draws     whether the overlay draws an item in the held slot
+     * @param owned     whether the slot is the overlay's at all
+     * @param realEmpty whether the player's real slot is empty
+     * @return what to do with the press
+     * @since 1.81.3
+     */
+    public static @NotNull WorldPress worldPress(boolean draws, boolean owned, boolean realEmpty) {
+        if (draws) {
+            return WorldPress.PRESS;
+        }
+        if (!owned || realEmpty) {
+            return WorldPress.PASS;
+        }
+        return WorldPress.REFUSE;
     }
 
     /**

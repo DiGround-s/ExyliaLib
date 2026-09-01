@@ -4,6 +4,7 @@ import net.exylia.lib.overlay.internal.OverlayClicks;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -55,6 +56,41 @@ class OverlayClicksTest {
         assertTrue(owned(false, true, true, true));
         assertFalse(owned(false, true, true, false));
         assertFalse(owned(false, false, false, false));
+    }
+
+    @Test
+    @DisplayName("a slot the overlay draws answers a press in the world")
+    void drawnSlotsPress() {
+        assertEquals(OverlayClicks.WorldPress.PRESS,
+                OverlayClicks.worldPress(true, true, true));
+        assertEquals(OverlayClicks.WorldPress.PRESS,
+                OverlayClicks.worldPress(true, true, false));
+    }
+
+    @Test
+    @DisplayName("an empty hand under hide_rest still reaches the world")
+    void emptyHandPasses() {
+        // hide_rest owns all forty-one slots. Deciding on ownership alone left
+        // a staff member unable to open a door, a chest, or anything else a
+        // right click does, because every slot was "the overlay's".
+        assertEquals(OverlayClicks.WorldPress.PASS,
+                OverlayClicks.worldPress(false, true, true));
+    }
+
+    @Test
+    @DisplayName("a real item hidden under an undrawn slot is not usable")
+    void hiddenItemIsRefused() {
+        assertEquals(OverlayClicks.WorldPress.REFUSE,
+                OverlayClicks.worldPress(false, true, false));
+    }
+
+    @Test
+    @DisplayName("a slot the overlay does not own is the player's")
+    void unownedSlotsPass() {
+        assertEquals(OverlayClicks.WorldPress.PASS,
+                OverlayClicks.worldPress(false, false, false));
+        assertEquals(OverlayClicks.WorldPress.PASS,
+                OverlayClicks.worldPress(false, false, true));
     }
 
     @Test

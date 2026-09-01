@@ -155,6 +155,12 @@ the player keeps seeing their own items around the overlay's — right for a few
 added buttons. `true` blanks all forty-one, which is right for a staff mode:
 the real gear is not merely unusable, it is not on screen.
 
+A blanked slot is still the player's hand. Holding one and right-clicking a
+door, a chest or a mob reaches the world normally, because the client is being
+shown an empty hand and the server has one too. What the overlay refuses there
+is the other case: a blanked slot with a **real** item under it, where letting
+the press through would use something that is not on the player's screen.
+
 ## What a press runs
 
 The same click vocabulary a menu button answers to, so an overlay item and a
@@ -176,6 +182,9 @@ when the press was on something — `overlay.target` (the entity) and
 
 Left-clicking **air** is not bound. The client sends nothing that distinguishes
 it from a swing, and guessing would fire an action every time somebody waved.
+
+A slot the overlay draws nothing in presses nothing. Under `hide_rest` every
+slot is the overlay's, so this is what keeps an empty hand a hand.
 
 ## Limits
 
