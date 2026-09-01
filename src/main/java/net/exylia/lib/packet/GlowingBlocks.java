@@ -2,6 +2,7 @@ package net.exylia.lib.packet;
 
 import net.kyori.adventure.text.format.TextColor;
 import org.bukkit.Location;
+import org.bukkit.block.data.BlockData;
 import org.bukkit.entity.Player;
 import org.jetbrains.annotations.NotNull;
 
@@ -26,16 +27,21 @@ import java.util.Map;
 public interface GlowingBlocks {
 
     /**
-     * Outlines blocks for one player.
+     * Outlines blocks for one player, all in one colour.
+     *
+     * <p>The shape is given rather than read from the world: the outline
+     * follows the model of that block data, and the caller is the one that
+     * knows what is there without touching a chunk it may not own.
      *
      * <p>A position already outlined for this viewer keeps the outline it has;
      * clear it first to change its colour.
      *
      * @param viewer the player
-     * @param blocks the outline colour for each position; positions in a world
-     *               the viewer is not in are ignored
+     * @param blocks the shape to outline at each position; positions in a
+     *               world the viewer is not in are ignored
+     * @param colour the outline colour
      */
-    void show(@NotNull Player viewer, @NotNull Map<Location, TextColor> blocks);
+    void show(@NotNull Player viewer, @NotNull Map<Location, BlockData> blocks, @NotNull TextColor colour);
 
     /**
      * Takes away every outline shown to this viewer.

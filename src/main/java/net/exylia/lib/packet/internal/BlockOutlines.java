@@ -4,6 +4,7 @@ import net.exylia.lib.packet.GlowingBlocks;
 import net.exylia.lib.task.Tasks;
 import net.kyori.adventure.text.format.TextColor;
 import org.bukkit.Location;
+import org.bukkit.block.data.BlockData;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
 import org.jetbrains.annotations.NotNull;
@@ -34,15 +35,17 @@ final class BlockOutlines implements GlowingBlocks {
     }
 
     @Override
-    public void show(@NotNull Player viewer, @NotNull Map<Location, TextColor> blocks) {
+    public void show(@NotNull Player viewer, @NotNull Map<Location, BlockData> blocks,
+                     @NotNull TextColor colour) {
         PacketSink out = PacketRuntime.sink();
         if (out == null || blocks.isEmpty()) {
             return;
         }
         Map<Location, Integer> drawn = PacketRuntime.OUTLINED.computeIfAbsent(viewer.getUniqueId(),
                 ignored -> new ConcurrentHashMap<>());
+        int argb = 0xFF000000 | colour.value();
         Tasks.of(plugin).runAtEntity(viewer, () -> {
-            for (Map.Entry<Location, TextColor> entry : blocks.entrySet()) {
+            for (Map.Entry<Location, BlockData> entry : blocks.entrySet()) {
                 Location at = entry.getKey();
                 if (at.getWorld() == null || !at.getWorld().equals(viewer.getWorld())) {
                     continue;
@@ -54,8 +57,7 @@ final class BlockOutlines implements GlowingBlocks {
                 if (drawn.putIfAbsent(key, id) != null) {
                     continue;
                 }
-                out.glowingBlock(viewer, id, key, key.getBlock().getBlockData(),
-                        0xFF000000 | entry.getValue().value());
+                out.glowingBlock(viewer, id, key, entry.getValue(), argb);
             }
         });
     }
