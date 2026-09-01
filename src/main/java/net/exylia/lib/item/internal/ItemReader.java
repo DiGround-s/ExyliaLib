@@ -171,6 +171,7 @@ public final class ItemReader {
                 .potion(potion(section))
                 .trim(trim(section))
                 .banner(banner(section, problems))
+                .dye(first(section, "color", "colour", "leather-color", "leather_color"))
                 .consumable(consumable(section))
                 .modifiers(modifiers(section, problems))
                 .data(data(section))

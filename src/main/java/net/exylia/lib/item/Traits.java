@@ -21,6 +21,8 @@ import java.util.Map;
  * @param potion     what is in the bottle, or {@code null}
  * @param trim       the armour trim, or {@code null}
  * @param banner     the banner design, or {@code null}
+ * @param dye        the colour leather is dyed, as {@code #rrggbb} or a
+ *                   colour name, or {@code null}
  * @param consumable what makes it edible, or {@code null}
  * @param modifiers  attribute modifiers, empty when there are none
  * @param data       persistent values written onto the item, empty when there are none
@@ -30,13 +32,14 @@ public record Traits(
         @Nullable Potion potion,
         @Nullable Trim trim,
         @Nullable Banner banner,
+        @Nullable String dye,
         @Nullable Consumable consumable,
         @NotNull List<Modifier> modifiers,
         @NotNull Map<String, String> data) {
 
     /** An item with nothing unusual about it, which is nearly all of them. */
     public static final Traits NONE =
-            new Traits(null, null, null, null, List.of(), Map.of());
+            new Traits(null, null, null, null, null, List.of(), Map.of());
 
     public Traits {
         modifiers = List.copyOf(modifiers);
@@ -45,8 +48,8 @@ public record Traits(
 
     /** Returns whether there is anything here to apply. */
     public boolean isEmpty() {
-        return potion == null && trim == null && banner == null && consumable == null
-                && modifiers.isEmpty() && data.isEmpty();
+        return potion == null && trim == null && banner == null && dye == null
+                && consumable == null && modifiers.isEmpty() && data.isEmpty();
     }
 
     /**
@@ -62,7 +65,8 @@ public record Traits(
      */
     public boolean isDynamic() {
         return (trim != null && trim.isDynamic())
-                || (banner != null && banner.isDynamic());
+                || (banner != null && banner.isDynamic())
+                || (dye != null && dye.indexOf('%') >= 0);
     }
 
     /** Starts describing traits. */
@@ -75,6 +79,7 @@ public record Traits(
         private Potion potion;
         private Trim trim;
         private Banner banner;
+        private String dye;
         private Consumable consumable;
         private List<Modifier> modifiers = List.of();
         private Map<String, String> data = Map.of();
@@ -94,6 +99,18 @@ public record Traits(
 
         public @NotNull Builder banner(@Nullable Banner banner) {
             this.banner = banner;
+            return this;
+        }
+
+        /**
+         * The colour leather is dyed.
+         *
+         * @param dye {@code #rrggbb}, a colour name, or a placeholder for
+         *            either; {@code null} leaves the leather its own brown
+         * @return this builder
+         */
+        public @NotNull Builder dye(@Nullable String dye) {
+            this.dye = dye;
             return this;
         }
 
@@ -124,11 +141,11 @@ public record Traits(
 
         /** Builds them, returning the shared {@link #NONE} when there is nothing. */
         public @NotNull Traits build() {
-            if (potion == null && trim == null && banner == null && consumable == null
-                    && modifiers.isEmpty() && data.isEmpty()) {
+            if (potion == null && trim == null && banner == null && dye == null
+                    && consumable == null && modifiers.isEmpty() && data.isEmpty()) {
                 return NONE;
             }
-            return new Traits(potion, trim, banner, consumable, modifiers, data);
+            return new Traits(potion, trim, banner, dye, consumable, modifiers, data);
         }
     }
 }
