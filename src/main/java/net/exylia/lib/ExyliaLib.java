@@ -30,6 +30,9 @@ import net.exylia.lib.skull.internal.SkullRuntime;
 import net.exylia.lib.schematic.internal.SchematicRuntime;
 import net.exylia.lib.client.internal.ClientRuntime;
 import net.exylia.lib.nametag.internal.NametagRuntime;
+import net.exylia.lib.overlay.Overlays;
+import net.exylia.lib.overlay.internal.OverlayListener;
+import net.exylia.lib.overlay.internal.OverlayRuntime;
 import net.exylia.lib.packet.Packets;
 import net.exylia.lib.packet.internal.PacketRuntime;
 import net.exylia.lib.util.combat.internal.CombatRuntime;
@@ -162,6 +165,10 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         NametagRuntime.init(this);
         PacketRuntime.init(this);
         MenuRuntime.init(this);
+        // Overlays refuse a pickup and forget a player who leaves; everything
+        // else they refuse is refused as a packet.
+        OverlayRuntime.init(this);
+        getServer().getPluginManager().registerEvents(new OverlayListener(), this);
         ClanRuntime.init(this);
         CombatRuntime.init(this);
         SkullRuntime.init(this);
@@ -421,6 +428,8 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         ClientRuntime.shutdown();
         NametagRuntime.shutdown();
         Packets.releaseAll();
+        // Before the task module, whose timers redraw them.
+        Overlays.releaseAll();
         ClanRuntime.shutdown();
         CombatRuntime.shutdown();
         // Writes the texture cache before tasks go away: the save is inline.
@@ -623,6 +632,10 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         NametagRuntime.release(pluginName);
         // Same again: unhiding, unfreezing and restoring blocks are packets.
         Packets.release(pluginName);
+        // And so is taking an overlay off: the player is still here, still
+        // looking at buttons whose actions come from a classloader that is
+        // going away.
+        Overlays.release(pluginName);
         // Before all three of the modules a run borrows from, because ending
         // one hands work back to each of them: it cancels the question it was
         // waiting on, releases the player's block selector, and schedules the

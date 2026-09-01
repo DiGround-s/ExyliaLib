@@ -264,6 +264,27 @@ public final class MenuLoader {
     }
 
     /**
+     * Reads one slot for a caller that numbers its own slots.
+     *
+     * <p>The overlay module writes items in the same format menus do — the
+     * same {@code material}, the same {@code actions}, the same
+     * {@code condition} — but places them in the player's inventory rather
+     * than in a window, so it reads the slot itself. This is the half the two
+     * share, exposed rather than copied.
+     *
+     * @param section  the item's section
+     * @param compiler how to compile an action string
+     * @param problems where to report bad parts
+     * @return the compiled slot
+     * @since 1.79.0
+     */
+    public static UiItem item(ConfigurationSection section,
+                              Function<String, ActionTemplate> compiler,
+                              Problems problems) {
+        return readItem(section, new Binder(compiler, problems));
+    }
+
+    /**
      * Reads one slot.
      *
      * <p>What it looks like is read by the item module, which owns that format
