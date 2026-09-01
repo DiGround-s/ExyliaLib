@@ -41,6 +41,15 @@ import java.util.List;
  * <p>Being a record, this is read once at load and then only field access, and
  * it nests inside a plugin's own config record like any other section.
  *
+ * <h2>What is not written here</h2>
+ * How long a timer runs is the plugin's, not the file's. A countdown is always
+ * the same number something else is already counting — the match, the warmup,
+ * the combat tag — so a key that could set it to anything else could only ever
+ * disagree with what is happening on the server. A plugin that counts down
+ * builds the display itself, {@code Effects.title(text).countdown(seconds)},
+ * with the seconds it knows. What the owner keeps is how it looks: the text,
+ * the fades, and {@code time-style} for how {@code %time%} is written.
+ *
  * @param title     the title to show, or {@code null}
  * @param actionBar the action bar to show, or {@code null}
  * @param bossBar   the boss bar to show, or {@code null}
@@ -87,7 +96,6 @@ public record EffectConfig(
      * @param fadeIn   seconds to fade in
      * @param stay     seconds fully visible; 0 keeps it up until stopped
      * @param fadeOut  seconds to fade out
-     * @param countdown seconds to count down; 0 for no countdown
      * @param timeStyle how %time% is written
      */
     public record Title(
@@ -103,9 +111,6 @@ public record EffectConfig(
 
             double fadeOut,
 
-            @Comment("Counts down for this many seconds, writing the time into %time%.")
-            double countdown,
-
             @Comment("auto, seconds, tenths, hundredths, clock or full.")
             String timeStyle) implements Sparse {
 
@@ -114,7 +119,7 @@ public record EffectConfig(
             // No fade in: a title that has to appear is nearly always one
             // reacting to something that just happened, and half a second of
             // it fading up reads as lag rather than as polish.
-            this("", "", 0, 3.0, 1.0, 0, "auto");
+            this("", "", 0, 3.0, 1.0, "auto");
         }
 
         /** Returns whether neither line says anything. */
@@ -142,7 +147,6 @@ public record EffectConfig(
      *
      * @param text      the text
      * @param duration  seconds to show it; 0 keeps it up until stopped
-     * @param countdown seconds to count down; 0 for no countdown
      * @param timeStyle how %time% is written
      */
     public record ActionBar(
@@ -152,15 +156,12 @@ public record EffectConfig(
             @Comment("Seconds to show it. 0 keeps it up until something stops it.")
             double duration,
 
-            @Comment("Counts down for this many seconds, writing the time into %time%.")
-            double countdown,
-
             @Comment("auto, seconds, tenths, hundredths, clock or full.")
             String timeStyle) implements Sparse {
 
         /** An empty action bar, which shows nothing. */
         public ActionBar() {
-            this("", 3.0, 0, "auto");
+            this("", 3.0, "auto");
         }
 
         /** Returns whether there is nothing to show. */
@@ -185,7 +186,6 @@ public record EffectConfig(
      * @param text      the bar title
      * @param colour    the bar colour
      * @param overlay   whether the bar is segmented
-     * @param countdown seconds to count down, emptying the bar
      * @param countUp   seconds to count up towards, filling the bar
      * @param progress  a fixed fill from 0 to 1, when not timed
      * @param timeStyle how %time% is written
@@ -200,9 +200,6 @@ public record EffectConfig(
             @Comment("PROGRESS, NOTCHED_6, NOTCHED_10, NOTCHED_12 or NOTCHED_20.")
             String overlay,
 
-            @Comment("Counts down for this many seconds, emptying the bar and writing %time%.")
-            double countdown,
-
             @Comment("Counts up towards this many seconds, filling the bar.")
             double countUp,
 
@@ -214,7 +211,7 @@ public record EffectConfig(
 
         /** An empty boss bar, which shows nothing. */
         public BossBar() {
-            this("", "PURPLE", "PROGRESS", 0, 0, 1.0, "auto");
+            this("", "PURPLE", "PROGRESS", 0, 1.0, "auto");
         }
 
         /** Returns whether the bar has no title, and so is never shown. */

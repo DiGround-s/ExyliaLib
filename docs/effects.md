@@ -19,9 +19,9 @@ Effects.play(config.onWin(), player);
 
 | Section | Fields |
 | --- | --- |
-| `Title` | `text`, `subtitle`, `fadeIn`, `stay`, `fadeOut`, `countdown`, `timeStyle` |
-| `ActionBar` | `text`, `duration`, `countdown`, `timeStyle` |
-| `BossBar` | `text`, `colour`, `overlay`, `countdown`, `countUp`, `progress`, `timeStyle` |
+| `Title` | `text`, `subtitle`, `fadeIn`, `stay`, `fadeOut`, `timeStyle` |
+| `ActionBar` | `text`, `duration`, `timeStyle` |
+| `BossBar` | `text`, `colour`, `overlay`, `countUp`, `progress`, `timeStyle` |
 | `Sound` | `name`, `volume`, `pitch`, `category` |
 | `Particle` | `name`, `count`, `spread`, `speed` |
 | `Firework` | `colours`, `fades`, `shape`, `flicker`, `trail` |
@@ -34,6 +34,13 @@ file until an owner writes it. See [Sections that do nothing](config.md#sections
 Titles default to **no fade** (`fade-in: 0.0`, `stay: 3.0`, `fade-out: 1.0`): a
 title that reacts to something that just happened has to be on screen when it
 happens, and half a second of it fading up reads as lag.
+
+**How long a timer runs is not a config key.** A countdown is always the same
+number something else is already counting — the match, the warmup, the combat
+tag — so a key that could set it to anything else could only ever disagree with
+what is happening. A plugin that counts down builds the display itself,
+`Effects.title(text).countdown(seconds)`, with the seconds it knows; the file
+keeps how it looks — the text, the fades, `time-style`.
 
 Times are **seconds with decimals** — `countdown(3.3)` is 3.3 real seconds,
 and `%time%` displays it as `3.3`. `%time%` belongs to the effect, never to

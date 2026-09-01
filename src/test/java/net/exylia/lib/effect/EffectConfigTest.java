@@ -22,6 +22,7 @@ import java.nio.file.Path;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -52,7 +53,7 @@ class EffectConfigTest {
     record Round(EffectConfig onWin) {
 
         Round() {
-            this(new EffectConfig(new EffectConfig.Title("{primary}VICTORY", "", 0, 3, 1, 0, "auto"),
+            this(new EffectConfig(new EffectConfig.Title("{primary}VICTORY", "", 0, 3, 1, "auto"),
                     new EffectConfig.ActionBar(), new EffectConfig.BossBar(),
                     new EffectConfig.Sound(), new EffectConfig.Particle(),
                     new EffectConfig.Firework()));
@@ -143,7 +144,6 @@ class EffectConfigTest {
                   boss-bar:
                     text: 'Starting in %time%s'
                     colour: PURPLE
-                    countdown: 10.0
                     time-style: tenths
                 """);
 
@@ -154,7 +154,7 @@ class EffectConfigTest {
         assertEquals("{primary}VICTORY", arena.onWin().title().text());
         assertEquals(3.0, arena.onWin().title().stay(), 0.0001);
         assertEquals("ENTITY_PLAYER_LEVELUP", arena.onWin().sound().name());
-        assertEquals(10.0, arena.onCountdown().bossBar().countdown(), 0.0001);
+        assertEquals("tenths", arena.onCountdown().bossBar().timeStyle());
 
         Effects.play(arena.onWin(), viewer.player());
         FakeServer.tick(1);
@@ -164,8 +164,8 @@ class EffectConfigTest {
     }
 
     @Test
-    @DisplayName("a configured countdown really counts")
-    void configuredCountdownCounts() throws Exception {
+    @DisplayName("how long a timer runs is the plugin's, not the file's")
+    void countdownIsNotAConfigKey() throws Exception {
         Files.writeString(new File(folder.toFile(), "arena.yml").toPath(), """
                 on-countdown:
                   boss-bar:
@@ -174,17 +174,18 @@ class EffectConfigTest {
                     time-style: tenths
                 """);
 
-        Arena arena = Configs.define(plugin, "arena", Arena.class).load().get();
+        ConfigFile<Arena> config = Configs.define(plugin, "arena", Arena.class).load();
+        Arena arena = config.get();
+
+        assertTrue(config.issues().stream()
+                        .anyMatch(issue -> issue.path().endsWith("countdown")),
+                "a key the schema does not own is reported and taken out");
+
         Display display = Effects.play(arena.onCountdown(), viewer.player());
         FakeServer.tick(1);
 
-        assertNotNull(display, "a bar that stays on screen must return a handle");
-        assertNotNull(display.timer());
-        assertEquals(2.0, display.timer().displayed(), 0.1);
-
-        FakeServer.tick(20);
-
-        assertEquals(1.0, display.timer().displayed(), 0.1, "a second of ticks is a second gone");
+        assertNotNull(display, "a bar with no timer stays until it is stopped");
+        assertNull(display.timer(), "and nothing in the file can start one");
     }
 
     @Test
