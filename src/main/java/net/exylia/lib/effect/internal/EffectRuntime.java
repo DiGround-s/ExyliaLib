@@ -267,6 +267,11 @@ public final class EffectRuntime {
         return ConfigPlayer.play(effect, viewer, owner);
     }
 
+    /** Plays a configured effect that counts down for a length the caller knows. */
+    public static Display play(EffectConfig effect, Player viewer, @Nullable String owner, double seconds) {
+        return ConfigPlayer.play(effect, viewer, owner, seconds);
+    }
+
     /** Plays a configured effect for everybody online. */
     public static void playAll(EffectConfig effect) {
         playAll(effect, null);

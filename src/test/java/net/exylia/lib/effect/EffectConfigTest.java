@@ -189,6 +189,28 @@ class EffectConfigTest {
     }
 
     @Test
+    @DisplayName("the caller's countdown is what counts")
+    void callerSuppliedCountdownCounts() throws Exception {
+        Files.writeString(new File(folder.toFile(), "arena.yml").toPath(), """
+                on-countdown:
+                  boss-bar:
+                    text: '%time%'
+                    time-style: tenths
+                """);
+
+        Arena arena = Configs.define(plugin, "arena", Arena.class).load().get();
+        Display display = Effects.play(arena.onCountdown(), viewer.player(), 2.0);
+        FakeServer.tick(1);
+
+        assertNotNull(display.timer());
+        assertEquals(2.0, display.timer().displayed(), 0.1);
+
+        FakeServer.tick(20);
+
+        assertEquals(1.0, display.timer().displayed(), 0.1, "a second of ticks is a second gone");
+    }
+
+    @Test
     @DisplayName("a section left out simply does not play")
     void missingSectionsAreSkipped() throws Exception {
         Files.writeString(new File(folder.toFile(), "arena.yml").toPath(), """

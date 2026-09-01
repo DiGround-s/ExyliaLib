@@ -62,6 +62,21 @@ public final class PluginEffects {
     }
 
     /**
+     * Plays a configured effect that counts down for a length this plugin
+     * knows, writing the time into {@code %time%}.
+     *
+     * @param effect  the configured effect
+     * @param viewer  who should see it
+     * @param seconds how long it counts for
+     * @return the display when the effect stays on screen, otherwise
+     *         {@code null}
+     */
+    public Display play(@NotNull EffectConfig effect, @NotNull org.bukkit.entity.Player viewer,
+                        double seconds) {
+        return net.exylia.lib.effect.internal.EffectRuntime.play(effect, viewer, plugin.getName(), seconds);
+    }
+
+    /**
      * Plays a configured effect for everybody online, bound to this plugin.
      *
      * @param effect the configured effect

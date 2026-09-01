@@ -38,9 +38,15 @@ happens, and half a second of it fading up reads as lag.
 **How long a timer runs is not a config key.** A countdown is always the same
 number something else is already counting — the match, the warmup, the combat
 tag — so a key that could set it to anything else could only ever disagree with
-what is happening. A plugin that counts down builds the display itself,
-`Effects.title(text).countdown(seconds)`, with the seconds it knows; the file
-keeps how it looks — the text, the fades, `time-style`.
+what is happening. The seconds come from the code, the look from the file:
+
+```java
+Effects.play(config.onCountdown(), player, matchSeconds);   // a whole block, counting
+Effects.title(text).countdown(matchSeconds).show(player);   // or one display
+```
+
+A teleport already does this for you: `onStart(effect)` counts over the warmup
+it was given.
 
 Times are **seconds with decimals** — `countdown(3.3)` is 3.3 real seconds,
 and `%time%` displays it as `3.3`. `%time%` belongs to the effect, never to

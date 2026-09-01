@@ -27,6 +27,10 @@ final class ConfigPlayer {
     }
 
     static Display play(EffectConfig effect, Player viewer, String owner) {
+        return play(effect, viewer, owner, 0);
+    }
+
+    static Display play(EffectConfig effect, Player viewer, String owner, double seconds) {
         if (effect == null || viewer == null) {
             return null;
         }
@@ -35,12 +39,12 @@ final class ConfigPlayer {
 
         EffectConfig.BossBar bossBar = effect.bossBar();
         if (bossBar != null && !bossBar.isEmpty()) {
-            handle = own(bossBar(bossBar), owner).show(viewer);
+            handle = own(counting(bossBar(bossBar), seconds), owner).show(viewer);
         }
 
         EffectConfig.Title title = effect.title();
         if (title != null && !title.isEmpty()) {
-            Display shown = own(title(title), owner).show(viewer);
+            Display shown = own(counting(title(title), seconds), owner).show(viewer);
             if (handle == null) {
                 handle = shown;
             }
@@ -48,7 +52,7 @@ final class ConfigPlayer {
 
         EffectConfig.ActionBar actionBar = effect.actionBar();
         if (actionBar != null && !actionBar.isEmpty()) {
-            Display shown = own(actionBar(actionBar), owner).show(viewer);
+            Display shown = own(counting(actionBar(actionBar), seconds), owner).show(viewer);
             if (handle == null) {
                 handle = shown;
             }
@@ -89,6 +93,21 @@ final class ConfigPlayer {
         }
 
         return handle;
+    }
+
+    // How long a timer runs is the caller's, never the file's: it is the same
+    // number the match or the warmup is already counting, and a key that could
+    // set it to anything else could only ever disagree with what is happening.
+    private static TitleBuilder counting(TitleBuilder builder, double seconds) {
+        return seconds > 0 ? builder.countdown(seconds) : builder;
+    }
+
+    private static ActionBarBuilder counting(ActionBarBuilder builder, double seconds) {
+        return seconds > 0 ? builder.countdown(seconds) : builder;
+    }
+
+    private static BossBarBuilder counting(BossBarBuilder builder, double seconds) {
+        return seconds > 0 ? builder.countdown(seconds) : builder;
     }
 
     private static TitleBuilder own(TitleBuilder builder, String owner) {

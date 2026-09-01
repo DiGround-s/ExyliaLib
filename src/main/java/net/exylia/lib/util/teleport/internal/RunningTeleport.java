@@ -106,7 +106,10 @@ final class RunningTeleport implements TeleportHandle {
             perform();
             return;
         }
-        play(plan.onStart());
+        // The warmup's own length, because the effect is the warmup being
+        // shown: a file that could set the number itself could only ever
+        // disagree with the teleport it is counting.
+        play(plan.onStart(), remainingWarmupSeconds());
         // Reported once immediately: a countdown whose first frame only appears
         // a quarter of a second in reads as a delay before the delay.
         report();
@@ -337,6 +340,10 @@ final class RunningTeleport implements TeleportHandle {
     }
 
     private void play(@Nullable EffectConfig effect) {
+        play(effect, 0);
+    }
+
+    private void play(@Nullable EffectConfig effect, double seconds) {
         if (effect == null) {
             return;
         }
@@ -345,7 +352,7 @@ final class RunningTeleport implements TeleportHandle {
             // out from the calling class, and the caller here is the library
             // itself, which under a shading or loader classloader resolves to
             // nothing at all.
-            Effects.of(plan.plugin()).play(effect, plan.player());
+            Effects.of(plan.plugin()).play(effect, plan.player(), seconds);
         } catch (RuntimeException failed) {
             // A misconfigured sound name should not stop a teleport: the point
             // of the module is the move, and the effect is decoration on it.

@@ -246,6 +246,26 @@ public final class Effects {
     }
 
     /**
+     * Plays a configured effect that counts down, writing the time into
+     * {@code %time%}.
+     *
+     * <p>How long it counts for is the caller's: it is the same number the
+     * match, the warmup or the tag is already counting, so it is not a key an
+     * owner can set to disagree with what is happening. The file keeps how it
+     * looks — the text, the fades, {@code time-style}.
+     *
+     * @param effect  the configured effect
+     * @param viewer  who should see it
+     * @param seconds how long it counts for
+     * @return the display when the effect stays on screen, otherwise
+     *         {@code null}
+     */
+    public static Display play(@NotNull EffectConfig effect, @NotNull org.bukkit.entity.Player viewer,
+                               double seconds) {
+        return EffectRuntime.play(effect, viewer, null, seconds);
+    }
+
+    /**
      * Plays a configured effect for everybody online.
      *
      * @param effect the configured effect
