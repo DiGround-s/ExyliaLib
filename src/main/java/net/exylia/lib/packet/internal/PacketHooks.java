@@ -7,7 +7,12 @@ import com.github.retrooper.packetevents.event.PacketReceiveEvent;
 import com.github.retrooper.packetevents.event.PacketSendEvent;
 import com.github.retrooper.packetevents.protocol.packettype.PacketType;
 import com.github.retrooper.packetevents.protocol.packettype.PacketTypeCommon;
+import com.github.retrooper.packetevents.protocol.entity.data.EntityData;
+import com.github.retrooper.packetevents.protocol.entity.data.EntityDataTypes;
+import com.github.retrooper.packetevents.protocol.entity.type.EntityTypes;
 import com.github.retrooper.packetevents.protocol.player.User;
+import com.github.retrooper.packetevents.util.Vector3d;
+import com.github.retrooper.packetevents.util.Vector3f;
 import com.github.retrooper.packetevents.util.Vector3i;
 import com.github.retrooper.packetevents.wrapper.PacketWrapper;
 import com.github.retrooper.packetevents.wrapper.play.client.WrapperPlayClientPlayerFlying;
@@ -37,6 +42,7 @@ import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerPl
 import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerPlayerPositionAndLook;
 import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerSpawnEntity;
 import io.github.retrooper.packetevents.util.SpigotConversionUtil;
+import io.github.retrooper.packetevents.util.SpigotReflectionUtil;
 import org.bukkit.Location;
 import org.bukkit.block.data.BlockData;
 import org.bukkit.entity.Player;
@@ -44,6 +50,7 @@ import org.bukkit.entity.Player;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.ThreadLocalRandom;
 
@@ -90,6 +97,17 @@ final class PacketHooks extends PacketListenerAbstract implements PacketSink {
             // Shutting down after PacketEvents already did is not a failure.
         }
     }
+
+    // Display entity metadata, as the protocol numbers it since 1.19.4.
+    private static final int FLAGS = 0;
+    private static final int TRANSLATION = 11;
+    private static final int SCALE = 12;
+    private static final int GLOW_COLOR = 22;
+    private static final int BLOCK_STATE = 23;
+    /** Entity flag 0x40: glowing. */
+    private static final byte GLOWING = 0x40;
+    private static final Vector3f OUTSET = new Vector3f(-0.005f, -0.005f, -0.005f);
+    private static final Vector3f OVERSIZE = new Vector3f(1.01f, 1.01f, 1.01f);
 
     private static void send(Player player, PacketWrapper<?> packet) {
         PacketEvents.getAPI().getPlayerManager().sendPacket(player, packet);
@@ -280,6 +298,40 @@ final class PacketHooks extends PacketListenerAbstract implements PacketSink {
         }
         send(viewer, new WrapperPlayServerMultiBlockChange(
                 new Vector3i(section.x(), section.y(), section.z()), true, encoded));
+    }
+
+    /**
+     * A block display the size of the block, invisible behind the world but
+     * glowing through it.
+     *
+     * <p>Spawn and metadata go out together: a display with no metadata is a
+     * zero-sized nothing, and the pair is what the client needs to draw the
+     * outline. The scale is a hair over one so the outline sits outside the
+     * real block's faces rather than fighting them.
+     */
+    @Override
+    public void glowingBlock(Player viewer, int entityId, Location at, BlockData data, int argb) {
+        send(viewer, new WrapperPlayServerSpawnEntity(entityId, Optional.of(UUID.randomUUID()),
+                EntityTypes.BLOCK_DISPLAY,
+                new Vector3d(at.getBlockX(), at.getBlockY(), at.getBlockZ()),
+                0f, 0f, 0f, 0, Optional.empty()));
+        send(viewer, new WrapperPlayServerEntityMetadata(entityId, List.of(
+                new EntityData<>(FLAGS, EntityDataTypes.BYTE, GLOWING),
+                new EntityData<>(TRANSLATION, EntityDataTypes.VECTOR3F, OUTSET),
+                new EntityData<>(SCALE, EntityDataTypes.VECTOR3F, OVERSIZE),
+                new EntityData<>(GLOW_COLOR, EntityDataTypes.INT, argb),
+                new EntityData<>(BLOCK_STATE, EntityDataTypes.BLOCK_STATE,
+                        SpigotConversionUtil.fromBukkitBlockData(data).getGlobalId()))));
+    }
+
+    @Override
+    public void destroyEntities(Player viewer, int[] entityIds) {
+        send(viewer, new WrapperPlayServerDestroyEntities(entityIds));
+    }
+
+    @Override
+    public int newEntityId() {
+        return SpigotReflectionUtil.generateEntityId();
     }
 
     @Override

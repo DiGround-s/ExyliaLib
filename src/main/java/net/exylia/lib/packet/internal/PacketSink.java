@@ -24,6 +24,15 @@ public interface PacketSink {
     void blocks(Player viewer, SectionGroups.Section section, List<Location> positions,
                 Map<Location, BlockData> data);
 
+    /** Reserves an entity id that cannot collide with a real entity. */
+    int newEntityId();
+
+    /** Outlines one block for one viewer with a client-side display entity. */
+    void glowingBlock(Player viewer, int entityId, Location at, BlockData data, int argb);
+
+    /** Removes client-side entities from one viewer. */
+    void destroyEntities(Player viewer, int[] entityIds);
+
     /** Tells a client its game mode, 0–3 in vanilla order. */
     void gameMode(Player viewer, int mode);
 
