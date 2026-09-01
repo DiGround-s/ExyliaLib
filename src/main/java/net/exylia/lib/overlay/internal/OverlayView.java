@@ -16,6 +16,7 @@ import net.exylia.lib.overlay.OverlayKeys;
 import net.exylia.lib.overlay.OverlaySlots;
 import net.exylia.lib.task.TaskHandle;
 import net.exylia.lib.task.Tasks;
+import net.exylia.lib.ui.ClickBindings;
 import net.exylia.lib.ui.ClickKind;
 import net.exylia.lib.ui.UiItem;
 import net.exylia.lib.ui.UiRefresh;
@@ -261,12 +262,13 @@ public final class OverlayView {
         if (closed || !viewer.isOnline()) {
             return;
         }
+        // A slot the overlay owns but draws nothing in falls back to what the
+        // overlay says an empty hand does; usually nothing, and then this
+        // returns below.
         UiItem item = live.get(index);
-        if (item == null) {
-            return;
-        }
-        List<ActionTemplate> actions = item.bindings().forClick(kind);
-        List<CommandLine> commands = item.bindings().commandsForClick(kind);
+        ClickBindings bound = item != null ? item.bindings() : definition.emptyHand();
+        List<ActionTemplate> actions = bound.forClick(kind);
+        List<CommandLine> commands = bound.commandsForClick(kind);
         if (actions.isEmpty() && commands.isEmpty()) {
             return;
         }

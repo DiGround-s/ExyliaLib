@@ -84,6 +84,17 @@ public final class ClickBindings {
         return bound == null ? List.of() : bound;
     }
 
+    /**
+     * Returns whether this kind of click does anything.
+     *
+     * @param kind how the button was pressed
+     * @return whether an action or a command is bound to it
+     * @since 1.82.1
+     */
+    public boolean bound(@NotNull ClickKind kind) {
+        return !forClick(kind).isEmpty() || !commandsForClick(kind).isEmpty();
+    }
+
     /** Builds bindings from configuration. */
     public static final class Builder {
 

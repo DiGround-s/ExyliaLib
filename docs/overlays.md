@@ -161,6 +161,9 @@ shown an empty hand and the server has one too. What the overlay refuses there
 is the other case: a blanked slot with a **real** item under it, where letting
 the press through would use something that is not on the player's screen.
 
+Which of the two it is depends on what the wearer happens to be carrying, so a
+plugin that wants a blank slot to *do* something binds it — see below.
+
 ## What a press runs
 
 The same click vocabulary a menu button answers to, so an overlay item and a
@@ -183,8 +186,42 @@ when the press was on something — `overlay.target` (the entity) and
 Left-clicking **air** is not bound. The client sends nothing that distinguishes
 it from a swing, and guessing would fire an action every time somebody waved.
 
-A slot the overlay draws nothing in presses nothing. Under `hide_rest` every
-slot is the overlay's, so this is what keeps an empty hand a hand.
+A slot the overlay draws nothing in presses nothing, unless `empty_hand` says
+otherwise. Under `hide_rest` every slot is the overlay's, so this is what keeps
+an empty hand a hand.
+
+## What an empty hand does
+
+```yaml
+empty_hand:
+  actions:
+    - 'right: staff:inspect'
+  commands:
+    - 'shift_right: player: co i'
+```
+
+The same lines an item takes, minus the item, for every slot the overlay owns
+and draws nothing in. A staff mode uses it for the tools that answer a place
+rather than a button: right-clicking a chest to look inside it without opening
+it, wherever the wearer's hotbar happens to be.
+
+Binding a click here **takes it away from the world for good**. A bound press
+is answered by the overlay whether or not a real item sits under the blank
+slot, which is the entire point: the alternative is a tool that works on one
+hotbar slot and not the next, for a reason the wearer cannot see. Clicks left
+unbound behave as they do above — the world when the hand is really empty,
+refused when it is not.
+
+In code:
+
+```java
+overlays.show(player, OverlayDefinition.of("staff")
+        .hideRest()
+        .emptyHand(new ClickBindings.Builder()
+                .add("right: staff:inspect", actions::template)
+                .build())
+        .build());
+```
 
 ## Limits
 
@@ -243,7 +280,7 @@ Overlays.worn();           // how many players are wearing one
 | --- | --- |
 | `overlay/Overlays` | Entry point |
 | `overlay/PluginOverlays` | One plugin's overlays |
-| `overlay/OverlayDefinition` | A compiled overlay |
+| `overlay/OverlayDefinition` | A compiled overlay, and what its empty hand does |
 | `overlay/OverlayLock` | How much is frozen |
 | `overlay/OverlaySlots` | The three slot numberings and every conversion |
 | `overlay/OverlayKeys` | What an action is told about the press |

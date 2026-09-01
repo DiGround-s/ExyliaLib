@@ -1,5 +1,6 @@
 package net.exylia.lib.overlay;
 
+import net.exylia.lib.ui.ClickBindings;
 import net.exylia.lib.ui.UiItem;
 import net.exylia.lib.ui.UiRefresh;
 import net.exylia.lib.ui.UiSounds;
@@ -29,7 +30,8 @@ import java.util.Map;
  *                 inventory hidden underneath
  * @param hideRest whether slots the overlay does not draw look empty rather
  *                 than showing what the player really has
- * @param sounds   what pressing a slot sounds like
+ * @param sounds    what pressing a slot sounds like
+ * @param emptyHand what a slot the overlay owns but draws nothing in does
  * @since 1.79.0
  */
 public record OverlayDefinition(
@@ -39,7 +41,8 @@ public record OverlayDefinition(
         @NotNull OverlayLock lock,
         boolean pickup,
         boolean hideRest,
-        @NotNull UiSounds sounds) {
+        @NotNull UiSounds sounds,
+        @NotNull ClickBindings emptyHand) {
 
     public OverlayDefinition {
         for (int slot : items.keySet()) {
@@ -68,6 +71,27 @@ public record OverlayDefinition(
             }
         }
         return false;
+    }
+
+    /**
+     * What an empty-looking hand does.
+     *
+     * <p>Under {@code hide_rest} most of a wearer's slots draw nothing and
+     * look empty, and a press with one of them is refused rather than passed
+     * on: the player may really be holding something, and using an item the
+     * client is not showing is the thing an overlay exists to prevent. That
+     * leaves the press with nowhere to go, which is why it can be bound.
+     *
+     * <p>Binding it takes those presses away from the world for good: a slot
+     * that answers here is never handed to the server, whether or not a real
+     * item is under it, so what happens no longer depends on what the wearer
+     * happens to be carrying.
+     *
+     * @return the bindings, empty when nothing is bound
+     * @since 1.82.1
+     */
+    public @NotNull ClickBindings emptyHand() {
+        return emptyHand;
     }
 
     /**
@@ -101,6 +125,7 @@ public record OverlayDefinition(
         private boolean pickup = true;
         private boolean hideRest;
         private UiSounds sounds = UiSounds.DEFAULTS;
+        private ClickBindings emptyHand = ClickBindings.none();
 
         private Builder(String id) {
             this.id = id;
@@ -176,8 +201,20 @@ public record OverlayDefinition(
             return this;
         }
 
+        /**
+         * Binds what a slot the overlay owns but draws nothing in does.
+         *
+         * @param emptyHand the bindings, or {@code null} for none
+         * @return this
+         * @since 1.82.1
+         */
+        public @NotNull Builder emptyHand(@Nullable ClickBindings emptyHand) {
+            this.emptyHand = emptyHand == null ? ClickBindings.none() : emptyHand;
+            return this;
+        }
+
         public @NotNull OverlayDefinition build() {
-            return new OverlayDefinition(id, items, refresh, lock, pickup, hideRest, sounds);
+            return new OverlayDefinition(id, items, refresh, lock, pickup, hideRest, sounds, emptyHand);
         }
     }
 }
