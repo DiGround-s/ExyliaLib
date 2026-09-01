@@ -135,8 +135,11 @@ class PaletteReloadTest {
     @Test
     @DisplayName("re-drawing everything reports how many it touched")
     void invalidateAllCounts() {
+        // Two players, because one player has one action bar: a second one for
+        // the same screen replaces the first rather than joining it.
+        FakePlayer other = new FakePlayer("Alex");
         Effects.actionBar("{primary}One").show(viewer.player());
-        Effects.actionBar("{primary}Two").show(viewer.player());
+        Effects.actionBar("{primary}Two").show(other.player());
         FakeServer.tick(1);
 
         assertEquals(2, EffectRuntime.invalidateAll());

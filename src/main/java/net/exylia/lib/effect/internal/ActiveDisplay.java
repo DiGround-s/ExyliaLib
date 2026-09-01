@@ -84,6 +84,9 @@ abstract class ActiveDisplay implements Display {
         this.owner = registration.plugin().getName();
         this.scheduler = registration.scheduler();
 
+        if (exclusive()) {
+            EffectRuntime.supersede(this);
+        }
         EffectRuntime.register(this);
         run(() -> draw(viewer, rendered, timer));
 
@@ -136,17 +139,52 @@ abstract class ActiveDisplay implements Display {
         return false;
     }
 
+    /**
+     * Returns whether a newer display of this kind replaces this one.
+     *
+     * <p>The client has one action bar and one title, so two displays writing
+     * either of them are not two effects: they are one screen being fought
+     * over, redrawn by two tasks at whatever rate each of them ticks. That is
+     * what a player sees flickering when a toggle is pressed twice — the old
+     * effect was never told it had been replaced.
+     *
+     * <p>A boss bar is the other kind. The client stacks them, an owner
+     * showing two at once means two, and replacing one with the other would be
+     * a bug rather than a fix.
+     */
+    boolean exclusive() {
+        return false;
+    }
+
     @Override
     public void stop() {
         finish(true);
     }
 
     /**
+     * Ends this effect because a newer one of the same kind took its screen.
+     *
+     * <p>Neither cleared nor ended: the display that replaces it draws over the
+     * same pixels in the same tick, so clearing would only make it blink, and
+     * an {@code onEnd} is the consequence of a countdown reaching zero — this
+     * one never did.
+     */
+    void superseded() {
+        finish(false, false);
+    }
+
+    private void finish(boolean clearScreen) {
+        finish(clearScreen, true);
+    }
+
+    /**
      * Ends the effect once.
      *
      * @param clearScreen whether the effect still needs removing from the screen
+     * @param runEnd      whether the effect reached its own end, and so runs
+     *                    whatever was bound to it
      */
-    private void finish(boolean clearScreen) {
+    private void finish(boolean clearScreen, boolean runEnd) {
         if (!ended.compareAndSet(false, true)) {
             return;
         }
@@ -161,7 +199,7 @@ abstract class ActiveDisplay implements Display {
             run(() -> clear(viewer));
         }
 
-        Runnable action = onEnd;
+        Runnable action = runEnd ? onEnd : null;
         if (action != null) {
             // On the viewer's own thread, so the action may touch the game. That
             // is the point of onEnd: it is where the countdown's consequence
@@ -242,6 +280,11 @@ abstract class ActiveDisplay implements Display {
     /** Returns whether this display belongs to a plugin. */
     boolean ownedBy(String pluginName) {
         return owner.equals(pluginName);
+    }
+
+    /** The plugin this display runs and is cleaned up under. */
+    String owner() {
+        return owner;
     }
 
     /** Returns whether this display is showing to a player. */

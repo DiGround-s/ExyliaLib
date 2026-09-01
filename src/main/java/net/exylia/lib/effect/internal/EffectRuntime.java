@@ -169,6 +169,27 @@ public final class EffectRuntime {
         return !REGISTRATIONS.isEmpty();
     }
 
+    /**
+     * Ends whatever this display is about to replace.
+     *
+     * <p>Same kind, same player, same plugin: one action bar or one title,
+     * being handed over. Scoped to the owner because another plugin's action
+     * bar is not this one's to take — two plugins writing the same line is a
+     * server's decision to make, not a race this module gets to settle.
+     *
+     * @param display the display that is starting
+     */
+    static void supersede(ActiveDisplay display) {
+        for (ActiveDisplay showing : List.copyOf(ACTIVE.keySet())) {
+            if (showing != display
+                    && showing.getClass() == display.getClass()
+                    && showing.ownedBy(display.owner())
+                    && showing.isFor(display.viewer())) {
+                showing.superseded();
+            }
+        }
+    }
+
     static void register(ActiveDisplay display) {
         ACTIVE.put(display, Boolean.TRUE);
     }

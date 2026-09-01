@@ -63,6 +63,11 @@ final class Displays {
             // re-sent to stay on screen.
             return stay <= 0;
         }
+
+        @Override
+        boolean exclusive() {
+            return true;
+        }
     }
 
     /**
@@ -94,6 +99,11 @@ final class Displays {
 
         @Override
         boolean repeats() {
+            return true;
+        }
+
+        @Override
+        boolean exclusive() {
             return true;
         }
     }

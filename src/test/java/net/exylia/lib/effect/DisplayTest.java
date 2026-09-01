@@ -61,6 +61,45 @@ class DisplayTest {
     // ------------------------------------------------------------------
 
     @Test
+    @DisplayName("a second action bar replaces the first instead of fighting it")
+    void actionBarSupersedesTheOneBefore() {
+        Effects.actionBar("First").permanent().show(viewer.player());
+        FakeServer.tick(1);
+        Effects.actionBar("Second").permanent().show(viewer.player());
+        FakeServer.tick(1);
+        viewer.clear();
+        // Long enough that a permanent action bar re-sends itself: what a
+        // player sees flicker is two of them doing that at once.
+        FakeServer.tick(80);
+
+        assertEquals(1, EffectRuntime.active(), "one screen, one display");
+        assertFalse(viewer.actionBars().isEmpty(), "the newer one keeps itself on screen");
+        assertTrue(viewer.actionBars().stream().allMatch("Second"::equals),
+                "the older effect must stop redrawing: " + viewer.actionBars());
+    }
+
+    @Test
+    @DisplayName("a replaced effect does not run what its own ending would have")
+    void supersededDisplayDoesNotRunOnEnd() {
+        AtomicInteger ended = new AtomicInteger();
+        Effects.actionBar("First").permanent().show(viewer.player()).onEnd(ended::incrementAndGet);
+        Effects.actionBar("Second").permanent().show(viewer.player());
+        FakeServer.tick(2);
+
+        assertEquals(0, ended.get(), "it was replaced, it did not finish");
+    }
+
+    @Test
+    @DisplayName("boss bars stack: two at once are two effects, not one screen")
+    void bossBarsDoNotSupersede() {
+        Effects.bossBar("First").show(viewer.player());
+        Effects.bossBar("Second").show(viewer.player());
+        FakeServer.tick(1);
+
+        assertEquals(2, EffectRuntime.active());
+    }
+
+    @Test
     @DisplayName("a ticking title replaces its text without restarting the fade")
     void titleRedrawsAsPartsOnly() {
         Effects.title("%time%").countdown(1.0).timeStyle("tenths").show(viewer.player());
