@@ -9,18 +9,28 @@ import java.util.List;
  * techniques the bot knows and which kit it carries, the difficulty decides how
  * well it executes them.
  *
+ * <p>Declaration order is menu order, so the ladder reads from the plainest
+ * format to the most specialised. Nothing persists an ordinal - a stored row
+ * keeps the name - so this list can be reordered whenever the menu wants it.
+ *
  * @since 1.73.0
  */
 public enum CombatMode {
 
     /** Plain vanilla melee. No techniques, no consumables. */
     NONE,
+    /** Sword and shield, played straight: combos, w-taps, strafes, few crits. */
+    SWORD,
     /** 1.8-flavoured sword combat: crits, w-taps, strafes, gapples, heal pots. */
     POT_PVP,
+    /** Axe and shield: guard breaks, gapples, cobwebs, lava and water. */
+    UHC,
     /** Obsidian, end crystals, respawn anchors, totems, traps. */
     CRYSTAL_PVP,
     /** Wind-charge launches into mace smashes. */
-    MACE_PVP;
+    MACE_PVP,
+    /** Hits are counted, not dealt. Pure combo practice. */
+    BOXING;
 
     /**
      * The modes worth offering somebody as a choice.
@@ -58,6 +68,9 @@ public enum CombatMode {
             case "MEDIUM", "PRO", "POTPVP", "POT" -> POT_PVP;
             case "CRYSTAL", "CRYSTALPVP" -> CRYSTAL_PVP;
             case "MACE", "MACEPVP" -> MACE_PVP;
+            case "SWORDPVP", "SWORD_PVP", "VANILLA" -> SWORD;
+            case "UHCPVP", "UHC_PVP" -> UHC;
+            case "BOX", "BOXINGPVP", "COMBO" -> BOXING;
             default -> {
                 try {
                     yield valueOf(raw.trim().toUpperCase());
