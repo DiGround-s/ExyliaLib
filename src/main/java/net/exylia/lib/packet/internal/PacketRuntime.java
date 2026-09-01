@@ -3,6 +3,7 @@ package net.exylia.lib.packet.internal;
 import net.exylia.lib.debug.Debug;
 import net.exylia.lib.packet.FakeBlocks;
 import net.exylia.lib.packet.FakeGameMode;
+import net.exylia.lib.packet.GlowingBlocks;
 import net.exylia.lib.packet.Movement;
 import net.exylia.lib.packet.PluginPackets;
 import net.exylia.lib.packet.SilentContainer;
@@ -57,6 +58,8 @@ public final class PacketRuntime {
     private static final Map<UUID, String> FROZEN_BY = new ConcurrentHashMap<>();
     /** viewer -> fake block positions they were shown. */
     private static final Map<UUID, Set<Location>> FAKED = new ConcurrentHashMap<>();
+    /** viewer -> outlined position to the client-side entity drawing it. */
+    static final Map<UUID, Map<Location, Integer>> OUTLINED = new ConcurrentHashMap<>();
     /** faked spectator -> real game mode at the time. */
     private static final Map<UUID, GameMode> SPECTATING = new ConcurrentHashMap<>();
     private static final Set<String> WARNED = ConcurrentHashMap.newKeySet();
@@ -112,6 +115,7 @@ public final class PacketRuntime {
         ANCHORS.clear();
         FROZEN_BY.clear();
         FAKED.clear();
+        OUTLINED.clear();
         SPECTATING.clear();
         WARNED.clear();
         Mirrors.shutdown();
@@ -130,7 +134,7 @@ public final class PacketRuntime {
      * <p>The plugin-manager check is what keeps {@link PacketHooks} from ever
      * being loaded on a server without PacketEvents.
      */
-    private static PacketSink sink() {
+    static PacketSink sink() {
         if (!tried) {
             synchronized (PacketRuntime.class) {
                 if (!tried) {
@@ -205,6 +209,7 @@ public final class PacketRuntime {
         ANCHORS.remove(id);
         FROZEN_BY.remove(id);
         FAKED.remove(id);
+        OUTLINED.remove(id);
         SPECTATING.remove(id);
         Mirrors.forget(player);
     }
@@ -223,6 +228,8 @@ public final class PacketRuntime {
         public void onWorldChange(PlayerChangedWorldEvent event) {
             // The client dropped every chunk of the old world; so do we.
             FAKED.remove(event.getPlayer().getUniqueId());
+            // Its entities went with them: forget without sending a despawn.
+            OUTLINED.remove(event.getPlayer().getUniqueId());
         }
 
         @EventHandler(ignoreCancelled = true)
@@ -250,15 +257,18 @@ public final class PacketRuntime {
         private final Plugin plugin;
         private final String name;
         private final SilentContainer containers;
+        private final BlockOutlines outlines;
 
         Impl(Plugin plugin) {
             this.plugin = plugin;
             this.name = plugin.getName();
             this.containers = new Mirrors(plugin);
+            this.outlines = new BlockOutlines(plugin);
         }
 
         @Override public @NotNull Visibility visibility() { return this; }
         @Override public @NotNull FakeBlocks fakeBlocks() { return this; }
+        @Override public @NotNull GlowingBlocks glowingBlocks() { return outlines; }
         @Override public @NotNull Movement movement() { return this; }
         @Override public @NotNull FakeGameMode fakeGameMode() { return this; }
         @Override public @NotNull SilentContainer silentContainer() { return containers; }
@@ -273,8 +283,9 @@ public final class PacketRuntime {
             }
             for (Player viewer : Bukkit.getOnlinePlayers()) {
                 clear(viewer);
+                outlines.clear(viewer);
                 if (SPECTATING.containsKey(viewer.getUniqueId())) {
-                    spectator(viewer, false);
+                    cameraView(viewer, false);
                 }
             }
             // With this plugin's rule gone, everyone it hid may be visible again.
@@ -407,7 +418,7 @@ public final class PacketRuntime {
         // ---- FakeGameMode ----
 
         @Override
-        public void spectator(@NotNull Player player, boolean enabled) {
+        public void cameraView(@NotNull Player player, boolean enabled) {
             PacketSink out = sink();
             if (out == null) {
                 return;
@@ -425,7 +436,7 @@ public final class PacketRuntime {
         }
 
         @Override
-        public boolean isSpectator(@NotNull Player player) {
+        public boolean isCameraView(@NotNull Player player) {
             return SPECTATING.containsKey(player.getUniqueId());
         }
     }

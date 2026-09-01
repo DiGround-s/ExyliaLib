@@ -19,6 +19,7 @@ import org.bukkit.inventory.meta.ArmorMeta;
 import org.bukkit.inventory.meta.BannerMeta;
 import org.bukkit.inventory.meta.BlockStateMeta;
 import org.bukkit.inventory.meta.ItemMeta;
+import org.bukkit.inventory.meta.LeatherArmorMeta;
 import org.bukkit.inventory.meta.PotionMeta;
 import org.bukkit.inventory.meta.trim.ArmorTrim;
 import org.bukkit.inventory.meta.trim.TrimMaterial;
@@ -75,6 +76,9 @@ public final class TraitApplier {
         if (traits.banner() != null) {
             banner(item, traits.banner(), resolve, problems);
         }
+        if (traits.dye() != null) {
+            dye(item, traits.dye(), resolve, problems);
+        }
         if (traits.consumable() != null) {
             consumable(item, traits.consumable(), problems);
         }
@@ -84,6 +88,28 @@ public final class TraitApplier {
         if (!traits.data().isEmpty() && owner != null) {
             data(item, traits.data(), owner, resolve);
         }
+    }
+
+    /**
+     * Dyes leather.
+     *
+     * <p>Leather armour and a leather horse's armour are the only things with
+     * a dye slot; anything else keeps the colour it was made with, the way a
+     * trim on a sword is ignored.
+     */
+    private static void dye(ItemStack item, String written, UnaryOperator<String> resolve,
+                            Reporter problems) {
+        if (!(item.getItemMeta() instanceof LeatherArmorMeta meta)) {
+            return;
+        }
+        String value = resolve.apply(written);
+        Color colour = Registries.colour(value);
+        if (colour == null) {
+            problems.found("color", "\"" + value + "\" is not a colour");
+            return;
+        }
+        meta.setColor(colour);
+        item.setItemMeta(meta);
     }
 
     private static void potion(ItemStack item, Potion potion, UnaryOperator<String> resolve,

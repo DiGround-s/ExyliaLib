@@ -16,6 +16,7 @@ import org.bukkit.enchantments.Enchantment;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemFlag;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.inventory.meta.EnchantmentStorageMeta;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.plugin.Plugin;
 
@@ -646,6 +647,15 @@ public final class ItemRenderer {
         return segmented;
     }
 
+    /**
+     * Writes the enchantments.
+     *
+     * <p>An enchanted book keeps them somewhere else: what a book carries to
+     * the anvil is its stored enchantments, and a book with
+     * {@code addEnchant} instead is a book that shows a line, costs levels,
+     * and enchants nothing. That is the one item type where the two are not
+     * the same field.
+     */
     private static void enchantments(ItemMeta meta, Map<String, Integer> enchantments,
                                      UnaryOperator<String> resolve,
                                      TraitApplier.Reporter problems) {
@@ -656,7 +666,11 @@ public final class ItemRenderer {
                 problems.found("enchantment", "there is no enchantment called \"" + name + "\"");
                 continue;
             }
-            meta.addEnchant(enchantment, entry.getValue(), true);
+            if (meta instanceof EnchantmentStorageMeta book) {
+                book.addStoredEnchant(enchantment, entry.getValue(), true);
+            } else {
+                meta.addEnchant(enchantment, entry.getValue(), true);
+            }
         }
     }
 

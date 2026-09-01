@@ -285,6 +285,30 @@ class ItemReaderTest {
     }
 
     @Test
+    @DisplayName("leather reads its dye, hex or named, and a placeholder makes it dynamic")
+    void dye() {
+        // ExyliaStaff, modules/staffmode/hotbar.yml.
+        Item item = read("""
+                material: LEATHER_CHESTPLATE
+                color: '#3FC7F4'
+                armor_trim:
+                  pattern: silence
+                  material: diamond
+                """);
+
+        assertEquals("#3FC7F4", item.traits().dye());
+        assertFalse(item.isDynamic(), "a written colour is the same for every viewer");
+        assertEquals("aqua", read("""
+                material: LEATHER_BOOTS
+                leather-color: aqua
+                """).traits().dye());
+        assertTrue(read("""
+                material: LEATHER_BOOTS
+                color: "%clan_color%"
+                """).isDynamic(), "a per-viewer colour cannot be cached");
+    }
+
+    @Test
     @DisplayName("half a trim is no trim")
     void halfATrimIsDropped() {
         Item item = read("""

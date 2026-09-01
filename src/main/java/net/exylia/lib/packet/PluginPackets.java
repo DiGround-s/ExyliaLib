@@ -18,6 +18,9 @@ public interface PluginPackets {
     /** Blocks one player sees and the server does not have. */
     @NotNull FakeBlocks fakeBlocks();
 
+    /** Blocks outlined for one player, seen through everything in the way. */
+    @NotNull GlowingBlocks glowingBlocks();
+
     /** Pinning a player in place. */
     @NotNull Movement movement();
 

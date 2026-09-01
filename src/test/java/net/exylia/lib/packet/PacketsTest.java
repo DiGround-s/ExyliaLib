@@ -53,8 +53,8 @@ class PacketsTest {
         packets.fakeBlocks().clear(alice.player());
         packets.fakeBlocks().clear(alice.player(), List.of(new Location(world, 1, 2, 3)));
 
-        packets.fakeGameMode().spectator(alice.player(), true);
-        assertFalse(packets.fakeGameMode().isSpectator(alice.player()));
+        packets.fakeGameMode().cameraView(alice.player(), true);
+        assertFalse(packets.fakeGameMode().isCameraView(alice.player()));
 
         Packets.release("Staff");
         Packets.releaseAll();
