@@ -555,6 +555,14 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
      * joining, so asking immediately would find a vanilla player and remember
      * that answer for the whole session.
      *
+     * <p>A join is also the third moment a sidebar can be lost, alongside a
+     * world change and a respawn, and the worst of the three: every plugin
+     * that shows a board on join is racing every other one, and several of
+     * them only decide what to show once a database has answered. The board a
+     * player ends up looking at is then whichever plugin's query finished
+     * last. Reclaiming a second later settles it in favour of the board this
+     * library was asked for, and costs nothing for a player who has none.
+     *
      * @param event the join event
      */
     @EventHandler(priority = EventPriority.MONITOR)
@@ -563,6 +571,7 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         // An outgoing metadata packet carries an entity id and nothing else, so
         // the way back to the player has to be recorded while they are here.
         NametagRuntime.register(player);
+        BoardManager.reinit(player);
         // Reading a file is not something the main thread should wait for.
         java.util.UUID id = player.getUniqueId();
         Tasks.of(this).runAsync(() -> Cooldowns.load(id));
