@@ -350,14 +350,14 @@ final class OverlayPackets extends PacketListenerAbstract implements OverlaySink
         if (action != DiggingAction.START_DIGGING) {
             return;
         }
-        OverlayClicks.WorldPress press = worldPress(view, player, held);
+        ClickKind kind = player.isSneaking() ? ClickKind.SHIFT_LEFT : ClickKind.LEFT;
+        OverlayClicks.WorldPress press = worldPress(view, player, held, kind);
         if (press == OverlayClicks.WorldPress.PASS) {
             return;
         }
         event.setCancelled(true);
         if (press == OverlayClicks.WorldPress.PRESS) {
             Vector3i at = packet.getBlockPosition();
-            ClickKind kind = player.isSneaking() ? ClickKind.SHIFT_LEFT : ClickKind.LEFT;
             atPlayer(view, () -> view.press(held, kind, null, blockAt(player, at)));
         }
     }
@@ -369,11 +369,13 @@ final class OverlayPackets extends PacketListenerAbstract implements OverlaySink
      * that the decision itself stays a function of three booleans and can be
      * tested without a server.
      */
-    private static OverlayClicks.WorldPress worldPress(OverlayView view, Player player, int slot) {
+    private static OverlayClicks.WorldPress worldPress(OverlayView view, Player player,
+                                                       int slot, ClickKind kind) {
         return OverlayClicks.worldPress(
                 view.pressedAt(slot) != null,
                 view.owns(slot),
-                isEmpty(player.getInventory().getItem(slot)));
+                isEmpty(player.getInventory().getItem(slot)),
+                view.definition().emptyHand().bound(kind));
     }
 
     private static boolean isEmpty(@Nullable org.bukkit.inventory.ItemStack stack) {
@@ -386,7 +388,8 @@ final class OverlayPackets extends PacketListenerAbstract implements OverlaySink
         int slot = hand == InteractionHand.OFF_HAND
                 ? OverlaySlots.OFFHAND
                 : player.getInventory().getHeldItemSlot();
-        OverlayClicks.WorldPress press = worldPress(view, player, slot);
+        ClickKind kind = player.isSneaking() ? ClickKind.SHIFT_RIGHT : ClickKind.RIGHT;
+        OverlayClicks.WorldPress press = worldPress(view, player, slot, kind);
         if (press == OverlayClicks.WorldPress.PASS) {
             return;
         }
@@ -394,7 +397,6 @@ final class OverlayPackets extends PacketListenerAbstract implements OverlaySink
         if (press == OverlayClicks.WorldPress.REFUSE) {
             return;
         }
-        ClickKind kind = player.isSneaking() ? ClickKind.SHIFT_RIGHT : ClickKind.RIGHT;
         atPlayer(view, () -> view.press(slot, kind, null, at == null ? null : blockAt(player, at)));
     }
 
@@ -409,7 +411,13 @@ final class OverlayPackets extends PacketListenerAbstract implements OverlaySink
         int slot = packet.getHand() == InteractionHand.OFF_HAND
                 ? OverlaySlots.OFFHAND
                 : player.getInventory().getHeldItemSlot();
-        OverlayClicks.WorldPress press = worldPress(view, player, slot);
+        boolean attack = packet.getAction()
+                == WrapperPlayClientInteractEntity.InteractAction.ATTACK;
+        boolean sneaking = player.isSneaking();
+        ClickKind kind = attack
+                ? (sneaking ? ClickKind.SHIFT_LEFT : ClickKind.LEFT)
+                : (sneaking ? ClickKind.SHIFT_RIGHT : ClickKind.RIGHT);
+        OverlayClicks.WorldPress press = worldPress(view, player, slot, kind);
         if (press == OverlayClicks.WorldPress.PASS) {
             return;
         }
@@ -417,12 +425,6 @@ final class OverlayPackets extends PacketListenerAbstract implements OverlaySink
         if (press == OverlayClicks.WorldPress.REFUSE) {
             return;
         }
-        boolean attack = packet.getAction()
-                == WrapperPlayClientInteractEntity.InteractAction.ATTACK;
-        boolean sneaking = player.isSneaking();
-        ClickKind kind = attack
-                ? (sneaking ? ClickKind.SHIFT_LEFT : ClickKind.LEFT)
-                : (sneaking ? ClickKind.SHIFT_RIGHT : ClickKind.RIGHT);
         int entityId = packet.getEntityId();
         atPlayer(view, () -> view.press(slot, kind, nearby(player, entityId), null));
     }

@@ -4,6 +4,7 @@ import net.exylia.lib.action.ActionTemplate;
 import net.exylia.lib.overlay.OverlayDefinition;
 import net.exylia.lib.overlay.OverlayLock;
 import net.exylia.lib.overlay.OverlaySlots;
+import net.exylia.lib.ui.ClickBindings;
 import net.exylia.lib.ui.UiItem;
 import net.exylia.lib.ui.UiRefresh;
 import net.exylia.lib.ui.UiSounds;
@@ -58,7 +59,38 @@ public final class OverlayLoader {
                 // accepts both and one that did not would be the odd one out.
                 config.getBoolean("pickup", config.getBoolean("pick-up", true)),
                 config.getBoolean("hide_rest", config.getBoolean("hide-rest", false)),
-                UiSounds.of(values(config.getConfigurationSection("sounds")), defaults));
+                UiSounds.of(values(config.getConfigurationSection("sounds")), defaults),
+                emptyHand(config, compiler, problems));
+    }
+
+    /**
+     * What a slot the overlay owns but draws nothing in does.
+     *
+     * <p>Written as an item's {@code actions} and {@code commands} are, minus
+     * the item: there is nothing to draw, which is the point of it.
+     */
+    private static ClickBindings emptyHand(ConfigurationSection config,
+                                           Function<String, ActionTemplate> compiler,
+                                           MenuLoader.Problems problems) {
+        ConfigurationSection section = config.getConfigurationSection("empty_hand");
+        if (section == null) {
+            section = config.getConfigurationSection("empty-hand");
+        }
+        if (section == null) {
+            return ClickBindings.none();
+        }
+        ClickBindings.Builder bindings = new ClickBindings.Builder();
+        for (String line : section.getStringList("actions")) {
+            bindings.add(line, compiler);
+        }
+        for (String line : section.getStringList("commands")) {
+            try {
+                bindings.addCommand(line);
+            } catch (IllegalArgumentException empty) {
+                problems.found("empty_hand command \"" + line + "\"", empty.getMessage());
+            }
+        }
+        return bindings.build();
     }
 
     private static void readItems(ConfigurationSection section,

@@ -28,7 +28,10 @@ public final class OverlayClicks {
      */
     public enum WorldPress {
 
-        /** The overlay draws the held slot, so the press is the overlay's. */
+        /**
+         * The press is the overlay's: it draws the held slot, or it binds
+         * what an empty-looking hand does.
+         */
         PRESS,
 
         /**
@@ -57,20 +60,30 @@ public final class OverlayClicks {
      * What matters for a press is whether the overlay <em>draws</em> the slot;
      * ownership only decides whether a real item is hiding under it.
      *
+     * <p>An overlay that binds its empty hand answers a blank slot itself.
+     * That is decided before the real item is looked at, on purpose: a tool
+     * that works or not depending on what the wearer happens to be carrying
+     * in that slot is worse than one that never works.
+     *
      * @param draws     whether the overlay draws an item in the held slot
      * @param owned     whether the slot is the overlay's at all
      * @param realEmpty whether the player's real slot is empty
+     * @param emptyHand whether the overlay binds this press on a blank slot
      * @return what to do with the press
      * @since 1.81.3
      */
-    public static @NotNull WorldPress worldPress(boolean draws, boolean owned, boolean realEmpty) {
+    public static @NotNull WorldPress worldPress(boolean draws, boolean owned, boolean realEmpty,
+                                                 boolean emptyHand) {
         if (draws) {
             return WorldPress.PRESS;
         }
-        if (!owned || realEmpty) {
+        if (!owned) {
             return WorldPress.PASS;
         }
-        return WorldPress.REFUSE;
+        if (emptyHand) {
+            return WorldPress.PRESS;
+        }
+        return realEmpty ? WorldPress.PASS : WorldPress.REFUSE;
     }
 
     /**

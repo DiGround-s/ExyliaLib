@@ -58,13 +58,15 @@ class OverlayClicksTest {
         assertFalse(owned(false, false, false, false));
     }
 
+    private static OverlayClicks.WorldPress press(boolean draws, boolean owned, boolean realEmpty) {
+        return OverlayClicks.worldPress(draws, owned, realEmpty, false);
+    }
+
     @Test
     @DisplayName("a slot the overlay draws answers a press in the world")
     void drawnSlotsPress() {
-        assertEquals(OverlayClicks.WorldPress.PRESS,
-                OverlayClicks.worldPress(true, true, true));
-        assertEquals(OverlayClicks.WorldPress.PRESS,
-                OverlayClicks.worldPress(true, true, false));
+        assertEquals(OverlayClicks.WorldPress.PRESS, press(true, true, true));
+        assertEquals(OverlayClicks.WorldPress.PRESS, press(true, true, false));
     }
 
     @Test
@@ -73,24 +75,39 @@ class OverlayClicksTest {
         // hide_rest owns all forty-one slots. Deciding on ownership alone left
         // a staff member unable to open a door, a chest, or anything else a
         // right click does, because every slot was "the overlay's".
-        assertEquals(OverlayClicks.WorldPress.PASS,
-                OverlayClicks.worldPress(false, true, true));
+        assertEquals(OverlayClicks.WorldPress.PASS, press(false, true, true));
     }
 
     @Test
     @DisplayName("a real item hidden under an undrawn slot is not usable")
     void hiddenItemIsRefused() {
-        assertEquals(OverlayClicks.WorldPress.REFUSE,
-                OverlayClicks.worldPress(false, true, false));
+        assertEquals(OverlayClicks.WorldPress.REFUSE, press(false, true, false));
     }
 
     @Test
     @DisplayName("a slot the overlay does not own is the player's")
     void unownedSlotsPass() {
+        assertEquals(OverlayClicks.WorldPress.PASS, press(false, false, false));
+        assertEquals(OverlayClicks.WorldPress.PASS, press(false, false, true));
+    }
+
+    @Test
+    @DisplayName("a bound empty hand answers whether or not a real item is under it")
+    void boundEmptyHandAlwaysPresses() {
+        // The point of binding it: a tool that works on one hotbar slot and
+        // not the next, because of what the wearer happens to be carrying
+        // there, is worse than one that never works.
+        assertEquals(OverlayClicks.WorldPress.PRESS,
+                OverlayClicks.worldPress(false, true, true, true));
+        assertEquals(OverlayClicks.WorldPress.PRESS,
+                OverlayClicks.worldPress(false, true, false, true));
+    }
+
+    @Test
+    @DisplayName("a bound empty hand claims nothing outside the overlay")
+    void boundEmptyHandStopsAtTheOverlay() {
         assertEquals(OverlayClicks.WorldPress.PASS,
-                OverlayClicks.worldPress(false, false, false));
-        assertEquals(OverlayClicks.WorldPress.PASS,
-                OverlayClicks.worldPress(false, false, true));
+                OverlayClicks.worldPress(false, false, true, true));
     }
 
     @Test
