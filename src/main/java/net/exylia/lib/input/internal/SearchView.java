@@ -78,17 +78,41 @@ final class SearchView<T> implements InventoryHolder {
     private final Map<T, String> normalized;
     private final int capacity;
 
+    /** Whether results are fetched a page at a time instead of held in full. */
+    private final boolean paged;
+
     private List<T> matches;
     private String query = "";
     private int page;
     private Inventory inventory;
+
+    /** How many results the current query has, when a source reported it. */
+    private int total;
+
+    /** True between asking a source for a page and receiving it. */
+    private boolean loading;
+
+    /** True when the last fetch failed, so the window can say so. */
+    private boolean unavailable;
+
+    /**
+     * Which fetch the drawn page belongs to.
+     *
+     * <p>A player typing a query and paging twice has three requests in flight
+     * over one window. Without a generation the slowest answer wins and the
+     * chest shows a page nobody asked for, so every answer carries the number
+     * it was issued with and a stale one is dropped.
+     */
+    private int generation;
 
     private SearchView(InputSession session, SearchInput<T> request) {
         this.session = session;
         this.request = request;
         this.normalized = request.normalizedSearchStrings();
         this.capacity = Math.min(PAGE_CAPACITY, Math.max(1, request.pageSize()));
+        this.paged = request.source() != null;
         this.matches = request.choices();
+        this.total = matches.size();
     }
 
     /**
@@ -134,7 +158,55 @@ final class SearchView<T> implements InventoryHolder {
     }
 
     int pages() {
-        return Math.max(1, (matches.size() + capacity - 1) / capacity);
+        int size = paged ? total : matches.size();
+        return Math.max(1, (size + capacity - 1) / capacity);
+    }
+
+    /** Whether results are fetched one page at a time. */
+    boolean paged() {
+        return paged;
+    }
+
+    /** How many results fit on one page. */
+    int capacity() {
+        return capacity;
+    }
+
+    /** How many results the visible page skips. */
+    int offset() {
+        return page * capacity;
+    }
+
+    /**
+     * Marks a fetch as started and returns the number its answer must carry.
+     *
+     * @return the generation to hand back to {@link #accept(int)}
+     */
+    int begin() {
+        this.loading = true;
+        this.unavailable = false;
+        return ++generation;
+    }
+
+    /** Whether an answer belongs to the fetch still being waited on. */
+    boolean accept(int issued) {
+        return issued == generation;
+    }
+
+    /** Installs a fetched page. */
+    void apply(@NotNull List<T> items, int count) {
+        this.matches = List.copyOf(items);
+        this.total = Math.max(count, items.size());
+        this.loading = false;
+        this.unavailable = false;
+    }
+
+    /** Records that the source could not answer, leaving the page empty. */
+    void unavailable() {
+        this.matches = List.of();
+        this.total = 0;
+        this.loading = false;
+        this.unavailable = true;
     }
 
     boolean hasPrevious() {
@@ -156,8 +228,10 @@ final class SearchView<T> implements InventoryHolder {
      */
     void query(@Nullable String rawQuery) {
         this.query = normalize(rawQuery);
-        this.matches = filter(request, normalized, this.query);
         this.page = 0;
+        if (!paged) {
+            this.matches = filter(request, normalized, this.query);
+        }
     }
 
     /** Moves by one page, clamped, so a stale click cannot address a missing page. */
@@ -179,6 +253,11 @@ final class SearchView<T> implements InventoryHolder {
         if (slot < 0 || slot >= capacity) {
             return null;
         }
+        if (paged) {
+            // The page in hand is the page on screen: it was fetched at this
+            // offset, so the slot indexes it directly.
+            return slot < matches.size() ? matches.get(slot) : null;
+        }
         int index = page * capacity + slot;
         return index < matches.size() ? matches.get(index) : null;
     }
@@ -195,6 +274,11 @@ final class SearchView<T> implements InventoryHolder {
      * @return how many elements that query would match
      */
     int previewCount(@Nullable String rawQuery) {
+        if (paged) {
+            // Counting would be an HTTP request per keystroke. The count comes
+            // back with the page, once, when the query is confirmed.
+            return -1;
+        }
         return filter(request, normalized, normalize(rawQuery)).size();
     }
 
@@ -208,7 +292,7 @@ final class SearchView<T> implements InventoryHolder {
     void draw() {
         inventory.clear();
 
-        int start = page * capacity;
+        int start = paged ? 0 : page * capacity;
         int end = Math.min(start + capacity, matches.size());
         for (int index = start; index < end; index++) {
             inventory.setItem(index - start, icon(matches.get(index)));
@@ -312,26 +396,47 @@ final class SearchView<T> implements InventoryHolder {
     }
 
     private ItemStack icon(T value) {
-        Material material;
+        ItemStack base;
         String label;
         try {
-            material = request.iconOf(value);
+            base = request.itemOf(value);
             label = request.labelOf(value);
         } catch (RuntimeException brokenElement) {
             // One unreadable element must not blank the page. Commons swallowed
             // this silently; here the row still renders and stays selectable.
-            material = Material.PAPER;
+            base = null;
             label = String.valueOf(value);
         }
-        return labelled(material, "{primary}&l%label%", label,
+        if (base == null) {
+            Material material;
+            try {
+                material = request.iconOf(value);
+            } catch (RuntimeException brokenElement) {
+                material = Material.PAPER;
+            }
+            base = new ItemStack(material);
+        }
+        return written(base, Text.of("{primary}&l%label%").with("%label%", label).build(),
                 "{letters_black}▎ {letters}Click to choose this option.");
     }
 
     private ItemStack info() {
         String state = query.isEmpty() ? "{muted}none" : "{highlight}" + '"' + query + '"';
+        if (loading) {
+            return button(Material.CLOCK, "{primary}&lSEARCHING",
+                    "{letters_black}▎ {letters}Query {letters_black}» " + state,
+                    "{letters_black}▎ {letters}Fetching results…");
+        }
+        if (unavailable) {
+            return button(Material.BARRIER, "{error}&lUNAVAILABLE",
+                    "{letters_black}▎ {letters}The catalogue could not be reached.",
+                    "",
+                    "{warning}➥ Search again to retry");
+        }
         return button(Material.PAPER, "{primary}&lSEARCH RESULTS",
                 "{letters_black}▎ {letters}Query {letters_black}» " + state,
-                "{letters_black}▎ {letters}Matches {letters_black}» {info}" + matches.size(),
+                "{letters_black}▎ {letters}Matches {letters_black}» {info}"
+                        + (paged ? total : matches.size()),
                 "{letters_black}▎ {letters}Page {letters_black}» {info}" + (page + 1)
                         + "{letters_black}/{info}" + pages());
     }
@@ -341,14 +446,28 @@ final class SearchView<T> implements InventoryHolder {
     }
 
     /**
-     * Builds a button whose name embeds a value the player may have authored.
+     * Writes a name and lore onto a stack somebody else built.
      *
-     * <p>The value goes in through {@link Text#with(String, Object)}, so an
+     * <p>The label goes in through {@link Text#with(String, Object)}, so an
      * element labelled {@code &cFREE} prints those characters instead of turning
      * red: caller data is data, never formatting.
      */
-    private static ItemStack labelled(Material material, String template, String value, String... lore) {
-        return build(material, Text.of(template).with("%label%", value).build(), lore);
+    private static ItemStack written(ItemStack item, Component name, String... lore) {
+        ItemMeta meta = item.getItemMeta();
+        if (meta == null) {
+            return item;
+        }
+        meta.displayName(name.decorationIfAbsent(TextDecoration.ITALIC, TextDecoration.State.FALSE));
+        if (lore.length > 0) {
+            List<Component> lines = new ArrayList<>(lore.length);
+            for (String line : lore) {
+                lines.add(Text.of(line).build()
+                        .decorationIfAbsent(TextDecoration.ITALIC, TextDecoration.State.FALSE));
+            }
+            meta.lore(lines);
+        }
+        item.setItemMeta(meta);
+        return item;
     }
 
     /**

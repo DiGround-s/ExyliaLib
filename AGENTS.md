@@ -1501,6 +1501,9 @@ Raíz de código: `src/main/java/net/exylia/lib/`. Raíz de tests:
 | util (named commands) | `util/command/NamedCommand`, `NamedCommands` | `util/command/NamedCommandDescriptor` | [docs/editors.md](docs/editors.md) | 1.56.0 |
 | editores incluidos | `PluginRewards.editor`, `Loot.editor`, `NamedCommands.editor`, `Effects.editor`, `PluginEditors.items`/`locations`/`pick`/`icon` | `util/reward/RewardDescriptor`, `util/loot/LootDescriptor`, `util/PotionEffectDescriptor`, `util/editor/ItemListEditor`, `LocationDescriptor` | [docs/editors.md](docs/editors.md) | 1.56.0 |
 | diálogo alto y prerellenado | `input/TextInput.lines`, `FormField.lines` | `input/internal/DialogPackets.multiline` | [docs/input.md](docs/input.md) | 1.56.0 |
+| util (heads) | `util/head/Heads`, `util/head/Head` | `util/head/internal/HeadDb` (headdb.net, una página por búsqueda; caché de las últimas páginas) | [docs/heads.md](docs/heads.md) | 1.82.0 |
+| búsqueda paginada desde fuera | `input/SearchInput.source(Pages)`, `SearchInput.Page`, `iconItem(fn)`, `PluginInputs.search(player, prompt)` | `input/internal/SearchView` (modo paginado, generación por fetch), `SearchTransport.refresh` | [docs/input.md](docs/input.md) | 1.82.0 |
+| icono buscado en el catálogo | `input/IconInput.Way.BROWSE` | `util/head/internal/HeadDb` | [docs/input.md](docs/input.md), [docs/heads.md](docs/heads.md) | 1.82.0 |
 
 Clases raíz que no son módulo: `ExyliaLib.java` (ciclo de vida y limpieza),
 `platform/Platform.java`, `internal/LibrarySettings`, `internal/ExyliaLibUpdater`.

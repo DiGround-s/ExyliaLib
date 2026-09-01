@@ -3,6 +3,7 @@ package net.exylia.lib.input;
 import net.exylia.lib.input.internal.InsertWindow;
 import net.exylia.lib.item.Source;
 import net.exylia.lib.text.Text;
+import net.exylia.lib.util.head.Heads;
 import org.bukkit.Material;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
@@ -30,11 +31,11 @@ import java.util.function.Function;
  * column and put straight into {@code material: "%arena_icon%"}. See
  * {@link Source}.
  *
- * <h2>Three ways, because an icon is three different things</h2>
+ * <h2>Four ways, because an icon is four different things</h2>
  * A material is chosen from a list nobody can spell from memory; a custom item
  * is easiest to point at by holding it; a head is a string somebody copied off
  * a texture site and can only be pasted. ExyliaCommons had a menu of its own
- * for each of those, in every plugin that needed one. Here they are three
+ * for each of those, in every plugin that needed one. Here they are four
  * answers to one question:
  *
  * <ul>
@@ -46,6 +47,10 @@ import java.util.function.Function;
  *       enchantments. It comes straight back to you afterwards.</li>
  *   <li>{@link Way#HEAD} — the one case that has to be pasted, so it is the
  *       only one that asks for text.</li>
+ *   <li>{@link Way#BROWSE} — the same picker again, over the head catalogue:
+ *       for the head nobody has the base64 of, because they have not found it
+ *       yet. Needs the server to reach the catalogue; when it cannot, the
+ *       window says so and the other ways are untouched.</li>
  * </ul>
  *
  * <p>Offering one way only skips the question entirely: a plugin that wants a
@@ -177,6 +182,11 @@ public final class IconInput {
                     .open()
                     .thenApply(result -> map(result, Material::name));
             case INSERT -> insert();
+            case BROWSE -> timed(Heads.browse(inputs, player, "{warning}Browse a head"))
+                    .open()
+                    .thenApply(result -> result.completed()
+                            ? stored(result.value().icon())
+                            : ended(result));
             case HEAD -> timed(inputs.text(player, "{warning}Paste a head"
                     + " {muted}(playerhead-Notch, basehead-<base64>, urlhead-<url>)")
                     .validate(IconInput::isHead, "{error}That is not a head.")
@@ -255,7 +265,14 @@ public final class IconInput {
         INSERT("Insert an item", Material.HOPPER),
 
         /** A head, pasted as a texture, a URL or a player name. */
-        HEAD("A head", Material.PLAYER_HEAD);
+        HEAD("A head", Material.PLAYER_HEAD),
+
+        /**
+         * Searched for by name in the head catalogue.
+         *
+         * @since 1.82.0
+         */
+        BROWSE("Browse a head", Material.SPYGLASS);
 
         private final String label;
         private final Material icon;

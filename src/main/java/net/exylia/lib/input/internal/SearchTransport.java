@@ -28,6 +28,8 @@ import org.jetbrains.annotations.Nullable;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
@@ -113,12 +115,15 @@ public final class SearchTransport implements Transport {
         if (player == null || !player.isOnline()) {
             return false;
         }
-        if (request.choices().isEmpty()) {
+        if (request.choices().isEmpty() && request.source() == null) {
             return false;
         }
 
         SearchView<?> view = SearchView.create(session, request);
         openChest(session, player, view, false);
+        if (view.paged()) {
+            refresh(player, view);
+        }
         return true;
     }
 
@@ -305,19 +310,19 @@ public final class SearchTransport implements Transport {
             case SearchView.CLEAR_SLOT -> {
                 if (!view.query().isEmpty()) {
                     view.query("");
-                    view.draw();
+                    redraw(player, view);
                 }
             }
             case SearchView.PREVIOUS_SLOT -> {
                 if (view.hasPrevious()) {
                     view.movePage(-1);
-                    view.draw();
+                    redraw(player, view);
                 }
             }
             case SearchView.NEXT_SLOT -> {
                 if (view.hasNext()) {
                     view.movePage(1);
-                    view.draw();
+                    redraw(player, view);
                 }
             }
             case SearchView.INFO_SLOT -> {
@@ -337,7 +342,11 @@ public final class SearchTransport implements Transport {
         SearchInput<T> request = view.request();
         final InputParser.Parsed<T> parsed;
         try {
-            parsed = request.parseRaw(request.keyOf(value));
+            // A paged result was never indexed by key, so it is accepted as the
+            // value it already is: the view drew it, the view knows what it is.
+            parsed = request.source() != null
+                    ? request.parseValue(value)
+                    : request.parseRaw(request.keyOf(value));
         } catch (RuntimeException failure) {
             Text.of("{error}That option could not be read.").send(player);
             return;
@@ -350,6 +359,82 @@ public final class SearchTransport implements Transport {
                 .with("%error%", parsed.error() == null
                         ? "That option is not accepted." : parsed.error())
                 .send(player);
+    }
+
+    /**
+     * Repaints after a change of page or query, fetching first when paged.
+     *
+     * @param player the viewer
+     * @param view   the view whose state already changed
+     */
+    private void redraw(Player player, SearchView<?> view) {
+        if (view.paged()) {
+            refresh(player, view);
+        } else {
+            view.draw();
+        }
+    }
+
+    /** Asks the request's source for the page now on screen. */
+    private void refresh(Player player, SearchView<?> view) {
+        refreshTyped(player, view);
+    }
+
+    private <T> void refreshTyped(Player player, SearchView<T> view) {
+        SearchInput.Pages<T> source = view.request().source();
+        if (source == null) {
+            view.draw();
+            return;
+        }
+        int issued = view.begin();
+        // Drawn before the fetch so the window says it is working rather than
+        // showing the previous query's results as if they were the answer.
+        view.draw();
+
+        CompletionStage<SearchInput.Page<T>> fetched;
+        try {
+            fetched = source.fetch(view.query(), view.offset(), view.capacity());
+        } catch (RuntimeException failure) {
+            fetched = CompletableFuture.failedFuture(failure);
+        }
+        if (fetched == null) {
+            fetched = CompletableFuture.failedFuture(new IllegalStateException("no page"));
+        }
+        InputSession session = view.session();
+        fetched.whenComplete((page, error) -> applyPage(player, view, session, issued, page, error));
+    }
+
+    /**
+     * Installs a fetched page, back on the thread that owns the window.
+     *
+     * <p>A source completes wherever it likes — an HTTP client's own pool, most
+     * of the time — and an inventory may only be touched from the owning thread,
+     * which on Folia is the player's region thread.
+     */
+    private <T> void applyPage(Player player, SearchView<T> view, InputSession session,
+                               int issued, SearchInput.Page<T> page, Throwable error) {
+        Runnable applied = () -> {
+            if (!view.accept(issued)) {
+                // A newer query or page is already being waited on.
+                return;
+            }
+            if (session.terminalResult() != null
+                    || InputRuntime.active(session.playerId()) != session) {
+                return;
+            }
+            if (error != null || page == null) {
+                view.unavailable();
+            } else {
+                view.apply(page.items(), page.total());
+            }
+            view.draw();
+        };
+        try {
+            Tasks.of(plugin).runAtEntity(player, applied);
+        } catch (Throwable schedulingFailure) {
+            // The window is ending anyway; a page nobody can draw is not an
+            // error worth cancelling a session over.
+        }
     }
 
     /**
@@ -462,6 +547,7 @@ public final class SearchTransport implements Transport {
             return;
         }
         anvil.view().query(anvil.typed());
+        queried(player, anvil.view());
         reopenChest(session, player, anvil.view());
     }
 
@@ -476,6 +562,7 @@ public final class SearchTransport implements Transport {
         InputSession session = anvil.session();
         anvils.remove(player.getUniqueId());
         anvil.view().query(typed);
+        queried(player, anvil.view());
 
         clearAnvilSlots(anvil.anvilView());
         programmaticCloses.add(session.id());
@@ -611,6 +698,13 @@ public final class SearchTransport implements Transport {
         return view != null && view.session() == session;
     }
 
+    /** Starts the fetch a newly typed query needs, before the chest returns. */
+    private void queried(Player player, SearchView<?> view) {
+        if (view.paged()) {
+            refresh(player, view);
+        }
+    }
+
     /** The disposable stack that makes the rename box usable. */
     private static ItemStack queryItem(String current) {
         return named(Material.PAPER, current.isEmpty()
@@ -618,7 +712,21 @@ public final class SearchTransport implements Transport {
                 : Text.of("%query%").with("%query%", current).build());
     }
 
+    /**
+     * The confirm button, which also reports the count while it is knowable.
+     *
+     * <p>A paged request answers {@code -1}: counting a catalogue costs a
+     * request of its own, and one per keystroke is not a price a text box pays.
+     * The button then says what it does instead of what it found.
+     */
     private static ItemStack confirmItem(String typed, int matches) {
+        if (matches < 0) {
+            Component name = typed == null || typed.isBlank()
+                    ? Text.of("{muted}Type to search").build()
+                    : Text.of("{success}&lSEARCH {letters}%query%")
+                            .with("%query%", typed).build();
+            return named(Material.NAME_TAG, name);
+        }
         Component name = typed == null || typed.isBlank()
                 ? Text.of("{muted}Type to filter").build()
                 : Text.of("{success}&l%count% {letters}match(es)")

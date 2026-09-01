@@ -2,6 +2,7 @@ package net.exylia.lib.input;
 
 import net.exylia.lib.FakePlayer;
 import net.exylia.lib.FakeServer;
+import net.exylia.lib.input.internal.TransportKind;
 import org.bukkit.Material;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
@@ -12,6 +13,7 @@ import org.junit.jupiter.api.Test;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.util.concurrent.CompletableFuture;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -209,5 +211,67 @@ class SearchInputTest {
         for (int keystroke = 0; keystroke < 200; keystroke++) {
             search.search("sound_" + keystroke);
         }
+    }
+
+    // ------------------------------------------------------------------
+    // A catalogue nobody holds: results fetched one page at a time.
+    // ------------------------------------------------------------------
+
+    /** A source standing in for an API: it answers, and remembers being asked. */
+    private static SearchInput.Pages<String> catalogue(List<String> asked) {
+        return (query, offset, limit) -> {
+            asked.add(query + "@" + offset + "+" + limit);
+            return CompletableFuture.completedFuture(
+                    new SearchInput.Page<>(List.of("first", "second"), 4000));
+        };
+    }
+
+    @Test
+    @DisplayName("a paged request holds no snapshot and indexes nothing")
+    void pagedHoldsNothing() {
+        List<String> asked = new ArrayList<>();
+        SearchInput<String> search = inputs.<String>search(player, "Pick")
+                .source(catalogue(asked))
+                .label(value -> value);
+
+        assertTrue(search.choices().isEmpty());
+        assertTrue(search.normalizedSearchStrings().isEmpty());
+        assertTrue(asked.isEmpty(), "opening must not fetch anything by itself");
+    }
+
+    @Test
+    @DisplayName("a paged request is pinned to the only transport that can page")
+    void pagedPinsTheAnvil() {
+        SearchInput<String> search = inputs.<String>search(player, "Pick")
+                .source(catalogue(new ArrayList<>()));
+
+        assertEquals(List.of(TransportKind.ANVIL_SEARCH), search.preferredTransports());
+    }
+
+    @Test
+    @DisplayName("a fetched result is accepted as itself, with no key to resolve")
+    void pagedValueAccepted() {
+        SearchInput<String> search = inputs.<String>search(player, "Pick")
+                .source(catalogue(new ArrayList<>()))
+                .label(value -> value);
+
+        InputParser.Parsed<String> parsed = search.parseValue("anything");
+
+        assertTrue(parsed.ok());
+        assertEquals("anything", parsed.value());
+    }
+
+    @Test
+    @DisplayName("validation still runs on a fetched result")
+    void pagedValueValidated() {
+        SearchInput<String> search = inputs.<String>search(player, "Pick")
+                .source(catalogue(new ArrayList<>()))
+                .label(value -> value)
+                .validate(value -> value.startsWith("ok"), "Not that one.");
+
+        assertTrue(search.parseValue("ok-head").ok());
+        InputParser.Parsed<String> refused = search.parseValue("no-head");
+        assertFalse(refused.ok());
+        assertEquals("Not that one.", refused.error());
     }
 }

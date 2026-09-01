@@ -91,6 +91,7 @@ consumer only when there is an answer.
 | `confirm(player, prompt)` | `Boolean` | an explicit confirmation |
 | `choice(player, prompt, choices)` | `T` | one of a few options |
 | `search(player, prompt, choices)` | `T` | one of very many options |
+| `search(player, prompt)` | `T` | one of a catalogue too large to hold |
 | `form(player, prompt)` | `FormValues` | several things in one window |
 | `icon(player, prompt)` | `String` | what something is drawn as |
 
@@ -162,7 +163,7 @@ sends it as its own line, and a transport with nowhere to put it drops it.
 | `DurationInput` | `atLeast(Duration)`, `atMost(Duration)` | inclusive; a negative bound throws |
 | `ConfirmInput` | `confirmLabel(String)`, `denyLabel(String)`, `dangerous()` | `dangerous()` lets a transport use danger styling |
 | `ChoiceInput<T>` | `label(fn)`, `key(fn)`, `icon(fn)` | |
-| `SearchInput<T>` | `label(fn)`, `key(fn)`, `icon(fn)`, `pageSize(int)`, `matcher(BiPredicate<T,String>)` | |
+| `SearchInput<T>` | `label(fn)`, `key(fn)`, `icon(fn)`, `iconItem(fn)`, `source(Pages<T>)`, `pageSize(int)`, `matcher(BiPredicate<T,String>)` | `iconItem` draws a built stack instead of a material; `source` fetches results a page at a time |
 
 `ChoiceInput` and `SearchInput` answer with **the element itself**, not a key
 the caller has to look up again:
@@ -367,6 +368,45 @@ inputs.search(player, "Pick a sound", List.of(Sound.values()))
 The player types into an anvil's rename box; the matches appear in a chest
 window and refilter as they type.
 
+### A catalogue instead of a collection
+
+`source(Pages<T>)`, since 1.82.0, answers the same window from somewhere else —
+a table, an HTTP API, anything with its own index — one page at a time:
+
+```java
+inputs.<Head>search(player, "{warning}Browse a head")
+      .source((query, offset, limit) -> catalogue.fetch(query, offset, limit))
+      .label(Head::name)
+      .iconItem(Head::item)
+      .open(head -> save(head.icon()));
+```
+
+| | Snapshot (`search(player, prompt, choices)`) | Paged (`source(...)`) |
+| --- | --- | --- |
+| Held in memory | every option, indexed at open | the page on screen |
+| Matching | lowercased strings, locally | whoever answers the page |
+| Count while typing | live, per keystroke | on confirm, with the page |
+| Fetches | none | one per query and per page turn |
+
+What that buys and what it costs:
+
+- **Nothing is loaded until somebody searches**, and a request that is never
+  opened costs nothing at all.
+- **The count in the anvil is not live.** Counting a catalogue is a request of
+  its own, and one per keystroke is not a price a text box pays, so the confirm
+  button says what it does rather than what it found.
+- **A paged request is pinned to `ANVIL_SEARCH`**, because a chat prompt has no
+  page to turn. `source()` sets that preference itself.
+- **A page that cannot be fetched says so** in the window and leaves the query
+  in place, so searching again retries.
+- Answers are applied on the thread that owns the window, and a slow answer to
+  a query the player has already replaced is dropped rather than drawn.
+
+`iconItem(fn)` exists for the same reason: a catalogue of heads is forty-five
+`PLAYER_HEAD`s, so the material says nothing and the texture says everything.
+The stack the function returns is the row's base; name and lore are written onto
+it. Without it, rows are drawn from `icon(fn)` as before.
+
 ### Results live in the chest's TOP inventory, never the player's
 
 The obvious layout is "type in the anvil, list the matches in the player's own
@@ -435,18 +475,24 @@ inputs.icon(player, "{warning}Choose an icon")
       .open(icon -> arenas.save(arena.withIcon(icon)));
 ```
 
-One question, three answers, because an icon is three different things:
+One question, four answers, because an icon is four different things:
 
 | Way | What the player does | What is stored |
 | --- | --- | --- |
 | `MATERIAL` | the search picker, over every item the server has | `DIAMOND_SWORD` |
 | `INSERT` | puts the item in a slot | its material name, or `bytes:` when it carries meta |
 | `HEAD` | pastes a head string | `playerhead-Notch`, `basehead-…`, `urlhead-…` |
+| `BROWSE` | searches the head catalogue by name | `urlhead-<texture>` |
 
 A material is chosen from a list nobody can spell from memory, a custom item is
 easiest to point at by putting it down, and a head can only be pasted.
 ExyliaCommons had a menu of its own for each of those, in every plugin that
 needed one.
+
+**`BROWSE` is for the head nobody has the base64 of yet**, added in 1.82.0: the
+same picker again, over the catalogue described in [heads.md](heads.md), with
+real textures drawn in every row. It needs the server to reach the catalogue;
+when it cannot, that window says so and the other three ways are untouched.
 
 **`INSERT` replaced reading the player's main hand**, in 1.59.0. Holding the
 item meant closing whatever screen you were on, finding it, holding it and

@@ -2,6 +2,7 @@ package net.exylia.lib.input;
 
 import net.exylia.lib.FakePlayer;
 import net.exylia.lib.FakeServer;
+import net.exylia.lib.util.head.Head;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
 import org.junit.jupiter.api.BeforeEach;
@@ -105,9 +106,19 @@ class IconInputTest {
         // The one that went: holding the item meant closing the screen you were
         // on, finding it, holding it and reopening — and from a menu it could
         // not be done at all.
-        assertEquals(List.of("MATERIAL", "INSERT", "HEAD"), ways);
+        assertEquals(List.of("MATERIAL", "INSERT", "HEAD", "BROWSE"), ways);
         assertEquals("Insert an item", IconInput.Way.INSERT.label());
         assertSame(Material.HOPPER, IconInput.Way.INSERT.icon());
+    }
+
+    @Test
+    @DisplayName("a head can be searched for, not only pasted")
+    void browsesTheCatalogue() {
+        // Pasting assumes the admin already has the base64. Browsing is for the
+        // head they have not found yet, and it answers in the same grammar.
+        assertEquals("Browse a head", IconInput.Way.BROWSE.label());
+        assertSame(Material.SPYGLASS, IconInput.Way.BROWSE.icon());
+        assertTrue(IconInput.isHead(new Head(1, "Cat", "abc123", "Animals").icon()));
     }
 
 

@@ -92,6 +92,18 @@ public final class PluginInputs {
     }
 
     /**
+     * Starts a searchable request whose results come from a paged source.
+     *
+     * <p>Nothing is held in memory but the page on screen, so this is the shape
+     * for a catalogue rather than a list: a table, an HTTP API, a registry too
+     * large to snapshot. The source is required before opening.
+     */
+    public <T> @NotNull SearchInput<T> search(@NotNull Player player,
+                                               @NotNull String prompt) {
+        return new SearchInput<>(pluginName, player, prompt);
+    }
+
+    /**
      * Starts a request for an icon: a material, the item in hand, or a head.
      *
      * <p>Answers with a {@code material} value, which is what a menu file

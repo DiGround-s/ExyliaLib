@@ -46,6 +46,7 @@ against the source — rules and routes are in `AGENTS.md` under
 | [Loot](loot.md) | What comes out of a chest, a spawner or a broken block — the ExyliaCommons tables, read and written unchanged; importing a chest (1.77.0) | 1.56.0 |
 | [Editors](editors.md) | Screens for editing the lists a plugin configures: rewards, loot, commands, effects, items, places — one engine, batteries included | 1.56.0 |
 | [Schedules](schedules.md) | Timetables: what starts by itself, at what times, on what days, and under what conditions — one asynchronous timer for the whole server | 1.70.0 |
+| [Heads](heads.md) | The decorative head catalogue, searchable from a menu — a page at a time, nothing downloaded | 1.82.0 |
 Migration notes:
 
 - [Migrating ExyliaFFA](migration-ffa.md) — what FFA needs, and the four things
