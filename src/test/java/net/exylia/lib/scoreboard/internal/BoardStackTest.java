@@ -182,6 +182,39 @@ class BoardStackTest {
     }
 
     @Test
+    @DisplayName("a stopped board lets go of its viewer before it closes")
+    void stoppingABoardReleasesTheViewerFirst() {
+        Scoreboards.show(lobby, viewer.player(), config("LOBBY"));
+        Board eventBoard = Scoreboards.show(event, viewer.player(), config("EVENT"));
+        drive();
+        FakeSidebar eventSidebar = created.get(1);
+
+        eventBoard.stop();
+
+        // The order is the point: a sidebar that closes while it still holds
+        // the viewer is never taken out of the player's sidebar queue, and
+        // everything shown afterwards queues behind it.
+        List<String> calls = eventSidebar.calls();
+        assertEquals(List.of("hide", "close"), calls.subList(calls.size() - 2, calls.size()));
+    }
+
+    @Test
+    @DisplayName("a board buried under another lets go of its viewer too")
+    void stoppingABuriedBoardReleasesTheViewer() {
+        Board lobbyBoard = Scoreboards.show(lobby, viewer.player(), config("LOBBY"));
+        Scoreboards.show(event, viewer.player(), config("EVENT"));
+        drive();
+        FakeSidebar lobbySidebar = created.get(0);
+
+        // The buried board is the one that used to rot in the queue: it was
+        // closed without ever being on screen, so nothing took it out.
+        lobbyBoard.stop();
+
+        List<String> calls = lobbySidebar.calls();
+        assertEquals(List.of("hide", "close"), calls.subList(calls.size() - 2, calls.size()));
+    }
+
+    @Test
     @DisplayName("a player leaving takes down every board they had")
     void leavingStopsEverything() {
         Board lobbyBoard = Scoreboards.show(lobby, viewer.player(), config("LOBBY"));

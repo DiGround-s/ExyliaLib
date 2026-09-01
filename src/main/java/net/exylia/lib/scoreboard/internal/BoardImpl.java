@@ -342,9 +342,25 @@ final class BoardImpl implements Board {
         markDue();
     }
 
-    /** Stops the board for good. Called by {@link BoardManager}. */
+    /**
+     * Stops the board for good. Called by {@link BoardManager}.
+     *
+     * <p>The viewer is taken off the sidebar before it closes, and that order
+     * matters: the library keeps one queue of sidebars per player and only the
+     * one at its head is on screen, but closing a sidebar only takes it out of
+     * that queue for the players it was already displaying to. A board closed
+     * while it was still queued behind another one therefore stays in the
+     * queue for good, reaches its head when the board in front goes away, and
+     * every board shown afterwards waits behind a sidebar that no longer
+     * ticks. The player has no scoreboard at all until they reconnect, which
+     * is what builds them a new queue. Removing the viewer first empties it
+     * whether the board was on screen or not.
+     */
     void stopInternal() {
         stopped = true;
+        if (!sidebar.closed()) {
+            sidebar.hide();
+        }
         sidebar.close();
     }
 
