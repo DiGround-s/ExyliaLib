@@ -115,6 +115,35 @@ public final class Placeholders {
     }
 
     /**
+     * Adds a second PlaceholderAPI identifier for this plugin's placeholders.
+     *
+     * <p>Placeholders appear in PlaceholderAPI under the plugin's own name, so
+     * ExyliaPracticeCore answers {@code %exyliapracticecore_stats_kills%}. This
+     * publishes the same registrations under a shorter name as well, and
+     * {@code %practice_stats_kills%} then means the same thing. Nothing is
+     * renamed: the plugin keeps answering under its own name, so configs
+     * already written the long way go on working.
+     *
+     * <p>Safe to call before the placeholders are registered, and safe to call
+     * more than once.
+     *
+     * @param plugin     the plugin that owns the placeholders
+     * @param identifier the extra identifier, such as {@code practice}; a
+     *                   single word, since PlaceholderAPI reads everything up
+     *                   to the first underscore as the identifier
+     * @throws IllegalArgumentException if the identifier is blank or contains
+     *                                  an underscore or a percent sign
+     */
+    public static void identifier(@NotNull Plugin plugin, @NotNull String identifier) {
+        String name = identifier.trim().toLowerCase(Locale.ROOT);
+        if (name.isEmpty() || name.contains("_") || name.contains("%")) {
+            throw new IllegalArgumentException("A PlaceholderAPI identifier is one word without"
+                    + " \"_\" or \"%\", so \"" + identifier + "\" cannot be one.");
+        }
+        PapiBridge.alias(plugin, name);
+    }
+
+    /**
      * Removes everything a plugin registered.
      *
      * <p>Called automatically when the plugin is disabled.

@@ -14,6 +14,7 @@ import java.util.logging.Logger;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class PapiExpansionTest {
@@ -121,6 +122,32 @@ class PapiExpansionTest {
         assertEquals("red", new PapiExpansion(plugin).onRequest(null, "team_color"));
         // Written the long way it still resolves, rather than doubling again.
         assertEquals("red", new PapiExpansion(plugin).onRequest(null, "exyliaffa_team_color"));
+    }
+
+    /**
+     * A plugin that asked for a shorter identifier answers under it with the
+     * same registrations, so {@code %practice_stats_kills%} and the long
+     * {@code %exyliaffa_stats_kills%} are one placeholder written two ways.
+     */
+    @Test
+    void answersUnderAnExtraIdentifier() {
+        Placeholders.group(plugin, "stats").add("kills", request -> 7).register();
+
+        PapiExpansion alias = new PapiExpansion(plugin, "practice");
+
+        assertEquals("practice", alias.getIdentifier());
+        assertEquals("7", alias.onRequest(null, "stats_kills"));
+        assertEquals(List.of("stats_kills"), alias.getPlaceholders());
+        // The plugin's own identifier is added to, never replaced.
+        assertEquals("7", new PapiExpansion(plugin).onRequest(null, "stats_kills"));
+    }
+
+    /** An identifier PlaceholderAPI could not strip is refused, not published. */
+    @Test
+    void refusesAnIdentifierThatIsNotOneWord() {
+        assertThrows(IllegalArgumentException.class,
+                () -> Placeholders.identifier(plugin, "exylia_practice"));
+        assertThrows(IllegalArgumentException.class, () -> Placeholders.identifier(plugin, " "));
     }
 
     @Test
