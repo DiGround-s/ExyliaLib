@@ -172,7 +172,7 @@ well as on the inventory screen:
 
 | Written | What does it |
 | --- | --- |
-| `left` | Left-clicking a block, or attacking an entity |
+| `left` | Left-clicking: a block, an entity, or the air |
 | `right` | Right-clicking, in the air, on a block or on an entity |
 | `shift_left`, `shift_right` | The same while sneaking |
 | `drop`, `control_drop` | `Q` and `Ctrl+Q` |
@@ -183,8 +183,13 @@ Actions are given `overlay.id`, `overlay.slot`, `overlay.click`, and —
 when the press was on something — `overlay.target` (the entity) and
 `overlay.block`. `OverlayKeys` names them.
 
-Left-clicking **air** is not bound. The client sends nothing that distinguishes
-it from a swing, and guessing would fire an action every time somebody waved.
+Left-clicking **air** is the swing of the arm, because that is the only packet
+the client sends for it. A block press stops reaching the server as soon as the
+block is out of reach, so a tool aimed at the horizon — jump to where I am
+looking — would otherwise do nothing at all. The swing that goes with a block
+or entity press is swallowed, so one click stays one action; a swing sent while
+the button is held down is another click as far as the client is concerned, and
+is bound as one.
 
 A slot the overlay draws nothing in presses nothing, unless `empty_hand` says
 otherwise. Under `hide_rest` every slot is the overlay's, so this is what keeps

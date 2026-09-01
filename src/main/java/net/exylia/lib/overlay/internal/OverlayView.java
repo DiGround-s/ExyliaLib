@@ -69,8 +69,11 @@ public final class OverlayView {
     private volatile TaskHandle refresher;
     private volatile boolean closed;
 
-    /** When this player last right-clicked a block, in nanoseconds. */
-    private volatile long blockUse = Long.MIN_VALUE / 2;
+    /** When this player's last press on something in the world was bound, in nanoseconds. */
+    private volatile long worldPress = Long.MIN_VALUE / 2;
+
+    /** What that press was, so only the same press swallows its own tail. */
+    private volatile ClickKind worldPressKind;
 
     OverlayView(Plugin plugin, PluginItems items, Player viewer, OverlayDefinition definition) {
         this.plugin = plugin;
@@ -128,35 +131,40 @@ public final class OverlayView {
         return live.get(index);
     }
 
-    /** One tick: the window a client's two packets for one press arrive in. */
+    /** One tick: the window a client's several packets for one press arrive in. */
     private static final long ONE_PRESS_NANOS = 50_000_000L;
 
     /**
-     * Remembers a right click on a block, so the one that follows it is known
-     * for what it is.
+     * Remembers a press on something in the world, so what the client sends
+     * after it is known for what it is.
+     *
+     * @param kind the press that was bound
      */
-    public void markBlockUse() {
-        blockUse = System.nanoTime();
+    public void markWorldPress(ClickKind kind) {
+        worldPressKind = kind;
+        worldPress = System.nanoTime();
     }
 
     /**
-     * Whether a right click in the air is really the tail of the block click
-     * just before it.
+     * Whether a press in the air is really the tail of the one just bound.
      *
-     * <p>A client that clicks a block it cannot use — grass, with a staff tool
-     * that places nothing — sends the block press and then, having predicted
-     * nothing happened, an air press for the same hand in the same tick. Both
-     * are the one press the player made, so binding both runs every action
-     * twice, which is what a staff member sees as a message printed twice.
+     * <p>A click at something sends more than one packet. Right-clicking a
+     * block the client cannot use sends the block press and then, having
+     * predicted nothing happened, an air press for the same hand; clicking a
+     * block or an entity sends the click and then the swing of the arm that
+     * went with it. Each is one press the player made, so binding both halves
+     * runs every action twice — which is what a staff member sees as a message
+     * printed twice.
      *
      * <p>Held on the view rather than the packet listener because it is one
      * player's press: two staff members clicking in the same tick are two
-     * presses, and only their own last block click can swallow either one.
+     * presses, and only their own last click can swallow either one.
      *
-     * @return whether a block press was pressed within the last tick
+     * @param kind the press the tail would be bound as
+     * @return whether the same press was already bound within the last tick
      */
-    public boolean repeatsBlockUse() {
-        return System.nanoTime() - blockUse < ONE_PRESS_NANOS;
+    public boolean repeatsWorldPress(ClickKind kind) {
+        return kind == worldPressKind && System.nanoTime() - worldPress < ONE_PRESS_NANOS;
     }
 
     // ------------------------------------------------------------------

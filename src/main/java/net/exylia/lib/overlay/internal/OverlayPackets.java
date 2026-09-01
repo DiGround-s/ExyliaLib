@@ -12,6 +12,7 @@ import com.github.retrooper.packetevents.protocol.player.InteractionHand;
 import com.github.retrooper.packetevents.protocol.player.User;
 import com.github.retrooper.packetevents.util.Vector3i;
 import com.github.retrooper.packetevents.wrapper.PacketWrapper;
+import com.github.retrooper.packetevents.wrapper.play.client.WrapperPlayClientAnimation;
 import com.github.retrooper.packetevents.wrapper.play.client.WrapperPlayClientClickWindow;
 import com.github.retrooper.packetevents.wrapper.play.client.WrapperPlayClientCreativeInventoryAction;
 import com.github.retrooper.packetevents.wrapper.play.client.WrapperPlayClientInteractEntity;
@@ -261,6 +262,8 @@ final class OverlayPackets extends PacketListenerAbstract implements OverlaySink
             use(event, view, player, placement.getHand(), placement.getBlockPosition());
         } else if (type == PacketType.Play.Client.INTERACT_ENTITY) {
             interact(event, view, player);
+        } else if (type == PacketType.Play.Client.ANIMATION) {
+            swing(event, view, player);
         } else if (type == PacketType.Play.Client.PICK_ITEM
                 || type == PacketType.Play.Client.PICK_ITEM_FROM_BLOCK
                 || type == PacketType.Play.Client.PICK_ITEM_FROM_ENTITY) {
@@ -358,6 +361,7 @@ final class OverlayPackets extends PacketListenerAbstract implements OverlaySink
         event.setCancelled(true);
         if (press == OverlayClicks.WorldPress.PRESS) {
             Vector3i at = packet.getBlockPosition();
+            view.markWorldPress(kind);
             atPlayer(view, () -> view.press(held, kind, null, blockAt(player, at)));
         }
     }
@@ -400,12 +404,11 @@ final class OverlayPackets extends PacketListenerAbstract implements OverlaySink
         if (at == null) {
             // The air press a client sends straight after a block press it
             // predicted did nothing. One press, so one action.
-            if (view.repeatsBlockUse()) {
+            if (view.repeatsWorldPress(kind)) {
                 return;
             }
-        } else {
-            view.markBlockUse();
         }
+        view.markWorldPress(kind);
         atPlayer(view, () -> view.press(slot, kind, null, at == null ? null : blockAt(player, at)));
     }
 
@@ -435,7 +438,38 @@ final class OverlayPackets extends PacketListenerAbstract implements OverlaySink
             return;
         }
         int entityId = packet.getEntityId();
+        view.markWorldPress(kind);
         atPlayer(view, () -> view.press(slot, kind, nearby(player, entityId), null));
+    }
+
+    /**
+     * Left-clicking the air, which is the only packet that says so.
+     *
+     * <p>A block press only reaches the server while the block is in reach, so
+     * a tool aimed at the horizon — jump to where I am looking, the oldest
+     * staff tool there is — sends nothing else at all. The swing is what the
+     * client sends for every left click, in reach or not, and the click that
+     * did land as a block or an entity press is swallowed by the mark that
+     * press left behind.
+     *
+     * <p>Never cancelled: the animation has already played on the clicking
+     * client, and stopping it only means everybody else sees an arm that does
+     * not move.
+     */
+    private void swing(PacketReceiveEvent event, OverlayView view, Player player) {
+        if (new WrapperPlayClientAnimation(event).getHand() != InteractionHand.MAIN_HAND) {
+            return;
+        }
+        int held = player.getInventory().getHeldItemSlot();
+        ClickKind kind = player.isSneaking() ? ClickKind.SHIFT_LEFT : ClickKind.LEFT;
+        if (view.repeatsWorldPress(kind)) {
+            return;
+        }
+        if (worldPress(view, player, held, kind) != OverlayClicks.WorldPress.PRESS) {
+            return;
+        }
+        view.markWorldPress(kind);
+        atPlayer(view, () -> view.press(held, kind, null, null));
     }
 
     // ------------------------------------------------------------------
