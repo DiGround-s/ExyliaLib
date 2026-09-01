@@ -69,6 +69,9 @@ public final class OverlayView {
     private volatile TaskHandle refresher;
     private volatile boolean closed;
 
+    /** When this player last right-clicked a block, in nanoseconds. */
+    private volatile long blockUse = Long.MIN_VALUE / 2;
+
     OverlayView(Plugin plugin, PluginItems items, Player viewer, OverlayDefinition definition) {
         this.plugin = plugin;
         this.items = items;
@@ -123,6 +126,37 @@ public final class OverlayView {
     /** The slot definition behind a press, or {@code null} when there is none. */
     public @Nullable UiItem pressedAt(int index) {
         return live.get(index);
+    }
+
+    /** One tick: the window a client's two packets for one press arrive in. */
+    private static final long ONE_PRESS_NANOS = 50_000_000L;
+
+    /**
+     * Remembers a right click on a block, so the one that follows it is known
+     * for what it is.
+     */
+    public void markBlockUse() {
+        blockUse = System.nanoTime();
+    }
+
+    /**
+     * Whether a right click in the air is really the tail of the block click
+     * just before it.
+     *
+     * <p>A client that clicks a block it cannot use — grass, with a staff tool
+     * that places nothing — sends the block press and then, having predicted
+     * nothing happened, an air press for the same hand in the same tick. Both
+     * are the one press the player made, so binding both runs every action
+     * twice, which is what a staff member sees as a message printed twice.
+     *
+     * <p>Held on the view rather than the packet listener because it is one
+     * player's press: two staff members clicking in the same tick are two
+     * presses, and only their own last block click can swallow either one.
+     *
+     * @return whether a block press was pressed within the last tick
+     */
+    public boolean repeatsBlockUse() {
+        return System.nanoTime() - blockUse < ONE_PRESS_NANOS;
     }
 
     // ------------------------------------------------------------------

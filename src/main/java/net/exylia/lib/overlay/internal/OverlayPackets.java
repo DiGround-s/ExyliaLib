@@ -397,6 +397,15 @@ final class OverlayPackets extends PacketListenerAbstract implements OverlaySink
         if (press == OverlayClicks.WorldPress.REFUSE) {
             return;
         }
+        if (at == null) {
+            // The air press a client sends straight after a block press it
+            // predicted did nothing. One press, so one action.
+            if (view.repeatsBlockUse()) {
+                return;
+            }
+        } else {
+            view.markBlockUse();
+        }
         atPlayer(view, () -> view.press(slot, kind, null, at == null ? null : blockAt(player, at)));
     }
 
