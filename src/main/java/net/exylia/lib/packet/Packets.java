@@ -9,8 +9,9 @@ import org.jetbrains.annotations.NotNull;
  *
  * <p>Client-side tricks that a staff plugin needs and the server has no API
  * for: hiding a player from some viewers but not others, showing blocks that
- * are not there, pinning a player in place, making one client believe it is a
- * spectator, and watching a chest without opening it.
+ * are not there, outlining blocks through the world, pinning a player in
+ * place, drawing one client as a spectator, and watching a chest without
+ * opening it.
  *
  * <pre>{@code
  * PluginPackets packets = Packets.of(this);
@@ -26,8 +27,8 @@ import org.jetbrains.annotations.NotNull;
  *
  * <h2>Packets, not state</h2>
  * Nothing here changes what the server believes. A hidden player still
- * collides, a fake block is still air to the server, a fake spectator still
- * takes damage. Every helper documents what it does not do; pair it with the
+ * collides, a fake block is still air to the server, a client drawn as a
+ * spectator still walks into walls and takes damage. Every helper documents what it does not do; pair it with the
  * server-side call that covers the rest.
  *
  * <h2>What is needed</h2>

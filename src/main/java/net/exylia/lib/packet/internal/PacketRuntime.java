@@ -285,7 +285,7 @@ public final class PacketRuntime {
                 clear(viewer);
                 outlines.clear(viewer);
                 if (SPECTATING.containsKey(viewer.getUniqueId())) {
-                    spectator(viewer, false);
+                    cameraView(viewer, false);
                 }
             }
             // With this plugin's rule gone, everyone it hid may be visible again.
@@ -418,7 +418,7 @@ public final class PacketRuntime {
         // ---- FakeGameMode ----
 
         @Override
-        public void spectator(@NotNull Player player, boolean enabled) {
+        public void cameraView(@NotNull Player player, boolean enabled) {
             PacketSink out = sink();
             if (out == null) {
                 return;
@@ -436,7 +436,7 @@ public final class PacketRuntime {
         }
 
         @Override
-        public boolean isSpectator(@NotNull Player player) {
+        public boolean isCameraView(@NotNull Player player) {
             return SPECTATING.containsKey(player.getUniqueId());
         }
     }
