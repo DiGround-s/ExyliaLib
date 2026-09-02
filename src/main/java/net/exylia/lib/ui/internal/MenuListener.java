@@ -69,7 +69,7 @@ public final class MenuListener implements Listener {
         int slot = event.getRawSlot();
         ClickPolicy.Decision decision = ClickPolicy.decide(true,
                 event.getClickedInventory() == top, event.isShiftClick(),
-                slot, session.inputSlots());
+                event.getClick() == ClickType.DOUBLE_CLICK, slot, session.inputSlots());
 
         if (decision == ClickPolicy.Decision.ALLOW || decision == ClickPolicy.Decision.IGNORE) {
             return;
@@ -279,6 +279,11 @@ public final class MenuListener implements Listener {
      *
      * <p>Kinds we do not model return {@code null} and do nothing. A creative
      * middle-click on a button should not be guessed into a left click.
+     *
+     * <p>A double-click is one of those. The click before it already ran the
+     * button, so delivering the pair would run it twice — a toggle clicked
+     * quickly would turn itself back off — and the click is refused outright by
+     * {@link ClickPolicy} before it reaches here.
      */
     private static ClickKind kindOf(ClickType click) {
         return switch (click) {
@@ -291,7 +296,6 @@ public final class MenuListener implements Listener {
             case CONTROL_DROP -> ClickKind.CONTROL_DROP;
             case NUMBER_KEY -> ClickKind.NUMBER_KEY;
             case SWAP_OFFHAND -> ClickKind.SWAP;
-            case DOUBLE_CLICK -> ClickKind.DOUBLE;
             default -> null;
         };
     }

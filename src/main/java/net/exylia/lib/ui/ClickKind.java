@@ -36,7 +36,19 @@ public enum ClickKind {
     DROP,
     CONTROL_DROP,
     SWAP,
+
+    /**
+     * Kept so a menu written against an older version still loads.
+     *
+     * <p>Menus never deliver it: a double-click is collect-to-cursor, which
+     * would sweep buttons out of the window, and the click that began it has
+     * already run whatever it was bound to. Bind {@code left} instead.
+     *
+     * @deprecated a binding on this never runs
+     */
+    @Deprecated
     DOUBLE,
+
     NUMBER_KEY;
 
     /** Every kind, for a binding written without a prefix. */
@@ -73,7 +85,8 @@ public enum ClickKind {
      * Translates what the server reports into what configuration calls it.
      *
      * @param click the Bukkit click type
-     * @return the matching kind, or {@code null} for clicks menus do not bind
+     * @return the matching kind, or {@code null} for clicks menus do not bind,
+     *         which includes a double-click
      */
     public static @Nullable ClickKind of(@NotNull org.bukkit.event.inventory.ClickType click) {
         return switch (click) {
@@ -85,7 +98,6 @@ public enum ClickKind {
             case DROP -> DROP;
             case CONTROL_DROP -> CONTROL_DROP;
             case SWAP_OFFHAND -> SWAP;
-            case DOUBLE_CLICK -> DOUBLE;
             case NUMBER_KEY -> NUMBER_KEY;
             default -> null;
         };

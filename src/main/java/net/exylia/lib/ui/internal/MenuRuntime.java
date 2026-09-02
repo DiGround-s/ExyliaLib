@@ -25,6 +25,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
@@ -54,6 +55,27 @@ public final class MenuRuntime {
 
     /** Where a player came from, so back can take them there. */
     private final Map<UUID, List<History>> history = new ConcurrentHashMap<>();
+
+    /**
+     * Where a player was in each list of a menu they closed, by menu id.
+     *
+     * <p>Paging to the fifth screen of a list and being sent back to the first
+     * for closing the window is the complaint every long menu earns. Held for
+     * a few minutes rather than forever: after that they are somewhere else and
+     * page five means nothing to them.
+     */
+    private final Map<UUID, Map<String, Remembered>> pages = new ConcurrentHashMap<>();
+
+    /** How long a closed menu's pages are worth putting back. */
+    private static final long PAGE_MEMORY_MILLIS = TimeUnit.MINUTES.toMillis(5);
+
+    /** Where each list of one menu was, and until when that is worth knowing. */
+    private record Remembered(Map<String, Integer> pages, long until) {
+
+        boolean isFresh(long now) {
+            return now < until;
+        }
+    }
 
     /** Bumped every time somebody opens something, so stale work knows it is stale. */
     private final AtomicInteger generations = new AtomicInteger();
@@ -185,6 +207,7 @@ public final class MenuRuntime {
             // before the new window replaces the old one, because opening one
             // inventory over another fires a close for the first.
             remember(viewer, previous);
+            rememberPages(previous);
         }
 
         MenuHolder holder = new MenuHolder();
@@ -193,6 +216,8 @@ public final class MenuRuntime {
                 generations.incrementAndGet(), context);
         holder.bind(session, inventory);
 
+        // Before the seed, which clamps these against the rows this menu has.
+        restorePages(viewer, session);
         session.seed(sections);
         session.draw();
         viewer.openInventory(inventory);
@@ -327,13 +352,46 @@ public final class MenuRuntime {
 
     /** Called when a window of ours closes. */
     void closed(Session session) {
+        rememberPages(session);
         session.released();
         play(session.viewer(), session.definition().sounds().close());
+    }
+
+    /** Notes where each of a menu's lists was, for the next time it is opened. */
+    private void rememberPages(Session session) {
+        Map<String, Integer> where = session.pageSnapshot();
+        UUID id = session.viewer().getUniqueId();
+        if (where.values().stream().allMatch(page -> page <= 1)) {
+            // The first page is where a menu opens anyway. Not remembering it
+            // keeps a player who never pages out of this map entirely.
+            Map<String, Remembered> known = pages.get(id);
+            if (known != null) known.remove(session.menuId());
+            return;
+        }
+        pages.computeIfAbsent(id, ignored -> new ConcurrentHashMap<>())
+                .put(session.menuId(), new Remembered(where, System.currentTimeMillis() + PAGE_MEMORY_MILLIS));
+    }
+
+    /** Puts a menu's lists back where the same player last left them. */
+    private void restorePages(Player viewer, Session session) {
+        Map<String, Remembered> known = pages.get(viewer.getUniqueId());
+        if (known == null) return;
+
+        Remembered where = known.remove(session.menuId());
+        if (where == null) return;
+        if (!where.isFresh(System.currentTimeMillis())) return;
+        session.restorePages(where.pages());
+    }
+
+    /** Forgets where a player left every list, without touching where they have been. */
+    public void clearPages(Player viewer) {
+        pages.remove(viewer.getUniqueId());
     }
 
     /** Forgets a player entirely, on quit. */
     public void forget(UUID id) {
         history.remove(id);
+        pages.remove(id);
     }
 
     /** Plays one of a menu's sounds, if it has one. */

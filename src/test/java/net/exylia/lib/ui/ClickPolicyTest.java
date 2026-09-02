@@ -1,6 +1,7 @@
 package net.exylia.lib.ui;
 
 import net.exylia.lib.ui.ClickPolicy.Decision;
+import org.bukkit.event.inventory.ClickType;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -9,6 +10,7 @@ import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -110,5 +112,56 @@ class ClickPolicyTest {
     @DisplayName("a drag from a menu slot down into the player's inventory is refused")
     void dragOutOfAMenu() {
         assertTrue(ClickPolicy.refuseDrag(54, List.of(22, 60), NO_INPUTS));
+    }
+
+    @Test
+    @DisplayName("a double-click on a button does nothing")
+    void doubleClickOnAButton() {
+        assertEquals(ClickPolicy.Decision.CANCEL,
+                ClickPolicy.decide(true, true, false, true, 22, NO_INPUTS));
+    }
+
+    @Test
+    @DisplayName("a double-click in the player's own inventory is refused too")
+    void doubleClickBelow() {
+        // This is the one that matters. Collect-to-cursor sweeps both
+        // inventories, so a player holding one copy of a button's material and
+        // double-clicking it down here would pull every matching button out of
+        // the menu above. Allowing the slot because it belongs to them is
+        // exactly how that duplication happens.
+        assertEquals(ClickPolicy.Decision.CANCEL,
+                ClickPolicy.decide(true, false, false, true, 60, NO_INPUTS));
+    }
+
+    @Test
+    @DisplayName("a double-click on an input slot is refused as well")
+    void doubleClickOnInput() {
+        // An input slot is the player's to use, but a double-click there still
+        // collects from the whole window.
+        assertEquals(ClickPolicy.Decision.CANCEL,
+                ClickPolicy.decide(true, true, false, true, 11, INPUTS));
+    }
+
+    @Test
+    @DisplayName("a double-click in somebody else's window is still none of our business")
+    void doubleClickElsewhere() {
+        assertEquals(ClickPolicy.Decision.IGNORE,
+                ClickPolicy.decide(false, true, false, true, 22, NO_INPUTS));
+    }
+
+    @Test
+    @DisplayName("the older five-argument decision still reads as an ordinary click")
+    void withoutTheDoubleClickArgument() {
+        assertEquals(ClickPolicy.decide(true, true, false, false, 22, NO_INPUTS),
+                ClickPolicy.decide(true, true, false, 22, NO_INPUTS));
+    }
+
+    @Test
+    @DisplayName("menus never report a double-click as a kind they could bind")
+    void doubleClickIsNotAKind() {
+        assertNull(ClickKind.of(ClickType.DOUBLE_CLICK));
+        // The name still parses, so a menu written against an older version
+        // loads rather than reporting a broken action.
+        assertEquals(ClickKind.LEFT, ClickKind.byName("left"));
     }
 }

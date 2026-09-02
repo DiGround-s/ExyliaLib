@@ -519,6 +519,26 @@ final class Session implements UiSession {
         }
     }
 
+    /** Where each list is, for a runtime that wants to put it back later. */
+    Map<String, Integer> pageSnapshot() {
+        return Map.copyOf(pages);
+    }
+
+    /**
+     * Puts the lists back where they were.
+     *
+     * <p>Called before the first seed, which clamps whatever is here against
+     * the rows the menu actually has: a remembered page five of a list that is
+     * now two pages long lands on two rather than on nothing.
+     */
+    void restorePages(Map<String, Integer> remembered) {
+        remembered.forEach((section, page) -> {
+            if (page > 1 && definition.section(section) != null) {
+                pages.put(section, page);
+            }
+        });
+    }
+
     /** What is drawn in a slot, for the click handler. */
     @Nullable Rendered renderedAt(int slot) {
         return slots.get(slot);

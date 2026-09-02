@@ -37,6 +37,9 @@ public final class ClickPolicy {
     /**
      * Decides what a click means.
      *
+     * <p>Kept for callers written before double-clicks were refused; it decides
+     * as though the click were an ordinary one.
+     *
      * @param ours       whether the top inventory is a menu of ours
      * @param inTop      whether the click landed in the top inventory
      * @param shiftClick whether it was a shift-click
@@ -46,8 +49,35 @@ public final class ClickPolicy {
      */
     public static @NotNull Decision decide(boolean ours, boolean inTop, boolean shiftClick,
                                            int rawSlot, @NotNull Set<Integer> inputSlots) {
+        return decide(ours, inTop, shiftClick, false, rawSlot, inputSlots);
+    }
+
+    /**
+     * Decides what a click means.
+     *
+     * @param ours        whether the top inventory is a menu of ours
+     * @param inTop       whether the click landed in the top inventory
+     * @param shiftClick  whether it was a shift-click
+     * @param doubleClick whether it was a double-click
+     * @param rawSlot     the slot, as the client numbered it
+     * @param inputSlots  the slots the menu lets the player use
+     * @return what to do
+     * @since 1.85.0
+     */
+    public static @NotNull Decision decide(boolean ours, boolean inTop, boolean shiftClick,
+                                           boolean doubleClick, int rawSlot,
+                                           @NotNull Set<Integer> inputSlots) {
         if (!ours) {
             return Decision.IGNORE;
+        }
+        // A double-click is collect-to-cursor, and it sweeps every matching
+        // stack in both inventories - the menu's buttons included. Holding one
+        // ender eye and double-clicking it in your own inventory is enough to
+        // pull a copy of every ender-eye button out of the window above. It is
+        // refused wherever it lands, which is also the only click a player
+        // makes without meaning to.
+        if (doubleClick) {
+            return Decision.CANCEL;
         }
         if (!inTop) {
             // A shift-click from below throws the item upwards, so it is a
