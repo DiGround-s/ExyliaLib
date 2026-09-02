@@ -1,6 +1,7 @@
 package net.exylia.lib.npc.internal;
 
 import com.github.retrooper.packetevents.PacketEvents;
+import com.github.retrooper.packetevents.manager.server.ServerVersion;
 import com.github.retrooper.packetevents.protocol.entity.data.EntityData;
 import com.github.retrooper.packetevents.protocol.entity.data.EntityDataTypes;
 import com.github.retrooper.packetevents.protocol.entity.pose.EntityPose;
@@ -72,8 +73,15 @@ final class NpcPackets implements NpcSink {
      * <p>Left alone, an NPC has no jacket, no sleeves and no hat: the field
      * defaults to nothing enabled, and a player who is used to seeing their own
      * skin notices immediately. Every bit set is every layer drawn.
+     *
+     * <p>The index moved in 26.1, where the player metadata a skin hangs on was
+     * lifted into a shared avatar class and everything below it shifted. Writing
+     * the old index there lands on absorption, a float, and a client that is
+     * handed a byte for a float disconnects with a packet handling error rather
+     * than ignoring it.
      */
-    private static final int SKIN_LAYERS = 17;
+    private static final int SKIN_LAYERS_AVATAR = 16;
+    private static final int SKIN_LAYERS_LEGACY = 17;
     private static final byte ALL_LAYERS = 0x7F;
 
     private NpcPackets() {
@@ -216,11 +224,18 @@ final class NpcPackets implements NpcSink {
         if (model.glowArgb() >= 0) {
             data.add(new EntityData<>(ENTITY_FLAGS, EntityDataTypes.BYTE, FLAG_GLOWING));
         }
-        data.add(new EntityData<>(SKIN_LAYERS, EntityDataTypes.BYTE, ALL_LAYERS));
+        data.add(new EntityData<>(skinLayersIndex(), EntityDataTypes.BYTE, ALL_LAYERS));
         if (model.pose() != NpcPose.STANDING) {
             data.add(new EntityData<>(POSE, EntityDataTypes.ENTITY_POSE, poseOf(model.pose())));
         }
         return data;
+    }
+
+    /** Where this server keeps the skin layer mask. */
+    private static int skinLayersIndex() {
+        return PacketEvents.getAPI().getServerManager().getVersion()
+                .isNewerThanOrEquals(ServerVersion.V_26_1)
+                ? SKIN_LAYERS_AVATAR : SKIN_LAYERS_LEGACY;
     }
 
     /** What the NPC is dressed in, read now rather than when the model was built. */
