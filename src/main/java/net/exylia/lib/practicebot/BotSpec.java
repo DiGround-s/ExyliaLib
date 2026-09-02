@@ -42,6 +42,10 @@ import java.util.Objects;
  *                   null to let the mode dress it. The bot works out which of
  *                   those items it can hold and which it can spend; a kit with
  *                   nothing it can use is a bot that fights with its fists
+ * @param limits     how far it will go for the fight, or null for the plugin's
+ *                   own configured distances. A match across an arena wants
+ *                   {@link BotLimits#unlimited()}: the sandbox figures assume a
+ *                   dummy standing next to its owner
  *
  * @since 1.73.0
  */
@@ -53,7 +57,8 @@ public record BotSpec(
         boolean respawn,
         String name,
         String skin,
-        BotKit kit) {
+        BotKit kit,
+        BotLimits limits) {
 
     public BotSpec {
         Objects.requireNonNull(owner, "owner");
@@ -67,18 +72,23 @@ public record BotSpec(
 
     /** A bot dressed however the plugin is configured to dress them. */
     public BotSpec(Player owner, Location spawn, CombatMode mode, Difficulty difficulty, boolean respawn) {
-        this(owner, spawn, mode, difficulty, respawn, null, null, null);
+        this(owner, spawn, mode, difficulty, respawn, null, null, null, null);
     }
 
     /** Named and skinned, still dressed by its mode. */
     public BotSpec(Player owner, Location spawn, CombatMode mode, Difficulty difficulty, boolean respawn,
                    String name, String skin) {
-        this(owner, spawn, mode, difficulty, respawn, name, skin, null);
+        this(owner, spawn, mode, difficulty, respawn, name, skin, null, null);
     }
 
     /** The same bot, fighting with a kit of the caller's choosing. */
     public BotSpec withKit(BotKit value) {
-        return new BotSpec(owner, spawn, mode, difficulty, respawn, name, skin, value);
+        return new BotSpec(owner, spawn, mode, difficulty, respawn, name, skin, value, limits);
+    }
+
+    /** The same bot, fighting under distances the caller decides. */
+    public BotSpec withLimits(BotLimits value) {
+        return new BotSpec(owner, spawn, mode, difficulty, respawn, name, skin, kit, value);
     }
 
     /** A bot that fights the player who asked for it and does not come back. */
@@ -89,6 +99,6 @@ public record BotSpec(
     /** The same, called something of its own so a duel is not you against you. */
     public static BotSpec duel(Player owner, Location spawn, CombatMode mode, Difficulty difficulty,
                                String name, String skin) {
-        return new BotSpec(owner, spawn, mode, difficulty, false, name, skin, null);
+        return new BotSpec(owner, spawn, mode, difficulty, false, name, skin, null, null);
     }
 }
