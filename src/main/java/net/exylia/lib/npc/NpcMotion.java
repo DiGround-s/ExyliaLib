@@ -92,6 +92,10 @@ public final class NpcMotion {
     private final NpcPose poseThen;
     private final long poseAfterMillis;
     private final boolean hurt;
+    private final double spinPerSecond;
+    private final double bob;
+    private final long bobPeriodMillis;
+    private final long swingEveryMillis;
 
     private NpcMotion(Builder builder) {
         this.fromX = builder.fromX;
@@ -109,6 +113,10 @@ public final class NpcMotion {
         this.poseThen = builder.poseThen;
         this.poseAfterMillis = builder.poseAfterMillis;
         this.hurt = builder.hurt;
+        this.spinPerSecond = builder.spinPerSecond;
+        this.bob = builder.bob;
+        this.bobPeriodMillis = builder.bobPeriodMillis;
+        this.swingEveryMillis = builder.swingEveryMillis;
     }
 
     /** A body that stays exactly where it was put. */
@@ -125,7 +133,8 @@ public final class NpcMotion {
     public boolean isStill() {
         return fromX == 0 && fromY == 0 && fromZ == 0
                 && toX == 0 && toY == 0 && toZ == 0
-                && gravity == 0 && turnDegrees == 0 && poseThen == null && !hurt;
+                && gravity == 0 && turnDegrees == 0 && poseThen == null && !hurt
+                && spinPerSecond == 0 && bob == 0 && swingEveryMillis == 0;
     }
 
     /**
@@ -153,19 +162,45 @@ public final class NpcMotion {
         double drop = gravity == 0.0 ? 0.0 : 0.5 * gravity * seconds * seconds;
         return new double[]{
                 fromX + (toX - fromX) * eased,
-                fromY + (toY - fromY) * eased - drop,
+                fromY + (toY - fromY) * eased - drop + bobAt(moving),
                 fromZ + (toZ - fromZ) * eased};
     }
 
     /** How far the body has turned from the yaw it was put at. */
     public float turnedBy(long elapsedMillis) {
         long moving = elapsedMillis - startAfterMillis;
-        if (turnDegrees == 0.0 || moving <= 0L) {
+        if (moving <= 0L) {
             return 0f;
+        }
+        // Everything a body does waits for move_after, the spin included: one
+        // that starts turning before the blast that spun it arrived is a body
+        // that knew.
+        double spun = spinPerSecond * moving / 1000.0;
+        if (turnDegrees == 0.0) {
+            return (float) spun;
         }
         double progress = overMillis <= 0 ? 1.0
                 : Math.clamp(moving / (double) overMillis, 0.0, 1.0);
-        return (float) (turnDegrees * easing.at(progress));
+        return (float) (spun + turnDegrees * easing.at(progress));
+    }
+
+    /**
+     * How far the hover has lifted the body at this moment.
+     *
+     * <p>Measured from the moment the body starts moving, and it does not stop
+     * when the movement does: the point of a hover is that it is still going
+     * when everything else has settled.
+     */
+    private double bobAt(long movingMillis) {
+        if (bob == 0.0 || bobPeriodMillis <= 0L) {
+            return 0.0;
+        }
+        return bob * Math.sin(2 * Math.PI * movingMillis / (double) bobPeriodMillis);
+    }
+
+    /** Milliseconds between arm swings, or {@code 0} when it never swings. */
+    public long swingEveryMillis() {
+        return swingEveryMillis;
     }
 
     /** How long the movement lasts. */
@@ -211,6 +246,10 @@ public final class NpcMotion {
         private NpcPose poseThen;
         private long poseAfterMillis;
         private boolean hurt;
+        private double spinPerSecond;
+        private double bob;
+        private long bobPeriodMillis = 1600L;
+        private long swingEveryMillis;
 
         private Builder() {
         }
@@ -297,6 +336,37 @@ public final class NpcMotion {
         /** Whether it flinches red as it appears. */
         public @NotNull Builder hurt(boolean hurt) {
             this.hurt = hurt;
+            return this;
+        }
+
+        /**
+         * Degrees a second it keeps turning, for its whole life.
+         *
+         * <p>Different from {@link #turn(double)}, which is one turn spread over
+         * the movement and then finished. This one does not stop, which is what
+         * a body caught in something needs.
+         */
+        public @NotNull Builder spin(double degreesPerSecond) {
+            this.spinPerSecond = degreesPerSecond;
+            return this;
+        }
+
+        /**
+         * A hover: blocks above and below the line, on a loop.
+         *
+         * @param blocks how far it rises and falls
+         * @param period how long one rise and fall takes
+         * @return this builder
+         */
+        public @NotNull Builder bob(double blocks, long period) {
+            this.bob = blocks;
+            this.bobPeriodMillis = Math.max(1L, period);
+            return this;
+        }
+
+        /** Milliseconds between arm swings, or {@code 0} to never swing. */
+        public @NotNull Builder swingEvery(long millis) {
+            this.swingEveryMillis = Math.max(0L, millis);
             return this;
         }
 

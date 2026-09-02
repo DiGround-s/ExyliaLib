@@ -40,10 +40,17 @@ final class LiveNpc implements NpcHandle {
     /** Whether it has flinched, which waits for whatever is done to it. */
     private boolean flinched;
 
+    /** The yaw last sent, so a body that only turns still turns. */
+    private float sentYaw;
+
+    /** When the arm last swung. */
+    private long swungAt = Long.MIN_VALUE / 2;
+
     private volatile boolean gone;
 
     LiveNpc(String owner, int entityId, NpcModel model, NpcMotion motion, List<Player> viewers,
             Location at, long now, long lifeMillis) {
+        this.sentYaw = at.getYaw();
         this.owner = owner;
         this.entityId = entityId;
         this.model = model;
@@ -118,27 +125,36 @@ final class LiveNpc implements NpcHandle {
             flinched = true;
             sink.hurt(viewers, entityId);
         }
+        long swingEvery = motion.swingEveryMillis();
+        if (swingEvery > 0 && elapsed >= motion.startAfterMillis()
+                && elapsed - swungAt >= swingEvery) {
+            swungAt = elapsed;
+            sink.swing(viewers, entityId);
+        }
         NpcPose then = motion.poseThen();
         if (!posed && then != null && elapsed >= motion.poseAfterMillis()) {
             posed = true;
             sink.pose(viewers, entityId, model, then);
         }
         double[] target = motion.at(elapsed);
+        float yaw = at.getYaw() + motion.turnedBy(elapsed);
         double dx = target[0] - sentX;
         double dy = target[1] - sentY;
         double dz = target[2] - sentZ;
-        // A sixteenth of a block: below that the protocol rounds the step to
-        // nothing anyway, and sending it is a packet that moves no pixels. The
-        // difference is kept rather than dropped — sentX only moves when a step
-        // is sent — so a movement too slow to clear this in one tick still
-        // happens, in sixteenths, instead of never happening at all.
-        if (Math.abs(dx) < 0.0625 && Math.abs(dy) < 0.0625 && Math.abs(dz) < 0.0625) {
+        // A quarter of a degree, and a step the protocol can still carry: a
+        // relative move is written in 4096ths of a block, so anything above that
+        // is a step the client will draw. The difference is kept rather than
+        // dropped — sentX only moves when a step is sent — so a hover too slow
+        // to clear this in one tick still happens instead of never happening.
+        if (Math.abs(dx) < 0.004 && Math.abs(dy) < 0.004 && Math.abs(dz) < 0.004
+                && Math.abs(yaw - sentYaw) < 0.25f) {
             return;
         }
         sentX = target[0];
         sentY = target[1];
         sentZ = target[2];
-        sink.move(viewers, entityId, dx, dy, dz, at.getYaw() + motion.turnedBy(elapsed));
+        sentYaw = yaw;
+        sink.move(viewers, entityId, dx, dy, dz, yaw, at.getPitch());
     }
 
     /** Takes it off every client, once. */

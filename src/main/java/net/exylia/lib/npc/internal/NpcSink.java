@@ -37,10 +37,14 @@ public interface NpcSink {
      * frames between two relative moves, so a body driven at twenty steps a
      * second is seen moving smoothly rather than in twenty jumps.
      */
-    void move(List<Player> viewers, int entityId, double dx, double dy, double dz, float yaw);
+    void move(List<Player> viewers, int entityId, double dx, double dy, double dz,
+              float yaw, float pitch);
 
     /** Makes it flinch. */
     void hurt(List<Player> viewers, int entityId);
+
+    /** Swings its main arm, the way a player swinging at something does. */
+    void swing(List<Player> viewers, int entityId);
 
     /** Changes how it is holding itself. */
     void pose(List<Player> viewers, int entityId, NpcModel model, NpcPose pose);

@@ -84,6 +84,14 @@ texture written into the file works too, and is resolved when the file is read.
 | `after:` | seconds before that second pose | `0.4` |
 | `hurt:` | flinches red when it is struck | `false` |
 | `move_after:` | seconds it stands there before any of that happens | `0` |
+| `spin:` | degrees a second it keeps turning, for its whole life | `0` |
+| `bob:` | blocks it rises and falls, on a loop | `0` |
+| `bob_every:` | seconds one rise and fall takes | `1.6` |
+| `swing:` | seconds between arm swings | `0` |
+| `scale:` | how big it is drawn, `1` being player-sized | `1` |
+| `hold:` | a material put in its main hand | its own |
+| `offhand:` | a material put in its off hand | its own |
+| `pitch:` | head pitch in degrees, negative being up | `0` |
 
 ### Making a body read
 
@@ -106,6 +114,15 @@ thrown by the blast that arrives a second later. Put the `[NPC]` line first in
 the effect and give it a `move_after:`, rather than putting the line late: a body
 that appears halfway through is a body the player watched not being there.
 The flinch waits for it too.
+
+`spin:` is the one to reach for when a body should not settle: `turn:` is one
+turn spread over the movement and then finished, `spin:` never stops. A body
+caught in a vortex is `spin:220`, one hanging in the light is `bob:0.3;spin:40`,
+and one still swinging at whatever killed it is `swing:0.5;hold:NETHERITE_SWORD`.
+
+`scale:` is the client's own scale attribute, so the whole model grows: `0.4` is
+a doll and `2.5` is something the room is not big enough for. It needs a 1.20.5
+client; an older one is sent nothing and sees a player-sized body.
 
 `gravity` is added to the line rather than replacing it, so "thrown three blocks
 back and let it drop" is two numbers instead of a launch velocity. A body reads

@@ -219,7 +219,9 @@ final class Steps {
      * when the file is read, because the answer is whoever just died.
      */
     record Corpse(String owner, Face face, String texture, NpcMotion motion, long lifeMillis,
-                  boolean equipped, int glowArgb, double yShift, boolean facesSource)
+                  boolean equipped, int glowArgb, double yShift, boolean facesSource,
+                  double scale, org.bukkit.inventory.ItemStack held,
+                  org.bukkit.inventory.ItemStack offHand, float pitch)
             implements SequenceStep {
 
         /** Whose face the body wears. */
@@ -253,6 +255,9 @@ final class Steps {
             Location where = yShift == 0.0
                     ? target.location().clone()
                     : target.location().clone().add(0, yShift, 0);
+            if (pitch != 0f) {
+                where.setPitch(pitch);
+            }
             Player source = target.source();
             if (facesSource && source != null) {
                 // Facing whoever did it, which is the difference between a body
@@ -303,6 +308,15 @@ final class Steps {
             model = model.pose(motion.pose());
             if (glowArgb >= 0) {
                 model = model.glow(glowArgb);
+            }
+            if (scale != 1.0) {
+                model = model.scale(scale);
+            }
+            if (held != null) {
+                model = model.holding(held);
+            }
+            if (offHand != null) {
+                model = model.offHand(offHand);
             }
             return model;
         }

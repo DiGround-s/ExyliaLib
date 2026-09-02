@@ -2,6 +2,7 @@ package net.exylia.lib.npc.internal;
 
 import com.github.retrooper.packetevents.PacketEvents;
 import com.github.retrooper.packetevents.manager.server.ServerVersion;
+import com.github.retrooper.packetevents.protocol.attribute.Attributes;
 import com.github.retrooper.packetevents.protocol.entity.data.EntityData;
 import com.github.retrooper.packetevents.protocol.entity.data.EntityDataTypes;
 import com.github.retrooper.packetevents.protocol.entity.pose.EntityPose;
@@ -24,6 +25,7 @@ import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerEn
 import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerPlayerInfoRemove;
 import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerPlayerInfoUpdate;
 import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerSpawnEntity;
+import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerUpdateAttributes;
 import io.github.retrooper.packetevents.util.SpigotConversionUtil;
 import io.github.retrooper.packetevents.util.SpigotReflectionUtil;
 import net.exylia.lib.npc.NpcModel;
@@ -123,15 +125,37 @@ final class NpcPackets implements NpcSink {
         PacketWrapper<?> state = new WrapperPlayServerEntityMetadata(entityId, fullState(model));
         PacketWrapper<?> head = new WrapperPlayServerEntityHeadLook(entityId, at.getYaw());
         List<Equipment> kit = kitOf(model);
+        PacketWrapper<?> size = sizeOf(entityId, model);
 
         for (Player viewer : viewers) {
             send(viewer, body);
             send(viewer, state);
             send(viewer, head);
+            if (size != null) {
+                send(viewer, size);
+            }
             if (!kit.isEmpty()) {
                 send(viewer, new WrapperPlayServerEntityEquipment(entityId, kit));
             }
         }
+    }
+
+    /**
+     * How big the client draws it, or {@code null} when it is player-sized.
+     *
+     * <p>The scale attribute arrived in 1.20.5. An older client is sent nothing
+     * rather than a packet it would disconnect over, so a body that was meant to
+     * be huge is merely normal there.
+     */
+    private static PacketWrapper<?> sizeOf(int entityId, NpcModel model) {
+        if (model.scale() == 1.0
+                || PacketEvents.getAPI().getServerManager().getVersion()
+                        .isOlderThan(ServerVersion.V_1_20_5)) {
+            return null;
+        }
+        return new WrapperPlayServerUpdateAttributes(entityId,
+                List.of(new WrapperPlayServerUpdateAttributes.Property(
+                        Attributes.SCALE, model.scale(), List.of())));
     }
 
     @Override
@@ -147,9 +171,12 @@ final class NpcPackets implements NpcSink {
 
     @Override
     public void move(List<Player> viewers, int entityId,
-                     double dx, double dy, double dz, float yaw) {
+                     double dx, double dy, double dz, float yaw, float pitch) {
+        // The pitch is carried rather than zeroed: a body put down looking up at
+        // what is about to land keeps looking up while it is shoved, and a step
+        // that dropped it snapped every head level on the first frame it moved.
         PacketWrapper<?> step = new WrapperPlayServerEntityRelativeMoveAndRotation(
-                entityId, dx, dy, dz, yaw, 0f, false);
+                entityId, dx, dy, dz, yaw, pitch, false);
         PacketWrapper<?> head = new WrapperPlayServerEntityHeadLook(entityId, yaw);
         for (Player viewer : viewers) {
             send(viewer, step);
@@ -161,6 +188,15 @@ final class NpcPackets implements NpcSink {
     public void hurt(List<Player> viewers, int entityId) {
         PacketWrapper<?> packet = new WrapperPlayServerEntityAnimation(entityId,
                 WrapperPlayServerEntityAnimation.EntityAnimationType.HURT);
+        for (Player viewer : viewers) {
+            send(viewer, packet);
+        }
+    }
+
+    @Override
+    public void swing(List<Player> viewers, int entityId) {
+        PacketWrapper<?> packet = new WrapperPlayServerEntityAnimation(entityId,
+                WrapperPlayServerEntityAnimation.EntityAnimationType.SWING_MAIN_ARM);
         for (Player viewer : viewers) {
             send(viewer, packet);
         }
@@ -254,6 +290,10 @@ final class NpcPackets implements NpcSink {
         if (model.held() != null) {
             kit.removeIf(piece -> piece.getSlot() == EquipmentSlot.MAIN_HAND);
             add(kit, EquipmentSlot.MAIN_HAND, model.held());
+        }
+        if (model.offHand() != null) {
+            kit.removeIf(piece -> piece.getSlot() == EquipmentSlot.OFF_HAND);
+            add(kit, EquipmentSlot.OFF_HAND, model.offHand());
         }
         return kit;
     }

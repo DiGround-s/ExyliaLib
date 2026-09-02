@@ -57,13 +57,18 @@ class NpcLifetimeTest {
 
         @Override
         public void move(List<Player> viewers, int entityId,
-                         double dx, double dy, double dz, float yaw) {
+                         double dx, double dy, double dz, float yaw, float pitch) {
             sent.add("move");
         }
 
         @Override
         public void hurt(List<Player> viewers, int entityId) {
             sent.add("hurt");
+        }
+
+        @Override
+        public void swing(List<Player> viewers, int entityId) {
+            sent.add("swing");
         }
 
         @Override

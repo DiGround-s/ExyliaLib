@@ -425,7 +425,8 @@ public final class SequenceCompiler {
         double life = args.number("life", 5.0, onArg);
         args.reportUnknown(onArg, "pose", "life", "equip", "glow", "y", "face",
                 "from", "to", "over", "ease", "gravity", "turn", "pose_to", "after", "hurt",
-                "move_after");
+                "move_after", "scale", "hold", "offhand", "spin", "bob", "bob_every", "swing",
+                "pitch");
         return new Steps.Corpse(owner, face,
                 face == Steps.Corpse.Face.FIXED ? who : null,
                 corpseMotion(args, onArg),
@@ -433,7 +434,31 @@ public final class SequenceCompiler {
                 args.flag("equip", true),
                 glow == null ? -1 : glow.asRGB(),
                 args.number("y", 0.0, onArg),
-                args.flag("face", true));
+                args.flag("face", true),
+                args.number("scale", 1.0, onArg),
+                held(args, "hold", onArg),
+                held(args, "offhand", onArg),
+                (float) args.number("pitch", 0.0, onArg));
+    }
+
+    /**
+     * An item put in one of the body's hands, or {@code null}.
+     *
+     * <p>Read when the file is, so a material nobody has heard of is named at
+     * load rather than leaving an empty hand nobody can explain.
+     */
+    private @Nullable org.bukkit.inventory.ItemStack held(Args args, String key,
+                                                          Args.Problems onArg) {
+        if (!args.has(key)) {
+            return null;
+        }
+        String name = args.text(key, "").trim().toUpperCase(Locale.ROOT);
+        try {
+            return new org.bukkit.inventory.ItemStack(Material.valueOf(name));
+        } catch (IllegalArgumentException unknown) {
+            onArg.found(key, "there is no material called \"" + name + "\"");
+            return null;
+        }
     }
 
     /**
@@ -455,6 +480,10 @@ public final class SequenceCompiler {
                 .startAfter((long) (args.number("move_after", 0.0, onArg) * 1000))
                 .ease(net.exylia.lib.npc.NpcMotion.Easing.of(args.text("ease", "out")))
                 .turn(args.number("turn", 0.0, onArg))
+                .spin(args.number("spin", 0.0, onArg))
+                .bob(args.number("bob", 0.0, onArg),
+                        (long) (args.number("bob_every", 1.6, onArg) * 1000))
+                .swingEvery((long) (args.number("swing", 0.0, onArg) * 1000))
                 .hurt(args.flag("hurt", false));
         if (args.has("pose_to")) {
             motion.collapsing(net.exylia.lib.npc.NpcPose.of(args.text("pose_to", "lying")),
