@@ -298,7 +298,7 @@ public final class SequenceCompiler {
             problems.found(line, "needs a sound, as in [SOUND] ENTITY_BLAZE_DEATH");
             return null;
         }
-        String key = soundKey(args.head());
+        String key = soundKey(args.head(), line);
         // Both spellings: the positional form every existing file uses, and the
         // named form that says what the numbers mean.
         float volume = (float) namedOrPositional(args, "volume", 1, 1.0, onArg);
@@ -466,7 +466,7 @@ public final class SequenceCompiler {
      * underscore inside {@code block.note_block.pling} &mdash; so it is asked
      * of the registry rather than guessed.
      */
-    private static @NotNull String soundKey(@NotNull String name) {
+    private @NotNull String soundKey(@NotNull String name, @NotNull String line) {
         String trimmed = name.trim();
         try {
             Sound sound = Sound.valueOf(trimmed.toUpperCase(Locale.ROOT));
@@ -477,7 +477,37 @@ public final class SequenceCompiler {
         } catch (Throwable notAnEnumName) {
             // Already a key, or a server with no registry behind the enum.
         }
+        // A name written the way the enum spells it, that this server has never
+        // heard of, is a mistake worth a console line. It used to be handed on
+        // as a lowercase key, which is not a key at all, so the sound simply
+        // stopped playing and nothing said why — and that is exactly what a
+        // Minecraft update does when it renames a sound out from under a file.
+        if (looksLikeAnEnumName(trimmed)) {
+            problems.found(line, "this server has no sound called \"" + trimmed
+                    + "\"; if it was renamed by a Minecraft update, write the new name"
+                    + " or its key, as in block.chain.place");
+        }
         return trimmed.toLowerCase(Locale.ROOT);
+    }
+
+    /**
+     * Whether a sound name was written as a constant rather than as a key.
+     *
+     * <p>A resource pack's own sound is a key and is legitimately absent from
+     * the registry, so only the constant spelling is worth reporting: nothing
+     * else can be mistyped in a way that leaves the file looking right.
+     */
+    private static boolean looksLikeAnEnumName(@NotNull String name) {
+        if (name.isEmpty() || name.indexOf(':') >= 0 || name.indexOf('.') >= 0) {
+            return false;
+        }
+        for (int index = 0; index < name.length(); index++) {
+            char letter = name.charAt(index);
+            if (letter != '_' && !Character.isUpperCase(letter) && !Character.isDigit(letter)) {
+                return false;
+            }
+        }
+        return true;
     }
 
     /** Reads shape parameters, reporting rather than silently defaulting. */

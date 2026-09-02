@@ -291,6 +291,13 @@ bugs.
 - **Custom shapes.** `sequences.shape("heart", args -> ...)` registers a token
   that inherits colour, animation, rotation, scaling and visibility for free.
 - **Sounds by key.** A resource pack's own sound can be written in the file.
+- **A sound this server does not have is reported.** A name written the way the
+  enum spells it used to be handed on as a lowercase key, which is not a key at
+  all: the sound stopped playing and nothing said why. That is exactly what a
+  Minecraft update does when it renames a sound out from under a file, so it now
+  costs a console line naming the effect. A key with a dot or a colon in it is
+  left alone, because a resource pack's own sound is legitimately not in the
+  registry.
 - **`durationMillis()`** — how long a sequence lasts, known without playing it,
   animation included. Commons summed only the explicit delays, so a preview
   handed the player back mid-animation.
