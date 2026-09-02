@@ -16,6 +16,7 @@ import net.exylia.lib.ui.UiSession;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.plugin.Plugin;
+import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
@@ -69,11 +70,21 @@ public final class MenuRuntime {
     /** How long a closed menu's pages are worth putting back. */
     private static final long PAGE_MEMORY_MILLIS = TimeUnit.MINUTES.toMillis(5);
 
-    /** Where each list of one menu was, and until when that is worth knowing. */
-    private record Remembered(Map<String, Integer> pages, long until) {
+    /**
+     * Where one menu was, and until when that is worth knowing.
+     *
+     * @param pages   the page each list was showing
+     * @param context the values the menu asked to have put back, such as the
+     *                tab that was open
+     */
+    private record Remembered(Map<String, Integer> pages, Map<String, Object> context, long until) {
 
         boolean isFresh(long now) {
             return now < until;
+        }
+
+        boolean isEmpty() {
+            return context.isEmpty() && pages.values().stream().allMatch(page -> page <= 1);
         }
     }
 
@@ -210,6 +221,8 @@ public final class MenuRuntime {
             rememberPages(previous);
         }
 
+        Remembered where = take(viewer, definition.id());
+
         MenuHolder holder = new MenuHolder();
         Inventory inventory = Session.inventoryFor(holder, definition, viewer, context, sections);
         Session session = new Session(this, viewer, definition, items, inventory,
@@ -217,7 +230,10 @@ public final class MenuRuntime {
         holder.bind(session, inventory);
 
         // Before the seed, which clamps these against the rows this menu has.
-        restorePages(viewer, session);
+        if (where != null) {
+            session.remember(where.context().keySet().toArray(String[]::new));
+            session.restorePages(where.pages());
+        }
         session.seed(sections);
         session.draw();
         viewer.openInventory(inventory);
@@ -357,30 +373,54 @@ public final class MenuRuntime {
         play(session.viewer(), session.definition().sounds().close());
     }
 
-    /** Notes where each of a menu's lists was, for the next time it is opened. */
+    /** Notes where a menu was, for the next time the same player opens it. */
     private void rememberPages(Session session) {
-        Map<String, Integer> where = session.pageSnapshot();
+        Remembered where = new Remembered(session.pageSnapshot(), session.contextSnapshot(),
+                System.currentTimeMillis() + PAGE_MEMORY_MILLIS);
         UUID id = session.viewer().getUniqueId();
-        if (where.values().stream().allMatch(page -> page <= 1)) {
-            // The first page is where a menu opens anyway. Not remembering it
-            // keeps a player who never pages out of this map entirely.
+        if (where.isEmpty()) {
+            // The first page of the first tab is where a menu opens anyway. Not
+            // remembering it keeps a player who never moved out of this map.
             Map<String, Remembered> known = pages.get(id);
             if (known != null) known.remove(session.menuId());
             return;
         }
         pages.computeIfAbsent(id, ignored -> new ConcurrentHashMap<>())
-                .put(session.menuId(), new Remembered(where, System.currentTimeMillis() + PAGE_MEMORY_MILLIS));
+                .put(session.menuId(), where);
     }
 
-    /** Puts a menu's lists back where the same player last left them. */
-    private void restorePages(Player viewer, Session session) {
+    /**
+     * The context values a player left behind in a menu, for the menu to read
+     * before it opens.
+     *
+     * <p>A read, not a restore. Which tab was open decides which rows a menu
+     * builds, and it builds them before there is a session to put anything
+     * back into — so the menu asks, and passes what it finds as ordinary
+     * context. Nothing is overwritten underneath a caller that meant to open
+     * somewhere specific.
+     *
+     * @param viewer who is opening it
+     * @param menuId the menu about to open
+     * @return what they left, empty when there is nothing fresh
+     */
+    public @NotNull Map<String, Object> remembered(@NotNull Player viewer, @NotNull String menuId) {
         Map<String, Remembered> known = pages.get(viewer.getUniqueId());
-        if (known == null) return;
+        if (known == null) return Map.of();
+        Remembered where = known.get(menuId);
+        return where != null && where.isFresh(System.currentTimeMillis()) ? where.context() : Map.of();
+    }
 
-        Remembered where = known.remove(session.menuId());
-        if (where == null) return;
-        if (!where.isFresh(System.currentTimeMillis())) return;
-        session.restorePages(where.pages());
+    /**
+     * Where the same player last left this menu, taken rather than read.
+     *
+     * <p>Putting them back is a one-off: an entry left behind would send them
+     * there again the next time, long after they stopped meaning it.
+     */
+    private @Nullable Remembered take(Player viewer, String menuId) {
+        Map<String, Remembered> known = pages.get(viewer.getUniqueId());
+        if (known == null) return null;
+        Remembered where = known.remove(menuId);
+        return where != null && where.isFresh(System.currentTimeMillis()) ? where : null;
     }
 
     /** Forgets where a player left every list, without touching where they have been. */

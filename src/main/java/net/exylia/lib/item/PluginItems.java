@@ -1,6 +1,7 @@
 package net.exylia.lib.item;
 
 import net.exylia.lib.debug.Debug;
+import net.exylia.lib.item.internal.InertItems;
 import net.exylia.lib.item.internal.ItemReader;
 import net.exylia.lib.item.internal.ItemRenderer;
 import org.bukkit.configuration.ConfigurationSection;
@@ -11,6 +12,7 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.Map;
+import java.util.Set;
 
 /**
  * The item reader belonging to one plugin.
@@ -58,6 +60,34 @@ public final class PluginItems {
      *
      * @return this plugin's item value store; the same instance every time
      */
+    /**
+     * Marks this plugin's own items as inert: they can be held, dropped and
+     * traded, but never used as the item they are drawn as.
+     *
+     * <p>An item is one of ours when it carries any of these keys under this
+     * plugin's namespace — the key that says what kind of item it is, not a key
+     * that also lands on the things the item is applied to.
+     *
+     * <pre>{@code
+     * Items.of(this).inert("item");
+     * }</pre>
+     *
+     * <p>Without this a token drawn as an ender pearl is a thrown ender pearl,
+     * one drawn as a golden apple is eaten, and either way the player has spent
+     * something they were meant to keep.
+     *
+     * <p>Idempotent, so a plugin that reloads in place can call it again.
+     *
+     * @param keys the keys that mark an item as this plugin's own
+     * @since 1.84.4
+     */
+    public void inert(@NotNull String... keys) {
+        if (keys.length == 0) {
+            return;
+        }
+        InertItems.mark(plugin, values, Set.of(keys));
+    }
+
     public @NotNull ItemValues values() {
         return values;
     }

@@ -58,6 +58,9 @@ final class Session implements UiSession {
     /** Which page each list is showing, one-based. */
     private final Map<String, Integer> pages = new LinkedHashMap<>();
 
+    /** Context keys this menu asked to be put back the next time it opens. */
+    private final Set<String> remembered = new LinkedHashSet<>();
+
     /** Values the menu is about, also filled into everything it draws. */
     private final Map<String, Object> context = new LinkedHashMap<>();
 
@@ -517,6 +520,27 @@ final class Session implements UiSession {
         if (animation != null) {
             finishAnimation();
         }
+    }
+
+    @Override
+    public void remember(@NotNull String... keys) {
+        remembered.addAll(Set.of(keys));
+    }
+
+    /**
+     * The context values this menu asked to be put back, and nothing else.
+     *
+     * <p>Most of the context is derived — a status line, a name, a count — and
+     * restoring it would show a player yesterday's numbers until the first
+     * redraw. Only what the menu named is worth keeping.
+     */
+    Map<String, Object> contextSnapshot() {
+        Map<String, Object> kept = new LinkedHashMap<>();
+        for (String key : remembered) {
+            Object value = context.get(key);
+            if (value != null) kept.put(key, value);
+        }
+        return Map.copyOf(kept);
     }
 
     /** Where each list is, for a runtime that wants to put it back later. */

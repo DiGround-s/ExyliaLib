@@ -62,7 +62,7 @@ public final class ClickPolicy {
      * @param rawSlot     the slot, as the client numbered it
      * @param inputSlots  the slots the menu lets the player use
      * @return what to do
-     * @since 1.85.0
+     * @since 1.84.4
      */
     public static @NotNull Decision decide(boolean ours, boolean inTop, boolean shiftClick,
                                            boolean doubleClick, int rawSlot,

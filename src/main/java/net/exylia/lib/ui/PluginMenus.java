@@ -344,6 +344,30 @@ public final class PluginMenus {
         return runtime.back(viewer);
     }
 
+    /**
+     * What a player left behind in a menu the last time they closed it.
+     *
+     * <p>The page of each list is put back on its own. This is for the rest of
+     * where they were — the tab that was open, and anything else the menu
+     * marked with {@link UiSession#remember(String...)}. Read it before
+     * opening, because which tab was open decides which rows the menu builds:
+     *
+     * <pre>{@code
+     * Object tab = menus.remembered(player, "effects").get("category");
+     * }</pre>
+     *
+     * <p>Reading does not consume it, and nothing is put back behind the
+     * caller's back: what to do with it is the menu's decision.
+     *
+     * @param viewer who is about to open it
+     * @param menuId the menu
+     * @return what they left, empty when there is nothing worth putting back
+     * @since 1.84.4
+     */
+    public @NotNull Map<String, Object> remembered(@NotNull Player viewer, @NotNull String menuId) {
+        return runtime.remembered(viewer, menuId);
+    }
+
     /** Forgets where a player has been, so back has nowhere to go. */
     public void clearHistory(@NotNull Player viewer) {
         runtime.clearHistory(viewer);

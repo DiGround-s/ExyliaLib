@@ -169,6 +169,27 @@ public interface UiSession {
     /** Writes one context value, redrawing nothing. */
     @NotNull UiSession context(@NotNull String key, @NotNull Object value);
 
+    /**
+     * Marks context values as part of where the player was.
+     *
+     * <p>The page of each list is put back on its own when a menu is reopened
+     * soon after closing. Which tab was open is the same kind of fact, but it
+     * is a value the menu invented and only the menu knows which one it is —
+     * so it says so:
+     *
+     * <pre>{@code
+     * session.remember("category");
+     * }</pre>
+     *
+     * <p>The value is restored over whatever the next open passes for that key,
+     * which is what makes it the default for a first open rather than an
+     * override of the player's place. It expires with the page memory.
+     *
+     * @param keys the context keys worth putting back
+     * @since 1.84.4
+     */
+    void remember(@NotNull String... keys);
+
     // ----------------------------------------------------------------- input
 
     /** Slots the player is allowed to put items into. */

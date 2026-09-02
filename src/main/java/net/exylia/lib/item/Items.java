@@ -5,6 +5,7 @@ import net.exylia.lib.item.internal.ItemReader;
 import net.exylia.lib.item.internal.ItemRenderer;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.inventory.ItemStack;
+import net.exylia.lib.item.internal.InertItems;
 import org.bukkit.plugin.Plugin;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -53,6 +54,19 @@ public final class Items {
      */
     public static @NotNull PluginItems of(@NotNull Plugin plugin) {
         return new PluginItems(plugin);
+    }
+
+    /**
+     * Forgets a plugin's item state.
+     *
+     * <p>Called by ExyliaLib when the plugin is disabled. Consumers do not need
+     * to call this.
+     *
+     * @param pluginName the name of the plugin being disabled
+     * @since 1.84.4
+     */
+    public static void release(@NotNull String pluginName) {
+        InertItems.release(pluginName);
     }
 
     /**

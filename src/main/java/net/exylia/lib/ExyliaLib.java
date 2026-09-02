@@ -658,6 +658,10 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         // Before the task module: closing a window cancels what its buttons
         // started, and a menu whose actions come from a dying classloader
         // must not answer another click.
+        // After the menus, which draw with items but never use one: the guard
+        // only answers a player's own click, and by here there is nobody left
+        // holding anything of this plugin's to click with.
+        net.exylia.lib.item.Items.release(pluginName);
         Menus.release(pluginName);
         // Same reason, and one more: a pending question holds a future the
         // dying plugin is waiting on. Ending it as SHUT_DOWN releases that
