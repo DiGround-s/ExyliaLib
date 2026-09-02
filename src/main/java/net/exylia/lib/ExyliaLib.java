@@ -36,6 +36,8 @@ import net.exylia.lib.overlay.internal.OverlayRuntime;
 import net.exylia.lib.packet.Packets;
 import net.exylia.lib.packet.internal.PacketRuntime;
 import net.exylia.lib.util.combat.internal.CombatRuntime;
+import net.exylia.lib.display.Displays;
+import net.exylia.lib.display.internal.DisplayRuntime;
 import net.exylia.lib.hologram.internal.HologramRuntime;
 import net.exylia.lib.internal.ExyliaLibUpdater;
 import net.exylia.lib.item.internal.ItemCache;
@@ -161,6 +163,10 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         PapiBridge.startRefreshing(this);
         BoardManager.init(this, SidebarLibrary.load(this, getLogger()));
         HologramRuntime.init(this);
+        // After holograms and before anything that draws: display effects are
+        // packets, and their driver is one timer for every display on the
+        // server rather than one per effect.
+        DisplayRuntime.init(this);
         ClientRuntime.init(this);
         NametagRuntime.init(this);
         PacketRuntime.init(this);
@@ -422,6 +428,8 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         Previews.releaseAll();
         Teleports.releaseAll();
         Sequences.releaseAll();
+        // After the sequences that drew them, for the same reason as above.
+        Displays.releaseAll();
         // Before releasing tasks: their refresh drivers are among them.
         BoardManager.stopEverything();
         HologramRuntime.removeEverything();
@@ -629,6 +637,10 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         // frames of its own animation, and a frame belonging to a classloader
         // that is going away must not fire.
         Sequences.release(pluginName);
+        // After the sequences that drew them, so nothing spawns a display
+        // between the two: what is on a client stays on that client until it
+        // relogs, and no part of the server will take it off afterwards.
+        Displays.release(pluginName);
         BoardManager.stopAll(pluginName);
         HologramRuntime.removeAll(pluginName);
         // Deleting a team clears its members' markers, and taking down this

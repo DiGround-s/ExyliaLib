@@ -13,7 +13,7 @@ import org.jetbrains.annotations.NotNull;
 import java.util.List;
 
 /**
- * A geometric shape drawn out of particles.
+ * A geometric shape, drawn out of whatever the line asked for.
  *
  * <p>The points were computed when the sequence was compiled, so playing this
  * is a loop over an array. A twenty-effect kill sequence that ExyliaCommons
@@ -36,14 +36,14 @@ final class ShapeStep implements SequenceStep {
     /** A tick in milliseconds, for turning the file's seconds into frames. */
     private static final long TICK_MS = 50L;
 
-    private final ParticlePaint paint;
+    private final Paint paint;
     private final Frame[] frames;
     private final long intervalMs;
     private final long trailMillis;
     private final boolean rotates;
     private final double yaw;
 
-    private ShapeStep(ParticlePaint paint, Frame[] frames, long intervalMs,
+    private ShapeStep(Paint paint, Frame[] frames, long intervalMs,
                       long trailMillis, boolean rotates, double yaw) {
         this.paint = paint;
         this.frames = frames;
@@ -62,7 +62,7 @@ final class ShapeStep implements SequenceStep {
      * @param intervalMs how long a frame lasts
      * @param yawDegrees a fixed rotation, or {@code NaN} to face the source
      */
-    static ShapeStep of(ParticlePaint paint, List<Vector> points, int ticks, long intervalMs,
+    static ShapeStep of(Paint paint, List<Vector> points, int ticks, long intervalMs,
                         double yawDegrees, boolean faceSource) {
         int total = points.size();
         if (total == 0) {
@@ -99,6 +99,10 @@ final class ShapeStep implements SequenceStep {
             return;
         }
         Location anchor = target.location();
+        // Resolved once per play, not once per point and not once per frame: a
+        // paint that depends on who died has to look them up, and a ring of
+        // twelve would otherwise look them up twelve times.
+        Paint resolved = paint.forPlay(target);
         // Worked out once per play, not once per point: the whole shape shares
         // one rotation.
         double angle = rotates ? Math.toRadians(-anchor.getYaw()) : yaw;
@@ -107,14 +111,14 @@ final class ShapeStep implements SequenceStep {
 
         for (Frame frame : frames) {
             if (frame.delayMs() == 0L) {
-                drawFrame(frame, target, anchor, cos, sin);
+                drawFrame(resolved, frame, target, anchor, cos, sin);
                 continue;
             }
             TaskScheduler tasks = run.scheduler();
             TaskHandle handle = tasks.runAtLocationLater(anchor, frame.delayMs() / TICK_MS,
                     () -> {
                         if (!run.isCancelled()) {
-                            drawFrame(frame, target, anchor, cos, sin);
+                            drawFrame(resolved, frame, target, anchor, cos, sin);
                         }
                     });
             run.owns(handle);
@@ -128,7 +132,7 @@ final class ShapeStep implements SequenceStep {
      * cannot meaningfully change within a frame, and asking per point made the
      * cost of a shape quadratic in its detail.
      */
-    private void drawFrame(Frame frame, SequenceTarget target, Location anchor,
+    private void drawFrame(Paint paint, Frame frame, SequenceTarget target, Location anchor,
                            double cos, double sin) {
         List<Player> observers = target.observers();
         if (observers.isEmpty()) {
@@ -146,9 +150,17 @@ final class ShapeStep implements SequenceStep {
         }
     }
 
+    /**
+     * How long this keeps drawing, animation and paint together.
+     *
+     * <p>The frames finish at {@code trailMillis}; what the last frame drew can
+     * outlive them. A shape of displays is not over when the last one is sent,
+     * it is over when the last one has gone, and a preview that hands the
+     * player back in between hands it back into a sky full of swords.
+     */
     @Override
     public long trailMillis() {
-        return trailMillis;
+        return trailMillis + paint.trailMillis();
     }
 
     /** The points that share one moment. */

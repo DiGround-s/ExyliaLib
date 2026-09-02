@@ -26,7 +26,7 @@ import java.util.List;
  * carries one, and without it the most common coloured effect cannot be drawn
  * at all.
  */
-final class ParticlePaint {
+final class ParticlePaint implements Paint {
 
     /** Names change between versions; the first one that resolves wins. */
     static final Particle EXPLOSION = firstOf("EXPLOSION", "EXPLOSION_LARGE", "EXPLOSION_EMITTER");
@@ -120,8 +120,9 @@ final class ParticlePaint {
     }
 
     /** Draws this at a point offset from an anchor, for the players given. */
-    void drawAt(@NotNull List<Player> observers, @NotNull Location anchor,
-                double x, double y, double z) {
+    @Override
+    public void drawAt(@NotNull List<Player> observers, @NotNull Location anchor,
+                       double x, double y, double z) {
         // One Location reused across observers: spawnParticle reads it and does
         // not keep it, and a shape of 600 points would otherwise allocate 600
         // Locations per observer per frame.

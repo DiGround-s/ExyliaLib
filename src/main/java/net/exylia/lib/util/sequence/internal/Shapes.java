@@ -62,6 +62,11 @@ public final class Shapes {
         shapes.put("wings", Shapes::wings);
         shapes.put("arch", Shapes::arch);
         shapes.put("claw", Shapes::claw);
+        // One point at the anchor. Not geometry so much as the absence of it:
+        // it exists so [DISPLAY] is a shape like any other and inherits y:,
+        // ticks:, rotate: and the rest rather than being a second code path
+        // that has to grow each of them again.
+        shapes.put("display", args -> List.of(new Vector(0, 0, 0)));
         return shapes;
     }
 
@@ -88,6 +93,7 @@ public final class Shapes {
             case "wings" -> new String[]{"span", "arch", "depth", "dir", "points"};
             case "arch" -> new String[]{"radius", "arc", "dir", "points"};
             case "claw" -> new String[]{"radius", "claws", "spread", "curve", "dir", "drop", "points"};
+            case "display" -> new String[0];
             default -> new String[0];
         };
     }

@@ -210,6 +210,7 @@ arguments — so a migrating plugin edits no configuration files.
 | `[ACTION_BAR] text` | |
 | `[COMMAND] give {player} ...` | `{player}` `{world}` `{x}` `{y}` `{z}` |
 | `[MESSAGE] text` | a chat line, since 1.57.0; centre it with `<center>` like any other message |
+| `[DISPLAY] NETHERITE_SWORD` | one display entity, since 1.85.0 — see [displays.md](displays.md) |
 
 ### Shapes
 
@@ -220,6 +221,19 @@ arguments — so a migrating plugin edits no configuration files.
 Every shape takes `color:` `size:` `count:` `ticks:` `interval:` `y:` on top of
 its own parameters. `ticks:1` draws the whole shape at once; above that it draws
 itself over time.
+
+### Drawn with something other than particles
+
+Any shape line becomes a shape of display entities by saying what it is made of:
+
+```
+[CIRCLE] NETHERITE_SWORD;as:item;radius:2.6;points:12;from:0,9,0;spin:2;axis:x;face_out:true
+```
+
+`as:` takes `item`, `block`, `head` or `text`, and the head of the line names
+that instead of a particle. The geometry, the animation, the rotation and who
+sees it are unchanged, because a shape never knew what it was being drawn with.
+The movement parameters are in [displays.md](displays.md).
 
 ## What was fixed
 
@@ -257,6 +271,9 @@ bugs.
   handed the player back mid-animation.
 - **Cancellation.** Commons had no handle at all; a sequence always ran to the
   end, whatever happened to the arrow, menu or plugin that started it.
+- **`as:` on every shape** — the same twenty shapes drawn as item, block, head or
+  text displays that move, spin and fall by themselves, and the `[DISPLAY]` token
+  for a single one. See [displays.md](displays.md).
 - **A visibility predicate** on the target, and `onlyTo(player)` for previews.
   All three consumer plugins wrote their own.
 - **The radius is a value.** Commons hardcoded 32 blocks.

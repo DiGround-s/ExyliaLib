@@ -30,6 +30,19 @@ public final class SequenceAccess {
         return new SequenceCompiler(shapes, problems);
     }
 
+    /**
+     * A compiler that knows whose displays it is building.
+     *
+     * <p>Display lines outlive the tick that drew them, so the plugin they
+     * belong to has to be known at compile: disabling it has to take them off
+     * the clients showing them.
+     */
+    public static @NotNull SequenceCompiler compiler(@NotNull Map<String, Shape> shapes,
+                                                     @NotNull SequenceCompiler.Problems problems,
+                                                     @NotNull String owner) {
+        return new SequenceCompiler(shapes, problems, owner);
+    }
+
     /** Wraps compiled steps as a sequence. */
     public static @NotNull Sequence sequence(@NotNull List<SequenceStep> steps) {
         return net.exylia.lib.util.sequence.SequenceFactory.sequence(steps);

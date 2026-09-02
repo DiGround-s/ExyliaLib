@@ -197,6 +197,7 @@ final class SequenceLine {
             case "EXPLOSION" -> "TNT";
             case "BLOCK_BREAK" -> "IRON_PICKAXE";
             case "DELAY" -> "CLOCK";
+            case "DISPLAY" -> "ARMOR_STAND";
             case "" -> "BARRIER";
             default -> "END_ROD";
         };
@@ -308,6 +309,11 @@ final class SequenceLine {
      * @return what to ask for
      */
     static @NotNull Spec spec(@NotNull String token, @NotNull Set<String> shapeNames) {
+        if (token.equals("DISPLAY")) {
+            // Its head is an item, a block or a texture rather than a particle,
+            // so the picker that opens behind it has to be a different one.
+            return new Spec(token, Head.MATERIAL, Form.NAMED, displayFields());
+        }
         if (shapeNames.contains(token.toLowerCase(Locale.ROOT))) {
             return new Spec(token, Head.PARTICLE, Form.NAMED, shapeFields(token));
         }
@@ -388,6 +394,40 @@ final class SequenceLine {
         fields.add(new Field("interval", "Seconds between frames", "0.05"));
         fields.add(new Field("face", "Turns to face the player", "true or false"));
         fields.add(new Field("rotate", "Rotation, in degrees", "0"));
+        fields.add(new Field("as", "Draw it with",
+                "item, block, head or text; leave empty for particles"));
         return List.copyOf(fields);
+    }
+
+    /**
+     * What a display line is worth asking about.
+     *
+     * <p>Movement first, because that is what somebody adding a display is
+     * there for, and looks after it: an effect is decided by where the thing
+     * goes, not by how brightly it is lit.
+     */
+    private static List<Field> displayFields() {
+        return List.of(
+                new Field("as", "Draw it with", "item, block, head or text"),
+                new Field("life", "Seconds it lasts", "1"),
+                new Field("from", "Starts at, as x,y,z", "0,0,0"),
+                new Field("to", "Ends at, as x,y,z", "0,0,0"),
+                new Field("rise", "Goes up by", "shorthand for to:0,n,0"),
+                new Field("gravity", "Falls at, in blocks per second squared", "0; vanilla is 32"),
+                new Field("spin", "Turns over its life", "0"),
+                new Field("axis", "Turns around", "x, y or z"),
+                new Field("size", "Size it starts at", "1"),
+                new Field("size_to", "Size it ends at", "same as size"),
+                new Field("tilt", "Fixed tilt, in degrees", "0"),
+                new Field("roll", "Fixed roll, in degrees", "0"),
+                new Field("turn", "Fixed turn, in degrees", "0"),
+                new Field("face_out", "Points away from the centre", "true or false"),
+                new Field("glow", "Outline colour", "a name, #rrggbb or a {palette} token"),
+                new Field("light", "Fixed light level", "0 to 15"),
+                new Field("model", "Custom model data", "for a resource pack model"),
+                new Field("billboard", "Turns to face the viewer",
+                        "FIXED, VERTICAL, HORIZONTAL or CENTER"),
+                new Field("hold", "How an item is held",
+                        "0 the model itself, 5 head, 7 dropped, 8 item frame"));
     }
 }

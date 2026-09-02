@@ -92,7 +92,7 @@ public final class PluginSequences {
         var compiler = SequenceAccess.compiler(shapes, (line, problem) -> {
             reported.incrementAndGet();
             debug.warn("In " + name + ", \"" + line + "\": " + problem);
-        });
+        }, plugin.getName());
         Sequence sequence = SequenceAccess.sequence(compiler.compile(lines));
         if (reported.get() > 0) {
             debug.warn("In " + name + ", " + reported.get()

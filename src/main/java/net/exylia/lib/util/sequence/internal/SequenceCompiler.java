@@ -36,9 +36,24 @@ public final class SequenceCompiler {
     private final Map<String, Shape> shapes;
     private final Problems problems;
 
+    /**
+     * Whose displays these are.
+     *
+     * <p>Only display lines need it, and they need it at compile rather than at
+     * play: a display outlives the tick that drew it, so something has to be
+     * able to take it off a client when that plugin is disabled.
+     */
+    private final String owner;
+
     public SequenceCompiler(@NotNull Map<String, Shape> shapes, @NotNull Problems problems) {
+        this(shapes, problems, "ExyliaLib");
+    }
+
+    public SequenceCompiler(@NotNull Map<String, Shape> shapes, @NotNull Problems problems,
+                            @NotNull String owner) {
         this.shapes = shapes;
         this.problems = problems;
+        this.owner = owner;
     }
 
     /** Compiles every line, skipping the ones that cannot be understood. */
@@ -99,14 +114,25 @@ public final class SequenceCompiler {
 
     private @Nullable SequenceStep shapeStep(String token, Shape shape, Args args, String line,
                                              Args.Problems onArg) {
+        // What the head names depends on one parameter: with as: it is an item,
+        // a block, a head or a line of text, and without it a particle. The
+        // geometry, the animation, the rotation and who sees it are the same
+        // either way, which is the whole reason a ring of swords needed no new
+        // shape and no new token.
+        boolean displays = DisplayReader.wanted(args, token);
         if (args.headless()) {
-            problems.found(line, "needs a particle, as in [" + token + "] FLAME");
+            problems.found(line, displays
+                    ? "needs something to draw, as in [" + token + "] NETHERITE_SWORD;as:item"
+                    : "needs a particle, as in [" + token + "] FLAME");
             return null;
         }
-        Particle particle = ParticlePaint.particle(args.head());
-        if (particle == null) {
-            problems.found(line, "there is no particle called \"" + args.head() + "\"");
-            return null;
+        Particle particle = null;
+        if (!displays) {
+            particle = ParticlePaint.particle(args.head());
+            if (particle == null) {
+                problems.found(line, "there is no particle called \"" + args.head() + "\"");
+                return null;
+            }
         }
 
         ShapeReader reader = new ShapeReader(args, onArg);
@@ -144,8 +170,17 @@ public final class SequenceCompiler {
         boolean faceSource = args.flag("face", false);
         double yaw = args.number("rotate", 0.0, onArg);
 
-        args.reportUnknown(onArg, merge(Shapes.parametersOf(token),
-                "y", "scale", "color", "size", "count", "ticks", "interval", "face", "rotate"));
+        if (displays) {
+            Paint paint = DisplayReader.read(owner, args, token, onArg);
+            if (paint == null) {
+                return null;
+            }
+            args.reportUnknown(onArg, merge(merge(Shapes.parametersOf(token), SHARED),
+                    DisplayReader.PARAMETERS));
+            return ShapeStep.of(paint, points, ticks, (long) (interval * 1000), yaw, faceSource);
+        }
+
+        args.reportUnknown(onArg, merge(Shapes.parametersOf(token), SHARED));
 
         Object data = ParticlePaint.dataFor(particle, colour, size, null);
         return ShapeStep.of(ParticlePaint.point(particle, data, count), points, ticks,
@@ -166,6 +201,11 @@ public final class SequenceCompiler {
             default -> 0.0;
         };
     }
+
+    /** What every shape line understands, whatever it is drawn with. */
+    private static final String[] SHARED = {
+            "y", "scale", "color", "size", "count", "ticks", "interval", "face", "rotate"
+    };
 
     private static String[] merge(String[] first, String... second) {
         String[] all = new String[first.length + second.length];
