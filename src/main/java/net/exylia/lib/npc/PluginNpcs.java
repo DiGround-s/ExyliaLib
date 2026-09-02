@@ -45,7 +45,23 @@ public final class PluginNpcs {
      */
     public @Nullable NpcHandle show(@NotNull NpcModel model, @NotNull Location at,
                                     long lifeMillis, @NotNull List<Player> viewers) {
-        return NpcRuntime.show(pluginName, model, at, lifeMillis, viewers);
+        return show(model, NpcMotion.still(), at, lifeMillis, viewers);
+    }
+
+    /**
+     * Shows one NPC that does something once it is there.
+     *
+     * @param model      who it looks like
+     * @param motion     what it does: thrown, slumping, turning, sinking
+     * @param at         where it appears; the location's yaw is which way it faces
+     * @param lifeMillis how long before it goes
+     * @param viewers    who sees it
+     * @return the handle, or {@code null}
+     */
+    public @Nullable NpcHandle show(@NotNull NpcModel model, @NotNull NpcMotion motion,
+                                    @NotNull Location at, long lifeMillis,
+                                    @NotNull List<Player> viewers) {
+        return NpcRuntime.show(pluginName, model, motion, at, lifeMillis, viewers);
     }
 
     /**

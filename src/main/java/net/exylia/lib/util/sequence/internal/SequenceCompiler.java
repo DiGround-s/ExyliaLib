@@ -423,15 +423,59 @@ public final class SequenceCompiler {
         }
         Color glow = args.colour("glow", null, onArg);
         double life = args.number("life", 5.0, onArg);
-        args.reportUnknown(onArg, "pose", "life", "equip", "glow", "y", "face");
+        args.reportUnknown(onArg, "pose", "life", "equip", "glow", "y", "face",
+                "from", "to", "over", "ease", "gravity", "turn", "pose_to", "after", "hurt");
         return new Steps.Corpse(owner, face,
                 face == Steps.Corpse.Face.FIXED ? who : null,
-                net.exylia.lib.npc.NpcPose.of(args.text("pose", "lying")),
+                corpseMotion(args, onArg),
                 (long) (life * 1000),
                 args.flag("equip", true),
                 glow == null ? -1 : glow.asRGB(),
                 args.number("y", 0.0, onArg),
                 args.flag("face", true));
+    }
+
+    /**
+     * What the body does once it is there.
+     *
+     * <p>Read here rather than left to the runtime, so a body that is thrown or
+     * that slumps costs the same at play time as one that does nothing: a few
+     * doubles that were worked out when the file was read.
+     */
+    private static net.exylia.lib.npc.NpcMotion corpseMotion(Args args, Args.Problems onArg) {
+        double[] from = offset(args, "from", onArg);
+        double[] to = offset(args, "to", onArg);
+        net.exylia.lib.npc.NpcMotion.Builder motion = net.exylia.lib.npc.NpcMotion.builder()
+                .pose(net.exylia.lib.npc.NpcPose.of(args.text("pose", "lying")))
+                .from(from[0], from[1], from[2])
+                .to(to[0], to[1], to[2])
+                .gravity(args.number("gravity", 0.0, onArg))
+                .over((long) (args.number("over", 0.7, onArg) * 1000))
+                .ease(net.exylia.lib.npc.NpcMotion.Easing.of(args.text("ease", "out")))
+                .turn(args.number("turn", 0.0, onArg))
+                .hurt(args.flag("hurt", false));
+        if (args.has("pose_to")) {
+            motion.collapsing(net.exylia.lib.npc.NpcPose.of(args.text("pose_to", "lying")),
+                    (long) (args.number("after", 0.4, onArg) * 1000));
+        }
+        return motion.build();
+    }
+
+    /** An {@code x,y,z} parameter, or zeroes. */
+    private static double[] offset(Args args, String key, Args.Problems onArg) {
+        double[] out = new double[3];
+        if (!args.has(key)) {
+            return out;
+        }
+        String[] parts = args.text(key, "").split(",");
+        if (parts.length < 3) {
+            onArg.found(key, "needs three numbers, as in " + key + ":0,1,-2");
+            return out;
+        }
+        for (int index = 0; index < 3; index++) {
+            out[index] = number(parts[index], 0.0, key, onArg);
+        }
+        return out;
     }
 
     private @Nullable SequenceStep title(Args args, String rest, Args.Problems onArg) {

@@ -16,7 +16,9 @@ import com.github.retrooper.packetevents.wrapper.PacketWrapper;
 import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerDestroyEntities;
 import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerEntityEquipment;
 import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerEntityHeadLook;
+import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerEntityAnimation;
 import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerEntityMetadata;
+import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerEntityRelativeMoveAndRotation;
 import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerEntityRotation;
 import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerPlayerInfoRemove;
 import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerPlayerInfoUpdate;
@@ -126,6 +128,27 @@ final class NpcPackets implements NpcSink {
         for (Player viewer : viewers) {
             send(viewer, rotation);
             send(viewer, head);
+        }
+    }
+
+    @Override
+    public void move(List<Player> viewers, int entityId,
+                     double dx, double dy, double dz, float yaw) {
+        PacketWrapper<?> step = new WrapperPlayServerEntityRelativeMoveAndRotation(
+                entityId, dx, dy, dz, yaw, 0f, false);
+        PacketWrapper<?> head = new WrapperPlayServerEntityHeadLook(entityId, yaw);
+        for (Player viewer : viewers) {
+            send(viewer, step);
+            send(viewer, head);
+        }
+    }
+
+    @Override
+    public void hurt(List<Player> viewers, int entityId) {
+        PacketWrapper<?> packet = new WrapperPlayServerEntityAnimation(entityId,
+                WrapperPlayServerEntityAnimation.EntityAnimationType.HURT);
+        for (Player viewer : viewers) {
+            send(viewer, packet);
         }
     }
 

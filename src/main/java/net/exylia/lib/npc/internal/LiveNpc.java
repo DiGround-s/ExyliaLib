@@ -2,6 +2,7 @@ package net.exylia.lib.npc.internal;
 
 import net.exylia.lib.npc.NpcHandle;
 import net.exylia.lib.npc.NpcModel;
+import net.exylia.lib.npc.NpcMotion;
 import net.exylia.lib.npc.NpcPose;
 import org.bukkit.Location;
 import org.bukkit.entity.Player;
@@ -23,17 +24,27 @@ final class LiveNpc implements NpcHandle {
     private final NpcModel model;
     private final List<Player> viewers;
     private final Location at;
+    private final NpcMotion motion;
+    private final long startedAt;
     private final long endsAt;
+
+    /** Where the body has been put so far, relative to where it appeared. */
+    private double sentX;
+    private double sentY;
+    private double sentZ;
+    private boolean posed;
 
     private volatile boolean gone;
 
-    LiveNpc(String owner, int entityId, NpcModel model, List<Player> viewers,
+    LiveNpc(String owner, int entityId, NpcModel model, NpcMotion motion, List<Player> viewers,
             Location at, long now, long lifeMillis) {
         this.owner = owner;
         this.entityId = entityId;
         this.model = model;
+        this.motion = motion;
         this.viewers = viewers;
         this.at = at;
+        this.startedAt = now;
         this.endsAt = now + lifeMillis;
     }
 
@@ -44,6 +55,9 @@ final class LiveNpc implements NpcHandle {
 
     void spawn(NpcSink sink) {
         sink.spawn(viewers, entityId, model, at);
+        if (motion.hurt()) {
+            sink.hurt(viewers, entityId);
+        }
     }
 
     /**
@@ -57,11 +71,44 @@ final class LiveNpc implements NpcHandle {
         if (gone) {
             return true;
         }
-        if (now < endsAt) {
-            return false;
+        if (now >= endsAt) {
+            destroy(sink);
+            return true;
         }
-        destroy(sink);
-        return true;
+        if (!motion.isStill()) {
+            drive(sink, now - startedAt);
+        }
+        return false;
+    }
+
+    /**
+     * Moves and re-poses the body for this moment.
+     *
+     * <p>Sends only what changed. A body that has finished moving is a
+     * comparison of three doubles a tick, which is what lets one driver run
+     * every tick for every NPC on the server without the still ones costing
+     * anything.
+     */
+    private void drive(NpcSink sink, long elapsed) {
+        NpcPose then = motion.poseThen();
+        if (!posed && then != null && elapsed >= motion.poseAfterMillis()) {
+            posed = true;
+            sink.pose(viewers, entityId, model, then);
+        }
+        double[] target = motion.at(elapsed);
+        double dx = target[0] - sentX;
+        double dy = target[1] - sentY;
+        double dz = target[2] - sentZ;
+        // A sixteenth of a block: below that the protocol rounds the step to
+        // nothing anyway, and sending it is a packet that moves no pixels.
+        if (Math.abs(dx) < 0.0625 && Math.abs(dy) < 0.0625 && Math.abs(dz) < 0.0625
+                && elapsed > motion.overMillis()) {
+            return;
+        }
+        sentX = target[0];
+        sentY = target[1];
+        sentZ = target[2];
+        sink.move(viewers, entityId, dx, dy, dz, at.getYaw() + motion.turnedBy(elapsed));
     }
 
     /** Takes it off every client, once. */

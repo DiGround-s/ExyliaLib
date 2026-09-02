@@ -2,6 +2,7 @@ package net.exylia.lib.npc.internal;
 
 import net.exylia.lib.npc.NpcHandle;
 import net.exylia.lib.npc.NpcModel;
+import net.exylia.lib.npc.NpcMotion;
 import net.exylia.lib.task.TaskHandle;
 import net.exylia.lib.task.TaskScheduler;
 import net.exylia.lib.task.Tasks;
@@ -34,8 +35,13 @@ import java.util.logging.Logger;
 @ApiStatus.Internal
 public final class NpcRuntime {
 
-    /** Nothing here is frame-accurate, and a second late to disappear is nobody's bug. */
-    private static final long DRIVER_PERIOD_TICKS = 20L;
+    /**
+     * Every tick, because a body that moves is driven from here.
+     *
+     * <p>A still one costs three comparisons a tick, and a moving one is what
+     * makes the difference between a prop and something that happened.
+     */
+    private static final long DRIVER_PERIOD_TICKS = 1L;
 
     /** Long enough to be a moment, short enough not to be scenery. */
     public static final long DEFAULT_LIFE_MILLIS = 5000L;
@@ -127,14 +133,15 @@ public final class NpcRuntime {
      *
      * @param owner      the name of the plugin it belongs to
      * @param model      who it looks like
+     * @param motion     what it does once it is there
      * @param at         where it stands, facing the location's yaw
      * @param lifeMillis how long before it goes
      * @param viewers    who sees it; taken as given and not copied again
      * @return the handle, or {@code null} when nobody can see it or the server
      *         has no PacketEvents
      */
-    public static NpcHandle show(String owner, NpcModel model, Location at, long lifeMillis,
-                                 List<Player> viewers) {
+    public static NpcHandle show(String owner, NpcModel model, NpcMotion motion, Location at,
+                                 long lifeMillis, List<Player> viewers) {
         if (!available) {
             warnOnce(owner);
             return null;
@@ -142,7 +149,7 @@ public final class NpcRuntime {
         if (viewers.isEmpty() || ids == null) {
             return null;
         }
-        LiveNpc npc = new LiveNpc(owner, ids.next(), model, viewers, at.clone(),
+        LiveNpc npc = new LiveNpc(owner, ids.next(), model, motion, viewers, at.clone(),
                 clock.getAsLong(), Math.clamp(lifeMillis, 200L, MAX_LIFE_MILLIS));
         npc.spawn(sink);
         LIVE.add(npc);

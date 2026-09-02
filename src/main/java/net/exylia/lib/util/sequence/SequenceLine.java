@@ -365,7 +365,16 @@ final class SequenceLine {
                     new Field("equip", "Wears what they died in", "true or false"),
                     new Field("glow", "Outline colour", "a name, #rrggbb or a {palette} token"),
                     new Field("y", "Height above the anchor", "0"),
-                    new Field("face", "Turns to face whoever did it", "true or false")));
+                    new Field("face", "Turns to face whoever did it", "true or false"),
+                    new Field("from", "Appears at, as x,y,z", "0,0,0"),
+                    new Field("to", "Ends up at, as x,y,z", "0,0,0"),
+                    new Field("over", "Seconds the movement takes", "0.7"),
+                    new Field("ease", "How the movement is spread", "out, in, in_out or linear"),
+                    new Field("gravity", "Falls at, in blocks per second squared", "0"),
+                    new Field("turn", "Degrees it turns on the spot", "0"),
+                    new Field("pose_to", "A second pose, so it goes down while you watch", null),
+                    new Field("after", "Seconds before that second pose", "0.4"),
+                    new Field("hurt", "Flinches as it appears", "true or false")));
             case "ACTION_BAR" -> free(token, "The line above the hotbar", null);
             case "MESSAGE" -> free(token, "The message", "One line; add another for a second.");
             case "COMMAND" -> free(token, "Command the console runs",

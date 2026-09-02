@@ -2,6 +2,7 @@ package net.exylia.lib.npc.internal;
 
 import net.exylia.lib.npc.NpcHandle;
 import net.exylia.lib.npc.NpcModel;
+import net.exylia.lib.npc.NpcMotion;
 import net.exylia.lib.npc.NpcPose;
 import org.bukkit.Location;
 import org.bukkit.entity.Player;
@@ -50,6 +51,17 @@ class NpcLifetimeTest {
         }
 
         @Override
+        public void move(List<Player> viewers, int entityId,
+                         double dx, double dy, double dz, float yaw) {
+            sent.add("move");
+        }
+
+        @Override
+        public void hurt(List<Player> viewers, int entityId) {
+            sent.add("hurt");
+        }
+
+        @Override
         public void pose(List<Player> viewers, int entityId, NpcModel model, NpcPose pose) {
             sent.add("pose");
         }
@@ -76,7 +88,11 @@ class NpcLifetimeTest {
     }
 
     private NpcHandle show(String owner, long life) {
-        return NpcRuntime.show(owner, NpcModel.of("Body", "texture", null),
+        return show(owner, life, NpcMotion.still());
+    }
+
+    private NpcHandle show(String owner, long life, NpcMotion motion) {
+        return NpcRuntime.show(owner, NpcModel.of("Body", "texture", null), motion,
                 new Location(null, 0, 0, 0), life, SOMEBODY);
     }
 
@@ -151,10 +167,71 @@ class NpcLifetimeTest {
     @DisplayName("nobody watching is nothing sent")
     void noViewersNoNpc() {
         assertNull(NpcRuntime.show("Test", NpcModel.of("Body", "texture", null),
-                new Location(null, 0, 0, 0), 1000, List.of()));
+                NpcMotion.still(), new Location(null, 0, 0, 0), 1000, List.of()));
 
         assertTrue(sent.isEmpty());
         assertEquals(0, NpcRuntime.active());
+    }
+
+    @Test
+    @DisplayName("a still body is never written to after it appears")
+    void stillBodiesCostNothing() {
+        show("Test", 5000);
+        sent.clear();
+
+        for (now = 50; now < 4000; now += 50) {
+            NpcRuntime.tick();
+        }
+
+        assertTrue(sent.isEmpty(), "a body that does nothing was sent " + sent.size() + " packets");
+    }
+
+    @Test
+    @DisplayName("a body that was thrown is moved, and stops being moved once it lands")
+    void thrownBodiesAreDriven() {
+        show("Test", 4000, NpcMotion.builder()
+                .over(500).to(0, 0, -3).gravity(8).hurt(true).build());
+
+        assertEquals(List.of("spawn", "hurt"), sent, "it did not flinch as it appeared");
+
+        sent.clear();
+        for (now = 50; now <= 500; now += 50) {
+            NpcRuntime.tick();
+        }
+        assertEquals(10, sent.size(), "the throw was not driven every tick");
+        assertTrue(sent.stream().allMatch("move"::equals));
+
+        sent.clear();
+        for (now = 550; now < 3000; now += 50) {
+            NpcRuntime.tick();
+        }
+        assertTrue(sent.isEmpty(), "it was still being moved after it landed");
+    }
+
+    @Test
+    @DisplayName("a body that slumps changes pose once, when it was told to")
+    void slumpingChangesPoseOnce() {
+        show("Test", 4000, NpcMotion.builder()
+                .pose(NpcPose.STANDING)
+                .over(0)
+                .collapsing(NpcPose.LYING, 600)
+                .build());
+        sent.clear();
+
+        for (now = 50; now < 600; now += 50) {
+            NpcRuntime.tick();
+        }
+        assertTrue(sent.isEmpty(), "it went down before it was told to");
+
+        now = 600L;
+        NpcRuntime.tick();
+        assertEquals(List.of("pose"), sent);
+
+        sent.clear();
+        for (now = 650; now < 3000; now += 50) {
+            NpcRuntime.tick();
+        }
+        assertTrue(sent.isEmpty(), "it kept being re-posed");
     }
 
     @Test

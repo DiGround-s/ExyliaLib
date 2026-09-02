@@ -2,7 +2,7 @@ package net.exylia.lib.util.sequence.internal;
 
 import net.exylia.lib.npc.NpcHandle;
 import net.exylia.lib.npc.NpcModel;
-import net.exylia.lib.npc.NpcPose;
+import net.exylia.lib.npc.NpcMotion;
 import net.exylia.lib.npc.internal.NpcRuntime;
 import net.exylia.lib.task.TaskHandle;
 import net.exylia.lib.text.Text;
@@ -218,7 +218,7 @@ final class Steps {
      * <p>Whose face it wears is decided when the sequence plays rather than
      * when the file is read, because the answer is whoever just died.
      */
-    record Corpse(String owner, Face face, String texture, NpcPose pose, long lifeMillis,
+    record Corpse(String owner, Face face, String texture, NpcMotion motion, long lifeMillis,
                   boolean equipped, int glowArgb, double yShift, boolean facesSource)
             implements SequenceStep {
 
@@ -256,7 +256,7 @@ final class Steps {
                         where.getX() - source.getLocation().getX(),
                         source.getLocation().getZ() - where.getZ())));
             }
-            NpcHandle handle = NpcRuntime.show(owner, model, where, lifeMillis, observers);
+            NpcHandle handle = NpcRuntime.show(owner, model, motion, where, lifeMillis, observers);
             if (handle == null) {
                 return;
             }
@@ -289,7 +289,7 @@ final class Steps {
             if (model == null) {
                 return null;
             }
-            model = model.pose(pose);
+            model = model.pose(motion.pose());
             if (glowArgb >= 0) {
                 model = model.glow(glowArgb);
             }

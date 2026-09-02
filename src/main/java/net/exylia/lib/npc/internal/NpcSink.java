@@ -23,6 +23,18 @@ public interface NpcSink {
     /** Turns the head and body. */
     void look(List<Player> viewers, int entityId, float yaw, float pitch);
 
+    /**
+     * Shifts it by a small step and turns it, in one packet.
+     *
+     * <p>Relative rather than absolute on purpose: the client draws its own
+     * frames between two relative moves, so a body driven at twenty steps a
+     * second is seen moving smoothly rather than in twenty jumps.
+     */
+    void move(List<Player> viewers, int entityId, double dx, double dy, double dz, float yaw);
+
+    /** Makes it flinch. */
+    void hurt(List<Player> viewers, int entityId);
+
     /** Changes how it is holding itself. */
     void pose(List<Player> viewers, int entityId, NpcModel model, NpcPose pose);
 

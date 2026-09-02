@@ -74,6 +74,39 @@ texture written into the file works too, and is resolved when the file is read.
 | `glow:` | outline colour: a name, `#rrggbb` or a `{palette}` token | none |
 | `y:` | height above the anchor | `0` |
 | `face:` | turns to face whoever set the sequence off | `true` |
+| `from:x,y,z` | where it appears, relative to the anchor | `0,0,0` |
+| `to:x,y,z` | where it ends up | `0,0,0` |
+| `over:` | seconds the movement takes | `0.7` |
+| `ease:` | `out`, `in`, `in_out` or `linear` | `out` |
+| `gravity:` | falls at this many blocks per second squared, on top of the line | `0` |
+| `turn:` | degrees it turns on the spot over the movement | `0` |
+| `pose_to:` | a second pose, so it goes down while you watch | none |
+| `after:` | seconds before that second pose | `0.4` |
+| `hurt:` | flinches red as it appears | `false` |
+
+### Making a body read
+
+A body that appears and disappears is a prop. Three lines separate that from
+something that happened:
+
+```
+# Thrown backwards by the blast, tumbling, landing face down.
+[NPC] {victim};pose:crawling;to:0,1.2,-3;gravity:9;over:0.8;turn:160;hurt:true;life:3
+
+# On its feet for a beat, then it goes down while you watch.
+[NPC] {victim};pose:standing;pose_to:lying;after:0.5;over:0;life:2.6;face:true
+
+# Taken: it rises and turns as it goes.
+[NPC] {victim};pose:crawling;to:0,3.5,0;over:1.6;ease:in;turn:200;life:2
+```
+
+`gravity` is added to the line rather than replacing it, so "thrown three blocks
+back and let it drop" is two numbers instead of a launch velocity. A body reads
+better at about half vanilla gravity — a real one is heavier than the eye
+expects and slower than the number says.
+
+A body that is not moving is never written to after it appears: the driver runs
+every tick, and a still one costs three comparisons.
 
 `pose:lying` is the pose a sleeping player is drawn in, which is the only way to
 put a body on the floor without a model of your own. `pose:standing` with
