@@ -211,6 +211,7 @@ arguments — so a migrating plugin edits no configuration files.
 | `[COMMAND] give {player} ...` | `{player}` `{world}` `{x}` `{y}` `{z}` |
 | `[MESSAGE] text` | a chat line, since 1.57.0; centre it with `<center>` like any other message |
 | `[DISPLAY] NETHERITE_SWORD` | one display entity, since 1.85.0 — see [displays.md](displays.md) |
+| `[NPC] {victim}` | a body where it happened, since 1.88.2 — see [npcs.md](npcs.md) |
 
 ### Shapes
 

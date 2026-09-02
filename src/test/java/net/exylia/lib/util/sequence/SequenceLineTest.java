@@ -144,7 +144,7 @@ class SequenceLineTest {
 
         for (String token : List.of("PARTICLE", "SOUND", "POTION", "FIREWORK", "TITLE",
                 "ACTION_BAR", "MESSAGE", "COMMAND", "LIGHTNING", "EXPLOSION",
-                "BLOCK_BREAK", "DELAY")) {
+                "BLOCK_BREAK", "NPC", "DELAY")) {
             assertTrue(tokens.contains(token), token + " is missing from the picker");
         }
         for (String shape : SHAPES) {

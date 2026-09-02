@@ -1,5 +1,10 @@
 package net.exylia.lib.util.sequence.internal;
 
+import net.exylia.lib.npc.NpcHandle;
+import net.exylia.lib.npc.NpcModel;
+import net.exylia.lib.npc.NpcPose;
+import net.exylia.lib.npc.internal.NpcRuntime;
+import net.exylia.lib.task.TaskHandle;
 import net.exylia.lib.text.Text;
 import net.exylia.lib.util.sequence.SequenceRun;
 import net.exylia.lib.util.sequence.SequenceStep;
@@ -200,6 +205,108 @@ final class Steps {
                 return;
             }
             source.sendMessage(Text.of(text).forPlayer(source).build());
+        }
+    }
+
+    /**
+     * A player-shaped body, left where the sequence happened.
+     *
+     * <p>The one step that draws a person. Everything else in this module is
+     * light or objects; a body is the thing that makes a death read as having
+     * happened to somebody in particular.
+     *
+     * <p>Whose face it wears is decided when the sequence plays rather than
+     * when the file is read, because the answer is whoever just died.
+     */
+    record Corpse(String owner, Face face, String texture, NpcPose pose, long lifeMillis,
+                  boolean equipped, int glowArgb, double yShift, boolean facesSource)
+            implements SequenceStep {
+
+        /** Whose face the body wears. */
+        enum Face {
+
+            /** A texture written in the file. */
+            FIXED,
+
+            /** Whoever set the sequence off. */
+            KILLER,
+
+            /** Whoever it happened to. */
+            VICTIM
+        }
+
+        @Override
+        public void play(@NotNull SequenceTarget target, @NotNull SequenceRun run) {
+            List<Player> observers = target.observers();
+            if (observers.isEmpty()) {
+                return;
+            }
+            NpcModel model = model(target);
+            if (model == null) {
+                return;
+            }
+            Location where = yShift == 0.0
+                    ? target.location().clone()
+                    : target.location().clone().add(0, yShift, 0);
+            Player source = target.source();
+            if (facesSource && source != null) {
+                // Facing whoever did it, which is the difference between a body
+                // and a body that was looking at something.
+                where.setYaw((float) Math.toDegrees(Math.atan2(
+                        where.getX() - source.getLocation().getX(),
+                        source.getLocation().getZ() - where.getZ())));
+            }
+            NpcHandle handle = NpcRuntime.show(owner, model, where, lifeMillis, observers);
+            if (handle == null) {
+                return;
+            }
+            // Owned by the run as well as by the module, so a preview the player
+            // closed does not leave somebody standing in the arena.
+            run.owns(new TaskHandle() {
+                @Override
+                public void cancel() {
+                    handle.remove();
+                }
+
+                @Override
+                public boolean isCancelled() {
+                    return !handle.isShowing();
+                }
+
+                @Override
+                public boolean isRepeating() {
+                    return false;
+                }
+            });
+        }
+
+        private @Nullable NpcModel model(SequenceTarget target) {
+            NpcModel model = switch (face) {
+                case KILLER -> wearer(target.source());
+                case VICTIM -> wearer(target.target() instanceof Player player ? player : null);
+                case FIXED -> texture == null ? null : NpcModel.of("Body", texture, null);
+            };
+            if (model == null) {
+                return null;
+            }
+            model = model.pose(pose);
+            if (glowArgb >= 0) {
+                model = model.glow(glowArgb);
+            }
+            return model;
+        }
+
+        private @Nullable NpcModel wearer(@Nullable Player player) {
+            if (player == null) {
+                return texture == null ? null : NpcModel.of("Body", texture, null);
+            }
+            NpcModel model = NpcModel.of(player);
+            return equipped ? model.wearing(player) : model;
+        }
+
+        @Override
+        public long trailMillis() {
+            return lifeMillis;
         }
     }
 

@@ -29,6 +29,7 @@ against the source — rules and routes are in `AGENTS.md` under
 | [Formats](formats.md) | Numbers, money, percentages and dates a player reads — and amounts a player types, such as `10M` | 1.25.0 |
 | [Economy](economy.md) | Balances, charges and transfers over Vault, PlayerPoints or a currency you write — one economy choice for the whole server | 1.26.0 |
 | [Input](input.md) | Asking a player for something: text, numbers, amounts, choices, a searchable registry, or a whole form in one window | 1.31.0 |
+| [NPCs](npcs.md) | Player-shaped entities that exist only on a client — a body where somebody died, a statue, a double | 1.88.2 |
 | [Displays](displays.md) | Item, block and text displays that move, spin and fall by themselves — packet-only, animated by the client | 1.85.0 |
 | [Sequences](sequences.md) | Choreographed effects from configuration: shapes, sounds, delays — the ExyliaCommons syntax, compiled once; effects with odds, conditions and an audience since 1.57.0 | 1.30.0 |
 | [Previews](previews.md) | Showing one player an effect against an empty sky, and putting them back | 1.30.0 |

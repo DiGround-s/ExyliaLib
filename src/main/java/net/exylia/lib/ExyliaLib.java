@@ -37,6 +37,8 @@ import net.exylia.lib.packet.Packets;
 import net.exylia.lib.packet.internal.PacketRuntime;
 import net.exylia.lib.util.combat.internal.CombatRuntime;
 import net.exylia.lib.display.Displays;
+import net.exylia.lib.npc.Npcs;
+import net.exylia.lib.npc.internal.NpcRuntime;
 import net.exylia.lib.display.internal.DisplayRuntime;
 import net.exylia.lib.hologram.internal.HologramRuntime;
 import net.exylia.lib.internal.ExyliaLibUpdater;
@@ -167,6 +169,7 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         // packets, and their driver is one timer for every display on the
         // server rather than one per effect.
         DisplayRuntime.init(this);
+        NpcRuntime.init(this);
         ClientRuntime.init(this);
         NametagRuntime.init(this);
         PacketRuntime.init(this);
@@ -430,6 +433,7 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         Sequences.releaseAll();
         // After the sequences that drew them, for the same reason as above.
         Displays.releaseAll();
+        Npcs.releaseAll();
         // Before releasing tasks: their refresh drivers are among them.
         BoardManager.stopEverything();
         HologramRuntime.removeEverything();
@@ -641,6 +645,9 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         // between the two: what is on a client stays on that client until it
         // relogs, and no part of the server will take it off afterwards.
         Displays.release(pluginName);
+        // Same reason again: a body left standing wears somebody's name until
+        // that player relogs, and the server has no record of it to clean up.
+        Npcs.release(pluginName);
         BoardManager.stopAll(pluginName);
         HologramRuntime.removeAll(pluginName);
         // Deleting a team clears its members' markers, and taking down this

@@ -198,6 +198,7 @@ final class SequenceLine {
             case "BLOCK_BREAK" -> "IRON_PICKAXE";
             case "DELAY" -> "CLOCK";
             case "DISPLAY" -> "ARMOR_STAND";
+            case "NPC" -> "PLAYER_HEAD";
             case "" -> "BARRIER";
             default -> "END_ROD";
         };
@@ -293,6 +294,7 @@ final class SequenceLine {
         tokens.add("ACTION_BAR");
         tokens.add("MESSAGE");
         tokens.add("COMMAND");
+        tokens.add("NPC");
         tokens.add("DELAY");
         return List.copyOf(tokens);
     }
@@ -356,6 +358,14 @@ final class SequenceLine {
                     new Field("fade_in", "Fade in, in seconds", "0.5"),
                     new Field("stay", "Stays for, in seconds", "3.5"),
                     new Field("fade_out", "Fade out, in seconds", "1")));
+            case "NPC" -> new Spec(token, Head.NONE, Form.NAMED, List.of(
+                    new Field("pose", "How it lies",
+                            "lying, standing, crawling, sneaking or spinning"),
+                    new Field("life", "Seconds it stays", "5"),
+                    new Field("equip", "Wears what they died in", "true or false"),
+                    new Field("glow", "Outline colour", "a name, #rrggbb or a {palette} token"),
+                    new Field("y", "Height above the anchor", "0"),
+                    new Field("face", "Turns to face whoever did it", "true or false")));
             case "ACTION_BAR" -> free(token, "The line above the hotbar", null);
             case "MESSAGE" -> free(token, "The message", "One line; add another for a second.");
             case "COMMAND" -> free(token, "Command the console runs",

@@ -106,6 +106,7 @@ public final class SequenceCompiler {
             case "TITLE" -> title(args, rest, onArg);
             case "ACTION_BAR" -> rest.isEmpty() ? null : new Steps.ActionBarStep(rest);
             case "MESSAGE" -> rest.isEmpty() ? null : new Steps.Message(rest);
+            case "NPC" -> npc(args, line, onArg);
             default -> {
                 problems.found(line, "there is no effect called \"" + token + "\"");
                 yield null;
@@ -394,6 +395,43 @@ public final class SequenceCompiler {
         Object data = material.createBlockData();
         return new Steps.Particles(
                 new ParticlePaint(ParticlePaint.BLOCK, data, count, x, y, z, 0.1), yShift);
+    }
+
+    /**
+     * A body left where the sequence happened.
+     *
+     * <p>Whose body is decided when it plays, not here: {@code {victim}} and
+     * {@code {killer}} are the only two answers worth having, and both are
+     * players who are on the server, so neither costs a lookup.
+     */
+    private @Nullable SequenceStep npc(Args args, String line, Args.Problems onArg) {
+        if (args.headless()) {
+            problems.found(line, "needs whose body it is, as in [NPC] {victim}");
+            return null;
+        }
+        String who = args.head().trim();
+        Steps.Corpse.Face face = switch (who.toLowerCase(Locale.ROOT)) {
+            case "{killer}", "killer" -> Steps.Corpse.Face.KILLER;
+            case "{victim}", "victim" -> Steps.Corpse.Face.VICTIM;
+            default -> Steps.Corpse.Face.FIXED;
+        };
+        if (face == Steps.Corpse.Face.FIXED && who.length() < 32) {
+            problems.found(line, "\"" + who + "\" is neither {victim}, {killer}, nor a"
+                    + " base64 texture; a player name would need a lookup and an effect"
+                    + " cannot wait for one");
+            return null;
+        }
+        Color glow = args.colour("glow", null, onArg);
+        double life = args.number("life", 5.0, onArg);
+        args.reportUnknown(onArg, "pose", "life", "equip", "glow", "y", "face");
+        return new Steps.Corpse(owner, face,
+                face == Steps.Corpse.Face.FIXED ? who : null,
+                net.exylia.lib.npc.NpcPose.of(args.text("pose", "lying")),
+                (long) (life * 1000),
+                args.flag("equip", true),
+                glow == null ? -1 : glow.asRGB(),
+                args.number("y", 0.0, onArg),
+                args.flag("face", true));
     }
 
     private @Nullable SequenceStep title(Args args, String rest, Args.Problems onArg) {

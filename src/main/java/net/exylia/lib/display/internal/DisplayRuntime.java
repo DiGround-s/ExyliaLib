@@ -52,7 +52,17 @@ public final class DisplayRuntime {
     private static TaskScheduler scheduler;
     private static Logger logger = Logger.getLogger("ExyliaLib");
     private static LongSupplier clock = System::currentTimeMillis;
-    private static EntityIds ids = DisplayPackets::newEntityId;
+    /**
+     * Left unset until {@code init}, and that is not tidiness.
+     *
+     * <p>A field initialised to a method reference on the packet class loads
+     * that class when this one is first touched, which on a server with no
+     * PacketEvents is a {@code NoClassDefFoundError} thrown out of a static
+     * initialiser — before the check for whether PacketEvents is there has had
+     * a chance to run. The hologram module has always been written this way;
+     * this one had not been.
+     */
+    private static EntityIds ids;
     private static DisplaySink sink;
     private static TaskHandle driver;
     private static boolean available;
@@ -93,7 +103,7 @@ public final class DisplayRuntime {
     static void testHooks(LongSupplier testClock, EntityIds testIds, DisplaySink testSink) {
         synchronized (LOCK) {
             clock = testClock == null ? System::currentTimeMillis : testClock;
-            ids = testIds == null ? DisplayPackets::newEntityId : testIds;
+            ids = testIds;
             sink = testSink;
             available = testSink != null;
         }
@@ -125,7 +135,7 @@ public final class DisplayRuntime {
             warnOnce(owner);
             return null;
         }
-        if (viewers.isEmpty()) {
+        if (viewers.isEmpty() || ids == null) {
             return null;
         }
         LiveDisplay display = new LiveDisplay(owner, ids.next(), model, motion,
