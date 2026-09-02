@@ -221,10 +221,17 @@ arguments — so a migrating plugin edits no configuration files.
 Five more came with the display work, because a shape drawn out of light reads
 as a glow and one drawn out of objects reads as a thing:
 
-`DOME` (the half of a sphere anybody was looking at) `CUBE` (straight lines and
-right angles) `LINE` (the only shape that does not close on itself) `RIBBON` (a
-ring with a wave in it) `SCATTER` (points that look unplanned, from a `seed:` so
-that they are the same unplanned points every time).
+`DOME` (`radius` `points` — the half of a sphere anybody was looking at) `CUBE`
+(`width` `points` `edges` — straight lines and right angles) `LINE` (`length`
+`dir` `climb` `points` — the only shape that does not close on itself) `RIBBON`
+(`radius` `points` `waves` `amplitude`) `SCATTER` (`radius` `height` `points`
+`seed` `floor` — points that look unplanned, from a seed so that they are the
+same unplanned points every time).
+
+`CUBE` says `width` and `LINE` says `climb` rather than `size` and `rise`,
+because a display line already means the model's own scale by `size:` and where
+it ends up by `rise:`. One word meaning two things on one line is a shape whose
+blocks come out the size of the shape.
 
 Every line takes `repeat:` `every:` and, for a shape, `turn_each:` — the same
 line played several times over on a beat, each beat turned a little further.

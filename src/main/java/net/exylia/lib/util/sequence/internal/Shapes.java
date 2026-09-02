@@ -103,8 +103,8 @@ public final class Shapes {
             case "arch" -> new String[]{"radius", "arc", "dir", "points"};
             case "claw" -> new String[]{"radius", "claws", "spread", "curve", "dir", "drop", "points"};
             case "dome" -> new String[]{"radius", "points"};
-            case "cube" -> new String[]{"size", "points", "edges"};
-            case "line" -> new String[]{"length", "dir", "rise", "points"};
+            case "cube" -> new String[]{"width", "points", "edges"};
+            case "line" -> new String[]{"length", "dir", "climb", "points"};
             case "ribbon" -> new String[]{"radius", "points", "waves", "amplitude"};
             case "scatter" -> new String[]{"radius", "height", "points", "seed", "floor"};
             case "display" -> new String[0];
@@ -182,7 +182,10 @@ public final class Shapes {
      * reach.
      */
     private static List<Vector> cube(Shape.ShapeArgs args) {
-        double size = args.number("size", 2.0);
+        // "width" and not "size": a display line already means the model's own
+        // scale by size:, and one word that means two things on the same line
+        // is a shape whose blocks come out the size of the cube.
+        double size = args.number("width", 2.0);
         int perEdge = args.atLeastOne("points", 4);
         boolean edges = args.flag("edges", true);
         double half = size / 2.0;
@@ -229,7 +232,9 @@ public final class Shapes {
     private static List<Vector> line(Shape.ShapeArgs args) {
         double length = args.number("length", 4.0);
         double direction = args.radians("dir", 0.0);
-        double rise = args.number("rise", 0.0);
+        // "climb" and not "rise", for the same reason cube says width: rise: on
+        // a display line is where the object ends up.
+        double rise = args.number("climb", 0.0);
         int points = args.atLeastOne("points", 12);
 
         double stepX = Math.sin(direction) * length;

@@ -23,6 +23,25 @@ class DisplayShapeGeometryTest {
     private static final double EPSILON = 1e-6;
 
     @Test
+    @DisplayName("the shapes do not use a word a display line already owns")
+    void noParameterCollides() {
+        // A display line reads size: as the model's own scale and rise: as
+        // where it ends up. A shape that also read them would mean two things
+        // by one word, and the file would have no way to say either.
+        java.util.Set<String> display = java.util.Set.of(
+                "as", "size", "size_to", "life", "from", "to", "rise", "spin", "axis",
+                "tilt", "roll", "turn", "face_out", "gravity", "glow", "light", "model",
+                "billboard", "hold", "pull", "ease", "orbit", "vary");
+        for (String shape : java.util.List.of("dome", "cube", "line", "ribbon", "scatter")) {
+            for (String parameter : net.exylia.lib.util.sequence.internal.Shapes
+                    .parametersOf(shape)) {
+                assertTrue(!display.contains(parameter),
+                        shape + " reads \"" + parameter + "\", which a display line already owns");
+            }
+        }
+    }
+
+    @Test
     @DisplayName("a dome is the half of a sphere anybody was looking at")
     void domeIsAboveGround() {
         List<Vector> points = ShapePoints.of("dome", "radius:3;points:40");
@@ -41,7 +60,7 @@ class DisplayShapeGeometryTest {
     @Test
     @DisplayName("a cube stands on the anchor and is square")
     void cubeIsSquareAndGrounded() {
-        List<Vector> points = ShapePoints.of("cube", "size:2;points:4");
+        List<Vector> points = ShapePoints.of("cube", "width:2;points:4");
 
         assertEquals(48, points.size(), "twelve edges, four points each");
         for (Vector point : points) {
@@ -57,7 +76,7 @@ class DisplayShapeGeometryTest {
     @Test
     @DisplayName("a line runs from the anchor to where it was aimed")
     void lineRunsWhereItIsAimed() {
-        List<Vector> points = ShapePoints.of("line", "length:6;dir:90;rise:2;points:7");
+        List<Vector> points = ShapePoints.of("line", "length:6;dir:90;climb:2;points:7");
 
         assertEquals(7, points.size());
         assertEquals(0.0, points.get(0).length(), EPSILON, "a line starts at the anchor");
@@ -119,7 +138,7 @@ class DisplayShapeGeometryTest {
     @DisplayName("every count set to zero at once still draws something")
     void zeroCountsAreFloored() {
         assertTrue(ShapePoints.of("dome", "radius:0;points:0").size() >= 1);
-        assertTrue(ShapePoints.of("cube", "size:0;points:0").size() >= 1);
+        assertTrue(ShapePoints.of("cube", "width:0;points:0").size() >= 1);
         assertTrue(ShapePoints.of("line", "length:0;points:0").size() >= 1);
         assertTrue(ShapePoints.of("ribbon", "radius:0;points:0").size() >= 1);
         assertTrue(ShapePoints.of("scatter", "radius:0;points:0").size() >= 1);
