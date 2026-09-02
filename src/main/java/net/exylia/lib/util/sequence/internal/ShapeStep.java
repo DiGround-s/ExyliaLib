@@ -93,6 +93,16 @@ final class ShapeStep implements SequenceStep {
         return new ShapeStep(paint, built, intervalMs, last, faceSource, Math.toRadians(yawDegrees));
     }
 
+    /**
+     * The same shape, turned further about the vertical.
+     *
+     * <p>For a step that is played several times over: each beat is the shape
+     * it started as, rotated, sharing the points that were worked out once.
+     */
+    ShapeStep withExtraYaw(double extraRadians) {
+        return new ShapeStep(paint, frames, intervalMs, trailMillis, rotates, yaw + extraRadians);
+    }
+
     @Override
     public void play(@NotNull SequenceTarget target, @NotNull SequenceRun run) {
         if (frames.length == 0) {

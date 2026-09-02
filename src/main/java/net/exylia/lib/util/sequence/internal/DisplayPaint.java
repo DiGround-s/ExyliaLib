@@ -53,9 +53,12 @@ final class DisplayPaint implements Paint {
     private final boolean faceOut;
     private final double turnRadians;
     private final double pull;
+    private final double orbit;
+    private final double vary;
 
     DisplayPaint(@NotNull String owner, @NotNull DisplayModel model, @NotNull DisplayMotion motion,
-                 @NotNull Face face, boolean faceOut, double turnRadians, double pull) {
+                 @NotNull Face face, boolean faceOut, double turnRadians, double pull,
+                 double orbit, double vary) {
         this.owner = owner;
         this.model = model;
         this.motion = motion;
@@ -63,6 +66,8 @@ final class DisplayPaint implements Paint {
         this.faceOut = faceOut;
         this.turnRadians = turnRadians;
         this.pull = pull;
+        this.orbit = orbit;
+        this.vary = vary;
     }
 
     /**
@@ -84,7 +89,8 @@ final class DisplayPaint implements Paint {
         }
         DisplayModel worn = Heads.wearing(model, wearer);
         return worn == model ? this
-                : new DisplayPaint(owner, worn, motion, Face.FIXED, faceOut, turnRadians, pull);
+                : new DisplayPaint(owner, worn, motion, Face.FIXED, faceOut, turnRadians,
+                        pull, orbit, vary);
     }
 
     @Override
@@ -93,7 +99,7 @@ final class DisplayPaint implements Paint {
         if (observers.isEmpty()) {
             return;
         }
-        DisplayRuntime.show(owner, model, motionAt(x, z),
+        DisplayRuntime.show(owner, model, motionAt(x, y, z),
                 anchor.clone().add(x, y, z), observers);
     }
 
@@ -116,8 +122,11 @@ final class DisplayPaint implements Paint {
      * model, not about the maths, and a server owner with a resource pack needs
      * a knob rather than a rebuild.
      */
-    private DisplayMotion motionAt(double x, double z) {
+    private DisplayMotion motionAt(double x, double y, double z) {
         DisplayMotion built = motion;
+        if (vary != 0.0) {
+            built = built.scaledBy(1.0 + vary * (spread(x, y, z) * 2.0 - 1.0));
+        }
         if (faceOut || turnRadians != 0.0) {
             // atan2(x, z), not the other way about and not negated: a turn of
             // theta about the vertical takes the model's face from due south to
@@ -127,6 +136,9 @@ final class DisplayPaint implements Paint {
             double outward = faceOut ? Math.atan2(x, z) : 0.0;
             built = built.turnedBy(Rotation.around(Rotation.Axis.Y, outward + turnRadians));
         }
+        if (orbit != 0.0) {
+            built = built.orbiting(x, z, orbit, faceOut);
+        }
         if (pull != 0.0) {
             // Sideways only. Which way a blade travels to reach the middle is
             // a fact about where it started; how high it ends is a decision the
@@ -135,6 +147,23 @@ final class DisplayPaint implements Paint {
             built = built.drifting(-x * pull, 0.0, -z * pull);
         }
         return built;
+    }
+
+    /**
+     * A number between zero and one that belongs to one point of a shape.
+     *
+     * <p>Not random. A sequence is compiled once and played by every kill on
+     * the server, so a random size would make the same effect a different
+     * effect each time and untestable besides. This is a hash of where the
+     * point is, which gives a shape whose pieces differ from each other and
+     * whose every play is the same.
+     */
+    private static double spread(double x, double y, double z) {
+        long bits = Double.doubleToLongBits(x * 73.1 + y * 151.7 + z * 311.3);
+        bits ^= bits >>> 29;
+        bits *= 0xBF58476D1CE4E5B9L;
+        bits ^= bits >>> 32;
+        return (bits >>> 11) / (double) (1L << 53);
     }
 
     private static @Nullable Player asPlayer(@Nullable org.bukkit.entity.Entity entity) {

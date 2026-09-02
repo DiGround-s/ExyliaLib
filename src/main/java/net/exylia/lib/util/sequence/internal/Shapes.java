@@ -62,6 +62,15 @@ public final class Shapes {
         shapes.put("wings", Shapes::wings);
         shapes.put("arch", Shapes::arch);
         shapes.put("claw", Shapes::claw);
+        // Five that the display work asked for. Particles never needed them:
+        // a shape drawn out of light is read as a glow, and one drawn out of
+        // objects is read as a thing, so where the objects are matters in a way
+        // it never did before.
+        shapes.put("dome", Shapes::dome);
+        shapes.put("cube", Shapes::cube);
+        shapes.put("line", Shapes::line);
+        shapes.put("ribbon", Shapes::ribbon);
+        shapes.put("scatter", Shapes::scatter);
         // One point at the anchor. Not geometry so much as the absence of it:
         // it exists so [DISPLAY] is a shape like any other and inherits y:,
         // ticks:, rotate: and the rest rather than being a second code path
@@ -93,6 +102,11 @@ public final class Shapes {
             case "wings" -> new String[]{"span", "arch", "depth", "dir", "points"};
             case "arch" -> new String[]{"radius", "arc", "dir", "points"};
             case "claw" -> new String[]{"radius", "claws", "spread", "curve", "dir", "drop", "points"};
+            case "dome" -> new String[]{"radius", "points"};
+            case "cube" -> new String[]{"size", "points", "edges"};
+            case "line" -> new String[]{"length", "dir", "rise", "points"};
+            case "ribbon" -> new String[]{"radius", "points", "waves", "amplitude"};
+            case "scatter" -> new String[]{"radius", "height", "points", "seed", "floor"};
             case "display" -> new String[0];
             default -> new String[0];
         };
@@ -130,6 +144,162 @@ public final class Shapes {
                 double angle = i * step;
                 out.add(new Vector(r * Math.cos(angle), 0, r * Math.sin(angle)));
             }
+        }
+        return out;
+    }
+
+    /**
+     * The upper half of a sphere.
+     *
+     * <p>A sphere wide enough to be worth drawing buries its lower half, which
+     * is invisible and paid for anyway. A dome is the half anybody was looking
+     * at: a shield, a blast front, a canopy.
+     */
+    private static List<Vector> dome(Shape.ShapeArgs args) {
+        double radius = args.number("radius", 2.0);
+        int points = args.atLeastOne("points", 24);
+
+        double goldenAngle = Math.PI * (3.0 - Math.sqrt(5.0));
+        List<Vector> out = new ArrayList<>(points);
+        for (int i = 0; i < points; i++) {
+            // Only the top half of the range the sphere walks, so the spread
+            // stays even instead of crowding the rim.
+            double y = points == 1 ? 1.0 : 1.0 - (i / (double) points);
+            double r = Math.sqrt(Math.max(0.0, 1.0 - y * y));
+            double theta = goldenAngle * i;
+            out.add(new Vector(radius * r * Math.cos(theta), radius * y,
+                    radius * r * Math.sin(theta)));
+        }
+        return out;
+    }
+
+    /**
+     * The twelve edges of a cube.
+     *
+     * <p>Straight lines and right angles, which nothing else here produces. A
+     * shape made of them reads as something built rather than something
+     * summoned, and that is a whole register of effect the round shapes cannot
+     * reach.
+     */
+    private static List<Vector> cube(Shape.ShapeArgs args) {
+        double size = args.number("size", 2.0);
+        int perEdge = args.atLeastOne("points", 4);
+        boolean edges = args.flag("edges", true);
+        double half = size / 2.0;
+
+        List<Vector> out = new ArrayList<>(perEdge * 12);
+        double[][] corners = {
+                {-half, -half, -half}, {half, -half, -half}, {half, -half, half}, {-half, -half, half},
+                {-half, half, -half}, {half, half, -half}, {half, half, half}, {-half, half, half}};
+        int[][] lines = {
+                {0, 1}, {1, 2}, {2, 3}, {3, 0},
+                {4, 5}, {5, 6}, {6, 7}, {7, 4},
+                {0, 4}, {1, 5}, {2, 6}, {3, 7}};
+        if (!edges) {
+            // The eight corners alone: a frame implied rather than drawn, which
+            // is what a cage of eight large objects wants.
+            for (double[] corner : corners) {
+                out.add(new Vector(corner[0], corner[1] + half, corner[2]));
+            }
+            return out;
+        }
+        for (int[] line : lines) {
+            double[] from = corners[line[0]];
+            double[] to = corners[line[1]];
+            for (int i = 0; i < perEdge; i++) {
+                double t = perEdge == 1 ? 0.0 : i / (double) perEdge;
+                // Centred sideways and standing on the anchor, like a block a
+                // player placed rather than one buried to its middle.
+                out.add(new Vector(
+                        from[0] + (to[0] - from[0]) * t,
+                        from[1] + (to[1] - from[1]) * t + half,
+                        from[2] + (to[2] - from[2]) * t));
+            }
+        }
+        return out;
+    }
+
+    /**
+     * A straight run of points in one direction.
+     *
+     * <p>Everything else here closes on itself. A line does not, which is what
+     * a wall, a bridge, a lance or a sweep is made of, and it is the only shape
+     * whose points have a beginning and an end for {@code ticks:} to draw along.
+     */
+    private static List<Vector> line(Shape.ShapeArgs args) {
+        double length = args.number("length", 4.0);
+        double direction = args.radians("dir", 0.0);
+        double rise = args.number("rise", 0.0);
+        int points = args.atLeastOne("points", 12);
+
+        double stepX = Math.sin(direction) * length;
+        double stepZ = Math.cos(direction) * length;
+        List<Vector> out = new ArrayList<>(points);
+        for (int i = 0; i < points; i++) {
+            double t = points == 1 ? 0.0 : i / (double) (points - 1);
+            out.add(new Vector(stepX * t, rise * t, stepZ * t));
+        }
+        return out;
+    }
+
+    /**
+     * A ring that rises and falls as it goes round.
+     *
+     * <p>A flat ring is a circle and reads as a diagram. The same ring with a
+     * wave in it reads as cloth, water or something alive, and it is one
+     * sine away.
+     */
+    private static List<Vector> ribbon(Shape.ShapeArgs args) {
+        double radius = args.number("radius", 2.0);
+        int points = args.atLeastOne("points", 28);
+        double waves = args.number("waves", 3.0);
+        double amplitude = args.number("amplitude", 0.6);
+
+        List<Vector> out = new ArrayList<>(points);
+        for (int i = 0; i < points; i++) {
+            double angle = i / (double) points * Math.PI * 2;
+            out.add(new Vector(radius * Math.cos(angle),
+                    amplitude * Math.sin(angle * waves),
+                    radius * Math.sin(angle)));
+        }
+        return out;
+    }
+
+    /**
+     * Points scattered through a volume, the same way every time.
+     *
+     * <p>The one thing every other shape here cannot do: look unplanned. Twenty
+     * fragments on a perfect circle read as a diagram of an explosion, and the
+     * same twenty scattered read as one.
+     *
+     * <p>Deterministic, from {@code seed:}, and that matters more than it
+     * sounds. A sequence is compiled once and played by every kill on the
+     * server; points drawn from a live generator would make one effect a
+     * different effect every time, and there would be no way to test any of it
+     * or to tell a server owner what their file does.
+     */
+    private static List<Vector> scatter(Shape.ShapeArgs args) {
+        double radius = args.number("radius", 2.0);
+        double height = args.number("height", 2.0);
+        int points = args.atLeastOne("points", 20);
+        long seed = (long) args.number("seed", 1.0);
+        boolean floor = args.flag("floor", false);
+
+        // A small linear congruential generator, written out rather than taken
+        // from Random: this has to produce the same points on every server and
+        // in every version, and Random is free to change how it seeds.
+        long state = seed * 6364136223846793005L + 1442695040888963407L;
+        List<Vector> out = new ArrayList<>(points);
+        for (int i = 0; i < points; i++) {
+            state = state * 6364136223846793005L + 1442695040888963407L;
+            double a = ((state >>> 11) / (double) (1L << 53)) * Math.PI * 2;
+            state = state * 6364136223846793005L + 1442695040888963407L;
+            // Square-rooted so the points spread evenly over the area rather
+            // than crowding the middle, which is what a raw radius does.
+            double r = radius * Math.sqrt((state >>> 11) / (double) (1L << 53));
+            state = state * 6364136223846793005L + 1442695040888963407L;
+            double h = ((state >>> 11) / (double) (1L << 53)) * height;
+            out.add(new Vector(r * Math.cos(a), floor ? 0.0 : h, r * Math.sin(a)));
         }
         return out;
     }

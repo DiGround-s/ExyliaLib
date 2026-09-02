@@ -35,7 +35,7 @@ final class DisplayReader {
     static final String[] PARAMETERS = {
             "as", "size", "size_to", "life", "from", "to", "rise", "spin", "axis",
             "tilt", "roll", "turn", "face_out", "gravity", "glow", "light", "model",
-            "billboard", "hold", "pull", "ease"
+            "billboard", "hold", "pull", "ease", "orbit", "vary"
     };
 
     private DisplayReader() {
@@ -112,7 +112,9 @@ final class DisplayReader {
         return new DisplayPaint(owner, model, motion(args, problems), face,
                 args.flag("face_out", false),
                 Math.toRadians(args.number("turn", 0.0, problems)),
-                args.number("pull", 0.0, problems));
+                args.number("pull", 0.0, problems),
+                args.number("orbit", 0.0, problems),
+                args.number("vary", 0.0, problems));
     }
 
     /**
@@ -138,11 +140,59 @@ final class DisplayReader {
                                 Math.toRadians(args.number("tilt", 0.0, problems)))
                         .then(Rotation.around(Rotation.Axis.Z,
                                 Math.toRadians(args.number("roll", 0.0, problems)))))
-                .spin(Rotation.Axis.of(args.text("axis", "y")),
-                        args.number("spin", 0.0, problems))
+                .spin(spinX(args, problems), spinY(args, problems), spinZ(args, problems))
                 .gravity(args.number("gravity", 0.0, problems))
                 .ease(DisplayMotion.Easing.of(args.text("ease", "linear")))
                 .build();
+    }
+
+    /**
+     * The turns about each axis a line asks for.
+     *
+     * <p>{@code spin:2} with {@code axis:z} is one wheel and the spelling every
+     * existing file uses. {@code spin:0.5,2,1} is a tumble, and needs no second
+     * parameter to say so.
+     */
+    private static double spinX(Args args, Args.Problems problems) {
+        double[] all = spin(args, problems);
+        return all != null ? all[0]
+                : Rotation.Axis.of(args.text("axis", "y")) == Rotation.Axis.X
+                        ? args.number("spin", 0.0, problems) : 0.0;
+    }
+
+    private static double spinY(Args args, Args.Problems problems) {
+        double[] all = spin(args, problems);
+        return all != null ? all[1]
+                : Rotation.Axis.of(args.text("axis", "y")) == Rotation.Axis.Y
+                        ? args.number("spin", 0.0, problems) : 0.0;
+    }
+
+    private static double spinZ(Args args, Args.Problems problems) {
+        double[] all = spin(args, problems);
+        return all != null ? all[2]
+                : Rotation.Axis.of(args.text("axis", "y")) == Rotation.Axis.Z
+                        ? args.number("spin", 0.0, problems) : 0.0;
+    }
+
+    private static double @Nullable [] spin(Args args, Args.Problems problems) {
+        String raw = args.text("spin", "");
+        if (raw.indexOf(',') < 0) {
+            return null;
+        }
+        String[] parts = raw.split(",");
+        if (parts.length < 3) {
+            problems.found("spin", "needs one number or three, as in spin:0.5,2,1");
+            return null;
+        }
+        double[] out = new double[3];
+        for (int index = 0; index < 3; index++) {
+            try {
+                out[index] = Double.parseDouble(parts[index].trim());
+            } catch (NumberFormatException malformed) {
+                problems.found("spin", "\"" + parts[index].trim() + "\" is not a number");
+            }
+        }
+        return out;
     }
 
     /**

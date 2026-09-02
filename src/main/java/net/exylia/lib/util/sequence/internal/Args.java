@@ -235,7 +235,7 @@ public final class Args {
      */
     public void reportUnknown(@NotNull Problems problems, @NotNull String... known) {
         for (String key : values.keySet()) {
-            if (key.startsWith("#")) {
+            if (key.startsWith("#") || WRAPPERS.contains(key)) {
                 continue;
             }
             boolean recognised = false;
@@ -250,6 +250,16 @@ public final class Args {
             }
         }
     }
+
+    /**
+     * The parameters that belong to the line rather than to what it draws.
+     *
+     * <p>Any step at all can be repeated on a beat, so every token understands
+     * these without knowing it. Listing them on each of the twelve tokens would
+     * be twelve places to forget the thirteenth.
+     */
+    private static final java.util.Set<String> WRAPPERS =
+            java.util.Set.of("repeat", "every", "turn_each");
 
     /** Where a malformed argument is reported. */
     @FunctionalInterface

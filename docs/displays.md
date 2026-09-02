@@ -93,8 +93,10 @@ leaves a plain head rather than delaying the effect.
 | `rise:` | shorthand for `to:0,n,0` | |
 | `gravity:` | falls at this many blocks per second squared, on top of the line | `0`; vanilla is about `32` |
 | `ease:` | how the movement is spread over its life: `in`, `out`, `in_out` | `linear` |
-| `spin:` | turns over its whole life | `0` |
-| `axis:` | which axis it spins around: `x`, `y` or `z` | `y` |
+| `spin:` | turns over its whole life; `x,y,z` for a tumble on three axes at once | `0` |
+| `axis:` | which axis a single-number spin turns around: `x`, `y` or `z` | `y` |
+| `orbit:` | turns each point carries round the anchor over its life | `0` |
+| `vary:` | how much the pieces differ in size from each other, as a fraction | `0` |
 | `size:` | size it starts at; one number, or `x,y,z` for a plate, a pillar or a blade | `1` |
 | `size_to:` | size it ends at | same as `size` |
 | `tilt:` `roll:` `turn:` | a fixed rotation, in degrees | `0` |
@@ -110,6 +112,20 @@ leaves a plain head rather than delaying the effect.
 four blocks east and let it drop" is two independent numbers instead of one
 solved trajectory. An effect is choreography, not physics.
 
+`orbit:` is the movement a straight line cannot express, and the one that
+separates a shape that appears from a shape that is alive: a ring that turns as
+it closes, a swarm that circles, debris that curves away instead of leaving on a
+rail. With `face_out:` the models turn with it, so a blade stays tangent.
+
+`vary:0.4` gives the pieces of one shape sizes that differ by up to two fifths.
+A dozen fragments cut to exactly the same size read as a pattern; the same dozen
+varying read as rubble. It is a hash of where each point is, not a random
+number, so the effect is the same every time it plays.
+
+`spin:0.5,2,1` tumbles on three axes at once. One axis is a wheel and reads as
+machinery; nothing thrown in the world spins about exactly one axis, and the eye
+knows it even when it cannot say why.
+
 `face_out:` is what turns twelve swords into a ring of blades rather than twelve
 swords lying the same way, and `pull:` is what sends them inwards: together they
 are a ring that closes on whatever is in the middle.
@@ -120,6 +136,19 @@ where it stood, and with `gravity:` on top of it, thrown outwards and falling �
 which is what an explosion looks like and what a particle cannot be. `turn:` is next to it because which way a model's own
 geometry points is a fact about that model: a resource pack whose blade reads
 sideways is corrected with a number, not a rebuild.
+
+### Repeating a line on a beat
+
+Any line at all — a shape, a sound, a ring of blades — takes `repeat:` and
+`every:`, and a shape also takes `turn_each:`.
+
+```
+[CIRCLE] NETHERITE_SWORD;as:item;radius:3;points:6;repeat:5;every:0.1;turn_each:12
+```
+
+Five rings a tenth of a second apart, each twelve degrees further round. Written
+out by hand that is five copies of a line with four delays threaded between
+them, which is why nobody tunes a rhythm once they have written one.
 
 ### Making a movement land
 

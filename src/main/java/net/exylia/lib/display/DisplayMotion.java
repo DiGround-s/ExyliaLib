@@ -195,6 +195,64 @@ public final class DisplayMotion {
     }
 
     /**
+     * The same motion, carried round the anchor as it goes.
+     *
+     * <p>The one movement a straight line cannot express and the one every
+     * effect eventually wants: a ring that turns, a swarm that circles, debris
+     * that curves away instead of leaving on a rail. It is worked out per point
+     * because each point starts somewhere different, and it is added to
+     * whatever the point was already doing.
+     *
+     * @param x       where the point sits, east of the anchor
+     * @param z       where the point sits, south of the anchor
+     * @param turns   turns about the anchor over the whole life
+     * @param facing  whether the model turns with the orbit, so a blade stays
+     *                tangent to the circle rather than sliding round sideways
+     * @return the orbiting motion
+     */
+    public @NotNull DisplayMotion orbiting(double x, double z, double turns, boolean facing) {
+        if (turns == 0.0 || (x == 0.0 && z == 0.0) || lifeMillis <= 0L) {
+            return this;
+        }
+        List<DisplayKeyframe> orbited = new ArrayList<>(poses.size());
+        for (DisplayKeyframe pose : poses) {
+            double progress = (double) pose.atMillis() / lifeMillis;
+            double angle = turns * Math.PI * 2 * progress;
+            double cos = Math.cos(angle);
+            double sin = Math.sin(angle);
+            DisplayKeyframe moved = pose.movedBy(
+                    x * cos + z * sin - x, 0.0, -x * sin + z * cos - z);
+            orbited.add(facing ? moved.turnedBy(Rotation.around(Rotation.Axis.Y, angle)) : moved);
+        }
+        return new DisplayMotion(orbited, lifeMillis);
+    }
+
+    /**
+     * The same motion at a different size throughout.
+     *
+     * <p>For giving the pieces of one shape sizes that differ. A dozen
+     * fragments cut to exactly the same size read as a pattern; the same dozen
+     * varying by a fifth read as rubble.
+     *
+     * @param factor what to multiply every pose's size by
+     * @return the resized motion
+     */
+    public @NotNull DisplayMotion scaledBy(double factor) {
+        if (factor == 1.0) {
+            return this;
+        }
+        List<DisplayKeyframe> resized = new ArrayList<>(poses.size());
+        for (DisplayKeyframe pose : poses) {
+            resized.add(new DisplayKeyframe(pose.atMillis(), pose.x(), pose.y(), pose.z(),
+                    pose.rotation(),
+                    (float) (pose.scaleX() * factor),
+                    (float) (pose.scaleY() * factor),
+                    (float) (pose.scaleZ() * factor)));
+        }
+        return new DisplayMotion(resized, lifeMillis);
+    }
+
+    /**
      * The same motion starting somewhere else.
      *
      * @param dx east
@@ -233,8 +291,9 @@ public final class DisplayMotion {
         private double[] startScale = {1.0, 1.0, 1.0};
         private double[] endScale = {1.0, 1.0, 1.0};
         private Rotation base = Rotation.NONE;
-        private Rotation.Axis spinAxis = Rotation.Axis.Y;
-        private double spinTurns;
+        private double spinX;
+        private double spinY;
+        private double spinZ;
         private double gravity;
         private Easing easing = Easing.LINEAR;
 
@@ -293,10 +352,32 @@ public final class DisplayMotion {
             return this;
         }
 
-        /** Turns around an axis over the display's whole life. */
+        /** Turns around one axis over the display's whole life. */
         public @NotNull Builder spin(@NotNull Rotation.Axis axis, double turns) {
-            this.spinAxis = axis;
-            this.spinTurns = turns;
+            return switch (axis) {
+                case X -> spin(turns, 0, 0);
+                case Y -> spin(0, turns, 0);
+                case Z -> spin(0, 0, turns);
+            };
+        }
+
+        /**
+         * Turns around all three axes at once.
+         *
+         * <p>One axis is a wheel and reads as machinery. Two or three at
+         * different rates is a tumble, and a tumble is what a thrown thing
+         * actually does: nothing in the world spins about exactly one axis, and
+         * the eye knows it even when it cannot say why.
+         *
+         * @param x turns about the pitch axis
+         * @param y turns about the vertical
+         * @param z turns about the roll axis
+         * @return this builder
+         */
+        public @NotNull Builder spin(double x, double y, double z) {
+            this.spinX = x;
+            this.spinY = y;
+            this.spinZ = z;
             return this;
         }
 
@@ -345,15 +426,30 @@ public final class DisplayMotion {
                         (float) (fromX + (toX - fromX) * progress),
                         (float) (fromY + (toY - fromY) * progress - drop),
                         (float) (fromZ + (toZ - fromZ) * progress),
-                        spinTurns == 0.0
-                                ? base
-                                : base.then(Rotation.around(spinAxis,
-                                        progress * spinTurns * Math.PI * 2)),
+                        spinning(base, progress),
                         (float) (startScale[0] + (endScale[0] - startScale[0]) * progress),
                         (float) (startScale[1] + (endScale[1] - startScale[1]) * progress),
                         (float) (startScale[2] + (endScale[2] - startScale[2]) * progress)));
             }
             return new DisplayMotion(poses, lifeMillis);
+        }
+
+        /** The base rotation with this moment's share of every spin on top. */
+        private Rotation spinning(Rotation from, double progress) {
+            Rotation turned = from;
+            if (spinX != 0.0) {
+                turned = turned.then(Rotation.around(Rotation.Axis.X,
+                        progress * spinX * Math.PI * 2));
+            }
+            if (spinY != 0.0) {
+                turned = turned.then(Rotation.around(Rotation.Axis.Y,
+                        progress * spinY * Math.PI * 2));
+            }
+            if (spinZ != 0.0) {
+                turned = turned.then(Rotation.around(Rotation.Axis.Z,
+                        progress * spinZ * Math.PI * 2));
+            }
+            return turned;
         }
 
         /**
@@ -366,9 +462,12 @@ public final class DisplayMotion {
         private int poseCount() {
             int peak = easing == Easing.LINEAR ? 1 : EASE_PEAK;
             int needed = 2;
-            if (spinTurns != 0.0) {
+            double turns = Math.abs(spinX) + Math.abs(spinY) + Math.abs(spinZ);
+            if (turns != 0.0) {
+                // The sum, not the largest: two axes turning at once can put
+                // more angle between two poses than either does alone.
                 needed = Math.max(needed,
-                        (int) Math.ceil(Math.abs(spinTurns) * POSES_PER_TURN * peak) + 1);
+                        (int) Math.ceil(turns * POSES_PER_TURN * peak) + 1);
             }
             if (gravity != 0.0) {
                 needed = Math.max(needed, POSES_PER_FALL);

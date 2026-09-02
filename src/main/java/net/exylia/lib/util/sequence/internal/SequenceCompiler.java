@@ -87,10 +87,10 @@ public final class SequenceCompiler {
 
         Shape shape = shapes.get(token.toLowerCase(Locale.ROOT));
         if (shape != null) {
-            return shapeStep(token, shape, args, line, onArg);
+            return repeated(shapeStep(token, shape, args, line, onArg), args, onArg);
         }
 
-        return switch (token) {
+        return repeated(switch (token) {
             case "DELAY" -> delay(rest, line);
             case "PARTICLE" -> particles(args, line, onArg);
             case "SOUND" -> sound(args, line, onArg);
@@ -110,7 +110,25 @@ public final class SequenceCompiler {
                 problems.found(line, "there is no effect called \"" + token + "\"");
                 yield null;
             }
-        };
+        }, args, onArg);
+    }
+
+    /**
+     * Wraps a step that asked to be played more than once.
+     *
+     * <p>Here rather than inside each token, because a beat is a property of
+     * the line and not of what the line draws: a sound, a shape and a ring of
+     * blades all repeat the same way.
+     */
+    private @Nullable SequenceStep repeated(@Nullable SequenceStep step, Args args,
+                                            Args.Problems onArg) {
+        if (step == null || !args.has("repeat")) {
+            return step;
+        }
+        return RepeatStep.of(step,
+                args.count("repeat", 1, onArg),
+                (long) (args.number("every", 0.15, onArg) * 1000),
+                Math.toRadians(args.number("turn_each", 0.0, onArg)));
     }
 
     // ------------------------------------------------------------------ shapes

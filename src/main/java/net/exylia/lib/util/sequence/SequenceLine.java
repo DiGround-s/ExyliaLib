@@ -396,6 +396,9 @@ final class SequenceLine {
         fields.add(new Field("rotate", "Rotation, in degrees", "0"));
         fields.add(new Field("as", "Draw it with",
                 "item, block, head or text; leave empty for particles"));
+        fields.add(new Field("repeat", "Times it plays", "1"));
+        fields.add(new Field("every", "Seconds between beats", "0.15"));
+        fields.add(new Field("turn_each", "Degrees further round each beat", "0"));
         return List.copyOf(fields);
     }
 
@@ -415,8 +418,10 @@ final class SequenceLine {
                 new Field("rise", "Goes up by", "shorthand for to:0,n,0"),
                 new Field("gravity", "Falls at, in blocks per second squared", "0; vanilla is 32"),
                 new Field("ease", "How the movement is spread", "in, out, in_out or linear"),
-                new Field("spin", "Turns over its life", "0"),
+                new Field("spin", "Turns over its life", "0, or x,y,z for a tumble"),
                 new Field("axis", "Turns around", "x, y or z"),
+                new Field("orbit", "Turns it carries round the anchor", "0"),
+                new Field("vary", "How much the pieces differ in size", "0 to 1"),
                 new Field("size", "Size it starts at", "1"),
                 new Field("size_to", "Size it ends at", "same as size"),
                 new Field("tilt", "Fixed tilt, in degrees", "0"),
@@ -430,6 +435,8 @@ final class SequenceLine {
                 new Field("billboard", "Turns to face the viewer",
                         "FIXED, VERTICAL, HORIZONTAL or CENTER"),
                 new Field("hold", "How an item is held",
-                        "0 the model itself, 5 head, 7 dropped, 8 item frame"));
+                        "0 the model itself, 5 head, 7 dropped, 8 item frame"),
+                new Field("repeat", "Times it plays", "1"),
+                new Field("every", "Seconds between beats", "0.15"));
     }
 }

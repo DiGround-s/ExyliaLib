@@ -218,6 +218,17 @@ arguments — so a migrating plugin edits no configuration files.
 `VORTEX` `WAVE` `CROSS` `GALAXY` `TORUS` `BURST` `PYRAMID` `RING_PULSE` `WINGS`
 `ARCH` `CLAW`
 
+Five more came with the display work, because a shape drawn out of light reads
+as a glow and one drawn out of objects reads as a thing:
+
+`DOME` (the half of a sphere anybody was looking at) `CUBE` (straight lines and
+right angles) `LINE` (the only shape that does not close on itself) `RIBBON` (a
+ring with a wave in it) `SCATTER` (points that look unplanned, from a `seed:` so
+that they are the same unplanned points every time).
+
+Every line takes `repeat:` `every:` and, for a shape, `turn_each:` — the same
+line played several times over on a beat, each beat turned a little further.
+
 Every shape takes `color:` `size:` `count:` `ticks:` `interval:` `y:` on top of
 its own parameters. `ticks:1` draws the whole shape at once; above that it draws
 itself over time.
