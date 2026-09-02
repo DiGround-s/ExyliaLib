@@ -89,7 +89,15 @@ public final class MenuLoader {
     public static UiDefinition load(String id, ConfigurationSection config,
                                     Function<String, ActionTemplate> compiler,
                                     UiSounds defaults, Problems problems) {
-        return read(id, config, new Binder(compiler, problems), defaults);
+        try {
+            return read(id, config, new Binder(compiler, problems), defaults);
+        } catch (IllegalArgumentException bad) {
+            // Whatever is wrong lives in one file, and the message never said
+            // which: "slot 45, outside a menu of 45" reads identically in every
+            // one of the hundreds of these, so the reader was left grepping.
+            throw new IllegalArgumentException(
+                    "Menu \"" + id + "\": " + bad.getMessage(), bad);
+        }
     }
 
     /**
