@@ -424,7 +424,8 @@ public final class SequenceCompiler {
         Color glow = args.colour("glow", null, onArg);
         double life = args.number("life", 5.0, onArg);
         args.reportUnknown(onArg, "pose", "life", "equip", "glow", "y", "face",
-                "from", "to", "over", "ease", "gravity", "turn", "pose_to", "after", "hurt");
+                "from", "to", "over", "ease", "gravity", "turn", "pose_to", "after", "hurt",
+                "move_after");
         return new Steps.Corpse(owner, face,
                 face == Steps.Corpse.Face.FIXED ? who : null,
                 corpseMotion(args, onArg),
@@ -451,6 +452,7 @@ public final class SequenceCompiler {
                 .to(to[0], to[1], to[2])
                 .gravity(args.number("gravity", 0.0, onArg))
                 .over((long) (args.number("over", 0.7, onArg) * 1000))
+                .startAfter((long) (args.number("move_after", 0.0, onArg) * 1000))
                 .ease(net.exylia.lib.npc.NpcMotion.Easing.of(args.text("ease", "out")))
                 .turn(args.number("turn", 0.0, onArg))
                 .hurt(args.flag("hurt", false));

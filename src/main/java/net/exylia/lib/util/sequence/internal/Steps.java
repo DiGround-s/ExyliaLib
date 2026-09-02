@@ -286,9 +286,15 @@ final class Steps {
         }
 
         private @Nullable NpcModel model(SequenceTarget target) {
+            // Either name falls back to the other. A preview has somebody
+            // watching it and nobody it happened to, so {victim} in a preview
+            // has to mean the person looking at it or a preview shows no body
+            // at all — which is exactly what it did.
+            Player killer = target.source();
+            Player victim = target.target() instanceof Player player ? player : null;
             NpcModel model = switch (face) {
-                case KILLER -> wearer(target.source());
-                case VICTIM -> wearer(target.target() instanceof Player player ? player : null);
+                case KILLER -> wearer(killer != null ? killer : victim);
+                case VICTIM -> wearer(victim != null ? victim : killer);
                 case FIXED -> texture == null ? null : NpcModel.of("Body", texture, null);
             };
             if (model == null) {

@@ -82,7 +82,8 @@ texture written into the file works too, and is resolved when the file is read.
 | `turn:` | degrees it turns on the spot over the movement | `0` |
 | `pose_to:` | a second pose, so it goes down while you watch | none |
 | `after:` | seconds before that second pose | `0.4` |
-| `hurt:` | flinches red as it appears | `false` |
+| `hurt:` | flinches red when it is struck | `false` |
+| `move_after:` | seconds it stands there before any of that happens | `0` |
 
 ### Making a body read
 
@@ -99,6 +100,12 @@ something that happened:
 # Taken: it rises and turns as it goes.
 [NPC] {victim};pose:crawling;to:0,3.5,0;over:1.6;ease:in;turn:200;life:2
 ```
+
+`move_after:` is what lets a body be on screen from the first frame and still be
+thrown by the blast that arrives a second later. Put the `[NPC]` line first in
+the effect and give it a `move_after:`, rather than putting the line late: a body
+that appears halfway through is a body the player watched not being there.
+The flinch waits for it too.
 
 `gravity` is added to the line rather than replacing it, so "thrown three blocks
 back and let it drop" is two numbers instead of a launch velocity. A body reads

@@ -210,7 +210,8 @@ class NpcLifetimeTest {
         sent.clear();
         now = 50L;
         NpcRuntime.tick();
-        assertEquals(List.of("spawn", "hurt"), sent, "it did not flinch as it appeared");
+        assertEquals(List.of("spawn", "hurt", "move"), sent,
+                "it was not drawn, did not flinch, and did not start moving together");
 
         sent.clear();
         for (now = 100; now <= 500; now += 50) {
@@ -252,6 +253,32 @@ class NpcLifetimeTest {
             NpcRuntime.tick();
         }
         assertTrue(sent.isEmpty(), "it kept being re-posed");
+    }
+
+    @Test
+    @DisplayName("a body that is thrown later stands still until it is")
+    void movementCanWait() {
+        show("Test", 4000, NpcMotion.builder()
+                .startAfter(600).over(400).to(0, 0, -2).hurt(true).build());
+        now = 50L;
+        NpcRuntime.tick();
+        assertEquals(List.of("announce", "spawn"), sent,
+                "it flinched or moved before anything had happened to it");
+
+        sent.clear();
+        for (now = 100; now < 600; now += 50) {
+            NpcRuntime.tick();
+        }
+        assertTrue(sent.isEmpty(), "it moved before it was thrown");
+
+        now = 600L;
+        NpcRuntime.tick();
+        assertEquals(List.of("hurt"), sent, "it did not flinch when it was thrown");
+
+        sent.clear();
+        now = 650L;
+        NpcRuntime.tick();
+        assertEquals(List.of("move"), sent, "it flinched but never went anywhere");
     }
 
     @Test

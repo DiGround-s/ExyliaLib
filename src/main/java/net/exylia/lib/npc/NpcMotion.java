@@ -85,6 +85,7 @@ public final class NpcMotion {
     private final double toZ;
     private final double gravity;
     private final long overMillis;
+    private final long startAfterMillis;
     private final Easing easing;
     private final double turnDegrees;
     private final NpcPose pose;
@@ -101,6 +102,7 @@ public final class NpcMotion {
         this.toZ = builder.toZ;
         this.gravity = builder.gravity;
         this.overMillis = builder.overMillis;
+        this.startAfterMillis = builder.startAfterMillis;
         this.easing = builder.easing;
         this.turnDegrees = builder.turnDegrees;
         this.pose = builder.pose;
@@ -123,15 +125,31 @@ public final class NpcMotion {
     public boolean isStill() {
         return fromX == 0 && fromY == 0 && fromZ == 0
                 && toX == 0 && toY == 0 && toZ == 0
-                && gravity == 0 && turnDegrees == 0 && poseThen == null;
+                && gravity == 0 && turnDegrees == 0 && poseThen == null && !hurt;
+    }
+
+    /**
+     * How long the body waits before anything happens to it.
+     *
+     * <p>What lets a body be there from the first frame and still be thrown by
+     * the blast that arrives a second later. Without it, a body that has to be
+     * present at the start has to move at the start too, and a body that has to
+     * move late has to appear late.
+     */
+    public long startAfterMillis() {
+        return startAfterMillis;
     }
 
     /** Where the body is, relative to where it was put, at a moment in its life. */
     public double @NotNull [] at(long elapsedMillis) {
+        long moving = elapsedMillis - startAfterMillis;
+        if (moving <= 0L) {
+            return new double[]{fromX, fromY, fromZ};
+        }
         double progress = overMillis <= 0 ? 1.0
-                : Math.clamp(elapsedMillis / (double) overMillis, 0.0, 1.0);
+                : Math.clamp(moving / (double) overMillis, 0.0, 1.0);
         double eased = easing.at(progress);
-        double seconds = Math.min(elapsedMillis, overMillis) / 1000.0;
+        double seconds = Math.min(moving, overMillis) / 1000.0;
         double drop = gravity == 0.0 ? 0.0 : 0.5 * gravity * seconds * seconds;
         return new double[]{
                 fromX + (toX - fromX) * eased,
@@ -141,11 +159,12 @@ public final class NpcMotion {
 
     /** How far the body has turned from the yaw it was put at. */
     public float turnedBy(long elapsedMillis) {
-        if (turnDegrees == 0.0) {
+        long moving = elapsedMillis - startAfterMillis;
+        if (turnDegrees == 0.0 || moving <= 0L) {
             return 0f;
         }
         double progress = overMillis <= 0 ? 1.0
-                : Math.clamp(elapsedMillis / (double) overMillis, 0.0, 1.0);
+                : Math.clamp(moving / (double) overMillis, 0.0, 1.0);
         return (float) (turnDegrees * easing.at(progress));
     }
 
@@ -185,6 +204,7 @@ public final class NpcMotion {
         private double toZ;
         private double gravity;
         private long overMillis = 700L;
+        private long startAfterMillis;
         private Easing easing = Easing.OUT;
         private double turnDegrees;
         private NpcPose pose = NpcPose.LYING;
@@ -226,6 +246,17 @@ public final class NpcMotion {
         /** How long the movement takes. */
         public @NotNull Builder over(long millis) {
             this.overMillis = Math.max(0L, millis);
+            return this;
+        }
+
+        /**
+         * How long the body stands there before anything happens to it.
+         *
+         * <p>The flinch waits for this too: a body that is thrown a second in
+         * should flinch a second in, not when it appeared.
+         */
+        public @NotNull Builder startAfter(long millis) {
+            this.startAfterMillis = Math.max(0L, millis);
             return this;
         }
 

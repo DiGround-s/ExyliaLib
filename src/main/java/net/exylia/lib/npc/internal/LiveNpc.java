@@ -37,6 +37,9 @@ final class LiveNpc implements NpcHandle {
     /** Whether the body itself has been drawn yet. See {@link #spawn}. */
     private boolean drawn;
 
+    /** Whether it has flinched, which waits for whatever is done to it. */
+    private boolean flinched;
+
     private volatile boolean gone;
 
     LiveNpc(String owner, int entityId, NpcModel model, NpcMotion motion, List<Player> viewers,
@@ -74,9 +77,6 @@ final class LiveNpc implements NpcHandle {
     private void draw(NpcSink sink) {
         drawn = true;
         sink.spawn(viewers, entityId, model, at);
-        if (motion.hurt()) {
-            sink.hurt(viewers, entityId);
-        }
     }
 
     /**
@@ -95,8 +95,9 @@ final class LiveNpc implements NpcHandle {
             return true;
         }
         if (!drawn) {
+            // Drawn and then driven in the same tick: a body whose movement
+            // waited an extra tick would start a frame behind whatever threw it.
             draw(sink);
-            return false;
         }
         if (!motion.isStill()) {
             drive(sink, now - startedAt);
@@ -113,6 +114,10 @@ final class LiveNpc implements NpcHandle {
      * anything.
      */
     private void drive(NpcSink sink, long elapsed) {
+        if (!flinched && motion.hurt() && elapsed >= motion.startAfterMillis()) {
+            flinched = true;
+            sink.hurt(viewers, entityId);
+        }
         NpcPose then = motion.poseThen();
         if (!posed && then != null && elapsed >= motion.poseAfterMillis()) {
             posed = true;
@@ -123,9 +128,11 @@ final class LiveNpc implements NpcHandle {
         double dy = target[1] - sentY;
         double dz = target[2] - sentZ;
         // A sixteenth of a block: below that the protocol rounds the step to
-        // nothing anyway, and sending it is a packet that moves no pixels.
-        if (Math.abs(dx) < 0.0625 && Math.abs(dy) < 0.0625 && Math.abs(dz) < 0.0625
-                && elapsed > motion.overMillis()) {
+        // nothing anyway, and sending it is a packet that moves no pixels. The
+        // difference is kept rather than dropped — sentX only moves when a step
+        // is sent — so a movement too slow to clear this in one tick still
+        // happens, in sixteenths, instead of never happening at all.
+        if (Math.abs(dx) < 0.0625 && Math.abs(dy) < 0.0625 && Math.abs(dz) < 0.0625) {
             return;
         }
         sentX = target[0];

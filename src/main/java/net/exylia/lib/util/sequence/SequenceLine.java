@@ -374,7 +374,8 @@ final class SequenceLine {
                     new Field("turn", "Degrees it turns on the spot", "0"),
                     new Field("pose_to", "A second pose, so it goes down while you watch", null),
                     new Field("after", "Seconds before that second pose", "0.4"),
-                    new Field("hurt", "Flinches as it appears", "true or false")));
+                    new Field("hurt", "Flinches when it is struck", "true or false"),
+                    new Field("move_after", "Seconds before any of that happens", "0")));
             case "ACTION_BAR" -> free(token, "The line above the hotbar", null);
             case "MESSAGE" -> free(token, "The message", "One line; add another for a second.");
             case "COMMAND" -> free(token, "Command the console runs",
