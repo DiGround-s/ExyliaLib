@@ -17,7 +17,14 @@ import java.util.UUID;
  */
 public interface NpcSink {
 
-    /** Announces the identity, spawns the body, and dresses it. */
+    /**
+     * Announces the identity, without drawing anything yet.
+     *
+     * <p>Separate from the body on purpose: see {@link #spawn}.
+     */
+    void announce(List<Player> viewers, NpcModel model);
+
+    /** Draws the body and dresses it. */
     void spawn(List<Player> viewers, int entityId, NpcModel model, Location at);
 
     /** Turns the head and body. */

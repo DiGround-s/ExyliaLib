@@ -34,6 +34,9 @@ final class LiveNpc implements NpcHandle {
     private double sentZ;
     private boolean posed;
 
+    /** Whether the body itself has been drawn yet. See {@link #spawn}. */
+    private boolean drawn;
+
     private volatile boolean gone;
 
     LiveNpc(String owner, int entityId, NpcModel model, NpcMotion motion, List<Player> viewers,
@@ -53,7 +56,23 @@ final class LiveNpc implements NpcHandle {
         return owner;
     }
 
+    /**
+     * Announces the identity, and leaves the body for the next tick.
+     *
+     * <p>The client hangs a player entity's skin and name off its player-list
+     * entry, and it looks that entry up when the spawn packet arrives. Sent in
+     * the same burst, the entry has not always been processed by then, and what
+     * is drawn is nothing at all &mdash; the single most common way a
+     * packet NPC comes out invisible. A tick is free here: nothing this module
+     * draws lives less than a second.
+     */
     void spawn(NpcSink sink) {
+        sink.announce(viewers, model);
+    }
+
+    /** Draws the body, once, on the tick after the identity was announced. */
+    private void draw(NpcSink sink) {
+        drawn = true;
         sink.spawn(viewers, entityId, model, at);
         if (motion.hurt()) {
             sink.hurt(viewers, entityId);
@@ -74,6 +93,10 @@ final class LiveNpc implements NpcHandle {
         if (now >= endsAt) {
             destroy(sink);
             return true;
+        }
+        if (!drawn) {
+            draw(sink);
+            return false;
         }
         if (!motion.isStill()) {
             drive(sink, now - startedAt);
@@ -117,6 +140,8 @@ final class LiveNpc implements NpcHandle {
             return;
         }
         gone = true;
+        // Even one that was never drawn: the identity went out on its own, and
+        // an announced entry nobody withdraws is a name the client keeps.
         sink.destroy(viewers, entityId, model.id());
     }
 

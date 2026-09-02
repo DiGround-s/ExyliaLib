@@ -71,6 +71,7 @@ public final class NpcRuntime {
     private static TaskHandle driver;
     private static boolean available;
     private static boolean warned;
+    private static boolean explained;
 
     /** Where entity ids come from, so tests do not need a server. */
     @FunctionalInterface
@@ -146,7 +147,11 @@ public final class NpcRuntime {
             warnOnce(owner);
             return null;
         }
-        if (viewers.isEmpty() || ids == null) {
+        if (ids == null) {
+            explainOnce("the NPC module was never wired up");
+            return null;
+        }
+        if (viewers.isEmpty()) {
             return null;
         }
         LiveNpc npc = new LiveNpc(owner, ids.next(), model, motion, viewers, at.clone(),
@@ -232,6 +237,24 @@ public final class NpcRuntime {
                 logger.warning("An NPC failed while being removed: " + failure);
             }
         }
+    }
+
+    /**
+     * Says once why a body could not be shown.
+     *
+     * <p>Every one of these used to be a silent return, which is the worst
+     * possible way for an effect to fail: nothing appears and nothing is said,
+     * so there is nothing to search for.
+     *
+     * @param what what went wrong
+     */
+    public static void explainOnce(String what) {
+        if (explained) {
+            return;
+        }
+        explained = true;
+        logger.warning("A body could not be shown: " + what
+                + ". This is said once; the rest are silent.");
     }
 
     private static void warnOnce(String owner) {

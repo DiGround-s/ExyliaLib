@@ -94,13 +94,20 @@ final class NpcPackets implements NpcSink {
     }
 
     @Override
-    public void spawn(List<Player> viewers, int entityId, NpcModel model, Location at) {
+    public void announce(List<Player> viewers, NpcModel model) {
         UserProfile profile = profileOf(model);
         PacketWrapper<?> announce = new WrapperPlayServerPlayerInfoUpdate(
                 EnumSet.of(WrapperPlayServerPlayerInfoUpdate.Action.ADD_PLAYER,
                         WrapperPlayServerPlayerInfoUpdate.Action.UPDATE_LISTED),
                 new WrapperPlayServerPlayerInfoUpdate.PlayerInfo(
                         profile, false, 0, GameMode.SURVIVAL, Component.empty(), null));
+        for (Player viewer : viewers) {
+            send(viewer, announce);
+        }
+    }
+
+    @Override
+    public void spawn(List<Player> viewers, int entityId, NpcModel model, Location at) {
         PacketWrapper<?> body = new WrapperPlayServerSpawnEntity(
                 entityId, Optional.of(model.id()), EntityTypes.PLAYER,
                 new Vector3d(at.getX(), at.getY(), at.getZ()),
@@ -110,7 +117,6 @@ final class NpcPackets implements NpcSink {
         List<Equipment> kit = kitOf(model);
 
         for (Player viewer : viewers) {
-            send(viewer, announce);
             send(viewer, body);
             send(viewer, state);
             send(viewer, head);

@@ -243,6 +243,11 @@ final class Steps {
             }
             NpcModel model = model(target);
             if (model == null) {
+                NpcRuntime.explainOnce(face == Face.VICTIM
+                        ? "[NPC] {victim} was written, but what died was not a player"
+                        : face == Face.KILLER
+                                ? "[NPC] {killer} was written, but nothing was credited with the kill"
+                                : "the texture written on the [NPC] line could not be read");
                 return;
             }
             Location where = yShift == 0.0

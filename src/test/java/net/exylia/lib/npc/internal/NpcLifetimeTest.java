@@ -41,6 +41,11 @@ class NpcLifetimeTest {
 
     private final NpcSink sink = new NpcSink() {
         @Override
+        public void announce(List<Player> viewers, NpcModel model) {
+            sent.add("announce");
+        }
+
+        @Override
         public void spawn(List<Player> viewers, int entityId, NpcModel model, Location at) {
             sent.add("spawn");
         }
@@ -102,8 +107,14 @@ class NpcLifetimeTest {
         NpcHandle npc = show("Test", 1000);
 
         assertNotNull(npc);
-        assertEquals(List.of("spawn"), sent);
+        assertEquals(List.of("announce"), sent,
+                "the body was drawn in the same burst as the identity it hangs on");
         assertTrue(npc.isShowing());
+
+        sent.clear();
+        now = 50L;
+        NpcRuntime.tick();
+        assertEquals(List.of("spawn"), sent, "the body was never drawn");
 
         sent.clear();
         now = 999L;
@@ -177,9 +188,11 @@ class NpcLifetimeTest {
     @DisplayName("a still body is never written to after it appears")
     void stillBodiesCostNothing() {
         show("Test", 5000);
+        now = 50L;
+        NpcRuntime.tick();
         sent.clear();
 
-        for (now = 50; now < 4000; now += 50) {
+        for (now = 100; now < 4000; now += 50) {
             NpcRuntime.tick();
         }
 
@@ -192,13 +205,18 @@ class NpcLifetimeTest {
         show("Test", 4000, NpcMotion.builder()
                 .over(500).to(0, 0, -3).gravity(8).hurt(true).build());
 
+        assertEquals(List.of("announce"), sent);
+
+        sent.clear();
+        now = 50L;
+        NpcRuntime.tick();
         assertEquals(List.of("spawn", "hurt"), sent, "it did not flinch as it appeared");
 
         sent.clear();
-        for (now = 50; now <= 500; now += 50) {
+        for (now = 100; now <= 500; now += 50) {
             NpcRuntime.tick();
         }
-        assertEquals(10, sent.size(), "the throw was not driven every tick");
+        assertEquals(9, sent.size(), "the throw was not driven every tick");
         assertTrue(sent.stream().allMatch("move"::equals));
 
         sent.clear();
@@ -216,9 +234,11 @@ class NpcLifetimeTest {
                 .over(0)
                 .collapsing(NpcPose.LYING, 600)
                 .build());
+        now = 50L;
+        NpcRuntime.tick();
         sent.clear();
 
-        for (now = 50; now < 600; now += 50) {
+        for (now = 100; now < 600; now += 50) {
             NpcRuntime.tick();
         }
         assertTrue(sent.isEmpty(), "it went down before it was told to");
