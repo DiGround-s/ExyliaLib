@@ -28,17 +28,25 @@ public record DisplayKeyframe(long atMillis, float x, float y, float z,
                               float scaleX, float scaleY, float scaleZ) {
 
     /**
-     * The same pose with an extra rotation applied first.
+     * The same pose, turned again once it has struck its own.
      *
      * <p>What a ring of blades needs: every blade shares one animation and
-     * differs only by the direction it faces, so the animation is built once
-     * and turned per point rather than rebuilt per point.
+     * differs only by which way the ring has turned it, so the animation is
+     * built once and turned per point rather than rebuilt per point.
      *
-     * @param first the rotation applied before this pose's own
+     * <p>Applied <em>after</em> the pose's own rotation, and that order is the
+     * whole of it. A blade is first rolled so its tip points down &mdash; a
+     * decision about the model, made in the model's own axes &mdash; and only
+     * then swung round to face away from the middle. Swinging first would leave
+     * the roll happening about the world's axis instead of the blade's, so a
+     * ring would come out with every blade tipped a different way. That is
+     * exactly what a ring of swords looks like when it is wrong.
+     *
+     * @param last the rotation applied after this pose's own
      * @return the turned pose
      */
-    public @NotNull DisplayKeyframe turnedBy(@NotNull Rotation first) {
-        return new DisplayKeyframe(atMillis, x, y, z, first.then(rotation), scaleX, scaleY, scaleZ);
+    public @NotNull DisplayKeyframe turnedBy(@NotNull Rotation last) {
+        return new DisplayKeyframe(atMillis, x, y, z, rotation.then(last), scaleX, scaleY, scaleZ);
     }
 
     /**

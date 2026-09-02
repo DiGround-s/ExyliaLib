@@ -414,6 +414,7 @@ final class SequenceLine {
                 new Field("to", "Ends at, as x,y,z", "0,0,0"),
                 new Field("rise", "Goes up by", "shorthand for to:0,n,0"),
                 new Field("gravity", "Falls at, in blocks per second squared", "0; vanilla is 32"),
+                new Field("ease", "How the movement is spread", "in, out, in_out or linear"),
                 new Field("spin", "Turns over its life", "0"),
                 new Field("axis", "Turns around", "x, y or z"),
                 new Field("size", "Size it starts at", "1"),

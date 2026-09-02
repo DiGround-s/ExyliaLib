@@ -92,6 +92,7 @@ leaves a plain head rather than delaying the effect.
 | `to:x,y,z` | where it ends | `0,0,0` |
 | `rise:` | shorthand for `to:0,n,0` | |
 | `gravity:` | falls at this many blocks per second squared, on top of the line | `0`; vanilla is about `32` |
+| `ease:` | how the movement is spread over its life: `in`, `out`, `in_out` | `linear` |
 | `spin:` | turns over its whole life | `0` |
 | `axis:` | which axis it spins around: `x`, `y` or `z` | `y` |
 | `size:` | size it starts at | `1` |
@@ -119,6 +120,38 @@ where it stood, and with `gravity:` on top of it, thrown outwards and falling �
 which is what an explosion looks like and what a particle cannot be. `turn:` is next to it because which way a model's own
 geometry points is a fact about that model: a resource pack whose blade reads
 sideways is corrected with a number, not a rebuild.
+
+### Making a movement land
+
+A straight line at a constant rate is a thing sliding. Three parameters turn it
+into a blow, and effects that feel weak are usually missing all three.
+
+- **`ease:in`** holds the movement back and then spends it. A sword that covers
+  a tenth of its distance in the first half of its life and the rest in the
+  second half reads as a wind-up and a strike, from the same two numbers.
+- **`gravity:`** is acceleration you can aim. `from:0,10,0;to:0,10,0;gravity:60`
+  is a slam that starts still and arrives fast, and it is a truer curve than any
+  easing because it is the one the eye already knows.
+- **`size_to:`** slightly larger than `size:` on impact, or slightly smaller on a
+  wind-up. A few percent is enough; it is the difference between an object
+  arriving and an object being placed.
+
+Then give the impact a second line at `ease:out` — dust, a ring, a block
+shockwave settling — and the whole thing has a beginning, a middle and an end.
+
+### Which way a model points
+
+Worth knowing before writing rotations, because it is not guessable:
+
+- An item model is a flat plate standing in the model's **XY plane**, facing
+  **south**. A sword's tip points up and to the right, at forty-five degrees.
+- So a blade is aimed with **`roll:`**, which turns it within its own plate, not
+  with `tilt:`, which tips the plate over. `roll:225` puts a sword tip-down;
+  `roll:45` puts it tip-up; `roll:135` lays it point-first along its own face.
+- `face_out:` and `turn:` are applied **after** `roll:` and `tilt:`, so a blade
+  is aimed in its own axes first and swung into place second. That is the order
+  a ring needs; the other way round tips every blade of the ring differently.
+- A block display is a cube and needs none of this.
 
 `light:15` is worth setting on nearly every effect. A display lit by the world is
 black at night and black in a cave, and an effect that disappears after sunset is

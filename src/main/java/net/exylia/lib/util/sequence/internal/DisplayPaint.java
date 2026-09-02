@@ -119,7 +119,12 @@ final class DisplayPaint implements Paint {
     private DisplayMotion motionAt(double x, double z) {
         DisplayMotion built = motion;
         if (faceOut || turnRadians != 0.0) {
-            double outward = faceOut ? -Math.atan2(x, z) : 0.0;
+            // atan2(x, z), not the other way about and not negated: a turn of
+            // theta about the vertical takes the model's face from due south to
+            // (sin theta, cos theta), so facing away from the middle is the
+            // angle of the point itself. Negated, a ring turns its blades
+            // inwards and shows the player their backs.
+            double outward = faceOut ? Math.atan2(x, z) : 0.0;
             built = built.turnedBy(Rotation.around(Rotation.Axis.Y, outward + turnRadians));
         }
         if (pull != 0.0) {

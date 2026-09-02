@@ -45,6 +45,63 @@ public final class DisplayMotion {
     /** A ceiling, so a file asking for forty turns does not send forty packets a viewer. */
     private static final int MAX_POSES = 48;
 
+    /** Poses an eased movement needs before the curve reads as a curve. */
+    private static final int POSES_PER_EASE = 12;
+
+    /**
+     * How much faster an eased movement runs at its fastest than a flat one.
+     *
+     * <p>A cubic ease spends a third of its distance in its last sixth, so a
+     * spin that is comfortably cut up on a flat movement is not on an eased
+     * one. The pose count is multiplied by this rather than by guesswork.
+     */
+    private static final int EASE_PEAK = 3;
+
+    /**
+     * How a movement is spread across its own life.
+     *
+     * <p>The difference between something moving and something striking.
+     * Everything the client does between two poses is a straight line at a
+     * constant rate; this is what puts the poses where they need to be for that
+     * to add up to a blow.
+     */
+    public enum Easing {
+
+        /** The same rate from start to finish. */
+        LINEAR,
+
+        /** Slow, then very fast. A wind-up and a strike. */
+        IN,
+
+        /** Fast, then settling. An impact coming to rest. */
+        OUT,
+
+        /** Slow, fast, slow. A whole gesture in one line. */
+        IN_OUT;
+
+        /** Reads an easing from configuration, defaulting to {@link #LINEAR}. */
+        public static @NotNull Easing of(@NotNull String name) {
+            return switch (name.trim().toUpperCase(java.util.Locale.ROOT)) {
+                case "IN", "ACCELERATE" -> IN;
+                case "OUT", "DECELERATE" -> OUT;
+                case "IN_OUT", "BOTH" -> IN_OUT;
+                default -> LINEAR;
+            };
+        }
+
+        /** Where the movement has got to, at a given fraction of its life. */
+        double at(double progress) {
+            return switch (this) {
+                case IN -> progress * progress * progress;
+                case OUT -> 1 - Math.pow(1 - progress, 3);
+                case IN_OUT -> progress < 0.5
+                        ? 4 * progress * progress * progress
+                        : 1 - Math.pow(-2 * progress + 2, 3) / 2;
+                default -> progress;
+            };
+        }
+    }
+
     private final List<DisplayKeyframe> poses;
     private final long lifeMillis;
 
@@ -94,18 +151,19 @@ public final class DisplayMotion {
      * The same motion with every pose turned first.
      *
      * <p>One ring of blades, each facing outwards: the animation is built once
-     * and turned twelve times, rather than built twelve times.
+     * and turned twelve times, rather than built twelve times. Applied after
+     * each pose's own rotation &mdash; see {@link DisplayKeyframe#turnedBy}.
      *
-     * @param first the rotation applied before each pose's own
+     * @param last the rotation applied after each pose's own
      * @return the turned motion
      */
-    public @NotNull DisplayMotion turnedBy(@NotNull Rotation first) {
-        if (first.isNone()) {
+    public @NotNull DisplayMotion turnedBy(@NotNull Rotation last) {
+        if (last.isNone()) {
             return this;
         }
         List<DisplayKeyframe> turned = new ArrayList<>(poses.size());
         for (DisplayKeyframe pose : poses) {
-            turned.add(pose.turnedBy(first));
+            turned.add(pose.turnedBy(last));
         }
         return new DisplayMotion(turned, lifeMillis);
     }
@@ -178,6 +236,7 @@ public final class DisplayMotion {
         private Rotation.Axis spinAxis = Rotation.Axis.Y;
         private double spinTurns;
         private double gravity;
+        private Easing easing = Easing.LINEAR;
 
         private Builder() {
         }
@@ -236,21 +295,37 @@ public final class DisplayMotion {
             return this;
         }
 
+        /**
+         * How the movement is spread across its life.
+         *
+         * <p>A straight line at a constant rate is a thing sliding. The same
+         * line eased in is the same thing arriving.
+         */
+        public @NotNull Builder ease(@NotNull Easing easing) {
+            this.easing = easing;
+            return this;
+        }
+
         /** Works out the poses. */
         public @NotNull DisplayMotion build() {
             int poseCount = poseCount();
             List<DisplayKeyframe> poses = new ArrayList<>(poseCount);
             double seconds = lifeMillis / 1000.0;
             for (int index = 0; index < poseCount; index++) {
-                double progress = poseCount == 1 ? 0.0 : (double) index / (poseCount - 1);
-                double elapsed = progress * seconds;
+                double elapsedFraction = poseCount == 1 ? 0.0 : (double) index / (poseCount - 1);
+                // The poses are evenly spaced in time and unevenly spaced along
+                // the movement. That is what easing is: the client still draws
+                // a straight line between two poses, and the poses are where
+                // the acceleration lives.
+                double progress = easing.at(elapsedFraction);
+                double elapsed = elapsedFraction * seconds;
                 // The fall is added to the straight line rather than replacing
                 // it, so "throw it four blocks east and let it drop" is two
                 // independent numbers instead of one solved trajectory.
                 double drop = gravity == 0.0 ? 0.0 : 0.5 * gravity * elapsed * elapsed;
                 double scale = startScale + (endScale - startScale) * progress;
                 poses.add(new DisplayKeyframe(
-                        (long) (progress * lifeMillis),
+                        (long) (elapsedFraction * lifeMillis),
                         (float) (fromX + (toX - fromX) * progress),
                         (float) (fromY + (toY - fromY) * progress - drop),
                         (float) (fromZ + (toZ - fromZ) * progress),
@@ -271,13 +346,17 @@ public final class DisplayMotion {
          * a curve. The most demanding of the three wins.
          */
         private int poseCount() {
+            int peak = easing == Easing.LINEAR ? 1 : EASE_PEAK;
             int needed = 2;
             if (spinTurns != 0.0) {
                 needed = Math.max(needed,
-                        (int) Math.ceil(Math.abs(spinTurns) * POSES_PER_TURN) + 1);
+                        (int) Math.ceil(Math.abs(spinTurns) * POSES_PER_TURN * peak) + 1);
             }
             if (gravity != 0.0) {
                 needed = Math.max(needed, POSES_PER_FALL);
+            }
+            if (easing != Easing.LINEAR) {
+                needed = Math.max(needed, POSES_PER_EASE);
             }
             return Math.min(needed, MAX_POSES);
         }

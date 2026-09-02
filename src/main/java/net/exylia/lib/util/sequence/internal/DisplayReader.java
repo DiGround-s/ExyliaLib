@@ -35,7 +35,7 @@ final class DisplayReader {
     static final String[] PARAMETERS = {
             "as", "size", "size_to", "life", "from", "to", "rise", "spin", "axis",
             "tilt", "roll", "turn", "face_out", "gravity", "glow", "light", "model",
-            "billboard", "hold", "pull"
+            "billboard", "hold", "pull", "ease"
     };
 
     private DisplayReader() {
@@ -141,6 +141,7 @@ final class DisplayReader {
                 .spin(Rotation.Axis.of(args.text("axis", "y")),
                         args.number("spin", 0.0, problems))
                 .gravity(args.number("gravity", 0.0, problems))
+                .ease(DisplayMotion.Easing.of(args.text("ease", "linear")))
                 .build();
     }
 

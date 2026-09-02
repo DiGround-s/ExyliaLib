@@ -116,6 +116,86 @@ class DisplayMotionTest {
     }
 
     @Test
+    @DisplayName("an eased movement is behind at the halfway mark and still lands on time")
+    void easingMovesTheDistanceNotTheClock() {
+        DisplayMotion motion = DisplayMotion.builder()
+                .life(1000)
+                .from(0, 0, 0)
+                .to(0, 10, 0)
+                .ease(DisplayMotion.Easing.IN)
+                .build();
+
+        List<DisplayKeyframe> poses = motion.poses();
+        DisplayKeyframe last = poses.get(poses.size() - 1);
+        assertEquals(1000L, last.atMillis(), "easing must not change when it finishes");
+        assertEquals(10f, last.y(), EPSILON, "nor where it finishes");
+
+        // Half the time, well under half the distance: that is the wind-up.
+        DisplayKeyframe halfway = poses.stream()
+                .filter(pose -> pose.atMillis() >= 500L)
+                .findFirst()
+                .orElseThrow();
+        assertTrue(halfway.y() < 3f, "an eased strike was already halfway there: " + halfway.y());
+    }
+
+    @Test
+    @DisplayName("easing out is the same movement read backwards")
+    void easingOutFrontLoads() {
+        DisplayMotion motion = DisplayMotion.builder()
+                .life(1000)
+                .to(0, 10, 0)
+                .ease(DisplayMotion.Easing.OUT)
+                .build();
+
+        DisplayKeyframe halfway = motion.poses().stream()
+                .filter(pose -> pose.atMillis() >= 500L)
+                .findFirst()
+                .orElseThrow();
+
+        assertTrue(halfway.y() > 7f, "an impact settling was still on its way: " + halfway.y());
+    }
+
+    @Test
+    @DisplayName("an eased spin is cut up finely enough for its fastest moment")
+    void easedSpinStaysUnderTheLimit() {
+        DisplayMotion motion = DisplayMotion.builder()
+                .life(1000)
+                .spin(Rotation.Axis.Z, 2)
+                .ease(DisplayMotion.Easing.IN)
+                .build();
+
+        List<DisplayKeyframe> poses = motion.poses();
+        for (int index = 1; index < poses.size(); index++) {
+            double dot = dot(poses.get(index - 1).rotation(), poses.get(index).rotation());
+            double angle = 2 * Math.acos(Math.min(1.0, Math.abs(dot)));
+            assertTrue(angle < Math.PI, "step " + index + " turns " + angle + " radians");
+        }
+    }
+
+    @Test
+    @DisplayName("a ring's own turn is applied after the pose, not before")
+    void ringTurnComesLast() {
+        // A blade rolled tip-down and then swung to face east. Rolling about
+        // the world's axis instead of its own is what tips every blade of a
+        // ring a different way, so the order is asserted rather than trusted.
+        Rotation roll = Rotation.around(Rotation.Axis.Z, Math.PI / 2);
+        Rotation yaw = Rotation.around(Rotation.Axis.Y, Math.PI / 2);
+
+        DisplayKeyframe pose = new DisplayKeyframe(0L, 0f, 0f, 0f, roll, 1f, 1f, 1f);
+        Rotation turned = pose.turnedBy(yaw).rotation();
+
+        assertEquals(roll.then(yaw).x(), turned.x(), EPSILON);
+        assertEquals(roll.then(yaw).y(), turned.y(), EPSILON);
+        assertEquals(roll.then(yaw).z(), turned.z(), EPSILON);
+
+        // The model's face, which starts due south, ends up due east whatever
+        // the roll did to the blade in its own plane.
+        float[] facing = turned.apply(new float[]{0f, 0f, 1f});
+        assertEquals(1f, facing[0], EPSILON);
+        assertEquals(0f, facing[2], EPSILON);
+    }
+
+    @Test
     @DisplayName("turning by nothing hands back the same motion")
     void turningByNothingIsFree() {
         DisplayMotion motion = DisplayMotion.builder().life(500).build();
