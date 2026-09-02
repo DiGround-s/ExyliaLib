@@ -336,15 +336,7 @@ final class HologramImpl implements Hologram {
         if (pairs.isEmpty()) {
             return Text.component(text);
         }
-        Component component = Text.component(template.raw());
-        for (int i = 0; i < pairs.size(); i += 2) {
-            String placeholder = pairs.get(i);
-            Component value = Text.component(pairs.get(i + 1));
-            component = component.replaceText(builder -> builder
-                    .matchLiteral(placeholder)
-                    .replacement(value));
-        }
-        return component;
+        return Text.component(template.raw(), pairs);
     }
 
     /** Sends the whole hologram to a player who just came into range. */

@@ -37,6 +37,29 @@ class TextModuleTest {
         return PLAIN.serialize(component);
     }
 
+    @Test
+    @DisplayName("a placeholder carrying its own colour is still substituted")
+    void placeholderWithFormattingInsideIsSubstituted() {
+        // What a scoreboard line looks like once the palette token inside the
+        // placeholder has been parsed: the token is no longer one component,
+        // so matching it whole against the parsed tree finds nothing.
+        String raw = "{secondary}RANGO: %rank_or:{error}none%";
+        Component component = Text.component(raw,
+                java.util.List.of("%rank_or:{error}none%", "&aVIP"));
+
+        assertEquals("RANGO: VIP", plain(component));
+    }
+
+    @Test
+    @DisplayName("a placeholder inside a gradient is still substituted")
+    void placeholderInsideGradientIsSubstituted() {
+        Component component = Text.component(
+                "<gradient:#8a51c4:#ff6b9d>%streak%</gradient>",
+                java.util.List.of("%streak%", "12"));
+
+        assertEquals("12", plain(component));
+    }
+
     /** Reads the colour of the first part that has one. */
     private static TextColor firstColor(Component component) {
         if (component.color() != null) {

@@ -147,6 +147,53 @@ public final class Text {
     }
 
     /**
+     * Builds a component from template text with resolved placeholders in it.
+     *
+     * <p>For the renderers that parse the template once and substitute per
+     * player — scoreboards and holograms — so the parse stays a cache hit while
+     * the values change every tick.
+     *
+     * <p>Each placeholder is stood in for by a single private-use character
+     * before the text is parsed, the same way {@link #build()} does it, and for
+     * the same reason: a placeholder written inside a gradient, or one that
+     * carries a colour of its own such as
+     * {@code %changeoutput_..._ifmatch:{error}Missing%}, comes back out of the
+     * parser as several components, and matching the whole token against the
+     * parsed tree then matches nothing — which left the placeholder on the
+     * screen exactly as written.
+     *
+     * @param raw   the template text, before resolution
+     * @param pairs alternating placeholder as written and its resolved value,
+     *              as {@code Placeholders.resolvePairs} returns them
+     * @return the parsed text with the values in place
+     */
+    public static @NotNull Component component(@NotNull String raw, @NotNull List<String> pairs) {
+        if (pairs.isEmpty()) {
+            return TextEngine.parse(raw);
+        }
+        String source = raw;
+        List<String> values = new ArrayList<>(pairs.size() / 2);
+        for (int i = 0; i < pairs.size(); i += 2) {
+            String placeholder = pairs.get(i);
+            if (!source.contains(placeholder)) {
+                continue;
+            }
+            String marker = String.valueOf((char) (MARKER_BASE + values.size()));
+            source = source.replace(placeholder, marker);
+            values.add(pairs.get(i + 1));
+        }
+        Component component = TextEngine.parse(source);
+        for (int i = 0; i < values.size(); i++) {
+            String marker = String.valueOf((char) (MARKER_BASE + i));
+            Component value = TextEngine.parse(values.get(i));
+            component = component.replaceText(builder -> builder
+                    .matchLiteral(marker)
+                    .replacement(value));
+        }
+        return component;
+    }
+
+    /**
      * Substitutes a value into the text.
      *
      * <p>Substitution happens <em>after</em> parsing, on the component tree, so

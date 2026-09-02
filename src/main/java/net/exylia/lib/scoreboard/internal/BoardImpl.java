@@ -281,15 +281,7 @@ final class BoardImpl implements Board {
             return Text.component(text);
         }
 
-        Component component = Text.component(source.raw());
-        for (int i = 0; i < pairs.size(); i += 2) {
-            Component value = Text.component(pairs.get(i + 1));
-            String placeholder = pairs.get(i);
-            component = component.replaceText(builder -> builder
-                    .matchLiteral(placeholder)
-                    .replacement(value));
-        }
-        return component;
+        return Text.component(source.raw(), pairs);
     }
 
     /**

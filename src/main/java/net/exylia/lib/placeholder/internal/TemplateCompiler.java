@@ -129,10 +129,28 @@ public final class TemplateCompiler {
             remaining = remaining.substring(0, colon);
         }
 
-        // A space in the name means this was prose that happened to contain two
-        // percent signs, such as "50% of 20% is fine".
-        if (remaining.isEmpty() || remaining.indexOf(' ') >= 0) {
+        if (remaining.isEmpty()) {
             return null;
+        }
+
+        // A space in the name usually means this was prose that happened to
+        // contain two percent signs, such as "50% of 20% is fine". It can also
+        // be a PlaceholderAPI placeholder that carries a pattern:
+        // %server_time_'\u23f0' MMM dd, yyyy% is one placeholder, not prose.
+        // Those open with an identifier and an underscore, which the text
+        // between two percent signs in a sentence does not, so the two are told
+        // apart by how the body starts. Rejecting them left every such
+        // placeholder printed as written on scoreboards and holograms, because
+        // a literal is never offered to PlaceholderAPI at all.
+        if (remaining.indexOf(' ') >= 0) {
+            if (!opensLikePlaceholder(remaining)) {
+                return null;
+            }
+            // Nothing here is an argument to a registered Exylia placeholder:
+            // the whole body is the name, and it goes out as written to
+            // whoever owns it.
+            return new Part(null, remaining.toLowerCase(java.util.Locale.ROOT),
+                    List.of(), format, fallback, original);
         }
 
         String lower = remaining.toLowerCase(java.util.Locale.ROOT);
@@ -162,6 +180,33 @@ public final class TemplateCompiler {
         }
 
         return new Part(null, name, args, format, fallback, original);
+    }
+
+    /**
+     * Returns whether text opens the way a placeholder does: an identifier, then
+     * an underscore, before any space.
+     *
+     * <p>{@code server_time_'\u23f0' MMM dd, yyyy} passes, {@code  of 20} and
+     * {@code Health is 50} do not.
+     */
+    private static boolean opensLikePlaceholder(String text) {
+        int underscore = text.indexOf('_');
+        if (underscore <= 0) {
+            return false;
+        }
+        int space = text.indexOf(' ');
+        if (space >= 0 && space < underscore) {
+            return false;
+        }
+        if (!Character.isLetter(text.charAt(0))) {
+            return false;
+        }
+        for (int i = 1; i < underscore; i++) {
+            if (!Character.isLetterOrDigit(text.charAt(i))) {
+                return false;
+            }
+        }
+        return true;
     }
 
     /** Arguments are separated by underscores, as PlaceholderAPI users expect. */

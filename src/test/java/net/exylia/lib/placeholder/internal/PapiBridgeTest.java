@@ -50,6 +50,25 @@ class PapiBridgeTest {
     }
 
     @Test
+    @DisplayName("a PlaceholderAPI placeholder carrying a pattern still reaches it")
+    void externalPlaceholdersWithSpacesReachPapi() {
+        PapiBridge.setApplierForTests((viewer, text) ->
+                text.replace("%server_time_'\u23f0' MMM dd, yyyy%", "\u23f0 Sep 02, 2026"));
+
+        assertEquals("\u23f0 Sep 02, 2026",
+                Placeholders.apply("%server_time_'\u23f0' MMM dd, yyyy%", player.player()));
+    }
+
+    @Test
+    @DisplayName("prose between two percent signs is still prose")
+    void proseWithPercentSignsIsNotAPlaceholder() {
+        PapiBridge.setApplierForTests((viewer, text) -> "resolved");
+
+        assertEquals("50% of 20% is fine",
+                Placeholders.apply("50% of 20% is fine", player.player()));
+    }
+
+    @Test
     void unavailablePapiLeavesExternalPlaceholdersVisible() {
         assertEquals("%external_value%", Placeholders.apply("%external_value%", player.player()));
     }
