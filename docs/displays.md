@@ -95,7 +95,7 @@ leaves a plain head rather than delaying the effect.
 | `ease:` | how the movement is spread over its life: `in`, `out`, `in_out` | `linear` |
 | `spin:` | turns over its whole life | `0` |
 | `axis:` | which axis it spins around: `x`, `y` or `z` | `y` |
-| `size:` | size it starts at | `1` |
+| `size:` | size it starts at; one number, or `x,y,z` for a plate, a pillar or a blade | `1` |
 | `size_to:` | size it ends at | same as `size` |
 | `tilt:` `roll:` `turn:` | a fixed rotation, in degrees | `0` |
 | `face_out:` | each point faces away from the centre | `false` |
@@ -129,9 +129,15 @@ into a blow, and effects that feel weak are usually missing all three.
 - **`ease:in`** holds the movement back and then spends it. A sword that covers
   a tenth of its distance in the first half of its life and the rest in the
   second half reads as a wind-up and a strike, from the same two numbers.
-- **`gravity:`** is acceleration you can aim. `from:0,10,0;to:0,10,0;gravity:60`
-  is a slam that starts still and arrives fast, and it is a truer curve than any
-  easing because it is the one the eye already knows.
+- **`gravity:`** is for debris, not for slams. It is added to the line rather
+  than replacing it, so `from:0,9,0;to:0,1,0;gravity:40` descends eight blocks
+  *and then* falls another twelve, straight through the floor. Aim a slam with
+  `ease:in` and leave gravity for things thrown outwards, where a gentle drop
+  reads as weight: half of `gravity` times the life squared is how far it falls,
+  so a second in the air wants a `gravity:` of about `5`, not `50`.
+- **`size:3,0.15,3`** is a block flattened into a plate. Grown outwards from
+  nothing it is a shockwave; stretched the other way it is a pillar or a blade
+  far too large to be an item. The models are blocks the server already has.
 - **`size_to:`** slightly larger than `size:` on impact, or slightly smaller on a
   wind-up. A few percent is enough; it is the difference between an object
   arriving and an object being placed.

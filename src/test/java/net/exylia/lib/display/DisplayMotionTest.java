@@ -196,6 +196,20 @@ class DisplayMotionTest {
     }
 
     @Test
+    @DisplayName("a size can differ per axis, which is how a cube becomes a plate")
+    void scalePerAxis() {
+        DisplayMotion motion = DisplayMotion.builder()
+                .life(400)
+                .scale(new double[]{0.1, 0.1, 0.1}, new double[]{4.0, 0.2, 4.0})
+                .build();
+
+        DisplayKeyframe last = motion.poses().get(motion.poses().size() - 1);
+        assertEquals(4.0f, last.scaleX(), EPSILON);
+        assertEquals(0.2f, last.scaleY(), EPSILON);
+        assertEquals(4.0f, last.scaleZ(), EPSILON);
+    }
+
+    @Test
     @DisplayName("turning by nothing hands back the same motion")
     void turningByNothingIsFree() {
         DisplayMotion motion = DisplayMotion.builder().life(500).build();

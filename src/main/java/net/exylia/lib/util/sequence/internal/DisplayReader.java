@@ -123,7 +123,7 @@ final class DisplayReader {
      * {@code to:0,2,0} is a file nobody skims.
      */
     private static DisplayMotion motion(Args args, Args.Problems problems) {
-        double size = args.number("size", 1.0, problems);
+        double[] size = size(args, "size", new double[]{1.0, 1.0, 1.0}, problems);
         double[] from = triple(args, "from", problems);
         double[] to = triple(args, "to", problems);
         if (!args.has("to") && args.has("rise")) {
@@ -133,7 +133,7 @@ final class DisplayReader {
                 .life((long) (args.number("life", 1.0, problems) * 1000))
                 .from(from[0], from[1], from[2])
                 .to(to[0], to[1], to[2])
-                .scale(size, args.number("size_to", size, problems))
+                .scale(size, size(args, "size_to", size, problems))
                 .rotation(Rotation.around(Rotation.Axis.X,
                                 Math.toRadians(args.number("tilt", 0.0, problems)))
                         .then(Rotation.around(Rotation.Axis.Z,
@@ -143,6 +143,40 @@ final class DisplayReader {
                 .gravity(args.number("gravity", 0.0, problems))
                 .ease(DisplayMotion.Easing.of(args.text("ease", "linear")))
                 .build();
+    }
+
+    /**
+     * A size, written as one number or as three.
+     *
+     * <p>One number is the usual case and reads as one. Three is what turns a
+     * cube into a plate, a pillar or a blade, and it would be a shame to make
+     * every file that never needs it write {@code size:1,1,1}.
+     */
+    private static double[] size(Args args, String key, double[] fallback,
+                                 Args.Problems problems) {
+        if (!args.has(key)) {
+            return fallback;
+        }
+        String raw = args.text(key, "");
+        if (raw.indexOf(',') < 0) {
+            double one = args.number(key, fallback[0], problems);
+            return new double[]{one, one, one};
+        }
+        String[] parts = raw.split(",");
+        if (parts.length < 3) {
+            problems.found(key, "needs one number or three, as in " + key + ":3,0.2,3");
+            return fallback;
+        }
+        double[] out = new double[3];
+        for (int index = 0; index < 3; index++) {
+            try {
+                out[index] = Double.parseDouble(parts[index].trim());
+            } catch (NumberFormatException malformed) {
+                problems.found(key, "\"" + parts[index].trim() + "\" is not a number");
+                out[index] = fallback[index];
+            }
+        }
+        return out;
     }
 
     /** An {@code x,y,z} parameter, or zeroes. */

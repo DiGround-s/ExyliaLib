@@ -230,8 +230,8 @@ public final class DisplayMotion {
         private double toX;
         private double toY;
         private double toZ;
-        private double startScale = 1.0;
-        private double endScale = 1.0;
+        private double[] startScale = {1.0, 1.0, 1.0};
+        private double[] endScale = {1.0, 1.0, 1.0};
         private Rotation base = Rotation.NONE;
         private Rotation.Axis spinAxis = Rotation.Axis.Y;
         private double spinTurns;
@@ -265,8 +265,25 @@ public final class DisplayMotion {
 
         /** The size it starts and ends at, as a multiple of the model's own. */
         public @NotNull Builder scale(double start, double end) {
-            this.startScale = start;
-            this.endScale = end;
+            return scale(new double[]{start, start, start}, new double[]{end, end, end});
+        }
+
+        /**
+         * The same, per axis.
+         *
+         * <p>What a cube cannot say on its own. A block flattened to a tenth of
+         * its height is a plate, and a plate growing outwards is a shockwave; a
+         * block stretched along one axis is a pillar, a beam or the blade of
+         * something far too large to be an item. The models are the twenty
+         * blocks a server already has, and the shape comes from here.
+         *
+         * @param start width, height and depth it starts at
+         * @param end   width, height and depth it ends at
+         * @return this builder
+         */
+        public @NotNull Builder scale(double @NotNull [] start, double @NotNull [] end) {
+            this.startScale = new double[]{start[0], start[1], start[2]};
+            this.endScale = new double[]{end[0], end[1], end[2]};
             return this;
         }
 
@@ -323,7 +340,6 @@ public final class DisplayMotion {
                 // it, so "throw it four blocks east and let it drop" is two
                 // independent numbers instead of one solved trajectory.
                 double drop = gravity == 0.0 ? 0.0 : 0.5 * gravity * elapsed * elapsed;
-                double scale = startScale + (endScale - startScale) * progress;
                 poses.add(new DisplayKeyframe(
                         (long) (elapsedFraction * lifeMillis),
                         (float) (fromX + (toX - fromX) * progress),
@@ -333,7 +349,9 @@ public final class DisplayMotion {
                                 ? base
                                 : base.then(Rotation.around(spinAxis,
                                         progress * spinTurns * Math.PI * 2)),
-                        (float) scale, (float) scale, (float) scale));
+                        (float) (startScale[0] + (endScale[0] - startScale[0]) * progress),
+                        (float) (startScale[1] + (endScale[1] - startScale[1]) * progress),
+                        (float) (startScale[2] + (endScale[2] - startScale[2]) * progress)));
             }
             return new DisplayMotion(poses, lifeMillis);
         }
