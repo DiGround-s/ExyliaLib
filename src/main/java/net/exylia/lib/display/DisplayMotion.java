@@ -111,6 +111,32 @@ public final class DisplayMotion {
     }
 
     /**
+     * The same motion, drifting somewhere over its life.
+     *
+     * <p>Added on top of everything else and spread across the poses, so it
+     * composes with a spin and a fall rather than replacing them. What it is
+     * for is the movement a shape's points cannot share: twelve blades that
+     * each converge on the same spot are twelve different directions and one
+     * animation.
+     *
+     * @param dx how far east by the end
+     * @param dy how far up by the end
+     * @param dz how far south by the end
+     * @return the drifting motion
+     */
+    public @NotNull DisplayMotion drifting(double dx, double dy, double dz) {
+        if ((dx == 0.0 && dy == 0.0 && dz == 0.0) || lifeMillis <= 0L) {
+            return this;
+        }
+        List<DisplayKeyframe> drifted = new ArrayList<>(poses.size());
+        for (DisplayKeyframe pose : poses) {
+            double progress = (double) pose.atMillis() / lifeMillis;
+            drifted.add(pose.movedBy(dx * progress, dy * progress, dz * progress));
+        }
+        return new DisplayMotion(drifted, lifeMillis);
+    }
+
+    /**
      * The same motion starting somewhere else.
      *
      * @param dx east

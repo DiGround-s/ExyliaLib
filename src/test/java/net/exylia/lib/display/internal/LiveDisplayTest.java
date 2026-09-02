@@ -38,7 +38,8 @@ class LiveDisplayTest {
         }
 
         @Override
-        public void pose(List<Player> viewers, int entityId, DisplayKeyframe pose, int overTicks) {
+        public void pose(List<Player> viewers, int entityId, DisplayModel model,
+                         DisplayKeyframe pose, int overTicks) {
             sent.add("pose@" + pose.atMillis() + " over " + overTicks);
         }
 

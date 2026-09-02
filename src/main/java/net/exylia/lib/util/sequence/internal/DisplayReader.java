@@ -35,7 +35,7 @@ final class DisplayReader {
     static final String[] PARAMETERS = {
             "as", "size", "size_to", "life", "from", "to", "rise", "spin", "axis",
             "tilt", "roll", "turn", "face_out", "gravity", "glow", "light", "model",
-            "billboard", "hold"
+            "billboard", "hold", "pull"
     };
 
     private DisplayReader() {
@@ -111,7 +111,8 @@ final class DisplayReader {
 
         return new DisplayPaint(owner, model, motion(args, problems), face,
                 args.flag("face_out", false),
-                Math.toRadians(args.number("turn", 0.0, problems)));
+                Math.toRadians(args.number("turn", 0.0, problems)),
+                args.number("pull", 0.0, problems));
     }
 
     /**

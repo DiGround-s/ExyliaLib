@@ -422,6 +422,7 @@ final class SequenceLine {
                 new Field("roll", "Fixed roll, in degrees", "0"),
                 new Field("turn", "Fixed turn, in degrees", "0"),
                 new Field("face_out", "Points away from the centre", "true or false"),
+                new Field("pull", "Travels towards the centre", "1 reaches it"),
                 new Field("glow", "Outline colour", "a name, #rrggbb or a {palette} token"),
                 new Field("light", "Fixed light level", "0 to 15"),
                 new Field("model", "Custom model data", "for a resource pack model"),

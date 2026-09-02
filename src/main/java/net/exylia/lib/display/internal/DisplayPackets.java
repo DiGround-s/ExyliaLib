@@ -104,12 +104,13 @@ final class DisplayPackets implements DisplaySink {
     }
 
     @Override
-    public void pose(List<Player> viewers, int entityId, DisplayKeyframe pose, int overTicks) {
+    public void pose(List<Player> viewers, int entityId, DisplayModel model,
+                     DisplayKeyframe pose, int overTicks) {
         List<EntityData<?>> data = new ArrayList<>(6);
         data.add(new EntityData<>(INTERPOLATION_DELAY, EntityDataTypes.INT, 0));
         data.add(new EntityData<>(TRANSFORMATION_DURATION, EntityDataTypes.INT, overTicks));
         data.add(new EntityData<>(POS_ROT_DURATION, EntityDataTypes.INT, overTicks));
-        addTransform(data, pose);
+        addTransform(data, pose, model.kind());
         WrapperPlayServerEntityMetadata packet =
                 new WrapperPlayServerEntityMetadata(entityId, data);
         for (Player viewer : viewers) {
@@ -148,7 +149,7 @@ final class DisplayPackets implements DisplaySink {
             // Block light in the low bits, sky light in the high ones.
             data.add(new EntityData<>(BRIGHTNESS, EntityDataTypes.INT, (level << 4) | (level << 20)));
         }
-        addTransform(data, pose);
+        addTransform(data, pose, model.kind());
 
         switch (model.kind()) {
             case ITEM -> {
@@ -168,9 +169,30 @@ final class DisplayPackets implements DisplaySink {
         return data;
     }
 
-    private static void addTransform(List<EntityData<?>> data, DisplayKeyframe pose) {
+    /**
+     * The pose, as the three transform fields the protocol carries.
+     *
+     * <p>A block display is drawn with its north-west-bottom corner at the
+     * entity, and every other display is drawn from its centre. Left alone that
+     * makes a ring of blocks sit half a block off in three directions, and a
+     * block that grows appear to slide as it does. Half its size is therefore
+     * taken back off &mdash; turned first, so a spinning block turns on itself
+     * rather than orbiting the point it was put at.
+     */
+    private static void addTransform(List<EntityData<?>> data, DisplayKeyframe pose,
+                                     DisplayModel.Kind kind) {
+        float x = pose.x();
+        float y = pose.y();
+        float z = pose.z();
+        if (kind == DisplayModel.Kind.BLOCK) {
+            float[] centre = pose.rotation().apply(new float[]{
+                    -pose.scaleX() / 2f, -pose.scaleY() / 2f, -pose.scaleZ() / 2f});
+            x += centre[0];
+            y += centre[1];
+            z += centre[2];
+        }
         data.add(new EntityData<>(TRANSLATION, EntityDataTypes.VECTOR3F,
-                new Vector3f(pose.x(), pose.y(), pose.z())));
+                new Vector3f(x, y, z)));
         data.add(new EntityData<>(SCALE, EntityDataTypes.VECTOR3F,
                 new Vector3f(pose.scaleX(), pose.scaleY(), pose.scaleZ())));
         Rotation rotation = pose.rotation();

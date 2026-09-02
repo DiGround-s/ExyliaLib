@@ -78,7 +78,7 @@ final class LiveDisplay implements DisplayHandle {
         while (nextPose < poses.size() && elapsed >= poses.get(nextPose - 1).atMillis()) {
             DisplayKeyframe target = poses.get(nextPose);
             long span = target.atMillis() - poses.get(nextPose - 1).atMillis();
-            sink.pose(viewers, entityId, target, (int) Math.max(1L, span / TICK_MS));
+            sink.pose(viewers, entityId, model, target, (int) Math.max(1L, span / TICK_MS));
             nextPose++;
         }
         return false;

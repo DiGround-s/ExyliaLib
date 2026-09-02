@@ -78,6 +78,23 @@ class RotationTest {
     }
 
     @Test
+    @DisplayName("a rotation applied to a vector turns it")
+    void appliesToAVector() {
+        float[] turned = Rotation.around(Rotation.Axis.Y, Math.PI / 2)
+                .apply(new float[]{1f, 0f, 0f});
+
+        assertEquals(0f, turned[0], EPSILON);
+        assertEquals(0f, turned[1], EPSILON);
+        assertEquals(-1f, turned[2], EPSILON);
+
+        // The offset that centres a block display has to follow the block, so
+        // no rotation must leave the vector exactly as it was.
+        float[] untouched = Rotation.NONE.apply(new float[]{-0.5f, -0.5f, -0.5f});
+        assertEquals(-0.5f, untouched[0], EPSILON);
+        assertEquals(-0.5f, untouched[2], EPSILON);
+    }
+
+    @Test
     @DisplayName("an axis is read from configuration, defaulting to yaw")
     void axisFromConfiguration() {
         assertEquals(Rotation.Axis.X, Rotation.Axis.of("x"));

@@ -97,6 +97,36 @@ public record Rotation(float x, float y, float z, float w) {
                 next.w * w - next.x * x - next.y * y - next.z * z);
     }
 
+    /**
+     * This rotation applied to a vector.
+     *
+     * <p>Needed because a block display is drawn from its corner rather than
+     * its centre, so centring one means offsetting it by half its size
+     * <em>in the direction it has been turned</em>. Offsetting before the turn
+     * would make a spinning block orbit the point instead of turning on it.
+     *
+     * @param vector the three components to turn
+     * @return the turned components, as a new array
+     */
+    public float @NotNull [] apply(float @NotNull [] vector) {
+        if (isNone()) {
+            return new float[]{vector[0], vector[1], vector[2]};
+        }
+        // v + 2w(q x v) + 2(q x (q x v)), the standard unit-quaternion form:
+        // no matrix, no trigonometry, and exact for the quaternions this
+        // module builds.
+        float cx = y * vector[2] - z * vector[1];
+        float cy = z * vector[0] - x * vector[2];
+        float cz = x * vector[1] - y * vector[0];
+        float ccx = y * cz - z * cy;
+        float ccy = z * cx - x * cz;
+        float ccz = x * cy - y * cx;
+        return new float[]{
+                vector[0] + 2 * (w * cx + ccx),
+                vector[1] + 2 * (w * cy + ccy),
+                vector[2] + 2 * (w * cz + ccz)};
+    }
+
     /** Whether this turns the model at all, so a packet can leave it out. */
     public boolean isNone() {
         return x == 0f && y == 0f && z == 0f && w == 1f;

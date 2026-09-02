@@ -34,7 +34,8 @@ public interface DisplaySink {
      * between the pose it holds and this one, at its own frame rate, from a
      * packet the server sends once.
      */
-    void pose(List<Player> viewers, int entityId, DisplayKeyframe pose, int overTicks);
+    void pose(List<Player> viewers, int entityId, DisplayModel model,
+              DisplayKeyframe pose, int overTicks);
 
     /** Removes a display from every client that was shown it. */
     void destroy(List<Player> viewers, int entityId);

@@ -52,15 +52,17 @@ final class DisplayPaint implements Paint {
     private final Face face;
     private final boolean faceOut;
     private final double turnRadians;
+    private final double pull;
 
     DisplayPaint(@NotNull String owner, @NotNull DisplayModel model, @NotNull DisplayMotion motion,
-                 @NotNull Face face, boolean faceOut, double turnRadians) {
+                 @NotNull Face face, boolean faceOut, double turnRadians, double pull) {
         this.owner = owner;
         this.model = model;
         this.motion = motion;
         this.face = face;
         this.faceOut = faceOut;
         this.turnRadians = turnRadians;
+        this.pull = pull;
     }
 
     /**
@@ -82,7 +84,7 @@ final class DisplayPaint implements Paint {
         }
         DisplayModel worn = Heads.wearing(model, wearer);
         return worn == model ? this
-                : new DisplayPaint(owner, worn, motion, Face.FIXED, faceOut, turnRadians);
+                : new DisplayPaint(owner, worn, motion, Face.FIXED, faceOut, turnRadians, pull);
     }
 
     @Override
@@ -103,6 +105,10 @@ final class DisplayPaint implements Paint {
     /**
      * The motion for one point of the shape.
      *
+     * <p>{@code pull:} is the other half of a ring: {@code face_out:} points
+     * each blade at the middle and this is what sends it there. Both need the
+     * point, which is why they happen here and not when the file was read.
+     *
      * <p>{@code face_out:} is what makes a ring of blades read as a ring of
      * blades rather than twelve swords lying in the same direction: each one is
      * turned to point away from the middle. The extra {@code turn:} exists
@@ -111,11 +117,19 @@ final class DisplayPaint implements Paint {
      * a knob rather than a rebuild.
      */
     private DisplayMotion motionAt(double x, double z) {
-        if (!faceOut && turnRadians == 0.0) {
-            return motion;
+        DisplayMotion built = motion;
+        if (faceOut || turnRadians != 0.0) {
+            double outward = faceOut ? -Math.atan2(x, z) : 0.0;
+            built = built.turnedBy(Rotation.around(Rotation.Axis.Y, outward + turnRadians));
         }
-        double outward = faceOut ? -Math.atan2(x, z) : 0.0;
-        return motion.turnedBy(Rotation.around(Rotation.Axis.Y, outward + turnRadians));
+        if (pull != 0.0) {
+            // Sideways only. Which way a blade travels to reach the middle is
+            // a fact about where it started; how high it ends is a decision the
+            // file already made with to: or gravity:, and folding the two
+            // together would make one of them silently override the other.
+            built = built.drifting(-x * pull, 0.0, -z * pull);
+        }
+        return built;
     }
 
     private static @Nullable Player asPlayer(@Nullable org.bukkit.entity.Entity entity) {
