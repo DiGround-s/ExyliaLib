@@ -5,6 +5,9 @@ import net.exylia.lib.config.Configs;
 import net.exylia.lib.effect.Effects;
 import net.exylia.lib.effect.internal.EffectRuntime;
 import net.exylia.lib.action.Actions;
+import net.exylia.lib.chat.Chats;
+import net.exylia.lib.chat.internal.ChatListener;
+import net.exylia.lib.chat.internal.ChatRuntime;
 import net.exylia.lib.command.Commands;
 import net.exylia.lib.clan.internal.ClanRuntime;
 import net.exylia.lib.database.Databases;
@@ -146,6 +149,10 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         // rather than a UiItem.
         EditorRuntime.init(this);
         getServer().getPluginManager().registerEvents(new EditorListener(), this);
+        // One listener for every plugin's chat rules, and dormant until a
+        // plugin registers one: both handlers read one map and return.
+        ChatRuntime.init(this);
+        getServer().getPluginManager().registerEvents(new ChatListener(this), this);
         RegionRuntime.init(this);
         getServer().getPluginManager().registerEvents(new RegionListener(), this);
         // Block ownership, for the regions that declare they need it. Dormant
@@ -473,6 +480,7 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         EditorRuntime.releaseAll();
         Menus.releaseAll();
         Regions.releaseAll();
+        Chats.releaseAll();
         // Before the database module, for the same reason a plugin's release is:
         // a pending store is somebody's repository.
         Rewards.releaseAll();
@@ -660,6 +668,9 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         NametagRuntime.release(pluginName);
         // Same again: unhiding, unfreezing and restoring blocks are packets.
         Packets.release(pluginName);
+        // A rule belongs to a classloader that is going away, and chat keeps
+        // flowing: drop it before it can be asked again.
+        Chats.release(pluginName);
         // And so is taking an overlay off: the player is still here, still
         // looking at buttons whose actions come from a classloader that is
         // going away.
