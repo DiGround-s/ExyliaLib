@@ -58,10 +58,27 @@ public final class Amounts {
      * and commas grouping thousands. Anything else — including an ambiguous
      * separator, an unknown suffix, or a negative amount — is empty.
      *
+     * <p>An amount is money, and money is never negative here. A setting that
+     * uses {@code -1} as a sentinel wants {@link #parseSigned(String)}.
+     *
      * @param input what the player typed
      * @return the amount, or empty when it cannot be read unambiguously
      */
     public static @NotNull Optional<BigDecimal> parse(String input) {
+        return parseSigned(input).filter(value -> value.signum() >= 0);
+    }
+
+    /**
+     * Reads a number, negative or not.
+     *
+     * <p>The same reading as {@link #parse(String)} without the money rule, for
+     * a field where a negative is a real answer: {@code -1} for unlimited, a
+     * sort order that puts something first, an offset.
+     *
+     * @param input what the player typed
+     * @return the number, or empty when it cannot be read unambiguously
+     */
+    public static @NotNull Optional<BigDecimal> parseSigned(String input) {
         if (input == null) {
             return Optional.empty();
         }
@@ -87,9 +104,6 @@ public final class Amounts {
         }
         try {
             BigDecimal value = new BigDecimal(digits);
-            if (value.signum() < 0) {
-                return Optional.empty();
-            }
             return Optional.of(multiplier.equals(BigDecimal.ONE)
                     ? value
                     : value.multiply(multiplier).stripTrailingZeros());
@@ -120,7 +134,21 @@ public final class Amounts {
      * @return the amount, or empty when it cannot be read or is not whole
      */
     public static @NotNull Optional<Long> parseWhole(String input) {
-        return parse(input).flatMap(value -> {
+        return whole(parse(input));
+    }
+
+    /**
+     * Reads a whole number, negative or not.
+     *
+     * @param input what the player typed
+     * @return the number, or empty when it cannot be read or is not whole
+     */
+    public static @NotNull Optional<Long> parseSignedWhole(String input) {
+        return whole(parseSigned(input));
+    }
+
+    private static Optional<Long> whole(Optional<BigDecimal> parsed) {
+        return parsed.flatMap(value -> {
             try {
                 return Optional.of(value.longValueExact());
             } catch (ArithmeticException notWholeOrTooLarge) {

@@ -96,6 +96,9 @@ public interface InputParser<T> {
      * command. A fractional answer is refused rather than truncated: somebody
      * typing {@code 1.5} for a slot count meant something, and giving them one
      * is not it.
+     *
+     * <p>A negative is a value, not a typo: {@code -1} is what a field means by
+     * unlimited. A field that cannot take one says so with {@code min}.
      */
     static @NotNull InputParser<Long> integer() {
         return Parsers.INTEGER;
@@ -180,19 +183,19 @@ public interface InputParser<T> {
         static final InputParser<String> TEXT = Parsed::of;
 
         static final InputParser<Long> INTEGER = raw -> {
-            Optional<Long> parsed = Amounts.parseWhole(raw);
+            Optional<Long> parsed = Amounts.parseSignedWhole(raw);
             if (parsed.isPresent()) {
                 return Parsed.of(parsed.get());
             }
             // Told apart so the message is useful: "not a number" and "not a
             // whole number" send a player to two different corrections.
-            if (Amounts.parse(raw).isPresent()) {
+            if (Amounts.parseSigned(raw).isPresent()) {
                 return Parsed.rejected("Enter a whole number.");
             }
             return Parsed.rejected("Enter a number.");
         };
 
-        static final InputParser<BigDecimal> DECIMAL = raw -> Amounts.parse(raw)
+        static final InputParser<BigDecimal> DECIMAL = raw -> Amounts.parseSigned(raw)
                 .<Parsed<BigDecimal>>map(Parsed::of)
                 .orElseGet(() -> Parsed.rejected("Enter a number."));
 

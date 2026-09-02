@@ -56,6 +56,13 @@ class InputParserTest {
     }
 
     @Test
+    @DisplayName("a negative is a value, because -1 is how a field says unlimited")
+    void numbersAcceptNegatives() {
+        assertEquals(-1L, parsed(InputParser.integer(), "-1"));
+        assertEquals(0, new BigDecimal("-2.5").compareTo(parsed(InputParser.decimal(), "-2.5")));
+    }
+
+    @Test
     @DisplayName("a decimal keeps the cents a double would have lost")
     void decimalsAreExact() {
         BigDecimal sum = parsed(InputParser.decimal(), "0.1")

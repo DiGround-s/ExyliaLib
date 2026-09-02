@@ -107,6 +107,11 @@ class AmountsTest {
         // A negative one is a withdrawal wearing a disguise.
         refuses("-10");
         refuses("-1M");
+
+        // A setting is not a transfer: -1 is how a field says unlimited.
+        assertEquals(0, new BigDecimal("-10").compareTo(Amounts.parseSigned("-10").orElseThrow()));
+        assertEquals(-1L, Amounts.parseSignedWhole("-1").orElseThrow());
+        assertFalse(Amounts.parseSigned("--5").isPresent());
     }
 
     @Test
