@@ -181,8 +181,12 @@ Worth knowing before writing rotations, because it is not guessable:
 - An item model is a flat plate standing in the model's **XY plane**, facing
   **south**. A sword's tip points up and to the right, at forty-five degrees.
 - So a blade is aimed with **`roll:`**, which turns it within its own plate, not
-  with `tilt:`, which tips the plate over. `roll:225` puts a sword tip-down;
-  `roll:45` puts it tip-up; `roll:135` lays it point-first along its own face.
+  with `tilt:`, which tips the plate over. `roll:135` puts a sword tip-down;
+  `roll:315` puts it tip-up; `roll:225` lays it point-first along its own face.
+- The turn runs the opposite way from the one the right-hand rule suggests for a
+  viewer looking at the face, which is worth stating because getting it backwards
+  is invisible in review and obvious in game: every blade comes out horizontal.
+  If a model reads upside down, add 180; if it reads sideways, add or take 90.
 - `face_out:` and `turn:` are applied **after** `roll:` and `tilt:`, so a blade
   is aimed in its own axes first and swung into place second. That is the order
   a ring needs; the other way round tips every blade of the ring differently.
