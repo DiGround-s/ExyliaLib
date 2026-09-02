@@ -101,6 +101,15 @@ class TimeFormatsTest {
     }
 
     @Test
+    @DisplayName("full rolls into days rather than counting hours forever")
+    void fullRollsIntoDays() {
+        assertEquals("5d", TimeFormats.render(432_000.0, TimeFormats.Style.FULL));
+        assertEquals("1d", TimeFormats.render(86_400.0, TimeFormats.Style.FULL));
+        assertEquals("2d 3h 4m 5s", TimeFormats.render(183_845.0, TimeFormats.Style.FULL));
+        assertEquals("23h 59m 59s", TimeFormats.render(86_399.0, TimeFormats.Style.FULL));
+    }
+
+    @Test
     @DisplayName("full still says something when there is nothing left")
     void fullOfZero() {
         assertEquals("0s", TimeFormats.render(0.0, TimeFormats.Style.FULL));

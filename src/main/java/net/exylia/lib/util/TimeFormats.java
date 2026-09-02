@@ -16,6 +16,7 @@ import java.util.Locale;
  * TimeFormats.render(95.0, TimeFormats.Style.CLOCK);   // "1:35"
  * TimeFormats.render(3.34, TimeFormats.Style.AUTO);    // "3.3"
  * TimeFormats.render(3665, TimeFormats.Style.FULL);    // "1h 1m 5s"
+ * TimeFormats.render(432000, TimeFormats.Style.FULL);  // "5d"
  * }</pre>
  *
  * <p>One implementation for the whole library, so a cooldown, a boss bar
@@ -69,7 +70,13 @@ public final class TimeFormats {
         /** {@code "1:35"}, or {@code "1:05:00"} past an hour. */
         CLOCK,
 
-        /** {@code "1h 5m 3s"}, for a duration read once rather than watched. */
+        /**
+         * {@code "1h 5m 3s"}, for a duration read once rather than watched.
+         *
+         * <p>Rolls into days: {@code 432000} is {@code "5d"}, not
+         * {@code "120h"}. It stops there — see {@link #COMPACT} for a length
+         * of time long enough that weeks and years say more than days.
+         */
         FULL,
 
         /**
@@ -222,13 +229,29 @@ public final class TimeFormats {
         return minutes + ":" + pad(remainder);
     }
 
+    /**
+     * Every unit that says something, days downwards.
+     *
+     * <p>Days rather than hours upwards: a five day cooldown read
+     * {@code "120h"} before, which is correct and asks the reader to divide.
+     * A duration written for a player is not a subtraction exercise.
+     *
+     * <p>The ladder stops at days rather than following {@link Style#COMPACT}
+     * up to years, because a week and a month are approximations. Spelling out
+     * every part of a duration and then approximating the largest one is the
+     * worst of both: {@code "400d 5h"} is exact, {@code "1y 1mo 5d 5h"} is not.
+     */
     private static String full(double seconds) {
         long whole = (long) Math.floor(seconds);
-        long hours = whole / 3600;
+        long days = whole / 86400;
+        long hours = whole % 86400 / 3600;
         long minutes = whole % 3600 / 60;
         long remainder = whole % 60;
 
         StringBuilder result = new StringBuilder(16);
+        if (days > 0) {
+            result.append(days).append("d ");
+        }
         if (hours > 0) {
             result.append(hours).append("h ");
         }

@@ -86,7 +86,7 @@ consumer only when there is an answer.
 | `integer(player, prompt)` | `Long` | whole numbers |
 | `decimal(player, prompt)` | `BigDecimal` | exact decimals |
 | `amount(player, prompt)` | `BigDecimal` | money, as a player writes it |
-| `duration(player, prompt)` | `Duration` | `30s`, `1h30m` |
+| `duration(player, prompt)` | `Duration` | `30s`, `1h30m`, `1d`, `2.5h` |
 | `flag(player, prompt)` | `Boolean` | a setting or switch |
 | `confirm(player, prompt)` | `Boolean` | an explicit confirmation |
 | `choice(player, prompt, choices)` | `T` | one of a few options |
@@ -581,7 +581,7 @@ check in one leaving the other two wrong.
 | `decimal()` | exact decimals | a `BigDecimal`, never a `double` |
 | `amount()` | `10M`, `1.5k`, `2,500` | the same reader `/pay` uses; `1,5` is refused as ambiguous |
 | `flag()` | `yes`, `y`, `on`, `1`, `enable`, `si`, `sí`, and the negatives | generous on purpose: nobody typing `y` meant no |
-| `duration()` | `30s`, `5m`, `1h30m`, `2d`, `500ms` | a bare number is **seconds** |
+| `duration()` | `30s`, `5m`, `1h30m`, `2d`, `500ms`, `1w`, `1mo`, `1y`, `2.5h` | a bare number is **seconds**; every unit `TimeFormats` writes reads back (since 1.87.0) |
 | `id()` | strict identifier | spaces become `_`, case folds; a stray `!` is **reported** |
 | `slug()` | forgiving identifier | anything that is not an id is **dropped** |
 

@@ -102,6 +102,18 @@ class InputParserTest {
         // A bare number is seconds: it is what somebody typing 30 into a
         // cooldown box means, and refusing it would be pedantry.
         assertEquals(Duration.ofSeconds(30), parsed(InputParser.duration(), "30"));
+        assertEquals(Duration.ofMillis(2500), parsed(InputParser.duration(), "2.5"));
+    }
+
+    @Test
+    @DisplayName("every unit TimeFormats writes can be typed back in")
+    void durationsReadEveryUnitBack() {
+        assertEquals(Duration.ofMillis(500), parsed(InputParser.duration(), "500ms"));
+        assertEquals(Duration.ofDays(7), parsed(InputParser.duration(), "1w"));
+        assertEquals(Duration.ofDays(30), parsed(InputParser.duration(), "1mo"));
+        assertEquals(Duration.ofDays(365), parsed(InputParser.duration(), "1y"));
+        assertEquals(Duration.ofMinutes(150), parsed(InputParser.duration(), "2.5h"));
+        assertEquals(Duration.ofDays(31), parsed(InputParser.duration(), "1mo1d"));
     }
 
     @Test

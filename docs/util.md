@@ -116,6 +116,8 @@ TimeFormats.render(3.34, TimeFormats.Style.TENTHS);  // "3.3"
 TimeFormats.render(95.0, TimeFormats.Style.CLOCK);   // "1:35"
 TimeFormats.render(3.34);                            // AUTO → "3.3"
 TimeFormats.render(3665, Style.FULL);                // "1h 1m 5s"
+TimeFormats.render(432000, Style.FULL);              // "5d"
+TimeFormats.render(9000, Style.COMPACT);             // "2.5h"
 ```
 
 | Style | Output | Notes |
@@ -125,7 +127,8 @@ TimeFormats.render(3665, Style.FULL);                // "1h 1m 5s"
 | `TENTHS` | `3.3` | |
 | `HUNDREDTHS` | `3.34` | |
 | `CLOCK` | `1:35`, `1:05:03` past an hour | padded |
-| `FULL` | `1h 5m 3s` | for durations read once |
+| `FULL` | `1h 5m 3s`, `2d 3h 4m 5s` | every part, days downwards; for durations read once |
+| `COMPACT` | `3d`, `2.5h`, `45s` | largest unit only, up to years; for a duration inside a sentence |
 
 API: `render(double, Style)`, `render(Duration, Style)`, `render(double)` —
 AUTO, `render(double, String)` — style named the way a config names it
@@ -141,6 +144,13 @@ Contracts:
 - **Negative or non-finite input renders as zero** — a finished countdown
   reads `0.0`, never `-1.2`.
 - Thread-safe: `DecimalFormat` is not, so each thread gets its own.
+- **`FULL` rolls into days** (since 1.87.0). It counted hours upwards before,
+  so a five day cooldown read `120h` and asked the reader to divide. It stops
+  at days: a week and a month are approximations, and spelling out every part
+  of a duration only to approximate the largest one is the worst of both.
+- **Everything these styles write, `InputParser.duration()` reads back** — the
+  same unit ladder and the same decimal. A duration a player can read is a
+  duration an admin can type.
 
 ## Expressions — arithmetic from a config file
 

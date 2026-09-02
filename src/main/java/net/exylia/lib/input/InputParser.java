@@ -139,6 +139,11 @@ public interface InputParser<T> {
     /**
      * A length of time: {@code 30s}, {@code 5m}, {@code 1h30m}, {@code 2d}.
      *
+     * <p>Every unit {@code TimeFormats} writes is read back: {@code ms},
+     * {@code s}, {@code m}, {@code h}, {@code d}, {@code w}, {@code mo} and
+     * {@code y}, with a decimal where one was shown ({@code 2.5h}). A duration
+     * a player can read is a duration an admin can type.
+     *
      * <p>The counterpart to {@code TimeFormats}, which writes durations. A
      * plain number is read as seconds, because that is what somebody typing
      * {@code 30} into a cooldown box means.
@@ -209,8 +214,38 @@ public interface InputParser<T> {
             default -> Parsed.rejected("Answer yes or no.");
         };
 
+        /**
+         * One part of a duration: an amount and its unit.
+         *
+         * <p>{@code ms} and {@code mo} come before {@code m} because an
+         * alternation takes the first branch that matches, so the other order
+         * reads {@code 500ms} as five hundred minutes with a stray {@code s}
+         * after it — which is then rejected as malformed, so {@code ms} never
+         * worked at all despite being documented.
+         *
+         * <p>The units are exactly the ones {@code TimeFormats} writes, so
+         * anything shown to a player can be typed back in. That includes the
+         * decimal, since the compact style renders {@code "2.5h"}.
+         */
         private static final Pattern DURATION_PART =
-                Pattern.compile("(\\d+)\\s*(d|h|m|s|ms)", Pattern.CASE_INSENSITIVE);
+                Pattern.compile("(\\d+(?:\\.\\d+)?)\\s*(ms|mo|y|w|d|h|m|s)",
+                        Pattern.CASE_INSENSITIVE);
+
+        private static final Pattern BARE_NUMBER = Pattern.compile("\\d+(?:\\.\\d+)?");
+
+        /** What each unit is worth in milliseconds, as {@code TimeFormats} counts. */
+        private static long unitMillis(String unit) {
+            return switch (unit) {
+                case "y" -> 31_536_000_000L;  // 365 days
+                case "mo" -> 2_592_000_000L;  // 30 days
+                case "w" -> 604_800_000L;
+                case "d" -> 86_400_000L;
+                case "h" -> 3_600_000L;
+                case "m" -> 60_000L;
+                case "s" -> 1_000L;
+                default -> 1L;
+            };
+        }
 
         static final InputParser<Duration> DURATION = raw -> {
             String text = raw.trim().toLowerCase(Locale.ROOT);
@@ -218,10 +253,15 @@ public interface InputParser<T> {
                 return Parsed.rejected("Enter a duration, such as 30s or 1h30m.");
             }
             // A bare number is seconds: it is what somebody typing 30 into a
-            // cooldown box means, and refusing it would be pedantry.
-            if (text.chars().allMatch(Character::isDigit)) {
+            // cooldown box means, and refusing it would be pedantry. A decimal
+            // counts, because a box that showed 2.5 has to accept 2.5 back.
+            if (BARE_NUMBER.matcher(text).matches()) {
                 try {
-                    return Parsed.of(Duration.ofSeconds(Long.parseLong(text)));
+                    double millis = Double.parseDouble(text) * 1000;
+                    if (!Double.isFinite(millis) || millis > Long.MAX_VALUE / 2.0) {
+                        return Parsed.rejected("That duration is too large.");
+                    }
+                    return Parsed.of(Duration.ofMillis(Math.round(millis)));
                 } catch (NumberFormatException tooLarge) {
                     return Parsed.rejected("That duration is too large.");
                 }
@@ -238,19 +278,17 @@ public interface InputParser<T> {
                     return Parsed.rejected("Enter a duration, such as 30s or 1h30m.");
                 }
                 consumed = matcher.end();
-                long amount;
+                double amount;
                 try {
-                    amount = Long.parseLong(matcher.group(1));
+                    amount = Double.parseDouble(matcher.group(1));
                 } catch (NumberFormatException tooLarge) {
                     return Parsed.rejected("That duration is too large.");
                 }
-                total = switch (matcher.group(2)) {
-                    case "d" -> total.plusDays(amount);
-                    case "h" -> total.plusHours(amount);
-                    case "m" -> total.plusMinutes(amount);
-                    case "s" -> total.plusSeconds(amount);
-                    default -> total.plusMillis(amount);
-                };
+                double millis = amount * unitMillis(matcher.group(2));
+                if (!Double.isFinite(millis) || millis > Long.MAX_VALUE / 2.0) {
+                    return Parsed.rejected("That duration is too large.");
+                }
+                total = total.plusMillis(Math.round(millis));
                 any = true;
             }
             if (!any || consumed != text.length()) {
