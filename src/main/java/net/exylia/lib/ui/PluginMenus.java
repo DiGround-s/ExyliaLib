@@ -365,7 +365,7 @@ public final class PluginMenus {
      * @since 1.84.4
      */
     public @NotNull Map<String, Object> remembered(@NotNull Player viewer, @NotNull String menuId) {
-        return runtime.remembered(viewer, menuId);
+        return runtime.remembered(viewer, qualify(menuId));
     }
 
     /** Forgets where a player has been, so back has nowhere to go. */
