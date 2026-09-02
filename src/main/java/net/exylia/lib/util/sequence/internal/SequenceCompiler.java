@@ -94,9 +94,12 @@ public final class SequenceCompiler {
             case "DELAY" -> delay(rest, line);
             case "PARTICLE" -> particles(args, line, onArg);
             case "SOUND" -> sound(args, line, onArg);
-            case "LIGHTNING" -> lightning(args, onArg);
-            case "EXPLOSION" -> explosion(args, line, onArg);
-            case "FIREWORK" -> firework(args, onArg);
+            // The three that name nothing positionally: their first segment is
+            // a parameter, not a head, and reading it as one is what made every
+            // firework in every existing file come out red.
+            case "LIGHTNING" -> lightning(args.asHeadless(), onArg);
+            case "EXPLOSION" -> explosion(args.asHeadless(), line, onArg);
+            case "FIREWORK" -> firework(args.asHeadless(), onArg);
             case "COMMAND" -> rest.isEmpty() ? null : new Steps.Command(rest);
             case "POTION" -> potion(args, line, onArg);
             case "BLOCK_BREAK" -> blockBreak(args, line, onArg);

@@ -98,7 +98,7 @@ leaves a plain head rather than delaying the effect.
 | `size_to:` | size it ends at | same as `size` |
 | `tilt:` `roll:` `turn:` | a fixed rotation, in degrees | `0` |
 | `face_out:` | each point faces away from the centre | `false` |
-| `pull:` | how much of the way to the centre each point travels: `1` reaches it | `0` |
+| `pull:` | how far towards the centre each point travels: `1` reaches it, a negative number throws it outwards | `0` |
 | `glow:` | outline colour: a name, `#rrggbb` or a `{palette}` token | none |
 | `light:` | fixed light level, `0` to `15` | the light where it stands |
 | `model:` | custom model data, for a resource pack model | none |
@@ -111,7 +111,12 @@ solved trajectory. An effect is choreography, not physics.
 
 `face_out:` is what turns twelve swords into a ring of blades rather than twelve
 swords lying the same way, and `pull:` is what sends them inwards: together they
-are a ring that closes on whatever is in the middle. `turn:` is next to it because which way a model's own
+are a ring that closes on whatever is in the middle.
+
+`pull:` read backwards is the other half of the module's range. A tight sphere of
+block displays with `pull:-8` is every fragment of a floor thrown outwards from
+where it stood, and with `gravity:` on top of it, thrown outwards and falling —
+which is what an explosion looks like and what a particle cannot be. `turn:` is next to it because which way a model's own
 geometry points is a fact about that model: a resource pack whose blade reads
 sideways is corrected with a number, not a rebuild.
 

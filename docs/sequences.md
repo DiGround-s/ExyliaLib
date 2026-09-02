@@ -249,6 +249,13 @@ bugs.
   drawn white — visible, obviously wrong, and it leads you to the line.
 - **`STAR` divided by `points:`** with no floor, so `points:0` produced
   infinities and drew at the world origin. Every count is now floored at one.
+- **The first parameter of a headless token was thrown away.** Every file in the
+  ecosystem writes `[FIREWORK] color:red;fade:orange`, and the first segment of a
+  line is positional, so `color:red` was read as a name nobody wanted and the
+  firework came out the default colour. `[FIREWORK]`, `[EXPLOSION]` and
+  `[LIGHTNING]` now read that segment as the parameter it plainly is. Only those
+  three, because `[SOUND] minecraft:block.note_block.pling` is a sound and not a
+  parameter called `minecraft`.
 
 ## What was added
 

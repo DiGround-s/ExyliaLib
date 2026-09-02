@@ -70,6 +70,34 @@ public final class Args {
         return head;
     }
 
+    /**
+     * The same arguments, read as a token that has no head.
+     *
+     * <p>{@code [FIREWORK] color:red;fade:orange} is how every file in the
+     * ecosystem writes it, and the first segment of a line is positional, so
+     * {@code color:red} was being read as the head and thrown away: every
+     * firework in every effect came out the default colour. The three headless
+     * tokens read their arguments through this instead, which folds that first
+     * segment back in where it belongs.
+     *
+     * <p>Only they do, because a head that contains a colon is meaningful
+     * elsewhere &mdash; {@code [SOUND] minecraft:block.note_block.pling} is a
+     * sound, not a parameter called {@code minecraft}.
+     *
+     * @return the arguments with the head read as a named value
+     */
+    public @NotNull Args asHeadless() {
+        int colon = head.indexOf(':');
+        if (colon <= 0) {
+            return this;
+        }
+        Map<String, String> folded = new LinkedHashMap<>();
+        folded.put(head.substring(0, colon).trim().toLowerCase(Locale.ROOT),
+                head.substring(colon + 1).trim());
+        folded.putAll(values);
+        return new Args("", folded);
+    }
+
     /** Whether the head is missing, which makes the whole token meaningless. */
     public boolean headless() {
         return head.isEmpty();
