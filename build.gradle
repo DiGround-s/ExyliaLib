@@ -8,7 +8,7 @@ plugins {
 }
 
 group = 'net.exylia'
-version = '1.88.1'
+version = '1.88.2'
 description = 'Shared high-performance library for Exylia Minecraft plugins.'
 
 def targetJavaVersion = 21
@@ -37,6 +37,24 @@ repositories {
     maven {
         name = 'feather'
         url = 'https://repo.feathermc.net/artifactory/maven-releases'
+    }
+    // WorldGuard, through a mirror first. EngineHub's own repo answers 503
+    // when it is down, and a 5xx aborts resolution instead of falling through
+    // to the next repository the way a 404 does — so the build must not meet
+    // it before somewhere the artifact already is.
+    maven {
+        name = 'glaremasters'
+        url = 'https://repo.glaremasters.me/repository/public/'
+        // Only WorldGuard: this mirror answers 200 with an HTML page for a
+        // file it does not have, so anything else asked of it resolves to
+        // rubbish rather than moving on to the next repository.
+        content { includeGroupByRegex 'com\\.sk89q(\\..*)?' }
+        // The POM only. The marker inside it that says "prefer the Gradle
+        // module file" points at HTML here, and following it is what fails.
+        metadataSources {
+            mavenPom()
+            ignoreGradleMetadataRedirection()
+        }
     }
     maven {
         name = 'enginehub'
