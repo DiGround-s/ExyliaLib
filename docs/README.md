@@ -49,6 +49,7 @@ against the source — rules and routes are in `AGENTS.md` under
 | [Editors](editors.md) | Screens for editing the lists a plugin configures: rewards, loot, commands, effects, items, places — one engine, batteries included | 1.56.0 |
 | [Schedules](schedules.md) | Timetables: what starts by itself, at what times, on what days, and under what conditions — one asynchronous timer for the whole server | 1.70.0 |
 | [Chat](chat.md) | Who reads whose chat messages: an event, an arena or a match whose chat is its own | 1.89.0 |
+| [Cleanup](cleanup.md) | The folders the server fills and never empties — old logs deleted on a timer | 1.90.0 |
 | [Heads](heads.md) | The decorative head catalogue, searchable from a menu — a page at a time, nothing downloaded | 1.82.0 |
 Migration notes:
 

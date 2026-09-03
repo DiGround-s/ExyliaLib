@@ -1505,6 +1505,7 @@ Raíz de código: `src/main/java/net/exylia/lib/`. Raíz de tests:
 | util (heads) | `util/head/Heads`, `util/head/Head` | `util/head/internal/HeadDb` (headdb.net, una página por búsqueda; caché de las últimas páginas) | [docs/heads.md](docs/heads.md) | 1.82.0 |
 | búsqueda paginada desde fuera | `input/SearchInput.source(Pages)`, `SearchInput.Page`, `iconItem(fn)`, `PluginInputs.search(player, prompt)` | `input/internal/SearchView` (modo paginado, generación por fetch), `SearchTransport.refresh` | [docs/input.md](docs/input.md) | 1.82.0 |
 | icono buscado en el catálogo | `input/IconInput.Way.BROWSE` | `util/head/internal/HeadDb` | [docs/input.md](docs/input.md), [docs/heads.md](docs/heads.md) | 1.82.0 |
+| limpieza | — | `internal/cleanup/` (`CleanupRuntime`, `LogCleaner`, `CleanupSettings`); `init` en `ExyliaLib.onEnable`, `reload` en `reloadPalette` | [docs/cleanup.md](docs/cleanup.md) | 1.90.0 |
 | tiempo normalizado: `FULL` rueda a días, y el parser lee de vuelta todo lo que se escribe (`ms w mo y` y decimales) | `util/TimeFormats.Style.FULL`; `input/InputParser.duration()` | — | [docs/util.md](docs/util.md), [docs/input.md](docs/input.md) | 1.87.0 |
 
 Clases raíz que no son módulo: `ExyliaLib.java` (ciclo de vida y limpieza),

@@ -51,6 +51,7 @@ import net.exylia.lib.ui.internal.MenuListener;
 import net.exylia.lib.ui.internal.MenuRuntime;
 import net.exylia.lib.internal.LibCommands;
 import net.exylia.lib.internal.LibrarySettings;
+import net.exylia.lib.internal.cleanup.CleanupRuntime;
 import net.exylia.lib.debug.Debug;
 import net.exylia.lib.placeholder.Placeholders;
 import net.exylia.lib.redis.Channels;
@@ -225,6 +226,9 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         // than everything.
         Tasks.of(this).runAsyncTimer(
                 COOLDOWN_FLUSH_TICKS, COOLDOWN_FLUSH_TICKS, Cooldowns::flushAll);
+        // Housekeeping of the server's own folders, on a timer of its own. Last
+        // because nothing else waits on it: the first pass is a minute away.
+        CleanupRuntime.init(this);
         LibCommands.register(this);
         getLogger().info("ExyliaLib " + version() + " ready on " + Platform.current() + ".");
     }
@@ -403,6 +407,9 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         formats.reload();
         economy.reload();
         input.reload();
+        // Same reason: turning the log sweep on, or keeping fewer days of it,
+        // should not need a restart.
+        CleanupRuntime.reload();
         LibraryMessages.reload();
     }
 
