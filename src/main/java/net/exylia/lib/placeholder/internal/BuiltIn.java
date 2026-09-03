@@ -92,7 +92,35 @@ public final class BuiltIn {
                     sample();
                     return processLoad;
                 })
+                .add("ram_used", request -> megabytes(used()))
+                .add("ram_max", request -> megabytes(Runtime.getRuntime().maxMemory()))
+                .add("ram_percent", request -> {
+                    long max = Runtime.getRuntime().maxMemory();
+                    return max <= 0 ? 0 : (int) Math.round(100.0 * used() / max);
+                })
                 .register();
+    }
+
+    /**
+     * The heap in use, in bytes.
+     *
+     * <p>What the JVM holds minus what it is not using: the total alone is
+     * memory the server asked for and may already have handed back, which is
+     * not the number somebody watching a laggy server is looking for.
+     */
+    private static long used() {
+        Runtime runtime = Runtime.getRuntime();
+        return runtime.totalMemory() - runtime.freeMemory();
+    }
+
+    /**
+     * Bytes as whole megabytes.
+     *
+     * <p>Megabytes rather than gigabytes: a heap is configured in megabytes,
+     * so this is the unit the number is compared against.
+     */
+    private static long megabytes(long bytes) {
+        return bytes / (1024L * 1024L);
     }
 
     /** TPS is reported to two decimals, which is how server owners read it. */

@@ -140,11 +140,14 @@ Registered by the library itself:
 - `player_*`: `name`, `displayname`, `uuid`, `world`, `health`, `level`,
   `food`, `gamemode`, `ping`, `x`, `y`, `z`.
 - `target_*`: `name`, `uuid`.
-- `server_*`: `online`, `max`, `tps`, `mspt`, `cpu_system`, `cpu_process`.
-  `mspt` is the average tick time in milliseconds, out of the fifty a tick
-  has. The two loads are whole percentages, and both read `0` on a JVM
-  without the extended operating system bean and on the first call, which
-  is taken before there are two samples to compare.
+- `server_*`: `online`, `max`, `tps`, `mspt`, `cpu_system`, `cpu_process`,
+  `ram_used`, `ram_max`, `ram_percent`. `mspt` is the average tick time in
+  milliseconds, out of the fifty a tick has. The two loads are whole
+  percentages, and both read `0` on a JVM without the extended operating
+  system bean and on the first call, which is taken before there are two
+  samples to compare. The three memory values are the heap — whole megabytes
+  in use, whole megabytes the JVM may take, and the first as a percentage of
+  the second — not the memory of the machine the server runs on.
 
 ## Source and tests
 
