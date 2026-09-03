@@ -3,6 +3,7 @@ package net.exylia.lib.display.internal;
 import net.exylia.lib.display.DisplayHandle;
 import net.exylia.lib.display.DisplayModel;
 import net.exylia.lib.display.DisplayMotion;
+import net.exylia.lib.display.DisplaySettings;
 import net.exylia.lib.task.TaskHandle;
 import net.exylia.lib.task.TaskScheduler;
 import net.exylia.lib.task.Tasks;
@@ -15,6 +16,7 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.LongSupplier;
 import java.util.logging.Logger;
 
@@ -48,6 +50,24 @@ public final class DisplayRuntime {
     private static final Object LOCK = new Object();
 
     private static final ConcurrentLinkedQueue<LiveDisplay> LIVE = new ConcurrentLinkedQueue<>();
+
+    /**
+     * Displays multiplied by the players who can see them.
+     *
+     * <p>The number that reaches the network, and therefore the one worth
+     * capping. Counting displays alone would let thirty players in an arena
+     * cost thirty times what the same effect costs in an empty world, which is
+     * exactly the case the cap exists for.
+     */
+    private static final AtomicInteger VIEWER_LOAD = new AtomicInteger();
+
+    private static volatile DisplaySettings limits = new DisplaySettings();
+
+    /** Logged once a minute at most: a flood is one message, not ten thousand. */
+    private static final long DROP_REPORT_MS = 60_000L;
+
+    private static final AtomicInteger DROPPED = new AtomicInteger();
+    private static volatile long lastReportedAt;
 
     private static TaskScheduler scheduler;
     private static Logger logger = Logger.getLogger("ExyliaLib");
@@ -99,6 +119,27 @@ public final class DisplayRuntime {
         }
     }
 
+    /**
+     * Applies the server's ceiling on display effects.
+     *
+     * <p>Called by ExyliaLib at startup and on every reload of
+     * {@code displays.yml}.
+     */
+    public static void apply(DisplaySettings settings) {
+        limits = settings == null ? new DisplaySettings() : settings;
+    }
+
+    /**
+     * How many points of one shape may be drawn.
+     *
+     * <p>Read by the sequence compiler, which is where a shape's size is
+     * decided once rather than on every play.
+     */
+    public static int maxPerEffect() {
+        int max = limits.maxPerEffect();
+        return max > 0 ? max : Integer.MAX_VALUE;
+    }
+
     /** Swaps the clock, the ids and the sink. For tests. */
     static void testHooks(LongSupplier testClock, EntityIds testIds, DisplaySink testSink) {
         synchronized (LOCK) {
@@ -138,6 +179,17 @@ public final class DisplayRuntime {
         if (viewers.isEmpty() || ids == null) {
             return null;
         }
+        // Refused before the packets are built, not after: the point of the
+        // ceiling is the bytes that never leave. What a player sees when it is
+        // reached is an effect missing its tail, which is the right thing to
+        // lose when the alternative is everyone's tick rate.
+        int cost = viewers.size();
+        int max = limits.maxViewerDisplays();
+        if (max > 0 && VIEWER_LOAD.get() + cost > max) {
+            reportDrop();
+            return null;
+        }
+        VIEWER_LOAD.addAndGet(cost);
         LiveDisplay display = new LiveDisplay(owner, ids.next(), model, motion,
                 viewers, clock.getAsLong());
         display.spawn(sink, at);
@@ -145,10 +197,41 @@ public final class DisplayRuntime {
         return display;
     }
 
+    /** Gives a finished display's share of the budget back. */
+    private static void released(LiveDisplay display) {
+        VIEWER_LOAD.addAndGet(-display.viewerCost());
+    }
+
+    /**
+     * Says that effects are being dropped, at most once a minute.
+     *
+     * <p>The condition that causes one drop causes thousands, so the count is
+     * carried in the message rather than the message repeated.
+     */
+    private static void reportDrop() {
+        int dropped = DROPPED.incrementAndGet();
+        long now = clock.getAsLong();
+        if (now - lastReportedAt < DROP_REPORT_MS) {
+            return;
+        }
+        lastReportedAt = now;
+        DROPPED.set(0);
+        logger.warning(dropped + " display effect(s) were dropped because the server reached"
+                + " max-viewer-displays (" + limits.maxViewerDisplays() + ")."
+                + " Raise it in plugins/ExyliaLib/displays.yml, or use smaller effects.");
+    }
+
+    /** Displays multiplied by their viewers, right now. For diagnostics. */
+    public static int viewerLoad() {
+        return VIEWER_LOAD.get();
+    }
+
     /** Removes one display now. */
     static void remove(LiveDisplay display) {
         display.destroy(sink);
-        LIVE.remove(display);
+        if (LIVE.remove(display)) {
+            released(display);
+        }
     }
 
     /**
@@ -166,6 +249,7 @@ public final class DisplayRuntime {
             if (display.owner().equals(pluginName)) {
                 display.destroy(sink);
                 live.remove();
+                released(display);
             }
         }
     }
@@ -179,8 +263,10 @@ public final class DisplayRuntime {
             }
         }
         for (Iterator<LiveDisplay> live = LIVE.iterator(); live.hasNext(); ) {
-            live.next().destroy(sink);
+            LiveDisplay display = live.next();
+            display.destroy(sink);
             live.remove();
+            released(display);
         }
     }
 
@@ -223,6 +309,7 @@ public final class DisplayRuntime {
             try {
                 if (display.advance(target, now)) {
                     live.remove();
+                    released(display);
                 }
             } catch (RuntimeException failure) {
                 // One display that throws must not stop the others from being
@@ -234,6 +321,7 @@ public final class DisplayRuntime {
                 }
                 broken.add(display);
                 live.remove();
+                released(display);
             }
         }
         if (broken != null) {

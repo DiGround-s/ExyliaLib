@@ -171,6 +171,17 @@ public final class SequenceCompiler {
             problems.found(line, "the shape produced no points");
             return null;
         }
+        // Every point is a packet per player who can see it, so a shape is
+        // capped where its size is decided — once, at compile — rather than on
+        // every play. A ring written with points:900 is a slip in a file, and
+        // the server owner reads about it at load instead of feeling it later.
+        int ceiling = net.exylia.lib.display.internal.DisplayRuntime.maxPerEffect();
+        if (points.size() > ceiling) {
+            problems.found(line, "draws " + points.size() + " points; the server allows "
+                    + ceiling + " per effect, so the rest are left out."
+                    + " Raise max-per-effect in plugins/ExyliaLib/displays.yml, or use fewer points");
+            points = points.subList(0, ceiling);
+        }
 
         double yShift = args.number("y", defaultHeight(token), onArg);
         double scale = args.number("scale", 1.0, onArg);

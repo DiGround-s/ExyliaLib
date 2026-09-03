@@ -224,6 +224,14 @@ an effect players report as broken.
   that is a comparison of two longs.
 - A file asking for two hundred turns is capped at forty-eight poses rather than
   sending two hundred packets.
+- **There is a ceiling, and it counts viewers.** `plugins/ExyliaLib/displays.yml`
+  holds two numbers. `max-viewer-displays` is the budget for the whole server,
+  counted as displays multiplied by the players each is sent to — one display
+  seen by thirty people costs thirty. Effects that would go over it are dropped
+  before their packets are built, so a crowded arena loses the tail of an effect
+  instead of its tick rate, and the console says so at most once a minute.
+  `max-per-effect` caps how many points one shape may draw, which catches a
+  `points:900` written by hand at load rather than on the wire.
 
 ## Source and tests
 

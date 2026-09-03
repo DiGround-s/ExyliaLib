@@ -50,6 +50,26 @@ public final class SequenceTarget {
     private final BiPredicate<Player, Player> visibility;
     private final double radius;
 
+    /**
+     * The last answer {@link #observers()} gave, and when.
+     *
+     * <p>One target is asked once per frame of every line it plays, and a kill
+     * effect is twenty lines of several frames each: without this, one death
+     * walks the world's player list a hundred times inside the same tick and
+     * gets the same answer every time. Held for one tick, because that is how
+     * long "who is nearby" can be true for.
+     *
+     * <p>Every other field is final and every builder method returns a new
+     * target, so this is a memo of a pure function rather than state: two
+     * targets never share it, and a moved target ({@link #movedTo}) starts
+     * without one.
+     */
+    private volatile List<Player> memo;
+    private volatile long memoAt;
+
+    /** One tick, in milliseconds. */
+    private static final long TICK_MS = 50L;
+
     private SequenceTarget(Location location, Player source, Entity target,
                            BiPredicate<Player, Player> visibility, double radius) {
         this.location = location;
@@ -192,6 +212,11 @@ public final class SequenceTarget {
         if (world == null) {
             return List.of();
         }
+        long now = System.currentTimeMillis();
+        List<Player> remembered = memo;
+        if (remembered != null && now - memoAt < TICK_MS) {
+            return remembered;
+        }
         double limit = radius * radius;
         List<Player> observers = new ArrayList<>();
         for (Player online : world.getPlayers()) {
@@ -208,6 +233,8 @@ public final class SequenceTarget {
             }
             observers.add(online);
         }
+        memo = observers;
+        memoAt = now;
         return observers;
     }
 

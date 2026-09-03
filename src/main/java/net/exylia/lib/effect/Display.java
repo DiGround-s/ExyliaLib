@@ -1,5 +1,6 @@
 package net.exylia.lib.effect;
 
+import net.exylia.lib.text.Text;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -62,6 +63,23 @@ public interface Display {
      * @return this display
      */
     @NotNull Display text(@NotNull String text);
+
+    /**
+     * Replaces the text of a showing effect with values already substituted.
+     *
+     * <p>The way to drive a bar whose numbers change every redraw. The values
+     * are substituted on the parsed component rather than in the string, so
+     * the template parses once however often the numbers change; a bar handed
+     * {@code "Vida: 14.3"} as a string parses a new string every time.
+     *
+     * <pre>{@code
+     * bar.text(Text.of(template).with("%hp%", health));
+     * }</pre>
+     *
+     * @param text the new text with its values
+     * @return this display
+     */
+    @NotNull Display text(@NotNull Text text);
 
     /**
      * Adds time to a running timer.

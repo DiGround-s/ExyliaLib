@@ -29,10 +29,18 @@ import org.bukkit.entity.Player;
  * <p>Third, the timer's own text is substituted on the parsed component rather
  * than in the string, so the component is parsed once and only the number
  * changes. That is the same reason the text module substitutes after parsing.
+ *
+ * <p>Fourth, a plugin that already substituted its own values hands over a
+ * {@link Text} rather than a string. The values ride on the component tree, so
+ * the template stays the same string every redraw and its parse stays cached.
+ * A bar built from {@code "Vida: 14.3"} parsed a new string every tick; one
+ * built from {@code Text.of("Vida: %hp%").with("%hp%", "14.3")} parses once.
  */
 final class Rendered {
 
     private final String raw;
+    /** The text as handed over with its values, or {@code null} for a bare string. */
+    private final Text base;
     private final String timeStyle;
     private final boolean dynamic;
 
@@ -54,7 +62,16 @@ final class Rendered {
     private Component constant;
 
     Rendered(String raw, String timeStyle) {
+        this(raw, null, timeStyle);
+    }
+
+    Rendered(Text text, String timeStyle) {
+        this(text.raw(), text, timeStyle);
+    }
+
+    private Rendered(String raw, Text base, String timeStyle) {
         this.raw = raw;
+        this.base = base;
         this.timeStyle = timeStyle;
         boolean anyTime = raw.indexOf("%time") >= 0;
         this.hasTime = anyTime && raw.contains("%time%");
@@ -81,13 +98,13 @@ final class Rendered {
         if (!dynamic) {
             Component known = constant;
             if (known == null) {
-                known = Text.component(raw);
+                known = base == null ? Text.component(raw) : base.build();
                 constant = known;
             }
             return known;
         }
 
-        Text text = Text.of(raw);
+        Text text = base == null ? Text.of(raw) : base;
         if (viewer != null) {
             text = text.forPlayer(viewer);
         }
@@ -115,6 +132,11 @@ final class Rendered {
     /** Returns the text this was built from. */
     String raw() {
         return raw;
+    }
+
+    /** Returns whether this was built from a bare string carrying no values. */
+    boolean isBare() {
+        return base == null;
     }
 
     /** Returns how this effect renders its time, so replacements keep the style. */

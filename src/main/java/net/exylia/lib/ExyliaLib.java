@@ -18,7 +18,9 @@ import net.exylia.lib.economy.internal.BalanceCache;
 import net.exylia.lib.economy.internal.CurrencyRegistry;
 import net.exylia.lib.economy.internal.EconomyWatcher;
 import net.exylia.lib.format.Formats;
+import net.exylia.lib.display.DisplaySettings;
 import net.exylia.lib.input.InputSettings;
+import net.exylia.lib.util.worldguard.WorldGuardFlags;
 import net.exylia.lib.text.LibraryMessages;
 import net.exylia.lib.input.Inputs;
 import net.exylia.lib.input.internal.Bedrocks;
@@ -128,6 +130,28 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
     private ConfigFile<FormatSettings> formats;
     private ConfigFile<EconomySettings> economy;
     private ConfigFile<InputSettings> input;
+    private ConfigFile<DisplaySettings> displays;
+
+    /**
+     * Registers the ecosystem's WorldGuard flags.
+     *
+     * <p>The only moment they can be registered. WorldGuard locks its flag
+     * registry as it enables, and every plugin's {@code onLoad} runs before any
+     * plugin's {@code onEnable}, so this happens here whatever order the server
+     * loads its plugins in.
+     *
+     * <p>It is done for the whole ecosystem rather than by each plugin: the
+     * Exylia plugins are started by a licence loader that hands their code
+     * control at enable, by which time the registry is shut.
+     */
+    @Override
+    public void onLoad() {
+        int flags = WorldGuardFlags.registerDefaults();
+        if (flags > 0) {
+            getLogger().info("Registered " + flags + " WorldGuard flag(s): "
+                    + String.join(", ", WorldGuardFlags.names()));
+        }
+    }
 
     @Override
     public void onEnable() {
@@ -164,6 +188,7 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         loadFormats();
         loadEconomy();
         loadInput();
+        loadDisplays();
         loadMessages();
         Placeholders.logger(getLogger());
         BuiltIn.register(this);
@@ -352,6 +377,22 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
      * here: it says which players are on Bedrock, which anything that adapts to
      * the client needs, not only the part that asks them questions.
      */
+    /**
+     * Reads {@code displays.yml} and applies the ceiling on display effects.
+     *
+     * <p>A display is a packet per viewer, and an effect is a shape of them:
+     * one kill effect can be seventy displays, and thirty players standing
+     * close enough to see it turns that into two thousand spawns before a
+     * single frame has moved. The ceiling is what stops a crowded arena from
+     * becoming a packet flood, and it lives here because every plugin that
+     * draws shares the same client.
+     */
+    private void loadDisplays() {
+        displays = Configs.define(this, "displays", DisplaySettings.class).load();
+        DisplayRuntime.apply(displays.get());
+        displays.onReload(DisplayRuntime::apply);
+    }
+
     private void loadInput() {
         input = Configs.define(this, "input", InputSettings.class).load();
         applyInput(input.get());

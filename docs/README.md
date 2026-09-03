@@ -37,6 +37,7 @@ against the source — rules and routes are in `AGENTS.md` under
 | [Rewards](rewards.md) | What a player earned — items, commands, money, odds and conditions — stored exactly as ExyliaCommons stored it | 1.34.0 |
 | [Snapshots](snapshots.md) | A player's state kept for later — in memory for a menu, or stored so it survives a restart | 1.34.0 |
 | [Teleport](teleport.md) | Moving a player: countdowns that moving or damage calls off, safe landings, `/back`, requests, random spots and handovers to another server | 1.34.0 |
+| [WorldGuard](worldguard.md) | Region lookups and Exylia's own region flags — `kill-effects`, `hit-effects`, `arrows-effects` | 1.74.0 |
 | [Wizards](wizard.md) | Walking a player through several questions — branches, a review they can go back from, and nothing applied until they confirm | 1.34.0 |
 | [Nametags](nametags.md) | Name colour, glow and collision as one player sees another — vanilla clients included | 1.36.0 |
 | [Packets](packets.md) | Vanish, fake blocks, freezing, a fake spectator and silent chest viewing — packets to one client, nothing on the server | 1.75.0 |

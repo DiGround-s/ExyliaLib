@@ -48,10 +48,55 @@ public final class WorldGuardRegions {
         throw new AssertionError("No instances.");
     }
 
+    /**
+     * The WorldGuard plugin, looked up once.
+     *
+     * <p>Asked on every kill, every blow and every tick of every arrow in
+     * flight, so the lookup by name — a string hash into the plugin manager's
+     * map — is done once and the answer afterwards is a field read and a
+     * boolean. The reference is kept rather than the boolean because a plugin
+     * can be disabled while the server runs, and {@code isEnabled} is the field
+     * that says so.
+     */
+    private static volatile Plugin worldGuard;
+
+    /**
+     * Returns whether WorldGuard is installed, enabled or not.
+     *
+     * <p>The distinction matters in exactly one place: a flag has to be
+     * registered from {@code onLoad}, which is before WorldGuard has enabled.
+     * Asking {@link #available()} there answers "no" about a WorldGuard that is
+     * sitting right next to it, and the flags are silently never registered.
+     *
+     * @since 1.90.0
+     */
+    public static boolean installed() {
+        return plugin() != null;
+    }
+
     /** Returns whether WorldGuard is installed and enabled. */
     public static boolean available() {
-        Plugin plugin = Bukkit.getPluginManager().getPlugin("WorldGuard");
+        Plugin plugin = plugin();
         return plugin != null && plugin.isEnabled();
+    }
+
+    /** The WorldGuard plugin, or {@code null}; looked up at most once. */
+    private static Plugin plugin() {
+        Plugin plugin = worldGuard;
+        if (plugin == null) {
+            // Asked before the server exists by anything that runs at class
+            // load, and by every test. Nothing is installed yet, which is the
+            // same answer as nothing being installed at all.
+            if (Bukkit.getServer() == null) {
+                return null;
+            }
+            plugin = Bukkit.getPluginManager().getPlugin("WorldGuard");
+            if (plugin == null) {
+                return null;
+            }
+            worldGuard = plugin;
+        }
+        return plugin;
     }
 
     /**

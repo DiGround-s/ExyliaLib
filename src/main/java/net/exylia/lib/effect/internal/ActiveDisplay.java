@@ -5,6 +5,7 @@ import net.exylia.lib.effect.Ticks;
 import net.exylia.lib.effect.Timer;
 import net.exylia.lib.task.TaskHandle;
 import net.exylia.lib.task.TaskScheduler;
+import net.exylia.lib.text.Text;
 import org.bukkit.entity.Player;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -230,7 +231,23 @@ abstract class ActiveDisplay implements Display {
 
     @Override
     public @NotNull Display text(@NotNull String text) {
-        this.rendered = new Rendered(text, rendered.timeStyle());
+        // The same string again is the common case for a bar driven from a
+        // timer: the value it shows changes once a second and the caller
+        // pushes it twenty times. Nothing to parse and nothing to redraw.
+        Rendered current = rendered;
+        if (current.isBare() && text.equals(current.raw())) {
+            return this;
+        }
+        return replace(new Rendered(text, current.timeStyle()));
+    }
+
+    @Override
+    public @NotNull Display text(@NotNull Text text) {
+        return replace(new Rendered(text, rendered.timeStyle()));
+    }
+
+    private Display replace(Rendered next) {
+        this.rendered = next;
         if (!ended.get()) {
             run(() -> redraw(viewer, rendered, timer));
         }

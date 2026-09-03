@@ -49,6 +49,17 @@ final class LiveDisplay implements DisplayHandle {
         return owner;
     }
 
+    /**
+     * What this display costs the server's budget: one per player it is sent
+     * to.
+     *
+     * <p>Read back when it ends, so the number given back is the number that
+     * was taken even if a viewer has since logged off.
+     */
+    int viewerCost() {
+        return viewers.size();
+    }
+
     /** Sends the first pose along with the spawn. */
     void spawn(DisplaySink sink, Location at) {
         sink.spawn(viewers, entityId, model, at, poses.get(0));
