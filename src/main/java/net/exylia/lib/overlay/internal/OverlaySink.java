@@ -30,6 +30,19 @@ public interface OverlaySink {
     void slot(Player viewer, int index, @Nullable ItemStack item);
 
     /**
+     * Restates what everyone else sees this player holding and wearing.
+     *
+     * <p>The overlay is drawn into the wearer's own screen; the players around
+     * them are told by the server, out of the real inventory, and the server
+     * has no reason to say anything when an overlay goes on or comes off. So
+     * it is said here: the fake items when one is worn, the real ones when it
+     * is gone.
+     *
+     * @param owner the player being looked at
+     */
+    void equipment(Player owner);
+
+    /**
      * Forgets what is remembered about a player, on quit.
      *
      * @param player who left

@@ -8,6 +8,8 @@ import com.github.retrooper.packetevents.event.PacketSendEvent;
 import com.github.retrooper.packetevents.protocol.packettype.PacketType;
 import com.github.retrooper.packetevents.protocol.packettype.PacketTypeCommon;
 import com.github.retrooper.packetevents.protocol.player.DiggingAction;
+import com.github.retrooper.packetevents.protocol.player.Equipment;
+import com.github.retrooper.packetevents.protocol.player.EquipmentSlot;
 import com.github.retrooper.packetevents.protocol.player.InteractionHand;
 import com.github.retrooper.packetevents.protocol.player.User;
 import com.github.retrooper.packetevents.util.Vector3i;
@@ -19,6 +21,7 @@ import com.github.retrooper.packetevents.wrapper.play.client.WrapperPlayClientIn
 import com.github.retrooper.packetevents.wrapper.play.client.WrapperPlayClientPlayerBlockPlacement;
 import com.github.retrooper.packetevents.wrapper.play.client.WrapperPlayClientPlayerDigging;
 import com.github.retrooper.packetevents.wrapper.play.client.WrapperPlayClientUseItem;
+import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerEntityEquipment;
 import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerSetSlot;
 import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerWindowItems;
 import io.github.retrooper.packetevents.util.SpigotConversionUtil;
@@ -29,6 +32,7 @@ import net.exylia.lib.ui.ClickKind;
 import org.bukkit.block.Block;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.Player;
+import org.bukkit.inventory.PlayerInventory;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
@@ -127,6 +131,32 @@ final class OverlayPackets extends PacketListenerAbstract implements OverlaySink
         send(viewer, new WrapperPlayServerSetSlot(PLAYER_INVENTORY, 0, index, convert(item)));
     }
 
+    @Override
+    public void equipment(Player owner) {
+        OverlayView view = OverlayRuntime.viewOf(owner.getUniqueId());
+        PlayerInventory inventory = owner.getInventory();
+        int held = inventory.getHeldItemSlot();
+        List<Equipment> worn = List.of(
+                new Equipment(EquipmentSlot.MAIN_HAND, shown(view, held, inventory.getItem(held))),
+                new Equipment(EquipmentSlot.OFF_HAND, shown(view, OverlaySlots.OFFHAND, inventory.getItemInOffHand())),
+                new Equipment(EquipmentSlot.HELMET, shown(view, OverlaySlots.HELMET, inventory.getHelmet())),
+                new Equipment(EquipmentSlot.CHEST_PLATE, shown(view, OverlaySlots.CHESTPLATE, inventory.getChestplate())),
+                new Equipment(EquipmentSlot.LEGGINGS, shown(view, OverlaySlots.LEGGINGS, inventory.getLeggings())),
+                new Equipment(EquipmentSlot.BOOTS, shown(view, OverlaySlots.BOOTS, inventory.getBoots())));
+        int entityId = owner.getEntityId();
+        // A wrapper carries the buffer it was written into, so each viewer gets
+        // their own rather than a second copy of somebody else's.
+        for (Player viewer : owner.getTrackedBy()) {
+            send(viewer, new WrapperPlayServerEntityEquipment(entityId, worn));
+        }
+    }
+
+    /** What a slot should look like from outside: the overlay's item where it owns one. */
+    private static com.github.retrooper.packetevents.protocol.item.ItemStack shown(
+            @Nullable OverlayView view, int index, @Nullable org.bukkit.inventory.ItemStack real) {
+        return convert(view != null && !view.isSuspended() && view.owns(index) ? view.itemAt(index) : real);
+    }
+
     private static void send(Player viewer, PacketWrapper<?> packet) {
         PacketEvents.getAPI().getPlayerManager().sendPacket(viewer, packet);
     }
@@ -154,6 +184,12 @@ final class OverlayPackets extends PacketListenerAbstract implements OverlaySink
         PacketTypeCommon type = event.getPacketType();
         if (type == PacketType.Play.Server.CLOSE_WINDOW) {
             forgetWindow(event.getUser());
+            return;
+        }
+        if (type == PacketType.Play.Server.ENTITY_EQUIPMENT) {
+            // This one is about somebody else: it names an entity, not the
+            // player it is being sent to.
+            rewriteEquipment(event);
             return;
         }
         boolean slot = type == PacketType.Play.Server.SET_SLOT;
@@ -227,6 +263,56 @@ final class OverlayPackets extends PacketListenerAbstract implements OverlaySink
             packet.setItems(contents);
             event.markForReEncode(true);
         }
+    }
+
+    /**
+     * Substitutes the overlay's items into what the server tells everyone this
+     * player is holding and wearing.
+     *
+     * <p>The wearer's own screen is drawn slot by slot; this is the other
+     * half — the hand the rest of the server watches them swing. Without it a
+     * staff member holds a compass on their own screen and their real sword to
+     * everybody else.
+     */
+    private void rewriteEquipment(PacketSendEvent event) {
+        WrapperPlayServerEntityEquipment packet = new WrapperPlayServerEntityEquipment(event);
+        OverlayView view = OverlayRuntime.viewOfEntity(packet.getEntityId());
+        if (view == null || view.isSuspended()) {
+            return;
+        }
+        List<Equipment> worn = new ArrayList<>(packet.getEquipment());
+        boolean changed = false;
+        for (int position = 0; position < worn.size(); position++) {
+            Equipment piece = worn.get(position);
+            int index = indexOf(view, piece.getSlot());
+            if (index < 0 || !view.owns(index)) {
+                continue;
+            }
+            worn.set(position, new Equipment(piece.getSlot(), convert(view.itemAt(index))));
+            changed = true;
+        }
+        if (changed) {
+            packet.setEquipment(worn);
+            event.markForReEncode(true);
+        }
+    }
+
+    /**
+     * The inventory index an equipment slot stands for.
+     *
+     * <p>The main hand is whichever hotbar slot the player is on, which is why
+     * this is asked of the player rather than answered from a table.
+     */
+    private static int indexOf(OverlayView view, EquipmentSlot slot) {
+        return switch (slot) {
+            case MAIN_HAND -> view.viewer().getInventory().getHeldItemSlot();
+            case OFF_HAND -> OverlaySlots.OFFHAND;
+            case HELMET -> OverlaySlots.HELMET;
+            case CHEST_PLATE -> OverlaySlots.CHESTPLATE;
+            case LEGGINGS -> OverlaySlots.LEGGINGS;
+            case BOOTS -> OverlaySlots.BOOTS;
+            default -> -1;
+        };
     }
 
     // ------------------------------------------------------------------

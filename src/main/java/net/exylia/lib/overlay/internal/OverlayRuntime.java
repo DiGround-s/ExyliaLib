@@ -44,6 +44,16 @@ public final class OverlayRuntime {
     /** Who is wearing an overlay right now. Read on Netty threads. */
     private static final Map<UUID, OverlayView> ACTIVE = new ConcurrentHashMap<>();
 
+    /**
+     * The same views by entity id, for the packets that name a player by
+     * number rather than by uuid.
+     *
+     * <p>An equipment packet is addressed to whoever is watching and says only
+     * which entity it is about, so the wearer cannot be found the way every
+     * other lookup here finds them.
+     */
+    private static final Map<Integer, OverlayView> BY_ENTITY = new ConcurrentHashMap<>();
+
     private static volatile Plugin lib;
     private static volatile OverlaySink sink;
     private static volatile boolean tried;
@@ -121,6 +131,11 @@ public final class OverlayRuntime {
         return player == null ? null : ACTIVE.get(player);
     }
 
+    /** The overlay the player with this entity id is wearing, or {@code null}. */
+    public static @Nullable OverlayView viewOfEntity(int entityId) {
+        return BY_ENTITY.get(entityId);
+    }
+
     // ------------------------------------------------------------------
     // Lifecycle
     // ------------------------------------------------------------------
@@ -149,10 +164,16 @@ public final class OverlayRuntime {
         if (view == null) {
             return;
         }
+        BY_ENTITY.remove(view.viewer().getEntityId(), view);
         view.close();
         Player viewer = view.viewer();
         if (!repaint || !viewer.isOnline()) {
             return;
+        }
+        // The view is out of both maps, so this states the real items.
+        OverlaySink current = sink;
+        if (current != null) {
+            current.equipment(viewer);
         }
         // On the library's scheduler rather than the overlay's owner: the
         // commonest reason to be here is that the owner is being disabled, and
@@ -186,6 +207,7 @@ public final class OverlayRuntime {
             remove(view.id(), false);
         }
         ACTIVE.clear();
+        BY_ENTITY.clear();
         BY_PLUGIN.clear();
         OverlaySink current = sink;
         if (current != null) {
@@ -296,6 +318,7 @@ public final class OverlayRuntime {
             }
             OverlayView view = new OverlayView(plugin, items, viewer, definition);
             ACTIVE.put(viewer.getUniqueId(), view);
+            BY_ENTITY.put(viewer.getEntityId(), view);
             Tasks.of(plugin).runAtEntity(viewer, () -> {
                 if (view.isClosed()) {
                     return;
@@ -314,6 +337,13 @@ public final class OverlayRuntime {
                 // overlay's own items are already recorded, so the restatement
                 // comes back rewritten rather than revealing the real ones.
                 viewer.updateInventory();
+                // And the players around them, who are told out of the real
+                // inventory and would otherwise watch this player swing an item
+                // they are not holding.
+                OverlaySink current = sink;
+                if (current != null) {
+                    current.equipment(viewer);
+                }
                 view.startRefreshing();
             });
         }
