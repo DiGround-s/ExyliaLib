@@ -15,6 +15,7 @@ import com.github.retrooper.packetevents.util.Vector3d;
 import com.github.retrooper.packetevents.util.Vector3f;
 import com.github.retrooper.packetevents.util.Vector3i;
 import com.github.retrooper.packetevents.wrapper.PacketWrapper;
+import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
 import com.github.retrooper.packetevents.wrapper.play.client.WrapperPlayClientPlayerFlying;
 import com.github.retrooper.packetevents.wrapper.play.client.WrapperPlayClientVehicleMove;
 import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerBlockChange;
@@ -41,6 +42,7 @@ import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerPl
 import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerPlayerInfoUpdate;
 import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerPlayerPositionAndLook;
 import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerSpawnEntity;
+import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerSystemChatMessage;
 import io.github.retrooper.packetevents.util.SpigotConversionUtil;
 import io.github.retrooper.packetevents.util.SpigotReflectionUtil;
 import org.bukkit.Location;
@@ -119,6 +121,12 @@ final class PacketHooks extends PacketListenerAbstract implements PacketSink {
 
     @Override
     public void onPacketSend(PacketSendEvent event) {
+        if (PacketRuntime.filtersMessages()
+                && event.getPacketType() == PacketType.Play.Server.SYSTEM_CHAT_MESSAGE
+                && !readable(event)) {
+            event.setCancelled(true);
+            return;
+        }
         User user = event.getUser();
         // No UUID before login completes: nothing is hidden from a player who
         // does not exist yet.
@@ -135,6 +143,30 @@ final class PacketHooks extends PacketListenerAbstract implements PacketSink {
         if (entityId >= 0 && PacketRuntime.hidesEntity(viewer, entityId)) {
             event.setCancelled(true);
         }
+    }
+
+    /**
+     * Whether every message rule lets this line through.
+     *
+     * <p>The line is flattened to plain text first: a rule reads what the
+     * player reads, not the colour codes and hover events around it. A line
+     * that cannot be read at all — an unusual encoding, a component the
+     * serializer refuses — passes, because dropping messages nobody can
+     * inspect is how a server goes quiet for no reason anyone can find.
+     */
+    private static boolean readable(PacketSendEvent event) {
+        Player receiver = event.getPlayer();
+        if (receiver == null) {
+            return true;
+        }
+        String text;
+        try {
+            text = PlainTextComponentSerializer.plainText()
+                    .serialize(new WrapperPlayServerSystemChatMessage(event).getMessage());
+        } catch (Throwable unreadable) {
+            return true;
+        }
+        return PacketRuntime.canRead(receiver, text);
     }
 
     /** The entity a packet is about, or {@code -1} when it has none. */

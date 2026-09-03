@@ -4,6 +4,8 @@ import net.exylia.lib.debug.Debug;
 import net.exylia.lib.packet.FakeBlocks;
 import net.exylia.lib.packet.FakeGameMode;
 import net.exylia.lib.packet.GlowingBlocks;
+import net.exylia.lib.packet.MessageRule;
+import net.exylia.lib.packet.Messages;
 import net.exylia.lib.packet.Movement;
 import net.exylia.lib.packet.PluginPackets;
 import net.exylia.lib.packet.SilentContainer;
@@ -48,6 +50,8 @@ public final class PacketRuntime {
     private static final Map<String, Impl> BY_PLUGIN = new ConcurrentHashMap<>();
     /** One plugin, one rule. */
     private static final Map<String, VisibilityRule> RULES = new ConcurrentHashMap<>();
+    /** One plugin, one rule, for the lines a viewer must not read. */
+    private static final Map<String, MessageRule> MESSAGE_RULES = new ConcurrentHashMap<>();
     /** viewer -> targets they may not see. */
     private static final Map<UUID, Set<UUID>> HIDDEN = new ConcurrentHashMap<>();
     /** entity id -> player, the way back from a packet to its subject. */
@@ -92,6 +96,7 @@ public final class PacketRuntime {
     public static void release(String pluginName) {
         Impl impl = BY_PLUGIN.remove(pluginName);
         RULES.remove(pluginName);
+        MESSAGE_RULES.remove(pluginName);
         if (impl != null) {
             impl.clear();
         }
@@ -117,6 +122,7 @@ public final class PacketRuntime {
         FAKED.clear();
         OUTLINED.clear();
         SPECTATING.clear();
+        MESSAGE_RULES.clear();
         WARNED.clear();
         Mirrors.shutdown();
     }
@@ -165,6 +171,21 @@ public final class PacketRuntime {
     // ------------------------------------------------------------------
     // Answers for the packet listener. Cheap, lock-free, any thread.
     // ------------------------------------------------------------------
+
+    /** Whether anybody is filtering messages at all, asked before a line is decoded. */
+    static boolean filtersMessages() {
+        return !MESSAGE_RULES.isEmpty();
+    }
+
+    /** Whether every rule lets this viewer read this line. */
+    static boolean canRead(Player viewer, String message) {
+        for (MessageRule rule : MESSAGE_RULES.values()) {
+            if (!rule.canRead(viewer, message)) {
+                return false;
+            }
+        }
+        return true;
+    }
 
     static boolean hidesAnything(UUID viewer) {
         Set<UUID> hidden = HIDDEN.get(viewer);
@@ -259,6 +280,19 @@ public final class PacketRuntime {
         private final SilentContainer containers;
         private final BlockOutlines outlines;
 
+        /** Its own object rather than another face of this one: {@code clear()} is already taken here. */
+        private final Messages messages = new Messages() {
+            @Override
+            public void rule(@NotNull MessageRule rule) {
+                MESSAGE_RULES.put(name, rule);
+            }
+
+            @Override
+            public void clearRule() {
+                MESSAGE_RULES.remove(name);
+            }
+        };
+
         Impl(Plugin plugin) {
             this.plugin = plugin;
             this.name = plugin.getName();
@@ -272,6 +306,7 @@ public final class PacketRuntime {
         @Override public @NotNull Movement movement() { return this; }
         @Override public @NotNull FakeGameMode fakeGameMode() { return this; }
         @Override public @NotNull SilentContainer silentContainer() { return containers; }
+        @Override public @NotNull Messages messages() { return messages; }
 
         /** Puts back everything this plugin changed. */
         void clear() {

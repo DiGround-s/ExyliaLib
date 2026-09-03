@@ -29,4 +29,7 @@ public interface PluginPackets {
 
     /** Watching a container without opening it. */
     @NotNull SilentContainer silentContainer();
+
+    /** Lines on their way out that a viewer must not read. */
+    @NotNull Messages messages();
 }
