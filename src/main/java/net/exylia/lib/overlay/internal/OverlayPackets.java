@@ -417,11 +417,12 @@ final class OverlayPackets extends PacketListenerAbstract implements OverlaySink
     /** Clicking an entity, which is how a staff tool is pointed at somebody. */
     private void interact(PacketReceiveEvent event, OverlayView view, Player player) {
         WrapperPlayClientInteractEntity packet = new WrapperPlayClientInteractEntity(event);
-        // INTERACT_AT arrives beside INTERACT for the same press; binding both
-        // would run every action twice.
-        if (packet.getAction() == WrapperPlayClientInteractEntity.InteractAction.INTERACT_AT) {
-            return;
-        }
+        // INTERACT_AT arrives beside INTERACT for the same press. It is still
+        // refused — the server turns it into an interaction carrying the item
+        // the player really holds — but only its twin is bound, or every
+        // action would run twice.
+        boolean twin = packet.getAction()
+                == WrapperPlayClientInteractEntity.InteractAction.INTERACT_AT;
         int slot = packet.getHand() == InteractionHand.OFF_HAND
                 ? OverlaySlots.OFFHAND
                 : player.getInventory().getHeldItemSlot();
@@ -436,7 +437,7 @@ final class OverlayPackets extends PacketListenerAbstract implements OverlaySink
             return;
         }
         event.setCancelled(true);
-        if (press == OverlayClicks.WorldPress.REFUSE) {
+        if (twin || press == OverlayClicks.WorldPress.REFUSE) {
             return;
         }
         int entityId = packet.getEntityId();
@@ -454,9 +455,17 @@ final class OverlayPackets extends PacketListenerAbstract implements OverlaySink
      * did land as a block or an entity press is swallowed by the mark that
      * press left behind.
      *
-     * <p>Never cancelled: the animation has already played on the clicking
-     * client, and stopping it only means everybody else sees an arm that does
-     * not move.
+     * <p>Cancelled like every other press the overlay answers, and for a
+     * reason the animation itself does not suggest: the server turns a swing
+     * into a left click on the air, and that interaction carries the item the
+     * player really holds. Left through, a lobby item lying under a staff tool
+     * answers every left click its owner makes, in the plugin that put it
+     * there, while the staff member is looking at something else entirely.
+     * Everybody else seeing an arm that does not move is the smaller loss.
+     *
+     * <p>The cancel is decided before the repeat is: a swing that follows a
+     * block or an entity press must not run the action twice, but it must
+     * still not reach the world.
      */
     private void swing(PacketReceiveEvent event, OverlayView view, Player player) {
         if (new WrapperPlayClientAnimation(event).getHand() != InteractionHand.MAIN_HAND) {
@@ -464,10 +473,12 @@ final class OverlayPackets extends PacketListenerAbstract implements OverlaySink
         }
         int held = player.getInventory().getHeldItemSlot();
         ClickKind kind = player.isSneaking() ? ClickKind.SHIFT_LEFT : ClickKind.LEFT;
-        if (view.repeatsWorldPress(kind)) {
+        OverlayClicks.WorldPress press = worldPress(view, player, held, kind);
+        if (press == OverlayClicks.WorldPress.PASS) {
             return;
         }
-        if (worldPress(view, player, held, kind) != OverlayClicks.WorldPress.PRESS) {
+        event.setCancelled(true);
+        if (press != OverlayClicks.WorldPress.PRESS || view.repeatsWorldPress(kind)) {
             return;
         }
         view.markWorldPress(kind);
