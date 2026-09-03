@@ -3,6 +3,7 @@ package net.exylia.lib.util.snapshot.internal;
 import net.exylia.lib.util.snapshot.Snapshot;
 import net.exylia.lib.util.snapshot.SnapshotCodec;
 import net.exylia.lib.util.snapshot.SnapshotPart;
+import org.bukkit.Registry;
 import org.bukkit.attribute.Attribute;
 import org.bukkit.attribute.AttributeInstance;
 import org.bukkit.entity.Player;
@@ -19,7 +20,9 @@ import org.jetbrains.annotations.Nullable;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.function.Consumer;
 
@@ -57,6 +60,37 @@ public final class PlayerState {
         }
     }
 
+    /**
+     * Every attribute this server has, resolved once.
+     *
+     * <p>Read from the registry rather than {@code Attribute.values()}, which
+     * stopped existing when the type stopped being an enum. A server that
+     * cannot answer at all leaves this empty, and a snapshot taken there simply
+     * carries no attributes rather than failing to be taken.
+     */
+    private static final List<Attribute> ATTRIBUTES = resolveAttributes();
+
+    private static List<Attribute> resolveAttributes() {
+        try {
+            List<Attribute> all = new ArrayList<>();
+            for (Attribute attribute : Registry.ATTRIBUTE) {
+                all.add(attribute);
+            }
+            return List.copyOf(all);
+        } catch (RuntimeException | LinkageError unavailable) {
+            return List.of();
+        }
+    }
+
+    /** An attribute's instance on this player, or {@code null} when it has none. */
+    private static @Nullable AttributeInstance instanceOf(Player player, Attribute attribute) {
+        try {
+            return player.getAttribute(attribute);
+        } catch (RuntimeException | LinkageError unavailable) {
+            return null;
+        }
+    }
+
     // ------------------------------------------------------------- capturing
 
     /**
@@ -81,7 +115,7 @@ public final class PlayerState {
         Snapshot.Physical physical = new Snapshot.Physical(
                 player.getFireTicks(), player.getRemainingAir(),
                 velocity.getX(), velocity.getY(), velocity.getZ(),
-                player.getWalkSpeed(), player.isInvulnerable());
+                player.getWalkSpeed(), player.isInvulnerable(), player.isGlowing());
 
         return new Snapshot(
                 player.getGameMode(),
@@ -97,7 +131,42 @@ public final class PlayerState {
                 player.getLevel(), player.getExp(),
                 effects,
                 player.getAllowFlight(), player.isFlying(), player.getFlySpeed(),
-                physical);
+                physical,
+                captureAttributes(player));
+    }
+
+    /**
+     * Reads the attributes a player is not at the default of.
+     *
+     * <p>Only the ones that were changed, because that is the whole of what has
+     * to be written down: an attribute nobody touched goes back to its default,
+     * and storing thirty defaults per player would grow every row on the server
+     * to say nothing.
+     *
+     * @return the changed base values, or {@code null} when this server has no
+     *         attribute registry to read
+     */
+    private static @Nullable Map<String, Double> captureAttributes(Player player) {
+        if (ATTRIBUTES.isEmpty()) {
+            return null;
+        }
+        Map<String, Double> changed = new LinkedHashMap<>();
+        for (Attribute attribute : ATTRIBUTES) {
+            AttributeInstance instance = instanceOf(player, attribute);
+            if (instance == null) {
+                continue;
+            }
+            try {
+                double base = instance.getBaseValue();
+                if (base != instance.getDefaultValue()) {
+                    changed.put(attribute.getKey().toString(), base);
+                }
+            } catch (RuntimeException | LinkageError unreadable) {
+                // One attribute this server will not talk about costs that
+                // attribute. The player still gets everything else back.
+            }
+        }
+        return changed;
     }
 
     /**
@@ -204,6 +273,11 @@ public final class PlayerState {
             enderChest.setContents(contents);
         }
 
+        if (wanted(snapshot, parts, SnapshotPart.ATTRIBUTES)) {
+            // Before health, which owns the maximum health attribute and has to
+            // be the one that sets it.
+            applyAttributes(snapshot.attributes(), player, problems);
+        }
         if (parts.contains(SnapshotPart.HEALTH)) {
             applyHealth(snapshot, player, problems);
         }
@@ -265,6 +339,37 @@ public final class PlayerState {
         }
     }
 
+    /**
+     * Puts every attribute back where it was.
+     *
+     * <p>Including the ones the snapshot does not mention: they were at their
+     * default when it was taken, so that is where they go. This is the half
+     * that matters &mdash; a minigame that shrank the player wrote an attribute
+     * the snapshot has nothing to say about, and leaving it alone is what left
+     * knee-high players walking around the lobby.
+     *
+     * <p>Base values only. A modifier another plugin added is untouched.
+     */
+    private static void applyAttributes(Map<String, Double> stored, Player player,
+                                        Consumer<String> problems) {
+        for (Attribute attribute : ATTRIBUTES) {
+            AttributeInstance instance = instanceOf(player, attribute);
+            if (instance == null) {
+                continue;
+            }
+            try {
+                Double base = stored.get(attribute.getKey().toString());
+                double target = base == null ? instance.getDefaultValue() : base;
+                if (instance.getBaseValue() != target) {
+                    instance.setBaseValue(target);
+                }
+            } catch (RuntimeException | LinkageError refused) {
+                problems.accept("the attribute \"" + attribute.getKey()
+                        + "\" could not be restored, and was left as it is");
+            }
+        }
+    }
+
     private static void applyEffects(Snapshot snapshot, Player player, Consumer<String> problems) {
         Collection<PotionEffect> active = player.getActivePotionEffects();
         for (PotionEffect effect : List.copyOf(active)) {
@@ -292,6 +397,7 @@ public final class PlayerState {
             player.setWalkSpeed(physical.walkSpeed());
         }
         player.setInvulnerable(physical.invulnerable());
+        player.setGlowing(physical.glowing());
     }
 
     // ---------------------------------------------------------------- helpers

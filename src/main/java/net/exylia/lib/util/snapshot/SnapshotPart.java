@@ -67,11 +67,28 @@ public enum SnapshotPart {
     FLIGHT,
 
     /**
-     * Fire ticks, remaining air, velocity, walk speed and invulnerability.
+     * Fire ticks, remaining air, velocity, walk speed, invulnerability and
+     * whether they were glowing.
      *
      * <p>Absent from anything ExyliaCommons wrote.
      */
-    PHYSICAL;
+    PHYSICAL,
+
+    /**
+     * The base value of every attribute: how tall they are drawn, how fast they
+     * walk, how far they knock back, how much health they can hold.
+     *
+     * <p>Absent from anything ExyliaCommons wrote. A minigame that shrinks a
+     * player writes an attribute, and an attribute survives the player leaving,
+     * dying and reconnecting &mdash; which is how a server ends up with
+     * knee-high players in its lobby. Restoring this part puts every attribute
+     * back to the base value it had when the snapshot was taken, and every
+     * attribute the snapshot does not mention back to its own default.
+     *
+     * <p>Only base values. An attribute <em>modifier</em> some other plugin
+     * added is left exactly where it is.
+     */
+    ATTRIBUTES;
 
     /** Every part. The default for a restore, and the usual answer. */
     public static final Set<SnapshotPart> ALL =

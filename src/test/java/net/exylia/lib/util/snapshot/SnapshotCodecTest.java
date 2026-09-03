@@ -12,6 +12,7 @@ import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -63,7 +64,8 @@ class SnapshotCodecTest {
                 List.of(new Snapshot.Effect("SPEED", 600, 1, false, true, true),
                         new Snapshot.Effect("REGENERATION", 120, 0, true, false, false)),
                 true, true, 0.15f,
-                new Snapshot.Physical(40, 260, 0.5d, -0.1d, 0.25d, 0.21f, true));
+                new Snapshot.Physical(40, 260, 0.5d, -0.1d, 0.25d, 0.21f, true, true),
+                Map.of("minecraft:scale", 0.5d, "minecraft:max_health", 24.0d));
     }
 
     // ------------------------------------------------------------ round trip
@@ -111,6 +113,28 @@ class SnapshotCodecTest {
         assertEquals(0.5d, after.physical().velocityX());
         assertEquals(0.21f, after.physical().walkSpeed());
         assertTrue(after.physical().invulnerable());
+        assertTrue(after.physical().glowing());
+        assertNotNull(after.attributes());
+        assertEquals(0.5d, after.attributes().get("minecraft:scale"),
+                "the shrink a minigame applied is what has to come back off");
+        assertEquals(2, after.attributes().size());
+    }
+
+    @Test
+    @DisplayName("a player at every default stores an empty map, not no map")
+    void everyDefaultIsStillCaptured() {
+        // The difference decides a restore: an empty map says every attribute
+        // goes back to its default, which is how a shrunk player is made normal
+        // again. No map at all says nobody looked, and leaves them shrunk.
+        Snapshot untouched = new Snapshot(GameMode.SURVIVAL, null, null, null, null,
+                20.0d, 20.0d, 20, 5f, 0, 0f, List.of(), false, false, 0.1f, null, Map.of());
+
+        Snapshot after = SnapshotCodec.decode(SnapshotCodec.encode(untouched), problems::add);
+
+        assertNotNull(after);
+        assertTrue(after.has(SnapshotPart.ATTRIBUTES));
+        assertNotNull(after.attributes());
+        assertTrue(after.attributes().isEmpty());
     }
 
     // ------------------------------------------------- the ExyliaCommons wire
@@ -171,6 +195,7 @@ class SnapshotCodecTest {
         assertFalse(read.has(SnapshotPart.ENDER_CHEST),
                 "commons never wrote one, so there is nothing to put back");
         assertFalse(read.has(SnapshotPart.PHYSICAL), "the same for the physical state");
+        assertFalse(read.has(SnapshotPart.ATTRIBUTES), "the same for the attributes");
         assertNull(read.enderChest());
         assertNull(read.physical(),
                 "absent, not zeroed: a zeroed physical state sets walk speed to zero");
@@ -220,6 +245,7 @@ class SnapshotCodecTest {
 
         assertFalse(rewritten.has("enderChest"), "there was none to write");
         assertFalse(rewritten.has("physical"), "there was none to write");
+        assertFalse(rewritten.has("attributes"), "there were none to write");
     }
 
     // ------------------------------------------------------------ resilience

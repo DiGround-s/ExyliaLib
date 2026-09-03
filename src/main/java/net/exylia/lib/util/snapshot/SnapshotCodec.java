@@ -11,7 +11,9 @@ import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
 import java.util.Base64;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.function.Consumer;
 
 /**
@@ -44,8 +46,8 @@ import java.util.function.Consumer;
  * incompatible, and the one already in the database wins.
  *
  * <h2>What the new keys do to an old reader</h2>
- * {@code enderChest} and {@code physical} are added by this library and
- * ExyliaCommons never wrote them. Its deserialiser reads by key and ignores
+ * {@code enderChest}, {@code physical} and {@code attributes} are added by this
+ * library and ExyliaCommons never wrote them. Its deserialiser reads by key and ignores
  * anything it does not know, so a row written here still restores an inventory
  * on a server still running commons. In the other direction a row written by
  * commons simply has no ender chest and no physical state, which
@@ -105,6 +107,8 @@ public final class SnapshotCodec {
     private static final String VELOCITY_Z = "velocityZ";
     private static final String WALK_SPEED = "walkSpeed";
     private static final String INVULNERABLE = "invulnerable";
+    private static final String GLOWING = "glowing";
+    private static final String ATTRIBUTES = "attributes";
 
     /** Ignores what it cannot read, which is what a bare decode asks for. */
     private static final Consumer<String> SILENT = problem -> { };
@@ -208,7 +212,17 @@ public final class SnapshotCodec {
             state.addProperty(VELOCITY_Z, physical.velocityZ());
             state.addProperty(WALK_SPEED, physical.walkSpeed());
             state.addProperty(INVULNERABLE, physical.invulnerable());
+            state.addProperty(GLOWING, physical.glowing());
             json.add(PHYSICAL, state);
+        }
+        Map<String, Double> attributes = snapshot.attributes();
+        if (attributes != null) {
+            // Written even when empty: an empty object says "every attribute was
+            // at its default", which is what a restore has to put back. Absent
+            // says "nobody looked", which leaves them alone.
+            JsonObject values = new JsonObject();
+            attributes.forEach(values::addProperty);
+            json.add(ATTRIBUTES, values);
         }
         return json.toString();
     }
@@ -374,7 +388,8 @@ public final class SnapshotCodec {
                 bool(json, ALLOW_FLIGHT, false),
                 bool(json, FLYING, false),
                 number(json, FLY_SPEED, 0f).floatValue(),
-                physical(json, problems));
+                physical(json, problems),
+                attributes(json, problems));
     }
 
     private static ItemStack @Nullable [] items(JsonObject json, String key,
@@ -462,7 +477,39 @@ public final class SnapshotCodec {
                 number(state, VELOCITY_Y, 0.0d).doubleValue(),
                 number(state, VELOCITY_Z, 0.0d).doubleValue(),
                 number(state, WALK_SPEED, 0f).floatValue(),
-                bool(state, INVULNERABLE, false));
+                bool(state, INVULNERABLE, false),
+                bool(state, GLOWING, false));
+    }
+
+    private static @Nullable Map<String, Double> attributes(JsonObject json,
+                                                            Consumer<String> problems) {
+        JsonElement element = json.get(ATTRIBUTES);
+        if (element == null || element.isJsonNull()) {
+            // A row written before attributes were part of a snapshot. Absent
+            // rather than empty: an empty map means every attribute goes back
+            // to its default, and an old row is not making that claim.
+            return null;
+        }
+        if (!element.isJsonObject()) {
+            problems.accept("the stored attributes are not an object and were skipped");
+            return null;
+        }
+        Map<String, Double> values = new LinkedHashMap<>();
+        for (Map.Entry<String, JsonElement> entry : element.getAsJsonObject().entrySet()) {
+            JsonElement value = entry.getValue();
+            if (value == null || value.isJsonNull() || !value.isJsonPrimitive()) {
+                problems.accept("the stored attribute \"" + entry.getKey()
+                        + "\" is not a number and was skipped");
+                continue;
+            }
+            try {
+                values.put(entry.getKey(), value.getAsDouble());
+            } catch (RuntimeException notANumber) {
+                problems.accept("the stored attribute \"" + entry.getKey()
+                        + "\" is not a number and was skipped");
+            }
+        }
+        return values;
     }
 
     private static @Nullable String string(JsonObject json, String key) {

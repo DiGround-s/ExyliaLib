@@ -10,6 +10,7 @@ import org.jetbrains.annotations.Nullable;
 
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 
@@ -34,9 +35,10 @@ import java.util.Set;
  *
  * <h2>What it holds</h2>
  * The inventory, armour, off hand, ender chest, health and maximum health,
- * hunger and saturation, experience, potion effects, game mode, flight, and the
- * physical state &mdash; fire ticks, remaining air, velocity, walk speed and
- * invulnerability. The ender chest and the physical state are new: a snapshot
+ * hunger and saturation, experience, potion effects, game mode, flight, the
+ * physical state &mdash; fire ticks, remaining air, velocity, walk speed,
+ * invulnerability and glowing &mdash; and the base value of every attribute.
+ * The ender chest, the physical state and the attributes are new: a snapshot
  * read from a row ExyliaCommons wrote does not carry them, which
  * {@link #has(SnapshotPart)} answers and a restore quietly skips.
  *
@@ -80,6 +82,7 @@ public final class Snapshot {
     private final boolean flying;
     private final float flySpeed;
     private final @Nullable Physical physical;
+    private final @Nullable Map<String, Double> attributes;
 
     /**
      * One active potion effect, in the shape the column stores it.
@@ -115,11 +118,26 @@ public final class Snapshot {
      * @param velocityZ     how fast they were moving, south
      * @param walkSpeed     their walk speed
      * @param invulnerable  whether they could be hurt
+     * @param glowing       whether they were outlined
      * @since 1.34.0
      */
     public record Physical(int fireTicks, int remainingAir,
                            double velocityX, double velocityY, double velocityZ,
-                           float walkSpeed, boolean invulnerable) {
+                           float walkSpeed, boolean invulnerable, boolean glowing) {
+
+        /**
+         * The shape before glowing was part of it.
+         *
+         * <p>Kept so a plugin compiled against an older library still links.
+         * A row that predates the key reads as not glowing, which is what a
+         * player who was never marked was.
+         */
+        public Physical(int fireTicks, int remainingAir,
+                        double velocityX, double velocityY, double velocityZ,
+                        float walkSpeed, boolean invulnerable) {
+            this(fireTicks, remainingAir, velocityX, velocityY, velocityZ,
+                    walkSpeed, invulnerable, false);
+        }
 
         /** Their velocity, as a fresh vector. */
         public @NotNull Vector velocity() {
@@ -150,6 +168,8 @@ public final class Snapshot {
      * @param flying        whether they were flying
      * @param flySpeed      their fly speed
      * @param physical      the physical state, or {@code null} when not captured
+     * @param attributes    the base value of each attribute that was not at its
+     *                      default, or {@code null} when not captured
      */
     public Snapshot(@Nullable GameMode gameMode,
                     ItemStack @Nullable [] inventory,
@@ -161,7 +181,8 @@ public final class Snapshot {
                     int level, float exp,
                     @NotNull List<Effect> potionEffects,
                     boolean allowFlight, boolean flying, float flySpeed,
-                    @Nullable Physical physical) {
+                    @Nullable Physical physical,
+                    @Nullable Map<String, Double> attributes) {
         this.gameMode = gameMode;
         this.inventory = copy(inventory);
         this.armor = copy(armor);
@@ -178,6 +199,47 @@ public final class Snapshot {
         this.flying = flying;
         this.flySpeed = flySpeed;
         this.physical = physical;
+        this.attributes = attributes == null ? null : Map.copyOf(attributes);
+    }
+
+    /**
+     * The shape before attributes were part of a snapshot.
+     *
+     * <p>Kept so a plugin compiled against an older library still links, and so
+     * a caller that never had attributes to give does not have to pass
+     * {@code null} to say so.
+     *
+     * @param gameMode      the game mode, or {@code null} when unknown
+     * @param inventory     the main slots, or {@code null} when not captured
+     * @param armor         the armour slots, or {@code null} when not captured
+     * @param offHand       the off hand, or {@code null} when empty
+     * @param enderChest    the ender chest, or {@code null} when not captured
+     * @param health        current health
+     * @param maxHealth     the base maximum health
+     * @param foodLevel     the food level
+     * @param saturation    the saturation
+     * @param level         the experience level
+     * @param exp           progress towards the next level
+     * @param potionEffects the active effects; never {@code null}
+     * @param allowFlight   whether flight was allowed
+     * @param flying        whether they were flying
+     * @param flySpeed      their fly speed
+     * @param physical      the physical state, or {@code null} when not captured
+     */
+    public Snapshot(@Nullable GameMode gameMode,
+                    ItemStack @Nullable [] inventory,
+                    ItemStack @Nullable [] armor,
+                    @Nullable ItemStack offHand,
+                    ItemStack @Nullable [] enderChest,
+                    double health, double maxHealth,
+                    int foodLevel, float saturation,
+                    int level, float exp,
+                    @NotNull List<Effect> potionEffects,
+                    boolean allowFlight, boolean flying, float flySpeed,
+                    @Nullable Physical physical) {
+        this(gameMode, inventory, armor, offHand, enderChest, health, maxHealth,
+                foodLevel, saturation, level, exp, potionEffects,
+                allowFlight, flying, flySpeed, physical, null);
     }
 
     /**
@@ -238,6 +300,7 @@ public final class Snapshot {
             case ENDER_CHEST -> enderChest != null;
             case GAME_MODE -> gameMode != null;
             case PHYSICAL -> physical != null;
+            case ATTRIBUTES -> attributes != null;
             // Numbers are always written, so they are always present. Commons
             // read a missing one as zero, and so does the codec.
             case HEALTH, HUNGER, EXPERIENCE, POTION_EFFECTS, FLIGHT -> true;
@@ -326,6 +389,18 @@ public final class Snapshot {
         return physical;
     }
 
+    /**
+     * The base value of each attribute that was not at its default, keyed by the
+     * attribute's namespaced key, or {@code null} when the row predates it.
+     *
+     * <p>Empty is not the same as absent: a player whose every attribute was at
+     * its default has an empty map, and restoring it puts back the defaults it
+     * describes. A row with no map at all leaves the player's attributes alone.
+     */
+    public @Nullable Map<String, Double> attributes() {
+        return attributes;
+    }
+
     private static ItemStack @Nullable [] copy(ItemStack @Nullable [] items) {
         if (items == null) {
             return null;
@@ -360,13 +435,14 @@ public final class Snapshot {
                 && allowFlight == that.allowFlight
                 && flying == that.flying
                 && Float.compare(flySpeed, that.flySpeed) == 0
-                && Objects.equals(physical, that.physical);
+                && Objects.equals(physical, that.physical)
+                && Objects.equals(attributes, that.attributes);
     }
 
     @Override
     public int hashCode() {
         int result = Objects.hash(gameMode, offHand, health, maxHealth, foodLevel, saturation,
-                level, exp, potionEffects, allowFlight, flying, flySpeed, physical);
+                level, exp, potionEffects, allowFlight, flying, flySpeed, physical, attributes);
         result = 31 * result + Arrays.hashCode(inventory);
         result = 31 * result + Arrays.hashCode(armor);
         return 31 * result + Arrays.hashCode(enderChest);
@@ -376,6 +452,7 @@ public final class Snapshot {
     public String toString() {
         return "Snapshot[" + gameMode + ", " + health + '/' + maxHealth + " hp, "
                 + potionEffects.size() + " effect(s)"
-                + (physical == null ? "" : ", physical") + ']';
+                + (physical == null ? "" : ", physical")
+                + (attributes == null ? "" : ", " + attributes.size() + " attribute(s)") + ']';
     }
 }
