@@ -7,6 +7,7 @@ import com.github.retrooper.packetevents.protocol.entity.data.EntityData;
 import com.github.retrooper.packetevents.protocol.entity.data.EntityDataTypes;
 import com.github.retrooper.packetevents.protocol.entity.pose.EntityPose;
 import com.github.retrooper.packetevents.protocol.entity.type.EntityTypes;
+import com.github.retrooper.packetevents.protocol.player.ClientVersion;
 import com.github.retrooper.packetevents.protocol.player.Equipment;
 import com.github.retrooper.packetevents.protocol.player.EquipmentSlot;
 import com.github.retrooper.packetevents.protocol.player.GameMode;
@@ -81,6 +82,10 @@ final class NpcPackets implements NpcSink {
      * the old index there lands on absorption, a float, and a client that is
      * handed a byte for a float disconnects with a packet handling error rather
      * than ignoring it.
+     *
+     * <p>It is the viewer's version that decides, not the server's: PacketEvents
+     * writes after ViaVersion has had its say, so a 26.1 client on a 1.21.11
+     * server receives our indices untranslated.
      */
     private static final int SKIN_LAYERS_AVATAR = 16;
     private static final int SKIN_LAYERS_LEGACY = 17;
@@ -122,14 +127,13 @@ final class NpcPackets implements NpcSink {
                 entityId, Optional.of(model.id()), EntityTypes.PLAYER,
                 new Vector3d(at.getX(), at.getY(), at.getZ()),
                 at.getPitch(), at.getYaw(), at.getYaw(), 0, Optional.empty());
-        PacketWrapper<?> state = new WrapperPlayServerEntityMetadata(entityId, fullState(model));
         PacketWrapper<?> head = new WrapperPlayServerEntityHeadLook(entityId, at.getYaw());
         List<Equipment> kit = kitOf(model);
         PacketWrapper<?> size = sizeOf(entityId, model);
 
         for (Player viewer : viewers) {
             send(viewer, body);
-            send(viewer, state);
+            send(viewer, new WrapperPlayServerEntityMetadata(entityId, fullState(model, viewer)));
             send(viewer, head);
             if (size != null) {
                 send(viewer, size);
@@ -255,22 +259,40 @@ final class NpcPackets implements NpcSink {
         return profile;
     }
 
-    private static List<EntityData<?>> fullState(NpcModel model) {
+    private static List<EntityData<?>> fullState(NpcModel model, Player viewer) {
         List<EntityData<?>> data = new ArrayList<>(3);
         if (model.glowArgb() >= 0) {
             data.add(new EntityData<>(ENTITY_FLAGS, EntityDataTypes.BYTE, FLAG_GLOWING));
         }
-        data.add(new EntityData<>(skinLayersIndex(), EntityDataTypes.BYTE, ALL_LAYERS));
+        data.add(new EntityData<>(skinLayersIndex(viewer), EntityDataTypes.BYTE, ALL_LAYERS));
         if (model.pose() != NpcPose.STANDING) {
             data.add(new EntityData<>(POSE, EntityDataTypes.ENTITY_POSE, poseOf(model.pose())));
         }
         return data;
     }
 
-    /** Where this server keeps the skin layer mask. */
-    private static int skinLayersIndex() {
-        return PacketEvents.getAPI().getServerManager().getVersion()
-                .isNewerThanOrEquals(ServerVersion.V_26_1)
+    /**
+     * Where this viewer's client keeps the skin layer mask.
+     *
+     * <p>A client newer than the installed PacketEvents knows reports itself as
+     * higher than supported; the only versions above 1.21.11 are avatar ones, so
+     * that is treated as 26.1 rather than as legacy. A client PacketEvents cannot
+     * place at all is assumed to match the server.
+     */
+    private static int skinLayersIndex(Player viewer) {
+        ClientVersion version;
+        try {
+            version = PacketEvents.getAPI().getPlayerManager().getClientVersion(viewer);
+        } catch (RuntimeException unknown) {
+            version = null;
+        }
+        if (version == null || version == ClientVersion.UNKNOWN) {
+            return PacketEvents.getAPI().getServerManager().getVersion()
+                    .isNewerThan(ServerVersion.V_1_21_11)
+                    ? SKIN_LAYERS_AVATAR : SKIN_LAYERS_LEGACY;
+        }
+        return version == ClientVersion.HIGHER_THAN_SUPPORTED_VERSIONS
+                || version.isNewerThan(ClientVersion.V_1_21_11)
                 ? SKIN_LAYERS_AVATAR : SKIN_LAYERS_LEGACY;
     }
 
