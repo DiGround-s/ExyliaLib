@@ -102,9 +102,17 @@ public final class OverlayClicks {
      */
     public static boolean refuses(OverlayLock lock, boolean scatters, boolean ownScreen,
                                   boolean inPlayerRegion, boolean owned) {
-        // Where it started does not decide it: the server picks where it lands,
-        // and that may be a slot we own whatever slot it came from.
-        if (scatters) {
+        // A scattering click is refused wherever it could take an item out
+        // from under the overlay, which is anywhere in the player's own half.
+        //
+        // Only there, though. The overlay stays up over a menu, and a
+        // shift-click on a menu button is how half of them are used: refusing
+        // every scattering click regardless of where it started would cancel
+        // the packet, the menu's own click event would never fire, and every
+        // shift-click action in every menu on the server would stop working
+        // for anybody on duty. A menu button moves nothing, because the menu
+        // cancels the click itself.
+        if (scatters && (ownScreen || inPlayerRegion)) {
             return true;
         }
         if (lock == OverlayLock.FULL) {

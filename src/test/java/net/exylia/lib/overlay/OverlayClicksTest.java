@@ -111,12 +111,27 @@ class OverlayClicksTest {
     }
 
     @Test
-    @DisplayName("a click the server aims is refused whatever slot it started from")
-    void scatteringIsAlwaysRefused() {
+    @DisplayName("a click the server aims is refused anywhere in the player's own half")
+    void scatteringIsRefusedInThePlayerHalf() {
         // A shift-click, a number key, an off-hand swap, a double-click and a
         // drag all land where the server decides, and that may be a slot the
-        // overlay draws. Refusing only the slot it started from is the hole.
-        assertTrue(owned(true, false, false, false));
-        assertTrue(full(true, false, false, false));
+        // overlay draws. Which slot of the player's half it started from is
+        // therefore not the question.
+        assertTrue(owned(true, true, false, false));
+        assertTrue(owned(true, false, true, false));
+        assertTrue(full(true, true, false, false));
+        assertTrue(full(true, false, true, false));
+    }
+
+    @Test
+    @DisplayName("a shift-click on a menu button still reaches the menu")
+    void scatteringOutsideThePlayerHalfIsLetThrough() {
+        // The overlay stays up over a menu, whose top half is not the player's
+        // and whose buttons move nothing. Refusing here would cancel the
+        // packet, the menu would never see the click, and every shift-click
+        // action in every menu would stop working for anybody wearing an
+        // overlay.
+        assertFalse(owned(true, false, false, false));
+        assertFalse(full(true, false, false, false));
     }
 }

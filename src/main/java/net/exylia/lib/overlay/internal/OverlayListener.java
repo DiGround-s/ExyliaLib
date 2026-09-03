@@ -1,5 +1,6 @@
 package net.exylia.lib.overlay.internal;
 
+import net.exylia.lib.ui.Menus;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
@@ -52,17 +53,26 @@ public final class OverlayListener implements Listener {
     }
 
     /**
-     * Steps the overlay aside when another window opens.
+     * Steps the overlay aside when a real container opens.
      *
      * <p>The bottom half of a chest is the player's own inventory, which is
      * what the overlay is drawn over: left up, a player can take from the
      * chest and never put anything back, because every slot they would move it
      * to is one the overlay refuses. The items were never real, so standing
      * aside costs nothing to undo.
+     *
+     * <p>A menu is not a container. Its lower half is decoration nobody moves
+     * anything into, and stepping aside there does the one thing the overlay
+     * exists to prevent: it shows a staff member's real items, on screen,
+     * every time they open a report list. So menus keep the overlay, and the
+     * clicks a menu needs still reach it — see
+     * {@link OverlayClicks#refuses}. A window some other plugin built is not
+     * known to be a menu and is treated as a container, which is the safe way
+     * round.
      */
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onOpen(InventoryOpenEvent event) {
-        if (event.getPlayer() instanceof Player player) {
+        if (event.getPlayer() instanceof Player player && !Menus.isMenu(event.getInventory())) {
             OverlayView view = OverlayRuntime.viewOf(player.getUniqueId());
             if (view != null) {
                 view.suspend();

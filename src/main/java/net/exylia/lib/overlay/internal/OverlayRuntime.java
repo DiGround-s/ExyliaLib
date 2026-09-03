@@ -105,10 +105,15 @@ public final class OverlayRuntime {
      *
      * <p>Their own inventory is not a window in this sense: nothing else is
      * using the screen, so the overlay is exactly what should be drawn there.
+     * Neither is one of this library's menus, whose lower half is decoration.
      */
     static boolean hasWindowOpen(Player viewer) {
         InventoryType type = viewer.getOpenInventory().getType();
-        return type != InventoryType.CRAFTING && type != InventoryType.CREATIVE;
+        if (type == InventoryType.CRAFTING || type == InventoryType.CREATIVE) {
+            return false;
+        }
+        // A menu keeps the overlay: see OverlayListener.onOpen for why.
+        return !net.exylia.lib.ui.Menus.isMenu(viewer.getOpenInventory().getTopInventory());
     }
 
     /** The overlay a player is wearing, or {@code null}. */
