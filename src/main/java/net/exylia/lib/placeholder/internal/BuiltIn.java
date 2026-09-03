@@ -29,6 +29,24 @@ public final class BuiltIn {
      */
     private static final OperatingSystemMXBean SYSTEM = system();
 
+    /**
+     * How long a processor reading is reused before another is taken.
+     *
+     * <p>Both loads are a delta: the bean subtracts two samples of counters
+     * the kernel moves in hundredths of a second. A sidebar asks for them once
+     * per player per refresh — dozens of times a second on a full server — and
+     * each of those calls spans less time than the counters' own resolution,
+     * so the delta comes back as nothing and the line reads {@code 0%} for the
+     * life of the server. Sampled once a second and shared by every caller,
+     * the delta is over a second, which is what the number is supposed to
+     * mean.
+     */
+    private static final long SAMPLE_NANOS = 1_000_000_000L;
+
+    private static volatile long sampledAt = Long.MIN_VALUE / 2;
+    private static volatile int systemLoad;
+    private static volatile int processLoad;
+
     private BuiltIn() {
     }
 
@@ -66,8 +84,14 @@ public final class BuiltIn {
                 .add("max", request -> Bukkit.getMaxPlayers())
                 .add("tps", request -> round(Bukkit.getTPS()[0]))
                 .add("mspt", request -> millis(Bukkit.getAverageTickTime()))
-                .add("cpu_system", request -> percent(SYSTEM == null ? -1 : SYSTEM.getCpuLoad()))
-                .add("cpu_process", request -> percent(SYSTEM == null ? -1 : SYSTEM.getProcessCpuLoad()))
+                .add("cpu_system", request -> {
+                    sample();
+                    return systemLoad;
+                })
+                .add("cpu_process", request -> {
+                    sample();
+                    return processLoad;
+                })
                 .register();
     }
 
@@ -87,15 +111,34 @@ public final class BuiltIn {
     }
 
     /**
+     * Takes a fresh processor reading, at most once a second.
+     *
+     * <p>Racing callers may both sample; they write the same two numbers, and
+     * a reading taken twice is not worth a lock on the path a scoreboard uses.
+     */
+    private static void sample() {
+        if (SYSTEM == null || System.nanoTime() - sampledAt < SAMPLE_NANOS) {
+            return;
+        }
+        sampledAt = System.nanoTime();
+        systemLoad = percent(systemLoad, SYSTEM.getCpuLoad());
+        processLoad = percent(processLoad, SYSTEM.getProcessCpuLoad());
+    }
+
+    /**
      * A processor load as a whole percentage.
      *
-     * <p>Both loads answer with a negative number when they cannot be read —
-     * no extended bean, or the first call, taken before there are two samples
-     * to compare. Zero is what a sidebar can show; the alternative is a line
-     * reading {@code -1%} for the first second of the server's life.
+     * <p>Both loads answer with a negative number, or with no number at all,
+     * when they cannot be read — no extended bean, or a reading taken before
+     * there are two samples to compare. The previous answer is kept rather
+     * than shown as zero: a load that cannot be read for one second is not a
+     * server that stopped working.
+     *
+     * @param previous what the last readable sample said
+     * @param load     the load, between zero and one, or negative when unknown
      */
-    private static int percent(double load) {
-        return load < 0 ? 0 : (int) Math.round(load * 100.0);
+    private static int percent(int previous, double load) {
+        return load < 0 || Double.isNaN(load) ? previous : (int) Math.round(load * 100.0);
     }
 
     /** The extended bean where the JVM has one, {@code null} where it does not. */
