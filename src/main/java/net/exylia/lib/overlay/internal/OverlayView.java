@@ -300,7 +300,24 @@ public final class OverlayView {
         suspended = false;
         drawn.clear();
         live.clear();
-        Tasks.of(plugin).runAtEntity(viewer, this::draw);
+        Tasks.of(plugin).runAtEntity(viewer, () -> {
+            if (closed || suspended) {
+                return;
+            }
+            draw();
+            // The restatement is the other half of the redraw, not a
+            // precaution. A slot the overlay owns but draws nothing in is
+            // recorded as absent, and a redraw that finds it absent and
+            // renders nothing sends no packet — correctly, because normally
+            // the client is already showing nothing there. While the window
+            // was open the client was shown the real inventory instead, so
+            // "nothing" is exactly what it is no longer showing, and those
+            // slots would keep the player's own items on screen underneath a
+            // hotbar of staff tools. Asking the server to restate the window
+            // sends every slot again, and the outbound half of the module
+            // blanks the owned ones on the way past.
+            viewer.updateInventory();
+        });
     }
 
     // ------------------------------------------------------------------
