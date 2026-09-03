@@ -4,6 +4,7 @@ import com.github.retrooper.packetevents.PacketEvents;
 import com.github.retrooper.packetevents.protocol.particle.Particle;
 import com.github.retrooper.packetevents.protocol.particle.type.ParticleType;
 import com.github.retrooper.packetevents.protocol.particle.type.ParticleTypes;
+import com.github.retrooper.packetevents.protocol.player.ClientVersion;
 import com.github.retrooper.packetevents.protocol.sound.SoundCategory;
 import com.github.retrooper.packetevents.protocol.sound.Sounds;
 import com.github.retrooper.packetevents.util.Vector3d;
@@ -50,6 +51,29 @@ final class PacketSender {
 
     private static void send(Player player, PacketWrapper<?> packet) {
         PacketEvents.getAPI().getPlayerManager().sendPacket(player, packet);
+    }
+
+    /**
+     * Returns whether PacketEvents knows how to write packets for this client.
+     *
+     * <p>A client newer than the installed PacketEvents still joins through
+     * ViaVersion, but a wrapper written for it uses the newest layout
+     * PacketEvents knows, skips Via's translation, and the client cannot decode
+     * it: a sound packet a few bytes short disconnects the player mid-game.
+     * Those clients get the Bukkit API, which the server encodes itself.
+     */
+    private static boolean writable(Player player) {
+        ClientVersion version;
+        try {
+            version = PacketEvents.getAPI().getPlayerManager().getClientVersion(player);
+        } catch (RuntimeException unknown) {
+            return false;
+        }
+        return version != null
+                && version != ClientVersion.UNKNOWN
+                && version != ClientVersion.LOWER_THAN_SUPPORTED_VERSIONS
+                && version != ClientVersion.HIGHER_THAN_SUPPORTED_VERSIONS
+                && !version.isNewerThan(ClientVersion.getLatest());
     }
 
     // ------------------------------------------------------------------
@@ -124,6 +148,9 @@ final class PacketSender {
     static boolean particle(Player player, String name, double x, double y, double z,
                             float offsetX, float offsetY, float offsetZ,
                             float speed, int count, boolean longDistance) {
+        if (!writable(player)) {
+            return false;
+        }
         ParticleType<?> type = ParticleTypes.getByName(particleKey(name));
         if (type == null) {
             return false;
@@ -152,7 +179,7 @@ final class PacketSender {
 
     static boolean sound(Player player, String name, String category,
                          double x, double y, double z, float volume, float pitch) {
-        if (!soundLinks) {
+        if (!soundLinks || !writable(player)) {
             return false;
         }
         var sound = Sounds.getByName(soundKey(name));
