@@ -311,7 +311,7 @@ public final class Shapes {
 
     private static List<Vector> vortex(Shape.ShapeArgs args) {
         double radius = args.number("radius", 2.0);
-        int turns = args.count("turns", 3);
+        double turns = args.number("turns", 3);
         int points = args.atLeastOne("points", 60);
 
         double totalAngle = turns * 2.0 * Math.PI;
@@ -375,7 +375,7 @@ public final class Shapes {
 
     private static List<Vector> galaxy(Shape.ShapeArgs args) {
         double radius = args.number("radius", 2.5);
-        int turns = args.count("turns", 2);
+        double turns = args.number("turns", 2);
         int arms = args.atLeastOne("arms", 2);
         int points = args.atLeastOne("points", 50);
 
@@ -459,7 +459,7 @@ public final class Shapes {
     private static List<Vector> spiral(Shape.ShapeArgs args) {
         double height = args.number("height", 3.0);
         double radius = args.number("radius", 1.0);
-        int turns = args.count("turns", 2);
+        double turns = args.number("turns", 2);
         int points = args.atLeastOne("points", 40);
 
         double angleStep = turns * 2.0 * Math.PI / points;
@@ -476,7 +476,7 @@ public final class Shapes {
     private static List<Vector> doubleHelix(Shape.ShapeArgs args) {
         double height = args.number("height", 3.0);
         double radius = args.number("radius", 1.0);
-        int turns = args.count("turns", 2);
+        double turns = args.number("turns", 2);
         int points = args.atLeastOne("points", 40);
         // New: commons hardcoded two strands half a turn apart. A triple helix
         // is the same maths with a different divisor.
@@ -502,7 +502,7 @@ public final class Shapes {
         double height = args.number("height", 4.0);
         double baseRadius = args.number("radius", 1.5);
         double topRadius = args.number("top_radius", 0.2);
-        int turns = args.count("turns", 3);
+        double turns = args.number("turns", 3);
         int points = args.atLeastOne("points", 60);
 
         double angleStep = turns * 2.0 * Math.PI / points;
@@ -568,7 +568,7 @@ public final class Shapes {
     private static List<Vector> wave(Shape.ShapeArgs args) {
         double length = args.number("length", 5.0);
         double amplitude = args.number("amplitude", 1.0);
-        int frequency = args.count("frequency", 2);
+        double frequency = args.number("frequency", 2);
         int arms = args.atLeastOne("arms", 1);
         double angle = args.radians("angle", 0);
         int points = args.atLeastOne("points", 40);

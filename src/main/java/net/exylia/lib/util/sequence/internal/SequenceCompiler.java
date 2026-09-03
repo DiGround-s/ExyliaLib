@@ -184,9 +184,6 @@ public final class SequenceCompiler {
             points = moved;
         }
 
-        Color colour = args.colour("color", null, onArg);
-        float size = (float) args.number("size", 1.0, onArg);
-        int count = args.count("count", 1, onArg);
         int ticks = args.count("ticks", 1, onArg);
         double interval = args.number("interval", 0.05, onArg);
         boolean faceSource = args.flag("face", false);
@@ -203,6 +200,13 @@ public final class SequenceCompiler {
         }
 
         args.reportUnknown(onArg, merge(Shapes.parametersOf(token), SHARED));
+
+        // Read only once the line is known to draw particles: on a display line
+        // size: is a scale of three numbers, and reading it as one here warned
+        // about every well-formed "size:3,0.2,3" in the ecosystem.
+        Color colour = args.colour("color", null, onArg);
+        float size = (float) args.number("size", 1.0, onArg);
+        int count = args.count("count", 1, onArg);
 
         Object data = ParticlePaint.dataFor(particle, colour, size, null);
         return ShapeStep.of(ParticlePaint.point(particle, data, count), points, ticks,
