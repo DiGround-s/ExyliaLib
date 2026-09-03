@@ -3,6 +3,7 @@ package net.exylia.lib.effect;
 import net.exylia.lib.effect.internal.ActionBarBuilder;
 import net.exylia.lib.effect.internal.BossBarBuilder;
 import net.exylia.lib.effect.internal.TitleBuilder;
+import net.exylia.lib.text.Text;
 import org.bukkit.plugin.Plugin;
 import org.jetbrains.annotations.NotNull;
 
@@ -41,6 +42,11 @@ public final class PluginEffects {
 
     /** An action bar bound to this plugin. */
     public @NotNull ActionBarBuilder actionBar(@NotNull String text) {
+        return Effects.actionBar(text).ownedBy(plugin.getName());
+    }
+
+    /** An action bar with its values in it, bound to this plugin. */
+    public @NotNull ActionBarBuilder actionBar(@NotNull Text text) {
         return Effects.actionBar(text).ownedBy(plugin.getName());
     }
 

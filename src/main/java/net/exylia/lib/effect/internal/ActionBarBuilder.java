@@ -2,6 +2,7 @@ package net.exylia.lib.effect.internal;
 
 import net.exylia.lib.effect.Display;
 import net.exylia.lib.effect.Timer;
+import net.exylia.lib.text.Text;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 import org.jetbrains.annotations.NotNull;
@@ -33,6 +34,8 @@ public final class ActionBarBuilder {
     private static final long KEEPALIVE_TICKS = 40;
 
     private final String text;
+    /** The text with its values, when the caller substituted before showing. */
+    private final Text rich;
     private String timeStyle = "";
     private Timer timer;
     private long period = KEEPALIVE_TICKS;
@@ -43,6 +46,12 @@ public final class ActionBarBuilder {
 
     public ActionBarBuilder(String text) {
         this.text = text;
+        this.rich = null;
+    }
+
+    public ActionBarBuilder(Text text) {
+        this.text = text.raw();
+        this.rich = text;
     }
 
     /**
@@ -146,7 +155,8 @@ public final class ActionBarBuilder {
 
     public @NotNull Display show(@NotNull Player viewer) {
         Display display = new Displays.ActionBarDisplay(viewer,
-                new Rendered(text, timeStyle), timer, period, owner).start();
+                rich != null ? new Rendered(rich, timeStyle) : new Rendered(text, timeStyle),
+                timer, period, owner).start();
         if (onEnd != null) {
             display.onEnd(onEnd);
         }

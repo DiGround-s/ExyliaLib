@@ -85,6 +85,21 @@ class DisplayTextTest {
     }
 
     @Test
+    @DisplayName("a bar shown from a Text starts with its values in place")
+    void shownFromTextStartsWithValues() {
+        TextEngine.invalidate();
+        for (int health = 20; health > 0; health--) {
+            Effects.actionBar(Text.of("{primary}Vida: %hp%").with("%hp%", health))
+                    .permanent().show(viewer.player());
+            FakeServer.tick(1);
+        }
+
+        assertEquals("Vida: 20", viewer.actionBars().get(0));
+        assertEquals("Vida: 1", viewer.actionBars().get(viewer.actionBars().size() - 1));
+        assertTrue(TextEngine.cacheSize() <= 1, "one template, one entry: " + TextEngine.cacheSize());
+    }
+
+    @Test
     @DisplayName("a substituted string, pushed as a string, costs a parse per value")
     void plainStringsMissTheCache() {
         // The shape the profile caught, kept as the contrast the fix is measured

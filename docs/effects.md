@@ -53,7 +53,8 @@ and `%time%` displays it as `3.3`. `%time%` belongs to the effect, never to
 the global registry: two countdowns on screen must not show the same number.
 `timeStyle` is a `TimeFormats` style name (`auto`, `tenths`, `clock`, ...).
 
-Programmatic builders also exist: `Effects.title(text)`, `.actionBar(text)`,
+Programmatic builders also exist: `Effects.title(text)`, `.actionBar(text)`
+(also `.actionBar(Text)` for values substituted before showing),
 `.bossBar(text)`, `.particle(name)`, `.sound(name)`, `.firework()`.
 
 ## A whole effect on one config line

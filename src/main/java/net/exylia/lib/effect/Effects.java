@@ -7,6 +7,7 @@ import net.exylia.lib.effect.internal.FireworkBuilder;
 import net.exylia.lib.effect.internal.ParticleBuilder;
 import net.exylia.lib.effect.internal.SoundBuilder;
 import net.exylia.lib.effect.internal.TitleBuilder;
+import net.exylia.lib.text.Text;
 import org.bukkit.plugin.Plugin;
 import org.jetbrains.annotations.NotNull;
 
@@ -124,6 +125,20 @@ public final class Effects {
      * @return a builder
      */
     public static @NotNull ActionBarBuilder actionBar(@NotNull String text) {
+        return new ActionBarBuilder(text);
+    }
+
+    /**
+     * Starts an action bar from text with its values already in it.
+     *
+     * <p>For a bar whose numbers are known before it is shown: the values are
+     * substituted after the parse, so the template is what gets cached and a
+     * bar shown a thousand times with a thousand values parses once.
+     *
+     * @param text the text with its values
+     * @return a builder
+     */
+    public static @NotNull ActionBarBuilder actionBar(@NotNull Text text) {
         return new ActionBarBuilder(text);
     }
 
