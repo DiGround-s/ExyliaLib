@@ -16,15 +16,6 @@ import org.bukkit.entity.Player;
  */
 public final class ClientProtocol {
 
-    /**
-     * 1.21.11, where the player metadata layout last shifted.
-     *
-     * <p>That release lifted skin layers and main hand out of the player into a
-     * shared avatar class (mannequins arrived with it), and the two indices that
-     * used to sit above them, absorption and score, moved below.
-     */
-    public static final int V_1_21_11 = 774;
-
     private ClientProtocol() {
     }
 

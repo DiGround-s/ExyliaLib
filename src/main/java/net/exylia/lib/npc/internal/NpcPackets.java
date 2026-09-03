@@ -30,7 +30,6 @@ import io.github.retrooper.packetevents.util.SpigotConversionUtil;
 import io.github.retrooper.packetevents.util.SpigotReflectionUtil;
 import net.exylia.lib.npc.NpcModel;
 import net.exylia.lib.npc.NpcPose;
-import net.exylia.lib.util.internal.ClientProtocol;
 import net.kyori.adventure.text.Component;
 import org.bukkit.Location;
 import org.bukkit.entity.Player;
@@ -83,9 +82,10 @@ final class NpcPackets implements NpcSink {
      * that is handed a byte for a float disconnects with a packet handling error
      * rather than ignoring it.
      *
-     * <p>It is the viewer's version that decides, not the server's: PacketEvents
-     * writes after ViaVersion has had its say, so an older client on a newer
-     * server receives our indices untranslated.
+     * <p>It is the server's version that decides, not the viewer's: PacketEvents
+     * writes clientbound packets in the server's format and ViaVersion translates
+     * them for older clients afterwards, remapping indices along the way. An
+     * index chosen for the viewer is translated a second time and lands wrong.
      */
     private static final int SKIN_LAYERS_AVATAR = 16;
     private static final int SKIN_LAYERS_LEGACY = 17;
@@ -127,13 +127,14 @@ final class NpcPackets implements NpcSink {
                 entityId, Optional.of(model.id()), EntityTypes.PLAYER,
                 new Vector3d(at.getX(), at.getY(), at.getZ()),
                 at.getPitch(), at.getYaw(), at.getYaw(), 0, Optional.empty());
+        PacketWrapper<?> state = new WrapperPlayServerEntityMetadata(entityId, fullState(model));
         PacketWrapper<?> head = new WrapperPlayServerEntityHeadLook(entityId, at.getYaw());
         List<Equipment> kit = kitOf(model);
         PacketWrapper<?> size = sizeOf(entityId, model);
 
         for (Player viewer : viewers) {
             send(viewer, body);
-            send(viewer, new WrapperPlayServerEntityMetadata(entityId, fullState(model, viewer)));
+            send(viewer, state);
             send(viewer, head);
             if (size != null) {
                 send(viewer, size);
@@ -259,21 +260,22 @@ final class NpcPackets implements NpcSink {
         return profile;
     }
 
-    private static List<EntityData<?>> fullState(NpcModel model, Player viewer) {
+    private static List<EntityData<?>> fullState(NpcModel model) {
         List<EntityData<?>> data = new ArrayList<>(3);
         if (model.glowArgb() >= 0) {
             data.add(new EntityData<>(ENTITY_FLAGS, EntityDataTypes.BYTE, FLAG_GLOWING));
         }
-        data.add(new EntityData<>(skinLayersIndex(viewer), EntityDataTypes.BYTE, ALL_LAYERS));
+        data.add(new EntityData<>(skinLayersIndex(), EntityDataTypes.BYTE, ALL_LAYERS));
         if (model.pose() != NpcPose.STANDING) {
             data.add(new EntityData<>(POSE, EntityDataTypes.ENTITY_POSE, poseOf(model.pose())));
         }
         return data;
     }
 
-    /** Where this viewer's client keeps the skin layer mask. */
-    private static int skinLayersIndex(Player viewer) {
-        return ClientProtocol.of(viewer) >= ClientProtocol.V_1_21_11
+    /** Where this server keeps the skin layer mask. */
+    private static int skinLayersIndex() {
+        return PacketEvents.getAPI().getServerManager().getVersion()
+                .isNewerThanOrEquals(ServerVersion.V_1_21_11)
                 ? SKIN_LAYERS_AVATAR : SKIN_LAYERS_LEGACY;
     }
 
