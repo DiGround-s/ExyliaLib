@@ -26,6 +26,8 @@ Chats.rule(this, (listener, speaker) -> {
 | `rule(plugin, rule)` | registers this plugin's rule, replacing its previous one |
 | `clear(plugin)` | drops this plugin's rule |
 | `canHear(listener, speaker)` | the answer every rule agrees on, for text a plugin delivers itself |
+| `bypass(player, bypass)` | puts a player above every rule, or back under them |
+| `bypassing(uuid)` | whether they are above the rules right now |
 
 `ChatRule` is a functional interface: `boolean canHear(Player listener, Player
 speaker)`.
@@ -43,6 +45,12 @@ speaker)`.
   separate answers, which is what lets a spectator read the players of a match
   while the players read nothing back.
 - **A speaker always reads themselves.** Rules are never asked about that.
+- **A bypass is the only way past a no.** Since rules agree with AND, no rule
+  can undo another plugin's refusal; `Chats.bypass` takes the player out of the
+  question instead. They read every message and every message of theirs is read,
+  in both directions. Staff reading an isolated chat is what it is for. It lasts
+  while the player is online — a quit drops it, and so does a restart — so a
+  plugin that wants it remembered stores it and sets it again on join.
 - **Nothing is remembered between messages.** A rule is asked while the message
   is being delivered, so a player who joins an event mid-sentence is already
   inside it for the next line.
@@ -86,4 +94,5 @@ Nothing derived from the palette is cached here, so the module has no
 
 - Public: `chat/Chats.java`, `chat/ChatRule.java`.
 - Internal: `chat/internal/ChatRuntime.java` (the rules and their AND),
-  `chat/internal/ChatListener.java` (the two chat events).
+  `chat/internal/ChatListener.java` (the two chat events and the quit that
+  drops a bypass).

@@ -82,6 +82,24 @@ class ChatsTest {
     }
 
     @Test
+    @DisplayName("a bypass reads past a no, in both directions")
+    void bypassReadsPastEveryRule() {
+        Chats.rule(events, (listener, speaker) -> false);
+        Chats.rule(ffa, (listener, speaker) -> false);
+        assertFalse(Chats.canHear(alice, bob));
+
+        Chats.bypass(alice, true);
+        assertTrue(Chats.bypassing(alice.getUniqueId()));
+        assertTrue(Chats.canHear(alice, bob));
+        assertTrue(Chats.canHear(bob, alice));
+
+        Chats.bypass(alice, false);
+        assertFalse(Chats.bypassing(alice.getUniqueId()));
+        assertFalse(Chats.canHear(alice, bob));
+        assertFalse(Chats.canHear(bob, alice));
+    }
+
+    @Test
     @DisplayName("a disabled plugin stops having a say")
     void releaseDropsTheRule() {
         Chats.rule(events, (listener, speaker) -> false);

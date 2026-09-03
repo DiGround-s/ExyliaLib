@@ -7,6 +7,7 @@ import org.bukkit.plugin.Plugin;
 
 import java.util.Map;
 import java.util.Set;
+import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
@@ -23,6 +24,8 @@ public final class ChatRuntime {
     private static final Map<String, ChatRule> RULES = new ConcurrentHashMap<>();
     /** Plugins whose rule threw, so a broken rule is reported once. */
     private static final Set<String> BROKEN = ConcurrentHashMap.newKeySet();
+    /** Players no rule is asked about, in either direction. */
+    private static final Set<UUID> BYPASS = ConcurrentHashMap.newKeySet();
 
     private static volatile Plugin lib;
 
@@ -47,6 +50,19 @@ public final class ChatRuntime {
     public static void shutdown() {
         RULES.clear();
         BROKEN.clear();
+        BYPASS.clear();
+    }
+
+    public static void bypass(UUID uuid, boolean bypass) {
+        if (bypass) {
+            BYPASS.add(uuid);
+        } else {
+            BYPASS.remove(uuid);
+        }
+    }
+
+    public static boolean bypassing(UUID uuid) {
+        return BYPASS.contains(uuid);
     }
 
     /** Whether any plugin has a say at all, so an untouched server pays nothing. */
@@ -63,6 +79,12 @@ public final class ChatRuntime {
      */
     public static boolean canHear(Player listener, Player speaker) {
         if (listener.equals(speaker)) {
+            return true;
+        }
+        // Asked before the rules rather than added to them: rules are combined
+        // with AND, so no rule of its own could ever undo another plugin's no.
+        if (!BYPASS.isEmpty()
+                && (BYPASS.contains(listener.getUniqueId()) || BYPASS.contains(speaker.getUniqueId()))) {
             return true;
         }
         for (Map.Entry<String, ChatRule> entry : RULES.entrySet()) {

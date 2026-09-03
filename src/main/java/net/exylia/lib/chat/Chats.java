@@ -5,6 +5,8 @@ import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
 import org.jetbrains.annotations.NotNull;
 
+import java.util.UUID;
+
 /**
  * Entry point of the chat module: who reads whose messages.
  *
@@ -24,6 +26,13 @@ import org.jetbrains.annotations.NotNull;
  * only when no plugin objects. One plugin per rule — registering again
  * replaces that plugin's rule — and a plugin's rule is dropped when it is
  * disabled.
+ *
+ * <h2>One player above the rules</h2>
+ * {@link #bypass} takes a player out of the question entirely: they read every
+ * message and every message of theirs is read, whatever any rule says. It is
+ * the only way past a no, because rules agree with AND and a rule of one's own
+ * can never undo another plugin's refusal. Staff reading an isolated chat is
+ * what it is for.
  *
  * <h2>What is needed</h2>
  * A chat plugin that lets the server deliver the message, which is what Paper's
@@ -80,6 +89,33 @@ public final class Chats {
      */
     public static boolean canHear(@NotNull Player listener, @NotNull Player speaker) {
         return ChatRuntime.canHear(listener, speaker);
+    }
+
+    /**
+     * Puts a player above every rule, or back under them.
+     *
+     * <p>While bypassing, the player reads whatever anybody says and whatever
+     * they say is read by everybody. Nothing is remembered across a restart,
+     * and a player who quits is dropped: a plugin that wants this to survive
+     * stores it itself and sets it again on join.
+     *
+     * @param player the player
+     * @param bypass whether the rules stop applying to them
+     * @since 1.96.0
+     */
+    public static void bypass(@NotNull Player player, boolean bypass) {
+        ChatRuntime.bypass(player.getUniqueId(), bypass);
+    }
+
+    /**
+     * Returns whether this player is currently above every rule.
+     *
+     * @param uuid the player
+     * @return {@code true} while they read, and are read by, everyone
+     * @since 1.96.0
+     */
+    public static boolean bypassing(@NotNull UUID uuid) {
+        return ChatRuntime.bypassing(uuid);
     }
 
     /** Drops one plugin's rule. Called when the plugin disables. */

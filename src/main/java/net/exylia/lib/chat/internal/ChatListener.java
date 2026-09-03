@@ -7,6 +7,7 @@ import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.player.AsyncPlayerChatEvent;
+import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.plugin.Plugin;
 
 /**
@@ -53,6 +54,12 @@ public final class ChatListener implements Listener {
         Player speaker = event.getPlayer();
         remove(() -> event.getRecipients().removeIf(listener ->
                 !ChatRuntime.canHear(listener, speaker)));
+    }
+
+    /** A bypass lasts as long as the player is here; nothing outlives a quit. */
+    @EventHandler
+    public void onQuit(PlayerQuitEvent event) {
+        ChatRuntime.bypass(event.getPlayer().getUniqueId(), false);
     }
 
     /**
