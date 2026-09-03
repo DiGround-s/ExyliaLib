@@ -164,6 +164,7 @@ Every request completes with exactly one of these.
 | `NO_SAFE_LOCATION` | A safe spot was asked for and the search found none. |
 | `WORLD_NOT_FOUND` | The destination's world is not loaded here. |
 | `CROSS_SERVER_UNAVAILABLE` | The destination is on another server and there is no way to send them. |
+| `TARGET_NOT_FOUND` | The player to reach is on no server of the network. Without Redis, anybody not on this server. |
 | `NOTHING_TO_GO_BACK_TO` | They asked to go back and nothing is recorded. |
 | `FAILED` | Something else; the console says what. |
 
@@ -545,6 +546,51 @@ An absent key is the normal case for every ordinary join, so it does exactly
 nothing: no log line, no task, no move. A world the other server named and this
 one does not have is reported and moves nobody. A Redis that will not answer
 costs the handover and nothing else.
+
+### Reaching a player, wherever they are
+
+```java
+teleports.toPlayer(staff, report.target())
+        .then(result -> {
+            if (result == TeleportResult.TARGET_NOT_FOUND) {
+                Msg.send(staff, messages.offline());
+            }
+        })
+        .start();
+```
+
+A staff member answering a report knows who, not where. `toPlayer(player, UUID)`
+is a plain local teleport when the target is on this server, and a handover
+carrying `TeleportCause.CROSS_SERVER` when they are elsewhere. Which server is
+read when the request starts, and what is queued is `player:<uuid>` rather than
+a place — the arriving server finds them itself, so nothing holds a location
+that would be stale by the time anybody got there. A target the network does
+not know completes `TARGET_NOT_FOUND`, and on a server with no Redis that is
+the answer for anybody not here. A target who arrived *here* during the
+countdown is moved locally rather than handed to ourselves.
+
+| Method | |
+| --- | --- |
+| `toPlayer(Player, UUID)` | A request to wherever that player is. |
+| `bring(Player to, UUID target, String targetName)` | The reverse — `/tphere` across a network. The destination is queued under the *target's* id and the proxy pulls them with `ConnectOther`, sent through the player they are pulled to. No countdown, no cooldown: the person moved never asked. Call from the puller's thread. |
+| `serverOf(UUID)` | `CompletableFuture<Optional<String>>` — this server's own `server-id` when they are here, answered without Redis; the network's answer otherwise; empty for nobody. |
+
+### The presence map
+
+The library keeps one entry per online player, `<prefix>:players:<uuid>` →
+`server-id`, written by its own join listener, renewed every 30 seconds by a
+heartbeat, withdrawn on quit and expiring 90 seconds after the last renewal.
+The expiry is what makes a crashed server harmless: its players fall off the
+map on their own instead of sending staff to a server that died a minute ago.
+
+A quit withdraws the entry **only if it still names this server**. A proxy
+connects the player to the next server before it disconnects them from this
+one, so the other server's write may already be there, and deleting blindly
+would erase it. Read, compare, delete is not atomic; the window is one round
+trip on a server the player just left, and the next heartbeat corrects it.
+
+The heartbeat starts on the first join a Redis is there for. A server that never
+configures one never runs a timer for it.
 
 ## Settings
 

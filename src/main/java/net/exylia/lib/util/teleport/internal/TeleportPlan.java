@@ -15,6 +15,7 @@ import org.jetbrains.annotations.ApiStatus;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+import java.util.UUID;
 import java.util.function.Consumer;
 import java.util.function.DoubleConsumer;
 
@@ -64,6 +65,7 @@ public record TeleportPlan(
         @Nullable Location destination,
         @Nullable RandomArea random,
         @Nullable ExyliaLocation crossServer,
+        @Nullable UUID follow,
         @NotNull TeleportCause cause,
         @NotNull TaskScheduler tasks,
         @NotNull Debug debug,

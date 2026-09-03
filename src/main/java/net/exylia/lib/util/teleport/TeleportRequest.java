@@ -15,6 +15,7 @@ import org.jetbrains.annotations.Nullable;
 
 import java.time.Duration;
 import java.util.Objects;
+import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Consumer;
 import java.util.function.DoubleConsumer;
@@ -77,6 +78,7 @@ public final class TeleportRequest {
      */
     private @Nullable RandomArea random;
     private @Nullable ExyliaLocation crossServer;
+    private @Nullable UUID follow;
 
     /**
      * The module's own answer to how this ended.
@@ -129,6 +131,12 @@ public final class TeleportRequest {
     /** Aims this request at a place on another server. */
     @NotNull TeleportRequest handingOverTo(@NotNull ExyliaLocation elsewhere) {
         this.crossServer = Objects.requireNonNull(elsewhere, "elsewhere");
+        return this;
+    }
+
+    /** Aims this request at wherever a player is on the network, once the countdown ends. */
+    @NotNull TeleportRequest following(@NotNull UUID target) {
+        this.follow = Objects.requireNonNull(target, "target");
         return this;
     }
 
@@ -325,7 +333,8 @@ public final class TeleportRequest {
      * @return the running teleport, which may already be finished
      */
     public @NotNull TeleportHandle start() {
-        if (failure != null || (destination == null && random == null && crossServer == null)) {
+        if (failure != null || (destination == null && random == null && crossServer == null
+                && follow == null)) {
             // The request was built from something unusable — an unparseable
             // stored string, or nowhere recorded to go back to. Reported when it
             // was built; answered here.
@@ -340,7 +349,7 @@ public final class TeleportRequest {
                     bookkeeping, then, debug);
         }
 
-        TeleportPlan plan = new TeleportPlan(plugin, player, destination, random, crossServer,
+        TeleportPlan plan = new TeleportPlan(plugin, player, destination, random, crossServer, follow,
                 cause, tasks, debug, settings,
                 Ticks.fromSeconds(warmupSeconds), cancelOnMove, cancelOnDamage, safe,
                 settings.safeSearchRadius(), settings.safeMaxAttempts(),

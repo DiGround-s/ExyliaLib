@@ -6,7 +6,9 @@ import net.exylia.lib.task.Tasks;
 import net.exylia.lib.util.teleport.internal.BackHistory;
 import net.exylia.lib.util.teleport.internal.CrossServer;
 import net.exylia.lib.util.teleport.internal.TeleportRuntime;
+import net.exylia.lib.util.teleport.internal.Teleporter;
 import net.exylia.lib.util.teleport.internal.TpaBook;
+import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
@@ -18,6 +20,7 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 
 /**
@@ -142,6 +145,96 @@ public final class PluginTeleports {
                     TeleportResult.WORLD_NOT_FOUND, settings);
         }
         return new TeleportRequest(plugin, tasks, debug, player, live, null, settings);
+    }
+
+    /**
+     * Describes a teleport to wherever a player is, on any server of the network.
+     *
+     * <pre>{@code
+     * teleports.toPlayer(staff, report.target())
+     *         .then(result -> {
+     *             if (result == TeleportResult.TARGET_NOT_FOUND) {
+     *                 Msg.send(staff, messages.offline());
+     *             }
+     *         })
+     *         .start();
+     * }</pre>
+     *
+     * <p>A target on this server is a plain local teleport to where they are
+     * standing. One elsewhere becomes a handover carrying
+     * {@link TeleportCause#CROSS_SERVER}: which server is read from the
+     * network's presence map when the request starts, and the arriving server
+     * finds the target itself, so nothing here holds a location that would be
+     * stale by the time anybody got there. A target on no server completes
+     * {@link TeleportResult#TARGET_NOT_FOUND} — and on a server with no Redis
+     * that is the answer for anybody not here.
+     *
+     * @param player who to move
+     * @param target who to reach
+     * @return the request to describe and start
+     * @since 1.98.0
+     */
+    public @NotNull TeleportRequest toPlayer(@NotNull Player player, @NotNull UUID target) {
+        Player here = Bukkit.getPlayer(target);
+        if (here != null) {
+            return to(player, here.getLocation());
+        }
+        if (!CrossServer.isAvailable(plugin)) {
+            return new TeleportRequest(plugin, tasks, debug, player, null,
+                    TeleportResult.TARGET_NOT_FOUND, settings);
+        }
+        return new TeleportRequest(plugin, tasks, debug, player, null, null, settings)
+                .cause(TeleportCause.CROSS_SERVER)
+                .following(target);
+    }
+
+    /**
+     * Pulls a player to somebody, from any server of the network.
+     *
+     * <p>The reverse of {@link #toPlayer}: {@code /tphere} across a network.
+     * A target on this server is moved straight away; one elsewhere has the
+     * destination queued under their id and the proxy told to move them,
+     * through the player they are pulled to. There is no countdown and no
+     * cooldown — the person being moved never asked for it.
+     *
+     * <p><b>Threading:</b> call from the puller's own thread; their location is
+     * read here.
+     *
+     * @param to         who the target is pulled to
+     * @param target     who is pulled
+     * @param targetName their name, which is what the proxy knows them by
+     * @return how it ended; {@link TeleportResult#SUCCESS} for a handover means
+     *         the proxy was told, and the destination server answers for the
+     *         arrival
+     * @since 1.98.0
+     */
+    public @NotNull CompletableFuture<TeleportResult> bring(@NotNull Player to, @NotNull UUID target,
+                                                            @NotNull String targetName) {
+        Player here = Bukkit.getPlayer(target);
+        if (here != null) {
+            return Teleporter.teleport(plugin, here, to.getLocation(), TeleportCause.PLUGIN,
+                    tasks, debug, settings.backHistorySize());
+        }
+        if (!CrossServer.isAvailable(plugin)) {
+            return CompletableFuture.completedFuture(TeleportResult.TARGET_NOT_FOUND);
+        }
+        return CrossServer.bring(plugin, to, target, targetName, settings);
+    }
+
+    /**
+     * Which server of the network a player is on.
+     *
+     * <p>This server's own name when they are here, answered without asking
+     * Redis; empty for a player the network does not know, and always empty
+     * without Redis. Worth asking before drawing a "teleport" button, and for
+     * a menu row that says where somebody is.
+     *
+     * @param player who to find
+     * @return the server's {@code server-id}, or empty
+     * @since 1.98.0
+     */
+    public @NotNull CompletableFuture<Optional<String>> serverOf(@NotNull UUID player) {
+        return CrossServer.serverOf(plugin, player);
     }
 
     /**

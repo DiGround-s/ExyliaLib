@@ -164,6 +164,7 @@ public final class TeleportRuntime implements Listener {
         }
         ACTIVE.clear();
         OWNERS.clear();
+        CrossServer.stop();
         // Both stores go too. Neither is written to disk, so there is nothing
         // to flush; what they hold is only meaningful while the players it
         // belongs to are on this server.
@@ -185,6 +186,7 @@ public final class TeleportRuntime implements Listener {
         // Server-wide and set by whichever plugin configured itself last, so a
         // test that leaves its own here would decide the next one's arrivals.
         arrivals = new TeleportSettings();
+        CrossServer.stop();
         library = null;
         listening = false;
     }
@@ -263,6 +265,10 @@ public final class TeleportRuntime implements Listener {
         // visit from a person who is not on the server.
         BackHistory.forget(id);
         TpaBook.forget(id);
+        Plugin owner = library;
+        if (owner != null) {
+            CrossServer.withdraw(owner, event.getPlayer());
+        }
     }
 
     /**
@@ -277,6 +283,7 @@ public final class TeleportRuntime implements Listener {
         if (owner == null) {
             return;
         }
+        CrossServer.announce(owner, event.getPlayer());
         CrossServer.claim(owner, event.getPlayer(), arrivals);
     }
 

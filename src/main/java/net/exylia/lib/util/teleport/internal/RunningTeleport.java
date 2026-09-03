@@ -189,7 +189,7 @@ final class RunningTeleport implements TeleportHandle {
             findSomewhereRandom(plan.random());
             return;
         }
-        if (plan.crossServer() != null) {
+        if (plan.crossServer() != null || plan.follow() != null) {
             CrossServer.hand(plan).thenAccept(this::finish);
             return;
         }

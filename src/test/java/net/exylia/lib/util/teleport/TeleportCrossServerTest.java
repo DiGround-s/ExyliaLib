@@ -225,8 +225,8 @@ class TeleportCrossServerTest {
         // One tick is the asynchronous read, and it is the only thing that has
         // happened: the key is claimed straight away and only the move waits.
         FakeServer.tick(1);
-        assertEquals(List.of("get " + keyFor(player), "delete"), journal,
-                "the destination was not claimed on join");
+        assertEquals(List.of("set " + presenceFor(player), "get " + keyFor(player), "delete"),
+                journal, "the destination was not claimed on join");
         assertTrue(player.teleports().isEmpty(),
                 "the player was moved before the client had a chance to load");
 
@@ -270,9 +270,9 @@ class TeleportCrossServerTest {
         join(player);
         FakeServer.tick(20);
 
-        // The normal case for every player on the server, so it costs one
-        // absent read and nothing else: no move, no log, no task.
-        assertEquals(List.of("get " + keyFor(player)), journal);
+        // The normal case for every player on the server, so it costs the
+        // presence write and one absent read, nothing else: no move, no log.
+        assertEquals(List.of("set " + presenceFor(player), "get " + keyFor(player)), journal);
         assertTrue(player.teleports().isEmpty(), "a plain join moved somebody");
     }
 
@@ -312,12 +312,194 @@ class TeleportCrossServerTest {
         assertTrue(player.teleports().isEmpty());
     }
 
+    // ------------------------------------------------------- reaching a player
+
+    /** Where one player's current server is filed. */
+    private static String presenceFor(FakePlayer who) {
+        return "exylia:players:" + who.player().getUniqueId();
+    }
+
+    @Test
+    @DisplayName("reaching a player on another server queues them by id, then tells the proxy")
+    void followingQueuesThePlayerThenConnects() {
+        withRedis("lobby-1");
+        FakePlayer suspect = new FakePlayer("Suspect");
+        redis.set(presenceFor(suspect), "arena-3", 90);
+        journal.clear();
+
+        TeleportHandle handle = teleports.toPlayer(player.player(), suspect.player().getUniqueId()).start();
+        settle();
+
+        assertEquals(TeleportResult.SUCCESS, resultOf(handle));
+        assertEquals(TeleportCause.CROSS_SERVER, handle.cause());
+        assertEquals(List.of("get " + presenceFor(suspect), "set " + keyFor(player)), journal);
+        assertEquals("player:" + suspect.player().getUniqueId(), redis.get(keyFor(player)),
+                "the arriving server must be told who to look for, not a stale place");
+        assertEquals(List.of("BungeeCord"), player.pluginMessages());
+    }
+
+    @Test
+    @DisplayName("a player the network does not know is not found, and nothing is sent")
+    void followingNobodyIsNotFound() {
+        withRedis("lobby-1");
+        FakePlayer gone = new FakePlayer("Gone");
+
+        TeleportHandle handle = teleports.toPlayer(player.player(), gone.player().getUniqueId()).start();
+        settle();
+
+        assertEquals(TeleportResult.TARGET_NOT_FOUND, resultOf(handle));
+        assertTrue(player.pluginMessages().isEmpty());
+        assertNull(redis.get(keyFor(player)));
+    }
+
+    @Test
+    @DisplayName("without Redis anybody not on this server is simply not found")
+    void followingWithoutRedisIsNotFound() {
+        FakePlayer gone = new FakePlayer("Gone");
+
+        TeleportHandle handle = teleports.toPlayer(player.player(), gone.player().getUniqueId()).start();
+        settle();
+
+        assertEquals(TeleportResult.TARGET_NOT_FOUND, resultOf(handle));
+        assertTrue(player.teleports().isEmpty());
+    }
+
+    @Test
+    @DisplayName("a player on this server is a plain local teleport, whatever Redis says")
+    void followingSomebodyHereIsLocal() {
+        withRedis("lobby-1");
+        FakePlayer here = new FakePlayer("Here");
+        here.at(new Location(world, 30, 64, 30));
+        FakeServer.online(player.player(), here.player());
+
+        TeleportHandle handle = teleports.toPlayer(player.player(), here.player().getUniqueId()).start();
+        settle();
+
+        assertEquals(TeleportResult.SUCCESS, resultOf(handle));
+        assertEquals(1, player.teleports().size());
+        assertEquals(30.0, player.teleports().get(0).getX(), 0.001);
+        assertTrue(journal.isEmpty(), "a local teleport asked Redis where they were");
+    }
+
+    @Test
+    @DisplayName("arriving for a player lands next to them")
+    void arrivingForAPlayerLandsNextToThem() {
+        withRedis("arena-3");
+        FakePlayer suspect = new FakePlayer("Suspect");
+        suspect.at(new Location(world, 42, 70, 43));
+        FakeServer.online(player.player(), suspect.player());
+        redis.set(keyFor(player), "player:" + suspect.player().getUniqueId(), 300);
+
+        join(player);
+        FakeServer.tick(16);
+
+        assertEquals(1, player.teleports().size(), "the player never arrived");
+        assertEquals(42.0, player.teleports().get(0).getX(), 0.001);
+        assertNull(redis.get(keyFor(player)));
+    }
+
+    @Test
+    @DisplayName("arriving for a player who already left moves nobody")
+    void arrivingForNobodyMovesNobody() {
+        withRedis("arena-3");
+        redis.set(keyFor(player), "player:" + java.util.UUID.randomUUID(), 300);
+
+        join(player);
+        FakeServer.tick(20);
+
+        assertTrue(player.teleports().isEmpty());
+    }
+
+    @Test
+    @DisplayName("joining records this server as the player's, leaving withdraws it")
+    void joiningAnnouncesAndLeavingWithdraws() {
+        withRedis("lobby-1");
+
+        join(player);
+        FakeServer.tick(1);
+        assertEquals("lobby-1", redis.get(presenceFor(player)));
+
+        // Another server picked them up before this one heard they left: the
+        // proxy connects first and disconnects after. Its entry must survive.
+        redis.set(presenceFor(player), "arena-3", 90);
+        quit(player);
+        FakeServer.tick(1);
+        assertEquals("arena-3", redis.get(presenceFor(player)),
+                "leaving erased another server's claim on the player");
+
+        redis.set(presenceFor(player), "lobby-1", 90);
+        quit(player);
+        FakeServer.tick(1);
+        assertNull(redis.get(presenceFor(player)), "leaving left the entry behind");
+    }
+
+    @Test
+    @DisplayName("asking where a player is answers from this server first, then the network")
+    void serverOfAnswers() {
+        withRedis("lobby-1");
+        FakePlayer away = new FakePlayer("Away");
+        redis.set(presenceFor(away), "arena-3", 90);
+
+        assertEquals(java.util.Optional.of("lobby-1"),
+                teleports.serverOf(player.player().getUniqueId()).join());
+        java.util.concurrent.CompletableFuture<java.util.Optional<String>> asked =
+                teleports.serverOf(away.player().getUniqueId());
+        settle();
+        assertEquals(java.util.Optional.of("arena-3"), asked.join());
+        java.util.concurrent.CompletableFuture<java.util.Optional<String>> nobody =
+                teleports.serverOf(java.util.UUID.randomUUID());
+        settle();
+        assertEquals(java.util.Optional.empty(), nobody.join());
+    }
+
+    @Test
+    @DisplayName("pulling a player from another server queues where to put them, then tells the proxy")
+    void bringingQueuesThenConnectsOther() {
+        withRedis("lobby-1");
+        FakePlayer suspect = new FakePlayer("Suspect");
+        redis.set(presenceFor(suspect), "arena-3", 90);
+        journal.clear();
+
+        java.util.concurrent.CompletableFuture<TeleportResult> pulled =
+                teleports.bring(player.player(), suspect.player().getUniqueId(), "Suspect");
+        settle();
+
+        assertEquals(TeleportResult.SUCCESS, pulled.join());
+        assertEquals(List.of("get " + presenceFor(suspect), "set " + keyFor(suspect)), journal);
+        assertEquals("lobby-1,lobby,10.0,64.0,10.0,0.0,0.0", redis.get(keyFor(suspect)),
+                "the pulled player must arrive where the puller is standing");
+        assertEquals(List.of("BungeeCord"), player.pluginMessages(),
+                "the proxy is told through the puller");
+    }
+
+    @Test
+    @DisplayName("pulling a player the network does not know writes nothing")
+    void bringingNobodyIsNotFound() {
+        withRedis("lobby-1");
+        journal.clear();
+
+        java.util.concurrent.CompletableFuture<TeleportResult> pulled =
+                teleports.bring(player.player(), java.util.UUID.randomUUID(), "Gone");
+        settle();
+
+        assertEquals(TeleportResult.TARGET_NOT_FOUND, pulled.join());
+        assertEquals(1, journal.size(), "a player nobody has was still queued somewhere");
+        assertTrue(player.pluginMessages().isEmpty());
+    }
+
     // ---------------------------------------------------------------- helpers
 
     /** What the server sends when a player joins. */
     private void join(FakePlayer who) {
         FakeServer.dispatch(new org.bukkit.event.player.PlayerJoinEvent(
                 who.player(), net.kyori.adventure.text.Component.empty()));
+    }
+
+    /** What the server sends when a player leaves. */
+    private void quit(FakePlayer who) {
+        FakeServer.dispatch(new org.bukkit.event.player.PlayerQuitEvent(
+                who.player(), net.kyori.adventure.text.Component.empty(),
+                org.bukkit.event.player.PlayerQuitEvent.QuitReason.DISCONNECTED));
     }
 
     private static TeleportResult resultOf(TeleportHandle handle) {

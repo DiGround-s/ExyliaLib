@@ -44,6 +44,17 @@ public enum TeleportResult {
     CROSS_SERVER_UNAVAILABLE,
 
     /**
+     * The player to reach is on no server of the network.
+     *
+     * <p>Answered by {@link PluginTeleports#toPlayer} and
+     * {@link PluginTeleports#bring}: they left, or they were never on. On a
+     * server with no Redis it is the answer for anybody not on this server.
+     *
+     * @since 1.98.0
+     */
+    TARGET_NOT_FOUND,
+
+    /**
      * The player asked to go back and there is nowhere recorded.
      *
      * <p>Neither a success nor a cancellation: nobody called it off and nothing
