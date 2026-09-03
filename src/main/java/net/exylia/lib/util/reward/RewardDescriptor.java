@@ -38,6 +38,7 @@ public final class RewardDescriptor implements EditorDescriptor<RewardEntry> {
     public static final String TYPE_KEY = "exylia:rewards";
 
     private static final FormKey<String> NAME = FormKey.text("name");
+    private static final FormKey<Boolean> ICON = FormKey.flag("icon");
     private static final FormKey<String> PAYLOAD = FormKey.text("payload");
     private static final FormKey<String> CURRENCY = FormKey.text("currency");
     private static final FormKey<Long> MINIMUM = FormKey.integer("minimum");
@@ -178,7 +179,9 @@ public final class RewardDescriptor implements EditorDescriptor<RewardEntry> {
 
     private CompletionStage<Optional<RewardEntry>> form(Player viewer, RewardEntry entry) {
         EditorForm form = EditorForm.of(plugin, viewer, "{primary}&lEDIT REWARD")
-                .text(NAME, "Display name", entry.name(), 2);
+                .text(NAME, "Display name", entry.name(), 2)
+                .flag(ICON, "Change the icon", false)
+                .hint(iconHint(entry));
 
         boolean payload = entry.type() != RewardType.ITEM;
         if (payload) {
@@ -203,7 +206,43 @@ public final class RewardDescriptor implements EditorDescriptor<RewardEntry> {
         boolean withPayload = payload;
         boolean withAmounts = counted;
         boolean withCurrency = entry.type() == RewardType.ECONOMY;
-        return form.ask(values -> rebuild(entry, values, withPayload, withAmounts, withCurrency));
+        return form.<Draft>ask(values -> new Draft(
+                        rebuild(entry, values, withPayload, withAmounts, withCurrency),
+                        values.getBoolean(ICON)))
+                .thenCompose(draft -> draft.isEmpty()
+                        ? CompletableFuture.completedFuture(Optional.<RewardEntry>empty())
+                        : draft.get().pick()
+                                ? pickIcon(viewer, draft.get().entry())
+                                : CompletableFuture.completedFuture(Optional.of(draft.get().entry())));
+    }
+
+    /** What the form answered, and whether the icon question follows it. */
+    private record Draft(RewardEntry entry, boolean pick) {
+    }
+
+    /**
+     * Asks what the reward is drawn as.
+     *
+     * <p>Asked after the form and only when it was asked for: an icon is picked,
+     * not typed, so it cannot be a field, and a picker in front of every edit is
+     * a window nobody wanted. A cancelled pick keeps the rest of the edit rather
+     * than throwing the form away.
+     */
+    private CompletionStage<Optional<RewardEntry>> pickIcon(Player viewer, RewardEntry entry) {
+        return Inputs.of(plugin).icon(viewer, "{primary}&lWHAT ICON?")
+                .open()
+                .thenApply(result -> Optional.of(result.completed()
+                        ? entry.toBuilder().icon(result.value()).build()
+                        : entry));
+    }
+
+    /** What the reward is drawn as now, said in a line a tooltip can hold. */
+    private static String iconHint(RewardEntry entry) {
+        String icon = entry.resolvedIcon();
+        String now = icon.length() > 32
+                ? "a custom item"
+                : icon.toLowerCase(Locale.ROOT).replace('_', ' ');
+        return "now " + now + "; a picker opens after submitting";
     }
 
     private static RewardEntry rebuild(RewardEntry entry, FormValues values,

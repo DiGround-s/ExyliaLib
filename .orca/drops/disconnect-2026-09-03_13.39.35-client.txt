@@ -1,0 +1,268 @@
+---- Minecraft Network Protocol Error Report ----
+// Abort, Retry, Ignore?
+
+Time: 2026-09-03 13:39:35
+Description: Packet handling error
+
+java.lang.IllegalStateException: Invalid entity data item type for field 17 on entity class_745['Drako98'/550, l='ClientLevel', x=-31.60, y=1000.00, z=-36.50]: old=0.0(class java.lang.Float), new=127(class java.lang.Byte)
+	at knot//net.minecraft.class_2945.method_12785(class_2945.java:124)
+	at knot//net.minecraft.class_2945.method_12779(class_2945.java:115)
+	at knot//net.minecraft.class_634.method_11093(class_634.java:665)
+	at knot//net.minecraft.class_2739.method_11808(class_2739.java:54)
+	at knot//net.minecraft.class_2739.method_65081(class_2739.java:12)
+	at knot//net.minecraft.class_11980$class_11981.method_74450(class_11980.java:55)
+	at knot//net.minecraft.class_11980.method_74449(class_11980.java:38)
+	at knot//net.minecraft.class_310.method_1523(class_310.java:1337)
+	at knot//net.minecraft.class_310.method_1514(class_310.java:966)
+	at knot//net.minecraft.client.main.Main.main(Main.java:250)
+	at net.fabricmc.loader.impl.game.minecraft.MinecraftGameProvider.launch(MinecraftGameProvider.java:514)
+	at net.fabricmc.loader.impl.launch.knot.Knot.launch(Knot.java:72)
+	at net.fabricmc.loader.impl.launch.knot.KnotClient.main(KnotClient.java:23)
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(Unknown Source)
+	at java.base/java.lang.reflect.Method.invoke(Unknown Source)
+	at com.modrinth.theseus.MinecraftLaunch.relaunch(MinecraftLaunch.java:63)
+	at com.modrinth.theseus.MinecraftLaunch.main(MinecraftLaunch.java:28)
+
+
+A detailed walkthrough of the error, its code path and all known details is as follows:
+---------------------------------------------------------------------------------------
+
+-- Head --
+Thread: Render thread
+Stacktrace:
+	at knot//net.minecraft.class_2945.method_12785(class_2945.java:124)
+	at knot//net.minecraft.class_2945.method_12779(class_2945.java:115)
+
+-- Incoming Packet --
+Details:
+	Type: clientbound/minecraft:set_entity_data
+	Is Terminal: false
+	Is Skippable: false
+Stacktrace:
+	at knot//net.minecraft.class_2600.method_59803(class_2600.java:41)
+	at knot//net.minecraft.class_8673.method_60882(class_8673.java:146)
+	at knot//net.minecraft.class_8673.method_59807(class_8673.java:125)
+	at knot//net.minecraft.class_11980$class_11981.method_74450(class_11980.java:60)
+	at knot//net.minecraft.class_11980.method_74449(class_11980.java:38)
+	at knot//net.minecraft.class_310.method_1523(class_310.java:1337)
+	at knot//net.minecraft.class_310.method_1514(class_310.java:966)
+	at knot//net.minecraft.client.main.Main.main(Main.java:250)
+	at net.fabricmc.loader.impl.game.minecraft.MinecraftGameProvider.launch(MinecraftGameProvider.java:514)
+	at net.fabricmc.loader.impl.launch.knot.Knot.launch(Knot.java:72)
+	at net.fabricmc.loader.impl.launch.knot.KnotClient.main(KnotClient.java:23)
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(Unknown Source)
+	at java.base/java.lang.reflect.Method.invoke(Unknown Source)
+	at com.modrinth.theseus.MinecraftLaunch.relaunch(MinecraftLaunch.java:63)
+	at com.modrinth.theseus.MinecraftLaunch.main(MinecraftLaunch.java:28)
+
+-- Connection --
+Details:
+	Protocol: play
+	Flow: CLIENTBOUND
+	Is Local: false
+	Server type: OTHER
+	Server brand: Purpur (Velocity-CTD)§r
+
+-- System Details --
+Details:
+	Minecraft Version: 1.21.11
+	Minecraft Version ID: 1.21.11
+	Operating System: Windows 10 (amd64) version 10.0
+	Java Version: 21.0.8, Azul Systems, Inc.
+	Java VM Version: OpenJDK 64-Bit Server VM (mixed mode, sharing), Azul Systems, Inc.
+	Memory: 748030656 bytes (713 MiB) / 6425673728 bytes (6128 MiB) up to 6710886400 bytes (6400 MiB)
+	CPUs: 12
+	Processor Vendor: AuthenticAMD
+	Processor Name: AMD Ryzen 5 5600X 6-Core Processor             
+	Identifier: AuthenticAMD Family 25 Model 33 Stepping 2
+	Microarchitecture: Zen 3
+	Frequency (GHz): 3.70
+	Number of physical packages: 1
+	Number of physical CPUs: 6
+	Number of logical CPUs: 12
+	Graphics card #0 name: NVIDIA GeForce RTX 2060
+	Graphics card #0 vendor: NVIDIA
+	Graphics card #0 VRAM (MiB): 6144.00
+	Graphics card #0 deviceId: VideoController1
+	Graphics card #0 versionInfo: 32.0.15.9597
+	Memory slot #0 capacity (MiB): 8192.00
+	Memory slot #0 clockSpeed (GHz): 3.20
+	Memory slot #0 type: DDR4
+	Memory slot #1 capacity (MiB): 8192.00
+	Memory slot #1 clockSpeed (GHz): 3.20
+	Memory slot #1 type: DDR4
+	Virtual memory max (MiB): 32587.42
+	Virtual memory used (MiB): 26401.19
+	Swap memory total (MiB): 16293.71
+	Swap memory used (MiB): 1793.83
+	Space in storage for jna.tmpdir (MiB): available: 17139.65, total: 243589.59
+	Space in storage for org.lwjgl.system.SharedLibraryExtractPath (MiB): available: 17139.65, total: 243589.59
+	Space in storage for io.netty.native.workdir (MiB): available: 17139.65, total: 243589.59
+	Space in storage for java.io.tmpdir (MiB): available: 17139.65, total: 243589.59
+	Space in storage for workdir (MiB): available: 17139.65, total: 243589.59
+	JVM Flags: 2 total; -XX:HeapDumpPath=MojangTricksIntelDriversForPerformance_javaw.exe_minecraft.exe.heapdump -Xmx6400M
+	Debug Flags: 0 total; 
+	Fabric Mods: 
+		appleskin: AppleSkin 3.0.8+mc1.21.11
+		architectury: Architectury 19.0.1
+		badpackets: Bad Packets 0.11.2
+		bobby: Bobby 5.2.11.1+mc1.21.11
+			com_typesafe_config: config 1.4.2
+			fabric-api-base: Fabric API Base 1.0.5+4ebb5c0853
+			io_leangen_geantyref_geantyref: geantyref 1.3.13
+			org_spongepowered_configurate-core: configurate-core 4.1.2
+			org_spongepowered_configurate-hocon: configurate-hocon 4.1.2
+		chat_heads: Chat Heads 1.2.6
+		cloth-config: Cloth Config v20 21.11.153
+			cloth-basic-math: cloth-basic-math 0.6.1
+		collective: Collective 8.32
+		combat-hitboxes: Combat Hitboxes 1.0.10
+		commandkeys: CommandKeys 2.4.0+1.21.11
+		connectedglass: Connected Glass 1.1.14
+		continuity: Continuity 3.0.1-beta.1+1.21.11
+		controlling: Controlling 29.0.1
+		craft_config: Craft Config Library 1.1.3
+			com_moulberry_mixinconstraints: mixinconstraints 1.1.0
+		custom-crosshair-mod: Custom Crosshair Mod 1.6.4-fabric
+		drktiers: DRKTiers 0.1.0
+		dynamiclights: Dynamic Lights 1.9.3+mod
+		emojitype: Emoji Type 3.0.0-1.21.10
+			org_yaml_snakeyaml: snakeyaml 2.5
+		entityculling: EntityCulling 1.10.5
+			transition: TRansition 1.0.21
+			trender: TRender 1.0.15
+		fabric-api: Fabric API 0.141.6+1.21.11
+			fabric-api-lookup-api-v1: Fabric API Lookup API (v1) 1.6.114+20dc27073e
+			fabric-biome-api-v1: Fabric Biome API (v1) 17.1.1+4fc5413f3e
+			fabric-block-api-v1: Fabric Block API (v1) 1.1.10+4ebb5c083e
+			fabric-block-view-api-v2: Fabric BlockView API (v2) 1.0.39+4ebb5c083e
+			fabric-command-api-v2: Fabric Command API (v2) 2.4.7+6b42a6003e
+			fabric-content-registries-v0: Fabric Content Registries (v0) 10.2.14+4fc5413f3e
+			fabric-convention-tags-v1: Fabric Convention Tags 2.1.55+7f945d5b3e
+			fabric-convention-tags-v2: Fabric Convention Tags (v2) 2.17.3+8ef948ba3e
+			fabric-crash-report-info-v1: Fabric Crash Report Info (v1) 0.3.23+4ebb5c083e
+			fabric-data-attachment-api-v1: Fabric Data Attachment API (v1) 1.8.48+eed0806f3e
+			fabric-data-generation-api-v1: Fabric Data Generation API (v1) 23.5.0+88d7da613e
+			fabric-dimensions-v1: Fabric Dimensions API (v1) 4.0.28+4fc5413f3e
+			fabric-entity-events-v1: Fabric Entity Events (v1) 3.1.1+1d0ab4303e
+			fabric-events-interaction-v0: Fabric Events Interaction (v0) 4.1.1+3b89ecf63e
+			fabric-game-rule-api-v1: Fabric Game Rule API (v1) 2.0.3+4fc5413f3e
+			fabric-item-api-v1: Fabric Item API (v1) 11.6.0+67f17bb43e
+			fabric-item-group-api-v1: Fabric Item Group API (v1) 4.2.36+4fc5413f3e
+			fabric-key-binding-api-v1: Fabric Key Binding API (v1) 1.1.7+4fc5413f3e
+			fabric-lifecycle-events-v1: Fabric Lifecycle Events (v1) 2.6.15+4ebb5c083e
+			fabric-loot-api-v2: Fabric Loot API (v2) 3.0.73+3f89f5a53e
+			fabric-loot-api-v3: Fabric Loot API (v3) 2.0.20+78c8b4663e
+			fabric-message-api-v1: Fabric Message API (v1) 6.1.12+4ebb5c083e
+			fabric-model-loading-api-v1: Fabric Model Loading API (v1) 6.0.15+4fc5413f3e
+			fabric-networking-api-v1: Fabric Networking API (v1) 5.1.6+6b6d71a53e
+			fabric-object-builder-api-v1: Fabric Object Builder API (v1) 21.1.40+4fc5413f3e
+			fabric-particles-v1: Fabric Particles (v1) 4.2.12+4fc5413f3e
+			fabric-recipe-api-v1: Fabric Recipe API (v1) 8.2.4+4ebb5c083e
+			fabric-registry-sync-v0: Fabric Registry Sync (v0) 6.2.6+1718722b3e
+			fabric-renderer-api-v1: Fabric Renderer API (v1) 8.0.3+f4ffd2e53e
+			fabric-renderer-indigo: Fabric Renderer - Indigo 5.0.3+f4ffd2e53e
+			fabric-rendering-fluids-v1: Fabric Rendering Fluids (v1) 3.1.43+4ebb5c083e
+			fabric-rendering-v1: Fabric Rendering (v1) 16.2.10+0290ad933e
+			fabric-resource-conditions-api-v1: Fabric Resource Conditions API (v1) 5.0.35+4fc5413f3e
+			fabric-resource-loader-v0: Fabric Resource Loader (v0) 3.3.4+4fc5413f3e
+			fabric-resource-loader-v1: Fabric Resource Loader (v1) 1.0.10+78c8b4663e
+			fabric-screen-api-v1: Fabric Screen API (v1) 3.1.7+4ebb5c083e
+			fabric-screen-handler-api-v1: Fabric Screen Handler API (v1) 1.3.162+4fc5413f3e
+			fabric-serialization-api-v1: Fabric Serialization API (v1) 1.0.5+4ebb5c083e
+			fabric-sound-api-v1: Fabric Sound API (v1) 1.0.51+4fc5413f3e
+			fabric-tag-api-v1: Fabric Tag API (v1) 1.3.0+88d7da613e
+			fabric-transfer-api-v1: Fabric Transfer API (v1) 6.0.25+4fc5413f3e
+			fabric-transitive-access-wideners-v1: Fabric Transitive Access Wideners (v1) 7.1.0+014c8cec3e
+		fabric-language-kotlin: Fabric Language Kotlin 1.13.13+kotlin.2.4.10
+			org_jetbrains_kotlin_kotlin-reflect: kotlin-reflect 2.4.10
+			org_jetbrains_kotlin_kotlin-stdlib: kotlin-stdlib 2.4.10
+			org_jetbrains_kotlin_kotlin-stdlib-jdk7: kotlin-stdlib-jdk7 2.4.10
+			org_jetbrains_kotlin_kotlin-stdlib-jdk8: kotlin-stdlib-jdk8 2.4.10
+			org_jetbrains_kotlinx_atomicfu-jvm: atomicfu-jvm 0.33.0
+			org_jetbrains_kotlinx_kotlinx-coroutines-core-jvm: kotlinx-coroutines-core-jvm 1.11.0
+			org_jetbrains_kotlinx_kotlinx-coroutines-jdk8: kotlinx-coroutines-jdk8 1.11.0
+			org_jetbrains_kotlinx_kotlinx-datetime-jvm: kotlinx-datetime-jvm 0.8.0
+			org_jetbrains_kotlinx_kotlinx-io-bytestring-jvm: kotlinx-io-bytestring-jvm 0.9.1
+			org_jetbrains_kotlinx_kotlinx-io-core-jvm: kotlinx-io-core-jvm 0.9.1
+			org_jetbrains_kotlinx_kotlinx-serialization-cbor-jvm: kotlinx-serialization-cbor-jvm 1.11.0
+			org_jetbrains_kotlinx_kotlinx-serialization-core-jvm: kotlinx-serialization-core-jvm 1.11.0
+			org_jetbrains_kotlinx_kotlinx-serialization-json-jvm: kotlinx-serialization-json-jvm 1.11.0
+		fabricloader: Fabric Loader 0.19.3
+			mixinextras: MixinExtras 0.5.4
+		ferritecore: FerriteCore 8.2.0
+		flashback: Flashback 0.39.7
+			lattice: Lattice 1.3.1
+			mixinsquared: MixinSquared 0.3.7-beta.1
+			org_apache_commons_commons-math3: commons-math3 3.6.1
+			org_apache_httpcomponents_httpclient: httpclient 4.5.14
+			org_apache_httpcomponents_httpcore: httpcore 4.4.16
+		flyspeed: Fly Speed 1.0.3
+		freecam: Freecam 1.4.1-rc.1
+		freelook: Freelook 1.2.8
+		fullbrightnesstoggle: Full Brightness Toggle 4.5
+		fusion: Fusion 1.3.12
+		healthindicators: Health Indicators 21.11.1
+		holo_damage_indicator: Holo Damage Indicator 1.3.1
+		hologram_api: Hologram API 2.0.2
+		ias: In-Game Account Switcher 9.0.7+1.21.11-fabric
+		immediatelyfast: ImmediatelyFast 1.14.3+1.21.11
+			net_lenni0451_reflect: Reflect 1.6.2
+		inventoryhud: Inventory HUD + 3.4.29
+		iris: Iris 1.10.7+mc1.21.11
+			io_github_douira_glsl-transformer: glsl-transformer 3.0.0-pre3
+			org_anarres_jcpp: jcpp 1.4.14
+			org_antlr_antlr4-runtime: antlr4-runtime 4.13.1
+		jade: Jade 21.1.6+fabric
+		jademoddedentities: Jade Modded Entities 1.2.0
+		java: OpenJDK 64-Bit Server VM 21
+		justzoom: Just Zoom 2.1.3
+		keyoverlay: Key Overlay 1.0.0
+		konkrete: Konkrete 1.9.18
+		malilib: MaLiLib 0.27.16
+			conditional-mixin: conditional mixin 0.6.4
+		marlowcrystal: Marlow's Crystal Optimizer 1.1.0
+		minecraft: Minecraft 1.21.11
+		modmenu: Mod Menu 17.0.0
+		naturalmotionblur: Natural Motion Blur 1.4.3+mc1.21.11
+		nofogmod: The NoFog Mod 1.0+mc1.21.11x
+		notenoughanimations: NotEnoughAnimations 1.12.4
+		pingview: Ping View 1.3.1
+		pingwheel: Ping Wheel 1.12.1
+		placeholder-api: Placeholder API 2.8.2+1.21.10
+		player-reach-display: Player Reach Display 2.0.0+1.21.11
+		ravenclawspingequalizer: RavenclawsPingEqualizer 1.5+1.21
+		sciophobia: Sciophobia 1.2.5
+		searchables: Searchables 1.0.4
+		shieldfixes: Shield Fixes 2.0.2-1.21.11
+		shieldstatus: Shield Status 4.1.2-1.21.11
+		shulkerboxtooltip: Shulker Box Tooltip 5.2.16+1.21.11
+		sodium: Sodium 0.8.7+mc1.21.11
+		sodium-extra: Sodium Extra 0.8.3+mc1.21.11
+		supermartijn642corelib: SuperMartijn642's Core Lib 1.1.22
+		toggle-scoreboard: Toggle Scoreboard 1.3.0
+		totem_highlight: Totem Highlight 1.0.0
+		totemtweaks: Totem Tweaks 1.1.0
+		ukulib: ukulib 1.10.2+1.21.11
+			com_moandjiezana_toml_toml4j: toml4j 0.7.2
+		ukus-armor-hud: uku's Armor HUD 0.10.2+mc1.21.11
+		variants-cit: Variants CIT 5.5.0+1.21.9
+		voicechat: Simple Voice Chat 1.21.11-2.6.21
+			voicechat_api: Simple Voice Chat API 2.6.20
+		walksylib: Walksy Lib 0.9.992+1.21.11
+		whoami: Who am I? 1.0
+		whoisit: Who Is It 1.2
+		worldedit: WorldEdit 7.4.2+7450-eb8e82c
+			worldeditcui_protocol: WorldEditCUI Protocol (Fabric) 4.0.2
+		worldeditcui: WorldEditCUI 1.21.11+01
+		wthit: wthit 18.2.2
+		yet_another_config_lib_v3: YetAnotherConfigLib 3.8.2+1.21.11-fabric
+			com_twelvemonkeys_common_common-image: common-image 3.12.0
+			com_twelvemonkeys_common_common-io: common-io 3.12.0
+			com_twelvemonkeys_common_common-lang: common-lang 3.12.0
+			com_twelvemonkeys_imageio_imageio-core: imageio-core 3.12.0
+			com_twelvemonkeys_imageio_imageio-metadata: imageio-metadata 3.12.0
+			com_twelvemonkeys_imageio_imageio-webp: imageio-webp 3.12.0
+			org_quiltmc_parsers_gson: gson 0.2.1
+			org_quiltmc_parsers_json: json 0.2.1
+	Loaded Shaderpack: (off)
