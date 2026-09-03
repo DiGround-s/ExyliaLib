@@ -339,6 +339,17 @@ public final class RegionRuntime {
         int blockY = floor(y);
         int blockZ = floor(z);
 
+        // Still on the block the last update read, against the same index: the
+        // same query would come back with the same answer. This is what the
+        // reconciliation poll hits for every player standing still, four times
+        // a second, and the listener already treats a move within one block as
+        // no move at all.
+        if (before != null && before.revision() == index.revision()
+                && before.x() == blockX && before.y() == blockY && before.z() == blockZ
+                && before.world().id().equals(worldId)) {
+            return;
+        }
+
         // The whole-server fast path: nothing is registered, so the query can only
         // return empty and no event can fire. Position still has to advance, or the
         // first event after a region is registered would report a stale previous().

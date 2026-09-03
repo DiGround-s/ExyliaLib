@@ -5,6 +5,7 @@ import org.bukkit.NamespacedKey;
 import org.bukkit.Registry;
 import org.bukkit.inventory.ItemStack;
 
+import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -147,6 +148,55 @@ final class ItemComponents implements ItemRenderer.Components {
         }
     }
 
+    /**
+     * The tooltip_display API, looked up once.
+     *
+     * <p>The builder and its methods are reached by name: TooltipDisplay does
+     * not exist in paper-api 1.21.4, so none of this can be written as a call.
+     * Looked up once rather than per item, because a menu renders dozens of
+     * items on every open and {@code Class.forName} plus {@code getMethod}
+     * was a third of what rendering an item cost.
+     *
+     * <p>Looked up on the interfaces, never on builder.getClass(): the object
+     * that comes back is Paper's own implementation, and a method found on a
+     * non-public class cannot be invoked without setAccessible — which this
+     * deliberately does not use. The interfaces are public API.
+     *
+     * <p>A holder class, so the lookup runs the first time it is needed and a
+     * server without the API fails into the caller's catch rather than in
+     * this class's initialiser.
+     */
+    private static final class TooltipDisplayApi {
+        static final TooltipDisplayApi INSTANCE = new TooltipDisplayApi();
+
+        final Method hiddenComponents;
+        final Method hideTooltip;
+        final Method newBuilder;
+        final Method builderHiddenComponents;
+        final Method builderHideTooltip;
+        final Method build;
+
+        private TooltipDisplayApi() {
+            try {
+                Class<?> tooltipDisplay = Class.forName(
+                        "io.papermc.paper.datacomponent.item.TooltipDisplay");
+                Class<?> builderType = Class.forName(
+                        "io.papermc.paper.datacomponent.item.TooltipDisplay$Builder");
+                // build() is declared on DataComponentBuilder, which Builder extends.
+                Class<?> componentBuilder = Class.forName(
+                        "io.papermc.paper.datacomponent.DataComponentBuilder");
+                hiddenComponents = tooltipDisplay.getMethod("hiddenComponents");
+                hideTooltip = tooltipDisplay.getMethod("hideTooltip");
+                newBuilder = tooltipDisplay.getMethod("tooltipDisplay");
+                builderHiddenComponents = builderType.getMethod("hiddenComponents", Set.class);
+                builderHideTooltip = builderType.getMethod("hideTooltip", boolean.class);
+                build = componentBuilder.getMethod("build");
+            } catch (ReflectiveOperationException missing) {
+                throw new IllegalStateException("tooltip_display API is not available", missing);
+            }
+        }
+    }
+
     /** The 1.21.4 way: a non-valued component, set and done. */
     private static boolean hideThroughOldComponent(ItemStack item) {
         DataComponentType type = Registry.DATA_COMPONENT_TYPE.get(HIDE_ADDITIONAL_TOOLTIP);
@@ -183,16 +233,7 @@ final class ItemComponents implements ItemRenderer.Components {
             return false;
         }
 
-        // The builder and its methods are reached by name: TooltipDisplay does
-        // not exist in paper-api 1.21.4, so none of this can be written as a
-        // call.
-        //
-        // Looked up on the interfaces, never on builder.getClass(): the object
-        // that comes back is Paper's own implementation, and a method found on
-        // a non-public class cannot be invoked without setAccessible — which
-        // this deliberately does not use. The interfaces are public API.
-        Class<?> tooltipDisplay = Class.forName(
-                "io.papermc.paper.datacomponent.item.TooltipDisplay");
+        TooltipDisplayApi api = TooltipDisplayApi.INSTANCE;
 
         // Whatever is already hidden stays hidden. The flags write this same
         // component, so replacing it wholesale is how a file naming
@@ -200,8 +241,7 @@ final class ItemComponents implements ItemRenderer.Components {
         Object present = item.getData(type);
         boolean whole = false;
         if (present != null) {
-            hidden.addAll((Set<DataComponentType>) tooltipDisplay
-                    .getMethod("hiddenComponents").invoke(present));
+            hidden.addAll((Set<DataComponentType>) api.hiddenComponents.invoke(present));
             // And whatever was already hiding the whole tooltip keeps hiding
             // it. From 1.21.5 hide_tooltip is a field of this same component,
             // so a decoration written hide_tooltip: true — which the meta set
@@ -209,24 +249,15 @@ final class ItemComponents implements ItemRenderer.Components {
             // write below, and only ever on the versions that merged the two.
             // hide_tooltip and hide-attributes are different keys, and an item
             // asking for one must not be answered with the other.
-            whole = (boolean) tooltipDisplay.getMethod("hideTooltip").invoke(present);
+            whole = (boolean) api.hideTooltip.invoke(present);
         }
 
-        Object builder = tooltipDisplay.getMethod("tooltipDisplay").invoke(null);
-
-        Class<?> builderType = Class.forName(
-                "io.papermc.paper.datacomponent.item.TooltipDisplay$Builder");
-        Object withHidden = builderType.getMethod("hiddenComponents", Set.class)
-                .invoke(builder, hidden);
+        Object builder = api.newBuilder.invoke(null);
+        Object withHidden = api.builderHiddenComponents.invoke(builder, hidden);
         if (whole) {
-            withHidden = builderType.getMethod("hideTooltip", boolean.class)
-                    .invoke(withHidden, true);
+            withHidden = api.builderHideTooltip.invoke(withHidden, true);
         }
-
-        // build() is declared on DataComponentBuilder, which Builder extends.
-        Class<?> componentBuilder = Class.forName(
-                "io.papermc.paper.datacomponent.DataComponentBuilder");
-        Object built = componentBuilder.getMethod("build").invoke(withHidden);
+        Object built = api.build.invoke(withHidden);
 
         // Checked as far as the language allows: the registry answers with a
         // raw type, and the value was built by the component's own builder.

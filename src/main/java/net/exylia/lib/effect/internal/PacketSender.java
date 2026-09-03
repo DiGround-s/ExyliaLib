@@ -138,18 +138,38 @@ final class PacketSender {
         return true;
     }
 
+    /**
+     * Cleared the first time the sound wrapper fails to link.
+     *
+     * <p>The wrapper is compiled against a PacketEvents newer than some servers
+     * run: the {@code Vector3d} constructor arrived in 2.13, and on 2.11 every
+     * call threw {@code NoSuchMethodError} into the caller's catch before
+     * falling back to Bukkit. The fallback is right; paying for the throw on
+     * every sound, and for the JVM to resolve the missing call each time, was
+     * not. One failure is enough to know.
+     */
+    private static volatile boolean soundLinks = true;
+
     static boolean sound(Player player, String name, String category,
                          double x, double y, double z, float volume, float pitch) {
+        if (!soundLinks) {
+            return false;
+        }
         var sound = Sounds.getByName(soundKey(name));
         if (sound == null) {
             return false;
         }
-        send(player, new WrapperPlayServerSoundEffect(
-                sound,
-                category(category),
-                new Vector3d(x, y, z),
-                volume,
-                pitch));
+        try {
+            send(player, new WrapperPlayServerSoundEffect(
+                    sound,
+                    category(category),
+                    new Vector3d(x, y, z),
+                    volume,
+                    pitch));
+        } catch (LinkageError outdated) {
+            soundLinks = false;
+            return false;
+        }
         return true;
     }
 

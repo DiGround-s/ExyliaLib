@@ -286,6 +286,10 @@ Todo lo que ve u oye un jugador pasa por `net.exylia.lib.effect`. Nunca
   **exactamente una vez**, termine como termine.
 - **Texto estático no programa task.** Si nada cambia, se dibuja una vez. Un bar
   permanente con texto fijo cuesta un packet, no un task por tick.
+- **Valores que cambian van en `Text`, nunca en el string.** `bar.text("Vida: " + hp)`
+  es un string nuevo y un parse de MiniMessage por redibujo; `bar.text(Text.of(plantilla)
+  .with("%hp%", hp))` parsea la plantilla una vez y sustituye sobre el component.
+  El mismo string dos veces seguidas no redibuja.
 - **Fuegos artificiales son la excepción**: se spawnea y detona en el mismo tick.
   Todo lo demás es packet.
 

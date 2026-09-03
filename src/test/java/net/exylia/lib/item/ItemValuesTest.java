@@ -1,5 +1,6 @@
 package net.exylia.lib.item;
 
+import io.papermc.paper.persistence.PersistentDataContainerView;
 import net.exylia.lib.FakeServer;
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
@@ -166,6 +167,13 @@ class ItemValuesTest {
         @Override
         public ItemMeta getItemMeta() {
             return type == Material.AIR ? null : meta;
+        }
+
+        @Override
+        public PersistentDataContainerView getPersistentDataContainer() {
+            // What the server's view reads is what the meta writes; the same
+            // container here, so a set through the meta is visible to a read.
+            return meta.getPersistentDataContainer();
         }
 
         @Override

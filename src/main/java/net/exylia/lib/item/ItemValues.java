@@ -1,5 +1,6 @@
 package net.exylia.lib.item;
 
+import io.papermc.paper.persistence.PersistentDataContainerView;
 import org.bukkit.NamespacedKey;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
@@ -84,7 +85,7 @@ public final class ItemValues {
      * @return whether a value is there, of any type
      */
     public boolean has(@Nullable ItemStack item, @NotNull String key) {
-        PersistentDataContainer container = read(item);
+        PersistentDataContainerView container = read(item);
         NamespacedKey namespaced = key(key);
         return container != null && namespaced != null && container.has(namespaced);
     }
@@ -200,7 +201,7 @@ public final class ItemValues {
      *         them; empty when there are none
      */
     public @NotNull Set<String> keys(@Nullable ItemStack item) {
-        PersistentDataContainer container = read(item);
+        PersistentDataContainerView container = read(item);
         if (container == null) {
             return Set.of();
         }
@@ -294,7 +295,7 @@ public final class ItemValues {
      * directly reads it back the same way.
      */
     private @Nullable Object raw(@Nullable ItemStack item, @NotNull String key) {
-        PersistentDataContainer container = read(item);
+        PersistentDataContainerView container = read(item);
         NamespacedKey namespaced = key(key);
         if (container == null || namespaced == null) {
             return null;
@@ -351,12 +352,18 @@ public final class ItemValues {
         return item == null || item.getType() == org.bukkit.Material.AIR;
     }
 
-    private @Nullable PersistentDataContainer read(@Nullable ItemStack item) {
+    /**
+     * Reads the container without copying the meta.
+     *
+     * <p>{@code getItemMeta()} clones the whole meta, and every plugin asks an
+     * item what it is on every hit and every click. Paper's read-only view
+     * answers straight off the item.
+     */
+    private @Nullable PersistentDataContainerView read(@Nullable ItemStack item) {
         if (empty(item)) {
             return null;
         }
-        ItemMeta meta = item.getItemMeta();
-        return meta == null ? null : meta.getPersistentDataContainer();
+        return item.getPersistentDataContainer();
     }
 
     /**
