@@ -6,6 +6,7 @@ import org.jetbrains.annotations.NotNull;
 
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Consumer;
 
 /**
  * Whether a player is somebody whose cosmetics should be drawn.
@@ -47,6 +48,7 @@ import java.util.concurrent.ConcurrentHashMap;
 public final class Cosmetics {
 
     private static final Map<String, CosmeticRule> RULES = new ConcurrentHashMap<>();
+    private static final Map<String, Consumer<Player>> LISTENERS = new ConcurrentHashMap<>();
 
     private Cosmetics() {
         throw new AssertionError("No instances.");
@@ -69,6 +71,7 @@ public final class Cosmetics {
      */
     public static void clear(@NotNull Plugin plugin) {
         RULES.remove(plugin.getName());
+        LISTENERS.remove(plugin.getName());
     }
 
     /**
@@ -98,13 +101,52 @@ public final class Cosmetics {
         return true;
     }
 
+    /**
+     * Asks to be told when a player's answer changes.
+     *
+     * <p>Why a predicate is not enough. A cosmetic plugin decides what to draw
+     * when something happens to the player — they equipped a piece, they
+     * joined — and then caches it and draws from the cache until the next such
+     * moment. Somebody who goes on duty a tick later never gets one, and keeps
+     * wearing a skin and trailing its particles for the whole session.
+     *
+     * <p>Re-read your own state for that one player. Called on whatever thread
+     * announced the change.
+     *
+     * @param plugin  the cosmetic plugin listening, so the interest goes away
+     *                with it
+     * @param changed what to redraw for that player
+     */
+    public static void onChange(@NotNull Plugin plugin, @NotNull Consumer<Player> changed) {
+        LISTENERS.put(plugin.getName(), changed);
+    }
+
+    /**
+     * Announces that this player's answer changed.
+     *
+     * <p>Called by the plugin whose rule changed, after the change is true.
+     *
+     * @param wearer the player whose cosmetics should be reconsidered
+     */
+    public static void refresh(@NotNull Player wearer) {
+        for (Consumer<Player> listener : LISTENERS.values()) {
+            try {
+                listener.accept(wearer);
+            } catch (Throwable ignored) {
+                // One plugin failing to redraw is not a reason to skip the rest.
+            }
+        }
+    }
+
     /** Drops one plugin's rule. Called when the plugin disables. */
     public static void release(@NotNull String pluginName) {
         RULES.remove(pluginName);
+        LISTENERS.remove(pluginName);
     }
 
     /** Drops every rule. Called when the library disables. */
     public static void releaseAll() {
         RULES.clear();
+        LISTENERS.clear();
     }
 }
