@@ -11,9 +11,12 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.Collections;
+import java.util.Locale;
+import java.util.Map;
 import java.util.LinkedHashSet;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Values stored on an {@code ItemStack} at runtime, under one plugin's name.
@@ -63,9 +66,20 @@ import java.util.Set;
 public final class ItemValues {
 
     private final Plugin plugin;
+    private final String namespace;
+    /**
+     * Keys by name, built once.
+     *
+     * <p>A {@code NamespacedKey} lower-cases the plugin's name and validates
+     * both halves against a pattern, and plugins ask an item what it is on
+     * every hit and every click. The names are a plugin's own constants, so
+     * this stays a handful of entries.
+     */
+    private final Map<String, NamespacedKey> keys = new ConcurrentHashMap<>();
 
     ItemValues(Plugin plugin) {
         this.plugin = plugin;
+        this.namespace = plugin.getName().toLowerCase(Locale.ROOT);
     }
 
     /** The plugin whose namespace these values are filed under. */
@@ -374,14 +388,20 @@ public final class ItemValues {
      * runs on every block break would turn it into a crash loop.
      */
     private @Nullable NamespacedKey key(@NotNull String key) {
+        NamespacedKey known = keys.get(key);
+        if (known != null) {
+            return known;
+        }
         try {
-            return new NamespacedKey(plugin, key);
+            NamespacedKey built = new NamespacedKey(plugin, key);
+            keys.put(key, built);
+            return built;
         } catch (IllegalArgumentException notAKey) {
             return null;
         }
     }
 
     private String namespace() {
-        return plugin.getName().toLowerCase(java.util.Locale.ROOT);
+        return namespace;
     }
 }

@@ -180,7 +180,11 @@ public final class EffectRuntime {
      * @param display the display that is starting
      */
     static void supersede(ActiveDisplay display) {
-        for (ActiveDisplay showing : List.copyOf(ACTIVE.keySet())) {
+        // Iterated live: a ConcurrentHashMap tolerates the removal that
+        // superseded() does from inside the loop, and copying every active
+        // display on the server for every bar shown was most of what showing
+        // a bar cost.
+        for (ActiveDisplay showing : ACTIVE.keySet()) {
             if (showing != display
                     && showing.getClass() == display.getClass()
                     && showing.ownedBy(display.owner())

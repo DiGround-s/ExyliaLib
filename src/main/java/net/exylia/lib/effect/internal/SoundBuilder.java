@@ -154,12 +154,32 @@ public final class SoundBuilder {
         return resolvedKey();
     }
 
+    /**
+     * Resolved keys by written name.
+     *
+     * <p>{@code Sound.valueOf} on Paper goes through a legacy field-rename
+     * shim that searches the enum's fields by reflection, and a sound plays
+     * on every hit and every click. The registry does not change while the
+     * server runs, and the names come from configs, so this stays small.
+     */
+    private static final java.util.Map<String, String> RESOLVED = new java.util.concurrent.ConcurrentHashMap<>();
+
     private String resolvedKey() {
         java.util.function.UnaryOperator<String> injected = keyResolver;
         if (injected != null) {
             return injected.apply(name.trim());
         }
         String trimmed = name.trim();
+        String known = RESOLVED.get(trimmed);
+        if (known != null) {
+            return known;
+        }
+        String resolved = resolveKey(trimmed);
+        RESOLVED.put(trimmed, resolved);
+        return resolved;
+    }
+
+    private static String resolveKey(String trimmed) {
         try {
             org.bukkit.Sound sound = org.bukkit.Sound.valueOf(trimmed.toUpperCase(Locale.ROOT));
             org.bukkit.NamespacedKey key = org.bukkit.Registry.SOUNDS.getKey(sound);

@@ -23,6 +23,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.regex.Pattern;
 import java.util.Set;
 
 /**
@@ -184,10 +185,10 @@ public final class Text {
         }
         Component component = TextEngine.parse(source);
         for (int i = 0; i < values.size(); i++) {
-            String marker = String.valueOf((char) (MARKER_BASE + i));
+            Pattern marker = marker(i);
             Component value = TextEngine.parse(values.get(i));
             component = component.replaceText(builder -> builder
-                    .matchLiteral(marker)
+                    .match(marker)
                     .replacement(value));
         }
         return component;
@@ -345,12 +346,14 @@ public final class Text {
         boolean clickable = source.contains("click:");
         Map<String, String> commands = clickable ? new java.util.LinkedHashMap<>() : Map.of();
 
-        for (Marked value : marked) {
+        for (int i = 0; i < marked.size(); i++) {
+            Marked value = marked.get(i);
             Component replacement = value.formatted()
                     ? TextEngine.parseUncached(value.value())
                     : Component.text(value.value());
+            Pattern marker = marker(i);
             component = component.replaceText(builder -> builder
-                    .matchLiteral(value.marker())
+                    .match(marker)
                     .replacement(replacement));
             if (clickable) {
                 commands.put(value.marker(), value.value());
@@ -361,6 +364,28 @@ public final class Text {
 
     /** Where the private-use markers start, well clear of anything a font draws. */
     private static final char MARKER_BASE = '\uE000';
+
+    /**
+     * The marker patterns, compiled once.
+     *
+     * <p>{@code matchLiteral} compiles a pattern per call, and a scoreboard
+     * line or an action bar substitutes a few values per player per redraw.
+     * The markers are always the same few characters, so the patterns are too.
+     */
+    private static final Pattern[] MARKERS = new Pattern[32];
+
+    private static Pattern marker(int index) {
+        String literal = String.valueOf((char) (MARKER_BASE + index));
+        if (index >= MARKERS.length) {
+            return Pattern.compile(literal, Pattern.LITERAL);
+        }
+        Pattern known = MARKERS[index];
+        if (known == null) {
+            known = Pattern.compile(literal, Pattern.LITERAL);
+            MARKERS[index] = known;
+        }
+        return known;
+    }
 
     /** A value and the marker standing in for it while the text is parsed. */
     private record Marked(String marker, String value, boolean formatted) {
