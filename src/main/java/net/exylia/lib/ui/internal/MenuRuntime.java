@@ -283,7 +283,7 @@ public final class MenuRuntime {
     }
 
     /** The session behind an inventory, if it is one of ours. */
-    static @Nullable Session sessionOf(Inventory inventory) {
+    public static @Nullable Session sessionOf(Inventory inventory) {
         return inventory.getHolder() instanceof MenuHolder holder ? holder.session() : null;
     }
 

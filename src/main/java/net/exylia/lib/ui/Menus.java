@@ -110,6 +110,25 @@ public final class Menus {
         return MenuRuntime.anySessionOf(viewer) != null;
     }
 
+    /**
+     * Returns whether an inventory is one of this library's menus.
+     *
+     * <p>Asked of the window rather than of the player, so it can be answered
+     * about an inventory that is opening and has not become anybody's screen
+     * yet. What it separates is a menu — a screen of buttons, where the half
+     * below is decoration — from a real container, where that half is the
+     * player's own inventory and they are there to move things in and out of
+     * it. A window some other plugin built is not one of ours and reads as a
+     * container, which is the safe way round.
+     *
+     * @param inventory the window
+     * @return whether this library drew it
+     * @since 1.95.0
+     */
+    public static boolean isMenu(@NotNull org.bukkit.inventory.Inventory inventory) {
+        return MenuRuntime.sessionOf(inventory) != null;
+    }
+
     /** Releases everything a plugin's menus hold; lifecycle calls this. */
     public static void release(@NotNull String pluginName) {
         MenuRuntime.release(pluginName);
