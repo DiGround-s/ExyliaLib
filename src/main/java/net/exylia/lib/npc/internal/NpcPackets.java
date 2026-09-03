@@ -77,14 +77,14 @@ final class NpcPackets implements NpcSink {
      * defaults to nothing enabled, and a player who is used to seeing their own
      * skin notices immediately. Every bit set is every layer drawn.
      *
-     * <p>The index moved in 26.1, where the player metadata a skin hangs on was
-     * lifted into a shared avatar class and everything below it shifted. Writing
-     * the old index there lands on absorption, a float, and a client that is
-     * handed a byte for a float disconnects with a packet handling error rather
-     * than ignoring it.
+     * <p>The index moved in 1.21.11, where the player metadata a skin hangs on
+     * was lifted into a shared avatar class and everything around it shifted.
+     * Writing the old index there lands on absorption, a float, and a client
+     * that is handed a byte for a float disconnects with a packet handling error
+     * rather than ignoring it.
      *
      * <p>It is the viewer's version that decides, not the server's: PacketEvents
-     * writes after ViaVersion has had its say, so a 26.1 client on a 1.21.11
+     * writes after ViaVersion has had its say, so an older client on a newer
      * server receives our indices untranslated.
      */
     private static final int SKIN_LAYERS_AVATAR = 16;
@@ -273,7 +273,7 @@ final class NpcPackets implements NpcSink {
 
     /** Where this viewer's client keeps the skin layer mask. */
     private static int skinLayersIndex(Player viewer) {
-        return ClientProtocol.of(viewer) >= ClientProtocol.V_26_1
+        return ClientProtocol.of(viewer) >= ClientProtocol.V_1_21_11
                 ? SKIN_LAYERS_AVATAR : SKIN_LAYERS_LEGACY;
     }
 
