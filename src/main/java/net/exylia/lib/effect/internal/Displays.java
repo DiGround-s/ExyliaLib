@@ -78,18 +78,46 @@ final class Displays {
      */
     static final class ActionBarDisplay extends ActiveDisplay {
 
+        /**
+         * How long an unchanged bar may go without being re-sent.
+         *
+         * <p>The client fades an action bar out after about three seconds,
+         * so forty ticks keeps it on screen with no gap and is the same
+         * keepalive a static bar already uses.
+         */
+        private static final long KEEPALIVE_TICKS = 40;
+
+        private final long period;
+        private Component lastSent;
+        private long ticksSinceSent;
+
         ActionBarDisplay(Player viewer, Rendered text, Timer timer, long period, String owner) {
             super(viewer, text, timer, period, owner);
+            this.period = Math.max(1, period);
         }
 
         @Override
         void draw(Player viewer, Rendered rendered, Timer timer) {
-            Bars.actionBar(viewer, rendered.build(viewer, timer));
+            send(viewer, rendered.build(viewer, timer));
         }
 
         @Override
         void redraw(Player viewer, Rendered rendered, Timer timer) {
-            Bars.actionBar(viewer, rendered.build(viewer, timer));
+            // A countdown ticks every tick so a decimal moves smoothly, but
+            // most of those ticks the text reads exactly as it did: the same
+            // component comes back, and the client already shows it.
+            Component built = rendered.build(viewer, timer);
+            ticksSinceSent += period;
+            if (built == lastSent && ticksSinceSent < KEEPALIVE_TICKS) {
+                return;
+            }
+            send(viewer, built);
+        }
+
+        private void send(Player viewer, Component built) {
+            Bars.actionBar(viewer, built);
+            lastSent = built;
+            ticksSinceSent = 0;
         }
 
         @Override

@@ -4,6 +4,7 @@ import net.exylia.lib.effect.Timer;
 import net.exylia.lib.util.TimeFormats;
 import net.exylia.lib.placeholder.Placeholders;
 import net.exylia.lib.text.Text;
+import net.exylia.lib.text.internal.TextEngine;
 import net.kyori.adventure.text.Component;
 import org.bukkit.entity.Player;
 
@@ -61,6 +62,20 @@ final class Rendered {
     /** Held when nothing in the text can change, so it is built once. */
     private Component constant;
 
+    /**
+     * The last build, when only the timer can change the text.
+     *
+     * <p>A countdown redraws every tick so a decimal moves smoothly, but a
+     * bar written {@code %time%s} in whole seconds reads the same for twenty
+     * ticks in a row. The time is rendered first, and if it reads as it did
+     * last tick the component from last tick is handed back: same instance,
+     * which is what lets the display skip the packet as well.
+     */
+    private final boolean timerOnly;
+    private String lastTime;
+    private int lastGeneration;
+    private Component lastBuilt;
+
     Rendered(String raw, String timeStyle) {
         this(raw, null, timeStyle);
     }
@@ -79,7 +94,20 @@ final class Rendered {
         this.hasTotal = anyTime && raw.contains("%time_total%");
         this.hasElapsed = anyTime && raw.contains("%time_elapsed%");
         this.hasRemaining = anyTime && raw.contains("%time_remaining%");
-        this.dynamic = anyTime || Placeholders.isDynamic(raw);
+        // Asked without the timer's own tokens in the text: to the registry
+        // %time% looks like any other placeholder, and the point is to know
+        // whether anything *else* can change.
+        boolean placeholders = Placeholders.isDynamic(anyTime ? withoutTimeTokens(raw) : raw);
+        this.dynamic = anyTime || placeholders;
+        this.timerOnly = anyTime && !placeholders;
+    }
+
+    private static String withoutTimeTokens(String raw) {
+        return raw.replace("%time_formatted%", "")
+                .replace("%time_total%", "")
+                .replace("%time_elapsed%", "")
+                .replace("%time_remaining%", "")
+                .replace("%time%", "");
     }
 
     /** Returns whether this text needs rebuilding between redraws. */
@@ -104,29 +132,69 @@ final class Rendered {
             return known;
         }
 
+        // The time as it will read, rendered before anything else: when only
+        // the timer can change this text and it reads as it did last tick,
+        // last tick's component is the answer.
+        String time = null;
+        String total = null;
+        String elapsed = null;
+        String remaining = null;
+        String timeKey = null;
+        if (timer != null) {
+            if (hasTime || hasFormatted) {
+                time = TimeFormats.render(timer.displayed(), timeStyle);
+            }
+            if (hasTotal) {
+                total = TimeFormats.render(timer.total(), timeStyle);
+            }
+            if (hasElapsed) {
+                elapsed = TimeFormats.render(timer.elapsed(), timeStyle);
+            }
+            if (hasRemaining) {
+                remaining = TimeFormats.render(timer.remaining(), timeStyle);
+            }
+            if (timerOnly) {
+                timeKey = time + '|' + total + '|' + elapsed + '|' + remaining;
+                // And the palette is the one it was built with: a reload
+                // recolours a live countdown on its next tick, no invalidation.
+                if (timeKey.equals(lastTime) && lastBuilt != null
+                        && lastGeneration == TextEngine.generation()) {
+                    return lastBuilt;
+                }
+            }
+        }
+
         Text text = base == null ? Text.of(raw) : base;
         if (viewer != null) {
             text = text.forPlayer(viewer);
         }
-        if (timer != null) {
-            if (hasTime) {
-                text = text.with("%time%", TimeFormats.render(timer.displayed(), timeStyle));
-            }
-            if (hasFormatted) {
-                text = text.with("%time_formatted%",
-                        TimeFormats.render(timer.displayed(), timeStyle));
-            }
-            if (hasTotal) {
-                text = text.with("%time_total%", TimeFormats.render(timer.total(), timeStyle));
-            }
-            if (hasElapsed) {
-                text = text.with("%time_elapsed%", TimeFormats.render(timer.elapsed(), timeStyle));
-            }
-            if (hasRemaining) {
-                text = text.with("%time_remaining%", TimeFormats.render(timer.remaining(), timeStyle));
-            }
+        if (hasTime && time != null) {
+            text = text.with("%time%", time);
         }
-        return text.build();
+        if (hasFormatted && time != null) {
+            text = text.with("%time_formatted%", time);
+        }
+        if (total != null) {
+            text = text.with("%time_total%", total);
+        }
+        if (elapsed != null) {
+            text = text.with("%time_elapsed%", elapsed);
+        }
+        if (remaining != null) {
+            text = text.with("%time_remaining%", remaining);
+        }
+        Component built = text.build();
+        if (timeKey != null) {
+            lastTime = timeKey;
+            lastGeneration = TextEngine.generation();
+            lastBuilt = built;
+        }
+        return built;
+    }
+
+    /** Returns the text this was built from with its values, or {@code null} for a bare string. */
+    Text base() {
+        return base;
     }
 
     /** Returns the text this was built from. */

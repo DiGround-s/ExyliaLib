@@ -184,14 +184,11 @@ public final class Text {
             values.add(pairs.get(i + 1));
         }
         Component component = TextEngine.parse(source);
+        Component[] replacements = new Component[values.size()];
         for (int i = 0; i < values.size(); i++) {
-            Pattern marker = marker(i);
-            Component value = TextEngine.parse(values.get(i));
-            component = component.replaceText(builder -> builder
-                    .match(marker)
-                    .replacement(value));
+            replacements[i] = TextEngine.parse(values.get(i));
         }
-        return component;
+        return substituteMarkers(component, replacements);
     }
 
     /**
@@ -346,19 +343,17 @@ public final class Text {
         boolean clickable = source.contains("click:");
         Map<String, String> commands = clickable ? new java.util.LinkedHashMap<>() : Map.of();
 
+        Component[] replacements = new Component[marked.size()];
         for (int i = 0; i < marked.size(); i++) {
             Marked value = marked.get(i);
-            Component replacement = value.formatted()
-                    ? TextEngine.parseUncached(value.value())
+            replacements[i] = value.formatted()
+                    ? TextEngine.parseValue(value.value())
                     : Component.text(value.value());
-            Pattern marker = marker(i);
-            component = component.replaceText(builder -> builder
-                    .match(marker)
-                    .replacement(replacement));
             if (clickable) {
                 commands.put(value.marker(), value.value());
             }
         }
+        component = substituteMarkers(component, replacements);
         return commands.isEmpty() ? component : fillClicks(component, commands);
     }
 
@@ -366,25 +361,27 @@ public final class Text {
     private static final char MARKER_BASE = '\uE000';
 
     /**
-     * The marker patterns, compiled once.
+     * Any marker, in one pattern.
      *
-     * <p>{@code matchLiteral} compiles a pattern per call, and a scoreboard
-     * line or an action bar substitutes a few values per player per redraw.
-     * The markers are always the same few characters, so the patterns are too.
+     * <p>{@code replaceText} walks the whole component tree once per call, so
+     * one call per value was one walk per value: an action bar with six
+     * values walked its tree six times per player per tick. One pattern that
+     * matches every marker, and a replacement that looks up which one it hit,
+     * is one walk.
      */
-    private static final Pattern[] MARKERS = new Pattern[32];
+    private static final Pattern ANY_MARKER = Pattern.compile("[\\uE000-\\uE0FF]");
 
-    private static Pattern marker(int index) {
-        String literal = String.valueOf((char) (MARKER_BASE + index));
-        if (index >= MARKERS.length) {
-            return Pattern.compile(literal, Pattern.LITERAL);
+    /** Puts the values in for their markers, walking the tree once. */
+    private static Component substituteMarkers(Component component, Component[] replacements) {
+        if (replacements.length == 0) {
+            return component;
         }
-        Pattern known = MARKERS[index];
-        if (known == null) {
-            known = Pattern.compile(literal, Pattern.LITERAL);
-            MARKERS[index] = known;
-        }
-        return known;
+        return component.replaceText(builder -> builder
+                .match(ANY_MARKER)
+                .replacement((match, ignored) -> {
+                    int index = match.group().charAt(0) - MARKER_BASE;
+                    return index < replacements.length ? replacements[index] : Component.text(match.group());
+                }));
     }
 
     /** A value and the marker standing in for it while the text is parsed. */
@@ -537,7 +534,7 @@ public final class Text {
     }
 
     /** Parses a trusted value, honouring its formatting. */
-    private static final ValueRenderer FORMATTED_RENDERER = TextEngine::parseUncached;
+    private static final ValueRenderer FORMATTED_RENDERER = TextEngine::parseValue;
 
     /**
      * The placeholder tokens this text substitutes itself, so the resolver does
@@ -633,6 +630,33 @@ public final class Text {
      */
     public @NotNull String raw() {
         return raw;
+    }
+
+    /**
+     * Two texts are equal when they would build the same component: same
+     * template, same values in the same order, same viewer, same owner.
+     *
+     * <p>What lets a display skip a redraw: a bar handed the same text again
+     * has nothing new to show.
+     */
+    @Override
+    public boolean equals(Object other) {
+        if (this == other) {
+            return true;
+        }
+        if (!(other instanceof Text that)) {
+            return false;
+        }
+        return raw.equals(that.raw)
+                && substitutions.equals(that.substitutions)
+                && viewer == that.viewer
+                && owner == that.owner
+                && resolveFormatted == that.resolveFormatted;
+    }
+
+    @Override
+    public int hashCode() {
+        return raw.hashCode() * 31 + substitutions.hashCode();
     }
 
     @Override

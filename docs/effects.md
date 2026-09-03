@@ -104,7 +104,8 @@ understanding `s`, `ms`, `t`, `m`, `h` suffixes.
 
 `Display`: `stop()`, `isShowing()`, `text(String)` (re-render; the same
 string again is a no-op), `text(Text)` (values substituted after the parse,
-so a bar whose numbers change every redraw parses its template once),
+so a bar whose numbers change every redraw parses its template once; the
+same `Text` again is a no-op too),
 `addTime(seconds)`, `onEnd(Runnable)` (runs **exactly once**, however it
 ends), `progress(float)`.
 

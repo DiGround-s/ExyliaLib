@@ -135,7 +135,9 @@ class DisplayTest {
 
         List<String> seen = viewer.actionBars();
         assertEquals("0.9", seen.get(0), "one tick is a twentieth of a second");
-        assertEquals("0.9", seen.get(1));
+        // The next tick still reads 0.9, and a bar that reads the same is not
+        // sent again: the client is already showing it.
+        assertEquals(1, seen.size(), "an unchanged reading is not re-sent: " + seen);
     }
 
     /**

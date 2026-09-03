@@ -100,6 +100,49 @@ class DisplayTextTest {
     }
 
     @Test
+    @DisplayName("a countdown in whole seconds is sent when the second changes, not every tick")
+    void wholeSecondCountdownSendsOnChange() {
+        Effects.actionBar("{primary}%time%s").countdown(3).timeStyle("seconds")
+                .show(viewer.player());
+        FakeServer.tick(1);
+        assertEquals(1, viewer.actionBars().size());
+        assertEquals("3s", viewer.actionBars().get(0));
+
+        FakeServer.tick(25);
+
+        // The first draw, one per second the reading changes, and at most one
+        // keepalive: not the twenty-six packets of one per tick.
+        assertTrue(viewer.actionBars().size() <= 4, "sent " + viewer.actionBars());
+        assertTrue(viewer.actionBars().get(viewer.actionBars().size() - 1).matches("[12]s"));
+    }
+
+    @Test
+    @DisplayName("the same Text pushed again is neither built nor sent")
+    void unchangedTextIsANoOp() {
+        Display bar = Effects.actionBar(Text.of("{primary}Vida: %hp%").with("%hp%", 20))
+                .permanent().show(viewer.player());
+        FakeServer.tick(1);
+        assertEquals(1, viewer.actionBars().size());
+
+        bar.text(Text.of("{primary}Vida: %hp%").with("%hp%", 20));
+        FakeServer.tick(1);
+        assertEquals(1, viewer.actionBars().size(), "an unchanged bar must not be re-sent");
+
+        bar.text(Text.of("{primary}Vida: %hp%").with("%hp%", 19));
+        FakeServer.tick(1);
+        assertEquals("Vida: 19", viewer.actionBars().get(viewer.actionBars().size() - 1));
+    }
+
+    @Test
+    @DisplayName("several values land in their own places in one walk")
+    void severalValuesInOneWalk() {
+        Text text = Text.of("{primary}%a% <gradient:red:blue>%b%</gradient> %c%")
+                .with("%a%", "uno").withFormatted("%b%", "<bold>dos</bold>").with("%c%", "tres");
+        assertEquals("uno dos tres", net.kyori.adventure.text.serializer.plain
+                .PlainTextComponentSerializer.plainText().serialize(text.build()));
+    }
+
+    @Test
     @DisplayName("a substituted string, pushed as a string, costs a parse per value")
     void plainStringsMissTheCache() {
         // The shape the profile caught, kept as the contrast the fix is measured

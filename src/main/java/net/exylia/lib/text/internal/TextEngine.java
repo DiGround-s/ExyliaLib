@@ -68,6 +68,7 @@ public final class TextEngine {
             return;
         }
         smallText = enabled;
+        generation++;
         CACHE.invalidateAll();
     }
 
@@ -86,6 +87,7 @@ public final class TextEngine {
      */
     public static void palette(Palette palette) {
         tokens = tokensOf(palette);
+        generation++;
         CACHE.invalidateAll();
     }
 
@@ -141,6 +143,43 @@ public final class TextEngine {
             return Component.text(smallText ? SmallText.apply(text) : text);
         }
         return parseUncached(text, flags);
+    }
+
+    /**
+     * Formatted values, cached apart from the templates.
+     *
+     * <p>A value substituted with formatting — {@code <#FF4444>14.3❤} — is
+     * short and recurs: a health reading has a few hundred spellings and a
+     * bar redraws it every tick for every player. They get a cache of their
+     * own so they neither pay a MiniMessage parse each redraw nor evict the
+     * templates from {@link #CACHE}.
+     */
+    private static final Cache<String, Component> VALUES = Caffeine.newBuilder()
+            .maximumSize(1024)
+            .expireAfterAccess(Duration.ofMinutes(10))
+            .build();
+
+    /**
+     * Parses a substituted value, using the values cache.
+     *
+     * @param text the value as written
+     * @return the parsed component
+     */
+    public static Component parseValue(String text) {
+        if (text.isEmpty()) {
+            return Component.empty();
+        }
+        int flags = FormatScanner.scan(text);
+        if (FormatScanner.isPlain(flags)) {
+            return Component.text(smallText ? SmallText.apply(text) : text);
+        }
+        Component cached = VALUES.getIfPresent(text);
+        if (cached != null) {
+            return cached;
+        }
+        Component parsed = parseUncached(text, flags);
+        VALUES.put(text, parsed);
+        return parsed;
     }
 
     private static Component parseUncached(String text, int flags) {
@@ -245,7 +284,25 @@ public final class TextEngine {
 
     /** Empties the cache. Used when the palette changes and by tests. */
     public static void invalidate() {
+        generation++;
         CACHE.invalidateAll();
+        VALUES.invalidateAll();
+    }
+
+    /**
+     * Bumped whenever what a string parses into can change: a palette, the
+     * small-text toggle, a cache drop.
+     */
+    private static volatile int generation;
+
+    /**
+     * Returns a number that changes whenever parsed text would.
+     *
+     * <p>For anyone holding a built component: equal generation, still
+     * current; different, build again.
+     */
+    public static int generation() {
+        return generation;
     }
 
     /** Returns how many parses are currently cached, for diagnostics. */

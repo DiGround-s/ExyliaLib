@@ -243,7 +243,11 @@ abstract class ActiveDisplay implements Display {
 
     @Override
     public @NotNull Display text(@NotNull Text text) {
-        return replace(new Rendered(text, rendered.timeStyle()));
+        Rendered current = rendered;
+        if (text.equals(current.base())) {
+            return this;
+        }
+        return replace(new Rendered(text, current.timeStyle()));
     }
 
     private Display replace(Rendered next) {
