@@ -6,6 +6,7 @@ import net.exylia.lib.effect.Effects;
 import net.exylia.lib.effect.internal.EffectRuntime;
 import net.exylia.lib.action.Actions;
 import net.exylia.lib.chat.Chats;
+import net.exylia.lib.cosmetic.Cosmetics;
 import net.exylia.lib.chat.internal.ChatListener;
 import net.exylia.lib.chat.internal.ChatRuntime;
 import net.exylia.lib.command.Commands;
@@ -529,6 +530,7 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         Menus.releaseAll();
         Regions.releaseAll();
         Chats.releaseAll();
+        Cosmetics.releaseAll();
         // Before the database module, for the same reason a plugin's release is:
         // a pending store is somebody's repository.
         Rewards.releaseAll();
@@ -719,6 +721,7 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         // A rule belongs to a classloader that is going away, and chat keeps
         // flowing: drop it before it can be asked again.
         Chats.release(pluginName);
+        Cosmetics.release(pluginName);
         // And so is taking an overlay off: the player is still here, still
         // looking at buttons whose actions come from a classloader that is
         // going away.
