@@ -4,7 +4,6 @@ import com.github.retrooper.packetevents.PacketEvents;
 import com.github.retrooper.packetevents.protocol.particle.Particle;
 import com.github.retrooper.packetevents.protocol.particle.type.ParticleType;
 import com.github.retrooper.packetevents.protocol.particle.type.ParticleTypes;
-import com.github.retrooper.packetevents.protocol.player.ClientVersion;
 import com.github.retrooper.packetevents.protocol.sound.SoundCategory;
 import com.github.retrooper.packetevents.protocol.sound.Sounds;
 import com.github.retrooper.packetevents.util.Vector3d;
@@ -15,6 +14,7 @@ import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerPa
 import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerSoundEffect;
 import net.kyori.adventure.bossbar.BossBar;
 import net.kyori.adventure.text.Component;
+import net.exylia.lib.util.internal.ClientProtocol;
 import org.bukkit.entity.Player;
 
 import java.util.EnumSet;
@@ -53,27 +53,9 @@ final class PacketSender {
         PacketEvents.getAPI().getPlayerManager().sendPacket(player, packet);
     }
 
-    /**
-     * Returns whether PacketEvents knows how to write packets for this client.
-     *
-     * <p>A client newer than the installed PacketEvents still joins through
-     * ViaVersion, but a wrapper written for it uses the newest layout
-     * PacketEvents knows, skips Via's translation, and the client cannot decode
-     * it: a sound packet a few bytes short disconnects the player mid-game.
-     * Those clients get the Bukkit API, which the server encodes itself.
-     */
+    /** Whether PacketEvents can write for this client; the rest go through Bukkit. */
     private static boolean writable(Player player) {
-        ClientVersion version;
-        try {
-            version = PacketEvents.getAPI().getPlayerManager().getClientVersion(player);
-        } catch (RuntimeException unknown) {
-            return false;
-        }
-        return version != null
-                && version != ClientVersion.UNKNOWN
-                && version != ClientVersion.LOWER_THAN_SUPPORTED_VERSIONS
-                && version != ClientVersion.HIGHER_THAN_SUPPORTED_VERSIONS
-                && !version.isNewerThan(ClientVersion.getLatest());
+        return ClientProtocol.writable(player);
     }
 
     // ------------------------------------------------------------------

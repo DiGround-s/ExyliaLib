@@ -7,7 +7,6 @@ import com.github.retrooper.packetevents.protocol.entity.data.EntityData;
 import com.github.retrooper.packetevents.protocol.entity.data.EntityDataTypes;
 import com.github.retrooper.packetevents.protocol.entity.pose.EntityPose;
 import com.github.retrooper.packetevents.protocol.entity.type.EntityTypes;
-import com.github.retrooper.packetevents.protocol.player.ClientVersion;
 import com.github.retrooper.packetevents.protocol.player.Equipment;
 import com.github.retrooper.packetevents.protocol.player.EquipmentSlot;
 import com.github.retrooper.packetevents.protocol.player.GameMode;
@@ -31,6 +30,7 @@ import io.github.retrooper.packetevents.util.SpigotConversionUtil;
 import io.github.retrooper.packetevents.util.SpigotReflectionUtil;
 import net.exylia.lib.npc.NpcModel;
 import net.exylia.lib.npc.NpcPose;
+import net.exylia.lib.util.internal.ClientProtocol;
 import net.kyori.adventure.text.Component;
 import org.bukkit.Location;
 import org.bukkit.entity.Player;
@@ -271,28 +271,9 @@ final class NpcPackets implements NpcSink {
         return data;
     }
 
-    /**
-     * Where this viewer's client keeps the skin layer mask.
-     *
-     * <p>A client newer than the installed PacketEvents knows reports itself as
-     * higher than supported; the only versions above 1.21.11 are avatar ones, so
-     * that is treated as 26.1 rather than as legacy. A client PacketEvents cannot
-     * place at all is assumed to match the server.
-     */
+    /** Where this viewer's client keeps the skin layer mask. */
     private static int skinLayersIndex(Player viewer) {
-        ClientVersion version;
-        try {
-            version = PacketEvents.getAPI().getPlayerManager().getClientVersion(viewer);
-        } catch (RuntimeException unknown) {
-            version = null;
-        }
-        if (version == null || version == ClientVersion.UNKNOWN) {
-            return PacketEvents.getAPI().getServerManager().getVersion()
-                    .isNewerThan(ServerVersion.V_1_21_11)
-                    ? SKIN_LAYERS_AVATAR : SKIN_LAYERS_LEGACY;
-        }
-        return version == ClientVersion.HIGHER_THAN_SUPPORTED_VERSIONS
-                || version.isNewerThan(ClientVersion.V_1_21_11)
+        return ClientProtocol.of(viewer) >= ClientProtocol.V_26_1
                 ? SKIN_LAYERS_AVATAR : SKIN_LAYERS_LEGACY;
     }
 
