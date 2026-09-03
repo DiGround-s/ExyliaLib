@@ -167,4 +167,35 @@ class SessionsTest {
         Sessions.forgetPlugin("ExyliaFFA");
         assertTrue(Sessions.isFree(player));
     }
+
+    @Test
+    void aRuleAdvisesEverybodyButItsOwnPlugin() {
+        Sessions.rule(FakePlugin.named("ExyliaPracticeCore"), (who, kind) -> "in a party");
+
+        assertEquals(Optional.of("in a party"),
+                Sessions.blocker(player, "ExyliaStaff", "staff mode"));
+        assertEquals(Optional.empty(),
+                Sessions.blocker(player, "ExyliaPracticeCore", "IN_QUEUE"));
+    }
+
+    @Test
+    void adviceIsNotAVetoOverAClaim() {
+        Sessions.rule(FakePlugin.named("ExyliaPracticeCore"), (who, kind) -> "in a party");
+        assertTrue(ffa.claim(player, "arena", null).isPresent());
+    }
+
+    @Test
+    void aRuleThatBreaksIsSkippedRatherThanBelieved() {
+        Sessions.rule(FakePlugin.named("ExyliaPracticeCore"), (who, kind) -> {
+            throw new IllegalStateException("no");
+        });
+        assertEquals(Optional.empty(), Sessions.blocker(player, "ExyliaStaff", "staff mode"));
+    }
+
+    @Test
+    void aDisabledPluginStopsAdvising() {
+        Sessions.rule(FakePlugin.named("ExyliaPracticeCore"), (who, kind) -> "in a party");
+        Sessions.forgetPlugin("ExyliaPracticeCore");
+        assertEquals(Optional.empty(), Sessions.blocker(player, "ExyliaStaff", "staff mode"));
+    }
 }

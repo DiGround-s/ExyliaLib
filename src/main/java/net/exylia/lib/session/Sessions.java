@@ -94,6 +94,9 @@ public final class Sessions {
     private static final AtomicLong TOKENS = new AtomicLong();
     private static final List<Watcher> WATCHERS = new CopyOnWriteArrayList<>();
 
+    /** One advisory rule per plugin. See {@link ReadinessRule}. */
+    private static final Map<String, ReadinessRule> RULES = new ConcurrentHashMap<>();
+
     private static volatile Debug debug;
 
     /** One plugin's interest in what happens to players it does not own. */
@@ -249,6 +252,7 @@ public final class Sessions {
      */
     public static void forgetPlugin(@NotNull String plugin) {
         WATCHERS.removeIf(watcher -> watcher.plugin().equals(plugin));
+        RULES.remove(plugin);
         CLAIMS.values().removeIf(claim -> {
             if (!claim.plugin().equals(plugin)) return false;
             fire(claim, false);
@@ -264,6 +268,73 @@ public final class Sessions {
         CLAIMS.clear();
         BY_PLUGIN.clear();
         WATCHERS.clear();
+        RULES.clear();
+    }
+
+    /**
+     * Offers this plugin's opinion on when a player should be left alone.
+     *
+     * <p>One rule per plugin; registering again replaces it, and disabling the
+     * plugin drops it. Advice only — see {@link ReadinessRule} for why it is
+     * not enforced on every claim.
+     *
+     * @param plugin the plugin with the opinion
+     * @param rule   what it says, or {@code null} to withdraw it
+     */
+    public static void rule(@NotNull Plugin plugin, @Nullable ReadinessRule rule) {
+        if (rule == null) {
+            RULES.remove(plugin.getName());
+        } else {
+            RULES.put(plugin.getName(), rule);
+        }
+    }
+
+    /**
+     * The first reason another plugin gives for leaving this player alone.
+     *
+     * <p>The question to ask beside {@link #isFree(UUID)} when a mode would
+     * rather not start on a player who is technically free but plainly in the
+     * middle of something. Rules belonging to the asking plugin are skipped: a
+     * plugin cannot advise itself out of its own feature.
+     *
+     * @param player the player
+     * @param asking the name of the plugin that wants them
+     * @param kind   what it would have them doing
+     * @return the reason, or empty when nobody objects
+     */
+    public static @NotNull Optional<String> blocker(@NotNull UUID player, @NotNull String asking,
+                                                    @NotNull String kind) {
+        for (Map.Entry<String, ReadinessRule> entry : RULES.entrySet()) {
+            if (entry.getKey().equals(asking)) {
+                continue;
+            }
+            String reason;
+            try {
+                reason = entry.getValue().notReady(player, kind);
+            } catch (Throwable failed) {
+                if (debug != null) {
+                    debug.warn("[Sessions] " + entry.getKey() + " failed answering readiness: " + failed);
+                }
+                continue;
+            }
+            if (reason != null && !reason.isBlank()) {
+                return Optional.of(reason);
+            }
+        }
+        return Optional.empty();
+    }
+
+    /**
+     * The first reason another plugin gives for leaving this player alone.
+     *
+     * @param player the player
+     * @param asking the plugin that wants them
+     * @param kind   what it would have them doing
+     * @return the reason, or empty when nobody objects
+     */
+    public static @NotNull Optional<String> blocker(@NotNull Player player, @NotNull Plugin asking,
+                                                    @NotNull String kind) {
+        return blocker(player.getUniqueId(), asking.getName(), kind);
     }
 
     /**
