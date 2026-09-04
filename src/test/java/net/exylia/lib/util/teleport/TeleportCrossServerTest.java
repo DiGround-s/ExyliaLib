@@ -232,10 +232,12 @@ class TeleportCrossServerTest {
 
         // Half a second by default, and the wait is for the client rather than
         // a race we depend on: the key is already ours by now.
-        FakeServer.tick(15);
+        FakeServer.tick(20);
 
-        assertEquals(1, player.teleports().size(), "the player never arrived");
+        assertEquals(2, player.teleports().size(),
+                "the player arrives, and is put there again five ticks later");
         assertEquals(42.0, player.teleports().get(0).getX(), 0.001);
+        assertEquals(42.0, player.teleports().get(1).getX(), 0.001);
         assertNull(redis.get(keyFor(player)),
                 "a claimed destination must not move them again on the next login");
     }
@@ -259,7 +261,8 @@ class TeleportCrossServerTest {
                 "the arrival used the library default instead of the configured wait");
 
         FakeServer.tick(60);
-        assertEquals(1, player.teleports().size(), "the player never arrived");
+        assertEquals(2, player.teleports().size(),
+                "the player never arrived, or was not put there again five ticks later");
     }
 
     @Test
