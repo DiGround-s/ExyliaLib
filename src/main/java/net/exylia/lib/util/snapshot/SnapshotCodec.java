@@ -46,7 +46,8 @@ import java.util.function.Consumer;
  * incompatible, and the one already in the database wins.
  *
  * <h2>What the new keys do to an old reader</h2>
- * {@code enderChest}, {@code physical} and {@code attributes} are added by this
+ * {@code enderChest}, {@code physical}, {@code attributes}, {@code heldSlot},
+ * {@code cursor}, {@code exhaustion} and {@code absorption} are added by this
  * library and ExyliaCommons never wrote them. Its deserialiser reads by key and ignores
  * anything it does not know, so a row written here still restores an inventory
  * on a server still running commons. In the other direction a row written by
@@ -108,7 +109,15 @@ public final class SnapshotCodec {
     private static final String WALK_SPEED = "walkSpeed";
     private static final String INVULNERABLE = "invulnerable";
     private static final String GLOWING = "glowing";
+    private static final String FALL_DISTANCE = "fallDistance";
+    private static final String FREEZE_TICKS = "freezeTicks";
+    private static final String ARROWS_IN_BODY = "arrowsInBody";
+    private static final String GLIDING = "gliding";
     private static final String ATTRIBUTES = "attributes";
+    private static final String HELD_SLOT = "heldSlot";
+    private static final String CURSOR = "cursor";
+    private static final String EXHAUSTION = "exhaustion";
+    private static final String ABSORPTION = "absorption";
 
     /** Ignores what it cannot read, which is what a bare decode asks for. */
     private static final Consumer<String> SILENT = problem -> { };
@@ -213,6 +222,10 @@ public final class SnapshotCodec {
             state.addProperty(WALK_SPEED, physical.walkSpeed());
             state.addProperty(INVULNERABLE, physical.invulnerable());
             state.addProperty(GLOWING, physical.glowing());
+            state.addProperty(FALL_DISTANCE, physical.fallDistance());
+            state.addProperty(FREEZE_TICKS, physical.freezeTicks());
+            state.addProperty(ARROWS_IN_BODY, physical.arrowsInBody());
+            state.addProperty(GLIDING, physical.gliding());
             json.add(PHYSICAL, state);
         }
         Map<String, Double> attributes = snapshot.attributes();
@@ -223,6 +236,21 @@ public final class SnapshotCodec {
             JsonObject values = new JsonObject();
             attributes.forEach(values::addProperty);
             json.add(ATTRIBUTES, values);
+        }
+        // Written only when they say something. A snapshot read from a commons
+        // row and written back out is still byte-identical to what commons
+        // would have written, which is what keeps a mixed fleet readable.
+        if (snapshot.heldSlot() >= 0) {
+            json.addProperty(HELD_SLOT, snapshot.heldSlot());
+        }
+        if (snapshot.cursor() != null) {
+            json.add(CURSOR, item(snapshot.cursor()));
+        }
+        if (snapshot.exhaustion() != 0f) {
+            json.addProperty(EXHAUSTION, snapshot.exhaustion());
+        }
+        if (snapshot.absorption() != 0.0d) {
+            json.addProperty(ABSORPTION, snapshot.absorption());
         }
         return json.toString();
     }
@@ -389,7 +417,11 @@ public final class SnapshotCodec {
                 bool(json, FLYING, false),
                 number(json, FLY_SPEED, 0f).floatValue(),
                 physical(json, problems),
-                attributes(json, problems));
+                attributes(json, problems),
+                number(json, HELD_SLOT, Snapshot.NO_HELD_SLOT).intValue(),
+                slot(json, CURSOR, problems),
+                number(json, EXHAUSTION, 0f).floatValue(),
+                number(json, ABSORPTION, 0.0d).doubleValue());
     }
 
     private static ItemStack @Nullable [] items(JsonObject json, String key,
@@ -478,7 +510,11 @@ public final class SnapshotCodec {
                 number(state, VELOCITY_Z, 0.0d).doubleValue(),
                 number(state, WALK_SPEED, 0f).floatValue(),
                 bool(state, INVULNERABLE, false),
-                bool(state, GLOWING, false));
+                bool(state, GLOWING, false),
+                number(state, FALL_DISTANCE, 0f).floatValue(),
+                number(state, FREEZE_TICKS, 0).intValue(),
+                number(state, ARROWS_IN_BODY, 0).intValue(),
+                bool(state, GLIDING, false));
     }
 
     private static @Nullable Map<String, Double> attributes(JsonObject json,

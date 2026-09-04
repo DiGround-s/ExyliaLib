@@ -64,8 +64,10 @@ class SnapshotCodecTest {
                 List.of(new Snapshot.Effect("SPEED", 600, 1, false, true, true),
                         new Snapshot.Effect("REGENERATION", 120, 0, true, false, false)),
                 true, true, 0.15f,
-                new Snapshot.Physical(40, 260, 0.5d, -0.1d, 0.25d, 0.21f, true, true),
-                Map.of("minecraft:scale", 0.5d, "minecraft:max_health", 24.0d));
+                new Snapshot.Physical(40, 260, 0.5d, -0.1d, 0.25d, 0.21f, true, true,
+                        3.25f, 90, 2, true),
+                Map.of("minecraft:scale", 0.5d, "minecraft:max_health", 24.0d),
+                4, TestItem.of("ENDER_PEARL"), 2.5f, 6.0d);
     }
 
     // ------------------------------------------------------------ round trip

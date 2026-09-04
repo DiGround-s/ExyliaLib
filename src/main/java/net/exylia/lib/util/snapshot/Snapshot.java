@@ -34,13 +34,15 @@ import java.util.Set;
  * everyone else.
  *
  * <h2>What it holds</h2>
- * The inventory, armour, off hand, ender chest, health and maximum health,
- * hunger and saturation, experience, potion effects, game mode, flight, the
- * physical state &mdash; fire ticks, remaining air, velocity, walk speed,
- * invulnerability and glowing &mdash; and the base value of every attribute.
- * The ender chest, the physical state and the attributes are new: a snapshot
- * read from a row ExyliaCommons wrote does not carry them, which
- * {@link #has(SnapshotPart)} answers and a restore quietly skips.
+ * The inventory, the slot they were holding and whatever was on the cursor,
+ * armour, off hand, ender chest, health, maximum health and absorption, hunger,
+ * saturation and exhaustion, experience, potion effects, game mode, flight, the
+ * physical state &mdash; fire ticks, remaining air, velocity, walk speed, fall
+ * distance, freeze ticks, arrows stuck in them, gliding, invulnerability and
+ * glowing &mdash; and the base value of every attribute. The ender chest, the
+ * physical state and the attributes are new: a snapshot read from a row
+ * ExyliaCommons wrote does not carry them, which {@link #has(SnapshotPart)}
+ * answers and a restore quietly skips.
  *
  * <h2>Threads</h2>
  * {@link #of(Player)} and {@link #restoreTo(Player)} read and write live player
@@ -83,6 +85,13 @@ public final class Snapshot {
     private final float flySpeed;
     private final @Nullable Physical physical;
     private final @Nullable Map<String, Double> attributes;
+    private final int heldSlot;
+    private final @Nullable ItemStack cursor;
+    private final float exhaustion;
+    private final double absorption;
+
+    /** What {@link #heldSlot()} says when nothing was written down. */
+    public static final int NO_HELD_SLOT = -1;
 
     /**
      * One active potion effect, in the shape the column stores it.
@@ -119,11 +128,31 @@ public final class Snapshot {
      * @param walkSpeed     their walk speed
      * @param invulnerable  whether they could be hurt
      * @param glowing       whether they were outlined
+     * @param fallDistance  how far they had already fallen
+     * @param freezeTicks   how frozen they were
+     * @param arrowsInBody  how many arrows were stuck in them
+     * @param gliding       whether they were flying an elytra
      * @since 1.34.0
      */
     public record Physical(int fireTicks, int remainingAir,
                            double velocityX, double velocityY, double velocityZ,
-                           float walkSpeed, boolean invulnerable, boolean glowing) {
+                           float walkSpeed, boolean invulnerable, boolean glowing,
+                           float fallDistance, int freezeTicks, int arrowsInBody,
+                           boolean gliding) {
+
+        /**
+         * The shape before falling, freezing, arrows and gliding were part of it.
+         *
+         * <p>Kept so a plugin compiled against an older library still links. A
+         * row that predates the keys reads as a player standing still on the
+         * ground, which is the state none of them describes.
+         */
+        public Physical(int fireTicks, int remainingAir,
+                        double velocityX, double velocityY, double velocityZ,
+                        float walkSpeed, boolean invulnerable, boolean glowing) {
+            this(fireTicks, remainingAir, velocityX, velocityY, velocityZ,
+                    walkSpeed, invulnerable, glowing, 0f, 0, 0, false);
+        }
 
         /**
          * The shape before glowing was part of it.
@@ -170,6 +199,11 @@ public final class Snapshot {
      * @param physical      the physical state, or {@code null} when not captured
      * @param attributes    the base value of each attribute that was not at its
      *                      default, or {@code null} when not captured
+     * @param heldSlot      the hotbar slot they were holding, or
+     *                      {@link #NO_HELD_SLOT} when not captured
+     * @param cursor        what was on the cursor, or {@code null} for nothing
+     * @param exhaustion    the exhaustion behind the hunger bar
+     * @param absorption    the absorption hearts they had on top
      */
     public Snapshot(@Nullable GameMode gameMode,
                     ItemStack @Nullable [] inventory,
@@ -182,7 +216,13 @@ public final class Snapshot {
                     @NotNull List<Effect> potionEffects,
                     boolean allowFlight, boolean flying, float flySpeed,
                     @Nullable Physical physical,
-                    @Nullable Map<String, Double> attributes) {
+                    @Nullable Map<String, Double> attributes,
+                    int heldSlot, @Nullable ItemStack cursor,
+                    float exhaustion, double absorption) {
+        this.heldSlot = heldSlot;
+        this.cursor = cursor == null ? null : cursor.clone();
+        this.exhaustion = exhaustion;
+        this.absorption = absorption;
         this.gameMode = gameMode;
         this.inventory = copy(inventory);
         this.armor = copy(armor);
@@ -200,6 +240,50 @@ public final class Snapshot {
         this.flySpeed = flySpeed;
         this.physical = physical;
         this.attributes = attributes == null ? null : Map.copyOf(attributes);
+    }
+
+    /**
+     * The shape before the held slot, the cursor, exhaustion and absorption
+     * were part of a snapshot.
+     *
+     * <p>Kept so a plugin compiled against an older library still links. A
+     * snapshot built this way holds no held slot, so a restore leaves the hand
+     * the player is using alone.
+     *
+     * @param gameMode      the game mode, or {@code null} when unknown
+     * @param inventory     the main slots, or {@code null} when not captured
+     * @param armor         the armour slots, or {@code null} when not captured
+     * @param offHand       the off hand, or {@code null} when empty
+     * @param enderChest    the ender chest, or {@code null} when not captured
+     * @param health        current health
+     * @param maxHealth     the base maximum health
+     * @param foodLevel     the food level
+     * @param saturation    the saturation
+     * @param level         the experience level
+     * @param exp           progress towards the next level
+     * @param potionEffects the active effects; never {@code null}
+     * @param allowFlight   whether flight was allowed
+     * @param flying        whether they were flying
+     * @param flySpeed      their fly speed
+     * @param physical      the physical state, or {@code null} when not captured
+     * @param attributes    the base attribute values, or {@code null}
+     */
+    public Snapshot(@Nullable GameMode gameMode,
+                    ItemStack @Nullable [] inventory,
+                    ItemStack @Nullable [] armor,
+                    @Nullable ItemStack offHand,
+                    ItemStack @Nullable [] enderChest,
+                    double health, double maxHealth,
+                    int foodLevel, float saturation,
+                    int level, float exp,
+                    @NotNull List<Effect> potionEffects,
+                    boolean allowFlight, boolean flying, float flySpeed,
+                    @Nullable Physical physical,
+                    @Nullable Map<String, Double> attributes) {
+        this(gameMode, inventory, armor, offHand, enderChest, health, maxHealth,
+                foodLevel, saturation, level, exp, potionEffects,
+                allowFlight, flying, flySpeed, physical, attributes,
+                NO_HELD_SLOT, null, 0f, 0.0d);
     }
 
     /**
@@ -384,6 +468,42 @@ public final class Snapshot {
         return flySpeed;
     }
 
+    /**
+     * The hotbar slot they were holding, or {@link #NO_HELD_SLOT} when the row
+     * predates it.
+     */
+    public int heldSlot() {
+        return heldSlot;
+    }
+
+    /**
+     * What was sitting on their cursor, or {@code null} for an empty cursor.
+     *
+     * <p>An item on the cursor is in no slot at all: it belongs to the open
+     * window and is dropped when that window closes. A snapshot that did not
+     * carry it handed the player back an inventory missing whatever they
+     * happened to be dragging.
+     */
+    public @Nullable ItemStack cursor() {
+        return cursor == null ? null : cursor.clone();
+    }
+
+    /**
+     * The exhaustion behind the hunger bar.
+     *
+     * <p>The half of hunger nobody sees: it is what drains saturation, so a
+     * player restored with their saturation but not their exhaustion starts
+     * losing it at the wrong moment.
+     */
+    public float exhaustion() {
+        return exhaustion;
+    }
+
+    /** The absorption hearts they had on top of their own. */
+    public double absorption() {
+        return absorption;
+    }
+
     /** The physical state, or {@code null} when the row predates it. */
     public @Nullable Physical physical() {
         return physical;
@@ -436,13 +556,18 @@ public final class Snapshot {
                 && flying == that.flying
                 && Float.compare(flySpeed, that.flySpeed) == 0
                 && Objects.equals(physical, that.physical)
-                && Objects.equals(attributes, that.attributes);
+                && Objects.equals(attributes, that.attributes)
+                && heldSlot == that.heldSlot
+                && Objects.equals(cursor, that.cursor)
+                && Float.compare(exhaustion, that.exhaustion) == 0
+                && Double.compare(absorption, that.absorption) == 0;
     }
 
     @Override
     public int hashCode() {
         int result = Objects.hash(gameMode, offHand, health, maxHealth, foodLevel, saturation,
-                level, exp, potionEffects, allowFlight, flying, flySpeed, physical, attributes);
+                level, exp, potionEffects, allowFlight, flying, flySpeed, physical, attributes,
+                heldSlot, cursor, exhaustion, absorption);
         result = 31 * result + Arrays.hashCode(inventory);
         result = 31 * result + Arrays.hashCode(armor);
         return 31 * result + Arrays.hashCode(enderChest);

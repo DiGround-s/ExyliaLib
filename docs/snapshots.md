@@ -36,10 +36,12 @@ Snapshot before = snapshots.capture(player);
 before.restoreTo(player);
 ```
 
-A snapshot holds the inventory, armour, off hand, ender chest, health and
-maximum health, hunger, experience, potion effects, game mode, flight, and the
-physical state — fire ticks, remaining air, velocity, walk speed and
-invulnerability.
+A snapshot holds the inventory, the slot they were holding and whatever was on
+the cursor, armour, off hand, ender chest, health, maximum health and
+absorption, hunger, saturation and exhaustion, experience, potion effects, game
+mode, flight, the base value of every attribute, and the physical state — fire
+ticks, remaining air, velocity, walk speed, fall distance, freeze ticks, arrows
+stuck in them, gliding, invulnerability and glowing.
 
 ## One type, two lifetimes
 
@@ -124,13 +126,13 @@ snapshots.restore(player, "ffa", null,
 | `ARMOR` | The four armour slots |
 | `OFF_HAND` | The off-hand slot |
 | `ENDER_CHEST` | The ender chest — new, absent from a commons row |
-| `HEALTH` | Health and maximum health |
-| `HUNGER` | Food level and saturation |
+| `HEALTH` | Health, maximum health and absorption |
+| `HUNGER` | Food level, saturation and exhaustion |
 | `EXPERIENCE` | Level and progress |
 | `POTION_EFFECTS` | Active effects; whatever is active is cleared first |
 | `GAME_MODE` | The game mode |
 | `FLIGHT` | Allowed, flying, and fly speed |
-| `PHYSICAL` | Fire, air, velocity, walk speed, invulnerability — new |
+| `PHYSICAL` | Fire, air, velocity, walk speed, fall distance, freeze ticks, arrows, gliding, invulnerability, glowing — new |
 
 A partial restore still removes the row: it is a decision about what to put
 back, not about whether the snapshot has been used. A caller who wants to keep it
@@ -216,8 +218,9 @@ empty slot as JSON `null`. This is deliberately **not** the library's
 `BukkitObjectOutputStream`. The two are incompatible and the one already in the
 database wins.
 
-`enderChest` and `physical` are added by this library, and written only when the
-snapshot carries them. ExyliaCommons reads by key and ignores anything it does
+`enderChest`, `physical`, `attributes`, `heldSlot`, `cursor`, `exhaustion` and
+`absorption` are added by this library, and written only when the snapshot
+carries them. ExyliaCommons reads by key and ignores anything it does
 not know, so a row written here still restores an inventory on a server still
 running it; and a snapshot read from a commons row and stored again is
 byte-identical to what commons would have written, rather than growing two keys
@@ -253,10 +256,22 @@ inventory belonging to a player who was on holiday.
 ## What was added
 
 - **The ender chest**, which ExyliaCommons never stored.
-- **The physical state** — fire ticks, remaining air, velocity, walk speed,
-  invulnerability. A player who was on fire and drowning used to come back
-  neither, which is a small gift in a lobby and a real one in a minigame that put
-  them there on purpose.
+- **The physical state** — fire ticks, remaining air, velocity, walk speed, fall
+  distance, freeze ticks, arrows stuck in them, gliding, invulnerability and
+  glowing. A player who was on fire and drowning used to come back neither, which
+  is a small gift in a lobby and a real one in a minigame that put them there on
+  purpose.
+- **The held slot and the cursor.** The hand a player was using is visible in
+  every screenshot they take, and an item on the cursor is in no slot at all: a
+  restore that ignored it handed back an inventory with a hole in it.
+- **Exhaustion and absorption.** The halves of hunger and health nobody sees.
+  Restoring saturation without the exhaustion behind it starts the bar draining
+  at the wrong moment, and absorption hearts an event handed out used to follow
+  the player home.
+- **The base value of every attribute** — scale, movement speed, knockback,
+  maximum health. A minigame that shrinks a player writes an attribute that
+  survives them leaving, dying and reconnecting, which is how a server ends up
+  with knee-high players in its lobby.
 - **Partial restore**, as a typed set of parts.
 - **`restoreAll`**, which applies every context a player has, oldest last, so
   they end up in the state they were in before any of it.

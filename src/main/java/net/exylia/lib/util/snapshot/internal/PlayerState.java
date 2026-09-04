@@ -111,11 +111,18 @@ public final class PlayerState {
 
         List<Snapshot.Effect> effects = new ArrayList<>(captureEffects(player));
 
+        ItemStack cursor = player.getItemOnCursor();
+        if (SnapshotCodec.isEmpty(cursor)) {
+            cursor = null;
+        }
+
         Vector velocity = player.getVelocity();
         Snapshot.Physical physical = new Snapshot.Physical(
                 player.getFireTicks(), player.getRemainingAir(),
                 velocity.getX(), velocity.getY(), velocity.getZ(),
-                player.getWalkSpeed(), player.isInvulnerable(), player.isGlowing());
+                player.getWalkSpeed(), player.isInvulnerable(), player.isGlowing(),
+                player.getFallDistance(), player.getFreezeTicks(),
+                player.getArrowsInBody(), player.isGliding());
 
         return new Snapshot(
                 player.getGameMode(),
@@ -132,7 +139,9 @@ public final class PlayerState {
                 effects,
                 player.getAllowFlight(), player.isFlying(), player.getFlySpeed(),
                 physical,
-                captureAttributes(player));
+                captureAttributes(player),
+                inventory.getHeldItemSlot(), cursor,
+                player.getExhaustion(), player.getAbsorptionAmount());
     }
 
     /**
@@ -251,6 +260,15 @@ public final class PlayerState {
             System.arraycopy(stored, 0, contents, 0,
                     Math.min(stored.length, Snapshot.INVENTORY_SLOTS));
             inventory.setContents(contents);
+            // The hand they were using, and whatever they were dragging. Both
+            // belong to the inventory: the cursor is in no slot at all, so a
+            // restore that ignored it handed back an inventory with a hole in
+            // it, and left whatever the event put there floating on top.
+            int heldSlot = snapshot.heldSlot();
+            if (heldSlot >= 0 && heldSlot < 9) {
+                inventory.setHeldItemSlot(heldSlot);
+            }
+            player.setItemOnCursor(snapshot.cursor());
             touchedInventory = true;
         }
         if (wanted(snapshot, parts, SnapshotPart.ARMOR)) {
@@ -284,6 +302,7 @@ public final class PlayerState {
         if (parts.contains(SnapshotPart.HUNGER)) {
             player.setFoodLevel(snapshot.foodLevel());
             player.setSaturation(snapshot.saturation());
+            player.setExhaustion(snapshot.exhaustion());
         }
         if (parts.contains(SnapshotPart.EXPERIENCE)) {
             player.setLevel(snapshot.level());
@@ -337,6 +356,9 @@ public final class PlayerState {
         if (health > 0.0d) {
             player.setHealth(health);
         }
+        // After the health itself: absorption is hearts on top of it, and the
+        // server drops them when the health below changes.
+        player.setAbsorptionAmount(Math.max(0.0d, snapshot.absorption()));
     }
 
     /**
@@ -398,6 +420,10 @@ public final class PlayerState {
         }
         player.setInvulnerable(physical.invulnerable());
         player.setGlowing(physical.glowing());
+        player.setFallDistance(physical.fallDistance());
+        player.setFreezeTicks(Math.min(physical.freezeTicks(), player.getMaxFreezeTicks()));
+        player.setArrowsInBody(Math.max(0, physical.arrowsInBody()));
+        player.setGliding(physical.gliding());
     }
 
     // ---------------------------------------------------------------- helpers
@@ -417,6 +443,10 @@ public final class PlayerState {
         inventory.clear();
         inventory.setArmorContents(null);
         inventory.setItemInOffHand(null);
+        // The cursor is not a slot, so clearing the inventory leaves it holding
+        // whatever the player was dragging when the menu that took the snapshot
+        // opened. It comes back with the rest on restore.
+        player.setItemOnCursor(null);
         player.updateInventory();
     }
 }
