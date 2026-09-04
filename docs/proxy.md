@@ -68,7 +68,7 @@ thread the message arrived on, with the player it arrived through.
 | `REJECTED` | The module understood and refused; `detail()` says why — a command the proxy does not have, a bad actor. |
 | `FAILED` | The module threw. |
 | `UNKNOWN_MODULE` | The proxy has no such module: it is older than this library, or the name is wrong. |
-| `NO_BRIDGE` | No Redis in `plugins/ExyliaLib/database.yml`, Redis could not carry the request, or the server is shutting down. |
+| `NO_BRIDGE` | No plugin has Redis enabled, Redis could not carry the request, or the server is shutting down. |
 | `TIMEOUT` | Five seconds without an answer. ExyliaProxyUtils is not installed, or it is on another Redis or `key-prefix`. |
 | `NO_PLAYER` | Reserved; no request ends this way over Redis. |
 
@@ -79,9 +79,11 @@ to `CommandResult`: `OK` → `DISPATCHED`, `REJECTED` → `REJECTED`, `FAILED` �
 
 ## How it travels
 
-Redis pub/sub, over the Redis that `plugins/ExyliaLib/database.yml` names
-under `database.redis` — the same block every plugin's cache uses, with the
-same `key-prefix` and this server's `server-id`. Not plugin messages: those
+Redis pub/sub, over the Redis the server already has: the `database.redis`
+block of `plugins/ExyliaLib/database.yml` if it is enabled there, otherwise
+the first plugin whose `database.yml` has it enabled (*since 1.107.0*). A
+network has one Redis and every plugin on it already names it, so nothing has
+to be configured twice; `key-prefix` and `server-id` come from the same block. Not plugin messages: those
 travel down a player's connection, a modified client can write one, and a
 bridge built on them has to trust the proxy to filter the client's bytes out.
 Redis is on the network's own side of the wall, and it works with nobody
@@ -103,12 +105,13 @@ to; without it the proxy answers into the void.
 
 ### Startup says who is there
 
-A second after startup, and every ten seconds until it answers, the library
-sends `ping`. The proxy answers with its name and version and the console
-prints `Proxy bridge: ExyliaProxyUtils 2.0.0 on Velocity.` once. No answer
-prints, once, that no bridge answered and what to install. With no Redis in
-the library's `database.yml` there is no bridge at all, and the console says
-that instead. A request that times out marks the proxy unknown again, so the
+A second after startup — once every plugin has enabled and loaded its
+`database.yml` — the library looks for a Redis, and keeps looking every ten
+seconds until one is enabled. With one, it prints which file it took the
+settings from, then sends `ping` every ten seconds until the proxy answers. The proxy answers with its name and version and the console
+prints `Proxy bridge: ExyliaProxyUtils 2.0.1 on Velocity.` once. No answer
+prints, once, that no bridge answered and what to install. With Redis enabled
+nowhere there is no bridge at all, and the console says that instead. A request that times out marks the proxy unknown again, so the
 pings resume.
 
 ### Pushes

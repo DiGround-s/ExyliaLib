@@ -1,5 +1,8 @@
 package net.exylia.lib.proxy.internal;
 
+import net.exylia.lib.config.ConfigFile;
+import net.exylia.lib.config.Configs;
+import net.exylia.lib.database.DatabaseSettings;
 import net.exylia.lib.database.internal.DatabaseRuntime;
 import net.exylia.lib.debug.Debug;
 import net.exylia.lib.proxy.ProxyReply;
@@ -82,54 +85,100 @@ public final class ProxyRuntime {
     }
 
     /**
-     * Opens the channel over the library's Redis, if it has one.
+     * Starts looking for a Redis to open the bridge over.
      *
-     * <p>Without {@code database.redis} in {@code plugins/ExyliaLib/database.yml}
-     * there is no bridge, and the console says so once: a network that runs
-     * a proxy plugin has a Redis, and a single server has nothing to bridge.
+     * <p>Not opened here: the plugins whose {@code database.yml} names the
+     * network's Redis enable after the library does, so the first look is a
+     * second later, on the timer, and it keeps looking every ten seconds
+     * until one turns up.
      */
     public static synchronized void init(@NotNull Plugin plugin) {
         if (library != null) {
             return;
         }
         library = plugin;
+        timer = Tasks.of(plugin).runAsyncTimer(20L, PERIOD_TICKS, ProxyRuntime::tick);
+    }
+
+    /**
+     * Opens the channel over whichever Redis the server has.
+     *
+     * <p>The library's own {@code plugins/ExyliaLib/database.yml} first; failing
+     * that, the first plugin whose {@code database.yml} has {@code redis.enabled}
+     * — a network has one Redis and every plugin on it already names it, so
+     * nobody should have to name it a second time for the bridge.
+     *
+     * @return whether there is a channel now
+     */
+    private static synchronized boolean open() {
+        Plugin plugin = library;
+        if (plugin == null) {
+            return false;
+        }
+        if (redis != null) {
+            return true;
+        }
         Debug debug = Debug.of(plugin);
         RedisSettings settings;
-        RedisClient client;
+        String from;
         try {
             settings = DatabaseRuntime.redis(plugin);
+            from = plugin.getName();
+            if (!settings.enabled()) {
+                for (ConfigFile<?> file : Configs.loaded()) {
+                    if ("database".equals(file.name()) && file.get() instanceof DatabaseSettings values
+                            && values.database() != null && values.database().redis() != null
+                            && values.database().redis().enabled()) {
+                        settings = values.database().redis();
+                        from = file instanceof net.exylia.lib.config.internal.ConfigFileImpl<?> impl
+                                ? impl.owner().getName() : "a plugin";
+                        break;
+                    }
+                }
+            }
+        } catch (RuntimeException | LinkageError unavailable) {
+            if (!warned) {
+                warned = true;
+                debug.warn("The proxy bridge could not read a database.yml: " + unavailable.getMessage());
+            }
+            return false;
+        }
+        if (!settings.enabled()) {
+            if (!warned) {
+                warned = true;
+                debug.log("No plugin has Redis enabled in its database.yml yet, so there is no proxy"
+                        + " bridge: player-proxy: and console-proxy: commands and cross-server"
+                        + " teleports are unavailable. Turn on database.redis in any plugin's"
+                        + " database.yml, or in plugins/ExyliaLib/database.yml.");
+            }
+            return false;
+        }
+        RedisClient client;
+        try {
             client = RedisRuntime.client(plugin, settings);
         } catch (RuntimeException | LinkageError absent) {
-            debug.warn("The proxy bridge could not open Redis, so player-proxy: and console-proxy:"
-                    + " commands and cross-server teleports are unavailable: " + absent.getMessage());
-            return;
+            debug.warn("The proxy bridge could not open Redis: " + absent.getMessage());
+            return false;
         }
         if (client == null) {
-            if (settings.enabled()) {
-                // The Redis module already said where and why, just above.
-                debug.warn("The proxy bridge is off because Redis could not be reached; restart"
-                        + " once it answers. player-proxy: and console-proxy: commands and"
-                        + " cross-server teleports are unavailable until then.");
-            } else {
-                debug.log("No Redis in plugins/ExyliaLib/database.yml (redis.enabled is false), so"
-                        + " there is no proxy bridge: player-proxy: and console-proxy: commands and"
-                        + " cross-server teleports are unavailable on this server.");
-            }
-            return;
+            // The Redis module already said where and why; it is retried on
+            // the next tick.
+            return false;
+        }
+        try {
+            subscription = client.subscribe(Frames.channelOf(settings.keyPrefix(), settings.serverId()),
+                    ProxyRuntime::onMessage);
+        } catch (RuntimeException unreachable) {
+            debug.warn("Could not listen for the proxy bridge: " + unreachable.getMessage());
+            return false;
         }
         prefix = settings.keyPrefix();
         serverId = settings.serverId();
         redis = client;
-        try {
-            subscription = client.subscribe(Frames.channelOf(prefix, serverId), ProxyRuntime::onMessage);
-        } catch (RuntimeException unreachable) {
-            debug.warn("Could not listen for the proxy bridge: " + unreachable.getMessage());
-            redis = null;
-            return;
-        }
-        // The first ping a second in, so a proxy that is there is announced
-        // during startup rather than ten seconds later.
-        timer = Tasks.of(plugin).runAsyncTimer(20L, PERIOD_TICKS, ProxyRuntime::tick);
+        warned = false;
+        debug.log("Proxy bridge listening on Redis " + settings.host() + ':' + settings.port()
+                + " as \"" + serverId + "\" (settings from " + from + "/database.yml).");
+        return true;
     }
 
     /** Fails everything still in flight and closes the channel; on shutdown. */
@@ -198,6 +247,9 @@ public final class ProxyRuntime {
     }
 
     private static void tick() {
+        if (redis == null && !open()) {
+            return;
+        }
         if (!available) {
             request((UUID) null, PING, "").thenAccept(reply -> {
                 if (reply.reachedProxy() || warned) {
@@ -241,7 +293,7 @@ public final class ProxyRuntime {
         RedisClient client = redis;
         if (plugin == null || client == null) {
             return CompletableFuture.completedFuture(new ProxyReply(ProxyReply.Status.NO_BRIDGE,
-                    "no Redis in plugins/ExyliaLib/database.yml, so there is no proxy bridge"));
+                    "no plugin has Redis enabled in its database.yml, so there is no proxy bridge"));
         }
         if (module.isBlank() || module.indexOf('|') >= 0) {
             throw new IllegalArgumentException("A proxy request needs a module name, without pipes.");
