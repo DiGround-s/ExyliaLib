@@ -1,6 +1,7 @@
 package net.exylia.lib.util.editor.internal;
 
 import net.exylia.lib.debug.Debug;
+import net.exylia.lib.task.Tasks;
 import net.exylia.lib.ui.ClickPolicy;
 import net.exylia.lib.util.editor.Loadout;
 import org.bukkit.Bukkit;
@@ -15,7 +16,6 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
@@ -54,7 +54,7 @@ public final class LoadoutHolder implements InventoryHolder {
     /** Which grid slot each loadout position is drawn in. */
     private static final List<Integer> SLOTS = Loadout.editorSlots();
 
-    private static final Set<Integer> INPUT_SLOTS = Set.copyOf(new LinkedHashSet<>(SLOTS));
+    private static final Set<Integer> INPUT_SLOTS = Set.copyOf(SLOTS);
 
     private final Plugin plugin;
     private final String title;
@@ -221,7 +221,8 @@ public final class LoadoutHolder implements InventoryHolder {
         if (!finish()) {
             return;
         }
-        run(() -> onSave.accept(read()), "save a loadout");
+        List<ItemStack> saved = read();
+        later(() -> onSave.accept(saved), "save a loadout");
     }
 
     /** Throws it away. The cancel button, and the owning plugin disabling. */
@@ -229,7 +230,7 @@ public final class LoadoutHolder implements InventoryHolder {
         if (!finish()) {
             return;
         }
-        run(onCancel, "close a loadout editor");
+        later(onCancel, "close a loadout editor");
     }
 
     boolean isFinished() {
@@ -245,16 +246,34 @@ public final class LoadoutHolder implements InventoryHolder {
     }
 
     /**
-     * Runs a caller's callback without letting it take the window down with it.
+     * Runs a caller's callback on the next tick, and not before.
      *
-     * <p>The one place control leaves the module, so the one place that has to
-     * survive the code it hands control to.
+     * <p>Every ending happens inside a click or a close, and what a callback
+     * almost always does is open the screen the editor was entered from. Opening
+     * an inventory while the server is still handling the one that is closing is
+     * how a client ends up looking at a window the server does not think it has
+     * — so the callback waits a tick, and no caller has to know that.
+     *
+     * <p>It is also the one place control leaves the module, so the one place
+     * that has to survive the code it hands control to.
      */
-    private void run(Runnable callback, String what) {
-        try {
-            callback.run();
-        } catch (RuntimeException broken) {
-            Debug.of(plugin).error("A loadout editor could not " + what + ".", broken);
+    private void later(Runnable callback, String what) {
+        Runnable guarded = () -> {
+            try {
+                callback.run();
+            } catch (RuntimeException broken) {
+                Debug.of(plugin).error("A loadout editor could not " + what + ".", broken);
+            }
+        };
+        Player viewer = viewer();
+        if (viewer == null) {
+            // Nobody left to schedule around: whoever is ending this is already
+            // on the thread that owns the work.
+            guarded.run();
+            return;
         }
+        // Told twice on purpose: a viewer who left mid-save still gets their
+        // layout written, which is the half of this that is not about a screen.
+        Tasks.of(EditorRuntime.scheduler(plugin)).runAtEntity(viewer, guarded, guarded);
     }
 }

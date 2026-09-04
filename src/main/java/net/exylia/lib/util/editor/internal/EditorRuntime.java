@@ -311,7 +311,7 @@ public final class EditorRuntime {
      * ExyliaLib as the fallback, because a disabled plugin cannot schedule the
      * closing of its own screens.
      */
-    private static Plugin scheduler(@Nullable Plugin plugin) {
+    static Plugin scheduler(@Nullable Plugin plugin) {
         if (plugin != null && plugin.isEnabled()) {
             return plugin;
         }
