@@ -6,7 +6,7 @@ import net.exylia.lib.database.Index;
 import net.exylia.lib.database.Indexed;
 import net.exylia.lib.database.Table;
 import net.exylia.lib.util.snapshot.Snapshot;
-import org.bukkit.Location;
+import net.exylia.lib.util.teleport.ExyliaLocation;
 import org.jetbrains.annotations.ApiStatus;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -45,7 +45,9 @@ import java.util.UUID;
  * @param uuid         the player, indexed so their rows can be listed
  * @param contextId    what the snapshot was taken for
  * @param snapshot     the state itself, through the registered codec
- * @param lastLocation where they were when it was taken
+ * @param lastLocation where they were when it was taken, with the server;
+ *                     rows from before 1.108.0 hold a six-part Location and
+ *                     read back as a place on whichever server reads them
  * @param savedAt      when it was taken, in epoch milliseconds
  */
 @ApiStatus.Internal
@@ -68,7 +70,7 @@ public record SnapshotRow(
         // instead of refused — a corrupt snapshot rather than a failed write.
         @Column(length = Column.UNBOUNDED) Snapshot snapshot,
 
-        @Column Location lastLocation,
+        @Column ExyliaLocation lastLocation,
 
         @Column long savedAt) {
 
@@ -94,7 +96,7 @@ public record SnapshotRow(
      * @return the row
      */
     public static @NotNull SnapshotRow of(@NotNull UUID uuid, @NotNull String contextId,
-                                          @NotNull Snapshot snapshot, @Nullable Location where,
+                                          @NotNull Snapshot snapshot, @Nullable ExyliaLocation where,
                                           long savedAt) {
         return new SnapshotRow(key(uuid, contextId), uuid, contextId, snapshot, where, savedAt);
     }

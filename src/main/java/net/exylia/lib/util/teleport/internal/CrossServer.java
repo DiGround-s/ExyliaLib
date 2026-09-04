@@ -202,7 +202,10 @@ public final class CrossServer {
      * @return the configured {@code server-id}
      */
     public static @NotNull String serverId(@NotNull Plugin plugin) {
-        return settings(plugin).serverId();
+        // The bridge's name for this server is the one the proxy addresses
+        // it by, and the proxy is the one that moves players: whatever a
+        // plugin's own database.yml says, that is the name a place must carry.
+        return Proxy.isAvailable() ? ProxyRuntime.serverId() : settings(plugin).serverId();
     }
 
     /**

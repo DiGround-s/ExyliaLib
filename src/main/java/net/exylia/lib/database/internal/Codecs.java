@@ -2,6 +2,7 @@ package net.exylia.lib.database.internal;
 
 import net.exylia.lib.database.Codec;
 import org.bukkit.Bukkit;
+import net.exylia.lib.util.teleport.ExyliaLocation;
 import org.bukkit.Location;
 import org.bukkit.World;
 import org.bukkit.inventory.ItemStack;
@@ -50,6 +51,11 @@ public final class Codecs {
         register(ItemStack.class, Codec.of(Codecs::encodeItem, Codecs::decodeItem));
         register(ItemStack[].class, Codec.of(Codecs::encodeItems, Codecs::decodeItems));
         register(Location.class, Codec.of(Codecs::encodeLocation, Codecs::decodeLocation));
+        // A place that knows its server. Stored as ExyliaLocation writes it,
+        // {@code server,world,x,y,z,yaw,pitch}, and read back from that or
+        // from the six-part Location format above, so a column that used to
+        // be a Location can become one of these without touching its rows.
+        register(ExyliaLocation.class, Codec.of(ExyliaLocation::toString, Codecs::decodePlace));
     }
 
     private static <T> void register(Class<T> type, Codec<T> codec) {
@@ -170,6 +176,17 @@ public final class Codecs {
             }
             return items;
         } catch (Exception unreadable) {
+            return null;
+        }
+    }
+
+    // ---------------------------------------------------------- ExyliaLocation
+
+    /** Reads a place; an unreadable one is {@code null}, like an unreadable Location. */
+    private static ExyliaLocation decodePlace(String stored) {
+        try {
+            return ExyliaLocation.fromString(stored);
+        } catch (IllegalArgumentException malformed) {
             return null;
         }
     }

@@ -3,6 +3,7 @@ package net.exylia.lib.util.snapshot.internal;
 import net.exylia.lib.database.PluginDatabase;
 import net.exylia.lib.database.Repository;
 import net.exylia.lib.debug.Debug;
+import net.exylia.lib.util.teleport.ExyliaLocation;
 import net.exylia.lib.util.snapshot.Snapshot;
 import org.jetbrains.annotations.ApiStatus;
 import org.jetbrains.annotations.NotNull;
@@ -146,7 +147,8 @@ public final class LegacyImport {
                 continue;
             }
             long savedAt = row.updatedAt() > 0 ? row.updatedAt() : row.createdAt();
-            converted.add(SnapshotRow.of(uuid, context, snapshot, row.lastLocation(),
+            converted.add(SnapshotRow.of(uuid, context, snapshot,
+                    row.lastLocation() == null ? null : ExyliaLocation.of(row.lastLocation()),
                     savedAt > 0 ? savedAt : System.currentTimeMillis()));
         }
         if (unreadable > 0) {

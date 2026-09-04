@@ -508,6 +508,19 @@ A `to(player, elsewhere)` whose `ExyliaLocation` names a different server
 becomes a handover automatically, carrying `TeleportCause.CROSS_SERVER`. A
 destination naming *this* server is a local teleport, not a handover to itself.
 
+### Writing a place down
+
+A `Location` is a pointer into a loaded world and means nothing on another
+server; anything stored, or shown to another server, is an `ExyliaLocation`.
+`Teleports.of(plugin).here(player)` writes one for where a player stands,
+named after this server — what the proxy calls it when the bridge is up, the
+`server-id` of the plugin's Redis block otherwise (`serverId()`). Records can
+declare `@Column ExyliaLocation` directly (*since 1.108.0*); a column that
+used to be a `Location` reads its old six-part rows as places on the server
+that reads them, so nothing needs migrating. Hand the place back to
+`to(player, ExyliaLocation)` from anywhere and it is a local teleport or a
+handover as needed.
+
 ### Write, then Connect — this is the central contract
 
 **The destination is written to Redis first, and only a write that came back

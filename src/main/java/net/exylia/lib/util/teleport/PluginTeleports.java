@@ -222,6 +222,44 @@ public final class PluginTeleports {
     }
 
     /**
+     * Where a player is, as a place that knows its server.
+     *
+     * <p>The one way to write down "here" for later: a home, a warp, where
+     * somebody stood before a session. A {@code Location} means nothing on
+     * another server of the network; this can be handed straight back to
+     * {@link #to(Player, ExyliaLocation)} from anywhere.
+     *
+     * @param player who
+     * @return their place, named after this server
+     * @since 1.108.0
+     */
+    public @NotNull ExyliaLocation here(@NotNull Player player) {
+        return ExyliaLocation.of(serverId(), player.getLocation());
+    }
+
+    /**
+     * A live location as a place that knows its server.
+     *
+     * @param location where, on this server
+     * @return the place, named after this server
+     * @since 1.108.0
+     */
+    public @NotNull ExyliaLocation here(@NotNull Location location) {
+        return ExyliaLocation.of(serverId(), location);
+    }
+
+    /**
+     * This server's name on the network: what the proxy calls it when the
+     * bridge is up, the {@code server-id} of this plugin's Redis block otherwise.
+     *
+     * @return the name a place on this server carries
+     * @since 1.108.0
+     */
+    public @NotNull String serverId() {
+        return CrossServer.serverId(plugin);
+    }
+
+    /**
      * Which server of the network a player is on.
      *
      * <p>This server's own name when they are here, answered without asking

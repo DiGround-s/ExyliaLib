@@ -10,6 +10,10 @@ import net.exylia.lib.util.snapshot.internal.LegacyImport;
 import net.exylia.lib.util.snapshot.internal.PlayerState;
 import net.exylia.lib.util.snapshot.internal.SnapshotRow;
 import net.exylia.lib.util.snapshot.internal.SnapshotRuntime;
+import net.exylia.lib.util.teleport.ExyliaLocation;
+import net.exylia.lib.util.teleport.PluginTeleports;
+import net.exylia.lib.util.teleport.TeleportCause;
+import net.exylia.lib.util.teleport.Teleports;
 import org.bukkit.Location;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
@@ -137,7 +141,7 @@ public final class PluginSnapshots {
     public @NotNull CompletableFuture<Void> save(@NotNull Player player,
                                                  @NotNull String contextId) {
         SnapshotRow row = SnapshotRow.of(player.getUniqueId(), contextId, Snapshot.of(player),
-                player.getLocation(), SnapshotRuntime.stamp());
+                teleports().here(player), SnapshotRuntime.stamp());
         return store().thenCompose(repository -> repository.save(row));
     }
 
@@ -157,8 +161,8 @@ public final class PluginSnapshots {
     public @NotNull CompletableFuture<Void> save(@NotNull UUID uuid, @NotNull String contextId,
                                                  @NotNull Snapshot snapshot,
                                                  @Nullable Location where) {
-        SnapshotRow row = SnapshotRow.of(uuid, contextId, snapshot, where,
-                SnapshotRuntime.stamp());
+        SnapshotRow row = SnapshotRow.of(uuid, contextId, snapshot,
+                where == null ? null : teleports().here(where), SnapshotRuntime.stamp());
         return store().thenCompose(repository -> repository.save(row));
     }
 
@@ -282,8 +286,9 @@ public final class PluginSnapshots {
                                     return;
                                 }
                                 PlayerState.apply(snapshot, player, parts, SnapshotRuntime::report);
-                                if (wentBack != null && row.lastLocation() != null) {
-                                    wentBack.accept(row.lastLocation());
+                                Location back = liveHere(row.lastLocation());
+                                if (wentBack != null && back != null) {
+                                    wentBack.accept(back);
                                 }
                                 applied.complete(true);
                             },
@@ -294,6 +299,62 @@ public final class PluginSnapshots {
                             ? repository.delete(row.key()).thenApply(ignored -> true)
                             : CompletableFuture.completedFuture(false));
                 }));
+    }
+
+    /**
+     * Restores the parts named and puts the player back where they were, on
+     * whichever server that was.
+     *
+     * <p>The one to use when "back" may be another server of the network: a
+     * staff member who went on duty in the lobby and comes off it in an arena,
+     * a match that started elsewhere. On the same server it is a plain
+     * teleport; elsewhere it is a handover through the proxy, with the exact
+     * spot carried along. {@link #restore(Player, String, Consumer, Set)} only
+     * knows how to hand back a location on this server.
+     *
+     * @param player    the player
+     * @param contextId which snapshot
+     * @param parts     which parts to put back
+     * @return whether there was one to restore; the teleport's own result is
+     *         reported by the teleport module
+     * @since 1.108.0
+     */
+    public @NotNull CompletableFuture<Boolean> restoreAndReturn(@NotNull Player player,
+                                                                @NotNull String contextId,
+                                                                @NotNull Set<SnapshotPart> parts) {
+        UUID uuid = player.getUniqueId();
+        return store().thenCompose(repository -> repository.find(SnapshotRow.key(uuid, contextId))
+                .thenCompose(found -> {
+                    ExyliaLocation back = found.filter(row -> !LegacyImport.isMarker(row))
+                            .map(SnapshotRow::lastLocation).orElse(null);
+                    return restore(player, contextId, null, parts).thenApply(restored -> {
+                        if (restored && back != null) {
+                            teleports().to(player, back).cause(TeleportCause.PLUGIN).start();
+                        }
+                        return restored;
+                    });
+                }));
+    }
+
+    /**
+     * Where a player was when a snapshot was taken, as a place that knows
+     * its server.
+     *
+     * <p>{@link #pending} answers with a live location only when that place
+     * is on this server; this answers wherever it is.
+     *
+     * @param uuid      the player
+     * @param contextId which snapshot
+     * @return the place, when there is a snapshot to come back to
+     * @since 1.108.0
+     */
+    public @NotNull CompletableFuture<Optional<ExyliaLocation>> pendingPlace(@NotNull UUID uuid,
+                                                                             @NotNull String contextId) {
+        return store().thenCompose(repository ->
+                repository.find(SnapshotRow.key(uuid, contextId))
+                        .thenApply(found -> found
+                                .filter(row -> !LegacyImport.isMarker(row))
+                                .map(SnapshotRow::lastLocation)));
     }
 
     /**
@@ -355,7 +416,8 @@ public final class PluginSnapshots {
      * before they left should stop: teleporting a player during
      * {@code PlayerQuitEvent} does nothing, and teleporting one during
      * {@code onDisable} races the server's own save. This returns their stored
-     * location so the caller can decide, and touches nothing.
+     * location so the caller can decide, and touches nothing. Empty when the
+     * place is on another server; {@link #pendingPlace} answers there too.
      *
      * @param uuid      the player
      * @param contextId which snapshot
@@ -367,7 +429,19 @@ public final class PluginSnapshots {
                 repository.find(SnapshotRow.key(uuid, contextId))
                         .thenApply(found -> found
                                 .filter(row -> !LegacyImport.isMarker(row))
-                                .map(SnapshotRow::lastLocation)));
+                                .map(row -> liveHere(row.lastLocation()))));
+    }
+
+    /** A stored place as a live location, only when it is on this server and its world is loaded. */
+    private @Nullable Location liveHere(@Nullable ExyliaLocation place) {
+        if (place == null || !place.isSameServer(teleports().serverId())) {
+            return null;
+        }
+        return place.toBukkitLocation();
+    }
+
+    private PluginTeleports teleports() {
+        return Teleports.of(plugin);
     }
 
     // ---------------------------------------------------------------- reading

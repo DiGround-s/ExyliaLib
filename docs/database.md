@@ -56,6 +56,7 @@ whole file to change one row.
 | enum | its **name** | never the ordinal |
 | `ItemStack`, `ItemStack[]` | Base64, Bukkit's own versioned format | |
 | `Location` | `world,x,y,z,yaw,pitch` | |
+| `ExyliaLocation` | text | `server,world,x,y,z,yaw,pitch`; reads a six-part `Location` row too, as a place on this server. *Since 1.108.0.* |
 | `List<X>` | a JSON array | `X` needs a codec or be a plain value |
 | anything else | whatever a registered `Codec` says | |
 
