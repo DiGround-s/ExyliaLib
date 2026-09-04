@@ -120,6 +120,23 @@ legible enough to edit by hand. Anything carrying meta, which is to say a
 textured head or a custom model, is stored whole as `bytes:`, because that is
 the only spelling that keeps it. An empty hand is `AIR`.
 
+### Storing an item that *is* the reward
+
+Since 1.111.0. `Source.whole(ItemStack)` is the same reading with nothing
+thrown away: the name it was given, the lore under it, its enchantments and its
+attributes.
+
+```java
+String payload = Source.whole(inserted).raw();
+```
+
+Use it whenever the stored item is handed back to a player — a reward, a kit
+slot, a shop's stock — and `of` whenever it is only drawn. The difference is one
+line long and it is the difference between a legendary sword and a plain diamond
+one. What it costs is length: a name and lore written in gradients serialise as
+component JSON, so the column has to have room for it (`RewardDescriptor` allows
+4096 characters).
+
 **The name and the lore are dropped.** Everything the item looks like is kept —
 model, colour, patterns, glint — but the two things an icon never draws are not
 stored: whatever draws it writes its own name and lore from its own

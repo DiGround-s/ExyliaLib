@@ -97,12 +97,20 @@ another.
 | --- | --- | --- |
 | `COMMAND` | `command` — run by the console, with or without a leading `/` | 1.34.0 |
 | `ITEM` | `itemSnapshot` — a material, a head string, or `bytes:` | 1.34.0 |
+
 | `MESSAGE` | `message`, in Exylia text notation | 1.34.0 |
 | `ECONOMY` | `value` as written, plus an optional `currency` | 1.34.0 |
 | `EXPERIENCE` | `value`, in points | 1.34.0 |
 | `POTION` | `value`, as `util/Effects` reads it: `SPEED:1:300` | 1.34.0 |
 
 The first three are the ones commons stored. `RewardType.isLegacy()` says which.
+
+**An item reward is stored whole.** Since 1.111.0 the editor reads an inserted
+item through `Source.whole`, so the name it was given, the lore under it, its
+enchantments and its attributes are what the player is handed. Before that it
+was read as an *icon*, which drops the name and lore on purpose — right for a
+menu row, wrong for the reward itself, and the reason a written sword arrived
+plain.
 
 `ECONOMY` carries its amount as **text**, not a `double`: a decimal that goes
 through a `double` on its way to the database does not come back the same.

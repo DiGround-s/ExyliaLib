@@ -151,6 +151,31 @@ class SourceTest {
     }
 
     @Test
+    @DisplayName("a payload keeps the name and lore an icon throws away")
+    void wholeItemKeepsItsText() {
+        // The item a reward hands over is the item that was inserted: a sword
+        // whose name and lore are the reward arriving as a plain diamond one is
+        // the bug this separates the two paths for.
+        Stack held = new Stack(Material.DIAMOND_SWORD, true);
+
+        Source source = Source.whole(held);
+
+        assertInstanceOf(Source.OfSnapshot.class, source);
+        assertEquals(List.of("serializeAsBytes"), held.calls,
+                "a payload is written out as it is: no clone, and nothing cleared");
+    }
+
+    @Test
+    @DisplayName("a payload with no meta is still its material name")
+    void wholePlainItemIsItsName() {
+        // Nothing to keep, so nothing to pay for: a stack of stone stays a word
+        // rather than becoming base64 in a rewards column.
+        Source source = Source.whole(new Stack(Material.PACKED_ICE, false));
+
+        assertEquals("PACKED_ICE", assertInstanceOf(Source.OfMaterial.class, source).raw());
+    }
+
+    @Test
     @DisplayName("an item carrying meta is stored whole")
     void itemWithMetaIsASnapshot() {
         // A textured head or a custom model lives in the meta; a material name

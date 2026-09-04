@@ -37,6 +37,14 @@ public final class RewardDescriptor implements EditorDescriptor<RewardEntry> {
     /** The clipboard bucket rewards share, whichever plugin's editor copied them. */
     public static final String TYPE_KEY = "exylia:rewards";
 
+    /**
+     * How long a stored item payload may be.
+     *
+     * <p>Half of what {@code rewardsJson} holds, so one heavily written item
+     * cannot fill a list that has to hold several of them.
+     */
+    private static final int ITEM_MAX_LENGTH = 4096;
+
     private static final FormKey<String> NAME = FormKey.text("name");
     private static final FormKey<Boolean> ICON = FormKey.flag("icon");
     private static final FormKey<String> PAYLOAD = FormKey.text("payload");
@@ -168,7 +176,13 @@ public final class RewardDescriptor implements EditorDescriptor<RewardEntry> {
     public @NotNull CompletionStage<Optional<RewardEntry>> edit(@NotNull Player viewer,
                                                                 @NotNull RewardEntry entry) {
         if (entry.type() == RewardType.ITEM) {
+            // Whole, not as an icon: this is the item the player is handed, so
+            // the name it was given and the lore under it are the reward rather
+            // than decoration a screen will write again. The room is the
+            // column's: rewardsJson holds 8192 characters for the whole list.
             return Inputs.of(plugin).icon(viewer, "{primary}&lWHAT ITEM?")
+                    .wholeItem()
+                    .maxLength(ITEM_MAX_LENGTH)
                     .open()
                     .thenCompose(icon -> icon.completed()
                             ? form(viewer, entry.toBuilder().itemSnapshot(icon.value()).build())

@@ -494,6 +494,12 @@ same picker again, over the catalogue described in [heads.md](heads.md), with
 real textures drawn in every row. It needs the server to reach the catalogue;
 when it cannot, that window says so and the other three ways are untouched.
 
+**`wholeItem()` stores the inserted item as it is**, since 1.111.0, name and
+lore included. Without it the answer is an *icon*, and an icon drops the name
+and the lore because whatever draws it writes its own — which is right for a
+menu row and wrong for the item a reward hands over. Raise `maxLength` with it:
+512 is what an icon column allows, and a written item is longer than that.
+
 **`INSERT` replaced reading the player's main hand**, in 1.59.0. Holding the
 item meant closing whatever screen you were on, finding it, holding it and
 reopening — and from inside a menu it could not be done at all. A window with

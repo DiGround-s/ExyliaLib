@@ -84,6 +84,7 @@ public final class IconInput {
     private List<Way> ways = List.of(Way.values());
     private int maxLength = DEFAULT_MAX_LENGTH;
     private Duration timeout;
+    private boolean whole;
 
     IconInput(PluginInputs inputs, Player player, String prompt) {
         this.inputs = inputs;
@@ -122,6 +123,27 @@ public final class IconInput {
      * @param maxLength the limit, in characters; must be positive
      * @return this builder
      */
+    /**
+     * Reads an inserted item whole, rather than as an icon.
+     *
+     * <p>An icon is drawn under a name its own screen writes, so the name and
+     * lore an item was carrying are dropped when it is stored — they are never
+     * seen again and they are most of its length. A payload is the opposite:
+     * the item a reward hands over <em>is</em> the item that was inserted, and
+     * it has to arrive with the name it was given.
+     *
+     * <p>Only the inserted item is affected; a material or a head is the same
+     * string either way. Raise {@link #maxLength(int)} with it, because a
+     * whole item does not fit the 512 an icon column allows.
+     *
+     * @return this
+     * @since 1.111.0
+     */
+    public @NotNull IconInput wholeItem() {
+        this.whole = true;
+        return this;
+    }
+
     public @NotNull IconInput maxLength(int maxLength) {
         if (maxLength <= 0) {
             throw new InputException("maxLength must be positive");
@@ -209,16 +231,21 @@ public final class IconInput {
      * every ending, including the plugin being disabled.
      */
     private CompletionStage<InputResult<String>> insert() {
-        return InsertWindow.open(inputs.plugin(), player, prompt)
+        // The item itself when it is a payload, and the window's own icon
+        // reading when it is an icon: what separates the two is the name and
+        // the lore, which an icon drops on the way out.
+        return InsertWindow.openForItem(inputs.plugin(), player, prompt)
                 .thenApply(inserted -> inserted
-                        .map(item -> stored(Source.of(item).raw()))
+                        .map(item -> stored((whole ? Source.whole(item) : Source.of(item)).raw()))
                         .orElseGet(() -> InputResult.ended(InputOutcome.CANCELLED)));
     }
 
     /** Checks an icon against the column it is going into before saying yes. */
     private InputResult<String> stored(String icon) {
         if (icon.length() > maxLength) {
-            Text.of("{error}That item is too big to store as an icon."
+            Text.of(whole
+                    ? "{error}That item is too big to store. Shorten its lore, or use a plainer item."
+                    : "{error}That item is too big to store as an icon."
                     + " Pick a material or a head instead.").send(player);
             return InputResult.ended(InputOutcome.CANCELLED);
         }

@@ -157,6 +157,43 @@ public sealed interface Source {
     }
 
     /**
+     * Reads an item whole, name and lore included.
+     *
+     * <p>The difference from {@link #of(ItemStack)} is what is thrown away, and
+     * it is the difference between an icon and a thing. An icon is drawn under
+     * a name its own configuration writes, so the one the item was carrying is
+     * dead weight and is dropped. A <em>payload</em> — the item a reward
+     * actually hands over, the item a kit puts in a slot — is the item itself:
+     * the name it was given, the lore under it, its enchantments, its
+     * attributes. Storing one through the icon path is how a legendary sword
+     * arrives as a plain diamond one.
+     *
+     * <p>Anything with meta is stored whole as a {@code bytes:} snapshot, which
+     * is long: a name and lore written in gradients and palette tokens
+     * serialise as component JSON. The caller is the one that knows how much
+     * room its column has.
+     *
+     * @param item the item, as it is
+     * @return what to store; never a value {@link #of(String)} cannot read
+     * @since 1.111.0
+     */
+    static @NotNull Source whole(@NotNull ItemStack item) {
+        Material type = item.getType();
+        if (type == Material.AIR || type == Material.CAVE_AIR || type == Material.VOID_AIR) {
+            return new OfMaterial("AIR");
+        }
+        if (!item.hasItemMeta()) {
+            return new OfMaterial(type.name());
+        }
+        try {
+            String base64 = Base64.getEncoder().encodeToString(item.serializeAsBytes());
+            return new OfSnapshot("bytes:" + base64, base64);
+        } catch (RuntimeException unwritable) {
+            return new OfMaterial(type.name());
+        }
+    }
+
+    /**
      * The part of an item that is worth storing as an icon.
      *
      * <p>Everything the item looks like is kept — its model, its colour, its
