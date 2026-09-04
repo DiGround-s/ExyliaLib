@@ -1,5 +1,6 @@
 package net.exylia.lib.command;
 
+import net.exylia.lib.proxy.internal.BridgeCommands;
 import net.exylia.lib.task.TaskScheduler;
 import net.exylia.lib.task.Tasks;
 import org.bukkit.Bukkit;
@@ -35,7 +36,7 @@ import java.util.concurrent.CompletableFuture;
 public final class PluginCommands {
 
     private final Plugin plugin;
-    private volatile ProxyCommands proxy = ProxyCommands.none();
+    private volatile ProxyCommands proxy = BridgeCommands.INSTANCE;
 
     PluginCommands(Plugin plugin) {
         this.plugin = plugin;
@@ -44,8 +45,9 @@ public final class PluginCommands {
     /**
      * Installs the bridge that carries proxy commands.
      *
-     * <p>Until one is installed, {@code player-proxy:} and {@code console-proxy:}
-     * report {@link CommandResult.Status#NO_TRANSPORT}.
+     * <p>The default reaches ExyliaProxyUtils on the proxy through the
+     * {@code exylia:bridge} channel; until that plugin answers, {@code player-proxy:}
+     * and {@code console-proxy:} report {@link CommandResult.Status#NO_TRANSPORT}.
      *
      * @param transport the bridge, or {@link ProxyCommands#none()} to remove it
      */

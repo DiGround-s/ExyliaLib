@@ -1472,6 +1472,7 @@ Raíz de código: `src/main/java/net/exylia/lib/`. Raíz de tests:
 | util (preview) | `util/preview/Previews`, `PluginPreviews`, `Preview`, `PreviewSettings` | `util/preview/internal/` | [docs/previews.md](docs/previews.md) | 1.30.0 |
 | redis | `redis/Redis`, `RedisSettings` | `redis/internal/` (Jedis confinado en `JedisClient`) | [docs/redis.md](docs/redis.md) | 1.31.0 |
 | canales pub/sub entre servidores | `redis/Channels`, `PluginChannels`, `Channel`, `Message`, `Redis.serverId(plugin)` | `Channel` enmarca `<server-id>` + pipe + `<payload>` sobre `RedisRuntime.client`; bus local sin Redis | [docs/redis.md](docs/redis.md) | 1.75.0 |
+| proxy (puente con ExyliaProxyUtils) | `proxy/Proxy`, `ProxyReply`; transporte por defecto de `command/PluginCommands.proxy()` | `proxy/internal/ProxyRuntime` (canal `exylia:bridge`, mapa de peticiones en vuelo, ping al primer join), `Wire`, `BridgeCommands` | [docs/proxy.md](docs/proxy.md) | 1.101.0 |
 | poll de auto-actualización | `update-check-minutes` en `internal/LibrarySettings` | `internal/ExyliaLibUpdater` (ETag), timer en `ExyliaLib.startUpdateCheck` | [docs/reload.md](docs/reload.md) | 1.30.0 |
 | claves generadas | `database/Id.generated`, `Repository.insert`/`insertReturning` | `Dialect.insertGenerated`, `SqlBackend.insert` (`getGeneratedKeys`), `MongoBackend.insert` (`$inc`), `EntityModel.withId` | [docs/database.md](docs/database.md) | 1.32.0 |
 | clic que redibuja todo lo que puede cambiar | — | `ui/internal/Session.refreshAfterClick`, `redrawChangeable` | [docs/menus.md](docs/menus.md) | 1.44.0 |

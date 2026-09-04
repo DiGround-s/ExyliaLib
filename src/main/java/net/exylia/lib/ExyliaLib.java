@@ -222,6 +222,8 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         SchematicRuntime.init(this);
         net.exylia.lib.util.preview.internal.PreviewRuntime.init(this);
         net.exylia.lib.util.teleport.internal.TeleportRuntime.init(this);
+        // The proxy channel, on the same terms: one owner, the library.
+        net.exylia.lib.proxy.internal.ProxyRuntime.init(this);
         // One listener for every plugin's wizards, for the same reason menus
         // and questions have one: a block click fires once, and the run that
         // owns it is found by player rather than by plugin.
@@ -542,6 +544,7 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         // Before the datasources and the Redis client it shares: a subscriber
         // thread must stop before the pool that feeds it is closed.
         Channels.releaseAll();
+        net.exylia.lib.proxy.internal.ProxyRuntime.shutdown();
         // After every plugin has had its own onDisable — they run before this
         // one — so a last write queued there has already been handed to the
         // pool. Before the task module, because the pool's own close is
@@ -579,6 +582,7 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
      */
     @EventHandler(priority = EventPriority.MONITOR)
     public void onPlayerQuit(PlayerQuitEvent event) {
+        net.exylia.lib.proxy.internal.ProxyRuntime.forget(event.getPlayer().getUniqueId());
         Effects.stopFor(event.getPlayer());
         BoardManager.stopFor(event.getPlayer());
         HologramRuntime.forget(event.getPlayer());
@@ -644,6 +648,7 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         // the way back to the player has to be recorded while they are here.
         NametagRuntime.register(player);
         BoardManager.reinit(player);
+        net.exylia.lib.proxy.internal.ProxyRuntime.pingOnJoin(player);
         // Reading a file is not something the main thread should wait for.
         java.util.UUID id = player.getUniqueId();
         Tasks.of(this).runAsync(() -> Cooldowns.load(id));
