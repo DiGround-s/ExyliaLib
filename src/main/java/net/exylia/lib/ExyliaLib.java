@@ -222,8 +222,6 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         SchematicRuntime.init(this);
         net.exylia.lib.util.preview.internal.PreviewRuntime.init(this);
         net.exylia.lib.util.teleport.internal.TeleportRuntime.init(this);
-        // The proxy bridge, over the Redis this plugin's own database.yml names.
-        net.exylia.lib.proxy.internal.ProxyRuntime.init(this);
         // One listener for every plugin's wizards, for the same reason menus
         // and questions have one: a block click fires once, and the run that
         // owns it is found by player rather than by plugin.
@@ -231,6 +229,9 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         // Starts only the database lifecycle. Each consumer loads database.yml
         // when it asks for its view, and opens lazily on its first repository.
         Databases.init(this);
+        // The proxy bridge, over the Redis this plugin's own database.yml
+        // names. After the database module, which is what reads that file.
+        net.exylia.lib.proxy.internal.ProxyRuntime.init(this);
         // Holds only this plugin reference, so that an export or an import runs
         // on the library's scheduler: a transfer scheduled on the consumer's own
         // would be cancelled halfway through a file the moment that consumer is
