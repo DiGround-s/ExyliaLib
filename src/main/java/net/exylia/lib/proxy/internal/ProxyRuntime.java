@@ -105,9 +105,16 @@ public final class ProxyRuntime {
             return;
         }
         if (client == null) {
-            debug.log("No Redis in plugins/ExyliaLib/database.yml, so there is no proxy bridge:"
-                    + " player-proxy: and console-proxy: commands and cross-server teleports"
-                    + " are unavailable on this server.");
+            if (settings.enabled()) {
+                // The Redis module already said where and why, just above.
+                debug.warn("The proxy bridge is off because Redis could not be reached; restart"
+                        + " once it answers. player-proxy: and console-proxy: commands and"
+                        + " cross-server teleports are unavailable until then.");
+            } else {
+                debug.log("No Redis in plugins/ExyliaLib/database.yml (redis.enabled is false), so"
+                        + " there is no proxy bridge: player-proxy: and console-proxy: commands and"
+                        + " cross-server teleports are unavailable on this server.");
+            }
             return;
         }
         prefix = settings.keyPrefix();
