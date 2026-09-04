@@ -36,6 +36,9 @@ public final class EditorRuntime {
     /** Open editors, by owning plugin, so a disable can close them. */
     private static final Set<EditorHolder<?>> OPEN = ConcurrentHashMap.newKeySet();
 
+    /** Open loadout editors, tracked for the same reason. */
+    private static final Set<LoadoutHolder> OPEN_LOADOUTS = ConcurrentHashMap.newKeySet();
+
     /** ExyliaLib itself, for work that has to outlive a consumer. */
     private static volatile Plugin library;
 
@@ -74,6 +77,34 @@ public final class EditorRuntime {
             EditorHolder<T> holder = new EditorHolder<>(plugin, descriptor, type, title,
                     entries, buttons, onSave, onCancel, viewer);
             show(holder, viewer);
+        });
+    }
+
+    /**
+     * Opens a loadout editor on the viewer's own thread.
+     *
+     * @param plugin   the owning plugin
+     * @param title    the window title, in Exylia text notation
+     * @param items    the loadout being edited; copied, never held
+     * @param onSave   told the finished loadout
+     * @param onCancel told it was discarded
+     * @param viewer   who is editing
+     */
+    public static void openLoadout(@NotNull Plugin plugin,
+                                   @NotNull String title,
+                                   @NotNull List<org.bukkit.inventory.ItemStack> items,
+                                   @NotNull Consumer<List<org.bukkit.inventory.ItemStack>> onSave,
+                                   @NotNull Runnable onCancel,
+                                   @NotNull Player viewer) {
+        Tasks.of(scheduler(plugin)).runAtEntity(viewer, () -> {
+            LoadoutHolder holder =
+                    new LoadoutHolder(plugin, title, items, onSave, onCancel, viewer);
+            Inventory inventory = Bukkit.createInventory(holder, LoadoutHolder.SIZE,
+                    Text.from(plugin, title).forPlayer(viewer).legacy());
+            holder.bind(inventory);
+            holder.draw();
+            OPEN_LOADOUTS.add(holder);
+            viewer.openInventory(inventory);
         });
     }
 
@@ -225,6 +256,7 @@ public final class EditorRuntime {
                 closed++;
             }
         }
+        endLoadouts(holder -> holder.plugin().getName().equals(pluginName));
         return closed;
     }
 
@@ -234,6 +266,7 @@ public final class EditorRuntime {
             end(holder);
         }
         OPEN.clear();
+        endLoadouts(holder -> true);
     }
 
     /** Closes the editors of a player who is leaving, and forgets what they copied. */
@@ -284,6 +317,40 @@ public final class EditorRuntime {
         }
         Plugin fallback = library;
         return fallback != null ? fallback : plugin;
+    }
+
+    /** The loadout editor a window belongs to, if it is one. */
+    static @Nullable LoadoutHolder loadoutOf(@Nullable Inventory inventory) {
+        if (inventory == null) {
+            return null;
+        }
+        return inventory.getHolder(false) instanceof LoadoutHolder holder ? holder : null;
+    }
+
+    /** Forgets a loadout editor that has ended. */
+    static void forget(@NotNull LoadoutHolder holder) {
+        OPEN_LOADOUTS.remove(holder);
+    }
+
+    /**
+     * Ends every loadout editor matching a predicate, without saving.
+     *
+     * <p>Cancel rather than save, for the same reason the list editors cancel:
+     * a screen taken away was never confirmed, and a plugin on its way down is
+     * the worst moment to write through it.
+     */
+    private static void endLoadouts(java.util.function.Predicate<LoadoutHolder> matching) {
+        for (LoadoutHolder holder : List.copyOf(OPEN_LOADOUTS)) {
+            if (!matching.test(holder)) {
+                continue;
+            }
+            OPEN_LOADOUTS.remove(holder);
+            holder.cancel();
+            Player viewer = holder.viewer();
+            if (viewer != null && viewer.isOnline()) {
+                viewer.closeInventory();
+            }
+        }
     }
 
     /** Every open editor, for the listener to resolve a window against. */

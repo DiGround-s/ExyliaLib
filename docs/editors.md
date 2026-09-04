@@ -27,6 +27,7 @@ library ships the editors as well as the machine.
 | `Effects.editor(plugin, effects)` | potion effects |
 | `Sequences.of(plugin).editor(effects)` | effects with odds, conditions and an audience |
 | `Editors.of(plugin).items(items)` | real items — kits, shop stock |
+| `Editors.of(plugin).loadout(items)` | a whole loadout, in an inventory-shaped grid |
 | `Editors.of(plugin).locations(places)` | spawn points, arena corners |
 | `Editors.of(plugin).list(descriptor, type, entries)` | the sixth thing, the one only your plugin has |
 
@@ -34,6 +35,65 @@ The entry point lives with the type, not with the engine: `PluginRewards` knows
 about editors, and the editor knows nothing about rewards. `EditorIsGenericTest`
 reads the compiled bytecode and fails if it ever does — that is what keeps
 adding a seventh editor from meaning touching the engine.
+
+## The loadout editor
+
+Since 1.110.0.
+
+The one editor that is not a list. A kit, an arena's gear, a class's starting
+items: the viewer sees their own inventory and puts real items in real slots.
+
+```java
+Editors.of(this).loadout(kit.items())
+        .title("{primary}&lKIT ITEMS {letters_black}» {highlight}" + kit.id())
+        .onSave(items -> kits.save(kit.withItems(items)))
+        .onCancel(() -> KitMenu.open(player))
+        .open(player);
+```
+
+| Slot | What it is |
+| --- | --- |
+| `0-4` | helmet, chestplate, leggings, boots, offhand |
+| `9-35` | the twenty-seven storage slots |
+| `36-44` | the nine hotbar slots |
+| `45` `46` `49` `53` | save, import my inventory, cancel, clear |
+
+`onSave` is told a `List<ItemStack>` in the order [`Loadout`](#the-loadout-layout)
+defines, with the empty tail dropped: an admin who clears the last row means the
+loadout is shorter, not that it ends in nulls.
+
+**Closing saves.** The other editors here treat a close as walking away, because
+their working copy is a list nobody lost anything by dropping. Here the viewer
+put items into a window and those items left their inventory to get there, so an
+accidental Escape would destroy work with nothing to show for it. Cancel is a
+button, and it says what it does. The one ending that does not save is the owning
+plugin disabling — writing through a plugin on its way down is worse than losing
+a layout.
+
+Clicks go through the menu module's own `ClickPolicy`, so the shift-click and
+double-click cases that duplicate items out of a window are refused here exactly
+as they are in a menu.
+
+### The loadout layout
+
+`Loadout` is where "what does position five mean" is answered, once:
+
+```
+0..3    helmet, chestplate, leggings, boots
+4       offhand
+5..31   the twenty-seven storage slots
+32..40  the nine hotbar slots
+```
+
+`partOf`, `offsetIn`, `storage(n)`, `hotbar(n)` and `at(items, index)` read it;
+`capture(player)` writes what somebody is wearing and carrying into it, and
+`trim` drops the empty tail. It is deliberately not Bukkit's `getContents()`
+order, which starts at the hotbar and ends with the armour upside down — a
+loadout is read by people far more often than it is handed to `setContents`.
+
+This is the mapping ExyliaSurvivalCore had written out three times, and the three
+did not agree: the preview drew the twenty-eighth item under a pane labelled
+"hotbar" and the sixth in the middle of the armour row.
 
 ## What the viewer gets
 
@@ -319,6 +379,7 @@ its gating plus a sequence rather than a forty-field bean over eight types.
 | Part | Where |
 | --- | --- |
 | Public API | `util/editor/Editors`, `PluginEditors`, `ListEditor`, `EditorDescriptor`, `EditorForm`, `EditorButton`, `EditorView`, `Clipboard`, `Pickers` |
+| Loadout editor | `util/editor/Loadout`, `LoadoutEditor`, `internal/LoadoutHolder` |
 | Shipped descriptors | `util/reward/RewardDescriptor`, `util/loot/LootDescriptor`, `util/command/NamedCommandDescriptor`, `util/sequence/EffectDescriptor`, `util/PotionEffectDescriptor`, `util/editor/ItemListEditor`, `LocationDescriptor` |
 | Internal | `util/editor/internal/` — `EditorRuntime`, `EditorHolder`, `EditorListener`, `Icons` |
 | Tests | `src/test/java/net/exylia/lib/util/editor/` |

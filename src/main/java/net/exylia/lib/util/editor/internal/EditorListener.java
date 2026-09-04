@@ -34,6 +34,15 @@ public final class EditorListener implements Listener {
         if (!(event.getWhoClicked() instanceof Player viewer)) {
             return;
         }
+        LoadoutHolder loadout = EditorRuntime.loadoutOf(event.getView().getTopInventory());
+        if (loadout != null) {
+            // A loadout editor has real slots in it, so the click is decided
+            // rather than cancelled outright.
+            boolean inTop = event.getClickedInventory() == event.getView().getTopInventory();
+            event.setCancelled(loadout.click(viewer, inTop, event.isShiftClick(),
+                    event.getClick() == ClickType.DOUBLE_CLICK, event.getRawSlot()));
+            return;
+        }
         EditorHolder<?> holder = EditorRuntime.holderOf(event.getView().getTopInventory());
         if (holder == null) {
             return;
@@ -45,9 +54,14 @@ public final class EditorListener implements Listener {
         handle(holder, viewer, event.getSlot(), event.getClick());
     }
 
-    /** An editor window is never dragged into. */
+    /** A list editor is never dragged into; a loadout editor only into its grid. */
     @EventHandler(priority = EventPriority.NORMAL)
     public void onDrag(InventoryDragEvent event) {
+        LoadoutHolder loadout = EditorRuntime.loadoutOf(event.getView().getTopInventory());
+        if (loadout != null) {
+            event.setCancelled(loadout.refuseDrag(event.getRawSlots()));
+            return;
+        }
         if (EditorRuntime.holderOf(event.getView().getTopInventory()) != null) {
             event.setCancelled(true);
         }
@@ -57,11 +71,21 @@ public final class EditorListener implements Listener {
      * Closing the window discards the working copy.
      *
      * <p>Unless the editor closed it itself to ask a question, which is what
-     * {@code isReopening} says. Treating an interrupted edit as walking away
+     * {@code isReopening} says. A loadout editor is the exception: it saves. Treating an interrupted edit as walking away
      * would throw out the edit the viewer is halfway through answering.
      */
     @EventHandler(priority = EventPriority.MONITOR)
     public void onClose(InventoryCloseEvent event) {
+        LoadoutHolder loadout = EditorRuntime.loadoutOf(event.getInventory());
+        if (loadout != null) {
+            // Closing keeps the layout: the items in the grid left the viewer's
+            // inventory to get there, so discarding on an Escape would destroy
+            // work with nothing to show for it. Cancel is a button, and it says
+            // what it does.
+            EditorRuntime.forget(loadout);
+            loadout.save();
+            return;
+        }
         EditorHolder<?> holder = EditorRuntime.holderOf(event.getInventory());
         if (holder == null || holder.isReopening()) {
             return;

@@ -59,6 +59,23 @@ public final class PluginEditors {
     }
 
     /**
+     * An inventory-shaped editor for a loadout.
+     *
+     * <p>A kit, an arena's gear, a class's starting items: the viewer sees their
+     * own inventory — armour and offhand in the corner, storage rows and hotbar
+     * below — and puts real items in real slots. {@link Loadout} says which
+     * position each slot is.
+     *
+     * @param items the loadout being edited; copied, never held
+     * @return the editor, ready to open
+     * @since 1.110.0
+     */
+    public @NotNull LoadoutEditor loadout(
+            @NotNull List<org.bukkit.inventory.ItemStack> items) {
+        return new LoadoutEditor(plugin, items);
+    }
+
+    /**
      * A screen for editing a list of places.
      *
      * <p>Spawn points, arena corners, warp targets. Adding a row takes the
