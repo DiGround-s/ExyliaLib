@@ -5,6 +5,7 @@ import org.bukkit.entity.Player;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 
 /**
@@ -89,6 +90,23 @@ public final class Proxy {
                                                                          @NotNull String nameOrId) {
         return request(carrier, PLAYER, nameOrId).thenApply(reply ->
                 reply.isOk() ? ProxyPlayer.fromWire(reply.detail()) : Optional.empty());
+    }
+
+    /**
+     * Every player on the network, by name, as of the last refresh.
+     *
+     * <p>Kept in memory and refreshed every ten seconds through whoever is
+     * online, so it can be read where nothing can wait: a tab completion, a
+     * placeholder. Empty until the bridge has answered, and on an empty
+     * server. Names may be a few seconds stale; a name that just left costs
+     * a "not online" line, nothing worse.
+     *
+     * @return the names, never {@code null}, not necessarily including this
+     *         server's own players before the first refresh
+     * @since 1.104.0
+     */
+    public static @NotNull Set<String> players() {
+        return ProxyRuntime.players();
     }
 
     /**

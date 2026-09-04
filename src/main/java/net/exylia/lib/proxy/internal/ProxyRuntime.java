@@ -3,6 +3,8 @@ package net.exylia.lib.proxy.internal;
 import net.exylia.lib.debug.Debug;
 import net.exylia.lib.proxy.ProxyReply;
 import net.exylia.lib.task.Tasks;
+import net.exylia.lib.task.TaskHandle;
+import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
 import org.bukkit.plugin.messaging.PluginMessageListener;
@@ -11,7 +13,10 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.io.IOException;
+import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.TreeSet;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
@@ -38,6 +43,18 @@ public final class ProxyRuntime implements PluginMessageListener {
     /** The module the proxy answers with its own name and version. */
     static final String PING = "ping";
 
+    /** The module the proxy answers with every connected name. */
+    static final String PLAYERS = "players";
+
+    /**
+     * How often the network's player list is refreshed.
+     *
+     * <p>Ten seconds: a tab completion is a convenience, and a name that is
+     * a few seconds stale costs a "not online" line rather than anything
+     * worse. One plugin message per period, through whoever is online.
+     */
+    private static final long PLAYERS_TICKS = 20L * 10;
+
     /**
      * How long after a join the ping goes out.
      *
@@ -52,6 +69,8 @@ public final class ProxyRuntime implements PluginMessageListener {
     private static volatile boolean available;
     private static volatile @Nullable String bridge;
     private static volatile boolean warned;
+    private static volatile Set<String> players = Set.of();
+    private static volatile @Nullable TaskHandle refresh;
 
     private record Pending(UUID carrier, CompletableFuture<ProxyReply> future) {
     }
@@ -69,6 +88,7 @@ public final class ProxyRuntime implements PluginMessageListener {
             plugin.getServer().getMessenger().registerOutgoingPluginChannel(plugin, Wire.CHANNEL);
             plugin.getServer().getMessenger()
                     .registerIncomingPluginChannel(plugin, Wire.CHANNEL, new ProxyRuntime());
+            refresh = Tasks.of(plugin).runTimer(PLAYERS_TICKS, PLAYERS_TICKS, ProxyRuntime::refreshPlayers);
         } catch (RuntimeException refused) {
             // A server with no messenger. Never fatal: the proxy is the only
             // thing out of reach, and every request will say so.
@@ -84,6 +104,12 @@ public final class ProxyRuntime implements PluginMessageListener {
         library = null;
         available = false;
         bridge = null;
+        players = Set.of();
+        TaskHandle running = refresh;
+        refresh = null;
+        if (running != null) {
+            running.cancel();
+        }
         for (Pending pending : PENDING.values()) {
             pending.future().complete(new ProxyReply(ProxyReply.Status.NO_BRIDGE,
                     "the server is shutting down"));
@@ -105,6 +131,43 @@ public final class ProxyRuntime implements PluginMessageListener {
 
     public static @NotNull Optional<String> bridge() {
         return Optional.ofNullable(bridge);
+    }
+
+    /** Every name on the network as of the last refresh; empty until the bridge answers. */
+    public static @NotNull Set<String> players() {
+        return players;
+    }
+
+    /**
+     * Asks the proxy who is connected, through whoever is here.
+     *
+     * <p>On the global thread, where the online list is read. Nothing is
+     * asked while the bridge is unknown or the server is empty: without a
+     * player there is no connection to ask through, and without a bridge
+     * the question would only time out every ten seconds.
+     */
+    private static void refreshPlayers() {
+        if (!available) {
+            players = Set.of();
+            return;
+        }
+        Player carrier = Bukkit.getOnlinePlayers().stream().findFirst().orElse(null);
+        if (carrier == null) {
+            players = Set.of();
+            return;
+        }
+        request(carrier, PLAYERS, "").thenAccept(reply -> {
+            if (!reply.isOk()) {
+                return;
+            }
+            Set<String> names = new TreeSet<>(String.CASE_INSENSITIVE_ORDER);
+            for (String name : reply.detail().split(",")) {
+                if (!name.isBlank()) {
+                    names.add(name.trim());
+                }
+            }
+            players = Set.copyOf(names);
+        });
     }
 
     /**

@@ -40,10 +40,12 @@ Proxy.request(player, "commands", "player-proxy:server lobby")
 | `Proxy.isAvailable()` | Whether the proxy has answered this server since the last silence. A diagnostic: `request` always tries. |
 | `Proxy.bridge()` | What answered, as it introduced itself: `ExyliaProxyUtils 1.0.0 on Velocity`. |
 | `Proxy.find(Player carrier, String nameOrId)` | A player anywhere on the network, by name or id, as a `ProxyPlayer(id, name, server)`; empty for nobody, and empty without a bridge. What resolves `/tp <name>` for somebody this server has never seen. *Since 1.103.0.* |
+| `Proxy.players()` | Every name on the network as of the last refresh (every 10 s, through whoever is online). Synchronous, for tab completions and placeholders; empty until the bridge answers. *Since 1.104.0.* |
 | `Proxy.COMMANDS`, `Proxy.PLAYER` | The module names behind `player-proxy:` lines and `find`. |
 
 Modules ExyliaProxyUtils has today: `ping`, `commands` (`<actor>:<command>`),
-`connect` (`<server>` or `<server>|<uuid>`) and `player` (a name or a uuid).
+`connect` (`<server>` or `<server>|<uuid>`), `player` (a name or a uuid) and
+`players` (every connected name).
 The [teleport module](teleport.md) uses `connect` for handovers once the
 bridge has answered, and `player` as the second opinion when the Redis
 presence map does not know where somebody is.
