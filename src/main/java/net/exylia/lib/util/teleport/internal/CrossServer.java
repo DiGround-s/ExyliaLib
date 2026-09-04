@@ -120,6 +120,17 @@ public final class CrossServer {
     private record PendingMemo(String stored, long at) {
     }
 
+    /**
+     * How long after the arrival teleport it is done a second time.
+     *
+     * <p>A lobby plugin that sends every joining player to its spawn does so
+     * a tick or two after the join, which can be after the arrival: the
+     * player lands next to who they came for and is yanked to the spawn.
+     * Doing the arrival again a few ticks later wins that race without
+     * fighting the other plugin for the join event itself.
+     */
+    private static final long REASSERT_TICKS = 5L;
+
     /** What the pending key is filed under, after the network's own prefix. */
     private static final String KEY_INFIX = ":teleport:pending:";
 
@@ -685,8 +696,10 @@ public final class CrossServer {
                     + "\", which is not loaded on this server.");
             return;
         }
-        Teleporter.teleport(library, player, live, TeleportCause.CROSS_SERVER,
-                Tasks.of(library), debug, 0);
+        TaskScheduler tasks = Tasks.of(library);
+        Teleporter.teleport(library, player, live, TeleportCause.CROSS_SERVER, tasks, debug, 0);
+        tasks.runAtEntityLater(player, REASSERT_TICKS, () ->
+                Teleporter.teleport(library, player, live, TeleportCause.CROSS_SERVER, tasks, debug, 0));
     }
 
     /** Puts the arriving player next to whoever they came for, if they are still here. */
@@ -701,8 +714,17 @@ public final class CrossServer {
                     + ", who is no longer on this server.");
             return;
         }
-        Teleporter.teleport(library, player, found.getLocation(), TeleportCause.CROSS_SERVER,
-                Tasks.of(library), debug, 0);
+        TaskScheduler tasks = Tasks.of(library);
+        Teleporter.teleport(library, player, found.getLocation(), TeleportCause.CROSS_SERVER, tasks, debug, 0);
+        tasks.runAtEntityLater(player, REASSERT_TICKS, () -> {
+            // Where they are now, not where they were: five ticks is enough
+            // to have walked.
+            Player still = Bukkit.getPlayer(target);
+            if (still != null) {
+                Teleporter.teleport(library, player, still.getLocation(), TeleportCause.CROSS_SERVER,
+                        tasks, debug, 0);
+            }
+        });
     }
 
     /**

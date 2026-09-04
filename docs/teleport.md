@@ -561,6 +561,12 @@ happens at all.
 
 ### Arriving
 
+The arrival teleport is done twice: once after the settle wait, and again
+five ticks later (*since 1.107.1*). A lobby plugin that sends every joining
+player to its spawn does so a tick or two after the join, which can land
+after the first arrival; the second one wins that race without fighting the
+other plugin for the join event.
+
 The library's own join listener claims whatever was queued for the arriving
 player. The read and the delete happen **before** the settle wait, so the
 destination belongs to this server from the moment it is found; only the move
