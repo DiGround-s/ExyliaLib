@@ -92,8 +92,16 @@ public final class CrossServer {
      */
     private static final String CHANNEL = "BungeeCord";
 
-    /** The ExyliaProxyUtils module that moves a player and says whether it did. */
+    /**
+     * The ExyliaProxyUtils module that moves a player, says whether it did,
+     * and hands the destination server a memo through them once they are
+     * there. Payload {@code <server>|<uuid>|<memo>}: an empty server is the
+     * one asking, an empty uuid the player asking.
+     */
     private static final String CONNECT = "connect";
+
+    /** The push the proxy delivers a {@code connect} memo as, on the destination. */
+    public static final String ARRIVE = "arrive";
 
     /** What the pending key is filed under, after the network's own prefix. */
     private static final String KEY_INFIX = ":teleport:pending:";
@@ -123,8 +131,23 @@ public final class CrossServer {
     /** The heartbeat, started on the first join a Redis is there for. */
     private static volatile @Nullable TaskHandle heartbeat;
 
+    /**
+     * The library plugin, which is the one that registered the channels.
+     *
+     * <p>A plugin message is validated against the plugin that sends it, so
+     * a {@code Connect} sent as the consumer — which never registered
+     * {@code BungeeCord} — is {@code ChannelNotRegisteredException}, and that
+     * is what every handover before 1.105.0 died of.
+     */
+    private static volatile @Nullable Plugin library;
+
     private CrossServer() {
         throw new AssertionError("No instances.");
+    }
+
+    /** Remembers who owns the channels; called by the teleport runtime. */
+    public static void init(@NotNull Plugin plugin) {
+        library = plugin;
     }
 
     /**
@@ -137,7 +160,7 @@ public final class CrossServer {
      * @return whether a handover would be attempted
      */
     public static boolean isAvailable(@NotNull Plugin plugin) {
-        return client(plugin) != null;
+        return Proxy.isAvailable() || client(plugin) != null;
     }
 
     /**
@@ -172,9 +195,21 @@ public final class CrossServer {
         UUID follow = plan.follow();
         Plugin plugin = plan.plugin();
         Debug debug = plan.debug();
+        Player player = plan.player();
 
+        if (destination == null && follow == null) {
+            debug.warn("A cross-server teleport named neither a server nor a player; "
+                    + player.getName() + " was not moved.");
+            result.complete(TeleportResult.CROSS_SERVER_UNAVAILABLE);
+            return result;
+        }
+        if (Proxy.isAvailable()) {
+            // The proxy carries the destination itself: nothing to store,
+            // nothing to configure, and the answer says whether they went.
+            return handViaProxy(plan);
+        }
         RedisClient redis = client(plugin);
-        if ((destination == null && follow == null) || redis == null) {
+        if (redis == null) {
             debug.warn("A teleport was aimed at " + (destination == null
                     ? "a player on another server" : "server \"" + destination.server() + "\"")
                     + ", but this server has no Redis configured, so it cannot hand anybody"
@@ -185,7 +220,6 @@ public final class CrossServer {
         }
 
         RedisSettings redisSettings = settings(plugin);
-        Player player = plan.player();
         String key = keyOf(redisSettings, player.getUniqueId().toString());
 
         if (follow != null) {
@@ -198,9 +232,6 @@ public final class CrossServer {
                             + "; " + player.getName() + " was not moved", unreachable);
                     result.complete(TeleportResult.CROSS_SERVER_UNAVAILABLE);
                     return;
-                }
-                if (server == null) {
-                    server = askProxy(player, follow);
                 }
                 if (server == null) {
                     result.complete(TeleportResult.TARGET_NOT_FOUND);
@@ -230,6 +261,59 @@ public final class CrossServer {
         return result;
     }
 
+    /**
+     * The handover when ExyliaProxyUtils is there: one request, no Redis.
+     *
+     * <p>{@code connect} carries the destination as a memo the proxy hands to
+     * the destination server through the player once they have joined it,
+     * which is the same string the Redis path queues. For a player rather
+     * than a place, the proxy is asked where they are first; it knows every
+     * connected player, a presence map only the ones who joined since it
+     * came up.
+     *
+     * <p>The answer to a self-move is sent through the player, who by then
+     * is on the other server, so it never reaches this one. What reaches
+     * this one is the quit: {@link ProxyReply.Status#NO_PLAYER}, and for a
+     * request to be moved away that <em>is</em> the success.
+     */
+    private static CompletableFuture<TeleportResult> handViaProxy(TeleportPlan plan) {
+        CompletableFuture<TeleportResult> result = new CompletableFuture<>();
+        Player player = plan.player();
+        UUID follow = plan.follow();
+        ExyliaLocation destination = plan.crossServer();
+        Debug debug = plan.debug();
+        plan.tasks().runAtEntity(player, () -> {
+            if (follow == null) {
+                Proxy.request(player, CONNECT, destination.server() + "||" + destination)
+                        .thenAccept(reply -> result.complete(
+                                fromBridge(reply, player.getName(), destination.server(), debug,
+                                        TeleportResult.SUCCESS, TeleportResult.CROSS_SERVER_UNAVAILABLE)));
+                return;
+            }
+            Player here = Bukkit.getPlayer(follow);
+            if (here != null) {
+                // They came here while the request was being described, or
+                // during its countdown.
+                Teleporter.teleport(plan.plugin(), player, here.getLocation(), plan.cause(),
+                                plan.tasks(), debug, plan.settings().backHistorySize())
+                        .thenAccept(result::complete);
+                return;
+            }
+            Proxy.find(player, follow.toString()).thenAccept(found -> {
+                if (found.isEmpty() || !found.get().isOnAServer()) {
+                    result.complete(TeleportResult.TARGET_NOT_FOUND);
+                    return;
+                }
+                String server = found.get().server();
+                Proxy.request(player, CONNECT, server + "||" + FOLLOW_PREFIX + follow)
+                        .thenAccept(reply -> result.complete(
+                                fromBridge(reply, player.getName(), server, debug,
+                                        TeleportResult.SUCCESS, TeleportResult.CROSS_SERVER_UNAVAILABLE)));
+            });
+        }, () -> result.complete(TeleportResult.PLAYER_LEFT));
+        return result;
+    }
+
     /** Store, then announce: the write that fails sends nothing. */
     private static void queueThenConnect(TeleportPlan plan, RedisClient redis, String key,
                                          String value, @Nullable String target,
@@ -254,7 +338,9 @@ public final class CrossServer {
             // Only now, and on the player's own thread: the message is sent
             // through them.
             plan.tasks().runAtEntity(player,
-                    () -> connect(plugin, player, target, debug).thenAccept(result::complete),
+                    () -> result.complete(target == null
+                            ? TeleportResult.CROSS_SERVER_UNAVAILABLE
+                            : legacyConnect(player, target, debug)),
                     () -> result.complete(TeleportResult.PLAYER_LEFT));
         });
     }
@@ -285,6 +371,15 @@ public final class CrossServer {
             @NotNull String targetName, @NotNull TeleportSettings settings) {
         CompletableFuture<TeleportResult> result = new CompletableFuture<>();
         Debug debug = Debug.of(plugin);
+        if (Proxy.isAvailable()) {
+            // An empty server means this one: the proxy knows which backend
+            // the request came from, which is more than this server can say
+            // for itself without a Redis block naming it.
+            String memo = ExyliaLocation.of(serverId(plugin), to.getLocation()).toString();
+            return Proxy.request(to, CONNECT, "|" + target + "|" + memo).thenApply(reply ->
+                    fromBridge(reply, targetName, "this one", debug,
+                            TeleportResult.PLAYER_LEFT, TeleportResult.TARGET_NOT_FOUND));
+        }
         RedisClient redis = client(plugin);
         if (redis == null) {
             debug.warn("A teleport tried to pull " + targetName + " from another server, but"
@@ -301,8 +396,7 @@ public final class CrossServer {
 
         tasks.runAsync(() -> {
             try {
-                if (redis.get(presenceKeyOf(redisSettings, target)) == null
-                        && askProxy(to, target) == null) {
+                if (redis.get(presenceKeyOf(redisSettings, target)) == null) {
                     result.complete(TeleportResult.TARGET_NOT_FOUND);
                     return;
                 }
@@ -314,36 +408,13 @@ public final class CrossServer {
                 return;
             }
             tasks.runAtEntity(to,
-                    () -> connectOther(plugin, to, target, targetName, here, debug)
-                            .thenAccept(result::complete),
+                    () -> result.complete(legacyConnectOther(to, targetName, here, debug)),
                     () -> result.complete(TeleportResult.PLAYER_LEFT));
         });
         return result;
     }
 
     // ---------------------------------------------------------------- presence
-
-    /**
-     * Which server holds a player, asked of the proxy when Redis does not know.
-     *
-     * <p>The presence map is written by every server of the network — but
-     * only by the ones with Redis on, and only for players who joined since
-     * it came up. The proxy knows every connected player regardless, so it is
-     * the second opinion whenever the bridge has answered. Asked off the main
-     * thread, which is where every caller already is; the wait is bounded by
-     * the bridge's own timeout.
-     *
-     * @return the server, or {@code null} when nobody knows
-     */
-    private static @Nullable String askProxy(Player carrier, UUID target) {
-        if (!Proxy.isAvailable()) {
-            return null;
-        }
-        return Proxy.find(carrier, target.toString()).join()
-                .filter(ProxyPlayer::isOnAServer)
-                .map(ProxyPlayer::server)
-                .orElse(null);
-    }
 
     /**
      * Which server of the network a player is on.
@@ -361,6 +432,16 @@ public final class CrossServer {
                                                                        @NotNull UUID player) {
         if (Bukkit.getPlayer(player) != null) {
             return CompletableFuture.completedFuture(Optional.of(serverId(plugin)));
+        }
+        if (Proxy.isAvailable()) {
+            // Asked through whoever is here; a question with no connection
+            // to travel down has no answer, and an empty server has nobody
+            // to draw the button for anyway.
+            Player carrier = Bukkit.getOnlinePlayers().stream().findFirst().orElse(null);
+            if (carrier != null) {
+                return Proxy.find(carrier, player.toString()).thenApply(found ->
+                        found.filter(ProxyPlayer::isOnAServer).map(ProxyPlayer::server));
+            }
         }
         RedisClient redis = client(plugin);
         if (redis == null) {
@@ -432,6 +513,7 @@ public final class CrossServer {
 
     /** Ends the heartbeat, on shutdown. */
     public static synchronized void stop() {
+        library = null;
         TaskHandle running = heartbeat;
         heartbeat = null;
         if (running != null) {
@@ -489,10 +571,9 @@ public final class CrossServer {
         }
         RedisSettings redisSettings = settings(library);
         Debug debug = Debug.of(library);
-        TaskScheduler tasks = Tasks.of(library);
         String key = keyOf(redisSettings, player.getUniqueId().toString());
 
-        tasks.runAsync(() -> {
+        Tasks.of(library).runAsync(() -> {
             String stored;
             try {
                 stored = redis.get(key);
@@ -510,31 +591,52 @@ public final class CrossServer {
                         + player.getName(), unreachable);
                 return;
             }
+            arrive(library, player, stored, settings);
+        });
+    }
 
-            long settle = Math.max(1L, Ticks.fromSeconds(settings.crossServerSettleSeconds()));
-            if (stored.startsWith(FOLLOW_PREFIX)) {
-                UUID target;
-                try {
-                    target = UUID.fromString(stored.substring(FOLLOW_PREFIX.length()));
-                } catch (IllegalArgumentException unreadable) {
-                    debug.error("A queued cross-server destination for " + player.getName()
-                            + " could not be read: " + stored, unreadable);
-                    return;
-                }
-                tasks.runAtEntityLater(player, settle, () -> arriveAt(library, player, target));
-                return;
-            }
-
-            ExyliaLocation destination;
+    /**
+     * Moves a player who has just joined to what was queued for them.
+     *
+     * <p>The same string whichever road carried it: the Redis key the other
+     * server wrote, or the memo the proxy handed over through the player as
+     * an {@code arrive} push. Either a place, or {@code player:<uuid>}.
+     *
+     * <p><b>Threading:</b> safe from anywhere; only the move itself waits for
+     * the client to settle, on the player's thread.
+     *
+     * @param library  the library plugin, which owns the listeners
+     * @param player   who joined
+     * @param stored   where to put them, as the other server wrote it
+     * @param settings how long to let the client settle
+     */
+    public static void arrive(@NotNull Plugin library, @NotNull Player player,
+                              @NotNull String stored, @NotNull TeleportSettings settings) {
+        Debug debug = Debug.of(library);
+        TaskScheduler tasks = Tasks.of(library);
+        long settle = Math.max(1L, Ticks.fromSeconds(settings.crossServerSettleSeconds()));
+        if (stored.startsWith(FOLLOW_PREFIX)) {
+            UUID target;
             try {
-                destination = ExyliaLocation.fromString(stored);
+                target = UUID.fromString(stored.substring(FOLLOW_PREFIX.length()));
             } catch (IllegalArgumentException unreadable) {
                 debug.error("A queued cross-server destination for " + player.getName()
                         + " could not be read: " + stored, unreadable);
                 return;
             }
-            tasks.runAtEntityLater(player, settle, () -> arrive(library, player, destination));
-        });
+            tasks.runAtEntityLater(player, settle, () -> arriveAt(library, player, target));
+            return;
+        }
+
+        ExyliaLocation destination;
+        try {
+            destination = ExyliaLocation.fromString(stored);
+        } catch (IllegalArgumentException unreadable) {
+            debug.error("A queued cross-server destination for " + player.getName()
+                    + " could not be read: " + stored, unreadable);
+            return;
+        }
+        tasks.runAtEntityLater(player, settle, () -> arrive(library, player, destination));
     }
 
     /** Puts the arriving player where the other server said, once loaded. */
@@ -570,81 +672,56 @@ public final class CrossServer {
     }
 
     /**
-     * Tells the proxy to move somebody else here, through the player asking.
-     *
-     * <p>Through the bridge when ExyliaProxyUtils has answered this server,
-     * which is the only way to learn whether the move happened; otherwise
-     * {@code ConnectOther} on the {@code BungeeCord} channel, which every
-     * proxy understands and none of them answers.
-     */
-    private static CompletableFuture<TeleportResult> connectOther(Plugin plugin, Player through,
-                                                                  UUID target, String targetName,
-                                                                  String here, Debug debug) {
-        if (Proxy.isAvailable()) {
-            return Proxy.request(through, CONNECT, here + '|' + target).thenApply(reply ->
-                    reply.reachedProxy()
-                            ? fromBridge(reply, targetName, here, debug, TeleportResult.TARGET_NOT_FOUND)
-                            : legacyConnectOther(plugin, through, targetName, here, debug));
-        }
-        return CompletableFuture.completedFuture(
-                legacyConnectOther(plugin, through, targetName, here, debug));
-    }
-
-    /**
-     * Tells the proxy to move the player.
-     *
-     * <p>Same two roads as {@link #connectOther}: the bridge when it is there,
-     * {@code Connect} on the {@code BungeeCord} channel when it is not.
-     */
-    private static CompletableFuture<TeleportResult> connect(Plugin plugin, Player player,
-                                                             @Nullable String target, Debug debug) {
-        if (target == null) {
-            // A local place should never have reached here; a plan that names
-            // no server is a bug rather than a misconfiguration.
-            debug.warn("A cross-server teleport named no server; " + player.getName()
-                    + " was not moved.");
-            return CompletableFuture.completedFuture(TeleportResult.CROSS_SERVER_UNAVAILABLE);
-        }
-        if (Proxy.isAvailable()) {
-            return Proxy.request(player, CONNECT, target).thenApply(reply ->
-                    reply.reachedProxy()
-                            ? fromBridge(reply, player.getName(), target, debug, TeleportResult.PLAYER_LEFT)
-                            : legacyConnect(plugin, player, target, debug));
-        }
-        return CompletableFuture.completedFuture(legacyConnect(plugin, player, target, debug));
-    }
-
-    /**
-     * What the proxy's answer means for the teleport.
+     * What the proxy's answer to a {@code connect} means for the teleport.
      *
      * <p>A refusal that starts with {@code no server} is the one worth a
      * console line every time: it is a name in a config file, and nothing
-     * else will ever say so. Any other refusal is about the player, and the
-     * caller says what a missing player means for it.
+     * else will ever say so. Any other refusal is about a player, and the
+     * caller says what that means for it. So is the carrier leaving: for a
+     * self-move it is the move having happened, for a pull it is the puller
+     * walking away.
      */
-    private static TeleportResult fromBridge(ProxyReply reply, String who, String server,
-                                             Debug debug, TeleportResult ifPlayerMissing) {
-        if (reply.isOk()) {
-            return TeleportResult.SUCCESS;
-        }
-        if (reply.status() == ProxyReply.Status.REJECTED && !reply.detail().startsWith("no server")) {
-            return ifPlayerMissing;
-        }
-        debug.warn("The proxy did not move " + who + " to server \"" + server + "\": "
-                + reply.detail());
-        return TeleportResult.CROSS_SERVER_UNAVAILABLE;
+    private static TeleportResult fromBridge(ProxyReply reply, String who, String server, Debug debug,
+                                             TeleportResult ifCarrierLeft, TeleportResult ifRefused) {
+        return switch (reply.status()) {
+            case OK -> TeleportResult.SUCCESS;
+            case NO_PLAYER -> ifCarrierLeft;
+            case REJECTED -> {
+                if (reply.detail().startsWith("no server")) {
+                    debug.warn("The proxy did not move " + who + " to server \"" + server + "\": "
+                            + reply.detail());
+                    yield TeleportResult.CROSS_SERVER_UNAVAILABLE;
+                }
+                yield ifRefused;
+            }
+            default -> {
+                debug.warn("The proxy did not move " + who + " to server \"" + server + "\": "
+                        + reply.detail());
+                yield TeleportResult.CROSS_SERVER_UNAVAILABLE;
+            }
+        };
     }
 
-    /** {@code ConnectOther} with the target's name and this server's name; the proxy knows players by name. */
-    private static TeleportResult legacyConnectOther(Plugin plugin, Player through, String targetName,
+    /**
+     * {@code ConnectOther} with the target's name and this server's name on
+     * the {@code BungeeCord} channel; the proxy knows players by name.
+     *
+     * <p>Sent as the library, which is the plugin that registered the channel.
+     */
+    private static TeleportResult legacyConnectOther(Player through, String targetName,
                                                      String here, Debug debug) {
+        Plugin sender = library;
+        if (sender == null) {
+            debug.error("Could not pull " + targetName + ": the teleport runtime is not started");
+            return TeleportResult.CROSS_SERVER_UNAVAILABLE;
+        }
         try {
             ByteArrayOutputStream bytes = new ByteArrayOutputStream();
             DataOutputStream message = new DataOutputStream(bytes);
             message.writeUTF("ConnectOther");
             message.writeUTF(targetName);
             message.writeUTF(here);
-            through.sendPluginMessage(plugin, CHANNEL, bytes.toByteArray());
+            through.sendPluginMessage(sender, CHANNEL, bytes.toByteArray());
             return TeleportResult.SUCCESS;
         } catch (IOException | RuntimeException refused) {
             debug.error("Could not pull " + targetName + " to server \"" + here
@@ -654,17 +731,21 @@ public final class CrossServer {
     }
 
     /**
-     * {@code Connect} with the target server's name, written as a UTF string
-     * pair on the {@code BungeeCord} channel.
+     * {@code Connect} with the target server's name on the {@code BungeeCord}
+     * channel, sent as the library for the same reason as above.
      */
-    private static TeleportResult legacyConnect(Plugin plugin, Player player, String target,
-                                                Debug debug) {
+    private static TeleportResult legacyConnect(Player player, String target, Debug debug) {
+        Plugin sender = library;
+        if (sender == null) {
+            debug.error("Could not send " + player.getName() + ": the teleport runtime is not started");
+            return TeleportResult.CROSS_SERVER_UNAVAILABLE;
+        }
         try {
             ByteArrayOutputStream bytes = new ByteArrayOutputStream();
             DataOutputStream message = new DataOutputStream(bytes);
             message.writeUTF("Connect");
             message.writeUTF(target);
-            player.sendPluginMessage(plugin, CHANNEL, bytes.toByteArray());
+            player.sendPluginMessage(sender, CHANNEL, bytes.toByteArray());
             return TeleportResult.SUCCESS;
         } catch (IOException | RuntimeException refused) {
             // The destination is still queued and still has its TTL, so a

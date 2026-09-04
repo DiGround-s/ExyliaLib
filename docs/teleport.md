@@ -529,26 +529,35 @@ each other's players around.
 
 ### Who moves the player, and whether it says so
 
-*Since 1.102.0.* Two roads, chosen per move:
+*Since 1.102.0; the memo since 1.105.0.* Two roads, chosen per move:
 
 - **The bridge**, whenever [ExyliaProxyUtils](proxy.md) has answered this
-  server: the `connect` module moves the player and *answers*. `SUCCESS` then
-  means the proxy connected them. A server name the proxy does not know comes
-  back as `CROSS_SERVER_UNAVAILABLE` with `The proxy did not move <player> to
-  server "<name>": no server "<name>"` in the console — a typo in a config
-  file, found the first time it is used rather than never. A target who is no
-  longer on the network is `TARGET_NOT_FOUND` for `bring` and `PLAYER_LEFT`
-  for a handover.
-- **`Connect`/`ConnectOther` on the `BungeeCord` channel** otherwise. Every
-  proxy understands it and none of them answers, so `SUCCESS` there means
-  the message was sent. This is what every version before 1.102.0 did.
+  server. One `connect` request carries the server, who to move and the
+  destination as a *memo*; the proxy moves the player and, the moment they
+  have joined the other server, hands the memo to it through them as an
+  `arrive` push. Nothing is written anywhere: no Redis is needed on either
+  server for a handover to land next to somebody. For a player rather than a
+  place, the proxy is asked where they are first (`player` module). A server
+  name the proxy does not know comes back as `CROSS_SERVER_UNAVAILABLE` with
+  `The proxy did not move <player> to server "<name>": no server "<name>"` in
+  the console — a typo in a config file, found the first time it is used
+  rather than never. A target who is no longer on the network is
+  `TARGET_NOT_FOUND`. The answer to a self-move can never reach the server
+  that asked — it is sent through a player who is by then somewhere else —
+  so the quit that follows is read as the move having happened.
+- **`Connect`/`ConnectOther` on the `BungeeCord` channel, and Redis for the
+  destination** otherwise. Every proxy understands the channel and none of
+  them answers, so `SUCCESS` there means the message was sent. Both messages
+  are sent as the library, which is the plugin that registered the channel;
+  before 1.105.0 they were sent as the consumer and Bukkit refused every one
+  with `ChannelNotRegisteredException`. On this road the arriving server
+  reads the queued destination with the library's *own* `database.yml`
+  (`plugins/ExyliaLib/database.yml`), so that file needs `redis.enabled` and
+  the network's `key-prefix` too. The bridge road has no such requirement,
+  which is one more reason to install it.
 
-Neither road changes the write-then-Connect order above.
-
-*Since 1.103.0*, the presence map has a second opinion: when Redis does not
-know where the target is and the bridge has answered, the proxy is asked
-(`player` module) before answering `TARGET_NOT_FOUND`. Redis is still what
-carries the queued destination, so it stays required on every server.
+Neither road changes the write-then-Connect order above where a write
+happens at all.
 
 ### Arriving
 

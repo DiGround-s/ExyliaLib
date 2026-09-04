@@ -44,11 +44,20 @@ Proxy.request(player, "commands", "player-proxy:server lobby")
 | `Proxy.COMMANDS`, `Proxy.PLAYER` | The module names behind `player-proxy:` lines and `find`. |
 
 Modules ExyliaProxyUtils has today: `ping`, `commands` (`<actor>:<command>`),
-`connect` (`<server>` or `<server>|<uuid>`), `player` (a name or a uuid) and
-`players` (every connected name).
-The [teleport module](teleport.md) uses `connect` for handovers once the
-bridge has answered, and `player` as the second opinion when the Redis
-presence map does not know where somebody is.
+`connect` (`<server>|<uuid>|<memo>`, the last two optional), `player` (a name
+or a uuid) and `players` (every connected name). The [teleport
+module](teleport.md) uses `connect` for handovers once the bridge has
+answered, with the destination as the memo, and `player` to find where
+somebody is.
+
+### Pushes
+
+The proxy can also send something unasked: an answer frame with id 0, which
+the runtime hands to whatever `ProxyRuntime.listen(module, handler)`
+registered for that module instead of to a waiting request. Today only
+`arrive` exists — the memo of a `connect`, delivered to the destination
+server through the player once they have joined it. The handler runs on the
+thread the message arrived on, with the player it arrived through.
 
 `ProxyReply.status()`:
 

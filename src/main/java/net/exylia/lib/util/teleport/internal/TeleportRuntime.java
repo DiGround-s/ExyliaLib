@@ -84,6 +84,11 @@ public final class TeleportRuntime implements Listener {
             Debug.of(plugin).warn("Could not register the proxy channel, so cross-server"
                     + " teleports will not work: " + refused.getMessage());
         }
+        CrossServer.init(plugin);
+        // The proxy hands a queued destination over through the player who
+        // arrives with it, so no Redis is needed for a handover to land.
+        net.exylia.lib.proxy.internal.ProxyRuntime.listen(CrossServer.ARRIVE,
+                (player, memo) -> CrossServer.arrive(plugin, player, memo, arrivals));
         listening = true;
     }
 

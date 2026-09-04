@@ -23,6 +23,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.BiConsumer;
 
 /**
  * The bridge's this-side half: one channel, one map of what is in flight.
@@ -65,6 +66,9 @@ public final class ProxyRuntime implements PluginMessageListener {
 
     private static final AtomicInteger IDS = new AtomicInteger();
     private static final Map<Integer, Pending> PENDING = new ConcurrentHashMap<>();
+
+    /** What handles each module the proxy pushes unasked, by module name. */
+    private static final Map<String, BiConsumer<Player, String>> PUSHES = new ConcurrentHashMap<>();
     private static volatile @Nullable Plugin library;
     private static volatile boolean available;
     private static volatile @Nullable String bridge;
@@ -131,6 +135,20 @@ public final class ProxyRuntime implements PluginMessageListener {
 
     public static @NotNull Optional<String> bridge() {
         return Optional.ofNullable(bridge);
+    }
+
+    /**
+     * Handles what the proxy sends unasked on a module.
+     *
+     * <p>A push is an answer frame with id 0. The handler runs on the thread
+     * the message arrived on, with the player it arrived through; a later
+     * registration for the same module replaces the earlier one.
+     *
+     * @param module  the module name, as the proxy pushes it
+     * @param handler what to do with the player and the payload
+     */
+    public static void listen(@NotNull String module, @NotNull BiConsumer<Player, String> handler) {
+        PUSHES.put(module, handler);
     }
 
     /** Every name on the network as of the last refresh; empty until the bridge answers. */
@@ -276,12 +294,25 @@ public final class ProxyRuntime implements PluginMessageListener {
             }
             return;
         }
-        receive(answer);
+        receive(player, answer);
     }
 
-    /** Completes the request an answer names; an unknown id is a late answer, dropped. */
-    static void receive(@NotNull Wire.Answer answer) {
+    /**
+     * Completes the request an answer names, or hands a push to its handler.
+     *
+     * <p>An unknown id is a late answer, dropped: the request already ended
+     * as a timeout, or was sent by another server the player has since left.
+     */
+    static void receive(@NotNull Player through, @NotNull Wire.Answer answer) {
         ProxyReply reply = ProxyReply.ofWire(answer.status(), answer.detail());
+        available = true;
+        if (answer.id() == 0) {
+            BiConsumer<Player, String> handler = PUSHES.get(answer.module());
+            if (handler != null) {
+                handler.accept(through, answer.detail());
+            }
+            return;
+        }
         if (PING.equals(answer.module()) && reply.isOk()) {
             String introduced = reply.detail();
             if (!available || !introduced.equals(bridge)) {
@@ -292,7 +323,6 @@ public final class ProxyRuntime implements PluginMessageListener {
                 }
             }
         }
-        available = true;
         Pending pending = PENDING.remove(answer.id());
         if (pending != null) {
             pending.future().complete(reply);
