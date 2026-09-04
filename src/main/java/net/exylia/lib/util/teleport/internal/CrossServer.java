@@ -3,6 +3,8 @@ package net.exylia.lib.util.teleport.internal;
 import net.exylia.lib.database.internal.DatabaseRuntime;
 import net.exylia.lib.debug.Debug;
 import net.exylia.lib.effect.Ticks;
+import net.exylia.lib.proxy.Proxy;
+import net.exylia.lib.proxy.ProxyReply;
 import net.exylia.lib.redis.RedisSettings;
 import net.exylia.lib.redis.internal.RedisClient;
 import net.exylia.lib.redis.internal.RedisRuntime;
@@ -79,12 +81,18 @@ import java.util.concurrent.CompletableFuture;
 public final class CrossServer {
 
     /**
-     * The channel a proxy listens on.
+     * The channel every proxy listens on, used when the bridge is not there.
      *
      * <p>Named {@code BungeeCord} on every proxy that has ever existed,
-     * Velocity included: the name is the protocol, not the software.
+     * Velocity included: the name is the protocol, not the software. It never
+     * answers, which is why the bridge is preferred whenever it has answered
+     * this server: a server name with a typo in it is then a console line
+     * rather than a player standing still.
      */
     private static final String CHANNEL = "BungeeCord";
+
+    /** The ExyliaProxyUtils module that moves a player and says whether it did. */
+    private static final String CONNECT = "connect";
 
     /** What the pending key is filed under, after the network's own prefix. */
     private static final String KEY_INFIX = ":teleport:pending:";
@@ -242,7 +250,7 @@ public final class CrossServer {
             // Only now, and on the player's own thread: the message is sent
             // through them.
             plan.tasks().runAtEntity(player,
-                    () -> result.complete(connect(plugin, player, target, debug)),
+                    () -> connect(plugin, player, target, debug).thenAccept(result::complete),
                     () -> result.complete(TeleportResult.PLAYER_LEFT));
         });
     }
@@ -301,7 +309,8 @@ public final class CrossServer {
                 return;
             }
             tasks.runAtEntity(to,
-                    () -> result.complete(connectOther(plugin, to, targetName, here, debug)),
+                    () -> connectOther(plugin, to, target, targetName, here, debug)
+                            .thenAccept(result::complete),
                     () -> result.complete(TeleportResult.PLAYER_LEFT));
         });
         return result;
@@ -536,11 +545,72 @@ public final class CrossServer {
     /**
      * Tells the proxy to move somebody else here, through the player asking.
      *
-     * <p>{@code ConnectOther} with the target's name and this server's name.
-     * The proxy knows players by name, so that is what travels.
+     * <p>Through the bridge when ExyliaProxyUtils has answered this server,
+     * which is the only way to learn whether the move happened; otherwise
+     * {@code ConnectOther} on the {@code BungeeCord} channel, which every
+     * proxy understands and none of them answers.
      */
-    private static TeleportResult connectOther(Plugin plugin, Player through, String targetName,
-                                               String here, Debug debug) {
+    private static CompletableFuture<TeleportResult> connectOther(Plugin plugin, Player through,
+                                                                  UUID target, String targetName,
+                                                                  String here, Debug debug) {
+        if (Proxy.isAvailable()) {
+            return Proxy.request(through, CONNECT, here + '|' + target).thenApply(reply ->
+                    reply.reachedProxy()
+                            ? fromBridge(reply, targetName, here, debug, TeleportResult.TARGET_NOT_FOUND)
+                            : legacyConnectOther(plugin, through, targetName, here, debug));
+        }
+        return CompletableFuture.completedFuture(
+                legacyConnectOther(plugin, through, targetName, here, debug));
+    }
+
+    /**
+     * Tells the proxy to move the player.
+     *
+     * <p>Same two roads as {@link #connectOther}: the bridge when it is there,
+     * {@code Connect} on the {@code BungeeCord} channel when it is not.
+     */
+    private static CompletableFuture<TeleportResult> connect(Plugin plugin, Player player,
+                                                             @Nullable String target, Debug debug) {
+        if (target == null) {
+            // A local place should never have reached here; a plan that names
+            // no server is a bug rather than a misconfiguration.
+            debug.warn("A cross-server teleport named no server; " + player.getName()
+                    + " was not moved.");
+            return CompletableFuture.completedFuture(TeleportResult.CROSS_SERVER_UNAVAILABLE);
+        }
+        if (Proxy.isAvailable()) {
+            return Proxy.request(player, CONNECT, target).thenApply(reply ->
+                    reply.reachedProxy()
+                            ? fromBridge(reply, player.getName(), target, debug, TeleportResult.PLAYER_LEFT)
+                            : legacyConnect(plugin, player, target, debug));
+        }
+        return CompletableFuture.completedFuture(legacyConnect(plugin, player, target, debug));
+    }
+
+    /**
+     * What the proxy's answer means for the teleport.
+     *
+     * <p>A refusal that starts with {@code no server} is the one worth a
+     * console line every time: it is a name in a config file, and nothing
+     * else will ever say so. Any other refusal is about the player, and the
+     * caller says what a missing player means for it.
+     */
+    private static TeleportResult fromBridge(ProxyReply reply, String who, String server,
+                                             Debug debug, TeleportResult ifPlayerMissing) {
+        if (reply.isOk()) {
+            return TeleportResult.SUCCESS;
+        }
+        if (reply.status() == ProxyReply.Status.REJECTED && !reply.detail().startsWith("no server")) {
+            return ifPlayerMissing;
+        }
+        debug.warn("The proxy did not move " + who + " to server \"" + server + "\": "
+                + reply.detail());
+        return TeleportResult.CROSS_SERVER_UNAVAILABLE;
+    }
+
+    /** {@code ConnectOther} with the target's name and this server's name; the proxy knows players by name. */
+    private static TeleportResult legacyConnectOther(Plugin plugin, Player through, String targetName,
+                                                     String here, Debug debug) {
         try {
             ByteArrayOutputStream bytes = new ByteArrayOutputStream();
             DataOutputStream message = new DataOutputStream(bytes);
@@ -557,20 +627,11 @@ public final class CrossServer {
     }
 
     /**
-     * Tells the proxy to move the player, in the format it has always used.
-     *
-     * <p>{@code Connect} with the target server's name, written as a UTF string
+     * {@code Connect} with the target server's name, written as a UTF string
      * pair on the {@code BungeeCord} channel.
      */
-    private static TeleportResult connect(Plugin plugin, Player player, @Nullable String target,
-                                          Debug debug) {
-        if (target == null) {
-            // A local place should never have reached here; a plan that names
-            // no server is a bug rather than a misconfiguration.
-            debug.warn("A cross-server teleport named no server; " + player.getName()
-                    + " was not moved.");
-            return TeleportResult.CROSS_SERVER_UNAVAILABLE;
-        }
+    private static TeleportResult legacyConnect(Plugin plugin, Player player, String target,
+                                                Debug debug) {
         try {
             ByteArrayOutputStream bytes = new ByteArrayOutputStream();
             DataOutputStream message = new DataOutputStream(bytes);

@@ -41,6 +41,10 @@ Proxy.request(player, "commands", "player-proxy:server lobby")
 | `Proxy.bridge()` | What answered, as it introduced itself: `ExyliaProxyUtils 1.0.0 on Velocity`. |
 | `Proxy.COMMANDS` | The module name behind `player-proxy:` lines. |
 
+Modules ExyliaProxyUtils has today: `ping`, `commands` (`<actor>:<command>`)
+and `connect` (`<server>` or `<server>|<uuid>`), which the
+[teleport module](teleport.md) uses for handovers once the bridge has answered.
+
 `ProxyReply.status()`:
 
 | Status | Meaning |

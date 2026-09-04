@@ -527,6 +527,24 @@ The queued destination lives under the network's own `key-prefix` and expires
 after `cross-server-ttl-seconds`, so two networks sharing one Redis cannot hand
 each other's players around.
 
+### Who moves the player, and whether it says so
+
+*Since 1.102.0.* Two roads, chosen per move:
+
+- **The bridge**, whenever [ExyliaProxyUtils](proxy.md) has answered this
+  server: the `connect` module moves the player and *answers*. `SUCCESS` then
+  means the proxy connected them. A server name the proxy does not know comes
+  back as `CROSS_SERVER_UNAVAILABLE` with `The proxy did not move <player> to
+  server "<name>": no server "<name>"` in the console — a typo in a config
+  file, found the first time it is used rather than never. A target who is no
+  longer on the network is `TARGET_NOT_FOUND` for `bring` and `PLAYER_LEFT`
+  for a handover.
+- **`Connect`/`ConnectOther` on the `BungeeCord` channel** otherwise. Every
+  proxy understands it and none of them answers, so `SUCCESS` there means
+  the message was sent. This is what every version before 1.102.0 did.
+
+Neither road changes the write-then-Connect order above.
+
 ### Arriving
 
 The library's own join listener claims whatever was queued for the arriving

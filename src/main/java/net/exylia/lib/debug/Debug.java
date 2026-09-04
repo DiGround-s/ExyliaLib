@@ -2,6 +2,7 @@ package net.exylia.lib.debug;
 
 import com.github.lalyos.jfiglet.FigletFont;
 import net.exylia.lib.text.Colors;
+import net.exylia.lib.text.Gradients;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.TextColor;
 import org.bukkit.Bukkit;
@@ -325,18 +326,9 @@ public final class Debug {
             double toMiddle = (double) index / (last / 2.0);
             double position = toMiddle <= 1 ? toMiddle : 2 - toMiddle;
             painted = painted.append(Component.text(name.charAt(index),
-                    blend(edge, middle, position)));
+                    Gradients.blend(edge, middle, position)));
         }
         return painted;
-    }
-
-    /** A colour {@code position} of the way from {@code from} to {@code to}. */
-    private static TextColor blend(TextColor from, TextColor to, double position) {
-        double clamped = Math.max(0, Math.min(1, position));
-        return TextColor.color(
-                (int) Math.round(from.red() + (to.red() - from.red()) * clamped),
-                (int) Math.round(from.green() + (to.green() - from.green()) * clamped),
-                (int) Math.round(from.blue() + (to.blue() - from.blue()) * clamped));
     }
 
     /** Test seam: captures lines instead of printing them. */

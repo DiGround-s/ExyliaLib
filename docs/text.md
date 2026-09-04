@@ -175,6 +175,55 @@ Flipping the switch and running `/exylialib reload` restyles the server live —
 the parse cache is dropped, and boards, holograms, effects and items re-send
 themselves, exactly as a palette change does.
 
+## Gradients
+
+Since 1.102.0. `<gradient:#a:#b>` is for text an owner writes in a file: it is
+parsed once and cached. It cannot colour something that only exists after the
+parse — an animation frame, a colour a player chose, a name painted after its
+placeholders were substituted. `Gradients` paints a `Component` that already
+exists, one character at a time, and leaves everything else in it alone.
+
+```java
+Component name    = Gradients.paint("DiGround", List.of(gold, orange));
+Component painted = Gradients.apply(component, List.of(a, b, c));   // keeps bold, hover, click
+Component frame   = Gradients.apply(component,
+        index -> Gradients.wrap(stops, (index + tick) / 12.0));      // a shifting gradient
+```
+
+| Method | Contract |
+| --- | --- |
+| `blend(from, to, position)` | the colour `position` of the way between two, clamped to `[0, 1]` |
+| `at(stops, position)` | along a run of evenly spaced stops; one stop is a solid colour |
+| `wrap(stops, position)` | around a loop: the last stop blends back into the first and `1.25` is `0.25` |
+| `paint(String, stops)` | a plain string, first character at the first stop, last at the last |
+| `apply(Component, stops)` | the same across a component, children counted in reading order |
+| `apply(Component, IntFunction<TextColor>)` | the caller picks the colour per character index |
+| `length(Component)` | how many characters `apply` will colour |
+
+Only the colour changes: decorations, hover, click, insertion and font stay
+where they were. The parent's own colour is dropped, since every character now
+carries its own. A character outside the basic plane counts as one. Stateless
+and safe from any thread; the original component is never touched.
+
+## Character maps
+
+Since 1.102.0. The walk behind small capitals, opened up so a plugin can ship
+its own "fonts" — letters swapped for the look-alike glyphs of another
+alphabet — without copying the part that is easy to get wrong.
+
+```java
+String fraktur = CharMaps.transform(line, codePoint -> FRAKTUR.getOrDefault(codePoint, codePoint));
+```
+
+`transform(text, map)` asks the map once per code point and writes back what it
+answers; the same code point means "leave it", and a line where nothing changes
+is returned as the same instance. Everything that is an instruction rather than
+text is copied through exactly: MiniMessage tags, `{tokens}`, `%placeholders%`,
+`&l` and `&#8a51c4`. An unclosed `<`, `{` or a lone `%` is text, which is also
+how MiniMessage reads it. The map may answer with a code point outside the
+basic plane — fraktur, double-struck and monospace all live there — and a
+surrogate pair in the input is handed to it as one code point.
+
 ## Lines written for several lines
 
 Since 1.49.0. A description belongs next to the thing it describes, so a server
@@ -272,8 +321,10 @@ stale.
 ## Source and tests
 
 - Public: `text/Text.java`, `text/Colors.java`, `text/Palette.java`,
-  `text/Lines.java`, `text/LibraryMessages.java`.
+  `text/Lines.java`, `text/LibraryMessages.java`, `text/Gradients.java`,
+  `text/CharMaps.java`.
 - Internal: `text/internal/` (`TextEngine`, `FormatScanner`,
   `LegacyTranslator`, `TokenResolver`, `SmallText`).
 - Tests: `src/test/java/net/exylia/lib/text/TextModuleTest.java`,
-  `SmallTextTest.java`, `LinesTest.java`, `LibraryMessagesTest.java`.
+  `SmallTextTest.java`, `LinesTest.java`, `LibraryMessagesTest.java`,
+  `GradientsTest.java`, `CharMapsTest.java`.
