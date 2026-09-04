@@ -120,28 +120,13 @@ public final class ParticleBuilder {
     public boolean show(@NotNull Player viewer) {
         Location where = location != null ? location : viewer.getLocation();
 
-        try {
-            if (Packets.available() && PacketSender.particle(viewer, name,
-                    where.getX(), where.getY(), where.getZ(),
-                    offsetX, offsetY, offsetZ, speed, count, longDistance)) {
-                return true;
-            }
-        } catch (Throwable ignored) {
-            // Fall through to the Bukkit API.
-        }
-        return fallback(viewer, where);
-    }
-
-    /**
-     * Draws through the Bukkit API when packets are unavailable.
-     *
-     * <p>Bukkit's enum is looked up by name because a config holds a string, and
-     * an unknown name has to be reported rather than throwing.
-     */
-    private boolean fallback(Player viewer, Location where) {
+        // Through the server's own encoder, never as a raw packet: see
+        // SoundBuilder for the disconnect a raw sound produced. Bukkit's enum
+        // is looked up by name because a config holds a string, and an
+        // unknown name has to be reported rather than throwing.
         try {
             org.bukkit.Particle particle = org.bukkit.Particle.valueOf(bukkitName());
-            viewer.spawnParticle(particle, where, count, offsetX, offsetY, offsetZ, speed);
+            viewer.spawnParticle(particle, where, count, offsetX, offsetY, offsetZ, speed, null, longDistance);
             return true;
         } catch (IllegalArgumentException ignored) {
             return false;

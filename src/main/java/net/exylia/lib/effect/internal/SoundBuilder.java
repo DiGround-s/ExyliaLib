@@ -90,36 +90,25 @@ public final class SoundBuilder {
     public boolean show(@NotNull Player viewer) {
         Location where = location != null ? location : viewer.getLocation();
 
-        // A false from the packet path means the registry did not know the
-        // name, not that the sound played; an exception means the classloader
-        // cannot see PacketEvents, which a PlugMan-style load produces. Either
-        // way Bukkit is the difference between silence and the sound the
-        // config asked for.
-        String key = resolvedKey();
+        // Through the server's own encoder, never as a raw packet: a sound
+        // PacketEvents could not map to the client's version went out as a
+        // holder of zero with nothing behind it, and the client disconnected.
+        // The string form is used rather than the enum: Bukkit accepts a
+        // namespaced key directly, which avoids depending on an enum whose
+        // constants move between versions.
         try {
-            if (Packets.available() && PacketSender.sound(viewer, key, category,
-                    where.getX(), where.getY(), where.getZ(), volume, pitch)) {
-                return true;
-            }
-        } catch (Throwable ignored) {
-            // Fall through to the Bukkit API.
-        }
-        return fallback(viewer, where, key);
-    }
-
-    /**
-     * Plays through the Bukkit API when packets are unavailable.
-     *
-     * <p>The string form is used rather than the enum: Bukkit accepts a
-     * namespaced key directly, which avoids depending on an enum whose constants
-     * move between versions.
-     */
-    private boolean fallback(Player viewer, Location where, String key) {
-        try {
-            viewer.playSound(where, key, volume, pitch);
+            viewer.playSound(where, resolvedKey(), category(), volume, pitch);
             return true;
         } catch (Throwable ignored) {
             return false;
+        }
+    }
+
+    private org.bukkit.SoundCategory category() {
+        try {
+            return org.bukkit.SoundCategory.valueOf(category.toUpperCase(Locale.ROOT));
+        } catch (IllegalArgumentException ignored) {
+            return org.bukkit.SoundCategory.MASTER;
         }
     }
 

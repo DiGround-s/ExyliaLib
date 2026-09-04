@@ -111,10 +111,13 @@ ends), `progress(float)`.
 
 ## Contracts
 
-- **Packets are a preference, never a requirement.** If the packet registry does
-  not know a name — or PacketEvents cannot even be seen through the classloader
-  — the effect goes out through the Bukkit API instead. A false from the packet
-  path means "I do not know this name", not "it played".
+- **Only boss bars go out as packets.** Sounds and particles always take the
+  Bukkit API, through the server's own encoder: a sound PacketEvents could not
+  map to the client's version went out as a holder of zero with nothing behind
+  it, and the client disconnected on it (`Failed to decode packet
+  'clientbound/minecraft:sound'`). The server never writes a sound it does not
+  know, and ViaVersion translates what it does write. A false from `show`
+  means "I do not know this name", not "it played".
 - **Titles and action bars never take the packet path.** They hold no server
   state either way, so it bought nothing, while PacketEvents serialises the
   component to NBT on the calling thread for every send. An action bar re-sends

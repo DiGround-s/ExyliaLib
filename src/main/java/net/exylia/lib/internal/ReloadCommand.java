@@ -530,9 +530,6 @@ public final class ReloadCommand {
                 + " {letters}(" + (everything ? tables.size() + " tables" : table) + ")"
                 + "\n{letters_black}▎ {secondary}Backup {letters_black}» {letters}writing a dump"
                 + " first, into " + dumpFolder.get().getFileName()
-                + "\n{letters_black}▎ {secondary}Restart {letters_black}» {letters}the plugin is"
-                + " disabled and re-enabled after the wipe, so nothing it holds in memory"
-                + " writes back"
         ).send(sender);
 
         transfers.export(pluginName, dumpFolder.get()).thenCompose(backup -> {
@@ -632,7 +629,13 @@ public final class ReloadCommand {
                     .append(" {muted}(").append(backup.rows()).append(" rows)");
         }
         if (report.outcome() != TransferOutcome.FAILED) {
-            text.append("\n\n{warning}➥ Restore it with:")
+            text.append("\n\n{warning}➥ Restart the server to apply it.")
+                    .append("\n{letters_black}▎ {letters}").append(pluginName)
+                    .append(" still holds these rows in memory; until the restart, writes to")
+                    .append(table == null ? " its tables" : " " + table)
+                    .append(" are ignored so they cannot come back. Wipe other tables first")
+                    .append(" if you need to.")
+                    .append("\n\n{warning}➥ Restore it with:")
                     .append("\n{letters_black}▎ {muted}/exylialib import ").append(pluginName)
                     .append(' ').append(backup.file() == null ? "<dump>" : backup.file().getFileName())
                     .append(" true");

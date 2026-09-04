@@ -1,20 +1,10 @@
 package net.exylia.lib.effect.internal;
 
 import com.github.retrooper.packetevents.PacketEvents;
-import com.github.retrooper.packetevents.protocol.particle.Particle;
-import com.github.retrooper.packetevents.protocol.particle.type.ParticleType;
-import com.github.retrooper.packetevents.protocol.particle.type.ParticleTypes;
-import com.github.retrooper.packetevents.protocol.sound.SoundCategory;
-import com.github.retrooper.packetevents.protocol.sound.Sounds;
-import com.github.retrooper.packetevents.util.Vector3d;
-import com.github.retrooper.packetevents.util.Vector3f;
 import com.github.retrooper.packetevents.wrapper.PacketWrapper;
 import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerBossBar;
-import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerParticle;
-import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerSoundEffect;
 import net.kyori.adventure.bossbar.BossBar;
 import net.kyori.adventure.text.Component;
-import net.exylia.lib.util.internal.ClientProtocol;
 import org.bukkit.entity.Player;
 
 import java.util.EnumSet;
@@ -28,11 +18,13 @@ import java.util.UUID;
  * so a server without the plugin never loads this class and never sees a missing
  * one. {@link Packets} decides whether it is safe to call.
  *
- * <p>Only the effects that would otherwise leave server-side state live here: a
- * boss bar sent as a packet is nothing the server has to track, and a sound or a
- * particle skips the enum round trip. Titles and action bars went back to the
- * server's own Adventure API, which serialises off the server thread; see
- * {@link Bars}.
+ * <p>Only the effect that would otherwise leave server-side state lives here: a
+ * boss bar sent as a packet is nothing the server has to track. Titles and
+ * action bars went back to the server's own Adventure API, which serialises off
+ * the server thread; see {@link Bars}. Sounds and particles go through Bukkit
+ * too: a wrapper PacketEvents cannot map to the client's version is written as
+ * a sound holder of zero with nothing behind it, and the client disconnects on
+ * it. The server's own encoder never writes a sound it does not know.
  */
 final class PacketSender {
 
@@ -51,11 +43,6 @@ final class PacketSender {
 
     private static void send(Player player, PacketWrapper<?> packet) {
         PacketEvents.getAPI().getPlayerManager().sendPacket(player, packet);
-    }
-
-    /** Whether PacketEvents can write for this client; the rest go through Bukkit. */
-    private static boolean writable(Player player) {
-        return ClientProtocol.writable(player);
     }
 
     // ------------------------------------------------------------------
@@ -114,110 +101,5 @@ final class PacketSender {
         } catch (IllegalArgumentException ignored) {
             return BossBar.Overlay.PROGRESS;
         }
-    }
-
-    // ------------------------------------------------------------------
-    // Particles and sound
-    // ------------------------------------------------------------------
-
-    /**
-     * Sends particles to one player.
-     *
-     * <p>Per-player rather than to everyone in range, which is the point: a
-     * preview outline, a selection marker or a private effect is drawn for the
-     * one player who should see it, and the server never spawns anything.
-     */
-    static boolean particle(Player player, String name, double x, double y, double z,
-                            float offsetX, float offsetY, float offsetZ,
-                            float speed, int count, boolean longDistance) {
-        if (!writable(player)) {
-            return false;
-        }
-        ParticleType<?> type = ParticleTypes.getByName(particleKey(name));
-        if (type == null) {
-            return false;
-        }
-        send(player, new WrapperPlayServerParticle(
-                new Particle<>(type),
-                longDistance,
-                new Vector3d(x, y, z),
-                new Vector3f(offsetX, offsetY, offsetZ),
-                speed,
-                count));
-        return true;
-    }
-
-    /**
-     * Cleared the first time the sound wrapper fails to link.
-     *
-     * <p>The wrapper is compiled against a PacketEvents newer than some servers
-     * run: the {@code Vector3d} constructor arrived in 2.13, and on 2.11 every
-     * call threw {@code NoSuchMethodError} into the caller's catch before
-     * falling back to Bukkit. The fallback is right; paying for the throw on
-     * every sound, and for the JVM to resolve the missing call each time, was
-     * not. One failure is enough to know.
-     */
-    private static volatile boolean soundLinks = true;
-
-    static boolean sound(Player player, String name, String category,
-                         double x, double y, double z, float volume, float pitch) {
-        if (!soundLinks || !writable(player)) {
-            return false;
-        }
-        var sound = Sounds.getByName(soundKey(name));
-        if (sound == null) {
-            return false;
-        }
-        try {
-            send(player, new WrapperPlayServerSoundEffect(
-                    sound,
-                    category(category),
-                    new Vector3d(x, y, z),
-                    volume,
-                    pitch));
-        } catch (LinkageError outdated) {
-            soundLinks = false;
-            return false;
-        }
-        return true;
-    }
-
-    private static SoundCategory category(String name) {
-        try {
-            return SoundCategory.valueOf(name.toUpperCase(Locale.ROOT));
-        } catch (IllegalArgumentException ignored) {
-            return SoundCategory.MASTER;
-        }
-    }
-
-    /**
-     * Builds the registry key for a sound.
-     *
-     * <p>Sound keys are dotted, such as {@code minecraft:entity.player.levelup},
-     * but server owners write the Bukkit enum name
-     * {@code ENTITY_PLAYER_LEVELUP}. Both are accepted, and so is a key that
-     * already carries a namespace, so a resource pack's own sound works
-     * unchanged.
-     */
-    private static String soundKey(String name) {
-        String trimmed = name.trim().toLowerCase(Locale.ROOT);
-        if (trimmed.indexOf(':') >= 0) {
-            return trimmed;
-        }
-        // Only an all-underscore name is a Bukkit enum; one that already has
-        // dots is a real key missing its namespace.
-        return "minecraft:" + (trimmed.indexOf('.') >= 0 ? trimmed : trimmed.replace('_', '.'));
-    }
-
-    /**
-     * Builds the registry key for a particle.
-     *
-     * <p>Unlike sounds, particle keys keep their underscores:
-     * {@code minecraft:angry_villager}. Converting them to dots the way a sound
-     * needs would make every particle name fail to resolve.
-     */
-    private static String particleKey(String name) {
-        String trimmed = name.trim().toLowerCase(Locale.ROOT);
-        return trimmed.indexOf(':') >= 0 ? trimmed : "minecraft:" + trimmed;
     }
 }

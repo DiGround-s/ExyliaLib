@@ -50,6 +50,9 @@ public final class Repository<T> {
     private final EntityModel<T> model;
     private final java.util.function.BiConsumer<String, Throwable> unhandled;
 
+    /** Set by a wipe; every write is dropped until the plugin's next load. */
+    private volatile boolean frozen;
+
     Repository(Storage storage, EntityModel<T> model) {
         this(storage, model, (message, failure) -> { });
     }
@@ -59,6 +62,43 @@ public final class Repository<T> {
         this.storage = storage;
         this.model = model;
         this.unhandled = unhandled;
+    }
+
+    /**
+     * Drops every write until the server restarts.
+     *
+     * <p>What {@code /exylialib wipe} does to a table it has emptied. The
+     * plugin that owns it still holds the rows in memory and would write them
+     * back on its next save — on a server stop, every online player's quit —
+     * so the wipe would be undone by the very restart meant to apply it. A
+     * frozen repository answers every write with success and stores nothing;
+     * reads go through, and find the empty table. The repositories of a plugin
+     * are rebuilt when it is enabled, so a restart is the thaw.
+     *
+     * <p>Not for plugin code: a plugin wiping its own tables through
+     * {@code Transfers} keeps writing to them, which is the point.
+     *
+     * @since 1.108.0
+     */
+    public void freeze() {
+        frozen = true;
+    }
+
+    /**
+     * Accepts writes again, without a restart.
+     *
+     * <p>What an import does: a table put back from a dump is one the admin
+     * wants written to.
+     *
+     * @since 1.108.0
+     */
+    public void thaw() {
+        frozen = false;
+    }
+
+    /** Whether {@link #freeze()} is in force. */
+    public boolean frozen() {
+        return frozen;
     }
 
     /**
@@ -222,6 +262,9 @@ public final class Repository<T> {
                     + " record that has not been stored yet is a placeholder — merging on"
                     + " it would overwrite whichever row happens to hold that id.");
         }
+        if (frozen) {
+            return CompletableFuture.completedFuture(null);
+        }
         return reported("save", storage.save(model, record));
     }
 
@@ -248,6 +291,9 @@ public final class Repository<T> {
      */
     public @NotNull CompletableFuture<Long> insert(@NotNull T record) {
         requireGenerated("insert");
+        if (frozen) {
+            return CompletableFuture.completedFuture(0L);
+        }
         return reported("insert", storage.insert(model, record));
     }
 
@@ -270,6 +316,11 @@ public final class Repository<T> {
      */
     public @NotNull CompletableFuture<T> insertReturning(@NotNull T record) {
         requireGenerated("insertReturning");
+        if (frozen) {
+            // ponytail: the placeholder key, not a stored one; a plugin that
+            // dereferences it after a wipe reads a row that is not there.
+            return CompletableFuture.completedFuture(record);
+        }
         return reported("insert", storage.insert(model, record)
                 .thenApply(key -> model.withId(record, key)));
     }
@@ -305,6 +356,9 @@ public final class Repository<T> {
                     + " still carries the placeholder key, so update() has no row to write to."
                     + " A record that has never been stored is written with insert().");
         }
+        if (frozen) {
+            return CompletableFuture.completedFuture(null);
+        }
         return reported("update", storage.update(model, record));
     }
 
@@ -335,6 +389,9 @@ public final class Repository<T> {
                     + " caller that inserted a hundred rows without learning their ids"
                     + " has stored a hundred rows nothing can refer to.");
         }
+        if (frozen) {
+            return CompletableFuture.completedFuture(null);
+        }
         return reported("saveAll", storage.saveAll(model, records));
     }
 
@@ -345,6 +402,9 @@ public final class Repository<T> {
      * @return whether there was a row to remove
      */
     public @NotNull CompletableFuture<Boolean> delete(@NotNull Object id) {
+        if (frozen) {
+            return CompletableFuture.completedFuture(false);
+        }
         return reported("delete", storage.delete(model, id));
     }
 
@@ -360,6 +420,9 @@ public final class Repository<T> {
     }
 
     CompletableFuture<Integer> runDelete(Query<T> query) {
+        if (frozen) {
+            return CompletableFuture.completedFuture(0);
+        }
         return reported("delete", storage.deleteWhere(model, query.filterColumns(), query.filterValues(),
                 query.limitValue()));
     }

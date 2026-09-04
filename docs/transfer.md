@@ -262,12 +262,12 @@ no file.
   is an `export(...)` the caller runs and waits on — which is exactly what
   `/exylialib wipe` does, and why the command cancels the wipe when that export
   fails.
-- **The API does not restart the plugin; the command does.** A plugin that
+- **The API does not freeze the tables; the command does.** A plugin that
   indexes its tables in memory keeps the rows after `wipeAll()` and writes them
-  back on its next save. `/exylialib wipe` disables and re-enables the plugin
-  once the tables are empty for that reason (since 1.108.0); a plugin wiping its
-  own tables from code has to drop what it holds itself. The shared cache's
-  copies are removed by the wipe on every engine.
+  back on its next save. `/exylialib wipe` calls `Repository.freeze()` on what
+  it emptied and asks for a restart (since 1.108.0); a plugin wiping its own
+  tables from code keeps writing to them, and has to drop what it holds
+  itself. The shared cache's copies are removed by the wipe on every engine.
 - **The names are all-or-nothing.** A name matching no registered table fails
   the whole wipe before a row goes. Skipping it and emptying the rest is how a
   typo in `players` empties `kits` and reports success.

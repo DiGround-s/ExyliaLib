@@ -26,7 +26,7 @@ rules live in [AGENTS.md](AGENTS.md).
 | `config` | Available | YAML configs declared as records, generated and upgraded automatically |
 | `text` | Available | Colours and formatting: palette tokens, legacy codes and MiniMessage, parsed once and cached |
 | `placeholder` | Available | One resolver type, grouped registration, formats and fallbacks, PlaceholderAPI both ways |
-| `effect` | Available | Titles, action bars, boss bars, particles, sounds and fireworks, sent as packets and declared in config |
+| `effect` | Available | Titles, action bars, boss bars, particles, sounds and fireworks, declared in config; boss bars go out as packets |
 | `scoreboard` | Available | Packet-level sidebars declared in config, refreshed off the main thread and diffed line by line |
 | `hologram` | Available | Floating text, items and blocks sent as display-entity packets, per-player or shared |
 | `client` | Available | Waypoints, cooldowns and teammate markers on Lunar and Feather, without the caller knowing which |

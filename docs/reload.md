@@ -113,6 +113,7 @@ that fact rather than around the deletion:
 
 /exylialib wipe Practice practice_stats a1b2c
 » WIPE Practice … Rows » 4213 … Backup » Practice-h2-2026-08-31.exyliadump.gz
+» ➥ Restart the server to apply it.
 » ➥ Restore it with: /exylialib import Practice Practice-h2-2026-08-31.exyliadump.gz true
 ```
 
@@ -135,14 +136,18 @@ way this goes wrong:
 - **An export runs first, always.** A wipe whose backup export failed does not
   happen, and a wipe that succeeded prints the `import … true` line that puts
   the rows back.
-- **The plugin is restarted afterwards** (since 1.108.0). A wipe that only
-  emptied the tables looked like it had done nothing: the plugin still held
-  every row in memory and wrote them back on its next save — a stats flush on
-  quit, a periodic tick, the server stopping. So once the tables are empty the
-  command disables the plugin and enables it again two ticks later, and it
-  comes up reading empty tables. The Redis copies of the rows go in the same
-  wipe (see [redis.md](redis.md)); before 1.108.0 they lived on for their TTL
-  and answered `find` with rows the database no longer had.
+- **The wiped tables stop accepting writes until the server restarts** (since
+  1.108.0). A wipe that only emptied the tables looked like it had done
+  nothing: the plugin still held every row in memory and wrote them back on
+  its next save — a stats flush on quit, a periodic tick, and on a server stop
+  every online player's quit at once. So the command freezes the wiped
+  repositories: writes complete as if they worked and store nothing, reads
+  find the empty table. The panel says to restart; the plugin is rebuilt on
+  the way up and reads empty tables. Several tables or plugins can be wiped
+  before that one restart. An `import` into the plugin lifts the freeze, since
+  a restored table is one you want written to. The Redis copies of the rows go
+  in the same wipe (see [redis.md](redis.md)); before 1.108.0 they lived on
+  for their TTL and answered `find` with rows the database no longer had.
 
 `*` in place of a table name (or the word `all`, which is accepted and
 suggested too) means every table the plugin has registered — typed, not
