@@ -530,6 +530,9 @@ public final class ReloadCommand {
                 + " {letters}(" + (everything ? tables.size() + " tables" : table) + ")"
                 + "\n{letters_black}▎ {secondary}Backup {letters_black}» {letters}writing a dump"
                 + " first, into " + dumpFolder.get().getFileName()
+                + "\n{letters_black}▎ {secondary}Restart {letters_black}» {letters}the plugin is"
+                + " disabled and re-enabled after the wipe, so nothing it holds in memory"
+                + " writes back"
         ).send(sender);
 
         transfers.export(pluginName, dumpFolder.get()).thenCompose(backup -> {

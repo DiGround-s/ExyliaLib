@@ -44,6 +44,32 @@ class RowCacheTest {
         return new RowCache(client, settings(serverId), serverId, warnings::add);
     }
 
+    // --------------------------------------------------------------- the wipe
+
+    @Test
+    @DisplayName("a table drop removes the Redis copies too, not only this server's memory")
+    void aTableDropEmptiesRedis() {
+        // Left to expire on their TTL, the Redis rows answered every find for
+        // half an hour after a wipe, and the next save put them back in the
+        // database. Another table's rows must survive: the drop is a prefix,
+        // and "effects" is a prefix of nothing else only because of the colon.
+        MemoryClient.Network network = MemoryClient.network();
+        MemoryClient writer = new MemoryClient(network);
+        MemoryClient peer = new MemoryClient(network);
+        UUID player = UUID.randomUUID();
+        RowCache cache = cacheOn(writer, "lobby-1", new ArrayList<>());
+        cache.put(MODEL, player, new Effect(player, "flame", 1));
+        peer.set("exylia:row:effects_extra:" + player, "kept", 60);
+        assertNotNull(peer.get("exylia:row:effects:" + player), "the row must be in Redis first");
+
+        cache.dropTable(MODEL);
+
+        assertNull(peer.get("exylia:row:effects:" + player),
+                "a peer must not find the wiped row in Redis");
+        assertEquals("kept", peer.get("exylia:row:effects_extra:" + player),
+                "only the dropped table's keys may go");
+    }
+
     // ----------------------------------------------------------- the ordering
 
     @Test

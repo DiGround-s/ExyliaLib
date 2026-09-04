@@ -51,6 +51,17 @@ public interface RedisClient {
     void delete(@NotNull Collection<String> keys);
 
     /**
+     * Removes every key that starts with a prefix.
+     *
+     * <p>A scan, so only for the rare path that has no other way to name its
+     * keys: a table-wide drop. A routine write must never call it.
+     *
+     * @param prefix the prefix, ending in a colon
+     * @since 1.108.0
+     */
+    void deleteByPrefix(@NotNull String prefix);
+
+    /**
      * Sends a message to every subscriber of a channel, this server included.
      *
      * @param channel the channel

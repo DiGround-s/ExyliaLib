@@ -208,14 +208,21 @@ public final class RowCache {
     /**
      * Removes every row of a table, here and everywhere.
      *
-     * <p>Local memory and the message are enough: a peer drops its own memory
-     * and the Redis copies expire on their own TTL. Deliberately no
-     * {@code SCAN}: ExyliaCommons scanned the whole keyspace on every save, and
-     * on a busy server that is a full keyspace walk several times a second.
-     * This path is a wipe, not a routine write.
+     * <p>The Redis copies go too, by a prefix scan. Leaving them to expire on
+     * their TTL was how a wiped table came back: for the next half hour every
+     * {@code find} of a known id was answered from Redis with the row the
+     * database no longer had, and the next save wrote it straight back. A scan
+     * is acceptable here and nowhere else — this path is a wipe, not a routine
+     * write; ExyliaCommons scanned the whole keyspace on every save, and on a
+     * busy server that is a full keyspace walk several times a second.
      */
     void dropTable(@NotNull EntityModel<?> model) {
         dropLocalTable(model.table());
+        try {
+            client.deleteByPrefix(CacheKeys.table(settings.keyPrefix(), model.table()));
+        } catch (Throwable unreachable) {
+            report(unreachable);
+        }
         publish(model.table(), null);
     }
 

@@ -135,6 +135,14 @@ way this goes wrong:
 - **An export runs first, always.** A wipe whose backup export failed does not
   happen, and a wipe that succeeded prints the `import … true` line that puts
   the rows back.
+- **The plugin is restarted afterwards** (since 1.108.0). A wipe that only
+  emptied the tables looked like it had done nothing: the plugin still held
+  every row in memory and wrote them back on its next save — a stats flush on
+  quit, a periodic tick, the server stopping. So once the tables are empty the
+  command disables the plugin and enables it again two ticks later, and it
+  comes up reading empty tables. The Redis copies of the rows go in the same
+  wipe (see [redis.md](redis.md)); before 1.108.0 they lived on for their TTL
+  and answered `find` with rows the database no longer had.
 
 `*` in place of a table name (or the word `all`, which is accepted and
 suggested too) means every table the plugin has registered — typed, not

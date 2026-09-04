@@ -136,6 +136,12 @@ public final class MemoryClient implements RedisClient {
     }
 
     @Override
+    public void deleteByPrefix(@NotNull String prefix) {
+        check();
+        network.values.keySet().removeIf(key -> key.startsWith(prefix));
+    }
+
+    @Override
     public void publish(@NotNull String channel, @NotNull String message) {
         check();
         network.published.incrementAndGet();

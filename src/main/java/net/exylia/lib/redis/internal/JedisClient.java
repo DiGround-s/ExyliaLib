@@ -9,7 +9,9 @@ import redis.clients.jedis.Jedis;
 import redis.clients.jedis.JedisPool;
 import redis.clients.jedis.JedisPoolConfig;
 import redis.clients.jedis.JedisPubSub;
+import redis.clients.jedis.params.ScanParams;
 import redis.clients.jedis.params.SetParams;
+import redis.clients.jedis.resps.ScanResult;
 
 import java.time.Duration;
 import java.util.Collection;
@@ -127,6 +129,23 @@ final class JedisClient implements RedisClient {
         }
         try (Jedis jedis = pool.getResource()) {
             jedis.del(keys.toArray(new String[0]));
+        }
+    }
+
+    @Override
+    public void deleteByPrefix(@NotNull String prefix) {
+        // SCAN, never KEYS: KEYS blocks the whole server for the length of the
+        // keyspace, and this Redis is shared with every other plugin's rows.
+        ScanParams params = new ScanParams().match(prefix + '*').count(500);
+        try (Jedis jedis = pool.getResource()) {
+            String cursor = ScanParams.SCAN_POINTER_START;
+            do {
+                ScanResult<String> page = jedis.scan(cursor, params);
+                if (!page.getResult().isEmpty()) {
+                    jedis.del(page.getResult().toArray(new String[0]));
+                }
+                cursor = page.getCursor();
+            } while (!ScanParams.SCAN_POINTER_START.equals(cursor));
         }
     }
 

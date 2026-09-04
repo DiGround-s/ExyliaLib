@@ -168,7 +168,10 @@ The design is the same one, with four defects fixed:
 - **A save does not wipe the table.** Commons called `invalidateAll()` on every
   save, which did a network-wide `SCAN` + `DEL` of the entity's whole keyspace
   and broadcast a clear. Under write-behind that ran every 30 seconds per
-  repository, which left the cache empty most of the time.
+  repository, which left the cache empty most of the time. The only `SCAN` left
+  is the one a real wipe does (`deleteAll`, since 1.108.0): the table's Redis
+  keys are deleted along with the rows, so a wiped row cannot be handed back by
+  `find` until its TTL runs out.
 - **Values are encoded the way the database encodes them.** Commons cached with
   bare Gson while writing through its serializers, so a field with a custom
   codec had two representations. Here the payload goes through the same

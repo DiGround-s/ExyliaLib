@@ -544,6 +544,12 @@ class TeleportCrossServerTest {
         }
 
         @Override
+        public void deleteByPrefix(String prefix) {
+            real.deleteByPrefix(prefix);
+            journal.add("deleteByPrefix");
+        }
+
+        @Override
         public void publish(String channel, String message) {
             real.publish(channel, message);
             journal.add("publish " + channel);

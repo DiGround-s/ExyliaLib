@@ -2,9 +2,15 @@ package net.exylia.lib.internal;
 
 import net.exylia.lib.database.Databases;
 import net.exylia.lib.database.PluginDatabase;
+import net.exylia.lib.database.transfer.TransferOutcome;
 import net.exylia.lib.database.transfer.TransferReport;
 import net.exylia.lib.database.transfer.Transfers;
 import net.exylia.lib.redis.Redis;
+import net.exylia.lib.task.Tasks;
+import org.bukkit.Bukkit;
+import org.bukkit.plugin.Plugin;
+import org.bukkit.plugin.PluginManager;
+import org.bukkit.plugin.java.JavaPlugin;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -122,10 +128,55 @@ interface TransferAccess {
                     return CompletableFuture.completedFuture(TransferReport.failed(
                             pluginName + " has no registered tables.", java.time.Duration.ZERO));
                 }
-                return table == null
-                        ? Transfers.of(database.plugin()).wipeAll()
-                        : Transfers.of(database.plugin()).wipe(table);
+                Plugin plugin = database.plugin();
+                CompletableFuture<TransferReport> wiped = table == null
+                        ? Transfers.of(plugin).wipeAll()
+                        : Transfers.of(plugin).wipe(table);
+                return wiped.thenCompose(report -> restarted(plugin, report));
             }
         };
+    }
+
+    /**
+     * Disables and re-enables the plugin whose tables were just emptied.
+     *
+     * <p>Without this a wipe only looked like one. The plugin still held every
+     * row in memory — a clan manager indexes its tables on enable and never
+     * reads them again — and wrote them back on the next save: a stats flush
+     * on quit, a DTR tick, the server stopping. The admin restarted, the data
+     * was there, and the wipe had done nothing visible.
+     *
+     * <p>Wipe first, then restart, deliberately: once the plugin is disabled
+     * the library releases its repositories, so there is nothing left to wipe
+     * through. The gap between the last delete and the disable is one tick.
+     * The enable waits two ticks more, because the library's own cleanup of a
+     * disabled plugin runs a tick after the event, and a load enabled before
+     * that runs would have its fresh datasource closed underneath it.
+     */
+    // ponytail: a plugin that flushes memory from its own onDisable writes it
+    // back during the restart; disable first through a fresh view if one ever does.
+    private static CompletableFuture<TransferReport> restarted(Plugin plugin, TransferReport report) {
+        if (report.outcome() == TransferOutcome.FAILED || !plugin.isEnabled()) {
+            return CompletableFuture.completedFuture(report);
+        }
+        Plugin library = JavaPlugin.getProvidingPlugin(TransferAccess.class);
+        PluginManager plugins = Bukkit.getPluginManager();
+        CompletableFuture<TransferReport> done = new CompletableFuture<>();
+        Tasks.of(library).run(() -> {
+            plugins.disablePlugin(plugin);
+            Tasks.of(library).runLater(2L, () -> {
+                try {
+                    plugins.enablePlugin(plugin);
+                    done.complete(report);
+                } catch (Throwable failure) {
+                    List<String> problems = new java.util.ArrayList<>(report.problems());
+                    problems.add(plugin.getName() + " did not come back up after the wipe: "
+                            + failure.getMessage() + ". Restart the server.");
+                    done.complete(new TransferReport(TransferOutcome.PARTIAL, report.file(),
+                            report.tables(), report.rows(), report.took(), problems));
+                }
+            });
+        });
+        return done;
     }
 }
