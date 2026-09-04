@@ -113,6 +113,8 @@ public final class SnapshotCodec {
     private static final String FREEZE_TICKS = "freezeTicks";
     private static final String ARROWS_IN_BODY = "arrowsInBody";
     private static final String GLIDING = "gliding";
+    private static final String NO_DAMAGE_TICKS = "noDamageTicks";
+    private static final String MAX_NO_DAMAGE_TICKS = "maximumNoDamageTicks";
     private static final String ATTRIBUTES = "attributes";
     private static final String HELD_SLOT = "heldSlot";
     private static final String CURSOR = "cursor";
@@ -226,6 +228,8 @@ public final class SnapshotCodec {
             state.addProperty(FREEZE_TICKS, physical.freezeTicks());
             state.addProperty(ARROWS_IN_BODY, physical.arrowsInBody());
             state.addProperty(GLIDING, physical.gliding());
+            state.addProperty(NO_DAMAGE_TICKS, physical.noDamageTicks());
+            state.addProperty(MAX_NO_DAMAGE_TICKS, physical.maximumNoDamageTicks());
             json.add(PHYSICAL, state);
         }
         Map<String, Double> attributes = snapshot.attributes();
@@ -514,7 +518,9 @@ public final class SnapshotCodec {
                 number(state, FALL_DISTANCE, 0f).floatValue(),
                 number(state, FREEZE_TICKS, 0).intValue(),
                 number(state, ARROWS_IN_BODY, 0).intValue(),
-                bool(state, GLIDING, false));
+                bool(state, GLIDING, false),
+                number(state, NO_DAMAGE_TICKS, 0).intValue(),
+                number(state, MAX_NO_DAMAGE_TICKS, 0).intValue());
     }
 
     private static @Nullable Map<String, Double> attributes(JsonObject json,

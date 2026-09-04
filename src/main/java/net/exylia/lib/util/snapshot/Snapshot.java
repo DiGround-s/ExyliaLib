@@ -132,13 +132,15 @@ public final class Snapshot {
      * @param freezeTicks   how frozen they were
      * @param arrowsInBody  how many arrows were stuck in them
      * @param gliding       whether they were flying an elytra
+     * @param noDamageTicks how long they were still invulnerable from the last hit
+     * @param maximumNoDamageTicks how long a hit made them invulnerable for
      * @since 1.34.0
      */
     public record Physical(int fireTicks, int remainingAir,
                            double velocityX, double velocityY, double velocityZ,
                            float walkSpeed, boolean invulnerable, boolean glowing,
                            float fallDistance, int freezeTicks, int arrowsInBody,
-                           boolean gliding) {
+                           boolean gliding, int noDamageTicks, int maximumNoDamageTicks) {
 
         /**
          * The shape before falling, freezing, arrows and gliding were part of it.
@@ -151,7 +153,18 @@ public final class Snapshot {
                         double velocityX, double velocityY, double velocityZ,
                         float walkSpeed, boolean invulnerable, boolean glowing) {
             this(fireTicks, remainingAir, velocityX, velocityY, velocityZ,
-                    walkSpeed, invulnerable, glowing, 0f, 0, 0, false);
+                    walkSpeed, invulnerable, glowing, 0f, 0, 0, false, 0, 0);
+        }
+
+        /** The shape before hit invulnerability was part of it. */
+        public Physical(int fireTicks, int remainingAir,
+                        double velocityX, double velocityY, double velocityZ,
+                        float walkSpeed, boolean invulnerable, boolean glowing,
+                        float fallDistance, int freezeTicks, int arrowsInBody,
+                        boolean gliding) {
+            this(fireTicks, remainingAir, velocityX, velocityY, velocityZ,
+                    walkSpeed, invulnerable, glowing, fallDistance, freezeTicks,
+                    arrowsInBody, gliding, 0, 0);
         }
 
         /**

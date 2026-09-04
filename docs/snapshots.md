@@ -41,7 +41,7 @@ the cursor, armour, off hand, ender chest, health, maximum health and
 absorption, hunger, saturation and exhaustion, experience, potion effects, game
 mode, flight, the base value of every attribute, and the physical state — fire
 ticks, remaining air, velocity, walk speed, fall distance, freeze ticks, arrows
-stuck in them, gliding, invulnerability and glowing.
+stuck in them, gliding, hit invulnerability, invulnerability and glowing.
 
 ## One type, two lifetimes
 
@@ -257,8 +257,8 @@ inventory belonging to a player who was on holiday.
 
 - **The ender chest**, which ExyliaCommons never stored.
 - **The physical state** — fire ticks, remaining air, velocity, walk speed, fall
-  distance, freeze ticks, arrows stuck in them, gliding, invulnerability and
-  glowing. A player who was on fire and drowning used to come back neither, which
+  distance, freeze ticks, arrows stuck in them, gliding, hit invulnerability,
+  invulnerability and glowing. A player who was on fire and drowning used to come back neither, which
   is a small gift in a lobby and a real one in a minigame that put them there on
   purpose.
 - **The held slot and the cursor.** The hand a player was using is visible in

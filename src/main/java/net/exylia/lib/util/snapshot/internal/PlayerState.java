@@ -122,7 +122,8 @@ public final class PlayerState {
                 velocity.getX(), velocity.getY(), velocity.getZ(),
                 player.getWalkSpeed(), player.isInvulnerable(), player.isGlowing(),
                 player.getFallDistance(), player.getFreezeTicks(),
-                player.getArrowsInBody(), player.isGliding());
+                player.getArrowsInBody(), player.isGliding(),
+                player.getNoDamageTicks(), player.getMaximumNoDamageTicks());
 
         return new Snapshot(
                 player.getGameMode(),
@@ -424,6 +425,12 @@ public final class PlayerState {
         player.setFreezeTicks(Math.min(physical.freezeTicks(), player.getMaxFreezeTicks()));
         player.setArrowsInBody(Math.max(0, physical.arrowsInBody()));
         player.setGliding(physical.gliding());
+        if (physical.maximumNoDamageTicks() > 0) {
+            // Zero means the row predates the key, not a server that hands out
+            // no invulnerability at all after a hit.
+            player.setMaximumNoDamageTicks(physical.maximumNoDamageTicks());
+        }
+        player.setNoDamageTicks(Math.max(0, physical.noDamageTicks()));
     }
 
     // ---------------------------------------------------------------- helpers
