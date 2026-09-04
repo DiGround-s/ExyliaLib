@@ -231,7 +231,7 @@ public final class PluginTeleports {
      *
      * @param player who
      * @return their place, named after this server
-     * @since 1.108.0
+     * @since 1.109.0
      */
     public @NotNull ExyliaLocation here(@NotNull Player player) {
         return ExyliaLocation.of(serverId(), player.getLocation());
@@ -242,7 +242,7 @@ public final class PluginTeleports {
      *
      * @param location where, on this server
      * @return the place, named after this server
-     * @since 1.108.0
+     * @since 1.109.0
      */
     public @NotNull ExyliaLocation here(@NotNull Location location) {
         return ExyliaLocation.of(serverId(), location);
@@ -253,7 +253,7 @@ public final class PluginTeleports {
      * bridge is up, the {@code server-id} of this plugin's Redis block otherwise.
      *
      * @return the name a place on this server carries
-     * @since 1.108.0
+     * @since 1.109.0
      */
     public @NotNull String serverId() {
         return CrossServer.serverId(plugin);

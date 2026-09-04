@@ -46,7 +46,7 @@ import java.util.UUID;
  * @param contextId    what the snapshot was taken for
  * @param snapshot     the state itself, through the registered codec
  * @param lastLocation where they were when it was taken, with the server;
- *                     rows from before 1.108.0 hold a six-part Location and
+ *                     rows from before 1.109.0 hold a six-part Location and
  *                     read back as a place on whichever server reads them
  * @param savedAt      when it was taken, in epoch milliseconds
  */

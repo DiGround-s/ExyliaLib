@@ -317,7 +317,7 @@ public final class PluginSnapshots {
      * @param parts     which parts to put back
      * @return whether there was one to restore; the teleport's own result is
      *         reported by the teleport module
-     * @since 1.108.0
+     * @since 1.109.0
      */
     public @NotNull CompletableFuture<Boolean> restoreAndReturn(@NotNull Player player,
                                                                 @NotNull String contextId,
@@ -346,7 +346,7 @@ public final class PluginSnapshots {
      * @param uuid      the player
      * @param contextId which snapshot
      * @return the place, when there is a snapshot to come back to
-     * @since 1.108.0
+     * @since 1.109.0
      */
     public @NotNull CompletableFuture<Optional<ExyliaLocation>> pendingPlace(@NotNull UUID uuid,
                                                                              @NotNull String contextId) {

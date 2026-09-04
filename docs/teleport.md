@@ -515,7 +515,7 @@ server; anything stored, or shown to another server, is an `ExyliaLocation`.
 `Teleports.of(plugin).here(player)` writes one for where a player stands,
 named after this server — what the proxy calls it when the bridge is up, the
 `server-id` of the plugin's Redis block otherwise (`serverId()`). Records can
-declare `@Column ExyliaLocation` directly (*since 1.108.0*); a column that
+declare `@Column ExyliaLocation` directly (*since 1.109.0*); a column that
 used to be a `Location` reads its old six-part rows as places on the server
 that reads them, so nothing needs migrating. Hand the place back to
 `to(player, ExyliaLocation)` from anywhere and it is a local teleport or a

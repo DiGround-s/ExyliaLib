@@ -7,7 +7,7 @@ Entry point: `net.exylia.lib.util.snapshot.Snapshots`.
 
 ## Where they were knows its server
 
-*Since 1.108.0* the row stores the location as an `ExyliaLocation`, server
+*Since 1.109.0* the row stores the location as an `ExyliaLocation`, server
 name included, so a snapshot taken in the lobby and restored in an arena can
 still say where "back" is. Rows written before hold the six-part `Location`
 text and read as a place on whichever server reads them, which is what they
@@ -153,8 +153,8 @@ next join restores it.
 | A player quits | Nothing. The row is already durable |
 | A player joins | `restoreAll(player, …)` — every context, oldest applied last |
 | A plugin disables | Nothing. `Snapshots.release` only forgets the repository |
-| Needing their old location before they go | `pending(uuid, contextId)` — reads, touches nothing; a live location only when that place is on this server. `pendingPlace` answers with an `ExyliaLocation` wherever it is. *Since 1.108.0.* |
-| Putting them back where they were, on whichever server that was | `restoreAndReturn(player, contextId, parts)` — restores the parts, then a plain teleport on the same server or a handover through the proxy elsewhere. *Since 1.108.0.* |
+| Needing their old location before they go | `pending(uuid, contextId)` — reads, touches nothing; a live location only when that place is on this server. `pendingPlace` answers with an `ExyliaLocation` wherever it is. *Since 1.109.0.* |
+| Putting them back where they were, on whichever server that was | `restoreAndReturn(player, contextId, parts)` — restores the parts, then a plain teleport on the same server or a handover through the proxy elsewhere. *Since 1.109.0.* |
 
 Callers that used `restoreSync` to move a player before they left should stop:
 teleporting during `PlayerQuitEvent` does nothing, and teleporting during
