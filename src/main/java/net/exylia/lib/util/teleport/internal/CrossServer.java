@@ -6,6 +6,7 @@ import net.exylia.lib.effect.Ticks;
 import net.exylia.lib.proxy.Proxy;
 import net.exylia.lib.proxy.ProxyPlayer;
 import net.exylia.lib.proxy.ProxyReply;
+import net.exylia.lib.proxy.internal.ProxyRuntime;
 import net.exylia.lib.redis.RedisSettings;
 import net.exylia.lib.redis.internal.RedisClient;
 import net.exylia.lib.redis.internal.RedisRuntime;
@@ -29,6 +30,8 @@ import java.io.DataOutputStream;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
@@ -102,6 +105,20 @@ public final class CrossServer {
 
     /** The push the proxy delivers a {@code connect} memo as, on the destination. */
     public static final String ARRIVE = "arrive";
+
+    /**
+     * Memos that arrived before their player did.
+     *
+     * <p>The proxy sends the memo the moment it has connected the player,
+     * and Redis is faster than a join: the push usually lands here a few
+     * ticks before {@code PlayerJoinEvent}. Held by player until then, and
+     * dropped after a minute for a player who never came.
+     */
+    private static final Map<UUID, PendingMemo> MEMOS = new ConcurrentHashMap<>();
+    private static final long MEMO_TTL_MILLIS = 60_000L;
+
+    private record PendingMemo(String stored, long at) {
+    }
 
     /** What the pending key is filed under, after the network's own prefix. */
     private static final String KEY_INFIX = ":teleport:pending:";
@@ -299,7 +316,7 @@ public final class CrossServer {
                         .thenAccept(result::complete);
                 return;
             }
-            Proxy.find(player, follow.toString()).thenAccept(found -> {
+            Proxy.find(follow.toString()).thenAccept(found -> {
                 if (found.isEmpty() || !found.get().isOnAServer()) {
                     result.complete(TeleportResult.TARGET_NOT_FOUND);
                     return;
@@ -375,7 +392,7 @@ public final class CrossServer {
             // An empty server means this one: the proxy knows which backend
             // the request came from, which is more than this server can say
             // for itself without a Redis block naming it.
-            String memo = ExyliaLocation.of(serverId(plugin), to.getLocation()).toString();
+            String memo = ExyliaLocation.of(ProxyRuntime.serverId(), to.getLocation()).toString();
             return Proxy.request(to, CONNECT, "|" + target + "|" + memo).thenApply(reply ->
                     fromBridge(reply, targetName, "this one", debug,
                             TeleportResult.PLAYER_LEFT, TeleportResult.TARGET_NOT_FOUND));
@@ -434,14 +451,8 @@ public final class CrossServer {
             return CompletableFuture.completedFuture(Optional.of(serverId(plugin)));
         }
         if (Proxy.isAvailable()) {
-            // Asked through whoever is here; a question with no connection
-            // to travel down has no answer, and an empty server has nobody
-            // to draw the button for anyway.
-            Player carrier = Bukkit.getOnlinePlayers().stream().findFirst().orElse(null);
-            if (carrier != null) {
-                return Proxy.find(carrier, player.toString()).thenApply(found ->
-                        found.filter(ProxyPlayer::isOnAServer).map(ProxyPlayer::server));
-            }
+            return Proxy.find(player.toString()).thenApply(found ->
+                    found.filter(ProxyPlayer::isOnAServer).map(ProxyPlayer::server));
         }
         RedisClient redis = client(plugin);
         if (redis == null) {
@@ -514,6 +525,7 @@ public final class CrossServer {
     /** Ends the heartbeat, on shutdown. */
     public static synchronized void stop() {
         library = null;
+        MEMOS.clear();
         TaskHandle running = heartbeat;
         heartbeat = null;
         if (running != null) {
@@ -610,8 +622,30 @@ public final class CrossServer {
      * @param stored   where to put them, as the other server wrote it
      * @param settings how long to let the client settle
      */
-    public static void arrive(@NotNull Plugin library, @NotNull Player player,
+    public static void arrive(@NotNull Plugin library, @NotNull UUID id,
                               @NotNull String stored, @NotNull TeleportSettings settings) {
+        Player player = Bukkit.getPlayer(id);
+        if (player == null) {
+            MEMOS.put(id, new PendingMemo(stored, System.currentTimeMillis()));
+            return;
+        }
+        arrive(library, player, stored, settings);
+    }
+
+    /** Applies the memo a player who just joined was sent ahead of, if any. */
+    public static void claimPushed(@NotNull Plugin library, @NotNull Player player,
+                                   @NotNull TeleportSettings settings) {
+        PendingMemo memo = MEMOS.remove(player.getUniqueId());
+        if (memo == null) {
+            return;
+        }
+        if (System.currentTimeMillis() - memo.at() > MEMO_TTL_MILLIS) {
+            return;
+        }
+        arrive(library, player, memo.stored(), settings);
+    }
+
+    private static void arrive(Plugin library, Player player, String stored, TeleportSettings settings) {
         Debug debug = Debug.of(library);
         TaskScheduler tasks = Tasks.of(library);
         long settle = Math.max(1L, Ticks.fromSeconds(settings.crossServerSettleSeconds()));

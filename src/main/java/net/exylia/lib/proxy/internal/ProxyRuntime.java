@@ -1,23 +1,23 @@
 package net.exylia.lib.proxy.internal;
 
+import net.exylia.lib.database.internal.DatabaseRuntime;
 import net.exylia.lib.debug.Debug;
 import net.exylia.lib.proxy.ProxyReply;
-import net.exylia.lib.task.Tasks;
+import net.exylia.lib.redis.RedisSettings;
+import net.exylia.lib.redis.internal.RedisClient;
+import net.exylia.lib.redis.internal.RedisRuntime;
 import net.exylia.lib.task.TaskHandle;
-import org.bukkit.Bukkit;
+import net.exylia.lib.task.Tasks;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
-import org.bukkit.plugin.messaging.PluginMessageListener;
 import org.jetbrains.annotations.ApiStatus;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import java.io.IOException;
-import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.TreeSet;
-import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
@@ -26,17 +26,22 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.BiConsumer;
 
 /**
- * The bridge's this-side half: one channel, one map of what is in flight.
+ * The bridge's this-side half: one Redis channel in, one out.
  *
- * <p>Registered once against the library, like the teleport channel, because
- * a plugin message is sent <em>by</em> a plugin and only one needs to own the
- * channel. Requests are numbered from one counter, answers are matched by
- * that number, and everything that can go wrong on the way back — the proxy
- * silent, the carrier gone — completes the future with a reply that says so
- * rather than leaving it hanging.
+ * <p>Over the Redis the library's own {@code database.yml} names, not over
+ * plugin messages: a plugin message travels down a player's connection, and
+ * a modified client can write one, so a bridge built on them has to trust
+ * that the proxy filtered the client's bytes out. Redis is on the network's
+ * own side of the wall. Nothing a player sends can reach it, and it works
+ * with nobody online at all.
+ *
+ * <p>Requests are numbered from one counter and matched back by that number;
+ * everything that can go wrong on the way back — the proxy silent, Redis
+ * off — completes the future with a reply that says so rather than leaving
+ * it hanging.
  */
 @ApiStatus.Internal
-public final class ProxyRuntime implements PluginMessageListener {
+public final class ProxyRuntime {
 
     /** How long the proxy has to answer before the request is given up on. */
     static final long TIMEOUT_SECONDS = 5;
@@ -48,85 +53,104 @@ public final class ProxyRuntime implements PluginMessageListener {
     static final String PLAYERS = "players";
 
     /**
-     * How often the network's player list is refreshed.
+     * How often the proxy is asked something on a timer.
      *
-     * <p>Ten seconds: a tab completion is a convenience, and a name that is
-     * a few seconds stale costs a "not online" line rather than anything
-     * worse. One plugin message per period, through whoever is online.
+     * <p>A ping while it is unknown, the player list once it is there. Ten
+     * seconds: a tab completion is a convenience, and a name that is a few
+     * seconds stale costs a "not online" line rather than anything worse.
      */
-    private static final long PLAYERS_TICKS = 20L * 10;
-
-    /**
-     * How long after a join the ping goes out.
-     *
-     * <p>A second, so the client is past the configuration phase and the
-     * proxy has a server to answer to.
-     */
-    private static final long PING_DELAY_TICKS = 20L;
+    private static final long PERIOD_TICKS = 20L * 10;
 
     private static final AtomicInteger IDS = new AtomicInteger();
-    private static final Map<Integer, Pending> PENDING = new ConcurrentHashMap<>();
+    private static final Map<Integer, CompletableFuture<ProxyReply>> PENDING = new ConcurrentHashMap<>();
 
     /** What handles each module the proxy pushes unasked, by module name. */
-    private static final Map<String, BiConsumer<Player, String>> PUSHES = new ConcurrentHashMap<>();
+    private static final Map<String, BiConsumer<UUID, String>> PUSHES = new ConcurrentHashMap<>();
+
     private static volatile @Nullable Plugin library;
+    private static volatile @Nullable RedisClient redis;
+    private static volatile @Nullable RedisClient.Subscription subscription;
+    private static volatile @Nullable TaskHandle timer;
+    private static volatile String prefix = "exylia";
+    private static volatile String serverId = "server-1";
     private static volatile boolean available;
     private static volatile @Nullable String bridge;
     private static volatile boolean warned;
     private static volatile Set<String> players = Set.of();
-    private static volatile @Nullable TaskHandle refresh;
-
-    private record Pending(UUID carrier, CompletableFuture<ProxyReply> future) {
-    }
 
     private ProxyRuntime() {
     }
 
-    /** Registers the channel in both directions, against the library. */
+    /**
+     * Opens the channel over the library's Redis, if it has one.
+     *
+     * <p>Without {@code database.redis} in {@code plugins/ExyliaLib/database.yml}
+     * there is no bridge, and the console says so once: a network that runs
+     * a proxy plugin has a Redis, and a single server has nothing to bridge.
+     */
     public static synchronized void init(@NotNull Plugin plugin) {
         if (library != null) {
             return;
         }
         library = plugin;
+        Debug debug = Debug.of(plugin);
+        RedisSettings settings;
+        RedisClient client;
         try {
-            plugin.getServer().getMessenger().registerOutgoingPluginChannel(plugin, Wire.CHANNEL);
-            plugin.getServer().getMessenger()
-                    .registerIncomingPluginChannel(plugin, Wire.CHANNEL, new ProxyRuntime());
-            refresh = Tasks.of(plugin).runTimer(PLAYERS_TICKS, PLAYERS_TICKS, ProxyRuntime::refreshPlayers);
-        } catch (RuntimeException refused) {
-            // A server with no messenger. Never fatal: the proxy is the only
-            // thing out of reach, and every request will say so.
-            library = null;
-            Debug.of(plugin).warn("Could not register the proxy channel; proxy commands"
-                    + " are unavailable: " + refused.getMessage());
+            settings = DatabaseRuntime.redis(plugin);
+            client = RedisRuntime.client(plugin, settings);
+        } catch (RuntimeException | LinkageError absent) {
+            debug.warn("The proxy bridge could not open Redis, so player-proxy: and console-proxy:"
+                    + " commands and cross-server teleports are unavailable: " + absent.getMessage());
+            return;
         }
+        if (client == null) {
+            debug.log("No Redis in plugins/ExyliaLib/database.yml, so there is no proxy bridge:"
+                    + " player-proxy: and console-proxy: commands and cross-server teleports"
+                    + " are unavailable on this server.");
+            return;
+        }
+        prefix = settings.keyPrefix();
+        serverId = settings.serverId();
+        redis = client;
+        try {
+            subscription = client.subscribe(Frames.channelOf(prefix, serverId), ProxyRuntime::onMessage);
+        } catch (RuntimeException unreachable) {
+            debug.warn("Could not listen for the proxy bridge: " + unreachable.getMessage());
+            redis = null;
+            return;
+        }
+        // The first ping a second in, so a proxy that is there is announced
+        // during startup rather than ten seconds later.
+        timer = Tasks.of(plugin).runAsyncTimer(20L, PERIOD_TICKS, ProxyRuntime::tick);
     }
 
-    /** Fails everything still in flight and forgets the channel; on shutdown. */
+    /** Fails everything still in flight and closes the channel; on shutdown. */
     public static synchronized void shutdown() {
-        Plugin plugin = library;
         library = null;
         available = false;
         bridge = null;
         players = Set.of();
-        TaskHandle running = refresh;
-        refresh = null;
+        TaskHandle running = timer;
+        timer = null;
         if (running != null) {
             running.cancel();
         }
-        for (Pending pending : PENDING.values()) {
-            pending.future().complete(new ProxyReply(ProxyReply.Status.NO_BRIDGE,
-                    "the server is shutting down"));
-        }
-        PENDING.clear();
-        if (plugin != null) {
+        RedisClient.Subscription open = subscription;
+        subscription = null;
+        if (open != null) {
             try {
-                plugin.getServer().getMessenger().unregisterIncomingPluginChannel(plugin, Wire.CHANNEL);
-                plugin.getServer().getMessenger().unregisterOutgoingPluginChannel(plugin, Wire.CHANNEL);
+                open.close();
             } catch (RuntimeException ignored) {
-                // Shutting down: a messenger that will not let go is not worth a line.
+                // Shutting down.
             }
         }
+        redis = null;
+        for (CompletableFuture<ProxyReply> future : PENDING.values()) {
+            future.complete(new ProxyReply(ProxyReply.Status.NO_BRIDGE, "the server is shutting down"));
+        }
+        PENDING.clear();
+        PUSHES.clear();
     }
 
     public static boolean isAvailable() {
@@ -137,17 +161,23 @@ public final class ProxyRuntime implements PluginMessageListener {
         return Optional.ofNullable(bridge);
     }
 
+    /** This server's name on the network, which is also its name on the proxy. */
+    public static @NotNull String serverId() {
+        return serverId;
+    }
+
     /**
      * Handles what the proxy sends unasked on a module.
      *
-     * <p>A push is an answer frame with id 0. The handler runs on the thread
-     * the message arrived on, with the player it arrived through; a later
-     * registration for the same module replaces the earlier one.
+     * <p>A push is an answer frame with id 0. The handler runs on the Redis
+     * subscriber thread with the player it is about, who may not have joined
+     * this server yet; a later registration for the same module replaces the
+     * earlier one.
      *
      * @param module  the module name, as the proxy pushes it
-     * @param handler what to do with the player and the payload
+     * @param handler what to do with the player's id and the payload
      */
-    public static void listen(@NotNull String module, @NotNull BiConsumer<Player, String> handler) {
+    public static void listen(@NotNull String module, @NotNull BiConsumer<UUID, String> handler) {
         PUSHES.put(module, handler);
     }
 
@@ -156,25 +186,28 @@ public final class ProxyRuntime implements PluginMessageListener {
         return players;
     }
 
-    /**
-     * Asks the proxy who is connected, through whoever is here.
-     *
-     * <p>On the global thread, where the online list is read. Nothing is
-     * asked while the bridge is unknown or the server is empty: without a
-     * player there is no connection to ask through, and without a bridge
-     * the question would only time out every ten seconds.
-     */
-    private static void refreshPlayers() {
+    /** Nothing to do on a quit any more; kept so the call site reads the same. */
+    public static void forget(@NotNull UUID player) {
+    }
+
+    private static void tick() {
         if (!available) {
-            players = Set.of();
+            request((UUID) null, PING, "").thenAccept(reply -> {
+                if (reply.reachedProxy() || warned) {
+                    return;
+                }
+                warned = true;
+                Plugin plugin = library;
+                if (plugin != null) {
+                    Debug.of(plugin).warn("No proxy bridge answered on Redis channel \""
+                            + Frames.channelOf(prefix, Frames.PROXY) + "\". Install ExyliaProxyUtils"
+                            + " on the proxy with the same Redis and key-prefix, or player-proxy: and"
+                            + " console-proxy: commands and cross-server teleports will not run.");
+                }
+            });
             return;
         }
-        Player carrier = Bukkit.getOnlinePlayers().stream().findFirst().orElse(null);
-        if (carrier == null) {
-            players = Set.of();
-            return;
-        }
-        request(carrier, PLAYERS, "").thenAccept(reply -> {
+        request((UUID) null, PLAYERS, "").thenAccept(reply -> {
             if (!reply.isOk()) {
                 return;
             }
@@ -188,144 +221,90 @@ public final class ProxyRuntime implements PluginMessageListener {
         });
     }
 
-    /**
-     * Asks the proxy who is there, through a player who just joined.
-     *
-     * <p>Only while the bridge is not known to be listening: once it has
-     * answered, every later join costs nothing. A request that times out
-     * later marks it unknown again, so the next join asks again.
-     */
-    public static void pingOnJoin(@NotNull Player player) {
-        Plugin plugin = library;
-        if (plugin == null || available) {
-            return;
-        }
-        Tasks.of(plugin).runAtEntityLater(player, PING_DELAY_TICKS, () -> {
-            if (!available) {
-                request(player, PING, "").thenAccept(reply -> {
-                    if (reply.reachedProxy()) {
-                        return;
-                    }
-                    if (!warned) {
-                        warned = true;
-                        Debug.of(plugin).warn("No proxy bridge answered on \"" + Wire.CHANNEL
-                                + "\". Install ExyliaProxyUtils on the proxy, or player-proxy:"
-                                + " and console-proxy: commands will not run.");
-                    }
-                });
-            }
-        });
+    public static @NotNull CompletableFuture<ProxyReply> request(@Nullable Player carrier,
+                                                                 @NotNull String module,
+                                                                 @NotNull String payload) {
+        return request(carrier == null ? null : carrier.getUniqueId(), module, payload);
     }
 
-    /** Fails what a player who just left was carrying; nothing will answer it now. */
-    public static void forget(@NotNull UUID player) {
-        if (PENDING.isEmpty()) {
-            return;
-        }
-        PENDING.entrySet().removeIf(entry -> {
-            if (!entry.getValue().carrier().equals(player)) {
-                return false;
-            }
-            entry.getValue().future().complete(new ProxyReply(ProxyReply.Status.NO_PLAYER,
-                    "the player carrying the request left"));
-            return true;
-        });
-    }
-
-    public static @NotNull CompletableFuture<ProxyReply> request(@NotNull Player carrier,
+    public static @NotNull CompletableFuture<ProxyReply> request(@Nullable UUID about,
                                                                  @NotNull String module,
                                                                  @NotNull String payload) {
         Plugin plugin = library;
-        if (plugin == null) {
+        RedisClient client = redis;
+        if (plugin == null || client == null) {
             return CompletableFuture.completedFuture(new ProxyReply(ProxyReply.Status.NO_BRIDGE,
-                    "the proxy channel is not registered on this server"));
+                    "no Redis in plugins/ExyliaLib/database.yml, so there is no proxy bridge"));
         }
-        if (module.isBlank()) {
-            throw new IllegalArgumentException("A proxy request needs a module name.");
+        if (module.isBlank() || module.indexOf('|') >= 0) {
+            throw new IllegalArgumentException("A proxy request needs a module name, without pipes.");
         }
         int id = IDS.incrementAndGet();
         CompletableFuture<ProxyReply> future = new CompletableFuture<>();
-        PENDING.put(id, new Pending(carrier.getUniqueId(), future));
+        PENDING.put(id, future);
         future.completeOnTimeout(new ProxyReply(ProxyReply.Status.TIMEOUT,
                         "the proxy did not answer in " + TIMEOUT_SECONDS + "s; is ExyliaProxyUtils"
-                                + " installed on it?"), TIMEOUT_SECONDS, TimeUnit.SECONDS)
+                                + " installed on it, on the same Redis?"), TIMEOUT_SECONDS, TimeUnit.SECONDS)
                 .whenComplete((reply, error) -> {
                     PENDING.remove(id);
                     if (reply != null && reply.status() == ProxyReply.Status.TIMEOUT) {
                         available = false;
                     }
                 });
-        byte[] bytes = Wire.encode(new Wire.Request(module, id, payload));
-        Runnable send = () -> {
+        String frame = Frames.request(serverId, about, module, id, payload);
+        Tasks.of(plugin).runAsync(() -> {
             try {
-                if (!carrier.isOnline()) {
-                    forget(carrier.getUniqueId());
-                    return;
-                }
-                carrier.sendPluginMessage(plugin, Wire.CHANNEL, bytes);
-            } catch (RuntimeException refused) {
-                future.complete(new ProxyReply(ProxyReply.Status.FAILED,
-                        "could not send through " + carrier.getName() + ": " + refused.getMessage()));
+                client.publish(Frames.channelOf(prefix, Frames.PROXY), frame);
+            } catch (RuntimeException unreachable) {
+                future.complete(new ProxyReply(ProxyReply.Status.NO_BRIDGE,
+                        "Redis could not carry the request: " + unreachable.getMessage()));
             }
-        };
-        var tasks = Tasks.of(plugin);
-        if (tasks.isOwnedBy(carrier)) {
-            send.run();
-        } else {
-            tasks.runAtEntity(carrier, send, () -> forget(carrier.getUniqueId()));
-        }
+        });
         return future;
     }
 
-    @Override
-    public void onPluginMessageReceived(@NotNull String channel, @NotNull Player player,
-                                        byte @NotNull [] message) {
-        if (!Wire.CHANNEL.equals(channel)) {
-            return;
-        }
-        Wire.Answer answer;
+    /** On the subscriber thread: every answer and push for this server. */
+    private static void onMessage(String raw) {
+        Frames.Answer answer;
         try {
-            answer = Wire.decode(message);
-        } catch (IOException | RuntimeException unreadable) {
+            answer = Frames.decode(raw);
+        } catch (RuntimeException unreadable) {
             Plugin plugin = library;
             if (plugin != null) {
-                Debug.of(plugin).warn("Dropped an unreadable message from the proxy through "
-                        + player.getName() + ": " + unreadable.getMessage());
+                Debug.of(plugin).warn("Dropped an unreadable message from the proxy: "
+                        + unreadable.getMessage());
             }
             return;
         }
-        receive(player, answer);
+        receive(answer);
     }
 
     /**
      * Completes the request an answer names, or hands a push to its handler.
      *
      * <p>An unknown id is a late answer, dropped: the request already ended
-     * as a timeout, or was sent by another server the player has since left.
+     * as a timeout.
      */
-    static void receive(@NotNull Player through, @NotNull Wire.Answer answer) {
+    static void receive(@NotNull Frames.Answer answer) {
         ProxyReply reply = ProxyReply.ofWire(answer.status(), answer.detail());
+        if (PING.equals(answer.module()) && reply.isOk() && !reply.detail().equals(bridge)) {
+            bridge = reply.detail();
+            Plugin plugin = library;
+            if (plugin != null) {
+                Debug.of(plugin).log("Proxy bridge: " + reply.detail() + ".");
+            }
+        }
         available = true;
         if (answer.id() == 0) {
-            BiConsumer<Player, String> handler = PUSHES.get(answer.module());
-            if (handler != null) {
-                handler.accept(through, answer.detail());
+            BiConsumer<UUID, String> handler = PUSHES.get(answer.module());
+            if (handler != null && answer.carrier() != null) {
+                handler.accept(answer.carrier(), answer.detail());
             }
             return;
         }
-        if (PING.equals(answer.module()) && reply.isOk()) {
-            String introduced = reply.detail();
-            if (!available || !introduced.equals(bridge)) {
-                bridge = introduced;
-                Plugin plugin = library;
-                if (plugin != null) {
-                    Debug.of(plugin).log("Proxy bridge: " + introduced + ".");
-                }
-            }
-        }
-        Pending pending = PENDING.remove(answer.id());
+        CompletableFuture<ProxyReply> pending = PENDING.remove(answer.id());
         if (pending != null) {
-            pending.future().complete(reply);
+            pending.complete(reply);
         }
     }
 }

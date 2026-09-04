@@ -533,18 +533,18 @@ each other's players around.
 
 - **The bridge**, whenever [ExyliaProxyUtils](proxy.md) has answered this
   server. One `connect` request carries the server, who to move and the
-  destination as a *memo*; the proxy moves the player and, the moment they
-  have joined the other server, hands the memo to it through them as an
-  `arrive` push. Nothing is written anywhere: no Redis is needed on either
-  server for a handover to land next to somebody. For a player rather than a
+  destination as a *memo*; the proxy moves the player and, the moment it has
+  connected them, sends the memo to the destination server as an `arrive`
+  push. The push usually beats the join, so it is held by player and applied
+  when they arrive; one that is never claimed is dropped after a minute.
+  Nothing is stored: the Redis the bridge rides on is the one in
+  `plugins/ExyliaLib/database.yml`, and that is the whole requirement. For a player rather than a
   place, the proxy is asked where they are first (`player` module). A server
   name the proxy does not know comes back as `CROSS_SERVER_UNAVAILABLE` with
   `The proxy did not move <player> to server "<name>": no server "<name>"` in
   the console — a typo in a config file, found the first time it is used
   rather than never. A target who is no longer on the network is
-  `TARGET_NOT_FOUND`. The answer to a self-move can never reach the server
-  that asked — it is sent through a player who is by then somewhere else —
-  so the quit that follows is read as the move having happened.
+  `TARGET_NOT_FOUND`.
 - **`Connect`/`ConnectOther` on the `BungeeCord` channel, and Redis for the
   destination** otherwise. Every proxy understands the channel and none of
   them answers, so `SUCCESS` there means the message was sent. Both messages

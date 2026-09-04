@@ -36,10 +36,11 @@ Proxy.request(player, "commands", "player-proxy:server lobby")
 
 | Call | What it does |
 | --- | --- |
-| `Proxy.request(Player carrier, String module, String payload)` | Sends one request to a module on the proxy through the carrier's connection; completes with a `ProxyReply`, never exceptionally. Safe from any thread. |
+| `Proxy.request(Player about, String module, String payload)` | Sends one request about a player to a module on the proxy; completes with a `ProxyReply`, never exceptionally, on the Redis subscriber thread. Safe from any thread. |
+| `Proxy.request(String module, String payload)` | The same about nobody: a console command, a lookup. *Since 1.106.0.* |
 | `Proxy.isAvailable()` | Whether the proxy has answered this server since the last silence. A diagnostic: `request` always tries. |
 | `Proxy.bridge()` | What answered, as it introduced itself: `ExyliaProxyUtils 1.0.0 on Velocity`. |
-| `Proxy.find(Player carrier, String nameOrId)` | A player anywhere on the network, by name or id, as a `ProxyPlayer(id, name, server)`; empty for nobody, and empty without a bridge. What resolves `/tp <name>` for somebody this server has never seen. *Since 1.103.0.* |
+| `Proxy.find(String nameOrId)` | A player anywhere on the network, by name or id, as a `ProxyPlayer(id, name, server)`; empty for nobody, and empty without a bridge. What resolves `/tp <name>` for somebody this server has never seen. *Since 1.103.0.* |
 | `Proxy.players()` | Every name on the network as of the last refresh (every 10 s, through whoever is online). Synchronous, for tab completions and placeholders; empty until the bridge answers. *Since 1.104.0.* |
 | `Proxy.COMMANDS`, `Proxy.PLAYER` | The module names behind `player-proxy:` lines and `find`. |
 
@@ -67,9 +68,9 @@ thread the message arrived on, with the player it arrived through.
 | `REJECTED` | The module understood and refused; `detail()` says why — a command the proxy does not have, a bad actor. |
 | `FAILED` | The module threw. |
 | `UNKNOWN_MODULE` | The proxy has no such module: it is older than this library, or the name is wrong. |
-| `NO_BRIDGE` | This server never registered the channel (no messenger) or is shutting down. |
-| `TIMEOUT` | Five seconds without an answer. ExyliaProxyUtils is not installed, or the proxy is not forwarding the channel. |
-| `NO_PLAYER` | The carrier left before the answer came. |
+| `NO_BRIDGE` | No Redis in `plugins/ExyliaLib/database.yml`, Redis could not carry the request, or the server is shutting down. |
+| `TIMEOUT` | Five seconds without an answer. ExyliaProxyUtils is not installed, or it is on another Redis or `key-prefix`. |
+| `NO_PLAYER` | Reserved; no request ends this way over Redis. |
 
 `reachedProxy()` is true for the first four. The command transport maps them
 to `CommandResult`: `OK` → `DISPATCHED`, `REJECTED` → `REJECTED`, `FAILED` →
@@ -78,35 +79,54 @@ to `CommandResult`: `OK` → `DISPATCHED`, `REJECTED` → `REJECTED`, `FAILED` �
 
 ## How it travels
 
-Plugin messages on the `exylia:bridge` channel, down a player's connection:
-the only road a backend has to its proxy without either side opening a
-socket, and the reason every request needs a carrier. Requests are numbered,
-the proxy echoes the number, and the answer is matched back to its future,
-so any number can be in flight at once.
+Redis pub/sub, over the Redis that `plugins/ExyliaLib/database.yml` names
+under `database.redis` — the same block every plugin's cache uses, with the
+same `key-prefix` and this server's `server-id`. Not plugin messages: those
+travel down a player's connection, a modified client can write one, and a
+bridge built on them has to trust the proxy to filter the client's bytes out.
+Redis is on the network's own side of the wall, and it works with nobody
+online. *Since 1.106.0; 1.101.0 to 1.105.0 used plugin messages.*
 
 ```
-server -> proxy : UTF module, int id, UTF payload
-proxy  -> server: UTF module, int id, byte status, UTF detail
+server -> proxy  on <prefix>:bridge:proxy      : <server-id>|<uuid or empty>|<module>|<id>|<payload>
+proxy  -> server on <prefix>:bridge:<server-id>: <module>|<id>|<status>|<uuid or empty>|<detail>
 ```
 
-The channel is owned by the library, exactly like the `BungeeCord` channel
-the teleport module sends `Connect` on: one owner, registered once.
+Requests are numbered, the proxy echoes the number, and the answer is
+matched back to its future, so any number can be in flight at once. A
+request may be *about* a player (who a `player-proxy:` command runs as, who a
+`connect` moves) without needing one online.
 
-### The first join says who is there
+**Server names on the proxy must equal the backends' `server-id`s.** That is
+the address an answer goes back to and the name a `connect` moves a player
+to; without it the proxy answers into the void.
 
-A second after the first player joins, the library sends `ping` through them.
-The proxy answers with its name and version and the console prints
-`Proxy bridge: ExyliaProxyUtils 1.0.0 on Velocity.` once. No answer prints,
-once, that no bridge answered and what to install. Later joins cost nothing
-while the proxy is known to be there; a request that times out marks it
-unknown again, so the next join asks again.
+### Startup says who is there
+
+A second after startup, and every ten seconds until it answers, the library
+sends `ping`. The proxy answers with its name and version and the console
+prints `Proxy bridge: ExyliaProxyUtils 2.0.0 on Velocity.` once. No answer
+prints, once, that no bridge answered and what to install. With no Redis in
+the library's `database.yml` there is no bridge at all, and the console says
+that instead. A request that times out marks the proxy unknown again, so the
+pings resume.
+
+### Pushes
+
+The proxy can also send something unasked: an answer frame with id 0, which
+the runtime hands to whatever `ProxyRuntime.listen(module, handler)`
+registered for that module instead of to a waiting request. Today only
+`arrive` exists — the memo of a `connect`, sent to the destination server the
+moment the proxy has connected the player. It usually beats the join, so the
+teleport module holds it by player until they are here. Handlers run on the
+Redis subscriber thread with the player's id.
 
 ### Nothing is assumed
 
 The previous system wrote bytes into a channel nobody listened on and
 reported success, so a proxy command that never ran looked exactly like one
 that did. Here every request ends in a reply that says what happened, and a
-server without the bridge finds out in five seconds rather than never.
+server whose proxy has no bridge finds out in five seconds rather than never.
 
 ## Adding a capability
 
@@ -119,6 +139,6 @@ module defines; nothing in the library needs to change for a new one.
 | | |
 | --- | --- |
 | Public | `proxy/Proxy`, `proxy/ProxyReply` |
-| Internal | `proxy/internal/ProxyRuntime` (channel, in-flight map, ping on join), `proxy/internal/Wire` (the bytes), `proxy/internal/BridgeCommands` (the default `ProxyCommands`) |
-| Tests | `proxy/ProxyTest` — the wire format both sides agree on, `NO_BRIDGE` without a runtime, every reply status to a command result |
+| Internal | `proxy/internal/ProxyRuntime` (the two channels, in-flight map, ping and player-list timer, push handlers), `proxy/internal/Frames` (the strings), `proxy/internal/BridgeCommands` (the default `ProxyCommands`) |
+| Tests | `proxy/ProxyTest` — the frames both sides agree on, `NO_BRIDGE` without Redis, every reply status to a command result |
 | Proxy side | [ExyliaProxyUtils](https://github.com/DiGround-s/ExyliaProxyUtils) |

@@ -88,7 +88,7 @@ public final class TeleportRuntime implements Listener {
         // The proxy hands a queued destination over through the player who
         // arrives with it, so no Redis is needed for a handover to land.
         net.exylia.lib.proxy.internal.ProxyRuntime.listen(CrossServer.ARRIVE,
-                (player, memo) -> CrossServer.arrive(plugin, player, memo, arrivals));
+                (id, memo) -> CrossServer.arrive(plugin, id, memo, arrivals));
         listening = true;
     }
 
@@ -289,6 +289,7 @@ public final class TeleportRuntime implements Listener {
             return;
         }
         CrossServer.announce(owner, event.getPlayer());
+        CrossServer.claimPushed(owner, event.getPlayer(), arrivals);
         CrossServer.claim(owner, event.getPlayer(), arrivals);
     }
 
