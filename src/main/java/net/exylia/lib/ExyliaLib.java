@@ -8,6 +8,8 @@ import net.exylia.lib.action.Actions;
 import net.exylia.lib.chat.Chats;
 import net.exylia.lib.cosmetic.Cosmetics;
 import net.exylia.lib.session.Watchers;
+import net.exylia.lib.block.Blocks;
+import net.exylia.lib.block.internal.BlockListener;
 import net.exylia.lib.chat.internal.ChatListener;
 import net.exylia.lib.chat.internal.ChatRuntime;
 import net.exylia.lib.command.Commands;
@@ -186,6 +188,9 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         // otherwise: both handlers read one volatile flag and return.
         getServer().getPluginManager().registerEvents(new PlacedBlockListener(), this);
         getServer().getPluginManager().registerEvents(new SelectionListener(), this);
+        // Clickable blocks: dormant until a plugin registers one, and every
+        // handler returns on an empty map lookup.
+        getServer().getPluginManager().registerEvents(new BlockListener(), this);
         loadPalette();
         loadFormats();
         loadEconomy();
@@ -533,6 +538,7 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         EditorRuntime.releaseAll();
         Menus.releaseAll();
         Regions.releaseAll();
+        Blocks.releaseAll();
         Chats.releaseAll();
         Cosmetics.releaseAll();
         Watchers.releaseAll();
@@ -760,6 +766,9 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         // Reconciliation uses ExyliaLib's scheduler, but publication must still happen
         // before the dying plugin's own task scheduler is cancelled.
         Regions.release(pluginName);
+        // A registration whose handler comes from a dying classloader must not
+        // answer another click. The blocks themselves stay standing.
+        Blocks.release(pluginName);
         // Before the task module: a pending warmup owns an entity timer
         // belonging to this plugin and must be cancelled before its scheduler
         // goes away.
