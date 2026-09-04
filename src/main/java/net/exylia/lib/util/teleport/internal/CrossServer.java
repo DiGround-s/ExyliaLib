@@ -4,6 +4,7 @@ import net.exylia.lib.database.internal.DatabaseRuntime;
 import net.exylia.lib.debug.Debug;
 import net.exylia.lib.effect.Ticks;
 import net.exylia.lib.proxy.Proxy;
+import net.exylia.lib.proxy.ProxyPlayer;
 import net.exylia.lib.proxy.ProxyReply;
 import net.exylia.lib.redis.RedisSettings;
 import net.exylia.lib.redis.internal.RedisClient;
@@ -199,6 +200,9 @@ public final class CrossServer {
                     return;
                 }
                 if (server == null) {
+                    server = askProxy(player, follow);
+                }
+                if (server == null) {
                     result.complete(TeleportResult.TARGET_NOT_FOUND);
                     return;
                 }
@@ -297,7 +301,8 @@ public final class CrossServer {
 
         tasks.runAsync(() -> {
             try {
-                if (redis.get(presenceKeyOf(redisSettings, target)) == null) {
+                if (redis.get(presenceKeyOf(redisSettings, target)) == null
+                        && askProxy(to, target) == null) {
                     result.complete(TeleportResult.TARGET_NOT_FOUND);
                     return;
                 }
@@ -317,6 +322,28 @@ public final class CrossServer {
     }
 
     // ---------------------------------------------------------------- presence
+
+    /**
+     * Which server holds a player, asked of the proxy when Redis does not know.
+     *
+     * <p>The presence map is written by every server of the network — but
+     * only by the ones with Redis on, and only for players who joined since
+     * it came up. The proxy knows every connected player regardless, so it is
+     * the second opinion whenever the bridge has answered. Asked off the main
+     * thread, which is where every caller already is; the wait is bounded by
+     * the bridge's own timeout.
+     *
+     * @return the server, or {@code null} when nobody knows
+     */
+    private static @Nullable String askProxy(Player carrier, UUID target) {
+        if (!Proxy.isAvailable()) {
+            return null;
+        }
+        return Proxy.find(carrier, target.toString()).join()
+                .filter(ProxyPlayer::isOnAServer)
+                .map(ProxyPlayer::server)
+                .orElse(null);
+    }
 
     /**
      * Which server of the network a player is on.

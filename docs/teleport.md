@@ -545,6 +545,11 @@ each other's players around.
 
 Neither road changes the write-then-Connect order above.
 
+*Since 1.103.0*, the presence map has a second opinion: when Redis does not
+know where the target is and the bridge has answered, the proxy is asked
+(`player` module) before answering `TARGET_NOT_FOUND`. Redis is still what
+carries the queued destination, so it stays required on every server.
+
 ### Arriving
 
 The library's own join listener claims whatever was queued for the arriving

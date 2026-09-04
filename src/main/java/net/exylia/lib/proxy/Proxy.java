@@ -46,6 +46,9 @@ public final class Proxy {
     /** The module that runs a command; what {@code player-proxy:} lines use. */
     public static final String COMMANDS = "commands";
 
+    /** The module that finds a connected player by name or id. */
+    public static final String PLAYER = "player";
+
     private Proxy() {
         throw new AssertionError("No instances.");
     }
@@ -66,6 +69,26 @@ public final class Proxy {
                                                                  @NotNull String module,
                                                                  @NotNull String payload) {
         return ProxyRuntime.request(carrier, module, payload);
+    }
+
+    /**
+     * Finds a player anywhere on the network, by name or by id.
+     *
+     * <p>A backend only knows the players it has seen; the proxy knows every
+     * one that is connected. This is what resolves {@code /tp <name>} for
+     * somebody who has never set foot on this server. Empty for a player who
+     * is not on the network, and empty — never failing — when the bridge is
+     * not there.
+     *
+     * @param carrier  the player whose connection carries the question
+     * @param nameOrId a name, or a uuid as text
+     * @return the player and their server, or empty
+     * @since 1.103.0
+     */
+    public static @NotNull CompletableFuture<Optional<ProxyPlayer>> find(@NotNull Player carrier,
+                                                                         @NotNull String nameOrId) {
+        return request(carrier, PLAYER, nameOrId).thenApply(reply ->
+                reply.isOk() ? ProxyPlayer.fromWire(reply.detail()) : Optional.empty());
     }
 
     /**
