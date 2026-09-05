@@ -223,8 +223,9 @@ final class Binder {
      * <p>Only keys the schema owns are touched, so anything else a user put in
      * the file survives.
      */
-    static void write(ConfigurationSection section, SchemaNode schema, Object values, String path) {
-        writeSection(section, schema, values, path);
+    static void write(ConfigurationSection section, SchemaNode schema, Object values,
+                      Object defaults, String path) {
+        writeSection(section, schema, values, defaults, path);
     }
 
     /** Returns the comment lines that belong at the top of the file. */
@@ -232,7 +233,8 @@ final class Binder {
         return schema.comments();
     }
 
-    private static void writeSection(ConfigurationSection section, SchemaNode schema, Object values, String path) {
+    private static void writeSection(ConfigurationSection section, SchemaNode schema, Object values,
+                                     Object defaults, String path) {
         // The root record's comments become the file header, which only
         // FileConfiguration can carry; ConfigFileImpl applies it.
         if (!path.isEmpty() && !schema.comments().isEmpty()) {
@@ -244,19 +246,26 @@ final class Binder {
             SchemaNode.SchemaComponent component = components.get(i);
             String childPath = path.isEmpty() ? component.key() : path + "." + component.key();
             Object value = valueOf(values, component, i);
+            Object fallback = defaults == null ? null : valueOf(defaults, component, i);
 
             if (component.isSection()) {
                 // Nothing to say, so nothing is written — and an empty block a
                 // previous version wrote goes away, rather than sitting in the
                 // file forever with a comment above every key it does not use.
-                if (value instanceof Sparse sparse && sparse.isEmpty()) {
+                //
+                // Only when the default is empty too. A section that ships with
+                // something in it is read back as that default the moment it is
+                // absent, so leaving it out is not "off", it is "reset": an
+                // owner who cleared a title got it back on the next boot.
+                if (value instanceof Sparse sparse && sparse.isEmpty()
+                        && fallback instanceof Sparse blank && blank.isEmpty()) {
                     section.set(childPath, null);
                     continue;
                 }
                 if (!section.isConfigurationSection(childPath)) {
                     section.createSection(childPath);
                 }
-                writeSection(section, component.nested(), value, childPath);
+                writeSection(section, component.nested(), value, fallback, childPath);
             } else if (component.isMap()) {
                 writeMap(section, component, value, childPath);
             } else {
@@ -300,7 +309,11 @@ final class Binder {
             String key = String.valueOf(entry.getKey());
             if (declared.nested() != null) {
                 entries.createSection(key);
-                writeSection(entries, declared.nested(), entry.getValue(), key);
+                // An entry the owner named has no default of its own, so the
+                // record's own defaults are what its sparse sections compare
+                // against — the same fallback readMap gives it.
+                writeSection(entries, declared.nested(), entry.getValue(),
+                        blank(declared.nested()), key);
             } else {
                 entries.set(key, serialise(entry.getValue()));
             }

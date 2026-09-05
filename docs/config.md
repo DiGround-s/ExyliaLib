@@ -44,8 +44,16 @@ previous version wrote is removed the next time the file is saved.
 
 This is what stops an effect with one boss bar from also writing an empty
 title, action bar, sound, particle and firework, each with a comment per key.
-Only for sections whose defaults are empty by nature — a section with real
-defaults must stay in the file, or nobody can find out it exists.
+
+Omitting only happens when the **default is empty too**. A section that ships
+with something in it is read back as that default the moment it is absent, so
+leaving it out would not mean "off", it would mean "reset": an owner who
+cleared a title got the shipped one back on the next boot. Such a section is
+written out empty and stays empty.
+
+`Sparse` is still meant for sections whose defaults are empty by nature — a
+section with real defaults must stay in the file, or nobody can find out it
+exists.
 
 Blank lines separate the **top-level** groups only. Inside a block, comments
 sit directly above their key: a blank line between every one of seven keys

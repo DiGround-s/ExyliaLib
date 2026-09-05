@@ -712,4 +712,24 @@ class ConfigModuleTest {
         assertEquals(2.0, config.get().farewell().seconds());
         assertTrue(contents("screen").contains("farewell:"), contents("screen"));
     }
+
+    @Test
+    @DisplayName("a section that ships with something in it stays cleared once an owner clears it")
+    void aClearedSparseSectionWithRealDefaultsStaysCleared() throws IOException {
+        // Emptying the block is how a title is turned off. Leaving it out of
+        // the file is how a default is asked for, so a cleared section that is
+        // not written is a section that comes back on the next boot.
+        Files.writeString(file("screen"),
+                "banner:\n  text: ''\n  seconds: 3.0\n");
+
+        ConfigFile<Screen> config = Configs.define(plugin, "screen", Screen.class).load();
+        assertEquals("", config.get().banner().text());
+        assertTrue(contents("screen").contains("banner:"),
+                "it has a default, so it has to stay in the file:\n" + contents("screen"));
+
+        Configs.releaseAll();
+        ConfigFile<Screen> again = Configs.define(plugin, "screen", Screen.class).load();
+        assertEquals("", again.get().banner().text(),
+                "the default came back after a restart:\n" + contents("screen"));
+    }
 }
