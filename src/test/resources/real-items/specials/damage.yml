@@ -49,7 +49,7 @@ action-config:
   normal-damage: true
   radius: 5.0
 
-  # Efectos cuando una entidad recibe daño
+  # Effects when an entity takes damage
   damage-effects:
     particles:
       enabled: true

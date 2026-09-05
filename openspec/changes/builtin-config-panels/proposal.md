@@ -13,7 +13,7 @@ record SchemaComponent(String name, String key, Class<?> type,
                        java.lang.reflect.Type generic, List<String> comments, SchemaNode nested)
 ```
 
-YAML key, Java name, declared type, generic type, the `@Comment` lines, and the nested node — with `SchemaNode.canonical()` as the canonical constructor, so a record can be rebuilt generically (read components, swap index *i*, `newInstance`) and handed to `ConfigFile.update(UnaryOperator<T>)`. A panel generated from that schema maps `int` → number button, `boolean` → toggle, enum → searchable picker, nested record → sub-panel, and turns the `@Comment` lines into lore. Doctrine already calls those comments "el manual del dueño del servidor"; today only someone opening the `.yml` reads them.
+YAML key, Java name, declared type, generic type, the `@Comment` lines, and the nested node — with `SchemaNode.canonical()` as the canonical constructor, so a record can be rebuilt generically (read components, swap index *i*, `newInstance`) and handed to `ConfigFile.update(UnaryOperator<T>)`. A panel generated from that schema maps `int` → number button, `boolean` → toggle, enum → searchable picker, nested record → sub-panel, and turns the `@Comment` lines into lore. Doctrine already calls those comments "the server owner's manual"; today only someone opening the `.yml` reads them.
 
 **Evidence the abstraction is right**: Commons' `EffectEditMenu` was 493 lines of `switch` over EffectType. In ExyliaLib, `EffectConfig` is already a record with 45 `@Comment`s across 8 nested records — so *the effects editor is the settings panel pointed at `EffectConfig`, with zero domain-specific editor code*. Fourteen library records (`DatabaseSettings`, `EconomySettings`, `EffectConfig`, `FormatSettings`, `HologramConfig`, `InputSettings`, `LibrarySettings`, `RedisSettings`, `SidebarConfig`, `Palette`, `PreviewSettings`, `SnapshotSettings`, `TeleportSettings`, `WizardSettings`) gain an editor for free.
 
@@ -32,7 +32,7 @@ YAML key, Java name, declared type, generic type, the `@Comment` lines, and the 
 ### Out of Scope
 
 - **Loot editor** — deferred by the user; no loot module exists in ExyliaLib.
-- **A `NamedCommand` domain type.** `NamedCommand` has **0 occurrences** in ExyliaLib. Commons' type was three strings (`id`, `name`, `command`). Introducing a domain module for three strings violates "sin abstracción especulativa" and the quality bar's point 1 ("problema real y repetido"). Named commands ship as a **documented example** of the generic list panel over a consumer-owned record. If a second real consumer appears, promoting it is a later, cheap change.
+- **A `NamedCommand` domain type.** `NamedCommand` has **0 occurrences** in ExyliaLib. Commons' type was three strings (`id`, `name`, `command`). Introducing a domain module for three strings violates "no speculative abstraction" and the quality bar's point 1 ("a real, repeated problem"). Named commands ship as a **documented example** of the generic list panel over a consumer-owned record. If a second real consumer appears, promoting it is a later, cheap change.
 - Item-builder panel, `/exylialib panels` browser, diagnostics panel — future work.
 - Registry/colour/icon pickers beyond what `SearchInput` already provides.
 
@@ -52,7 +52,7 @@ None. This change is purely additive; no existing module's public API changes ex
 
 ## Approach
 
-**Placement: `net.exylia.lib.panel`, sibling of `ui`, not inside it.** Verified: `ui` imports only `action`, `command`, `debug`, `effect`, `item`, `task`, `text` — and **not** `config`, `input`, or `util.reward`. Putting editors in `ui` would invert that and make `ui` import half the repo. This is the same reasoning AGENTS.md already records for `item` living outside `ui` ("SpecialsV3, PracticeCore, Shields y SurvivalCore lo usan sin abrir ninguna GUI"). `util/panel` is rejected: `util` is documented as "utilidades auto-contenidas… no dependen entre sí", and a panel depends on `ui`, `input`, `config`, `item`, `action` and `text` at once. `panel` is a top-level module that *consumes* `ui`, exactly as `ui` consumes `item`.
+**Placement: `net.exylia.lib.panel`, sibling of `ui`, not inside it.** Verified: `ui` imports only `action`, `command`, `debug`, `effect`, `item`, `task`, `text` — and **not** `config`, `input`, or `util.reward`. Putting editors in `ui` would invert that and make `ui` import half the repo. This is the same reasoning AGENTS.md already records for `item` living outside `ui` ("SpecialsV3, PracticeCore, Shields and SurvivalCore use it without opening any GUI"). `util/panel` is rejected: `util` is documented as "self-contained utilities… with no dependencies between them", and a panel depends on `ui`, `input`, `config`, `item`, `action` and `text` at once. `panel` is a top-level module that *consumes* `ui`, exactly as `ui` consumes `item`.
 
 **Schema projection.** A new public `config.Schema` / `Schema.Field` record pair, produced by a single new method on `ConfigFile` (or `Configs`), mapping `SchemaNode` → `Schema` at call time. `internal` types stay internal; the projection is a copy, so `internal` remains free to change per the "Estructura" rule.
 

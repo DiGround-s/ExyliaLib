@@ -18,7 +18,7 @@ import java.util.concurrent.ConcurrentHashMap;
  * Nothing here watches a clock. A ticket carries the moment it stops counting
  * and every read drops the ones that are past it, which is exactly how
  * {@link net.exylia.lib.util.Cooldowns} works and for exactly the same reason:
- * <em>no hay tarea que descuente, se compara al leer</em>. A hundred requests
+ * <em>no task counts down, the comparison happens on read</em>. A hundred requests
  * nobody answered cost nothing at all until somebody looks at them, while a
  * hundred scheduled expiries are a hundred tasks the server runs to discover
  * that a player who already logged off is still not answering.

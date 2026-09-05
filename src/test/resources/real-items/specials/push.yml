@@ -48,7 +48,7 @@ action-config:
   upward-multiplier: 0.5
   radius: 5.0
 
-  # Efectos cuando una entidad es empujada
+  # Effects when an entity is pushed
   push-effects:
     particles:
       enabled: true

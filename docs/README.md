@@ -3,7 +3,7 @@
 One file per module. Each documents the public API, its contracts (threads,
 lifecycle, performance) and where the code lives. Write and update these
 against the source — rules and routes are in `AGENTS.md` under
-*Mapa del proyecto y documentación*.
+*Documentation and path map*.
 
 | Module | What it is for | Since |
 | --- | --- | --- |

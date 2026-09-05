@@ -110,9 +110,9 @@ items:
     name: "{error}&lRECARGAR CONFIGS"
     lore:
       - ""
-      - " {letters_black}▎ {letters}Recarga todas las"
-      - " {letters_black}▎ {letters}configuraciones del plugin"
+      - " {letters_black}▎ {letters}Reloads every plugin"
+      - " {letters_black}▎ {letters}configuration file"
       - ""
-      - "{warning}➥ Click para recargar"
+      - "{warning}➥ Click to reload"
     actions:
       - "sandbox:reload_configs"

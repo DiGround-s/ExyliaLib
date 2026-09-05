@@ -56,13 +56,13 @@ items:
   teleport:
     slot: 0
     material: COMPASS
-    name: '{primary}&lTELETRANSPORTE'
+    name: '{primary}&lTELEPORT'
     lore:
-      - '{secondary}Información:'
-      - ' {letters_black}▎ {letters}Click derecho para viajar a un'
-      - ' {letters_black}▎ {letters}jugador {highlight}aleatorio{letters}.'
+      - '{secondary}Information:'
+      - ' {letters_black}▎ {letters}Right click to travel to a'
+      - ' {letters_black}▎ {letters}{highlight}random {letters}player.'
       - ''
-      - '{warning}➥ Click derecho para activar'
+      - '{warning}➥ Right click to activate'
       - ''
     actions:
       - 'right: staff:random_teleport'
@@ -70,7 +70,7 @@ items:
   inspect:
     slot: 1
     material: BOOK
-    name: '{primary}&lINSPECCIONAR'
+    name: '{primary}&lINSPECT'
     actions:
       - 'right: staff:inspect'
 
