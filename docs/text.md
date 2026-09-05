@@ -183,10 +183,10 @@ lets a message say what colour it is. One value in
 messages, item names, lore, scoreboards, holograms:
 
 ```yaml
-text-shadow: "#000000"     # the default: one flat black shadow under everything
-text-shadow: "#41dba880"   # #rrggbbaa: a colour at half strength
-text-shadow: "auto"        # a quarter of each letter's own colour
+text-shadow: "auto"        # the default: a quarter of each letter's own colour
 text-shadow: "auto:0.5"    # the same, keeping half instead of a quarter
+text-shadow: "#000000"     # one flat colour under every line
+text-shadow: "#41dba880"   # #rrggbbaa: a colour at half strength
 text-shadow: "none"        # no shadow at all, not even the client's own
 text-shadow: ""            # whatever the client draws by itself
 ```
@@ -194,11 +194,11 @@ text-shadow: ""            # whatever the client draws by itself
 The alpha goes last, the way MiniMessage's own `<shadow>` tag spells it, so a
 colour copied out of a gradient generator reads the same here.
 
-Black is the default, and it is not what vanilla does: vanilla tints each
-shadow with a quarter of the letter's own colour, so a gold name casts a brown
-shadow. One flat black under everything reads cleaner beside a palette that
-already carries the colour — the same reasoning as small capitals. A server
-that wants the vanilla shadow back writes `text-shadow: ""`.
+`auto` is the default: the shadow follows the colour of whatever is drawn, so
+a gold name casts a brown shadow and a gradient casts a gradient. It is what
+vanilla already does, written down so the factor can be changed and so a
+colour applied after the parse gets one too. A server that wants one flat
+colour under everything writes `text-shadow: "#000000"`.
 
 A server upgrading keeps whatever is already in its file; only a fresh install
 gets the new default.
@@ -236,6 +236,29 @@ player.sendMessage(Text.shadowed(painted));
 
 Text parsed by this module is already shadowed; `Text.shadowed` is only for
 components a plugin built itself, and calling it twice changes nothing.
+
+### What it costs
+
+Measured on a 35-component gradient — one component per character, the worst
+shape there is — against the same line with no shadow:
+
+| | one parse, nothing cached | a cache hit |
+| --- | --- | --- |
+| no shadow | 10.6 µs | 0.13 µs |
+| one colour | 11.9 µs | 0.12 µs |
+| `auto` | 14.9 µs | 0.16 µs |
+
+A cache hit costs the same either way, which is the case that matters: a
+scoreboard line, a menu lore and a repeated message are parsed once and read
+for ever after. `auto` adds about 4 µs to a parse that misses, and a plain
+line with no gradient adds a tenth of that, since there is one component to
+walk instead of thirty-five.
+
+What is never cached is a colour applied after the parse — a chat message, an
+animation frame. Those pay the walk each time: at ten frames a second, a
+hundred players wearing an animated gradient cost about half a percent of one
+core. It is the same walk the gradient painter already does, so it roughly
+doubles that step and nothing else.
 
 `shadowColorIfAbsent` is applied where the component is built, so a cached
 line is shadowed once rather than on every read, and changing the value drops

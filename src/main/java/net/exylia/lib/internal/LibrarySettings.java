@@ -39,10 +39,10 @@ import net.exylia.lib.config.Configs;
 @Comment("")
 @Comment("text-shadow: the drop shadow under every line of every Exylia")
 @Comment("plugin — messages, item names, lore, scoreboards, holograms.")
-@Comment("  #rrggbb    one colour under every line; black by default")
+@Comment("  #rrggbb    one colour under every line")
 @Comment("  #rrggbbaa  the same, saying how strong it is")
 @Comment("  auto       a quarter of each letter\'s own colour, so a gradient")
-@Comment("             casts a gradient; this is what vanilla does")
+@Comment("             casts a gradient; the default, and what vanilla does")
 @Comment("  auto:0.5   the same, keeping half instead of a quarter")
 @Comment("  none       no shadow at all, not even the client\'s own")
 @Comment("  (empty)    whatever the client draws by itself")
@@ -108,7 +108,7 @@ public record LibrarySettings(
 
     /** Safe defaults used when no config file exists yet. */
     public LibrarySettings() {
-        this(true, 30, false, true, "#000000", "*", DEFAULT_FALLBACK_HEAD, "");
+        this(true, 30, false, true, "auto", "*", DEFAULT_FALLBACK_HEAD, "");
     }
 
     private static volatile LibrarySettings instance;
