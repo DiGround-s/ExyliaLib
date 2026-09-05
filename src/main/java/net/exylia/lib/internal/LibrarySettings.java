@@ -38,13 +38,14 @@ import net.exylia.lib.config.Configs;
 @Comment("stays Steve, and a number stays a number.")
 @Comment("")
 @Comment("text-shadow: the drop shadow under every line of every Exylia")
-@Comment("plugin — messages, item names, lore, scoreboards, holograms. Black")
-@Comment("by default, which is the Exylia look: vanilla tints each shadow with")
-@Comment("a quarter of the letter's own colour, and one flat black under")
-@Comment("everything reads cleaner beside a palette that already carries the")
-@Comment("colour. Write #rrggbb for another colour, #rrggbbaa to say how")
-@Comment("strong it is, \"none\" to take the shadow away entirely, or leave it")
-@Comment("empty for whatever the client draws by itself.")
+@Comment("plugin — messages, item names, lore, scoreboards, holograms.")
+@Comment("  #rrggbb    one colour under every line; black by default")
+@Comment("  #rrggbbaa  the same, saying how strong it is")
+@Comment("  auto       a quarter of each letter\'s own colour, so a gradient")
+@Comment("             casts a gradient; this is what vanilla does")
+@Comment("  auto:0.5   the same, keeping half instead of a quarter")
+@Comment("  none       no shadow at all, not even the client\'s own")
+@Comment("  (empty)    whatever the client draws by itself")
 @Comment("A line that carries its own <shadow> tag keeps it either way.")
 @Comment("Needs Minecraft 1.21.4 or newer; older servers ignore it.")
 @Comment("")
@@ -81,7 +82,7 @@ public record LibrarySettings(
         boolean smallText,
 
         @Key("text-shadow")
-        @Comment("The shadow under every line: #rrggbb, #rrggbbaa, none, or empty.")
+        @Comment("The shadow under every line: #rrggbb, #rrggbbaa, auto, auto:0.5, none, or empty.")
         String textShadow,
 
         @Comment("The prefix Floodgate adds to a Bedrock player's name.")

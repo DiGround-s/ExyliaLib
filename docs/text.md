@@ -185,6 +185,8 @@ messages, item names, lore, scoreboards, holograms:
 ```yaml
 text-shadow: "#000000"     # the default: one flat black shadow under everything
 text-shadow: "#41dba880"   # #rrggbbaa: a colour at half strength
+text-shadow: "auto"        # a quarter of each letter's own colour
+text-shadow: "auto:0.5"    # the same, keeping half instead of a quarter
 text-shadow: "none"        # no shadow at all, not even the client's own
 text-shadow: ""            # whatever the client draws by itself
 ```
@@ -206,6 +208,34 @@ gets the new default.
 | the line's own `<shadow:...>` | kept — the configured one is only a fallback |
 | a line with no shadow of its own | the configured shadow |
 | every child of that line | inherits it, the way the client inherits any style |
+
+### auto
+
+`auto` derives the shadow from the colour each part of the line is drawn in,
+rather than giving the whole line one colour. A gradient casts a gradient:
+`#41dba8` casts `#10372a`, `#4c00ff` casts `#130040` — a quarter of each
+channel, which is exactly what vanilla does and what the gradient generators
+write out by hand. `auto:0.5` keeps half instead, for a shadow that reads as
+a glow of the letter's own colour; `auto:0` is black.
+
+Written down so it can be changed: the value vanilla uses is not configurable
+in vanilla, and every part of a line asking for its own is what makes a
+gradient's shadow follow it.
+
+A letter with no colour of its own is drawn white, so it casts vanilla's grey.
+The walk stops at any part that already carries a `<shadow>`.
+
+Anything painted **after** the parse — a gradient laid over a name, an
+animation frame, a colour a player picked — has no colour to derive from while
+it is being parsed. Those ask once the colour is on:
+
+```java
+Component painted = Gradients.paint("DiGround", stops);
+player.sendMessage(Text.shadowed(painted));
+```
+
+Text parsed by this module is already shadowed; `Text.shadowed` is only for
+components a plugin built itself, and calling it twice changes nothing.
 
 `shadowColorIfAbsent` is applied where the component is built, so a cached
 line is shadowed once rather than on every read, and changing the value drops

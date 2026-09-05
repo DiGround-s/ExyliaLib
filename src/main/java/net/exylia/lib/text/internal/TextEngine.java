@@ -64,14 +64,14 @@ public final class TextEngine {
     private static volatile boolean smallText;
 
     /**
-     * The drop shadow under every line as packed ARGB, or {@code null} to draw
-     * whatever the client would draw by itself.
+     * What is drawn under every line, or {@code null} for whatever the client
+     * draws by itself.
      *
-     * <p>An int rather than a {@code ShadowColor}: the type arrived with
-     * Minecraft 1.21.4, and naming it in a field here would load it on a
-     * server that has never heard of it. {@link Shadows} owns that.
+     * <p>{@link Shadows} owns the type that names a shadow colour: it arrived
+     * with Minecraft 1.21.4, and mentioning it here would load it on a server
+     * that has never heard of it.
      */
-    private static volatile Integer shadow;
+    private static volatile Shadows.Spec shadow;
 
     private TextEngine() {
     }
@@ -109,11 +109,11 @@ public final class TextEngine {
      * Silently does nothing on a server whose Adventure predates shadow
      * colours; there is no shadow to set there.
      *
-     * @param argb the shadow as packed ARGB, {@code 0} for none at all, or
-     *             {@code null} to leave every line as the client draws it
+     * @param spec what to draw, or {@code null} to leave every line as the
+     *             client draws it
      */
-    public static void shadow(Integer argb) {
-        Integer wanted = Shadows.supported() ? argb : null;
+    public static void shadow(Shadows.Spec spec) {
+        Shadows.Spec wanted = Shadows.supported() ? spec : null;
         if (java.util.Objects.equals(shadow, wanted)) {
             return;
         }
@@ -124,8 +124,8 @@ public final class TextEngine {
         EXACT.invalidateAll();
     }
 
-    /** The shadow under every line, or {@code null} when the client decides. */
-    public static Integer shadow() {
+    /** What is drawn under every line, or {@code null} when the client decides. */
+    public static Shadows.Spec shadow() {
         return shadow;
     }
 
@@ -135,9 +135,17 @@ public final class TextEngine {
      * <p>Applied where the result is built rather than where it is handed
      * out, so a cached line is shadowed once instead of on every read.
      */
-    private static Component shadowed(Component component) {
-        Integer argb = shadow;
-        return argb == null ? component : Shadows.apply(component, argb);
+    /**
+     * The server's shadow under a component.
+     *
+     * <p>Public because anything painted after the parse — a gradient laid
+     * over a name, an animation frame, a colour a player chose — has to ask
+     * for it once the colour is on: an automatic shadow is a function of the
+     * colour, and there is nothing to derive it from before that.
+     */
+    public static Component shadowed(Component component) {
+        Shadows.Spec spec = shadow;
+        return spec == null ? component : Shadows.apply(component, spec);
     }
 
     /**

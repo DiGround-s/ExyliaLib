@@ -178,6 +178,25 @@ public final class Text {
     }
 
     /**
+     * Puts the server's configured shadow under a component somebody else
+     * built.
+     *
+     * <p>Everything parsed here is shadowed already. This is for what is
+     * painted <em>after</em> the parse — a gradient laid over a name, an
+     * animation frame, a colour a player picked — where an automatic shadow
+     * has nothing to derive itself from until the colour is on.
+     *
+     * <p>A part that already carries a shadow keeps it, so calling this twice
+     * costs a walk and changes nothing.
+     *
+     * @param component the finished component
+     * @return the same component, shadowed
+     */
+    public static @NotNull Component shadowed(@NotNull Component component) {
+        return TextEngine.shadowed(component);
+    }
+
+    /**
      * Builds a component from template text with resolved placeholders in it.
      *
      * <p>For the renderers that parse the template once and substitute per
