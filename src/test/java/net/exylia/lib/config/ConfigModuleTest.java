@@ -129,6 +129,19 @@ class ConfigModuleTest {
         }
     }
 
+    /** A schema whose compact constructor rejects what the file says. */
+    record Ranged(int amount) {
+        Ranged() {
+            this(1);
+        }
+
+        Ranged {
+            if (amount < 0) {
+                throw new IllegalArgumentException("amount must not be negative, got " + amount);
+            }
+        }
+    }
+
     record BadKeys(Map<Integer, String> byNumber) {
         BadKeys() {
             this(Map.of());
@@ -731,5 +744,42 @@ class ConfigModuleTest {
         ConfigFile<Screen> again = Configs.define(plugin, "screen", Screen.class).load();
         assertEquals("", again.get().banner().text(),
                 "the default came back after a restart:\n" + contents("screen"));
+    }
+
+    // ------------------------------------------------------------------
+    // reloadAll — what a plugin's /reload command actually calls
+    // ------------------------------------------------------------------
+
+    @Test
+    @DisplayName("reloadAll republishes every file the plugin owns, not just the first")
+    void reloadAllRepublishesEveryFile() throws IOException {
+        ConfigFile<Settings> config = Configs.define(plugin, "config", Settings.class).load();
+        ConfigFile<Screen> messages = Configs.define(plugin, "messages", Screen.class).load();
+
+        Files.writeString(file("config"), contents("config").replace("pool-size: 10", "pool-size: 77"));
+        Files.writeString(file("messages"), contents("messages").replace("Welcome", "Bienvenido"));
+
+        Configs.reloadAll(plugin);
+
+        assertEquals(77, config.get().poolSize());
+        assertEquals("Bienvenido", messages.get().banner().text(),
+                "the second file has to reload too:\n" + contents("messages"));
+    }
+
+    @Test
+    @DisplayName("one file that cannot be bound does not stop the others reloading")
+    void reloadAllSurvivesOneFileThrowing() throws IOException {
+        ConfigFile<Ranged> ranged = Configs.define(plugin, "ranged", Ranged.class).load();
+        ConfigFile<Screen> messages = Configs.define(plugin, "messages", Screen.class).load();
+
+        // A compact constructor that rejects the value: Binder.read throws.
+        Files.writeString(file("ranged"), "amount: -5\n");
+        Files.writeString(file("messages"), contents("messages").replace("Welcome", "Bienvenido"));
+
+        Configs.reloadAll(plugin);
+
+        assertEquals("Bienvenido", messages.get().banner().text(),
+                "a plugin's other files must still reload:\n" + contents("messages"));
+        assertEquals(1, ranged.get().amount(), "the rejected file keeps what was in use");
     }
 }

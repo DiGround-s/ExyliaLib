@@ -66,7 +66,7 @@ doubles the height of the block without making it easier to read.
 | Method | Contract |
 | --- | --- |
 | `define(plugin, name, type)` → `Builder<T>` | starts a definition; `Builder.version(int)`, `Builder.migration(fromVersion, Migration)`, `Builder.load()` |
-| `reloadAll(plugin)` → `List<ConfigIssue>` | reload every file that plugin defined |
+| `reloadAll(plugin)` → `List<ConfigIssue>` | reload every file that plugin defined; one file that cannot be read or bound is reported as a `BROKEN_FILE` issue and the rest still reload |
 | `release(pluginName)` / `releaseAll()` | drop the cache |
 | `loaded()` | all loaded files |
 

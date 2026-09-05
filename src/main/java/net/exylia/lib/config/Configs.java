@@ -94,10 +94,28 @@ public final class Configs {
      * @return every issue found, across all files, empty when all were clean
      */
     public static @NotNull List<ConfigIssue> reloadAll(@NotNull Plugin plugin) {
-        return FILES.values().stream()
-                .filter(file -> file.ownedBy(plugin))
-                .flatMap(file -> file.reload().stream())
-                .toList();
+        List<ConfigIssue> found = new java.util.ArrayList<>();
+        for (ConfigFileImpl<?> file : FILES.values()) {
+            if (!file.ownedBy(plugin)) {
+                continue;
+            }
+            try {
+                found.addAll(file.reload());
+            } catch (Throwable failure) {
+                // One file the schema cannot be built from — a compact
+                // constructor rejecting an edit, most often — used to abort the
+                // stream and leave every file after it on last week's values,
+                // silently and in an order nobody can predict. The plugin is
+                // told which file, and the rest still reload.
+                found.add(new ConfigIssue(ConfigIssue.Type.BROKEN_FILE, file.name(),
+                        "could not be reloaded (" + failure.getMessage()
+                                + "). Previous values are still in use.",
+                        file.name()));
+                plugin.getLogger().log(java.util.logging.Level.SEVERE,
+                        "Could not reload " + file.name() + ".yml", failure);
+            }
+        }
+        return List.copyOf(found);
     }
 
     /**
