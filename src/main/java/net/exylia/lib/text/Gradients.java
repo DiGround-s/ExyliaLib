@@ -2,6 +2,7 @@ package net.exylia.lib.text;
 
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.TextComponent;
+import net.kyori.adventure.text.format.Style;
 import net.kyori.adventure.text.format.TextColor;
 import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
 import org.jetbrains.annotations.NotNull;
@@ -187,7 +188,20 @@ public final class Gradients {
             // The parent keeps everything but its colour, which each character
             // now carries itself. Leaving it would be harmless — a child's
             // colour wins — but a reader of the tree should not see two.
-            TextComponent.Builder builder = Component.text().style(text.style().color(null));
+            //
+            // The shadow goes with it, but only when there was a colour here
+            // to derive it from: an automatic shadow is a quarter of that
+            // colour, and that colour is gone. Kept, every character of a
+            // repainted line would be drawn over the shadow of the colour it
+            // used to be. Gone, the client draws its own under each new
+            // colour, and Text.shadowed can derive one per character for a
+            // server that asked for a different strength. A shadow sitting on
+            // a part with no colour of its own came from somewhere else — a
+            // <shadow> tag, or the one colour a server puts under every line —
+            // and repainting is no reason to drop it.
+            Style style = text.style();
+            TextComponent.Builder builder = Component.text()
+                    .style(style.color() == null ? style : style.color(null).shadowColor(null));
             text.content().codePoints().forEach(codePoint -> builder.append(
                     Component.text(new String(Character.toChars(codePoint)), colourAt.apply(cursor[0]++))));
             painted = builder.build();

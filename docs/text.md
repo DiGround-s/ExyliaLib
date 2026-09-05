@@ -222,8 +222,17 @@ Written down so it can be changed: the value vanilla uses is not configurable
 in vanilla, and every part of a line asking for its own is what makes a
 gradient's shadow follow it.
 
-A letter with no colour of its own is drawn white, so it casts vanilla's grey.
-The walk stops at any part that already carries a `<shadow>`.
+Only a part that carries a colour of its own is given a shadow. A part with no
+colour is drawn in whatever it inherits — from the line around it, or from
+wherever it is substituted in later — and it inherits the matching shadow down
+the same path. A placeholder value is parsed on its own, before it knows what
+colour it will be read in, so deriving one for it there would put a grey
+shadow under gold text; left alone, it casts the shadow of the line it lands
+in. A line with no colour anywhere keeps the quarter-strength shadow the
+client draws by itself.
+
+The walk stops at any part that already carries a `<shadow>`: everything under
+it inherits what was written there.
 
 Anything painted **after** the parse — a gradient laid over a name, an
 animation frame, a colour a player picked — has no colour to derive from while
@@ -236,6 +245,12 @@ player.sendMessage(Text.shadowed(painted));
 
 Text parsed by this module is already shadowed; `Text.shadowed` is only for
 components a plugin built itself, and calling it twice changes nothing.
+
+Repainting takes the old shadow with the old colour: `Gradients.apply` over an
+already-parsed line drops the shadow that was derived from the colour it is
+replacing, so no character is drawn over the shadow of the colour it used to
+be. A flat configured shadow, or one a `<shadow>` tag wrote, is not derived
+from any colour and survives the repaint.
 
 ### What it costs
 

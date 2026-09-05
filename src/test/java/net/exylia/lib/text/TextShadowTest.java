@@ -84,8 +84,61 @@ class TextShadowTest {
                 TextEngine.parse("<#41dba8>Birdflop").shadowColor());
         assertEquals(ShadowColor.shadowColor(0xFF130040),
                 TextEngine.parse("<#4c00ff>Birdflop").shadowColor());
-        // A letter with no colour of its own is white, and casts vanilla's grey.
-        assertEquals(ShadowColor.shadowColor(0xFF404040), TextEngine.parse("plain").shadowColor());
+        // A letter with no colour of its own is left alone: what colour it is
+        // read in depends on where it ends up — a placeholder value is parsed
+        // before it knows — and the client already draws a quarter-strength
+        // shadow under whatever it inherits.
+        assertNull(TextEngine.parse("plain").shadowColor());
+    }
+
+    @Test
+    @DisplayName("a value substituted into a coloured line casts that line's shadow")
+    void valuesInheritTheirShadow() {
+        TextEngine.shadow(Shadows.read("auto"));
+        // Parsed on its own and put in afterwards: the value is read in the
+        // colour around it, so it must not carry a shadow of its own. A grey
+        // one under gold text is what this looked like on a live server.
+        Component line = Text.of("{highlight}hola %x%").withFormatted("%x%", "<bold>mundo").build();
+        assertEquals(ShadowColor.shadowColor(0xFF403600), line.shadowColor());
+        assertNull(line.children().get(0).shadowColor());
+        // A value with a colour of its own still casts its own.
+        Component coloured = Text.of("{highlight}hola %x%").withFormatted("%x%", "<#ff0000>mundo").build();
+        assertEquals(ShadowColor.shadowColor(0xFF400000), coloured.children().get(0).shadowColor());
+    }
+
+    @Test
+    @DisplayName("everything under a written shadow keeps it")
+    void ownShadowCoversItsChildren() {
+        TextEngine.shadow(Shadows.read("auto"));
+        Component line = TextEngine.parse("<shadow:#40506070>hi <red>there</red> end");
+        assertEquals(ShadowColor.shadowColor(fixed("#40506070")), line.shadowColor());
+        // Both the coloured part and the plain one inherit what was written,
+        // rather than being overwritten with a shadow of the palette's making.
+        for (Component child : line.children()) {
+            assertNull(child.shadowColor(), "a child of <shadow> keeps what it inherits");
+        }
+    }
+
+    @Test
+    @DisplayName("repainting a line does not leave the old colour's shadow behind")
+    void repaintingDropsTheDerivedShadow() {
+        TextEngine.shadow(Shadows.read("auto"));
+        Component parsed = TextEngine.parse("<#ff0000>hello");
+        assertEquals(ShadowColor.shadowColor(0xFF400000), parsed.shadowColor());
+        Component painted = Gradients.apply(parsed,
+                List.of(TextColor.color(0x00FF00), TextColor.color(0x00FF00)));
+        assertNull(painted.shadowColor(), "the shadow of a colour that is gone");
+        assertEquals(ShadowColor.shadowColor(0xFF004000),
+                Text.shadowed(painted).children().get(0).shadowColor());
+    }
+
+    @Test
+    @DisplayName("one shadow colour survives a repaint, since no colour here made it")
+    void repaintingKeepsAFixedShadow() {
+        TextEngine.shadow(new Spec(0xFF102030, 0f));
+        Component painted = Gradients.apply(TextEngine.parse("hello"),
+                List.of(TextColor.color(0x00FF00), TextColor.color(0x0000FF)));
+        assertEquals(ShadowColor.shadowColor(0xFF102030), painted.shadowColor());
     }
 
     @Test

@@ -35,9 +35,6 @@ public final class Shadows {
      */
     public static final float VANILLA_FACTOR = 0.25f;
 
-    /** White, which is what a letter with no colour of its own is drawn as. */
-    private static final int WHITE = 0xFFFFFF;
-
     /** Whether this server's Adventure knows what a shadow colour is. */
     private static final boolean AVAILABLE = available();
 
@@ -144,7 +141,7 @@ public final class Shadows {
             // somebody wrote inside still wins where they wrote it.
             return component.shadowColorIfAbsent(ShadowColor.shadowColor(spec.color()));
         }
-        return darken(component, spec.factor(), WHITE);
+        return darken(component, spec.factor(), false);
     }
 
     /**
@@ -152,22 +149,32 @@ public final class Shadows {
      *
      * <p>Walked rather than set once at the top, because that is the whole
      * point: a gradient is one component per character, each its own colour,
-     * and each wants its own shadow. A part with no colour of its own is
-     * drawn in its parent's, so the parent's is what darkens it.
+     * and each wants its own shadow.
      *
-     * @param inherited the colour in force here, as packed RGB
+     * <p>Only a part that carries a colour of its own gets one. A part
+     * without a colour is drawn in whatever it inherits — from its parent
+     * here, or from wherever it is substituted in later — and the shadow it
+     * inherits down that same path is the one that matches it. Guessing
+     * white instead is what put a grey shadow under a gold placeholder
+     * value: the value was parsed on its own, before it knew what colour it
+     * would be read in. A line with no colour anywhere is left alone, and
+     * the client draws its own quarter-strength shadow under it.
+     *
+     * @param author whether a part above this one wrote its own shadow, which
+     *               everything under it inherits and nothing here overrides
      */
-    private static Component darken(Component component, float factor, int inherited) {
-        TextColor own = component.color();
-        int color = own == null ? inherited : own.value();
-        Component out = component.shadowColor() == null
-                ? component.shadowColor(ShadowColor.shadowColor(scale(color, factor)))
+    private static Component darken(Component component, float factor, boolean author) {
+        boolean own = component.shadowColor() != null;
+        TextColor colour = component.color();
+        Component out = !own && !author && colour != null
+                ? component.shadowColor(ShadowColor.shadowColor(scale(colour.value(), factor)))
                 : component;
+        boolean written = own || author;
         List<Component> children = out.children();
         if (children.isEmpty()) return out;
         List<Component> darkened = new ArrayList<>(children.size());
         for (Component child : children) {
-            darkened.add(darken(child, factor, color));
+            darkened.add(darken(child, factor, written));
         }
         return out.children(darkened);
     }
