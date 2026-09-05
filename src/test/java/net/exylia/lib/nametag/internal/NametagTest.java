@@ -151,6 +151,46 @@ class NametagTest {
     }
 
     @Test
+    @DisplayName("a glow without a colour sends no team at all")
+    void glowOnlySendsNoTeam() {
+        // The point of the style: a server whose names belong to a tab plugin
+        // can still outline a player without claiming them into a team.
+        tags.paint(alice.player(), bob.player(), NametagStyle.glowOnly());
+
+        assertNull(NametagStyle.glowOnly().teamName());
+        assertEquals(List.of("flags:Alice:Bob"), sink.calls());
+        assertTrue(NametagRuntime.state()
+                .isGlowing(alice.player().getUniqueId(), bob.player().getUniqueId()));
+    }
+
+    @Test
+    @DisplayName("resetting a glow without a colour removes no team either")
+    void glowOnlyResets() {
+        tags.paint(alice.player(), bob.player(), NametagStyle.glowOnly());
+        sink.clear();
+
+        tags.reset(alice.player(), bob.player());
+
+        assertEquals(List.of("flags:Alice:Bob"), sink.calls());
+        assertFalse(NametagRuntime.state().anyGlowing(alice.player().getUniqueId()));
+    }
+
+    @Test
+    @DisplayName("a colour painted over a glow leaves no team behind")
+    void glowOnlyGivesWayToAColour() {
+        tags.paint(alice.player(), bob.player(), NametagStyle.glowOnly());
+        sink.clear();
+
+        tags.paint(alice.player(), bob.player(), GREEN);
+        tags.reset(alice.player(), bob.player());
+
+        assertEquals(
+                List.of("create:Alice:" + GREEN.teamName() + ":Bob", "flags:Alice:Bob",
+                        "delteam:Alice:" + GREEN.teamName(), "flags:Alice:Bob"),
+                sink.calls());
+    }
+
+    @Test
     @DisplayName("glow is remembered per viewer, so the rewrite knows who to outline")
     void glowIsTracked() {
         tags.paint(alice.player(), bob.player(), GREEN.withGlow());

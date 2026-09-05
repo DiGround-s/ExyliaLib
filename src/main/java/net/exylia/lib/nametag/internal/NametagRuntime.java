@@ -153,11 +153,16 @@ public final class NametagRuntime {
             }
 
             safely(() -> {
-                if (STATE.knows(viewerId, team)) {
-                    out.addToTeam(viewer, team, joining);
-                } else {
-                    out.createTeam(viewer, team, style, joining);
-                    STATE.learn(viewerId, team);
+                // A style with no colour has no team: sending one would take
+                // the players out of whatever team another plugin has them in,
+                // and the glow below is the whole of what was asked for.
+                if (team != null) {
+                    if (STATE.knows(viewerId, team)) {
+                        out.addToTeam(viewer, team, joining);
+                    } else {
+                        out.createTeam(viewer, team, style, joining);
+                        STATE.learn(viewerId, team);
+                    }
                 }
                 // The glow rides on entity flags, not on the team, so it only
                 // appears once the player's flags are sent again.
@@ -286,12 +291,12 @@ public final class NametagRuntime {
     private static void leaveTeam(NametagSink out, Player viewer, UUID viewerId,
                                   State.Painted painted) {
         String team = painted.style().teamName();
-        if (!STATE.knows(viewerId, team)) {
+        if (team == null || !STATE.knows(viewerId, team)) {
             return;
         }
         List<String> remaining = new ArrayList<>();
         for (State.Painted other : STATE.paintedBy(viewerId).values()) {
-            if (other.style().teamName().equals(team)
+            if (team.equals(other.style().teamName())
                     && !other.targetName().equals(painted.targetName())) {
                 remaining.add(other.targetName());
             }

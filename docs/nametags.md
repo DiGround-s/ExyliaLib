@@ -54,6 +54,19 @@ than creating a second team that draws identically.
 Glow is deliberately not part of the team name. It rides on entity flags rather
 than on the team, so two styles that differ only by it still share one.
 
+## A glow without a team
+
+```java
+tags.paint(viewer, target, NametagStyle.glowOnly());
+```
+
+A colour is drawn through a scoreboard team, and joining a team silently leaves
+the previous one — which on a server where TAB or a nametag plugin owns the
+names is the thing that breaks them. `glowOnly()` sends no team: the outline
+rides on entity flags, so the name above the player stays exactly as whoever
+owns it left it. The outline is white, since it takes the team's colour and
+there is none.
+
 ## What is sent, and what is not
 
 | You call | The client gets |
@@ -63,6 +76,7 @@ than on the team, so two styles that differ only by it still share one.
 | same player, same style again | **nothing** |
 | a colour change | one team remove, one team create |
 | `reset` | one team remove, one flags refresh |
+| a `glowOnly()` paint or reset | one flags refresh, no team at all |
 
 A colour that did not change is a packet nobody needed, so it is not sent.
 

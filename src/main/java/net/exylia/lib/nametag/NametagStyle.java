@@ -2,6 +2,7 @@ package net.exylia.lib.nametag;
 
 import net.kyori.adventure.text.format.NamedTextColor;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 /**
  * How a player looks to somebody else.
@@ -26,14 +27,14 @@ import org.jetbrains.annotations.NotNull;
  * step with the colours. Two viewers who paint a player the same way share a
  * team without either of them knowing there is one.
  *
- * @param colour       the name colour
+ * @param colour       the name colour, or {@code null} to leave the name alone
  * @param seeInvisible whether an invisible player is still faintly drawn
  * @param glowing      whether the player is outlined through walls
  * @param collides     whether the player can be pushed
  * @since 1.36.0
  */
 public record NametagStyle(
-        @NotNull NamedTextColor colour,
+        @Nullable NamedTextColor colour,
         boolean seeInvisible,
         boolean glowing,
         boolean collides
@@ -53,6 +54,25 @@ public record NametagStyle(
      */
     public static @NotNull NametagStyle of(@NotNull NamedTextColor colour) {
         return new NametagStyle(colour, false, false, false);
+    }
+
+    /**
+     * A glow and nothing else: the player is outlined through walls and their
+     * name is left exactly as it was.
+     *
+     * <p>A colour is drawn through a scoreboard team, and a team claims the
+     * player away from whatever team a tab or nametag plugin had them in. This
+     * style sends no team at all — the outline rides on entity flags — so it
+     * costs a server whose names belong to another plugin nothing.
+     *
+     * <p>The outline is white, since it takes the team's colour and there is no
+     * team.
+     *
+     * @return the style
+     * @since 1.44.0
+     */
+    public static @NotNull NametagStyle glowOnly() {
+        return new NametagStyle(null, false, true, false);
     }
 
     /**
@@ -98,9 +118,16 @@ public record NametagStyle(
      * observe: a plugin that also sends its own team packets needs to know
      * which names are taken.
      *
-     * @return the team name, at most 16 characters
+     * @return the team name, at most 16 characters, or {@code null} when the
+     *         style has no colour and so needs no team
      */
-    public @NotNull String teamName() {
+    public @Nullable String teamName() {
+        if (colour == null) {
+            // Nothing a team carries — colour, invisibility, collision — was
+            // asked for, so sending one would only take the player out of the
+            // team somebody else put them in.
+            return null;
+        }
         // Glow is deliberately absent: it rides on entity flags, not on the
         // team, so two styles that differ only by it can share one.
         return "exy_"
