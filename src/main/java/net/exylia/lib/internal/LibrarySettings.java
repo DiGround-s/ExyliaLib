@@ -38,10 +38,13 @@ import net.exylia.lib.config.Configs;
 @Comment("stays Steve, and a number stays a number.")
 @Comment("")
 @Comment("text-shadow: the drop shadow under every line of every Exylia")
-@Comment("plugin — messages, item names, lore, scoreboards, holograms. Empty")
-@Comment("leaves the shadow the client draws by itself, which is what every")
-@Comment("server had until now. Write #rrggbb for a colour, #rrggbbaa to say")
-@Comment("how strong it is, or \"none\" to take the shadow away entirely.")
+@Comment("plugin — messages, item names, lore, scoreboards, holograms. Black")
+@Comment("by default, which is the Exylia look: vanilla tints each shadow with")
+@Comment("a quarter of the letter's own colour, and one flat black under")
+@Comment("everything reads cleaner beside a palette that already carries the")
+@Comment("colour. Write #rrggbb for another colour, #rrggbbaa to say how")
+@Comment("strong it is, \"none\" to take the shadow away entirely, or leave it")
+@Comment("empty for whatever the client draws by itself.")
 @Comment("A line that carries its own <shadow> tag keeps it either way.")
 @Comment("Needs Minecraft 1.21.4 or newer; older servers ignore it.")
 @Comment("")
@@ -104,7 +107,7 @@ public record LibrarySettings(
 
     /** Safe defaults used when no config file exists yet. */
     public LibrarySettings() {
-        this(true, 30, false, true, "", "*", DEFAULT_FALLBACK_HEAD, "");
+        this(true, 30, false, true, "#000000", "*", DEFAULT_FALLBACK_HEAD, "");
     }
 
     private static volatile LibrarySettings instance;

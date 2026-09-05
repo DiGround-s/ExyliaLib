@@ -183,17 +183,23 @@ lets a message say what colour it is. One value in
 messages, item names, lore, scoreboards, holograms:
 
 ```yaml
-text-shadow: "#000000"     # a black shadow under everything
-text-shadow: "#41dba880"   # #rrggbbaa: the same colour at half strength
+text-shadow: "#000000"     # the default: one flat black shadow under everything
+text-shadow: "#41dba880"   # #rrggbbaa: a colour at half strength
 text-shadow: "none"        # no shadow at all, not even the client's own
-text-shadow: ""            # the default: whatever the client draws by itself
+text-shadow: ""            # whatever the client draws by itself
 ```
 
 The alpha goes last, the way MiniMessage's own `<shadow>` tag spells it, so a
 colour copied out of a gradient generator reads the same here.
 
-Empty is the default and changes nothing, which is what every server had
-before this existed. Set it deliberately.
+Black is the default, and it is not what vanilla does: vanilla tints each
+shadow with a quarter of the letter's own colour, so a gold name casts a brown
+shadow. One flat black under everything reads cleaner beside a palette that
+already carries the colour — the same reasoning as small capitals. A server
+that wants the vanilla shadow back writes `text-shadow: ""`.
+
+A server upgrading keeps whatever is already in its file; only a fresh install
+gets the new default.
 
 | Written | Drawn |
 | --- | --- |
