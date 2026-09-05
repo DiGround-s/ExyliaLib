@@ -43,6 +43,18 @@ public final class TextEngine {
             .expireAfterAccess(Duration.ofMinutes(10))
             .build();
 
+    /**
+     * Cached parses of text that must reach the screen exactly as written.
+     *
+     * <p>Its own cache rather than a shared one: the same string parses into
+     * two different components depending on whether small capitals were
+     * applied, and one key cannot hold both.
+     */
+    private static final Cache<String, Component> EXACT = Caffeine.newBuilder()
+            .maximumSize(1024)
+            .expireAfterAccess(Duration.ofMinutes(10))
+            .build();
+
     private static final MiniMessage MINI_MESSAGE = MiniMessage.miniMessage();
 
     /** Palette tokens mapped to the MiniMessage tag they expand to. */
@@ -70,6 +82,8 @@ public final class TextEngine {
         smallText = enabled;
         generation++;
         CACHE.invalidateAll();
+        VALUES.invalidateAll();
+        EXACT.invalidateAll();
     }
 
     /** Returns whether small capitals are on. */
@@ -89,6 +103,8 @@ public final class TextEngine {
         tokens = tokensOf(palette);
         generation++;
         CACHE.invalidateAll();
+        VALUES.invalidateAll();
+        EXACT.invalidateAll();
     }
 
     /** Returns the current token table, for diagnostics and tests. */
@@ -182,11 +198,49 @@ public final class TextEngine {
         return parsed;
     }
 
+    /**
+     * Parses text that must read as written, whatever the small-text setting
+     * says.
+     *
+     * <p>For words a player typed and words that are somebody's name: the
+     * small-capitals look belongs to what the server writes, not to what is
+     * written through it. Everything else about the parse is the same, so a
+     * colour or a legacy code still works.
+     *
+     * @param text the raw text
+     * @return the parsed component, in the letters it was written in
+     */
+    public static Component parseExact(String text) {
+        if (text.isEmpty()) {
+            return Component.empty();
+        }
+        // With the transform off there is one answer, so it shares the cache
+        // that everything else already fills.
+        if (!smallText) {
+            return parse(text);
+        }
+        int flags = FormatScanner.scan(text);
+        if (FormatScanner.isPlain(flags)) {
+            return Component.text(text);
+        }
+        Component cached = EXACT.getIfPresent(text);
+        if (cached != null) {
+            return cached;
+        }
+        Component parsed = parseUncached(text, flags, false);
+        EXACT.put(text, parsed);
+        return parsed;
+    }
+
     private static Component parseUncached(String text, int flags) {
+        return parseUncached(text, flags, smallText);
+    }
+
+    private static Component parseUncached(String text, int flags, boolean small) {
         // Before anything expands: a palette token is left alone here, but
         // once it becomes "<#8a51c4>" it is indistinguishable from a tag the
         // author wrote, and the hex digits inside it are letters.
-        String prepared = smallText ? SmallText.apply(text) : text;
+        String prepared = small ? SmallText.apply(text) : text;
 
         if (FormatScanner.has(flags, FormatScanner.BRACE)) {
             prepared = TokenResolver.resolve(prepared, tokens);
@@ -287,6 +341,7 @@ public final class TextEngine {
         generation++;
         CACHE.invalidateAll();
         VALUES.invalidateAll();
+        EXACT.invalidateAll();
     }
 
     /**

@@ -96,7 +96,12 @@ public final class Text {
     private final Plugin owner;
 
     private Text(String raw, List<Substitution> substitutions, Player viewer, Plugin owner) {
-        this(raw, substitutions, viewer, owner, false);
+        this(raw, substitutions, viewer, owner, false, false);
+    }
+
+    private Text(String raw, List<Substitution> substitutions, Player viewer, Plugin owner,
+                 boolean resolveFormatted) {
+        this(raw, substitutions, viewer, owner, resolveFormatted, false);
     }
 
     /**
@@ -145,6 +150,26 @@ public final class Text {
      */
     public static @NotNull Component component(@NotNull String text) {
         return TextEngine.parse(text);
+    }
+
+    /**
+     * Parses text in the letters it was written in, whatever
+     * {@code small-text} says.
+     *
+     * <p>The small-capitals look belongs to what the server writes — menus,
+     * messages, scoreboards — not to what is written through it. A chat
+     * message a player typed, the name of a player, a tag somebody wrote for
+     * themselves: those are somebody else's words, and turning WELCOME into
+     * \u1D21\u1D07\u029F\u1D04\u1D0F\u1D0D\u1D07 is the server's own accent, not theirs.
+     *
+     * <p>Colours, legacy codes and palette tokens work exactly as they do in
+     * {@link #component(String)}; only the letters are left alone.
+     *
+     * @param text the raw text
+     * @return the parsed component, as written
+     */
+    public static @NotNull Component verbatim(@NotNull String text) {
+        return TextEngine.parseExact(text);
     }
 
     /**
@@ -232,7 +257,7 @@ public final class Text {
         List<Substitution> updated = new ArrayList<>(substitutions.size() + 1);
         updated.addAll(substitutions);
         updated.add(new Substitution(placeholder, value == null ? "" : String.valueOf(value), formatted));
-        return new Text(raw, updated, viewer, owner);
+        return new Text(raw, updated, viewer, owner, resolveFormatted, verbatim);
     }
 
     /**
@@ -255,7 +280,7 @@ public final class Text {
      * @return a new prepared text; the original is unchanged
      */
     public @NotNull Text forPlayer(Player player) {
-        return new Text(raw, substitutions, player, owner);
+        return new Text(raw, substitutions, player, owner, resolveFormatted, verbatim);
     }
 
     /**
@@ -272,19 +297,39 @@ public final class Text {
      * @return a new prepared text; the original is unchanged
      */
     public @NotNull Text forPlayerFormatted(Player player) {
-        return new Text(raw, substitutions, player, owner, true);
+        return new Text(raw, substitutions, player, owner, true, verbatim);
     }
 
     /** Whether resolved placeholder values are parsed for formatting. */
     private final boolean resolveFormatted;
 
+    /** Whether the letters reach the screen as written; see {@link #verbatim()}. */
+    private final boolean verbatim;
+
     private Text(String raw, List<Substitution> substitutions, Player viewer, Plugin owner,
-                 boolean resolveFormatted) {
+                 boolean resolveFormatted, boolean verbatim) {
         this.raw = raw;
         this.substitutions = substitutions;
         this.viewer = viewer;
         this.owner = owner;
         this.resolveFormatted = resolveFormatted;
+        this.verbatim = verbatim;
+    }
+
+    /**
+     * Draws this text in the letters it was written in, whatever
+     * {@code small-text} says.
+     *
+     * <p>For lines that are somebody's words rather than the server's: a chat
+     * message and everything wrapped around it, a name, a tag a player wrote.
+     * The small-capitals look is an accent the server speaks in, and a
+     * message is not the server speaking. See {@link #verbatim(String)} for
+     * text with nothing to substitute.
+     *
+     * @return a new prepared text; the original is unchanged
+     */
+    public @NotNull Text verbatim() {
+        return new Text(raw, substitutions, viewer, owner, resolveFormatted, true);
     }
 
     /**
@@ -331,12 +376,12 @@ public final class Text {
             for (Marked value : marked) {
                 width -= Centering.pixelWidth(value.marker());
                 width += Centering.pixelWidth(value.value(),
-                        value.formatted() && TextEngine.smallText());
+                        value.formatted() && !verbatim && TextEngine.smallText());
             }
             source = Centering.paddingFor(width, Centering.CHAT_WIDTH_PX) + source;
         }
 
-        Component component = TextEngine.parse(source);
+        Component component = verbatim ? TextEngine.parseExact(source) : TextEngine.parse(source);
 
         // What has to be substituted into a click's command as well as into the
         // text: replaceText only walks what is read, and a run_command is not.
@@ -346,9 +391,9 @@ public final class Text {
         Component[] replacements = new Component[marked.size()];
         for (int i = 0; i < marked.size(); i++) {
             Marked value = marked.get(i);
-            replacements[i] = value.formatted()
-                    ? TextEngine.parseValue(value.value())
-                    : Component.text(value.value());
+            replacements[i] = !value.formatted() ? Component.text(value.value())
+                    : verbatim ? TextEngine.parseExact(value.value())
+                    : TextEngine.parseValue(value.value());
             if (clickable) {
                 commands.put(value.marker(), value.value());
             }

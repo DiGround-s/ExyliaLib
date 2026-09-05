@@ -59,6 +59,24 @@ class SmallTextTest {
     }
 
     @Test
+    @DisplayName("verbatim text keeps its own letters, and its colours")
+    void verbatimIsLeftAlone() {
+        assertEquals("WELCOME", PLAIN.serialize(Text.verbatim("WELCOME")));
+        assertEquals("hello there", PLAIN.serialize(Text.verbatim("{primary}hello there")));
+        assertEquals("RED", PLAIN.serialize(Text.verbatim("&cRED")));
+        // Colour survives; only the letters are left as written.
+        assertEquals(TextColor.fromHexString("#8a51c4"), Text.verbatim("{primary}X").color());
+    }
+
+    @Test
+    @DisplayName("verbatim and small capitals do not share a cached answer")
+    void verbatimDoesNotPoisonTheCache() {
+        assertEquals("ᴡᴇʟᴄᴏᴍᴇ", plain("{primary}WELCOME"));
+        assertEquals("WELCOME", PLAIN.serialize(Text.verbatim("{primary}WELCOME")));
+        assertEquals("ᴡᴇʟᴄᴏᴍᴇ", plain("{primary}WELCOME"));
+    }
+
+    @Test
     @DisplayName("case makes no difference, since both map to one glyph")
     void caseIsIrrelevant() {
         assertEquals(plain("welcome"), plain("WELCOME"));
