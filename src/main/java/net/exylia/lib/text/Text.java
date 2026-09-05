@@ -614,12 +614,34 @@ public final class Text {
      * @return the click, or {@code null} for an action that carries no text
      */
     private static @Nullable ClickEvent clickWith(ClickEvent.Action action, String value) {
-        return switch (action.toString().toLowerCase(Locale.ROOT)) {
+        return click(action.toString(), value);
+    }
+
+    /**
+     * A click, built by the name of what it does.
+     *
+     * <p>The way to make one from configuration, and the reason this is not
+     * a plugin's own switch over {@code ClickEvent.Action.RUN_COMMAND}:
+     * Adventure 5 turned {@code Action} from an enum into a class whose
+     * constants are typed subclasses, so a {@code getstatic} compiled against
+     * Adventure 4 throws {@code NoSuchFieldError} the moment the server runs
+     * 5. The per-action factories kept their signature across both, and so
+     * did {@code toString()}, which is the lowercase name.
+     *
+     * @param action what the click does, in any case: {@code run_command},
+     *               {@code suggest_command}, {@code open_url},
+     *               {@code open_file}, {@code copy_to_clipboard}
+     * @param value  what it carries
+     * @return the click, or {@code null} for a name nothing answers to
+     * @since 1.111.8
+     */
+    public static @Nullable ClickEvent click(@NotNull String action, @NotNull String value) {
+        return switch (action.trim().toLowerCase(Locale.ROOT)) {
             case "run_command" -> ClickEvent.runCommand(value);
             case "suggest_command" -> ClickEvent.suggestCommand(value);
             case "open_url" -> ClickEvent.openUrl(value);
             case "open_file" -> ClickEvent.openFile(value);
-            case "copy_to_clipboard" -> ClickEvent.copyToClipboard(value);
+            case "copy_to_clipboard", "copy" -> ClickEvent.copyToClipboard(value);
             default -> null;
         };
     }

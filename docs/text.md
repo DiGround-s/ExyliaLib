@@ -269,6 +269,24 @@ On a server older than 1.21.4 the Adventure that ships with it has no shadow
 colour at all. Nothing breaks: the value is ignored, and the class that names
 the type is never loaded.
 
+## Clicks from configuration
+
+A click written in a file is built by the name of what it does:
+
+```java
+ClickEvent event = Text.click("suggest_command", "/msg Notch ");   // null for a name nothing answers to
+```
+
+`run_command`, `suggest_command`, `open_url`, `open_file`,
+`copy_to_clipboard` (also `copy`), in any case.
+
+Use this rather than a switch over `ClickEvent.Action.RUN_COMMAND`: Adventure
+5 turned `Action` from an enum into a class whose constants are typed
+subclasses, so a `getstatic` compiled against Adventure 4 throws
+`NoSuchFieldError` the moment the server runs 5 — which is a server on
+Minecraft 1.21.9 and newer. The per-action factories kept their signature
+across both.
+
 ## Gradients
 
 Since 1.102.0. `<gradient:#a:#b>` is for text an owner writes in a file: it is
