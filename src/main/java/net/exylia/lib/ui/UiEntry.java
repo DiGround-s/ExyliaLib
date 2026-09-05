@@ -32,6 +32,7 @@ import java.util.Map;
  * @param value     what the row is about, or {@code null} when it is only text
  * @param values    what fills the template's placeholders
  * @param formatted which of those values carry their own formatting
+ * @param verbatim  which of the formatted ones keep their own letters
  * @param template  which template to draw it with, or {@code null} for the default
  * @param item      an item to draw as-is, instead of a template
  * @since 1.22.0
@@ -40,6 +41,7 @@ public record UiEntry(
         @Nullable Object value,
         @NotNull Map<String, String> values,
         @NotNull java.util.Set<String> formatted,
+        @NotNull java.util.Set<String> verbatim,
         @Nullable String template,
         @Nullable org.bukkit.inventory.ItemStack item) {
 
@@ -49,6 +51,7 @@ public record UiEntry(
         // in that order. An unordered copy makes that depend on hash codes.
         values = java.util.Collections.unmodifiableMap(new java.util.LinkedHashMap<>(values));
         formatted = java.util.Set.copyOf(formatted);
+        verbatim = java.util.Set.copyOf(verbatim);
         // Copied, because an ItemStack is mutable and the caller still holds
         // theirs: a kit room handing out its own stored stacks must not have
         // them renamed by whoever drew the row.
@@ -69,7 +72,25 @@ public record UiEntry(
      */
     public UiEntry(@Nullable Object value, @NotNull Map<String, String> values,
                    @Nullable String template, @Nullable org.bukkit.inventory.ItemStack item) {
-        this(value, values, java.util.Set.of(), template, item);
+        this(value, values, java.util.Set.of(), java.util.Set.of(), template, item);
+    }
+
+    /**
+     * A row with formatted values but none that keep their own letters.
+     *
+     * <p>Kept so code written before {@link Builder#withVerbatim} still
+     * compiles.
+     *
+     * @param value     what the row is about
+     * @param values    what fills the template's placeholders
+     * @param formatted which of those carry their own formatting
+     * @param template  which template to draw it with
+     * @param item      an item to draw as-is
+     */
+    public UiEntry(@Nullable Object value, @NotNull Map<String, String> values,
+                   @NotNull java.util.Set<String> formatted, @Nullable String template,
+                   @Nullable org.bukkit.inventory.ItemStack item) {
+        this(value, values, formatted, java.util.Set.of(), template, item);
     }
 
     /**
@@ -107,6 +128,7 @@ public record UiEntry(
         private final Object value;
         private final java.util.Map<String, String> values = new java.util.LinkedHashMap<>();
         private final java.util.Set<String> formatted = new java.util.LinkedHashSet<>();
+        private final java.util.Set<String> verbatim = new java.util.LinkedHashSet<>();
         private String template;
         private org.bukkit.inventory.ItemStack item;
 
@@ -132,6 +154,7 @@ public record UiEntry(
             String key = strip(name);
             values.put(key, value == null ? "" : String.valueOf(value));
             formatted.remove(key);
+            verbatim.remove(key);
             return this;
         }
 
@@ -155,6 +178,29 @@ public record UiEntry(
             String key = strip(name);
             values.put(key, value == null ? "" : String.valueOf(value));
             formatted.add(key);
+            verbatim.remove(key);
+            return this;
+        }
+
+        /**
+         * Sets a formatted value that keeps its own letters.
+         *
+         * <p>{@link #withFormatted} for a value that is somebody's words
+         * rather than the server's: a chat line drawn into a row's lore, a
+         * tag a player wrote for themselves. Its colours are honoured and the
+         * small-capitals look is not applied to it, while the lore around it
+         * — which the server did write — keeps whatever {@code small-text}
+         * says.
+         *
+         * @param name  the placeholder name
+         * @param value what it resolves to; {@code null} becomes empty
+         * @return this builder
+         */
+        public @NotNull Builder withVerbatim(@NotNull String name, @Nullable Object value) {
+            String key = strip(name);
+            values.put(key, value == null ? "" : String.valueOf(value));
+            formatted.add(key);
+            verbatim.add(key);
             return this;
         }
 
@@ -185,7 +231,7 @@ public record UiEntry(
         }
 
         public @NotNull UiEntry build() {
-            return new UiEntry(value, values, formatted, template, item);
+            return new UiEntry(value, values, formatted, verbatim, template, item);
         }
 
         /** Accepts a name written either way, since both spellings are natural. */

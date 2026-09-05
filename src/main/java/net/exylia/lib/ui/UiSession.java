@@ -190,6 +190,23 @@ public interface UiSession {
      */
     void remember(@NotNull String... keys);
 
+    /**
+     * Marks context values as somebody else's words.
+     *
+     * <p>A context value is parsed, so its colours are honoured; named here,
+     * its letters are also left as they are, whatever ExyliaLib's
+     * {@code small-text} says. For a chat line drawn into a menu, or a name a
+     * player wrote for themselves — the small-capitals look is the accent the
+     * server writes menus in, and those are not the server writing.
+     *
+     * <pre>{@code
+     * session.verbatim("preview");
+     * }</pre>
+     *
+     * @param keys the context keys to leave in their own letters
+     */
+    void verbatim(@NotNull String... keys);
+
     // ----------------------------------------------------------------- input
 
     /** Slots the player is allowed to put items into. */

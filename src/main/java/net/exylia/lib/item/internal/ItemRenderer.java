@@ -107,7 +107,31 @@ public final class ItemRenderer {
     public static ItemStack render(Item definition, Player viewer, Plugin owner,
                                    Map<String, String> values, Set<String> formatted,
                                    TraitApplier.Reporter problems) {
-        return render(definition, viewer, owner, values, formatted, false, problems);
+        return render(definition, viewer, owner, values, formatted, Set.of(), problems);
+    }
+
+    /**
+     * The same, with values whose letters are left as written.
+     *
+     * <p>A value named in {@code verbatim} is parsed like a formatted one and
+     * then left in the letters it came in, whatever {@code small-text} says:
+     * for a chat line drawn into a lore, or a name somebody wrote for
+     * themselves, where the small-capitals look would be the server speaking
+     * over them.
+     *
+     * @param definition what to build
+     * @param viewer     who it is for, or {@code null} for nobody in particular
+     * @param owner      whose namespace stored values go under, or {@code null}
+     * @param values     placeholder names to what they resolve to, without percent signs
+     * @param formatted  which of those values are parsed rather than inserted literally
+     * @param verbatim   which of the formatted ones keep their own letters
+     * @param problems   where to report parts that could not be applied
+     * @return the item
+     */
+    public static ItemStack render(Item definition, Player viewer, Plugin owner,
+                                   Map<String, String> values, Set<String> formatted,
+                                   Set<String> verbatim, TraitApplier.Reporter problems) {
+        return render(definition, viewer, owner, values, formatted, verbatim, false, problems);
     }
 
     /**
@@ -130,12 +154,19 @@ public final class ItemRenderer {
     public static ItemStack renderIcon(Item definition, Player viewer, Plugin owner,
                                        Map<String, String> values, Set<String> formatted,
                                        TraitApplier.Reporter problems) {
-        return render(definition, viewer, owner, values, formatted, true, problems);
+        return renderIcon(definition, viewer, owner, values, formatted, Set.of(), problems);
+    }
+
+    /** The same, with values whose letters are left as written; see {@link #render}. */
+    public static ItemStack renderIcon(Item definition, Player viewer, Plugin owner,
+                                       Map<String, String> values, Set<String> formatted,
+                                       Set<String> verbatim, TraitApplier.Reporter problems) {
+        return render(definition, viewer, owner, values, formatted, verbatim, true, problems);
     }
 
     private static ItemStack render(Item definition, Player viewer, Plugin owner,
                                     Map<String, String> values, Set<String> formatted,
-                                    boolean icon, TraitApplier.Reporter problems) {
+                                    Set<String> verbatim, boolean icon, TraitApplier.Reporter problems) {
         // Row values make the result specific to that row, so an item that
         // would otherwise be shared is not. Nor is an icon that comes out as a
         // different item than the definition names: the cache is keyed by the
@@ -149,7 +180,7 @@ public final class ItemRenderer {
                 return held;
             }
         }
-        ItemStack item = build(definition, viewer, owner, values, formatted, icon, problems);
+        ItemStack item = build(definition, viewer, owner, values, formatted, verbatim, icon, problems);
         if (cacheable) {
             ItemCache.put(definition, item);
         }
@@ -158,7 +189,7 @@ public final class ItemRenderer {
 
     private static ItemStack build(Item definition, Player viewer, Plugin owner,
                                    Map<String, String> values, Set<String> formatted,
-                                   boolean icon, TraitApplier.Reporter problems) {
+                                   Set<String> verbatim, boolean icon, TraitApplier.Reporter problems) {
         UnaryOperator<String> resolve = resolver(viewer, values);
         ItemStack item = base(definition.source(), resolve, problems);
         // Before anything is written, so the writing lands on the item that
@@ -166,7 +197,7 @@ public final class ItemRenderer {
         if (icon) {
             item = undescribed(item, definition.appearance());
         }
-        write(item, definition, viewer, values, formatted, resolve, problems);
+        write(item, definition, viewer, values, formatted, verbatim, resolve, problems);
         TraitApplier.apply(item, definition.traits(), owner, resolve, problems);
         // Last of all, and that is the whole point: every setItemMeta replaces
         // the item's component map, and TraitApplier calls it six times. Writing
@@ -353,7 +384,7 @@ public final class ItemRenderer {
 
     /** Writes everything that is not the object itself. */
     private static void write(ItemStack item, Item definition, Player viewer,
-                              Map<String, String> values, Set<String> formatted,
+                              Map<String, String> values, Set<String> formatted, Set<String> verbatim,
                               UnaryOperator<String> resolve,
                               TraitApplier.Reporter problems) {
         amount(item, definition.amount(), resolve);
@@ -364,10 +395,10 @@ public final class ItemRenderer {
             return;
         }
         if (definition.name() != null) {
-            meta.displayName(text(definition.name(), viewer, values, formatted));
+            meta.displayName(text(definition.name(), viewer, values, formatted, verbatim));
         }
         if (!definition.lore().isEmpty()) {
-            meta.lore(lore(definition.lore(), viewer, values, formatted));
+            meta.lore(lore(definition.lore(), viewer, values, formatted, verbatim));
         }
         enchantments(meta, definition.enchantments(), resolve, problems);
         appearance(meta, definition.appearance(), resolve, problems);
@@ -533,6 +564,11 @@ public final class ItemRenderer {
     // without a live server, since an ItemStack needs the registry.
     static Component text(String written, Player viewer, Map<String, String> values,
                           Set<String> formatted) {
+        return text(written, viewer, values, formatted, Set.of());
+    }
+
+    static Component text(String written, Player viewer, Map<String, String> values,
+                          Set<String> formatted, Set<String> verbatim) {
         Text built = Text.of(written);
         // Row values are substituted on the component tree rather than into the
         // string, so the template itself is parsed once and shared by every row
@@ -540,9 +576,9 @@ public final class ItemRenderer {
         // player typed is data, and a colour written in a config is not.
         for (Map.Entry<String, String> entry : values.entrySet()) {
             String placeholder = '%' + entry.getKey() + '%';
-            built = formatted.contains(entry.getKey())
-                    ? built.withFormatted(placeholder, entry.getValue())
-                    : built.with(placeholder, entry.getValue());
+            built = !formatted.contains(entry.getKey()) ? built.with(placeholder, entry.getValue())
+                    : verbatim.contains(entry.getKey()) ? built.withVerbatim(placeholder, entry.getValue())
+                    : built.withFormatted(placeholder, entry.getValue());
         }
         if (viewer != null) {
             built = built.forPlayer(viewer);
@@ -568,16 +604,22 @@ public final class ItemRenderer {
     // lines is a decision worth testing, and it needs no live server.
     static List<Component> lore(List<String> written, Player viewer,
                                 Map<String, String> values, Set<String> formatted) {
+        return lore(written, viewer, values, formatted, Set.of());
+    }
+
+    static List<Component> lore(List<String> written, Player viewer,
+                                Map<String, String> values, Set<String> formatted,
+                                Set<String> verbatim) {
         List<Component> lines = new ArrayList<>(written.size());
         Map<String, String> normalized = normalized(values);
         for (String line : written) {
             int spans = spans(line, normalized);
             if (spans == 1) {
-                lines.add(text(line, viewer, normalized, formatted));
+                lines.add(text(line, viewer, normalized, formatted, verbatim));
                 continue;
             }
             for (int index = 0; index < spans; index++) {
-                lines.add(text(line, viewer, segment(normalized, index), formatted));
+                lines.add(text(line, viewer, segment(normalized, index), formatted, verbatim));
             }
         }
         return lines;

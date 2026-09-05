@@ -69,6 +69,19 @@ class SmallTextTest {
     }
 
     @Test
+    @DisplayName("one value keeps its letters while the line around it does not")
+    void aVerbatimValueInASmallCapitalsLine() {
+        assertEquals("ʟᴏᴏᴋs ʟɪᴋᴇ: Hello there!", PLAIN.serialize(
+                Text.of("Looks like: %sample%").withVerbatim("%sample%", "<red>Hello there!").build()));
+        // The ordinary kind still speaks in the server's accent.
+        assertEquals("ʟᴏᴏᴋs ʟɪᴋᴇ: ʜᴇʟʟᴏ ᴛʜᴇʀᴇ!", PLAIN.serialize(
+                Text.of("Looks like: %sample%").withFormatted("%sample%", "<red>Hello there!").build()));
+        // And a literal value was never transformed to begin with.
+        assertEquals("ʟᴏᴏᴋs ʟɪᴋᴇ: Hello there!", PLAIN.serialize(
+                Text.of("Looks like: %sample%").with("%sample%", "Hello there!").build()));
+    }
+
+    @Test
     @DisplayName("verbatim and small capitals do not share a cached answer")
     void verbatimDoesNotPoisonTheCache() {
         assertEquals("ᴡᴇʟᴄᴏᴍᴇ", plain("{primary}WELCOME"));

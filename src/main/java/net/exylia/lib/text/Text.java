@@ -83,8 +83,13 @@ public final class Text {
 
     private final String raw;
 
-    /** A value to substitute: the exact text it replaces and how it is inserted. */
-    private record Substitution(String key, String value, boolean formatted) {
+    /**
+     * A value to substitute: the exact text it replaces and how it is inserted.
+     *
+     * @param formatted whether the value is parsed rather than inserted as it stands
+     * @param verbatim  whether that parse leaves the letters alone; see {@link #withVerbatim}
+     */
+    private record Substitution(String key, String value, boolean formatted, boolean verbatim) {
     }
 
     private final List<Substitution> substitutions;
@@ -253,10 +258,31 @@ public final class Text {
         return substitute(placeholder, value, true);
     }
 
+    /**
+     * Substitutes a value that carries its own formatting and its own letters.
+     *
+     * <p>{@link #withFormatted} for a value that is somebody's words rather
+     * than the server's: a chat line drawn into a menu's lore, a tag a player
+     * wrote. The value's colours are honoured, and the small-capitals look is
+     * not applied to it — while the text around it, which the server did
+     * write, keeps whatever {@code small-text} says.
+     *
+     * @param placeholder the exact text to replace, such as {@code %sample%}
+     * @param value       the value to parse and insert, as written
+     * @return a new prepared text; the original is unchanged
+     */
+    public @NotNull Text withVerbatim(@NotNull String placeholder, Object value) {
+        return substitute(placeholder, value, true, true);
+    }
+
     private Text substitute(String placeholder, Object value, boolean formatted) {
+        return substitute(placeholder, value, formatted, false);
+    }
+
+    private Text substitute(String placeholder, Object value, boolean formatted, boolean verbatimValue) {
         List<Substitution> updated = new ArrayList<>(substitutions.size() + 1);
         updated.addAll(substitutions);
-        updated.add(new Substitution(placeholder, value == null ? "" : String.valueOf(value), formatted));
+        updated.add(new Substitution(placeholder, value == null ? "" : String.valueOf(value), formatted, verbatimValue));
         return new Text(raw, updated, viewer, owner, resolveFormatted, verbatim);
     }
 
@@ -361,7 +387,8 @@ public final class Text {
             }
             String marker = String.valueOf((char) (MARKER_BASE + marked.size()));
             source = source.replace(substitution.key(), marker);
-            marked.add(new Marked(marker, substitution.value(), substitution.formatted()));
+            marked.add(new Marked(marker, substitution.value(), substitution.formatted(),
+                    verbatim || substitution.verbatim()));
         }
 
         // Centring is measured on what the player will read, not on the
@@ -376,7 +403,7 @@ public final class Text {
             for (Marked value : marked) {
                 width -= Centering.pixelWidth(value.marker());
                 width += Centering.pixelWidth(value.value(),
-                        value.formatted() && !verbatim && TextEngine.smallText());
+                        value.formatted() && !value.verbatim() && TextEngine.smallText());
             }
             source = Centering.paddingFor(width, Centering.CHAT_WIDTH_PX) + source;
         }
@@ -392,7 +419,7 @@ public final class Text {
         for (int i = 0; i < marked.size(); i++) {
             Marked value = marked.get(i);
             replacements[i] = !value.formatted() ? Component.text(value.value())
-                    : verbatim ? TextEngine.parseExact(value.value())
+                    : value.verbatim() ? TextEngine.parseExact(value.value())
                     : TextEngine.parseValue(value.value());
             if (clickable) {
                 commands.put(value.marker(), value.value());
@@ -430,7 +457,7 @@ public final class Text {
     }
 
     /** A value and the marker standing in for it while the text is parsed. */
-    private record Marked(String marker, String value, boolean formatted) {
+    private record Marked(String marker, String value, boolean formatted, boolean verbatim) {
     }
 
     /**
@@ -457,7 +484,7 @@ public final class Text {
         List<Substitution> values = new ArrayList<>(triples.size() / 3 + substitutions.size());
         for (int i = 0; i < triples.size(); i += 3) {
             values.add(new Substitution(triples.get(i), triples.get(i + 1),
-                    triples.get(i + 2).equals("formatted")));
+                    triples.get(i + 2).equals("formatted"), verbatim));
         }
         values.addAll(substitutions);
         return values;

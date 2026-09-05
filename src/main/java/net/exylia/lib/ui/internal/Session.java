@@ -64,6 +64,9 @@ final class Session implements UiSession {
     /** Values the menu is about, also filled into everything it draws. */
     private final Map<String, Object> context = new LinkedHashMap<>();
 
+    /** Context keys whose letters reach the screen as written. */
+    private final Set<String> verbatimContext = new LinkedHashSet<>();
+
     /** What to stop when the menu closes. */
     private final List<ActionExecution> pending = new ArrayList<>();
 
@@ -527,6 +530,11 @@ final class Session implements UiSession {
         remembered.addAll(Set.of(keys));
     }
 
+    @Override
+    public void verbatim(@NotNull String... keys) {
+        verbatimContext.addAll(Set.of(keys));
+    }
+
     /**
      * The context values this menu asked to be put back, and nothing else.
      *
@@ -796,7 +804,7 @@ final class Session implements UiSession {
                 drawSectionFiller(list, slot);
                 continue;
             }
-            put(slot, render(template, entry.values(), entry.formatted()));
+            put(slot, render(template, entry.values(), entry.formatted(), entry.verbatim()));
             slots.put(slot, Rendered.of(template, entry, list.id()));
         }
         drawNavigation(list, rows.size());
@@ -913,7 +921,20 @@ final class Session implements UiSession {
 
     /** Builds a slot's item, with the row's values and the menu's context. */
     private ItemStack render(UiItem item, Map<String, String> values) {
-        return render(item, values, Set.of());
+        return render(item, values, Set.of(), Set.of());
+    }
+
+    /** The row's own verbatim values, plus the context keys the menu named. */
+    private Set<String> verbatim(Set<String> row) {
+        if (verbatimContext.isEmpty()) {
+            return row;
+        }
+        if (row.isEmpty()) {
+            return verbatimContext;
+        }
+        Set<String> all = new LinkedHashSet<>(verbatimContext);
+        all.addAll(row);
+        return all;
     }
 
     /**
@@ -932,12 +953,13 @@ final class Session implements UiSession {
      * worked there. Only the items disagreed, which meant a menu whose title
      * came out right had buttons spelling {@code {success}&l} at the player.
      */
-    private ItemStack render(UiItem item, Map<String, String> values, Set<String> formatted) {
+    private ItemStack render(UiItem item, Map<String, String> values, Set<String> formatted,
+                             Set<String> verbatim) {
         if (context.isEmpty()) {
-            return items.renderIcon(item.item(), viewer, values, formatted);
+            return items.renderIcon(item.item(), viewer, values, formatted, verbatim);
         }
         return items.renderIcon(item.item(), viewer,
-                merged(context, values), parsed(context, values, formatted));
+                merged(context, values), parsed(context, values, formatted), verbatim(verbatim));
     }
 
     /**

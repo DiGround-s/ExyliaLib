@@ -227,7 +227,29 @@ public final class PluginItems {
     public @NotNull ItemStack renderIcon(@NotNull Item definition, @Nullable Player viewer,
                                          @NotNull Map<String, String> values,
                                          @NotNull java.util.Set<String> formatted) {
-        return ItemRenderer.renderIcon(definition, viewer, plugin, values, formatted,
+        return renderIcon(definition, viewer, values, formatted, java.util.Set.of());
+    }
+
+    /**
+     * The same, with values whose letters reach the screen as written.
+     *
+     * <p>A value named in {@code verbatim} is parsed like a formatted one and
+     * keeps its own letters, whatever {@code small-text} says: a chat line
+     * drawn into a lore, or a name somebody wrote for themselves. The lore
+     * around it, which the server wrote, is drawn as everything else is.
+     *
+     * @param definition what to build
+     * @param viewer     who it is for, or {@code null}
+     * @param values     placeholder names to what they resolve to
+     * @param formatted  which of those names are parsed rather than inserted literally
+     * @param verbatim   which of the formatted ones keep their own letters
+     * @return the item
+     */
+    public @NotNull ItemStack renderIcon(@NotNull Item definition, @Nullable Player viewer,
+                                         @NotNull Map<String, String> values,
+                                         @NotNull java.util.Set<String> formatted,
+                                         @NotNull java.util.Set<String> verbatim) {
+        return ItemRenderer.renderIcon(definition, viewer, plugin, values, formatted, verbatim,
                 (where, problem) -> debug.warn("Rendering an item, " + where + ": " + problem));
     }
 
