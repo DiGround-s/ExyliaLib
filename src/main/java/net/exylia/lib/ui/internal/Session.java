@@ -746,12 +746,20 @@ final class Session implements UiSession {
      *
      * <p>A slot whose condition fails is not merely blank: it is not there.
      * Nothing is recorded for it, so a click on it finds nothing and does
-     * nothing, which is the same answer as clicking the background.
+     * nothing, which is the same answer as clicking the background. The
+     * background is also what is drawn in its place, so a hidden button
+     * leaves a hole in the glass rather than a hole in the menu.
      */
     private void drawFixed(int slot, UiItem item) {
         if (!passes(item, Map.of())) {
-            put(slot, null);
-            slots.remove(slot);
+            UiItem background = definition.fillers().backgroundAt(slot);
+            if (background == null) {
+                put(slot, null);
+                slots.remove(slot);
+            } else {
+                put(slot, render(background, Map.of()));
+                slots.put(slot, Rendered.FILLER);
+            }
             return;
         }
         put(slot, render(item, Map.of()));
