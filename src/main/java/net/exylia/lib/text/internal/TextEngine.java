@@ -63,6 +63,16 @@ public final class TextEngine {
     /** Whether every line is drawn as small capitals. */
     private static volatile boolean smallText;
 
+    /**
+     * The drop shadow under every line as packed ARGB, or {@code null} to draw
+     * whatever the client would draw by itself.
+     *
+     * <p>An int rather than a {@code ShadowColor}: the type arrived with
+     * Minecraft 1.21.4, and naming it in a field here would load it on a
+     * server that has never heard of it. {@link Shadows} owns that.
+     */
+    private static volatile Integer shadow;
+
     private TextEngine() {
     }
 
@@ -89,6 +99,45 @@ public final class TextEngine {
     /** Returns whether small capitals are on. */
     public static boolean smallText() {
         return smallText;
+    }
+
+    /**
+     * Sets the shadow drawn under every line, for the whole server.
+     *
+     * <p>Cached components carry the shadow they were built with, so the
+     * caches are dropped — the same reason a palette change drops them.
+     * Silently does nothing on a server whose Adventure predates shadow
+     * colours; there is no shadow to set there.
+     *
+     * @param argb the shadow as packed ARGB, {@code 0} for none at all, or
+     *             {@code null} to leave every line as the client draws it
+     */
+    public static void shadow(Integer argb) {
+        Integer wanted = Shadows.supported() ? argb : null;
+        if (java.util.Objects.equals(shadow, wanted)) {
+            return;
+        }
+        shadow = wanted;
+        generation++;
+        CACHE.invalidateAll();
+        VALUES.invalidateAll();
+        EXACT.invalidateAll();
+    }
+
+    /** The shadow under every line, or {@code null} when the client decides. */
+    public static Integer shadow() {
+        return shadow;
+    }
+
+    /**
+     * The line with the server's shadow under it.
+     *
+     * <p>Applied where the result is built rather than where it is handed
+     * out, so a cached line is shadowed once instead of on every read.
+     */
+    private static Component shadowed(Component component) {
+        Integer argb = shadow;
+        return argb == null ? component : Shadows.apply(component, argb);
     }
 
     /**
@@ -127,7 +176,7 @@ public final class TextEngine {
         if (FormatScanner.isPlain(flags)) {
             // The common case: no formatting at all. Not worth a cache entry,
             // since building a plain component is cheaper than hashing the key.
-            return Component.text(smallText ? SmallText.apply(text) : text);
+            return shadowed(Component.text(smallText ? SmallText.apply(text) : text));
         }
 
         Component cached = CACHE.getIfPresent(text);
@@ -156,7 +205,7 @@ public final class TextEngine {
         }
         int flags = FormatScanner.scan(text);
         if (FormatScanner.isPlain(flags)) {
-            return Component.text(smallText ? SmallText.apply(text) : text);
+            return shadowed(Component.text(smallText ? SmallText.apply(text) : text));
         }
         return parseUncached(text, flags);
     }
@@ -187,7 +236,7 @@ public final class TextEngine {
         }
         int flags = FormatScanner.scan(text);
         if (FormatScanner.isPlain(flags)) {
-            return Component.text(smallText ? SmallText.apply(text) : text);
+            return shadowed(Component.text(smallText ? SmallText.apply(text) : text));
         }
         Component cached = VALUES.getIfPresent(text);
         if (cached != null) {
@@ -221,7 +270,7 @@ public final class TextEngine {
         }
         int flags = FormatScanner.scan(text);
         if (FormatScanner.isPlain(flags)) {
-            return Component.text(text);
+            return shadowed(Component.text(text));
         }
         Component cached = EXACT.getIfPresent(text);
         if (cached != null) {
@@ -251,11 +300,11 @@ public final class TextEngine {
         prepared = LegacyTranslator.toMiniMessage(prepared, flags);
 
         try {
-            return MINI_MESSAGE.deserialize(prepared);
+            return shadowed(MINI_MESSAGE.deserialize(prepared));
         } catch (RuntimeException exception) {
             // A malformed tag must not cost the caller its message. Showing the
             // raw text is far more useful than an exception in the log.
-            return Component.text(text);
+            return shadowed(Component.text(text));
         }
     }
 

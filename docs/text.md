@@ -175,6 +175,41 @@ Flipping the switch and running `/exylialib reload` restyles the server live —
 the parse cache is dropped, and boards, holograms, effects and items re-send
 themselves, exactly as a palette change does.
 
+## Text shadow
+
+Since 1.111.3. Minecraft draws a shadow under every glyph and, from 1.21.4,
+lets a message say what colour it is. One value in
+`plugins/ExyliaLib/config.yml` sets it for every line of every Exylia plugin —
+messages, item names, lore, scoreboards, holograms:
+
+```yaml
+text-shadow: "#000000"     # a black shadow under everything
+text-shadow: "#41dba880"   # #rrggbbaa: the same colour at half strength
+text-shadow: "none"        # no shadow at all, not even the client's own
+text-shadow: ""            # the default: whatever the client draws by itself
+```
+
+The alpha goes last, the way MiniMessage's own `<shadow>` tag spells it, so a
+colour copied out of a gradient generator reads the same here.
+
+Empty is the default and changes nothing, which is what every server had
+before this existed. Set it deliberately.
+
+| Written | Drawn |
+| --- | --- |
+| the line's own `<shadow:...>` | kept — the configured one is only a fallback |
+| a line with no shadow of its own | the configured shadow |
+| every child of that line | inherits it, the way the client inherits any style |
+
+`shadowColorIfAbsent` is applied where the component is built, so a cached
+line is shadowed once rather than on every read, and changing the value drops
+the caches exactly as `small-text` and a palette change do. Flipping it and
+running `/exylialib reload` restyles the server live.
+
+On a server older than 1.21.4 the Adventure that ships with it has no shadow
+colour at all. Nothing breaks: the value is ignored, and the class that names
+the type is never loaded.
+
 ## Gradients
 
 Since 1.102.0. `<gradient:#a:#b>` is for text an owner writes in a file: it is

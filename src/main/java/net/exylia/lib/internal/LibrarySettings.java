@@ -2,6 +2,7 @@ package net.exylia.lib.internal;
 
 import net.exylia.lib.ExyliaLib;
 import net.exylia.lib.config.Comment;
+import net.exylia.lib.config.Key;
 import net.exylia.lib.config.Configs;
 
 /**
@@ -36,6 +37,14 @@ import net.exylia.lib.config.Configs;
 @Comment("Values a plugin substitutes are left alone: a player named Steve")
 @Comment("stays Steve, and a number stays a number.")
 @Comment("")
+@Comment("text-shadow: the drop shadow under every line of every Exylia")
+@Comment("plugin — messages, item names, lore, scoreboards, holograms. Empty")
+@Comment("leaves the shadow the client draws by itself, which is what every")
+@Comment("server had until now. Write #rrggbb for a colour, #rrggbbaa to say")
+@Comment("how strong it is, or \"none\" to take the shadow away entirely.")
+@Comment("A line that carries its own <shadow> tag keeps it either way.")
+@Comment("Needs Minecraft 1.21.4 or newer; older servers ignore it.")
+@Comment("")
 @Comment("bedrock-prefix: the character Floodgate puts in front of a Bedrock")
 @Comment("player's name. Used to tell Bedrock players from Java ones when")
 @Comment("Floodgate itself is not installed to be asked. It lives here")
@@ -68,6 +77,10 @@ public record LibrarySettings(
         @Comment("Whether text is drawn in small capitals.")
         boolean smallText,
 
+        @Key("text-shadow")
+        @Comment("The shadow under every line: #rrggbb, #rrggbbaa, none, or empty.")
+        String textShadow,
+
         @Comment("The prefix Floodgate adds to a Bedrock player's name.")
         @Comment("Leave it empty if your Bedrock players have no prefix.")
         String bedrockPrefix,
@@ -91,7 +104,7 @@ public record LibrarySettings(
 
     /** Safe defaults used when no config file exists yet. */
     public LibrarySettings() {
-        this(true, 30, false, true, "*", DEFAULT_FALLBACK_HEAD, "");
+        this(true, 30, false, true, "", "*", DEFAULT_FALLBACK_HEAD, "");
     }
 
     private static volatile LibrarySettings instance;

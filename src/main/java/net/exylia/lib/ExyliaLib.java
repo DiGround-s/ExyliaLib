@@ -89,6 +89,7 @@ import net.exylia.lib.scoreboard.internal.SidebarLibrary;
 import net.exylia.lib.task.Tasks;
 import net.exylia.lib.text.Colors;
 import net.exylia.lib.text.Palette;
+import net.exylia.lib.text.internal.Shadows;
 import net.exylia.lib.text.internal.TextEngine;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
@@ -283,6 +284,7 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         // during startup is drawn in the style the owner asked for rather
         // than being cached in the other one.
         TextEngine.smallText(settings.smallText());
+        TextEngine.shadow(Shadows.read(settings.textShadow()));
         SkullRuntime.fallback(settings.fallbackHead());
         Thread updateThread = new Thread(
             () -> ExyliaLibUpdater.checkForUpdate(this),
@@ -446,6 +448,7 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         // Applying it afterwards would leave all of them holding the previous
         // style until something else happened to invalidate them.
         TextEngine.smallText(settings.smallText());
+        TextEngine.shadow(Shadows.read(settings.textShadow()));
         // Before ItemCache is invalidated below, so a menu rebuilt by the
         // palette listener already sees the new fallback rather than the old
         // one baked in.
