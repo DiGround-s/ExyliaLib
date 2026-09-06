@@ -98,6 +98,7 @@ import org.bukkit.event.player.PlayerChangedWorldEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.event.player.PlayerRespawnEvent;
+import org.bukkit.event.player.PlayerTeleportEvent;
 import org.bukkit.event.server.PluginDisableEvent;
 import org.bukkit.plugin.java.JavaPlugin;
 
@@ -666,6 +667,22 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
             ClientRuntime.forget(player);
             ClientRuntime.resend(player, false);
         });
+    }
+
+    /**
+     * Takes a player's sidebar slot back after a teleport.
+     *
+     * <p>A teleport inside the same world sends no world change and clears
+     * nothing on the client, but it is where other plugins decide the player
+     * moved somewhere their own board belongs. Two ticks later, so whatever
+     * they show goes first and this settles it.
+     *
+     * @param event the teleport event
+     */
+    @EventHandler(priority = EventPriority.MONITOR)
+    public void onTeleport(PlayerTeleportEvent event) {
+        org.bukkit.entity.Player player = event.getPlayer();
+        Tasks.of(this).runAtEntityLater(player, 2L, () -> BoardManager.reclaim(player));
     }
 
     /**

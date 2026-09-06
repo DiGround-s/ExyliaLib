@@ -21,6 +21,19 @@ public interface SidebarHandle {
     /** Makes the viewer stop seeing it, keeping its contents. */
     void hide();
 
+    /**
+     * Takes the client's sidebar slot back without re-sending the board.
+     *
+     * <p>Another plugin — or another scoreboard library on the same server —
+     * can claim the slot at any time, and nothing tells us when it happens.
+     * The fallback re-sends everything; a server with PacketEvents sends one
+     * packet and the player sees nothing blink.
+     */
+    default void reclaim() {
+        hide();
+        show();
+    }
+
     /** Releases the sidebar for good. */
     void close();
 

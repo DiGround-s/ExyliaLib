@@ -36,6 +36,15 @@ public interface PacketSink {
     /** Tells a client its game mode, 0–3 in vanilla order. */
     void gameMode(Player viewer, int mode);
 
+    /**
+     * Puts an objective back in the client's sidebar slot.
+     *
+     * <p>The objective itself is already on the client; this only says which
+     * one the sidebar shows, so another plugin's board can be taken back
+     * without re-sending a single line.
+     */
+    void sidebarSlot(Player viewer, String objectiveName);
+
     /** Tells a client its abilities. */
     void abilities(Player viewer, boolean invulnerable, boolean flying,
                    boolean allowFlight, float flySpeed);

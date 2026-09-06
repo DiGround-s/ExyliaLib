@@ -60,6 +60,13 @@ repositories {
         name = 'enginehub'
         url = 'https://maven.enginehub.org/repo/'
     }
+    // TAB's API only. JitPack builds from source and answers slowly for
+    // anything else, so it is never asked for anything else.
+    maven {
+        name = 'jitpack'
+        url = 'https://jitpack.io'
+        content { includeGroup 'com.github.NEZNAMY' }
+    }
 }
 
 /**
@@ -124,6 +131,10 @@ dependencies {
     // class each, exactly like PacketEvents: a server with neither installed
     // never loads them, and everything the client module offers degrades to
     // doing nothing rather than failing.
+    // Optional at runtime, confined to one class the same way: the sidebar
+    // most servers already run, asked to stand down while a board of ours is
+    // shown so the two do not fight over the slot.
+    compileOnly 'com.github.NEZNAMY:TAB-API:5.5.0'
     compileOnly 'com.lunarclient:apollo-api:1.2.4'
     compileOnly 'net.digitalingot.feather-server-api:api:0.0.5'
 

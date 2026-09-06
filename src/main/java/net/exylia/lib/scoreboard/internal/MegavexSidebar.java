@@ -1,5 +1,6 @@
 package net.exylia.lib.scoreboard.internal;
 
+import net.exylia.lib.packet.internal.PacketRuntime;
 import net.kyori.adventure.text.Component;
 import net.megavex.scoreboardlibrary.api.sidebar.Sidebar;
 import org.bukkit.entity.Player;
@@ -30,6 +31,14 @@ final class MegavexSidebar implements SidebarHandle {
     @Override
     public void hide() {
         sidebar.removePlayer(player);
+    }
+
+    /** One display-slot packet when PacketEvents is there, a re-send when not. */
+    @Override
+    public void reclaim() {
+        if (!PacketRuntime.sidebarSlot(player, sidebar.objectiveName())) {
+            SidebarHandle.super.reclaim();
+        }
     }
 
     @Override

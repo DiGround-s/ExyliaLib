@@ -85,6 +85,24 @@ public final class PacketRuntime {
         return sink() != null;
     }
 
+    /**
+     * Puts an objective back in a player's sidebar slot.
+     *
+     * <p>Used by the scoreboard module to take the slot back from whatever
+     * claimed it. Does nothing without PacketEvents; the caller falls back to
+     * re-sending the whole board.
+     *
+     * @return {@code true} when the packet was sent
+     */
+    public static boolean sidebarSlot(Player viewer, String objectiveName) {
+        PacketSink current = sink();
+        if (current == null) {
+            return false;
+        }
+        current.sidebarSlot(viewer, objectiveName);
+        return true;
+    }
+
     public static PluginPackets of(Plugin plugin) {
         if (sink() == null && WARNED.add(plugin.getName())) {
             Debug.of(plugin).warn("PacketEvents is not installed: packet helpers do nothing.");

@@ -282,6 +282,26 @@ class BoardStackTest {
     }
 
     @Test
+    @DisplayName("a visible board takes the sidebar slot back on a timer")
+    void theSlotIsReclaimedOnATimer() {
+        Scoreboards.show(lobby, viewer.player(), config("LOBBY"));
+        drive();
+        FakeSidebar sidebar = created.get(0);
+        sidebar.clear();
+
+        // Well inside the interval: nothing to do yet.
+        clock.addAndGet(1_000L);
+        drive();
+        assertEquals(0, sidebar.countStartingWith("reclaim"),
+                "a board should not be reclaimed every tick");
+
+        clock.addAndGet(3_000L);
+        drive();
+        assertEquals(1, sidebar.countStartingWith("reclaim"),
+                "the slot should be taken back once the interval passed");
+    }
+
+    @Test
     @DisplayName("stopping a board twice is harmless")
     void stoppingTwiceIsHarmless() {
         Board board = Scoreboards.show(lobby, viewer.player(), config("LOBBY"));

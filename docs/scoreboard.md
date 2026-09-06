@@ -56,6 +56,17 @@ the library follows — an existing `interval: 15` must keep meaning 15 ticks.
   renders every interval for as long as its player is online, so the message
   used to repeat per player per tick and carried only `getMessage()` — enough
   noise to bury the one line that said where the failure came from.
+- **The slot is taken back every 3 seconds.** Nothing tells a plugin that
+  another one claimed the client's sidebar, and every server has something that
+  does: a global scoreboard plugin, TAB, a minigame with its own copy of the
+  packet library. A visible board re-sends the display-slot packet on a timer —
+  one packet per player per sweep with PacketEvents installed, and nothing
+  blinks — and instantly after a teleport, a world change, a respawn and a
+  join. Without PacketEvents the board is re-sent instead, which also works.
+- **TAB is asked to stand down rather than out-shouted.** When TAB is
+  installed, the first board shown to a player turns its sidebar off for that
+  player, and the last board taken down turns it back on. Only a player whose
+  TAB sidebar was visible is touched, and only their own setting is changed.
 - Nothing outlives its owner: quit, plugin disable and palette reload (which
   re-sends everything, since the text is the same but what parses it changed)
   all clean up.
@@ -65,5 +76,5 @@ the library follows — an existing `interval: 15` must keep meaning 15 ticks.
 - Public: `scoreboard/Scoreboards.java`, `Board.java`, `SidebarConfig.java`.
 - Internal: `scoreboard/internal/` (`BoardImpl`, `BoardManager`,
   `MegavexSidebar`, `NoopBoard`, `SidebarFactory`, `SidebarHandle`,
-  `SidebarLibrary`).
+  `SidebarLibrary`, `TabHook`).
 - Tests: `src/test/java/net/exylia/lib/scoreboard/`.

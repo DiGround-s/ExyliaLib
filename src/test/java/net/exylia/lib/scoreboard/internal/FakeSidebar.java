@@ -58,6 +58,12 @@ final class FakeSidebar implements SidebarHandle {
         calls.add("hide");
     }
 
+    /** Recorded as itself: the real one is a single packet, not a re-send. */
+    @Override
+    public void reclaim() {
+        calls.add("reclaim");
+    }
+
     @Override
     public void close() {
         closed = true;
@@ -99,6 +105,19 @@ final class FakeSidebar implements SidebarHandle {
     /** Every call this sidebar received, in order. */
     List<String> calls() {
         return new ArrayList<>(calls);
+    }
+
+    /**
+     * Every call except taking the slot back.
+     *
+     * <p>What a board sends is one question and how often it re-claims the
+     * slot is another; a test about the first should not move when the second
+     * changes.
+     */
+    List<String> writes() {
+        List<String> writes = new ArrayList<>(calls);
+        writes.removeIf("reclaim"::equals);
+        return writes;
     }
 
     /** Every title that was sent, in order. */

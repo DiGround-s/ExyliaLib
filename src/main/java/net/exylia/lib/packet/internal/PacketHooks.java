@@ -22,6 +22,7 @@ import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerBl
 import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerChangeGameState;
 import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerDamageEvent;
 import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerDestroyEntities;
+import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerDisplayScoreboard;
 import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerEntityAnimation;
 import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerEntityEffect;
 import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerEntityEquipment;
@@ -110,6 +111,9 @@ final class PacketHooks extends PacketListenerAbstract implements PacketSink {
     private static final byte GLOWING = 0x40;
     private static final Vector3f OUTSET = new Vector3f(-0.005f, -0.005f, -0.005f);
     private static final Vector3f OVERSIZE = new Vector3f(1.01f, 1.01f, 1.01f);
+
+    /** Display slot 1: the sidebar. */
+    private static final int SIDEBAR_SLOT = 1;
 
     private static void send(Player player, PacketWrapper<?> packet) {
         PacketEvents.getAPI().getPlayerManager().sendPacket(player, packet);
@@ -370,6 +374,11 @@ final class PacketHooks extends PacketListenerAbstract implements PacketSink {
     public void gameMode(Player viewer, int mode) {
         send(viewer, new WrapperPlayServerChangeGameState(
                 WrapperPlayServerChangeGameState.Reason.CHANGE_GAME_MODE, mode));
+    }
+
+    @Override
+    public void sidebarSlot(Player viewer, String objectiveName) {
+        send(viewer, new WrapperPlayServerDisplayScoreboard(SIDEBAR_SLOT, objectiveName));
     }
 
     @Override

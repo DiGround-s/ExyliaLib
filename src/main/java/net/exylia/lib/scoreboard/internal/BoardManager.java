@@ -5,6 +5,7 @@ import net.exylia.lib.scoreboard.SidebarConfig;
 import net.exylia.lib.task.TaskHandle;
 import net.exylia.lib.task.TaskScheduler;
 import net.exylia.lib.task.Tasks;
+import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
 
@@ -40,6 +41,17 @@ public final class BoardManager {
     /** Ticks to wait before reclaiming a board after a world change or respawn. */
     private static final long REINIT_DELAY_TICKS = 20L;
 
+    /**
+     * How often a visible board takes the sidebar slot back.
+     *
+     * <p>Nothing tells a plugin that another one claimed the client's sidebar,
+     * and every server has something that does: a global scoreboard plugin,
+     * TAB, a minigame with its own library. Re-claiming on a timer is what
+     * makes a board that was asked for stay the board the player sees. With
+     * PacketEvents it is one packet per player per sweep and nothing blinks.
+     */
+    private static final long RECLAIM_INTERVAL_MS = 3_000L;
+
     private static final Object LOCK = new Object();
     private static final Map<UUID, Deque<BoardImpl>> STACKS = new ConcurrentHashMap<>();
 
@@ -47,8 +59,12 @@ public final class BoardManager {
     private static SidebarFactory sidebars;
     private static Logger logger = Logger.getLogger("ExyliaLib");
     private static TaskHandle driver;
+    /** Whether TAB is installed. Answered once, the first time a board is shown. */
+    private static Boolean tab;
     /** The refresh clock. Swapped by tests; the wall clock everywhere else. */
     private static LongSupplier clock = System::currentTimeMillis;
+    /** When the last slot sweep ran. */
+    private static long lastReclaim;
 
     private BoardManager() {
     }
@@ -61,6 +77,7 @@ public final class BoardManager {
     /** Overrides the refresh clock. For tests; {@code null} restores it. */
     static void clock(LongSupplier override) {
         clock = override == null ? System::currentTimeMillis : override;
+        lastReclaim = 0L;
     }
 
     /**
@@ -133,9 +150,13 @@ public final class BoardManager {
             if (current != null) {
                 current.pause();
             }
+            boolean first = stack.isEmpty();
             stack.addFirst(board);
             board.sidebar().show();
             ensureDriver();
+            if (first) {
+                standDownTab(player);
+            }
         }
         return board;
     }
@@ -208,10 +229,12 @@ public final class BoardManager {
             for (Map.Entry<UUID, Deque<BoardImpl>> entry : List.copyOf(STACKS.entrySet())) {
                 Deque<BoardImpl> stack = entry.getValue();
                 boolean topAffected = false;
+                Player viewer = null;
                 for (var it = stack.iterator(); it.hasNext(); ) {
                     BoardImpl board = it.next();
                     if (board.ownedBy(pluginName)) {
                         topAffected |= stack.peekFirst() == board;
+                        viewer = board.player();
                         it.remove();
                         board.stopInternal();
                         stopped++;
@@ -219,6 +242,7 @@ public final class BoardManager {
                 }
                 if (stack.isEmpty()) {
                     STACKS.remove(entry.getKey(), stack);
+                    restoreTab(viewer);
                 } else if (topAffected) {
                     resumeTop(stack);
                 }
@@ -244,6 +268,10 @@ public final class BoardManager {
             for (BoardImpl board : stack) {
                 board.stopInternal();
                 stopped++;
+            }
+            // The player is leaving: nothing to give back, only to forget.
+            if (tabInstalled()) {
+                TabHook.forget(player);
             }
             stopDriverIfIdle();
             return stopped;
@@ -311,6 +339,27 @@ public final class BoardManager {
         });
     }
 
+    /**
+     * Takes a player's sidebar slot back now, without re-sending the board.
+     *
+     * <p>For the moments a board is known to be at risk — a teleport puts the
+     * player where another plugin shows its own board — rather than waiting
+     * for the next sweep.
+     *
+     * @param player the viewer
+     */
+    public static void reclaim(Player player) {
+        BoardImpl top;
+        synchronized (LOCK) {
+            Deque<BoardImpl> stack = STACKS.get(player.getUniqueId());
+            top = stack == null ? null : stack.peekFirst();
+            if (top == null || top.stopped()) {
+                return;
+            }
+        }
+        top.sidebar().reclaim();
+    }
+
     /** Returns how many boards exist, visible and paused. */
     public static int activeCount() {
         synchronized (LOCK) {
@@ -344,10 +393,47 @@ public final class BoardManager {
         board.stopInternal();
         if (stack.isEmpty()) {
             STACKS.remove(id, stack);
+            restoreTab(board.player());
         } else if (wasTop) {
             resumeTop(stack);
         }
         stopDriverIfIdle();
+    }
+
+    /**
+     * Asks TAB to stop showing its own sidebar to a player of ours.
+     *
+     * <p>Everything else on a server can be out-shouted by re-claiming the
+     * slot; TAB is the one worth asking, because it is the sidebar most
+     * servers already run and because asking is what makes its board come back
+     * the moment ours ends.
+     */
+    private static void standDownTab(Player player) {
+        if (!tabInstalled()) {
+            return;
+        }
+        scheduler.runAtEntity(player, () -> TabHook.standDown(player));
+    }
+
+    /** Gives TAB its sidebar back, once no board of ours is left. */
+    private static void restoreTab(Player player) {
+        if (player == null || !tabInstalled()) {
+            return;
+        }
+        if (!player.isOnline()) {
+            TabHook.forget(player);
+            return;
+        }
+        scheduler.runAtEntity(player, () -> TabHook.restore(player));
+    }
+
+    private static boolean tabInstalled() {
+        Boolean known = tab;
+        if (known == null) {
+            known = Bukkit.getPluginManager().isPluginEnabled("TAB");
+            tab = known;
+        }
+        return known && scheduler != null;
     }
 
     private static void resumeTop(Deque<BoardImpl> stack) {
@@ -378,8 +464,16 @@ public final class BoardManager {
 
     private static void tick() {
         List<BoardImpl> due = new ArrayList<>();
+        List<BoardImpl> visible = new ArrayList<>();
         long now = now();
+        boolean sweep;
         synchronized (LOCK) {
+            // A board just shown owns the slot already; the first sweep is a
+            // full interval later, not on the driver's first tick.
+            sweep = lastReclaim != 0L && now - lastReclaim >= RECLAIM_INTERVAL_MS;
+            if (sweep || lastReclaim == 0L) {
+                lastReclaim = now;
+            }
             for (Deque<BoardImpl> stack : List.copyOf(STACKS.values())) {
                 BoardImpl top = stack.peekFirst();
                 if (top == null) {
@@ -394,12 +488,18 @@ public final class BoardManager {
                 if (top.due(now)) {
                     due.add(top);
                 }
+                if (sweep) {
+                    visible.add(top);
+                }
             }
         }
         // Rendering is the slow part, so it happens outside the lock: showing
         // or hiding a board never waits on somebody's placeholder.
         for (BoardImpl board : due) {
             board.render();
+        }
+        for (BoardImpl board : visible) {
+            board.sidebar().reclaim();
         }
     }
 }

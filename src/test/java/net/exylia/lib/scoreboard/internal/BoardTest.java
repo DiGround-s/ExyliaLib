@@ -131,7 +131,7 @@ class BoardTest {
         advanceSeconds(5);
         drive();
 
-        assertEquals(List.of(), sidebar().calls());
+        assertEquals(List.of(), sidebar().writes());
     }
 
     @Test
@@ -146,7 +146,7 @@ class BoardTest {
         advanceSeconds(5);
         drive();
 
-        assertEquals(List.of("line:0:Kills: 7"), sidebar().calls());
+        assertEquals(List.of("line:0:Kills: 7"), sidebar().writes());
     }
 
     @Test
@@ -189,7 +189,7 @@ class BoardTest {
         drive();
 
         assertEquals(List.of("clear:1", "clear:2"),
-                sidebar().calls().stream().filter(call -> call.startsWith("clear")).toList());
+                sidebar().writes().stream().filter(call -> call.startsWith("clear")).toList());
     }
 
     @Test
@@ -232,12 +232,12 @@ class BoardTest {
         // tick, the board decides whether its own interval elapsed.
         kills.set("1");
         drive();
-        assertEquals(List.of(), sidebar().calls());
+        assertEquals(List.of(), sidebar().writes());
 
         // One full interval later it renders again. The default is 20 ticks.
         advanceSeconds(1.1);
         drive();
-        assertEquals(List.of("line:0:Kills: 1"), sidebar().calls());
+        assertEquals(List.of("line:0:Kills: 1"), sidebar().writes());
     }
 
     @Test
@@ -252,7 +252,7 @@ class BoardTest {
         board.refresh();
         drive();
 
-        assertEquals(List.of("line:1:Deaths: 3"), sidebar().calls());
+        assertEquals(List.of("line:1:Deaths: 3"), sidebar().writes());
     }
 
     @Test
@@ -268,7 +268,7 @@ class BoardTest {
         board.updateData(Map.of("arena", "end"));
         drive();
 
-        assertEquals(List.of("line:0:Arena: end"), sidebar().calls());
+        assertEquals(List.of("line:0:Arena: end"), sidebar().writes());
     }
 
     @Test
@@ -283,7 +283,7 @@ class BoardTest {
         drive();
 
         assertEquals(List.of("title:FFA", "line:0:Kills: 0", "line:1:exylia.net"),
-                sidebar().calls());
+                sidebar().writes());
     }
 
     @Test
@@ -298,7 +298,7 @@ class BoardTest {
         advanceSeconds(1.1);
         drive();
 
-        assertEquals(List.of("title:FFA", "line:0:Kills: 0"), sidebar().calls());
+        assertEquals(List.of("title:FFA", "line:0:Kills: 0"), sidebar().writes());
     }
 
     // ------------------------------------------------------------------
