@@ -1,7 +1,8 @@
 # Public API
 
 The contract third-party developers write against. One artifact,
-`net.exylia:exylia-api`, covering every Exylia plugin. Since 1.112.0.
+`net.exylia:exylia-api`, covering every Exylia plugin. Since ExyliaLib 1.112.0;
+the survival events arrived in 1.113.0.
 
 Entry point: `net.exylia.lib.api.ExyliaAPI`.
 
@@ -13,7 +14,7 @@ repositories {
 }
 
 dependencies {
-    compileOnly 'com.github.DiGround-s.ExyliaLib:exylia-api:1.0.0'
+    compileOnly 'com.github.DiGround-s.ExyliaLib:exylia-api:1.1.0'
 }
 ```
 

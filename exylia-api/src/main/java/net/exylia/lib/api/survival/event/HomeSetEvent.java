@@ -24,7 +24,7 @@ import org.jetbrains.annotations.NotNull;
  * thread rather than a single main thread. Anything touching the wider world
  * has to be scheduled.
  *
- * @since 1.0.0
+ * @since 1.1.0
  */
 public class HomeSetEvent extends Event implements Cancellable {
 

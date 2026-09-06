@@ -26,7 +26,7 @@ import java.util.UUID;
  * thread rather than a single main thread. Anything touching the wider world
  * has to be scheduled.
  *
- * @since 1.0.0
+ * @since 1.1.0
  */
 public class HomeDeleteEvent extends Event implements Cancellable {
 

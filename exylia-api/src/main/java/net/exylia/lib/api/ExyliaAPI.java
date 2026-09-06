@@ -28,7 +28,7 @@ import java.util.Optional;
  *     maven { url 'https://jitpack.io' }
  * }
  * dependencies {
- *     compileOnly 'com.github.DiGround-s.ExyliaLib:exylia-api:1.0.0'
+ *     compileOnly 'com.github.DiGround-s.ExyliaLib:exylia-api:1.1.0'
  * }
  * }</pre>
  *
