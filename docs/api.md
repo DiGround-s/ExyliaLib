@@ -148,7 +148,7 @@ only an event. Every one is reached the same way:
 | `api.shields` | `ShieldsService` | ExyliaShields | — |
 | `api.specials` | `SpecialsService` | ExyliaSpecialsV3 | 2 |
 | `api.staff` | `StaffService` | ExyliaStaff | 2 |
-| `api.survival` | `SurvivalService` | ExyliaSurvivalCore | — |
+| `api.survival` | `SurvivalService` | ExyliaSurvivalCore | 6 |
 | `api.totems` | — | ExyliaTotems | 1 |
 | `api.totemtrainer` | `TotemTrainerService` | ExyliaTotemTrainer | 7 |
 
