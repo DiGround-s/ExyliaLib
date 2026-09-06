@@ -46,18 +46,21 @@ final class PreviewSession implements Preview {
     private final List<Entity> hidden = new ArrayList<>();
     private final List<TaskHandle> scheduled = new ArrayList<>(3);
 
+    private final Location stage;
+
     private StagedPlayer captured;
-    private Stages.Slot slot;
     private SequenceRun run;
 
     PreviewSession(Plugin plugin, Player viewer, TaskScheduler tasks, Debug debug,
-                   PreviewSettings settings, Runnable onComplete, Runnable onRelease) {
+                   PreviewSettings settings, Location stage, Runnable onComplete,
+                   Runnable onRelease) {
         this.plugin = plugin;
         this.viewer = viewer;
         this.viewerId = viewer.getUniqueId();
         this.tasks = tasks;
         this.debug = debug;
         this.settings = settings;
+        this.stage = stage.clone();
         this.onComplete = onComplete;
         this.onRelease = onRelease;
     }
@@ -84,7 +87,6 @@ final class PreviewSession implements Preview {
      */
     void start(@NotNull Sequence sequence) {
         captured = StagedPlayer.capture(viewer);
-        slot = Stages.claim(viewer.getWorld(), settings);
 
         // The safety net is armed before anything is changed, not after: a
         // failure between here and the end would otherwise strand the player
@@ -95,11 +97,8 @@ final class PreviewSession implements Preview {
         captured.freeze(viewer);
         isolate();
 
-        Location stage = slot.where().clone();
-        // Keep the direction they were facing, so the effect appears in front
-        // of them rather than wherever the stage happens to point.
-        stage.setYaw(captured.origin().getYaw());
-        stage.setPitch(0f);
+        // The stage's own facing is what the server owner aimed at whatever
+        // they built behind it, so it is kept rather than the player's.
         viewer.teleport(stage);
 
         // A tick or two before the first particle: the client has to have the
@@ -108,11 +107,11 @@ final class PreviewSession implements Preview {
             if (finished.get() || !viewer.isOnline()) {
                 return;
             }
-            play(sequence, stage);
+            play(sequence);
         });
     }
 
-    private void play(Sequence sequence, Location stage) {
+    private void play(Sequence sequence) {
         Vector forward = stage.getDirection().setY(0);
         Location where = forward.lengthSquared() < 1.0e-6
                 ? stage.clone().add(0, 1, 0)
@@ -129,9 +128,9 @@ final class PreviewSession implements Preview {
      * Hides everything else from the player, and the player from everyone else.
      *
      * <p>Both directions matter. The first is what makes the stage empty; the
-     * second is what stops a bystander seeing a body hanging in the sky, and
-     * stops two players previewing at once from seeing each other even if the
-     * slots were somehow close.
+     * second is what stops a bystander wandering past the stage from seeing a
+     * body standing in it, and is what lets two players preview on the same
+     * configured stage at once without meeting.
      */
     private void isolate() {
         for (Player other : org.bukkit.Bukkit.getOnlinePlayers()) {
@@ -201,8 +200,8 @@ final class PreviewSession implements Preview {
      * server stopping. Their position is whatever the server saved, and
      * teleporting a player who is leaving throws.
      *
-     * <p>The slot is still released and the hiding still undone, because the
-     * same player may come back in a second.
+     * <p>The hiding is still undone, because the same player may come back in
+     * a second.
      */
     void endWithoutMoving() {
         if (!finished.compareAndSet(false, true)) {
@@ -259,10 +258,6 @@ final class PreviewSession implements Preview {
      * from being restored. Half a restore is what leaves somebody stuck.
      */
     private void restore(boolean move) {
-        if (slot != null) {
-            Stages.release(slot);
-            slot = null;
-        }
         if (viewer.isOnline()) {
             reveal();
             if (move && captured != null) {
@@ -331,5 +326,10 @@ final class PreviewSession implements Preview {
     /** The origin, for a caller that needs to know where they were. */
     @Nullable Location origin() {
         return captured == null ? null : captured.origin();
+    }
+
+    /** Where the preview put them, for telling our own teleport from anyone else's. */
+    @NotNull Location stage() {
+        return stage.clone();
     }
 }

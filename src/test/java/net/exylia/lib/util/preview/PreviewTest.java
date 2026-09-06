@@ -16,12 +16,13 @@ import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * What a preview promises: the player comes back, sees it alone, and does not
- * fall.
+ * fall &mdash; and shows nothing at all until a server owner says where.
  *
  * <p>The restore is the part worth testing hardest. Everything else is
  * cosmetic next to leaving somebody flying and invulnerable a thousand blocks
@@ -34,6 +35,7 @@ class PreviewTest {
     private FakePlayer viewer;
     private PluginPreviews previews;
     private Sequence effect;
+    private Location stage;
 
     @BeforeEach
     void setUp() {
@@ -51,7 +53,8 @@ class PreviewTest {
         // when the player quits, dies or is moved by somebody else.
         net.exylia.lib.util.preview.internal.PreviewRuntime.resetForTests();
         net.exylia.lib.util.preview.internal.PreviewRuntime.init(plugin);
-        previews = Previews.of(plugin);
+        stage = new Location(world, 20.5, 70, -40.5, 180f, 0f);
+        previews = Previews.of(plugin).using(new PreviewSettings().at(stage));
         effect = Sequences.of(plugin).compile(List.of("[PARTICLE] FLAME"));
     }
 
@@ -66,23 +69,71 @@ class PreviewTest {
     // ------------------------------------------------------------------- lift
 
     @Test
-    @DisplayName("the player is lifted somewhere with nothing in it")
-    void theStageIsEmptySky() {
+    @DisplayName("the player is moved to the stage the server owner set")
+    void theStageIsWhereItWasConfigured() {
         previews.show(viewer.player(), effect);
 
         List<Location> moves = viewer.teleports();
-        assertFalse(moves.isEmpty(), "the player was never lifted");
-        assertTrue(moves.get(0).getY() >= 320,
-                "the stage must be clear of anything built, got y=" + moves.get(0).getY());
+        assertFalse(moves.isEmpty(), "the player was never moved");
+        assertEquals(stage.getX(), moves.get(0).getX(), 0.001);
+        assertEquals(stage.getY(), moves.get(0).getY(), 0.001);
+        assertEquals(stage.getZ(), moves.get(0).getZ(), 0.001);
     }
 
     @Test
-    @DisplayName("the player keeps the direction they were facing")
-    void facingIsKept() {
+    @DisplayName("the player faces the way the stage was set facing")
+    void facingIsTheStages() {
         previews.show(viewer.player(), effect);
 
-        assertEquals(90f, viewer.teleports().get(0).getYaw(), 0.01f,
-                "the effect must appear in front of them, not behind");
+        // The owner aimed the stage at whatever they built behind it, so that
+        // is where the effect belongs, not wherever the player happened to look.
+        assertEquals(180f, viewer.teleports().get(0).getYaw(), 0.01f);
+    }
+
+    // ------------------------------------------------------------- no stage
+
+    @Test
+    @DisplayName("nothing is shown, and nobody is moved, without a stage")
+    void noStageMeansNoPreview() {
+        previews.using(new PreviewSettings());
+
+        assertFalse(previews.available(), "an admin has to set the location first");
+        assertNull(previews.show(viewer.player(), effect));
+        assertTrue(viewer.teleports().isEmpty(), "a player must not be moved to nowhere");
+        assertFalse(viewer.isFrozen());
+    }
+
+    @Test
+    @DisplayName("a stage in a world that is not loaded is no stage at all")
+    void anUnloadedWorldIsNotAStage() {
+        previews.using(new PreviewSettings("-,deleted,0.0,70.0,0.0,0.0,0.0", 5.0, 4, 20, 600));
+
+        assertFalse(previews.available());
+        assertNull(previews.show(viewer.player(), effect));
+    }
+
+    @Test
+    @DisplayName("a configured stage is available")
+    void aConfiguredStageIsAvailable() {
+        assertTrue(previews.available());
+        assertNotNull(previews.show(viewer.player(), effect));
+    }
+
+    @Test
+    @DisplayName("a stage written by a command reads back as the same place")
+    void theStageSurvivesBeingStored() {
+        // What setpreviewlocation writes and config.yml holds is text, so the
+        // round trip is what decides whether the stage an admin stood on is the
+        // one players are put on.
+        Location read = new PreviewSettings().at(stage).stage();
+
+        assertNotNull(read);
+        assertEquals(stage.getWorld(), read.getWorld());
+        assertEquals(stage.getX(), read.getX(), 0.001);
+        assertEquals(stage.getY(), read.getY(), 0.001);
+        assertEquals(stage.getZ(), read.getZ(), 0.001);
+        assertEquals(stage.getYaw(), read.getYaw(), 0.01f);
+        assertEquals(stage.getPitch(), read.getPitch(), 0.01f);
     }
 
     @Test
@@ -96,12 +147,10 @@ class PreviewTest {
     }
 
     @Test
-    @DisplayName("the stage stays in the player's own world")
-    void theStageIsInTheSameWorld() {
+    @DisplayName("the stage is the world it was configured in")
+    void theStageKeepsItsWorld() {
         previews.show(viewer.player(), effect);
 
-        // Crossing worlds would change their sky and fire a world-change event
-        // at every plugin for something the player did not do.
         assertEquals(world, viewer.teleports().get(0).getWorld());
     }
 
@@ -204,7 +253,9 @@ class PreviewTest {
         Preview second = previews.show(viewer.player(), effect);
 
         // Two overlapping previews would each remember an origin, and the
-        // second to finish would return the player to a patch of empty sky.
+        // second to finish would return the player to the stage.
+        assertNotNull(first);
+        assertNotNull(second);
         assertTrue(first.isFinished(), "the first must give way");
         assertFalse(second.isFinished());
         assertEquals(1, Previews.active());
@@ -227,8 +278,8 @@ class PreviewTest {
     // ------------------------------------------------------------- two at once
 
     @Test
-    @DisplayName("two players previewing at once get different patches of sky")
-    void twoPreviewsDoNotShareAStage() {
+    @DisplayName("two players share the one stage without meeting")
+    void twoPreviewsShareTheStage() {
         FakePlayer other = new FakePlayer("Other");
         other.at(new Location(world, 100, 64, 200));
         FakeServer.online(viewer.player(), other.player());
@@ -238,28 +289,12 @@ class PreviewTest {
 
         Location a = viewer.teleports().get(0);
         Location b = other.teleports().get(0);
-        // Standing in the same spot in a lobby is the normal case, so lifting
-        // straight up would put them both in the same place.
-        assertNotEquals(a.getX() + "," + a.getZ(), b.getX() + "," + b.getZ(),
-                "each preview needs its own patch of sky");
-        assertTrue(a.distanceSquared(b) > 100, "and far enough apart to not be seen");
-    }
-
-    @Test
-    @DisplayName("a stage is given back when its preview ends")
-    void stagesAreReused() {
-        Preview first = previews.show(viewer.player(), effect);
-        Location taken = viewer.teleports().get(0).clone();
-        first.end();
-
-        FakePlayer other = new FakePlayer("Other");
-        other.at(new Location(world, 100, 64, 200));
-        FakeServer.online(viewer.player(), other.player());
-        previews.show(other.player(), effect);
-
-        // Otherwise a busy server walks its stages further out forever.
-        assertEquals(taken.getX(), other.teleports().get(0).getX(), 0.001);
-        assertEquals(taken.getZ(), other.teleports().get(0).getZ(), 0.001);
+        assertEquals(a.getX(), b.getX(), 0.001, "there is only one stage");
+        assertEquals(a.getZ(), b.getZ(), 0.001);
+        // Which is only safe because neither can see the other, nor the other's
+        // effect: every step of a preview is sent to its own viewer alone.
+        assertFalse(viewer.hidden().isEmpty(), "the other player must be hidden");
+        assertFalse(other.hidden().isEmpty());
     }
 
     // ------------------------------------------------------------------ after
@@ -270,6 +305,7 @@ class PreviewTest {
         boolean[] reopened = {false};
 
         Preview preview = previews.show(viewer.player(), effect, () -> reopened[0] = true);
+        assertNotNull(preview);
         preview.end();
         FakeServer.tick(3);
 

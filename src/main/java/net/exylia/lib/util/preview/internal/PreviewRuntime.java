@@ -5,6 +5,7 @@ import net.exylia.lib.task.TaskScheduler;
 import net.exylia.lib.util.preview.Preview;
 import net.exylia.lib.util.preview.PreviewSettings;
 import net.exylia.lib.util.sequence.Sequence;
+import org.bukkit.Location;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
@@ -83,7 +84,7 @@ public final class PreviewRuntime implements Listener {
     public static @NotNull Preview start(@NotNull Plugin plugin, @NotNull Player viewer,
                                          @NotNull Sequence sequence, @NotNull TaskScheduler tasks,
                                          @NotNull Debug debug, @NotNull PreviewSettings settings,
-                                         @Nullable Runnable onComplete) {
+                                         @NotNull Location stage, @Nullable Runnable onComplete) {
         UUID id = viewer.getUniqueId();
         PreviewSession existing = ACTIVE.get(id);
         if (existing != null) {
@@ -92,7 +93,7 @@ public final class PreviewRuntime implements Listener {
             existing.endWhereTheyAre();
         }
 
-        PreviewSession session = new PreviewSession(plugin, viewer, tasks, debug, settings,
+        PreviewSession session = new PreviewSession(plugin, viewer, tasks, debug, settings, stage,
                 onComplete, () -> {
             ACTIVE.remove(id);
             OWNERS.remove(id);
@@ -143,7 +144,6 @@ public final class PreviewRuntime implements Listener {
     public static synchronized void resetForTests() {
         ACTIVE.clear();
         OWNERS.clear();
-        Stages.releaseAll();
         listening = false;
     }
 
@@ -157,7 +157,6 @@ public final class PreviewRuntime implements Listener {
         }
         ACTIVE.clear();
         OWNERS.clear();
-        Stages.releaseAll();
     }
 
     // ------------------------------------------------------------------ events
@@ -288,13 +287,20 @@ public final class PreviewRuntime implements Listener {
     }
 
     private boolean isOurOwnStage(PreviewSession session, PlayerTeleportEvent event) {
-        var to = event.getTo();
-        var origin = session.origin();
-        if (to == null || origin == null) {
+        Location to = event.getTo();
+        if (to == null) {
             return true;
         }
-        // The lift, or the return. Anything else is another plugin's doing.
-        return to.getBlockY() >= 320 || to.distanceSquared(origin) < 1.0;
+        // The move onto the stage, or the one back to where they were. Anything
+        // else is another plugin's doing, and must not be undone by ours.
+        return isSamePlace(to, session.stage()) || isSamePlace(to, session.origin());
+    }
+
+    private static boolean isSamePlace(Location one, @Nullable Location other) {
+        // Different worlds is what distanceSquared throws on, and is never the
+        // same place anyway.
+        return other != null && one.getWorld() == other.getWorld()
+                && one.distanceSquared(other) < 1.0;
     }
 
     /**

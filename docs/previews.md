@@ -11,25 +11,36 @@ private PluginPreviews previews;
 
 @Override
 public void onEnable() {
-    previews = Previews.of(this).using(config.get().preview());
+    previews = Previews.of(this).using(() -> config.get().preview());
 }
 
 // From a menu button:
-previews.show(player, effect.sequence(), () -> openMenu(player));
+if (previews.available()) {
+    previews.show(player, effect.sequence(), () -> openMenu(player));
+} else {
+    tellThemAnAdminHasToSetTheStage(player);
+}
 ```
 
-The player is lifted to an empty patch of sky, held there, shown the effect in
-front of them, and put back exactly where they were.
+The player is moved to the stage the server owner configured, held there, shown
+the effect in front of them, and put back exactly where they were.
 
-## Why the sky, and not an emptied room
+Pass a `Supplier<PreviewSettings>` rather than a snapshot: it is read on each
+preview, so a reload — or an admin moving the stage — is picked up without
+anyone remembering to re-register.
+
+## Why a configured stage, and not an emptied room
 
 ExyliaCommons cleared the chunks around the player by sending a whole chunk
 through NMS. Without NMS that means sending every block as air, and a
 four-chunk radius is about a million of them — megabytes to the client, twice,
 for a three-second effect.
 
-Somewhere with no blocks needs no block packets at all. The background is
-genuinely empty rather than pretending to be, and coming back is one teleport.
+A room the server owner built needs no block packets at all, and it is a place
+they chose to show effects off in. Until one is set there is no stage:
+`available()` is false and `show` returns `null` without moving anybody, because
+a guessed location puts the player inside terrain. Each plugin gives its admins
+a `setpreviewlocation` command to fill it in.
 
 No NMS, no reflection, no PacketEvents dependency: the isolation is
 `hideEntity` and `hidePlayer`, which are public Bukkit API.
@@ -38,6 +49,8 @@ No NMS, no reflection, no PacketEvents dependency: the isolation is
 
 - **Only the viewer sees it.** The sequence is played with `onlyTo(player)`, and
   for the duration they are hidden from everyone and everyone from them.
+- **Nothing happens without a stage.** `show` returns `null`, the player is not
+  moved, and the callback does not run: there is nothing to come back from.
 - **The player always comes back.** Ending is idempotent and reachable from
   every direction. A safety timer ends a preview that outlasts its estimate.
 - **They do not fall.** Held by flight, gravity off, invulnerable, fall damage
@@ -48,12 +61,11 @@ No NMS, no reflection, no PacketEvents dependency: the isolation is
   inventory for the length of the preview.
 - **One per player.** A second preview ends the first. Two overlapping previews
   would each remember an origin, and the second to finish would return the
-  player to a patch of empty sky.
-- **Two at once never meet.** Each preview claims its own stage from a global
-  grid, across every plugin.
-- **The stage stays in the player's own world.** Crossing worlds would change
-  their sky and fire a world-change event at every plugin for something the
-  player did not do.
+  player to the stage.
+- **Two at once never meet.** One stage serves everyone: each viewer is hidden
+  from the others and every step is sent to its own viewer alone.
+- **The stage keeps its own facing.** The server owner aimed it at whatever they
+  built behind it, so that is where the effect plays.
 - **The callback always runs**, however the preview ended, so a menu that opened
   one is reopened either way. It never runs for a player who has gone.
 
@@ -63,7 +75,7 @@ No NMS, no reflection, no PacketEvents dependency: the isolation is
 | --- | --- |
 | The effect finishing | Returned to the origin |
 | `Preview#end()` | Returned to the origin |
-| Quit or kick | Not moved — teleporting a leaving player throws; the slot is freed and the hiding undone |
+| Quit or kick | Not moved — teleporting a leaving player throws; the hiding is undone |
 | Death | Left where they are; respawn decides |
 | World change | Left where they are; they were sent there on purpose |
 | Teleport by another plugin | Left where they are |
@@ -72,23 +84,30 @@ No NMS, no reflection, no PacketEvents dependency: the isolation is
 | Safety timer | Returned, and a warning is logged |
 | Logging in still altered | Cleared on join — only reachable if the server died mid-preview |
 
+A teleport is the plugin's own when it lands on the stage or on the origin;
+anything else is somebody else moving the player, and ends the preview where
+they were put.
+
 ## Configuration
 
 `PreviewSettings` nests in a plugin's own config record.
 
 ```yaml
 preview:
-  height: 1000        # how far above the world the stage sits
-  separation: 64      # how far apart two simultaneous stages are
+  location: ''        # server,world,x,y,z,yaw,pitch — empty means no previews
   distance: 5.0       # how far in front of the player the effect plays
   settle-ticks: 4     # wait after the teleport, so the client has the position
   linger-ticks: 20    # how long to hold the stage after the effect ends
   max-ticks: 600      # the safety net
 ```
 
-Every value is floored: a stage below y=320 would put the player inside terrain,
-and a `max-ticks` shorter than the settle plus the linger would fire before the
-effect it is meant to outlast.
+`location` is the stored `ExyliaLocation` form, so it is the same text every
+warp, home and arena in the ecosystem already uses. It is normally written by an
+admin command rather than by hand — `PreviewSettings#at(Location)` returns the
+same settings with a new stage, for a `ConfigFile#update` to save.
+
+A `max-ticks` shorter than the settle plus the linger is raised: it would fire
+before the effect it is meant to outlast.
 
 ## Source and tests
 
@@ -96,6 +115,7 @@ effect it is meant to outlast.
   `PreviewSettings`.
 - Internal: `util/preview/internal/` — `PreviewRuntime` (the registry and every
   interrupting listener), `PreviewSession`, `StagedPlayer` (capture and
-  restore), `Stages` (the slot grid).
-- Tests: `PreviewTest` covers the lift, the restore, quitting, a second preview
-  replacing the first, plugin disable, and two players at once.
+  restore).
+- Tests: `PreviewTest` covers the stage, the missing stage, the restore,
+  quitting, a second preview replacing the first, plugin disable, and two
+  players at once.

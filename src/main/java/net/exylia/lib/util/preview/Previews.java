@@ -12,25 +12,26 @@ import java.util.concurrent.ConcurrentHashMap;
  * Showing one player an effect, against nothing.
  *
  * <pre>{@code
- * PluginPreviews previews = Previews.of(this);
+ * PluginPreviews previews = Previews.of(this).using(() -> config.get().preview());
  *
  * previews.show(player, effect.sequence(), () -> menu.reopen(player));
  * }</pre>
  *
  * <h2>What it does</h2>
- * Lifts the player to an empty patch of sky, holds them there, plays the effect
- * in front of them where only they can see it, and puts them back exactly where
- * they were.
+ * Moves the player to the stage their server owner configured, holds them
+ * there, plays the effect in front of them where only they can see it, and puts
+ * them back exactly where they were.
  *
- * <h2>Why the sky rather than an emptied room</h2>
+ * <h2>Why the stage is configured rather than chosen</h2>
  * ExyliaCommons cleared the chunks around the player by sending them a whole
  * chunk through NMS. Doing that without NMS means sending every block as air,
  * and a four-chunk radius is about a million of them &mdash; megabytes to the
  * client, twice, for a three-second effect.
  *
- * <p>Somewhere with no blocks needs no packets at all. The background is
- * genuinely empty rather than pretending to be, and coming back is one
- * teleport.
+ * <p>A room the server owner built needs no packets at all, and it is a place
+ * they chose to show effects off in rather than a patch of empty sky the
+ * library picked. Until one is set, {@link PluginPreviews#available()} is false
+ * and nothing is shown: guessing puts the player inside terrain.
  *
  * <h2>What it guarantees</h2>
  * <ul>
@@ -43,8 +44,8 @@ import java.util.concurrent.ConcurrentHashMap;
  *       a timer ends it if none of them do.</li>
  *   <li><b>They do not fall.</b> Held by flight rather than by resetting
  *       velocity every tick, which the client fights.</li>
- *   <li><b>Two at once do not meet.</b> Each preview claims its own patch of
- *       sky, across every plugin.</li>
+ *   <li><b>Two at once do not meet.</b> One stage serves everyone: each viewer
+ *       is hidden from the others and sees only their own effect.</li>
  * </ul>
  *
  * @since 1.30.0
