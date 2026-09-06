@@ -8,7 +8,7 @@ plugins {
 }
 
 group = 'net.exylia'
-version = '1.111.11'
+version = '1.112.0'
 description = 'Shared high-performance library for Exylia Minecraft plugins.'
 
 def targetJavaVersion = 21
@@ -91,6 +91,15 @@ configurations.configureEach {
 }
 
 dependencies {
+    // The public API surface. Bundled into ExyliaLib.jar rather than resolved
+    // by consumers, because ExyliaLib is the one jar every Exylia plugin and
+    // every third-party plugin already sees: loading the contract anywhere else
+    // would make it a different class than the one the implementations use.
+    // Kept out of the published POM like everything else in `shade` — a
+    // developer writing against Exylia depends on net.exylia:exylia-api
+    // directly, at the version they mean to target.
+    shade project(':exylia-api')
+
     // Provided by the server at runtime. Never shaded.
     compileOnly 'io.papermc.paper:paper-api:1.21.4-R0.1-SNAPSHOT'
     // Provided by the PacketEvents plugin at runtime. Never shaded.

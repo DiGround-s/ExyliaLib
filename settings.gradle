@@ -7,3 +7,10 @@ pluginManagement {
 }
 
 rootProject.name = 'ExyliaLib'
+
+// The public API surface, published on its own so a third-party developer
+// compiles against a small jar of interfaces rather than the whole library.
+// Bundled into ExyliaLib.jar at build time (see the shade configuration in
+// build.gradle) because a contract between two plugins is only one contract
+// when one classloader owns it.
+include 'exylia-api'

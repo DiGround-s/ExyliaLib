@@ -54,6 +54,7 @@ against the source — rules and routes are in `AGENTS.md` under
 | [Cleanup](cleanup.md) | The folders the server fills and never empties — old logs deleted on a timer | 1.90.0 |
 | [Heads](heads.md) | The decorative head catalogue, searchable from a menu — a page at a time, nothing downloaded | 1.82.0 |
 | [Blocks](blocks.md) | Blocks in the world that answer clicks instead of behaving like their material — a crate, a shop, a warp pad — protected and registered by whoever placed them | 1.110.0 |
+| [Public API](api.md) | The contract third-party plugins write against: one published artifact covering every Exylia plugin, reached through `ExyliaAPI` | 1.112.0 |
 Migration notes:
 
 - [Migrating ExyliaFFA](migration-ffa.md) — what FFA needs, and the four things

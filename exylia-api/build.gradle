@@ -1,0 +1,97 @@
+plugins {
+    id 'java-library'
+    id 'maven-publish'
+}
+
+group = 'net.exylia'
+// Versioned independently of ExyliaLib on purpose: this is the contract third
+// parties compile against, so it moves only when the contract moves, not when
+// the library's internals do. Semantic versioning applies here and nowhere else
+// in the project.
+version = '1.0.0'
+description = 'Public API for the Exylia plugin suite.'
+
+def targetJavaVersion = 21
+
+repositories {
+    mavenCentral()
+    maven {
+        name = 'papermc-repo'
+        url = 'https://repo.papermc.io/repository/maven-public/'
+    }
+}
+
+dependencies {
+    // The only dependency this module may ever have. Everything here is loaded
+    // by ExyliaLib's classloader on a live server, so a type that comes from
+    // anywhere else would either be missing at runtime or be a different class
+    // than the one the consumer compiled against. Records and Bukkit types only.
+    compileOnly 'io.papermc.paper:paper-api:1.21.4-R0.1-SNAPSHOT'
+    compileOnly 'org.jetbrains:annotations:26.0.2'
+}
+
+java {
+    def javaVersion = JavaVersion.toVersion(targetJavaVersion)
+    sourceCompatibility = javaVersion
+    targetCompatibility = javaVersion
+    if (JavaVersion.current() < javaVersion) {
+        toolchain.languageVersion = JavaLanguageVersion.of(targetJavaVersion)
+    }
+    withSourcesJar()
+    withJavadocJar()
+}
+
+tasks.withType(JavaCompile).configureEach {
+    options.encoding = 'UTF-8'
+    options.compilerArgs << '-parameters'
+    options.release.set(targetJavaVersion)
+}
+
+tasks.withType(Javadoc).configureEach {
+    options.encoding = 'UTF-8'
+    options.docTitle = "Exylia API ${project.version}"
+    options.windowTitle = "Exylia API ${project.version}"
+    // Every type here is documented deliberately; a missing tag is a bug worth
+    // seeing rather than noise to silence, so only the accessibility and HTML
+    // checks are relaxed for the Bukkit types we inherit.
+    options.addStringOption('Xdoclint:all,-missing', '-quiet')
+    options.links 'https://docs.oracle.com/en/java/javase/21/docs/api/'
+}
+
+jar {
+    manifest {
+        attributes(
+                'Implementation-Title': 'Exylia API',
+                'Implementation-Version': project.version
+        )
+    }
+}
+
+publishing {
+    publications {
+        mavenJava(MavenPublication) {
+            artifactId = 'exylia-api'
+            from components.java
+            pom {
+                name = 'Exylia API'
+                description = project.description
+                url = 'https://github.com/DiGround-s/ExyliaLib'
+                licenses {
+                    license {
+                        name = 'Exylia API License'
+                        url = 'https://github.com/DiGround-s/ExyliaLib/blob/main/LICENSE'
+                    }
+                }
+                developers {
+                    developer {
+                        id = 'diground'
+                        name = 'DiGround'
+                    }
+                }
+            }
+        }
+    }
+    repositories {
+        mavenLocal()
+    }
+}
