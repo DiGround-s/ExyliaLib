@@ -8,6 +8,8 @@ import net.exylia.lib.packet.MessageRule;
 import net.exylia.lib.packet.Messages;
 import net.exylia.lib.packet.Movement;
 import net.exylia.lib.packet.PluginPackets;
+import net.exylia.lib.packet.Reveal;
+import net.exylia.lib.packet.RevealStyle;
 import net.exylia.lib.packet.SilentContainer;
 import net.exylia.lib.packet.Visibility;
 import net.exylia.lib.packet.VisibilityRule;
@@ -21,6 +23,7 @@ import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.player.PlayerChangedWorldEvent;
+import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerMoveEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.plugin.Plugin;
@@ -64,6 +67,8 @@ public final class PacketRuntime {
     private static final Map<UUID, Set<Location>> FAKED = new ConcurrentHashMap<>();
     /** viewer -> outlined position to the client-side entity drawing it. */
     static final Map<UUID, Map<Location, Integer>> OUTLINED = new ConcurrentHashMap<>();
+    /** viewer -> how the invisible are drawn to them, and who asked for it. */
+    private static final Map<UUID, Revealing> REVEALING = new ConcurrentHashMap<>();
     /** faked spectator -> real game mode at the time. */
     private static final Map<UUID, GameMode> SPECTATING = new ConcurrentHashMap<>();
     private static final Set<String> WARNED = ConcurrentHashMap.newKeySet();
@@ -72,6 +77,10 @@ public final class PacketRuntime {
     private static volatile PacketSink sink;
     private static volatile boolean tried;
     private static volatile boolean listening;
+
+    /** One viewer's reveal, and the plugin that owns it. */
+    private record Revealing(String plugin, RevealStyle style) {
+    }
 
     private PacketRuntime() {
     }
@@ -140,6 +149,7 @@ public final class PacketRuntime {
         FAKED.clear();
         OUTLINED.clear();
         SPECTATING.clear();
+        REVEALING.clear();
         MESSAGE_RULES.clear();
         WARNED.clear();
         Mirrors.shutdown();
@@ -181,6 +191,10 @@ public final class PacketRuntime {
         synchronized (PacketRuntime.class) {
             if (!listening) {
                 listening = true;
+                // Everyone already on: the join handler only covers the rest.
+                for (Player online : Bukkit.getOnlinePlayers()) {
+                    ENTITY_IDS.put(online.getEntityId(), online.getUniqueId());
+                }
                 Bukkit.getPluginManager().registerEvents(new BukkitHooks(), plugin);
             }
         }
@@ -220,6 +234,44 @@ public final class PacketRuntime {
         return target != null && hidesProfile(viewer, target);
     }
 
+    /** How the invisible are drawn to this viewer, or {@code null} for not at all. */
+    static @Nullable RevealStyle revealStyle(UUID viewer) {
+        Revealing revealing = REVEALING.get(viewer);
+        return revealing == null ? null : revealing.style();
+    }
+
+    /** Entity flag 0x20: invisible. */
+    private static final byte INVISIBLE = 0x20;
+    /** Entity flag 0x40: glowing. */
+    private static final byte GLOWING = 0x40;
+
+    /**
+     * The shared entity flags as a revealed player is drawn.
+     *
+     * <p>Only the invisibility bit is answered — cleared for a whole body, or
+     * joined by the glow bit for an outline — so sneaking, sprinting and
+     * burning stay as the server sent them. Flags with nothing hidden in them
+     * come back untouched.
+     */
+    public static byte drawn(byte flags, RevealStyle style) {
+        if ((flags & INVISIBLE) == 0) {
+            return flags;
+        }
+        return style == RevealStyle.OUTLINE
+                ? (byte) (flags | GLOWING)
+                : (byte) (flags & ~INVISIBLE);
+    }
+
+    /**
+     * Whether an entity id belongs to a player.
+     *
+     * <p>Asked before an invisible entity is drawn: an armour stand holding a
+     * hologram is invisible on purpose and must stay that way.
+     */
+    static boolean isPlayerEntity(int entityId) {
+        return ENTITY_IDS.containsKey(entityId);
+    }
+
     static @Nullable Location anchorOf(UUID player) {
         return ANCHORS.get(player);
     }
@@ -250,6 +302,7 @@ public final class PacketRuntime {
         FAKED.remove(id);
         OUTLINED.remove(id);
         SPECTATING.remove(id);
+        REVEALING.remove(id);
         Mirrors.forget(player);
     }
 
@@ -257,6 +310,11 @@ public final class PacketRuntime {
 
     /** Bukkit's side: the safety net under the packet path, and cleanup. */
     static final class BukkitHooks implements Listener {
+
+        @EventHandler(priority = EventPriority.MONITOR)
+        public void onJoin(PlayerJoinEvent event) {
+            ENTITY_IDS.put(event.getPlayer().getEntityId(), event.getPlayer().getUniqueId());
+        }
 
         @EventHandler(priority = EventPriority.MONITOR)
         public void onQuit(PlayerQuitEvent event) {
@@ -291,7 +349,7 @@ public final class PacketRuntime {
 
     /** One plugin's helpers. */
     private static final class Impl implements PluginPackets, Visibility, FakeBlocks,
-            Movement, FakeGameMode {
+            Movement, FakeGameMode, Reveal {
 
         private final Plugin plugin;
         private final String name;
@@ -319,6 +377,7 @@ public final class PacketRuntime {
         }
 
         @Override public @NotNull Visibility visibility() { return this; }
+        @Override public @NotNull Reveal reveal() { return this; }
         @Override public @NotNull FakeBlocks fakeBlocks() { return this; }
         @Override public @NotNull GlowingBlocks glowingBlocks() { return outlines; }
         @Override public @NotNull Movement movement() { return this; }
@@ -332,6 +391,12 @@ public final class PacketRuntime {
                 if (name.equals(FROZEN_BY.get(id))) {
                     ANCHORS.remove(id);
                     FROZEN_BY.remove(id);
+                }
+            }
+            for (UUID id : new ArrayList<>(REVEALING.keySet())) {
+                Revealing revealing = REVEALING.get(id);
+                if (revealing != null && name.equals(revealing.plugin())) {
+                    REVEALING.remove(id);
                 }
             }
             for (Player viewer : Bukkit.getOnlinePlayers()) {
@@ -466,6 +531,70 @@ public final class PacketRuntime {
         @Override
         public boolean isFrozen(@NotNull Player player) {
             return name.equals(FROZEN_BY.get(player.getUniqueId()));
+        }
+
+        // ---- Reveal ----
+
+        @Override
+        public void show(@NotNull Player viewer, @NotNull RevealStyle style) {
+            if (sink() == null) {
+                return;
+            }
+            REVEALING.put(viewer.getUniqueId(), new Revealing(name, style));
+            retrack(viewer);
+        }
+
+        @Override
+        public void hide(@NotNull Player viewer) {
+            Revealing revealing = REVEALING.get(viewer.getUniqueId());
+            if (revealing == null || !name.equals(revealing.plugin())) {
+                return;
+            }
+            REVEALING.remove(viewer.getUniqueId());
+            retrack(viewer);
+        }
+
+        @Override
+        public @Nullable RevealStyle styleOf(@NotNull Player viewer) {
+            Revealing revealing = REVEALING.get(viewer.getUniqueId());
+            return revealing == null || !name.equals(revealing.plugin()) ? null : revealing.style();
+        }
+
+        /**
+         * Has the invisible players around a viewer tracked again.
+         *
+         * <p>The flags reach a client once, when they change: a viewer who
+         * turns this on afterwards would keep the render they were already
+         * given. Rebuilding that byte here would mean guessing what else is in
+         * it — sneaking, sprinting, on fire — so the players are dropped and
+         * tracked again instead, and the metadata the server sends next goes
+         * through the filter.
+         */
+        private void retrack(Player viewer) {
+            Tasks.of(plugin).runAtEntity(viewer, () -> {
+                List<Player> invisible = new ArrayList<>();
+                for (Player target : Bukkit.getOnlinePlayers()) {
+                    if (!target.equals(viewer) && target.isInvisible()
+                            && target.getWorld().equals(viewer.getWorld())
+                            && !hidesProfile(viewer.getUniqueId(), target.getUniqueId())) {
+                        invisible.add(target);
+                        viewer.hidePlayer(plugin, target);
+                    }
+                }
+                if (invisible.isEmpty()) {
+                    return;
+                }
+                Tasks.of(plugin).runAtEntityLater(viewer, 1, () -> {
+                    for (Player target : invisible) {
+                        // Vanish may have claimed them in between: showing one
+                        // back would undo the hide it just asked for.
+                        if (target.isOnline()
+                                && !hidesProfile(viewer.getUniqueId(), target.getUniqueId())) {
+                            viewer.showPlayer(plugin, target);
+                        }
+                    }
+                });
+            });
         }
 
         // ---- FakeGameMode ----

@@ -15,6 +15,9 @@ public interface PluginPackets {
     /** Hiding players from some viewers. */
     @NotNull Visibility visibility();
 
+    /** Drawing invisible players for some viewers. */
+    @NotNull Reveal reveal();
+
     /** Blocks one player sees and the server does not have. */
     @NotNull FakeBlocks fakeBlocks();
 

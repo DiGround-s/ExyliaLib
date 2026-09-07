@@ -114,6 +114,9 @@ public final class StaffStateChangeEvent extends Event {
         /** They started or stopped seeing ores through stone. */
         XRAY_VISION,
 
+        /** They started or stopped seeing invisible players. */
+        REVEAL,
+
         /** Their staff session entered or left spectator. */
         SPECTATOR
     }

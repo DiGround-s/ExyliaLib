@@ -2,6 +2,7 @@ package net.exylia.lib.packet;
 
 import net.exylia.lib.FakePlayer;
 import net.exylia.lib.FakeServer;
+import net.exylia.lib.packet.internal.PacketRuntime;
 import net.exylia.lib.packet.internal.SectionGroups;
 import org.bukkit.Location;
 import org.bukkit.World;
@@ -15,6 +16,7 @@ import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -55,6 +57,10 @@ class PacketsTest {
 
         packets.fakeGameMode().cameraView(alice.player(), true);
         assertFalse(packets.fakeGameMode().isCameraView(alice.player()));
+
+        packets.reveal().show(alice.player(), RevealStyle.SOLID);
+        assertNull(packets.reveal().styleOf(alice.player()));
+        packets.reveal().hide(alice.player());
 
         Packets.release("Staff");
         Packets.releaseAll();
@@ -98,5 +104,17 @@ class PacketsTest {
         assertEquals(1, groups.get(new SectionGroups.Section(-1, 4, -1)).size());
         assertEquals(1, groups.get(new SectionGroups.Section(-1, -1, -1)).size());
         assertEquals(new SectionGroups.Section(-1, -1, -1), SectionGroups.Section.of(-1, -1, -1));
+    }
+
+    @Test
+    @DisplayName("revealing answers the invisibility bit and leaves the rest of the flags alone")
+    void revealFlags() {
+        byte sneakingAndInvisible = (byte) 0x22;
+        assertEquals((byte) 0x02, PacketRuntime.drawn(sneakingAndInvisible, RevealStyle.SOLID));
+        assertEquals((byte) 0x62, PacketRuntime.drawn(sneakingAndInvisible, RevealStyle.OUTLINE));
+
+        byte sneaking = (byte) 0x02;
+        assertEquals(sneaking, PacketRuntime.drawn(sneaking, RevealStyle.SOLID));
+        assertEquals(sneaking, PacketRuntime.drawn(sneaking, RevealStyle.OUTLINE));
     }
 }

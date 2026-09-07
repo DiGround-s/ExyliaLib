@@ -41,7 +41,7 @@ against the source — rules and routes are in `AGENTS.md` under
 | [WorldGuard](worldguard.md) | Region lookups and Exylia's own region flags — `kill-effects`, `hit-effects`, `arrows-effects` | 1.74.0 |
 | [Wizards](wizard.md) | Walking a player through several questions — branches, a review they can go back from, and nothing applied until they confirm | 1.34.0 |
 | [Nametags](nametags.md) | Name colour, glow and collision as one player sees another — vanilla clients included | 1.36.0 |
-| [Packets](packets.md) | Vanish, fake blocks, freezing, a fake spectator and silent chest viewing — packets to one client, nothing on the server | 1.75.0 |
+| [Packets](packets.md) | Vanish, drawing invisible players, fake blocks, freezing, a fake spectator and silent chest viewing — packets to one client, nothing on the server | 1.75.0 |
 | [Overlays](overlays.md) | Items in a player's own inventory that the server does not have — a staff hotbar a crash cannot leave behind | 1.79.0 |
 | [Combat](combat.md) | Whether a player is in combat, over DeluxeCombat, PvPManager or a bridge you write | 1.36.0 |
 | [World](world.md) | Creating and deleting worlds through the Worlds plugin, from any thread — and doing nothing loudly when it is absent | 1.36.0 |

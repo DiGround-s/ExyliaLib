@@ -1,9 +1,9 @@
 # Packets
 
 Client-side tricks a staff plugin needs and the server has no API for: hiding
-a player from some viewers, showing blocks that are not there, pinning a
-player in place, making one client believe it is a spectator, and watching a
-chest without opening it.
+a player from some viewers, drawing the invisible ones for staff, showing
+blocks that are not there, pinning a player in place, making one client
+believe it is a spectator, and watching a chest without opening it.
 
 Nothing here changes what the server believes. That is the point — no other
 plugin's checks break — and the limit: every helper below says what it does
@@ -50,6 +50,30 @@ Limits: the server still knows where the target is — they collide, block
 arrows and appear in `getNearbyEntities`. Positional sounds and particles
 carry no entity id and pass through. Pair with `setCollidable(false)` and
 `setSilent(true)`.
+
+## Reveal
+
+```java
+Reveal reveal();
+void show(Player viewer, RevealStyle style);   // SOLID or OUTLINE
+void hide(Player viewer);
+RevealStyle styleOf(Player viewer);            // null when this plugin reveals nothing
+```
+
+A client draws a player invisible because of one bit in the entity flags. On
+its way to a viewer who asked for this, `SOLID` clears that bit — the player
+is drawn whole — and `OUTLINE` leaves it and adds the glow bit, which the
+client draws as a bare outline through the world. The rest of the byte is kept
+as the server sent it, so sneaking, sprinting and burning still read right.
+
+Turning it on has the invisible players around the viewer tracked again, so
+the new flags reach the client; the viewer sees them respawn a tick later.
+
+Limits: only players are drawn, so an invisible armour stand holding a
+hologram stays invisible. A player another plugin hid with `hidePlayer` is
+never sent to the viewer at all — there is no packet to rewrite, and that one
+needs the owning plugin. When the plugin is disabled the filter stops at once,
+and whatever is on screen keeps its render until those flags change again.
 
 ## FakeBlocks
 

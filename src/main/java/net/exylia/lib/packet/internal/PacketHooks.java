@@ -15,6 +15,7 @@ import com.github.retrooper.packetevents.util.Vector3d;
 import com.github.retrooper.packetevents.util.Vector3f;
 import com.github.retrooper.packetevents.util.Vector3i;
 import com.github.retrooper.packetevents.wrapper.PacketWrapper;
+import net.exylia.lib.packet.RevealStyle;
 import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
 import com.github.retrooper.packetevents.wrapper.play.client.WrapperPlayClientPlayerFlying;
 import com.github.retrooper.packetevents.wrapper.play.client.WrapperPlayClientVehicleMove;
@@ -135,17 +136,60 @@ final class PacketHooks extends PacketListenerAbstract implements PacketSink {
         // No UUID before login completes: nothing is hidden from a player who
         // does not exist yet.
         UUID viewer = user == null ? null : user.getUUID();
-        if (viewer == null || !PacketRuntime.hidesAnything(viewer)) {
+        if (viewer == null) {
             return;
         }
         PacketTypeCommon type = event.getPacketType();
-        if (type == PacketType.Play.Server.PLAYER_INFO_UPDATE) {
-            stripTabEntries(event, viewer);
+        if (PacketRuntime.hidesAnything(viewer)) {
+            if (type == PacketType.Play.Server.PLAYER_INFO_UPDATE) {
+                stripTabEntries(event, viewer);
+                return;
+            }
+            int entityId = subjectOf(event, type);
+            if (entityId >= 0 && PacketRuntime.hidesEntity(viewer, entityId)) {
+                event.setCancelled(true);
+                return;
+            }
+        }
+        if (type == PacketType.Play.Server.ENTITY_METADATA) {
+            RevealStyle style = PacketRuntime.revealStyle(viewer);
+            if (style != null) {
+                draw(event, style);
+            }
+        }
+    }
+
+    /**
+     * Takes the invisibility off a player on their way to one viewer.
+     *
+     * <p>The byte itself is {@link PacketRuntime#drawn computed there}, where
+     * it can be tested without a server. The list is copied rather than edited
+     * in place; what is decoded here belongs to the packet, not to us.
+     */
+    private static void draw(PacketSendEvent event, RevealStyle style) {
+        WrapperPlayServerEntityMetadata packet = new WrapperPlayServerEntityMetadata(event);
+        if (!PacketRuntime.isPlayerEntity(packet.getEntityId())) {
             return;
         }
-        int entityId = subjectOf(event, type);
-        if (entityId >= 0 && PacketRuntime.hidesEntity(viewer, entityId)) {
-            event.setCancelled(true);
+        List<EntityData<?>> data = packet.getEntityMetadata();
+        List<EntityData<?>> redrawn = null;
+        for (int i = 0; i < data.size(); i++) {
+            EntityData<?> entry = data.get(i);
+            if (entry.getIndex() != FLAGS || !(entry.getValue() instanceof Byte flags)) {
+                continue;
+            }
+            byte shown = PacketRuntime.drawn(flags, style);
+            if (shown == flags) {
+                continue;
+            }
+            if (redrawn == null) {
+                redrawn = new ArrayList<>(data);
+            }
+            redrawn.set(i, new EntityData<>(FLAGS, EntityDataTypes.BYTE, shown));
+        }
+        if (redrawn != null) {
+            packet.setEntityMetadata(redrawn);
+            event.markForReEncode(true);
         }
     }
 
