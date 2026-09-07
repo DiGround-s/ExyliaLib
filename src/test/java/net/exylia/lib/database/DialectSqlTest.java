@@ -674,7 +674,7 @@ class DialectSqlTest {
         assertEquals("jdbc:mysql://db.local:3306/practice"
                         + "?rewriteBatchedStatements=true"      // 8.8x on a batch, off by default
                         + "&characterEncoding=UTF-8"            // a Java encoding name; utf8mb4 is not one
-                        + "&connectionTimeZone=SERVER"          // serverTimezone is deprecated
+                        + "&connectionTimeZone=LOCAL"           // SERVER breaks on an abbreviated server zone
                         + "&sslMode=PREFERRED"                  // useSSL is deprecated
                         + "&allowPublicKeyRetrieval=true",      // caching_sha2_password needs it
                 url);

@@ -133,9 +133,20 @@ class MySQLDialect extends AnsiDialect {
      *       maps {@code UTF-8} onto {@code utf8mb4} on MySQL 8, and rejects the
      *       literal {@code utf8mb4} outright since connector 9 with
      *       "Unsupported character encoding".</li>
-     *   <li>{@code connectionTimeZone=SERVER}, not the {@code serverTimezone}
+     *   <li>{@code connectionTimeZone=LOCAL}, not the {@code serverTimezone}
      *       every old guide still shows: that name is deprecated in
-     *       connector 8.x and dropped later.</li>
+     *       connector 8.x and dropped later. {@code LOCAL} and not
+     *       {@code SERVER}, because {@code SERVER} makes the driver resolve the
+     *       server's own zone to a {@code ZoneId} before it hands back any
+     *       result set at all, and a server whose {@code system_time_zone} is
+     *       an abbreviation — {@code CEST}, {@code CET}, {@code EEST} — has no
+     *       unambiguous one. There, every query fails on connection, not on the
+     *       one that touches a date. Nothing is lost by using the JVM's zone
+     *       instead: the parameter only governs the conversion of
+     *       {@code DATETIME}, {@code DATE} and {@code TIMESTAMP} values, and
+     *       {@link AnsiDialect#columnType} maps no column to any of them —
+     *       an instant is stored as a {@code BIGINT} of epoch milliseconds,
+     *       which crosses a connection identically under either zone.</li>
      *   <li>{@code sslMode=PREFERRED} rather than {@code useSSL=false}, which
      *       is likewise deprecated. Prefer, not require: a local MySQL usually
      *       has no certificate, and demanding one there means the server does
@@ -153,7 +164,7 @@ class MySQLDialect extends AnsiDialect {
         Map<String, String> parameters = new LinkedHashMap<>();
         parameters.put("rewriteBatchedStatements", "true");
         parameters.put("characterEncoding", "UTF-8");
-        parameters.put("connectionTimeZone", "SERVER");
+        parameters.put("connectionTimeZone", "LOCAL");
         parameters.put("sslMode", "PREFERRED");
         parameters.put("allowPublicKeyRetrieval", "true");
         return parameters;
