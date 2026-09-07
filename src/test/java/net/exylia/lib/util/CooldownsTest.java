@@ -321,4 +321,26 @@ class CooldownsTest {
 
         assertEquals(3_000L, Cooldowns.remaining(player.player().getUniqueId(), "pearl"));
     }
+
+    // ------------------------------------------------------------------
+    // Asking about all of them at once
+    // ------------------------------------------------------------------
+
+    @Test
+    @DisplayName("hasAny answers for the whole owner, and only under the prefix asked for")
+    void hasAnyAnswersForTheOwner() {
+        assertFalse(Cooldowns.hasAny(player.player()));
+
+        Cooldowns.start(player.player(), "item:pearl", Duration.ofSeconds(16));
+
+        assertTrue(Cooldowns.hasAny(player.player()));
+        assertTrue(Cooldowns.hasAny(CooldownScope.player(player.player().getUniqueId()), "item:"));
+        assertFalse(Cooldowns.hasAny(CooldownScope.player(player.player().getUniqueId()), "ability:"));
+        assertFalse(Cooldowns.hasAny(other.player()));
+
+        advance(Duration.ofSeconds(17));
+
+        assertFalse(Cooldowns.hasAny(player.player()));
+        assertEquals(0, Cooldowns.trackedOwners());
+    }
 }

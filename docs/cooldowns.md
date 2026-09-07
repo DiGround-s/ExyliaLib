@@ -41,6 +41,7 @@ if (!Cooldowns.tryStart(player, "pearl", Duration.ofSeconds(16))) {
 | `start(player|UUID|scope, key, Duration)` / `startSeconds` / `startTicks` | start or restart |
 | `tryStart(...)` | start only if free; the whole guard in one call |
 | `isActive(player|UUID|scope, key)` | running? |
+| `hasAny(player|scope)` / `hasAny(scope, keyPrefix)` | anything running for this owner? one lookup instead of one per key — for a per-tick readout |
 | `remaining(...)` | millis (`long`, scope/UUID forms) or `Duration` (player form) |
 | `remainingSeconds(...)` | seconds **with decimals** as `double` — `3.3`, not `3` |
 | `remainingWholeSeconds(...)` | seconds rounded **up** — for "wait N seconds" refusals |
@@ -82,6 +83,9 @@ client draws it well) on top of the base; the authoritative answer stays in
 - By name plus material: same methods with a `key` first — a named item
   (`"fire-wand"` on a blaze rod) gets its own key and still shows its
   material's overlay.
+- `anyActive(player)` answers for every item at once: an action bar that
+  would otherwise ask about sixty items per tick asks once, and a player who
+  is waiting on nothing costs one lookup.
 - `restore(player, material)` re-draws the sweep with the remaining time
   after a reconnect.
 - `tryStart` does not restart or re-draw while active. Long item cooldowns

@@ -176,6 +176,51 @@ public final class Cooldowns {
         return remaining(scope, key) > 0;
     }
 
+    /** Returns whether this owner has anything at all on cooldown. */
+    public static boolean hasAny(@NotNull Player player) {
+        return hasAny(CooldownScope.player(player.getUniqueId()), "");
+    }
+
+    /** Returns whether this owner has anything at all on cooldown. */
+    public static boolean hasAny(@NotNull CooldownScope scope) {
+        return hasAny(scope, "");
+    }
+
+    /**
+     * Returns whether this owner has anything on cooldown under a key prefix.
+     *
+     * <p>For the caller that would otherwise ask about a hundred keys to draw
+     * one line — an action bar, a scoreboard, a per-tick readout. An owner
+     * holds a handful of keys at most, so this is one map lookup and a walk of
+     * those; asking key by key is one lookup per key, every tick, for a player
+     * who usually has nothing running.
+     *
+     * <pre>{@code
+     * if (!Cooldowns.hasAny(player, "item:")) return; // nothing to draw
+     * }</pre>
+     *
+     * @param keyPrefix what the key has to start with, empty for any key
+     */
+    public static boolean hasAny(@NotNull CooldownScope scope, @NotNull String keyPrefix) {
+        Map<String, Long> owned = COOLDOWNS.get(scope);
+        if (owned == null) {
+            return false;
+        }
+        long now = clock.getAsLong();
+        for (Map.Entry<String, Long> entry : owned.entrySet()) {
+            if (!entry.getKey().startsWith(keyPrefix)) {
+                continue;
+            }
+            if (entry.getValue() > now) {
+                return true;
+            }
+            // Same as remaining(): expired entries are dropped by whoever
+            // notices them, since nothing else ever scans this map.
+            drop(scope, owned, entry.getKey());
+        }
+        return false;
+    }
+
     /** Returns what is left, or {@link Duration#ZERO} when nothing is. */
     public static @NotNull Duration remaining(@NotNull Player player, @NotNull String key) {
         return Duration.ofMillis(remaining(CooldownScope.player(player.getUniqueId()), key));

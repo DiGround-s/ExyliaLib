@@ -5,6 +5,7 @@ import org.bukkit.entity.Player;
 import org.jetbrains.annotations.NotNull;
 
 import java.time.Duration;
+import java.util.Locale;
 
 /**
  * Cooldowns on items, drawn by the client.
@@ -68,31 +69,42 @@ public final class ItemCooldowns {
         return tryStart(player, material.name().toLowerCase(), material, duration);
     }
 
+    /**
+     * Returns whether the player has any item cooldown running at all.
+     *
+     * <p>One question instead of one per item, for the caller drawing a
+     * readout every tick: an action bar that asks about sixty items finds out
+     * here, in a single lookup, that there is nothing to draw.
+     */
+    public static boolean anyActive(@NotNull Player player) {
+        return Cooldowns.hasAny(CooldownScope.player(player.getUniqueId()), NAMESPACE);
+    }
+
     /** Returns whether a material is on cooldown for a player. */
     public static boolean isActive(@NotNull Player player, @NotNull Material material) {
-        return Cooldowns.isActive(player, NAMESPACE + material.name().toLowerCase());
+        return Cooldowns.isActive(player, keyOf(material));
     }
 
     /** Returns what is left on a material, or zero. */
     public static @NotNull Duration remaining(@NotNull Player player,
                                               @NotNull Material material) {
-        return Cooldowns.remaining(player, NAMESPACE + material.name().toLowerCase());
+        return Cooldowns.remaining(player, keyOf(material));
     }
 
     /** Returns the seconds left on a material, decimals included. */
     public static double remainingSeconds(@NotNull Player player, @NotNull Material material) {
-        return Cooldowns.remainingSeconds(player, NAMESPACE + material.name().toLowerCase());
+        return Cooldowns.remainingSeconds(player, keyOf(material));
     }
 
     /** Returns what is left on a material, written for a player to read. */
     public static @NotNull String remainingFormatted(@NotNull Player player,
                                                      @NotNull Material material) {
-        return Cooldowns.remainingFormatted(player, NAMESPACE + material.name().toLowerCase());
+        return Cooldowns.remainingFormatted(player, keyOf(material));
     }
 
     /** Ends a material's cooldown early, clearing the overlay with it. */
     public static void clear(@NotNull Player player, @NotNull Material material) {
-        Cooldowns.clear(player, NAMESPACE + material.name().toLowerCase());
+        Cooldowns.clear(player, keyOf(material));
         overlay.show(player, material, 0);
     }
 
@@ -158,7 +170,7 @@ public final class ItemCooldowns {
      * ExyliaLib calls this on join for the materials a caller registered.
      */
     public static void restore(@NotNull Player player, @NotNull Material material) {
-        long left = Cooldowns.remaining(player, NAMESPACE + material.name().toLowerCase())
+        long left = Cooldowns.remaining(player, keyOf(material))
                 .toMillis();
         if (left > 0) {
             overlay.show(player, material, (int) (left / 50L));
@@ -168,6 +180,32 @@ public final class ItemCooldowns {
     // ------------------------------------------------------------------
     // Internals
     // ------------------------------------------------------------------
+
+    /**
+     * The cooldown key a material answers to, built once per material.
+     *
+     * <p>The key never changes, and a readout asks for it several times a
+     * second for every item it draws; lowercasing the enum name each time is
+     * two allocations per question for a string that is always the same.
+     */
+    private static String keyOf(Material material) {
+        int ordinal = material.ordinal();
+        String[] keys = MATERIAL_KEYS;
+        if (ordinal >= keys.length) {
+            // A material this build has never seen: the server is newer than
+            // the API we compiled against.
+            return NAMESPACE + material.name().toLowerCase(Locale.ROOT);
+        }
+        String key = keys[ordinal];
+        if (key == null) {
+            key = NAMESPACE + material.name().toLowerCase(Locale.ROOT);
+            keys[ordinal] = key;
+        }
+        return key;
+    }
+
+    /** Filled on first use, one slot per material. */
+    private static final String[] MATERIAL_KEYS = new String[Material.values().length];
 
     private static int ticksOf(Duration duration) {
         long ticks = duration.toMillis() / 50L;
