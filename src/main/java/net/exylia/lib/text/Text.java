@@ -5,6 +5,7 @@ import net.exylia.lib.placeholder.Request;
 import net.exylia.lib.placeholder.Template;
 import net.exylia.lib.placeholder.internal.CompiledTemplate;
 import net.exylia.lib.placeholder.internal.ValueRenderer;
+import net.kyori.adventure.text.minimessage.tag.resolver.TagResolver;
 import net.exylia.lib.text.internal.EffectTag;
 import net.exylia.lib.text.internal.EffectTagPlayer;
 import net.exylia.lib.text.internal.TextEngine;
@@ -175,6 +176,33 @@ public final class Text {
      */
     public static @NotNull Component verbatim(@NotNull String text) {
         return TextEngine.parseExact(text);
+    }
+
+    /**
+     * Adds a MiniMessage tag of this plugin's own, for the whole server.
+     *
+     * <p>For what a component can be and a string cannot say: a head drawn
+     * from a skin nobody wears, or anything else a plugin builds that no
+     * standard tag writes down. A menu's lore and a placeholder are strings
+     * that get parsed again, so a component that cannot be written into one
+     * arrives somewhere as nothing; a tag of the plugin's own is how it
+     * survives the trip.
+     *
+     * <pre>{@code
+     * Text.tag(TagResolver.resolver("myplugin_head",
+     *         (args, ctx) -> Tag.selfClosingInserting(head(args.popOr("a skin").value()))));
+     * }</pre>
+     *
+     * <p>Registered once, while the plugin enables. Standard tags are tried
+     * first, so nothing here can take {@code <red>} away from the rest of the
+     * server, and nothing removes a tag afterwards: a line parsed with it may
+     * already be on somebody's screen.
+     *
+     * @param resolver what the tag resolves to
+     * @since 1.115.0
+     */
+    public static void tag(@NotNull TagResolver resolver) {
+        TextEngine.addResolver(resolver);
     }
 
     /**

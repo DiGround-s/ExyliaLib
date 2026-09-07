@@ -4,12 +4,19 @@ import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import net.exylia.lib.text.Palette;
 import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.minimessage.Context;
 import net.kyori.adventure.text.minimessage.MiniMessage;
+import net.kyori.adventure.text.minimessage.ParsingException;
+import net.kyori.adventure.text.minimessage.tag.Tag;
+import net.kyori.adventure.text.minimessage.tag.resolver.ArgumentQueue;
+import net.kyori.adventure.text.minimessage.tag.resolver.TagResolver;
 
 import java.time.Duration;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.concurrent.CopyOnWriteArrayList;
 
 /**
  * Turns text into components, as cheaply as the text allows.
@@ -55,7 +62,21 @@ public final class TextEngine {
             .expireAfterAccess(Duration.ofMinutes(10))
             .build();
 
-    private static final MiniMessage MINI_MESSAGE = MiniMessage.miniMessage();
+    /**
+     * Tags a plugin added, tried before a tag is reported unknown.
+     *
+     * <p>MiniMessage can write down a colour, a gradient and a click, but not
+     * everything a component can be: a head drawn from a skin nobody wears is
+     * a profile property, and no standard tag carries one. A plugin that
+     * builds such a component has no way to write it into a menu's lore or
+     * send it through a placeholder, because both of those are strings that
+     * get parsed again. A tag of its own is that way.
+     */
+    private static final List<TagResolver> EXTRA = new CopyOnWriteArrayList<>();
+
+    private static final MiniMessage MINI_MESSAGE = MiniMessage.builder()
+            .editTags(builder -> builder.resolver(new ExtraTags()))
+            .build();
 
     /** Palette tokens mapped to the MiniMessage tag they expand to. */
     private static volatile Map<String, String> tokens = tokensOf(new Palette());
@@ -90,6 +111,31 @@ public final class TextEngine {
             return;
         }
         smallText = enabled;
+        generation++;
+        CACHE.invalidateAll();
+        VALUES.invalidateAll();
+        EXACT.invalidateAll();
+    }
+
+    /**
+     * Adds a MiniMessage tag of a plugin's own, for the whole server.
+     *
+     * <p>Tried after every standard tag, so a plugin cannot take
+     * {@code <red>} away from the rest of the server, and only when the
+     * resolver says it knows the name.
+     *
+     * <p>Every cached parse was built without it, so the caches are dropped
+     * — the same reason a palette change drops them. Registered once at
+     * enable rather than per use: nothing removes a tag, because a line
+     * parsed with it may already be on somebody's screen.
+     *
+     * @param resolver what the tag resolves to
+     */
+    public static void addResolver(TagResolver resolver) {
+        if (resolver == null || EXTRA.contains(resolver)) {
+            return;
+        }
+        EXTRA.add(resolver);
         generation++;
         CACHE.invalidateAll();
         VALUES.invalidateAll();
@@ -421,5 +467,40 @@ public final class TextEngine {
     public static long cacheSize() {
         CACHE.cleanUp();
         return CACHE.estimatedSize();
+    }
+
+    /**
+     * The tags plugins added, as one resolver.
+     *
+     * <p>Asks each in turn and hands the arguments back untouched when one
+     * looks at them and declines, so a second resolver of the same name reads
+     * the same arguments the first did.
+     */
+    private static final class ExtraTags implements TagResolver {
+
+        @Override
+        public Tag resolve(String name, ArgumentQueue arguments, Context context) throws ParsingException {
+            for (TagResolver resolver : EXTRA) {
+                if (!resolver.has(name)) {
+                    continue;
+                }
+                Tag tag = resolver.resolve(name, arguments, context);
+                if (tag != null) {
+                    return tag;
+                }
+                arguments.reset();
+            }
+            return null;
+        }
+
+        @Override
+        public boolean has(String name) {
+            for (TagResolver resolver : EXTRA) {
+                if (resolver.has(name)) {
+                    return true;
+                }
+            }
+            return false;
+        }
     }
 }
