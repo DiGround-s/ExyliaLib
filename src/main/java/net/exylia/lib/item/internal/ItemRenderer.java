@@ -569,17 +569,11 @@ public final class ItemRenderer {
 
     static Component text(String written, Player viewer, Map<String, String> values,
                           Set<String> formatted, Set<String> verbatim) {
-        Text built = Text.of(written);
         // Row values are substituted on the component tree rather than into the
         // string, so the template itself is parsed once and shared by every row
         // drawn from it. Literal unless the caller said otherwise: what a
         // player typed is data, and a colour written in a config is not.
-        for (Map.Entry<String, String> entry : values.entrySet()) {
-            String placeholder = '%' + entry.getKey() + '%';
-            built = !formatted.contains(entry.getKey()) ? built.with(placeholder, entry.getValue())
-                    : verbatim.contains(entry.getKey()) ? built.withVerbatim(placeholder, entry.getValue())
-                    : built.withFormatted(placeholder, entry.getValue());
-        }
+        Text built = Text.of(written).withAll(values, formatted, verbatim);
         if (viewer != null) {
             built = built.forPlayer(viewer);
         }

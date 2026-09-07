@@ -153,6 +153,15 @@ public interface UiSession {
     /** Redraws everything. The expensive option, and rarely the right one. */
     void refresh();
 
+    /**
+     * Redraws the fillers and the fixed slots, leaving the lists alone.
+     *
+     * <p>For the caller that has just handed every list its rows: those are
+     * drawn as they are set, so a {@link #refresh()} afterwards renders them a
+     * second time. This draws the rest of the window and nothing else.
+     */
+    void refreshFixed();
+
     // ---------------------------------------------------------------- context
 
     /**

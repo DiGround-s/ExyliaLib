@@ -322,6 +322,39 @@ public final class Text {
         return substitute(placeholder, value, true, true);
     }
 
+    /**
+     * Substitutes a whole map of values in one go.
+     *
+     * <p>The same as calling {@link #with}, {@link #withFormatted} or
+     * {@link #withVerbatim} once per entry, without the list copy each of those
+     * makes: a menu row carries the whole screen's context, so chaining them was
+     * quadratic in the number of values, per line, per slot, per redraw.
+     *
+     * <p>Keys are bare names; each becomes {@code %name%}. A key named in
+     * {@code formatted} is parsed rather than inserted as text, and one also
+     * named in {@code verbatim} keeps its own letters as written.
+     *
+     * @param values    the values, by bare name
+     * @param formatted which of them carry their own formatting
+     * @param verbatim  which of the formatted ones are somebody's own words
+     * @return a new prepared text; the original is unchanged
+     */
+    public @NotNull Text withAll(@NotNull Map<String, String> values, @NotNull Set<String> formatted,
+                                 @NotNull Set<String> verbatim) {
+        if (values.isEmpty()) {
+            return this;
+        }
+        List<Substitution> updated = new ArrayList<>(substitutions.size() + values.size());
+        updated.addAll(substitutions);
+        for (Map.Entry<String, String> entry : values.entrySet()) {
+            boolean parsed = formatted.contains(entry.getKey());
+            updated.add(new Substitution('%' + entry.getKey() + '%',
+                    entry.getValue() == null ? "" : entry.getValue(),
+                    parsed, parsed && verbatim.contains(entry.getKey())));
+        }
+        return new Text(raw, updated, viewer, owner, resolveFormatted, this.verbatim);
+    }
+
     private Text substitute(String placeholder, Object value, boolean formatted) {
         return substitute(placeholder, value, formatted, false);
     }
@@ -520,6 +553,12 @@ public final class Text {
         // moments before being substituted — which is exactly the false
         // alarm that fired on a live server.
         Template template = Placeholders.compile(raw);
+        // Nothing to resolve means nothing to exempt either, and handledNames()
+        // builds a set: a lore line with no placeholder in it was allocating one
+        // per render, on every line of every slot of every redraw.
+        if (!template.isDynamic()) {
+            return substitutions;
+        }
         List<String> triples = template instanceof CompiledTemplate compiled
                 ? compiled.resolveTriples(new Request(viewer, viewer, List.of(), Map.of()),
                         resolveFormatted ? FORMATTED_RENDERER : ValueRenderer.LITERAL,

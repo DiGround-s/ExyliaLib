@@ -304,6 +304,14 @@ final class Session implements UiSession {
         draw();
     }
 
+    @Override
+    public void refreshFixed() {
+        drawFillers();
+        for (Map.Entry<Integer, UiItem> fixed : definition.items().entrySet()) {
+            drawFixed(fixed.getKey(), fixed.getValue());
+        }
+    }
+
     /**
      * Redraws what a timed refresh should redraw.
      *
