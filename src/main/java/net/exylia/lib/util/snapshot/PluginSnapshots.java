@@ -188,25 +188,51 @@ public final class PluginSnapshots {
      * experience and game mode are the caller's to change if the mode calls for
      * it.
      *
+     * <h2>When the player is about to change world</h2>
+     * Clear them on the far side of the teleport, not this one. A per-world
+     * inventory plugin writes whatever a player is holding into the profile of
+     * the world they are leaving, so a player emptied here arrives having
+     * donated an empty inventory to the world they came from, and gets that
+     * emptiness back when they return. {@link #save} and then {@link #clear}
+     * once they have arrived is the same two steps in the order that survives
+     * it.
+     *
      * @param player    the player
      * @param contextId why the snapshot is being taken
      * @return completes once the row is durable and the inventory is empty
      */
     public @NotNull CompletableFuture<Void> saveAndClear(@NotNull Player player,
                                                          @NotNull String contextId) {
-        return save(player, contextId).thenCompose(ignored -> {
-            CompletableFuture<Void> cleared = new CompletableFuture<>();
-            // Back on the player's own thread: an inventory cannot be touched
-            // from the one the write completed on. If they left in the
-            // meantime, there is nothing to clear and the snapshot is safe.
-            tasks.runAtEntity(player,
-                    () -> {
-                        PlayerState.clear(player);
-                        cleared.complete(null);
-                    },
-                    () -> cleared.complete(null));
-            return cleared;
-        });
+        return save(player, contextId).thenCompose(ignored -> clear(player));
+    }
+
+    /**
+     * Empties a player's inventory, armour, off hand and cursor.
+     *
+     * <p>The second half of {@link #saveAndClear}, on its own, for a caller
+     * that has to put a teleport between the two halves. It stores nothing and
+     * checks nothing: whoever calls it has already made the state durable, or
+     * has decided it does not need to be.
+     *
+     * <p>Runs on the thread that owns the player, whichever thread it is called
+     * from, and does nothing at all if they have left.
+     *
+     * @param player the player
+     * @return completes once the inventory is empty
+     * @since 1.118.0
+     */
+    public @NotNull CompletableFuture<Void> clear(@NotNull Player player) {
+        CompletableFuture<Void> cleared = new CompletableFuture<>();
+        // Back on the player's own thread: an inventory cannot be touched from
+        // the one a write completed on. If they left in the meantime, there is
+        // nothing to clear and the snapshot is safe.
+        tasks.runAtEntity(player,
+                () -> {
+                    PlayerState.clear(player);
+                    cleared.complete(null);
+                },
+                () -> cleared.complete(null));
+        return cleared;
     }
 
     // ------------------------------------------------------------- restoring
