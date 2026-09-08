@@ -134,10 +134,10 @@ public final class PluginRewards {
      * once however many times this is called.
      *
      * @return this
-     * @since 1.127.0
+     * @since 1.128.0
      */
     public @NotNull PluginRewards claimOnJoin() {
-        return claimOnJoin(delivery -> { });
+        return claimOnJoin((player, delivery) -> { });
     }
 
     /**
@@ -148,20 +148,18 @@ public final class PluginRewards {
      *
      * <pre>{@code
      * rewards.pending(PendingRewards.database(this))
-     *        .claimOnJoin(delivery -> messages.pending(player, delivery.given()));
+     *        .claimOnJoin((player, delivery) -> messages.pending(player, delivery.given()));
      * }</pre>
      *
-     * <p>The player is reachable through the delivery's own results; a plugin
-     * that wants to name them keeps the reference from its own listener
-     * instead. Registered once however many times this is called, so a reload
-     * that rebuilds the plugin's settings does not hand a reward over twice.
+     * <p>Registered once however many times this is called, so a reload that
+     * rebuilds the plugin's settings does not hand a reward over twice.
      *
      * @param then what to do with the delivery, on the player's thread
      * @return this
-     * @since 1.127.0
+     * @since 1.128.0
      */
     public @NotNull PluginRewards claimOnJoin(
-            @NotNull java.util.function.Consumer<RewardDelivery> then) {
+            @NotNull java.util.function.BiConsumer<Player, RewardDelivery> then) {
         synchronized (this) {
             if (claimingOnJoin) return this;
             claimingOnJoin = true;
@@ -169,7 +167,8 @@ public final class PluginRewards {
         plugin.getServer().getPluginManager().registerEvents(new Listener() {
             @EventHandler
             public void onJoin(PlayerJoinEvent event) {
-                claim(event.getPlayer(), then);
+                Player player = event.getPlayer();
+                claim(player, delivery -> then.accept(player, delivery));
             }
         }, plugin);
         return this;

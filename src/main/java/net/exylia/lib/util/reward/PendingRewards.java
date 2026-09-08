@@ -69,7 +69,7 @@ public interface PendingRewards {
      *
      * @param plugin whose database, and whose rewards
      * @return a store backed by that database
-     * @since 1.127.0
+     * @since 1.128.0
      */
     static @NotNull PendingRewards database(@NotNull Plugin plugin) {
         return new DatabasePending(plugin);

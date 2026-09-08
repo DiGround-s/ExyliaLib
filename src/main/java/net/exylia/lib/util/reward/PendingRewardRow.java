@@ -26,7 +26,7 @@ import java.util.UUID;
  * @param owner    who is owed, as a string
  * @param payload  the rewards, in {@link RewardCodec}'s encoding
  * @param owedAt   when they were owed, in epoch milliseconds
- * @since 1.127.0
+ * @since 1.128.0
  */
 @Table("exylia_pending_rewards")
 public record PendingRewardRow(

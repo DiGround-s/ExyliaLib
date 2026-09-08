@@ -27,7 +27,7 @@ import java.util.UUID;
  *
  * <p>Not API. Reached through {@link PendingRewards#database(Plugin)}.
  *
- * @since 1.127.0
+ * @since 1.128.0
  */
 public final class DatabasePending implements PendingRewards {
 
