@@ -47,6 +47,9 @@ public record PreviewSettings(
         @Comment("Where the player stands while a preview plays, as")
         @Comment("server,world,x,y,z,yaw,pitch. Leave empty and set it in game")
         @Comment("with this plugin's setpreviewlocation admin command.")
+        @Comment("Only the position is used: a preview always faces north, so")
+        @Comment("every effect is seen from the side it was drawn for. Build")
+        @Comment("the room around that, and leave the north side open.")
         @Comment("Two players previewing at once may share it: everyone is")
         @Comment("hidden from everyone, and each effect is sent to one player.")
         String location,

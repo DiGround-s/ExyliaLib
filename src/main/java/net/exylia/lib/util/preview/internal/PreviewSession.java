@@ -12,7 +12,6 @@ import org.bukkit.Location;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
-import org.bukkit.util.Vector;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -45,6 +44,12 @@ final class PreviewSession implements Preview {
     private final AtomicBoolean finished = new AtomicBoolean();
     private final List<Entity> hidden = new ArrayList<>();
     private final List<TaskHandle> scheduled = new ArrayList<>(3);
+
+    /** Looking north, so the front of every display faces the player. */
+    private static final float VIEW_YAW = 180.0f;
+
+    /** Looking south, back at the player. */
+    private static final float ANCHOR_YAW = 0.0f;
 
     private final Location stage;
 
@@ -97,9 +102,7 @@ final class PreviewSession implements Preview {
         captured.freeze(viewer);
         isolate();
 
-        // The stage's own facing is what the server owner aimed at whatever
-        // they built behind it, so it is kept rather than the player's.
-        viewer.teleport(stage);
+        viewer.teleport(seat());
 
         // A tick or two before the first particle: the client has to have the
         // new position, or the effect is drawn around where the player was.
@@ -111,11 +114,31 @@ final class PreviewSession implements Preview {
         });
     }
 
+    /**
+     * Where the player is put, always facing north.
+     *
+     * <p>The stage's saved yaw is deliberately ignored. Everything an effect
+     * draws is world-aligned &mdash; an item display's front faces south, a
+     * body takes the anchor's yaw, and every {@code from:} and {@code to:}
+     * offset is written in world axes &mdash; so what the viewer sees depends
+     * on which way round the world they stand, not on where the stage points.
+     * Keeping the admin's yaw made every effect arrive from a different side
+     * and showed most bodies from behind. One fixed viewpoint is the only way
+     * a preview shows what the author drew.
+     */
+    private Location seat() {
+        Location seat = stage.clone();
+        seat.setYaw(VIEW_YAW);
+        seat.setPitch(0.0f);
+        return seat;
+    }
+
     private void play(Sequence sequence) {
-        Vector forward = stage.getDirection().setY(0);
-        Location where = forward.lengthSquared() < 1.0e-6
-                ? stage.clone().add(0, 1, 0)
-                : stage.clone().add(forward.normalize().multiply(settings.distance()));
+        // North of the seat, turned back towards it: an anchored body faces the
+        // player instead of showing them its back.
+        Location where = seat().add(0, 0, -settings.distance());
+        where.setYaw(ANCHOR_YAW);
+        where.setPitch(0.0f);
 
         run = net.exylia.lib.util.sequence.Sequences.of(plugin)
                 .play(sequence, SequenceTarget.at(where).by(viewer).onlyTo(viewer));
