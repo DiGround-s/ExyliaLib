@@ -107,6 +107,7 @@ public final class SequenceCompiler {
             case "ACTION_BAR" -> rest.isEmpty() ? null : new Steps.ActionBarStep(rest);
             case "MESSAGE" -> rest.isEmpty() ? null : new Steps.Message(rest);
             case "NPC" -> npc(args, line, onArg);
+            case "RAGDOLL" -> ragdoll(args, line, onArg);
             default -> {
                 problems.found(line, "there is no effect called \"" + token + "\"");
                 yield null;
@@ -454,6 +455,48 @@ public final class SequenceCompiler {
                 held(args, "hold", onArg),
                 held(args, "offhand", onArg),
                 (float) args.number("pitch", 0.0, onArg));
+    }
+
+    /**
+     * A body that comes apart where the sequence happened.
+     *
+     * <p>Read here, once, so a death costs nothing but the flight itself: the
+     * numbers a burst is made of are a handful of doubles worked out when the
+     * file was read.
+     */
+    private @Nullable SequenceStep ragdoll(Args args, String line, Args.Problems onArg) {
+        if (args.headless()) {
+            problems.found(line, "needs whose body it is, as in [RAGDOLL] {victim}");
+            return null;
+        }
+        String who = args.head().trim();
+        Steps.Corpse.Face face = switch (who.toLowerCase(Locale.ROOT)) {
+            case "{killer}", "killer" -> Steps.Corpse.Face.KILLER;
+            default -> Steps.Corpse.Face.VICTIM;
+        };
+        Color glow = args.colour("glow", null, onArg);
+        args.reportUnknown(onArg, "life", "intact", "speed", "up", "spread", "gravity",
+                "bounce", "spin", "fade", "settle", "detail", "size", "glow", "light",
+                "y", "face");
+        net.exylia.lib.ragdoll.RagdollBurst burst = net.exylia.lib.ragdoll.RagdollBurst.builder()
+                .life(args.number("life", 2.2, onArg))
+                .intactFor(args.number("intact", 0.3, onArg))
+                .speed(args.number("speed", 3.2, onArg))
+                .up(args.number("up", 6.5, onArg))
+                .spread(args.number("spread", 0.45, onArg))
+                .gravity(args.number("gravity", 26.0, onArg))
+                .bounce(args.number("bounce", 0.32, onArg))
+                .spin(args.number("spin", 1.8, onArg))
+                .fade(args.flag("fade", true))
+                .settle(args.flag("settle", true))
+                .build();
+        return new Steps.Ragdoll(owner, face, burst,
+                args.count("detail", 1, onArg),
+                args.number("size", 1.0, onArg),
+                glow == null ? -1 : glow.asRGB(),
+                (int) args.number("light", -1, onArg),
+                args.number("y", 0.0, onArg),
+                args.flag("face", true));
     }
 
     /**

@@ -199,6 +199,7 @@ final class SequenceLine {
             case "DELAY" -> "CLOCK";
             case "DISPLAY" -> "ARMOR_STAND";
             case "NPC" -> "PLAYER_HEAD";
+            case "RAGDOLL" -> "SKELETON_SKULL";
             case "" -> "BARRIER";
             default -> "END_ROD";
         };
@@ -295,6 +296,7 @@ final class SequenceLine {
         tokens.add("MESSAGE");
         tokens.add("COMMAND");
         tokens.add("NPC");
+        tokens.add("RAGDOLL");
         tokens.add("DELAY");
         return List.copyOf(tokens);
     }
@@ -376,6 +378,23 @@ final class SequenceLine {
                     new Field("after", "Seconds before that second pose", "0.4"),
                     new Field("hurt", "Flinches when it is struck", "true or false"),
                     new Field("move_after", "Seconds before any of that happens", "0")));
+            case "RAGDOLL" -> new Spec(token, Head.NONE, Form.NAMED, List.of(
+                    new Field("life", "Seconds the pieces last", "2.2"),
+                    new Field("intact", "Seconds it stands whole first", "0.3"),
+                    new Field("speed", "How fast the pieces leave, outwards", "3.2"),
+                    new Field("up", "How fast they leave, upwards", "6.5"),
+                    new Field("spread", "How much the pieces differ, 0 to 1", "0.45"),
+                    new Field("gravity", "Falls at, in blocks per second squared", "26"),
+                    new Field("bounce", "Speed kept on landing, 0 to 1", "0.32"),
+                    new Field("spin", "Turns a second", "1.8"),
+                    new Field("detail", "Cells each part is cut into, 1 to 4", "1"),
+                    new Field("size", "How big it is; 1 is player-sized", "1"),
+                    new Field("light", "Light level, 0 to 15", "world's own"),
+                    new Field("glow", "Outline colour", "a name, #rrggbb or a {palette} token"),
+                    new Field("fade", "Shrinks away at the end", "true or false"),
+                    new Field("settle", "Stops turning once it lands", "true or false"),
+                    new Field("y", "Height above the anchor", "0"),
+                    new Field("face", "Turns to face whoever did it", "true or false")));
             case "ACTION_BAR" -> free(token, "The line above the hotbar", null);
             case "MESSAGE" -> free(token, "The message", "One line; add another for a second.");
             case "COMMAND" -> free(token, "Command the console runs",

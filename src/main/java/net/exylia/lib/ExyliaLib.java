@@ -211,6 +211,10 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         // packets, and their driver is one timer for every display on the
         // server rather than one per effect.
         DisplayRuntime.init(this);
+        // Ragdolls are displays, so they need nothing of their own but the
+        // background reader that turns a skin into the colours a body is drawn
+        // in before anybody dies in it.
+        net.exylia.lib.ragdoll.internal.SkinCache.init(this);
         NpcRuntime.init(this);
         ClientRuntime.init(this);
         NametagRuntime.init(this);
@@ -502,6 +506,7 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         Sequences.releaseAll();
         // After the sequences that drew them, for the same reason as above.
         Displays.releaseAll();
+        net.exylia.lib.ragdoll.Ragdolls.releaseAll();
         Npcs.releaseAll();
         // Before releasing tasks: their refresh drivers are among them.
         BoardManager.stopEverything();
@@ -658,6 +663,9 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         // the way back to the player has to be recorded while they are here.
         NametagRuntime.register(player);
         BoardManager.reinit(player);
+        // Their skin is a picture on Mojang's texture server, and an effect
+        // cannot wait for one. Read now, used whenever they die.
+        net.exylia.lib.ragdoll.Ragdolls.warm(player);
         // Reading a file is not something the main thread should wait for.
         java.util.UUID id = player.getUniqueId();
         Tasks.of(this).runAsync(() -> Cooldowns.load(id));
@@ -735,6 +743,7 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         // between the two: what is on a client stays on that client until it
         // relogs, and no part of the server will take it off afterwards.
         Displays.release(pluginName);
+        net.exylia.lib.ragdoll.Ragdolls.release(pluginName);
         // Same reason again: a body left standing wears somebody's name until
         // that player relogs, and the server has no record of it to clean up.
         Npcs.release(pluginName);

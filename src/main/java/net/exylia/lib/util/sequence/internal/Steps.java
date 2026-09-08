@@ -4,6 +4,10 @@ import net.exylia.lib.npc.NpcHandle;
 import net.exylia.lib.npc.NpcModel;
 import net.exylia.lib.npc.NpcMotion;
 import net.exylia.lib.npc.internal.NpcRuntime;
+import net.exylia.lib.ragdoll.RagdollBurst;
+import net.exylia.lib.ragdoll.RagdollHandle;
+import net.exylia.lib.ragdoll.RagdollModel;
+import net.exylia.lib.ragdoll.internal.RagdollBuilder;
 import net.exylia.lib.task.TaskHandle;
 import net.exylia.lib.text.Text;
 import net.exylia.lib.util.sequence.SequenceRun;
@@ -345,6 +349,78 @@ final class Steps {
         @Override
         public long holdMillis() {
             return millis;
+        }
+    }
+
+    /**
+     * A body that comes apart into its own pieces.
+     *
+     * <p>What {@code [NPC]} cannot do. A corpse is one fake player that can
+     * only be moved by teleporting it, so it stutters, cannot turn smoothly and
+     * cannot be taken apart. This is six to twenty-four displays whose whole
+     * flight is solved the moment it plays and then drawn by the client at its
+     * own frame rate.
+     *
+     * <p>Whose body it is is decided when the sequence plays, because the
+     * answer is whoever just died.
+     */
+    record Ragdoll(String owner, Corpse.Face face, RagdollBurst burst, int detail, double scale,
+                   int glowArgb, int brightness, double yShift, boolean facesSource)
+            implements SequenceStep {
+
+        @Override
+        public void play(@NotNull SequenceTarget target, @NotNull SequenceRun run) {
+            List<Player> observers = target.observers();
+            if (observers.isEmpty()) {
+                return;
+            }
+            // Either name falls back to the other, as a corpse does: a preview
+            // has somebody watching it and nobody it happened to.
+            Player killer = target.source();
+            Player victim = target.target() instanceof Player player ? player : null;
+            Player whose = switch (face) {
+                case VICTIM -> victim != null ? victim : killer;
+                case KILLER -> killer != null ? killer : victim;
+                case FIXED -> victim != null ? victim : killer;
+            };
+            if (whose == null) {
+                NpcRuntime.explainOnce("[RAGDOLL] was written, but what died was not a player");
+                return;
+            }
+            Location where = yShift == 0.0
+                    ? target.location().clone()
+                    : target.location().clone().add(0, yShift, 0);
+            Player source = target.source();
+            if (facesSource && source != null) {
+                where.setYaw((float) Math.toDegrees(Math.atan2(
+                        where.getX() - source.getLocation().getX(),
+                        source.getLocation().getZ() - where.getZ())));
+            }
+            RagdollModel model = RagdollModel.of(whose)
+                    .detail(detail)
+                    .scale(scale)
+                    .glow(glowArgb)
+                    .light(brightness);
+            RagdollHandle handle = new RagdollHandle(
+                    RagdollBuilder.show(owner, model, burst, where, observers));
+            // Owned by the run as well as by the display module, so a preview
+            // the player closed does not leave an arm spinning in the arena.
+            run.owns(new TaskHandle() {
+                @Override
+                public void cancel() {
+                    handle.remove();
+                }
+
+                @Override
+                public boolean isCancelled() {
+                    return !handle.isShowing();
+                }
+
+                @Override
+                public boolean isRepeating() {
+                    return false;
+                }
+            });
         }
     }
 
