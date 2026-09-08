@@ -468,6 +468,29 @@ bare value read as a boolean. A slot whose condition fails is not blank — it i
 A condition that cannot be read hides the slot. Failing the other way would hand
 a button to somebody who should not have it.
 
+### One slot, several states
+
+Two entries may claim the same slot, and in every file that does it they are one
+button in two states:
+
+```yaml
+create_posting:
+  slot: 47
+  material: WRITABLE_BOOK
+  name: "{success}&lCREATE RECRUITMENT"
+  condition: "%lfp_state% == none"
+renew_posting:
+  slot: 47
+  material: LIME_WOOL
+  name: "{success}&lRENEW RECRUITMENT"
+  condition: "%lfp_state% == expired"
+```
+
+They are kept in file order and the **first whose condition passes** is the one
+drawn; when none passes the slot is background, exactly as a single hidden
+button would be. Writing them without conditions is a mistake the file made —
+the first one wins and the rest are never seen.
+
 ## Built-in actions
 
 Registered for every plugin that asks for menus, because turning a page is

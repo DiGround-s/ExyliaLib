@@ -217,8 +217,9 @@ public final class OverlayView {
      * what an overlay must never do by accident.
      */
     private void drawSlot(int index) {
-        UiItem item = definition.items().get(index);
-        ItemStack rendered = item != null && passes(item) ? render(item) : null;
+        UiItem declared = definition.items().get(index);
+        UiItem item = declared == null ? null : declared.visible(this::passes).orElse(null);
+        ItemStack rendered = item != null ? render(item) : null;
         if (item == null || rendered == null) {
             live.remove(index);
         } else {

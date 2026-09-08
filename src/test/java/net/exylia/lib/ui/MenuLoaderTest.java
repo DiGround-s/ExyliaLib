@@ -970,4 +970,36 @@ class MenuLoaderTest {
         assertEquals("types", menu.sectionAt(50).id());
         assertNull(menu.sectionAt(22), "nothing is listed there");
     }
+
+    @Test
+    @DisplayName("two entries in one slot are one button in two states")
+    void slotStates() {
+        UiDefinition menu = load("""
+                title: "Recruitment"
+                size: 54
+                items:
+                  create_posting:
+                    slot: 47
+                    material: WRITABLE_BOOK
+                    condition: "%state% == none"
+                  renew_posting:
+                    slot: 47
+                    material: LIME_WOOL
+                    condition: "%state% == expired"
+                """);
+
+        UiItem item = menu.items().get(47);
+        assertNotNull(item);
+        assertEquals("WRITABLE_BOOK",
+                assertInstanceOf(Source.OfMaterial.class, item.item().source()).raw(),
+                "the first entry is still the one the slot answers with");
+        assertEquals(1, item.alternates().size(), "the second is kept rather than dropped");
+        assertEquals("LIME_WOOL", assertInstanceOf(Source.OfMaterial.class,
+                item.alternates().getFirst().item().source()).raw());
+        assertEquals("LIME_WOOL", assertInstanceOf(Source.OfMaterial.class,
+                item.visible(state -> "%state% == expired".equals(state.condition()))
+                        .orElseThrow().item().source()).raw(),
+                "the first state whose condition passes is the one drawn");
+        assertTrue(item.visible(state -> false).isEmpty(), "no state passing hides the slot");
+    }
 }

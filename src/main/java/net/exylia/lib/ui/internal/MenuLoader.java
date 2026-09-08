@@ -208,6 +208,15 @@ public final class MenuLoader {
         return rows > 0 ? rows * 9 : 54;
     }
 
+    /**
+     * Reads the fixed slots.
+     *
+     * <p>Two entries may claim one slot, and in every file that does it they
+     * are one button in two states: a "create recruitment" that is a "renew"
+     * once the posting expired. Overwriting the first would drop a button the
+     * file plainly asks for, so they are chained instead and the first whose
+     * condition passes is the one drawn.
+     */
     private static void readItems(ConfigurationSection section,
                                   Binder binder,
                                   int size, Map<Integer, UiItem> into) {
@@ -225,7 +234,7 @@ public final class MenuLoader {
                     throw new IllegalArgumentException("Item \"" + key + "\" uses slot " + slot
                             + ", outside a menu of " + size);
                 }
-                into.put(slot, item);
+                into.merge(slot, item, UiItem::withAlternate);
             }
         }
     }

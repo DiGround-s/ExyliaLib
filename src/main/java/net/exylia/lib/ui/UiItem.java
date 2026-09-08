@@ -4,7 +4,10 @@ import net.exylia.lib.item.Item;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
+import java.util.function.Predicate;
 
 /**
  * A slot in a menu: an item, plus what pressing it does.
@@ -28,16 +31,62 @@ import java.util.List;
  * @param condition    whether this slot is shown at all, or {@code null} for always
  * @param dependencies what this slot is derived from, so it can be redrawn when
  *                     that changes and left alone when it does not
+ * @param alternates   what to draw in the same slot instead when this one's
+ *                     condition fails, in the order the file wrote them
  * @since 1.22.0
  */
 public record UiItem(
         @NotNull Item item,
         @NotNull ClickBindings bindings,
         @Nullable String condition,
-        @NotNull List<String> dependencies) {
+        @NotNull List<String> dependencies,
+        @NotNull List<UiItem> alternates) {
 
     public UiItem {
         dependencies = List.copyOf(dependencies);
+        alternates = List.copyOf(alternates);
+    }
+
+    /** A slot with no alternates, which is what most slots are. */
+    public UiItem(@NotNull Item item,
+                  @NotNull ClickBindings bindings,
+                  @Nullable String condition,
+                  @NotNull List<String> dependencies) {
+        this(item, bindings, condition, dependencies, List.of());
+    }
+
+    /**
+     * Returns this slot with another item to fall back on.
+     *
+     * <p>Two entries claiming one slot are the same button in two states — a
+     * "create" that becomes a "renew" — and only one of them passes its
+     * condition at a time. They are kept in file order and the first one that
+     * passes is drawn, so the file reads the way it renders.
+     *
+     * @param alternate what to draw instead when this one is hidden
+     */
+    public @NotNull UiItem withAlternate(@NotNull UiItem alternate) {
+        List<UiItem> chain = new ArrayList<>(alternates);
+        chain.add(alternate);
+        return new UiItem(item, bindings, condition, dependencies, chain);
+    }
+
+    /**
+     * The first of this slot's states whose condition passes.
+     *
+     * @param passes how a condition is decided
+     * @return the item to draw, or empty when every state is hidden
+     */
+    public @NotNull Optional<UiItem> visible(@NotNull Predicate<UiItem> passes) {
+        if (passes.test(this)) {
+            return Optional.of(this);
+        }
+        for (UiItem alternate : alternates) {
+            if (passes.test(alternate)) {
+                return Optional.of(alternate);
+            }
+        }
+        return Optional.empty();
     }
 
     /**
@@ -50,7 +99,8 @@ public record UiItem(
     public boolean isDynamic() {
         return item.isDynamic()
                 || !dependencies.isEmpty()
-                || condition != null;
+                || condition != null
+                || !alternates.isEmpty();
     }
 
     /** Starts describing a slot. */

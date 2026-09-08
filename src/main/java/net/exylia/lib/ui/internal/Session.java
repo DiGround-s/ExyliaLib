@@ -281,6 +281,11 @@ final class Session implements UiSession {
                 return true;
             }
         }
+        for (UiItem alternate : item.alternates()) {
+            if (dependsOnAny(alternate, changed)) {
+                return true;
+            }
+        }
         return false;
     }
 
@@ -771,9 +776,13 @@ final class Session implements UiSession {
      * nothing, which is the same answer as clicking the background. The
      * background is also what is drawn in its place, so a hidden button
      * leaves a hole in the glass rather than a hole in the menu.
+     *
+     * <p>A slot the file wrote twice is one button in two states, and the
+     * first state whose condition passes is the one that is there.
      */
     private void drawFixed(int slot, UiItem item) {
-        if (!passes(item, Map.of())) {
+        UiItem visible = item.visible(state -> passes(state, Map.of())).orElse(null);
+        if (visible == null) {
             UiItem background = definition.fillers().backgroundAt(slot);
             if (background == null) {
                 put(slot, null);
@@ -784,8 +793,8 @@ final class Session implements UiSession {
             }
             return;
         }
-        put(slot, render(item, Map.of()));
-        slots.put(slot, Rendered.of(item));
+        put(slot, render(visible, Map.of()));
+        slots.put(slot, Rendered.of(visible));
     }
 
     /** Draws one list at its current page. */
