@@ -91,7 +91,17 @@ public enum RagdollPose {
      *
      * <p>The quiet one. No throw, no bounce, nothing to look at afterwards.
      */
-    MELT;
+    MELT,
+
+    /**
+     * The pieces lay themselves out into letters and hold there.
+     *
+     * <p>Not a caption above a body: the letters <em>are</em> the body. Every
+     * stroke is one or more of their own pieces, stretched along it and still
+     * the colour of the part of them it came from, and when the sign has been
+     * read it lets go and falls.
+     */
+    SIGN;
 
     /**
      * Reads a pose from configuration, defaulting to {@link #BURST}.
@@ -109,6 +119,7 @@ public enum RagdollPose {
             case "PLANE", "FLY", "GLIDE", "JET" -> PLANE;
             case "FLATTEN", "PANCAKE", "SQUASH", "FLAT" -> FLATTEN;
             case "MELT", "SINK", "DISSOLVE" -> MELT;
+            case "SIGN", "LETTERS", "SPELL", "WORD" -> SIGN;
             default -> BURST;
         };
     }

@@ -103,6 +103,26 @@ public final class RagdollFlight {
     }
 
     /**
+     * How a pose is arrived at: slowly, then quickly, then slowly.
+     *
+     * <p>The module used to ease every deploy out, which starts at full speed.
+     * With a pose every tenth of a second and a lift of under half of one, that
+     * put the limbs halfway open in the first frame &mdash; the pose did not
+     * open, it appeared. Everything that is being taken from one shape to
+     * another eases both ends instead, and the first frame moves almost
+     * nothing.
+     *
+     * @param progress how far through, from 0 to 1
+     * @return how far the movement has got
+     */
+    private static double eased(double progress) {
+        double at = Math.clamp(progress, 0, 1);
+        return at < 0.5
+                ? 4 * at * at * at
+                : 1 - Math.pow(-2 * at + 2, 3) / 2;
+    }
+
+    /**
      * The whole flight of one part: where it is and how it is turned, at every
      * moment a pose is sent.
      */
@@ -134,6 +154,10 @@ public final class RagdollFlight {
             case PLANE -> plane(part, motion, scale, facing, random);
             case FLATTEN -> flatten(part, motion, scale, facing, random);
             case MELT -> melt(part, motion, scale, facing, random);
+            // Every piece but the head is placed by the builder, which is the
+            // only thing that knows which piece of the word it is. The head
+            // watches from above.
+            case SIGN -> signHead(part, motion, scale, facing);
         };
     }
 
@@ -180,9 +204,11 @@ public final class RagdollFlight {
     private static Flight held(RagdollPart part, RagdollMotion motion, double scale,
                                Rotation facing, RandomGenerator random) {
         double[] standing = standing(part, scale, facing);
-        double[] open = opened(part, motion, scale, facing);
-        Rotation opening = opening(part);
+        double swung = swing(part, motion.open());
+        double[] open = opened(part, motion, scale, facing, swung);
+        Rotation opening = Rotation.around(Rotation.Axis.Z, swung);
         boolean knocked = motion.pose() == RagdollPose.KNOCKED;
+        double phase = part.ordinal() * 1.1;
 
         long intact = motion.intactMillis();
         long lifted = intact + motion.liftMillis();
@@ -217,15 +243,19 @@ public final class RagdollFlight {
                 continue;
             }
             if (at < released) {
-                double opened = Math.clamp((double) (at - intact) / motion.liftMillis(), 0, 1);
-                // Eased out: a body is snatched off the ground and then settles
-                // into the pose, rather than sliding into it at one rate.
-                double eased = 1 - Math.pow(1 - opened, 3);
+                // Eased at both ends: a body is taken off the ground, opened,
+                // and settles into the pose. Eased out alone starts at full
+                // speed, which at this frame rate is a pose that appears.
+                double eased = eased((double) (at - intact) / motion.liftMillis());
                 double[] here = {
                         standing[0] + (open[0] - standing[0]) * eased,
                         standing[1] + (open[1] - standing[1]) * eased,
                         standing[2] + (open[2] - standing[2]) * eased};
                 double hanging = at <= lifted ? 0 : (at - lifted) / 1000.0;
+                // A body held perfectly still reads as frozen, not as held.
+                // This is the whole difference, and it is one sine wave.
+                double breath = Math.sin(hanging * 2.3 + phase) * 0.05 * scale * eased;
+                double sway = Math.sin(hanging * 1.6 + phase) * 0.07 * eased;
                 double yaw = motion.hangMillis() <= 0 ? 0
                         : motion.turns() * Math.PI * 2 * hanging / (motion.hangMillis() / 1000.0);
                 double[] turned = spun(here, yaw);
@@ -240,9 +270,10 @@ public final class RagdollFlight {
                     yaw += shove[3];
                 }
                 x[index] = turned[0];
-                y[index] = turned[1];
+                y[index] = turned[1] + breath;
                 z[index] = turned[2];
-                rotations[index] = partial(opening, eased).then(Rotation.around(Rotation.Axis.Y, yaw));
+                rotations[index] = Rotation.around(Rotation.Axis.Z, swung * eased + sway)
+                        .then(Rotation.around(Rotation.Axis.Y, yaw));
                 continue;
             }
             if (fall == null) {
@@ -259,7 +290,7 @@ public final class RagdollFlight {
             // the moment it starts falling and not the moment it snaps round.
             rotations[index] = fall.resting() && motion.settle()
                     ? rotations[index - 1]
-                    : partial(opening, 1)
+                    : opening
                             .then(Rotation.around(Rotation.Axis.Y, releaseYaw))
                             .then(tumble(axis, turns, falling));
         }
@@ -302,7 +333,7 @@ public final class RagdollFlight {
     private static Flight vortex(RagdollPart part, RagdollMotion motion, double scale,
                                  Rotation facing, RandomGenerator random) {
         double[] standing = standing(part, scale, facing);
-        double radius = Math.hypot(standing[0], standing[2]) + motion.open();
+        double held = Math.hypot(standing[0], standing[2]);
         double start = outwards(standing, random);
         double axisTurns = motion.turns() == 0 ? 1.5 : motion.turns();
         // A little apart in time, so six pieces do not arrive at the point
@@ -316,9 +347,13 @@ public final class RagdollFlight {
         return sample(times, motion.intactMillis(), elapsed -> {
             double progress = Math.clamp(elapsed / flight - stagger, 0, 1);
             double angle = start + axisTurns * Math.PI * 2 * progress;
+            // Opens out from where the piece was standing rather than starting
+            // wide: a ring that exists from the first frame is six pieces
+            // teleporting, which is what this module is here not to do.
+            double opened = held + motion.open() * Math.min(1, progress * 2.5);
             // Squared, so it hangs wide for most of the climb and closes on the
             // point at the end. A radius closing at one rate reads as a drain.
-            double drawn = radius * (1 - progress) * (1 - progress);
+            double drawn = opened * (1 - progress) * (1 - progress);
             return new Step(new double[]{
                     Math.cos(angle) * drawn,
                     standing[1] + (motion.rise() + 2.0) * progress,
@@ -375,8 +410,7 @@ public final class RagdollFlight {
                 return new Step(new double[]{standing[0] + unease, standing[1], standing[2]},
                         Rotation.around(Rotation.Axis.Y, unease * 2));
             }
-            double swollen = Math.clamp(elapsed / Math.max(0.05, swelling), 0, 1);
-            double eased = 1 - Math.pow(1 - swollen, 3);
+            double eased = eased(elapsed / Math.max(0.05, swelling));
             double size = 1 + (motion.swell() - 1) * eased;
             if (elapsed > swelling) {
                 // Barely moving, and the reason the pose works. A head held
@@ -386,8 +420,9 @@ public final class RagdollFlight {
             }
             return new Step(new double[]{
                     standing[0],
-                    // Lifted by its own growth, or it swallows the shoulders.
-                    standing[1] + (size - 1) * 0.28 * scale,
+                    // Lifted by exactly half its own growth, so the bottom of
+                    // it stays on the neck however large it gets.
+                    standing[1] + (size - 1) * RagdollPart.HEAD.blockHeight() / 2 * scale,
                     standing[2]},
                     Rotation.around(Rotation.Axis.Z, sway * 0.12 * eased),
                     new double[]{size, size, size});
@@ -397,19 +432,34 @@ public final class RagdollFlight {
     // --------------------------------------------------------------- the rotor
 
     /**
-     * The arms go flat above the head and lift the rest of it away.
+     * The arms go out and the whole of them becomes the rotor.
      *
-     * <p>Drawn on a finer beat than everything else, because a rotor is the one
-     * thing here that has to turn faster than a tenth of a second will carry.
+     * <p>The first version of this took the arms off the shoulders and flew
+     * them round a hub above the head. It was correct and it looked like two
+     * planks orbiting a corpse, because a limb that leaves the body it belongs
+     * to stops reading as a limb. So the body <em>is</em> the rotor: arms out
+     * at the shoulders, stretched into blades, and the whole thing turning fast
+     * enough to lift itself. Everything stays joined to everything.
+     *
+     * <p>Drawn on a finer beat than the rest of the module, because the client
+     * turns a display the short way round and half a turn per pose is the
+     * ceiling: at a tenth of a second that caps a rotor at the speed of a desk
+     * fan.
      */
     private static Flight helicopter(RagdollPart part, RagdollMotion motion, double scale,
                                      Rotation facing, RandomGenerator random) {
         double[] standing = standing(part, scale, facing);
         double[] ahead = forward(facing);
         boolean blade = part == RagdollPart.ARM_LEFT || part == RagdollPart.ARM_RIGHT;
-        double base = part == RagdollPart.ARM_LEFT ? Math.PI : 0;
-        double radius = (0.55 + motion.open()) * scale;
-        double hub = ROTOR_HEIGHT * scale;
+        boolean leg = part == RagdollPart.LEG_LEFT || part == RagdollPart.LEG_RIGHT;
+
+        // An arm is three quarters of a block long. Left at that, a rotor is a
+        // pair of stumps; stretched, it is a blade with some span to it.
+        double span = 1.5 + motion.open() * 1.6;
+        double stretch = span / RagdollPart.ARM_LEFT.blockHeight();
+        // Arms straight out at the shoulder, legs turned inwards underneath.
+        double swung = blade ? swing(part, 1.0) : leg ? -swing(part, 0.3) : 0;
+        double hang = part.fromJoint() * scale;
 
         double rotor = Math.min(Math.abs(motion.spin()) < 0.1 ? 4.0 : Math.abs(motion.spin()),
                 MAX_ROTOR_TURNS);
@@ -417,41 +467,35 @@ public final class RagdollFlight {
 
         return sample(times(motion, motion.intactMillis(), ROTOR_POSE_MS), motion.intactMillis(),
                 elapsed -> {
-            double deployed = Math.clamp(elapsed / Math.max(0.05, lift), 0, 1);
-            double eased = 1 - Math.pow(1 - deployed, 3);
+            double eased = eased(elapsed / Math.max(0.05, lift));
             double flying = Math.max(0, elapsed - lift);
-            double spun = rotor * Math.PI * 2 * elapsed;
-            // Climbs while it is still deploying, then leaves. The forward run
-            // is more than linear so it reads as accelerating away rather than
-            // being dragged off on a wire.
+            // It winds up rather than starting at speed: a rotor already at
+            // full speed when the body is still standing has no take-off in it.
+            double spun = rotor * Math.PI * 2 * (elapsed - lift * (1 - eased) * 0.5) * eased;
             double climbed = motion.rise() * scale * eased + motion.up() * flying;
             double gone = motion.speed() * Math.pow(flying, 1.15);
 
-            double[] here;
-            Rotation turned;
-            if (blade) {
-                double angle = base + spun;
-                here = new double[]{
-                        standing[0] + (Math.cos(angle) * radius - standing[0]) * eased,
-                        standing[1] + (hub - standing[1]) * eased,
-                        standing[2] + (Math.sin(angle) * radius - standing[2]) * eased};
-                // Rolled flat first, then swung round the hub: rolling second
-                // would turn the blade about the world's axis and the rotor
-                // would come out as two arms waving.
-                turned = partial(Rotation.around(Rotation.Axis.Z, Math.PI / 2), eased)
-                        .then(Rotation.around(Rotation.Axis.Y, angle));
-            } else {
-                // Everything under the rotor turns slowly the other way, which
-                // is what a helicopter with no tail rotor actually does.
-                double counter = -spun * 0.1;
-                double[] carried = spun(standing, counter);
-                here = new double[]{carried[0], carried[1], carried[2]};
-                turned = Rotation.around(Rotation.Axis.Y, counter);
-            }
+            double angle = swung * eased;
+            double cos = Math.cos(angle);
+            double sin = Math.sin(angle);
+            // The blade grows out of the shoulder as it deploys, so its middle
+            // moves out with it rather than starting a metre away from the arm.
+            double reach = hang * (blade ? 1 + (stretch - 1) * eased : 1);
+            double[] local = {
+                    part.jointX() * scale - reach * sin,
+                    part.jointY() * scale + reach * cos,
+                    0};
+            float[] faced = facing.apply(new float[]{
+                    (float) local[0], (float) local[1], (float) local[2]});
+            double[] carried = spun(new double[]{faced[0], faced[1], faced[2]}, spun);
+
             return new Step(new double[]{
-                    here[0] + ahead[0] * gone,
-                    Math.max(REST_HEIGHT * scale, here[1] + climbed),
-                    here[2] + ahead[2] * gone}, turned);
+                    carried[0] + ahead[0] * gone,
+                    Math.max(REST_HEIGHT * scale, carried[1] + climbed),
+                    carried[2] + ahead[2] * gone},
+                    Rotation.around(Rotation.Axis.Z, angle)
+                            .then(Rotation.around(Rotation.Axis.Y, spun)),
+                    blade ? new double[]{1, 1 + (stretch - 1) * eased, 1} : SAME);
         });
     }
 
@@ -467,15 +511,18 @@ public final class RagdollFlight {
     private static Flight plane(RagdollPart part, RagdollMotion motion, double scale,
                                 Rotation facing, RandomGenerator random) {
         double[] standing = standing(part, scale, facing);
-        double[] wing = wing(part, motion, scale);
+        double wingLength = 1.2 + motion.open() * 1.6;
+        boolean wing = part == RagdollPart.ARM_LEFT || part == RagdollPart.ARM_RIGHT;
+        double[] out = wing(part, motion, scale, wingLength);
         double[] ahead = forward(facing);
-        Rotation opening = opening(part);
+        double swung = swing(part, part == RagdollPart.ARM_LEFT
+                || part == RagdollPart.ARM_RIGHT ? 1.0 : 0.0);
+        Rotation opening = Rotation.around(Rotation.Axis.Z, swung);
         double lift = motion.liftMillis() / 1000.0;
         double bank = motion.turns() == 0 ? 0.4 : motion.turns();
 
         return sample(times(motion, motion.intactMillis()), motion.intactMillis(), elapsed -> {
-            double deployed = Math.clamp(elapsed / Math.max(0.05, lift), 0, 1);
-            double eased = 1 - Math.pow(1 - deployed, 3);
+            double eased = eased(elapsed / Math.max(0.05, lift));
             double flying = Math.max(0, elapsed - lift);
             double roll = Math.sin(elapsed * bank * Math.PI * 2) * PLANE_BANK * eased;
             // The nose comes up as the wings come out, so the pose arrives all
@@ -483,9 +530,11 @@ public final class RagdollFlight {
             Rotation attitude = Rotation.around(Rotation.Axis.X, PLANE_PITCH * eased)
                     .then(Rotation.around(Rotation.Axis.Z, roll));
             float[] local = attitude.apply(new float[]{
-                    (float) (standing[0] + (wing[0] - standing[0]) * eased),
-                    (float) (standing[1] + (wing[1] - standing[1]) * eased),
-                    (float) (standing[2] + (wing[2] - standing[2]) * eased)});
+                    (float) (standing[0] + (out[0] - standing[0]) * eased),
+                    (float) (standing[1] + (out[1] - standing[1]) * eased),
+                    (float) (standing[2] + (out[2] - standing[2]) * eased)});
+            double span = wingLength / RagdollPart.ARM_LEFT.blockHeight();
+            double[] grown = wing ? new double[]{1, 1 + (span - 1) * eased, 1} : SAME;
             double climbed = motion.rise() * scale * eased + motion.up() * flying;
             double gone = motion.speed() * Math.pow(flying, 1.1);
             return new Step(new double[]{
@@ -494,19 +543,22 @@ public final class RagdollFlight {
                     // stopped at the floor is a body inside it.
                     Math.max(REST_HEIGHT * scale, local[1] + climbed),
                     local[2] + ahead[2] * gone},
-                    partial(opening, eased).then(attitude));
+                    partial(opening, eased).then(attitude), grown);
         });
     }
 
     /** Where a part sits on a body holding itself like an aeroplane. */
-    private static double[] wing(RagdollPart part, RagdollMotion motion, double scale) {
-        double open = motion.open() * scale;
+    private static double[] wing(RagdollPart part, RagdollMotion motion, double scale,
+                                 double wingLength) {
+        // The wing root meets the chest and the rest of it is span, so a longer
+        // wing grows outwards instead of sliding off the shoulder.
+        double open = (0.28 + wingLength / 2) * scale;
         return switch (part) {
             case HEAD -> new double[]{0, part.blockCentreY() * scale, 0.1 * scale};
             case TORSO -> new double[]{0, part.blockCentreY() * scale, 0};
-            case ARM_RIGHT -> new double[]{part.blockOffsetX() * scale - open,
+            case ARM_RIGHT -> new double[]{-open,
                     part.blockCentreY() * scale + 0.1 * scale, 0};
-            case ARM_LEFT -> new double[]{part.blockOffsetX() * scale + open,
+            case ARM_LEFT -> new double[]{open,
                     part.blockCentreY() * scale + 0.1 * scale, 0};
             // Legs together and trailing: a tail, not a stance.
             case LEG_RIGHT -> new double[]{-0.06 * scale,
@@ -578,6 +630,119 @@ public final class RagdollFlight {
         return new double[]{ahead[0], ahead[1], ahead[2]};
     }
 
+    // ---------------------------------------------------------------- the sign
+
+    /**
+     * The head, while the rest of them is being read.
+     *
+     * <p>It goes up above the word and turns there. Somebody has to be looking
+     * at it, and the only face in the effect belongs to the person the word is
+     * about.
+     */
+    private static Flight signHead(RagdollPart part, RagdollMotion motion, double scale,
+                                   Rotation facing) {
+        double[] standing = standing(part, scale, facing);
+        double top = (motion.rise() + motion.letters() + 0.55) * scale;
+        double lift = motion.liftMillis() / 1000.0;
+        long released = motion.intactMillis() + motion.liftMillis() + motion.hangMillis();
+        double falls = Math.max(0, motion.lifeMillis() - released) / 1000.0;
+
+        return sample(times(motion, motion.intactMillis()), motion.intactMillis(), elapsed -> {
+            double eased = eased(elapsed / Math.max(0.05, lift));
+            double after = Math.max(0, elapsed - (motion.lifeMillis() - released < 0 ? elapsed
+                    : (released - motion.intactMillis()) / 1000.0));
+            double drop = falls <= 0 ? 0 : 0.5 * motion.gravity() * after * after;
+            return new Step(new double[]{
+                    standing[0],
+                    Math.max(REST_HEIGHT * scale, standing[1] + (top - standing[1]) * eased - drop),
+                    standing[2]},
+                    Rotation.around(Rotation.Axis.Y, elapsed * 0.7));
+        });
+    }
+
+    /**
+     * Where one piece of a body goes to be part of a letter.
+     *
+     * <p>Called once per piece by the builder, because the builder is what
+     * knows how many pieces there are and which one this is. The piece is
+     * carried to its stroke, stretched along it, held while the word is read,
+     * and dropped.
+     *
+     * @param motion   what the file asked for
+     * @param scale    how big the body is
+     * @param facing   which way the sign faces
+     * @param standing where this piece started
+     * @param to       the stroke it belongs to
+     * @param cellSize the piece's own size, in blocks
+     * @return every pose it passes through
+     */
+    public static Flight signCell(RagdollMotion motion, double scale, Rotation facing,
+                                  double[] standing, RagdollSign.Placement to, float[] cellSize) {
+        double lift = motion.liftMillis() / 1000.0;
+        long released = Math.min(motion.lifeMillis(),
+                motion.intactMillis() + motion.liftMillis() + motion.hangMillis());
+
+        float[] target = facing.apply(new float[]{
+                (float) (to.x() * scale),
+                (float) ((motion.rise() + to.y()) * scale),
+                0f});
+        double yaw = 2 * Math.atan2(facing.y(), facing.w());
+        // The piece is a box standing on its own end, so a stroke running east
+        // is that box rolled a quarter turn back from upright.
+        double roll = to.angle() - Math.PI / 2;
+        double[] grown = {
+                Math.max(0.05, to.thickness() * scale / Math.max(1e-4, cellSize[0])),
+                Math.max(0.05, to.length() * scale / Math.max(1e-4, cellSize[1])),
+                Math.max(0.05, to.thickness() * scale / Math.max(1e-4, cellSize[2]))};
+
+        long[] times = times(motion, motion.intactMillis());
+        int poses = times.length;
+        double[] x = new double[poses];
+        double[] y = new double[poses];
+        double[] z = new double[poses];
+        Rotation[] rotations = new Rotation[poses];
+        double[][] scales = new double[poses][];
+        Fall fall = null;
+
+        for (int index = 0; index < poses; index++) {
+            long at = times[index];
+            if (at <= motion.intactMillis()) {
+                x[index] = standing[0];
+                y[index] = standing[1];
+                z[index] = standing[2];
+                rotations[index] = Rotation.NONE;
+                scales[index] = SAME;
+                continue;
+            }
+            if (at < released) {
+                double eased = eased((at - motion.intactMillis()) / 1000.0
+                        / Math.max(0.05, lift));
+                x[index] = standing[0] + (target[0] - standing[0]) * eased;
+                y[index] = standing[1] + (target[1] - standing[1]) * eased;
+                z[index] = standing[2] + (target[2] - standing[2]) * eased;
+                rotations[index] = Rotation.around(Rotation.Axis.Z, roll * eased)
+                        .then(Rotation.around(Rotation.Axis.Y, yaw * eased));
+                scales[index] = new double[]{
+                        1 + (grown[0] - 1) * eased,
+                        1 + (grown[1] - 1) * eased,
+                        1 + (grown[2] - 1) * eased};
+                continue;
+            }
+            if (fall == null) {
+                fall = new Fall(motion, scale,
+                        new double[]{x[index - 1], y[index - 1], z[index - 1]},
+                        new double[]{0, 0, 0});
+            }
+            fall.to((at - released) / 1000.0);
+            x[index] = fall.position()[0];
+            y[index] = fall.position()[1];
+            z[index] = fall.position()[2];
+            rotations[index] = rotations[index - 1];
+            scales[index] = grown;
+        }
+        return new Flight(times, x, y, z, rotations, scales);
+    }
+
     // ---------------------------------------------------------------- the body
 
     /** Where a part stands on a living body, turned the way the body faces. */
@@ -590,51 +755,44 @@ public final class RagdollFlight {
     }
 
     /**
-     * Where a part hangs on a body that has been lifted and opened out.
+     * How far a limb is swung open, in radians about its own joint.
      *
-     * <p>Arms straight out to the sides, legs apart, head and chest carried up
-     * with them. The pose a person is held in when something else is about to
-     * happen to them, and the one the eye reads as helpless rather than dead.
+     * <p>{@code open} is an angle and not a distance, and that is the whole
+     * fix: a limb moved half a block out to the side comes away from the
+     * shoulder it belongs to, and the gap is the first thing anybody sees. A
+     * limb turned about its shoulder cannot come away from it.
      */
-    private static double[] opened(RagdollPart part, RagdollMotion motion, double scale,
-                                   Rotation facing) {
-        double open = motion.open() * scale;
-        double[] local = switch (part) {
-            case HEAD -> new double[]{0, part.blockCentreY() * scale + open * 0.35, 0};
-            case TORSO -> new double[]{0, part.blockCentreY() * scale, 0};
-            case ARM_RIGHT -> new double[]{
-                    part.blockOffsetX() * scale - open,
-                    part.blockCentreY() * scale + open * 0.5, 0};
-            case ARM_LEFT -> new double[]{
-                    part.blockOffsetX() * scale + open,
-                    part.blockCentreY() * scale + open * 0.5, 0};
-            case LEG_RIGHT -> new double[]{
-                    part.blockOffsetX() * scale - open * 0.8,
-                    part.blockCentreY() * scale - open * 0.15, 0};
-            case LEG_LEFT -> new double[]{
-                    part.blockOffsetX() * scale + open * 0.8,
-                    part.blockCentreY() * scale - open * 0.15, 0};
+    private static double swing(RagdollPart part, double open) {
+        double quarter = Math.PI / 2 * Math.clamp(open, 0, 1.2);
+        return switch (part) {
+            case ARM_RIGHT -> -quarter;
+            case ARM_LEFT -> quarter;
+            // Legs go about half as far. Any more is the splits, not a stance.
+            case LEG_RIGHT -> -quarter * 0.45;
+            case LEG_LEFT -> quarter * 0.45;
+            case HEAD, TORSO -> 0;
         };
-        float[] turned = facing.apply(new float[]{
-                (float) local[0], (float) local[1], (float) local[2]});
-        return new double[]{turned[0], turned[1] + motion.rise() * scale, turned[2]};
     }
 
     /**
-     * How a part is turned once the body is open.
+     * Where a part hangs on a body that has been lifted and opened out.
      *
-     * <p>An arm's long axis is upright on a standing body, so an arm held out
-     * sideways is a quarter turn about the roll axis. Legs go half as far,
-     * which is a stance rather than the splits.
+     * <p>Worked out from the joint every time, so the pose and the picture
+     * cannot disagree: whatever angle the limb is drawn at is the angle its
+     * position was taken from.
      */
-    private static Rotation opening(RagdollPart part) {
-        return switch (part) {
-            case ARM_RIGHT -> Rotation.around(Rotation.Axis.Z, Math.PI / 2);
-            case ARM_LEFT -> Rotation.around(Rotation.Axis.Z, -Math.PI / 2);
-            case LEG_RIGHT -> Rotation.around(Rotation.Axis.Z, Math.PI / 5);
-            case LEG_LEFT -> Rotation.around(Rotation.Axis.Z, -Math.PI / 5);
-            case HEAD, TORSO -> Rotation.NONE;
-        };
+    private static double[] opened(RagdollPart part, RagdollMotion motion, double scale,
+                                   Rotation facing, double angle) {
+        double cos = Math.cos(angle);
+        double sin = Math.sin(angle);
+        double reach = part.fromJoint() * scale;
+        double[] local = {
+                part.jointX() * scale - reach * sin,
+                part.jointY() * scale + reach * cos,
+                0};
+        float[] turned = facing.apply(new float[]{
+                (float) local[0], (float) local[1], (float) local[2]});
+        return new double[]{turned[0], turned[1] + motion.rise() * scale, turned[2]};
     }
 
     /** Part of the way into a turn about one axis. */

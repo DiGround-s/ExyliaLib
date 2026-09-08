@@ -478,7 +478,7 @@ public final class SequenceCompiler {
         args.reportUnknown(onArg, "pose", "life", "intact", "speed", "up", "spread", "gravity",
                 "bounce", "spin", "fade", "settle", "detail", "size", "glow", "light",
                 "y", "face", "rise", "open", "lift", "hang", "turns", "hits", "every", "force",
-                "swell", "squash");
+                "swell", "squash", "sign", "letters");
         net.exylia.lib.ragdoll.RagdollMotion burst = net.exylia.lib.ragdoll.RagdollMotion.builder()
                 .pose(net.exylia.lib.ragdoll.RagdollPose.of(args.text("pose", "burst")))
                 .rise(args.number("rise", 1.1, onArg))
@@ -491,6 +491,8 @@ public final class SequenceCompiler {
                 .force(args.number("force", 0.85, onArg))
                 .swell(args.number("swell", 3.0, onArg))
                 .squash(args.number("squash", 0.14, onArg))
+                .sign(args.text("sign", "EZ"))
+                .letters(args.number("letters", 2.4, onArg))
                 .life(args.number("life", 2.2, onArg))
                 .intactFor(args.number("intact", 0.3, onArg))
                 .speed(args.number("speed", 3.2, onArg))

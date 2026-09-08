@@ -381,7 +381,7 @@ final class SequenceLine {
             case "RAGDOLL" -> new Spec(token, Head.NONE, Form.NAMED, List.of(
                     new Field("pose", "What happens to the body",
                             "burst, spread, knocked, vortex, balloon, helicopter,"
-                                    + " plane, flatten or melt"),
+                                    + " plane, flatten, melt or sign"),
                     new Field("life", "Seconds the pieces last", "2.2"),
                     new Field("intact", "Seconds it stands whole first", "0.3"),
                     new Field("speed", "How fast the pieces leave, outwards", "3.2"),
@@ -406,6 +406,8 @@ final class SequenceLine {
                     new Field("force", "How far a blow shoves it, in blocks", "0.85"),
                     new Field("swell", "How many times its size a head reaches", "3"),
                     new Field("squash", "What is left of a flattened piece's height", "0.14"),
+                    new Field("sign", "What a sign body spells", "EZ"),
+                    new Field("letters", "How tall one letter is, in blocks", "2.4"),
                     new Field("y", "Height above the anchor", "0"),
                     new Field("face", "Turns to face whoever did it", "true or false")));
             case "ACTION_BAR" -> free(token, "The line above the hotbar", null);

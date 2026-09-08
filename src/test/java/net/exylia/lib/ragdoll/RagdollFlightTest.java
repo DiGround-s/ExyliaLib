@@ -5,6 +5,7 @@ import net.exylia.lib.ragdoll.internal.RagdollFlight;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
+import java.util.List;
 import java.util.Random;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -184,5 +185,66 @@ class RagdollFlightTest {
     private static double dot(Rotation one, Rotation other) {
         return one.x() * other.x() + one.y() * other.y()
                 + one.z() * other.z() + one.w() * other.w();
+    }
+
+    @Test
+    @DisplayName("a limb that is opened out stays on the body it belongs to")
+    void limbsStayAttached() {
+        // The first version of every held pose moved the limbs outwards
+        // instead of turning them about their joints. It reads as a body that
+        // has already come apart and then frozen, which is the one thing these
+        // poses are not.
+        for (RagdollPose pose : List.of(RagdollPose.SPREAD, RagdollPose.KNOCKED,
+                RagdollPose.PLANE, RagdollPose.HELICOPTER)) {
+            RagdollMotion motion = base().pose(pose).open(1.0).rise(1.4).build();
+            RagdollFlight.Flight chest =
+                    RagdollFlight.solve(RagdollPart.TORSO, motion, 1.0, Rotation.NONE, new Random(5));
+            for (RagdollPart limb : List.of(RagdollPart.ARM_LEFT, RagdollPart.ARM_RIGHT,
+                    RagdollPart.LEG_LEFT, RagdollPart.LEG_RIGHT)) {
+                RagdollFlight.Flight flight =
+                        RagdollFlight.solve(limb, motion, 1.0, Rotation.NONE, new Random(5));
+                // Only while it is being held: once it is let go the pieces
+                // are meant to come apart, and that is a different test.
+                long letGo = motion.intactMillis() + motion.liftMillis() + motion.hangMillis();
+                for (int index = 0; index < flight.times().length; index++) {
+                    if (pose.isHeld() && flight.times()[index] > letGo) {
+                        break;
+                    }
+                    // The end of the limb nearest its joint, wherever the limb
+                    // has been turned to and however far it has been stretched.
+                    float reach = limb.blockHeight() / 2 * (float) flight.scales()[index][1];
+                    float[] inner = flight.rotations()[index].apply(new float[]{0, reach, 0});
+                    double gap = Math.sqrt(
+                            Math.pow(flight.x()[index] + inner[0] - chest.x()[index], 2)
+                                    + Math.pow(flight.y()[index] + inner[1] - chest.y()[index], 2)
+                                    + Math.pow(flight.z()[index] + inner[2] - chest.z()[index], 2));
+                    assertTrue(gap < 0.85, pose + ": " + limb + " is " + gap
+                            + " blocks from the chest, which is off the body");
+                }
+            }
+        }
+    }
+
+    @Test
+    @DisplayName("a pose is arrived at, not jumped to")
+    void nothingPops() {
+        // A pose every tenth of a second and an ease that starts at full speed
+        // put the limbs halfway open in one frame. Whatever a pose does, its
+        // first step out of standing has to be a step.
+        for (RagdollPose pose : List.of(RagdollPose.SPREAD, RagdollPose.KNOCKED,
+                RagdollPose.VORTEX, RagdollPose.PLANE, RagdollPose.HELICOPTER,
+                RagdollPose.FLATTEN, RagdollPose.MELT, RagdollPose.SIGN)) {
+            RagdollMotion motion = base().pose(pose).open(1.0).rise(1.4).build();
+            for (RagdollPart part : RagdollPart.values()) {
+                RagdollFlight.Flight flight =
+                        RagdollFlight.solve(part, motion, 1.0, Rotation.NONE, new Random(9));
+                double step = Math.sqrt(
+                        Math.pow(flight.x()[2] - flight.x()[1], 2)
+                                + Math.pow(flight.y()[2] - flight.y()[1], 2)
+                                + Math.pow(flight.z()[2] - flight.z()[1], 2));
+                assertTrue(step < 0.34, pose + "/" + part + " moved " + step
+                        + " blocks in its first tenth of a second, which is a jump");
+            }
+        }
     }
 }

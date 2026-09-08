@@ -75,6 +75,8 @@ public final class RagdollMotion {
     private final double force;
     private final double swell;
     private final double squash;
+    private final String sign;
+    private final double letters;
 
     private RagdollMotion(Builder builder) {
         this.pose = builder.pose;
@@ -98,6 +100,8 @@ public final class RagdollMotion {
         this.force = builder.force;
         this.swell = builder.swell;
         this.squash = builder.squash;
+        this.sign = builder.sign;
+        this.letters = builder.letters;
     }
 
     /** A body thrown apart on the Exylia defaults: a beat, a throw, a fall and a rest. */
@@ -229,6 +233,16 @@ public final class RagdollMotion {
         return squash;
     }
 
+    /** What a {@link RagdollPose#SIGN} body spells. */
+    public @NotNull String sign() {
+        return sign;
+    }
+
+    /** How tall one letter of it is, in blocks. */
+    public double letters() {
+        return letters;
+    }
+
     /** Describes what happens to a body in the terms configuration is written in. */
     public static final class Builder {
 
@@ -253,6 +267,8 @@ public final class RagdollMotion {
         private double force = 0.85;
         private double swell = 3.0;
         private double squash = 0.14;
+        private String sign = "EZ";
+        private double letters = 2.4;
 
         private Builder() {
         }
@@ -415,6 +431,24 @@ public final class RagdollMotion {
          */
         public @NotNull Builder squash(double fraction) {
             this.squash = Math.clamp(fraction, 0.01, 1.0);
+            return this;
+        }
+
+        /**
+         * What a {@link RagdollPose#SIGN} body spells.
+         *
+         * <p>Letters and the two marks worth having. Anything else in the
+         * string is skipped rather than refused: a sign that quietly loses a
+         * comma is better than a kill effect that does not play.
+         */
+        public @NotNull Builder sign(@NotNull String text) {
+            this.sign = text;
+            return this;
+        }
+
+        /** How tall one letter is, in blocks. */
+        public @NotNull Builder letters(double blocks) {
+            this.letters = Math.max(0.5, blocks);
             return this;
         }
 

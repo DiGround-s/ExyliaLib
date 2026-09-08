@@ -62,6 +62,7 @@ costing the same.
 | `plane` | Arms out as wings, nose up, banking as it climbs. A negative `up` is a dive, and a dive stops at the floor |
 | `flatten` | Driven straight down and left flat, at `squash` of its height, in its own colours |
 | `melt` | Sinks where it stands, from the feet up, losing its height rather than its place |
+| `sign` | The pieces lay themselves out into letters and hold there. The letters *are* the body: every stroke is one or more of their own pieces, stretched along it |
 
 `spread` and `knocked` exist for the beat in the middle. A body hanging open in
 the air is a whole second in which something else can happen to it — and the
@@ -136,6 +137,8 @@ effects:
 | `force` | how far a blow shoves it, in blocks | `0.85` |
 | `swell` | how many times its size a `balloon` head reaches | `3` |
 | `squash` | what is left of a flattened piece's height | `0.14` |
+| `sign` | what a `sign` body spells | `EZ` |
+| `letters` | how tall one letter is, in blocks | `2.4` |
 
 `[RAGDOLL] {killer}` takes the killer apart instead, which is what a curse or a
 recoil effect wants.
@@ -154,6 +157,19 @@ client turns a display the short way round, so half a turn per pose is the
 ceiling, and a tenth of a second per pose would cap a helicopter at the speed of
 a desk fan. `helicopter` therefore sends a pose every fiftieth of a second and
 buys itself twice the rotor speed for two extra packets a second.
+
+## Limbs turn about their joints
+
+Every pose that opens a body out turns each limb about its own shoulder or hip
+rather than moving it outwards. This is not a detail: a limb moved half a block
+to the side comes away from the body, and the gap is the first thing anybody
+sees — it reads as a corpse that already came apart and then froze. `open` is
+therefore an angle, from 0 to 1, where 1 is a quarter turn.
+
+The same rule is why the helicopter is the whole body turning with its arms out,
+and not a rotor above its head. The first version flew the arms off the
+shoulders to a hub, which is correct and looks like two planks orbiting a
+corpse: a limb that leaves the body stops reading as a limb.
 
 ## Three things worth knowing
 

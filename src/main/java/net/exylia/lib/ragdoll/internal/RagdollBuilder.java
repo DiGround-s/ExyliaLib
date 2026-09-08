@@ -89,7 +89,7 @@ public final class RagdollBuilder {
                         burst, at, viewers, shown);
                 continue;
             }
-            cells(owner, model, part, flight, burst, scale, at, viewers, shown);
+            cells(owner, model, part, flight, burst, scale, facing, at, viewers, shown);
         }
         return shown;
     }
@@ -97,13 +97,18 @@ public final class RagdollBuilder {
     /** Draws one part as a grid of blocks in the colours its skin actually is. */
     private static void cells(String owner, RagdollModel model, RagdollPart part,
                               RagdollFlight.Flight flight,
-                              RagdollMotion burst, double scale, Location at,
+                              RagdollMotion burst, double scale, Rotation facing, Location at,
                               List<Player> viewers, List<DisplayHandle> shown) {
         int detail = model.detailCells();
         float width = part.blockWidth() * (float) scale;
         float height = part.blockHeight() * (float) scale;
         float depth = part.blockDepth() * (float) scale;
         float[] size = {width / detail, height / detail, depth};
+
+        // Every piece but the head, counted once across the whole body, so a
+        // word can be shared out among them.
+        int pieces = (RagdollPart.values().length - 1) * detail * detail;
+        boolean spelling = burst.pose() == net.exylia.lib.ragdoll.RagdollPose.SIGN;
 
         for (int cellY = 0; cellY < detail; cellY++) {
             for (int cellX = 0; cellX < detail; cellX++) {
@@ -118,6 +123,24 @@ public final class RagdollBuilder {
                         ((cellX + 0.5f) / detail - 0.5f) * width,
                         (0.5f - (cellY + 0.5f) / detail) * height,
                         0f};
+                if (spelling) {
+                    int index = (part.ordinal() - 1) * detail * detail + cellY * detail + cellX;
+                    RagdollSign.Placement to = RagdollSign.place(
+                            burst.sign(), burst.letters(), index, pieces);
+                    if (to == null) {
+                        continue;
+                    }
+                    // Placed by the word rather than by the body, so its offset
+                    // inside the part it came from is no longer of any use.
+                    double[] from = {
+                            flight.x()[0] + local[0],
+                            flight.y()[0] + local[1],
+                            flight.z()[0] + local[2]};
+                    show(owner, cell,
+                            RagdollFlight.signCell(burst, scale, facing, from, to, size),
+                            new float[]{0f, 0f, 0f}, size, burst, at, viewers, shown);
+                    continue;
+                }
                 show(owner, cell, flight, local, size, burst, at, viewers, shown);
             }
         }

@@ -112,6 +112,50 @@ public enum RagdollPart {
     }
 
     /**
+     * Where this part is joined to the body, across, in blocks.
+     *
+     * <p>The one number every pose needs and none of them had. A limb that is
+     * opened out is turned about its shoulder; a limb that is moved out to the
+     * side instead comes away from the body, and the gap is the first thing
+     * anybody notices. Rotating about the joint keeps it attached for free,
+     * because that is what a joint is.
+     */
+    public float jointX() {
+        return switch (this) {
+            case ARM_RIGHT -> -6 * PIXEL;
+            case ARM_LEFT -> 6 * PIXEL;
+            case LEG_RIGHT -> -2 * PIXEL;
+            case LEG_LEFT -> 2 * PIXEL;
+            case HEAD, TORSO -> 0f;
+        };
+    }
+
+    /** How high that joint sits above the feet, in blocks. */
+    public float jointY() {
+        return switch (this) {
+            // Shoulders and the neck are both the top of the chest.
+            case ARM_RIGHT, ARM_LEFT, HEAD -> 24 * PIXEL;
+            case LEG_RIGHT, LEG_LEFT -> 12 * PIXEL;
+            case TORSO -> 18 * PIXEL;
+        };
+    }
+
+    /**
+     * How far the part's own middle sits from that joint when it hangs
+     * straight, in blocks.
+     *
+     * <p>Negative for everything that hangs down from its joint, which is
+     * everything but the head.
+     */
+    public float fromJoint() {
+        return switch (this) {
+            case HEAD -> 4 * PIXEL;
+            case TORSO -> 0f;
+            default -> -6 * PIXEL;
+        };
+    }
+
+    /**
      * The part whose skin region stands in for this one on a legacy skin.
      *
      * <p>A 64&times;32 skin has no left arm and no left leg: the client mirrors
