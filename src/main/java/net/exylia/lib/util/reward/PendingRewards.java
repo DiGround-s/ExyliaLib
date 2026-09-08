@@ -1,5 +1,7 @@
 package net.exylia.lib.util.reward;
 
+import net.exylia.lib.util.reward.internal.DatabasePending;
+import org.bukkit.plugin.Plugin;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.List;
@@ -14,7 +16,14 @@ import java.util.UUID;
  * imposed would either ignore those rows or force a migration, and this module
  * exists precisely so nobody has to migrate anything.
  *
- * <p>So a plugin hands its own store over and keeps its own table:
+ * <p>A plugin that has no table yet, and no reason to want one, asks for the
+ * one the library can keep for it:
+ *
+ * <pre>{@code
+ * rewards.pending(PendingRewards.database(this)).claimOnJoin();
+ * }</pre>
+ *
+ * <p>A plugin with rows of its own hands its own store over instead:
  *
  * <pre>{@code
  * rewards.pending(new PendingRewards() {
@@ -44,6 +53,27 @@ import java.util.UUID;
  * @since 1.34.0
  */
 public interface PendingRewards {
+
+    /**
+     * The store the library keeps, in the plugin's own database.
+     *
+     * <p>ExyliaLib has no database. This writes to the one the consumer plugin
+     * already configured in {@code plugins/<Plugin>/database.yml} — H2 in a
+     * file unless the owner said otherwise — in a table named
+     * {@code exylia_pending_rewards}. Two plugins pointed at the same database
+     * share the table and are told apart by the column that names them.
+     *
+     * <p>Both halves of the threading contract below are handled: the write is
+     * scheduled and the read is already off the main thread. Pair it with
+     * {@link PluginRewards#claimOnJoin()} and there is nothing else to write.
+     *
+     * @param plugin whose database, and whose rewards
+     * @return a store backed by that database
+     * @since 1.127.0
+     */
+    static @NotNull PendingRewards database(@NotNull Plugin plugin) {
+        return new DatabasePending(plugin);
+    }
 
     /**
      * Keeps rewards for a player who could not receive them.

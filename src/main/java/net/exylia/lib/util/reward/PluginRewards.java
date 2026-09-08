@@ -11,6 +11,9 @@ import net.exylia.lib.util.reward.internal.Rolls;
 import net.exylia.lib.util.editor.Editors;
 import net.exylia.lib.util.editor.ListEditor;
 import org.bukkit.entity.Player;
+import org.bukkit.event.EventHandler;
+import org.bukkit.event.Listener;
+import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.plugin.Plugin;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -69,6 +72,7 @@ public final class PluginRewards {
 
     private volatile OverflowPolicy overflow = OverflowPolicy.DROP;
     private volatile PendingRewards pending;
+    private volatile boolean claimingOnJoin;
     private volatile Rolls.Dice dice = Rolls.RANDOM;
     private volatile ItemGiver items = ItemGiver.BUKKIT;
 
@@ -119,6 +123,55 @@ public final class PluginRewards {
      */
     public @NotNull PluginRewards pending(@NotNull PendingRewards store) {
         this.pending = store;
+        return this;
+    }
+
+    /**
+     * Hands every player what they are owed as they join, and says nothing.
+     *
+     * <p>The listener a plugin would otherwise write, and the one it is easiest
+     * to forget: a queue nobody drains is a table that only grows. Registered
+     * once however many times this is called.
+     *
+     * @return this
+     * @since 1.127.0
+     */
+    public @NotNull PluginRewards claimOnJoin() {
+        return claimOnJoin(delivery -> { });
+    }
+
+    /**
+     * Hands every player what they are owed as they join.
+     *
+     * <p>Called only when something was actually owed, on the player's own
+     * thread, which is where a message about it belongs:
+     *
+     * <pre>{@code
+     * rewards.pending(PendingRewards.database(this))
+     *        .claimOnJoin(delivery -> messages.pending(player, delivery.given()));
+     * }</pre>
+     *
+     * <p>The player is reachable through the delivery's own results; a plugin
+     * that wants to name them keeps the reference from its own listener
+     * instead. Registered once however many times this is called, so a reload
+     * that rebuilds the plugin's settings does not hand a reward over twice.
+     *
+     * @param then what to do with the delivery, on the player's thread
+     * @return this
+     * @since 1.127.0
+     */
+    public @NotNull PluginRewards claimOnJoin(
+            @NotNull java.util.function.Consumer<RewardDelivery> then) {
+        synchronized (this) {
+            if (claimingOnJoin) return this;
+            claimingOnJoin = true;
+        }
+        plugin.getServer().getPluginManager().registerEvents(new Listener() {
+            @EventHandler
+            public void onJoin(PlayerJoinEvent event) {
+                claim(event.getPlayer(), then);
+            }
+        }, plugin);
         return this;
     }
 
