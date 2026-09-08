@@ -36,11 +36,51 @@ public final class NametagRuntime {
     /** Starts listening for entity metadata, if PacketEvents is installed. */
     public static void init(Plugin plugin) {
         logger = plugin.getLogger();
-        sink = NametagPackets.install(STATE);
+        sink = install();
+    }
+
+    /**
+     * Installs the listener, or answers {@code null} when PacketEvents is not
+     * there to listen with.
+     *
+     * <p>{@code Throwable} rather than an exception: without the plugin its
+     * classes are not on the class path either, and a missing dependency
+     * arrives as {@link NoClassDefFoundError} while the listener is being
+     * loaded — before any code in it can decline politely.
+     */
+    private static NametagSink install() {
+        try {
+            return NametagPackets.install(STATE);
+        } catch (Throwable absent) {
+            return null;
+        }
+    }
+
+    /**
+     * The listener, installed on demand.
+     *
+     * <p>Nothing orders PacketEvents before this library, and a server that
+     * enabled them the other way round used to lose every nametag for the rest
+     * of the session — the one install attempt had already failed. Asking again
+     * costs a null check, and it is the difference between a coloured name and
+     * a feature that is silently gone until a restart.
+     */
+    private static NametagSink sink() {
+        NametagSink current = sink;
+        if (current == null) {
+            synchronized (NametagRuntime.class) {
+                current = sink;
+                if (current == null) {
+                    current = install();
+                    sink = current;
+                }
+            }
+        }
+        return current;
     }
 
     public static boolean isSupported() {
-        return sink != null;
+        return sink() != null;
     }
 
     public static PluginNametags of(Plugin plugin) {
@@ -114,7 +154,7 @@ public final class NametagRuntime {
         @Override
         public void paint(@NotNull Player viewer, @NotNull Collection<? extends Player> targets,
                           @NotNull NametagStyle style) {
-            NametagSink out = sink;
+            NametagSink out = sink();
             if (out == null) {
                 return;
             }
@@ -191,7 +231,7 @@ public final class NametagRuntime {
 
         @Override
         public void reset(@NotNull Player viewer, @NotNull Player target) {
-            NametagSink out = sink;
+            NametagSink out = sink();
             if (out == null) {
                 return;
             }
