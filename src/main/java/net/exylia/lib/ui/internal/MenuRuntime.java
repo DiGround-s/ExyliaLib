@@ -48,6 +48,22 @@ public final class MenuRuntime {
      */
     private static final Map<String, MenuRuntime> RUNTIMES = new ConcurrentHashMap<>();
 
+    /**
+     * The window each player has of ours open, across every plugin's runtime.
+     *
+     * <p>Answering "what is this player looking at" from the inventory itself
+     * means asking the platform for the open view, its top inventory and that
+     * inventory's holder: three interface calls that every plugin's redraw pays
+     * for every player it asks about, on every frame it asks. One window per
+     * player is a fact this class already knows, because it is the class that
+     * opened it.
+     *
+     * <p>Global rather than per runtime, so the answer stays exactly what
+     * reading the holder gave: the session behind the open window, whichever
+     * plugin owns it.
+     */
+    private static final Map<UUID, Session> OPEN = new ConcurrentHashMap<>();
+
     private final Plugin plugin;
     private final PluginItems items;
 
@@ -140,6 +156,7 @@ public final class MenuRuntime {
 
     /** Forgets a player everywhere, on quit. */
     public static void forgetEverywhere(UUID id) {
+        OPEN.remove(id);
         for (MenuRuntime runtime : RUNTIMES.values()) {
             runtime.forget(id);
         }
@@ -237,6 +254,9 @@ public final class MenuRuntime {
         session.seed(sections);
         session.draw();
         viewer.openInventory(inventory);
+        // After the open, not before: opening one window over another closes the
+        // first, and that close arrives while this call is still running.
+        OPEN.put(viewer.getUniqueId(), session);
         play(viewer, definition.sounds().open());
 
         List<List<Integer>> frames =
@@ -278,8 +298,7 @@ public final class MenuRuntime {
 
     /** The menu a player has open, if it is one of ours. */
     public @Nullable Session sessionOf(Player viewer) {
-        Inventory top = viewer.getOpenInventory().getTopInventory();
-        return top.getHolder() instanceof MenuHolder holder ? holder.session() : null;
+        return OPEN.get(viewer.getUniqueId());
     }
 
     /** The session behind an inventory, if it is one of ours. */
@@ -368,6 +387,9 @@ public final class MenuRuntime {
 
     /** Called when a window of ours closes. */
     void closed(Session session) {
+        // Keyed on the session, not just the player: a menu opened over another
+        // closes the first after the second is already the open one.
+        OPEN.remove(session.viewer().getUniqueId(), session);
         rememberPages(session);
         session.released();
         play(session.viewer(), session.definition().sounds().close());
@@ -524,5 +546,28 @@ public final class MenuRuntime {
     /** The session a menu API call is about, as the public type. */
     public @Nullable UiSession publicSessionOf(Player viewer) {
         return sessionOf(viewer);
+    }
+
+    /**
+     * Every window of this plugin that is open right now.
+     *
+     * <p>For work that is about the open menus rather than about a player: a
+     * plugin redrawing what it shows on a timer asks this instead of asking
+     * about every player on the server, most of whom have nothing open.
+     *
+     * @return the open sessions, in no particular order
+     */
+    public @NotNull List<UiSession> publicSessions() {
+        List<UiSession> mine = null;
+        for (Session session : OPEN.values()) {
+            if (session.runtime() != this) {
+                continue;
+            }
+            if (mine == null) {
+                mine = new ArrayList<>();
+            }
+            mine.add(session);
+        }
+        return mine == null ? List.of() : mine;
     }
 }

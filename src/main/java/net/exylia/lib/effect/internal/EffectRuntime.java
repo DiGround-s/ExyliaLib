@@ -13,6 +13,7 @@ import org.jetbrains.annotations.Nullable;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Logger;
 
@@ -28,6 +29,28 @@ public final class EffectRuntime {
 
     /** Every showing display, keyed by identity so equal-looking ones stay distinct. */
     private static final Map<ActiveDisplay, Boolean> ACTIVE = new ConcurrentHashMap<>();
+
+    /**
+     * The one display holding each exclusive screen.
+     *
+     * <p>A player has one action bar and one title, so a plugin showing either
+     * of them replaces whatever it was showing there before. Finding what to
+     * replace by walking every effect on the server made showing a bar cost
+     * something proportional to how many bars the whole server had — and the
+     * plugins that show one per player per tick paid that sixty times a tick.
+     *
+     * <p>Only exclusive displays are here; a boss bar stacks and never
+     * supersedes anything.
+     */
+    private static final Map<Screen, ActiveDisplay> EXCLUSIVE = new ConcurrentHashMap<>();
+
+    /** One screen a plugin can be writing for one player: its action bar, or its title. */
+    private record Screen(UUID viewer, Class<?> kind, String owner) {
+    }
+
+    private static Screen screenOf(ActiveDisplay display) {
+        return new Screen(display.viewer().getUniqueId(), display.getClass(), display.owner());
+    }
 
     /**
      * A plugin that called {@link #owner}: its scheduler, for ticking its
@@ -180,17 +203,9 @@ public final class EffectRuntime {
      * @param display the display that is starting
      */
     static void supersede(ActiveDisplay display) {
-        // Iterated live: a ConcurrentHashMap tolerates the removal that
-        // superseded() does from inside the loop, and copying every active
-        // display on the server for every bar shown was most of what showing
-        // a bar cost.
-        for (ActiveDisplay showing : ACTIVE.keySet()) {
-            if (showing != display
-                    && showing.getClass() == display.getClass()
-                    && showing.ownedBy(display.owner())
-                    && showing.isFor(display.viewer())) {
-                showing.superseded();
-            }
+        ActiveDisplay showing = EXCLUSIVE.put(screenOf(display), display);
+        if (showing != null && showing != display) {
+            showing.superseded();
         }
     }
 
@@ -200,6 +215,9 @@ public final class EffectRuntime {
 
     static void unregister(ActiveDisplay display) {
         ACTIVE.remove(display);
+        // Only if it is still the one holding that screen: a display that was
+        // superseded is unregistered after the one that replaced it claimed it.
+        EXCLUSIVE.remove(screenOf(display), display);
     }
 
     /**
@@ -242,6 +260,7 @@ public final class EffectRuntime {
             display.stop();
         }
         ACTIVE.clear();
+        EXCLUSIVE.clear();
     }
 
     /**

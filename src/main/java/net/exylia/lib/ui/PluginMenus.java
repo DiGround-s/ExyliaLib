@@ -335,6 +335,20 @@ public final class PluginMenus {
     }
 
     /**
+     * Every menu of this plugin that somebody has open right now.
+     *
+     * <p>What a timer that redraws open screens should walk. Asking every player
+     * on the server whether they have something open is the same answer for far
+     * more work, and it grows with the player count rather than with the number
+     * of menus actually on screen.
+     *
+     * @return the open sessions, empty when nobody has one
+     */
+    public @NotNull List<UiSession> sessions() {
+        return runtime.publicSessions();
+    }
+
+    /**
      * Takes a player back to the menu they came from.
      *
      * @param viewer the player
