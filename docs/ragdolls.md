@@ -140,6 +140,7 @@ effects:
 | `squash` | what is left of a flattened piece's height | `0.14` |
 | `sign` | what a `sign` body spells | `EZ` |
 | `letters` | how tall one letter is, in blocks | `2.4` |
+| `dir` | which way it is thrown or flies, in degrees: 0 is east, 90 is south | away from the killer |
 
 `[RAGDOLL] {killer}` takes the killer apart instead, which is what a curse or a
 recoil effect wants.
@@ -150,7 +151,15 @@ recoil effect wants.
 `spread` and `knocked` read `rise open lift hang turns` first, and the throw
 afterwards for the fall. `knocked` adds `hits every force`. `vortex` reads
 `rise open turns`. `balloon` reads `swell lift hang` and then the throw in full.
-`thrown` reads `speed up gravity spin lift` and nothing else — it is the one
+`dir` is worth knowing about before writing any of the three poses that
+travel. Everything a sequence draws is written on the world's own axes — an
+airlock at `from:4.5,1.7,0` is four and a half blocks east, whoever did the
+killing — so a body that leaves on a bearing taken from the kill leaves in a
+direction nothing else in the effect knows about. Write `dir:` to send it into
+the scene the effect actually drew; leave it out, and it leaves away from
+whoever killed it, which is the right answer when the effect draws nothing.
+
+`thrown` reads `speed up gravity spin lift dir` and nothing else — it is the one
 pose that carries a body rather than taking it apart, so it has no floor, no
 bounce and no rise. `helicopter` reads `rise lift speed up spin`, `plane` the same plus `open` and
 `turns`, `flatten` reads `lift squash open`, and `melt` reads `hang squash open`.

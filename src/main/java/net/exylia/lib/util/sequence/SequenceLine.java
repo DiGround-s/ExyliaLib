@@ -408,6 +408,8 @@ final class SequenceLine {
                     new Field("squash", "What is left of a flattened piece's height", "0.14"),
                     new Field("sign", "What a sign body spells", "EZ"),
                     new Field("letters", "How tall one letter is, in blocks", "2.4"),
+                    new Field("dir", "Which way it is thrown or flies, in degrees",
+                            "0 is east, 90 is south"),
                     new Field("y", "Height above the anchor", "0"),
                     new Field("face", "Turns to face whoever did it", "true or false")));
             case "ACTION_BAR" -> free(token, "The line above the hotbar", null);

@@ -279,4 +279,31 @@ class RagdollFlightTest {
             }
         }
     }
+
+    @Test
+    @DisplayName("a body goes where the file aimed it")
+    void aThrowCanBeAimed() {
+        // An effect draws its airlock at a fixed offset and then throws the
+        // body away from whoever killed them, which is a body leaving somebody
+        // else's scene. Zero degrees is east, ninety is south, the same as
+        // every shape in the same file.
+        for (double[] aim : new double[][]{{0, 1, 0}, {90, 0, 1}, {180, -1, 0}, {-90, 0, -1}}) {
+            RagdollMotion motion = base()
+                    .pose(RagdollPose.THROWN)
+                    .speed(8).up(0).gravity(0).spin(0)
+                    .heading(aim[0])
+                    .build();
+            RagdollFlight.Flight flight = RagdollFlight.solve(
+                    RagdollPart.TORSO, motion, 1.0,
+                    // Facing somewhere else entirely, which must not matter.
+                    Rotation.around(Rotation.Axis.Y, 1.2), new Random(4));
+            int last = flight.times().length - 1;
+            double travelled = Math.hypot(flight.x()[last], flight.z()[last]);
+            assertTrue(travelled > 4, "it barely moved: " + travelled);
+            assertEquals(aim[1], flight.x()[last] / travelled, 0.02,
+                    "thrown at " + aim[0] + " degrees, it went east by " + flight.x()[last]);
+            assertEquals(aim[2], flight.z()[last] / travelled, 0.02,
+                    "thrown at " + aim[0] + " degrees, it went south by " + flight.z()[last]);
+        }
+    }
 }

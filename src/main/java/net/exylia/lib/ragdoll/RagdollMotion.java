@@ -77,6 +77,8 @@ public final class RagdollMotion {
     private final double squash;
     private final String sign;
     private final double letters;
+    private final double heading;
+    private final boolean aimed;
 
     private RagdollMotion(Builder builder) {
         this.pose = builder.pose;
@@ -102,6 +104,8 @@ public final class RagdollMotion {
         this.squash = builder.squash;
         this.sign = builder.sign;
         this.letters = builder.letters;
+        this.heading = builder.heading;
+        this.aimed = builder.aimed;
     }
 
     /** A body thrown apart on the Exylia defaults: a beat, a throw, a fall and a rest. */
@@ -243,6 +247,24 @@ public final class RagdollMotion {
         return letters;
     }
 
+    /**
+     * Which way a body travels, in degrees, or a meaningless number when
+     * {@link #aimed()} is false.
+     *
+     * <p>The same bearing the shapes are written in: zero is east, ninety is
+     * south. That is the whole reason it exists &mdash; an effect draws its
+     * airlock, its wave or its battering ram at a fixed offset, and a body that
+     * leaves in some other direction is a body leaving somebody else's scene.
+     */
+    public double heading() {
+        return heading;
+    }
+
+    /** Whether a direction was written down, rather than taken from the kill. */
+    public boolean aimed() {
+        return aimed;
+    }
+
     /** Describes what happens to a body in the terms configuration is written in. */
     public static final class Builder {
 
@@ -269,6 +291,8 @@ public final class RagdollMotion {
         private double squash = 0.14;
         private String sign = "EZ";
         private double letters = 2.4;
+        private double heading;
+        private boolean aimed;
 
         private Builder() {
         }
@@ -449,6 +473,19 @@ public final class RagdollMotion {
         /** How tall one letter is, in blocks. */
         public @NotNull Builder letters(double blocks) {
             this.letters = Math.max(0.5, blocks);
+            return this;
+        }
+
+        /**
+         * Which way it travels, in degrees: zero is east, ninety is south.
+         *
+         * <p>Left unset, a body leaves away from whoever killed it, which is
+         * right for an effect that draws nothing of its own. Set, it leaves the
+         * way the effect's own scenery says it should.
+         */
+        public @NotNull Builder heading(double degrees) {
+            this.heading = degrees;
+            this.aimed = true;
             return this;
         }
 

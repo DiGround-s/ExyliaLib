@@ -478,8 +478,9 @@ public final class SequenceCompiler {
         args.reportUnknown(onArg, "pose", "life", "intact", "speed", "up", "spread", "gravity",
                 "bounce", "spin", "fade", "settle", "detail", "size", "glow", "light",
                 "y", "face", "rise", "open", "lift", "hang", "turns", "hits", "every", "force",
-                "swell", "squash", "sign", "letters");
-        net.exylia.lib.ragdoll.RagdollMotion burst = net.exylia.lib.ragdoll.RagdollMotion.builder()
+                "swell", "squash", "sign", "letters", "dir");
+        net.exylia.lib.ragdoll.RagdollMotion.Builder body =
+                net.exylia.lib.ragdoll.RagdollMotion.builder()
                 .pose(net.exylia.lib.ragdoll.RagdollPose.of(args.text("pose", "burst")))
                 .rise(args.number("rise", 1.1, onArg))
                 .open(args.number("open", 0.55, onArg))
@@ -502,9 +503,14 @@ public final class SequenceCompiler {
                 .bounce(args.number("bounce", 0.32, onArg))
                 .spin(args.number("spin", 1.8, onArg))
                 .fade(args.flag("fade", true))
-                .settle(args.flag("settle", true))
-                .build();
-        return new Steps.Ragdoll(owner, face, burst,
+                .settle(args.flag("settle", true));
+        // Only when the file says so: left unset, a body leaves away from
+        // whoever killed it, and that is the right answer for an effect that
+        // draws no scenery of its own to disagree with.
+        if (args.has("dir")) {
+            body.heading(args.number("dir", 0.0, onArg));
+        }
+        return new Steps.Ragdoll(owner, face, body.build(),
                 args.count("detail", 1, onArg),
                 args.number("size", 1.0, onArg),
                 glow == null ? -1 : glow.asRGB(),

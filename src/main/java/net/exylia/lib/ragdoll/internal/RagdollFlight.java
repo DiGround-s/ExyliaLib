@@ -453,7 +453,7 @@ public final class RagdollFlight {
     private static Flight helicopter(RagdollPart part, RagdollMotion motion, double scale,
                                      Rotation facing, RandomGenerator random) {
         double[] standing = standing(part, scale, facing);
-        double[] ahead = forward(facing);
+        double[] ahead = heading(motion, facing);
         boolean blade = part == RagdollPart.ARM_LEFT || part == RagdollPart.ARM_RIGHT;
         boolean leg = part == RagdollPart.LEG_LEFT || part == RagdollPart.LEG_RIGHT;
 
@@ -518,7 +518,7 @@ public final class RagdollFlight {
         double wingLength = 1.2 + motion.open() * 1.6;
         boolean wing = part == RagdollPart.ARM_LEFT || part == RagdollPart.ARM_RIGHT;
         double[] out = wing(part, motion, scale, wingLength);
-        double[] ahead = forward(facing);
+        double[] ahead = heading(motion, facing);
         double swung = swing(part, part == RagdollPart.ARM_LEFT
                 || part == RagdollPart.ARM_RIGHT ? 1.0 : 0.0);
         Rotation opening = Rotation.around(Rotation.Axis.Z, swung);
@@ -628,6 +628,23 @@ public final class RagdollFlight {
         });
     }
 
+    /**
+     * Which way a body travels.
+     *
+     * <p>Where the file said, if it said; otherwise away from whoever did it.
+     * The two are not interchangeable: everything a sequence draws is written
+     * on the world's own axes, and a body that leaves on a bearing taken from
+     * the kill instead leaves in a direction nothing else in the effect knows
+     * about.
+     */
+    private static double[] heading(RagdollMotion motion, Rotation facing) {
+        if (!motion.aimed()) {
+            return forward(facing);
+        }
+        double radians = Math.toRadians(motion.heading());
+        return new double[]{Math.cos(radians), 0, Math.sin(radians)};
+    }
+
     /** Which way a body is looking, as a unit vector pointing away from it. */
     private static double[] forward(Rotation facing) {
         float[] ahead = facing.apply(new float[]{0f, 0f, -1f});
@@ -652,7 +669,7 @@ public final class RagdollFlight {
     private static Flight thrown(RagdollPart part, RagdollMotion motion, double scale,
                                  Rotation facing) {
         double[] standing = standing(part, scale, facing);
-        double[] ahead = forward(facing);
+        double[] ahead = heading(motion, facing);
         double[] middle = {0, BODY_MIDDLE * scale, 0};
         // End over end about the axis across its own path, with a little yaw on
         // top so it is not a wheel.
