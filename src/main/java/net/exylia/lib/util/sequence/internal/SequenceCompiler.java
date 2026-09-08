@@ -475,10 +475,19 @@ public final class SequenceCompiler {
             default -> Steps.Corpse.Face.VICTIM;
         };
         Color glow = args.colour("glow", null, onArg);
-        args.reportUnknown(onArg, "life", "intact", "speed", "up", "spread", "gravity",
+        args.reportUnknown(onArg, "pose", "life", "intact", "speed", "up", "spread", "gravity",
                 "bounce", "spin", "fade", "settle", "detail", "size", "glow", "light",
-                "y", "face");
-        net.exylia.lib.ragdoll.RagdollBurst burst = net.exylia.lib.ragdoll.RagdollBurst.builder()
+                "y", "face", "rise", "open", "lift", "hang", "turns", "hits", "every", "force");
+        net.exylia.lib.ragdoll.RagdollMotion burst = net.exylia.lib.ragdoll.RagdollMotion.builder()
+                .pose(net.exylia.lib.ragdoll.RagdollPose.of(args.text("pose", "burst")))
+                .rise(args.number("rise", 1.1, onArg))
+                .open(args.number("open", 0.55, onArg))
+                .lift(args.number("lift", 0.45, onArg))
+                .hang(args.number("hang", 0.9, onArg))
+                .turns(args.number("turns", 0.35, onArg))
+                .hits(args.count("hits", 3, onArg))
+                .every(args.number("every", 0.32, onArg))
+                .force(args.number("force", 0.85, onArg))
                 .life(args.number("life", 2.2, onArg))
                 .intactFor(args.number("intact", 0.3, onArg))
                 .speed(args.number("speed", 3.2, onArg))

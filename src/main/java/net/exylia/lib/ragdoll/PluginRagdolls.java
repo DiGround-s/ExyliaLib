@@ -28,7 +28,7 @@ public final class PluginRagdolls {
      *
      * <pre>{@code
      * ragdolls.show(RagdollModel.of(victim).detail(2).light(15),
-     *         RagdollBurst.standard(), victim.getLocation(), nearby);
+     *         RagdollMotion.standard(), victim.getLocation(), nearby);
      * }</pre>
      *
      * <p>Returns at once. Every piece's whole flight is solved before the call
@@ -40,7 +40,7 @@ public final class PluginRagdolls {
      * @param viewers who sees it; taken as given and not copied again
      * @return the handle
      */
-    public @NotNull RagdollHandle show(@NotNull RagdollModel model, @NotNull RagdollBurst burst,
+    public @NotNull RagdollHandle show(@NotNull RagdollModel model, @NotNull RagdollMotion burst,
                                        @NotNull Location at, @NotNull List<Player> viewers) {
         List<DisplayHandle> pieces = RagdollBuilder.show(pluginName, model, burst, at, viewers);
         return new RagdollHandle(pieces);

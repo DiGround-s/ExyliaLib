@@ -6,7 +6,7 @@ import net.exylia.lib.display.DisplayModel;
 import net.exylia.lib.display.DisplayMotion;
 import net.exylia.lib.display.Rotation;
 import net.exylia.lib.display.internal.DisplayRuntime;
-import net.exylia.lib.ragdoll.RagdollBurst;
+import net.exylia.lib.ragdoll.RagdollMotion;
 import net.exylia.lib.ragdoll.RagdollModel;
 import net.exylia.lib.ragdoll.RagdollPart;
 import org.bukkit.Location;
@@ -69,7 +69,7 @@ public final class RagdollBuilder {
      * @param viewers who sees it
      * @return the displays it put on screen, in the order they were made
      */
-    public static List<DisplayHandle> show(String owner, RagdollModel model, RagdollBurst burst,
+    public static List<DisplayHandle> show(String owner, RagdollModel model, RagdollMotion burst,
                                            Location at, List<Player> viewers) {
         List<DisplayHandle> shown = new ArrayList<>();
         if (viewers.isEmpty()) {
@@ -97,7 +97,7 @@ public final class RagdollBuilder {
     /** Draws one part as a grid of blocks in the colours its skin actually is. */
     private static void cells(String owner, RagdollModel model, RagdollPart part,
                               RagdollFlight.Flight flight,
-                              RagdollBurst burst, double scale, Location at,
+                              RagdollMotion burst, double scale, Location at,
                               List<Player> viewers, List<DisplayHandle> shown) {
         int detail = model.detailCells();
         float width = part.blockWidth() * (float) scale;
@@ -125,7 +125,7 @@ public final class RagdollBuilder {
 
     /** Turns one piece's flight into poses and puts it on screen. */
     private static void show(String owner, DisplayModel model, RagdollFlight.Flight flight,
-                             float[] local, float[] size, RagdollBurst burst, Location at,
+                             float[] local, float[] size, RagdollMotion burst, Location at,
                              List<Player> viewers, List<DisplayHandle> shown) {
         List<DisplayKeyframe> poses = new ArrayList<>(flight.times().length);
         for (int index = 0; index < flight.times().length; index++) {
@@ -149,7 +149,7 @@ public final class RagdollBuilder {
     }
 
     /** How much of its size a piece still has, so it shrinks away at the end. */
-    private static float shrink(long atMillis, RagdollBurst burst) {
+    private static float shrink(long atMillis, RagdollMotion burst) {
         if (!burst.fade()) {
             return 1f;
         }

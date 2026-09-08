@@ -379,6 +379,8 @@ final class SequenceLine {
                     new Field("hurt", "Flinches when it is struck", "true or false"),
                     new Field("move_after", "Seconds before any of that happens", "0")));
             case "RAGDOLL" -> new Spec(token, Head.NONE, Form.NAMED, List.of(
+                    new Field("pose", "What happens to the body",
+                            "burst, spread, knocked or vortex"),
                     new Field("life", "Seconds the pieces last", "2.2"),
                     new Field("intact", "Seconds it stands whole first", "0.3"),
                     new Field("speed", "How fast the pieces leave, outwards", "3.2"),
@@ -393,6 +395,14 @@ final class SequenceLine {
                     new Field("glow", "Outline colour", "a name, #rrggbb or a {palette} token"),
                     new Field("fade", "Shrinks away at the end", "true or false"),
                     new Field("settle", "Stops turning once it lands", "true or false"),
+                    new Field("rise", "How far off the ground it hangs", "1.1"),
+                    new Field("open", "How far the arms and legs open out", "0.55"),
+                    new Field("lift", "Seconds the lift takes", "0.45"),
+                    new Field("hang", "Seconds it hangs there", "0.9"),
+                    new Field("turns", "Turns it makes while it hangs", "0.35"),
+                    new Field("hits", "How many times it is struck", "3"),
+                    new Field("every", "Seconds between blows", "0.32"),
+                    new Field("force", "How far a blow shoves it, in blocks", "0.85"),
                     new Field("y", "Height above the anchor", "0"),
                     new Field("face", "Turns to face whoever did it", "true or false")));
             case "ACTION_BAR" -> free(token, "The line above the hotbar", null);

@@ -16,7 +16,7 @@ import java.util.concurrent.ConcurrentHashMap;
  * PluginRagdolls ragdolls = Ragdolls.of(this);
  *
  * ragdolls.show(RagdollModel.of(victim).detail(2).light(15),
- *         RagdollBurst.builder().life(2.4).up(7).spin(2).build(),
+ *         RagdollMotion.builder().life(2.4).up(7).spin(2).build(),
  *         victim.getLocation(), nearby);
  * }</pre>
  *

@@ -7,7 +7,7 @@ PluginRagdolls ragdolls = Ragdolls.of(this);
 
 ragdolls.show(
         RagdollModel.of(victim).detail(2).light(15),
-        RagdollBurst.builder().life(2.4).intactFor(0.35).up(7).spin(2).build(),
+        RagdollMotion.builder().pose(RagdollPose.SPREAD).rise(1.4).hang(1.2).build(),
         victim.getLocation(),
         nearby);
 ```
@@ -46,6 +46,36 @@ Skins are read from Mojang's texture server once per skin, in the background,
 when their owner joins — minutes before anybody kills them. A skin that has not
 arrived costs one death its colours and nothing else.
 
+## Poses
+
+`pose:` is what happens to the body. Four of them, all solved in advance and all
+costing the same.
+
+| Pose | What it is |
+|---|---|
+| `burst` | Thrown apart: outwards, up, down, bounce, rest. The default, and the one that reads as violence |
+| `spread` | Lifted off the ground and opened out, arms and legs wide, turning slowly. Held there, then let go |
+| `knocked` | Held open like `spread`, then struck several times from different sides. Each blow shoves it and spins it, and it drifts back before the next lands |
+| `vortex` | Taken: the pieces spiral out, round and upwards, and are gone at the top. Nothing is left on the floor |
+
+`spread` and `knocked` exist for the beat in the middle. A body hanging open in
+the air is a whole second in which something else can happen to it — and the
+blows of `knocked` land on a fixed clock, so whatever is doing the hitting is
+written as its own lines and timed to them with `[DELAY]`:
+
+```yaml
+effects:
+  - '[RAGDOLL] {victim};pose:knocked;intact:0.3;lift:0.45;hits:4;every:0.34;force:0.9;hang:1.7;life:3.6;detail:2;light:15'
+  # The first blow lands at intact + lift = 0.75s. Line the snowball up with it.
+  - '[DELAY] 0.55'
+  - '[DISPLAY] SNOWBALL;from:5,2.4,0;to:0.4,1.8,0;ease:in;life:0.2;size:1.4;light:15'
+  - '[DELAY] 0.2'
+  - '[SOUND] ENTITY_SNOWBALL_THROW;1.6;0.8'
+```
+
+`RagdollMotion.hitAt(index)` gives the exact millisecond of each blow, which is
+the number those `[DELAY]` lines add up to.
+
 ## Detail
 
 `detail` is how many cells each part is cut into on each axis.
@@ -69,10 +99,12 @@ file everything else is written in:
 ```yaml
 effects:
   - '[RAGDOLL] {victim};life:2.4;intact:0.35;up:7;spin:2;detail:2;light:15'
+  - '[RAGDOLL] {victim};pose:spread;rise:1.4;open:0.7;hang:1.2;turns:0.5;life:3.4'
 ```
 
 | Parameter | What it is | Default |
 |---|---|---|
+| `pose` | `burst`, `spread`, `knocked` or `vortex` | `burst` |
 | `life` | seconds the pieces last | `2.2` |
 | `intact` | seconds the body stands whole first | `0.3` |
 | `speed` | how fast the pieces leave, outwards | `3.2` |
@@ -89,6 +121,14 @@ effects:
 | `settle` | stops turning once it lands | `true` |
 | `y` | height above the anchor | `0` |
 | `face` | turns to face whoever did it | `true` |
+| `rise` | how far off the ground it hangs — every pose but `burst` | `1.1` |
+| `open` | how far the arms and legs open out | `0.55` |
+| `lift` | seconds the lift takes | `0.45` |
+| `hang` | seconds it hangs there before it is let go | `0.9` |
+| `turns` | turns it makes while it hangs, or spirals through | `0.35` |
+| `hits` | how many times a `knocked` body is struck | `3` |
+| `every` | seconds between blows | `0.32` |
+| `force` | how far a blow shoves it, in blocks | `0.85` |
 
 `[RAGDOLL] {killer}` takes the killer apart instead, which is what a curse or a
 recoil effect wants.

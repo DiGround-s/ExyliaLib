@@ -4,7 +4,7 @@ import net.exylia.lib.npc.NpcHandle;
 import net.exylia.lib.npc.NpcModel;
 import net.exylia.lib.npc.NpcMotion;
 import net.exylia.lib.npc.internal.NpcRuntime;
-import net.exylia.lib.ragdoll.RagdollBurst;
+import net.exylia.lib.ragdoll.RagdollMotion;
 import net.exylia.lib.ragdoll.RagdollHandle;
 import net.exylia.lib.ragdoll.RagdollModel;
 import net.exylia.lib.ragdoll.internal.RagdollBuilder;
@@ -364,7 +364,7 @@ final class Steps {
      * <p>Whose body it is is decided when the sequence plays, because the
      * answer is whoever just died.
      */
-    record Ragdoll(String owner, Corpse.Face face, RagdollBurst burst, int detail, double scale,
+    record Ragdoll(String owner, Corpse.Face face, RagdollMotion burst, int detail, double scale,
                    int glowArgb, int brightness, double yShift, boolean facesSource)
             implements SequenceStep {
 
