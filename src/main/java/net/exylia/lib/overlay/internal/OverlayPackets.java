@@ -23,6 +23,7 @@ import com.github.retrooper.packetevents.wrapper.play.client.WrapperPlayClientPl
 import com.github.retrooper.packetevents.wrapper.play.client.WrapperPlayClientUseItem;
 import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerEntityEquipment;
 import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerSetSlot;
+import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerSpawnEntity;
 import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerWindowItems;
 import io.github.retrooper.packetevents.util.SpigotConversionUtil;
 import net.exylia.lib.overlay.OverlayLock;
@@ -133,22 +134,26 @@ final class OverlayPackets extends PacketListenerAbstract implements OverlaySink
 
     @Override
     public void equipment(Player owner) {
-        OverlayView view = OverlayRuntime.viewOf(owner.getUniqueId());
-        PlayerInventory inventory = owner.getInventory();
-        int held = inventory.getHeldItemSlot();
-        List<Equipment> worn = List.of(
-                new Equipment(EquipmentSlot.MAIN_HAND, shown(view, held, inventory.getItem(held))),
-                new Equipment(EquipmentSlot.OFF_HAND, shown(view, OverlaySlots.OFFHAND, inventory.getItemInOffHand())),
-                new Equipment(EquipmentSlot.HELMET, shown(view, OverlaySlots.HELMET, inventory.getHelmet())),
-                new Equipment(EquipmentSlot.CHEST_PLATE, shown(view, OverlaySlots.CHESTPLATE, inventory.getChestplate())),
-                new Equipment(EquipmentSlot.LEGGINGS, shown(view, OverlaySlots.LEGGINGS, inventory.getLeggings())),
-                new Equipment(EquipmentSlot.BOOTS, shown(view, OverlaySlots.BOOTS, inventory.getBoots())));
+        List<Equipment> worn = worn(owner, OverlayRuntime.viewOf(owner.getUniqueId()));
         int entityId = owner.getEntityId();
         // A wrapper carries the buffer it was written into, so each viewer gets
         // their own rather than a second copy of somebody else's.
         for (Player viewer : owner.getTrackedBy()) {
             send(viewer, new WrapperPlayServerEntityEquipment(entityId, worn));
         }
+    }
+
+    /** Everything the rest of the server can see this player wearing and holding. */
+    private static List<Equipment> worn(Player owner, @Nullable OverlayView view) {
+        PlayerInventory inventory = owner.getInventory();
+        int held = inventory.getHeldItemSlot();
+        return List.of(
+                new Equipment(EquipmentSlot.MAIN_HAND, shown(view, held, inventory.getItem(held))),
+                new Equipment(EquipmentSlot.OFF_HAND, shown(view, OverlaySlots.OFFHAND, inventory.getItemInOffHand())),
+                new Equipment(EquipmentSlot.HELMET, shown(view, OverlaySlots.HELMET, inventory.getHelmet())),
+                new Equipment(EquipmentSlot.CHEST_PLATE, shown(view, OverlaySlots.CHESTPLATE, inventory.getChestplate())),
+                new Equipment(EquipmentSlot.LEGGINGS, shown(view, OverlaySlots.LEGGINGS, inventory.getLeggings())),
+                new Equipment(EquipmentSlot.BOOTS, shown(view, OverlaySlots.BOOTS, inventory.getBoots())));
     }
 
     /** What a slot should look like from outside: the overlay's item where it owns one. */
@@ -190,6 +195,10 @@ final class OverlayPackets extends PacketListenerAbstract implements OverlaySink
             // This one is about somebody else: it names an entity, not the
             // player it is being sent to.
             rewriteEquipment(event);
+            return;
+        }
+        if (type == PacketType.Play.Server.SPAWN_ENTITY) {
+            dress(event);
             return;
         }
         boolean slot = type == PacketType.Play.Server.SET_SLOT;
@@ -263,6 +272,31 @@ final class OverlayPackets extends PacketListenerAbstract implements OverlaySink
             packet.setItems(contents);
             event.markForReEncode(true);
         }
+    }
+
+    /**
+     * Tells a viewer what an overlay's owner wears, as they start seeing them.
+     *
+     * <p>The server states an entity's equipment when the pairing starts only
+     * if there is something real to state, so a body wearing nothing but an
+     * overlay spawns bare for everybody who arrives after the overlay was
+     * drawn — {@link #equipment(Player)} reaches only the viewers who were
+     * already there. Sent after the spawn rather than instead of it: equipment
+     * for an entity the client does not have yet is dropped.
+     */
+    private void dress(PacketSendEvent event) {
+        OverlayView view = OverlayRuntime.viewOfEntity(new WrapperPlayServerSpawnEntity(event).getEntityId());
+        if (view == null || view.isSuspended()) {
+            return;
+        }
+        Player owner = view.viewer();
+        User user = event.getUser();
+        if (user == null || !owner.isOnline()) {
+            return;
+        }
+        List<Equipment> worn = worn(owner, view);
+        int entityId = owner.getEntityId();
+        event.getTasksAfterSend().add(() -> user.sendPacket(new WrapperPlayServerEntityEquipment(entityId, worn)));
     }
 
     /**

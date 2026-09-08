@@ -22,11 +22,13 @@ import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Consumer;
+import java.util.function.Function;
 
 /**
  * One plugin's view of the snapshot module.
@@ -253,6 +255,17 @@ public final class PluginSnapshots {
      * put back, not about whether the snapshot has been used. A caller that
      * wants to keep it reads it with {@link #find} and applies it by hand.
      *
+     * <h2>When the way back crosses a world</h2>
+     * This restores first and tells the caller afterwards, so the player is
+     * dressed in the world they are leaving and moved out of it after. That is
+     * the wrong order next to a per-world inventory plugin &mdash;
+     * Multiverse-Inventories, PerWorldInventory &mdash; which on the world
+     * change writes whatever the player is holding into the profile of the
+     * world they left and then loads the profile of the world they entered over
+     * the top. The restore becomes the second-to-last write and loses.
+     * {@link #returnAndRestore(Player, String, Function, Set)} is the same call
+     * in the order that survives it: move, then restore.
+     *
      * @param player    the player
      * @param contextId which snapshot
      * @param wentBack  told where they were, or {@code null} to ignore it
@@ -266,39 +279,174 @@ public final class PluginSnapshots {
         UUID uuid = player.getUniqueId();
         return store().thenCompose(repository -> repository.find(SnapshotRow.key(uuid, contextId))
                 .thenCompose(found -> {
-                    if (found.isEmpty() || LegacyImport.isMarker(found)) {
+                    SnapshotRow row = readable(found);
+                    if (row == null) {
                         return CompletableFuture.completedFuture(false);
                     }
-                    SnapshotRow row = found.get();
-                    Snapshot snapshot = row.snapshot();
-                    if (snapshot == null) {
-                        // Unreadable rather than absent. Already reported by the
-                        // codec; keeping the row means a fixed server can still
-                        // read it, and deleting it here would destroy the only
-                        // copy of somebody's inventory to tidy up a log line.
-                        return CompletableFuture.completedFuture(false);
-                    }
-                    CompletableFuture<Boolean> applied = new CompletableFuture<>();
-                    tasks.runAtEntity(player,
-                            () -> {
-                                if (!player.isOnline()) {
-                                    applied.complete(false);
-                                    return;
-                                }
-                                PlayerState.apply(snapshot, player, parts, SnapshotRuntime::report);
-                                Location back = liveHere(row.lastLocation());
-                                if (wentBack != null && back != null) {
-                                    wentBack.accept(back);
-                                }
-                                applied.complete(true);
-                            },
-                            // The player went away between the read and the
-                            // apply. Their snapshot stays where it is.
-                            () -> applied.complete(false));
-                    return applied.thenCompose(restored -> restored
-                            ? repository.delete(row.key()).thenApply(ignored -> true)
-                            : CompletableFuture.completedFuture(false));
+                    return applyAndDelete(player, repository, row, parts, wentBack);
                 }));
+    }
+
+    /**
+     * Puts the player back where they were and restores them once they are
+     * there, in that order.
+     *
+     * <p>Same work as {@link #restore(Player, String, Consumer, Set)} and the
+     * opposite order: the way home runs first and the snapshot is applied when
+     * it has finished. Which is the order to use whenever home may be another
+     * world, because a per-world inventory plugin swaps the player's things on
+     * the world change and everything written before that swap is thrown away
+     * by it. Restoring after the move makes this library the last writer, which
+     * is the only position that wins.
+     *
+     * <p>{@code goHome} is handed the stored location, runs on the player's own
+     * thread and answers with a future that completes when the player has
+     * arrived &mdash; which is exactly what {@code teleports().to(...).then(...)}
+     * already reports. Where the player actually goes is still the game's
+     * decision: a lobby, a spawn, or the stored spot itself. A {@code null}
+     * {@code goHome}, a snapshot with no stored place, or a place on another
+     * server means nothing is moved and the snapshot is applied where the
+     * player stands.
+     *
+     * <p>The row is deleted only after the snapshot has been applied, so a
+     * player who disconnects mid-flight keeps it and gets it on their next
+     * join.
+     *
+     * @param player    the player
+     * @param contextId which snapshot
+     * @param goHome    moves the player and answers when they have arrived, or
+     *                  {@code null} to restore them where they stand
+     * @param parts     which parts to put back
+     * @return whether there was one to restore
+     * @since 1.118.0
+     */
+    public @NotNull CompletableFuture<Boolean> returnAndRestore(@NotNull Player player,
+                                                                @NotNull String contextId,
+                                                                @Nullable Function<Location, CompletableFuture<?>> goHome,
+                                                                @NotNull Set<SnapshotPart> parts) {
+        UUID uuid = player.getUniqueId();
+        return store().thenCompose(repository -> repository.find(SnapshotRow.key(uuid, contextId))
+                .thenCompose(found -> {
+                    SnapshotRow row = readable(found);
+                    if (row == null) {
+                        return CompletableFuture.completedFuture(false);
+                    }
+                    return goneHome(player, liveHere(row.lastLocation()), goHome)
+                            .thenCompose(ignored -> applyAndDelete(player, repository, row, parts, null));
+                }));
+    }
+
+    /**
+     * The same, putting every part back.
+     *
+     * @param player    the player
+     * @param contextId which snapshot
+     * @param goHome    moves the player and answers when they have arrived, or
+     *                  {@code null} to restore them where they stand
+     * @return whether there was one to restore
+     * @since 1.118.0
+     */
+    public @NotNull CompletableFuture<Boolean> returnAndRestore(@NotNull Player player,
+                                                                @NotNull String contextId,
+                                                                @Nullable Function<Location, CompletableFuture<?>> goHome) {
+        return returnAndRestore(player, contextId, goHome, SnapshotPart.ALL);
+    }
+
+    /**
+     * The readable snapshot in a lookup, or {@code null} when there is nothing
+     * to restore from.
+     *
+     * <p>Absent, a migration marker, and present but unreadable all mean the
+     * same thing to a caller and are told apart nowhere else. An unreadable row
+     * is kept rather than deleted: the codec has already reported it, a fixed
+     * server can still read it, and deleting it here would destroy the only
+     * copy of somebody's inventory to tidy up a log line.
+     */
+    private @Nullable SnapshotRow readable(@NotNull Optional<SnapshotRow> found) {
+        if (found.isEmpty() || LegacyImport.isMarker(found)) {
+            return null;
+        }
+        SnapshotRow row = found.get();
+        return row.snapshot() == null ? null : row;
+    }
+
+    /**
+     * Applies a row on the player's own thread and removes it once it is on.
+     *
+     * <p>The row is deleted only after the player has actually been restored,
+     * so a player who leaves mid-restore keeps their snapshot.
+     */
+    private @NotNull CompletableFuture<Boolean> applyAndDelete(@NotNull Player player,
+                                                               @NotNull Repository<SnapshotRow> repository,
+                                                               @NotNull SnapshotRow row,
+                                                               @NotNull Set<SnapshotPart> parts,
+                                                               @Nullable Consumer<Location> wentBack) {
+        Snapshot snapshot = Objects.requireNonNull(row.snapshot(), "snapshot");
+        CompletableFuture<Boolean> applied = new CompletableFuture<>();
+        tasks.runAtEntity(player,
+                () -> {
+                    if (!player.isOnline()) {
+                        applied.complete(false);
+                        return;
+                    }
+                    PlayerState.apply(snapshot, player, parts, SnapshotRuntime::report);
+                    Location back = liveHere(row.lastLocation());
+                    if (wentBack != null && back != null) {
+                        wentBack.accept(back);
+                    }
+                    applied.complete(true);
+                },
+                // The player went away between the read and the apply. Their
+                // snapshot stays where it is.
+                () -> applied.complete(false));
+        return applied.thenCompose(restored -> restored
+                ? repository.delete(row.key()).thenApply(ignored -> true)
+                : CompletableFuture.completedFuture(false));
+    }
+
+    /**
+     * Runs a caller's way home and answers when it is over, however it went.
+     *
+     * <p>Never fails and never hangs on the caller's behalf: a mover that threw,
+     * answered {@code null} or failed still lets the restore happen, because a
+     * player who could not be moved must still get their things back. Without
+     * that, a teleport refused by another plugin would strand the snapshot in
+     * the table and the player in a kit.
+     */
+    private @NotNull CompletableFuture<?> goneHome(@NotNull Player player,
+                                                   @Nullable Location back,
+                                                   @Nullable Function<Location, CompletableFuture<?>> goHome) {
+        if (back == null || goHome == null) {
+            return CompletableFuture.completedFuture(null);
+        }
+        CompletableFuture<Object> arrived = new CompletableFuture<>();
+        tasks.runAtEntity(player,
+                () -> {
+                    if (!player.isOnline()) {
+                        arrived.complete(null);
+                        return;
+                    }
+                    CompletableFuture<?> moving;
+                    try {
+                        moving = goHome.apply(back);
+                    } catch (RuntimeException failure) {
+                        debug.error("A snapshot's way home threw; restoring where they stand", failure);
+                        arrived.complete(null);
+                        return;
+                    }
+                    if (moving == null) {
+                        arrived.complete(null);
+                        return;
+                    }
+                    moving.whenComplete((ignored, failure) -> {
+                        if (failure != null) {
+                            debug.error("A snapshot's way home failed; restoring where they stand", failure);
+                        }
+                        arrived.complete(null);
+                    });
+                },
+                () -> arrived.complete(null));
+        return arrived;
     }
 
     /**
@@ -311,6 +459,13 @@ public final class PluginSnapshots {
      * teleport; elsewhere it is a handover through the proxy, with the exact
      * spot carried along. {@link #restore(Player, String, Consumer, Set)} only
      * knows how to hand back a location on this server.
+     *
+     * <p>On this server the teleport happens <em>first</em> and the snapshot is
+     * applied on arrival, so a per-world inventory plugin cannot swap the
+     * player's things out from under the restore on the way across. The name is
+     * the old one and the order is the safe one; a handover to another server
+     * still restores first, because the player leaves before there is anything
+     * to arrive at.
      *
      * @param player    the player
      * @param contextId which snapshot
@@ -327,13 +482,36 @@ public final class PluginSnapshots {
                 .thenCompose(found -> {
                     ExyliaLocation back = found.filter(row -> !LegacyImport.isMarker(row))
                             .map(SnapshotRow::lastLocation).orElse(null);
-                    return restore(player, contextId, null, parts).thenApply(restored -> {
-                        if (restored && back != null) {
-                            teleports().to(player, back).cause(TeleportCause.PLUGIN).start();
-                        }
-                        return restored;
-                    });
+                    if (back != null && !back.isSameServer(teleports().serverId())) {
+                        // A handover, not a teleport: the player stops existing
+                        // here the moment it starts, so there is no "on arrival"
+                        // on this server to restore in.
+                        return restore(player, contextId, null, parts).thenApply(restored -> {
+                            if (restored) {
+                                teleports().to(player, back).cause(TeleportCause.PLUGIN).start();
+                            }
+                            return restored;
+                        });
+                    }
+                    return returnAndRestore(player, contextId,
+                            here -> moved(player, here), parts);
                 }));
+    }
+
+    /**
+     * Moves a player with this plugin's teleport and answers when it is over.
+     *
+     * <p>The way home {@link #restoreAndReturn} hands to
+     * {@link #returnAndRestore}, and the shape any caller writing their own
+     * ends up with.
+     */
+    private @NotNull CompletableFuture<?> moved(@NotNull Player player, @NotNull Location destination) {
+        CompletableFuture<Object> arrived = new CompletableFuture<>();
+        teleports().to(player, destination)
+                .cause(TeleportCause.PLUGIN)
+                .then(result -> arrived.complete(null))
+                .start();
+        return arrived;
     }
 
     /**
@@ -365,6 +543,11 @@ public final class PluginSnapshots {
      * back. Contexts are applied oldest first, so the snapshot taken before all
      * the others is the state they end up in.
      *
+     * <p>Restores first and reports the location after, for the same reason and
+     * with the same cost as {@link #restore(Player, String, Consumer, Set)}:
+     * next to a per-world inventory plugin, a way home that crosses a world
+     * undoes it. {@link #returnAndRestoreAll} is the order that survives that.
+     *
      * @param player   the player
      * @param wentBack told where they were by the oldest snapshot, or {@code null}
      * @return how many snapshots were restored
@@ -393,6 +576,49 @@ public final class PluginSnapshots {
                         .thenApply(restored -> restored ? count + 1 : count));
             }
             return chain;
+        });
+    }
+
+    /**
+     * Puts the player back where the oldest snapshot says they were and then
+     * restores every snapshot they have, in that order.
+     *
+     * <p>What a join handler wants when home is another world. A player who was
+     * in an event arena when the server died logs back into that arena; moving
+     * them out of it and restoring them there is the only order a per-world
+     * inventory plugin does not undo, because the swap it does on the world
+     * change happens before the restore rather than after it.
+     *
+     * <p>The move runs once, before anything is applied, and is given the place
+     * the oldest snapshot remembers &mdash; the spot the player was in before
+     * any of these contexts started. The snapshots are then applied newest
+     * first, so the oldest is applied last and wins, exactly as
+     * {@link #restoreAll} does.
+     *
+     * @param player the player
+     * @param goHome moves the player and answers when they have arrived, or
+     *               {@code null} to restore them where they stand
+     * @return how many snapshots were restored
+     * @since 1.118.0
+     */
+    public @NotNull CompletableFuture<Integer> returnAndRestoreAll(@NotNull Player player,
+                                                                   @Nullable Function<Location, CompletableFuture<?>> goHome) {
+        UUID uuid = player.getUniqueId();
+        return contexts(uuid).thenCompose(rows -> {
+            if (rows.isEmpty()) {
+                return CompletableFuture.completedFuture(0);
+            }
+            List<String> newestFirst = new ArrayList<>(rows);
+            String oldest = newestFirst.get(newestFirst.size() - 1);
+            return pending(uuid, oldest).thenCompose(place ->
+                    goneHome(player, place.orElse(null), goHome).thenCompose(ignored -> {
+                        CompletableFuture<Integer> chain = CompletableFuture.completedFuture(0);
+                        for (String contextId : newestFirst) {
+                            chain = chain.thenCompose(count -> restore(player, contextId, null, SnapshotPart.ALL)
+                                    .thenApply(restored -> restored ? count + 1 : count));
+                        }
+                        return chain;
+                    }));
         });
     }
 
