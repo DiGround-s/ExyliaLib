@@ -99,7 +99,7 @@ public final class InsertWindow implements InventoryHolder {
         InsertWindow window = new InsertWindow(plugin, viewer);
         Tasks.of(plugin).runAtEntity(viewer, () -> {
             Inventory inventory = Bukkit.createInventory(window, SIZE,
-                    Text.from(plugin, title).forPlayer(viewer).legacy());
+                    Text.from(plugin, title).forPlayer(viewer).build());
             window.inventory = inventory;
             window.draw();
             viewer.openInventory(inventory);

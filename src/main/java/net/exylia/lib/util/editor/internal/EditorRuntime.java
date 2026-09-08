@@ -100,7 +100,7 @@ public final class EditorRuntime {
             LoadoutHolder holder =
                     new LoadoutHolder(plugin, title, items, onSave, onCancel, viewer);
             Inventory inventory = Bukkit.createInventory(holder, LoadoutHolder.SIZE,
-                    Text.from(plugin, title).forPlayer(viewer).legacy());
+                    Text.from(plugin, title).forPlayer(viewer).build());
             holder.bind(inventory);
             holder.draw();
             OPEN_LOADOUTS.add(holder);
@@ -110,11 +110,11 @@ public final class EditorRuntime {
 
     /** Builds the window, draws it and puts it on screen. */
     private static <T> void show(EditorHolder<T> holder, Player viewer) {
-        // A legacy title rather than a component: the component overload of
-        // createInventory is Paper's and the library must load on Spigot. A
-        // title carries colour and nothing else, so nothing is lost.
+        // A component rather than a legacy title: a legacy string cannot carry
+        // the shadow the server draws under every line, so a window created
+        // from one opened unshadowed.
         Inventory inventory = Bukkit.createInventory(holder, SIZE,
-                Text.from(holder.plugin(), holder.title()).forPlayer(viewer).legacy());
+                Text.from(holder.plugin(), holder.title()).forPlayer(viewer).build());
         holder.bind(inventory);
         holder.draw();
         OPEN.add(holder);

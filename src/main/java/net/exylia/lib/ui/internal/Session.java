@@ -11,6 +11,7 @@ import net.exylia.lib.ui.UiFillers;
 import net.exylia.lib.ui.UiRefresh;
 import net.exylia.lib.ui.UiSection;
 import net.exylia.lib.ui.UiSession;
+import net.kyori.adventure.text.Component;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.Inventory;
@@ -1072,7 +1073,7 @@ final class Session implements UiSession {
      * <p>A window being opened is on its first page and has no rows yet, so
      * both read one. What they say afterwards is {@link #retitle()}'s job.
      */
-    static String title(UiDefinition definition, Player viewer, Map<String, Object> context) {
+    static Component title(UiDefinition definition, Player viewer, Map<String, Object> context) {
         return title(definition, viewer, context, Map.of());
     }
 
@@ -1083,13 +1084,13 @@ final class Session implements UiSession {
      * menu opens saying {@code 1/5} instead of opening on {@code 1/1} and
      * spending a retitle packet to correct itself before anybody read it.
      */
-    static String title(UiDefinition definition, Player viewer, Map<String, Object> context,
-                        Map<String, ? extends Collection<UiEntry>> sections) {
+    static Component title(UiDefinition definition, Player viewer, Map<String, Object> context,
+                           Map<String, ? extends Collection<UiEntry>> sections) {
         UiSection only = definition.section();
         Collection<UiEntry> rows = only == null ? null : sections.get(only.id());
         int pages = rows == null ? 1 : only.pagesFor(rows.size());
         return Text.of(filledTitle(definition.title(), context, 1, pages))
-                .forPlayer(viewer).legacy();
+                .forPlayer(viewer).build();
     }
 
     /**
@@ -1121,10 +1122,10 @@ final class Session implements UiSession {
     /**
      * Builds the window itself.
      *
-     * <p>The title is a legacy string rather than a component on purpose: the
-     * component-taking overload of {@code createInventory} is Paper's, and the
-     * library has to load on Spigot. A title carries colour and nothing else,
-     * so nothing is lost.
+     * <p>The title is a component rather than a legacy string: a legacy string
+     * cannot carry the shadow the server draws under every line, so a window
+     * created from one opened unshadowed and only got its shadow on the first
+     * retitle.
      *
      * <p>The holder is how a click finds its way back here. Tracking open
      * menus by player instead would answer the wrong question the moment
@@ -1139,7 +1140,7 @@ final class Session implements UiSession {
     static Inventory inventoryFor(MenuHolder holder, UiDefinition definition, Player viewer,
                                   Map<String, Object> context,
                                   Map<String, ? extends Collection<UiEntry>> sections) {
-        String title = title(definition, viewer, context, sections);
+        Component title = title(definition, viewer, context, sections);
         org.bukkit.event.inventory.InventoryType type = definition.kind().type();
         // A chest is created by slot count because its size is configured;
         // everything else has a fixed shape the server already knows.
