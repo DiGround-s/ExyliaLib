@@ -247,4 +247,36 @@ class RagdollFlightTest {
             }
         }
     }
+
+    @Test
+    @DisplayName("a body that is thrown arrives in one piece")
+    void aThrowStaysRigid() {
+        // The whole point of the pose: a body put out of an airlock is still a
+        // body all the way to the horizon. Every piece has to turn about the
+        // same middle, and a tumble axis drawn per piece — which is what every
+        // other pose does — would quietly turn it back into a cloud.
+        RagdollMotion motion = base()
+                .pose(RagdollPose.THROWN)
+                .speed(7.5).up(3.2).gravity(0).spin(0.6)
+                .build();
+        RagdollFlight.Flight chest =
+                RagdollFlight.solve(RagdollPart.TORSO, motion, 1.0, Rotation.NONE, new Random(2));
+        for (RagdollPart part : RagdollPart.values()) {
+            RagdollFlight.Flight flight =
+                    RagdollFlight.solve(part, motion, 1.0, Rotation.NONE, new Random(31));
+            double rest = 0;
+            for (int index = 0; index < flight.times().length; index++) {
+                double gap = Math.sqrt(
+                        Math.pow(flight.x()[index] - chest.x()[index], 2)
+                                + Math.pow(flight.y()[index] - chest.y()[index], 2)
+                                + Math.pow(flight.z()[index] - chest.z()[index], 2));
+                if (index == 0) {
+                    rest = gap;
+                    continue;
+                }
+                assertEquals(rest, gap, 0.02,
+                        part + " drifted away from the chest on the way out");
+            }
+        }
+    }
 }

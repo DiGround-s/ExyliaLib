@@ -62,6 +62,7 @@ costing the same.
 | `plane` | Arms out as wings, nose up, banking as it climbs. A negative `up` is a dive, and a dive stops at the floor |
 | `flatten` | Driven straight down and left flat, at `squash` of its height, in its own colours |
 | `melt` | Sinks where it stands, from the feet up, losing its height rather than its place |
+| `thrown` | Sent somewhere, in one piece. The body keeps its shape and turns end over end as it goes; with no gravity it does not come back |
 | `sign` | The pieces lay themselves out into letters and hold there. The letters *are* the body: every stroke is one or more of their own pieces, stretched along it |
 
 `spread` and `knocked` exist for the beat in the middle. A body hanging open in
@@ -149,7 +150,9 @@ recoil effect wants.
 `spread` and `knocked` read `rise open lift hang turns` first, and the throw
 afterwards for the fall. `knocked` adds `hits every force`. `vortex` reads
 `rise open turns`. `balloon` reads `swell lift hang` and then the throw in full.
-`helicopter` reads `rise lift speed up spin`, `plane` the same plus `open` and
+`thrown` reads `speed up gravity spin lift` and nothing else — it is the one
+pose that carries a body rather than taking it apart, so it has no floor, no
+bounce and no rise. `helicopter` reads `rise lift speed up spin`, `plane` the same plus `open` and
 `turns`, `flatten` reads `lift squash open`, and `melt` reads `hang squash open`.
 
 A rotor is the one thing here drawn on a finer beat than everything else — the

@@ -66,6 +66,9 @@ public final class RagdollFlight {
      */
     public static final double MAX_TURNS_PER_SECOND = 2.4;
 
+    /** How high the middle of a body is, in blocks. What a rigid throw turns about. */
+    private static final double BODY_MIDDLE = 1.0;
+
     /** Where a head is thrown compared with everything else. */
     private static final double HEAD_LIFT_SPEED = 1.35;
 
@@ -158,6 +161,7 @@ public final class RagdollFlight {
             // only thing that knows which piece of the word it is. The head
             // watches from above.
             case SIGN -> signHead(part, motion, scale, facing);
+            case THROWN -> thrown(part, motion, scale, facing);
         };
     }
 
@@ -628,6 +632,60 @@ public final class RagdollFlight {
     private static double[] forward(Rotation facing) {
         float[] ahead = facing.apply(new float[]{0f, 0f, -1f});
         return new double[]{ahead[0], ahead[1], ahead[2]};
+    }
+
+    // --------------------------------------------------------------- the throw
+
+    /**
+     * Sent somewhere, in one piece.
+     *
+     * <p>Everything else in this module takes a body apart. This carries it:
+     * every piece keeps its place in the body and the whole of it turns about
+     * its own middle, so what leaves is a person tumbling away rather than six
+     * boxes leaving in six directions.
+     *
+     * <p>The tumble axis is worked out from the direction of travel rather than
+     * drawn at random, and that is not tidiness &mdash; a rigid body needs
+     * <em>every</em> piece turning about the same axis, and a random one per
+     * piece is exactly the cloud this pose exists to avoid.
+     */
+    private static Flight thrown(RagdollPart part, RagdollMotion motion, double scale,
+                                 Rotation facing) {
+        double[] standing = standing(part, scale, facing);
+        double[] ahead = forward(facing);
+        double[] middle = {0, BODY_MIDDLE * scale, 0};
+        // End over end about the axis across its own path, with a little yaw on
+        // top so it is not a wheel.
+        double[] axis = {-ahead[2], 0.25, ahead[0]};
+        double length = Math.sqrt(axis[0] * axis[0] + axis[1] * axis[1] + axis[2] * axis[2]);
+        for (int index = 0; index < 3; index++) {
+            axis[index] /= length;
+        }
+        double turns = Math.clamp(motion.spin(), -MAX_TURNS_PER_SECOND, MAX_TURNS_PER_SECOND);
+        double lift = motion.liftMillis() / 1000.0;
+
+        return sample(times(motion, motion.intactMillis()), motion.intactMillis(), elapsed -> {
+            // Eased in over the throw, so it is launched rather than already
+            // moving at full speed the instant the blow lands.
+            double thrown = elapsed < lift
+                    ? elapsed * elapsed / Math.max(1e-4, 2 * lift)
+                    : elapsed - lift / 2;
+            Rotation turned = tumble(axis, turns, elapsed);
+            float[] carried = turned.apply(new float[]{
+                    (float) (standing[0] - middle[0]),
+                    (float) (standing[1] - middle[1]),
+                    (float) (standing[2] - middle[2])});
+            double drop = 0.5 * motion.gravity() * elapsed * elapsed;
+            return new Step(new double[]{
+                    middle[0] + carried[0] + ahead[0] * motion.speed() * thrown,
+                    // No rise: a thrown body leaves from where it was
+                    // standing. Lifting it first is a teleport with a throw
+                    // after it.
+                    Math.max(REST_HEIGHT * scale,
+                            middle[1] + carried[1] + motion.up() * thrown - drop),
+                    middle[2] + carried[2] + ahead[2] * motion.speed() * thrown},
+                    turned);
+        });
     }
 
     // ---------------------------------------------------------------- the sign

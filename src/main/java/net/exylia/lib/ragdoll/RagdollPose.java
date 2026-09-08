@@ -101,7 +101,18 @@ public enum RagdollPose {
      * the colour of the part of them it came from, and when the sign has been
      * read it lets go and falls.
      */
-    SIGN;
+    SIGN,
+
+    /**
+     * Sent somewhere, in one piece.
+     *
+     * <p>The body keeps its own shape and turns end over end as it goes, so
+     * what leaves is a person and not a cloud of parts. Give it no gravity and
+     * it does not come back: a body put out of an airlock is still a body all
+     * the way to the horizon, and that is the whole difference between being
+     * ejected and being blown up.
+     */
+    THROWN;
 
     /**
      * Reads a pose from configuration, defaulting to {@link #BURST}.
@@ -120,6 +131,7 @@ public enum RagdollPose {
             case "FLATTEN", "PANCAKE", "SQUASH", "FLAT" -> FLATTEN;
             case "MELT", "SINK", "DISSOLVE" -> MELT;
             case "SIGN", "LETTERS", "SPELL", "WORD" -> SIGN;
+            case "THROWN", "LAUNCHED", "EJECTED", "CARRIED", "SPACED" -> THROWN;
             default -> BURST;
         };
     }
@@ -136,6 +148,6 @@ public enum RagdollPose {
      * is no floor in its future.
      */
     public boolean flies() {
-        return this == HELICOPTER || this == PLANE || this == VORTEX;
+        return this == HELICOPTER || this == PLANE || this == VORTEX || this == THROWN;
     }
 }
