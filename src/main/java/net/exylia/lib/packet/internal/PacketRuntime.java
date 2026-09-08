@@ -88,6 +88,16 @@ public final class PacketRuntime {
     /** Remembers the library plugin; listeners are installed on first use. */
     public static void init(Plugin plugin) {
         lib = plugin;
+        // Installed now rather than at the first packet: installing it later
+        // means loading PacketEvents' block-state table inside whatever asked
+        // for the first outline, which is a hundred milliseconds of the server
+        // thread at a moment nobody chose. See PacketHooks.warmBlockStates.
+        if (Bukkit.getPluginManager().getPlugin("packetevents") != null) {
+            sink();
+            if (sink != null) {
+                PacketHooks.warmBlockStates(plugin);
+            }
+        }
     }
 
     public static boolean isAvailable() {

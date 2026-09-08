@@ -93,6 +93,38 @@ final class PacketHooks extends PacketListenerAbstract implements PacketSink {
         return hooks;
     }
 
+    /**
+     * Loads PacketEvents' block-state table before anything asks for it in
+     * anger.
+     *
+     * <p>The first block state anybody looks up by name makes PacketEvents
+     * inflate a gzipped NBT asset of every block state the game has and build
+     * its maps. That is around a tenth of a second, it happens inside whatever
+     * called for it, and the first caller on this server is a block outline —
+     * so a staff member switching on x-ray vision froze the server for a tick
+     * over a hundred milliseconds. It is the same work wherever it runs; here
+     * it runs once, at startup, on a thread nobody is waiting for.
+     *
+     * <p>{@code loadMappings0} is synchronised inside PacketEvents, so a lookup
+     * that arrives while this is still running waits for it rather than racing
+     * it, and one that arrives afterwards finds the table built.
+     *
+     * @param plugin the library, whose scheduler the load runs on
+     */
+    static void warmBlockStates(org.bukkit.plugin.Plugin plugin) {
+        net.exylia.lib.task.Tasks.of(plugin).runAsync(() -> {
+            try {
+                // Any real block name: the table is loaded whole, for the
+                // server's own version, whichever name asks for it.
+                com.github.retrooper.packetevents.protocol.world.states.WrappedBlockState
+                        .getByString("stone");
+            } catch (Throwable ignored) {
+                // A version PacketEvents has no mappings for is not a reason to
+                // fail startup; the lookup that needs them will say so.
+            }
+        });
+    }
+
     @Override
     public void close() {
         try {
@@ -400,8 +432,34 @@ final class PacketHooks extends PacketListenerAbstract implements PacketSink {
                 new EntityData<>(TRANSLATION, EntityDataTypes.VECTOR3F, OUTSET),
                 new EntityData<>(SCALE, EntityDataTypes.VECTOR3F, OVERSIZE),
                 new EntityData<>(GLOW_COLOR, EntityDataTypes.INT, argb),
-                new EntityData<>(BLOCK_STATE, EntityDataTypes.BLOCK_STATE,
-                        SpigotConversionUtil.fromBukkitBlockData(data).getGlobalId()))));
+                new EntityData<>(BLOCK_STATE, EntityDataTypes.BLOCK_STATE, globalId(data)))));
+    }
+
+    /**
+     * The protocol id of a block state, remembered per block data.
+     *
+     * <p>Converting one costs building the block's full string form and parsing
+     * it back into a state, and an outline draws thousands of blocks that are
+     * nearly always a handful of distinct kinds: the ores a staff member is
+     * looking through the walls for, or the one block a region is drawn in.
+     *
+     * <p>Bounded because block data with properties on it — a stair's facing, a
+     * log's axis — has more shapes than a fixed table would hold.
+     */
+    private static final Map<BlockData, Integer> BLOCK_IDS = new java.util.concurrent.ConcurrentHashMap<>();
+
+    private static final int MAX_BLOCK_IDS = 4096;
+
+    private static int globalId(BlockData data) {
+        Integer known = BLOCK_IDS.get(data);
+        if (known != null) {
+            return known;
+        }
+        int id = SpigotConversionUtil.fromBukkitBlockData(data).getGlobalId();
+        if (BLOCK_IDS.size() < MAX_BLOCK_IDS) {
+            BLOCK_IDS.put(data, id);
+        }
+        return id;
     }
 
     @Override

@@ -169,11 +169,19 @@ public final class FakeServer {
      */
     public static void tick(int times) {
         for (int i = 0; i < times; i++) {
+            tick++;
             for (Scheduled scheduled : List.copyOf(SCHEDULED)) {
                 scheduled.tickClock();
             }
         }
     }
+
+    /** Which simulated tick is running, so a test can tell work spread over ticks apart. */
+    public static int currentTick() {
+        return tick;
+    }
+
+    private static int tick;
 
     /** Returns how many tasks are scheduled and not cancelled. */
     public static int liveTasks() {
@@ -234,6 +242,7 @@ public final class FakeServer {
     public static void reset() {
         asyncRunsForReal = false;
         deliverFiredEvents = false;
+        tick = 0;
         SCHEDULED.clear();
         DISABLED.clear();
         ONLINE.clear();
@@ -300,7 +309,8 @@ public final class FakeServer {
      * name is enough.
      */
     public static org.bukkit.World newWorld(String name) {
-        return (org.bukkit.World) Proxy.newProxyInstance(
+        org.bukkit.World[] self = new org.bukkit.World[1];
+        self[0] = (org.bukkit.World) Proxy.newProxyInstance(
                 FakeServer.class.getClassLoader(),
                 new Class<?>[]{org.bukkit.World.class},
                 (proxy, method, args) -> switch (method.getName()) {
@@ -309,6 +319,29 @@ public final class FakeServer {
                     case "hashCode" -> System.identityHashCode(proxy);
                     case "equals" -> proxy == args[0];
                     case "toString" -> "FakeWorld[" + name + "]";
+                    // Enough of a block for Location.getBlock(), which anything
+                    // that snaps a position to its block goes through.
+                    case "getBlockAt" -> args[0] instanceof org.bukkit.Location where
+                            ? newBlock(self[0], where.getBlockX(), where.getBlockY(), where.getBlockZ())
+                            : newBlock(self[0], (int) args[0], (int) args[1], (int) args[2]);
+                    default -> defaultValue(method.getReturnType());
+                });
+        return self[0];
+    }
+
+    /** A block that knows only where it is, which is all a snapped Location needs. */
+    private static org.bukkit.block.Block newBlock(org.bukkit.World world, int x, int y, int z) {
+        return (org.bukkit.block.Block) Proxy.newProxyInstance(
+                FakeServer.class.getClassLoader(),
+                new Class<?>[]{org.bukkit.block.Block.class},
+                (proxy, method, args) -> switch (method.getName()) {
+                    case "getLocation" -> new org.bukkit.Location(world, x, y, z);
+                    case "getX" -> x;
+                    case "getY" -> y;
+                    case "getZ" -> z;
+                    case "getWorld" -> world;
+                    case "hashCode" -> java.util.Objects.hash(world, x, y, z);
+                    case "toString" -> "FakeBlock[" + x + "," + y + "," + z + "]";
                     default -> defaultValue(method.getReturnType());
                 });
     }
