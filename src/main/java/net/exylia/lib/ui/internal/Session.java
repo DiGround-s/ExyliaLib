@@ -728,6 +728,12 @@ final class Session implements UiSession {
         reserved.addAll(definition.inputSlots());
         for (UiSection list : definition.sections().values()) {
             reserved.addAll(list.slots());
+            // A page arrow's slot is the list's too, drawn or not: the list
+            // itself puts the background back when the arrow has nowhere to
+            // go, so painting glass over it here only wipes a live button on
+            // a redraw that leaves the lists alone.
+            if (list.previous() != null) reserved.add(list.previous().slot());
+            if (list.next() != null) reserved.add(list.next().slot());
         }
 
         // Named panels first, so the background does not paint over them, and
