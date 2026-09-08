@@ -31,6 +31,14 @@ snapshots.saveAndClear(player, "ffa").thenRun(() -> giveKit(player));
 // Leaving it — this tick, or three restarts later.
 snapshots.restore(player, "ffa", lobby -> teleport(player, lobby));
 
+// The same two, when the arena is in a world of its own. Since 1.118.0.
+snapshots.save(player, "ffa")
+        .thenCompose(ignored -> goToArena(player))          // your teleport
+        .thenCompose(ignored -> snapshots.clear(player))
+        .thenRun(() -> giveKit(player));
+
+snapshots.returnAndRestore(player, "ffa", lobby -> goTo(player, lobby));
+
 // Held in memory instead, for as long as a menu is open:
 Snapshot before = snapshots.capture(player);
 before.restoreTo(player);
@@ -71,6 +79,60 @@ key and a Mongo `_id` all mean one value. So the pair is folded into one derived
 key, `uuid:contextId`, which nobody ever types. Both halves are also stored as
 their own columns and indexed together, so `where("uuid", …)` is a real index
 lookup rather than a scan.
+
+## Crossing a world
+
+*Since 1.118.0.* A per-world inventory plugin — Multiverse-Inventories,
+PerWorldInventory — handles `PlayerChangedWorldEvent` by writing whatever the
+player is holding at that instant into the profile of the world they left, and
+then loading the profile of the world they entered over the top. It is the last
+writer on every world change, so anything a plugin does to a player's inventory
+on the wrong side of a teleport is thrown away by it.
+
+That gives one rule, and it is the whole of it:
+
+> **Never change a player's inventory across a world boundary.** Save on this
+> side, clear on the far one; move first, restore on arrival.
+
+Getting it wrong loses the player's things twice over. Clearing before the
+teleport makes the other plugin record an *empty* inventory as what the player
+owned in the world they came from. Restoring before the teleport home makes it
+record the restored gear as belonging to the arena, and hand back the emptiness
+it stored on the way in. The player leaves the event with nothing, and the row
+that could have saved them was deleted by the restore that appeared to work.
+
+| Instead of | Call | Why |
+| --- | --- | --- |
+| `saveAndClear(player, ctx)` then teleport | `save(player, ctx)`, teleport, then `clear(player)` | The other plugin writes the real inventory to the world being left |
+| `restore(player, ctx, wentBack)` | `returnAndRestore(player, ctx, goHome)` | The restore lands after the swap instead of before it |
+| `restoreAll(player, wentBack)` | `returnAndRestoreAll(player, goHome)` | Same, for a join handler |
+
+`goHome` is a `Function<Location, CompletableFuture<?>>`: it is handed the
+stored place, runs on the player's own thread, and answers when the player has
+arrived — which is what `teleports().to(...).then(...)` already reports. Where
+the player actually goes is still the game's decision; a lobby is as valid an
+answer as the stored spot. A `null` mover, a snapshot with no stored place, or a
+place on another server means nothing is moved and the snapshot is applied where
+the player stands. A mover that throws or fails still lets the restore happen: a
+player who could not be moved must not also lose their things.
+
+`restoreAndReturn` needs no change at the call site — it owns its teleport, so
+*since 1.118.0* it does it in the safe order by itself. A handover to another
+server still restores first, because the player stops existing here the moment
+it starts.
+
+The old order is still what `restore(..., wentBack)` and `restoreAll` do, and
+they are still correct when home is the same world — a menu, an arena inside the
+survival map, a freeze. They are only the wrong call when a world changes.
+
+Two things ordering cannot fix, because no world change is involved: a per-world
+plugin configured with **game-mode profiles** swaps the inventory on every
+`setGameMode`, and one configured to **re-apply player data on join** fights the
+join restore. Both are server configuration
+(`enable-gamemode-share-handling: false`, `apply-playerdata-on-join: false` in
+Multiverse-Inventories), and the simplest configuration of all is to put the
+arena worlds in the same group as the world players come from: these snapshots
+already are the per-world inventory, and two systems doing that job disagree.
 
 ## Contracts
 
@@ -153,10 +215,11 @@ next join restores it.
 | Situation | What to call |
 | --- | --- |
 | A player quits | Nothing. The row is already durable |
-| A player joins | `restoreAll(player, …)` — every context, oldest applied last |
+| A player joins | `restoreAll(player, …)` — every context, oldest applied last; `returnAndRestoreAll(player, …)` when home is another world. *Since 1.118.0.* |
 | A plugin disables | Nothing. `Snapshots.release` only forgets the repository |
 | Needing their old location before they go | `pending(uuid, contextId)` — reads, touches nothing; a live location only when that place is on this server. `pendingPlace` answers with an `ExyliaLocation` wherever it is. *Since 1.109.0.* |
-| Putting them back where they were, on whichever server that was | `restoreAndReturn(player, contextId, parts)` — restores the parts, then a plain teleport on the same server or a handover through the proxy elsewhere. *Since 1.109.0.* |
+| Putting them back where they were, on whichever server that was | `restoreAndReturn(player, contextId, parts)` — on this server the teleport goes first and the parts are restored on arrival; elsewhere a handover through the proxy. *Since 1.109.0, safe order since 1.118.0.* |
+| Sending them somewhere of the game's choosing, in another world | `returnAndRestore(player, contextId, goHome)` — the mover runs first and the snapshot lands on arrival. *Since 1.118.0.* |
 
 Callers that used `restoreSync` to move a player before they left should stop:
 teleporting during `PlayerQuitEvent` does nothing, and teleporting during
@@ -275,6 +338,9 @@ inventory belonging to a player who was on holiday.
 - **Partial restore**, as a typed set of parts.
 - **`restoreAll`**, which applies every context a player has, oldest last, so
   they end up in the state they were in before any of it.
+- **`clear`, `returnAndRestore` and `returnAndRestoreAll`** — the same work in
+  the order that survives a per-world inventory plugin. See
+  [Crossing a world](#crossing-a-world). *Since 1.118.0.*
 
 ## Source and tests
 

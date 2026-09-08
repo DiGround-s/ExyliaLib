@@ -172,6 +172,61 @@ class SnapshotStoreTest {
                 "what they are holding is theirs, and is left alone");
     }
 
+    // ------------------------------------------------------- crossing a world
+
+    @Test
+    @DisplayName("returning restores after the way home, never before it")
+    void returnAndRestoreMovesFirst() {
+        // The order is the whole feature. A per-world inventory plugin writes
+        // whatever a player is holding at the moment they change world into the
+        // profile of the world they left, so a restore that happens before the
+        // move is the second-to-last write and loses; the player lands home
+        // holding what that plugin stored for them on the way in, which is the
+        // empty inventory the join cleared.
+        SnapshotPlayer player = geared("DiGround");
+        CompletableFuture<Void> arrived = new CompletableFuture<>();
+        AtomicReference<Boolean> emptyWhileMoving = new AtomicReference<>();
+
+        await(snapshots.saveAndClear(player.player(), "ffa"));
+
+        CompletableFuture<Boolean> restoring = snapshots.returnAndRestore(player.player(), "ffa",
+                home -> {
+                    emptyWhileMoving.set(player.inventoryIsEmpty());
+                    return arrived;
+                });
+
+        for (int spin = 0; spin < 2000 && emptyWhileMoving.get() == null; spin++) {
+            FakeServer.tick(1);
+            Thread.onSpinWait();
+        }
+        assertNotNull(emptyWhileMoving.get(), "the way home is what runs first");
+        assertTrue(emptyWhileMoving.get(), "and it runs before anything is put back");
+
+        FakeServer.tick(5);
+        assertFalse(restoring.isDone(), "the restore waits for the player to arrive");
+        assertTrue(player.inventoryIsEmpty(), "and puts nothing back while they are in flight");
+
+        arrived.complete(null);
+        assertTrue(await(restoring));
+        assertEquals(TestItem.of("DIAMOND_SWORD"), player.contents()[0],
+                "the snapshot lands once they are there");
+        assertFalse(await(snapshots.has(player.id(), "ffa")), "and the row is used up");
+    }
+
+    @Test
+    @DisplayName("a way home that fails still hands the player their things back")
+    void returnAndRestoreSurvivesAFailedMove() {
+        // A teleport another plugin refused must not strand the snapshot in the
+        // table and the player in a kit.
+        SnapshotPlayer player = geared("DiGround");
+
+        await(snapshots.saveAndClear(player.player(), "ffa"));
+        assertTrue(await(snapshots.returnAndRestore(player.player(), "ffa",
+                home -> CompletableFuture.failedFuture(new IllegalStateException("no")))));
+
+        assertEquals(TestItem.of("DIAMOND_SWORD"), player.contents()[0]);
+    }
+
     // ------------------------------------------------- the context bug commons had
 
     @Test
