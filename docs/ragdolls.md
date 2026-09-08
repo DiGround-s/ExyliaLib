@@ -57,6 +57,11 @@ costing the same.
 | `spread` | Lifted off the ground and opened out, arms and legs wide, turning slowly. Held there, then let go |
 | `knocked` | Held open like `spread`, then struck several times from different sides. Each blow shoves it and spins it, and it drifts back before the next lands |
 | `vortex` | Taken: the pieces spiral out, round and upwards, and are gone at the top. Nothing is left on the floor |
+| `balloon` | The head swells to `swell` times its size, wobbles there, and bursts. The body stands underneath the whole time and then goes outwards with it |
+| `helicopter` | The arms go flat above the head and turn into a rotor. The body lifts off, counter-turns underneath, and leaves forwards |
+| `plane` | Arms out as wings, nose up, banking as it climbs. A negative `up` is a dive, and a dive stops at the floor |
+| `flatten` | Driven straight down and left flat, at `squash` of its height, in its own colours |
+| `melt` | Sinks where it stands, from the feet up, losing its height rather than its place |
 
 `spread` and `knocked` exist for the beat in the middle. A body hanging open in
 the air is a whole second in which something else can happen to it — and the
@@ -129,9 +134,26 @@ effects:
 | `hits` | how many times a `knocked` body is struck | `3` |
 | `every` | seconds between blows | `0.32` |
 | `force` | how far a blow shoves it, in blocks | `0.85` |
+| `swell` | how many times its size a `balloon` head reaches | `3` |
+| `squash` | what is left of a flattened piece's height | `0.14` |
 
 `[RAGDOLL] {killer}` takes the killer apart instead, which is what a curse or a
 recoil effect wants.
+
+## What each pose reads
+
+`burst` reads the throw: `speed up spread gravity bounce spin settle`.
+`spread` and `knocked` read `rise open lift hang turns` first, and the throw
+afterwards for the fall. `knocked` adds `hits every force`. `vortex` reads
+`rise open turns`. `balloon` reads `swell lift hang` and then the throw in full.
+`helicopter` reads `rise lift speed up spin`, `plane` the same plus `open` and
+`turns`, `flatten` reads `lift squash open`, and `melt` reads `hang squash open`.
+
+A rotor is the one thing here drawn on a finer beat than everything else — the
+client turns a display the short way round, so half a turn per pose is the
+ceiling, and a tenth of a second per pose would cap a helicopter at the speed of
+a desk fan. `helicopter` therefore sends a pose every fiftieth of a second and
+buys itself twice the rotor speed for two extra packets a second.
 
 ## Three things worth knowing
 

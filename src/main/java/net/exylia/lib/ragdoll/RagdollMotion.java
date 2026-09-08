@@ -73,6 +73,8 @@ public final class RagdollMotion {
     private final int hits;
     private final long everyMillis;
     private final double force;
+    private final double swell;
+    private final double squash;
 
     private RagdollMotion(Builder builder) {
         this.pose = builder.pose;
@@ -94,6 +96,8 @@ public final class RagdollMotion {
         this.hits = builder.hits;
         this.everyMillis = builder.everyMillis;
         this.force = builder.force;
+        this.swell = builder.swell;
+        this.squash = builder.squash;
     }
 
     /** A body thrown apart on the Exylia defaults: a beat, a throw, a fall and a rest. */
@@ -215,6 +219,16 @@ public final class RagdollMotion {
         return intactMillis + liftMillis + (long) index * everyMillis;
     }
 
+    /** How many times its own size a swelling head reaches. */
+    public double swell() {
+        return swell;
+    }
+
+    /** What is left of a flattened piece's height, as a fraction. */
+    public double squash() {
+        return squash;
+    }
+
     /** Describes what happens to a body in the terms configuration is written in. */
     public static final class Builder {
 
@@ -237,6 +251,8 @@ public final class RagdollMotion {
         private int hits = 3;
         private long everyMillis = 320L;
         private double force = 0.85;
+        private double swell = 3.0;
+        private double squash = 0.14;
 
         private Builder() {
         }
@@ -375,6 +391,30 @@ public final class RagdollMotion {
         /** How far a blow shoves the body, in blocks. */
         public @NotNull Builder force(double blocks) {
             this.force = Math.max(0.0, blocks);
+            return this;
+        }
+
+        /**
+         * How many times its own size a swelling head reaches.
+         *
+         * <p>Two is a caricature. Four is a head that has stopped being a head
+         * and become the thing everyone in the arena is looking at, which is
+         * the point.
+         */
+        public @NotNull Builder swell(double times) {
+            this.swell = Math.max(1.0, times);
+            return this;
+        }
+
+        /**
+         * What is left of a flattened piece's height, as a fraction of it.
+         *
+         * <p>Not zero: a piece with no height at all disappears into the floor
+         * and takes its colour with it. A seventh of it still reads as a body
+         * from above.
+         */
+        public @NotNull Builder squash(double fraction) {
+            this.squash = Math.clamp(fraction, 0.01, 1.0);
             return this;
         }
 

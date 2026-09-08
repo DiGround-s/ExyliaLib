@@ -69,6 +69,21 @@ public final class RagdollFlight {
     /** Where a head is thrown compared with everything else. */
     private static final double HEAD_LIFT_SPEED = 1.35;
 
+    /** How often a pose is sent for a rotor, which cannot be drawn on the usual beat. */
+    private static final long ROTOR_POSE_MS = 50L;
+
+    /** The fastest a rotor may turn on that beat, in turns a second. */
+    private static final double MAX_ROTOR_TURNS = 0.4 / (ROTOR_POSE_MS / 1000.0);
+
+    /** How high above the feet a rotor's hub sits, in blocks. */
+    private static final double ROTOR_HEIGHT = 2.25;
+
+    /** How far a flying body pitches its nose up, in radians. */
+    private static final double PLANE_PITCH = 0.28;
+
+    /** How far it rolls into its turns, in radians. */
+    private static final double PLANE_BANK = 0.45;
+
     /**
      * How long a blow's shove takes to die away, in seconds.
      *
@@ -92,8 +107,11 @@ public final class RagdollFlight {
      * moment a pose is sent.
      */
     public record Flight(long[] times, double[] x, double[] y, double[] z,
-                         Rotation[] rotations) {
+                         Rotation[] rotations, double[][] scales) {
     }
+
+    /** A piece at its own size, which is what most poses leave it at. */
+    private static final double[] SAME = {1, 1, 1};
 
     /**
      * Solves one part's flight, whichever death the file asked for.
@@ -111,6 +129,11 @@ public final class RagdollFlight {
             case BURST -> burst(part, motion, scale, facing, random);
             case SPREAD, KNOCKED -> held(part, motion, scale, facing, random);
             case VORTEX -> vortex(part, motion, scale, facing, random);
+            case BALLOON -> balloon(part, motion, scale, facing, random);
+            case HELICOPTER -> helicopter(part, motion, scale, facing, random);
+            case PLANE -> plane(part, motion, scale, facing, random);
+            case FLATTEN -> flatten(part, motion, scale, facing, random);
+            case MELT -> melt(part, motion, scale, facing, random);
         };
     }
 
@@ -240,7 +263,9 @@ public final class RagdollFlight {
                             .then(Rotation.around(Rotation.Axis.Y, releaseYaw))
                             .then(tumble(axis, turns, falling));
         }
-        return new Flight(times, x, y, z, rotations);
+        double[][] scales = new double[poses][];
+        java.util.Arrays.fill(scales, SAME);
+        return new Flight(times, x, y, z, rotations, scales);
     }
 
     /**
@@ -301,6 +326,256 @@ public final class RagdollFlight {
                     tumble(axis, turns, elapsed)
                             .then(Rotation.around(Rotation.Axis.Y, angle)));
         });
+    }
+
+    // --------------------------------------------------------------- the swell
+
+    /**
+     * The head swells until it is far too big, and bursts.
+     *
+     * <p>Everything else stands there and waits for it, which is the whole
+     * joke: the body has not been told yet. When the head goes, so does the
+     * rest, all at once and outwards.
+     */
+    private static Flight balloon(RagdollPart part, RagdollMotion motion, double scale,
+                                  Rotation facing, RandomGenerator random) {
+        double[] standing = standing(part, scale, facing);
+        boolean head = part == RagdollPart.HEAD;
+
+        double angle = outwards(standing, random) + random.nextDouble(-1, 1) * motion.spread();
+        double vary = 1 + random.nextDouble(-1, 1) * motion.spread();
+        double[] velocity = {
+                Math.cos(angle) * motion.speed() * vary,
+                motion.up() * vary,
+                Math.sin(angle) * motion.speed() * vary};
+        double[] axis = tumbleAxis(random);
+        double turns = spinRate(motion, random);
+        Fall fall = new Fall(motion, scale, standing, velocity);
+
+        double swelling = motion.liftMillis() / 1000.0;
+        double popAt = swelling + motion.hangMillis() / 1000.0;
+        double sway = random.nextDouble(-1, 1);
+
+        return sample(times(motion, motion.intactMillis()), motion.intactMillis(), elapsed -> {
+            if (elapsed >= popAt) {
+                fall.to(elapsed - popAt);
+                // The head is not thrown anywhere. It stopped existing.
+                return head
+                        ? new Step(new double[]{standing[0], standing[1], standing[2]},
+                                Rotation.NONE, new double[]{0.02, 0.02, 0.02})
+                        : new Step(fall.position(),
+                                fall.resting() && motion.settle()
+                                        ? tumble(axis, turns, fall.restedAt())
+                                        : tumble(axis, turns, elapsed - popAt));
+            }
+            if (!head) {
+                // A body that knows something is wrong: it shifts its weight
+                // and does nothing else.
+                double unease = Math.sin(elapsed * 7) * 0.02 * scale;
+                return new Step(new double[]{standing[0] + unease, standing[1], standing[2]},
+                        Rotation.around(Rotation.Axis.Y, unease * 2));
+            }
+            double swollen = Math.clamp(elapsed / Math.max(0.05, swelling), 0, 1);
+            double eased = 1 - Math.pow(1 - swollen, 3);
+            double size = 1 + (motion.swell() - 1) * eased;
+            if (elapsed > swelling) {
+                // Barely moving, and the reason the pose works. A head held
+                // perfectly still at four times its size reads as a bug; the
+                // same head breathing reads as a head about to go.
+                size *= 1 + 0.05 * Math.sin((elapsed - swelling) * 22);
+            }
+            return new Step(new double[]{
+                    standing[0],
+                    // Lifted by its own growth, or it swallows the shoulders.
+                    standing[1] + (size - 1) * 0.28 * scale,
+                    standing[2]},
+                    Rotation.around(Rotation.Axis.Z, sway * 0.12 * eased),
+                    new double[]{size, size, size});
+        });
+    }
+
+    // --------------------------------------------------------------- the rotor
+
+    /**
+     * The arms go flat above the head and lift the rest of it away.
+     *
+     * <p>Drawn on a finer beat than everything else, because a rotor is the one
+     * thing here that has to turn faster than a tenth of a second will carry.
+     */
+    private static Flight helicopter(RagdollPart part, RagdollMotion motion, double scale,
+                                     Rotation facing, RandomGenerator random) {
+        double[] standing = standing(part, scale, facing);
+        double[] ahead = forward(facing);
+        boolean blade = part == RagdollPart.ARM_LEFT || part == RagdollPart.ARM_RIGHT;
+        double base = part == RagdollPart.ARM_LEFT ? Math.PI : 0;
+        double radius = (0.55 + motion.open()) * scale;
+        double hub = ROTOR_HEIGHT * scale;
+
+        double rotor = Math.min(Math.abs(motion.spin()) < 0.1 ? 4.0 : Math.abs(motion.spin()),
+                MAX_ROTOR_TURNS);
+        double lift = motion.liftMillis() / 1000.0;
+
+        return sample(times(motion, motion.intactMillis(), ROTOR_POSE_MS), motion.intactMillis(),
+                elapsed -> {
+            double deployed = Math.clamp(elapsed / Math.max(0.05, lift), 0, 1);
+            double eased = 1 - Math.pow(1 - deployed, 3);
+            double flying = Math.max(0, elapsed - lift);
+            double spun = rotor * Math.PI * 2 * elapsed;
+            // Climbs while it is still deploying, then leaves. The forward run
+            // is more than linear so it reads as accelerating away rather than
+            // being dragged off on a wire.
+            double climbed = motion.rise() * scale * eased + motion.up() * flying;
+            double gone = motion.speed() * Math.pow(flying, 1.15);
+
+            double[] here;
+            Rotation turned;
+            if (blade) {
+                double angle = base + spun;
+                here = new double[]{
+                        standing[0] + (Math.cos(angle) * radius - standing[0]) * eased,
+                        standing[1] + (hub - standing[1]) * eased,
+                        standing[2] + (Math.sin(angle) * radius - standing[2]) * eased};
+                // Rolled flat first, then swung round the hub: rolling second
+                // would turn the blade about the world's axis and the rotor
+                // would come out as two arms waving.
+                turned = partial(Rotation.around(Rotation.Axis.Z, Math.PI / 2), eased)
+                        .then(Rotation.around(Rotation.Axis.Y, angle));
+            } else {
+                // Everything under the rotor turns slowly the other way, which
+                // is what a helicopter with no tail rotor actually does.
+                double counter = -spun * 0.1;
+                double[] carried = spun(standing, counter);
+                here = new double[]{carried[0], carried[1], carried[2]};
+                turned = Rotation.around(Rotation.Axis.Y, counter);
+            }
+            return new Step(new double[]{
+                    here[0] + ahead[0] * gone,
+                    Math.max(REST_HEIGHT * scale, here[1] + climbed),
+                    here[2] + ahead[2] * gone}, turned);
+        });
+    }
+
+    // ---------------------------------------------------------------- the wing
+
+    /**
+     * Arms out as wings, nose up, and away.
+     *
+     * <p>The bank is the whole effect. A body sliding through the air on a
+     * straight line is a body being moved; the same body rolling into its turn
+     * is a body flying, and it is one sine wave.
+     */
+    private static Flight plane(RagdollPart part, RagdollMotion motion, double scale,
+                                Rotation facing, RandomGenerator random) {
+        double[] standing = standing(part, scale, facing);
+        double[] wing = wing(part, motion, scale);
+        double[] ahead = forward(facing);
+        Rotation opening = opening(part);
+        double lift = motion.liftMillis() / 1000.0;
+        double bank = motion.turns() == 0 ? 0.4 : motion.turns();
+
+        return sample(times(motion, motion.intactMillis()), motion.intactMillis(), elapsed -> {
+            double deployed = Math.clamp(elapsed / Math.max(0.05, lift), 0, 1);
+            double eased = 1 - Math.pow(1 - deployed, 3);
+            double flying = Math.max(0, elapsed - lift);
+            double roll = Math.sin(elapsed * bank * Math.PI * 2) * PLANE_BANK * eased;
+            // The nose comes up as the wings come out, so the pose arrives all
+            // at once instead of as two separate decisions.
+            Rotation attitude = Rotation.around(Rotation.Axis.X, PLANE_PITCH * eased)
+                    .then(Rotation.around(Rotation.Axis.Z, roll));
+            float[] local = attitude.apply(new float[]{
+                    (float) (standing[0] + (wing[0] - standing[0]) * eased),
+                    (float) (standing[1] + (wing[1] - standing[1]) * eased),
+                    (float) (standing[2] + (wing[2] - standing[2]) * eased)});
+            double climbed = motion.rise() * scale * eased + motion.up() * flying;
+            double gone = motion.speed() * Math.pow(flying, 1.1);
+            return new Step(new double[]{
+                    local[0] + ahead[0] * gone,
+                    // A dive is a negative climb, and a dive that is not
+                    // stopped at the floor is a body inside it.
+                    Math.max(REST_HEIGHT * scale, local[1] + climbed),
+                    local[2] + ahead[2] * gone},
+                    partial(opening, eased).then(attitude));
+        });
+    }
+
+    /** Where a part sits on a body holding itself like an aeroplane. */
+    private static double[] wing(RagdollPart part, RagdollMotion motion, double scale) {
+        double open = motion.open() * scale;
+        return switch (part) {
+            case HEAD -> new double[]{0, part.blockCentreY() * scale, 0.1 * scale};
+            case TORSO -> new double[]{0, part.blockCentreY() * scale, 0};
+            case ARM_RIGHT -> new double[]{part.blockOffsetX() * scale - open,
+                    part.blockCentreY() * scale + 0.1 * scale, 0};
+            case ARM_LEFT -> new double[]{part.blockOffsetX() * scale + open,
+                    part.blockCentreY() * scale + 0.1 * scale, 0};
+            // Legs together and trailing: a tail, not a stance.
+            case LEG_RIGHT -> new double[]{-0.06 * scale,
+                    part.blockCentreY() * scale + 0.12 * scale, -0.18 * scale};
+            case LEG_LEFT -> new double[]{0.06 * scale,
+                    part.blockCentreY() * scale + 0.12 * scale, -0.18 * scale};
+        };
+    }
+
+    // ---------------------------------------------------------------- the floor
+
+    /** Driven straight down and left flat, in its own colours. */
+    private static Flight flatten(RagdollPart part, RagdollMotion motion, double scale,
+                                  Rotation facing, RandomGenerator random) {
+        double[] standing = standing(part, scale, facing);
+        double rest = REST_HEIGHT * scale;
+        double slam = motion.liftMillis() / 1000.0;
+        double spread = 1 + motion.open();
+        double wobble = random.nextDouble(-1, 1);
+
+        return sample(times(motion, motion.intactMillis()), motion.intactMillis(), elapsed -> {
+            double driven = Math.clamp(elapsed / Math.max(0.05, slam), 0, 1);
+            // Eased in: it is not falling, it is being hit.
+            double eased = driven * driven * driven;
+            double flat = 1 - (1 - motion.squash()) * eased;
+            double wide = 1 + (spread - 1) * eased;
+            return new Step(new double[]{
+                    standing[0] * (1 + 0.45 * eased),
+                    standing[1] + (rest - standing[1]) * eased,
+                    standing[2] * (1 + 0.45 * eased) + wobble * 0.05 * eased},
+                    Rotation.around(Rotation.Axis.Y, wobble * 0.35 * eased),
+                    new double[]{wide, flat, wide});
+        });
+    }
+
+    /** Sinks where it stands, and is gone. */
+    private static Flight melt(RagdollPart part, RagdollMotion motion, double scale,
+                               Rotation facing, RandomGenerator random) {
+        double[] standing = standing(part, scale, facing);
+        double rest = REST_HEIGHT * scale;
+        double over = Math.max(0.2, motion.hangMillis() / 1000.0);
+        // Legs go first and the head goes last, so it sinks rather than
+        // deflating: a body that loses all six pieces at once is a puddle,
+        // and one that loses them from the feet up is a person going under.
+        double late = switch (part) {
+            case LEG_LEFT, LEG_RIGHT -> 0.0;
+            case ARM_LEFT, ARM_RIGHT -> 0.12;
+            case TORSO -> 0.2;
+            case HEAD -> 0.35;
+        };
+        double lean = random.nextDouble(-1, 1);
+
+        return sample(times(motion, motion.intactMillis()), motion.intactMillis(), elapsed -> {
+            double sunk = Math.clamp((elapsed / over - late) / (1 - late), 0, 1);
+            double flat = 1 - (1 - motion.squash()) * Math.pow(sunk, 1.2);
+            double wide = 1 + motion.open() * sunk;
+            return new Step(new double[]{
+                    standing[0] * (1 + 0.2 * sunk),
+                    standing[1] + (rest - standing[1]) * Math.pow(sunk, 1.5),
+                    standing[2] * (1 + 0.2 * sunk)},
+                    Rotation.around(Rotation.Axis.Y, lean * 0.5 * sunk),
+                    new double[]{wide, flat, wide});
+        });
+    }
+
+    /** Which way a body is looking, as a unit vector pointing away from it. */
+    private static double[] forward(Rotation facing) {
+        float[] ahead = facing.apply(new float[]{0f, 0f, -1f});
+        return new double[]{ahead[0], ahead[1], ahead[2]};
     }
 
     // ---------------------------------------------------------------- the body
@@ -386,7 +661,11 @@ public final class RagdollFlight {
     // ------------------------------------------------------------- the plumbing
 
     /** One moment of a flight, as a solver hands it back. */
-    private record Step(double[] position, Rotation rotation) {
+    private record Step(double[] position, Rotation rotation, double[] scale) {
+
+        Step(double[] position, Rotation rotation) {
+            this(position, rotation, SAME);
+        }
     }
 
     /** What a solver does at each moment a pose is due. */
@@ -403,6 +682,7 @@ public final class RagdollFlight {
         double[] y = new double[poses];
         double[] z = new double[poses];
         Rotation[] rotations = new Rotation[poses];
+        double[][] scales = new double[poses][];
         for (int index = 0; index < poses; index++) {
             long at = times[index];
             Step step = path.at(Math.max(0, at - from) / 1000.0);
@@ -410,8 +690,9 @@ public final class RagdollFlight {
             y[index] = step.position()[1];
             z[index] = step.position()[2];
             rotations[index] = step.rotation();
+            scales[index] = step.scale();
         }
-        return new Flight(times, x, y, z, rotations);
+        return new Flight(times, x, y, z, rotations, scales);
     }
 
     /**
@@ -419,10 +700,24 @@ public final class RagdollFlight {
      * anything starts happening.
      */
     private static long[] times(RagdollMotion motion, long from) {
+        return times(motion, from, POSE_MS);
+    }
+
+    /**
+     * The same, on a finer beat.
+     *
+     * <p>A rotor is the one thing in the module that cannot be drawn on a
+     * tenth of a second: the client turns a display the short way round, so a
+     * blade never gets to travel more than half a turn between two poses, and
+     * half a turn every tenth of a second is a ceiling of five turns a second
+     * that reads as a desk fan. Halving the beat doubles the ceiling, and it is
+     * two extra packets a second on one effect.
+     */
+    private static long[] times(RagdollMotion motion, long from, long beat) {
         long life = motion.lifeMillis();
         long moving = Math.max(0, life - from);
-        int poses = Math.min(MAX_POSES, (int) (moving / POSE_MS) + 2);
-        long step = Math.max(POSE_MS, poses <= 2 ? moving : moving / (poses - 2));
+        int poses = Math.min(MAX_POSES, (int) (moving / beat) + 2);
+        long step = Math.max(beat, poses <= 2 ? moving : moving / (poses - 2));
         long[] times = new long[poses];
         times[0] = 0L;
         for (int index = 1; index < poses; index++) {

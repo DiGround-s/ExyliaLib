@@ -130,16 +130,24 @@ public final class RagdollBuilder {
         List<DisplayKeyframe> poses = new ArrayList<>(flight.times().length);
         for (int index = 0; index < flight.times().length; index++) {
             Rotation rotation = flight.rotations()[index];
-            // The cell is carried by the part: its own offset is turned by
-            // whatever the part has turned to, then added to where the part is.
-            float[] carried = rotation.apply(local);
+            double[] grown = flight.scales()[index];
+            // The cell is carried by the part: its own offset grows with the
+            // part, is turned by whatever the part has turned to, and is then
+            // added to where the part is. Growing it afterwards would leave a
+            // swollen head as four cells drifting apart from each other.
+            float[] carried = rotation.apply(new float[]{
+                    (float) (local[0] * grown[0]),
+                    (float) (local[1] * grown[1]),
+                    (float) (local[2] * grown[2])});
             float shrink = shrink(flight.times()[index], burst);
             poses.add(new DisplayKeyframe(flight.times()[index],
                     (float) flight.x()[index] + carried[0],
                     (float) flight.y()[index] + carried[1],
                     (float) flight.z()[index] + carried[2],
                     rotation,
-                    size[0] * shrink, size[1] * shrink, size[2] * shrink));
+                    (float) (size[0] * shrink * grown[0]),
+                    (float) (size[1] * shrink * grown[1]),
+                    (float) (size[2] * shrink * grown[2])));
         }
         DisplayHandle handle = DisplayRuntime.show(owner, model,
                 DisplayMotion.of(poses, burst.lifeMillis()), at, viewers);

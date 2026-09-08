@@ -60,11 +60,17 @@ class RagdollFlightTest {
                 }
 
                 int last = flight.times().length - 1;
-                double moved = Math.abs(flight.x()[last] - flight.x()[0])
+                // Moved, or grown, or flattened: a swelling head never leaves
+                // the neck it is on, and it is the least still thing in the
+                // module.
+                double changed = Math.abs(flight.x()[last] - flight.x()[0])
                         + Math.abs(flight.y()[last] - flight.y()[0])
-                        + Math.abs(flight.z()[last] - flight.z()[0]);
-                assertTrue(moved > 0.2,
-                        pose + "/" + part + " never went anywhere");
+                        + Math.abs(flight.z()[last] - flight.z()[0])
+                        + Math.abs(flight.scales()[last][0] - 1)
+                        + Math.abs(flight.scales()[last][1] - 1)
+                        + Math.abs(flight.scales()[last][2] - 1);
+                assertTrue(changed > 0.2,
+                        pose + "/" + part + " never had anything happen to it");
             }
         }
     }
@@ -83,6 +89,26 @@ class RagdollFlightTest {
                                 pose + "/" + part + " went under the floor, to " + height);
                     }
                 }
+            }
+        }
+    }
+
+    @Test
+    @DisplayName("a dive stops at the floor instead of going through it")
+    void aDiveStops() {
+        // A negative climb is how a file writes a dive. Nothing stops it but
+        // this, and a piece under the floor is a piece nobody ever sees again.
+        RagdollMotion diving = base()
+                .pose(RagdollPose.PLANE)
+                .rise(4.5)
+                .up(-3.0)
+                .speed(3.4)
+                .build();
+        for (RagdollPart part : RagdollPart.values()) {
+            RagdollFlight.Flight flight =
+                    RagdollFlight.solve(part, diving, 1.0, Rotation.NONE, new Random(11));
+            for (double height : flight.y()) {
+                assertTrue(height >= 0, part + " dived through the floor, to " + height);
             }
         }
     }

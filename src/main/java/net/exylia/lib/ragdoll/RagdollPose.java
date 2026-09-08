@@ -50,7 +50,48 @@ public enum RagdollPose {
      *
      * <p>The one death with nothing left on the floor.
      */
-    VORTEX;
+    VORTEX,
+
+    /**
+     * The head swells until it is far too big, wobbles there, and bursts.
+     *
+     * <p>The body waits underneath it the whole time, which is what makes it
+     * funny rather than merely loud: everything is still standing, and one part
+     * of it is very obviously about to stop.
+     */
+    BALLOON,
+
+    /**
+     * The arms go flat above the head and turn into a rotor.
+     *
+     * <p>The body lifts off, the rest of it counter-turns underneath, and it
+     * leaves forwards. Nothing lands.
+     */
+    HELICOPTER,
+
+    /**
+     * Arms out as wings, nose up, and away.
+     *
+     * <p>It banks as it climbs, which is the detail that turns a body sliding
+     * through the air into a body flying. Give it a negative climb and it is a
+     * dive instead.
+     */
+    PLANE,
+
+    /**
+     * Driven straight down and left flat on the floor.
+     *
+     * <p>Every piece keeps its own colour and loses its height, so what is left
+     * is a player-shaped stain rather than a pile of blocks.
+     */
+    FLATTEN,
+
+    /**
+     * Sinks. The pieces lose their height where they stand and are gone.
+     *
+     * <p>The quiet one. No throw, no bounce, nothing to look at afterwards.
+     */
+    MELT;
 
     /**
      * Reads a pose from configuration, defaulting to {@link #BURST}.
@@ -63,6 +104,11 @@ public enum RagdollPose {
             case "SPREAD", "STARFISH", "OPEN" -> SPREAD;
             case "KNOCKED", "KNOCK", "BATTED", "HIT" -> KNOCKED;
             case "VORTEX", "TAKEN", "ASCEND", "SPIRAL" -> VORTEX;
+            case "BALLOON", "BIGHEAD", "BIG_HEAD", "SWELL", "POP" -> BALLOON;
+            case "HELICOPTER", "CHOPPER", "ROTOR" -> HELICOPTER;
+            case "PLANE", "FLY", "GLIDE", "JET" -> PLANE;
+            case "FLATTEN", "PANCAKE", "SQUASH", "FLAT" -> FLATTEN;
+            case "MELT", "SINK", "DISSOLVE" -> MELT;
             default -> BURST;
         };
     }
@@ -70,5 +116,15 @@ public enum RagdollPose {
     /** Whether this pose holds the body in the air before it lets go. */
     public boolean isHeld() {
         return this == SPREAD || this == KNOCKED;
+    }
+
+    /**
+     * Whether this pose leaves rather than lands.
+     *
+     * <p>Nothing that flies away reads {@code bounce} or {@code settle}: there
+     * is no floor in its future.
+     */
+    public boolean flies() {
+        return this == HELICOPTER || this == PLANE || this == VORTEX;
     }
 }
