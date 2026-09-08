@@ -144,14 +144,6 @@ final class Displays {
      */
     static final class BossBarDisplay extends ActiveDisplay {
 
-        /**
-         * How many steps the client can actually draw the bar in.
-         *
-         * <p>The vanilla boss bar texture is 182 pixels wide, so progress finer
-         * than one part in 182 is a packet the player cannot see.
-         */
-        private static final int BAR_STEPS = 182;
-
         private final UUID id = UUID.randomUUID();
 
         private final String colour;
@@ -159,16 +151,6 @@ final class Displays {
         private Float fixedProgress;
 
         private Component lastTitle;
-        /**
-         * The progress last sent, quantised.
-         *
-         * <p>The client draws the bar about two hundred pixels wide, so a
-         * sixty-second countdown moves it by a twentieth of a pixel per tick.
-         * Sending that is a packet per player per tick that changes nothing
-         * anybody can see; sending it when the drawn width actually changes is
-         * the same bar for a fraction of the traffic.
-         */
-        private int lastSteps = Integer.MIN_VALUE;
 
         BossBarDisplay(Player viewer, Rendered text, Timer timer, long period,
                        String colour, String overlay, Float fixedProgress, String owner) {
@@ -185,18 +167,11 @@ final class Displays {
             return timer != null ? timer.progress() : 1f;
         }
 
-        /** The progress as the client will draw it, in whole steps of the bar. */
-        private static int steps(float progress) {
-            return Math.round(Math.clamp(progress, 0f, 1f) * BAR_STEPS);
-        }
-
         @Override
         void draw(Player viewer, Rendered rendered, Timer timer) {
             Component title = rendered.build(viewer, timer);
             lastTitle = title;
-            float progress = progress(timer);
-            lastSteps = steps(progress);
-            Bars.bossBarAdd(viewer, id, title, progress, colour, overlay);
+            Bars.bossBarAdd(viewer, id, title, progress(timer), colour, overlay);
         }
 
         @Override
@@ -207,21 +182,7 @@ final class Displays {
             // one small packet instead of two.
             boolean changed = !title.equals(lastTitle);
             lastTitle = title;
-
-            float progress = progress(timer);
-            int steps = steps(progress);
-            if (steps == lastSteps) {
-                // Nothing moved on screen. Without a new title there is nothing
-                // to send at all, which is the whole redraw for a bar that ticks
-                // faster than it changes.
-                if (!changed) {
-                    return;
-                }
-                Bars.bossBarTitleOnly(viewer, id, title);
-                return;
-            }
-            lastSteps = steps;
-            Bars.bossBarUpdate(viewer, id, title, progress, changed);
+            Bars.bossBarUpdate(viewer, id, title, progress(timer), changed);
         }
 
         @Override
@@ -233,8 +194,6 @@ final class Displays {
         @Override
         public @NotNull Display progress(float progress) {
             this.fixedProgress = Math.clamp(progress, 0f, 1f);
-            // Asked for explicitly, so it is sent whatever it rounds to.
-            this.lastSteps = Integer.MIN_VALUE;
             rerender();
             return this;
         }

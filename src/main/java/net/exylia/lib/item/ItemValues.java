@@ -11,7 +11,6 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.Collections;
-import java.util.Collection;
 import java.util.Locale;
 import java.util.Map;
 import java.util.LinkedHashSet;
@@ -103,35 +102,6 @@ public final class ItemValues {
         PersistentDataContainerView container = read(item);
         NamespacedKey namespaced = key(key);
         return container != null && namespaced != null && container.has(namespaced);
-    }
-
-    /**
-     * Whether this plugin stored anything under any of those keys.
-     *
-     * <p>One read of the item's container for the whole set. Asking
-     * {@link #has(ItemStack, String)} per key converts the stack and walks its
-     * components again for every key, which is what a guard listening on
-     * interaction pays on every click.
-     *
-     * @param item the item, may be {@code null} or air
-     * @param keys the keys, in this plugin's namespace
-     * @return whether any of them is there, of any type
-     */
-    public boolean hasAny(@Nullable ItemStack item, @NotNull Collection<String> keys) {
-        if (keys.isEmpty()) {
-            return false;
-        }
-        PersistentDataContainerView container = read(item);
-        if (container == null) {
-            return false;
-        }
-        for (String key : keys) {
-            NamespacedKey namespaced = key(key);
-            if (namespaced != null && container.has(namespaced)) {
-                return true;
-            }
-        }
-        return false;
     }
 
     /**

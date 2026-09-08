@@ -112,14 +112,10 @@ public final class InertItems implements Listener {
 
     @EventHandler(priority = EventPriority.HIGHEST)
     public void onInteract(PlayerInteractEvent event) {
-        // The action first: a left click can never spend the item, and a player
-        // breaking a block fires one every tick. Reading the item's container to
-        // find that out was the guard's whole cost.
-        Use use = useOf(event.getAction());
-        if (use == Use.NOTHING || !isInert(event.getItem())) {
+        if (!isInert(event.getItem())) {
             return;
         }
-        switch (use) {
+        switch (useOf(event.getAction())) {
             case DENY_ITEM -> event.setUseItemInHand(Event.Result.DENY);
             case CANCEL -> event.setCancelled(true);
             case NOTHING -> {
@@ -161,8 +157,11 @@ public final class InertItems implements Listener {
         if (item == null || item.getType().isAir()) {
             return false;
         }
-        // One read of the item's container for the whole key set: asking per key
-        // converted the stack and walked its components once per key.
-        return values.hasAny(item, keys);
+        for (String key : keys) {
+            if (values.has(item, key)) {
+                return true;
+            }
+        }
+        return false;
     }
 }

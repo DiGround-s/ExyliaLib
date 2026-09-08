@@ -236,60 +236,27 @@ public abstract class AbstractTaskScheduler implements TaskScheduler {
      * Builds a timer whose body can cancel the timer itself.
      *
      * <p>The body needs the handle, but the handle only exists once the timer is
-     * scheduled, and the very first run can happen before {@code schedule}
-     * returns. The body is therefore handed a stand-in that forwards to the real
-     * handle as soon as there is one, and remembers a cancel that arrived before
-     * it. Waiting for the handle instead would put a synchronizer acquire on
-     * every tick of every timer, forever, to cover a race that can only happen
-     * on the first one.
+     * scheduled, so the reference is published through a one element array and
+     * read at execution time. A latch covers the case where the very first run
+     * happens before {@code schedule} returns.
      */
     private TaskHandle selfCancelling(java.util.function.Function<Runnable, TaskHandle> schedule,
                                       Consumer<TaskHandle> task) {
-        Deferred deferred = new Deferred();
-        TaskHandle handle = schedule.apply(() -> task.accept(deferred));
-        deferred.bind(handle);
+        TaskHandle[] slot = new TaskHandle[1];
+        java.util.concurrent.CountDownLatch ready = new java.util.concurrent.CountDownLatch(1);
+
+        TaskHandle handle = schedule.apply(() -> {
+            try {
+                ready.await();
+            } catch (InterruptedException interrupted) {
+                Thread.currentThread().interrupt();
+                return;
+            }
+            task.accept(slot[0]);
+        });
+
+        slot[0] = handle;
+        ready.countDown();
         return handle;
-    }
-
-    /**
-     * The handle a self-cancelling body sees.
-     *
-     * <p>Every call forwards to the scheduled handle. Before that handle exists
-     * — only ever during the first run — a cancel is recorded and applied the
-     * moment it does.
-     */
-    private static final class Deferred implements TaskHandle {
-
-        private volatile TaskHandle target;
-        private volatile boolean cancelledEarly;
-
-        void bind(TaskHandle handle) {
-            target = handle;
-            if (cancelledEarly) {
-                handle.cancel();
-            }
-        }
-
-        @Override
-        public void cancel() {
-            TaskHandle bound = target;
-            if (bound != null) {
-                bound.cancel();
-            } else {
-                cancelledEarly = true;
-            }
-        }
-
-        @Override
-        public boolean isCancelled() {
-            TaskHandle bound = target;
-            return bound != null ? bound.isCancelled() : cancelledEarly;
-        }
-
-        @Override
-        public boolean isRepeating() {
-            TaskHandle bound = target;
-            return bound == null || bound.isRepeating();
-        }
     }
 }

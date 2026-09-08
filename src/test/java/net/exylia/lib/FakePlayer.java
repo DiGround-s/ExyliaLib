@@ -27,8 +27,6 @@ public final class FakePlayer {
     private final List<String> titles = new CopyOnWriteArrayList<>();
     private final List<String> bossBarsShown = new CopyOnWriteArrayList<>();
     private final List<String> bossBarsHidden = new CopyOnWriteArrayList<>();
-    private final java.util.concurrent.atomic.AtomicInteger bossBarProgressChanges =
-            new java.util.concurrent.atomic.AtomicInteger();
 
     private final List<Component> actionBarComponents = new ArrayList<>();
     private final List<String> titleParts = new CopyOnWriteArrayList<>();
@@ -106,19 +104,6 @@ public final class FakePlayer {
                     }
                     case "showBossBar" -> {
                         bossBarsShown.add(String.valueOf(args[0]));
-                        if (args[0] instanceof net.kyori.adventure.bossbar.BossBar bar) {
-                            // A boss bar is only re-sent when something on it
-                            // changed, so counting the changes is how a test
-                            // sees how many packets a live bar would cost.
-                            bar.addListener(new net.kyori.adventure.bossbar.BossBar.Listener() {
-                                @Override
-                                public void bossBarProgressChanged(
-                                        net.kyori.adventure.bossbar.BossBar changed,
-                                        float from, float to) {
-                                    bossBarProgressChanges.incrementAndGet();
-                                }
-                            });
-                        }
                         yield null;
                     }
                     case "hideBossBar" -> {
@@ -274,11 +259,6 @@ public final class FakePlayer {
         return bossBarsHidden.size();
     }
 
-    /** How many times a shown boss bar's progress actually moved. */
-    public int bossBarProgressChanges() {
-        return bossBarProgressChanges.get();
-    }
-
     /** Puts the player somewhere, which is what makes distance checks work. */
     public FakePlayer at(org.bukkit.Location where) {
         this.location = where.clone();
@@ -324,6 +304,5 @@ public final class FakePlayer {
         titles.clear();
         bossBarsShown.clear();
         bossBarsHidden.clear();
-        bossBarProgressChanges.set(0);
     }
 }

@@ -311,21 +311,6 @@ class DisplayTest {
     }
 
     @Test
-    @DisplayName("a long countdown bar only re-sends progress the client can draw")
-    void bossBarSkipsInvisibleProgress() {
-        // Ten minutes ticking every tick: twelve thousand redraws over a bar the
-        // client draws in 182 steps. Anything close to one packet per tick is
-        // the regression this guards.
-        Effects.bossBar("Waiting").countdown(600).show(viewer.player());
-        FakeServer.tick(400);
-
-        int changes = viewer.bossBarProgressChanges();
-        assertTrue(changes > 0, "the bar must still move");
-        assertTrue(changes < 100,
-                "progress finer than the drawn bar must not be sent, was " + changes);
-    }
-
-    @Test
     @DisplayName("stopping a plugin's effects stops all of them")
     void stopAllByPlugin() {
         Effects.actionBar("a").permanent().show(viewer.player());
