@@ -308,7 +308,10 @@ public final class RegionRuntime {
         TaskHandle previous = POLLS.remove(playerId);
         if (previous != null) previous.cancel();
         POLLS.put(playerId, Tasks.of(owner).runAtEntityTimer(player, POLL_TICKS, POLL_TICKS, () -> {
-            if (!player.isOnline() || !MEMBERSHIPS.containsKey(playerId)) return;
+            // Being online is what the entity timer already checks before it
+            // runs this at all; asking again is a player-list lookup five times
+            // a second per player for an answer we were just given.
+            if (!MEMBERSHIPS.containsKey(playerId)) return;
             Location location = player.getLocation();
             World world = location.getWorld();
             if (world == null) return;

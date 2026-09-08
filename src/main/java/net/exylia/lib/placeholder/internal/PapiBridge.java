@@ -298,6 +298,18 @@ public final class PapiBridge {
         FAILURE_REPORTED.set(false);
     }
 
+    /**
+     * Drops what every expansion compiled, because a registration changed what a
+     * name splits into.
+     *
+     * <p>The same reason {@link TemplateCache#invalidate()} exists, for the
+     * per-expansion caches that one does not cover.
+     */
+    public static void invalidateCompiled() {
+        EXPANSIONS.values().forEach(expansions ->
+                expansions.values().forEach(PapiExpansion::invalidate));
+    }
+
     /** Removes a plugin's expansions, under every identifier it answered as. */
     public static void release(String pluginName) {
         Map<String, Object> expansions = EXPANSIONS.remove(pluginName);

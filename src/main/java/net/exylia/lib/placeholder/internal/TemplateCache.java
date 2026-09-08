@@ -67,6 +67,9 @@ public final class TemplateCache {
      */
     public static void invalidate() {
         CACHE.invalidateAll();
+        // The expansions compile the same names against their own owner, so the
+        // change that made these wrong made those wrong too.
+        PapiBridge.invalidateCompiled();
     }
 
     /** Returns how many templates are cached, for diagnostics. */

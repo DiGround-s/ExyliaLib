@@ -47,7 +47,30 @@ public final class BuiltIn {
     private static volatile int systemLoad;
     private static volatile int processLoad;
 
+    /**
+     * The last TPS reading, and when it was taken.
+     *
+     * <p>{@code Bukkit.getTPS()} averages over the recorded tick history and
+     * allocates an array to hand three numbers back. A scoreboard asking every
+     * player for it every frame pays that per player; the number is a rolling
+     * one-minute mean, so a reading from within the last second is the same
+     * answer.
+     */
+    private static volatile long tpsAt = Long.MIN_VALUE / 2;
+    private static volatile double tps;
+
     private BuiltIn() {
+    }
+
+    /** The one-minute TPS mean, re-read at most once a second. */
+    private static double tps() {
+        long now = System.nanoTime();
+        if (now - tpsAt < SAMPLE_NANOS) {
+            return tps;
+        }
+        tpsAt = now;
+        tps = Bukkit.getTPS()[0];
+        return tps;
     }
 
     /**
@@ -82,7 +105,7 @@ public final class BuiltIn {
                 .describe("Information about the server")
                 .add("online", request -> Bukkit.getOnlinePlayers().size())
                 .add("max", request -> Bukkit.getMaxPlayers())
-                .add("tps", request -> round(Bukkit.getTPS()[0]))
+                .add("tps", request -> round(tps()))
                 .add("mspt", request -> millis(Bukkit.getAverageTickTime()))
                 .add("cpu_system", request -> {
                     sample();

@@ -8,6 +8,10 @@ import org.bukkit.OfflinePlayer;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
 
+import com.github.benmanes.caffeine.cache.Cache;
+import com.github.benmanes.caffeine.cache.Caffeine;
+
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
@@ -38,6 +42,26 @@ final class PapiExpansion extends PlaceholderExpansion implements Relational {
     private final String author;
     private final String version;
 
+    /**
+     * Compiled forms of the names this expansion has been asked for.
+     *
+     * <p>PlaceholderAPI asks for the same handful of names once per player per
+     * scoreboard frame, and every one of them used to be split into name,
+     * arguments, format and fallback from scratch. Splitting depends on which
+     * names this plugin owns, so the cache belongs to the expansion rather than
+     * to the shared {@link TemplateCache} — and it is dropped for the same
+     * reason that one is, whenever a registration changes what a name splits
+     * into.
+     *
+     * <p>Bounded and expiring: a config that writes a placeholder with a player
+     * name in it generates a new key per player, and must not be able to grow
+     * this without limit.
+     */
+    private final Cache<String, List<Part>> compiled = Caffeine.newBuilder()
+            .maximumSize(2048)
+            .expireAfterAccess(Duration.ofMinutes(10))
+            .build();
+
     PapiExpansion(Plugin plugin) {
         this(plugin, plugin.getName().toLowerCase(Locale.ROOT));
     }
@@ -58,6 +82,13 @@ final class PapiExpansion extends PlaceholderExpansion implements Relational {
         PapiExpansion expansion = new PapiExpansion(plugin, identifier);
         expansion.register();
         return expansion;
+    }
+
+    /** Drops a previously created expansion's compiled names. */
+    static void invalidate(Object expansion) {
+        if (expansion instanceof PapiExpansion papi) {
+            papi.compiled.invalidateAll();
+        }
     }
 
     /** Unregisters a previously created expansion. */
@@ -153,7 +184,11 @@ final class PapiExpansion extends PlaceholderExpansion implements Relational {
         // that splits a name from its arguments cannot settle on a name someone
         // else owns: "stats_top_kills_1" has to find this plugin's
         // "stats_top_kills", not another plugin's "stats_top".
-        List<Part> parts = TemplateCompiler.compile(text, this::owns);
+        List<Part> parts = compiled.getIfPresent(params);
+        if (parts == null) {
+            parts = TemplateCompiler.compile(text, this::owns);
+            compiled.put(params, parts);
+        }
         StringBuilder answer = new StringBuilder(text.length() + 16);
         boolean answered = false;
         for (Part part : parts) {
@@ -187,4 +222,5 @@ final class PapiExpansion extends PlaceholderExpansion implements Relational {
     private boolean owns(String name) {
         return Registry.get(owner, name) != null;
     }
+
 }

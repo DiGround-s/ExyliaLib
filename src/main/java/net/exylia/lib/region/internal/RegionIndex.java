@@ -291,9 +291,14 @@ final class RegionIndex {
             return key.defaultValue();
         }
 
+        RegionSnapshot[][] buckets = bucketsAt(world, x, z);
+        if (buckets == null) {
+            return key.defaultValue();
+        }
+
         RegionSnapshot previous = null;
         RegionSnapshot candidate;
-        while ((candidate = nextCandidate(world, x, z, previous)) != null) {
+        while ((candidate = nextCandidate(buckets, previous)) != null) {
             previous = candidate;
             if (!candidate.shape().contains(x, y, z)) {
                 continue;
@@ -321,11 +326,20 @@ final class RegionIndex {
             return List.of();
         }
 
-        RegionSnapshot first = nextMatch(world, owner, x, y, z, null);
+        // Which cells this point falls in never changes while the point does
+        // not, so the hierarchy is walked once per query rather than once per
+        // candidate. Nothing at all here is the overwhelmingly common answer
+        // and costs no allocation.
+        RegionSnapshot[][] buckets = bucketsAt(world, x, z);
+        if (buckets == null) {
+            return List.of();
+        }
+
+        RegionSnapshot first = nextMatch(buckets, owner, x, y, z, null);
         if (first == null) {
             return List.of();
         }
-        RegionSnapshot second = nextMatch(world, owner, x, y, z, first);
+        RegionSnapshot second = nextMatch(buckets, owner, x, y, z, first);
         if (second == null) {
             return List.of(first);
         }
@@ -333,18 +347,49 @@ final class RegionIndex {
         ResultBuilder matches = new ResultBuilder(first, second);
         RegionSnapshot previous = second;
         RegionSnapshot candidate;
-        while ((candidate = nextMatch(world, owner, x, y, z, previous)) != null) {
+        while ((candidate = nextMatch(buckets, owner, x, y, z, previous)) != null) {
             matches.add(candidate);
             previous = candidate;
         }
         return matches.freeze();
     }
 
-    private static RegionSnapshot nextMatch(WorldIndex world, String owner,
+    /**
+     * The candidate arrays this point sits in, one per level that holds any.
+     *
+     * <p>Only the levels that hold something are visited. A world's regions are
+     * almost always all about one size, so this is one or two levels rather than
+     * the thirty-three the hierarchy allows.
+     *
+     * @return the non-empty buckets, or {@code null} when the point is in none
+     */
+    private static RegionSnapshot[][] bucketsAt(WorldIndex world, double x, double z) {
+        int[] active = world.activeLevels;
+        RegionSnapshot[][] found = null;
+        int count = 0;
+        for (int index = 0; index < active.length; index++) {
+            int level = active[index];
+            RegionSnapshot[] bucket =
+                world.levels[level].get(cellKey(cell(x, level), cell(z, level)));
+            if (bucket == null) {
+                continue;
+            }
+            if (found == null) {
+                found = new RegionSnapshot[active.length - index][];
+            }
+            found[count++] = bucket;
+        }
+        if (found == null) {
+            return null;
+        }
+        return count == found.length ? found : java.util.Arrays.copyOf(found, count);
+    }
+
+    private static RegionSnapshot nextMatch(RegionSnapshot[][] buckets, String owner,
                                             double x, double y, double z,
                                             RegionSnapshot previous) {
         RegionSnapshot candidate = previous;
-        while ((candidate = nextCandidate(world, x, z, candidate)) != null) {
+        while ((candidate = nextCandidate(buckets, candidate)) != null) {
             if ((owner == null || owner.equals(candidate.owner()))
                 && candidate.shape().contains(x, y, z)) {
                 return candidate;
@@ -353,21 +398,11 @@ final class RegionIndex {
         return null;
     }
 
-    private static RegionSnapshot nextCandidate(WorldIndex world, double x, double z,
+    private static RegionSnapshot nextCandidate(RegionSnapshot[][] buckets,
                                                  RegionSnapshot previous) {
         RegionSnapshot selected = null;
-        // Only the levels that hold something. A world's regions are almost
-        // always all about one size, so this is one or two levels rather than
-        // the thirty-three the hierarchy allows — and this runs once per
-        // candidate, on every step every player takes.
-        int[] active = world.activeLevels;
-        for (int index = 0; index < active.length; index++) {
-            int level = active[index];
-            Map<Long, RegionSnapshot[]> levelMap = world.levels[level];
-            RegionSnapshot[] bucket = levelMap.get(cellKey(cell(x, level), cell(z, level)));
-            if (bucket == null) {
-                continue;
-            }
+        for (int index = 0; index < buckets.length; index++) {
+            RegionSnapshot[] bucket = buckets[index];
             int position = previous == null ? 0 : insertionPointAfter(bucket, previous);
             if (position < bucket.length
                 && (selected == null || ORDER.compare(bucket[position], selected) < 0)) {

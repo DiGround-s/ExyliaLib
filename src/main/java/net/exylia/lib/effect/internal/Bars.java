@@ -123,6 +123,18 @@ final class Bars {
         }
     }
 
+    /** Sends only the title, for a bar whose drawn progress did not move. */
+    static void bossBarTitleOnly(Player viewer, UUID id, Component title) {
+        if (Packets.available()) {
+            PacketSender.bossBarTitle(viewer, id, title);
+            return;
+        }
+        BossBar bar = FALLBACK.get(id);
+        if (bar != null) {
+            bar.name(title);
+        }
+    }
+
     static void bossBarRemove(Player viewer, UUID id) {
         if (Packets.available()) {
             PacketSender.bossBarRemove(viewer, id);
