@@ -827,6 +827,12 @@ public final class Text {
         if (!(other instanceof Text that)) {
             return false;
         }
+        // A live bar compares one of these per redraw, per viewer, and its
+        // values move: the hash separates two texts that differ without
+        // walking a substitution list to find the one number that changed.
+        if (hashCode() != that.hashCode()) {
+            return false;
+        }
         return raw.equals(that.raw)
                 && substitutions.equals(that.substitutions)
                 && viewer == that.viewer
@@ -834,9 +840,17 @@ public final class Text {
                 && resolveFormatted == that.resolveFormatted;
     }
 
+    /** Memoised, the way a String memoises its own: a Text never changes. */
+    private int hash;
+
     @Override
     public int hashCode() {
-        return raw.hashCode() * 31 + substitutions.hashCode();
+        int cached = hash;
+        if (cached == 0) {
+            cached = raw.hashCode() * 31 + substitutions.hashCode();
+            hash = cached;
+        }
+        return cached;
     }
 
     @Override
