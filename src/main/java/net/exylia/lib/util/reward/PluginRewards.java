@@ -14,6 +14,7 @@ import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.player.PlayerJoinEvent;
+import org.bukkit.inventory.ItemStack;
 import org.bukkit.plugin.Plugin;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -249,6 +250,31 @@ public final class PluginRewards {
      */
     public @NotNull RewardResult give(@NotNull Player player, @NotNull RewardEntry reward) {
         return deliver(reward, player);
+    }
+
+    /**
+     * Gives a player one item, under the plugin's {@link #overflow(OverflowPolicy)
+     * overflow policy}.
+     *
+     * <p>The line every plugin was writing by hand. {@code addItem} hands back
+     * what would not fit, and a caller reading those leftovers still has to
+     * decide what becomes of them &mdash; every one of them decided "drop it at
+     * their feet", which is the one answer that loses the item to a mob, a
+     * despawn or a hopper. Routed through a reward instead, a full inventory is
+     * answered by the policy the plugin already chose: kept in the pending table
+     * and handed over on their next join under {@link OverflowPolicy#QUEUE}.
+     *
+     * <p>The stack's own amount is what is given.
+     *
+     * @param player who gets it
+     * @param item   what they get
+     * @return what became of it
+     * @since 1.129.0
+     */
+    public @NotNull RewardResult giveItem(@NotNull Player player, @NotNull ItemStack item) {
+        return give(player, RewardEntry.item(Rewards.snapshot(item))
+                .fixedAmount(item.getAmount())
+                .build());
     }
 
     /**
