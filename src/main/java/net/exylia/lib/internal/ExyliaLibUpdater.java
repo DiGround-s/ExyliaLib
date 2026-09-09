@@ -50,7 +50,18 @@ public final class ExyliaLibUpdater {
      * that holds it for five minutes.
      */
     private static final String LATEST_JAR_URL =
-        "https://github.com/DiGround-s/ExyliaLib/releases/latest/download/ExyliaLib.jar";
+        "https://github.com/Exylia-Plugins/ExyliaLib/releases/latest/download/ExyliaLib.jar";
+
+    /**
+     * How many redirects to follow looking for the versioned download.
+     *
+     * <p>One is the release lookup itself. The rest are for a repository that
+     * has been renamed or moved to another owner: GitHub answers those with a
+     * permanent redirect to the same {@code latest/download} path under the new
+     * name, which carries no version, and an updater that read only the first
+     * hop reported the release as unreadable and stopped updating itself.
+     */
+    private static final int MOST_REDIRECTS = 3;
 
     /** Pulls {@code 1.64.3} out of {@code .../releases/download/v1.64.3/ExyliaLib.jar}. */
     private static final Pattern RELEASE_IN_LOCATION =
@@ -216,24 +227,34 @@ public final class ExyliaLibUpdater {
     private static Release resolveLatest() throws IOException {
         HttpURLConnection conn = null;
         try {
-            conn = (HttpURLConnection) URI.create(LATEST_JAR_URL).toURL().openConnection();
-            conn.setRequestMethod("HEAD");
-            conn.setInstanceFollowRedirects(false);
-            conn.setConnectTimeout(TIMEOUT_MS);
-            conn.setReadTimeout(TIMEOUT_MS);
-            conn.setRequestProperty("User-Agent", "ExyliaLib-Updater/1.0");
+            String target = LATEST_JAR_URL;
+            for (int hop = 0; hop < MOST_REDIRECTS; hop++) {
+                conn = (HttpURLConnection) URI.create(target).toURL().openConnection();
+                conn.setRequestMethod("HEAD");
+                conn.setInstanceFollowRedirects(false);
+                conn.setConnectTimeout(TIMEOUT_MS);
+                conn.setReadTimeout(TIMEOUT_MS);
+                conn.setRequestProperty("User-Agent", "ExyliaLib-Updater/1.0");
 
-            int code = conn.getResponseCode();
-            String location = conn.getHeaderField("Location");
-            if (code / 100 != 3 || location == null) {
-                throw new IOException("Latest release lookup returned HTTP " + code);
-            }
+                int code = conn.getResponseCode();
+                String location = conn.getHeaderField("Location");
+                if (code / 100 != 3 || location == null) {
+                    throw new IOException("Latest release lookup returned HTTP " + code);
+                }
 
-            String version = versionFromLocation(location);
-            if (version == null) {
-                throw new IOException("Could not read a version out of " + location);
+                String version = versionFromLocation(location);
+                // Not the versioned download yet: this hop moved the repository
+                // rather than resolving the release, so ask the name it gave us.
+                if (version == null) {
+                    target = location;
+                    conn.disconnect();
+                    conn = null;
+                    continue;
+                }
+                return new Release(version, location);
             }
-            return new Release(version, location);
+            throw new IOException("Could not read a version out of " + target
+                    + " within " + MOST_REDIRECTS + " redirects");
         } catch (IOException e) {
             throw e;
         } catch (RuntimeException e) {
