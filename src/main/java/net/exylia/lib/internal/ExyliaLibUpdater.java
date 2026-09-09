@@ -50,7 +50,7 @@ public final class ExyliaLibUpdater {
      * that holds it for five minutes.
      */
     private static final String LATEST_JAR_URL =
-        "https://github.com/Exylia-Plugins/ExyliaLib/releases/latest/download/ExyliaLib.jar";
+        "https://github.com/DiGround-s/ExyliaLib/releases/latest/download/ExyliaLib.jar";
 
     /**
      * How many redirects to follow looking for the versioned download.

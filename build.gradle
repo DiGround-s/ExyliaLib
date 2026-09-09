@@ -315,7 +315,7 @@ tasks.register('generateLibManifest') {
         def raw = new ByteArrayOutputStream()
         def result = exec {
             commandLine 'gh', 'api', '--paginate',
-                    'repos/Exylia-Plugins/ExyliaLib/releases?per_page=100'
+                    'repos/DiGround-s/ExyliaLib/releases?per_page=100'
             standardOutput = raw
             ignoreExitValue = true
         }
@@ -455,11 +455,11 @@ publishing {
             pom {
                 name = 'ExyliaLib'
                 description = project.description
-                url = 'https://github.com/Exylia-Plugins/ExyliaLib'
+                url = 'https://github.com/DiGround-s/ExyliaLib'
                 licenses {
                     license {
                         name = 'All Rights Reserved'
-                        url = 'https://github.com/Exylia-Plugins/ExyliaLib/blob/main/LICENSE'
+                        url = 'https://github.com/DiGround-s/ExyliaLib/blob/main/LICENSE'
                     }
                 }
             }
