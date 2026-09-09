@@ -231,6 +231,23 @@ class DialectSqlTest {
         assertEquals("LONGTEXT", MARIADB.columnType(STATS.column("notes")));
     }
 
+    /** Wider than MySQL can hold in a VARCHAR, narrow enough for the rest. */
+    @Table("wide")
+    record Wide(@Id UUID uuid, @Column(length = 20000) String payload) {
+    }
+
+    @Test
+    @DisplayName("text past MySQL's VARCHAR cap becomes LONGTEXT, not a refused CREATE")
+    void textPastTheVarcharCap() {
+        EntityModel<Wide> model = EntityModel.of(Wide.class);
+        // "Column length too big for column 'payload' (max = 16383)" otherwise,
+        // at CREATE TABLE, so the table never exists and every read of it fails.
+        assertEquals("LONGTEXT", MYSQL.columnType(model.column("payload")));
+        assertEquals("LONGTEXT", MARIADB.columnType(model.column("payload")));
+        assertEquals("VARCHAR(20000)", H2.columnType(model.column("payload")));
+        assertEquals("VARCHAR(20000)", POSTGRES.columnType(model.column("payload")));
+    }
+
     @Test
     @DisplayName("a byte widens to SMALLINT on Postgres, which has no TINYINT")
     void tinyInt() {

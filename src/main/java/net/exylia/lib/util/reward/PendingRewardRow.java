@@ -33,7 +33,7 @@ public record PendingRewardRow(
         @Id(length = 64) String id,
         @Indexed @Column(length = 64) String plugin,
         @Indexed @Column(length = 64) String owner,
-        @Column(length = 16384) String payload,
+        @Column(length = Column.UNBOUNDED) String payload,
         @Column long owedAt) {
 
     /** A batch just owed, ready to be written. */

@@ -196,6 +196,13 @@ class MySQLDialect extends AnsiDialect {
     }
 
     @Override
+    int maxBoundedText() {
+        // 65,535 bytes per VARCHAR, four bytes per character under utf8mb4.
+        // Anything wider becomes LONGTEXT rather than a refused CREATE TABLE.
+        return 16383;
+    }
+
+    @Override
     public @NotNull String unboundedTextType() {
         // TEXT here is 65535 *bytes*, which at four bytes per character is
         // ~16k characters — a serialised inventory overruns it and MySQL

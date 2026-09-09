@@ -110,10 +110,25 @@ abstract class AnsiDialect implements Dialect {
             return "VARCHAR(" + UUID_TEXT_LENGTH + ")";
         }
         int length = column.length();
-        if (length == Column.UNBOUNDED) {
+        if (length == Column.UNBOUNDED || length > maxBoundedText()) {
             return unboundedTextType();
         }
         return "VARCHAR(" + Math.max(1, length) + ")";
+    }
+
+    /**
+     * The widest {@code VARCHAR} the engine accepts, in characters.
+     *
+     * <p>A column asking for more is stored as {@link #unboundedTextType()}
+     * instead of becoming a {@code CREATE TABLE} the engine refuses outright:
+     * MySQL caps a row's {@code VARCHAR} at 65,535 bytes, which at four bytes
+     * per character under {@code utf8mb4} is 16,383, and answers "Column length
+     * too big for column 'x' (max = 16383); use BLOB or TEXT instead" — at
+     * table creation, so the table never exists and every read of it fails.
+     * Unlimited here, for the engines that have no such cap.
+     */
+    int maxBoundedText() {
+        return Integer.MAX_VALUE;
     }
 
     /** The type an 8-bit integer becomes. Postgres has none and widens it. */
