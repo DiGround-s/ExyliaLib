@@ -548,6 +548,10 @@ public final class SequenceCompiler {
         if (args.has("snip")) {
             body.snip(args.number("snip", 0.0, onArg));
         }
+        // The plugin that owns this line keeps the textures its bodies are drawn
+        // with. Registered while the file is read, so players who join before
+        // anybody dies already have their skins prepared.
+        net.exylia.lib.ragdoll.internal.RagdollTextures.register(owner);
         return new Steps.Ragdoll(owner, face, body.build(),
                 args.count("detail", 1, onArg),
                 args.number("size", 1.0, onArg),

@@ -1,7 +1,9 @@
 package net.exylia.lib.ragdoll.internal;
 
 import net.exylia.lib.ragdoll.RagdollPart;
+import org.bukkit.Material;
 import org.jetbrains.annotations.ApiStatus;
+import org.jetbrains.annotations.Nullable;
 
 import java.awt.image.BufferedImage;
 import java.nio.ByteBuffer;
@@ -10,22 +12,30 @@ import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.HexFormat;
 import java.util.List;
+import java.util.Locale;
 
 /**
- * Cuts a skin into the little cubes a body is drawn with when it wears the
- * real thing, each one repainted as a head.
+ * Cuts a skin into the pieces a body is drawn with when it wears the real
+ * thing, each one repainted as a head.
  *
  * <h2>Why heads</h2>
  * A client draws a player head with whatever texture Mojang hosts for it, and
  * a head is a box with six painted faces and a second, slightly larger box
- * over it for the hat. At a detail of two every piece of a body is a box too:
- * four skin pixels a side. So each piece is given a skin of its own whose head
- * is that piece &mdash; its six faces at twice the size, its jacket layer in
- * the hat &mdash; and drawn as a head at half the size. Nothing about the
- * shape is approximated, and no resource pack is involved.
+ * over it for the hat. A display may stretch that box on each axis on its own,
+ * so any box of a body can be a head: a four-pixel cube, the upper two thirds
+ * of an arm, a whole leg. Each piece is given a skin of its own whose head is
+ * that piece &mdash; its six faces spread over the head's eight texels a side,
+ * its jacket layer in the hat &mdash; and drawn as a head stretched back to
+ * the piece's shape. No resource pack is involved.
+ *
+ * <h2>How finely</h2>
+ * Every piece is one upload to MineSkin, and the free plan allows a hundred an
+ * hour, so how many pieces a skin is cut into is a real cost. {@link Quality}
+ * decides it. A piece whose every side is a whole number of texels per pixel
+ * &mdash; one or two &mdash; is exact; anything else loses rows.
  *
  * <h2>The faces a piece does not have</h2>
- * A cube in the middle of a chest has no side of its own on the skin: that
+ * A piece in the middle of a chest has no side of its own on the skin: that
  * side is inside the body. It is painted by stretching the nearest edge of
  * its front and back inwards, so a piece that comes away from the body shows
  * the colours of the shirt it was cut from rather than a grey hole.
@@ -34,12 +44,6 @@ import java.util.List;
  */
 @ApiStatus.Internal
 public final class SkinCubes {
-
-    /** The detail at which every body piece is exactly a four-pixel cube. */
-    public static final int DETAIL = 2;
-
-    /** Skin pixels per cube edge. */
-    private static final int CUBE = 4;
 
     /** Texels per head face. */
     private static final int HEAD = 8;
@@ -58,17 +62,109 @@ public final class SkinCubes {
     private SkinCubes() {
     }
 
+    /** How many pieces a skin is cut into, and so how many uploads it costs. */
+    public enum Quality {
+
+        /** Four-pixel cubes: eighteen uploads, every pixel exact, nineteen pieces when a body breaks. */
+        HIGH,
+
+        /** Each part an upper and a lower box: ten uploads, every pixel exact, eleven larger pieces. */
+        NORMAL,
+
+        /** Each part one head: five uploads, and twelve rows squeezed into eight texels, so a third are lost. */
+        LOW;
+
+        /**
+         * A quality by its name in a config.
+         *
+         * @param name {@code high}, {@code normal} or {@code low}, in any case
+         * @return the quality, or {@code null} when the name is none of them
+         */
+        public static @Nullable Quality of(@Nullable String name) {
+            if (name == null) {
+                return null;
+            }
+            try {
+                return valueOf(name.trim().toUpperCase(Locale.ROOT));
+            } catch (IllegalArgumentException unknown) {
+                return null;
+            }
+        }
+
+        /** The regions one part is cut into, top to bottom and from the wearer's right. */
+        List<Region> regions(RagdollPart part) {
+            int width = pixels(part.blockWidth());
+            int height = pixels(part.blockHeight());
+            List<Region> regions = new ArrayList<>();
+            switch (this) {
+                case HIGH -> {
+                    int columns = part.columns(2);
+                    int rows = part.rows(2);
+                    for (int row = 0; row < rows; row++) {
+                        for (int column = 0; column < columns; column++) {
+                            regions.add(new Region(part, column * width / columns, row * height / rows,
+                                    width / columns, height / rows));
+                        }
+                    }
+                }
+                // Eight rows and then four: both halves reach the head's eight
+                // texels by a whole number, so nothing is squeezed.
+                case NORMAL -> {
+                    regions.add(new Region(part, 0, 0, width, HEAD));
+                    regions.add(new Region(part, 0, HEAD, width, height - HEAD));
+                }
+                case LOW -> regions.add(new Region(part, 0, 0, width, height));
+            }
+            return regions;
+        }
+    }
+
+    /**
+     * A box of a part: how far across and down its front it starts, and how big
+     * it is, in skin pixels. Its depth is always the whole part's.
+     *
+     * @param part   the part it is cut from
+     * @param x      its first column, from the wearer's right
+     * @param y      its first row, from the top
+     * @param width  its columns
+     * @param height its rows
+     */
+    public record Region(RagdollPart part, int x, int y, int width, int height) {
+
+        /** Where its middle sits inside its part before the part is turned, in skin pixels. */
+        public float[] centre() {
+            return new float[]{
+                    -pixels(part.blockWidth()) / 2f + x + width / 2f,
+                    pixels(part.blockHeight()) / 2f - y - height / 2f,
+                    0f};
+        }
+
+        /** How big it is on each axis, in skin pixels. */
+        public float[] size() {
+            return new float[]{width, height, pixels(part.blockDepth())};
+        }
+    }
+
     /**
      * One piece of a body, painted as a head.
      *
-     * @param part  the part it was cut from
-     * @param cellX its column in that part, from the wearer's right
-     * @param cellY its row, from the top
-     * @param image the 64&times;64 skin whose head is this piece
-     * @param hash  a fingerprint of the picture, so an identical piece of
-     *              another skin is never uploaded twice
+     * @param region   where on its part it was cut from
+     * @param image    the 64&times;64 skin whose head is this piece
+     * @param hash     a fingerprint of the picture, so an identical piece of
+     *                 another skin is never uploaded twice
+     * @param plain    the one block every texel of the piece matches, or
+     *                 {@code null} when it has a design; a plain piece is drawn
+     *                 as that block and never uploaded
+     * @param dominant the block most of its front and back are, for drawing it
+     *                 while its texture is on its way
      */
-    public record Cube(RagdollPart part, int cellX, int cellY, BufferedImage image, String hash) {
+    public record Cube(Region region, BufferedImage image, String hash, @Nullable Material plain,
+                       Material dominant) {
+
+        /** The part it was cut from. */
+        public RagdollPart part() {
+            return region.part();
+        }
     }
 
     /** The six faces of a box, as the skin lays them out. */
@@ -117,11 +213,13 @@ public final class SkinCubes {
     /**
      * Every piece of a body but the head, painted as heads.
      *
-     * @param skin the skin picture, 64&times;64 or legacy 64&times;32
-     * @param slim whether the arms are three pixels wide
-     * @return eighteen cubes, part by part, top to bottom
+     * @param skin    the skin picture, 64&times;64 or legacy 64&times;32
+     * @param slim    whether the arms are three pixels wide
+     * @param quality how finely to cut it
+     * @return the pieces, part by part &mdash; the torso, then the arms, then
+     *         the legs &mdash; and top to bottom within each
      */
-    public static List<Cube> cut(BufferedImage skin, boolean slim) {
+    public static List<Cube> cut(BufferedImage skin, boolean slim, Quality quality) {
         boolean legacy = skin.getHeight() < 64;
         List<Cube> cubes = new ArrayList<>(18);
         for (RagdollPart part : RagdollPart.values()) {
@@ -129,88 +227,98 @@ public final class SkinCubes {
                 continue;
             }
             RagdollPart source = legacy ? part.legacy() : part;
-            int width = slim && (part == RagdollPart.ARM_RIGHT || part == RagdollPart.ARM_LEFT)
-                    ? 3 : Math.round(part.blockWidth() / RagdollPart.PIXEL);
-            Box base = base(source, width);
-            Box over = legacy ? null : overlay(source, width);
-            int columns = part.columns(DETAIL);
-            int rows = part.rows(DETAIL);
-            for (int cellY = 0; cellY < rows; cellY++) {
-                for (int cellX = 0; cellX < columns; cellX++) {
-                    BufferedImage image = paint(skin, base, over, cellX, cellY, columns, rows);
-                    cubes.add(new Cube(part, cellX, cellY, image, hash(image)));
-                }
+            int drawn = slim && (part == RagdollPart.ARM_RIGHT || part == RagdollPart.ARM_LEFT)
+                    ? 3 : pixels(part.blockWidth());
+            Box base = base(source, drawn);
+            Box over = legacy ? null : overlay(source, drawn);
+            for (Region region : quality.regions(part)) {
+                cubes.add(paint(skin, base, over, region));
             }
         }
         return cubes;
     }
 
-    private static BufferedImage paint(BufferedImage skin, Box base, Box over,
-                                       int cellX, int cellY, int columns, int rows) {
+    private static Cube paint(BufferedImage skin, Box base, Box over, Region region) {
         BufferedImage head = new BufferedImage(64, 64, BufferedImage.TYPE_INT_ARGB);
+        int[] frontAndBack = new int[2 * HEAD * HEAD];
+        int seen = 0;
+        Material plain = null;
+        boolean mixed = false;
         for (Face face : Face.values()) {
             for (int row = 0; row < HEAD; row++) {
                 for (int column = 0; column < HEAD; column++) {
-                    int painted = sample(skin, base, face, column, row, cellX, cellY, columns, rows);
-                    int worn = over == null ? 0
-                            : sample(skin, over, face, column, row, cellX, cellY, columns, rows);
+                    int painted = sample(skin, base, face, column, row, region);
+                    int worn = over == null ? 0 : sample(skin, over, face, column, row, region);
                     boolean wornSolid = (worn >>> 24) >= 128;
                     if ((painted >>> 24) < 128) {
                         painted = wornSolid ? worn : FILL;
                     }
-                    head.setRGB(HEAD_BASE.x(face) + column, HEAD_BASE.y(face) + row, painted | 0xFF000000);
+                    painted |= 0xFF000000;
+                    head.setRGB(HEAD_BASE.x(face) + column, HEAD_BASE.y(face) + row, painted);
                     if (wornSolid) {
                         head.setRGB(HEAD_HAT.x(face) + column, HEAD_HAT.y(face) + row, worn | 0xFF000000);
+                    }
+                    if (!mixed) {
+                        Material block = BlockPalette.material(painted);
+                        plain = plain == null ? block : plain;
+                        mixed = block != plain
+                                || wornSolid && BlockPalette.material(worn) != plain;
+                    }
+                    if (face == Face.FRONT || face == Face.BACK) {
+                        frontAndBack[seen++] = wornSolid ? worn : painted;
                     }
                 }
             }
         }
-        return head;
+        return new Cube(region, head, hash(head), mixed ? null : plain, BlockPalette.dominant(frontAndBack));
     }
 
     /**
-     * The skin pixel under one texel of one face of one cube.
+     * The skin pixel under one texel of one face of one region.
      *
      * <p>Faces run the way the net draws them: a front's first column is the
      * wearer's right, a back's is their left, a side's columns run from the
      * back to the front on the right and from the front to the back on the
      * left, and a top's and bottom's last row is the edge they share with the
-     * front.
+     * front. Each axis spreads its pixels over the eight texels by itself, so
+     * a four-pixel side lands on two texels a pixel and a twelve-pixel one is
+     * squeezed.
      */
-    static int sample(BufferedImage skin, Box box, Face face, int texelX, int texelY,
-                      int cellX, int cellY, int columns, int rows) {
-        int cube = box.w() / columns;
-        // A slim arm's three columns land on eight texels unevenly, but every
-        // one of them lands somewhere.
-        int across = texelX * (face == Face.RIGHT || face == Face.LEFT ? box.d() : cube) / HEAD;
-        int down = texelY * (face == Face.TOP || face == Face.BOTTOM ? box.d() : CUBE) / HEAD;
-        int front = cellX * cube;
-        int back = box.w() - (cellX + 1) * cube;
-        int top = cellY * CUBE;
+    static int sample(BufferedImage skin, Box box, Face face, int texelX, int texelY, Region region) {
+        int partWidth = pixels(region.part().blockWidth());
+        // A slim arm's three columns stand in for the four the body is cut in,
+        // and every one of them lands somewhere.
+        int left = region.x() * box.w() / partWidth;
+        int wide = Math.max(1, region.width() * box.w() / partWidth);
+        int top = region.y();
+        int tall = region.height();
+        int across = texelX * (face == Face.RIGHT || face == Face.LEFT ? box.d() : wide) / HEAD;
+        int down = texelY * (face == Face.TOP || face == Face.BOTTOM ? box.d() : tall) / HEAD;
+        int back = box.w() - left - wide;
         int half = box.d() / 2;
         return switch (face) {
-            case FRONT -> box.pixel(skin, Face.FRONT, front + across, top + down);
+            case FRONT -> box.pixel(skin, Face.FRONT, left + across, top + down);
             case BACK -> box.pixel(skin, Face.BACK, back + across, top + down);
-            case RIGHT -> cellX == 0
+            case RIGHT -> region.x() == 0
                     ? box.pixel(skin, Face.RIGHT, across, top + down)
                     : across >= half
-                    ? box.pixel(skin, Face.FRONT, front, top + down)
-                    : box.pixel(skin, Face.BACK, back + cube - 1, top + down);
-            case LEFT -> cellX == columns - 1
+                    ? box.pixel(skin, Face.FRONT, left, top + down)
+                    : box.pixel(skin, Face.BACK, back + wide - 1, top + down);
+            case LEFT -> region.x() + region.width() == partWidth
                     ? box.pixel(skin, Face.LEFT, across, top + down)
                     : across < half
-                    ? box.pixel(skin, Face.FRONT, front + cube - 1, top + down)
+                    ? box.pixel(skin, Face.FRONT, left + wide - 1, top + down)
                     : box.pixel(skin, Face.BACK, back, top + down);
-            case TOP -> cellY == 0
-                    ? box.pixel(skin, Face.TOP, front + across, down)
+            case TOP -> top == 0
+                    ? box.pixel(skin, Face.TOP, left + across, down)
                     : down >= half
-                    ? box.pixel(skin, Face.FRONT, front + across, top)
-                    : box.pixel(skin, Face.BACK, box.w() - 1 - front - across, top);
-            case BOTTOM -> cellY == rows - 1
-                    ? box.pixel(skin, Face.BOTTOM, front + across, down)
+                    ? box.pixel(skin, Face.FRONT, left + across, top)
+                    : box.pixel(skin, Face.BACK, box.w() - 1 - left - across, top);
+            case BOTTOM -> top + tall == box.h()
+                    ? box.pixel(skin, Face.BOTTOM, left + across, down)
                     : down >= half
-                    ? box.pixel(skin, Face.FRONT, front + across, top + CUBE - 1)
-                    : box.pixel(skin, Face.BACK, box.w() - 1 - front - across, top + CUBE - 1);
+                    ? box.pixel(skin, Face.FRONT, left + across, top + tall - 1)
+                    : box.pixel(skin, Face.BACK, box.w() - 1 - left - across, top + tall - 1);
         };
     }
 
@@ -231,7 +339,7 @@ public final class SkinCubes {
     public static int[] net(BufferedImage skin, RagdollPart part, boolean slim) {
         boolean legacy = skin.getHeight() < 64;
         RagdollPart source = legacy ? part.legacy() : part;
-        int width = Math.round(part.blockWidth() / RagdollPart.PIXEL);
+        int width = pixels(part.blockWidth());
         int drawn = slim && (part == RagdollPart.ARM_RIGHT || part == RagdollPart.ARM_LEFT) ? 3 : width;
         Box base = base(source, drawn);
         Box over = legacy ? null : overlay(source, drawn);
@@ -295,5 +403,10 @@ public final class SkinCubes {
         } catch (NoSuchAlgorithmException impossible) {
             throw new IllegalStateException("Every JVM ships SHA-256", impossible);
         }
+    }
+
+    /** Blocks as skin pixels. */
+    static int pixels(float blocks) {
+        return Math.round(blocks / RagdollPart.PIXEL);
     }
 }

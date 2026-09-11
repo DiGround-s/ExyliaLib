@@ -230,16 +230,43 @@ the number those `[DELAY]` lines add up to.
 
 ## Detail
 
+### The real skin
+
 A body wears its **real skin** when the server has a MineSkin key: set
 `mineskin-key` in ExyliaLib's `config.yml` to a free key from
-<https://account.mineskin.org/keys>. Every piece of the body is then a
-four-pixel cube repainted as a head texture of its own, with all six faces and
-the second layer. Making them costs eighteen uploads the first time anybody
-wearing that skin joins — about a minute on the free plan — and the results are
-kept in `plugins/ExyliaLib/ragdoll-cubes.txt`, so it never happens twice. A body
-with its cubes is always nineteen displays and ignores `detail`. Until the cubes
-exist, and on a server without a key, the body is drawn in blocks, and `detail`
-decides how.
+<https://account.mineskin.org/keys>. The body is then cut into pieces, each
+repainted as a head texture of its own — all six faces and the second layer —
+and drawn as a head stretched back to the piece's shape. No resource pack is
+involved.
+
+How finely it is cut is `ragdoll-skin-quality`, in the same file. Every piece is
+one upload, made once:
+
+| Quality | Uploads per new skin | Look | New skins an hour, free plan |
+|---|---|---|---|
+| `high` | 18 | Four-pixel cubes, every pixel exact; breaks into 19 pieces | about 5 |
+| `normal` (default) | 10 | Every pixel exact; each part an upper and a lower box, 11 pieces | about 10 |
+| `low` | 5 | One head per part; twelve rows squeezed into eight, so a third are lost | about 20 |
+
+- **Plain regions are free.** A region that is one flat block anyway, such as a
+  plain trouser leg, is drawn as that block and never uploaded.
+- **Drawn by parts.** Each region wears its real pixels as soon as its texture
+  arrives; a region still waiting is a block of its commonest colour. Until the
+  first region of a skin arrives, the body is drawn in blocks the way `detail`
+  says.
+- **Prepared on join.** A skin's regions are looked up and queued when its owner
+  joins, torso first, then arms, then legs. Changing the key or the quality and
+  running `/exylialib reload` prepares everybody online again.
+- **Kept in the plugin's database.** Textures live in the database of the plugin
+  that shows the bodies — its own `database.yml`, table `exylia_ragdoll_skins` —
+  and only Mojang's 64-character texture id is stored. Point the plugins of
+  several servers at the same MySQL and a skin uploaded by one is worn by all.
+- **Within the plan.** The free plan allows 20 uploads a minute and 100 an hour.
+  Uploads are paced to the minute; when the hour is spent the queue sleeps until
+  MineSkin says it resets, and says once in the console when it will resume.
+- A body that spells a word is always drawn in blocks.
+
+### Blocks
 
 `detail` is how finely a body in blocks is drawn, from 1 to 5. Levels 1 to 4 cut
 each part into a grid of its own shape rather than a square one: a limb four

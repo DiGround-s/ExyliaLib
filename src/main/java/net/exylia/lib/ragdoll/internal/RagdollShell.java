@@ -86,6 +86,20 @@ public final class RagdollShell {
     }
 
     /**
+     * A shell as pieces the solver places.
+     *
+     * @param shell the cores and plates
+     * @return the same blocks, in the same order
+     */
+    public static List<RagdollPieces.Placed> placed(List<Piece> shell) {
+        List<RagdollPieces.Placed> placed = new ArrayList<>(shell.size());
+        for (Piece piece : shell) {
+            placed.add(new RagdollPieces.Placed(piece.part(), piece.centre(), piece.size(), piece.block(), null));
+        }
+        return placed;
+    }
+
+    /**
      * Every block of a body but its head, within the budget.
      *
      * @param skin the skin

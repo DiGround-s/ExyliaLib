@@ -116,17 +116,35 @@ public final class RagdollPieces {
      * @param cellY its row within that part; zero for the head and props
      * @param prop  what it is carrying, or {@code null} when it is the body
      * @param poses every pose it is sent, ready for the display module
-     * @param block the block it is drawn in when that was decided with its
-     *              shape, as a shell's plates are; {@code null} leaves it to
-     *              the builder
+     * @param block   the block it is drawn in when that was decided with its
+     *                shape, as a shell's plates are; {@code null} leaves it to
+     *                the builder
+     * @param texture the Mojang texture id of the head it is drawn as, or
+     *                {@code null} when it is not a head of real skin
      */
     public record Piece(RagdollPart part, int cellX, int cellY, @Nullable Prop prop,
-                       List<DisplayKeyframe> poses, @Nullable Material block) {
+                       List<DisplayKeyframe> poses, @Nullable Material block, @Nullable String texture) {
 
         /** A piece whose look the builder works out from the skin. */
         public Piece(RagdollPart part, int cellX, int cellY, @Nullable Prop prop, List<DisplayKeyframe> poses) {
-            this(part, cellX, cellY, prop, poses, null);
+            this(part, cellX, cellY, prop, poses, null, null);
         }
+    }
+
+    /**
+     * A piece of a body whose place, size and look were decided before it was
+     * solved: a core or plate of a shell, or a region of a skin worn as a head.
+     *
+     * @param part    the part it belongs to
+     * @param centre  where its middle sits inside the part before the part is
+     *                turned, in skin pixels
+     * @param size    how big it is on each axis, in skin pixels
+     * @param block   the block it is drawn in, or {@code null} when it is a head
+     * @param texture the Mojang texture id of the head it is drawn as, or
+     *                {@code null} when it is a block
+     */
+    public record Placed(RagdollPart part, float[] centre, float[] size, @Nullable Material block,
+                         @Nullable String texture) {
     }
 
     /** Solves a whole body carrying nothing. */
@@ -135,44 +153,36 @@ public final class RagdollPieces {
         return solve(motion, detail, scale, facing, random, EnumSet.noneOf(Prop.class));
     }
 
-    /** Solves a whole body drawn in blocks. */
-    public static List<Piece> solve(RagdollMotion motion, int detail, double scale, Rotation facing,
-                                    RandomGenerator random, Set<Prop> props) {
-        return solve(motion, detail, scale, facing, random, props, false);
-    }
-
     /** Solves a whole body cut into cells. */
     public static List<Piece> solve(RagdollMotion motion, int detail, double scale, Rotation facing,
-                                    RandomGenerator random, Set<Prop> props, boolean skinned) {
-        return solve(motion, detail, scale, facing, random, props, skinned, null);
+                                    RandomGenerator random, Set<Prop> props) {
+        return solve(motion, detail, scale, facing, random, props, null);
     }
 
     /**
      * Solves a whole body.
      *
-     * <p>A skinned body is solved exactly as a body in blocks is &mdash; same
-     * centres, same finishes, same word spelled &mdash; and differs only in
-     * how each cell is sent: as a head, which the client draws at half its
-     * size, turned and lifted the way the real head is.
+     * <p>Placed pieces are solved the way cells are: each is carried by its
+     * part at its own offset, finishes with the rest and fades with the rest.
+     * A head of real skin differs only in how it is sent &mdash; at twice its
+     * size in blocks on each axis, turned and lifted the way the real head is.
+     * A body that spells a word ignores what was placed and is cut into cells
+     * at {@code detail}, because neither heads nor thin plates can be laid out
+     * as letters.
      *
-     * @param motion  what happens to it
-     * @param detail  how many cells each part is cut into on each axis
-     * @param scale   how big it is; 1 is player-sized
-     * @param facing  which way it faces
-     * @param random  where the variation between pieces comes from
-     * @param props   what it carries
-     * <p>A shell is solved the way cells are: every core and plate is carried by
-     * its part at its own offset, finishes with the rest and fades with the
-     * rest. A body that spells a word ignores its shell and is cut into cells
-     * at {@code detail}, because thin plates cannot be laid out as letters.
-     *
-     * @param skinned whether every cell is drawn as a head wearing its real skin
-     * @param shell   the blocks of a body at detail five, or {@code null} for cells
+     * @param motion what happens to it
+     * @param detail how many cells each part is cut into on each axis
+     * @param scale  how big it is; 1 is player-sized
+     * @param facing which way it faces
+     * @param random where the variation between pieces comes from
+     * @param props  what it carries
+     * @param placed the pieces of a shell or of a skin worn for real, or
+     *               {@code null} for cells
      * @return every piece, the head first and props last
      */
     public static List<Piece> solve(RagdollMotion motion, int detail, double scale, Rotation facing,
-                                    RandomGenerator random, Set<Prop> props, boolean skinned,
-                                    @Nullable List<RagdollShell.Piece> shell) {
+                                    RandomGenerator random, Set<Prop> props,
+                                    @Nullable List<Placed> placed) {
         RagdollPart[] parts = RagdollPart.values();
         RagdollFlight.Flight[] flights = new RagdollFlight.Flight[parts.length];
         for (RagdollPart part : parts) {
@@ -180,7 +190,7 @@ public final class RagdollPieces {
         }
         boolean finishing = motion.pose() == RagdollPose.ANIMATE;
         boolean spelling = motion.pose() == RagdollPose.SIGN;
-        boolean shelled = shell != null && !skinned && !spelling
+        boolean placing = placed != null && !spelling
                 && !(finishing && motion.finish() == RagdollFinish.SPELL);
         RagdollFlight.Flight chest = flights[RagdollPart.TORSO.ordinal()];
         int end = chest.times().length - 1;
@@ -193,8 +203,8 @@ public final class RagdollPieces {
                 pieces += part.columns(detail) * part.rows(detail);
             }
         }
-        if (shelled) {
-            pieces = shell.size();
+        if (placing) {
+            pieces = placed.size();
         }
         int running = 0;
 
@@ -212,22 +222,23 @@ public final class RagdollPieces {
                         displayed(centres, motion, HEAD_LIFT, ITEM_FACING)));
                 continue;
             }
-            if (shelled) {
+            if (placing) {
                 float pixel = RagdollPart.PIXEL * (float) scale;
-                for (RagdollShell.Piece block : shell) {
-                    if (block.part() != part) {
+                for (Placed piece : placed) {
+                    if (piece.part() != part) {
                         continue;
                     }
-                    float[] local = {block.centre()[0] * pixel, block.centre()[1] * pixel, block.centre()[2] * pixel};
-                    float[] size = {block.size()[0] * pixel, block.size()[1] * pixel, block.size()[2] * pixel};
+                    float[] local = {piece.centre()[0] * pixel, piece.centre()[1] * pixel, piece.centre()[2] * pixel};
+                    float[] size = {piece.size()[0] * pixel, piece.size()[1] * pixel, piece.size()[2] * pixel};
                     int index = running++;
                     List<DisplayKeyframe> centres = carried(flight, local, size);
                     if (finishing) {
                         RagdollFinishes.extend(centres, motion, scale, middle, false, random,
                                 new RagdollFinishes.Spelling(index, pieces, facing));
                     }
-                    solved.add(new Piece(part, 0, 0, null,
-                            displayed(centres, motion, 0f, Rotation.NONE), block.block()));
+                    solved.add(new Piece(part, 0, 0, null, piece.texture() != null
+                            ? displayed(centres, motion, HEAD_LIFT, ITEM_FACING, HEAD_GROWTH)
+                            : displayed(centres, motion, 0f, Rotation.NONE), piece.block(), piece.texture()));
                 }
                 continue;
             }
@@ -268,9 +279,8 @@ public final class RagdollPieces {
                         RagdollFinishes.extend(centres, motion, scale, middle, false, random,
                                 new RagdollFinishes.Spelling(index, pieces, facing));
                     }
-                    solved.add(new Piece(part, cellX, cellY, null, skinned
-                            ? displayed(centres, motion, HEAD_LIFT, ITEM_FACING, CUBE_GROWTH)
-                            : displayed(centres, motion, 0f, Rotation.NONE)));
+                    solved.add(new Piece(part, cellX, cellY, null,
+                            displayed(centres, motion, 0f, Rotation.NONE)));
                 }
             }
         }
@@ -476,14 +486,15 @@ public final class RagdollPieces {
     }
 
     /**
-     * How much bigger a cube of skin is sent than the cell it fills.
+     * How much bigger a head of real skin is sent than the piece it fills.
      *
      * <p>A player head drawn at a size of one is eight pixels, half a block, so
-     * a cell a quarter of a block across is a head at half a block of size.
-     * Applied here, after everything is solved, so a skinned body flies, finishes
-     * and spells exactly as the same body in blocks does.
+     * every piece is sent at twice its size in blocks, on each axis on its own
+     * &mdash; which is also what lets one head be stretched into the upper two
+     * thirds of an arm. Applied here, after everything is solved, so a body in
+     * its real skin flies and finishes exactly as the same body in blocks does.
      */
-    private static final float CUBE_GROWTH = 2f;
+    private static final float HEAD_GROWTH = 2f;
 
     /**
      * Centred poses as a display is sent them, for a model drawn at a multiple

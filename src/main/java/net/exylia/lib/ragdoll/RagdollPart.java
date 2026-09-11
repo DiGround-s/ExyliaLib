@@ -22,8 +22,8 @@ public enum RagdollPart {
      *
      * <p>A player head item wears the whole face, hat layer and all, so the one
      * piece anybody actually recognises is exact from the first death. The
-     * other parts wear it too once their cubes have been made, and are drawn
-     * in blocks until then.
+     * other parts wear it too, piece by piece, as their textures are made, and
+     * are drawn in blocks until then.
      */
     HEAD(8, 8, 8, 0, 28, 8, 8, 8, 8),
 

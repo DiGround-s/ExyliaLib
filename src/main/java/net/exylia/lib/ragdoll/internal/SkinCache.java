@@ -1,14 +1,18 @@
 package net.exylia.lib.ragdoll.internal;
 
 import com.destroystokyo.paper.profile.ProfileProperty;
+import com.github.benmanes.caffeine.cache.Cache;
+import com.github.benmanes.caffeine.cache.Caffeine;
 import net.exylia.lib.ragdoll.RagdollPart;
 import net.exylia.lib.ragdoll.RagdollSkin;
 import net.exylia.lib.skull.internal.Textures;
 import net.exylia.lib.task.TaskScheduler;
 import net.exylia.lib.task.Tasks;
+import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
 import org.jetbrains.annotations.ApiStatus;
+import org.jetbrains.annotations.Nullable;
 
 import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
@@ -23,12 +27,13 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
 /**
  * Turns a player's skin into what a body is drawn with, once: its colours at
- * once, and its real pixels as soon as MineSkin has made them.
+ * once, and its real pixels as soon as they have textures.
  *
  * <h2>Why this has to be ready before the kill</h2>
  * A skin is a PNG on Mojang's texture server, and reading one is a network
@@ -38,14 +43,16 @@ import java.util.logging.Logger;
  * arrives. Every skin is therefore warmed when its owner joins, which is a
  * quiet request minutes before anybody dies in it.
  *
- * <p>The same goes for the cubes that draw a body in its real skin: they are
- * cut the moment the picture is read, queued with {@link MineSkinQueue}, and
- * the skin in this cache is swapped for one carrying them when the last one
- * arrives. Every death before that is a death in blocks, never a wait.
+ * <p>The same goes for the pieces that draw a body in its real skin: the
+ * moment the picture is read they are cut at the configured quality, looked up
+ * in the databases that keep them, and whatever nobody has made yet is queued
+ * with {@link MineSkinQueue}. Every death before a piece arrives draws that
+ * piece in blocks, never a wait.
  *
  * <p>Keyed by texture URL rather than by player, so a hundred players wearing
  * the same skin decode one picture, and a player who changes skin is a new key
- * rather than a stale one.
+ * rather than a stale one. Bounded, because a server sees far more skins over
+ * a day than it has players at once.
  */
 @ApiStatus.Internal
 public final class SkinCache {
@@ -53,13 +60,27 @@ public final class SkinCache {
     /** Long enough for a slow CDN, short enough that nothing piles up. */
     private static final Duration TIMEOUT = Duration.ofSeconds(6);
 
-    private static final Map<String, RagdollSkin> BY_TEXTURE = new ConcurrentHashMap<>();
+    private static final Cache<String, RagdollSkin> BY_TEXTURE = Caffeine.newBuilder()
+            .maximumSize(2_000)
+            .expireAfterAccess(Duration.ofMinutes(30))
+            .build();
 
     /** Textures being fetched, so twenty deaths do not become twenty requests. */
     private static final Set<String> IN_FLIGHT = ConcurrentHashMap.newKeySet();
 
-    /** Skins cut into cubes that are still waiting for some of their textures, by URL. */
-    private static final Map<String, List<SkinCubes.Cube>> WAITING = new ConcurrentHashMap<>();
+    /**
+     * The generation each skin was last prepared in, by URL.
+     *
+     * <p>Expires on its own, so a skin whose pieces are still on their way is
+     * looked up again every few minutes rather than at every death.
+     */
+    private static final Cache<String, Integer> PREPARED = Caffeine.newBuilder()
+            .maximumSize(2_000)
+            .expireAfterWrite(Duration.ofMinutes(5))
+            .build();
+
+    /** Bumped whenever what a skin is prepared against changes: the key, the quality, a new store. */
+    private static final AtomicInteger GENERATION = new AtomicInteger();
 
     private static final HttpClient HTTP = HttpClient.newBuilder()
             .version(HttpClient.Version.HTTP_1_1)
@@ -69,30 +90,85 @@ public final class SkinCache {
     /** What a body is drawn in until its real skin has been read. */
     private static final RagdollSkin FALLBACK = defaultSkin();
 
+    private static volatile SkinCubes.Quality quality = SkinCubes.Quality.NORMAL;
+    private static volatile boolean unknownQualityReported;
     private static volatile TaskScheduler scheduler;
     private static volatile Logger logger = Logger.getLogger("ExyliaLib");
 
     private SkinCache() {
     }
 
-    /** Wires the cache to a scheduler and starts the cube uploads. Called by ExyliaLib at startup. */
+    /** Wires the cache to a scheduler and starts the uploads. Called by ExyliaLib at startup. */
     public static void init(Plugin plugin) {
         scheduler = Tasks.of(plugin);
         logger = plugin.getLogger();
-        MineSkinQueue.start(plugin, SkinCache::resolve);
+        RagdollTextures.logger(plugin.getLogger());
+        MineSkinQueue.start(plugin);
     }
 
     /**
      * Forgets every decoded skin, on shutdown.
      *
-     * <p>The textures already made stay in their file: they are permanent, and
-     * forgetting them would only mean uploading them again.
+     * <p>The textures already made stay in the databases that keep them: they
+     * are permanent, and forgetting them would only mean uploading them again.
      */
     public static void clear() {
         MineSkinQueue.stop();
-        BY_TEXTURE.clear();
+        BY_TEXTURE.invalidateAll();
+        PREPARED.invalidateAll();
         IN_FLIGHT.clear();
-        WAITING.clear();
+    }
+
+    /**
+     * Sets how finely a skin is cut, from the library's config.
+     *
+     * <p>A value that is none of the three draws at {@code normal} and is said
+     * once, the same as any other unreadable config value.
+     *
+     * @param value {@code high}, {@code normal} or {@code low}
+     * @return whether the quality in use changed
+     */
+    public static boolean quality(@Nullable String value) {
+        SkinCubes.Quality read = SkinCubes.Quality.of(value);
+        if (read == null) {
+            read = SkinCubes.Quality.NORMAL;
+            if (!unknownQualityReported) {
+                unknownQualityReported = true;
+                logger.warning("Ragdolls: ragdoll-skin-quality in config.yml is not high, normal or low;"
+                        + " using normal.");
+            }
+        } else {
+            unknownQualityReported = false;
+        }
+        if (read == quality) {
+            return false;
+        }
+        quality = read;
+        return true;
+    }
+
+    /** How finely skins are cut now. */
+    public static SkinCubes.Quality quality() {
+        return quality;
+    }
+
+    /** Marks every skin as needing to be prepared again the next time it is needed. */
+    static void stale() {
+        GENERATION.incrementAndGet();
+    }
+
+    /**
+     * Prepares the skin of every player online again, after the key or the
+     * quality changed, rather than at each of their next deaths.
+     */
+    public static void rewarm() {
+        stale();
+        if (Bukkit.getServer() == null) {
+            return;
+        }
+        for (Player player : Bukkit.getOnlinePlayers()) {
+            warm(player);
+        }
     }
 
     /**
@@ -121,21 +197,16 @@ public final class SkinCache {
         if (url == null) {
             return null;
         }
-        RagdollSkin cached = BY_TEXTURE.get(url);
+        RagdollSkin cached = BY_TEXTURE.getIfPresent(url);
         if (cached == null) {
             fetch(url, Textures.slim(property));
             return null;
         }
-        if (!cached.skinned() && MineSkinQueue.enabled()) {
-            List<SkinCubes.Cube> waiting = WAITING.get(url);
-            if (waiting != null) {
-                // Asks again for whatever a stopped worker or a failed upload
-                // left behind; everything already known or queued is skipped.
-                MineSkinQueue.submit(waiting);
-            } else {
-                // Read before a key was set: read again, to be cut this time.
-                fetch(url, Textures.slim(property));
-            }
+        Integer prepared = PREPARED.getIfPresent(url);
+        TaskScheduler tasks = scheduler;
+        if (tasks != null && (prepared == null || prepared != GENERATION.get())) {
+            PREPARED.put(url, GENERATION.get());
+            tasks.runAsync(() -> prepare(cached));
         }
         return cached;
     }
@@ -173,13 +244,10 @@ public final class SkinCache {
                 if (response.statusCode() == 200) {
                     BufferedImage image = ImageIO.read(new ByteArrayInputStream(response.body()));
                     if (image != null) {
-                        BY_TEXTURE.putIfAbsent(url, read(image, slim));
-                        if (MineSkinQueue.enabled()) {
-                            List<SkinCubes.Cube> cubes = SkinCubes.cut(image, slim);
-                            WAITING.put(url, cubes);
-                            MineSkinQueue.submit(cubes);
-                            resolve();
-                        }
+                        RagdollSkin skin = read(image, slim);
+                        BY_TEXTURE.put(url, skin);
+                        PREPARED.put(url, GENERATION.get());
+                        prepare(skin);
                     }
                 }
             } catch (Exception unreachable) {
@@ -193,30 +261,23 @@ public final class SkinCache {
     }
 
     /**
-     * Hands every waiting skin whose cubes are all known the textures to wear.
+     * Cuts a skin at the quality in use, looks its pieces up, and queues
+     * whatever nobody has made yet. Off the main thread.
      *
-     * <p>Run whenever a texture arrives. A handful of skins wait at a time, so
-     * looking through all of them is cheaper than keeping an index.
+     * <p>Nothing happens while no plugin keeps textures: an upload with nowhere
+     * to be kept would have to be made again at the next restart.
      */
-    private static synchronized void resolve() {
-        for (Map.Entry<String, List<SkinCubes.Cube>> waiting : WAITING.entrySet()) {
-            Map<RagdollPart, String[]> textures = new EnumMap<>(RagdollPart.class);
-            boolean complete = true;
-            for (SkinCubes.Cube cube : waiting.getValue()) {
-                String texture = MineSkinQueue.known(cube.hash());
-                if (texture == null) {
-                    complete = false;
-                    break;
-                }
-                int columns = cube.part().columns(SkinCubes.DETAIL);
-                textures.computeIfAbsent(cube.part(),
-                        part -> new String[columns * part.rows(SkinCubes.DETAIL)])
-                        [cube.cellY() * columns + cube.cellX()] = texture;
+    private static void prepare(RagdollSkin skin) {
+        if (!RagdollTextures.stored()) {
+            return;
+        }
+        try {
+            List<SkinCubes.Cube> cubes = skin.cubes(quality);
+            if (cubes != null) {
+                RagdollTextures.missing(cubes).thenAccept(MineSkinQueue::submit);
             }
-            if (complete) {
-                BY_TEXTURE.computeIfPresent(waiting.getKey(), (url, skin) -> skin.withCubes(textures));
-                WAITING.remove(waiting.getKey());
-            }
+        } catch (RuntimeException uncut) {
+            logger.log(Level.FINE, "Could not prepare a skin for a ragdoll effect", uncut);
         }
     }
 
@@ -234,7 +295,7 @@ public final class SkinCache {
         for (RagdollPart part : RagdollPart.values()) {
             nets.put(part, SkinCubes.net(image, part, slim));
         }
-        return new RagdollSkin(nets);
+        return new RagdollSkin(nets, image, slim);
     }
 
     /**

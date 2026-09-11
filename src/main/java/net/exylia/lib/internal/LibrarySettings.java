@@ -100,10 +100,18 @@ public record LibrarySettings(
         @Key("mineskin-key")
         @Comment("A MineSkin API key, so ragdoll bodies wear the real skin rather than blocks.")
         @Comment("Get one free at https://account.mineskin.org/keys. Empty keeps bodies drawn")
-        @Comment("in blocks. Each new skin costs 18 uploads, once: about a minute on the free")
-        @Comment("plan, during which that skin still dies in blocks. The results are kept in")
-        @Comment("ragdoll-cubes.txt, so a skin is never uploaded again.")
-        String mineskinKey
+        @Comment("in blocks. Each new skin is uploaded once and kept in the database of the")
+        @Comment("plugin that shows the bodies, so that server, or a network sharing that")
+        @Comment("database, never uploads it again. The free plan allows 20 uploads a minute")
+        @Comment("and 100 an hour; past the hour, uploads wait for it to reset.")
+        String mineskinKey,
+
+        @Key("ragdoll-skin-quality")
+        @Comment("How finely a ragdoll body in its real skin is cut, and so what a new skin costs:")
+        @Comment("  high    18 uploads: 4-pixel cubes, 19 pieces when a body breaks (about 5 new skins an hour on the free plan)")
+        @Comment("  normal  10 uploads: every skin pixel kept exactly, 11 larger pieces (about 10 an hour)")
+        @Comment("  low      5 uploads: one head per part, a third of the rows lost (about 20 an hour)")
+        String ragdollSkinQuality
 ) {
 
     /**
@@ -117,7 +125,7 @@ public record LibrarySettings(
 
     /** Safe defaults used when no config file exists yet. */
     public LibrarySettings() {
-        this(true, 30, false, true, "auto:0.4", "*", DEFAULT_FALLBACK_HEAD, "", "");
+        this(true, 30, false, true, "auto:0.4", "*", DEFAULT_FALLBACK_HEAD, "", "", "normal");
     }
 
     private static volatile LibrarySettings instance;

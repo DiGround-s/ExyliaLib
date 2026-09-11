@@ -17,12 +17,13 @@ import org.jetbrains.annotations.Nullable;
  *
  * <h2>The real skin, or the nearest blocks</h2>
  * The head is a player head item, so it carries the actual face, hat layer and
- * all. On a server with a MineSkin key the rest of the body is too: every piece
- * is a four-pixel cube repainted as a head texture of its own, made once per
- * skin in the background, so a sleeve comes away wearing its real pixels on
- * every face. Until those cubes exist &mdash; or without a key at all &mdash;
- * everything but the head is drawn in the nearest block to the colour that part
- * of the skin actually is, which is what a box tumbling reads as anyway.
+ * all. On a server with a MineSkin key the rest of the body is too: it is cut
+ * into pieces at the configured quality, each repainted as a head texture of
+ * its own and made once per skin in the background, so a sleeve comes away
+ * wearing its real pixels on every face. A piece still on its way &mdash; or
+ * every piece, without a key &mdash; is drawn in the nearest block to the
+ * colour that part of the skin actually is, which is what a box tumbling reads
+ * as anyway.
  *
  * <p>Immutable. Cheap to build: a skin is decoded once per texture and shared.
  *
@@ -139,7 +140,8 @@ public final class RagdollModel {
      * first. A body that spells a word is cut at four instead, because plates
      * cannot be laid out as letters.
      *
-     * <p>A body wearing its real skin ignores this: its cubes are one fixed grid.
+     * <p>A body wearing its real skin ignores this once any of its pieces has
+     * arrived: it is cut the way {@code ragdoll-skin-quality} says.
      *
      * @param cells the level, from 1 to 5
      * @return a new model

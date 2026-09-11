@@ -1,25 +1,31 @@
 package net.exylia.lib.ragdoll.internal;
 
+import com.github.benmanes.caffeine.cache.Cache;
+import com.github.benmanes.caffeine.cache.Caffeine;
 import net.exylia.lib.display.DisplayHandle;
 import net.exylia.lib.display.DisplayModel;
 import net.exylia.lib.display.DisplayMotion;
 import net.exylia.lib.display.Rotation;
 import net.exylia.lib.display.internal.DisplayRuntime;
+import net.exylia.lib.ragdoll.RagdollFinish;
 import net.exylia.lib.ragdoll.RagdollMotion;
 import net.exylia.lib.ragdoll.RagdollModel;
 import net.exylia.lib.ragdoll.RagdollPart;
+import net.exylia.lib.ragdoll.RagdollPose;
+import net.exylia.lib.ragdoll.RagdollSkin;
 import net.exylia.lib.skull.internal.HeadFactory;
+import net.exylia.lib.skull.internal.Textures;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 import org.jetbrains.annotations.ApiStatus;
+import org.jetbrains.annotations.Nullable;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.List;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ThreadLocalRandom;
 
 /**
@@ -51,13 +57,16 @@ public final class RagdollBuilder {
             java.util.Objects.requireNonNullElse(Material.matchMaterial("CHAIN"), Material.IRON_BARS));
 
     /**
-     * One head per cube texture, built once.
+     * One head per texture, built once.
      *
-     * <p>Eighteen small items per skin the server has drawn in, kept for the
-     * life of the server: a head is cheap, and building eighteen of them on
-     * the main thread at every death is not.
+     * <p>A head is cheap and building ten of them on the main thread at every
+     * death is not, but a server that keeps every head it ever built keeps one
+     * for every sleeve of every player who ever died there.
      */
-    private static final Map<String, ItemStack> CUBE_HEADS = new ConcurrentHashMap<>();
+    private static final Cache<String, ItemStack> HEADS = Caffeine.newBuilder()
+            .maximumSize(5_000)
+            .expireAfterAccess(Duration.ofMinutes(30))
+            .build();
 
     private RagdollBuilder() {
     }
@@ -78,19 +87,21 @@ public final class RagdollBuilder {
         if (viewers.isEmpty()) {
             return shown;
         }
+        // Whoever shows bodies keeps the textures they are drawn with.
+        RagdollTextures.register(owner);
         // The body is built facing the way the location does, so a head still
         // looks the way the player was looking when they died.
         Rotation facing = Rotation.around(Rotation.Axis.Y, -Math.toRadians(at.getYaw()));
-        // A body wearing its real skin is cut where the skin's cubes are, and
-        // that is one fixed grid: the detail asked for only chooses how finely
-        // the blocks are cut when there are no cubes to draw.
-        boolean skinned = model.skin().skinned();
-        // Detail five is a shell rather than a finer grid. Its blocks are worked
-        // out here, from every face of the skin, and the grid it falls back to
-        // when the body spells a word is the finest there is.
-        int detail = skinned ? SkinCubes.DETAIL : Math.min(model.detailCells(), RagdollShell.DETAIL - 1);
-        List<RagdollShell.Piece> shell = !skinned && model.detailCells() >= RagdollShell.DETAIL
-                ? RagdollShell.build(model.skin()) : null;
+        // A word is laid out in cells, and neither heads nor thin plates can be.
+        boolean spelling = motion.pose() == RagdollPose.SIGN
+                || motion.pose() == RagdollPose.ANIMATE && motion.finish() == RagdollFinish.SPELL;
+        // Detail five is a shell rather than a finer grid, so the grid it falls
+        // back to when the body spells a word is the finest there is.
+        int detail = Math.min(model.detailCells(), RagdollShell.DETAIL - 1);
+        List<RagdollPieces.Placed> placed = spelling ? null : worn(model.skin(), SkinCache.quality());
+        if (placed == null && !spelling && model.detailCells() >= RagdollShell.DETAIL) {
+            placed = RagdollShell.placed(RagdollShell.build(model.skin()));
+        }
         EnumSet<RagdollPieces.Prop> props = EnumSet.noneOf(RagdollPieces.Prop.class);
         if (model.mainHand() != null) {
             props.add(RagdollPieces.Prop.MAIN_HAND);
@@ -102,8 +113,8 @@ public final class RagdollBuilder {
             props.add(RagdollPieces.Prop.HAT);
         }
         for (RagdollPieces.Piece piece : RagdollPieces.solve(motion, detail, model.scaleFactor(),
-                facing, ThreadLocalRandom.current(), props, skinned, shell)) {
-            DisplayModel drawn = drawn(model, piece, detail, skinned);
+                facing, ThreadLocalRandom.current(), props, placed)) {
+            DisplayModel drawn = drawn(model, piece, detail);
             DisplayHandle handle = DisplayRuntime.show(owner, drawn,
                     DisplayMotion.of(piece.poses(), motion.lifeMillis()), at, viewers);
             if (handle != null) {
@@ -113,8 +124,41 @@ public final class RagdollBuilder {
         return shown;
     }
 
-    /** What one piece is drawn with: a face, a carried item, a cube of real skin, or a block the colour of it. */
-    private static DisplayModel drawn(RagdollModel model, RagdollPieces.Piece piece, int detail, boolean skinned) {
+    /**
+     * A body in its real skin, region by region, or {@code null} when it has
+     * nothing real to wear yet.
+     *
+     * <p>Drawn by parts: a region whose texture has arrived is a head, a region
+     * that is one flat block anyway is that block, and a region still waiting
+     * is a block of its commonest colour at its own size. Worn once any region
+     * is real, or when every region is plain; until then the body is cut the
+     * way its detail asks, which reads better than a handful of large blocks.
+     *
+     * @param skin    whose skin
+     * @param quality how finely it is cut
+     * @return the pieces to place, or {@code null} for the body in blocks
+     */
+    static @Nullable List<RagdollPieces.Placed> worn(RagdollSkin skin, SkinCubes.Quality quality) {
+        List<SkinCubes.Cube> cubes = skin.cubes(quality);
+        if (cubes == null) {
+            return null;
+        }
+        boolean real = false;
+        boolean plain = true;
+        List<RagdollPieces.Placed> placed = new ArrayList<>(cubes.size());
+        for (SkinCubes.Cube cube : cubes) {
+            String texture = cube.plain() == null ? RagdollTextures.known(cube.hash()) : null;
+            plain &= cube.plain() != null;
+            real |= texture != null;
+            Material block = texture != null ? null : cube.plain() != null ? cube.plain() : cube.dominant();
+            placed.add(new RagdollPieces.Placed(cube.part(), cube.region().centre(), cube.region().size(),
+                    block, texture));
+        }
+        return real || plain ? placed : null;
+    }
+
+    /** What one piece is drawn with: a face, a carried item, a head of real skin, or a block. */
+    private static DisplayModel drawn(RagdollModel model, RagdollPieces.Piece piece, int detail) {
         if (piece.prop() != null) {
             ItemStack item = switch (piece.prop()) {
                 case MAIN_HAND -> model.mainHand();
@@ -138,15 +182,14 @@ public final class RagdollBuilder {
                     .glow(model.glowArgb())
                     .light(model.brightness());
         }
-        if (piece.block() != null) {
-            return DisplayModel.block(BlockPalette.block(piece.block()))
+        if (piece.texture() != null) {
+            ItemStack head = HEADS.get(piece.texture(), id -> HeadFactory.create(Textures.fromUrl(id)));
+            return DisplayModel.item(head)
                     .glow(model.glowArgb())
                     .light(model.brightness());
         }
-        if (skinned) {
-            // skinned() promised every cube, so this is never null.
-            String texture = model.skin().cube(piece.part(), piece.cellX(), piece.cellY());
-            return DisplayModel.item(CUBE_HEADS.computeIfAbsent(texture, HeadFactory::create))
+        if (piece.block() != null) {
+            return DisplayModel.block(BlockPalette.block(piece.block()))
                     .glow(model.glowArgb())
                     .light(model.brightness());
         }

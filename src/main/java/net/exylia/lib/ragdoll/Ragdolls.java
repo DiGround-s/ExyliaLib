@@ -34,10 +34,13 @@ import java.util.concurrent.ConcurrentHashMap;
  * that is not, and it costs fewer packets than the NPC it replaces.
  *
  * <h2>The skin</h2>
- * The head is a real player head, so the face is exact. Every other piece is
- * drawn in the nearest block to the colour that part of the skin actually is,
- * because a client cannot be handed an arm-shaped model without a resource
- * pack. Skins are read once, in the background, when their owner joins.
+ * The head is a real player head, so the face is exact. With a MineSkin key the
+ * rest of the body wears its real skin too: it is cut into pieces each
+ * repainted as a head texture, made once and kept in the database of the
+ * plugin that shows the bodies. Without a key, and for a piece whose texture
+ * is still on its way, the piece is drawn in the nearest block to the colour
+ * that part of the skin actually is. Skins are read once, in the background,
+ * when their owner joins.
  *
  * <h2>Nothing the server has to carry</h2>
  * Every piece is a display, so this inherits the display module's whole
@@ -61,6 +64,9 @@ public final class Ragdolls {
      * @return its view, the same instance every time
      */
     public static @NotNull PluginRagdolls of(@NotNull Plugin plugin) {
+        // A plugin that shows bodies keeps the textures they are drawn with, and
+        // registering it now means its players' skins are ready before it does.
+        net.exylia.lib.ragdoll.internal.RagdollTextures.register(plugin);
         return BY_PLUGIN.computeIfAbsent(plugin.getName(), PluginRagdolls::new);
     }
 
@@ -88,11 +94,13 @@ public final class Ragdolls {
         // off every client under the same plugin name. There is nothing else
         // here that outlives a plugin.
         BY_PLUGIN.remove(pluginName);
+        net.exylia.lib.ragdoll.internal.RagdollTextures.release(pluginName);
     }
 
     /** Forgets every plugin's view and every decoded skin, on shutdown. */
     public static void releaseAll() {
         BY_PLUGIN.clear();
         SkinCache.clear();
+        net.exylia.lib.ragdoll.internal.RagdollTextures.releaseAll();
     }
 }

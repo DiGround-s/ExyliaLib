@@ -154,7 +154,7 @@ class RagdollShellTest {
         List<RagdollShell.Piece> shell = RagdollShell.build(new RagdollSkin(nets));
         RagdollMotion motion = RagdollMotion.builder().life(3.0).intactFor(0.3).pose(RagdollPose.BURST).build();
         List<RagdollPieces.Piece> pieces = RagdollPieces.solve(motion, 4, 1.0, Rotation.NONE, new Random(7),
-                EnumSet.noneOf(RagdollPieces.Prop.class), false, shell);
+                EnumSet.noneOf(RagdollPieces.Prop.class), RagdollShell.placed(shell));
         assertEquals(1 + shell.size(), pieces.size());
         for (RagdollPieces.Piece piece : pieces.subList(1, pieces.size())) {
             assertNotNull(piece.block(), piece.part() + " carries its block");
