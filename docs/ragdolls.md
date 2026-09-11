@@ -176,6 +176,13 @@ jerked up and follows the hand everywhere. `snip:` is the second, from the start
 of the sequence, when they are cut and whip up out of sight; left out, it is the
 last frame. Since 1.136.0.
 
+### Crowds
+
+`[RAGDOLL] {crowd};seat:N` is a spectator: the Nth player watching who is
+neither the killer nor the victim wears the body, and a seat nobody fills wears
+the default skin. `[RAGDOLL] {killer}` is the killer's own body, so a sequence
+can have the killer walk in and do it. Since 1.137.0.
+
 ### Spelling
 
 `then:spell` flies every piece into the strokes of `sign:` (`letters:` tall,

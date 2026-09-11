@@ -479,7 +479,10 @@ public final class SequenceCompiler {
                 "bounce", "spin", "fade", "settle", "detail", "size", "glow", "light",
                 "y", "face", "rise", "open", "lift", "hang", "turns", "hits", "every", "force",
                 "swell", "squash", "sign", "letters", "dir", "keys", "then", "follow",
-                "hold", "offhand", "hat", "hold_size", "hat_size", "hat_y", "strings", "snip");
+                "hold", "offhand", "hat", "hold_size", "hat_size", "hat_y", "strings", "snip", "seat");
+        // A spectator: whoever is watching fills the seat, so a crowd is the
+        // real crowd.
+        boolean crowd = args.head().trim().equalsIgnoreCase("{crowd}");
         // A line with frames is a choreography whether or not it says so:
         // writing the dance and then having to name the pose it is danced in
         // is one more thing to get wrong for nothing.
@@ -553,7 +556,8 @@ public final class SequenceCompiler {
                 args.flag("face", true),
                 held(args, "hold", onArg),
                 held(args, "offhand", onArg),
-                held(args, "hat", onArg));
+                held(args, "hat", onArg),
+                crowd ? Math.max(0, args.count("seat", 0, onArg)) : -1);
     }
 
     /**

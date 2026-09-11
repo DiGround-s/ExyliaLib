@@ -392,6 +392,7 @@ final class SequenceLine {
                     new Field("hat", "What is worn on the head", "an item, as in CARVED_PUMPKIN"),
                     new Field("strings", "Puppet strings up to this height", "0 for none, or blocks"),
                     new Field("snip", "Seconds from the start when the strings are cut", "the last frame"),
+                    new Field("seat", "Which spectator a {crowd} body wears", "0, 1, 2..."),
                     new Field("life", "Seconds the pieces last", "2.2"),
                     new Field("intact", "Seconds it stands whole first", "0.3"),
                     new Field("speed", "How fast the pieces leave, outwards", "3.2"),

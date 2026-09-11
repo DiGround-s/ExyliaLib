@@ -156,6 +156,14 @@ public final class SkinCache {
         });
     }
 
+    /**
+     * The default skin's colours, for a body that belongs to nobody in
+     * particular: a spectator with no player to wear.
+     */
+    public static RagdollSkin fallback() {
+        return defaultSkin();
+    }
+
     /** Cuts a skin picture into the front face of every part. */
     private static RagdollSkin read(BufferedImage image) {
         boolean legacy = image.getHeight() < 64;

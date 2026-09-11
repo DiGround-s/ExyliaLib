@@ -232,7 +232,7 @@ same unplanned points every time).
 
 `PIXELS` (`art` `word` `pixel` `pick` `depth`, since 1.134.0) draws a picture — `heart`
 `heart_big` `broken_heart` `star` `crown` `skull` `bolt` `note` `cloud` `trophy` `ufo`
-`moon` — or a word in a five-row block font, one piece per cell. `pick:` chooses which
+`moon` `guillotine` `blade` `grave` — or a word in a five-row block font, one piece per cell. `pick:` chooses which
 characters a line draws, so a heart with a shine is two lines over one picture.
 With `face:true` it turns to whoever set the sequence off, which keeps a word the
 right way round for them.

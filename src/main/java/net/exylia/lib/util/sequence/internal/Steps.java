@@ -368,8 +368,27 @@ final class Steps {
                    int glowArgb, int brightness, double yShift, boolean facesSource,
                    @Nullable org.bukkit.inventory.ItemStack hold,
                    @Nullable org.bukkit.inventory.ItemStack offhand,
-                   @Nullable org.bukkit.inventory.ItemStack hat)
+                   @Nullable org.bukkit.inventory.ItemStack hat,
+                   int seat)
             implements SequenceStep {
+
+        /**
+         * The seat-th player watching who is neither the killer nor the victim.
+         *
+         * <p>What a crowd is made of: the people standing round the fight wear
+         * the spectators' bodies. Nobody else there leaves the seat to the
+         * default skin, which is still somebody watching.
+         */
+        private static @Nullable Player spectator(List<Player> observers, @Nullable Player killer,
+                                                  @Nullable Player victim, int seat) {
+            List<Player> others = new java.util.ArrayList<>(observers.size());
+            for (Player observer : observers) {
+                if (observer != killer && observer != victim) {
+                    others.add(observer);
+                }
+            }
+            return others.isEmpty() ? null : others.get(seat % others.size());
+        }
 
         @Override
         public void play(@NotNull SequenceTarget target, @NotNull SequenceRun run) {
@@ -381,12 +400,12 @@ final class Steps {
             // has somebody watching it and nobody it happened to.
             Player killer = target.source();
             Player victim = target.target() instanceof Player player ? player : null;
-            Player whose = switch (face) {
+            Player whose = seat >= 0 ? spectator(observers, killer, victim, seat) : switch (face) {
                 case VICTIM -> victim != null ? victim : killer;
                 case KILLER -> killer != null ? killer : victim;
                 case FIXED -> victim != null ? victim : killer;
             };
-            if (whose == null) {
+            if (whose == null && seat < 0) {
                 NpcRuntime.explainOnce("[RAGDOLL] was written, but what died was not a player");
                 return;
             }
@@ -399,7 +418,8 @@ final class Steps {
                         where.getX() - source.getLocation().getX(),
                         source.getLocation().getZ() - where.getZ())));
             }
-            RagdollModel model = RagdollModel.of(whose)
+            RagdollModel model = (whose != null ? RagdollModel.of(whose)
+                    : RagdollModel.of(net.exylia.lib.ragdoll.internal.SkinCache.fallback(), null))
                     .detail(detail)
                     .scale(scale)
                     .glow(glowArgb)
