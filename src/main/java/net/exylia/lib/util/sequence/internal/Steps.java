@@ -90,9 +90,12 @@ final class Steps {
             }
             Location at = target.location();
             Location above = at.clone().add(0, 1.5, 0);
+            // Newer servers made the flash colourable and refuse it without one.
+            Object flash = ParticlePaint.FLASH == null ? null
+                    : ParticlePaint.dataFor(ParticlePaint.FLASH, Color.WHITE, 1f, null);
             for (Player observer : observers) {
                 if (ParticlePaint.FLASH != null) {
-                    observer.spawnParticle(ParticlePaint.FLASH, at, 1);
+                    observer.spawnParticle(ParticlePaint.FLASH, at, 1, 0, 0, 0, 0, flash);
                 }
                 if (ParticlePaint.SPARK != null) {
                     observer.spawnParticle(ParticlePaint.SPARK, above, 60, 0.3, 1.5, 0.3, 0.3);
