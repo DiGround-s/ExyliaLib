@@ -7,17 +7,24 @@ import org.bukkit.NamespacedKey;
 import org.bukkit.Registry;
 import org.bukkit.enchantments.Enchantment;
 import org.bukkit.entity.Player;
+import org.bukkit.inventory.ItemFlag;
+import org.bukkit.inventory.ItemStack;
+import org.bukkit.inventory.meta.PotionMeta;
 import org.bukkit.plugin.Plugin;
+import org.bukkit.potion.PotionEffect;
 import org.bukkit.potion.PotionEffectType;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
+import java.util.function.Function;
 
 /**
  * Choosing one thing out of a list the server owns.
@@ -111,14 +118,15 @@ public final class Pickers {
      * @return the effect name, or nothing
      */
     public @NotNull CompletionStage<Optional<String>> potionEffect(@NotNull Player viewer) {
-        List<String> names = new ArrayList<>();
+        Map<String, PotionEffectType> types = new LinkedHashMap<>();
         for (PotionEffectType type : Registry.EFFECT) {
             NamespacedKey key = Registry.EFFECT.getKey(type);
             if (key != null) {
-                names.add(keyOf(key));
+                types.put(keyOf(key), type);
             }
         }
-        return search(viewer, "{primary}&lWHICH EFFECT?", names, Material.POTION);
+        return search(viewer, "{primary}&lWHICH EFFECT?", new ArrayList<>(types.keySet()),
+                name -> bottle(types.get(name)));
     }
 
     /**
@@ -180,6 +188,12 @@ public final class Pickers {
 
     private CompletionStage<Optional<String>> search(Player viewer, String prompt,
                                                      List<String> names, Material icon) {
+        return search(viewer, prompt, names, name -> new ItemStack(icon));
+    }
+
+    private CompletionStage<Optional<String>> search(Player viewer, String prompt,
+                                                     List<String> names,
+                                                     Function<String, ItemStack> icon) {
         if (names.isEmpty()) {
             // A registry with nothing in it is a server that is not ready, not a
             // question worth showing an empty page for.
@@ -188,7 +202,7 @@ public final class Pickers {
         return Inputs.of(plugin).search(viewer, prompt, names)
                 .label(name -> name.toLowerCase(Locale.ROOT).replace('_', ' '))
                 .key(name -> name)
-                .icon(name -> icon)
+                .iconItem(icon)
                 .open()
                 .thenApply(result -> result.completed()
                         ? Optional.of(result.value().toUpperCase(Locale.ROOT))
@@ -211,6 +225,24 @@ public final class Pickers {
     private static Material dye(String name) {
         Material dye = Material.matchMaterial(name.toUpperCase(Locale.ROOT) + "_DYE");
         return dye != null ? dye : Material.WHITE_DYE;
+    }
+
+    /**
+     * A bottle holding one effect, with no colour of its own.
+     *
+     * <p>The client paints a potion without a custom colour in the colour of
+     * what it holds, so each player sees the colour their own version gives that
+     * effect, and no two effects look alike. The effect lines are hidden: the
+     * label already names it, and "Speed (00:00)" would only say it twice.
+     */
+    private static ItemStack bottle(PotionEffectType type) {
+        ItemStack item = new ItemStack(Material.POTION);
+        if (item.getItemMeta() instanceof PotionMeta meta) {
+            meta.addCustomEffect(new PotionEffect(type, 1, 0), true);
+            meta.addItemFlags(ItemFlag.HIDE_ADDITIONAL_TOOLTIP);
+            item.setItemMeta(meta);
+        }
+        return item;
     }
 
     private static String keyOf(NamespacedKey key) {

@@ -2,24 +2,18 @@ package net.exylia.lib.util;
 
 import net.exylia.lib.input.FormKey;
 import net.exylia.lib.input.FormValues;
-import net.exylia.lib.input.Inputs;
 import net.exylia.lib.util.Effects.ParsedEffect;
 import net.exylia.lib.util.editor.EditorDescriptor;
 import net.exylia.lib.util.editor.EditorForm;
-import org.bukkit.Material;
-import org.bukkit.NamespacedKey;
-import org.bukkit.Registry;
+import net.exylia.lib.util.editor.Editors;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
-import org.bukkit.potion.PotionEffectType;
 import org.jetbrains.annotations.NotNull;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 
 /**
@@ -112,40 +106,9 @@ final class PotionEffectDescriptor implements EditorDescriptor<ParsedEffect> {
         return new ParsedEffect(entry.name(), amplifier, duration);
     }
 
-    /**
-     * The searchable list of every effect the server has.
-     *
-     * <p>Read from the registry rather than from {@code values()}: potion effect
-     * types stopped being an enum, and a data pack can add one.
-     */
-    @SuppressWarnings("deprecation")
+    /** The same effect picker every other editor opens, one bottle colour per effect. */
     private CompletionStage<Optional<String>> choose(Player viewer) {
-        List<PotionEffectType> types = new ArrayList<>();
-        for (PotionEffectType type : Registry.EFFECT) {
-            types.add(type);
-        }
-        if (types.isEmpty()) {
-            return CompletableFuture.completedFuture(Optional.of("SPEED"));
-        }
-        return Inputs.of(plugin).search(viewer, "{primary}&lWHICH EFFECT?", types)
-                .label(type -> readable(keyOf(type)))
-                .key(PotionEffectDescriptor::keyOf)
-                .icon(type -> Material.POTION)
-                .open()
-                .thenApply(result -> result.completed()
-                        ? Optional.of(keyOf(result.value()).toUpperCase(Locale.ROOT))
-                        : Optional.empty());
-    }
-
-    /**
-     * A type's name.
-     *
-     * <p>Asked of the registry rather than of the type: {@code getKey()} on
-     * these is marked for removal, and the registry has always known.
-     */
-    private static String keyOf(PotionEffectType type) {
-        NamespacedKey key = Registry.EFFECT.getKey(type);
-        return key == null ? "unknown" : key.getKey();
+        return Editors.of(plugin).pick().potionEffect(viewer);
     }
 
     private static long seconds(ParsedEffect entry) {
