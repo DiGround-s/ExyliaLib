@@ -261,7 +261,7 @@ public final class PluginDatabase {
                 // registers the table for invalidation: a peer's message names
                 // a table, and this is the one place that knows this server
                 // reads it.
-                RedisRuntime.wrap(opened, cache())).thenCompose(storage ->
+                RedisRuntime.wrap(opened, cache(), DatabaseRuntime.executor())).thenCompose(storage ->
                 storage.prepare(model).thenApply(report -> {
                     // Only the start where something changed is worth a line. On
                     // a server that has been running for months nothing changes

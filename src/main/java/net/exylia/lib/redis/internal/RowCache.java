@@ -147,6 +147,24 @@ public final class RowCache {
         }
     }
 
+    /**
+     * A row from this server's memory only.
+     *
+     * <p>The half of {@link #get} that never touches the network, so it is the
+     * only half a caller may run on the thread that asked.
+     *
+     * @return the row, or {@code null} when memory does not hold it
+     */
+    @SuppressWarnings("unchecked")
+    <T> @Nullable T local(@NotNull EntityModel<T> model, @NotNull Object id) {
+        String key = keyOf(model, id);
+        Object cached = key == null ? null : local.getIfPresent(key);
+        if (cached != null) {
+            hits.incrementAndGet();
+        }
+        return (T) cached;
+    }
+
     /** Whether a row is already known to exist, without asking the database. */
     boolean has(@NotNull EntityModel<?> model, @NotNull Object id) {
         String key = keyOf(model, id);

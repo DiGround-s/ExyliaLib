@@ -438,7 +438,13 @@ public final class DatabaseRuntime {
         return future;
     }
 
-    private static @NotNull Executor executor() {
+    /**
+     * The background executor every storage runs its blocking work on.
+     *
+     * <p>Public for the Redis cache, whose round trips must leave the calling
+     * thread exactly as a query does.
+     */
+    public static @NotNull Executor executor() {
         requireStarted();
         return executor;
     }

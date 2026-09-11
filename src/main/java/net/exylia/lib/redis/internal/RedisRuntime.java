@@ -10,6 +10,7 @@ import org.jetbrains.annotations.Nullable;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.concurrent.Executor;
 
 /**
  * Owns the connection every plugin's cache shares.
@@ -129,10 +130,12 @@ public final class RedisRuntime {
      *
      * @param storage  the real storage
      * @param cache    the shared cache, or {@code null}
+     * @param executor where the cache talks to Redis, off the caller's thread
      * @return the storage a repository should use
      */
-    public static @NotNull Storage wrap(@NotNull Storage storage, @Nullable RowCache cache) {
-        return cache == null ? storage : new CachedStorage(storage, cache);
+    public static @NotNull Storage wrap(@NotNull Storage storage, @Nullable RowCache cache,
+                                        @NotNull Executor executor) {
+        return cache == null ? storage : new CachedStorage(storage, cache, executor);
     }
 
     /** Closes every connection. Called by ExyliaLib on shutdown. */
