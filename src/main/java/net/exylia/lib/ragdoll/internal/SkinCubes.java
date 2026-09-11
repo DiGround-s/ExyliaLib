@@ -214,6 +214,53 @@ public final class SkinCubes {
         };
     }
 
+    /**
+     * A part's whole box as one picture: every face of its first layer with
+     * the second painted over it.
+     *
+     * <p>What a body in blocks is drawn from. A slim arm's three columns are
+     * stretched to four, so every arm unfolds the same; a legacy skin reads the
+     * right-hand limbs for both sides and has no second layer.
+     *
+     * @param skin the skin picture, 64&times;64 or legacy 64&times;32
+     * @param part which part
+     * @param slim whether the arms are three pixels wide
+     * @return the net row by row, {@code 2d + 2w} by {@code d + h}, clear
+     *         outside the six faces
+     */
+    public static int[] net(BufferedImage skin, RagdollPart part, boolean slim) {
+        boolean legacy = skin.getHeight() < 64;
+        RagdollPart source = legacy ? part.legacy() : part;
+        int width = Math.round(part.blockWidth() / RagdollPart.PIXEL);
+        int drawn = slim && (part == RagdollPart.ARM_RIGHT || part == RagdollPart.ARM_LEFT) ? 3 : width;
+        Box base = base(source, drawn);
+        Box over = legacy ? null : overlay(source, drawn);
+        Box shape = new Box(0, 0, width, base.h(), base.d());
+        int netWidth = 2 * (shape.d() + shape.w());
+        int[] pixels = new int[netWidth * (shape.d() + shape.h())];
+        for (Face face : Face.values()) {
+            boolean stretched = face != Face.RIGHT && face != Face.LEFT && drawn != width;
+            for (int row = 0; row < shape.height(face); row++) {
+                for (int column = 0; column < shape.width(face); column++) {
+                    int across = stretched ? column * drawn / width : column;
+                    int painted = base.pixel(skin, face, across, row);
+                    if (over != null) {
+                        // The second layer is where most clothes are drawn: a
+                        // jacket, a hood, rolled sleeves. Reading only the first
+                        // leaves a body in whatever the artist painted
+                        // underneath, which is usually skin.
+                        int worn = over.pixel(skin, face, across, row);
+                        if ((worn >>> 24) >= 128) {
+                            painted = worn;
+                        }
+                    }
+                    pixels[(shape.y(face) + row) * netWidth + shape.x(face) + column] = painted;
+                }
+            }
+        }
+        return pixels;
+    }
+
     /** Where a part's first layer is unfolded on a skin. */
     static Box base(RagdollPart part, int width) {
         return switch (part) {

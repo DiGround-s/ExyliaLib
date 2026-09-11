@@ -173,7 +173,7 @@ public final class SkinCache {
                 if (response.statusCode() == 200) {
                     BufferedImage image = ImageIO.read(new ByteArrayInputStream(response.body()));
                     if (image != null) {
-                        BY_TEXTURE.putIfAbsent(url, read(image));
+                        BY_TEXTURE.putIfAbsent(url, read(image, slim));
                         if (MineSkinQueue.enabled()) {
                             List<SkinCubes.Cube> cubes = SkinCubes.cut(image, slim);
                             WAITING.put(url, cubes);
@@ -228,54 +228,13 @@ public final class SkinCache {
         return defaultSkin();
     }
 
-    /** Cuts a skin picture into the front face of every part. */
-    private static RagdollSkin read(BufferedImage image) {
-        boolean legacy = image.getHeight() < 64;
-        Map<RagdollPart, int[]> faces = new EnumMap<>(RagdollPart.class);
+    /** Unfolds every part of a skin picture, both layers, into the nets a body is drawn from. */
+    private static RagdollSkin read(BufferedImage image, boolean slim) {
+        Map<RagdollPart, int[]> nets = new EnumMap<>(RagdollPart.class);
         for (RagdollPart part : RagdollPart.values()) {
-            RagdollPart source = legacy ? part.legacy() : part;
-            int width = source.skinWidth();
-            int height = source.skinHeight();
-            if (source.skinX() + width > image.getWidth()
-                    || source.skinY() + height > image.getHeight()) {
-                continue;
-            }
-            int[] pixels = new int[width * height];
-            image.getRGB(source.skinX(), source.skinY(), width, height, pixels, 0, width);
-            int[] over = legacy ? null : overlay(image, source);
-            if (over != null) {
-                // The second layer is where most clothes are drawn: a jacket, a
-                // hood, rolled sleeves. Reading only the first leaves a body in
-                // whatever the artist painted underneath, which is usually skin.
-                for (int index = 0; index < pixels.length; index++) {
-                    if ((over[index] >>> 24) >= 128) {
-                        pixels[index] = over[index];
-                    }
-                }
-            }
-            faces.put(part, pixels);
+            nets.put(part, SkinCubes.net(image, part, slim));
         }
-        return new RagdollSkin(faces);
-    }
-
-    /** A part's front face on the skin's second layer, or {@code null} when the picture has none. */
-    private static int[] overlay(BufferedImage image, RagdollPart part) {
-        int[] at = switch (part) {
-            case TORSO -> new int[]{20, 36};
-            case ARM_RIGHT -> new int[]{44, 36};
-            case ARM_LEFT -> new int[]{52, 52};
-            case LEG_RIGHT -> new int[]{4, 36};
-            case LEG_LEFT -> new int[]{4, 52};
-            case HEAD -> null;
-        };
-        int width = part.skinWidth();
-        int height = part.skinHeight();
-        if (at == null || at[0] + width > image.getWidth() || at[1] + height > image.getHeight()) {
-            return null;
-        }
-        int[] pixels = new int[width * height];
-        image.getRGB(at[0], at[1], width, height, pixels, 0, width);
-        return pixels;
+        return new RagdollSkin(nets);
     }
 
     /**
@@ -296,8 +255,12 @@ public final class SkinCache {
         return new RagdollSkin(faces);
     }
 
+    /** A part's whole net in one colour. */
     private static int[] flat(int rgb, RagdollPart part) {
-        int[] pixels = new int[part.skinWidth() * part.skinHeight()];
+        int width = Math.round(part.blockWidth() / RagdollPart.PIXEL);
+        int height = Math.round(part.blockHeight() / RagdollPart.PIXEL);
+        int depth = Math.round(part.blockDepth() / RagdollPart.PIXEL);
+        int[] pixels = new int[2 * (depth + width) * (depth + height)];
         java.util.Arrays.fill(pixels, 0xFF000000 | rgb);
         return pixels;
     }

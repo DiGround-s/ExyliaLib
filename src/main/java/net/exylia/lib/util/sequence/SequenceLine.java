@@ -402,7 +402,7 @@ final class SequenceLine {
                     new Field("gravity", "Falls at, in blocks per second squared", "26"),
                     new Field("bounce", "Speed kept on landing, 0 to 1", "0.32"),
                     new Field("spin", "Turns a second", "1.8"),
-                    new Field("detail", "Cells each part is cut into, 1 to 4", "1"),
+                    new Field("detail", "How finely a body in blocks is drawn, 1 to 5 (5: the design on every face)", "1"),
                     new Field("size", "How big it is; 1 is player-sized", "1"),
                     new Field("light", "Light level, 0 to 15", "world's own"),
                     new Field("glow", "Outline colour", "a name, #rrggbb or a {palette} token"),

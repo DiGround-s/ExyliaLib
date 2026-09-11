@@ -30,8 +30,8 @@ import org.jetbrains.annotations.Nullable;
  */
 public final class RagdollModel {
 
-    /** Cells a part is cut into, at most, on each axis. */
-    private static final int MAX_DETAIL = 4;
+    /** The finest detail there is: a shell with the design on every face. */
+    private static final int MAX_DETAIL = 5;
 
     private final RagdollSkin skin;
     private final ItemStack head;
@@ -124,15 +124,24 @@ public final class RagdollModel {
     }
 
     /**
-     * How finely each part is cut, from 1 to 4.
+     * How finely a body in blocks is drawn, from 1 to 5.
      *
-     * <p>One cell is one colour for a whole limb: six boxes for a body, and the
-     * cheapest a death can be. Two keeps a sleeve apart from a hand and a shirt
-     * apart from a belt, at four times the displays. Beyond three the pieces
-     * are smaller than the eye can follow at the speed they are moving, and all
-     * that is left is the cost.
+     * <p>One to four cut each part into a grid of cells, each cell the block most
+     * of its pixels are. One is six boxes for a body, and the cheapest a death
+     * can be. Two keeps a sleeve apart from a hand and a shirt apart from a
+     * belt, at four times the displays. Four is two skin pixels a cell.
      *
-     * @param cells cells per axis
+     * <p>Five is not a finer grid but a shell: one core block per part, with the
+     * skin's design laid over all six faces in thin plates and every run of one
+     * block merged into a single plate. It is the most a body in blocks can
+     * show and the most one costs &mdash; up to 120 displays, kept under the
+     * per-effect ceiling in displays.yml by dropping the smallest plates
+     * first. A body that spells a word is cut at four instead, because plates
+     * cannot be laid out as letters.
+     *
+     * <p>A body wearing its real skin ignores this: its cubes are one fixed grid.
+     *
+     * @param cells the level, from 1 to 5
      * @return a new model
      */
     public @NotNull RagdollModel detail(int cells) {

@@ -85,7 +85,12 @@ public final class RagdollBuilder {
         // that is one fixed grid: the detail asked for only chooses how finely
         // the blocks are cut when there are no cubes to draw.
         boolean skinned = model.skin().skinned();
-        int detail = skinned ? SkinCubes.DETAIL : model.detailCells();
+        // Detail five is a shell rather than a finer grid. Its blocks are worked
+        // out here, from every face of the skin, and the grid it falls back to
+        // when the body spells a word is the finest there is.
+        int detail = skinned ? SkinCubes.DETAIL : Math.min(model.detailCells(), RagdollShell.DETAIL - 1);
+        List<RagdollShell.Piece> shell = !skinned && model.detailCells() >= RagdollShell.DETAIL
+                ? RagdollShell.build(model.skin()) : null;
         EnumSet<RagdollPieces.Prop> props = EnumSet.noneOf(RagdollPieces.Prop.class);
         if (model.mainHand() != null) {
             props.add(RagdollPieces.Prop.MAIN_HAND);
@@ -97,7 +102,7 @@ public final class RagdollBuilder {
             props.add(RagdollPieces.Prop.HAT);
         }
         for (RagdollPieces.Piece piece : RagdollPieces.solve(motion, detail, model.scaleFactor(),
-                facing, ThreadLocalRandom.current(), props, skinned)) {
+                facing, ThreadLocalRandom.current(), props, skinned, shell)) {
             DisplayModel drawn = drawn(model, piece, detail, skinned);
             DisplayHandle handle = DisplayRuntime.show(owner, drawn,
                     DisplayMotion.of(piece.poses(), motion.lifeMillis()), at, viewers);
@@ -133,6 +138,11 @@ public final class RagdollBuilder {
                     .glow(model.glowArgb())
                     .light(model.brightness());
         }
+        if (piece.block() != null) {
+            return DisplayModel.block(BlockPalette.block(piece.block()))
+                    .glow(model.glowArgb())
+                    .light(model.brightness());
+        }
         if (skinned) {
             // skinned() promised every cube, so this is never null.
             String texture = model.skin().cube(piece.part(), piece.cellX(), piece.cellY());
@@ -141,9 +151,9 @@ public final class RagdollBuilder {
                     .light(model.brightness());
         }
         return DisplayModel
-                .block(BlockPalette.nearest(model.skin().colour(
+                .block(BlockPalette.block(BlockPalette.dominant(model.skin().cell(
                         piece.part(), piece.cellX(), piece.cellY(),
-                        piece.part().columns(detail), piece.part().rows(detail))))
+                        piece.part().columns(detail), piece.part().rows(detail)))))
                 .glow(model.glowArgb())
                 .light(model.brightness());
     }

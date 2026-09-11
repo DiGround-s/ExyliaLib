@@ -102,7 +102,8 @@ public enum RagdollPart {
      * square grid spends its pieces on columns nobody can tell apart while it
      * smears those bands together. Detail 1 is one cell, whatever the part.
      *
-     * @param detail the level of detail, from 1 to 4
+     * @param detail the level of detail, from 1 to 4; detail 5 is a shell
+     *               rather than a grid and is never cut
      * @return the columns
      * @since 1.135.0
      */
@@ -113,7 +114,8 @@ public enum RagdollPart {
     /**
      * How many cells down this part is cut into at a level of detail.
      *
-     * @param detail the level of detail, from 1 to 4
+     * @param detail the level of detail, from 1 to 4; detail 5 is a shell
+     *               rather than a grid and is never cut
      * @return the rows
      * @since 1.135.0
      */

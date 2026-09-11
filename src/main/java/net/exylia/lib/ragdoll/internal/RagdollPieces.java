@@ -6,6 +6,7 @@ import net.exylia.lib.ragdoll.RagdollFinish;
 import net.exylia.lib.ragdoll.RagdollMotion;
 import net.exylia.lib.ragdoll.RagdollPart;
 import net.exylia.lib.ragdoll.RagdollPose;
+import org.bukkit.Material;
 import org.jetbrains.annotations.ApiStatus;
 import org.jetbrains.annotations.Nullable;
 
@@ -115,9 +116,17 @@ public final class RagdollPieces {
      * @param cellY its row within that part; zero for the head and props
      * @param prop  what it is carrying, or {@code null} when it is the body
      * @param poses every pose it is sent, ready for the display module
+     * @param block the block it is drawn in when that was decided with its
+     *              shape, as a shell's plates are; {@code null} leaves it to
+     *              the builder
      */
     public record Piece(RagdollPart part, int cellX, int cellY, @Nullable Prop prop,
-                       List<DisplayKeyframe> poses) {
+                       List<DisplayKeyframe> poses, @Nullable Material block) {
+
+        /** A piece whose look the builder works out from the skin. */
+        public Piece(RagdollPart part, int cellX, int cellY, @Nullable Prop prop, List<DisplayKeyframe> poses) {
+            this(part, cellX, cellY, prop, poses, null);
+        }
     }
 
     /** Solves a whole body carrying nothing. */
@@ -130,6 +139,12 @@ public final class RagdollPieces {
     public static List<Piece> solve(RagdollMotion motion, int detail, double scale, Rotation facing,
                                     RandomGenerator random, Set<Prop> props) {
         return solve(motion, detail, scale, facing, random, props, false);
+    }
+
+    /** Solves a whole body cut into cells. */
+    public static List<Piece> solve(RagdollMotion motion, int detail, double scale, Rotation facing,
+                                    RandomGenerator random, Set<Prop> props, boolean skinned) {
+        return solve(motion, detail, scale, facing, random, props, skinned, null);
     }
 
     /**
@@ -146,11 +161,18 @@ public final class RagdollPieces {
      * @param facing  which way it faces
      * @param random  where the variation between pieces comes from
      * @param props   what it carries
+     * <p>A shell is solved the way cells are: every core and plate is carried by
+     * its part at its own offset, finishes with the rest and fades with the
+     * rest. A body that spells a word ignores its shell and is cut into cells
+     * at {@code detail}, because thin plates cannot be laid out as letters.
+     *
      * @param skinned whether every cell is drawn as a head wearing its real skin
+     * @param shell   the blocks of a body at detail five, or {@code null} for cells
      * @return every piece, the head first and props last
      */
     public static List<Piece> solve(RagdollMotion motion, int detail, double scale, Rotation facing,
-                                    RandomGenerator random, Set<Prop> props, boolean skinned) {
+                                    RandomGenerator random, Set<Prop> props, boolean skinned,
+                                    @Nullable List<RagdollShell.Piece> shell) {
         RagdollPart[] parts = RagdollPart.values();
         RagdollFlight.Flight[] flights = new RagdollFlight.Flight[parts.length];
         for (RagdollPart part : parts) {
@@ -158,6 +180,8 @@ public final class RagdollPieces {
         }
         boolean finishing = motion.pose() == RagdollPose.ANIMATE;
         boolean spelling = motion.pose() == RagdollPose.SIGN;
+        boolean shelled = shell != null && !skinned && !spelling
+                && !(finishing && motion.finish() == RagdollFinish.SPELL);
         RagdollFlight.Flight chest = flights[RagdollPart.TORSO.ordinal()];
         int end = chest.times().length - 1;
         double[] middle = {chest.x()[end], chest.y()[end], chest.z()[end]};
@@ -168,6 +192,9 @@ public final class RagdollPieces {
             if (part != RagdollPart.HEAD) {
                 pieces += part.columns(detail) * part.rows(detail);
             }
+        }
+        if (shelled) {
+            pieces = shell.size();
         }
         int running = 0;
 
@@ -183,6 +210,25 @@ public final class RagdollPieces {
                 }
                 solved.add(new Piece(part, 0, 0, null,
                         displayed(centres, motion, HEAD_LIFT, ITEM_FACING)));
+                continue;
+            }
+            if (shelled) {
+                float pixel = RagdollPart.PIXEL * (float) scale;
+                for (RagdollShell.Piece block : shell) {
+                    if (block.part() != part) {
+                        continue;
+                    }
+                    float[] local = {block.centre()[0] * pixel, block.centre()[1] * pixel, block.centre()[2] * pixel};
+                    float[] size = {block.size()[0] * pixel, block.size()[1] * pixel, block.size()[2] * pixel};
+                    int index = running++;
+                    List<DisplayKeyframe> centres = carried(flight, local, size);
+                    if (finishing) {
+                        RagdollFinishes.extend(centres, motion, scale, middle, false, random,
+                                new RagdollFinishes.Spelling(index, pieces, facing));
+                    }
+                    solved.add(new Piece(part, 0, 0, null,
+                            displayed(centres, motion, 0f, Rotation.NONE), block.block()));
+                }
                 continue;
             }
             float width = part.blockWidth() * (float) scale;
