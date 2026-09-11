@@ -48,8 +48,8 @@ arrived costs one death its colours and nothing else.
 
 ## Poses
 
-`pose:` is what happens to the body. Four of them, all solved in advance and all
-costing the same.
+`pose:` is what happens to the body. All of them are solved in advance and all
+cost the same.
 
 | Pose | What it is |
 |---|---|
@@ -64,6 +64,101 @@ costing the same.
 | `melt` | Sinks where it stands, from the feet up, losing its height rather than its place |
 | `thrown` | Sent somewhere, in one piece. The body keeps its shape and turns end over end as it goes; with no gravity it does not come back |
 | `sign` | The pieces lay themselves out into letters and hold there. The letters *are* the body: every stroke is one or more of their own pieces, stretched along it |
+| `animate` | Choreographed, since 1.132.0. The body keeps every joint and does what its `keys` say — crouches, jumps, flips, dances, walks off — and then whatever `then` says. See *Choreography* below |
+
+## Choreography
+
+Every other pose moves each part on its own curve. `animate` solves the body as
+a skeleton instead: the hips are placed, the chest hangs off the hips, the head
+and arms off the chest, the legs off the hips. A turn anywhere carries
+everything below it, so nothing ever comes off the body until the file says so.
+
+```yaml
+effects:
+  # A hop, a backflip in the air, and a landing that bounces.
+  - '[RAGDOLL] {victim};intact:0.1;detail:2;light:15;then:burst;keys:0.25 crouch ease=anticipate | 0.4 stand up=1.6 flip=~-360 arms=0,0,150 ease=out | 0.35 up=0 ease=bounce'
+```
+
+### A frame
+
+Frames are separated by `|`. Each starts with the **seconds it takes to reach
+it from the one before** — the same numbers `[DELAY]` lines add up to — and
+lists only what changes. Everything a frame leaves out is carried over. The
+body starts standing where it died, and starts moving once `intact` is over.
+
+Everything is in the body's own terms: forward is towards whoever it faces,
+right is its own right, angles are degrees.
+
+| Channel | What it moves |
+|---|---|
+| `at=right,up,forward` | the hips, in blocks; also `right=` `up=` `forward=` one at a time |
+| `flip=` `turn=` `lean=` | the whole body about its hips: forwards, to its left, to its right |
+| `head=` `body=` | `pitch,yaw,roll`: nods and bows forward, turns to its left, tilts to its right |
+| `arm_r=` `arm_l=` `leg_r=` `leg_l=` | `pitch,yaw,roll`: swings forward and up, swings a raised limb outwards, raises it away from the body |
+| `arms=` `legs=` | both sides at once, mirrored: `arms=0,0,90` opens both arms |
+| `<joint>_at=out,up,forward` | pulls a part off its joint, in blocks: a head popping off, arms stretched out of their sleeves |
+| `size=` `<joint>_size=` | how big the whole body, or one part, is |
+| `shake=` | how hard the whole body trembles, in blocks |
+| `ease=` | how the frame is reached |
+
+A rotation given one number sets its pitch, two set pitch and yaw. A number
+written `~90` is added to where the channel already is: `turn=~360` is one more
+full turn however many came before it.
+
+### Named poses
+
+A bare word is a whole pose, and anything written after it in the same frame is
+written on top: `stand` `tpose` `star` `cheer` `reach` `zombie` `hug` `crouch`
+`sit` `kneel` `lie` `prone` `bow` `pray` `dab` `superman` `splits` `float`
+`limp` `fetal` `swoon` `heart` `arabesque`.
+
+A named pose sets every joint and how the hips sit, and nothing else — where
+the body has walked to, which way it has turned and how big it is stay. Angles
+go back to the nearest whole turn rather than to zero, so `stand` after two
+backflips does not spin the body backwards through both of them.
+
+### Easing
+
+| Ease | What it looks like |
+|---|---|
+| `in_out` | the default: leaves gently, arrives gently |
+| `in` | winds up and strikes |
+| `out` | lands |
+| `linear` | one speed throughout; a spin |
+| `back` | overshoots and settles |
+| `anticipate` | pulls back before it goes |
+| `elastic` | springs |
+| `bounce` | lands twice |
+| `snap` | cuts straight to the pose |
+| `smooth` | runs a curve *through* its neighbours instead of stopping at every frame — a sway, a walk, a path |
+
+A frame that turns a joint faster than the client can follow the right way
+round is reported when the file is read, with the frame number.
+
+### What happens after the last frame
+
+`then:` is worked out piece by piece from where each piece was and how fast it
+was moving and turning, so nothing snaps: a body flung upwards and burst at the
+top keeps rising for a moment as it comes apart.
+
+| `then` | What it does |
+|---|---|
+| `hold` | stays in its last pose and shrinks away — the default |
+| `burst` | every piece is thrown outwards on `speed up spread gravity bounce spin`, on top of the speed it already had |
+| `collapse` | every piece simply drops, keeping its momentum |
+| `implode` | every piece spirals into the middle of the body and is gone; `turns` is how far round |
+| `dissolve` | blows away as dust, from the head down |
+
+Leave `life` out and a choreography lives exactly as long as `intact`, its
+frames and its finish need. `RagdollMotion.finishAt()` is the millisecond the
+last frame lands, which is the number to time the finale's `[DELAY]` lines to.
+
+### What it costs
+
+Each piece is sampled every tick, and every pose the client would have drawn
+anyway — a leg standing still, an arm moving in a straight line — is dropped
+before it is sent. The curves keep their curves and still limbs cost two
+packets. This thinning applies to every pose, not only `animate`.
 
 `spread` and `knocked` exist for the beat in the middle. A body hanging open in
 the air is a whole second in which something else can happen to it — and the
@@ -111,7 +206,9 @@ effects:
 
 | Parameter | What it is | Default |
 |---|---|---|
-| `pose` | `burst`, `spread`, `knocked` or `vortex` | `burst` |
+| `pose` | any pose in the table above | `burst`, or `animate` when `keys` is written |
+| `keys` | the choreography of an `animate` body | none |
+| `then` | what an `animate` body does after its last frame | `hold` |
 | `life` | seconds the pieces last | `2.2` |
 | `intact` | seconds the body stands whole first | `0.3` |
 | `speed` | how fast the pieces leave, outwards | `3.2` |

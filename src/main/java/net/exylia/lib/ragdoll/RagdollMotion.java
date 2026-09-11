@@ -79,6 +79,8 @@ public final class RagdollMotion {
     private final double letters;
     private final double heading;
     private final boolean aimed;
+    private final RagdollAnimation animation;
+    private final RagdollFinish finish;
 
     private RagdollMotion(Builder builder) {
         this.pose = builder.pose;
@@ -106,6 +108,8 @@ public final class RagdollMotion {
         this.letters = builder.letters;
         this.heading = builder.heading;
         this.aimed = builder.aimed;
+        this.animation = builder.animation;
+        this.finish = builder.finish;
     }
 
     /** A body thrown apart on the Exylia defaults: a beat, a throw, a fall and a rest. */
@@ -265,6 +269,30 @@ public final class RagdollMotion {
         return aimed;
     }
 
+    /** What a {@link RagdollPose#ANIMATE} body does, frame by frame. */
+    public @NotNull RagdollAnimation animation() {
+        return animation;
+    }
+
+    /** What a {@link RagdollPose#ANIMATE} body does once its last frame is reached. */
+    public @NotNull RagdollFinish finish() {
+        return finish;
+    }
+
+    /**
+     * When a choreographed body reaches its last frame, counting from the
+     * moment the sequence started.
+     *
+     * <p>The number the {@code [DELAY]} lines of whatever happens at the end
+     * add up to: the flash that is meant to go off as the body bursts goes off
+     * as it bursts.
+     *
+     * @return the moment, in milliseconds
+     */
+    public long finishAt() {
+        return intactMillis + animation.durationMillis();
+    }
+
     /** Describes what happens to a body in the terms configuration is written in. */
     public static final class Builder {
 
@@ -293,8 +321,26 @@ public final class RagdollMotion {
         private double letters = 2.4;
         private double heading;
         private boolean aimed;
+        private RagdollAnimation animation = RagdollAnimation.none();
+        private RagdollFinish finish = RagdollFinish.HOLD;
 
         private Builder() {
+        }
+
+        /**
+         * What a {@link RagdollPose#ANIMATE} body does, frame by frame.
+         *
+         * <p>It starts once the body has stood for {@code intact}.
+         */
+        public @NotNull Builder animation(@NotNull RagdollAnimation animation) {
+            this.animation = animation;
+            return this;
+        }
+
+        /** What a {@link RagdollPose#ANIMATE} body does once its last frame is reached. */
+        public @NotNull Builder finish(@NotNull RagdollFinish finish) {
+            this.finish = finish;
+            return this;
         }
 
         /** What happens to the body. */

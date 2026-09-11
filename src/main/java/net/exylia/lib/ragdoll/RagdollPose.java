@@ -112,7 +112,20 @@ public enum RagdollPose {
      * the way to the horizon, and that is the whole difference between being
      * ejected and being blown up.
      */
-    THROWN;
+    THROWN,
+
+    /**
+     * Choreographed. The body keeps every joint and does what its frames say:
+     * crouches, jumps, spins, dances, walks off, and whatever
+     * {@link RagdollFinish} it was given once the last frame is reached.
+     *
+     * <p>Solved as a skeleton, so a chest that turns carries its arms with it
+     * and nothing ever comes off the body until the file says it does.
+     *
+     * @see RagdollAnimation
+     * @since 1.132.0
+     */
+    ANIMATE;
 
     /**
      * Reads a pose from configuration, defaulting to {@link #BURST}.
@@ -132,6 +145,7 @@ public enum RagdollPose {
             case "MELT", "SINK", "DISSOLVE" -> MELT;
             case "SIGN", "LETTERS", "SPELL", "WORD" -> SIGN;
             case "THROWN", "LAUNCHED", "EJECTED", "CARRIED", "SPACED" -> THROWN;
+            case "ANIMATE", "ANIMATED", "DANCE", "CHOREOGRAPHY", "KEYS" -> ANIMATE;
             default -> BURST;
         };
     }

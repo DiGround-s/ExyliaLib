@@ -381,7 +381,11 @@ final class SequenceLine {
             case "RAGDOLL" -> new Spec(token, Head.NONE, Form.NAMED, List.of(
                     new Field("pose", "What happens to the body",
                             "burst, spread, knocked, vortex, balloon, helicopter,"
-                                    + " plane, flatten, melt or sign"),
+                                    + " plane, flatten, melt, sign, thrown or animate"),
+                    new Field("keys", "The choreography, frame by frame",
+                            "0.3 crouch | 0.4 up=1.5 flip=~-360 ease=out | 0.3 up=0 ease=bounce"),
+                    new Field("then", "What it does after the last frame",
+                            "hold, burst, collapse, implode or dissolve"),
                     new Field("life", "Seconds the pieces last", "2.2"),
                     new Field("intact", "Seconds it stands whole first", "0.3"),
                     new Field("speed", "How fast the pieces leave, outwards", "3.2"),

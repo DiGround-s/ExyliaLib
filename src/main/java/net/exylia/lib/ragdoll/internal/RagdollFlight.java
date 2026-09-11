@@ -6,6 +6,8 @@ import net.exylia.lib.ragdoll.RagdollPart;
 import net.exylia.lib.ragdoll.RagdollPose;
 import org.jetbrains.annotations.ApiStatus;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.random.RandomGenerator;
 
 /**
@@ -48,7 +50,7 @@ public final class RagdollFlight {
     private static final double STEP_SECONDS = 0.01;
 
     /** How high a piece's centre rests above the floor it landed on. */
-    private static final double REST_HEIGHT = 0.08;
+    static final double REST_HEIGHT = 0.08;
 
     /** What a landing takes out of a piece's sideways speed. */
     private static final double FLOOR_FRICTION = 0.55;
@@ -70,7 +72,7 @@ public final class RagdollFlight {
     private static final double BODY_MIDDLE = 1.0;
 
     /** Where a head is thrown compared with everything else. */
-    private static final double HEAD_LIFT_SPEED = 1.35;
+    static final double HEAD_LIFT_SPEED = 1.35;
 
     /** How often a pose is sent for a rotor, which cannot be drawn on the usual beat. */
     private static final long ROTOR_POSE_MS = 50L;
@@ -162,7 +164,63 @@ public final class RagdollFlight {
             // watches from above.
             case SIGN -> signHead(part, motion, scale, facing);
             case THROWN -> thrown(part, motion, scale, facing);
+            // Only as far as the last frame. What happens after that is worked
+            // out per piece, by the pieces, from how each one was moving.
+            case ANIMATE -> animated(part, motion, scale, facing);
         };
+    }
+
+    // --------------------------------------------------------- the choreography
+
+    /**
+     * How often a choreographed body is sampled: every tick.
+     *
+     * <p>As fine as the client is ever told anything, and the only beat on
+     * which a curve with an overshoot in it still has its overshoot. The poses
+     * a limb holds still or moves in a straight line through are thinned out
+     * again before anything is sent, so the beat costs packets only where the
+     * movement needs them.
+     */
+    public static final long FRAME_MS = 50L;
+
+    /** A ceiling, so a thirty-second dance is still a finite number of poses. */
+    private static final int MAX_FRAMES = 600;
+
+    /** Stands for {@code intact}, and then follows the frames. */
+    private static Flight animated(RagdollPart part, RagdollMotion motion, double scale,
+                                   Rotation facing) {
+        net.exylia.lib.ragdoll.RagdollAnimation animation = motion.animation();
+        long intact = motion.intactMillis();
+        long end = Math.min(motion.lifeMillis(), motion.finishAt());
+        return sample(frames(intact, end), intact, elapsed -> {
+            RagdollRig.Placed placed = RagdollRig.place(part,
+                    animation.at(Math.round(elapsed * 1000)), scale, facing, elapsed);
+            double grown = placed.size() / scale;
+            return new Step(new double[]{placed.x(), placed.y(), placed.z()},
+                    placed.rotation(), new double[]{grown, grown, grown});
+        });
+    }
+
+    /** Zero, and then every beat from {@code from} to {@code end}, both included. */
+    static long[] frames(long from, long end) {
+        long moving = Math.max(0, end - from);
+        long beat = FRAME_MS;
+        if (moving / beat + 2 > MAX_FRAMES) {
+            beat = (long) Math.ceil((double) moving / (MAX_FRAMES - 2) / FRAME_MS) * FRAME_MS;
+        }
+        List<Long> times = new ArrayList<>();
+        times.add(0L);
+        for (long at = from; at < end; at += beat) {
+            if (at > 0) {
+                times.add(at);
+            }
+        }
+        times.add(Math.max(end, from));
+        long[] packed = new long[times.size()];
+        for (int index = 0; index < packed.length; index++) {
+            packed[index] = times.get(index);
+        }
+        return packed;
     }
 
     // --------------------------------------------------------------- the throw
@@ -967,7 +1025,7 @@ public final class RagdollFlight {
     }
 
     /** A unit axis for a piece to tumble about. */
-    private static double[] tumbleAxis(RandomGenerator random) {
+    static double[] tumbleAxis(RandomGenerator random) {
         double[] axis = {random.nextDouble(-1, 1), random.nextDouble(-1, 1),
                 random.nextDouble(-1, 1)};
         double length = Math.sqrt(axis[0] * axis[0] + axis[1] * axis[1] + axis[2] * axis[2]);
@@ -981,7 +1039,7 @@ public final class RagdollFlight {
     }
 
     /** How fast this piece turns, kept inside what the client can interpolate. */
-    private static double spinRate(RagdollMotion motion, RandomGenerator random) {
+    static double spinRate(RagdollMotion motion, RandomGenerator random) {
         return Math.clamp(motion.spin() * (1 + random.nextDouble(-1, 1) * motion.spread()),
                 -MAX_TURNS_PER_SECOND, MAX_TURNS_PER_SECOND);
     }
@@ -994,7 +1052,7 @@ public final class RagdollFlight {
      * the module already has, so no keyframe is ever more than half a turn from
      * the last one and the client never takes the long way round.
      */
-    private static Rotation tumble(double[] axis, double turns, double seconds) {
+    static Rotation tumble(double[] axis, double turns, double seconds) {
         double angle = turns * Math.PI * 2 * seconds;
         return Rotation.around(Rotation.Axis.X, angle * axis[0])
                 .then(Rotation.around(Rotation.Axis.Y, angle * axis[1]))
@@ -1008,7 +1066,7 @@ public final class RagdollFlight {
      * before it, so the flight is walked once rather than solved again at every
      * pose.
      */
-    private static final class Fall {
+    static final class Fall {
 
         private final RagdollMotion motion;
         private final double restHeight;
@@ -1018,8 +1076,13 @@ public final class RagdollFlight {
         private double restedAt = -1;
 
         Fall(RagdollMotion motion, double scale, double[] from, double[] velocity) {
+            this(motion, from, velocity, REST_HEIGHT * scale);
+        }
+
+        /** The same, resting its centre at a height of its own: a head is thicker than a cell. */
+        Fall(RagdollMotion motion, double[] from, double[] velocity, double restHeight) {
             this.motion = motion;
-            this.restHeight = REST_HEIGHT * scale;
+            this.restHeight = restHeight;
             this.position = new double[]{from[0], from[1], from[2]};
             this.velocity = new double[]{velocity[0], velocity[1], velocity[2]};
         }

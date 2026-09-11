@@ -41,6 +41,11 @@ class RagdollFlightTest {
     @DisplayName("every pose stands whole until its moment, and then moves")
     void standsThenMoves() {
         for (RagdollPose pose : RagdollPose.values()) {
+            // A choreography moves exactly as far as its frames say, and this
+            // one has none. RagdollAnimationTest is where it is made to move.
+            if (pose == RagdollPose.ANIMATE) {
+                continue;
+            }
             RagdollMotion motion = posed(pose);
             for (RagdollPart part : RagdollPart.values()) {
                 RagdollFlight.Flight flight =

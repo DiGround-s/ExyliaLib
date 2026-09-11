@@ -478,10 +478,34 @@ public final class SequenceCompiler {
         args.reportUnknown(onArg, "pose", "life", "intact", "speed", "up", "spread", "gravity",
                 "bounce", "spin", "fade", "settle", "detail", "size", "glow", "light",
                 "y", "face", "rise", "open", "lift", "hang", "turns", "hits", "every", "force",
-                "swell", "squash", "sign", "letters", "dir");
+                "swell", "squash", "sign", "letters", "dir", "keys", "then");
+        // A line with frames is a choreography whether or not it says so:
+        // writing the dance and then having to name the pose it is danced in
+        // is one more thing to get wrong for nothing.
+        net.exylia.lib.ragdoll.RagdollAnimation animation = args.has("keys")
+                ? net.exylia.lib.ragdoll.RagdollAnimation.parse(args.text("keys", ""),
+                        problem -> onArg.found("keys", problem))
+                : net.exylia.lib.ragdoll.RagdollAnimation.none();
+        net.exylia.lib.ragdoll.RagdollFinish finish =
+                net.exylia.lib.ragdoll.RagdollFinish.of(args.text("then", "hold"));
+        double intact = args.number("intact", 0.3, onArg);
+        // Left unwritten, a choreography lives exactly as long as it takes and
+        // then as long as its finish needs, so nobody has to add up their own
+        // frames to stop the body vanishing halfway through them.
+        double finishing = switch (finish) {
+            case HOLD -> 0.3;
+            case IMPLODE -> 1.1;
+            case BURST, COLLAPSE, DISSOLVE -> 1.8;
+        };
+        double life = args.has("keys") && !args.has("life")
+                ? intact + animation.durationMillis() / 1000.0 + finishing
+                : args.number("life", 2.2, onArg);
         net.exylia.lib.ragdoll.RagdollMotion.Builder body =
                 net.exylia.lib.ragdoll.RagdollMotion.builder()
-                .pose(net.exylia.lib.ragdoll.RagdollPose.of(args.text("pose", "burst")))
+                .pose(net.exylia.lib.ragdoll.RagdollPose.of(
+                        args.text("pose", args.has("keys") ? "animate" : "burst")))
+                .animation(animation)
+                .finish(finish)
                 .rise(args.number("rise", 1.1, onArg))
                 .open(args.number("open", 0.55, onArg))
                 .lift(args.number("lift", 0.45, onArg))
@@ -494,8 +518,8 @@ public final class SequenceCompiler {
                 .squash(args.number("squash", 0.14, onArg))
                 .sign(args.text("sign", "EZ"))
                 .letters(args.number("letters", 2.4, onArg))
-                .life(args.number("life", 2.2, onArg))
-                .intactFor(args.number("intact", 0.3, onArg))
+                .life(life)
+                .intactFor(intact)
                 .speed(args.number("speed", 3.2, onArg))
                 .up(args.number("up", 6.5, onArg))
                 .spread(args.number("spread", 0.45, onArg))
