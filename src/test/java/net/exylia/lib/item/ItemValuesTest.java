@@ -207,9 +207,12 @@ class ItemValuesTest {
             }
             case "get" -> {
                 Object[] entry = stored.get((NamespacedKey) args[0]);
-                // The server answers null for the wrong type rather than
-                // converting, which is the whole reason ItemValues tries several.
-                yield entry != null && entry[0] == args[1] ? entry[1] : null;
+                // The server throws for the wrong type rather than answering
+                // null, so ItemValues must ask has(key, type) before reading.
+                if (entry != null && entry[0] != args[1]) {
+                    throw new IllegalArgumentException("The found tag instance cannot store " + args[1]);
+                }
+                yield entry == null ? null : entry[1];
             }
             case "has" -> args.length == 1
                     ? stored.containsKey((NamespacedKey) args[0])

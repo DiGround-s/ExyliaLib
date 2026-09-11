@@ -337,17 +337,22 @@ public final class ItemValues {
      * and strings, and this class adds longs. A type nobody in the library
      * writes is not looked for; a plugin storing one with the Bukkit API
      * directly reads it back the same way.
+     *
+     * <p>Each type is asked with {@code has} before {@code get}: the server's
+     * {@code get} throws when the key holds a different type instead of
+     * answering {@code null}, so probing with it would fail on the first
+     * mismatch and every counter stored as a number would be unreadable.
      */
     private @Nullable Object raw(@Nullable ItemStack item, @NotNull String key) {
         PersistentDataContainerView container = read(item);
         NamespacedKey namespaced = key(key);
-        if (container == null || namespaced == null) {
+        if (container == null || namespaced == null || !container.has(namespaced)) {
             return null;
         }
         for (PersistentDataType<?, ?> type : TYPES) {
-            Object value = container.get(namespaced, cast(type));
-            if (value != null) {
-                return value;
+            PersistentDataType<Object, Object> typed = cast(type);
+            if (container.has(namespaced, typed)) {
+                return container.get(namespaced, typed);
             }
         }
         return null;
