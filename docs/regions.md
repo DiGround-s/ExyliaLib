@@ -256,13 +256,32 @@ if (regions.resolve(location, CommonRegionPolicies.PLAYER_BUILD_ONLY).value()
 ```
 
 Blocks are recorded only for regions that declare `player_build_only` or
-`temporary_blocks`, and forgotten when the block is broken or when the region
-is unregistered, replaced without the policy, or released with its plugin. There
-is no separate expiry and nothing to clean up: the record lives exactly as long
-as the region does.
+`temporary_blocks`. What counts as placed:
+
+- a block a player places, both halves of a bed, a door or a tall plant included;
+- the fluid a player pours from a bucket, unless it only waterlogs a block that
+  was already there;
+- a block that forms where there was air or a fluid: cobblestone, stone and
+  obsidian from fluids, snow, ice;
+- a recorded block that falls, at the position it lands on.
+
+A record is forgotten when its block is broken, blown up, scooped into a bucket
+or starts to fall, and when the region is unregistered, replaced without the
+policy, or released with its plugin. There is no separate expiry and nothing to
+clean up: the record lives exactly as long as the region does.
+
+A break is not the only way a block leaves. A consumer enforcing
+`player_build_only` asks the same question of an explosion's block list and of a
+bucket fill:
+
+```java
+if (regions.resolve(event.getLocation(), CommonRegionPolicies.PLAYER_BUILD_ONLY).value()) {
+    event.blockList().removeIf(block -> !regions.placedByPlayer(block));
+}
+```
 
 A server whose regions declare neither policy pays one volatile read per block
-place and break, and nothing else — no lookup, no query, no allocation. When it
+event the record listens to, and nothing else — no lookup, no query, no allocation. When it
 is armed, a position costs sixteen bytes rather than the fifty-six a set of
 boxed keys would: positions are packed into a `long` and held in a flat table.
 

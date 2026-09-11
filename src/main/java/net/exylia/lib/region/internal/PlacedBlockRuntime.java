@@ -48,7 +48,7 @@ import java.util.concurrent.atomic.AtomicInteger;
  * <h2>Cost when nothing uses it</h2>
  * {@link #tracking()} is a single volatile read, recomputed only when a region
  * revision is published. A server whose regions never declare either policy pays
- * that read per block place and break and nothing else — no map lookup, no query, no
+ * that read per block event the listener handles and nothing else — no map lookup, no query, no
  * allocation.
  *
  * <h2>Lifetime</h2>
@@ -136,30 +136,29 @@ public final class PlacedBlockRuntime {
     }
 
     /**
-     * Records a block a player placed inside a region, and starts its clock when the
-     * region declares one.
+     * Records a block placed inside a region, and starts its clock when the region
+     * declares one.
      *
      * <p>Creative is not special-cased here. Whether an operator's placement counts is
      * a question about enforcement, and enforcement is the consumer's; the record just
      * states what happened.
      *
      * @param region region containing the block, which must declare a tracking policy
-     * @param playerId player who placed it
+     * @param playerId player owed the block back when the region re-gives it, or
+     *                 {@code null} when nobody is: the second half of a bed, a falling
+     *                 block that landed
      * @param material material as placed, checked again before a temporary removal
      * @param x block x
      * @param y block y
      * @param z block z
      */
-    public static void placed(@NotNull RegionSnapshot region, @NotNull UUID playerId,
+    public static void placed(@NotNull RegionSnapshot region, @Nullable UUID playerId,
                               @NotNull Material material, int x, int y, int z) {
-        long key = PositionSet.pack(x, y, z);
-        PositionSet positions = PLACED.computeIfAbsent(region.id(), id -> new PositionSet());
-        synchronized (positions) {
-            positions.add(key);
-        }
+        owned(region, x, y, z);
         if (!region.policySet().explicit(CommonRegionPolicies.TEMPORARY_BLOCKS).orElse(false)) {
             return;
         }
+        long key = PositionSet.pack(x, y, z);
         int seconds = region.policySet()
                 .explicit(CommonRegionPolicies.TEMPORARY_BLOCKS_SECONDS)
                 .orElse(CommonRegionPolicies.TEMPORARY_BLOCKS_SECONDS.defaultValue());
@@ -174,6 +173,26 @@ public final class PlacedBlockRuntime {
         }
         PENDING.incrementAndGet();
         startSweeper();
+    }
+
+    /**
+     * Records a position as player-built without starting any clock.
+     *
+     * <p>For blocks that are not the map's but were never placed as such: the fluid a
+     * player poured, the cobblestone or ice that formed where there was air or a fluid.
+     * Nothing is owed back for them, and a temporary removal would clear the fluid the
+     * block formed from, so they never expire.
+     *
+     * @param region region containing the block, which must declare a tracking policy
+     * @param x block x
+     * @param y block y
+     * @param z block z
+     */
+    public static void owned(@NotNull RegionSnapshot region, int x, int y, int z) {
+        PositionSet positions = PLACED.computeIfAbsent(region.id(), id -> new PositionSet());
+        synchronized (positions) {
+            positions.add(PositionSet.pack(x, y, z));
+        }
     }
 
     /** Whether a position is recorded as player-placed inside one region. */

@@ -240,6 +240,31 @@ class PlacedBlockTest {
     }
 
     @Test
+    @DisplayName("a formed or poured block is recorded but never starts a clock")
+    void ownedNeverExpires() {
+        RegionSnapshot arena = regions.register(arena("arena",
+                PolicySet.of(CommonRegionPolicies.TEMPORARY_BLOCKS, true)
+                        .with(CommonRegionPolicies.TEMPORARY_BLOCKS_SECONDS, 30)));
+
+        PlacedBlockRuntime.owned(arena, 3, 4, 5);
+        assertTrue(regions.placedByPlayer(world.getUID(), 3, 4, 5));
+        assertEquals(0, FakeServer.liveRepeatingTasks(), "clearing it would clear the fluid it formed from");
+    }
+
+    @Test
+    @DisplayName("a block nobody is owed back is still recorded and still expires")
+    void placedWithoutAPlayer() {
+        RegionSnapshot arena = regions.register(arena("arena",
+                PolicySet.of(CommonRegionPolicies.TEMPORARY_BLOCKS, true)
+                        .with(CommonRegionPolicies.TEMPORARY_BLOCKS_SECONDS, 30)
+                        .with(CommonRegionPolicies.RE_GIVE_BLOCKS, true)));
+
+        PlacedBlockRuntime.placed(arena, null, Material.SAND, 3, 4, 5);
+        assertTrue(regions.placedByPlayer(world.getUID(), 3, 4, 5));
+        assertEquals(1, FakeServer.liveRepeatingTasks());
+    }
+
+    @Test
     @DisplayName("one plugin's regions do not answer for another's blocks")
     void ownershipIsScoped() {
         Plugin other = FakeServer.newPlugin("Survival", null);
