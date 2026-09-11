@@ -81,6 +81,9 @@ public final class TextEngine {
     /** Palette tokens mapped to the MiniMessage tag they expand to. */
     private static volatile Map<String, String> tokens = tokensOf(new Palette());
 
+    /** Tokens that stand for text rather than a colour, such as {@code {server-ip}}. */
+    private static volatile Map<String, String> words = wordsOf(new Palette());
+
     /** Whether every line is drawn as small capitals. */
     private static volatile boolean smallText;
 
@@ -204,6 +207,7 @@ public final class TextEngine {
      */
     public static void palette(Palette palette) {
         tokens = tokensOf(palette);
+        words = wordsOf(palette);
         generation++;
         CACHE.invalidateAll();
         VALUES.invalidateAll();
@@ -343,9 +347,13 @@ public final class TextEngine {
         // Before anything expands: a palette token is left alone here, but
         // once it becomes "<#8a51c4>" it is indistinguishable from a tag the
         // author wrote, and the hex digits inside it are letters.
-        String prepared = small ? SmallText.apply(text) : text;
+        // A text token is the opposite: it is words, so it expands first and
+        // is drawn in small capitals like the rest of the line.
+        boolean braces = FormatScanner.has(flags, FormatScanner.BRACE);
+        String prepared = braces ? TokenResolver.resolve(text, words) : text;
+        prepared = small ? SmallText.apply(prepared) : prepared;
 
-        if (FormatScanner.has(flags, FormatScanner.BRACE)) {
+        if (braces) {
             prepared = TokenResolver.resolve(prepared, tokens);
             // Expanding a token introduces '<', which the next stage must see.
             flags |= FormatScanner.ANGLE;
@@ -360,6 +368,10 @@ public final class TextEngine {
             // raw text is far more useful than an exception in the log.
             return shadowed(Component.text(text));
         }
+    }
+
+    private static Map<String, String> wordsOf(Palette palette) {
+        return Map.of("server-ip", palette.serverIp().trim());
     }
 
     private static Map<String, String> tokensOf(Palette palette) {

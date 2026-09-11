@@ -436,6 +436,9 @@ TextColor accent = Colors.get("accent");   // when a colour is needed as a value
 
 Both `{secondary_light}` and `{secondaryLight}` resolve to the same colour.
 
+The same file holds `server-ip` (`exylia.net` by default). Write `{server-ip}`
+wherever the address is shown, so a server changes it once for every plugin.
+
 ### Performance
 
 This module is on the hot path of everything, so the work is staged. Measured on
@@ -734,7 +737,7 @@ ffa:
     - ' {muted}❙ {letters}Arena: {highlight}%arena_name%'
     - ' {muted}❙ {letters}Kills: {success}%ffa_kills%'
     - ''
-    - ' {highlight}exylia.net'
+    - ' {highlight}{server-ip}'
   update:
     interval: 15
     smart: true

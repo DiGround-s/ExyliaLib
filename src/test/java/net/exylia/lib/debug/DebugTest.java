@@ -396,7 +396,8 @@ class DebugTest {
         net.exylia.lib.text.Palette recoloured = new net.exylia.lib.text.Palette(
                 "#112233", "#445566", "#b48fd9", "#e7cfff", "#a89ab5",
                 "#a33b53", "#8fffc1", "#a1ffc3", "#ff9500", "#ffd2a8",
-                "#59a4ff", "#7db7ff", "#ff6b9d", "#6c757d", "#ffd700", "#868e96");
+                "#59a4ff", "#7db7ff", "#ff6b9d", "#6c757d", "#ffd700", "#868e96",
+                "exylia.net");
         net.exylia.lib.text.Colors.apply(recoloured);
         debug.log("ready");
 

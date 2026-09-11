@@ -10,6 +10,7 @@ import net.exylia.lib.text.Palette;
 import net.exylia.lib.text.Text;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.TextColor;
+import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
 import org.bukkit.plugin.Plugin;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -46,7 +47,8 @@ class PaletteReloadTest {
             "#ff6b9d",  // accent
             "#6c757d",  // neutral
             "#ffd700",  // highlight
-            "#868e96"); // muted
+            "#868e96",  // muted
+            "play.example.com"); // serverIp
 
     private FakePlayer viewer;
 
@@ -95,6 +97,20 @@ class PaletteReloadTest {
         Colors.apply(RECOLOURED);
 
         assertEquals(TextColor.color(0xff0000), Colors.get("primary"));
+    }
+
+    @Test
+    @DisplayName("the server address follows colors.yml")
+    void serverIpFollowsPalette() {
+        assertEquals("Join exylia.net", plain(Text.component("Join {primary}{server-ip}")));
+
+        Colors.apply(RECOLOURED);
+
+        assertEquals("Join play.example.com", plain(Text.component("Join {primary}{server-ip}")));
+    }
+
+    private static String plain(Component component) {
+        return PlainTextComponentSerializer.plainText().serialize(component);
     }
 
     @Test

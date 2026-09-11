@@ -25,7 +25,7 @@ import java.util.List;
  *     - ' {muted}❙ {letters}Arena: {highlight}%arena_name%'
  *     - ' {muted}❙ {letters}Players: {success}%arena_players%'
  *     - ''
- *     - ' {highlight}exylia.net'
+ *     - ' {highlight}{server-ip}'
  *   update:
  *     interval: 15
  *     smart: true

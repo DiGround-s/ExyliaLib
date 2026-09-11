@@ -73,7 +73,11 @@ public record Palette(
         String highlight,
 
         @Comment("Very low emphasis text.")
-        String muted
+        String muted,
+
+        @Comment("The address players join with. Messages write it as {server-ip},")
+        @Comment("so changing it here updates every scoreboard and message at once.")
+        String serverIp
 ) {
 
     /**
@@ -99,7 +103,8 @@ public record Palette(
                 "#ff6b9d",  // accent
                 "#6c757d",  // neutral
                 "#ffd700",  // highlight
-                "#868e96"   // muted
+                "#868e96",  // muted
+                "exylia.net" // server-ip
         );
     }
 }

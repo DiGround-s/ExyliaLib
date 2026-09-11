@@ -237,7 +237,8 @@ class TextModuleTest {
         Palette repainted = new Palette(
                 "#00ff00", "#aa76de", "#b48fd9", "#e7cfff", "#a89ab5",
                 "#a33b53", "#8fffc1", "#a1ffc3", "#ff9500", "#ffd2a8",
-                "#59a4ff", "#7db7ff", "#ff6b9d", "#6c757d", "#ffd700", "#868e96");
+                "#59a4ff", "#7db7ff", "#ff6b9d", "#6c757d", "#ffd700", "#868e96",
+                "exylia.net");
         Colors.apply(repainted);
 
         assertEquals(TextColor.fromHexString("#00ff00"), firstColor(Text.component("{primary}X")),
