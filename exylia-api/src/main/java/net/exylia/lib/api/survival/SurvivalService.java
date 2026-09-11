@@ -2,6 +2,7 @@ package net.exylia.lib.api.survival;
 
 import net.exylia.lib.api.ExyliaAPI;
 import org.bukkit.Location;
+import org.bukkit.block.Block;
 import org.bukkit.entity.Player;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Unmodifiable;
@@ -34,9 +35,11 @@ import java.util.UUID;
  * "no homes" and "no homes module".
  *
  * <p>Only the modules a third party can act on are published. The rest —
- * portals, mines, regen zones, loot chests, blocked items and the other
- * world-building modules — are administrator tools whose state is a set of
- * placed objects an integration cannot do anything useful with.
+ * portals, regen zones, loot chests, blocked items and the other world-building
+ * modules — are administrator tools whose state is a set of placed objects an
+ * integration cannot do anything useful with. Mines publish their break and
+ * nothing else, so a plugin breaking blocks for a player gets the mine's loot
+ * and regeneration instead of a hole.
  *
  * <h2>Queries are cheap, actions are not</h2>
  * Everything that returns a value reads a cache and is safe to call from a menu
@@ -392,4 +395,33 @@ public interface SurvivalService {
      * @return {@code true} when they were promoted
      */
     boolean rankUp(@NotNull Player player);
+
+    // ── Mines ──────────────────────────────────────────────────────────────
+
+    /**
+     * Breaks a block the way a player's own swing inside a mine would.
+     *
+     * <p>For plugins that break blocks on a player's behalf — a 3x3 pickaxe, a
+     * vein miner. Inside a mine the server's break event is always cancelled and
+     * the mine removes the block itself, so breaking a block there any other way
+     * skips the mine's permission, loot and regeneration. Hand every block here
+     * first, and break it yourself only on {@link MineBreakResult#UNCLAIMED}.
+     *
+     * <p>The mine checks its permission, fires
+     * {@link net.exylia.lib.api.survival.event.MineBlockBreakEvent}, and breaks
+     * the block with the item in the player's main hand: its enchantments shape
+     * the drops and it takes the durability. The player is told nothing when the
+     * mine refuses — a caller refused on several blocks at once is the one that
+     * knows whether that is worth a message.
+     *
+     * <p>Call it on the thread that owns the block.
+     *
+     * @param player who is breaking the block
+     * @param block  the block
+     * @return what the mine made of it, {@link MineBreakResult#UNCLAIMED} when no
+     *         mine owns it or the mines module is off
+     * @since 1.2.0
+     */
+    @NotNull
+    MineBreakResult breakMineBlock(@NotNull Player player, @NotNull Block block);
 }

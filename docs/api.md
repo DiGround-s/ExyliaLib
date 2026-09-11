@@ -2,7 +2,7 @@
 
 The contract third-party developers write against. One artifact,
 `net.exylia:exylia-api`, covering every Exylia plugin. Since ExyliaLib 1.112.0;
-the survival events arrived in 1.113.0.
+the survival events arrived in 1.113.0, and mine breaks in 1.131.0.
 
 Entry point: `net.exylia.lib.api.ExyliaAPI`.
 
@@ -149,7 +149,7 @@ only an event. Every one is reached the same way:
 | `api.shields` | `ShieldsService` | ExyliaShields | — |
 | `api.specials` | `SpecialsService` | ExyliaSpecialsV3 | 2 |
 | `api.staff` | `StaffService` | ExyliaStaff | 2 |
-| `api.survival` | `SurvivalService` | ExyliaSurvivalCore | 6 |
+| `api.survival` | `SurvivalService` | ExyliaSurvivalCore | 7 |
 | `api.totems` | — | ExyliaTotems | 1 |
 | `api.totemtrainer` | `TotemTrainerService` | ExyliaTotemTrainer | 7 |
 
