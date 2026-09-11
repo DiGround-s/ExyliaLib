@@ -126,19 +126,31 @@ public final class RagdollPieces {
         return solve(motion, detail, scale, facing, random, EnumSet.noneOf(Prop.class));
     }
 
+    /** Solves a whole body drawn in blocks. */
+    public static List<Piece> solve(RagdollMotion motion, int detail, double scale, Rotation facing,
+                                    RandomGenerator random, Set<Prop> props) {
+        return solve(motion, detail, scale, facing, random, props, false);
+    }
+
     /**
      * Solves a whole body.
      *
-     * @param motion what happens to it
-     * @param detail how many cells each part is cut into on each axis
-     * @param scale  how big it is; 1 is player-sized
-     * @param facing which way it faces
-     * @param random where the variation between pieces comes from
-     * @param props  what it carries
+     * <p>A skinned body is solved exactly as a body in blocks is &mdash; same
+     * centres, same finishes, same word spelled &mdash; and differs only in
+     * how each cell is sent: as a head, which the client draws at half its
+     * size, turned and lifted the way the real head is.
+     *
+     * @param motion  what happens to it
+     * @param detail  how many cells each part is cut into on each axis
+     * @param scale   how big it is; 1 is player-sized
+     * @param facing  which way it faces
+     * @param random  where the variation between pieces comes from
+     * @param props   what it carries
+     * @param skinned whether every cell is drawn as a head wearing its real skin
      * @return every piece, the head first and props last
      */
     public static List<Piece> solve(RagdollMotion motion, int detail, double scale, Rotation facing,
-                                    RandomGenerator random, Set<Prop> props) {
+                                    RandomGenerator random, Set<Prop> props, boolean skinned) {
         RagdollPart[] parts = RagdollPart.values();
         RagdollFlight.Flight[] flights = new RagdollFlight.Flight[parts.length];
         for (RagdollPart part : parts) {
@@ -210,8 +222,9 @@ public final class RagdollPieces {
                         RagdollFinishes.extend(centres, motion, scale, middle, false, random,
                                 new RagdollFinishes.Spelling(index, pieces, facing));
                     }
-                    solved.add(new Piece(part, cellX, cellY, null,
-                            displayed(centres, motion, 0f, Rotation.NONE)));
+                    solved.add(new Piece(part, cellX, cellY, null, skinned
+                            ? displayed(centres, motion, HEAD_LIFT, ITEM_FACING, CUBE_GROWTH)
+                            : displayed(centres, motion, 0f, Rotation.NONE)));
                 }
             }
         }
@@ -413,9 +426,30 @@ public final class RagdollPieces {
      */
     private static List<DisplayKeyframe> displayed(List<DisplayKeyframe> centres, RagdollMotion motion,
                                                    float lift, Rotation model) {
+        return displayed(centres, motion, lift, model, 1f);
+    }
+
+    /**
+     * How much bigger a cube of skin is sent than the cell it fills.
+     *
+     * <p>A player head drawn at a size of one is eight pixels, half a block, so
+     * a cell a quarter of a block across is a head at half a block of size.
+     * Applied here, after everything is solved, so a skinned body flies, finishes
+     * and spells exactly as the same body in blocks does.
+     */
+    private static final float CUBE_GROWTH = 2f;
+
+    /**
+     * Centred poses as a display is sent them, for a model drawn at a multiple
+     * of the size it was solved at.
+     *
+     * @param growth how much bigger the model is sent than the piece it draws
+     */
+    private static List<DisplayKeyframe> displayed(List<DisplayKeyframe> centres, RagdollMotion motion,
+                                                   float lift, Rotation model, float growth) {
         List<DisplayKeyframe> poses = new ArrayList<>(centres.size());
         for (DisplayKeyframe centre : centres) {
-            float shrink = shrink(centre.atMillis(), motion);
+            float shrink = shrink(centre.atMillis(), motion) * growth;
             float sizeY = centre.scaleY() * shrink;
             float[] offset = lift == 0f
                     ? NOWHERE

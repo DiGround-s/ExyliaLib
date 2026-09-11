@@ -293,6 +293,7 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         TextEngine.smallText(settings.smallText());
         TextEngine.shadow(Shadows.read(settings.textShadow()));
         SkullRuntime.fallback(settings.fallbackHead());
+        net.exylia.lib.ragdoll.internal.MineSkinQueue.key(settings.mineskinKey());
         Thread updateThread = new Thread(
             () -> ExyliaLibUpdater.checkForUpdate(this),
             "ExyliaLib-Updater");
@@ -460,6 +461,7 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         // palette listener already sees the new fallback rather than the old
         // one baked in.
         SkullRuntime.fallback(settings.fallbackHead());
+        net.exylia.lib.ragdoll.internal.MineSkinQueue.key(settings.mineskinKey());
         palette.reload();
         // Both files are the library's own shared configuration, and a server
         // owner running one reload command means both. Keeping formats.yml on a

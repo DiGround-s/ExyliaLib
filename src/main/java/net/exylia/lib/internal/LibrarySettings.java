@@ -94,7 +94,15 @@ public record LibrarySettings(
 
         @Comment("The zone every schedule's times are read in.")
         @Comment("Empty means the machine's own. Example: Europe/Madrid")
-        String timezone
+        String timezone,
+
+        @Key("mineskin-key")
+        @Comment("A MineSkin API key, so ragdoll bodies wear the real skin rather than blocks.")
+        @Comment("Get one free at https://account.mineskin.org/keys. Empty keeps bodies drawn")
+        @Comment("in blocks. Each new skin costs 18 uploads, once: about a minute on the free")
+        @Comment("plan, during which that skin still dies in blocks. The results are kept in")
+        @Comment("ragdoll-cubes.txt, so a skin is never uploaded again.")
+        String mineskinKey
 ) {
 
     /**
@@ -108,7 +116,7 @@ public record LibrarySettings(
 
     /** Safe defaults used when no config file exists yet. */
     public LibrarySettings() {
-        this(true, 30, false, true, "auto", "*", DEFAULT_FALLBACK_HEAD, "");
+        this(true, 30, false, true, "auto", "*", DEFAULT_FALLBACK_HEAD, "", "");
     }
 
     private static volatile LibrarySettings instance;

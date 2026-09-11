@@ -11,12 +11,14 @@ import java.util.concurrent.ConcurrentHashMap;
 /**
  * The blocks a skin colour is drawn with.
  *
- * <h2>Why blocks and not the skin itself</h2>
- * A client can only be shown geometry it already has. There is no way to hand
- * it an arm-shaped model wearing four pixels of somebody's sleeve without a
- * resource pack, and a server that needs a download before a kill effect works
- * is a server most players never see the effect on. What the client does have
- * is every block in the game, each a flat colour, and a limb is a box.
+ * <h2>When a body is drawn in blocks</h2>
+ * A body wears its real skin once MineSkin has turned every piece of it into a
+ * head texture, which takes a key and a minute or so per new skin. Until then,
+ * and on any server without a key, the client can only be shown what it
+ * already has: every block in the game, each a flat colour, and a limb is a
+ * box. No resource pack is ever involved, because a server that needs a
+ * download before a kill effect works is a server most players never see the
+ * effect on.
  *
  * <h2>The palette</h2>
  * Wide on purpose. Every extra block is a colour a skin no longer has to be

@@ -18,10 +18,12 @@ package net.exylia.lib.ragdoll;
 public enum RagdollPart {
 
     /**
-     * The head, and the only part drawn with the real skin.
+     * The head, and the one part that always wears the real skin.
      *
      * <p>A player head item wears the whole face, hat layer and all, so the one
-     * piece anybody actually recognises is exact rather than approximated.
+     * piece anybody actually recognises is exact from the first death. The
+     * other parts wear it too once their cubes have been made, and are drawn
+     * in blocks until then.
      */
     HEAD(8, 8, 8, 0, 28, 8, 8, 8, 8),
 

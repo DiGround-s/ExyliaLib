@@ -15,12 +15,14 @@ import org.jetbrains.annotations.Nullable;
  * RagdollModel body = RagdollModel.of(victim).detail(2).light(15);
  * }</pre>
  *
- * <h2>The head is real, the rest is matched</h2>
+ * <h2>The real skin, or the nearest blocks</h2>
  * The head is a player head item, so it carries the actual face, hat layer and
- * all. Everything else is drawn in the nearest block to the colour that part of
- * the skin actually is &mdash; a client cannot be handed an arm-shaped model
- * without a resource pack, and a box of the right colour, tumbling, is what the
- * eye reads anyway.
+ * all. On a server with a MineSkin key the rest of the body is too: every piece
+ * is a four-pixel cube repainted as a head texture of its own, made once per
+ * skin in the background, so a sleeve comes away wearing its real pixels on
+ * every face. Until those cubes exist &mdash; or without a key at all &mdash;
+ * everything but the head is drawn in the nearest block to the colour that part
+ * of the skin actually is, which is what a box tumbling reads as anyway.
  *
  * <p>Immutable. Cheap to build: a skin is decoded once per texture and shared.
  *

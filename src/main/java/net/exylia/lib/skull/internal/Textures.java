@@ -90,6 +90,24 @@ public final class Textures {
     }
 
     /**
+     * Reads whether a texture property is a slim-armed skin.
+     *
+     * <p>Mojang marks one with {@code "metadata":{"model":"slim"}} beside the
+     * URL, and says nothing at all for the classic model.
+     *
+     * @param base64 the texture property
+     * @return whether its arms are three pixels wide
+     */
+    public static boolean slim(String base64) {
+        try {
+            String json = new String(Base64.getDecoder().decode(base64), StandardCharsets.UTF_8);
+            return json.replace(" ", "").contains("\"model\":\"slim\"");
+        } catch (IllegalArgumentException | NullPointerException notBase64) {
+            return false;
+        }
+    }
+
+    /**
      * Returns whether a string is a usable texture property.
      *
      * <p>Cheap enough to run before caching or persisting a value: a truncated

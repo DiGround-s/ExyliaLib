@@ -1,5 +1,7 @@
 package net.exylia.lib.ragdoll;
 
+import net.exylia.lib.ragdoll.internal.SkinCubes;
+import org.jetbrains.annotations.ApiStatus;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -7,13 +9,21 @@ import java.util.EnumMap;
 import java.util.Map;
 
 /**
- * The colours of one player's skin, cut into the parts a body comes apart into.
+ * The colours of one player's skin, cut into the parts a body comes apart into,
+ * and &mdash; once they exist &mdash; the textures that draw it for real.
  *
- * <p>Only the front faces are kept, and that is a deliberate ceiling rather
- * than an oversight: a limb tumbling through the air at a tenth of a second a
- * turn is read by its colour and its shape, never by which of its six faces is
- * pointing at you. Keeping one face makes a body six small arrays instead of
- * thirty-six, and nobody has ever seen the difference.
+ * <h2>Two ways to be drawn</h2>
+ * Every skin has its colours: the front face of each part, which is what a
+ * body is drawn from in blocks. A skin can also carry cubes: every piece of the
+ * body repainted as a head texture Mojang hosts, so each piece wears its actual
+ * pixels on all six faces. Cubes arrive in the background, once per skin, and
+ * only on a server with a MineSkin key; until all eighteen of them are there
+ * the body is drawn in blocks.
+ *
+ * <p>Only the front faces are kept for the colours, and that is a deliberate
+ * ceiling rather than an oversight: a limb tumbling through the air at a tenth
+ * of a second a turn is read by its colour and its shape, never by which of its
+ * six faces is pointing at you.
  *
  * <p>Immutable and cached per skin, so a hundred deaths wearing the same skin
  * decode one picture.
@@ -26,10 +36,81 @@ public final class RagdollSkin {
     private static final int FALLBACK = 0xFF9E9E9E;
 
     private final Map<RagdollPart, int[]> faces;
+    private final Map<RagdollPart, String[]> cubes;
+    private final boolean skinned;
 
-    @org.jetbrains.annotations.ApiStatus.Internal
+    @ApiStatus.Internal
     public RagdollSkin(@NotNull Map<RagdollPart, int[]> faces) {
+        this(faces, Map.of());
+    }
+
+    private RagdollSkin(Map<RagdollPart, int[]> faces, Map<RagdollPart, String[]> cubes) {
         this.faces = new EnumMap<>(faces);
+        Map<RagdollPart, String[]> copied = new EnumMap<>(RagdollPart.class);
+        boolean complete = true;
+        for (RagdollPart part : RagdollPart.values()) {
+            if (part == RagdollPart.HEAD) {
+                continue;
+            }
+            String[] textures = cubes.get(part);
+            int cells = part.columns(SkinCubes.DETAIL) * part.rows(SkinCubes.DETAIL);
+            if (textures == null || textures.length != cells) {
+                complete = false;
+                continue;
+            }
+            copied.put(part, textures.clone());
+            for (String texture : textures) {
+                complete &= texture != null;
+            }
+        }
+        this.cubes = copied;
+        this.skinned = complete;
+    }
+
+    /**
+     * The same colours, carrying the textures of every piece.
+     *
+     * @param cubes per part, one texture property per cell, row by row
+     * @return a new skin
+     * @since 1.141.0
+     */
+    @ApiStatus.Internal
+    public @NotNull RagdollSkin withCubes(@NotNull Map<RagdollPart, String[]> cubes) {
+        return new RagdollSkin(faces, cubes);
+    }
+
+    /**
+     * The head texture one piece of the body is drawn with.
+     *
+     * <p>Pieces are counted at a detail of two, where every one of them is a
+     * four-pixel cube: the chest two across and three down, each limb one
+     * across and three down.
+     *
+     * @param part  which part, never the head
+     * @param cellX the column, from the wearer's right
+     * @param cellY the row, from the top
+     * @return the texture property, or {@code null} while it has none
+     * @since 1.141.0
+     */
+    public @Nullable String cube(@NotNull RagdollPart part, int cellX, int cellY) {
+        String[] textures = cubes.get(part);
+        int columns = part.columns(SkinCubes.DETAIL);
+        if (textures == null || cellX < 0 || cellY < 0 || cellX >= columns
+                || cellY >= part.rows(SkinCubes.DETAIL)) {
+            return null;
+        }
+        return textures[cellY * columns + cellX];
+    }
+
+    /**
+     * Whether every piece of the body has its texture, so the body can be drawn
+     * wearing the real skin rather than blocks.
+     *
+     * @return whether all eighteen cubes are there
+     * @since 1.141.0
+     */
+    public boolean skinned() {
+        return skinned;
     }
 
     /**

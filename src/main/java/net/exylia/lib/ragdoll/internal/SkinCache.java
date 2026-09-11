@@ -19,6 +19,7 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
 import java.util.EnumMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
@@ -26,7 +27,8 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 /**
- * Turns a player's skin into the colours a body is drawn in, once.
+ * Turns a player's skin into what a body is drawn with, once: its colours at
+ * once, and its real pixels as soon as MineSkin has made them.
  *
  * <h2>Why this has to be ready before the kill</h2>
  * A skin is a PNG on Mojang's texture server, and reading one is a network
@@ -35,6 +37,11 @@ import java.util.logging.Logger;
  * fetched in the background and the body is drawn from the fallback until it
  * arrives. Every skin is therefore warmed when its owner joins, which is a
  * quiet request minutes before anybody dies in it.
+ *
+ * <p>The same goes for the cubes that draw a body in its real skin: they are
+ * cut the moment the picture is read, queued with {@link MineSkinQueue}, and
+ * the skin in this cache is swapped for one carrying them when the last one
+ * arrives. Every death before that is a death in blocks, never a wait.
  *
  * <p>Keyed by texture URL rather than by player, so a hundred players wearing
  * the same skin decode one picture, and a player who changes skin is a new key
@@ -51,6 +58,9 @@ public final class SkinCache {
     /** Textures being fetched, so twenty deaths do not become twenty requests. */
     private static final Set<String> IN_FLIGHT = ConcurrentHashMap.newKeySet();
 
+    /** Skins cut into cubes that are still waiting for some of their textures, by URL. */
+    private static final Map<String, List<SkinCubes.Cube>> WAITING = new ConcurrentHashMap<>();
+
     private static final HttpClient HTTP = HttpClient.newBuilder()
             .version(HttpClient.Version.HTTP_1_1)
             .connectTimeout(TIMEOUT)
@@ -65,16 +75,24 @@ public final class SkinCache {
     private SkinCache() {
     }
 
-    /** Wires the cache to a scheduler. Called by ExyliaLib at startup. */
+    /** Wires the cache to a scheduler and starts the cube uploads. Called by ExyliaLib at startup. */
     public static void init(Plugin plugin) {
         scheduler = Tasks.of(plugin);
         logger = plugin.getLogger();
+        MineSkinQueue.start(plugin, SkinCache::resolve);
     }
 
-    /** Forgets every decoded skin, on shutdown or reload. */
+    /**
+     * Forgets every decoded skin, on shutdown.
+     *
+     * <p>The textures already made stay in their file: they are permanent, and
+     * forgetting them would only mean uploading them again.
+     */
     public static void clear() {
+        MineSkinQueue.stop();
         BY_TEXTURE.clear();
         IN_FLIGHT.clear();
+        WAITING.clear();
     }
 
     /**
@@ -87,7 +105,7 @@ public final class SkinCache {
     }
 
     /**
-     * The colours of a player's skin, or the fallback while it is being read.
+     * What a player's body is drawn with, or the fallback while it is being read.
      *
      * <p>Never blocks and never returns {@code null}: a body drawn in the wrong
      * colours is a worse effect, a body that does not appear is a bug.
@@ -98,24 +116,36 @@ public final class SkinCache {
     }
 
     private static RagdollSkin skinOf(Player player) {
-        String url = textureUrl(player);
+        String property = texturesOf(player);
+        String url = property == null ? null : Textures.urlOf(property);
         if (url == null) {
             return null;
         }
         RagdollSkin cached = BY_TEXTURE.get(url);
-        if (cached != null) {
-            return cached;
+        if (cached == null) {
+            fetch(url, Textures.slim(property));
+            return null;
         }
-        fetch(url);
-        return null;
+        if (!cached.skinned() && MineSkinQueue.enabled()) {
+            List<SkinCubes.Cube> waiting = WAITING.get(url);
+            if (waiting != null) {
+                // Asks again for whatever a stopped worker or a failed upload
+                // left behind; everything already known or queued is skipped.
+                MineSkinQueue.submit(waiting);
+            } else {
+                // Read before a key was set: read again, to be cut this time.
+                fetch(url, Textures.slim(property));
+            }
+        }
+        return cached;
     }
 
-    /** The skin URL carried in a connected player's profile. */
-    private static String textureUrl(Player player) {
+    /** The texture property carried in a connected player's profile. */
+    private static String texturesOf(Player player) {
         try {
             for (ProfileProperty property : player.getPlayerProfile().getProperties()) {
                 if ("textures".equals(property.getName())) {
-                    return Textures.urlOf(property.getValue());
+                    return property.getValue();
                 }
             }
         } catch (Throwable noProfileApi) {
@@ -126,7 +156,7 @@ public final class SkinCache {
         return null;
     }
 
-    private static void fetch(String url) {
+    private static void fetch(String url, boolean slim) {
         TaskScheduler tasks = scheduler;
         if (tasks == null || !IN_FLIGHT.add(url)) {
             return;
@@ -143,7 +173,13 @@ public final class SkinCache {
                 if (response.statusCode() == 200) {
                     BufferedImage image = ImageIO.read(new ByteArrayInputStream(response.body()));
                     if (image != null) {
-                        BY_TEXTURE.put(url, read(image));
+                        BY_TEXTURE.putIfAbsent(url, read(image));
+                        if (MineSkinQueue.enabled()) {
+                            List<SkinCubes.Cube> cubes = SkinCubes.cut(image, slim);
+                            WAITING.put(url, cubes);
+                            MineSkinQueue.submit(cubes);
+                            resolve();
+                        }
                     }
                 }
             } catch (Exception unreachable) {
@@ -154,6 +190,34 @@ public final class SkinCache {
                 IN_FLIGHT.remove(url);
             }
         });
+    }
+
+    /**
+     * Hands every waiting skin whose cubes are all known the textures to wear.
+     *
+     * <p>Run whenever a texture arrives. A handful of skins wait at a time, so
+     * looking through all of them is cheaper than keeping an index.
+     */
+    private static synchronized void resolve() {
+        for (Map.Entry<String, List<SkinCubes.Cube>> waiting : WAITING.entrySet()) {
+            Map<RagdollPart, String[]> textures = new EnumMap<>(RagdollPart.class);
+            boolean complete = true;
+            for (SkinCubes.Cube cube : waiting.getValue()) {
+                String texture = MineSkinQueue.known(cube.hash());
+                if (texture == null) {
+                    complete = false;
+                    break;
+                }
+                int columns = cube.part().columns(SkinCubes.DETAIL);
+                textures.computeIfAbsent(cube.part(),
+                        part -> new String[columns * part.rows(SkinCubes.DETAIL)])
+                        [cube.cellY() * columns + cube.cellX()] = texture;
+            }
+            if (complete) {
+                BY_TEXTURE.computeIfPresent(waiting.getKey(), (url, skin) -> skin.withCubes(textures));
+                WAITING.remove(waiting.getKey());
+            }
+        }
     }
 
     /**

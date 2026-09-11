@@ -8,6 +8,7 @@ import net.exylia.lib.display.internal.DisplayRuntime;
 import net.exylia.lib.ragdoll.RagdollMotion;
 import net.exylia.lib.ragdoll.RagdollModel;
 import net.exylia.lib.ragdoll.RagdollPart;
+import net.exylia.lib.skull.internal.HeadFactory;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.entity.Player;
@@ -17,6 +18,8 @@ import org.jetbrains.annotations.ApiStatus;
 import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ThreadLocalRandom;
 
 /**
@@ -47,6 +50,15 @@ public final class RagdollBuilder {
             Material.matchMaterial("IRON_CHAIN"),
             java.util.Objects.requireNonNullElse(Material.matchMaterial("CHAIN"), Material.IRON_BARS));
 
+    /**
+     * One head per cube texture, built once.
+     *
+     * <p>Eighteen small items per skin the server has drawn in, kept for the
+     * life of the server: a head is cheap, and building eighteen of them on
+     * the main thread at every death is not.
+     */
+    private static final Map<String, ItemStack> CUBE_HEADS = new ConcurrentHashMap<>();
+
     private RagdollBuilder() {
     }
 
@@ -69,7 +81,11 @@ public final class RagdollBuilder {
         // The body is built facing the way the location does, so a head still
         // looks the way the player was looking when they died.
         Rotation facing = Rotation.around(Rotation.Axis.Y, -Math.toRadians(at.getYaw()));
-        int detail = model.detailCells();
+        // A body wearing its real skin is cut where the skin's cubes are, and
+        // that is one fixed grid: the detail asked for only chooses how finely
+        // the blocks are cut when there are no cubes to draw.
+        boolean skinned = model.skin().skinned();
+        int detail = skinned ? SkinCubes.DETAIL : model.detailCells();
         EnumSet<RagdollPieces.Prop> props = EnumSet.noneOf(RagdollPieces.Prop.class);
         if (model.mainHand() != null) {
             props.add(RagdollPieces.Prop.MAIN_HAND);
@@ -81,8 +97,8 @@ public final class RagdollBuilder {
             props.add(RagdollPieces.Prop.HAT);
         }
         for (RagdollPieces.Piece piece : RagdollPieces.solve(motion, detail, model.scaleFactor(),
-                facing, ThreadLocalRandom.current(), props)) {
-            DisplayModel drawn = drawn(model, piece, detail);
+                facing, ThreadLocalRandom.current(), props, skinned)) {
+            DisplayModel drawn = drawn(model, piece, detail, skinned);
             DisplayHandle handle = DisplayRuntime.show(owner, drawn,
                     DisplayMotion.of(piece.poses(), motion.lifeMillis()), at, viewers);
             if (handle != null) {
@@ -92,8 +108,8 @@ public final class RagdollBuilder {
         return shown;
     }
 
-    /** What one piece is drawn with: a face, a carried item, or a block the colour of its skin. */
-    private static DisplayModel drawn(RagdollModel model, RagdollPieces.Piece piece, int detail) {
+    /** What one piece is drawn with: a face, a carried item, a cube of real skin, or a block the colour of it. */
+    private static DisplayModel drawn(RagdollModel model, RagdollPieces.Piece piece, int detail, boolean skinned) {
         if (piece.prop() != null) {
             ItemStack item = switch (piece.prop()) {
                 case MAIN_HAND -> model.mainHand();
@@ -114,6 +130,13 @@ public final class RagdollBuilder {
         if (piece.part() == RagdollPart.HEAD) {
             ItemStack head = model.head();
             return DisplayModel.item(head == null ? new ItemStack(Material.PLAYER_HEAD) : head)
+                    .glow(model.glowArgb())
+                    .light(model.brightness());
+        }
+        if (skinned) {
+            // skinned() promised every cube, so this is never null.
+            String texture = model.skin().cube(piece.part(), piece.cellX(), piece.cellY());
+            return DisplayModel.item(CUBE_HEADS.computeIfAbsent(texture, HeadFactory::create))
                     .glow(model.glowArgb())
                     .light(model.brightness());
         }
