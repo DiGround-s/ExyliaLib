@@ -365,7 +365,10 @@ final class Steps {
      * answer is whoever just died.
      */
     record Ragdoll(String owner, Corpse.Face face, RagdollMotion burst, int detail, double scale,
-                   int glowArgb, int brightness, double yShift, boolean facesSource)
+                   int glowArgb, int brightness, double yShift, boolean facesSource,
+                   @Nullable org.bukkit.inventory.ItemStack hold,
+                   @Nullable org.bukkit.inventory.ItemStack offhand,
+                   @Nullable org.bukkit.inventory.ItemStack hat)
             implements SequenceStep {
 
         @Override
@@ -400,7 +403,8 @@ final class Steps {
                     .detail(detail)
                     .scale(scale)
                     .glow(glowArgb)
-                    .light(brightness);
+                    .light(brightness)
+                    .carrying(hold, offhand, hat);
             RagdollHandle handle = new RagdollHandle(
                     RagdollBuilder.show(owner, model, burst, where, observers));
             // Owned by the run as well as by the display module, so a preview

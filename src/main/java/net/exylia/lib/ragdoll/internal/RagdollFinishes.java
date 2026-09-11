@@ -53,7 +53,8 @@ public final class RagdollFinishes {
      * @param random where the variation between pieces comes from
      */
     public static void extend(List<DisplayKeyframe> poses, RagdollMotion motion, double scale,
-                              double[] middle, boolean head, RandomGenerator random) {
+                              double[] middle, boolean head, RandomGenerator random,
+                              Spelling spelling) {
         int count = poses.size();
         if (count == 0) {
             return;
@@ -88,6 +89,104 @@ public final class RagdollFinishes {
             case COLLAPSE -> fall(piece, false, head, random);
             case IMPLODE -> implode(piece, head, random);
             case DISSOLVE -> dissolve(piece, random);
+            case SPELL -> spell(piece, head, spelling, random);
+        }
+    }
+
+    /**
+     * Which piece of the word a piece is.
+     *
+     * @param index  which body piece this is, or a negative number for the head
+     *               and anything carried, which are not part of the word
+     * @param pieces how many body pieces there are
+     * @param facing which way the body faces, and so the word
+     */
+    public record Spelling(int index, int pieces, Rotation facing) {
+    }
+
+    /** How long a piece takes to fly into its letter. */
+    private static final long SPELL_FLY_MS = 550L;
+
+    /** How long a word takes to fall once it has been read. */
+    private static final long SPELL_DROP_MS = 650L;
+
+    /**
+     * Flies into its stroke of the word, holds while it is read, and drops.
+     *
+     * <p>The head is not part of the word: it floats above it, bobbing, so the
+     * face of whoever the word is about is the first thing read.
+     */
+    private static void spell(Context piece, boolean head, Spelling spelling, RandomGenerator random) {
+        RagdollMotion motion = piece.motion();
+        DisplayKeyframe last = piece.last();
+        double scale = piece.scale();
+        Rotation facing = spelling.facing();
+        float[] target;
+        Rotation turned;
+        float[] size;
+        if (head) {
+            target = facing.apply(new float[]{0f,
+                    (float) ((motion.rise() + motion.letters() + 0.45) * scale), 0f});
+            turned = last.rotation();
+            size = new float[]{last.scaleX(), last.scaleY(), last.scaleZ()};
+        } else {
+            RagdollSign.Placement to = spelling.index() < 0 ? null
+                    : RagdollSign.place(motion.sign(), motion.letters(), spelling.index(), spelling.pieces());
+            if (to == null) {
+                // Carried things and pieces the word has no stroke for simply
+                // fall off, which is what they would do.
+                fall(piece, false, false, random);
+                return;
+            }
+            target = facing.apply(new float[]{
+                    (float) (to.x() * scale), (float) ((motion.rise() + to.y()) * scale), 0f});
+            double yaw = 2 * Math.atan2(facing.y(), facing.w());
+            // A piece is a box standing on its end, so a stroke running across
+            // is that box rolled a quarter turn from upright.
+            turned = Rotation.around(Rotation.Axis.Z, to.angle() - Math.PI / 2)
+                    .then(Rotation.around(Rotation.Axis.Y, yaw));
+            size = new float[]{
+                    (float) (to.thickness() * scale),
+                    (float) (to.length() * scale),
+                    (float) (to.thickness() * scale)};
+        }
+        long release = Math.max(piece.from() + SPELL_FLY_MS + 200, piece.life() - SPELL_DROP_MS);
+        double stagger = random.nextDouble(0, 0.12);
+        double flying = SPELL_FLY_MS / 1000.0;
+        RagdollFlight.Fall fall = null;
+        List<DisplayKeyframe> poses = piece.poses();
+        for (long at : beats(piece.from(), piece.life())) {
+            double seconds = (at - piece.from()) / 1000.0;
+            if (at < release) {
+                double progress = Math.clamp((seconds - stagger) / flying, 0, 1);
+                double eased = progress < 0.5
+                        ? 4 * progress * progress * progress
+                        : 1 - Math.pow(-2 * progress + 2, 3) / 2;
+                // An arc rather than a line, so the pieces are thrown into place.
+                double arc = Math.sin(Math.PI * progress) * 0.5 * scale;
+                double bob = head ? Math.sin(seconds * 3) * 0.06 * scale * eased : 0;
+                Rotation rotation = head
+                        ? last.rotation().then(Rotation.around(Rotation.Axis.Y, Math.sin(seconds * 2) * 0.4 * eased))
+                        : KeyframeThinning.slerp(last.rotation(), turned, eased);
+                poses.add(new DisplayKeyframe(at,
+                        (float) (last.x() + (target[0] - last.x()) * eased),
+                        (float) (last.y() + (target[1] - last.y()) * eased + arc + bob),
+                        (float) (last.z() + (target[2] - last.z()) * eased),
+                        rotation,
+                        (float) (last.scaleX() + (size[0] - last.scaleX()) * eased),
+                        (float) (last.scaleY() + (size[1] - last.scaleY()) * eased),
+                        (float) (last.scaleZ() + (size[2] - last.scaleZ()) * eased)));
+                continue;
+            }
+            DisplayKeyframe held = poses.get(poses.size() - 1);
+            if (fall == null) {
+                fall = new RagdollFlight.Fall(motion, new double[]{held.x(), held.y(), held.z()},
+                        new double[]{0, 0, 0}, floor(piece, head));
+            }
+            fall.to((at - release) / 1000.0);
+            double[] position = fall.position();
+            poses.add(new DisplayKeyframe(at, (float) position[0], (float) position[1], (float) position[2],
+                    held.rotation(), held.scaleX(), held.scaleY(), held.scaleZ()));
         }
     }
 

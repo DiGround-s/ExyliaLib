@@ -230,6 +230,13 @@ as a glow and one drawn out of objects reads as a thing:
 `seed` `floor` — points that look unplanned, from a seed so that they are the
 same unplanned points every time).
 
+`PIXELS` (`art` `word` `pixel` `pick` `depth`, since 1.134.0) draws a picture — `heart`
+`heart_big` `broken_heart` `star` `crown` `skull` `bolt` `note` `cloud` `trophy` `ufo`
+`moon` — or a word in a five-row block font, one piece per cell. `pick:` chooses which
+characters a line draws, so a heart with a shine is two lines over one picture.
+With `face:true` it turns to whoever set the sequence off, which keeps a word the
+right way round for them.
+
 `CUBE` says `width` and `LINE` says `climb` rather than `size` and `rise`,
 because a display line already means the model's own scale by `size:` and where
 it ends up by `rise:`. One word meaning two things on one line is a shape whose

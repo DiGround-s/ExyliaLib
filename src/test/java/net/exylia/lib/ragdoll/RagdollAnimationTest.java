@@ -341,6 +341,126 @@ class RagdollAnimationTest {
         assertEquals(RagdollPart.TORSO.blockCentreY() + 1, flight.y()[flight.times().length - 1], 1e-4);
     }
 
+
+    // ------------------------------------------------------ follow-through
+
+    @Test
+    @DisplayName("a body that jumps swings its arms, and one that stands still does not")
+    void followThroughReactsToMovement() {
+        RagdollMotion still = RagdollMotion.builder().pose(RagdollPose.ANIMATE)
+                .animation(parsed("1 head=0")).intactFor(0).life(1.2).follow(1).build();
+        RagdollMotion jumping = RagdollMotion.builder().pose(RagdollPose.ANIMATE)
+                .animation(parsed("0.3 up=1.5 ease=out | 0.3 up=0 ease=in")).intactFor(0).life(1.2)
+                .follow(1).build();
+        RagdollMotion stiff = RagdollMotion.builder().pose(RagdollPose.ANIMATE)
+                .animation(parsed("0.3 up=1.5 ease=out | 0.3 up=0 ease=in")).intactFor(0).life(1.2)
+                .build();
+        double calm = armSwing(still);
+        double lively = armSwing(jumping);
+        assertTrue(calm < 1e-3, "a body standing still waved its arms by " + calm);
+        assertTrue(lively > 0.05, "a jumping body's arms never lagged: " + lively);
+        assertTrue(armSwing(stiff) < lively, "follow:0 must be exactly what the frames say");
+    }
+
+    /** How far the right arm strays from where it would be on a stiff body, at most. */
+    private static double armSwing(RagdollMotion motion) {
+        RagdollFlight.Flight arm = RagdollFlight.solve(RagdollPart.ARM_RIGHT, motion, 1.0, Rotation.NONE, new Random(1));
+        RagdollFlight.Flight chest = RagdollFlight.solve(RagdollPart.TORSO, motion, 1.0, Rotation.NONE, new Random(1));
+        double most = 0;
+        for (int index = 0; index < arm.times().length; index++) {
+            // Where the arm sits relative to the chest: a stiff arm keeps this fixed.
+            double across = arm.x()[index] - chest.x()[index];
+            double up = arm.y()[index] - chest.y()[index];
+            most = Math.max(most, Math.abs(across - (RagdollPart.ARM_RIGHT.blockOffsetX()))
+                    + Math.abs(up - (RagdollPart.ARM_RIGHT.blockCentreY() - RagdollPart.TORSO.blockCentreY())));
+        }
+        return most;
+    }
+
+    @Test
+    @DisplayName("a spin flings the arms outwards")
+    void aSpinFlingsTheArms() {
+        RagdollMotion spinning = RagdollMotion.builder().pose(RagdollPose.ANIMATE)
+                .animation(parsed("0.4 turn=~180 ease=in | 1.0 turn=~900 ease=linear")).intactFor(0).life(1.6)
+                .follow(1).build();
+        RagdollFlight.Flight arm = RagdollFlight.solve(RagdollPart.ARM_LEFT, spinning, 1.0, Rotation.NONE, new Random(1));
+        RagdollFlight.Flight chest = RagdollFlight.solve(RagdollPart.TORSO, spinning, 1.0, Rotation.NONE, new Random(1));
+        int late = arm.times().length - 2;
+        double reach = Math.hypot(arm.x()[late] - chest.x()[late], arm.z()[late] - chest.z()[late]);
+        assertTrue(reach > 0.47, "a body spinning at two and a half turns a second kept its arms in: " + reach);
+    }
+
+    // --------------------------------------------------------- what it carries
+
+    @Test
+    @DisplayName("a held item stays in the hand wherever the arm goes")
+    void propsStayInHand() {
+        RagdollMotion waving = RagdollMotion.builder().pose(RagdollPose.ANIMATE)
+                .animation(parsed("0.4 arm_r=170 turn=~90 up=1 | 0.4 arm_r=0,0,90 flip=40")).intactFor(0)
+                .life(1.0).build();
+        List<RagdollPieces.Piece> pieces = RagdollPieces.solve(waving, 1, 1.0, Rotation.NONE, new Random(2),
+                java.util.EnumSet.of(RagdollPieces.Prop.MAIN_HAND, RagdollPieces.Prop.HAT));
+        RagdollPieces.Piece arm = pieces.stream().filter(p -> p.part() == RagdollPart.ARM_RIGHT && p.prop() == null)
+                .findFirst().orElseThrow();
+        RagdollPieces.Piece item = pieces.stream().filter(p -> p.prop() == RagdollPieces.Prop.MAIN_HAND)
+                .findFirst().orElseThrow();
+        RagdollPieces.Piece head = pieces.stream().filter(p -> p.part() == RagdollPart.HEAD && p.prop() == null)
+                .findFirst().orElseThrow();
+        RagdollPieces.Piece hat = pieces.stream().filter(p -> p.prop() == RagdollPieces.Prop.HAT)
+                .findFirst().orElseThrow();
+        double first = -1;
+        for (long at = 0; at <= 800; at += 50) {
+            double gap = distance(at(arm.poses(), at), at(item.poses(), at));
+            if (first < 0) {
+                first = gap;
+            }
+            assertEquals(first, gap, 0.06, "the item slid along the arm at " + at + "ms");
+            assertTrue(distance(at(head.poses(), at), at(hat.poses(), at)) < 0.3,
+                    "the hat came off the head at " + at + "ms");
+        }
+    }
+
+    @Test
+    @DisplayName("a head is turned to show its face to whoever it faces")
+    void theFaceFacesForward() {
+        List<RagdollPieces.Piece> pieces = RagdollPieces.solve(
+                RagdollMotion.builder().pose(RagdollPose.ANIMATE).animation(parsed("0.2 head=0")).build(),
+                1, 1.0, Rotation.NONE, new Random(1));
+        Rotation head = pieces.get(0).poses().get(0).rotation();
+        // An item display draws its model half turned: the face is only
+        // towards +Z when the head itself is half turned too.
+        float[] face = head.apply(new float[]{0, 0, -1});
+        assertEquals(1, face[2], 1e-4, "the face points away from whoever the body faces");
+    }
+
+    // ------------------------------------------------------------- spelling
+
+    @Test
+    @DisplayName("a spelled body becomes its word, and the head floats over it")
+    void spellingBuildsTheWord() {
+        RagdollMotion motion = RagdollMotion.builder().pose(RagdollPose.ANIMATE)
+                .animation(parsed("0.4 cheer")).finish(RagdollFinish.SPELL).sign("EZ").letters(2.4)
+                .intactFor(0.1).life(0.5 + 2.6).build();
+        List<RagdollPieces.Piece> pieces = RagdollPieces.solve(motion, 2, 1.0, Rotation.NONE, new Random(3));
+        long reading = motion.finishAt() + 1200;
+        int total = (RagdollPart.values().length - 1) * 4;
+        int index = 0;
+        for (RagdollPieces.Piece piece : pieces) {
+            if (piece.part() == RagdollPart.HEAD) {
+                assertTrue(at(piece.poses(), reading).y() > motion.rise() + motion.letters(),
+                        "the head is not above the word");
+                continue;
+            }
+            net.exylia.lib.ragdoll.internal.RagdollSign.Placement to =
+                    net.exylia.lib.ragdoll.internal.RagdollSign.place("EZ", 2.4, index++, total);
+            DisplayKeyframe pose = at(piece.poses(), reading);
+            assertEquals(to.x(), pose.x(), 0.05, "a piece is not on its stroke across");
+            assertEquals(motion.rise() + to.y(), pose.y(), 0.05, "a piece is not on its stroke upwards");
+        }
+        DisplayKeyframe dropped = at(pieces.get(1).poses(), motion.lifeMillis() - 10);
+        assertTrue(dropped.y() < 0.5, "the word never fell: " + dropped.y());
+    }
+
     // ---------------------------------------------------------------- thinning
 
     @Test

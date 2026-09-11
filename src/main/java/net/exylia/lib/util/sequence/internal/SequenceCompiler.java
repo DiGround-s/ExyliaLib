@@ -478,7 +478,8 @@ public final class SequenceCompiler {
         args.reportUnknown(onArg, "pose", "life", "intact", "speed", "up", "spread", "gravity",
                 "bounce", "spin", "fade", "settle", "detail", "size", "glow", "light",
                 "y", "face", "rise", "open", "lift", "hang", "turns", "hits", "every", "force",
-                "swell", "squash", "sign", "letters", "dir", "keys", "then");
+                "swell", "squash", "sign", "letters", "dir", "keys", "then", "follow",
+                "hold", "offhand", "hat", "hold_size", "hat_size", "hat_y");
         // A line with frames is a choreography whether or not it says so:
         // writing the dance and then having to name the pose it is danced in
         // is one more thing to get wrong for nothing.
@@ -496,6 +497,7 @@ public final class SequenceCompiler {
             case HOLD -> 0.3;
             case IMPLODE -> 1.1;
             case BURST, COLLAPSE, DISSOLVE -> 1.8;
+            case SPELL -> 2.6;
         };
         double life = args.has("keys") && !args.has("life")
                 ? intact + animation.durationMillis() / 1000.0 + finishing
@@ -506,6 +508,10 @@ public final class SequenceCompiler {
                         args.text("pose", args.has("keys") ? "animate" : "burst")))
                 .animation(animation)
                 .finish(finish)
+                .follow(args.number("follow", 0.0, onArg))
+                .holdSize(args.number("hold_size", 0.7, onArg))
+                .hatSize(args.number("hat_size", 0.6, onArg))
+                .hatRaise(args.number("hat_y", 0.0, onArg))
                 .rise(args.number("rise", 1.1, onArg))
                 .open(args.number("open", 0.55, onArg))
                 .lift(args.number("lift", 0.45, onArg))
@@ -540,7 +546,10 @@ public final class SequenceCompiler {
                 glow == null ? -1 : glow.asRGB(),
                 (int) args.number("light", -1, onArg),
                 args.number("y", 0.0, onArg),
-                args.flag("face", true));
+                args.flag("face", true),
+                held(args, "hold", onArg),
+                held(args, "offhand", onArg),
+                held(args, "hat", onArg));
     }
 
     /**
@@ -755,6 +764,11 @@ public final class SequenceCompiler {
         @Override
         public boolean has(@NotNull String key) {
             return args.has(key);
+        }
+
+        @Override
+        public @NotNull String text(@NotNull String key, @NotNull String fallback) {
+            return args.text(key, fallback);
         }
     }
 

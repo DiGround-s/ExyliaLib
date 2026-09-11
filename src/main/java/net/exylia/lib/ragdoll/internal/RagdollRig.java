@@ -191,7 +191,7 @@ public final class RagdollRig {
      * flipped over and turned is a body lying down and pointing somewhere else,
      * which is what anybody writing both means.
      */
-    private static Rotation centred(double pitch, double yaw, double roll) {
+    static Rotation centred(double pitch, double yaw, double roll) {
         return Rotation.around(Rotation.Axis.X, Math.toRadians(pitch))
                 .then(Rotation.around(Rotation.Axis.Z, Math.toRadians(roll)))
                 .then(Rotation.around(Rotation.Axis.Y, Math.toRadians(yaw)));

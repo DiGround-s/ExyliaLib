@@ -192,9 +192,24 @@ public final class RagdollFlight {
         net.exylia.lib.ragdoll.RagdollAnimation animation = motion.animation();
         long intact = motion.intactMillis();
         long end = Math.min(motion.lifeMillis(), motion.finishAt());
-        return sample(frames(intact, end), intact, elapsed -> {
-            RagdollRig.Placed placed = RagdollRig.place(part,
-                    animation.at(Math.round(elapsed * 1000)), scale, facing, elapsed);
+        long[] times = frames(intact, end);
+        // Solved for the whole body and read by frame, in the order sample
+        // walks them: the springs depend on everything before, so they cannot
+        // be asked about one moment on its own.
+        double[][] follow = motion.follow() > 0
+                ? RagdollFollow.solve(animation, times, intact, motion.follow())
+                : null;
+        int[] frame = {0};
+        return sample(times, intact, elapsed -> {
+            double[] pose = animation.at(Math.round(elapsed * 1000));
+            if (follow != null) {
+                double[] lag = follow[frame[0]];
+                for (int channel = 0; channel < pose.length; channel++) {
+                    pose[channel] += lag[channel];
+                }
+            }
+            frame[0]++;
+            RagdollRig.Placed placed = RagdollRig.place(part, pose, scale, facing, elapsed);
             double grown = placed.size() / scale;
             return new Step(new double[]{placed.x(), placed.y(), placed.z()},
                     placed.rotation(), new double[]{grown, grown, grown});

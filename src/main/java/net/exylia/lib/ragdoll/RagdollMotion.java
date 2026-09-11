@@ -81,6 +81,10 @@ public final class RagdollMotion {
     private final boolean aimed;
     private final RagdollAnimation animation;
     private final RagdollFinish finish;
+    private final double follow;
+    private final double holdSize;
+    private final double hatSize;
+    private final double hatRaise;
 
     private RagdollMotion(Builder builder) {
         this.pose = builder.pose;
@@ -110,6 +114,10 @@ public final class RagdollMotion {
         this.aimed = builder.aimed;
         this.animation = builder.animation;
         this.finish = builder.finish;
+        this.follow = builder.follow;
+        this.holdSize = builder.holdSize;
+        this.hatSize = builder.hatSize;
+        this.hatRaise = builder.hatRaise;
     }
 
     /** A body thrown apart on the Exylia defaults: a beat, a throw, a fall and a rest. */
@@ -293,6 +301,26 @@ public final class RagdollMotion {
         return intactMillis + animation.durationMillis();
     }
 
+    /** How much a choreographed body's loose joints lag and overshoot; 0 is none. */
+    public double follow() {
+        return follow;
+    }
+
+    /** How big an item held in a hand is, in blocks for a player-sized body. */
+    public double holdSize() {
+        return holdSize;
+    }
+
+    /** How big an item worn on the head is, in blocks for a player-sized body. */
+    public double hatSize() {
+        return hatSize;
+    }
+
+    /** How far above the middle of the head a worn item sits, in blocks. */
+    public double hatRaise() {
+        return hatRaise;
+    }
+
     /** Describes what happens to a body in the terms configuration is written in. */
     public static final class Builder {
 
@@ -323,8 +351,58 @@ public final class RagdollMotion {
         private boolean aimed;
         private RagdollAnimation animation = RagdollAnimation.none();
         private RagdollFinish finish = RagdollFinish.HOLD;
+        private double follow;
+        private double holdSize = 0.7;
+        private double hatSize = 0.6;
+        private double hatRaise;
 
         private Builder() {
+        }
+
+        /**
+         * How much the loose joints of a choreographed body lag and overshoot.
+         *
+         * <p>Zero is exactly what the frames say. One is a body: arms left
+         * behind by a jump and floating at the top of it, a head that nods on
+         * landing, limbs flung out by a spin. Two is a cartoon.
+         *
+         * @since 1.134.0
+         */
+        public @NotNull Builder follow(double amount) {
+            this.follow = Math.clamp(amount, 0.0, 3.0);
+            return this;
+        }
+
+        /**
+         * How big an item held in a hand is, in blocks for a player-sized body.
+         *
+         * @since 1.134.0
+         */
+        public @NotNull Builder holdSize(double blocks) {
+            this.holdSize = Math.max(0.05, blocks);
+            return this;
+        }
+
+        /**
+         * How big an item worn on the head is. A little over half a block
+         * covers a head entirely, which is what a pumpkin or a helmet wants.
+         *
+         * @since 1.134.0
+         */
+        public @NotNull Builder hatSize(double blocks) {
+            this.hatSize = Math.max(0.05, blocks);
+            return this;
+        }
+
+        /**
+         * How far above the middle of the head a worn item sits, in blocks. A
+         * little over a quarter puts it on top rather than around.
+         *
+         * @since 1.134.0
+         */
+        public @NotNull Builder hatRaise(double blocks) {
+            this.hatRaise = blocks;
+            return this;
         }
 
         /**

@@ -153,6 +153,33 @@ Leave `life` out and a choreography lives exactly as long as `intact`, its
 frames and its finish need. `RagdollMotion.finishAt()` is the millisecond the
 last frame lands, which is the number to time the finale's `[DELAY]` lines to.
 
+### Follow-through
+
+`follow:` adds the motion nobody animates: arms left behind when the hips shoot
+up and floating when they stop, a head that nods on landing, arms and legs flung
+outwards by a spin. Each loose joint is a damped spring pushed by how the hips
+accelerate, felt in the body's own axes, and added on top of the frames. `0` is
+exactly what the frames say, `1` is a body, `2` is a cartoon. Since 1.134.0.
+
+### Carrying things
+
+`hold:` and `offhand:` put an item in the right and left hand, `hat:` one on the
+head (`hold_size` `hat_size` `hat_y`). They ride the part that carries them, so
+a rose goes wherever the arm goes and a glass helmet turns with the head, and
+they come apart with the body. Since 1.134.0.
+
+### Spelling
+
+`then:spell` flies every piece into the strokes of `sign:` (`letters:` tall,
+`rise:` off the floor), floats the head above the word, holds it while it is
+read and drops it. Since 1.134.0.
+
+### Faces
+
+An item display draws its model turned half round. The head is turned back
+before it is posed, so a body shows its face to whoever it faces — before
+1.134.0 every body, and every preview, showed the back of its head.
+
 ### What it costs
 
 Each piece is sampled every tick, and every pose the client would have drawn
@@ -208,7 +235,9 @@ effects:
 |---|---|---|
 | `pose` | any pose in the table above | `burst`, or `animate` when `keys` is written |
 | `keys` | the choreography of an `animate` body | none |
-| `then` | what an `animate` body does after its last frame | `hold` |
+| `then` | what an `animate` body does after its last frame: `hold` `burst` `collapse` `implode` `dissolve` `spell` | `hold` |
+| `follow` | how much loose joints lag and overshoot | `0` |
+| `hold` `offhand` `hat` | items carried in a hand or on the head | none |
 | `life` | seconds the pieces last | `2.2` |
 | `intact` | seconds the body stands whole first | `0.3` |
 | `speed` | how fast the pieces leave, outwards | `3.2` |

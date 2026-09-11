@@ -15,6 +15,7 @@ import org.bukkit.inventory.ItemStack;
 import org.jetbrains.annotations.ApiStatus;
 
 import java.util.ArrayList;
+import java.util.EnumSet;
 import java.util.List;
 import java.util.concurrent.ThreadLocalRandom;
 
@@ -48,7 +49,7 @@ public final class RagdollBuilder {
      * Shows one body.
      *
      * @param owner   the plugin the displays belong to
-     * @param model   whose body, and how finely cut
+     * @param model   whose body, how finely cut and what it carries
      * @param motion  what happens to it
      * @param at      where they died, standing on the floor
      * @param viewers who sees it
@@ -64,15 +65,19 @@ public final class RagdollBuilder {
         // looks the way the player was looking when they died.
         Rotation facing = Rotation.around(Rotation.Axis.Y, -Math.toRadians(at.getYaw()));
         int detail = model.detailCells();
+        EnumSet<RagdollPieces.Prop> props = EnumSet.noneOf(RagdollPieces.Prop.class);
+        if (model.mainHand() != null) {
+            props.add(RagdollPieces.Prop.MAIN_HAND);
+        }
+        if (model.offHand() != null) {
+            props.add(RagdollPieces.Prop.OFF_HAND);
+        }
+        if (model.hat() != null) {
+            props.add(RagdollPieces.Prop.HAT);
+        }
         for (RagdollPieces.Piece piece : RagdollPieces.solve(motion, detail, model.scaleFactor(),
-                facing, ThreadLocalRandom.current())) {
-            DisplayModel drawn = piece.part() == RagdollPart.HEAD
-                    ? headModel(model)
-                    : DisplayModel
-                            .block(BlockPalette.nearest(model.skin().colour(
-                                    piece.part(), piece.cellX(), piece.cellY(), detail)))
-                            .glow(model.glowArgb())
-                            .light(model.brightness());
+                facing, ThreadLocalRandom.current(), props)) {
+            DisplayModel drawn = drawn(model, piece, detail);
             DisplayHandle handle = DisplayRuntime.show(owner, drawn,
                     DisplayMotion.of(piece.poses(), motion.lifeMillis()), at, viewers);
             if (handle != null) {
@@ -82,10 +87,27 @@ public final class RagdollBuilder {
         return shown;
     }
 
-    /** The head, drawn with the real face rather than matched to a block. */
-    private static DisplayModel headModel(RagdollModel model) {
-        ItemStack head = model.head();
-        return DisplayModel.item(head == null ? new ItemStack(Material.PLAYER_HEAD) : head)
+    /** What one piece is drawn with: a face, a carried item, or a block the colour of its skin. */
+    private static DisplayModel drawn(RagdollModel model, RagdollPieces.Piece piece, int detail) {
+        if (piece.prop() != null) {
+            ItemStack item = switch (piece.prop()) {
+                case MAIN_HAND -> model.mainHand();
+                case OFF_HAND -> model.offHand();
+                case HAT -> model.hat();
+            };
+            return DisplayModel.item(item == null ? new ItemStack(Material.AIR) : item)
+                    .glow(model.glowArgb())
+                    .light(model.brightness());
+        }
+        if (piece.part() == RagdollPart.HEAD) {
+            ItemStack head = model.head();
+            return DisplayModel.item(head == null ? new ItemStack(Material.PLAYER_HEAD) : head)
+                    .glow(model.glowArgb())
+                    .light(model.brightness());
+        }
+        return DisplayModel
+                .block(BlockPalette.nearest(model.skin().colour(
+                        piece.part(), piece.cellX(), piece.cellY(), detail)))
                 .glow(model.glowArgb())
                 .light(model.brightness());
     }

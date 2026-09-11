@@ -37,15 +37,60 @@ public final class RagdollModel {
     private final double scale;
     private final int glowArgb;
     private final int brightness;
+    private final ItemStack mainHand;
+    private final ItemStack offHand;
+    private final ItemStack hat;
 
     private RagdollModel(RagdollSkin skin, ItemStack head, int detail, double scale,
                          int glowArgb, int brightness) {
+        this(skin, head, detail, scale, glowArgb, brightness, null, null, null);
+    }
+
+    private RagdollModel(RagdollSkin skin, ItemStack head, int detail, double scale,
+                         int glowArgb, int brightness, ItemStack mainHand, ItemStack offHand,
+                         ItemStack hat) {
         this.skin = skin;
         this.head = head;
         this.detail = detail;
         this.scale = scale;
         this.glowArgb = glowArgb;
         this.brightness = brightness;
+        this.mainHand = mainHand;
+        this.offHand = offHand;
+        this.hat = hat;
+    }
+
+    /**
+     * What the body carries: an item in each hand and one on its head.
+     *
+     * <p>Carried, not placed: a rose in a hand goes wherever the hand goes, a
+     * pumpkin on a head turns with the head, and both come apart with the
+     * body when it does.
+     *
+     * @param mainHand what the right hand holds, or {@code null}
+     * @param offHand  what the left hand holds, or {@code null}
+     * @param hat      what is worn on the head, or {@code null}
+     * @return a new model
+     * @since 1.134.0
+     */
+    public @NotNull RagdollModel carrying(@Nullable ItemStack mainHand, @Nullable ItemStack offHand,
+                                          @Nullable ItemStack hat) {
+        return new RagdollModel(skin, head, detail, scale, glowArgb, brightness, mainHand, offHand, hat);
+    }
+
+    /** What the right hand holds, or {@code null}. */
+    public @Nullable ItemStack mainHand() {
+        return mainHand;
+    }
+
+    /** What the left hand holds, or {@code null}. */
+    public @Nullable ItemStack offHand() {
+        return offHand;
+    }
+
+    /** What is worn on the head, or {@code null}. */
+    public @Nullable ItemStack hat() {
+        return hat;
     }
 
     /**
@@ -90,7 +135,7 @@ public final class RagdollModel {
      */
     public @NotNull RagdollModel detail(int cells) {
         return new RagdollModel(skin, head, Math.clamp(cells, 1, MAX_DETAIL), scale,
-                glowArgb, brightness);
+                glowArgb, brightness, mainHand, offHand, hat);
     }
 
     /**
@@ -100,7 +145,8 @@ public final class RagdollModel {
      * @return a new model
      */
     public @NotNull RagdollModel scale(double factor) {
-        return new RagdollModel(skin, head, detail, Math.max(0.05, factor), glowArgb, brightness);
+        return new RagdollModel(skin, head, detail, Math.max(0.05, factor), glowArgb, brightness,
+                mainHand, offHand, hat);
     }
 
     /**
@@ -110,7 +156,7 @@ public final class RagdollModel {
      * @return a new model
      */
     public @NotNull RagdollModel glow(int rgb) {
-        return new RagdollModel(skin, head, detail, scale, rgb, brightness);
+        return new RagdollModel(skin, head, detail, scale, rgb, brightness, mainHand, offHand, hat);
     }
 
     /**
@@ -123,7 +169,7 @@ public final class RagdollModel {
      * @return a new model
      */
     public @NotNull RagdollModel light(int level) {
-        return new RagdollModel(skin, head, detail, scale, glowArgb, level);
+        return new RagdollModel(skin, head, detail, scale, glowArgb, level, mainHand, offHand, hat);
     }
 
     /** The colours it is drawn in. */

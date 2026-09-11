@@ -71,6 +71,9 @@ public final class Shapes {
         shapes.put("line", Shapes::line);
         shapes.put("ribbon", Shapes::ribbon);
         shapes.put("scatter", Shapes::scatter);
+        // Pictures and words laid out in blocks, which is what a heart or an
+        // "EZ" looks like when it has to be a thing rather than a label.
+        shapes.put("pixels", PixelArt::points);
         // One point at the anchor. Not geometry so much as the absence of it:
         // it exists so [DISPLAY] is a shape like any other and inherits y:,
         // ticks:, rotate: and the rest rather than being a second code path
@@ -107,6 +110,7 @@ public final class Shapes {
             case "line" -> new String[]{"length", "dir", "climb", "points"};
             case "ribbon" -> new String[]{"radius", "points", "waves", "amplitude"};
             case "scatter" -> new String[]{"radius", "height", "points", "seed", "floor"};
+            case "pixels" -> new String[]{"art", "word", "pixel", "pick", "depth"};
             case "display" -> new String[0];
             default -> new String[0];
         };

@@ -125,5 +125,22 @@ public interface Shape {
          * @return whether it was written
          */
         boolean has(@NotNull String key);
+
+        /**
+         * A word, or {@code fallback} when it was not given.
+         *
+         * <p>For the shapes that are drawn from a name rather than from
+         * numbers: a picture to draw, a word to spell. A reader written before
+         * this existed hands back the fallback, which draws that shape's
+         * default rather than failing.
+         *
+         * @param key      the parameter name
+         * @param fallback what to use when absent
+         * @return the value
+         * @since 1.134.0
+         */
+        default @NotNull String text(@NotNull String key, @NotNull String fallback) {
+            return fallback;
+        }
     }
 }

@@ -72,5 +72,10 @@ public final class ShapePoints {
         public boolean has(@NotNull String key) {
             return args.has(key);
         }
+
+        @Override
+        public @NotNull String text(@NotNull String key, @NotNull String fallback) {
+            return args.text(key, fallback);
+        }
     }
 }

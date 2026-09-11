@@ -37,7 +37,19 @@ public enum RagdollFinish {
      * The body blows away as dust, from the top down: each piece drifts up and
      * away and shrinks to nothing, a little after the one above it.
      */
-    DISSOLVE;
+    DISSOLVE,
+
+    /**
+     * The pieces fly into letters and hold there, and the head floats above
+     * them: {@code sign} is the word and {@code letters} how tall it is. Once
+     * it has been read, it drops.
+     *
+     * <p>The humiliating one. A body that dances first and spells {@code EZ}
+     * afterwards says it twice.
+     *
+     * @since 1.134.0
+     */
+    SPELL;
 
     /**
      * Reads a finish from configuration, defaulting to {@link #HOLD}.
@@ -51,6 +63,7 @@ public enum RagdollFinish {
             case "COLLAPSE", "FALL", "DROP", "LIMP" -> COLLAPSE;
             case "IMPLODE", "VANISH", "SINGULARITY" -> IMPLODE;
             case "DISSOLVE", "DUST", "DISINTEGRATE" -> DISSOLVE;
+            case "SPELL", "SIGN", "WORD", "LETTERS" -> SPELL;
             default -> HOLD;
         };
     }

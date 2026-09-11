@@ -115,7 +115,7 @@ final class ShapeStep implements SequenceStep {
         Paint resolved = paint.forPlay(target);
         // Worked out once per play, not once per point: the whole shape shares
         // one rotation.
-        double angle = rotates ? Math.toRadians(-anchor.getYaw()) : yaw;
+        double angle = rotates ? Math.toRadians(facingYaw(target, anchor)) : yaw;
         double cos = angle == 0.0 ? 1.0 : Math.cos(angle);
         double sin = angle == 0.0 ? 0.0 : Math.sin(angle);
 
@@ -133,6 +133,29 @@ final class ShapeStep implements SequenceStep {
                     });
             run.owns(handle);
         }
+    }
+
+    /**
+     * Which way a shape written with {@code face:true} turns, as a yaw.
+     *
+     * <p>Towards whoever set the sequence off, the same bearing a body turns
+     * to, so a word drawn beside a body reads the right way round for the
+     * person it is written for. The anchor's own yaw when there is nobody to
+     * face. It used to be the anchor's yaw turned the other way, which drew
+     * every word backwards from the front; nothing shipped relied on it.
+     */
+    private static double facingYaw(SequenceTarget target, Location anchor) {
+        Player source = target.source();
+        if (source == null || source.getWorld() == null || !source.getWorld().equals(anchor.getWorld())) {
+            return anchor.getYaw();
+        }
+        Location from = source.getLocation();
+        double east = anchor.getX() - from.getX();
+        double south = from.getZ() - anchor.getZ();
+        if (east * east + south * south < 1e-6) {
+            return anchor.getYaw();
+        }
+        return Math.toDegrees(Math.atan2(east, south));
     }
 
     /**
