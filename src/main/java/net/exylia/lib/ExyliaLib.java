@@ -4,6 +4,7 @@ import net.exylia.lib.config.ConfigFile;
 import net.exylia.lib.config.Configs;
 import net.exylia.lib.effect.Effects;
 import net.exylia.lib.effect.internal.EffectRuntime;
+import net.exylia.lib.effect.internal.HarmlessFireworks;
 import net.exylia.lib.action.Actions;
 import net.exylia.lib.chat.Chats;
 import net.exylia.lib.cosmetic.Cosmetics;
@@ -193,6 +194,7 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         // Clickable blocks: dormant until a plugin registers one, and every
         // handler returns on an empty map lookup.
         getServer().getPluginManager().registerEvents(new BlockListener(), this);
+        getServer().getPluginManager().registerEvents(new HarmlessFireworks(), this);
         loadPalette();
         loadFormats();
         loadEconomy();

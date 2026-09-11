@@ -1,5 +1,6 @@
 package net.exylia.lib.util.sequence.internal;
 
+import net.exylia.lib.effect.internal.HarmlessFireworks;
 import net.exylia.lib.npc.NpcHandle;
 import net.exylia.lib.npc.NpcModel;
 import net.exylia.lib.npc.NpcMotion;
@@ -111,6 +112,7 @@ final class Steps {
                 return;
             }
             Firework firework = at.getWorld().spawn(at, Firework.class);
+            HarmlessFireworks.tag(firework);
             FireworkMeta meta = firework.getFireworkMeta();
             meta.addEffect(FireworkEffect.builder()
                     .withColor(colour)
@@ -123,10 +125,8 @@ final class Steps {
             firework.setFireworkMeta(meta);
             // Detonating in the same tick, rather than a task 50ms later: the
             // entity never ticks, never moves, never needs hiding from distant
-            // players, and cannot be left behind by a cancelled sequence.
-            // ExyliaCommons scheduled the detonation, tagged the entity so its
-            // own listener could cancel the damage, and hid it by hand from
-            // everyone out of range.
+            // players, and cannot be left behind by a cancelled sequence. The
+            // tag above is what keeps the explosion from hurting anybody.
             firework.detonate();
         }
     }

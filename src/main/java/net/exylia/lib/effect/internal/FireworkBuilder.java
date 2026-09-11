@@ -153,6 +153,7 @@ public final class FireworkBuilder {
         }
 
         Firework firework = location.getWorld().spawn(location, Firework.class);
+        HarmlessFireworks.tag(firework);
         var meta = firework.getFireworkMeta();
         meta.addEffect(effect.build());
         meta.setPower(instant ? 0 : power);
