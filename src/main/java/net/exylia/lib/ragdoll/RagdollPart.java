@@ -91,6 +91,34 @@ public enum RagdollPart {
         return centreY * PIXEL;
     }
 
+    /**
+     * How many cells across this part is cut into at a level of detail.
+     *
+     * <p>Cells are kept as near to square as the skin's own pixels allow, so a
+     * limb four pixels wide is cut into fewer columns than rows. A skin is drawn
+     * in horizontal bands &mdash; a cuff, a sleeve, a belt, a shoe &mdash; and a
+     * square grid spends its pieces on columns nobody can tell apart while it
+     * smears those bands together. Detail 1 is one cell, whatever the part.
+     *
+     * @param detail the level of detail, from 1 to 4
+     * @return the columns
+     * @since 1.135.0
+     */
+    public int columns(int detail) {
+        return detail <= 1 ? 1 : Math.max(1, Math.round(width * detail / 8f));
+    }
+
+    /**
+     * How many cells down this part is cut into at a level of detail.
+     *
+     * @param detail the level of detail, from 1 to 4
+     * @return the rows
+     * @since 1.135.0
+     */
+    public int rows(int detail) {
+        return detail <= 1 ? 1 : Math.max(1, Math.round(height * detail / 8f));
+    }
+
     /** Where its front face starts across the skin. */
     public int skinX() {
         return skinX;

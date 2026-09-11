@@ -107,7 +107,8 @@ public final class RagdollBuilder {
         }
         return DisplayModel
                 .block(BlockPalette.nearest(model.skin().colour(
-                        piece.part(), piece.cellX(), piece.cellY(), detail)))
+                        piece.part(), piece.cellX(), piece.cellY(),
+                        piece.part().columns(detail), piece.part().rows(detail))))
                 .glow(model.glowArgb())
                 .light(model.brightness());
     }

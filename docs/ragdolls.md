@@ -207,18 +207,26 @@ the number those `[DELAY]` lines add up to.
 
 ## Detail
 
-`detail` is how many cells each part is cut into on each axis.
+`detail` is how finely each part is cut, from 1 to 4. Since 1.135.0 a part is cut
+into a grid of its own shape rather than a square one: a limb four pixels wide
+gets fewer columns than rows, because a skin is drawn in bands — a cuff, a
+sleeve, a belt, a shoe — and those bands are what make a body look like its
+owner. Every cell is the average of the skin's own pixels, with the second layer
+(jackets, hoods, rolled sleeves) painted over the first.
 
-| Detail | Displays | What it buys |
-|---|---|---|
-| 1 | 6 | One colour per limb. The cheapest a death can be, and what most effects should use |
-| 2 | 21 | A sleeve apart from a hand, a shirt apart from a belt |
-| 3 | 46 | A collar, a stripe, a tie |
-| 4 | 81 | Nothing the eye can follow at the speed the pieces are moving |
+| Detail | Displays | Torso / each limb | What it buys |
+|---|---|---|---|
+| 1 | 6 | 1×1 / 1×1 | One colour per limb. The cheapest a death can be |
+| 2 | 19 | 2×3 / 1×3 | Shoulders, hands and shoes apart from what is between them |
+| 3 | 56 | 3×5 / 2×5 | Close to three skin pixels a cell: belts, stripes, collars |
+| 4 | 73 | 4×6 / 2×6 | Two skin pixels a cell, as near the skin as blocks get |
 
-Every piece is a display, so the server's `displays.yml` budget applies: a
-`detail:3` body in front of thirty players is fourteen hundred display-viewer
-pairs, and the ceiling exists for exactly that.
+The blocks come from a palette of about 120 flat, opaque textures matched by the
+eye's weighting rather than plain RGB, so a peach face is not rounded to orange.
+Every piece is a display, so the server's `displays.yml` budget applies.
+
+The ceiling is the block itself: without a resource pack a client cannot be
+handed a texture, so a cell is always one colour. The head is the real head.
 
 ## Written in configuration
 

@@ -46,16 +46,31 @@ public final class RagdollSkin {
      * @return the colour as {@code 0xRRGGBB}
      */
     public int colour(@NotNull RagdollPart part, int cellX, int cellY, int detail) {
+        return colour(part, cellX, cellY, detail, detail);
+    }
+
+    /**
+     * The colour of one cell of a part cut into a grid of its own shape.
+     *
+     * @param part    which piece
+     * @param cellX   the column, from the wearer's left
+     * @param cellY   the row, from the top
+     * @param columns how many columns the part is cut into
+     * @param rows    how many rows the part is cut into
+     * @return the colour as {@code 0xRRGGBB}
+     * @since 1.135.0
+     */
+    public int colour(@NotNull RagdollPart part, int cellX, int cellY, int columns, int rows) {
         int[] pixels = faces.get(part);
         if (pixels == null || pixels.length == 0) {
             return FALLBACK & 0xFFFFFF;
         }
         int width = part.skinWidth();
         int height = part.skinHeight();
-        int fromX = cellX * width / detail;
-        int toX = Math.max(fromX + 1, (cellX + 1) * width / detail);
-        int fromY = cellY * height / detail;
-        int toY = Math.max(fromY + 1, (cellY + 1) * height / detail);
+        int fromX = cellX * width / columns;
+        int toX = Math.max(fromX + 1, (cellX + 1) * width / columns);
+        int fromY = cellY * height / rows;
+        int toY = Math.max(fromY + 1, (cellY + 1) * height / rows);
 
         long red = 0;
         long green = 0;

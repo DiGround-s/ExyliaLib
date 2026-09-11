@@ -170,9 +170,40 @@ public final class SkinCache {
             }
             int[] pixels = new int[width * height];
             image.getRGB(source.skinX(), source.skinY(), width, height, pixels, 0, width);
+            int[] over = legacy ? null : overlay(image, source);
+            if (over != null) {
+                // The second layer is where most clothes are drawn: a jacket, a
+                // hood, rolled sleeves. Reading only the first leaves a body in
+                // whatever the artist painted underneath, which is usually skin.
+                for (int index = 0; index < pixels.length; index++) {
+                    if ((over[index] >>> 24) >= 128) {
+                        pixels[index] = over[index];
+                    }
+                }
+            }
             faces.put(part, pixels);
         }
         return new RagdollSkin(faces);
+    }
+
+    /** A part's front face on the skin's second layer, or {@code null} when the picture has none. */
+    private static int[] overlay(BufferedImage image, RagdollPart part) {
+        int[] at = switch (part) {
+            case TORSO -> new int[]{20, 36};
+            case ARM_RIGHT -> new int[]{44, 36};
+            case ARM_LEFT -> new int[]{52, 52};
+            case LEG_RIGHT -> new int[]{4, 36};
+            case LEG_LEFT -> new int[]{4, 52};
+            case HEAD -> null;
+        };
+        int width = part.skinWidth();
+        int height = part.skinHeight();
+        if (at == null || at[0] + width > image.getWidth() || at[1] + height > image.getHeight()) {
+            return null;
+        }
+        int[] pixels = new int[width * height];
+        image.getRGB(at[0], at[1], width, height, pixels, 0, width);
+        return pixels;
     }
 
     /**

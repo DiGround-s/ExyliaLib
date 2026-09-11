@@ -127,7 +127,13 @@ public final class RagdollPieces {
         double[] middle = {chest.x()[end], chest.y()[end], chest.z()[end]};
         // Every piece but the head, counted once across the whole body, so a
         // word can be shared out among them.
-        int pieces = (parts.length - 1) * detail * detail;
+        int pieces = 0;
+        for (RagdollPart part : parts) {
+            if (part != RagdollPart.HEAD) {
+                pieces += part.columns(detail) * part.rows(detail);
+            }
+        }
+        int running = 0;
 
         List<Piece> solved = new ArrayList<>(1 + pieces + props.size());
         for (RagdollPart part : parts) {
@@ -146,17 +152,19 @@ public final class RagdollPieces {
             float width = part.blockWidth() * (float) scale;
             float height = part.blockHeight() * (float) scale;
             float depth = part.blockDepth() * (float) scale;
-            float[] size = {width / detail, height / detail, depth};
-            for (int cellY = 0; cellY < detail; cellY++) {
-                for (int cellX = 0; cellX < detail; cellX++) {
+            int columns = part.columns(detail);
+            int rows = part.rows(detail);
+            float[] size = {width / columns, height / rows, depth};
+            for (int cellY = 0; cellY < rows; cellY++) {
+                for (int cellX = 0; cellX < columns; cellX++) {
                     // Where this cell sits inside its own part, before the part
                     // is turned. The grid runs left to right and top to bottom,
                     // as the skin does.
                     float[] local = {
-                            ((cellX + 0.5f) / detail - 0.5f) * width,
-                            (0.5f - (cellY + 0.5f) / detail) * height,
+                            ((cellX + 0.5f) / columns - 0.5f) * width,
+                            (0.5f - (cellY + 0.5f) / rows) * height,
                             0f};
-                    int index = (part.ordinal() - 1) * detail * detail + cellY * detail + cellX;
+                    int index = running++;
                     RagdollFlight.Flight path = flight;
                     if (spelling) {
                         RagdollSign.Placement to = RagdollSign.place(

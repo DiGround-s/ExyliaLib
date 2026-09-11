@@ -443,7 +443,12 @@ class RagdollAnimationTest {
                 .intactFor(0.1).life(0.5 + 2.6).build();
         List<RagdollPieces.Piece> pieces = RagdollPieces.solve(motion, 2, 1.0, Rotation.NONE, new Random(3));
         long reading = motion.finishAt() + 1200;
-        int total = (RagdollPart.values().length - 1) * 4;
+        int total = 0;
+        for (RagdollPart part : RagdollPart.values()) {
+            if (part != RagdollPart.HEAD) {
+                total += part.columns(2) * part.rows(2);
+            }
+        }
         int index = 0;
         for (RagdollPieces.Piece piece : pieces) {
             if (piece.part() == RagdollPart.HEAD) {
