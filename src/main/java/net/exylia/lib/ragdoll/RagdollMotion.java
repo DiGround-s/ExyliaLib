@@ -86,6 +86,7 @@ public final class RagdollMotion {
     private final double hatSize;
     private final double hatRaise;
     private final double strings;
+    private final double chains;
     private final long snipMillis;
 
     private RagdollMotion(Builder builder) {
@@ -121,12 +122,18 @@ public final class RagdollMotion {
         this.hatSize = builder.hatSize;
         this.hatRaise = builder.hatRaise;
         this.strings = builder.strings;
+        this.chains = builder.chains;
         this.snipMillis = builder.snipMillis;
     }
 
     /** How high puppet strings run from the hands and head, in blocks, or 0 for none. */
     public double strings() {
         return strings;
+    }
+
+    /** How far out to each side the wrists are chained to the floor, in blocks, or 0 for none. */
+    public double chains() {
+        return chains;
     }
 
     /**
@@ -374,9 +381,25 @@ public final class RagdollMotion {
         private double hatSize = 0.6;
         private double hatRaise;
         private double strings;
+        private double chains;
         private long snipMillis = -1;
 
         private Builder() {
+        }
+
+        /**
+         * Chains from both wrists down to the floor, this far out to each side
+         * of the body, in blocks.
+         *
+         * <p>Pinned where the body's own facing puts its sides and re-measured
+         * at every pose, so a struggling arm drags its chain with it. They
+         * break at {@link #snip(double)}, like strings.
+         *
+         * @since 1.139.0
+         */
+        public @NotNull Builder chains(double spread) {
+            this.chains = Math.max(0.0, spread);
+            return this;
         }
 
         /**

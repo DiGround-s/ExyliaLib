@@ -479,7 +479,7 @@ public final class SequenceCompiler {
                 "bounce", "spin", "fade", "settle", "detail", "size", "glow", "light",
                 "y", "face", "rise", "open", "lift", "hang", "turns", "hits", "every", "force",
                 "swell", "squash", "sign", "letters", "dir", "keys", "then", "follow",
-                "hold", "offhand", "hat", "hold_size", "hat_size", "hat_y", "strings", "snip", "seat");
+                "hold", "offhand", "hat", "hold_size", "hat_size", "hat_y", "strings", "chains", "snip", "seat");
         // A spectator: whoever is watching fills the seat, so a crowd is the
         // real crowd.
         boolean crowd = args.head().trim().equalsIgnoreCase("{crowd}");
@@ -516,6 +516,7 @@ public final class SequenceCompiler {
                 .hatSize(args.number("hat_size", 0.6, onArg))
                 .hatRaise(args.number("hat_y", 0.0, onArg))
                 .strings(args.number("strings", 0.0, onArg))
+                .chains(args.number("chains", 0.0, onArg))
                 .rise(args.number("rise", 1.1, onArg))
                 .open(args.number("open", 0.55, onArg))
                 .lift(args.number("lift", 0.45, onArg))

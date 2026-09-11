@@ -220,6 +220,17 @@ public final class PixelArt {
                     "#.......#", "##.....##"}),
             Map.entry("blade", new String[]{"#######", "######.", "#####.."}),
             Map.entry("grave", new String[]{".###.", "##.##", "#...#", "##.##", "##.##", "#####", "#####"}),
+            Map.entry("eye", new String[]{
+                    "...ooooo...", ".oow###woo.", "ow##ppp##wo", "ow##ppp##wo", ".oow###woo.", "...ooooo..."}),
+            Map.entry("clock", new String[]{
+                    "..#####..", ".#wwhww#.", "#wwwhwww#", "#wwwhwww#", "#wwwhhhw#", "#wwwwwww#",
+                    "#wwwwwww#", ".#wwwww#.", "..#####.."}),
+            Map.entry("rift", new String[]{
+                    "..o..", ".o#o.", ".o#o.", "o###o", "o###o", "o###o", "o###o", "o###o", ".o#o.",
+                    ".o#o.", "..o.."}),
+            Map.entry("flag", new String[]{
+                    "...p###", "...p###", "...p###", "...p###", "...p...", "...p...", "...p...", "...p...",
+                    "...p..."}),
             Map.entry("portal", new String[]{
                     "..ooo..", ".o###o.", "o#####o", "o#####o", "o#####o", "o#####o", "o#####o",
                     ".o###o.", "..ooo.."}),

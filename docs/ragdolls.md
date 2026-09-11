@@ -176,6 +176,14 @@ jerked up and follows the hand everywhere. `snip:` is the second, from the start
 of the sequence, when they are cut and whip up out of sight; left out, it is the
 last frame. Since 1.136.0.
 
+### Chains
+
+`chains:` shackles both wrists to the floor that far out to each side of the
+body, with a chain block laid along the line between them. The floor ends are
+placed by the body's own facing, so they stay at its sides from every angle,
+and the wrist ends are re-measured at every pose: an arm that struggles drags
+its chain. They break at `snip:` and drop back into the floor. Since 1.139.0.
+
 ### Crowds
 
 `[RAGDOLL] {crowd};seat:N` is a spectator: the Nth player watching who is

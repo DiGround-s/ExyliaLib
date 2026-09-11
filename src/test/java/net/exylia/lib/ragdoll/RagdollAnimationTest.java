@@ -464,6 +464,40 @@ class RagdollAnimationTest {
         assertTrue(at(string.poses(), 900).scaleY() < 0.05, "the string was never cut");
     }
 
+    @Test
+    @DisplayName("a chain runs from the floor at the body's side to the wrist, and breaks")
+    void chainsHoldTheWrists() {
+        Rotation facing = Rotation.around(Rotation.Axis.Y, 0.7);
+        RagdollMotion motion = RagdollMotion.builder().pose(RagdollPose.ANIMATE)
+                .animation(parsed("0.4 star up=0.4 | 0.4 arm_r=0,0,40 up=0")).intactFor(0)
+                .chains(1.5).snip(0.6).life(1.2).build();
+        List<RagdollPieces.Piece> pieces = RagdollPieces.solve(motion, 1, 1.0, facing, new Random(4));
+        RagdollPieces.Piece arm = pieces.stream().filter(p -> p.part() == RagdollPart.ARM_RIGHT && p.prop() == null)
+                .findFirst().orElseThrow();
+        RagdollPieces.Piece chain = pieces.stream().filter(p -> p.prop() == RagdollPieces.Prop.CHAIN_RIGHT)
+                .findFirst().orElseThrow();
+        float[] floor = facing.apply(new float[]{-1.5f, 0f, 0f});
+        for (long at = 0; at <= 600; at += 100) {
+            DisplayKeyframe hand = at(arm.poses(), at);
+            DisplayKeyframe link = at(chain.poses(), at);
+            float[] end = hand.rotation().apply(new float[]{0, -6 * RagdollPart.PIXEL, 0});
+            float[] half = link.rotation().apply(new float[]{0, link.scaleY() / 2, 0});
+            assertEquals(hand.x() + end[0], link.x() + half[0], 0.06, "the chain left the wrist across at " + at);
+            assertEquals(hand.y() + end[1], link.y() + half[1], 0.06, "the chain left the wrist at " + at);
+            assertEquals(hand.z() + end[2], link.z() + half[2], 0.06, "the chain left the wrist deep at " + at);
+            assertEquals(floor[0], link.x() - half[0], 0.06, "the chain is not fixed to the floor at " + at);
+            assertEquals(0, link.y() - half[1], 0.06, "the chain does not reach the floor at " + at);
+            assertEquals(floor[2], link.z() - half[2], 0.06, "the chain is not fixed to the floor at " + at);
+        }
+        // The right hand hangs at the body's right, so its chain is the short
+        // one: fixed to the other side it would have to cross the body.
+        DisplayKeyframe standing = at(chain.poses(), 0);
+        float[] half = standing.rotation().apply(new float[]{0, standing.scaleY() / 2, 0});
+        double across = Math.hypot(standing.x() + half[0] - floor[0], standing.z() + half[2] - floor[2]);
+        assertTrue(across < 1.3, "the right chain is fixed on the left: " + across);
+        assertTrue(at(chain.poses(), 900).scaleY() < 0.05, "the chain never broke");
+    }
+
     // ------------------------------------------------------------- spelling
 
     @Test

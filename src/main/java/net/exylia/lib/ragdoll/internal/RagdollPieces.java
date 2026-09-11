@@ -89,8 +89,17 @@ public final class RagdollPieces {
         STRING_LEFT,
 
         /** A puppet string from the top of the head. */
-        STRING_HEAD
+        STRING_HEAD,
+
+        /** A chain from the floor at the body's right to the right wrist. */
+        CHAIN_RIGHT,
+
+        /** A chain from the floor at the body's left to the left wrist. */
+        CHAIN_LEFT
     }
+
+    /** How wide a chain block is drawn, per block of body; its model is a sliver of that. */
+    private static final float CHAIN = 0.9f;
 
     /** How thick a puppet string is, per block of body. */
     private static final float STRING = 0.035f;
@@ -219,7 +228,73 @@ public final class RagdollPieces {
                 }
             }
         }
+        if (motion.chains() > 0) {
+            for (Prop chain : List.of(Prop.CHAIN_RIGHT, Prop.CHAIN_LEFT)) {
+                Piece piece = chain(chain, flights, motion, scale, facing);
+                if (piece != null) {
+                    solved.add(piece);
+                }
+            }
+        }
         return solved;
+    }
+
+    /**
+     * A chain: from a point on the floor out to the body's side up to the
+     * wrist, re-measured at every pose and turned to lie along the line
+     * between them.
+     *
+     * <p>Unlike a string it may lean, because both of its ends belong to the
+     * body: the floor point is placed by the body's own facing, so it is at
+     * the body's side from wherever anybody watches.
+     */
+    private static @Nullable Piece chain(Prop prop, RagdollFlight.Flight[] flights, RagdollMotion motion,
+                                         double scale, Rotation facing) {
+        RagdollPart part = prop == Prop.CHAIN_RIGHT ? RagdollPart.ARM_RIGHT : RagdollPart.ARM_LEFT;
+        RagdollFlight.Flight flight = flights[part.ordinal()];
+        // A body's right is towards -X before it is turned.
+        float side = (float) (motion.chains() * scale) * (prop == Prop.CHAIN_RIGHT ? -1f : 1f);
+        float[] floor = facing.apply(new float[]{side, 0f, 0f});
+        long snip = Math.min(motion.lifeMillis(), motion.snipMillis());
+        float thick = CHAIN * (float) scale;
+        List<DisplayKeyframe> poses = new ArrayList<>();
+        for (int index = 0; index < flight.times().length; index++) {
+            long at = flight.times()[index];
+            if (at > snip) {
+                break;
+            }
+            float grown = (float) (scale * flight.scales()[index][1]);
+            float[] end = flight.rotations()[index].apply(new float[]{0f, -6 * RagdollPart.PIXEL * grown, 0f});
+            float dx = (float) flight.x()[index] + end[0] - floor[0];
+            float dy = (float) flight.y()[index] + end[1];
+            float dz = (float) flight.z()[index] + end[2] - floor[2];
+            float length = (float) Math.max(0.02, Math.sqrt(dx * dx + dy * dy + dz * dz));
+            poses.add(new DisplayKeyframe(at, floor[0] + dx / 2, dy / 2, floor[2] + dz / 2,
+                    along(dx, dy, dz), thick, length, thick));
+        }
+        if (poses.isEmpty()) {
+            return null;
+        }
+        DisplayKeyframe last = poses.get(poses.size() - 1);
+        // Broken, it drops back into the floor it was fixed to.
+        long gone = Math.min(motion.lifeMillis(), last.atMillis() + STRING_RETRACT_MS);
+        DisplayKeyframe broken = new DisplayKeyframe(gone, floor[0], 0.01f, floor[2], last.rotation(),
+                thick * 0.5f, 0.02f, thick * 0.5f);
+        if (gone > last.atMillis()) {
+            poses.add(broken);
+        }
+        if (motion.lifeMillis() > gone) {
+            poses.add(new DisplayKeyframe(motion.lifeMillis(), broken.x(), broken.y(), broken.z(),
+                    broken.rotation(), broken.scaleX(), broken.scaleY(), broken.scaleZ()));
+        }
+        return new Piece(part, 0, 0, prop, KeyframeThinning.thin(poses));
+    }
+
+    /** The turn that lays a model's upright axis along a direction. */
+    static Rotation along(double dx, double dy, double dz) {
+        double level = Math.sqrt(dx * dx + dz * dz);
+        return Rotation.around(Rotation.Axis.X, Math.atan2(level, dy))
+                .then(Rotation.around(Rotation.Axis.Y, Math.atan2(dx, dz)));
     }
 
     /**

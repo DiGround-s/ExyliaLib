@@ -42,6 +42,11 @@ import java.util.concurrent.ThreadLocalRandom;
 @ApiStatus.Internal
 public final class RagdollBuilder {
 
+    /** The chain block, looked up by name: the copper update renamed it IRON_CHAIN. */
+    private static final Material CHAIN = java.util.Objects.requireNonNullElse(
+            Material.matchMaterial("IRON_CHAIN"),
+            java.util.Objects.requireNonNullElse(Material.matchMaterial("CHAIN"), Material.IRON_BARS));
+
     private RagdollBuilder() {
     }
 
@@ -94,10 +99,13 @@ public final class RagdollBuilder {
                 case MAIN_HAND -> model.mainHand();
                 case OFF_HAND -> model.offHand();
                 case HAT -> model.hat();
-                case STRING_RIGHT, STRING_LEFT, STRING_HEAD -> null;
+                case STRING_RIGHT, STRING_LEFT, STRING_HEAD, CHAIN_RIGHT, CHAIN_LEFT -> null;
             };
             if (item == null && piece.prop().name().startsWith("STRING")) {
                 return DisplayModel.block(Material.WHITE_WOOL.createBlockData()).light(15);
+            }
+            if (item == null && piece.prop().name().startsWith("CHAIN")) {
+                return DisplayModel.block(CHAIN.createBlockData()).light(15);
             }
             return DisplayModel.item(item == null ? new ItemStack(Material.AIR) : item)
                     .glow(model.glowArgb())
