@@ -1450,7 +1450,7 @@ Code root: `src/main/java/net/exylia/lib/`. Test root:
 | hologram | `hologram/Holograms`, `Hologram`, `HologramConfig` | `hologram/internal/` | [docs/hologram.md](docs/hologram.md) | 1.6.0 |
 | client | `client/Clients`, `PluginClients`, `Waypoint`, `Cooldown`, `ClientBrand`, `ClientTeam`, `PluginTeams` | `client/internal/` (+ `TeamRegistry`) | [docs/client.md](docs/client.md) | 1.7.0 (teams 1.36.0, ownership 1.48.0) |
 | clan | `clan/Clans`, `Clan`, `ClanBridge` | `clan/internal/` | [docs/clan.md](docs/clan.md) | 1.8.0 |
-| util (potions) | `util/Effects` | — | [docs/util.md](docs/util.md) | 1.9.0 |
+| util (potions) | `util/Effects`, `util/EffectSnapshot` (1.140.0) | — | [docs/util.md](docs/util.md) | 1.9.0 |
 | util (cooldowns) | `util/Cooldowns`, `CooldownScope`, `PluginCooldowns`, `ItemCooldowns` | `util/internal/CooldownStore` | [docs/cooldowns.md](docs/cooldowns.md) | 1.10.0 |
 | scopes + persistence + items | (same files) | `ExyliaLib` (join/quit/shutdown/timer) | docs/cooldowns.md | 1.11.0 |
 | decimals + `TimeFormats` + `Timer.ofCooldown` | `util/TimeFormats`; `effect/Timer` | `effect/internal/CooldownTimer` | docs/util.md, docs/effects.md | 1.12.0 |
@@ -1541,6 +1541,7 @@ They are package-private on purpose; the tests live in the same package:
 | `util/Cooldowns` | `setClock/resetClock` (the clock), `installStore/removeStore` (persistence), `trackedOwners/dirtyCount` (observation) |
 | `util/ItemCooldowns` | `setOverlay/resetOverlay` (Bukkit's `setCooldown`) |
 | `util/Effects` | `setResolver/setApplier`, `resetCache` |
+| `util/EffectSnapshot` | `setReader/setRestorer` (the player's active effects and putting one back) |
 | `debug/Debug` | `setSink/resetSink` (where the lines go) |
 | `reload/Reloads` | `listenerCount()` (leak observation) |
 | `item/internal/ItemRenderer` | `components(...)` (who writes the data components: `DataComponentTypes` demands a live server just by being named) |

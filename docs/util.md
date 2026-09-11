@@ -72,6 +72,45 @@ effects from a potion they drank or from another plugin, and those are not the
 caller's to take away. `clear` is for when the player really should end up with
 nothing, such as respawning into a lobby.
 
+### Putting effects back — `EffectSnapshot`
+
+Since 1.140.0.
+
+```java
+EffectSnapshot own = EffectSnapshot.of(player, List.of("SPEED", "STRENGTH"));
+Effects.remove(player, arenaEffects);
+Effects.apply(player, arenaEffects);   // the arena's Speed and Strength
+// ... the round ends ...
+own.restoreTo(player);                  // the arena's are gone, theirs are back
+```
+
+For anything that lends a player effects for a while — a duel, an arena, a
+zone — and has to hand back what they came in with.
+
+| Method | Contract |
+| --- | --- |
+| `EffectSnapshot.of(player)` | holds every active effect; restoring clears every effect first |
+| `EffectSnapshot.of(player, types)` | holds only the named types (names as `parse` reads them, any case; unknown names skipped); restoring touches only those types |
+| `restoreTo(player)` | removes what is on now within the scope — including anything added in between — then puts back what was held |
+| `effects()` → `List<Entry>` | what was held: type, ticks left, amplifier, ambient, particles, icon |
+| `isEmpty()` | nothing in the scope was on at capture |
+
+- **Scope.** A scoped snapshot never touches a type it was not given: the Night
+  Vision a player walked into a duel with keeps ticking as it was.
+- **Durations come back as captured.** The snapshot exists because something is
+  about to replace those effects, so the time in between is time the player did
+  not have them. Infinite stays infinite.
+- **Pair it with the removal.** Take the snapshot, then `remove` the types before
+  applying your own: Minecraft keeps the stronger of two effects of one type, so
+  applying on top of a player's Strength II would leave the arena's Strength I
+  hidden under it.
+- **Not a death.** A player who died has already lost their effects; restoring
+  onto them gives effects the death took. Skip the restore in that case.
+- **`Snapshot` is the wide tool.** `SnapshotPart.POTION_EFFECTS` restores every
+  effect as part of the whole player; this is the narrow one for a few types.
+- The value is immutable and safe on any thread; `of` and `restoreTo` touch the
+  player and follow the thread rules below.
+
 ### Threads
 
 `parse` is pure data and safe from any thread. Everything that touches a player
@@ -99,7 +138,9 @@ and leave the caller unable to read back what it just applied.
 
 - Parsing is cached in Caffeine for 30 seconds.
 - The resolver (`PotionEffectType.getByName`), applier (`addPotionEffect`) and
-  remover (`removePotionEffect`) are injectable for tests.
+  remover (`removePotionEffect`) are injectable for tests, and so are
+  `EffectSnapshot`'s reader (`getActivePotionEffects`) and restorer
+  (`addPotionEffect` with every flag kept).
 - Infinite is sent as duration `-1`, spelled out rather than taken from
   `PotionEffect.INFINITE_DURATION` so the class keeps compiling against older
   server API.
