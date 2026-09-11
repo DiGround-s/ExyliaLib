@@ -9,7 +9,10 @@ import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Supplier;
 
 /**
  * Hides the tooltip block an item type writes for itself.
@@ -204,7 +207,7 @@ final class ItemComponents implements ItemRenderer.Components {
             return false;
         }
         item.setData(nonValued);
-        lastHidden = "[" + HIDE_ADDITIONAL_TOOLTIP.value() + "]";
+        lastHidden = () -> "[" + HIDE_ADDITIONAL_TOOLTIP.value() + "]";
         return true;
     }
 
@@ -228,9 +231,37 @@ final class ItemComponents implements ItemRenderer.Components {
                 instanceof DataComponentType.Valued<?> type)) {
             return false;
         }
+        Object present = item.getData(type);
+        Object key = present == null ? NOTHING_HIDDEN : present;
+        Hidden merged = MERGED.get(key);
+        if (merged == null) {
+            merged = merge(present);
+            if (merged == null) {
+                return false;
+            }
+            if (MERGED.size() >= MERGED_LIMIT) {
+                MERGED.clear();
+            }
+            MERGED.put(key, merged);
+        }
+        // Checked as far as the language allows: the registry answers with a
+        // raw type, and the value was built by the component's own builder.
+        item.setData((DataComponentType.Valued<Object>) type, merged.built());
+        lastHidden = merged;
+        return true;
+    }
+
+    /**
+     * The component to write onto an item that already carries {@code present}.
+     *
+     * @return the merged component, or {@code null} when this server knows none
+     *         of the components to hide
+     */
+    @SuppressWarnings("unchecked")
+    private static Hidden merge(Object present) throws Exception {
         Set<DataComponentType> hidden = hiddenComponents();
         if (hidden.isEmpty()) {
-            return false;
+            return null;
         }
 
         TooltipDisplayApi api = TooltipDisplayApi.INSTANCE;
@@ -238,7 +269,6 @@ final class ItemComponents implements ItemRenderer.Components {
         // Whatever is already hidden stays hidden. The flags write this same
         // component, so replacing it wholesale is how a file naming
         // HIDE_ENCHANTS next to hide-attributes got its enchantment lines back.
-        Object present = item.getData(type);
         boolean whole = false;
         if (present != null) {
             hidden.addAll((Set<DataComponentType>) api.hiddenComponents.invoke(present));
@@ -257,14 +287,39 @@ final class ItemComponents implements ItemRenderer.Components {
         if (whole) {
             withHidden = api.builderHideTooltip.invoke(withHidden, true);
         }
-        Object built = api.build.invoke(withHidden);
-
-        // Checked as far as the language allows: the registry answers with a
-        // raw type, and the value was built by the component's own builder.
-        item.setData((DataComponentType.Valued<Object>) type, built);
-        lastHidden = names(hidden);
-        return true;
+        return new Hidden(api.build.invoke(withHidden), hidden);
     }
+
+    /**
+     * A merged component and what it hides, the second only for the diagnostic
+     * line, which reads it only when asked for.
+     */
+    private record Hidden(Object built, Set<DataComponentType> types) implements Supplier<String> {
+
+        @Override
+        public String get() {
+            return names(types);
+        }
+    }
+
+    /**
+     * The finished component for each thing an item may already hide.
+     *
+     * <p>What gets written depends on nothing but what the item already hides
+     * — the components added to it are fixed once the registry has been read —
+     * and that is one of the handful of flag combinations a server's files use.
+     * Building it every time cost more than the rest of an icon's render: five
+     * reflective calls, two stream copies inside Paper and a diagnostic string
+     * nobody reads, on every redraw of every slot. Keyed by value, which Paper's
+     * component has: it is a record.
+     *
+     * <p>Bounded all the same, because the key comes from the item.
+     */
+    private static final Map<Object, Hidden> MERGED = new ConcurrentHashMap<>();
+    private static final int MERGED_LIMIT = 64;
+
+    /** The key for an item that hides nothing yet. */
+    private static final Object NOTHING_HIDDEN = new Object();
 
     /**
      * The components to hide: the type-written ones and the ones the flags
@@ -320,7 +375,7 @@ final class ItemComponents implements ItemRenderer.Components {
     }
 
     /** The components just hidden, for the diagnostic line. */
-    private static volatile String lastHidden = "[]";
+    private static volatile Supplier<String> lastHidden = () -> "[]";
 
     /**
      * Says which route was taken and what the item ended up carrying, once,
@@ -346,7 +401,7 @@ final class ItemComponents implements ItemRenderer.Components {
             survived = "unreadable: " + unreadable;
         }
         problems.found("hide-attributes", "written through \"" + route
-                + "\", hiding " + lastHidden
+                + "\", hiding " + lastHidden.get()
                 + "; the finished item carries " + survived);
     }
 
@@ -378,5 +433,6 @@ final class ItemComponents implements ItemRenderer.Components {
         reported = false;
         explained = false;
         resolved = null;
+        MERGED.clear();
     }
 }

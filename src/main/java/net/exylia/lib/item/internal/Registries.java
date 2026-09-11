@@ -15,6 +15,8 @@ import org.bukkit.potion.PotionEffectType;
 import org.bukkit.potion.PotionType;
 
 import java.util.Locale;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Turning the names in a config file into the things the server knows.
@@ -38,6 +40,14 @@ import java.util.Locale;
 @SuppressWarnings("deprecation")
 public final class Registries {
 
+    /**
+     * Materials already matched, by the name they were written with.
+     *
+     * <p>Only names that matched: a name nothing answers to is reported by the
+     * caller, and keeping mistakes would give the map something to grow on.
+     */
+    private static final Map<String, Material> MATERIALS = new ConcurrentHashMap<>();
+
     private Registries() {
     }
 
@@ -46,9 +56,13 @@ public final class Registries {
      *
      * <p>{@link Material#matchMaterial} rather than {@code valueOf}: it accepts
      * the namespaced form and the legacy spellings people write.
+     *
+     * <p>Answered from memory after the first time. The match upper-cases the
+     * name and runs two regular expressions over it, and every icon of every
+     * menu asks again for the same handful of names on each redraw.
      */
     public static Material material(String name) {
-        return Material.matchMaterial(name.trim());
+        return MATERIALS.computeIfAbsent(name.trim(), Material::matchMaterial);
     }
 
     /** An enchantment by key or legacy name. */
