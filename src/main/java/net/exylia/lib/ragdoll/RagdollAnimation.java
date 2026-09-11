@@ -221,7 +221,13 @@ public final class RagdollAnimation {
     public double @NotNull [] at(long millis) {
         int last = times.length - 1;
         if (millis <= 0 || last == 0) {
-            return keys[0].clone();
+            // Frames of no length are where the body starts: a clone that
+            // stands across the room is there from the first tick.
+            int start = 0;
+            while (start < last && times[start + 1] <= 0) {
+                start++;
+            }
+            return keys[start].clone();
         }
         if (millis >= times[last]) {
             return keys[last].clone();

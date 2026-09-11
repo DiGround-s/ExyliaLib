@@ -137,6 +137,15 @@ class RagdollAnimationTest {
     }
 
     @Test
+    @DisplayName("frames of no length are where the body is from the very first tick")
+    void openingFramesAreTheStart() {
+        RagdollAnimation animation = parsed("0 at=0,0,2.4 turn=180 | 0.5 forward=1");
+        assertEquals(2.4, animation.at(0)[RagdollRig.FORWARD], 1e-9, "no glide in from the victim");
+        assertEquals(180, animation.at(0)[RagdollRig.TURN], 1e-9);
+        assertEquals(1, animation.at(500)[RagdollRig.FORWARD], 1e-9);
+    }
+
+    @Test
     @DisplayName("a frame is reached exactly when the file says, and carries the rest over")
     void framesLandOnTime() {
         RagdollAnimation animation = parsed("0.5 up=1 | 0.25 turn=~90 | 0.25 turn=~90 | 0 arms=0,0,90");

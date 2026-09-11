@@ -220,6 +220,9 @@ public final class PixelArt {
                     "#.......#", "##.....##"}),
             Map.entry("blade", new String[]{"#######", "######.", "#####.."}),
             Map.entry("grave", new String[]{".###.", "##.##", "#...#", "##.##", "##.##", "#####", "#####"}),
+            Map.entry("portal", new String[]{
+                    "..ooo..", ".o###o.", "o#####o", "o#####o", "o#####o", "o#####o", "o#####o",
+                    ".o###o.", "..ooo.."}),
             Map.entry("moon", new String[]{
                     "..###.",
                     ".###..",
