@@ -268,6 +268,83 @@ public interface BetCoreService {
      */
     void stopSpectating(@NotNull Player player);
 
+    // ── Screens ────────────────────────────────────────────────────────────
+    //
+    // The player's own screens, for an NPC, a hub item or another plugin's
+    // menu to open. Safe from any thread: the window opens on the thread that
+    // owns the viewer. None of them stakes anything — a bet made from one of
+    // these screens is still the player's own click, with every check that
+    // click makes.
+
+    /**
+     * Opens the list of games.
+     *
+     * @param player who to show it to
+     * @since 1.3.0
+     */
+    void openMenu(@NotNull Player player);
+
+    /**
+     * Opens one game's lobby, where bets are offered and taken.
+     *
+     * <p>Goes through the same check as the player's own command, because a
+     * lobby is where money moves: an unknown game or one the player has no
+     * permission for is refused with the message that command gives.
+     *
+     * @param player who to show it to
+     * @param gameId which game
+     * @since 1.3.0
+     */
+    void openLobby(@NotNull Player player, @NotNull String gameId);
+
+    /**
+     * Reopens the board of the match a player is playing or watching.
+     *
+     * <p>Nothing happens when they are in no match, or in one that is already
+     * over.
+     *
+     * @param player who to show it to
+     * @since 1.3.0
+     */
+    void openBoard(@NotNull Player player);
+
+    /**
+     * Opens one player's record.
+     *
+     * <p>Read-only, so no permission is checked: whether a viewer may see
+     * somebody else's winnings is the caller's decision, as it is for any
+     * screen a server owner wires up. The record is read before the screen
+     * opens, which may be a moment later.
+     *
+     * @param viewer  who to show it to
+     * @param subject whose record
+     * @param gameId  a game id, or {@link BetStats#ALL_GAMES} for every game at once
+     * @since 1.3.0
+     */
+    void openStats(@NotNull Player viewer, @NotNull UUID subject, @NotNull String gameId);
+
+    /**
+     * Opens a leaderboard.
+     *
+     * @param viewer who to show it to
+     * @param gameId a game id, or {@link BetStats#ALL_GAMES}
+     * @param stat   what to sort by first; the screen lets the viewer change it
+     * @since 1.3.0
+     */
+    void openLeaderboard(@NotNull Player viewer, @NotNull String gameId, @NotNull StatsType stat);
+
+    /**
+     * Opens one player's last matches, newest first.
+     *
+     * <p>Read-only, and unchecked for the same reason as
+     * {@link #openStats(Player, UUID, String)}.
+     *
+     * @param viewer  who to show it to
+     * @param subject whose matches
+     * @since 1.3.0
+     */
+    void openHistory(@NotNull Player viewer, @NotNull UUID subject);
+
     // ── Records ────────────────────────────────────────────────────────────
 
     /**

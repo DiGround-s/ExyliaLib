@@ -232,4 +232,33 @@ public interface EventsService {
      * @return {@code true} when an event was running under that id
      */
     boolean forceEnd(@NotNull String eventId);
+
+    /**
+     * Begins play in a run now, without waiting out its countdown.
+     *
+     * <p>The administrative start, for a host who does not want to wait: the
+     * minimum player count is not checked, only that there is somebody to play.
+     * Refused when the run is already being played or ending, or when nobody is
+     * in it yet.
+     *
+     * @param eventId the run's id
+     * @return {@code true} when play began
+     * @since 1.3.0
+     */
+    boolean forceStart(@NotNull String eventId);
+
+    // ── Menus ──────────────────────────────────────────────────────────────
+
+    /**
+     * Opens the events menu for a player, the one {@code /events} opens.
+     *
+     * <p>The screen a lobby NPC or a hotbar item wants: the running events, a
+     * way into them and the player's own record, drawn from the server owner's
+     * menu files. Call it on the thread that owns the player, as an interaction
+     * handler already is.
+     *
+     * @param player who to show it to
+     * @since 1.3.0
+     */
+    void openMenu(@NotNull Player player);
 }

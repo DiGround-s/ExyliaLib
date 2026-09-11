@@ -136,6 +136,20 @@ public interface ClansService {
      */
     int memberCount(@NotNull UUID player);
 
+    /**
+     * Every role a clan has, lowest weight first.
+     *
+     * <p>What {@link #setRole} needs: roles belong to one clan, so the id of
+     * "officer" in one clan names nothing in another.
+     *
+     * @param clanId the clan id
+     * @return its roles, empty when the clan does not exist
+     * @since 1.3.0
+     */
+    @NotNull
+    @Unmodifiable
+    List<ClanRole> roles(@NotNull String clanId);
+
     // ── Relations ──────────────────────────────────────────────────────────
 
     /**
@@ -184,6 +198,21 @@ public interface ClansService {
      * @return the ally count, or {@code 0} when they are in no clan
      */
     int allyCount(@NotNull UUID player);
+
+    /**
+     * How two players stand towards each other.
+     *
+     * <p>What a combat, party or chat plugin wants when it has to tell a
+     * clanmate from an ally from a rival from a stranger: one call, reading the
+     * cache only, cheap enough for every hit.
+     *
+     * @param playerA one player
+     * @param playerB the other
+     * @return their relation, {@link ClanRelation#NONE} when either is clanless
+     * @since 1.3.0
+     */
+    @NotNull
+    ClanRelation relation(@NotNull UUID playerA, @NotNull UUID playerB);
 
     // ── Progression ────────────────────────────────────────────────────────
 
@@ -294,6 +323,51 @@ public interface ClansService {
     @NotNull
     Optional<ClanClaim> claimOf(@NotNull String clanId);
 
+    // ── Adjustments ────────────────────────────────────────────────────────
+    //
+    // Writes with no player behind them, for a plugin rewarding or punishing a
+    // clan for something it tracks itself. There are no permission checks and
+    // nobody is told anything beyond what the plugin announces on its own — a
+    // level reached, land opening to raids. Call them on the main thread; the
+    // row is saved in the background, like every other change.
+
+    /**
+     * Gives a clan experience, or takes it away.
+     *
+     * <p>Goes through the same path a kill or a death does, so crossing a level
+     * is announced to the clan and the member, alliance and rival limits follow
+     * it. Experience never drops below zero and never rises past what the
+     * highest level costs.
+     *
+     * @param clanId the clan id
+     * @param amount experience to add; negative to take it away
+     * @return {@code true} when the change was applied, which at either limit
+     *         can move nothing — read {@link #exp} for where it landed;
+     *         {@code false} when the clan does not exist, the server runs
+     *         without levels, or {@code amount} is zero
+     * @since 1.3.0
+     */
+    boolean addExp(@NotNull String clanId, long amount);
+
+    /**
+     * Raises or lowers a clan's deaths-till-raidable.
+     *
+     * <p>The value stays between the server's minimum and the clan's current
+     * {@link #maxDtr maximum}. Crossing into raidable does what a death crossing
+     * it does — the land opens to raiding and the clan pays the experience the
+     * server charges for it — and crossing out does what regeneration does.
+     * Unlike a death, it does not freeze regeneration, so a lowered DTR starts
+     * recovering on the next regeneration tick.
+     *
+     * @param clanId the clan id
+     * @param delta  how much to add; negative to take away
+     * @return {@code true} when the DTR moved; {@code false} when the clan does
+     *         not exist, the server runs without DTR, or it already sat at the
+     *         limit it was pushed towards
+     * @since 1.3.0
+     */
+    boolean adjustDtr(@NotNull String clanId, double delta);
+
     // ── Actions ────────────────────────────────────────────────────────────
     //
     // Each of these runs the same flow the player's own command runs, including
@@ -384,4 +458,47 @@ public interface ClansService {
      * @param player the member travelling
      */
     void teleportHome(@NotNull Player player);
+
+    /**
+     * Puts a player in a clan, the way {@code /clan join} does.
+     *
+     * <p>The clan has to be open or have invited them, and the usual refusals
+     * apply — already in a clan, banned from this one, full — each told to the
+     * player. Unlike the actions above, this one reports back, because a caller
+     * placing somebody usually has something to do next.
+     *
+     * @param player the player joining
+     * @param clanId the clan id
+     * @return {@code true} when they joined; {@code false} when they were
+     *         refused, and have been told why
+     * @since 1.3.0
+     */
+    boolean joinClan(@NotNull Player player, @NotNull String clanId);
+
+    /**
+     * Gives a member one of their clan's roles, as the role menu does.
+     *
+     * <p>The actor needs the promote or the demote permission, whichever way the
+     * rank moves, and has to outrank both the member and the role. The leader's
+     * role does not move this way: leadership changes hands through
+     * {@link #transferLeader}.
+     *
+     * @param actor  a member allowed to promote or demote
+     * @param target the member whose role changes, who may be offline
+     * @param roleId one of the clan's {@link #roles roles}
+     * @since 1.3.0
+     */
+    void setRole(@NotNull Player actor, @NotNull UUID target, @NotNull String roleId);
+
+    /**
+     * Opens the clan menu for a player.
+     *
+     * <p>The plugin's front door, and the only menu worth opening from outside:
+     * a member sees their clan's overview, anybody else the screen to create or
+     * join one, and every other menu is reached from there.
+     *
+     * @param player the player
+     * @since 1.3.0
+     */
+    void openMenu(@NotNull Player player);
 }

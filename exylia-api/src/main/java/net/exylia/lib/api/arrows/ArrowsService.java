@@ -1,9 +1,14 @@
 package net.exylia.lib.api.arrows;
 
 import net.exylia.lib.api.ExyliaAPI;
+import net.exylia.lib.api.arrows.event.ArrowEffectPlayEvent;
+import org.bukkit.Location;
+import org.bukkit.entity.Entity;
 import org.bukkit.entity.Player;
+import org.bukkit.entity.Projectile;
 import org.bukkit.inventory.ItemStack;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 import org.jetbrains.annotations.Unmodifiable;
 
 import java.util.List;
@@ -288,4 +293,161 @@ public interface ArrowsService {
      * @return {@code true} when it is an effect token
      */
     boolean isEffectItem(@NotNull ItemStack stack);
+
+    // ── Playing an effect ──────────────────────────────────────────────────
+
+    /**
+     * Plays one moment of an effect at a place, as though a shot were there.
+     *
+     * <p>The path a real shot takes once it knows its effect: the region flag
+     * that silences arrow effects is honoured, {@link ArrowEffectPlayEvent} is
+     * fired and may cancel it, and every observer's own particle setting
+     * decides whether they see it. Everything that picks the effect is
+     * skipped — the bow, the menu choice, the projectile types, permission —
+     * because the caller named one.
+     *
+     * <p>Exactly the moment asked for: a {@link ArrowTrigger#HIT_ENTITY} on an
+     * effect that only declares {@link ArrowTrigger#HIT} draws nothing, and a
+     * {@link ArrowTrigger#TRAIL} is one step of the line rather than a flight.
+     * For an effect that follows something through the air, see
+     * {@link #attach}.
+     *
+     * <p>Call it on the thread that owns {@code where}: the main thread on
+     * Paper, its region thread on Folia.
+     *
+     * @param effectId the effect id
+     * @param trigger  which moment of it to play
+     * @param where    where it plays; copied, never held
+     * @param shooter  who the effect belongs to, which is whose own it counts
+     *                 as for a player who only sees their own particles
+     * @param hit      what it landed on, for steps that need a body, or
+     *                 {@code null} for none
+     * @return {@code false} when no effect goes by that id, it draws nothing
+     *         at that moment, the region silences it, or a listener cancelled
+     *         it
+     * @since 1.3.0
+     */
+    boolean play(@NotNull String effectId, @NotNull ArrowTrigger trigger, @NotNull Location where,
+                 @NotNull Player shooter, @Nullable Entity hit);
+
+    /**
+     * Makes a projectile carry an effect, as though it had just been fired
+     * with it.
+     *
+     * <p>For a shot the plugin never picked an effect for, or one that should
+     * carry a different one: an ability's volley, a turret, a spell drawn as an
+     * arrow. The launch plays where the projectile is now, the trail follows it,
+     * and the impact plays where it lands. An effect it already carried is
+     * replaced, trail and all. The server's list of projectile types and the
+     * shooter's own choice are not asked, because the caller named both.
+     *
+     * <p>A projectile a player launches through the server's own methods
+     * already carries their effect; this is for overriding it or for a
+     * projectile nothing launched.
+     *
+     * <p>The effect belongs to the projectile's shooter, so there has to be a
+     * player there. Call it on the thread that owns the projectile, straight
+     * after spawning it.
+     *
+     * @param projectile the projectile, shot by a player
+     * @param effectId   the effect id
+     * @return {@code false} when no effect goes by that id, it draws nothing,
+     *         or the projectile's shooter is not a player; in each case nothing
+     *         was changed
+     * @since 1.3.0
+     */
+    boolean attach(@NotNull Projectile projectile, @NotNull String effectId);
+
+    /**
+     * Shows a player an effect on the server's preview stage.
+     *
+     * <p>The preview the menu's button starts, showing the impact: the player
+     * sees it on the stage, alone, and is put back afterwards. Owning the
+     * effect is not required, which is what makes this a shop's "try before you
+     * buy". On a server with no stage set the player is told so in the server's
+     * own words, and this answers {@code false}.
+     *
+     * <p>Call it on the thread that owns the player.
+     *
+     * @param viewer   who sees it
+     * @param effectId the effect id
+     * @return {@code true} when the preview started
+     * @since 1.3.0
+     */
+    boolean preview(@NotNull Player viewer, @NotNull String effectId);
+
+    // ── Menus ──────────────────────────────────────────────────────────────
+
+    /**
+     * Opens the effect menu for a player, exactly as the command does.
+     *
+     * <p>For an NPC, a hub item, or a shop that hands over to the plugin's own
+     * screen. The player's row is read first when it is not in memory yet, so
+     * the menu can appear a moment after the call rather than on it. On a
+     * server whose {@link #mode()} does not use the menu, the player is told it
+     * is off instead.
+     *
+     * <p>Safe from any thread.
+     *
+     * @param player who to show it to
+     * @since 1.3.0
+     */
+    void openMenu(@NotNull Player player);
+
+    /**
+     * Opens the crate for a player, exactly as the command and the crate
+     * blocks do.
+     *
+     * <p>The screen that asks how many to open and spends the player's keys.
+     * On a server with the crate turned off, the player is told so instead.
+     *
+     * <p>Safe from any thread.
+     *
+     * @param player who to show it to
+     * @since 1.3.0
+     */
+    void openCrate(@NotNull Player player);
+
+    // ── Owning, and crate keys ─────────────────────────────────────────────
+
+    /**
+     * Gives a player an effect for good, as winning it from the crate does.
+     *
+     * <p>Ownership without a permission node, so a vote reward or a season pass
+     * can hand over an effect without a rank plugin. It counts towards
+     * {@link #canUse(Player, String)} from then on. Nothing is selected and no
+     * item is given: follow it with {@link #select} or {@link #effectItem} for
+     * that.
+     *
+     * @param player   the player
+     * @param effectId the effect id
+     * @return {@code false} when no effect goes by that id, the crate already
+     *         gave it to them, or their row is still being read; in each case
+     *         nothing was changed
+     * @since 1.3.0
+     */
+    boolean unlock(@NotNull Player player, @NotNull String effectId);
+
+    /**
+     * How many crate keys a player holds.
+     *
+     * @param player the player
+     * @return their keys, {@code 0} when they have none or are still being read
+     * @since 1.3.0
+     */
+    int keys(@NotNull UUID player);
+
+    /**
+     * Gives a player crate keys, or takes some away.
+     *
+     * <p>A key is what one spin of the crate costs, so this is how a store, a
+     * vote or a quest pays one out. The count never goes below zero: taking
+     * more than they hold leaves them with none rather than a debt. Writes to
+     * the database, like every other change here.
+     *
+     * @param player the player; one who is still being read is left unchanged
+     * @param keys   how many to add, or a negative number to take
+     * @since 1.3.0
+     */
+    void addKeys(@NotNull Player player, int keys);
 }

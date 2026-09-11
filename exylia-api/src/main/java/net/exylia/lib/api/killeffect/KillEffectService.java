@@ -1,10 +1,14 @@
 package net.exylia.lib.api.killeffect;
 
 import net.exylia.lib.api.ExyliaAPI;
+import net.exylia.lib.api.killeffect.event.KillEffectPlayEvent;
+import org.bukkit.Location;
 import org.bukkit.Material;
+import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 import org.jetbrains.annotations.Unmodifiable;
 
 import java.util.List;
@@ -285,4 +289,152 @@ public interface KillEffectService {
      */
     @NotNull
     ItemStack remover(@NotNull Player viewer);
+
+    // ── Playing an effect ──────────────────────────────────────────────────
+
+    /**
+     * Plays an effect at a place, as though a kill had happened there.
+     *
+     * <p>The path a real kill takes once it knows its effect: the region flag
+     * that silences kill effects is honoured, {@link KillEffectPlayEvent} is
+     * fired and may cancel it, and every observer's own particle setting
+     * decides whether they see it. Everything that picks the effect is
+     * skipped — the weapon, the menu choice, the mob list, permission —
+     * because the caller named one.
+     *
+     * <p>For a cutscene, a boss that dies outside the damage system, or a win
+     * that should look like a kill. Call it on the thread that owns
+     * {@code where}: the main thread on Paper, its region thread on Folia.
+     *
+     * @param effectId the effect id, case insensitive
+     * @param where    where it plays; copied, never held
+     * @param killer   who the effect belongs to, which is whose own it counts
+     *                 as for a player who only sees their own particles
+     * @param victim   what it plays on, for steps that need a body, or
+     *                 {@code null} for none
+     * @return {@code false} when no effect goes by that id, it draws nothing,
+     *         the region silences it, or a listener cancelled it
+     * @since 1.3.0
+     */
+    boolean play(@NotNull String effectId, @NotNull Location where, @NotNull Player killer,
+                 @Nullable LivingEntity victim);
+
+    /**
+     * Plays the effect a kill earns, as though this killer had just killed this
+     * victim.
+     *
+     * <p>Everything a real death decides is decided here, in the same order:
+     * whether kill effects play on this kind of victim, which effect the
+     * killer's last blow on it carried — or, with none remembered, what the
+     * weapon in their hand and their menu choice resolve to under the server's
+     * setting — and then the path {@link #play} describes, at the victim's
+     * feet. The remembered blow is used up.
+     *
+     * <p>For a plugin that stops a lethal blow before the server calls it a
+     * death: a totem, a duel that ends at the last heart, a respawn in place.
+     * A death the server does report plays its effect already, cancelled or
+     * not, and calling this for it as well plays it twice. Call it on the
+     * thread that owns the victim.
+     *
+     * @param killer who got the kill
+     * @param victim who fell
+     * @return {@code false} when the kill earns no effect, or when
+     *         {@link #play} would have answered {@code false}
+     * @since 1.3.0
+     */
+    boolean playFor(@NotNull Player killer, @NotNull LivingEntity victim);
+
+    /**
+     * Shows a player an effect on the server's preview stage.
+     *
+     * <p>The preview the menu's button starts: the player sees the effect on
+     * the stage, alone, and is put back afterwards. Owning the effect is not
+     * required, which is what makes this a shop's "try before you buy". On a
+     * server with no stage set the player is told so in the server's own words,
+     * and this answers {@code false}.
+     *
+     * <p>Call it on the thread that owns the player.
+     *
+     * @param viewer   who sees it
+     * @param effectId the effect id, case insensitive
+     * @return {@code true} when the preview started
+     * @since 1.3.0
+     */
+    boolean preview(@NotNull Player viewer, @NotNull String effectId);
+
+    // ── Menus ──────────────────────────────────────────────────────────────
+
+    /**
+     * Opens the effect menu for a player, exactly as the command does.
+     *
+     * <p>For an NPC, a hub item, or a shop that hands over to the plugin's own
+     * screen. The player's row is read first when it is not in memory yet, so
+     * the menu can appear a moment after the call rather than on it. On a
+     * server where effects come from weapons only, the player is told the menu
+     * is off instead.
+     *
+     * <p>Safe from any thread.
+     *
+     * @param player who to show it to
+     * @since 1.3.0
+     */
+    void openMenu(@NotNull Player player);
+
+    /**
+     * Opens the crate for a player, exactly as the command and the crate
+     * blocks do.
+     *
+     * <p>The screen that asks how many to open and spends the player's keys.
+     * On a server with the crate turned off, the player is told so instead.
+     *
+     * <p>Safe from any thread.
+     *
+     * @param player who to show it to
+     * @since 1.3.0
+     */
+    void openCrate(@NotNull Player player);
+
+    // ── Owning, and crate keys ─────────────────────────────────────────────
+
+    /**
+     * Gives a player an effect for good, as winning it from the crate does.
+     *
+     * <p>Ownership without a permission node, so a vote reward or a season pass
+     * can hand over an effect without a rank plugin. It counts towards
+     * {@link #mayUse(Player, String)} from then on. Nothing is chosen and no
+     * item is given: follow it with {@link #chooseEffect} or {@link #token}
+     * for that.
+     *
+     * @param player   the player
+     * @param effectId the effect id, case insensitive
+     * @return {@code false} when no effect goes by that id, the crate already
+     *         gave it to them, or their row has not arrived yet; in each case
+     *         nothing was changed
+     * @since 1.3.0
+     */
+    boolean unlock(@NotNull Player player, @NotNull String effectId);
+
+    /**
+     * How many crate keys a player holds.
+     *
+     * @param player the player
+     * @return their keys, {@code 0} when they have none or their row has not
+     *         arrived yet
+     * @since 1.3.0
+     */
+    int keys(@NotNull UUID player);
+
+    /**
+     * Gives a player crate keys, or takes some away.
+     *
+     * <p>A key is what one spin of the crate costs, so this is how a store, a
+     * vote or a quest pays one out. The count never goes below zero: taking
+     * more than they hold leaves them with none rather than a debt.
+     *
+     * @param player the player; one whose row has not arrived yet is left
+     *               unchanged
+     * @param keys   how many to add, or a negative number to take
+     * @since 1.3.0
+     */
+    void addKeys(@NotNull Player player, int keys);
 }

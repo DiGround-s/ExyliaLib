@@ -93,6 +93,41 @@ public interface SandBoxService {
      */
     void leaveQueue(@NotNull Player player);
 
+    /**
+     * Sends a player straight into a sandbox world, dressed in one of their kits.
+     *
+     * <p>The random-teleport way in, the one the world selector leads to: the
+     * player is taken, what they carry is put aside, and they land somewhere
+     * safe in the world. Every refusal is decided before any of that, and none
+     * is said to the player — the result is the caller's to put into words.
+     *
+     * <p>{@link EnterResult#ACCEPTED} is a request under way rather than an
+     * arrival; see {@link net.exylia.lib.api.sandbox.event.SandboxArriveEvent}.
+     * Call it on the thread that owns the player.
+     *
+     * @param player  the player entering
+     * @param worldId the world to send them to
+     * @param kitSlot the kit slot to dress them in, which has to hold a saved kit
+     * @return what came of it
+     * @since 1.3.0
+     */
+    @NotNull
+    EnterResult enter(@NotNull Player player, @NotNull String worldId, int kitSlot);
+
+    /**
+     * Opens the world selector for a player, the one {@code /rtp} opens.
+     *
+     * <p>The screen a lobby NPC wants: every world with its status and player
+     * count, each leading on to choosing a kit and into the world. Opened
+     * whether or not the player could enter right now: a world that is not
+     * ready draws without an action, and every way in the screen offers makes
+     * its own checks when clicked. Call it on the thread that owns the player.
+     *
+     * @param player who to show it to
+     * @since 1.3.0
+     */
+    void openWorldSelector(@NotNull Player player);
+
     // ── Worlds ─────────────────────────────────────────────────────────────
 
     /**

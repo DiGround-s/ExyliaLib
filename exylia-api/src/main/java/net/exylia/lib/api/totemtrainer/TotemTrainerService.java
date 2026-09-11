@@ -302,4 +302,65 @@ public interface TotemTrainerService {
      * @return {@code true} when they were in something to leave
      */
     boolean leave(@NotNull Player player);
+
+    // ── Menus ──────────────────────────────────────────────────────────────
+    //
+    // The player's own screens, for an NPC, a hub item or another plugin's
+    // menu to open. Safe from any thread: each one opens on the thread that
+    // owns the player, and a screen that reads the database first fills in a
+    // moment later. No permission is checked — deciding who sees a screen is
+    // the caller's call, as it is for any menu a server owner wires up.
+
+    /**
+     * Opens the hub every other screen is reached from.
+     *
+     * @param player who to show it to
+     * @since 1.3.0
+     */
+    void openMenu(@NotNull Player player);
+
+    /**
+     * Opens the solo training picker, where a player chooses a mode and a speed.
+     *
+     * @param player who to show it to
+     * @since 1.3.0
+     */
+    void openTraining(@NotNull Player player);
+
+    /**
+     * Opens the duel settings for challenging one player.
+     *
+     * <p>The screen a player reaches by picking an opponent: choosing a mode
+     * there sends the request, through the same checks as {@link #duel}.
+     *
+     * @param player who to show it to
+     * @param target the player they would challenge
+     * @since 1.3.0
+     */
+    void openDuel(@NotNull Player player, @NotNull Player target);
+
+    /**
+     * Opens a player's profile.
+     *
+     * <p>Works for an offline target, whose profile is read from the database
+     * before the screen opens.
+     *
+     * @param viewer who to show it to
+     * @param target whose profile, which may be the viewer's own
+     * @since 1.3.0
+     */
+    void openProfile(@NotNull Player viewer, @NotNull UUID target);
+
+    /**
+     * Opens one mode's training leaderboard.
+     *
+     * <p>An unknown mode id opens the mode picker instead of an empty board.
+     *
+     * @param viewer   who to show it to
+     * @param modeId   which mode, from {@link #modes()}
+     * @param category what to sort by
+     * @since 1.3.0
+     */
+    void openLeaderboard(@NotNull Player viewer, @NotNull String modeId,
+                         @NotNull RecordCategory category);
 }

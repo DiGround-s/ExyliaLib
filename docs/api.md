@@ -2,7 +2,8 @@
 
 The contract third-party developers write against. One artifact,
 `net.exylia:exylia-api`, covering every Exylia plugin. Since ExyliaLib 1.112.0;
-the survival events arrived in 1.113.0, and mine breaks in 1.131.0.
+the survival events arrived in 1.113.0, mine breaks in 1.131.0, and on-demand
+actions and lifecycle events across the suite in 1.133.0 (`exylia-api` 1.3.0).
 
 Entry point: `net.exylia.lib.api.ExyliaAPI`.
 
@@ -14,7 +15,7 @@ repositories {
 }
 
 dependencies {
-    compileOnly 'com.github.DiGround-s.ExyliaLib:exylia-api:1.1.0'
+    compileOnly 'com.github.DiGround-s.ExyliaLib:exylia-api:1.3.0'
 }
 ```
 
@@ -125,49 +126,68 @@ plugin imports it from there.
 ## Services
 
 Twenty-two services across twenty-one plugins, plus one plugin that publishes
-only an event. Every one is reached the same way:
-`ExyliaAPI.get(<Service>.class)`.
+only events. Every one is reached the same way:
+`ExyliaAPI.get(<Service>.class)`. The event counts leave out abstract bases
+such as `BetEvent` and `PracticeEvent`.
 
 | Package | Service | Plugin | Events |
 | --- | --- | --- | --- |
-| `api.armorskin` | `ArmorSkinService` | ExyliaArmorSkin | — |
-| `api.armortrims` | `ArmorTrimService` | ExyliaArmorTrims | — |
-| `api.arrows` | `ArrowsService` | ExyliaArrows | — |
-| `api.betcore` | `BetCoreService` | ExyliaBetCore | 9 |
-| `api.capture` | `CaptureService` | ExyliaCapture | — |
+| `api.armorskin` | `ArmorSkinService` | ExyliaArmorSkin | 2 |
+| `api.armortrims` | `ArmorTrimService` | ExyliaArmorTrims | 2 |
+| `api.arrows` | `ArrowsService` | ExyliaArrows | 1 |
+| `api.betcore` | `BetCoreService` | ExyliaBetCore | 8 |
+| `api.capture` | `CaptureService` | ExyliaCapture | 3 |
 | `api.chatcosmetics` | `CosmeticsService`, `ChatService` | ExyliaChatCosmetics | 10 |
-| `api.clans` | `ClansService` | ExyliaClans | — |
-| `api.classes` | `ClassesService` | ExyliaClasses | — |
-| `api.events` | `EventsService` | ExyliaEvents | — |
-| `api.ffa` | `FfaService` | ExyliaFFA | — |
-| `api.hiteffect` | `HitEffectService` | ExyliaHitEffect | — |
-| `api.killeffect` | `KillEffectService` | ExyliaKillEffect | — |
-| `api.pearls` | `PearlsService` | ExyliaPearls | — |
-| `api.practice` | `PracticeService` | ExyliaPracticeCore | — |
-| `api.practicebot` | `PracticeBotService` | ExyliaPracticeBotV3 | 1 |
-| `api.sandbox` | `SandBoxService` | ExyliaSandBox | — |
-| `api.shields` | `ShieldsService` | ExyliaShields | — |
-| `api.specials` | `SpecialsService` | ExyliaSpecialsV3 | 2 |
-| `api.staff` | `StaffService` | ExyliaStaff | 2 |
-| `api.survival` | `SurvivalService` | ExyliaSurvivalCore | 7 |
-| `api.totems` | — | ExyliaTotems | 1 |
-| `api.totemtrainer` | `TotemTrainerService` | ExyliaTotemTrainer | 7 |
+| `api.clans` | `ClansService` | ExyliaClans | 8 |
+| `api.classes` | `ClassesService` | ExyliaClasses | 3 |
+| `api.events` | `EventsService` | ExyliaEvents | 6 |
+| `api.ffa` | `FfaService` | ExyliaFFA | 4 |
+| `api.hiteffect` | `HitEffectService` | ExyliaHitEffect | 1 |
+| `api.killeffect` | `KillEffectService` | ExyliaKillEffect | 1 |
+| `api.pearls` | `PearlsService` | ExyliaPearls | 1 |
+| `api.practice` | `PracticeService` | ExyliaPracticeCore | 8 |
+| `api.practicebot` | `PracticeBotService` | ExyliaPracticeBotV3 | 2 |
+| `api.sandbox` | `SandBoxService` | ExyliaSandBox | 3 |
+| `api.shields` | `ShieldsService` | ExyliaShields | 2 |
+| `api.specials` | `SpecialsService` | ExyliaSpecialsV3 | 3 |
+| `api.staff` | `StaffService` | ExyliaStaff | 5 |
+| `api.survival` | `SurvivalService` | ExyliaSurvivalCore | 10 |
+| `api.totems` | — | ExyliaTotems | 2 |
+| `api.totemtrainer` | `TotemTrainerService` | ExyliaTotemTrainer | 8 |
 
 ExyliaTotems has no service on purpose: it holds nothing worth asking about, and
 it cancels the death it handles, so neither `PlayerDeathEvent` nor
-`EntityResurrectEvent` reaches an observer. `PlayerTotemSaveEvent` is the whole
-of its API.
+`EntityResurrectEvent` reaches an observer. Its two events are the whole of its
+API: `PlayerTotemSaveEvent` after a save, and `PlayerTotemHoldEvent` before a
+death is held open for one, which a plugin running its own deaths cancels.
 
 ExyliaProxyUtils is not here. It runs on Velocity and BungeeCord, which have no
 Bukkit `ServicesManager` and no Lukittu Spigot loader, so it needs a different
 mechanism than this one.
 
+## What a service drives
+
+Since 1.3.0 a service does more than answer questions. Throughout the suite:
+
+- **On-demand actions** go through the same path the plugin's own trigger uses:
+  a kill effect played without a kill, a duel started without a request, a kit
+  given as a reward. The gates a real trigger passes (regions, cooldowns,
+  visibility) still apply, and each method says which ones it skips.
+- **Menu openers** open a player-facing screen exactly as its command does, so
+  an NPC, a sign or a lobby item can lead into it.
+- **Lifecycle events** are fired at the moment that matters, and the cancellable
+  ones fire after the plugin's own checks and before anything is written, so a
+  cancelled event leaves nothing half done.
+- **Result enums** replace booleans wherever a call can be refused for more than
+  one reason.
+
 ## What each service does not expose
 
 Every service is curated rather than a mirror of the plugin's internal facade.
-Left out throughout: menu openers and interactive editor flows, administrative
-and destructive writes, session arbitration, raw configuration rows, and
-anything returning a type that only makes sense inside one classloader.
+Left out throughout: interactive editor flows, administrative and destructive
+writes, anything that spends or stakes a player's money on their behalf, session
+arbitration, raw configuration rows, and anything returning a type that only
+makes sense inside one classloader.
 
 The plugin keeps all of it internally. A method that is absent here is absent
 because it was judged not to belong in a contract that cannot be broken later,

@@ -4,6 +4,7 @@ import net.exylia.lib.api.ExyliaAPI;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 import org.jetbrains.annotations.Unmodifiable;
 
 import java.time.Duration;
@@ -124,6 +125,48 @@ public interface SpecialsService {
      */
     @NotNull
     Optional<ItemStack> createItem(@NotNull String itemId, @NotNull Player player);
+
+    /**
+     * Gives a player fresh copies of a special item.
+     *
+     * <p>The same delivery the give command uses: what fits goes into the
+     * inventory, and what does not is kept and handed over on the player's next
+     * join rather than dropped where anybody could pick it up. Nothing is said
+     * to the player. Call it on the thread that owns the player.
+     *
+     * @param player who receives the item
+     * @param itemId the item id, case insensitive
+     * @param amount how many copies, from 1 to 64, handed over as one stack
+     * @return {@code true} when the item was given or queued, {@code false}
+     *         when no item goes by that id, {@code amount} is out of range, or
+     *         the item could be neither given nor kept
+     * @since 1.3.0
+     */
+    boolean giveItem(@NotNull Player player, @NotNull String itemId, int amount);
+
+    /**
+     * Runs a special item's actions for a player who is not holding it.
+     *
+     * <p>The item behaves as its own trigger would have fired it, with
+     * {@code target} as the player it acts on where it acts on one. Its region
+     * rules and its cooldown still apply, and the player is told when either
+     * refuses; a successful use starts the cooldown and plays the item's
+     * effects. What is skipped is everything that belongs to a stack — no use
+     * is consumed, nothing is eaten, and a combo item fires without waiting for
+     * its hits. {@link net.exylia.lib.api.specials.event.SpecialItemUseEvent}
+     * is fired first and may still refuse it.
+     *
+     * <p>Call it on the thread that owns the player.
+     *
+     * @param player who uses the item
+     * @param itemId the item id, case insensitive
+     * @param target the player it acts on, or {@code null} for an item that
+     *               needs none
+     * @return {@code true} when the actions started, {@code false} when no
+     *         item goes by that id or the use was refused
+     * @since 1.3.0
+     */
+    boolean activate(@NotNull Player player, @NotNull String itemId, @Nullable Player target);
 
     // ── Cooldowns ──────────────────────────────────────────────────────────
 
@@ -262,4 +305,18 @@ public interface SpecialsService {
     @NotNull
     @Unmodifiable
     Collection<SpecialsMatch> activeMatches();
+
+    /**
+     * Stops a duel with no winner and returns both players.
+     *
+     * <p>For a plugin that needs the players back — an event starting, a
+     * restart warning. No rewards are paid, and
+     * {@link net.exylia.lib.api.specials.event.OneVsOneEndEvent} fires with the
+     * error result. Call it on the main thread.
+     *
+     * @param matchId the id from {@link SpecialsMatch#matchId()}
+     * @return {@code true} when a running duel was stopped
+     * @since 1.3.0
+     */
+    boolean endMatch(@NotNull String matchId);
 }

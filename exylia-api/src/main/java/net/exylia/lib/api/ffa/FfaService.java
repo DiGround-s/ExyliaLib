@@ -276,6 +276,76 @@ public interface FfaService {
      */
     void invite(@NotNull Player inviter, @NotNull Player target);
 
+    /**
+     * Hands a fighting player their kit again, as a fresh copy.
+     *
+     * <p>The kit they are fighting with, laid out the way they saved it in the
+     * kit editor; their current inventory is cleared first. A refill for a
+     * reward or a round reset, not a way to change kits. Call it on the thread
+     * that owns the player.
+     *
+     * @param player the player
+     * @return {@code true} when they were alive in an arena and were given it,
+     *         {@code false} when they are spectating or in no arena
+     * @since 1.3.0
+     */
+    boolean giveKit(@NotNull Player player);
+
+    // ── Menus ──────────────────────────────────────────────────────────────
+    //
+    // The player's own screens, for an NPC, a hub item or another plugin's
+    // menu to open. Each is the screen their command opens, with the checks it
+    // makes. Call them on the main thread; a screen that reads the database
+    // first opens a moment later, on the player's own thread.
+
+    /**
+     * Opens the arena list, where a player picks an arena to join.
+     *
+     * @param player who to show it to
+     * @since 1.3.0
+     */
+    void openArenaSelector(@NotNull Player player);
+
+    /**
+     * Opens a player's own settings toggles.
+     *
+     * @param player who to show it to
+     * @since 1.3.0
+     */
+    void openSettings(@NotNull Player player);
+
+    /**
+     * Opens the kit editor, where a player rearranges a kit's layout.
+     *
+     * <p>Refused, with a message, for a player already editing or held by
+     * another mode — the kit editor takes their inventory while it is open.
+     *
+     * @param player who to show it to
+     * @since 1.3.0
+     */
+    void openKitEditor(@NotNull Player player);
+
+    /**
+     * Opens a player's statistics, one row per arena.
+     *
+     * <p>Works for an offline target by the name stored on their rows; a name
+     * that has never played is reported to the viewer as not found.
+     *
+     * @param viewer     who to show it to
+     * @param targetName whose statistics, which may be the viewer's own name
+     * @since 1.3.0
+     */
+    void openStats(@NotNull Player viewer, @NotNull String targetName);
+
+    /**
+     * Opens an arena's leaderboard.
+     *
+     * @param viewer  who to show it to
+     * @param arenaId the arena id, or {@link #GLOBAL_ARENA} for the whole server
+     * @since 1.3.0
+     */
+    void openLeaderboard(@NotNull Player viewer, @NotNull String arenaId);
+
     // ── Statistics ─────────────────────────────────────────────────────────
 
     /**

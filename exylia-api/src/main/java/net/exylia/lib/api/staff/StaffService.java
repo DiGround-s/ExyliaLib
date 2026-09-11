@@ -179,6 +179,47 @@ public interface StaffService {
     @Unmodifiable
     List<UUID> onlineInStaffMode();
 
+    /**
+     * Everybody on this server who is vanished.
+     *
+     * <p>This server only, for the same reason as {@link #onlineStaff()}. What a
+     * tab list or a player counter subtracts; filter with
+     * {@link #canSee(Player, Player)} when the list is for one viewer.
+     *
+     * @return the vanished players here, empty when the module is off
+     * @since 1.3.0
+     */
+    @NotNull
+    @Unmodifiable
+    List<UUID> onlineVanished();
+
+    // ── Reports ────────────────────────────────────────────────────────────
+
+    /**
+     * How many reports are waiting for staff.
+     *
+     * <p>Across the network, not just this server: every server holds the open
+     * queue and hears when a report is filed or closed anywhere. What a staff
+     * scoreboard line or a join reminder shows.
+     *
+     * @return the open reports, {@code 0} when there are none or the module is off
+     * @since 1.3.0
+     */
+    int openReportCount();
+
+    /**
+     * How many open reports name one player.
+     *
+     * <p>For an anticheat deciding how seriously to take a flag, or a menu
+     * marking a player who keeps being reported. Closed reports do not count.
+     *
+     * @param target the reported player
+     * @return their open reports, {@code 0} when there are none or the module
+     *         is off
+     * @since 1.3.0
+     */
+    int openReportsAgainst(@NotNull UUID target);
+
     // ── Modules ────────────────────────────────────────────────────────────
 
     /**
@@ -285,4 +326,31 @@ public interface StaffService {
      * @param mode   the reach to give them
      */
     void setGlobalChatMode(@NotNull Player player, @NotNull GlobalChatMode mode);
+
+    /**
+     * Files a report the way {@code /report <player> <reason>} does.
+     *
+     * <p>For a report button in another plugin's menu, or a chat filter
+     * reporting on a player's behalf. The same checks run — not themselves, the
+     * staff protection, the cooldown, the open-report limit — and a refusal is
+     * explained to the reporter in the plugin's own words.
+     * {@link net.exylia.lib.api.staff.event.PlayerReportEvent} is fired, and an
+     * accepted report alerts staff on every server of the network and starts
+     * the reporter's cooldown.
+     *
+     * <p>A reason matching a configured reason id is stored as that reason's
+     * name, and counts with its weight when staff sort the queue; anything else
+     * is stored as free text.
+     *
+     * <p>Call it on the reporter's thread.
+     *
+     * @param reporter the player filing the report
+     * @param target   the player being reported
+     * @param reason   why, a configured reason id or free text; never blank
+     * @return what became of the report
+     * @throws IllegalArgumentException when {@code reason} is blank
+     * @since 1.3.0
+     */
+    @NotNull
+    ReportResult report(@NotNull Player reporter, @NotNull Player target, @NotNull String reason);
 }

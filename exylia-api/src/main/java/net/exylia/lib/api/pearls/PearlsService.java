@@ -23,9 +23,10 @@ import java.util.UUID;
  * rather than as a failure.
  *
  * <p>Read-only. The plugin's whole job happens between a pearl being thrown and
- * it landing, and nothing outside it decides where a player ends up — so there
- * is nothing here to set. Every method reads a cache and is cheap enough for a
- * per-tick listener.
+ * it landing, so there is nothing here to set: to move a rescued player
+ * somewhere else, or to refuse the rescue, listen for
+ * {@link net.exylia.lib.api.pearls.event.PearlRedirectEvent}. Every method
+ * reads a cache and is cheap enough for a per-tick listener.
  *
  * @since 1.0.0
  */

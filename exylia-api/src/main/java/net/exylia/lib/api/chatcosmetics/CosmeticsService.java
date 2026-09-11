@@ -7,6 +7,7 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Unmodifiable;
 
 import java.time.Duration;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -323,4 +324,80 @@ public interface CosmeticsService {
      */
     @NotNull
     Component styleMessage(@NotNull Player player, @NotNull String message);
+
+    /**
+     * A player's rank prefix, repainted in the rank colour they wear.
+     *
+     * @param player the player
+     * @return the prefix, empty when their rank writes none
+     * @since 1.3.0
+     */
+    @NotNull
+    Component prefix(@NotNull Player player);
+
+    /**
+     * A player's rank suffix, in the same colour as their prefix.
+     *
+     * @param player the player
+     * @return the suffix, empty when their rank writes none
+     * @since 1.3.0
+     */
+    @NotNull
+    Component suffix(@NotNull Player player);
+
+    /**
+     * A whole chat line as it would look with some cosmetics tried on.
+     *
+     * <p>What a store shows before a player pays: the plugin's own preview
+     * format — tag, prefix, name and message — drawn from what the player
+     * wears, with each key given here shown in place of what they wear of its
+     * type. Those keys are drawn whether the player owns them or not, which is
+     * the point; the rest of the line is only what they own. Nothing is
+     * equipped and nothing is written.
+     *
+     * <p>One key per type: a later key of a type replaces an earlier one, so a
+     * type worn as a set is previewed one member at a time.
+     *
+     * @param player  whose line to draw
+     * @param tryOn   the cosmetics to show in place of what they wear; empty
+     *                draws the line as it is
+     * @param message the sample text for the message half
+     * @return the rendered line
+     * @since 1.3.0
+     */
+    @NotNull
+    Component preview(@NotNull Player player, @NotNull Collection<CosmeticKey> tryOn, @NotNull String message);
+
+    // ── Menus ──────────────────────────────────────────────────────────────
+    //
+    // The plugin's own screens, for an NPC, a hub item or another plugin's menu
+    // handing the player over. The player's cosmetics are loaded first when
+    // they are not yet, so these may be called from any thread: the screen
+    // opens on the player's own thread a moment later, and not at all if they
+    // left in between.
+
+    /**
+     * Opens the cosmetics main menu for a player.
+     *
+     * <p>The screen {@code /cosmetics} opens. No permission is checked: the
+     * caller has already decided the player should see it.
+     *
+     * @param player who sees it
+     * @since 1.3.0
+     */
+    void openMenu(@NotNull Player player);
+
+    /**
+     * Opens the catalogue of one cosmetic type for a player.
+     *
+     * <p>The screen {@code /cosmetics tags} and its siblings open, for any
+     * type. No permission is checked.
+     *
+     * @param player who sees it
+     * @param type   the cosmetic type, one of {@link #types()}
+     * @return {@code true} when the type exists and the menu is on its way;
+     *         {@code false} opens nothing
+     * @since 1.3.0
+     */
+    boolean openCatalogue(@NotNull Player player, @NotNull String type);
 }

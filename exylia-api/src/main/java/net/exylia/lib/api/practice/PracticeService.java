@@ -3,6 +3,7 @@ package net.exylia.lib.api.practice;
 import net.exylia.lib.api.ExyliaAPI;
 import org.bukkit.entity.Player;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 import org.jetbrains.annotations.Unmodifiable;
 
 import java.util.Collection;
@@ -206,6 +207,28 @@ public interface PracticeService {
      */
     boolean leave(@NotNull Player player);
 
+    // ── Menus ──────────────────────────────────────────────────────────────
+
+    /**
+     * Opens one of the player screens, as its command would.
+     *
+     * <p>What an NPC or another plugin's hub item wants: the plugin's own screen,
+     * with its clicks and live contents, rather than a copy of it. The kit
+     * editor and bot practice ask the same questions first that their commands
+     * do - the kit editor whether the player is free, bot practice whether they
+     * may and whether the bot plugin is running - and tell the player when the
+     * answer is no.
+     *
+     * <p>Call it on the thread that owns the player, which on Paper is the main
+     * thread.
+     *
+     * @param player who to show it to
+     * @param menu   which screen
+     * @return {@code false} when the screen refused to open
+     * @since 1.3.0
+     */
+    boolean openMenu(@NotNull Player player, @NotNull PracticeMenu menu);
+
     // ── Matches ────────────────────────────────────────────────────────────
 
     /**
@@ -266,6 +289,23 @@ public interface PracticeService {
      * @return {@code false} when they were not watching anything
      */
     boolean stopSpectating(@NotNull Player spectator);
+
+    /**
+     * Ends a match with no result.
+     *
+     * <p>Nobody wins, no ELO moves, and nothing is written to any player's
+     * statistics or match history. Everybody in it sees the result a draw shows
+     * and is sent back to the lobby after the few seconds a finished match always
+     * takes, and {@link net.exylia.lib.api.practice.event.PracticeMatchEndEvent}
+     * fires with {@link net.exylia.lib.api.practice.event.PracticeMatchEndEvent.Reason#CANCELLED}.
+     *
+     * <p>Works on a match in any state short of ending, a loading one included.
+     *
+     * @param matchId the match
+     * @return {@code false} when no match has that id or it is already ending
+     * @since 1.3.0
+     */
+    boolean cancelMatch(@NotNull String matchId);
 
     // ── Queue ──────────────────────────────────────────────────────────────
 
@@ -361,6 +401,35 @@ public interface PracticeService {
     @Unmodifiable
     List<String> pendingDuelSenders(@NotNull Player target);
 
+    /**
+     * Starts a duel between two players, with no request in between.
+     *
+     * <p>For whatever has already decided the two of them are fighting - a
+     * tournament bracket, an NPC that pairs whoever walks up - where sending a
+     * request only to accept it on the target's behalf would show both players a
+     * prompt nobody is going to answer. Both must be free and in no party, which
+     * is what an accepted request asks of them too, and the duel is unranked, as
+     * a requested one is.
+     *
+     * <p>Unlike the other actions, a refusal tells neither player anything: they
+     * did not ask for this, so the result says why and the caller explains it.
+     * {@link DuelStartResult#ACCEPTED} means both are claimed and the match is
+     * being built, not that it will be fought - see its documentation.
+     *
+     * @param first   one fighter
+     * @param second  the other
+     * @param kitId   the kit to fight with; it must be enabled and allow duels
+     * @param rounds  how many rounds decide it, {@code 1} for a single fight
+     * @param arenaId the arena to try first, or {@code null} to let the plugin
+     *                pick. A preference: an arena the kit may not be played in,
+     *                or one with no free copy, is passed over for another
+     * @return what happened
+     * @since 1.3.0
+     */
+    @NotNull
+    DuelStartResult startDuel(@NotNull Player first, @NotNull Player second, @NotNull String kitId,
+                              int rounds, @Nullable String arenaId);
+
     // ── Parties ────────────────────────────────────────────────────────────
 
     /**
@@ -388,6 +457,21 @@ public interface PracticeService {
      * @return {@code true} when the invitation was sent
      */
     boolean inviteToParty(@NotNull Player leader, @NotNull Player target);
+
+    /**
+     * Adds a player to another player's party.
+     *
+     * <p>The other half of {@link #inviteToParty}, and the way into an open
+     * party. Refused when the player is not available or already in a party,
+     * when the leader leads no party, when it is full, and when it is closed and
+     * the player holds no invitation to it.
+     *
+     * @param player who is joining
+     * @param leader the leader of the party to join
+     * @return {@code true} when they joined
+     * @since 1.3.0
+     */
+    boolean joinParty(@NotNull Player player, @NotNull Player leader);
 
     /**
      * Removes a player from their party.

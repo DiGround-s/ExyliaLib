@@ -257,4 +257,80 @@ public interface ArmorTrimService {
      * @param player the player to redraw
      */
     void refresh(@NotNull Player player);
+
+    /**
+     * The trim a player is shown wearing on one slot right now.
+     *
+     * <p>The answer after every rule has had its say — the mode, the armor
+     * actually in the slot, the wearer's permission, and whether their cosmetics
+     * are shown at all — which neither {@link #selected(UUID, ArmorPiece)} nor
+     * {@link #trimOf(ItemStack)} gives on its own. What a placeholder or a
+     * scoreboard describing somebody's look should read.
+     *
+     * <p>Read from the state outgoing packets are rewritten with, so it is safe
+     * from any thread. It follows the plugin's last redraw of the player.
+     *
+     * @param player the wearer
+     * @param piece  the armor slot
+     * @return the trim id drawn there — a preset id or a
+     *         {@code pattern/material} combination — or empty when the slot
+     *         shows the armor as it really is or the player is not online
+     * @since 1.3.0
+     */
+    @NotNull
+    Optional<String> shown(@NotNull UUID player, @NotNull ArmorPiece piece);
+
+    // ── Handing things out ─────────────────────────────────────────────────
+
+    /**
+     * Gives a player trim items.
+     *
+     * <p>Through the plugin's reward queue rather than straight into the
+     * inventory: what does not fit is kept and handed over on their next join
+     * instead of dropped at their feet, so a crate or a shop never loses a
+     * purchase to a full inventory. The player is told nothing; a plugin handing
+     * something out usually has its own message to send.
+     *
+     * <p>Call it on the thread that owns the player.
+     *
+     * @param player who gets them
+     * @param trimId a preset id, or a {@code pattern/material} combination
+     * @param amount how many
+     * @return {@code true} when the items were given or queued; {@code false}
+     *         when the id names no trim or the amount is below one
+     * @since 1.3.0
+     */
+    boolean giveTrimItem(@NotNull Player player, @NotNull String trimId, int amount);
+
+    /**
+     * The remover item, ready to be given to a player.
+     *
+     * <p>Dropping it onto trimmed armor takes the trim off and hands the trim
+     * item back. It only does that on a server whose {@link #mode()} uses items;
+     * it is still built on one that does not.
+     *
+     * @return a new remover
+     * @since 1.3.0
+     */
+    @NotNull
+    ItemStack removerItem();
+
+    // ── The trim screen ────────────────────────────────────────────────────
+
+    /**
+     * Opens the trim menu for a player, as {@code /trims} does.
+     *
+     * <p>For an NPC, a sign or a lobby item that should lead somewhere. No
+     * permission is checked: the caller decided this player may be here. A
+     * selection still being read is read first, and the screen opens a moment
+     * later when it arrives.
+     *
+     * <p>Call it on the thread that owns the player.
+     *
+     * @param player who to show it to
+     * @return {@code true} when the menu opens or is about to; {@code false}
+     *         when the server's {@link #mode()} has no menu
+     * @since 1.3.0
+     */
+    boolean openMenu(@NotNull Player player);
 }

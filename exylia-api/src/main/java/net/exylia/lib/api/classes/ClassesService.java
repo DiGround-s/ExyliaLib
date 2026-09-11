@@ -1,6 +1,7 @@
 package net.exylia.lib.api.classes;
 
 import net.exylia.lib.api.ExyliaAPI;
+import org.bukkit.Material;
 import org.bukkit.entity.Player;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Unmodifiable;
@@ -216,4 +217,63 @@ public interface ClassesService {
      * @param player the player
      */
     void remove(@NotNull Player player);
+
+    /**
+     * Uses one of a player's abilities, as right-clicking its item would.
+     *
+     * <p>The whole flow runs: the cooldown and the energy are checked and
+     * refused out loud, {@link net.exylia.lib.api.classes.event.AbilityUseEvent}
+     * is fired, the energy is spent, the cooldown starts and the effects land on
+     * whoever the ability reaches. The one thing a click does that this does not
+     * is consume the item — there is no item, and the player does not need to
+     * hold one.
+     *
+     * <p>Call on the thread that owns the player.
+     *
+     * @param player  the player
+     * @param trigger the ability's {@link ClassAbility#trigger() trigger}
+     * @return what happened
+     * @since 1.3.0
+     */
+    @NotNull
+    AbilityUseResult useAbility(@NotNull Player player, @NotNull Material trigger);
+
+    // ── Energy ─────────────────────────────────────────────────────────────
+    //
+    // Energy belongs to the player's class and refills every tick on the
+    // thread that owns the player. Call these from that thread — a command, a
+    // listener for that player, or a task scheduled on them — and the bar is
+    // redrawn with the change.
+
+    /**
+     * Gives a player energy.
+     *
+     * <p>Never past their class's {@link ClassEnergy#max() ceiling}: whatever
+     * would overflow it is lost, as it is when energy refills on its own.
+     *
+     * @param player the player
+     * @param amount how much to give
+     * @return {@code true} when it went into their pool; {@code false} when they
+     *         are in no class or their class spends no energy
+     * @throws IllegalArgumentException when {@code amount} is negative
+     * @since 1.3.0
+     */
+    boolean giveEnergy(@NotNull Player player, double amount);
+
+    /**
+     * Takes energy from a player, all of it or none.
+     *
+     * <p>What an ability does when it is used, without the ability: a plugin
+     * charging energy for something of its own spends it here, and a player
+     * who cannot afford it keeps what they hold.
+     *
+     * @param player the player
+     * @param amount how much to take
+     * @return {@code true} when it was taken; {@code false} when they hold less
+     *         than {@code amount}, are in no class, or their class spends no
+     *         energy
+     * @throws IllegalArgumentException when {@code amount} is negative
+     * @since 1.3.0
+     */
+    boolean spendEnergy(@NotNull Player player, double amount);
 }

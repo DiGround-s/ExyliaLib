@@ -51,6 +51,41 @@ public interface BotHandle {
     boolean isAlive();
 
     /**
+     * How it fights.
+     *
+     * <p>What it was spawned with. A player's own {@code /bot} follows their
+     * settings menu, so theirs can change under you; one spawned through
+     * {@link PracticeBotService#spawn} never does.
+     *
+     * @since 1.3.0
+     */
+    CombatMode mode();
+
+    /**
+     * How well it fights right now.
+     *
+     * @since 1.3.0
+     */
+    Difficulty difficulty();
+
+    /**
+     * Changes how well it fights, mid-fight.
+     *
+     * <p>For a fight that adapts to the player: a bot eased down after they lose
+     * three in a row, pushed up once they start winning. Takes effect on the
+     * bot's next decision. Its gear, its health and whatever its kit has already
+     * spent are left as they are, and nothing is saved - a player's own
+     * {@code /bot} goes back to the difficulty in their settings the next time
+     * they change a setting.
+     *
+     * <p>Safe from any thread.
+     *
+     * @param difficulty how well it should fight; ignored when null
+     * @since 1.3.0
+     */
+    void setDifficulty(Difficulty difficulty);
+
+    /**
      * How much health it had when it last thought.
      *
      * <p>A snapshot taken on the bot's own tick, not a live read. Entities belong

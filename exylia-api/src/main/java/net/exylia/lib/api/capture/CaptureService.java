@@ -1,6 +1,7 @@
 package net.exylia.lib.api.capture;
 
 import net.exylia.lib.api.ExyliaAPI;
+import org.bukkit.entity.Player;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Unmodifiable;
 
@@ -192,6 +193,20 @@ public interface CaptureService {
      * @return {@code true} when something was running under that id
      */
     boolean stop(@NotNull String eventId);
+
+    // ── Menus ──────────────────────────────────────────────────────────────
+
+    /**
+     * Opens the capture menu for a player, the one {@code /capture} opens.
+     *
+     * <p>The screen a lobby NPC or a hotbar item wants: what is live, what is
+     * scheduled and when, drawn from the server owner's menu files. Call it on
+     * the thread that owns the player, as an interaction handler already is.
+     *
+     * @param player who to show it to
+     * @since 1.3.0
+     */
+    void openMenu(@NotNull Player player);
 
     // ── Statistics ─────────────────────────────────────────────────────────
 

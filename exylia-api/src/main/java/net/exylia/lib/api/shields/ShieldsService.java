@@ -235,4 +235,35 @@ public interface ShieldsService {
      */
     @NotNull
     CompletableFuture<@Unmodifiable List<PublishedDesign>> mostUsedDesigns(int limit);
+
+    // ── Menus ──────────────────────────────────────────────────────────────
+
+    /**
+     * Opens a player's shield slots, as {@code /shields} does.
+     *
+     * <p>For an NPC or a lobby item that should lead to the designer. No
+     * permission is checked: the caller decided this player may be here. A
+     * player whose slots have not arrived yet is read first, and the menu opens
+     * a moment later when they do.
+     *
+     * <p>Call it on the thread that owns the player.
+     *
+     * @param player who to show it to
+     * @since 1.3.0
+     */
+    void openSlots(@NotNull Player player);
+
+    /**
+     * Opens the shared library browser for a player.
+     *
+     * <p>The designs other players published, most copied first; clicking one
+     * copies it into the player's first free slot. The list is read before the
+     * menu opens, so it appears a moment after the call rather than empty.
+     *
+     * <p>Callable from any thread: the menu opens on the player's own.
+     *
+     * @param player who to show it to
+     * @since 1.3.0
+     */
+    void openLibrary(@NotNull Player player);
 }

@@ -7,6 +7,7 @@ import org.bukkit.entity.Player;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Unmodifiable;
 
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -38,8 +39,8 @@ import java.util.UUID;
  * portals, regen zones, loot chests, blocked items and the other world-building
  * modules — are administrator tools whose state is a set of placed objects an
  * integration cannot do anything useful with. Mines publish their break and
- * nothing else, so a plugin breaking blocks for a player gets the mine's loot
- * and regeneration instead of a hole.
+ * their reset and nothing else, so a plugin breaking blocks for a player gets
+ * the mine's loot and regeneration instead of a hole.
  *
  * <h2>Queries are cheap, actions are not</h2>
  * Everything that returns a value reads a cache and is safe to call from a menu
@@ -91,6 +92,26 @@ public interface SurvivalService {
      * @param player the player travelling
      */
     void teleportToSpawn(@NotNull Player player);
+
+    // ── Random teleport ────────────────────────────────────────────────────
+
+    /**
+     * Sends a player somewhere random in a world.
+     *
+     * <p>For an NPC or a portal standing in for {@code /rtp <world>}. Checks
+     * that the world is set up for it, then the player's cooldown and balance,
+     * and runs the warmup exactly as their own command does, messages included.
+     * The search for a safe spot runs after the warmup, so the player lands a
+     * moment after this returns, or not at all when they move or are hurt.
+     *
+     * <p>Call it on the thread that owns the player.
+     *
+     * @param player  the player travelling
+     * @param worldId the world's name, as the random teleport configuration
+     *                lists it
+     * @since 1.3.0
+     */
+    void randomTeleport(@NotNull Player player, @NotNull String worldId);
 
     // ── Homes ──────────────────────────────────────────────────────────────
 
@@ -260,6 +281,29 @@ public interface SurvivalService {
     boolean claimKit(@NotNull Player player, @NotNull String kitId);
 
     /**
+     * Gives a player a kit as a reward rather than as a claim.
+     *
+     * <p>For a quest, a vote or a crate paying out a kit. With
+     * {@code ignoreLimits} the kit's cooldown and use limit are not checked, the
+     * way an administrator's give and a first-join kit skip them; the claim is
+     * still recorded, so it counts towards both for the player's own next
+     * claim. Everything else is checked either way: the kit being enabled, the
+     * player holding its permission and the room in their inventory.
+     *
+     * <p>Fires {@link net.exylia.lib.api.survival.event.KitClaimEvent}, and the
+     * player hears about a refusal exactly as they would from
+     * {@link #claimKit(Player, String)}, which this is with
+     * {@code ignoreLimits} false.
+     *
+     * @param player       the player receiving it
+     * @param kitId        the kit id
+     * @param ignoreLimits {@code true} to skip the cooldown and the use limit
+     * @return {@code true} when they got it
+     * @since 1.3.0
+     */
+    boolean giveKit(@NotNull Player player, @NotNull String kitId, boolean ignoreLimits);
+
+    /**
      * How long until a player may claim a kit again.
      *
      * <p>Answers {@code 0} for a player who is offline. Kit progress is held
@@ -285,6 +329,44 @@ public interface SurvivalService {
      *         when there is no such kit or the player is offline
      */
     int kitUsesLeft(@NotNull UUID player, @NotNull String kitId);
+
+    // ── Crates ─────────────────────────────────────────────────────────────
+
+    /**
+     * How many keys for a crate a player holds in their balance.
+     *
+     * <p>The balance only: key items carried in an inventory are items like any
+     * other and are not counted. A balance is held per online player, so this
+     * answers {@code 0} for somebody offline rather than reading the database on
+     * the calling thread.
+     *
+     * @param player the player
+     * @param crateId the crate id
+     * @return the keys in their balance, {@code 0} when they have none, are
+     *         offline, the crate does not exist or the module is off
+     * @since 1.3.0
+     */
+    int crateKeys(@NotNull UUID player, @NotNull String crateId);
+
+    /**
+     * Adds keys for a crate to a player's balance.
+     *
+     * <p>For a vote listener, a store or an event payout. Works on a player
+     * who is offline or on another server: their balance is read first, so a
+     * give never writes a row built from zero over the keys they already had,
+     * and it is the same on every server of the network. That read makes the
+     * change land asynchronously for somebody not already loaded here; for an
+     * online player it is immediate. The player is told nothing.
+     *
+     * @param player  the player
+     * @param crateId the crate id
+     * @param amount  how many keys to add, at least {@code 1}
+     * @return {@code true} when the crate exists and the keys are on their way,
+     *         {@code false} for an unknown crate, a non-positive amount or the
+     *         module being off
+     * @since 1.3.0
+     */
+    boolean giveCrateKeys(@NotNull UUID player, @NotNull String crateId, int amount);
 
     // ── Statistics ─────────────────────────────────────────────────────────
 
@@ -396,6 +478,36 @@ public interface SurvivalService {
      */
     boolean rankUp(@NotNull Player player);
 
+    /**
+     * The whole rank ladder.
+     *
+     * <p>What a rank menu or a progress line draws from, without the player
+     * having to be on any of the ranks.
+     *
+     * @return every rank, lowest first, empty when the module is off
+     * @since 1.3.0
+     */
+    @NotNull
+    @Unmodifiable
+    List<Rank> ranks();
+
+    /**
+     * What a player's next rank-up will charge them.
+     *
+     * <p>Money only. A rank can also ask for playtime, a permission or a
+     * placeholder condition, so a player who can afford this may still be
+     * refused; ask {@link #canRankUp(Player)} for that.
+     *
+     * <p>Reads the rank a player is on from the cache, which holds it while they
+     * are online, so this answers {@code 0} for somebody offline.
+     *
+     * @param player the player
+     * @return the money the next rank costs, {@code 0} when it is free, they are
+     *         at the top, they are offline or the module is off
+     * @since 1.3.0
+     */
+    double nextRankCost(@NotNull UUID player);
+
     // ── Mines ──────────────────────────────────────────────────────────────
 
     /**
@@ -424,4 +536,91 @@ public interface SurvivalService {
      */
     @NotNull
     MineBreakResult breakMineBlock(@NotNull Player player, @NotNull Block block);
+
+    // ── Bounties ───────────────────────────────────────────────────────────
+
+    /**
+     * How much is on a player's head.
+     *
+     * <p>The sum of every bounty placed on them, which is what their killer
+     * collects. Bounties are all held in memory, so this answers for an offline
+     * player too.
+     *
+     * @param player the player
+     * @return the total, {@link BigDecimal#ZERO} when there is none or the
+     *         module is off
+     * @since 1.3.0
+     */
+    @NotNull
+    BigDecimal bountyTotal(@NotNull UUID player);
+
+    // ── Menus ──────────────────────────────────────────────────────────────
+    //
+    // Each of these opens a screen exactly as the player's own command does,
+    // for an NPC, a sign or a lobby item leading into it. The permission the
+    // command asks for is checked first, and a player without it is told so in
+    // the plugin's own words rather than shown the screen. A module that is off
+    // is also said to the player, the way the command says it, so a caller has
+    // nothing to explain either way. Call them on the thread that owns the
+    // player.
+
+    /**
+     * Opens the kit list, as {@code /kit} does.
+     *
+     * @param player who to show it to
+     * @since 1.3.0
+     */
+    void openKitsMenu(@NotNull Player player);
+
+    /**
+     * Opens the warp list, as {@code /warps} does.
+     *
+     * @param player who to show it to
+     * @since 1.3.0
+     */
+    void openWarpsMenu(@NotNull Player player);
+
+    /**
+     * Opens a player's homes, as {@code /homes} does.
+     *
+     * <p>A player without a single home is told they have none instead of
+     * being shown an empty screen.
+     *
+     * @param player whose homes to show, to them
+     * @since 1.3.0
+     */
+    void openHomesMenu(@NotNull Player player);
+
+    /**
+     * Opens the rank ladder, as {@code /rankup} does.
+     *
+     * <p>The screen shows the player's progress towards their next rank and is
+     * where they rank up from, so nothing is charged by opening it.
+     *
+     * @param player who to show it to
+     * @since 1.3.0
+     */
+    void openRankUpMenu(@NotNull Player player);
+
+    /**
+     * Opens the world picker for a random teleport, as {@code /rtp} does.
+     *
+     * <p>Choosing a world there starts the same flow as
+     * {@link #randomTeleport(Player, String)}, cooldown, price and warmup
+     * included.
+     *
+     * @param player who to show it to
+     * @since 1.3.0
+     */
+    void openRandomTeleportMenu(@NotNull Player player);
+
+    /**
+     * Opens the playtime rewards, as {@code /playtime} does.
+     *
+     * <p>{@code /playtime} asks for no permission, so neither does this.
+     *
+     * @param player who to show it to
+     * @since 1.3.0
+     */
+    void openPlaytimeRewardsMenu(@NotNull Player player);
 }

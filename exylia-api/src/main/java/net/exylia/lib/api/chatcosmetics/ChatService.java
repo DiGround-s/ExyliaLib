@@ -120,6 +120,30 @@ public interface ChatService {
      */
     boolean send(@NotNull String channelId, @NotNull Component line);
 
+    /**
+     * Whispers to somebody on a player's behalf, as {@code /msg} would.
+     *
+     * <p>The whole path runs: the receiver's closed messages and ignore list,
+     * {@link net.exylia.lib.api.chatcosmetics.event.PrivateMessageEvent}, both
+     * lines formatted with the sender's cosmetics, the sound, the spies, and
+     * the reply target on both ends. A receiver on another server of the
+     * network is found and reached the way the command reaches them. Every
+     * outcome, a refusal included, is told to the sender in the plugin's own
+     * messages, so there is nothing to report back here.
+     *
+     * <p>Call on the sender's thread.
+     *
+     * @param sender   who is whispering
+     * @param receiver the receiver's name, as it would be typed after
+     *                 {@code /msg}
+     * @param text     what they say
+     * @return {@code true} when the whisper was handed to the chat;
+     *         {@code false} when the module is off or this server switched
+     *         whispers off, and nothing was sent
+     * @since 1.3.0
+     */
+    boolean whisper(@NotNull Player sender, @NotNull String receiver, @NotNull String text);
+
     // ── Moderation ─────────────────────────────────────────────────────────
 
     /**

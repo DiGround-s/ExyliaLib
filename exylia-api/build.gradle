@@ -8,7 +8,7 @@ group = 'net.exylia'
 // parties compile against, so it moves only when the contract moves, not when
 // the library's internals do. Semantic versioning applies here and nowhere else
 // in the project.
-version = '1.2.0'
+version = '1.3.0'
 description = 'Public API for the Exylia plugin suite.'
 
 def targetJavaVersion = 21
