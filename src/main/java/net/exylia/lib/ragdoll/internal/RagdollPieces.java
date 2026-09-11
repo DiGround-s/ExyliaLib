@@ -80,8 +80,23 @@ public final class RagdollPieces {
         OFF_HAND,
 
         /** Worn on the head. */
-        HAT
+        HAT,
+
+        /** A puppet string from the right hand. */
+        STRING_RIGHT,
+
+        /** A puppet string from the left hand. */
+        STRING_LEFT,
+
+        /** A puppet string from the top of the head. */
+        STRING_HEAD
     }
+
+    /** How thick a puppet string is, per block of body. */
+    private static final float STRING = 0.035f;
+
+    /** How long a cut string takes to whip up out of sight. */
+    private static final long STRING_RETRACT_MS = 150L;
 
     /**
      * One piece of a body.
@@ -192,9 +207,68 @@ public final class RagdollPieces {
             }
         }
         for (Prop prop : props) {
-            solved.add(prop(prop, flights, motion, scale, middle, facing, random, pieces, finishing));
+            if (prop == Prop.HAT || prop == Prop.MAIN_HAND || prop == Prop.OFF_HAND) {
+                solved.add(prop(prop, flights, motion, scale, middle, facing, random, pieces, finishing));
+            }
+        }
+        if (motion.strings() > 0) {
+            for (Prop string : List.of(Prop.STRING_RIGHT, Prop.STRING_LEFT, Prop.STRING_HEAD)) {
+                Piece piece = string(string, flights, motion, scale);
+                if (piece != null) {
+                    solved.add(piece);
+                }
+            }
         }
         return solved;
+    }
+
+    /**
+     * A puppet string: from a hand or the top of the head straight up to the
+     * height the file gave, re-measured at every pose.
+     *
+     * <p>Vertical on purpose. A string leaning from the hand to a fixed bar
+     * would need the bar to be where the body's facing puts it, and the body
+     * faces the killer while everything else in a sequence is written on the
+     * world's axes. Straight up reads as a string wherever anybody stands.
+     */
+    private static @Nullable Piece string(Prop prop, RagdollFlight.Flight[] flights, RagdollMotion motion,
+                                          double scale) {
+        RagdollPart part = prop == Prop.STRING_HEAD ? RagdollPart.HEAD
+                : prop == Prop.STRING_RIGHT ? RagdollPart.ARM_RIGHT : RagdollPart.ARM_LEFT;
+        RagdollFlight.Flight flight = flights[part.ordinal()];
+        double top = motion.strings();
+        long snip = Math.min(motion.lifeMillis(), motion.snipMillis());
+        float thick = STRING * (float) scale;
+        List<DisplayKeyframe> poses = new ArrayList<>();
+        for (int index = 0; index < flight.times().length; index++) {
+            long at = flight.times()[index];
+            if (at > snip) {
+                break;
+            }
+            float grown = (float) (scale * flight.scales()[index][1]);
+            float reach = part == RagdollPart.HEAD ? 4 * RagdollPart.PIXEL * grown : -6 * RagdollPart.PIXEL * grown;
+            float[] end = flight.rotations()[index].apply(new float[]{0f, reach, 0f});
+            float x = (float) flight.x()[index] + end[0];
+            float y = (float) flight.y()[index] + end[1];
+            float z = (float) flight.z()[index] + end[2];
+            float length = (float) Math.max(0.02, top - y);
+            poses.add(new DisplayKeyframe(at, x, y + length / 2, z, Rotation.NONE, thick, length, thick));
+        }
+        if (poses.isEmpty()) {
+            return null;
+        }
+        DisplayKeyframe last = poses.get(poses.size() - 1);
+        long gone = Math.min(motion.lifeMillis(), last.atMillis() + STRING_RETRACT_MS);
+        DisplayKeyframe cut = new DisplayKeyframe(gone, last.x(), (float) top, last.z(), Rotation.NONE,
+                thick * 0.5f, 0.02f, thick * 0.5f);
+        if (gone > last.atMillis()) {
+            poses.add(cut);
+        }
+        if (motion.lifeMillis() > gone) {
+            poses.add(new DisplayKeyframe(motion.lifeMillis(), cut.x(), cut.y(), cut.z(), Rotation.NONE,
+                    cut.scaleX(), cut.scaleY(), cut.scaleZ()));
+        }
+        return new Piece(part, 0, 0, prop, KeyframeThinning.thin(poses));
     }
 
     /**

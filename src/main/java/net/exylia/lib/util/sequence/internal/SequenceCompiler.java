@@ -479,7 +479,7 @@ public final class SequenceCompiler {
                 "bounce", "spin", "fade", "settle", "detail", "size", "glow", "light",
                 "y", "face", "rise", "open", "lift", "hang", "turns", "hits", "every", "force",
                 "swell", "squash", "sign", "letters", "dir", "keys", "then", "follow",
-                "hold", "offhand", "hat", "hold_size", "hat_size", "hat_y");
+                "hold", "offhand", "hat", "hold_size", "hat_size", "hat_y", "strings", "snip");
         // A line with frames is a choreography whether or not it says so:
         // writing the dance and then having to name the pose it is danced in
         // is one more thing to get wrong for nothing.
@@ -512,6 +512,7 @@ public final class SequenceCompiler {
                 .holdSize(args.number("hold_size", 0.7, onArg))
                 .hatSize(args.number("hat_size", 0.6, onArg))
                 .hatRaise(args.number("hat_y", 0.0, onArg))
+                .strings(args.number("strings", 0.0, onArg))
                 .rise(args.number("rise", 1.1, onArg))
                 .open(args.number("open", 0.55, onArg))
                 .lift(args.number("lift", 0.45, onArg))
@@ -539,6 +540,9 @@ public final class SequenceCompiler {
         // draws no scenery of its own to disagree with.
         if (args.has("dir")) {
             body.heading(args.number("dir", 0.0, onArg));
+        }
+        if (args.has("snip")) {
+            body.snip(args.number("snip", 0.0, onArg));
         }
         return new Steps.Ragdoll(owner, face, body.build(),
                 args.count("detail", 1, onArg),

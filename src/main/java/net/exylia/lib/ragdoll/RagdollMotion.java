@@ -85,6 +85,8 @@ public final class RagdollMotion {
     private final double holdSize;
     private final double hatSize;
     private final double hatRaise;
+    private final double strings;
+    private final long snipMillis;
 
     private RagdollMotion(Builder builder) {
         this.pose = builder.pose;
@@ -118,6 +120,22 @@ public final class RagdollMotion {
         this.holdSize = builder.holdSize;
         this.hatSize = builder.hatSize;
         this.hatRaise = builder.hatRaise;
+        this.strings = builder.strings;
+        this.snipMillis = builder.snipMillis;
+    }
+
+    /** How high puppet strings run from the hands and head, in blocks, or 0 for none. */
+    public double strings() {
+        return strings;
+    }
+
+    /**
+     * When the strings are cut, counting from the moment the sequence started.
+     *
+     * @return the moment in milliseconds; the last frame when the file does not say
+     */
+    public long snipMillis() {
+        return snipMillis >= 0 ? snipMillis : finishAt();
     }
 
     /** A body thrown apart on the Exylia defaults: a beat, a throw, a fall and a rest. */
@@ -355,8 +373,37 @@ public final class RagdollMotion {
         private double holdSize = 0.7;
         private double hatSize = 0.6;
         private double hatRaise;
+        private double strings;
+        private long snipMillis = -1;
 
         private Builder() {
+        }
+
+        /**
+         * Puppet strings from both hands and the head straight up to this
+         * height above the floor, in blocks.
+         *
+         * <p>Solved from the hands themselves, so a string shortens when its
+         * arm is jerked up and follows the hand wherever the choreography takes
+         * it. A string that stays still while the arm under it moves says the
+         * arm is moving itself, which is the opposite of a marionette.
+         *
+         * @since 1.136.0
+         */
+        public @NotNull Builder strings(double height) {
+            this.strings = Math.max(0.0, height);
+            return this;
+        }
+
+        /**
+         * When the strings are cut, in seconds from the start of the sequence.
+         * Left unset, they are cut at the last frame.
+         *
+         * @since 1.136.0
+         */
+        public @NotNull Builder snip(double seconds) {
+            this.snipMillis = Math.max(0L, (long) (seconds * 1000));
+            return this;
         }
 
         /**

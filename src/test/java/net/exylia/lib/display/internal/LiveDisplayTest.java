@@ -109,7 +109,10 @@ class LiveDisplayTest {
         live.spawn(sink, new Location(null, 0, 0, 0));
         sent.clear();
 
-        assertTrue(live.advance(sink, 1000L));
+        // One tick past its life, so the client finishes drawing the last pose.
+        assertFalse(live.advance(sink, 1000L));
+        sent.clear();
+        assertTrue(live.advance(sink, 1050L));
         assertEquals(List.of("destroy"), sent);
         assertFalse(live.isShowing());
 
@@ -128,7 +131,8 @@ class LiveDisplayTest {
 
         assertFalse(live.advance(sink, 100L));
         assertTrue(sent.isEmpty());
-        assertTrue(live.advance(sink, 400L));
+        assertFalse(live.advance(sink, 400L));
+        assertTrue(live.advance(sink, 450L));
         assertEquals(List.of("destroy"), sent);
     }
 }

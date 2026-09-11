@@ -41,7 +41,10 @@ final class LiveDisplay implements DisplayHandle {
         this.poses = motion.poses();
         this.viewers = viewers;
         this.startedAt = now;
-        this.endsAt = now + motion.lifeMillis();
+        // One tick past the last pose. The client is still drawing its way into
+        // that pose when the moment arrives, and removing it then took every
+        // falling boulder away a frame before it landed.
+        this.endsAt = now + motion.lifeMillis() + TICK_MS;
     }
 
     /** Which plugin's effect this belongs to. */

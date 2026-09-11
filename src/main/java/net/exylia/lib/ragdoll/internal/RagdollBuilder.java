@@ -94,7 +94,11 @@ public final class RagdollBuilder {
                 case MAIN_HAND -> model.mainHand();
                 case OFF_HAND -> model.offHand();
                 case HAT -> model.hat();
+                case STRING_RIGHT, STRING_LEFT, STRING_HEAD -> null;
             };
+            if (item == null && piece.prop().name().startsWith("STRING")) {
+                return DisplayModel.block(Material.WHITE_WOOL.createBlockData()).light(15);
+            }
             return DisplayModel.item(item == null ? new ItemStack(Material.AIR) : item)
                     .glow(model.glowArgb())
                     .light(model.brightness());

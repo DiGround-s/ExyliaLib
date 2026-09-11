@@ -168,6 +168,14 @@ head (`hold_size` `hat_size` `hat_y`). They ride the part that carries them, so
 a rose goes wherever the arm goes and a glass helmet turns with the head, and
 they come apart with the body. Since 1.134.0.
 
+### Puppet strings
+
+`strings:` runs a string from each hand and the top of the head straight up to
+that height, re-measured at every pose, so a string shortens when its arm is
+jerked up and follows the hand everywhere. `snip:` is the second, from the start
+of the sequence, when they are cut and whip up out of sight; left out, it is the
+last frame. Since 1.136.0.
+
 ### Spelling
 
 `then:spell` flies every piece into the strokes of `sign:` (`letters:` tall,

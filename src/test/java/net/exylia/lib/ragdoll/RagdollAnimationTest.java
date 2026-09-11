@@ -433,6 +433,28 @@ class RagdollAnimationTest {
         assertEquals(1, face[2], 1e-4, "the face points away from whoever the body faces");
     }
 
+    @Test
+    @DisplayName("a puppet string hangs from the hand wherever the hand goes, and is cut")
+    void stringsFollowTheHands() {
+        RagdollMotion motion = RagdollMotion.builder().pose(RagdollPose.ANIMATE)
+                .animation(parsed("0.4 arm_r=0,0,150 up=0.5 | 0.4 arm_r=0,0,10 up=0 right=0.6")).intactFor(0)
+                .strings(5).snip(0.6).life(1.2).build();
+        List<RagdollPieces.Piece> pieces = RagdollPieces.solve(motion, 1, 1.0, Rotation.NONE, new Random(2));
+        RagdollPieces.Piece arm = pieces.stream().filter(p -> p.part() == RagdollPart.ARM_RIGHT && p.prop() == null)
+                .findFirst().orElseThrow();
+        RagdollPieces.Piece string = pieces.stream().filter(p -> p.prop() == RagdollPieces.Prop.STRING_RIGHT)
+                .findFirst().orElseThrow();
+        for (long at = 0; at <= 600; at += 100) {
+            DisplayKeyframe hand = at(arm.poses(), at);
+            DisplayKeyframe cord = at(string.poses(), at);
+            float[] end = hand.rotation().apply(new float[]{0, -6 * RagdollPart.PIXEL, 0});
+            assertEquals(hand.x() + end[0], cord.x(), 0.05, "the string left the hand across at " + at);
+            assertEquals(hand.y() + end[1], cord.y() - cord.scaleY() / 2, 0.05, "the string left the hand at " + at);
+            assertEquals(5, cord.y() + cord.scaleY() / 2, 0.05, "the string does not reach its bar at " + at);
+        }
+        assertTrue(at(string.poses(), 900).scaleY() < 0.05, "the string was never cut");
+    }
+
     // ------------------------------------------------------------- spelling
 
     @Test
