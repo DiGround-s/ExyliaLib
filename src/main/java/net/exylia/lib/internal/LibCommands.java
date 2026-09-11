@@ -1,6 +1,7 @@
 package net.exylia.lib.internal;
 
 import net.exylia.lib.ExyliaLib;
+import net.exylia.lib.command.lamp.Suggestions;
 import revxrsal.commands.Lamp;
 import revxrsal.commands.bukkit.BukkitLamp;
 import revxrsal.commands.bukkit.actor.BukkitCommandActor;
@@ -23,7 +24,9 @@ public final class LibCommands {
      * @param plugin the running library
      */
     public static void register(ExyliaLib plugin) {
-        Lamp<BukkitCommandActor> lamp = BukkitLamp.builder(plugin).build();
+        Lamp<BukkitCommandActor> lamp = BukkitLamp.builder(plugin)
+                .suggestionProviders(providers -> providers.addProviderFactory(Suggestions.filtering()))
+                .build();
         lamp.register(new ReloadCommand(plugin));
     }
 }
