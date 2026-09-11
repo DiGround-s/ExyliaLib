@@ -183,8 +183,9 @@ lets a message say what colour it is. One value in
 messages, item names, lore, scoreboards, holograms:
 
 ```yaml
-text-shadow: "auto"        # the default: a quarter of each letter's own colour
-text-shadow: "auto:0.5"    # the same, keeping half instead of a quarter
+text-shadow: "auto"        # a quarter of each letter's own colour, as vanilla
+text-shadow: "auto:0.4"    # the default: the same, keeping 40% instead
+text-shadow: "auto:0.5"    # the same, keeping half
 text-shadow: "#000000"     # one flat colour under every line
 text-shadow: "#41dba880"   # #rrggbbaa: a colour at half strength
 text-shadow: "none"        # no shadow at all, not even the client's own
@@ -194,10 +195,11 @@ text-shadow: ""            # whatever the client draws by itself
 The alpha goes last, the way MiniMessage's own `<shadow>` tag spells it, so a
 colour copied out of a gradient generator reads the same here.
 
-`auto` is the default: the shadow follows the colour of whatever is drawn, so
-a gold name casts a brown shadow and a gradient casts a gradient. It is what
-vanilla already does, written down so the factor can be changed and so a
-colour applied after the parse gets one too. A server that wants one flat
+`auto:0.4` is the default: the shadow follows the colour of whatever is drawn,
+so a gold name casts a brown shadow and a gradient casts a gradient. Vanilla
+keeps a quarter, which all but disappears against the dark of a menu or the
+chat; 40% stays visible there without doubling the letter. A colour applied
+after the parse gets one too. A server that wants one flat
 colour under everything writes `text-shadow: "#000000"`.
 
 A server upgrading keeps whatever is already in its file; only a fresh install

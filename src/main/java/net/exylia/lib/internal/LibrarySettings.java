@@ -42,8 +42,9 @@ import net.exylia.lib.config.Configs;
 @Comment("  #rrggbb    one colour under every line")
 @Comment("  #rrggbbaa  the same, saying how strong it is")
 @Comment("  auto       a quarter of each letter\'s own colour, so a gradient")
-@Comment("             casts a gradient; the default, and what vanilla does")
-@Comment("  auto:0.5   the same, keeping half instead of a quarter")
+@Comment("             casts a gradient; what vanilla does")
+@Comment("  auto:0.4   the same, keeping 40% instead of a quarter; the default,")
+@Comment("             easier to see against the dark of a menu or the chat")
 @Comment("  none       no shadow at all, not even the client\'s own")
 @Comment("  (empty)    whatever the client draws by itself")
 @Comment("A line that carries its own <shadow> tag keeps it either way.")
@@ -116,7 +117,7 @@ public record LibrarySettings(
 
     /** Safe defaults used when no config file exists yet. */
     public LibrarySettings() {
-        this(true, 30, false, true, "auto", "*", DEFAULT_FALLBACK_HEAD, "", "");
+        this(true, 30, false, true, "auto:0.4", "*", DEFAULT_FALLBACK_HEAD, "", "");
     }
 
     private static volatile LibrarySettings instance;
