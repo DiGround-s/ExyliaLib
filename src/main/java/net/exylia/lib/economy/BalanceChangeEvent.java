@@ -21,7 +21,7 @@ import java.util.UUID;
  * {@link #isAsynchronous()}; a listener that touches the world hops to the
  * player's thread first.
  *
- * @since 1.149.0
+ * @since 1.150.0
  */
 public final class BalanceChangeEvent extends Event {
 

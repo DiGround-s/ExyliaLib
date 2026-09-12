@@ -21,7 +21,7 @@ import java.util.UUID;
  * @param initiator    who caused it, or {@code null}
  * @param server       which server applied it
  * @param at           when, in epoch milliseconds
- * @since 1.149.0
+ * @since 1.150.0
  */
 public record LedgerEntry(
         @NotNull String currency,

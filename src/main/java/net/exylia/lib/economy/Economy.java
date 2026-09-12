@@ -113,7 +113,7 @@ public final class Economy {
      *
      * @param id the currency's id, or {@code null} for the default
      * @return the description
-     * @since 1.149.0
+     * @since 1.150.0
      */
     public static @NotNull CurrencyInfo info(@Nullable String id) {
         Optional<CurrencyProvider> provider = CurrencyRegistry.resolve(id);
@@ -130,7 +130,7 @@ public final class Economy {
      * @param id     the currency's id, or {@code null} for the default
      * @param amount the amount
      * @return the text, such as {@code $1,250.00} or {@code 3 Tokens}
-     * @since 1.149.0
+     * @since 1.150.0
      */
     public static @NotNull String format(@Nullable String id, @NotNull BigDecimal amount) {
         return info(id).format(amount);
@@ -139,7 +139,7 @@ public final class Economy {
     /**
      * An amount of a currency, written short.
      *
-     * @since 1.149.0
+     * @since 1.150.0
      */
     public static @NotNull String formatCompact(@Nullable String id, @NotNull BigDecimal amount) {
         return info(id).formatCompact(amount);
@@ -156,7 +156,7 @@ public final class Economy {
      * @param player whose history
      * @param limit  how many lines at most
      * @return the lines
-     * @since 1.149.0
+     * @since 1.150.0
      */
     public static @NotNull java.util.concurrent.CompletableFuture<java.util.List<LedgerEntry>> history(
             @NotNull String id, @NotNull UUID player, int limit) {
@@ -172,7 +172,7 @@ public final class Economy {
      * @param id    the currency's id
      * @param limit how many at most
      * @return the entries
-     * @since 1.149.0
+     * @since 1.150.0
      */
     public static @NotNull java.util.List<TopEntry> top(@NotNull String id, int limit) {
         return net.exylia.lib.economy.internal.StoredEconomy.top(id, limit);
@@ -191,7 +191,7 @@ public final class Economy {
      * @param to     the currency received
      * @param amount how much of {@code from}
      * @return the outcome, with the amount of {@code to} received as its amount
-     * @since 1.149.0
+     * @since 1.150.0
      */
     public static @NotNull EconomyResponse exchange(@NotNull UUID player, @NotNull String from,
                                                     @NotNull String to, @NotNull BigDecimal amount) {
@@ -302,7 +302,7 @@ public final class Economy {
         /**
          * Removes an amount, saying why.
          *
-         * @since 1.149.0
+         * @since 1.150.0
          */
         public @NotNull EconomyResponse withdraw(@NotNull UUID player, @NotNull BigDecimal amount,
                                                  @NotNull Transaction transaction) {
@@ -326,7 +326,7 @@ public final class Economy {
         /**
          * Adds an amount, saying why.
          *
-         * @since 1.149.0
+         * @since 1.150.0
          */
         public @NotNull EconomyResponse deposit(@NotNull UUID player, @NotNull BigDecimal amount,
                                                 @NotNull Transaction transaction) {
@@ -350,7 +350,7 @@ public final class Economy {
         /**
          * Sets a balance, saying why.
          *
-         * @since 1.149.0
+         * @since 1.150.0
          */
         public @NotNull EconomyResponse set(@NotNull UUID player, @NotNull BigDecimal amount,
                                             @NotNull Transaction transaction) {
@@ -371,7 +371,7 @@ public final class Economy {
         /**
          * The currency this view is bound to, as it presents itself.
          *
-         * @since 1.149.0
+         * @since 1.150.0
          */
         public @NotNull CurrencyInfo info() {
             return Economy.info(id);
@@ -380,7 +380,7 @@ public final class Economy {
         /**
          * An amount, written the way this currency writes it.
          *
-         * @since 1.149.0
+         * @since 1.150.0
          */
         public @NotNull String format(@NotNull BigDecimal amount) {
             return info().format(amount);
@@ -421,7 +421,7 @@ public final class Economy {
         /**
          * Moves an amount between two players, saying why.
          *
-         * @since 1.149.0
+         * @since 1.150.0
          */
         public @NotNull TransferResult transfer(
                 @NotNull UUID from, @NotNull UUID to, @NotNull BigDecimal amount,

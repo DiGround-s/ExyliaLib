@@ -592,7 +592,7 @@ every scoreboard line went to the economy plugin.
 
 ---
 
-## Currencies of your own (since 1.149.0)
+## Currencies of your own (since 1.150.0)
 
 The library can *be* the economy. `plugins/ExyliaLib/currencies.yml` names
 currencies the library keeps in its own table, currencies that are items in

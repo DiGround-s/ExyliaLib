@@ -283,7 +283,7 @@ public final class CurrencyRegistry {
     /**
      * Replaces the display overlays. Called when {@code currencies.yml} is read.
      *
-     * @since 1.149.0
+     * @since 1.150.0
      */
     public static void overlays(@NotNull Map<String, net.exylia.lib.economy.CurrencyInfo> loaded) {
         overlays = Map.copyOf(loaded);

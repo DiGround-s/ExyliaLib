@@ -155,7 +155,7 @@ public interface CurrencyProvider {
      * which lays the owner's {@code currencies.yml} overlay on top of this.
      *
      * @return the description
-     * @since 1.149.0
+     * @since 1.150.0
      */
     default @NotNull CurrencyInfo info() {
         return CurrencyInfo.of(id(), currencyName(false), currencyName(true), symbol());
@@ -167,7 +167,7 @@ public interface CurrencyProvider {
      * <p>A provider that keeps a ledger overrides this; every other one gets
      * the plain call. The library always calls this form.
      *
-     * @since 1.149.0
+     * @since 1.150.0
      */
     default @NotNull EconomyResponse deposit(@NotNull UUID player, @NotNull BigDecimal amount,
                                              @NotNull Transaction transaction) {
@@ -177,7 +177,7 @@ public interface CurrencyProvider {
     /**
      * Removes from a balance, carrying why.
      *
-     * @since 1.149.0
+     * @since 1.150.0
      */
     default @NotNull EconomyResponse withdraw(@NotNull UUID player, @NotNull BigDecimal amount,
                                               @NotNull Transaction transaction) {
@@ -187,7 +187,7 @@ public interface CurrencyProvider {
     /**
      * Sets a balance, carrying why.
      *
-     * @since 1.149.0
+     * @since 1.150.0
      */
     default @NotNull EconomyResponse set(@NotNull UUID player, @NotNull BigDecimal amount,
                                          @NotNull Transaction transaction) {

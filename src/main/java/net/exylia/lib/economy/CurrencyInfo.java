@@ -35,7 +35,7 @@ import java.util.Locale;
  * @param format       how an amount is written in full
  * @param compactFormat how an amount is written short, {@code %amount%} being
  *                     compacted ({@code 1.2k}) rather than grouped
- * @since 1.149.0
+ * @since 1.150.0
  */
 public record CurrencyInfo(
         @NotNull String id,

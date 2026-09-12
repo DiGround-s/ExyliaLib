@@ -24,7 +24,7 @@ import java.util.UUID;
  *
  * @param reason    what happened, such as {@code market:buy}
  * @param initiator who caused it, or {@code null} for the system
- * @since 1.149.0
+ * @since 1.150.0
  */
 public record Transaction(@NotNull String reason, @Nullable UUID initiator) {
 
