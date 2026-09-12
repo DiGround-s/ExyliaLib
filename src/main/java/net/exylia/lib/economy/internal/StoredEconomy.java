@@ -392,9 +392,28 @@ public final class StoredEconomy implements Listener {
     BigDecimal snapshot(String currency, UUID player) {
         BigDecimal cached = BalanceCache.peek(currency, player);
         if (cached != null) return cached;
-        balances.find(BalanceRow.id(player, currency)).thenAccept(found ->
-                BalanceCache.remember(currency, player, found.map(BalanceRow::amount).orElse(BigDecimal.ZERO)));
+        snapshotLater(currency, player);
         return BigDecimal.ZERO;
+    }
+
+    /**
+     * The same snapshot, waited for.
+     *
+     * <p>What a command asking about somebody who is not here needs: the row
+     * itself rather than the zero that stands in until the warm-up lands.
+     * Completes on the database's thread.
+     *
+     * <p>The cache is written, never read. The zero {@link #snapshot} hands
+     * back while it warms up is remembered like any other balance, and a
+     * command that trusted it would print the very number it was called to
+     * avoid.
+     */
+    CompletableFuture<BigDecimal> snapshotLater(String currency, UUID player) {
+        return balances.find(BalanceRow.id(player, currency)).thenApply(found -> {
+            BigDecimal amount = found.map(BalanceRow::amount).orElse(BigDecimal.ZERO);
+            BalanceCache.remember(currency, player, amount);
+            return amount;
+        });
     }
 
     // ------------------------------------------------------------- questions

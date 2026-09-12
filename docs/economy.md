@@ -70,6 +70,20 @@ one currency, plus one the top-level facade does not expose:
 | --- | --- |
 | `view.balance / has / withdraw / deposit / charge / pay / transfer` | as above, on this currency |
 | `view.set(uuid, amount)` | set the balance to an exact value; **zero is allowed here**, unlike everywhere else |
+| `view.balanceLater(uuid)` | the balance of somebody who may not be here, fetched: a `CompletableFuture` |
+
+`balance` answers from memory, because scoreboards and placeholders read it
+every tick — and for a stored currency memory is the players on this server, so
+everybody else reads zero. A command about an offline player wants
+`balanceLater`, which goes to the row and completes **off the server thread**:
+
+```java
+Economy.of("coins").balanceLater(target).thenAccept(amount ->
+        Tasks.of(plugin).run(() -> sender.sendMessage(Economy.format("coins", amount))));
+```
+
+A custom provider inherits `balanceLater` as "the memory answer, already
+complete", which is right for anything whose reads never leave the process.
 
 `set` is only on the view — there is deliberately no `Economy.set` shortcut,
 because setting a balance is an admin operation and not the thing a shop should

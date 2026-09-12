@@ -5,6 +5,7 @@ import org.jetbrains.annotations.Nullable;
 
 import java.math.BigDecimal;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 
 /**
  * A source of one currency.
@@ -73,6 +74,30 @@ public interface CurrencyProvider {
      * @return the balance, never negative, never {@code null}
      */
     @NotNull BigDecimal balance(@NotNull UUID player);
+
+    /**
+     * Reads a balance, allowed to go and fetch it.
+     *
+     * <p>{@link #balance(UUID)} answers from memory because it is called from
+     * scoreboards and placeholders, which means a provider that keeps only the
+     * players who are here answers zero for everybody else. A command asking
+     * about somebody offline needs the real number, and can wait for it.
+     *
+     * <p>The default is the memory answer, already complete: a provider whose
+     * reads never leave the process — Vault, PlayerPoints, an item in an
+     * inventory — has nothing to add. The stored currencies override it with
+     * the row from the database.
+     *
+     * <p>The future completes off the server thread. Hop back before touching
+     * the world with what it carries.
+     *
+     * @param player the player
+     * @return their balance
+     * @since 1.154.0
+     */
+    default @NotNull CompletableFuture<BigDecimal> balanceLater(@NotNull UUID player) {
+        return CompletableFuture.completedFuture(balance(player));
+    }
 
     /**
      * Adds to a balance.

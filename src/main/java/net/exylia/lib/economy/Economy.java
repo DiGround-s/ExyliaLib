@@ -349,6 +349,33 @@ public final class Economy {
                     .orElse(BigDecimal.ZERO);
         }
 
+        /**
+         * A balance, fetched rather than remembered.
+         *
+         * <p>{@link #balance(UUID)} answers from what is in memory, which for
+         * a stored currency is the players who are on this server: everybody
+         * else reads as zero. This one goes to the database for them, so a
+         * command about somebody offline says a true number.
+         *
+         * <p>Completes off the server thread. Hop back before touching the
+         * world with the answer.
+         *
+         * @param player the player
+         * @return their balance
+         * @since 1.154.0
+         */
+        public @NotNull java.util.concurrent.CompletableFuture<BigDecimal> balanceLater(@NotNull UUID player) {
+            requirePlayer(player);
+            // Asked, never peeked: the cache may hold the placeholder zero a
+            // memory read leaves behind for a player nothing here holds.
+            return provider()
+                    .map(p -> p.balanceLater(player).thenApply(amount -> {
+                        BalanceCache.remember(p.id(), player, amount);
+                        return amount;
+                    }))
+                    .orElseGet(() -> java.util.concurrent.CompletableFuture.completedFuture(BigDecimal.ZERO));
+        }
+
         /** Whether a player has at least an amount. */
         public boolean has(@NotNull UUID player, @NotNull BigDecimal amount) {
             requirePlayer(player);

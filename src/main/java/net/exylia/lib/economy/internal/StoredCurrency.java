@@ -9,6 +9,7 @@ import org.jetbrains.annotations.NotNull;
 import java.math.BigDecimal;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
@@ -114,6 +115,13 @@ public final class StoredCurrency implements CurrencyProvider {
         BigDecimal here = loaded.get(player);
         if (here != null) return here;
         return economy.snapshot(id(), player);
+    }
+
+    @Override
+    public @NotNull CompletableFuture<BigDecimal> balanceLater(@NotNull UUID player) {
+        BigDecimal here = loaded.get(player);
+        if (here != null) return CompletableFuture.completedFuture(here);
+        return economy.snapshotLater(id(), player);
     }
 
     @Override

@@ -95,6 +95,16 @@ class StoredEconomyTest {
         Thread.sleep(150);
     }
 
+    /** Waits for a player's balance row to hold an amount. */
+    private void awaitRow(UUID player, String amount) throws Exception {
+        long deadline = System.currentTimeMillis() + 5000;
+        while (economy().balances().find(BalanceRow.id(player, "coins")).get(5, TimeUnit.SECONDS)
+                .map(row -> row.amount().compareTo(new BigDecimal(amount)) != 0).orElse(true)) {
+            if (System.currentTimeMillis() > deadline) throw new AssertionError("never written: " + player);
+            Thread.sleep(10);
+        }
+    }
+
     @Test
     @DisplayName("the file's currencies are registered and answer to the facade")
     void registered() {
@@ -121,7 +131,7 @@ class StoredEconomyTest {
         assertEquals(EconomyResponse.Type.INSUFFICIENT_FUNDS, tooMuch.type());
         assertEquals(new BigDecimal("70"), view.balance(alice));
 
-        settle();
+        awaitRow(alice, "70");
         BalanceRow row = economy().balances().find(BalanceRow.id(alice, "coins")).get(5, TimeUnit.SECONDS).orElseThrow();
         assertEquals(0, new BigDecimal("70").compareTo(row.amount()));
         assertEquals("Alice", row.name());
@@ -154,6 +164,26 @@ class StoredEconomyTest {
         }
         settle();
         assertEquals(0, economy().pendingRows().where("player", bob.toString()).count().get(5, TimeUnit.SECONDS));
+    }
+
+    @Test
+    @DisplayName("a player who is not here reads zero in memory and the true row when waited for")
+    void balanceOfAbsentPlayer() throws Exception {
+        join(alice, "Alice");
+        Economy.CurrencyView view = Economy.of("coins");
+        view.deposit(alice, new BigDecimal("250"), Transaction.of("test:give"));
+        awaitRow(alice, "250");
+
+        // What a quit does: the balance leaves memory, the row stays.
+        coins().unload(alice);
+        BalanceCache.invalidateAll();
+
+        // The memory read first, deliberately: it remembers its own zero, and
+        // the waited read must not hand that zero back.
+        assertEquals(0, BigDecimal.ZERO.compareTo(view.balance(alice)),
+                "a balance read from memory cannot know an absent player");
+        assertEquals(0, new BigDecimal("250").compareTo(view.balanceLater(alice).get(5, TimeUnit.SECONDS)),
+                "the waited read must be the row in the database");
     }
 
     @Test
@@ -197,7 +227,10 @@ class StoredEconomyTest {
         join(bob, "Bob");
         Economy.of("coins").deposit(alice, new BigDecimal("10"));
         Economy.of("coins").deposit(bob, new BigDecimal("90"));
-        settle();
+        // Both rows written before the first read: the leaderboard caches what
+        // it read for a minute, so reading it early is reading it wrong.
+        awaitRow(alice, "10");
+        awaitRow(bob, "90");
 
         Economy.top("coins", 10);
         settle();
