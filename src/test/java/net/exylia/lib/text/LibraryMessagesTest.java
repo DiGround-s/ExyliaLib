@@ -38,9 +38,21 @@ class LibraryMessagesTest {
     @Test
     @DisplayName("a section deleted wholesale falls back too")
     void missingSectionsFallBack() {
-        LibraryMessages messages = new LibraryMessages(null, null);
+        LibraryMessages messages = new LibraryMessages(null, null, null);
         assertEquals(LibraryMessages.Wizard.DEFAULT_REGION, messages.wizard().region());
         assertEquals(LibraryMessages.Selection.DEFAULT_VOLUME, messages.selection().volume());
+        assertEquals(LibraryMessages.Players.DEFAULT_NOT_FOUND, messages.players().notFound());
+    }
+
+    @Test
+    @DisplayName("the player lines name the player they are about")
+    void playerLinesCarryTheName() {
+        LibraryMessages.Players lines = new LibraryMessages.Players();
+        assertTrue(lines.notFound().contains("%player%"));
+        assertTrue(lines.notHere().contains("%player%"));
+        LibraryMessages.Players emptied = new LibraryMessages.Players(null, "  ");
+        assertEquals(LibraryMessages.Players.DEFAULT_NOT_FOUND, emptied.notFound());
+        assertEquals(LibraryMessages.Players.DEFAULT_NOT_HERE, emptied.notHere());
     }
 
     @Test

@@ -1105,6 +1105,53 @@ so the server downloads it from Maven Central. Never `onCommand`, never a
 `CommandExecutor` of your own, never a version other than the one the rest of the
 plugins use.
 
+### Players — one type, five tiers, and never the name overload
+
+A player a command is pointed at goes through `net.exylia.lib.player`. Never a
+private `resolve(String)` in a plugin, and never `Bukkit.getOfflinePlayer(String)`.
+
+- **`ExyliaPlayer` carries an id that is never null.** Every table in the
+  ecosystem is keyed by a `UUID`, so a target that carries one is handed to any
+  store with no branch at the call site. A target that might not carry one
+  pushes an `if` into every command that takes it, which is why Staff's
+  `NetworkPlayer` — the same idea with a nullable id — was used by four of its
+  eighteen command classes and ignored by the rest.
+- **Identity is the id alone.** `equals` compares it and nothing else: the name
+  is what the id last answered to and the server is where they last were, so
+  comparing all three has the same player read as two after a rename.
+- **The cheap tiers do no I/O, and that is what makes them usable.** Online
+  here, the directory, and the server's own user cache
+  (`getOfflinePlayerIfCached`, which reads memory). Lamp calls `parse` for
+  every tab keystroke and several times per execution, so a parameter type that
+  queried anything would query it dozens of times a second.
+- **`Bukkit.getOfflinePlayer(String)` is never called.** It reads like a cache
+  lookup and behaves like a network request: for a name the user cache has
+  never seen it goes to Mojang, on whatever thread asked, with no back-off and
+  no negative cache. FFA called it from a command handler and Clans followed it
+  with `Bukkit.getOfflinePlayers()`, which scans every player file on disk.
+- **Mojang is one client for the whole library.** The player module borrows the
+  skull module's through `SkullRuntime.idOf`. Two clients mean two back-off
+  deadlines, and the second keeps asking after the first has been told to stop.
+- **Mojang is skipped in offline mode.** Its ids are not the ids such a server
+  stores, so the answer would be an id no row is keyed by and one that looks
+  valid. Deriving the offline id from the name is not a fix: a proxied network
+  runs its backends in offline mode while forwarding the real ids.
+- **Nothing is stored.** No table and no file: the library opens no database of
+  its own, so an identity table would live duplicated in every consumer's
+  `database.yml`. The user cache, the proxy's list and Mojang already hold the
+  three answers between them. If the network ever needs an id for somebody who
+  has played on *another* backend and never here, that belongs in a `lastseen`
+  module on ExyliaProxyUtils — one module there and one `Proxy.find` here, and
+  still no table in any plugin.
+- **The not-found line belongs to the library.** The module owns the lookup, so
+  it owns the sentence it fails with; `PlayerNotFoundException` is a
+  `SendableException`, so a plugin registers no handler to make it appear.
+  Eleven plugins had eleven wordings, several saying "is not online" about
+  somebody who had simply never played there.
+- **A directory entry is not a suggestion.** Tab completions are this server's
+  players and the network's. An established server's user cache is a hundred
+  thousand names.
+
 ### Reload — everyone reloads their own
 
 - **There is no reload system.** `Configs.reloadAll(plugin)` + `onReload` cover
@@ -1489,6 +1536,7 @@ Code root: `src/main/java/net/exylia/lib/`. Test root:
 | redis | `redis/Redis`, `RedisSettings` | `redis/internal/` (Jedis confined to `JedisClient`) | [docs/redis.md](docs/redis.md) | 1.31.0 |
 | cross-server pub/sub channels | `redis/Channels`, `PluginChannels`, `Channel`, `Message`, `Redis.serverId(plugin)` | `Channel` frames `<server-id>` + pipe + `<payload>` over `RedisRuntime.client`; local bus without Redis | [docs/redis.md](docs/redis.md) | 1.75.0 |
 | proxy (bridge with ExyliaProxyUtils) | `proxy/Proxy`, `ProxyReply`; default transport for `command/PluginCommands.proxy()` | `proxy/internal/ProxyRuntime` (`exylia:bridge` channel, in-flight request map, ping on the first join), `Wire`, `BridgeCommands`; `CrossServer.connect`/`connectOther` use the `connect` module when the bridge answered and the `BungeeCord` channel when it didn't | [docs/proxy.md](docs/proxy.md), [docs/teleport.md](docs/teleport.md) | 1.101.0, 1.102.0 |
+| player (name to id, online/offline/network) | `player/ExyliaPlayer`, `ExyliaPlayers`, `PlayerTarget`; `command/lamp/PlayerTypes` (Lamp types + `PlayerNotFoundException`); `text/LibraryMessages.Players` | `player/internal/PlayerRuntime` (five tiers, name<->id Caffeine directory, negative cache, request collapsing); joins recorded in `ExyliaLib.onPlayerJoin`; Mojang shared through `SkullRuntime.idOf` | [docs/players.md](docs/players.md) | 1.146.0 |
 | auto-update poll | `update-check-minutes` in `internal/LibrarySettings` | `internal/ExyliaLibUpdater` (ETag), timer in `ExyliaLib.startUpdateCheck` | [docs/reload.md](docs/reload.md) | 1.30.0 |
 | generated keys | `database/Id.generated`, `Repository.insert`/`insertReturning` | `Dialect.insertGenerated`, `SqlBackend.insert` (`getGeneratedKeys`), `MongoBackend.insert` (`$inc`), `EntityModel.withId` | [docs/database.md](docs/database.md) | 1.32.0 |
 | a click that redraws everything that can change | — | `ui/internal/Session.refreshAfterClick`, `redrawChangeable` | [docs/menus.md](docs/menus.md) | 1.44.0 |

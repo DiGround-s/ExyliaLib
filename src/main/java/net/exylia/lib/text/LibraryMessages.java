@@ -29,6 +29,7 @@ import org.jetbrains.annotations.NotNull;
  *
  * @param wizard    what a guided flow tells a player to do
  * @param selection what the block selector tells them while they pick
+ * @param players   what a command says about a player it cannot find
  * @since 1.67.0
  */
 @Comment("What ExyliaLib itself says to your players.")
@@ -47,12 +48,15 @@ public record LibraryMessages(
         @NotNull Wizard wizard,
 
         @Comment("What the block selector tells a player while they pick.")
-        @NotNull Selection selection
+        @NotNull Selection selection,
+
+        @Comment("What a command says about a player it cannot find.")
+        @NotNull Players players
 ) {
 
     /** The Exylia defaults. */
     public LibraryMessages() {
-        this(new Wizard(), new Selection());
+        this(new Wizard(), new Selection(), new Players());
     }
 
     public LibraryMessages {
@@ -61,6 +65,9 @@ public record LibraryMessages(
         }
         if (selection == null) {
             selection = new Selection();
+        }
+        if (players == null) {
+            players = new Players();
         }
     }
 
@@ -222,6 +229,54 @@ public record LibraryMessages(
             guideFirst = orDefault(guideFirst, DEFAULT_GUIDE_FIRST);
             guideSecond = orDefault(guideSecond, DEFAULT_GUIDE_SECOND);
             guideConfirm = orDefault(guideConfirm, DEFAULT_GUIDE_CONFIRM);
+        }
+    }
+
+    /**
+     * What a command says about a player it cannot find.
+     *
+     * <p>Here rather than in every plugin because it is the same sentence
+     * everywhere and it is the library that decides when it is true: the
+     * player module owns the lookup, so it owns the line it fails with.
+     * Eleven plugins had eleven wordings of it, several of them saying "is
+     * not online" about a player who had simply never played there.
+     *
+     * <p>{@code %player%} is the name as the sender typed it.
+     *
+     * @param notFound nobody answers to that name, anywhere
+     * @param notHere  they exist, but they are not on this server
+     */
+    public record Players(
+
+            @Key("not-found")
+            @Comment("Sent when no player anywhere answers to the name that")
+            @Comment("was typed. %player% is that name.")
+            @NotNull String notFound,
+
+            @Key("not-here")
+            @Comment("Sent when the player is known but is not on this")
+            @Comment("server, for the commands that need them present.")
+            @NotNull String notHere
+    ) {
+
+        /** Nobody answers to that name. */
+        public static final String DEFAULT_NOT_FOUND =
+                "[sound:ENTITY_VILLAGER_NO|1|1]{error}✖ {letters}No player named "
+                        + "{highlight}%player% {letters}was found.";
+
+        /** They are not on this server. */
+        public static final String DEFAULT_NOT_HERE =
+                "[sound:ENTITY_VILLAGER_NO|1|1]{error}✖ {highlight}%player% "
+                        + "{letters}is not on this server.";
+
+        /** The Exylia defaults. */
+        public Players() {
+            this(DEFAULT_NOT_FOUND, DEFAULT_NOT_HERE);
+        }
+
+        public Players {
+            notFound = orDefault(notFound, DEFAULT_NOT_FOUND);
+            notHere = orDefault(notHere, DEFAULT_NOT_HERE);
         }
     }
 

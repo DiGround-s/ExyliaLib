@@ -287,6 +287,32 @@ public final class SkullRuntime {
     }
 
     /**
+     * Asks Mojang what id a name belongs to.
+     *
+     * <p>Shared with the player module, which needs the same answer for a
+     * command aimed at somebody nobody on the network has ever seen. It is
+     * this client and not a second one on purpose: the back-off is one
+     * deadline per client, so a second client would keep asking after this
+     * one had been told to stop.
+     *
+     * <p><b>Threading:</b> a network request. Never from the main thread.
+     *
+     * @param name the player name
+     * @return their id, or {@code null} when unknown, unavailable or backed off
+     */
+    public static UUID idOf(String name) {
+        Lookup api = mojang;
+        if (api == null || name == null || name.isBlank()) {
+            return null;
+        }
+        try {
+            return api.idOf(name);
+        } catch (Exception unavailable) {
+            return null;
+        }
+    }
+
+    /**
      * The id of someone who has played here before.
      *
      * <p>Saves the name-to-id request outright for any returning player, which

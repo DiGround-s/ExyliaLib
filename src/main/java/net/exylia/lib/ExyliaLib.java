@@ -245,6 +245,9 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         // The proxy bridge, over the Redis this plugin's own database.yml
         // names. After the database module, which is what reads that file.
         net.exylia.lib.proxy.internal.ProxyRuntime.init(this);
+        // The name-to-id directory. After the proxy and the skull module,
+        // whose bridge and whose Mojang client are its two expensive tiers.
+        net.exylia.lib.player.internal.PlayerRuntime.init(this);
         // Holds only this plugin reference, so that an export or an import runs
         // on the library's scheduler: a transfer scheduled on the consumer's own
         // would be cancelled halfway through a file the moment that consumer is
@@ -599,6 +602,7 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         Prefixes.releaseAll();
         Reloads.releaseAll();
         Sessions.releaseAll();
+        net.exylia.lib.player.internal.PlayerRuntime.shutdown();
         Debug.releaseAll();
     }
 
@@ -675,6 +679,11 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
     @EventHandler(priority = EventPriority.MONITOR)
     public void onPlayerJoin(PlayerJoinEvent event) {
         org.bukkit.entity.Player player = event.getPlayer();
+        // Their name against their id, so a command aimed at them keeps
+        // working once they have left. This is also the moment a name that
+        // changed is corrected: the directory holds what the id last
+        // answered to, and this is the server learning it first-hand.
+        net.exylia.lib.player.internal.PlayerRuntime.remember(player);
         // An outgoing metadata packet carries an entity id and nothing else, so
         // the way back to the player has to be recorded while they are here.
         NametagRuntime.register(player);
