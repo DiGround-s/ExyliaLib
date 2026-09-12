@@ -41,7 +41,11 @@ boolean canSee(Player viewer, Player target);
 
 `refresh` despawns the target for viewers who lost sight — `hidePlayer` plus
 an explicit destroy and tab-list removal — and respawns them for viewers who
-regained it. Between refreshes every outbound packet about a hidden target is
+regained it. A viewer the server still hides the target from, while every
+rule now agrees they may see them, is shown them too: a hide left behind by a
+quit or by another plugin is undone on the next `refresh` of that target.
+Every hide and show is made in the library's name, so one plugin's `refresh`
+undoes another's. Between refreshes every outbound packet about a hidden target is
 dropped on its way to a viewer who may not see them: spawn, metadata,
 movement, equipment, animations, entity sounds, damage. Tab-list updates lose
 the hidden rows and keep the rest.

@@ -386,6 +386,21 @@ public final class PacketRuntime {
             this.outlines = new BlockOutlines(plugin);
         }
 
+        /**
+         * The plugin every hide and show is made in the name of.
+         *
+         * <p>One for the whole server, never the calling plugin. The server
+         * keeps a hide per plugin, and only that plugin's show undoes it, while
+         * the record of who is hidden is shared by every plugin here: a player
+         * hidden by vanish and shown by an arena was still hidden by vanish,
+         * and nothing would ever show them again. The calling plugin is only
+         * the answer on a server where the library never initialised.
+         */
+        private Plugin handle() {
+            Plugin shared = lib;
+            return shared != null ? shared : plugin;
+        }
+
         @Override public @NotNull Visibility visibility() { return this; }
         @Override public @NotNull Reveal reveal() { return this; }
         @Override public @NotNull FakeBlocks fakeBlocks() { return this; }
@@ -448,11 +463,16 @@ public final class PacketRuntime {
                     // The record first: whatever the tracker sends from here on
                     // is filtered before the despawn even arrives.
                     Tasks.of(plugin).runAtEntity(viewer, () -> {
-                        viewer.hidePlayer(plugin, target);
+                        viewer.hidePlayer(handle(), target);
                         out.despawn(viewer, target.getEntityId(), targetId);
                     });
-                } else if (allowed && hidden.remove(targetId)) {
-                    Tasks.of(plugin).runAtEntity(viewer, () -> viewer.showPlayer(plugin, target));
+                } else if (allowed && (hidden.remove(targetId) | !viewer.canSee(target))) {
+                    // Not only when the record says hidden. The record is
+                    // forgotten on quit before the plugins that hid the player
+                    // hear about it, but the server keeps the hide on the
+                    // viewer by the target's UUID; without this a player who
+                    // quit hidden came back invisible to that viewer for good.
+                    Tasks.of(plugin).runAtEntity(viewer, () -> viewer.showPlayer(handle(), target));
                 }
             }
         }
@@ -588,7 +608,7 @@ public final class PacketRuntime {
                             && target.getWorld().equals(viewer.getWorld())
                             && !hidesProfile(viewer.getUniqueId(), target.getUniqueId())) {
                         invisible.add(target);
-                        viewer.hidePlayer(plugin, target);
+                        viewer.hidePlayer(handle(), target);
                     }
                 }
                 if (invisible.isEmpty()) {
@@ -600,7 +620,7 @@ public final class PacketRuntime {
                         // back would undo the hide it just asked for.
                         if (target.isOnline()
                                 && !hidesProfile(viewer.getUniqueId(), target.getUniqueId())) {
-                            viewer.showPlayer(plugin, target);
+                            viewer.showPlayer(handle(), target);
                         }
                     }
                 });
