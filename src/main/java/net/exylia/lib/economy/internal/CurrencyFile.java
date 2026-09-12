@@ -228,7 +228,7 @@ public final class CurrencyFile {
             # Written once, when it is missing, and never overwritten. Run
             # /exylialib reload after editing.
             #
-            # A plugin asks for money by id: Economy.of("coins"). Which id answers
+            # A plugin asks for money by id: Economy.of("shards"). Which id answers
             # when a plugin does not name one is economy.yml's default-currency.
             #
             # ---------------------------------------------------------------------
@@ -238,63 +238,39 @@ public final class CurrencyFile {
             #   decimals        0 for a whole-number currency
             #   format          how an amount is written. %amount% %symbol% %name%
             #   compact-format  the same, for a scoreboard: %amount% is 1.2k
-            #   aliases         commands that open this currency: /coins, /coins pay ...
+            #   aliases         commands that open this currency: /shards, /shards pay ...
             #   start           what a new player begins with
             #   max             a ceiling on a balance. -1 = none
             #   permission      needed to use the currency's commands. blank = nobody needs one
             #   transfer        whether players can /pay each other, the least they may
             #                   send, and a percentage kept back from every transfer
             #   exchange        whether it can be swapped for other currencies, and at
-            #                   what rate: 'gems: 0.01' means 1 of this = 0.01 gems
-            #   leaderboard     whether /coins top and the top placeholders work
+            #                   what rate: 'shards: 0.01' means 1 of this = 0.01 shards
+            #   leaderboard     whether /shards top and the top placeholders work
             #   networked       whether balances follow the player across servers that
             #                   share this database. Off = each server keeps its own
             #   commands        whether the alias commands exist at all
             # ---------------------------------------------------------------------
             stored:
-              coins:
-                name: Coin
-                plural: Coins
-                symbol: "\\u26c3"
-                icon: SUNFLOWER
-                decimals: 0
-                format: "%amount% %symbol%"
-                compact-format: "%amount%%symbol%"
-                aliases: [coins, coin]
-                start: 0
-                max: -1
-                permission: ""
-                transfer:
-                  enabled: true
-                  minimum: 1
-                  tax-percent: 0
-                exchange:
-                  enabled: true
-                  rates:
-                    gems: 0.01
-                leaderboard: true
-                networked: true
-                commands: true
-              gems:
-                name: Gem
-                plural: Gems
+              shards:
+                name: Shard
+                plural: Shards
                 symbol: "\\u2726"
-                icon: EMERALD
+                icon: AMETHYST_SHARD
                 decimals: 0
                 format: "%amount% %symbol%"
                 compact-format: "%amount%%symbol%"
-                aliases: [gems, gem]
+                aliases: [shards, shard]
                 start: 0
                 max: -1
                 permission: ""
                 transfer:
-                  enabled: false
+                  enabled: true
                   minimum: 1
                   tax-percent: 0
                 exchange:
-                  enabled: true
-                  rates:
-                    coins: 100
+                  enabled: false
+                  rates: {}
                 leaderboard: true
                 networked: true
                 commands: true
@@ -307,12 +283,12 @@ public final class CurrencyFile {
             #   item   a material name, or a 'bytes:' item snapshot for a custom item
             # ---------------------------------------------------------------------
             items:
-              emeralds:
-                item: EMERALD
-                name: Emerald
-                plural: Emeralds
+              netherite_ingots:
+                item: NETHERITE_INGOT
+                name: Netherite Ingot
+                plural: Netherite Ingots
                 symbol: ""
-                icon: EMERALD
+                icon: NETHERITE_INGOT
                 format: "%amount% %name%"
                 aliases: []
 
@@ -321,7 +297,7 @@ public final class CurrencyFile {
             # 'xp_points' become ids a shop can price in.
             # ---------------------------------------------------------------------
             experience:
-              levels: true
+              levels: false
               points: true
 
             # ---------------------------------------------------------------------
@@ -351,7 +327,7 @@ public final class CurrencyFile {
             # no other economy plugin has registered one, unless 'force' is on.
             # ---------------------------------------------------------------------
             vault:
-              provide: coins
+              provide: ""
               force: false
 
             # ---------------------------------------------------------------------

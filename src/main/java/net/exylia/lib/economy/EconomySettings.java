@@ -62,11 +62,11 @@ public record EconomySettings(
      * The Exylia defaults: Vault where it exists, a short cache, no guessing.
      *
      * <p>What a fresh {@code economy.yml} contains. The fallback names the
-     * library's own {@code coins} first and the other built-in currency after
-     * it, so a server with no economy plugin at all still has money that works
-     * instead of every price failing until somebody edits this file.
+     * library's own {@code shards}, so a server with no economy plugin at all
+     * still has money that works instead of every price failing until somebody
+     * edits this file.
      */
     public EconomySettings() {
-        this("vault", List.of("coins", "points"), 500L);
+        this("vault", List.of("shards"), 500L);
     }
 }
