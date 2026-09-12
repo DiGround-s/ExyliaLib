@@ -17,6 +17,7 @@ import org.jetbrains.annotations.ApiStatus;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+import java.util.Collections;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -276,7 +277,12 @@ public final class ProxyRuntime {
                     names.add(name.trim());
                 }
             }
-            players = Set.copyOf(names);
+            // Wrapped, not copied. Set.copyOf builds a hash set, which
+            // compares with equals and threw away the case-insensitive
+            // comparator this was collected with: players().contains("drak")
+            // answered false for a player called Drak, and every caller that
+            // asked whether a typed name was on the network got "no".
+            players = Collections.unmodifiableSet(names);
         });
     }
 
