@@ -60,7 +60,7 @@ final class PotionEffectDescriptor implements EditorDescriptor<ParsedEffect> {
     public @NotNull List<String> lore(@NotNull ParsedEffect entry) {
         return List.of("{secondary}Effect:",
                 " {letters_black}▎ {letters}Level {letters_black}» {info}" + (entry.amplifier() + 1),
-                " {letters_black}▎ {letters}Lasts {letters_black}» {info}" + duration(entry) + " ⏱️");
+                " {letters_black}▎ {letters}Lasts {letters_black}» {info}" + duration(entry) + " ⌚");
     }
 
     @Override
