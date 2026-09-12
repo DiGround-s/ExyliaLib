@@ -84,6 +84,27 @@ public final class BalanceCache {
      * so its own writes are instantly visible to the next read — see the class
      * Javadoc for why that matters more than the TTL.
      */
+    /**
+     * What the cache holds, without loading anything.
+     *
+     * @return the balance, or {@code null} when nothing is cached
+     * @since 1.149.0
+     */
+    public static @org.jetbrains.annotations.Nullable BigDecimal peek(
+            @NotNull String currencyId, @NotNull UUID player) {
+        return cache.getIfPresent(new Key(currencyId, player));
+    }
+
+    /**
+     * Puts a balance that was read elsewhere into the cache.
+     *
+     * @since 1.149.0
+     */
+    public static void remember(@NotNull String currencyId, @NotNull UUID player,
+                                @NotNull BigDecimal balance) {
+        cache.put(new Key(currencyId, player), balance);
+    }
+
     public static void invalidate(@NotNull String currencyId, @NotNull UUID player) {
         cache.invalidate(new Key(currencyId, player));
     }

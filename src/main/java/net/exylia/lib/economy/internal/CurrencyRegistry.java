@@ -277,6 +277,28 @@ public final class CurrencyRegistry {
     }
 
     /** The provider registered under an exact id, without fallback. */
+    /** The overlays {@code currencies.yml} lays over how currencies look. */
+    private static volatile Map<String, net.exylia.lib.economy.CurrencyInfo> overlays = Map.of();
+
+    /**
+     * Replaces the display overlays. Called when {@code currencies.yml} is read.
+     *
+     * @since 1.149.0
+     */
+    public static void overlays(@NotNull Map<String, net.exylia.lib.economy.CurrencyInfo> loaded) {
+        overlays = Map.copyOf(loaded);
+    }
+
+    /** The overlay for a currency, or {@code null} for none. */
+    public static @Nullable net.exylia.lib.economy.CurrencyInfo overlay(@NotNull String id) {
+        return overlays.get(id);
+    }
+
+    /** The id {@code economy.yml} names as the default. */
+    public static @NotNull String defaultId() {
+        return settings.defaultCurrency();
+    }
+
     public static @NotNull Optional<CurrencyProvider> provider(@NotNull String id) {
         return Optional.ofNullable(providers.get(id));
     }

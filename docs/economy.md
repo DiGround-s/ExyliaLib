@@ -589,3 +589,114 @@ every scoreboard line went to the economy plugin.
 | Internal | `economy/internal/CurrencyRegistry`, `BalanceCache`, `VaultCurrency`, `PlayerPointsCurrency` |
 | Lifecycle | `ExyliaLib` — `economy.yml` read, settings applied, providers detected at enable; re-applied on `/exylialib reload` |
 | Tests | `src/test/java/net/exylia/lib/economy/internal/` — `EconomyTest`, `PrecisionTest`, `EconomyFileTest` |
+
+---
+
+## Currencies of your own (since 1.149.0)
+
+The library can *be* the economy. `plugins/ExyliaLib/currencies.yml` names
+currencies the library keeps in its own table, currencies that are items in
+the player's hands, and whether experience counts as one — and how every
+currency, Vault's included, looks.
+
+```yaml
+stored:
+  coins:
+    name: Coin
+    plural: Coins
+    symbol: "⛃"
+    icon: SUNFLOWER
+    decimals: 0
+    format: "%amount% %symbol%"
+    aliases: [coins, coin]        # /coins, /coins pay <player> <amount>, /coins top ...
+    start: 0
+    max: -1
+    permission: ""
+    transfer: { enabled: true, minimum: 1, tax-percent: 0 }
+    exchange: { enabled: true, rates: { gems: 0.01 } }
+    leaderboard: true
+    networked: true
+    commands: true
+items:
+  emeralds: { item: EMERALD, name: Emerald, plural: Emeralds }
+experience: { levels: true, points: true }   # ids xp_levels and xp_points
+display:
+  vault: { name: Dollar, plural: Dollars, symbol: "$", icon: GOLD_INGOT, decimals: 2 }
+vault:
+  provide: ""      # a stored currency to publish as the server's Vault economy
+  force: false
+ledger:
+  enabled: true
+```
+
+Written once and never overwritten. `/exylialib reload` re-reads it.
+
+### How a stored currency is kept
+
+One row per player per currency (`exylia_balances`), written only by the
+server the player is on. A server they are not on — a market selling their
+listing while they play elsewhere, an admin giving money to somebody offline —
+writes an `exylia_balance_pending` row and publishes the player's id on the
+`economy` Redis channel; the server that has the player claims each pending
+row by deleting it and folds it in, and a player nobody has gets them on their
+next join. A change lands exactly once, and two servers never overwrite each
+other's total.
+
+The cost of that promise: withdrawing from somebody who is not on this server
+is queued too, and floored at zero when it lands. Every plugin in the ecosystem
+withdraws from a player standing in front of it; the queue is for the admin.
+
+### The ledger
+
+Every applied change is a line in `exylia_ledger` with the
+[`Transaction`](#transactions) it was made with. `/economy history [currency]
+[player]` and `Economy.history(id, uuid, limit)` read it, newest first.
+
+### Transactions
+
+Say why money moved:
+
+```java
+Economy.of("coins").withdraw(buyer, price, Transaction.of("market:buy"));
+Economy.of("coins").deposit(target, amount, Transaction.of("admin:give").by(staff));
+```
+
+Every operation without one carries `Transaction.NONE`. Whatever the currency,
+a successful change fires `BalanceChangeEvent` (before, after, transaction),
+so a scoreboard or a quest reacts without knowing which economy is underneath.
+
+### How a currency looks
+
+`Economy.info(id)` is a `CurrencyInfo`: name, plural, symbol, icon, decimals
+and two formats. `Economy.format(id, amount)` writes an amount the way *that*
+currency writes it — `$1,250.00`, `3 Tokens`, `1.2k⛃` — and `display:` in
+`currencies.yml` lays the owner's choices over anything a provider says.
+`Formats.money` keeps formatting the default currency.
+
+### Commands
+
+| Command | Does |
+| --- | --- |
+| `/economy` · `/eco` | your wallet: every currency you may use |
+| `/economy balance [currency] [player]` | one balance |
+| `/economy pay <player> <amount> [currency]` | send money; `2.5k` and `1m` are amounts |
+| `/economy top [currency] [page]` | the richest |
+| `/economy history [currency] [player]` | the ledger |
+| `/economy exchange <amount> <from> <to>` | swap at the file's rate |
+| `/economy give\|take\|set\|reset <player> [amount] [currency]` | admin, `exylialib.economy.admin` |
+| `/economy import <vault\|points> <currency>` | copy every known player's balance into a stored currency, once |
+| `/<alias> ...` | the same, with the currency filled in: `/coins pay Steve 500` |
+
+### Placeholders
+
+`%economy_balance%`, `%economy_balance_<currency>%`, `%economy_compact_<currency>%`,
+`%economy_raw_<currency>%`, `%economy_name_<currency>%`, `%economy_symbol_<currency>%`,
+`%economy_top_name_<n>_<currency>%`, `%economy_top_amount_<n>_<currency>%`.
+All read memory; none touch the database on the thread that asked.
+
+### Vault
+
+`vault.provide: coins` publishes that currency as the server's Vault economy,
+so every plugin that only speaks Vault runs on it. The Vault interface is a
+proxy built by name — nothing links against Vault — and an economy some other
+plugin already registered is left alone unless `vault.force` says otherwise.

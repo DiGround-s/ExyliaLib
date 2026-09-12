@@ -28,5 +28,6 @@ public final class LibCommands {
                 .suggestionProviders(providers -> providers.addProviderFactory(Suggestions.filtering()))
                 .build();
         lamp.register(new ReloadCommand(plugin));
+        lamp.register(new net.exylia.lib.economy.internal.EconomyCommand(plugin));
     }
 }

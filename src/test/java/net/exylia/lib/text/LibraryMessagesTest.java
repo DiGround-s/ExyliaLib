@@ -38,7 +38,7 @@ class LibraryMessagesTest {
     @Test
     @DisplayName("a section deleted wholesale falls back too")
     void missingSectionsFallBack() {
-        LibraryMessages messages = new LibraryMessages(null, null, null);
+        LibraryMessages messages = new LibraryMessages(null, null, null, null);
         assertEquals(LibraryMessages.Wizard.DEFAULT_REGION, messages.wizard().region());
         assertEquals(LibraryMessages.Selection.DEFAULT_VOLUME, messages.selection().volume());
         assertEquals(LibraryMessages.Players.DEFAULT_NOT_FOUND, messages.players().notFound());

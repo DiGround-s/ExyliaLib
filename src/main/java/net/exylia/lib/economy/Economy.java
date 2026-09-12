@@ -104,6 +104,105 @@ public final class Economy {
         return CurrencyRegistry.providers().keySet();
     }
 
+    /**
+     * How a currency presents itself, with the owner's overlay applied.
+     *
+     * <p>For the default currency, pass {@code null} or the empty id. A
+     * currency nothing registered still gets a description — its id read as a
+     * name — so a menu never draws a blank.
+     *
+     * @param id the currency's id, or {@code null} for the default
+     * @return the description
+     * @since 1.149.0
+     */
+    public static @NotNull CurrencyInfo info(@Nullable String id) {
+        Optional<CurrencyProvider> provider = CurrencyRegistry.resolve(id);
+        String resolved = provider.map(CurrencyProvider::id)
+                .orElse(id == null || id.isEmpty() ? CurrencyRegistry.defaultId() : id);
+        CurrencyInfo base = provider.map(CurrencyProvider::info)
+                .orElseGet(() -> CurrencyInfo.of(resolved, "", "", ""));
+        return base.overlaid(CurrencyRegistry.overlay(resolved));
+    }
+
+    /**
+     * An amount of a currency, written the way that currency writes it.
+     *
+     * @param id     the currency's id, or {@code null} for the default
+     * @param amount the amount
+     * @return the text, such as {@code $1,250.00} or {@code 3 Tokens}
+     * @since 1.149.0
+     */
+    public static @NotNull String format(@Nullable String id, @NotNull BigDecimal amount) {
+        return info(id).format(amount);
+    }
+
+    /**
+     * An amount of a currency, written short.
+     *
+     * @since 1.149.0
+     */
+    public static @NotNull String formatCompact(@Nullable String id, @NotNull BigDecimal amount) {
+        return info(id).formatCompact(amount);
+    }
+
+    /**
+     * A player's most recent lines in a stored currency's ledger, newest
+     * first.
+     *
+     * <p>Empty for a currency that keeps no ledger — Vault, PlayerPoints, a
+     * plugin's own — and completes off the server thread.
+     *
+     * @param id     the currency's id
+     * @param player whose history
+     * @param limit  how many lines at most
+     * @return the lines
+     * @since 1.149.0
+     */
+    public static @NotNull java.util.concurrent.CompletableFuture<java.util.List<LedgerEntry>> history(
+            @NotNull String id, @NotNull UUID player, int limit) {
+        return net.exylia.lib.economy.internal.StoredEconomy.history(id, player, limit);
+    }
+
+    /**
+     * The richest players in a stored currency, richest first.
+     *
+     * <p>Cached for a minute, because a leaderboard on a scoreboard is read
+     * every tick. Empty for a currency that is not stored by the library.
+     *
+     * @param id    the currency's id
+     * @param limit how many at most
+     * @return the entries
+     * @since 1.149.0
+     */
+    public static @NotNull java.util.List<TopEntry> top(@NotNull String id, int limit) {
+        return net.exylia.lib.economy.internal.StoredEconomy.top(id, limit);
+    }
+
+    /**
+     * Swaps an amount of one currency for another at the configured rate.
+     *
+     * <p>The rate is the one {@code currencies.yml} sets on the source
+     * currency for the target. The source is withdrawn first, the target
+     * deposited second, and a failed deposit refunds the source — the same
+     * order a transfer between players uses.
+     *
+     * @param player who is exchanging
+     * @param from   the currency given
+     * @param to     the currency received
+     * @param amount how much of {@code from}
+     * @return the outcome, with the amount of {@code to} received as its amount
+     * @since 1.149.0
+     */
+    public static @NotNull EconomyResponse exchange(@NotNull UUID player, @NotNull String from,
+                                                    @NotNull String to, @NotNull BigDecimal amount) {
+        return net.exylia.lib.economy.internal.StoredEconomy.exchange(player, from, to, amount);
+    }
+
+    /** One line of a leaderboard. */
+    public record TopEntry(int position, @NotNull UUID player, @NotNull String name,
+                           @NotNull BigDecimal amount) {
+    }
+
     // --------------------------------------------------------- default
 
     /** A balance in the default currency. */
@@ -197,50 +296,96 @@ public final class Economy {
 
         /** Removes an amount. */
         public @NotNull EconomyResponse withdraw(@NotNull UUID player, @NotNull BigDecimal amount) {
+            return withdraw(player, amount, Transaction.NONE);
+        }
+
+        /**
+         * Removes an amount, saying why.
+         *
+         * @since 1.149.0
+         */
+        public @NotNull EconomyResponse withdraw(@NotNull UUID player, @NotNull BigDecimal amount,
+                                                 @NotNull Transaction transaction) {
             requirePlayer(player);
             requireAmount(amount);
             Optional<CurrencyProvider> provider = provider();
             if (provider.isEmpty()) {
                 return EconomyResponse.notAvailable();
             }
-            EconomyResponse response = provider.get().withdraw(player, amount);
+            EconomyResponse response = provider.get().withdraw(player, amount, transaction);
             if (response.isSuccess()) {
-                BalanceCache.invalidate(provider.get().id(), player);
+                changed(provider.get(), player, response.balance().add(response.amount()), response.balance(), transaction);
             }
             return response;
         }
 
-        /** Adds an amount. */
         public @NotNull EconomyResponse deposit(@NotNull UUID player, @NotNull BigDecimal amount) {
+            return deposit(player, amount, Transaction.NONE);
+        }
+
+        /**
+         * Adds an amount, saying why.
+         *
+         * @since 1.149.0
+         */
+        public @NotNull EconomyResponse deposit(@NotNull UUID player, @NotNull BigDecimal amount,
+                                                @NotNull Transaction transaction) {
             requirePlayer(player);
             requireAmount(amount);
             Optional<CurrencyProvider> provider = provider();
             if (provider.isEmpty()) {
                 return EconomyResponse.notAvailable();
             }
-            EconomyResponse response = provider.get().deposit(player, amount);
+            EconomyResponse response = provider.get().deposit(player, amount, transaction);
             if (response.isSuccess()) {
-                BalanceCache.invalidate(provider.get().id(), player);
+                changed(provider.get(), player, response.balance().subtract(response.amount()), response.balance(), transaction);
             }
             return response;
         }
 
-        /** Sets a balance to an exact value. */
         public @NotNull EconomyResponse set(@NotNull UUID player, @NotNull BigDecimal amount) {
+            return set(player, amount, Transaction.NONE);
+        }
+
+        /**
+         * Sets a balance, saying why.
+         *
+         * @since 1.149.0
+         */
+        public @NotNull EconomyResponse set(@NotNull UUID player, @NotNull BigDecimal amount,
+                                            @NotNull Transaction transaction) {
             requirePlayer(player);
             requireNonNegative(amount);
             Optional<CurrencyProvider> provider = provider();
             if (provider.isEmpty()) {
                 return EconomyResponse.notAvailable();
             }
-            EconomyResponse response = provider.get().set(player, amount);
+            BigDecimal before = balance(player);
+            EconomyResponse response = provider.get().set(player, amount, transaction);
             if (response.isSuccess()) {
-                BalanceCache.invalidate(provider.get().id(), player);
+                changed(provider.get(), player, before, response.balance(), transaction);
             }
             return response;
         }
 
-        /** {@link Economy#charge(UUID, BigDecimal)}, for this currency. */
+        /**
+         * The currency this view is bound to, as it presents itself.
+         *
+         * @since 1.149.0
+         */
+        public @NotNull CurrencyInfo info() {
+            return Economy.info(id);
+        }
+
+        /**
+         * An amount, written the way this currency writes it.
+         *
+         * @since 1.149.0
+         */
+        public @NotNull String format(@NotNull BigDecimal amount) {
+            return info().format(amount);
+        }
+
         public boolean charge(@NotNull UUID player, @NotNull BigDecimal amount) {
             return withdraw(player, amount).isSuccess();
         }
@@ -270,6 +415,17 @@ public final class Economy {
          */
         public @NotNull TransferResult transfer(
                 @NotNull UUID from, @NotNull UUID to, @NotNull BigDecimal amount) {
+            return transfer(from, to, amount, Transaction.of("transfer").by(from));
+        }
+
+        /**
+         * Moves an amount between two players, saying why.
+         *
+         * @since 1.149.0
+         */
+        public @NotNull TransferResult transfer(
+                @NotNull UUID from, @NotNull UUID to, @NotNull BigDecimal amount,
+                @NotNull Transaction transaction) {
             requirePlayer(from);
             requirePlayer(to);
             requireAmount(amount);
@@ -291,10 +447,9 @@ public final class Economy {
                 }
                 return nativeResult;
             }
-            return transferManually(currency, from, to, amount);
+            return transferManually(currency, from, to, amount, transaction);
         }
 
-        /** The provider for this view's currency, with fallback applied. */
         private @NotNull Optional<CurrencyProvider> provider() {
             return CurrencyRegistry.resolve(id);
         }
@@ -312,10 +467,28 @@ public final class Economy {
      * inverse — paying the receiver before charging the sender — which is how a
      * failed charge still delivers the money.
      */
-    private static TransferResult transferManually(
-            CurrencyProvider currency, UUID from, UUID to, BigDecimal amount) {
+    /**
+     * Drops the cached balance and tells the server.
+     *
+     * <p>The one place a change becomes visible: the cache is the only thing
+     * that could show a stale number, and the event is how anything else
+     * hears about it.
+     */
+    private static void changed(CurrencyProvider currency, UUID player, BigDecimal before,
+                                BigDecimal after, Transaction transaction) {
+        BalanceCache.invalidate(currency.id(), player);
+        try {
+            org.bukkit.Bukkit.getPluginManager().callEvent(
+                    new BalanceChangeEvent(player, currency.id(), before.max(BigDecimal.ZERO), after, transaction));
+        } catch (RuntimeException | LinkageError noServer) {
+            // No server behind this call — a test, a tool — and nobody to tell.
+        }
+    }
 
-        EconomyResponse withdrawn = currency.withdraw(from, amount);
+    private static TransferResult transferManually(
+            CurrencyProvider currency, UUID from, UUID to, BigDecimal amount, Transaction transaction) {
+
+        EconomyResponse withdrawn = currency.withdraw(from, amount, transaction);
         if (!withdrawn.isSuccess()) {
             if (withdrawn.type() == EconomyResponse.Type.INSUFFICIENT_FUNDS) {
                 return TransferResult.insufficientFunds(from, to, amount);
@@ -326,13 +499,14 @@ public final class Economy {
 
         // The sender is now down the amount. Credit the receiver; on failure,
         // refund what was taken rather than leave it gone.
-        EconomyResponse deposited = currency.deposit(to, amount);
+        changed(currency, from, withdrawn.balance().add(amount), withdrawn.balance(), transaction);
+        EconomyResponse deposited = currency.deposit(to, amount, transaction);
         if (deposited.isSuccess()) {
-            BalanceCache.invalidate(currency.id(), to);
+            changed(currency, to, deposited.balance().subtract(amount), deposited.balance(), transaction);
             return TransferResult.success(from, to, amount);
         }
 
-        EconomyResponse refunded = currency.deposit(from, amount);
+        EconomyResponse refunded = currency.deposit(from, amount, Transaction.of("transfer:refund"));
         if (refunded.isSuccess()) {
             BalanceCache.invalidate(currency.id(), from);
             logger.warning("Economy: deposit to " + to + " failed after charging "

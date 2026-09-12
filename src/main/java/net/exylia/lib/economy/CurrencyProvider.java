@@ -147,6 +147,54 @@ public interface CurrencyProvider {
     }
 
     /**
+     * How this currency presents itself.
+     *
+     * <p>Built from {@link #currencyName} and {@link #symbol()} unless the
+     * provider knows better — a stored currency answers with everything its
+     * file says. What a plugin should read is {@link Economy#info(String)},
+     * which lays the owner's {@code currencies.yml} overlay on top of this.
+     *
+     * @return the description
+     * @since 1.149.0
+     */
+    default @NotNull CurrencyInfo info() {
+        return CurrencyInfo.of(id(), currencyName(false), currencyName(true), symbol());
+    }
+
+    /**
+     * Adds to a balance, carrying why.
+     *
+     * <p>A provider that keeps a ledger overrides this; every other one gets
+     * the plain call. The library always calls this form.
+     *
+     * @since 1.149.0
+     */
+    default @NotNull EconomyResponse deposit(@NotNull UUID player, @NotNull BigDecimal amount,
+                                             @NotNull Transaction transaction) {
+        return deposit(player, amount);
+    }
+
+    /**
+     * Removes from a balance, carrying why.
+     *
+     * @since 1.149.0
+     */
+    default @NotNull EconomyResponse withdraw(@NotNull UUID player, @NotNull BigDecimal amount,
+                                              @NotNull Transaction transaction) {
+        return withdraw(player, amount);
+    }
+
+    /**
+     * Sets a balance, carrying why.
+     *
+     * @since 1.149.0
+     */
+    default @NotNull EconomyResponse set(@NotNull UUID player, @NotNull BigDecimal amount,
+                                         @NotNull Transaction transaction) {
+        return set(player, amount);
+    }
+
+    /**
      * The name of one unit of this currency, such as {@code "dollar"} or
      * {@code "point"}.
      *
