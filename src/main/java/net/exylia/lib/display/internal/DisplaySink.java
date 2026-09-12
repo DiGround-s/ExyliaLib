@@ -37,6 +37,15 @@ public interface DisplaySink {
     void pose(List<Player> viewers, int entityId, DisplayModel model,
               DisplayKeyframe pose, int overTicks);
 
+    /**
+     * Seats displays on an entity, so the client moves them with it.
+     *
+     * <p>The whole passenger list of that entity, every time: the packet
+     * replaces it rather than adding to it, so two effects riding one player
+     * have to be sent as one list or the second takes the first off.
+     */
+    void mount(List<Player> viewers, int vehicleId, int[] passengers);
+
     /** Removes a display from every client that was shown it. */
     void destroy(List<Player> viewers, int entityId);
 }

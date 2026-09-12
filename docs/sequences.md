@@ -258,7 +258,9 @@ Any shape line becomes a shape of display entities by saying what it is made of:
 ```
 
 `as:` takes `item`, `block`, `head` or `text`, and the head of the line names
-that instead of a particle. The geometry, the animation, the rotation and who
+that instead of a particle. `follow:true` seats the pieces on whoever set the
+sequence off, so the effect goes where they go — see
+[displays.md](displays.md). The geometry, the animation, the rotation and who
 sees it are unchanged, because a shape never knew what it was being drawn with.
 The movement parameters are in [displays.md](displays.md).
 

@@ -137,6 +137,41 @@ which is what an explosion looks like and what a particle cannot be. `turn:` is 
 geometry points is a fact about that model: a resource pack whose blade reads
 sideways is corrected with a number, not a rebuild.
 
+### Following whoever set it off
+
+Since 1.147.0. A display normally stays where it was drawn, which is right for a
+crater, a rift or a sigil written on the floor — the place is the effect. An
+effect that belongs to a **player** says so:
+
+```
+[CIRCLE] REDSTONE_BLOCK;as:block;radius:1.5;points:18;y:0.04;orbit:0.45;life:6;follow:true
+```
+
+| `follow:` | Carried by |
+| --- | --- |
+| `true`, `source` | whoever set the sequence off |
+| `victim`, `target` | whoever it happened to |
+| absent, `false` | nothing; it stays where it was drawn |
+
+The pieces are **seated on that entity**, so the client carries them along with
+it: nothing is sent while the player runs, the effect is never a tick behind
+them, and it costs exactly what a still one costs. Reading the player's position
+every tick and teleporting every piece would be an order of magnitude more
+packets and, on Folia, a read of an entity the drawing thread does not own.
+
+The shape keeps its shape: a ring's own points and whatever the anchor had over
+the mount are folded into each piece's motion, so a ring of twelve is still a
+ring of twelve, around the player, wherever they go.
+
+Two things are worth knowing before using it:
+
+- **Everything it rides is relative to the mount point**, which is where the
+  client seats a passenger — near the feet. `y:` is how a line is raised to sit
+  around the chest or over the head.
+- **Particles never follow.** They are drawn once, where they are drawn. A
+  following effect is displays, with particles as the light around the moment it
+  starts.
+
 ### Repeating a line on a beat
 
 Any line at all — a shape, a sound, a ring of blades — takes `repeat:` and

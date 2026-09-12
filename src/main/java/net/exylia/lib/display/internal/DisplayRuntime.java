@@ -15,6 +15,9 @@ import org.jetbrains.annotations.ApiStatus;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.LongSupplier;
@@ -172,6 +175,23 @@ public final class DisplayRuntime {
      */
     public static DisplayHandle show(String owner, DisplayModel model, DisplayMotion motion,
                                      Location at, List<Player> viewers) {
+        return show(owner, model, motion, at, viewers, 0);
+    }
+
+    /**
+     * Shows one display, optionally seated on something that moves.
+     *
+     * <p>A seated display is carried by the client along with its vehicle, so
+     * an effect that follows a player costs the same as one that does not: one
+     * packet when it is seated, and nothing at all while the player runs.
+     * Reading the player's position every tick to move it would be both an
+     * order of magnitude more packets and, on Folia, a read of an entity this
+     * thread does not own.
+     *
+     * @param vehicleId the entity it rides, or {@code 0} to stand still
+     */
+    public static DisplayHandle show(String owner, DisplayModel model, DisplayMotion motion,
+                                     Location at, List<Player> viewers, int vehicleId) {
         if (!available) {
             warnOnce(owner);
             return null;
@@ -191,15 +211,90 @@ public final class DisplayRuntime {
         }
         VIEWER_LOAD.addAndGet(cost);
         LiveDisplay display = new LiveDisplay(owner, ids.next(), model, motion,
-                viewers, clock.getAsLong());
+                viewers, clock.getAsLong(), vehicleId);
         display.spawn(sink, at);
         LIVE.add(display);
+        if (vehicleId != 0) {
+            seated(vehicleId, display, viewers);
+        }
         return display;
     }
 
     /** Gives a finished display's share of the budget back. */
     private static void released(LiveDisplay display) {
         VIEWER_LOAD.addAndGet(-display.viewerCost());
+        if (display.vehicleId() != 0) {
+            unseated(display.vehicleId(), display);
+        }
+    }
+
+    // ------------------------------------------------------------------
+    // Riding
+    // ------------------------------------------------------------------
+
+    /**
+     * Who is riding what.
+     *
+     * <p>Kept because the packet that seats a passenger carries the vehicle's
+     * <em>whole</em> list: two effects riding one player have to be sent
+     * together or the second takes the first off them.
+     */
+    private static final Map<Integer, Seats> SEATS = new ConcurrentHashMap<>();
+
+    /** The displays riding one entity, and who has been told about them. */
+    private static final class Seats {
+        private final Set<LiveDisplay> riders =
+                java.util.Collections.newSetFromMap(new ConcurrentHashMap<>());
+        private volatile List<Player> viewers = List.of();
+        private volatile boolean changed;
+    }
+
+    private static void seated(int vehicleId, LiveDisplay display, List<Player> viewers) {
+        Seats seats = SEATS.computeIfAbsent(vehicleId, id -> new Seats());
+        seats.riders.add(display);
+        seats.viewers = viewers;
+        seats.changed = true;
+    }
+
+    private static void unseated(int vehicleId, LiveDisplay display) {
+        Seats seats = SEATS.get(vehicleId);
+        if (seats == null) {
+            return;
+        }
+        seats.riders.remove(display);
+        seats.changed = true;
+    }
+
+    /**
+     * Sends the seat lists that changed this tick.
+     *
+     * <p>Once per tick rather than once per display: a ring of twelve blades
+     * riding one player is one packet, not twelve of growing length.
+     */
+    private static void flushSeats(DisplaySink target) {
+        if (SEATS.isEmpty()) {
+            return;
+        }
+        for (Iterator<Map.Entry<Integer, Seats>> entries = SEATS.entrySet().iterator();
+             entries.hasNext(); ) {
+            Map.Entry<Integer, Seats> entry = entries.next();
+            Seats seats = entry.getValue();
+            if (!seats.changed) {
+                continue;
+            }
+            seats.changed = false;
+            int[] passengers = new int[seats.riders.size()];
+            int at = 0;
+            for (LiveDisplay rider : seats.riders) {
+                passengers[at++] = rider.entityId();
+            }
+            target.mount(seats.viewers, entry.getKey(), passengers);
+            if (passengers.length == 0) {
+                // Told once that it carries nobody, then forgotten: an entry
+                // per player who ever wore an effect is a leak.
+                entries.remove();
+            }
+        }
     }
 
     /**
@@ -324,6 +419,7 @@ public final class DisplayRuntime {
                 released(display);
             }
         }
+        flushSeats(target);
         if (broken != null) {
             for (LiveDisplay display : broken) {
                 try {

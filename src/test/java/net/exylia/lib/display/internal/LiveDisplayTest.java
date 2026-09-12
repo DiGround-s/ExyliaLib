@@ -44,6 +44,11 @@ class LiveDisplayTest {
         }
 
         @Override
+        public void mount(List<Player> viewers, int vehicleId, int[] passengers) {
+            sent.add("mount " + vehicleId + "x" + passengers.length);
+        }
+
+        @Override
         public void destroy(List<Player> viewers, int entityId) {
             sent.add("destroy");
         }
@@ -57,7 +62,21 @@ class LiveDisplayTest {
         return new LiveDisplay("Test", 7,
                 DisplayModel.text(Component.empty()),
                 DisplayMotion.of(poses, life),
-                List.of(), 0L);
+                List.of(), 0L, 0);
+    }
+
+    @Test
+    @DisplayName("a display knows what it rides, so the seat list can be taken down with it")
+    void ridingDisplayNamesItsVehicle() {
+        LiveDisplay standing = display(1000, 0);
+        LiveDisplay seated = new LiveDisplay("Test", 8,
+                DisplayModel.text(Component.empty()),
+                DisplayMotion.still(1000),
+                List.of(), 0L, 42);
+
+        assertEquals(0, standing.vehicleId());
+        assertEquals(42, seated.vehicleId());
+        assertEquals(8, seated.entityId());
     }
 
     @Test

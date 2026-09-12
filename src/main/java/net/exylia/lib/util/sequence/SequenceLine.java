@@ -490,6 +490,7 @@ final class SequenceLine {
                 new Field("axis", "Turns around", "x, y or z"),
                 new Field("orbit", "Turns it carries round the anchor", "0"),
                 new Field("vary", "How much the pieces differ in size", "0 to 1"),
+                new Field("follow", "Carried by whoever set it off", "true, victim or false"),
                 new Field("size", "Size it starts at", "1"),
                 new Field("size_to", "Size it ends at", "same as size"),
                 new Field("tilt", "Fixed tilt, in degrees", "0"),

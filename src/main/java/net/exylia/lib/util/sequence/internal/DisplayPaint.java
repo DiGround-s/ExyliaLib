@@ -33,6 +33,19 @@ import java.util.List;
  */
 final class DisplayPaint implements Paint {
 
+    /** What an effect is carried by, when it is carried by anything. */
+    enum Follow {
+
+        /** Nothing: it stays where it was drawn. */
+        NONE,
+
+        /** Whoever set the sequence off. */
+        SOURCE,
+
+        /** Whoever it happened to. */
+        VICTIM
+    }
+
     /** Where a head's face comes from, when it is not a fixed texture. */
     enum Face {
 
@@ -55,10 +68,21 @@ final class DisplayPaint implements Paint {
     private final double pull;
     private final double orbit;
     private final double vary;
+    private final Follow follow;
+    private final org.bukkit.entity.Entity carrier;
 
     DisplayPaint(@NotNull String owner, @NotNull DisplayModel model, @NotNull DisplayMotion motion,
                  @NotNull Face face, boolean faceOut, double turnRadians, double pull,
-                 double orbit, double vary) {
+                 double orbit, double vary, @NotNull Follow follow) {
+        this(owner, model, motion, face, faceOut, turnRadians, pull, orbit, vary, follow, null);
+    }
+
+    private DisplayPaint(@NotNull String owner, @NotNull DisplayModel model, @NotNull DisplayMotion motion,
+                 @NotNull Face face, boolean faceOut, double turnRadians, double pull,
+                 double orbit, double vary, @NotNull Follow follow,
+                 @Nullable org.bukkit.entity.Entity carrier) {
+        this.follow = follow;
+        this.carrier = carrier;
         this.owner = owner;
         this.model = model;
         this.motion = motion;
@@ -80,17 +104,26 @@ final class DisplayPaint implements Paint {
      */
     @Override
     public @NotNull Paint forPlay(@NotNull SequenceTarget target) {
-        if (face == Face.FIXED) {
+        DisplayModel drawn = model;
+        if (face != Face.FIXED) {
+            Player wearer = face == Face.KILLER ? target.source() : asPlayer(target.target());
+            if (wearer != null) {
+                drawn = Heads.wearing(model, wearer);
+            }
+        }
+        // Who carries it is decided per play, like whose face a head wears:
+        // the line says "the one who set this off", and which player that is
+        // depends on the play, not on the file.
+        org.bukkit.entity.Entity mount = switch (follow) {
+            case SOURCE -> target.source();
+            case VICTIM -> target.target();
+            case NONE -> null;
+        };
+        if (drawn == model && mount == null) {
             return this;
         }
-        Player wearer = face == Face.KILLER ? target.source() : asPlayer(target.target());
-        if (wearer == null) {
-            return this;
-        }
-        DisplayModel worn = Heads.wearing(model, wearer);
-        return worn == model ? this
-                : new DisplayPaint(owner, worn, motion, Face.FIXED, faceOut, turnRadians,
-                        pull, orbit, vary);
+        return new DisplayPaint(owner, drawn, motion, Face.FIXED, faceOut, turnRadians,
+                pull, orbit, vary, follow, mount);
     }
 
     @Override
@@ -99,8 +132,22 @@ final class DisplayPaint implements Paint {
         if (observers.isEmpty()) {
             return;
         }
-        DisplayRuntime.show(owner, model, motionAt(x, y, z),
-                anchor.clone().add(x, y, z), observers);
+        if (carrier == null) {
+            DisplayRuntime.show(owner, model, motionAt(x, y, z),
+                    anchor.clone().add(x, y, z), observers);
+            return;
+        }
+        // Seated, the mount decides where it is, so the shape's own point and
+        // whatever the anchor had over the mount both move into the motion.
+        // Written the other way round — the point left in the spawn location —
+        // the client pins every piece of the shape to the same spot and a ring
+        // comes out as one blade.
+        Location seat = carrier.getLocation();
+        DisplayMotion carried = motionAt(x, y, z).movedBy(
+                anchor.getX() + x - seat.getX(),
+                anchor.getY() + y - seat.getY(),
+                anchor.getZ() + z - seat.getZ());
+        DisplayRuntime.show(owner, model, carried, seat, observers, carrier.getEntityId());
     }
 
     @Override

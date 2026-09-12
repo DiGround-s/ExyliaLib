@@ -11,6 +11,7 @@ import com.github.retrooper.packetevents.util.Vector3f;
 import com.github.retrooper.packetevents.wrapper.PacketWrapper;
 import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerDestroyEntities;
 import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerEntityMetadata;
+import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerSetPassengers;
 import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerSpawnEntity;
 import io.github.retrooper.packetevents.util.SpigotConversionUtil;
 import io.github.retrooper.packetevents.util.SpigotReflectionUtil;
@@ -113,6 +114,11 @@ final class DisplayPackets implements DisplaySink {
         WrapperPlayServerEntityMetadata packet =
                 new WrapperPlayServerEntityMetadata(entityId, data);
         send(viewers, packet);
+    }
+
+    @Override
+    public void mount(List<Player> viewers, int vehicleId, int[] passengers) {
+        send(viewers, new WrapperPlayServerSetPassengers(vehicleId, passengers));
     }
 
     @Override

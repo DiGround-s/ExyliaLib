@@ -35,7 +35,7 @@ final class DisplayReader {
     static final String[] PARAMETERS = {
             "as", "size", "size_to", "life", "from", "to", "rise", "spin", "axis",
             "tilt", "roll", "turn", "face_out", "gravity", "glow", "light", "model",
-            "billboard", "hold", "pull", "ease", "orbit", "vary"
+            "billboard", "hold", "pull", "ease", "orbit", "vary", "follow"
     };
 
     private DisplayReader() {
@@ -114,7 +114,27 @@ final class DisplayReader {
                 Math.toRadians(args.number("turn", 0.0, problems)),
                 args.number("pull", 0.0, problems),
                 args.number("orbit", 0.0, problems),
-                args.number("vary", 0.0, problems));
+                args.number("vary", 0.0, problems),
+                follow(args));
+    }
+
+    /**
+     * What carries the line, when anything does.
+     *
+     * <p>{@code follow:true} is the common case and means whoever set the
+     * sequence off; {@code follow:victim} is the other end of it. Anything else
+     * stays where it was drawn, which is what every effect did before and what
+     * a place — a crater, a rift, a sigil — still wants.
+     */
+    private static DisplayPaint.Follow follow(Args args) {
+        if (!args.has("follow")) {
+            return DisplayPaint.Follow.NONE;
+        }
+        return switch (args.text("follow", "true").toLowerCase(Locale.ROOT)) {
+            case "false", "none", "no" -> DisplayPaint.Follow.NONE;
+            case "victim", "target" -> DisplayPaint.Follow.VICTIM;
+            default -> DisplayPaint.Follow.SOURCE;
+        };
     }
 
     /**

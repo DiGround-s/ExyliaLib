@@ -28,13 +28,17 @@ final class LiveDisplay implements DisplayHandle {
     private final long startedAt;
     private final long endsAt;
 
+    /** What it rides, or {@code 0} when it stands where it was drawn. */
+    private final int vehicleId;
+
     /** The next pose to send; one, because the first went out with the spawn. */
     private int nextPose = 1;
 
     private volatile boolean gone;
 
     LiveDisplay(String owner, int entityId, DisplayModel model, DisplayMotion motion,
-                List<Player> viewers, long now) {
+                List<Player> viewers, long now, int vehicleId) {
+        this.vehicleId = vehicleId;
         this.owner = owner;
         this.entityId = entityId;
         this.model = model;
@@ -50,6 +54,16 @@ final class LiveDisplay implements DisplayHandle {
     /** Which plugin's effect this belongs to. */
     String owner() {
         return owner;
+    }
+
+    /** The entity it rides, or {@code 0}. */
+    int vehicleId() {
+        return vehicleId;
+    }
+
+    /** Its own entity id, so the seat list can name it. */
+    int entityId() {
+        return entityId;
     }
 
     /**
