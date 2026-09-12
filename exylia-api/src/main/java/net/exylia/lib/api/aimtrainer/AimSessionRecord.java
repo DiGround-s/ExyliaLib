@@ -11,7 +11,7 @@ import java.util.UUID;
  */
 public record AimSessionRecord(@NotNull String id, @NotNull UUID player, @NotNull String drill,
                                @NotNull AimDrillKind kind, int score, int rating, double difficulty, int hits,
-                               int misses, double accuracy, int bestStreak, long averageFlickMillis,
+                               int misses, double accuracy, int bestStreak, int bestCombo, long averageFlickMillis,
                                long averageReactionMillis, double onTarget, double precision, int averagePing,
                                long durationMillis, boolean personalBest, long playedAt) {
 }

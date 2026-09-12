@@ -15,5 +15,6 @@ public enum AimRecordCategory {
     ACCURACY,
     STREAK,
     HITS,
-    REACTION
+    REACTION,
+    COMBO
 }

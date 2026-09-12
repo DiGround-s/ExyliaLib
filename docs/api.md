@@ -4,7 +4,7 @@ The contract third-party developers write against. One artifact,
 `net.exylia:exylia-api`, covering every Exylia plugin. Since ExyliaLib 1.112.0;
 the survival events arrived in 1.113.0, mine breaks in 1.131.0, and on-demand
 actions and lifecycle events across the suite in 1.133.0 (`exylia-api` 1.3.0),
-and the aim trainer in 1.152.0 (`exylia-api` 1.5.0).
+and the aim trainer in 1.153.0 (`exylia-api` 1.6.0).
 
 Entry point: `net.exylia.lib.api.ExyliaAPI`.
 
@@ -16,7 +16,7 @@ repositories {
 }
 
 dependencies {
-    compileOnly 'com.github.DiGround-s.ExyliaLib:exylia-api:1.5.0'
+    compileOnly 'com.github.DiGround-s.ExyliaLib:exylia-api:1.6.0'
 }
 ```
 

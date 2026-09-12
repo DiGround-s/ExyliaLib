@@ -13,7 +13,7 @@ import java.util.UUID;
  */
 public record AimRecord(@NotNull UUID uuid, @NotNull String name, @NotNull String drill, @NotNull AimDrillKind kind,
                         int sessions, int bestRating, int bestScore, double bestAccuracy, int bestStreak,
-                        int mostHits, long bestReactionMillis, long bestFlickMillis, double bestOnTarget,
+                        int mostHits, int bestCombo, long bestReactionMillis, long bestFlickMillis, double bestOnTarget,
                         double ratingSize, double ratingDistance, long totalHits, long totalShots,
                         long totalTimeMillis, long updatedAt) {
 }

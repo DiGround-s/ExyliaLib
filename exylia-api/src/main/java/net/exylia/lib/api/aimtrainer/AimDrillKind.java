@@ -14,5 +14,8 @@ public enum AimDrillKind {
     REACTION,
 
     /** One moving target to keep under the crosshair. Scored on time on target. */
-    TRACK
+    TRACK,
+
+    /** A player-shaped target that strafes, closes in and is knocked back by every hit. Scored like FLICK, plus combos. */
+    COMBO
 }

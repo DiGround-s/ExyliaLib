@@ -26,6 +26,8 @@ import java.util.Map;
  * @param bestReactionMillis    fastest reaction
  * @param onTargetPercent       share of a tracking session spent on the target, 0 to 100
  * @param longestLockMillis     longest unbroken stretch on the target
+ * @param bestCombo             most hits chained inside the combo window
+ * @param comboHits             hits that extended a combo
  * @param precisionPercent      how central the hits landed, 0 to 100
  * @param averagePing           the player's ping over the session
  * @param durationMillis        how long it ran
@@ -38,7 +40,8 @@ import java.util.Map;
 public record AimPerformance(@NotNull AimDrillKind kind, int hits, int misses, int expired, int falseStarts,
                              int shots, double accuracy, int bestStreak, long averageFlickMillis,
                              long bestFlickMillis, long averageReactionMillis, long bestReactionMillis,
-                             double onTargetPercent, long longestLockMillis, double precisionPercent,
+                             double onTargetPercent, long longestLockMillis, int bestCombo, int comboHits,
+                             double precisionPercent,
                              int averagePing, long durationMillis, int score, int rating, double difficulty,
                              @NotNull @Unmodifiable Map<AimGrade, Integer> grades) {
 
