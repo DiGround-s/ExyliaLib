@@ -2,6 +2,7 @@ package net.exylia.lib.api.practice;
 
 import net.exylia.lib.api.ExyliaAPI;
 import org.bukkit.entity.Player;
+import org.bukkit.plugin.Plugin;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.annotations.Unmodifiable;
@@ -12,6 +13,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.function.BooleanSupplier;
 
 /**
  * Reading and driving ExyliaPracticeCore.
@@ -354,6 +356,45 @@ public interface PracticeService {
      * @return {@code true} when they left
      */
     boolean leaveQueue(@NotNull Player player);
+
+    /**
+     * Lends a queued player to another plugin, leaving them in the queue.
+     *
+     * <p>For a waiting activity — an aim trainer, a parkour, a warm-up arena —
+     * that takes the player somewhere else while their match is looked for.
+     * Practice hands over the session claim and stops saying what the player is
+     * doing, but keeps their place in every queue they are in: matchmaking runs
+     * for them exactly as it does for a player standing in the lobby.
+     *
+     * <p>From here on {@link #state(UUID)} answers
+     * {@link PracticeState#EXTERNAL} and {@link #isInQueue(UUID)} still answers
+     * {@code true}. Both are true at once, which is the point: the borrower has
+     * the player, practice has the queue.
+     *
+     * <p>{@code giveBack} runs the moment practice needs them — a match was
+     * found, they left the queue, they disconnected — and is the same contract
+     * as a session claim's release handler: put the player back as you found
+     * them, drop your claim, and answer {@code true} when you accept. Drop the
+     * claim from inside the handler — the restore may go on finishing over the
+     * next ticks, the claim may not, because practice cannot build a match
+     * around a player somebody else is still holding. Refusing costs the whole
+     * match: everybody else in it is put back in the queue and no match is
+     * started, so refuse only while handing the player back would genuinely
+     * break something.
+     *
+     * <p>Inventory, location and everything else the borrower changes are the
+     * borrower's to restore. Practice restores nothing on the way back, and a
+     * player who returns still queued returns to the queue, not to the lobby.
+     *
+     * @param player   the player, who has to be queued for at least one kit
+     * @param borrower the plugin taking them
+     * @param giveBack how to hand the player back when practice asks
+     * @return {@code true} when the player was lent, {@code false} when they
+     *         are not waiting for a match or somebody else already holds them
+     * @since 1.4.0
+     */
+    boolean borrowQueuedPlayer(@NotNull Player player, @NotNull Plugin borrower,
+                               @NotNull BooleanSupplier giveBack);
 
     // ── Duels ──────────────────────────────────────────────────────────────
 
