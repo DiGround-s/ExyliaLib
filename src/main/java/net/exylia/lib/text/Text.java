@@ -812,6 +812,65 @@ public final class Text {
         return raw;
     }
 
+    /** Separates the fields of {@link #wire()}: a control character no chat line may carry. */
+    private static final char WIRE = '\u001F';
+
+    /**
+     * This text as one string that survives a {@link net.exylia.lib.redis.Channel}.
+     *
+     * <p>The template and every value given through {@link #with},
+     * {@link #withFormatted} and {@link #withVerbatim}, unparsed: the server
+     * that receives it builds the text there, so the prefix, the palette and
+     * the sound tag are the receiving server's, and a value a player typed
+     * stays the literal text it was. A viewer set through {@link #forPlayer}
+     * does not travel; the placeholders it would have resolved are left as
+     * written.
+     *
+     * @return the text, encoded
+     * @since 1.155.0
+     */
+    public @NotNull String wire() {
+        StringBuilder out = new StringBuilder(raw.length() + 16 * substitutions.size() + 4);
+        out.append(raw).append(WIRE).append(flag(resolveFormatted)).append(flag(verbatim));
+        for (Substitution substitution : substitutions) {
+            out.append(WIRE).append(substitution.key())
+                    .append(WIRE).append(substitution.value())
+                    .append(WIRE).append(flag(substitution.formatted())).append(flag(substitution.verbatim()));
+        }
+        return out.toString();
+    }
+
+    /**
+     * The text {@link #wire()} encoded, belonging to a plugin again.
+     *
+     * <p>Never throws: a string that is not one of ours is treated as a raw
+     * template with nothing to substitute.
+     *
+     * @param plugin the plugin whose prefix {@code %prefix%} resolves to, or {@code null}
+     * @param wire   what {@link #wire()} produced, possibly on another server
+     * @return the prepared text
+     * @since 1.155.0
+     */
+    public static @NotNull Text fromWire(@Nullable Plugin plugin, @NotNull String wire) {
+        String[] parts = wire.split(String.valueOf(WIRE), -1);
+        if (parts.length < 2) {
+            return new Text(wire, List.of(), null, plugin);
+        }
+        List<Substitution> values = new ArrayList<>((parts.length - 2) / 3);
+        for (int i = 2; i + 2 < parts.length; i += 3) {
+            values.add(new Substitution(parts[i], parts[i + 1], flag(parts[i + 2], 0), flag(parts[i + 2], 1)));
+        }
+        return new Text(parts[0], values, null, plugin, flag(parts[1], 0), flag(parts[1], 1));
+    }
+
+    private static char flag(boolean value) {
+        return value ? '1' : '0';
+    }
+
+    private static boolean flag(String flags, int index) {
+        return flags.length() > index && flags.charAt(index) == '1';
+    }
+
     /**
      * Two texts are equal when they would build the same component: same
      * template, same values in the same order, same viewer, same owner.

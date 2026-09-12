@@ -128,6 +128,39 @@ class RowCacheTest {
                 "a store that failed must not tell anyone to go looking for it");
     }
 
+    // ----------------------------------------------------------- listeners
+
+    @Test
+    @DisplayName("\"a listener hears a peer's write, after the drop, and never its own\"")
+    void aListenerHearsPeersOnly() {
+        MemoryClient.Network network = MemoryClient.network();
+        MemoryClient writer = new MemoryClient(network);
+        MemoryClient peer = new MemoryClient(network);
+        RowCache writerCache = cacheOn(writer, "lobby-1", new ArrayList<>());
+        RowCache peerCache = cacheOn(peer, "arena-1", new ArrayList<>());
+
+        UUID player = UUID.randomUUID();
+        List<Object> peerHeard = new ArrayList<>();
+        List<Object> writerHeard = new ArrayList<>();
+        AtomicReference<Effect> seenAtNotify = new AtomicReference<>();
+        peerCache.listen(MODEL, change -> {
+            peerHeard.add(change.id());
+            seenAtNotify.set(peerCache.get(MODEL, player));
+        });
+        writerCache.listen(MODEL, change -> writerHeard.add(change.id()));
+
+        writerCache.put(MODEL, player, new Effect(player, "flame", 1));
+        peerCache.get(MODEL, player);
+        writerCache.put(MODEL, player, new Effect(player, "flame", 7));
+
+        assertEquals(List.of(player, player), peerHeard, "the peer hears each write, with the id in record form");
+        assertEquals(7, seenAtNotify.get().level(), "a listener reading back must find the new row, not its stale copy");
+        assertTrue(writerHeard.isEmpty(), "a server never hears its own writes");
+
+        writerCache.dropTable(MODEL);
+        assertNull(peerHeard.get(peerHeard.size() - 1), "a table drop is reported with no id");
+    }
+
     // -------------------------------------------------------- the self-filter
 
     @Test

@@ -6,15 +6,19 @@ import net.exylia.lib.database.internal.GatedStorage;
 import net.exylia.lib.database.internal.SqlSettings;
 import net.exylia.lib.database.internal.Storage;
 import net.exylia.lib.debug.Debug;
+import net.exylia.lib.redis.Channel;
 import net.exylia.lib.redis.internal.RedisRuntime;
 import net.exylia.lib.redis.internal.RowCache;
 import org.bukkit.plugin.Plugin;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.function.Consumer;
 
 /**
  * One plugin's view of its configured database target.
@@ -87,6 +91,9 @@ public final class PluginDatabase {
      */
     private RowCache cache;
     private boolean cacheResolved;
+
+    /** How to stop each listener this plugin registered, so a reload does not hear twice. */
+    private final List<Runnable> listeners = new CopyOnWriteArrayList<>();
 
     PluginDatabase(@NotNull Plugin plugin) {
         this.plugin = plugin;
@@ -208,9 +215,62 @@ public final class PluginDatabase {
         return plugin == other;
     }
 
+    /**
+     * Hears every row of a table that another server writes or deletes.
+     *
+     * <p>For a plugin that keeps the table in its own maps rather than reading
+     * rows one at a time: the cache module keeps a {@code find} honest across
+     * the network, but a map filled by {@code findAll} at enable is the
+     * plugin's own copy, and nothing in the library can reach into it. This
+     * tells the plugin which row to read again, through the same message the
+     * cache itself acts on, and the read that follows is answered from Redis
+     * with what the other server stored.
+     *
+     * <pre>{@code
+     * database.onRemoteChange(Clan.class, change -> {
+     *     if (change.wholeTable()) { reloadClans(); return; }
+     *     clans.find(change.id()).thenAccept(row -> Tasks.of(plugin).run(() ->
+     *             row.ifPresentOrElse(this::remember, () -> forget(change.id()))));
+     * });
+     * }</pre>
+     *
+     * <p>Contracts:
+     *
+     * <ul>
+     *   <li>This server's own writes are never reported.</li>
+     *   <li>The listener runs on the Redis subscriber thread, after the
+     *       library dropped its own copy of the row. Hop through {@code Tasks}
+     *       before touching the game.</li>
+     *   <li>Without Redis nothing is ever reported, and the subscription is a
+     *       no-op: a lone server has no other server to hear from.</li>
+     *   <li>Every listener is closed with the plugin.</li>
+     * </ul>
+     *
+     * @param recordType the record whose table to follow
+     * @param listener   what to tell
+     * @return how to stop listening early; closing twice is harmless
+     * @since 1.155.0
+     */
+    public @NotNull Channel.Subscription onRemoteChange(@NotNull Class<?> recordType,
+                                                        @NotNull Consumer<RowChange> listener) {
+        Repository<?> repository = repository(recordType);
+        RowCache shared = cache();
+        if (shared == null) {
+            return () -> { };
+        }
+        Runnable stop = shared.listen(repository.model(), listener);
+        listeners.add(stop);
+        return () -> {
+            stop.run();
+            listeners.remove(stop);
+        };
+    }
+
     public synchronized void release() {
         released = true;
         repositories.clear();
+        listeners.forEach(Runnable::run);
+        listeners.clear();
         if (lease != null) {
             lease.release();
             lease = null;

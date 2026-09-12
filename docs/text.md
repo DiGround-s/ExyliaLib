@@ -34,6 +34,7 @@ Text.of("{primary}&lWELCOME &8[{success}online&8]").send(player);
 | `build()` | the final `Component` |
 | `send(CommandSender)` | build and deliver |
 | `plain()` / `legacy()` / `raw()` | serializers; `legacy()` is only for old APIs that still demand it |
+| `wire()` / `fromWire(plugin, String)` | the text as one string for a [channel](redis.md#channels), and back; the receiving server builds it with its own prefix, palette and sound. A `forPlayer` viewer does not travel. *Since 1.155.0.* |
 
 `Colors`:
 

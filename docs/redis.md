@@ -51,6 +51,12 @@ moment ago) and reads straight from Redis, where the previous server's write
 already is. Pub/sub only spares servers that already had the row from doing the
 same a moment later.
 
+A plugin that indexes a whole table in its own maps is outside both rules —
+nothing here can reach into its map. `PluginDatabase.onRemoteChange` hands it
+the same message, so it can re-read the one row that changed; see
+[database.md](database.md#hearing-another-servers-writes-since-1155-0). *Since
+1.155.0.*
+
 ## What it does not do
 
 - **It is not storage.** The database is the truth; every write completes

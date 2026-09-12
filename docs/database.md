@@ -378,6 +378,39 @@ stack trace, no console line, nothing to search the logs for. Dropping the
 future is the caller's mistake; a database error that reaches nobody at all
 was the library's.
 
+## Hearing another server's writes (since 1.155.0)
+
+The [cache module](redis.md) keeps a `find` honest across the network. It
+cannot keep a plugin's own map honest: a table read with `findAll` at enable
+and indexed in memory — every clan, every member — is the plugin's copy, and
+a row another server writes changes nothing in it until a restart. Worse, the
+next save of that stale copy puts the old values back.
+
+`onRemoteChange` tells the plugin which row to read again, through the very
+message the cache acts on:
+
+```java
+database.onRemoteChange(ClanMember.class, change -> {
+    if (change.wholeTable()) { reloadMembers(); return; }
+    members.find(change.id()).thenAccept(row -> Tasks.of(plugin).run(() ->
+            row.ifPresentOrElse(this::remember, () -> forget(change.id()))));
+});
+```
+
+- **Only other servers' writes are reported.** Whoever wrote a row already
+  updated its own map.
+- **The listener runs after the library dropped its own copy**, on the Redis
+  subscriber thread, so the `find` that follows misses memory and reads what
+  the peer stored. Hop through `Tasks` before touching the game.
+- **`RowChange.id()` is in record form**, ready for `find`; `wholeTable()` is
+  true for the rare table-wide drop (`deleteAll`, a filtered `delete`), when
+  everything has to be read again.
+- **Without Redis nothing is reported**, and the subscription is a no-op: a
+  lone server has nobody to hear from. Every listener closes with the plugin.
+
+This is a message, and a message can be missed by a server that was
+restarting — which is fine, because a restart reads the table again anyway.
+
 ## Threads
 
 Every operation runs off the game threads, through `Tasks`, on the pool the

@@ -2,6 +2,7 @@ package net.exylia.lib.redis.internal;
 
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
+import net.exylia.lib.database.RowChange;
 import net.exylia.lib.database.internal.EntityModel;
 import net.exylia.lib.redis.RedisSettings;
 import org.jetbrains.annotations.NotNull;
@@ -12,6 +13,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
 
@@ -62,6 +64,17 @@ public final class RowCache {
      */
     private final Map<String, EntityModel<?>> tables = new ConcurrentHashMap<>();
 
+    /**
+     * Who wants to hear about a peer's writes, by table.
+     *
+     * <p>A plugin that keeps its own index of a table — every clan, every
+     * member — has no row to be invalidated: the copy it holds is its own map,
+     * and dropping the library's copy leaves that map exactly as wrong as it
+     * was. This is the seam that lets it follow the same message the cache
+     * follows.
+     */
+    private final Map<String, List<Consumer<RowChange>>> listeners = new ConcurrentHashMap<>();
+
     private final AtomicLong hits = new AtomicLong();
     private final AtomicLong misses = new AtomicLong();
     private final AtomicLong failures = new AtomicLong();
@@ -98,6 +111,26 @@ public final class RowCache {
     /** Notes that this server reads a table, so invalidations for it matter. */
     void register(@NotNull EntityModel<?> model) {
         tables.putIfAbsent(model.table(), model);
+    }
+
+    /**
+     * Hears every write and delete another server makes to a table.
+     *
+     * <p>Called on the subscriber thread, after the local copy was dropped,
+     * so a listener that reads the row back finds what the peer stored. This
+     * server's own writes are never reported: whoever wrote them already
+     * knows.
+     *
+     * @param model    the table, registered here if it was not already
+     * @param listener what to tell
+     * @return how to stop listening
+     */
+    public @NotNull Runnable listen(@NotNull EntityModel<?> model, @NotNull Consumer<RowChange> listener) {
+        register(model);
+        List<Consumer<RowChange>> registered = listeners.computeIfAbsent(model.table(),
+                ignored -> new CopyOnWriteArrayList<>());
+        registered.add(listener);
+        return () -> registered.remove(listener);
     }
 
     // ------------------------------------------------------------------ read
@@ -266,12 +299,31 @@ public final class RowCache {
         }
         if (invalidation.wholeTable()) {
             dropLocalTable(invalidation.table());
+            notify(model, invalidation);
             return;
         }
         // Only the local copy. The Redis value is the new one the sender just
         // wrote: deleting it would throw away the fresh row and send every
         // server in the network to the database for it.
         local.invalidate(CacheKeys.table(settings.keyPrefix(), invalidation.table()) + invalidation.id());
+        notify(model, invalidation);
+    }
+
+    /** After the drop, never before: a listener that re-reads must miss memory and reach Redis. */
+    private void notify(EntityModel<?> model, Invalidation invalidation) {
+        List<Consumer<RowChange>> registered = listeners.get(invalidation.table());
+        if (registered == null || registered.isEmpty()) {
+            return;
+        }
+        RowChange change = new RowChange(invalidation.table(),
+                invalidation.wholeTable() ? null : model.id().decode(invalidation.id()));
+        for (Consumer<RowChange> listener : registered) {
+            try {
+                listener.accept(change);
+            } catch (RuntimeException failure) {
+                warnings.accept("A listener on table \"" + invalidation.table() + "\" failed: " + failure);
+            }
+        }
     }
 
     private void dropLocalTable(String table) {
@@ -335,6 +387,7 @@ public final class RowCache {
         }
         local.invalidateAll();
         tables.clear();
+        listeners.clear();
     }
 
     /** Hits, misses and failures, for the library's own diagnostics. */
