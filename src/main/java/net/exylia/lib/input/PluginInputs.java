@@ -126,6 +126,19 @@ public final class PluginInputs {
         return new ItemInput(this, player, prompt);
     }
 
+    /**
+     * Starts a request for a position in a menu, drawn as a grid of buttons.
+     *
+     * <p>Use it wherever a layout has numbered positions: the player points at
+     * a free one instead of counting slots and typing the number.
+     *
+     * @param slots how many positions the layout has
+     * @since 1.154.0
+     */
+    public @NotNull SlotInput slot(@NotNull Player player, @NotNull String prompt, int slots) {
+        return new SlotInput(pluginName, player, prompt, slots);
+    }
+
     /** Starts a multi-field form. */
     public @NotNull FormInput form(@NotNull Player player, @NotNull String prompt) {
         return new FormInput(pluginName, player, prompt);

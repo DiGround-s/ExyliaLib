@@ -44,6 +44,7 @@ import net.exylia.lib.input.InputOutcome;
 import net.exylia.lib.input.InputParser;
 import net.exylia.lib.input.InputRequest;
 import net.exylia.lib.input.SearchInput;
+import net.exylia.lib.input.SlotInput;
 import net.exylia.lib.input.Validation;
 import net.exylia.lib.task.Tasks;
 import net.exylia.lib.text.Text;
@@ -90,6 +91,10 @@ final class DialogPackets {
     /** Action id prefix carrying which option was pressed, by position. */
     private static final String CHOOSE = "choose";
     private static final int CONTROL_WIDTH = 260;
+    /** Action id prefix carrying which position of a grid was pressed. */
+    private static final String SLOT = "slot";
+    /** A grid cell: two digits and the client's own padding, nine to a row. */
+    private static final int CELL_WIDTH = 34;
     private static final int BODY_WIDTH = 300;
     private static final int TEXT_LIMIT = 32_767;
 
@@ -177,6 +182,9 @@ final class DialogPackets {
         if (request instanceof SearchInput<?>) {
             return false;
         }
+        if (request instanceof SlotInput) {
+            return true;
+        }
         return request instanceof InputRequest<?, ?> || request instanceof FormInput;
     }
 
@@ -241,6 +249,11 @@ final class DialogPackets {
                     null, true, false, DialogAction.CLOSE, body, List.of()),
                     choiceButtons(choice, state.key()), cancel, 1);
         }
+        if (request instanceof SlotInput grid) {
+            return new MultiActionDialog(new CommonDialogData(Text.component(prompt(request)),
+                    null, true, false, DialogAction.CLOSE, body, List.of()),
+                    slotButtons(grid, state.key()), cancel, grid.columns());
+        }
         List<Input> inputs = request instanceof FormInput form
                 ? formInputs(form, state.values(), state.validation())
                 : List.of(singleInput((InputRequest<?, ?>) request, state.values().get("value"), state.validation()));
@@ -270,6 +283,32 @@ final class DialogPackets {
         List<ActionButton> buttons = new ArrayList<>(labels.size());
         for (int index = 0; index < labels.size(); index++) {
             buttons.add(button(labels.get(index), CHOOSE + index + "/" + stateKey));
+        }
+        return buttons;
+    }
+
+    /**
+     * The layout itself, one button per position.
+     *
+     * <p>A free position is drawn in the success colour and a taken one in the
+     * error colour, with what occupies it on the button, so choosing where
+     * something goes is looking at the grid rather than counting slots. A taken
+     * button still submits: the request refuses it with its own message, which
+     * is the same refusal a typed answer gets.
+     */
+    private static List<ActionButton> slotButtons(SlotInput grid, String stateKey) {
+        List<ActionButton> buttons = new ArrayList<>(grid.slots() + 1);
+        for (int slot = 0; slot < grid.slots(); slot++) {
+            boolean taken = grid.isTaken(slot);
+            String occupant = grid.occupant(slot);
+            String tooltip = taken ? "{error}Taken" + (occupant == null ? "" : " {letters_black}\u00bb {letters}" + occupant)
+                    : "{success}Free";
+            buttons.add(button((taken ? "{error}" : "{success}") + slot, tooltip,
+                    SLOT + slot + "/" + stateKey, CELL_WIDTH));
+        }
+        if (grid.allowsAuto()) {
+            buttons.add(button("{muted}AUTO", "{muted}Place it at the next free position",
+                    SLOT + SlotInput.AUTO + "/" + stateKey, CELL_WIDTH));
         }
         return buttons;
     }
@@ -321,7 +360,12 @@ final class DialogPackets {
     }
 
     private static ActionButton button(String label, String action) {
-        return new ActionButton(new CommonButtonData(Text.component(label), null, CONTROL_WIDTH),
+        return button(label, null, action, CONTROL_WIDTH);
+    }
+
+    private static ActionButton button(String label, @Nullable String tooltip, String action, int width) {
+        return new ActionButton(new CommonButtonData(Text.component(label),
+                tooltip == null ? null : Text.component(tooltip), width),
                 new DynamicCustomAction(new ResourceLocation(NAMESPACE, action), null));
     }
 
@@ -383,6 +427,12 @@ final class DialogPackets {
         }
         if (action.startsWith(CHOOSE)) {
             chosen(state, action.substring(CHOOSE.length(), slash));
+            return;
+        }
+        if (action.startsWith(SLOT)) {
+            if (state.session().request() instanceof SlotInput grid) {
+                answer(state, grid, action.substring(SLOT.length(), slash));
+            }
             return;
         }
         if (!action.startsWith("submit/")) {
