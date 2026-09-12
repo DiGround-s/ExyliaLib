@@ -675,17 +675,12 @@ currency writes it — `$1,250.00`, `3 Tokens`, `1.2k⛃` — and `display:` in
 
 ### Commands
 
-| Command | Does |
-| --- | --- |
-| `/economy` · `/eco` | your wallet: every currency you may use |
-| `/economy balance [currency] [player]` | one balance |
-| `/economy pay <player> <amount> [currency]` | send money; `2.5k` and `1m` are amounts |
-| `/economy top [currency] [page]` | the richest |
-| `/economy history [currency] [player]` | the ledger |
-| `/economy exchange <amount> <from> <to>` | swap at the file's rate |
-| `/economy give\|take\|set\|reset <player> [amount] [currency]` | admin, `exylialib.economy.admin` |
-| `/economy import <vault\|points> <currency>` | copy every known player's balance into a stored currency, once |
-| `/<alias> ...` | the same, with the currency filled in: `/coins pay Steve 500` |
+The library registers none. It keeps the balances and exposes the rules —
+`Economy.rules(id)` gives a `CurrencyRules` (aliases, limits, transfer terms,
+exchange rates), `Economy.kind(id)` says whether a currency is stored, an item,
+experience or external, and `Economy.parseAmount("2.5k")` reads what players
+type. A plugin puts the commands on top; ExyliaSurvivalCore's `economy` module
+is the one that ships `/economy` and `/<alias>`.
 
 ### Placeholders
 

@@ -211,10 +211,10 @@ class StoredEconomyTest {
     @Test
     @DisplayName("amounts are read the way players type them")
     void amounts() {
-        assertEquals(0, new BigDecimal("2500").compareTo(EconomyActions.amount("2.5k")));
-        assertEquals(0, new BigDecimal("1000000").compareTo(EconomyActions.amount("1m")));
-        assertEquals(0, new BigDecimal("42").compareTo(EconomyActions.amount("42")));
-        assertEquals(null, EconomyActions.amount("-5"));
-        assertEquals(null, EconomyActions.amount("lots"));
+        assertEquals(0, new BigDecimal("2500").compareTo(Economy.parseAmount("2.5k")));
+        assertEquals(0, new BigDecimal("1000000").compareTo(Economy.parseAmount("1m")));
+        assertEquals(0, new BigDecimal("42").compareTo(Economy.parseAmount("42")));
+        assertEquals(null, Economy.parseAmount("-5"));
+        assertEquals(null, Economy.parseAmount("lots"));
     }
 }

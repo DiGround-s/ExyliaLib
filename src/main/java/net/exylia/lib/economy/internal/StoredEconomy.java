@@ -27,7 +27,6 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.math.BigDecimal;
-import java.math.RoundingMode;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.LinkedHashMap;
@@ -153,6 +152,29 @@ public final class StoredEconomy implements Listener {
         return instance;
     }
 
+    /** The rules of a stored currency, for a plugin that puts commands on it. */
+    public static @NotNull Optional<net.exylia.lib.economy.CurrencyRules> rules(@NotNull String id) {
+        StoredEconomy economy = instance;
+        if (economy == null) return Optional.empty();
+        StoredCurrency currency = economy.currency(id);
+        if (currency == null) return Optional.empty();
+        CurrencyFile.Stored s = currency.settings();
+        return Optional.of(new net.exylia.lib.economy.CurrencyRules(s.id(), s.aliases(), s.start(), s.max(),
+                s.permission(), s.transferable(), s.minimumTransfer(), s.transferTaxPercent(),
+                s.exchangeable(), s.rates(), s.leaderboard(), s.networked(), s.commands()));
+    }
+
+    /** What kind of currency an id is. */
+    public static @NotNull Economy.Kind kind(@NotNull String id) {
+        Optional<CurrencyProvider> provider = CurrencyRegistry.provider(id.toLowerCase(Locale.ROOT));
+        if (provider.isEmpty()) return Economy.Kind.UNKNOWN;
+        CurrencyProvider p = provider.get();
+        if (p instanceof StoredCurrency) return Economy.Kind.STORED;
+        if (p instanceof ItemCurrency) return Economy.Kind.ITEM;
+        if (p instanceof ExperienceCurrency) return Economy.Kind.EXPERIENCE;
+        return Economy.Kind.EXTERNAL;
+    }
+
     boolean isReady() {
         return ready;
     }
@@ -178,7 +200,6 @@ public final class StoredEconomy implements Listener {
         for (Player online : Bukkit.getOnlinePlayers()) load(online);
         // Neither exists everywhere the library runs — a test, a tool — and
         // neither is worth a currency that fails to load.
-        safely("register the currency commands", () -> AliasCommands.install(plugin, this));
         safely("publish the Vault economy", () -> vault.publish(
                 read.vaultProvide().isBlank() ? null : stored.get(read.vaultProvide().toLowerCase(Locale.ROOT)),
                 read.vaultForce()));
@@ -439,13 +460,6 @@ public final class StoredEconomy implements Listener {
         return EconomyResponse.success(received, given.balance());
     }
 
-    /** What a transfer tax keeps back, rounded in the receiver's favour. */
-    static BigDecimal tax(StoredCurrency currency, BigDecimal amount) {
-        double percent = currency.settings().transferTaxPercent();
-        if (percent <= 0) return BigDecimal.ZERO;
-        return currency.info().scale(amount.multiply(BigDecimal.valueOf(percent / 100.0))
-                .setScale(8, RoundingMode.DOWN));
-    }
 
     private void safely(String what, Runnable work) {
         try {

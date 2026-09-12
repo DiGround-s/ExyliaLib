@@ -198,6 +198,68 @@ public final class Economy {
         return net.exylia.lib.economy.internal.StoredEconomy.exchange(player, from, to, amount);
     }
 
+    /**
+     * The rules {@code currencies.yml} sets on a stored currency: aliases,
+     * limits, transfer and exchange terms.
+     *
+     * <p>Empty for a currency the library does not store. What a plugin that
+     * puts commands on a currency reads — the library itself registers none.
+     *
+     * @since 1.151.0
+     */
+    public static @NotNull Optional<CurrencyRules> rules(@NotNull String id) {
+        return net.exylia.lib.economy.internal.StoredEconomy.rules(id);
+    }
+
+    /**
+     * What kind of thing a currency is.
+     *
+     * @since 1.151.0
+     */
+    public static @NotNull Kind kind(@NotNull String id) {
+        return net.exylia.lib.economy.internal.StoredEconomy.kind(id);
+    }
+
+    /** The kinds of currency, for a plugin deciding which ones fit a purpose. */
+    public enum Kind {
+        /** Kept by the library in its own table: works offline and across servers. */
+        STORED,
+        /** An item in the player's inventory. Only while they are here. */
+        ITEM,
+        /** Experience levels or points. Only while they are here. */
+        EXPERIENCE,
+        /** Vault, PlayerPoints or a plugin's own provider. */
+        EXTERNAL,
+        /** Nothing registered under that id. */
+        UNKNOWN
+    }
+
+    /**
+     * Reads an amount the way players type them: {@code 100}, {@code 2.5k},
+     * {@code 1m}, {@code 3b}.
+     *
+     * @return the amount, or {@code null} when the text is not a positive one
+     * @since 1.151.0
+     */
+    public static @Nullable BigDecimal parseAmount(@Nullable String typed) {
+        if (typed == null || typed.isBlank()) return null;
+        String text = typed.trim().toLowerCase(java.util.Locale.ROOT).replace(",", "");
+        BigDecimal scale = BigDecimal.ONE;
+        switch (text.charAt(text.length() - 1)) {
+            case 'k' -> scale = BigDecimal.valueOf(1_000);
+            case 'm' -> scale = BigDecimal.valueOf(1_000_000);
+            case 'b' -> scale = BigDecimal.valueOf(1_000_000_000);
+            default -> { }
+        }
+        if (scale.compareTo(BigDecimal.ONE) != 0) text = text.substring(0, text.length() - 1);
+        try {
+            BigDecimal value = new BigDecimal(text).multiply(scale);
+            return value.signum() > 0 ? value : null;
+        } catch (NumberFormatException notANumber) {
+            return null;
+        }
+    }
+
     /** One line of a leaderboard. */
     public record TopEntry(int position, @NotNull UUID player, @NotNull String name,
                            @NotNull BigDecimal amount) {

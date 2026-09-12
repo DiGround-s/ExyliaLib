@@ -51,16 +51,12 @@ public record LibraryMessages(
         @NotNull Selection selection,
 
         @Comment("What a command says about a player it cannot find.")
-        @NotNull Players players,
-
-        @Comment("What the economy commands say. %currency% is the currency's")
-        @Comment("plural name, %amount% an amount already formatted.")
-        @NotNull Economy economy
+        @NotNull Players players
 ) {
 
     /** The Exylia defaults. */
     public LibraryMessages() {
-        this(new Wizard(), new Selection(), new Players(), new Economy());
+        this(new Wizard(), new Selection(), new Players());
     }
 
     public LibraryMessages {
@@ -72,9 +68,6 @@ public record LibraryMessages(
         }
         if (players == null) {
             players = new Players();
-        }
-        if (economy == null) {
-            economy = new Economy();
         }
     }
 
@@ -284,79 +277,6 @@ public record LibraryMessages(
         public Players {
             notFound = orDefault(notFound, DEFAULT_NOT_FOUND);
             notHere = orDefault(notHere, DEFAULT_NOT_HERE);
-        }
-    }
-
-    /** The {@code economy} section: what the currency commands say. */
-    public record Economy(
-            @Key("balance") @NotNull String balance,
-            @Key("balance-other") @NotNull String balanceOther,
-            @Key("paid") @NotNull String paid,
-            @Key("received") @NotNull String received,
-            @Key("pay-self") @NotNull String paySelf,
-            @Key("pay-disabled") @NotNull String payDisabled,
-            @Key("pay-minimum") @NotNull String payMinimum,
-            @Key("not-enough") @NotNull String notEnough,
-            @Key("invalid-amount") @NotNull String invalidAmount,
-            @Key("no-currency") @NotNull String noCurrency,
-            @Key("no-permission") @NotNull String noPermission,
-            @Key("not-available") @NotNull String notAvailable,
-            @Key("given") @NotNull String given,
-            @Key("given-notify") @NotNull String givenNotify,
-            @Key("taken") @NotNull String taken,
-            @Key("taken-notify") @NotNull String takenNotify,
-            @Key("set") @NotNull String set,
-            @Key("reset") @NotNull String reset,
-            @Key("top-header") @NotNull String topHeader,
-            @Key("top-line") @NotNull String topLine,
-            @Key("top-empty") @NotNull String topEmpty,
-            @Key("history-header") @NotNull String historyHeader,
-            @Key("history-line") @NotNull String historyLine,
-            @Key("history-empty") @NotNull String historyEmpty,
-            @Key("exchanged") @NotNull String exchanged,
-            @Key("exchange-failed") @NotNull String exchangeFailed,
-            @Key("wallet-header") @NotNull String walletHeader,
-            @Key("wallet-line") @NotNull String walletLine,
-            @Key("currencies-header") @NotNull String currenciesHeader,
-            @Key("currencies-line") @NotNull String currenciesLine,
-            @Key("import-started") @NotNull String importStarted,
-            @Key("import-done") @NotNull String importDone,
-            @Key("usage") @NotNull String usage
-    ) {
-        public Economy() {
-            this("{letters}Your {highlight}%currency%{letters}: {success}%amount%",
-                    "{letters}{highlight}%player%{letters}'s {highlight}%currency%{letters}: {success}%amount%",
-                    "[sound:ENTITY_EXPERIENCE_ORB_PICKUP|1|1.2]{success}\u2714 {letters}You paid {highlight}%amount% {letters}to {highlight}%player%{letters}. {letters_black}Tax: %tax%",
-                    "[sound:ENTITY_EXPERIENCE_ORB_PICKUP|1|1.4]{success}\u2714 {highlight}%player% {letters}paid you {highlight}%amount%{letters}.",
-                    "[sound:ENTITY_VILLAGER_NO|1|1]{error}\u2716 {letters}You cannot pay yourself.",
-                    "[sound:ENTITY_VILLAGER_NO|1|1]{error}\u2716 {highlight}%currency% {letters}cannot be sent to other players.",
-                    "[sound:ENTITY_VILLAGER_NO|1|1]{error}\u2716 {letters}The least you can send is {highlight}%amount%{letters}.",
-                    "[sound:ENTITY_VILLAGER_NO|1|1]{error}\u2716 {letters}You need {highlight}%amount% {letters}more {highlight}%currency%{letters}.",
-                    "[sound:ENTITY_VILLAGER_NO|1|1]{error}\u2716 {letters}That is not an amount. Try {highlight}100{letters}, {highlight}2.5k {letters}or {highlight}1m{letters}.",
-                    "[sound:ENTITY_VILLAGER_NO|1|1]{error}\u2716 {letters}There is no currency called {highlight}%currency%{letters}.",
-                    "[sound:ENTITY_VILLAGER_NO|1|1]{error}\u2716 {letters}You may not use {highlight}%currency%{letters}.",
-                    "[sound:ENTITY_VILLAGER_NO|1|1]{error}\u2716 {highlight}%currency% {letters}is not available right now.",
-                    "{success}\u2714 {letters}Gave {highlight}%amount% {letters}to {highlight}%player%{letters}. {letters_black}Now: %balance%",
-                    "[sound:ENTITY_EXPERIENCE_ORB_PICKUP|1|1.4]{success}\u2714 {letters}You received {highlight}%amount%{letters}.",
-                    "{warning}\u2714 {letters}Took {highlight}%amount% {letters}from {highlight}%player%{letters}. {letters_black}Now: %balance%",
-                    "[sound:BLOCK_NOTE_BLOCK_BASS|1|0.8]{warning}\u2716 {highlight}%amount% {letters}was taken from you.",
-                    "{success}\u2714 {highlight}%player%{letters}'s {highlight}%currency% {letters}is now {highlight}%amount%{letters}.",
-                    "{warning}\u2714 {highlight}%player%{letters}'s {highlight}%currency% {letters}was reset.",
-                    "{primary}&lTOP {highlight}%currency%",
-                    " {letters_black}#%position% {highlight}%player% {letters_black}\u00bb {success}%amount%",
-                    " {letters_black}Nobody has any yet.",
-                    "{primary}&lHISTORY {highlight}%currency% {letters_black}\u00b7 {letters}%player%",
-                    " {letters_black}%date% %delta% {letters_black}\u00bb {info}%reason% {letters_black}(%balance%)",
-                    " {letters_black}Nothing yet.",
-                    "[sound:ENTITY_EXPERIENCE_ORB_PICKUP|1|1.2]{success}\u2714 {letters}Exchanged {highlight}%from% {letters}for {highlight}%to%{letters}.",
-                    "[sound:ENTITY_VILLAGER_NO|1|1]{error}\u2716 {letters}%reason%",
-                    "{primary}&lWALLET {letters_black}\u00b7 {letters}%player%",
-                    " {letters_black}\u258e {letters}%currency% {letters_black}\u00bb {success}%amount%",
-                    "{primary}&lCURRENCIES",
-                    " {letters_black}\u258e {highlight}%id% {letters_black}\u00bb {letters}%currency% {letters_black}(%provider%)",
-                    "{letters}Importing balances from {highlight}%from% {letters}into {highlight}%currency%{letters}\u2026",
-                    "{success}\u2714 {letters}Imported {highlight}%count% {letters}balances into {highlight}%currency%{letters}.",
-                    "{letters}Usage{letters_black}: {highlight}/%command% {letters_black}[pay <player> <amount> | top | history | exchange <amount> <to>]");
         }
     }
 
