@@ -3,7 +3,8 @@
 The contract third-party developers write against. One artifact,
 `net.exylia:exylia-api`, covering every Exylia plugin. Since ExyliaLib 1.112.0;
 the survival events arrived in 1.113.0, mine breaks in 1.131.0, and on-demand
-actions and lifecycle events across the suite in 1.133.0 (`exylia-api` 1.3.0).
+actions and lifecycle events across the suite in 1.133.0 (`exylia-api` 1.3.0),
+and the aim trainer in 1.152.0 (`exylia-api` 1.5.0).
 
 Entry point: `net.exylia.lib.api.ExyliaAPI`.
 
@@ -15,7 +16,7 @@ repositories {
 }
 
 dependencies {
-    compileOnly 'com.github.DiGround-s.ExyliaLib:exylia-api:1.3.0'
+    compileOnly 'com.github.DiGround-s.ExyliaLib:exylia-api:1.5.0'
 }
 ```
 
@@ -125,7 +126,7 @@ plugin imports it from there.
 
 ## Services
 
-Twenty-two services across twenty-one plugins, plus one plugin that publishes
+Twenty-three services across twenty-two plugins, plus one plugin that publishes
 only events. Every one is reached the same way:
 `ExyliaAPI.get(<Service>.class)`. The event counts leave out abstract bases
 such as `BetEvent` and `PracticeEvent`.
@@ -154,6 +155,7 @@ such as `BetEvent` and `PracticeEvent`.
 | `api.survival` | `SurvivalService` | ExyliaSurvivalCore | 10 |
 | `api.totems` | — | ExyliaTotems | 2 |
 | `api.totemtrainer` | `TotemTrainerService` | ExyliaTotemTrainer | 8 |
+| `api.aimtrainer` | `AimTrainerService` | ExyliaAimTrainer | 7 |
 
 ExyliaTotems has no service on purpose: it holds nothing worth asking about, and
 it cancels the death it handles, so neither `PlayerDeathEvent` nor
