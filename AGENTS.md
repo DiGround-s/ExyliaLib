@@ -1144,10 +1144,21 @@ private `resolve(String)` in a plugin, and never `Bukkit.getOfflinePlayer(String
   module on ExyliaProxyUtils — one module there and one `Proxy.find` here, and
   still no table in any plugin.
 - **The not-found line belongs to the library.** The module owns the lookup, so
-  it owns the sentence it fails with; `PlayerNotFoundException` is a
-  `SendableException`, so a plugin registers no handler to make it appear.
-  Eleven plugins had eleven wordings, several saying "is not online" about
-  somebody who had simply never played there.
+  it owns the sentence it fails with; the plugin's `PlayerNotFoundException` is
+  a `SendableException` that reads it, so a plugin registers no handler to make
+  it appear. Eleven plugins had eleven wordings, several saying "is not online"
+  about somebody who had simply never played there.
+- **No Lamp object crosses a plugin boundary, ever.** Lamp is declared in
+  `libraries:` and the server's library loader builds one per plugin, so this
+  library's `ParameterType`/`SuggestionProvider` and a consumer's are different
+  classes with the same name. A `PlayerTypes.factory()` living here and handed
+  to a consumer's builder compiled cleanly and threw `LinkageError: loader
+  constraint violation` on every server it reached. The parameter types are
+  therefore twenty lines of `PlayerArguments` inside each plugin, over an API
+  that names no Lamp type: `ExyliaPlayers.cached`, `names`, `notFound` and
+  `Suggestions.matching`. The same rule binds anything added to
+  `command/lamp/` — if its signature names a Lamp type, only this library may
+  call it.
 - **A directory entry is not a suggestion.** Tab completions are this server's
   players and the network's. An established server's user cache is a hundred
   thousand names.
@@ -1536,7 +1547,7 @@ Code root: `src/main/java/net/exylia/lib/`. Test root:
 | redis | `redis/Redis`, `RedisSettings` | `redis/internal/` (Jedis confined to `JedisClient`) | [docs/redis.md](docs/redis.md) | 1.31.0 |
 | cross-server pub/sub channels | `redis/Channels`, `PluginChannels`, `Channel`, `Message`, `Redis.serverId(plugin)` | `Channel` frames `<server-id>` + pipe + `<payload>` over `RedisRuntime.client`; local bus without Redis | [docs/redis.md](docs/redis.md) | 1.75.0 |
 | proxy (bridge with ExyliaProxyUtils) | `proxy/Proxy`, `ProxyReply`; default transport for `command/PluginCommands.proxy()` | `proxy/internal/ProxyRuntime` (`exylia:bridge` channel, in-flight request map, ping on the first join), `Wire`, `BridgeCommands`; `CrossServer.connect`/`connectOther` use the `connect` module when the bridge answered and the `BungeeCord` channel when it didn't | [docs/proxy.md](docs/proxy.md), [docs/teleport.md](docs/teleport.md) | 1.101.0, 1.102.0 |
-| player (name to id, online/offline/network) | `player/ExyliaPlayer`, `ExyliaPlayers`, `PlayerTarget`; `command/lamp/PlayerTypes` (Lamp types + `PlayerNotFoundException`); `text/LibraryMessages.Players` | `player/internal/PlayerRuntime` (five tiers, name<->id Caffeine directory, negative cache, request collapsing); joins recorded in `ExyliaLib.onPlayerJoin`; Mojang shared through `SkullRuntime.idOf` | [docs/players.md](docs/players.md) | 1.146.0 |
+| player (name to id, online/offline/network) | `player/ExyliaPlayer`, `ExyliaPlayers`, `PlayerTarget`; `text/LibraryMessages.Players` | `player/internal/PlayerRuntime` (five tiers, name<->id Caffeine directory, negative cache, request collapsing); joins recorded in `ExyliaLib.onPlayerJoin`; Mojang shared through `SkullRuntime.idOf` | [docs/players.md](docs/players.md) | 1.146.0 |
 | auto-update poll | `update-check-minutes` in `internal/LibrarySettings` | `internal/ExyliaLibUpdater` (ETag), timer in `ExyliaLib.startUpdateCheck` | [docs/reload.md](docs/reload.md) | 1.30.0 |
 | generated keys | `database/Id.generated`, `Repository.insert`/`insertReturning` | `Dialect.insertGenerated`, `SqlBackend.insert` (`getGeneratedKeys`), `MongoBackend.insert` (`$inc`), `EntityModel.withId` | [docs/database.md](docs/database.md) | 1.32.0 |
 | a click that redraws everything that can change | — | `ui/internal/Session.refreshAfterClick`, `redrawChangeable` | [docs/menus.md](docs/menus.md) | 1.44.0 |

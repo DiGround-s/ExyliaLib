@@ -147,14 +147,33 @@ resolvable without a single lookup.
 
 ## In a command
 
-Register the types once, on your Lamp builder:
+Copy `PlayerArguments.java` from any Exylia plugin — ExyliaStaff's
+`command/PlayerArguments.java` is the reference — into your own command
+package, and install it on your builder:
 
 ```java
-Lamp<BukkitCommandActor> lamp = BukkitLamp.builder(plugin)
-        .parameterTypes(types -> types.addParameterTypeFactory(PlayerTypes.factory()))
-        .suggestionProviders(providers -> providers.addProviderFactory(Suggestions.filtering()))
+Lamp<BukkitCommandActor> lamp = PlayerArguments.install(BukkitLamp.builder(plugin))
         .build();
 ```
+
+**The parameter types cannot come from this library, and that is not an
+oversight.** Lamp is declared in `libraries:`, and the server's library loader
+builds one of those per plugin, so this library's `ParameterType` and yours are
+different classes with the same name. A factory built here and handed to a
+builder there does not link:
+
+```
+LinkageError: loader constraint violation ...
+  addParameterTypeFactory(ParameterType$Factory)
+  ... have different Class objects for the type ParameterType$Factory
+```
+
+What does cross the boundary is everything that is not a Lamp type:
+`ExyliaPlayer` and `PlayerTarget` are library classes, of which there is one
+copy, and `ExyliaPlayers.cached`, `names()`, `notFound(...)` and
+`Suggestions.matching` take and return nothing but those, Bukkit and the JDK.
+`PlayerArguments` is twenty lines of glue over them, and it is the same twenty
+lines in every plugin.
 
 Then declare the parameter and the library resolves it:
 
@@ -180,8 +199,9 @@ public void punish(Player staff, PlayerTarget target, String reason) {
 
 Both suggest this server's players and the network's, filtered to what is
 being typed. Nothing else is needed: the not-found line is sent by the
-exception itself, from the library's own `messages.yml`, so a plugin adopting
-these types registers no exception handler and writes no message of its own.
+exception in `PlayerArguments` itself, reading the library's own
+`messages.yml`, so a plugin adopting these types registers no exception
+handler and writes no message of its own.
 
 `PlayerTarget` carries what was typed and defers the work:
 
@@ -261,6 +281,6 @@ anything in the game, as everywhere else in the library.
 | The facade | `player/ExyliaPlayers.java` |
 | The deferred target | `player/PlayerTarget.java` |
 | The tiers and the caches | `player/internal/PlayerRuntime.java` |
-| The Lamp types | `command/lamp/PlayerTypes.java` |
+| The Lamp glue | `PlayerArguments.java`, in each consumer plugin |
 | The messages | `text/LibraryMessages.Players` |
 | Joins recorded | `ExyliaLib.onPlayerJoin` |

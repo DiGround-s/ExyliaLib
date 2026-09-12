@@ -44,9 +44,10 @@ import java.util.function.Consumer;
  * the ones nobody here has seen.
  *
  * <h2>In a command</h2>
- * Declare the parameter and the library resolves it for you — the types are
- * registered by
- * {@link net.exylia.lib.command.lamp.PlayerTypes#factory()}:
+ * Declare the parameter and it resolves itself. The two parameter types live
+ * in each plugin as {@code PlayerArguments}, twenty lines over the methods
+ * here, because Lamp is loaded once per plugin and no Lamp object may cross
+ * that boundary — see {@code docs/players.md}:
  *
  * <pre>{@code
  * // Somebody this server knows. Rejected before the handler runs otherwise.
