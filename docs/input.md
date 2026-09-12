@@ -94,6 +94,25 @@ consumer only when there is an answer.
 | `search(player, prompt)` | `T` | one of a catalogue too large to hold |
 | `form(player, prompt)` | `FormValues` | several things in one window |
 | `icon(player, prompt)` | `String` | what something is drawn as |
+| `item(player, prompt)` | `ItemStack` | the item itself, stack size included |
+
+### An icon is not an item
+
+`icon` answers with a `material` **value** — the string a menu file writes and a
+column stores — and that string has no room for a count, so nine diamonds and
+one diamond are both `DIAMOND`. That is right for something being drawn and
+wrong for something being measured: a recipe's input, a price, a quantity
+somebody has to hold.
+
+`item` answers with the stack. Same one-slot window, same promise that the item
+goes back to the player on every ending; what changes is that the caller is
+handed the object rather than a description of it, and stores whichever parts of
+it matter.
+
+```java
+inputs.item(player, "{primary}&lWHAT IS SPENT")
+      .open(stack -> recipe.setInput(stack));   // 9 × a coin nobody can spell
+```
 
 ### Modifiers every request has
 
