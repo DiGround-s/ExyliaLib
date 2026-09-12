@@ -371,6 +371,36 @@ class RagdollAnimationTest {
         assertTrue(armSwing(stiff) < lively, "follow:0 must be exactly what the frames say");
     }
 
+    @Test
+    @DisplayName("a second body does not change what the first one was given")
+    void dancesAreSharedAndNeverRewritten() {
+        RagdollMotion motion = RagdollMotion.builder().pose(RagdollPose.ANIMATE)
+                .animation(parsed("0.3 up=1.5 turn=90 ease=out | 0.3 up=0 turn=0 ease=in"))
+                .intactFor(0.1).life(1.2).follow(1.2).build();
+        RagdollFlight.Flight first = RagdollFlight.solve(RagdollPart.ARM_RIGHT, motion, 1.0,
+                Rotation.NONE, new Random(1));
+        // Every other part of that body, and then a second body twice the size
+        // facing the other way: the poses behind them are shared, so anything
+        // that wrote to them would show up in the body that came first.
+        for (RagdollPart part : RagdollPart.values()) {
+            RagdollFlight.solve(part, motion, 1.0, Rotation.NONE, new Random(1));
+            RagdollFlight.solve(part, motion, 2.0,
+                    Rotation.around(Rotation.Axis.Y, Math.PI), new Random(9));
+        }
+        RagdollFlight.Flight again = RagdollFlight.solve(RagdollPart.ARM_RIGHT, motion, 1.0,
+                Rotation.NONE, new Random(1));
+        for (int index = 0; index < first.times().length; index++) {
+            assertEquals(first.x()[index], again.x()[index], 0,
+                    "pose " + index + " moved once another body had danced");
+            assertEquals(first.y()[index], again.y()[index], 0,
+                    "pose " + index + " moved once another body had danced");
+            assertEquals(first.z()[index], again.z()[index], 0,
+                    "pose " + index + " moved once another body had danced");
+            assertEquals(first.rotations()[index].w(), again.rotations()[index].w(), 0,
+                    "pose " + index + " turned differently once another body had danced");
+        }
+    }
+
     /** How far the right arm strays from where it would be on a stiff body, at most. */
     private static double armSwing(RagdollMotion motion) {
         RagdollFlight.Flight arm = RagdollFlight.solve(RagdollPart.ARM_RIGHT, motion, 1.0, Rotation.NONE, new Random(1));

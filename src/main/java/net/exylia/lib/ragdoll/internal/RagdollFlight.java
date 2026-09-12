@@ -1,11 +1,15 @@
 package net.exylia.lib.ragdoll.internal;
 
+import com.github.benmanes.caffeine.cache.Cache;
+import com.github.benmanes.caffeine.cache.Caffeine;
 import net.exylia.lib.display.Rotation;
+import net.exylia.lib.ragdoll.RagdollAnimation;
 import net.exylia.lib.ragdoll.RagdollMotion;
 import net.exylia.lib.ragdoll.RagdollPart;
 import net.exylia.lib.ragdoll.RagdollPose;
 import org.jetbrains.annotations.ApiStatus;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.random.RandomGenerator;
@@ -186,34 +190,81 @@ public final class RagdollFlight {
     /** A ceiling, so a thirty-second dance is still a finite number of poses. */
     private static final int MAX_FRAMES = 600;
 
-    /** Stands for {@code intact}, and then follows the frames. */
+    /**
+     * Stands for {@code intact}, and then follows the frames.
+     *
+     * <p>Solved once per choreography rather than once per part of every body.
+     * What the frames say is the same for all six parts and the same at every
+     * death: it depends on the file, not on who died, which way they were
+     * looking or how big they are. Only {@link RagdollRig#place} turns a pose
+     * into one part's place in the world, and that is what is left here. A tick
+     * where fifty bodies go therefore integrates the springs once, not three
+     * hundred times.
+     */
     private static Flight animated(RagdollPart part, RagdollMotion motion, double scale,
                                    Rotation facing) {
-        net.exylia.lib.ragdoll.RagdollAnimation animation = motion.animation();
-        long intact = motion.intactMillis();
-        long end = Math.min(motion.lifeMillis(), motion.finishAt());
-        long[] times = frames(intact, end);
-        // Solved for the whole body and read by frame, in the order sample
-        // walks them: the springs depend on everything before, so they cannot
-        // be asked about one moment on its own.
-        double[][] follow = motion.follow() > 0
-                ? RagdollFollow.solve(animation, times, intact, motion.follow())
-                : null;
+        Posed posed = posed(motion);
+        long[] times = posed.times();
+        double[][] poses = posed.poses();
         int[] frame = {0};
-        return sample(times, intact, elapsed -> {
-            double[] pose = animation.at(Math.round(elapsed * 1000));
-            if (follow != null) {
-                double[] lag = follow[frame[0]];
-                for (int channel = 0; channel < pose.length; channel++) {
-                    pose[channel] += lag[channel];
-                }
-            }
-            frame[0]++;
+        return sample(times, motion.intactMillis(), elapsed -> {
+            // Read and never written: every part of every body shares these.
+            double[] pose = poses[Math.min(frame[0]++, poses.length - 1)];
             RagdollRig.Placed placed = RagdollRig.place(part, pose, scale, facing, elapsed);
             double grown = placed.size() / scale;
             return new Step(new double[]{placed.x(), placed.y(), placed.z()},
                     placed.rotation(), new double[]{grown, grown, grown});
         });
+    }
+
+    /** Every channel of a choreography, at each moment a pose is sent. */
+    private record Posed(long[] times, double[][] poses) {
+    }
+
+    /** What makes two bodies dance the same dance. */
+    private record Choreography(RagdollAnimation animation, long intact, long end, double follow) {
+    }
+
+    /**
+     * The dances a server is using, solved.
+     *
+     * <p>A few dozen poses of a few dozen channels each, for the handful of
+     * choreographies an effects file actually has. Bounded and dropped when an
+     * effect stops being used, so a file that is reloaded does not keep the
+     * dance nobody plays any more.
+     */
+    private static final Cache<Choreography, Posed> POSED = Caffeine.newBuilder()
+            .maximumSize(64)
+            .expireAfterAccess(Duration.ofMinutes(30))
+            .build();
+
+    /** The poses this motion dances, solved now or read back from the last body. */
+    private static Posed posed(RagdollMotion motion) {
+        return POSED.get(new Choreography(motion.animation(), motion.intactMillis(),
+                Math.min(motion.lifeMillis(), motion.finishAt()), motion.follow()),
+                RagdollFlight::solve);
+    }
+
+    private static Posed solve(Choreography dance) {
+        long[] times = frames(dance.intact(), dance.end());
+        // Solved for the whole body and read by frame, in the order sample
+        // walks them: the springs depend on everything before, so they cannot
+        // be asked about one moment on its own.
+        double[][] follow = dance.follow() > 0
+                ? RagdollFollow.solve(dance.animation(), times, dance.intact(), dance.follow())
+                : null;
+        double[][] poses = new double[times.length][];
+        for (int frame = 0; frame < times.length; frame++) {
+            double[] pose = dance.animation().at(Math.max(0, times[frame] - dance.intact()));
+            if (follow != null) {
+                double[] lag = follow[frame];
+                for (int channel = 0; channel < pose.length; channel++) {
+                    pose[channel] += lag[channel];
+                }
+            }
+            poses[frame] = pose;
+        }
+        return new Posed(times, poses);
     }
 
     /** Zero, and then every beat from {@code from} to {@code end}, both included. */
