@@ -1,7 +1,6 @@
 package net.exylia.lib.display.internal;
 
 import com.github.retrooper.packetevents.PacketEvents;
-import com.github.retrooper.packetevents.netty.buffer.ByteBufHelper;
 import com.github.retrooper.packetevents.protocol.entity.data.EntityData;
 import com.github.retrooper.packetevents.protocol.entity.data.EntityDataTypes;
 import com.github.retrooper.packetevents.protocol.entity.type.EntityType;
@@ -18,6 +17,7 @@ import io.github.retrooper.packetevents.util.SpigotReflectionUtil;
 import net.exylia.lib.display.DisplayKeyframe;
 import net.exylia.lib.display.DisplayModel;
 import net.exylia.lib.display.Rotation;
+import net.exylia.lib.packet.internal.Broadcast;
 import org.bukkit.Location;
 import org.bukkit.entity.Player;
 
@@ -203,118 +203,8 @@ final class DisplayPackets implements DisplaySink {
         };
     }
 
-    /**
-     * Sends one packet to everyone watching, written once.
-     *
-     * <p>The same display is sent to every player in the arena, and writing it
-     * per player means writing the same bytes thirty times over. A head worn in
-     * a real skin carries its texture with it, which is the better part of a
-     * kilobyte of base64 serialised again for each viewer.
-     *
-     * <p>On a server the bytes are the same for all of them: the packet is
-     * written in the server's own format and ViaVersion translates it further
-     * down each client's pipeline. So it is written once and every viewer is
-     * handed its own reader over those same bytes. A proxy writes per client
-     * version instead, so there the old path stands.
-     */
+    /** Sends one packet to everyone watching, written once; see {@link Broadcast}. */
     private static void send(List<Player> viewers, PacketWrapper<?> packet) {
-        if (viewers.size() < 2 || proxied()) {
-            for (Player viewer : viewers) {
-                send(viewer, packet);
-            }
-            return;
-        }
-        Object[] written;
-        try {
-            Object first = channelOf(viewers);
-            if (first == null) {
-                return;
-            }
-            // Takes the buffers off the wrapper, which is what sending it to one
-            // player does; from here they are ours to hand out and to free.
-            written = PacketEvents.getAPI().getProtocolManager()
-                    .transformWrappers(packet, first, true);
-        } catch (Throwable failed) {
-            // Half-written bytes cannot be written again without doubling them,
-            // so this packet is lost rather than sent wrong. One missing pose in
-            // an effect is invisible; a malformed one disconnects everybody.
-            return;
-        }
-        try {
-            for (Player viewer : viewers) {
-                if (!viewer.isOnline()) {
-                    continue;
-                }
-                try {
-                    Object channel = PacketEvents.getAPI().getPlayerManager().getChannel(viewer);
-                    for (Object buffer : written) {
-                        PacketEvents.getAPI().getProtocolManager()
-                                .sendPacket(channel, ByteBufHelper.retainedDuplicate(buffer));
-                    }
-                } catch (Throwable gone) {
-                    // This viewer left between the check and the write. The rest
-                    // are still watching.
-                }
-            }
-        } finally {
-            for (Object buffer : written) {
-                ByteBufHelper.release(buffer);
-            }
-        }
-    }
-
-    /** The channel of the first viewer still here, or {@code null} if none are. */
-    private static Object channelOf(List<Player> viewers) {
-        for (Player viewer : viewers) {
-            if (viewer.isOnline()) {
-                Object channel = PacketEvents.getAPI().getPlayerManager().getChannel(viewer);
-                if (channel != null) {
-                    return channel;
-                }
-            }
-        }
-        return null;
-    }
-
-    /**
-     * Whether packets here are written per client version rather than in the
-     * server's own.
-     *
-     * <p>Asked once: the answer cannot change while the server is up, and it is
-     * read for every packet of every effect.
-     */
-    private static Boolean proxy;
-
-    private static boolean proxied() {
-        Boolean known = proxy;
-        if (known == null) {
-            try {
-                known = PacketEvents.getAPI().getInjector().isProxy();
-            } catch (Throwable unknown) {
-                known = Boolean.TRUE;
-            }
-            proxy = known;
-        }
-        return known;
-    }
-
-    /**
-     * Sends one packet, unless the player has already gone.
-     *
-     * <p>An effect outlives the moment it was triggered by design, and a player
-     * can quit inside that window. Their connection is gone but this module's
-     * list of viewers is not, and writing to it is an exception nobody caused.
-     */
-    private static void send(Player viewer, PacketWrapper<?> packet) {
-        if (!viewer.isOnline()) {
-            return;
-        }
-        try {
-            PacketEvents.getAPI().getPlayerManager().sendPacket(viewer, packet);
-        } catch (Throwable gone) {
-            // Disconnected between the check and the write. Nothing to do and
-            // nothing worth logging: the client that would have drawn it is not
-            // there any more.
-        }
+        Broadcast.send(viewers, packet);
     }
 }

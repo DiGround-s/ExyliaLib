@@ -30,6 +30,7 @@ import io.github.retrooper.packetevents.util.SpigotConversionUtil;
 import io.github.retrooper.packetevents.util.SpigotReflectionUtil;
 import net.exylia.lib.npc.NpcModel;
 import net.exylia.lib.npc.NpcPose;
+import net.exylia.lib.packet.internal.Broadcast;
 import net.kyori.adventure.text.Component;
 import org.bukkit.Location;
 import org.bukkit.entity.Player;
@@ -116,9 +117,7 @@ final class NpcPackets implements NpcSink {
                         WrapperPlayServerPlayerInfoUpdate.Action.UPDATE_LISTED),
                 new WrapperPlayServerPlayerInfoUpdate.PlayerInfo(
                         profile, false, 0, GameMode.SURVIVAL, Component.empty(), null));
-        for (Player viewer : viewers) {
-            send(viewer, announce);
-        }
+        send(viewers, announce);
     }
 
     @Override
@@ -132,16 +131,14 @@ final class NpcPackets implements NpcSink {
         List<Equipment> kit = kitOf(model);
         PacketWrapper<?> size = sizeOf(entityId, model);
 
-        for (Player viewer : viewers) {
-            send(viewer, body);
-            send(viewer, state);
-            send(viewer, head);
-            if (size != null) {
-                send(viewer, size);
-            }
-            if (!kit.isEmpty()) {
-                send(viewer, new WrapperPlayServerEntityEquipment(entityId, kit));
-            }
+        send(viewers, body);
+        send(viewers, state);
+        send(viewers, head);
+        if (size != null) {
+            send(viewers, size);
+        }
+        if (!kit.isEmpty()) {
+            send(viewers, new WrapperPlayServerEntityEquipment(entityId, kit));
         }
     }
 
@@ -168,10 +165,8 @@ final class NpcPackets implements NpcSink {
         PacketWrapper<?> rotation =
                 new WrapperPlayServerEntityRotation(entityId, yaw, pitch, false);
         PacketWrapper<?> head = new WrapperPlayServerEntityHeadLook(entityId, yaw);
-        for (Player viewer : viewers) {
-            send(viewer, rotation);
-            send(viewer, head);
-        }
+        send(viewers, rotation);
+        send(viewers, head);
     }
 
     @Override
@@ -183,47 +178,37 @@ final class NpcPackets implements NpcSink {
         PacketWrapper<?> step = new WrapperPlayServerEntityRelativeMoveAndRotation(
                 entityId, dx, dy, dz, yaw, pitch, false);
         PacketWrapper<?> head = new WrapperPlayServerEntityHeadLook(entityId, yaw);
-        for (Player viewer : viewers) {
-            send(viewer, step);
-            send(viewer, head);
-        }
+        send(viewers, step);
+        send(viewers, head);
     }
 
     @Override
     public void hurt(List<Player> viewers, int entityId) {
         PacketWrapper<?> packet = new WrapperPlayServerEntityAnimation(entityId,
                 WrapperPlayServerEntityAnimation.EntityAnimationType.HURT);
-        for (Player viewer : viewers) {
-            send(viewer, packet);
-        }
+        send(viewers, packet);
     }
 
     @Override
     public void swing(List<Player> viewers, int entityId) {
         PacketWrapper<?> packet = new WrapperPlayServerEntityAnimation(entityId,
                 WrapperPlayServerEntityAnimation.EntityAnimationType.SWING_MAIN_ARM);
-        for (Player viewer : viewers) {
-            send(viewer, packet);
-        }
+        send(viewers, packet);
     }
 
     @Override
     public void pose(List<Player> viewers, int entityId, NpcModel model, NpcPose pose) {
         PacketWrapper<?> packet = new WrapperPlayServerEntityMetadata(entityId,
                 List.of(new EntityData<>(POSE, EntityDataTypes.ENTITY_POSE, poseOf(pose))));
-        for (Player viewer : viewers) {
-            send(viewer, packet);
-        }
+        send(viewers, packet);
     }
 
     @Override
     public void destroy(List<Player> viewers, int entityId, UUID profile) {
         PacketWrapper<?> body = new WrapperPlayServerDestroyEntities(entityId);
         PacketWrapper<?> identity = new WrapperPlayServerPlayerInfoRemove(profile);
-        for (Player viewer : viewers) {
-            send(viewer, body);
-            send(viewer, identity);
-        }
+        send(viewers, body);
+        send(viewers, identity);
     }
 
     /**
@@ -321,21 +306,8 @@ final class NpcPackets implements NpcSink {
         };
     }
 
-    /**
-     * Sends one packet, unless the player has already gone.
-     *
-     * <p>An NPC outlives the moment it was created by design, and a player can
-     * quit inside that window. Their connection is gone but this module's list
-     * of viewers is not, and writing to it is an exception nobody caused.
-     */
-    private static void send(Player viewer, PacketWrapper<?> packet) {
-        if (!viewer.isOnline()) {
-            return;
-        }
-        try {
-            PacketEvents.getAPI().getPlayerManager().sendPacket(viewer, packet);
-        } catch (Throwable gone) {
-            // Disconnected between the check and the write.
-        }
+    /** Sends one packet to every viewer, written once; see {@link Broadcast}. */
+    private static void send(List<Player> viewers, PacketWrapper<?> packet) {
+        Broadcast.send(viewers, packet);
     }
 }
