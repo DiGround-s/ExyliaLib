@@ -113,6 +113,19 @@ public final class PluginInputs {
         return new IconInput(this, player, prompt);
     }
 
+    /**
+     * Starts a request for an item, answered with the item itself.
+     *
+     * <p>Use it where the stack matters rather than how it looks: a recipe's
+     * input, a price, an amount somebody has to hold. {@link #icon} is the one
+     * for something that is only drawn.
+     *
+     * @since 1.149.0
+     */
+    public @NotNull ItemInput item(@NotNull Player player, @NotNull String prompt) {
+        return new ItemInput(this, player, prompt);
+    }
+
     /** Starts a multi-field form. */
     public @NotNull FormInput form(@NotNull Player player, @NotNull String prompt) {
         return new FormInput(pluginName, player, prompt);
