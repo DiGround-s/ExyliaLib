@@ -282,16 +282,24 @@ public final class DisplayRuntime {
             if (!seats.changed) {
                 continue;
             }
+            // Cleared before the list is read, never after: an effect seated
+            // while this runs sets it again and is sent on the next tick. The
+            // other order loses that change and leaves a piece unmounted.
             seats.changed = false;
-            int[] passengers = new int[seats.riders.size()];
-            int at = 0;
-            for (LiveDisplay rider : seats.riders) {
-                passengers[at++] = rider.entityId();
+            // Collected rather than counted into a sized array: another thread
+            // seats an effect while this iterates, and a size read a moment
+            // before the walk is one index short of the walk itself.
+            List<LiveDisplay> riding = new ArrayList<>(seats.riders);
+            int[] passengers = new int[riding.size()];
+            for (int at = 0; at < passengers.length; at++) {
+                passengers[at] = riding.get(at).entityId();
             }
             target.mount(seats.viewers, entry.getKey(), passengers);
-            if (passengers.length == 0) {
+            if (passengers.length == 0 && !seats.changed && seats.riders.isEmpty()) {
                 // Told once that it carries nobody, then forgotten: an entry
-                // per player who ever wore an effect is a leak.
+                // per player who ever wore an effect is a leak. Checked again
+                // after the send, because a seat taken in between belongs to an
+                // entry that must not be dropped.
                 entries.remove();
             }
         }

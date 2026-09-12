@@ -139,7 +139,7 @@ sideways is corrected with a number, not a rebuild.
 
 ### Following whoever set it off
 
-Since 1.147.0. A display normally stays where it was drawn, which is right for a
+Since 1.148.0. A display normally stays where it was drawn, which is right for a
 crater, a rift or a sigil written on the floor — the place is the effect. An
 effect that belongs to a **player** says so:
 
