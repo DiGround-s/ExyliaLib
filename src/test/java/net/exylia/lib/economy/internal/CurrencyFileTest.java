@@ -48,7 +48,7 @@ class CurrencyFileTest {
         assertEquals(1, read.items().size());
         assertEquals("EMERALD", read.items().get("emeralds").item());
         assertTrue(read.experienceLevels());
-        assertEquals("", read.vaultProvide());
+        assertEquals("coins", read.vaultProvide());
         assertNotNull(read.overlay("vault"));
         assertEquals("$", read.overlay("vault").symbol());
     }

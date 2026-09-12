@@ -351,7 +351,7 @@ public final class CurrencyFile {
             # no other economy plugin has registered one, unless 'force' is on.
             # ---------------------------------------------------------------------
             vault:
-              provide: ""
+              provide: coins
               force: false
 
             # ---------------------------------------------------------------------

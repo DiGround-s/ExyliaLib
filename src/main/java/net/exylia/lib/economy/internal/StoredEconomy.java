@@ -200,9 +200,13 @@ public final class StoredEconomy implements Listener {
         for (Player online : Bukkit.getOnlinePlayers()) load(online);
         // Neither exists everywhere the library runs — a test, a tool — and
         // neither is worth a currency that fails to load.
-        safely("publish the Vault economy", () -> vault.publish(
-                read.vaultProvide().isBlank() ? null : stored.get(read.vaultProvide().toLowerCase(Locale.ROOT)),
-                read.vaultForce()));
+        String provide = read.vaultProvide().toLowerCase(Locale.ROOT);
+        StoredCurrency published = provide.isBlank() ? null : stored.get(provide);
+        if (published == null && !provide.isBlank()) {
+            logger.warning("Economy: vault.provide names '" + provide + "', which is not a stored "
+                    + "currency in currencies.yml; nothing is published to Vault.");
+        }
+        safely("publish the Vault economy", () -> vault.publish(published, read.vaultForce()));
         logger.info("Economy: " + stored.size() + " stored, " + read.items().size() + " item and "
                 + ((read.experienceLevels() ? 1 : 0) + (read.experiencePoints() ? 1 : 0))
                 + " experience currencies from currencies.yml.");

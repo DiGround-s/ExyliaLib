@@ -312,6 +312,7 @@ default-currency: vault
 # operation, and the switch is announced rather than silent —
 # a currency changing on its own is how a balance disappears.
 fallback:
+- coins
 - points
 # How long a balance, once read, may be reused, in milliseconds.
 # Balances are shown on scoreboards that refresh every tick,
@@ -328,7 +329,7 @@ config-version: 1
 | Key | Default | |
 | --- | --- | --- |
 | `default-currency` | `vault` | the id that answers when an operation names none |
-| `fallback` | `[points]` | the order to try when the default is not available |
+| `fallback` | `[coins, points]` | the order to try when the default is not available |
 | `balance-cache-millis` | `500` | how long a read balance may be reused |
 
 The built-in ids are `vault` and `points` — lowercase provider ids, not enum
@@ -623,7 +624,7 @@ experience: { levels: true, points: true }   # ids xp_levels and xp_points
 display:
   vault: { name: Dollar, plural: Dollars, symbol: "$", icon: GOLD_INGOT, decimals: 2 }
 vault:
-  provide: ""      # a stored currency to publish as the server's Vault economy
+  provide: coins   # a stored currency to publish as the server's Vault economy
   force: false
 ledger:
   enabled: true
@@ -691,7 +692,8 @@ All read memory; none touch the database on the thread that asked.
 
 ### Vault
 
-`vault.provide: coins` publishes that currency as the server's Vault economy,
-so every plugin that only speaks Vault runs on it. The Vault interface is a
+`vault.provide: coins` — the default — publishes that currency as the server's
+Vault economy, so every plugin that only speaks Vault runs on it, exactly as
+EssentialsX or CMI would register one. The Vault interface is a
 proxy built by name — nothing links against Vault — and an economy some other
 plugin already registered is left alone unless `vault.force` says otherwise.
