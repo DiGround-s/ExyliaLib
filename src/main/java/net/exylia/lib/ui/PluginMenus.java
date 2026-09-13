@@ -27,13 +27,17 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.security.CodeSource;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Comparator;
+import java.util.HexFormat;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Properties;
 import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
 
@@ -58,8 +62,11 @@ import java.util.jar.JarFile;
  */
 public final class PluginMenus {
 
-    /** Key a packaged menu file can declare to opt into {@link #refreshVersionedDirectory}. */
+    /** Key a packaged menu file declares to force {@link #refreshVersionedDirectory} over edits. */
     private static final String MENU_VERSION_KEY = "menu-version";
+
+    /** What {@link #refreshVersionedDirectory} installed, by path: the hashes it compares against. */
+    private static final String INSTALLED_FILES = ".bundled-files";
 
     private final Plugin plugin;
     private final MenuRuntime runtime;

@@ -107,7 +107,11 @@ boolean isFrozen(Player player);
 
 Position packets from a frozen client are dropped and answered with a
 teleport back to the anchor, so the server never sees the move. Rotation is
-kept. A `PlayerMoveEvent` guard covers the case PacketEvents is missing.
+kept: the teleport carries it relative and as zero, so the camera is never
+turned back to where it pointed a round trip ago. A dropped packet takes its
+rotation with it, though; a plugin that needs every turn of a frozen player
+reads the rotation packets itself, before this hook cancels them. A
+`PlayerMoveEvent` guard covers the case PacketEvents is missing.
 
 Limits: knockback, pistons and a plugin teleport still move the player
 server-side; the anchor does not follow. Freeze again after moving them on

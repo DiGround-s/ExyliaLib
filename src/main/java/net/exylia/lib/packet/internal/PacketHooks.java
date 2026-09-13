@@ -35,6 +35,7 @@ import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerEn
 import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerEntityRotation;
 import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerEntitySoundEffect;
 import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerEntityStatus;
+import com.github.retrooper.packetevents.protocol.teleport.RelativeFlag;
 import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerEntityTeleport;
 import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerEntityVelocity;
 import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerHurtAnimation;
@@ -351,9 +352,7 @@ final class PacketHooks extends PacketListenerAbstract implements PacketSink {
                 return;
             }
             event.setCancelled(true);
-            float yaw = packet.hasRotationChanged() ? at.getYaw() : anchor.getYaw();
-            float pitch = packet.hasRotationChanged() ? at.getPitch() : anchor.getPitch();
-            snapBack(user, anchor, yaw, pitch);
+            snapBack(user, anchor);
         } else if (type == PacketType.Play.Client.VEHICLE_MOVE) {
             WrapperPlayClientVehicleMove packet = new WrapperPlayClientVehicleMove(event);
             var at = packet.getPosition();
@@ -361,7 +360,7 @@ final class PacketHooks extends PacketListenerAbstract implements PacketSink {
                 return;
             }
             event.setCancelled(true);
-            snapBack(user, anchor, packet.getYaw(), packet.getPitch());
+            snapBack(user, anchor);
         } else if (type == PacketType.Play.Client.PLAYER_INPUT) {
             // WASD held while frozen: swallowed so a vehicle does not creep.
             event.setCancelled(true);
@@ -375,10 +374,20 @@ final class PacketHooks extends PacketListenerAbstract implements PacketSink {
         return dx * dx + dy * dy + dz * dz > 1e-6;
     }
 
-    private static void snapBack(User user, Location anchor, float yaw, float pitch) {
+    /**
+     * Puts the player back on the anchor without touching where they look.
+     *
+     * <p>The rotation is sent relative, as zero: an absolute one could only be
+     * the rotation of the packet being answered, which is a round trip old by
+     * the time it lands, and would turn the camera back by whatever the mouse
+     * did in between — a stutter on every step for somebody aiming while they
+     * hold a movement key.
+     */
+    private static void snapBack(User user, Location anchor) {
         user.sendPacket(new WrapperPlayServerPlayerPositionAndLook(
-                anchor.getX(), anchor.getY(), anchor.getZ(), yaw, pitch,
-                (byte) 0, ThreadLocalRandom.current().nextInt(1, Integer.MAX_VALUE), false));
+                anchor.getX(), anchor.getY(), anchor.getZ(), 0f, 0f,
+                RelativeFlag.YAW.or(RelativeFlag.PITCH).getMask(),
+                ThreadLocalRandom.current().nextInt(1, Integer.MAX_VALUE), false));
     }
 
     // ------------------------------------------------------------------
