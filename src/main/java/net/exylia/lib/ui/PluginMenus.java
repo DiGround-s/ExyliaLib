@@ -236,29 +236,37 @@ public final class PluginMenus {
     }
 
     /**
-     * Installs a directory of menus players see and brings it up to date
-     * without undoing what a server owner changed in it.
+     * Installs a directory of files a server owner may edit, such as the menus
+     * players see, and keeps it up to date without undoing their edits.
      *
-     * <p>A packaged file opts into updates by declaring its version at the top:
+     * <p>Whether a file was edited is decided by content, never by a version
+     * number: the hash of every file this method installs is kept in
+     * {@code .bundled-files} in the data folder. A plugin started by a loader
+     * reports the same version forever, and a number somebody must remember to
+     * raise is a change that silently never ships. For each packaged file:
+     *
+     * <ul>
+     *   <li><b>missing</b> — written;</li>
+     *   <li><b>unchanged since it was installed</b> — replaced when the plugin
+     *       ships different content, and logged;</li>
+     *   <li><b>edited on the server</b>, or present from before this method
+     *       tracked it — kept, and the plugin's new content is written next to
+     *       it as {@code <name>.new} with a warning, once per new content.</li>
+     * </ul>
+     *
+     * <p>A packaged file can still force itself over edits, for a change the
+     * old file cannot survive, by declaring a version higher than the one on
+     * disk (a file with no key is version 0):
      *
      * <pre>{@code
      * menu-version: 2
      * title: "..."
      * }</pre>
      *
-     * <p>Every packaged file is written when it is missing, versioned or not,
-     * so this one call replaces copying defaults by hand. A file already on
-     * disk is replaced only when the packaged {@code menu-version} is higher
-     * than its own; a file with no key counts as version 0, so the first
-     * version a file declares reaches installations that predate it. Replacing
-     * throws away the owner's changes, so the old file is kept next to it as
-     * {@code <name>.v<old version>} and the update is logged. A file on disk
-     * that does not parse is left untouched and reported: overwriting it would
-     * turn a typo into lost work.
-     *
-     * <p>Each file is moved into place atomically and a failing one does not
-     * stop the rest. Unlike {@link #refreshBundledDirectory(Class, String)},
-     * nothing on disk is ever deleted.
+     * <p>The replaced file is kept as {@code <name>.v<old version>}; one that
+     * does not parse is left untouched and reported instead. Each file is moved
+     * into place atomically, a failing one does not stop the rest, and nothing
+     * on disk is ever deleted.
      *
      * <pre>{@code
      * Menus.of(this).refreshVersionedDirectory(MyPlugin.class, "menus");
@@ -266,10 +274,10 @@ public final class PluginMenus {
      *
      * @param anchor the consumer plugin class packaged with the resources
      * @param resourceDirectory a relative resource and data-folder directory
-     * @return whether every packaged file is now installed and up to date;
-     *         every reason it is not has been logged
+     * @return {@code false} when the directory or a file in it could not be
+     *         read or written, each of which has been logged
      * @throws IllegalArgumentException if the directory is blank, absolute, or escapes the data folder
-     * @since 1.157.0
+     * @since 1.156.1
      */
     public boolean refreshVersionedDirectory(@NotNull Class<?> anchor, @NotNull String resourceDirectory) {
         Path relative = bundledDirectory(resourceDirectory);
@@ -282,15 +290,32 @@ public final class PluginMenus {
             staging = Files.createTempDirectory(dataFolder, ".bundled-");
             extractBundledDirectory(anchor, relative, staging);
 
-            boolean upToDate = true;
+            Path ledgerFile = dataFolder.resolve(INSTALLED_FILES);
+            Properties ledger = new Properties();
+            if (Files.exists(ledgerFile)) {
+                try (var reader = Files.newBufferedReader(ledgerFile)) {
+                    ledger.load(reader);
+                }
+            }
+            Properties before = (Properties) ledger.clone();
+
+            boolean written = true;
             try (var files = Files.walk(staging)) {
                 for (Path packaged : files.filter(Files::isRegularFile).toList()) {
                     Path file = staging.relativize(packaged);
                     String name = relative.resolve(file).toString().replace('\\', '/');
-                    upToDate &= updateVersioned(packaged, target.resolve(file), name);
+                    written &= updateEditable(packaged, target.resolve(file), name, ledger);
                 }
             }
-            return upToDate;
+
+            if (!ledger.equals(before)) {
+                Path temporary = Files.createTempFile(dataFolder, INSTALLED_FILES, ".tmp");
+                try (var writer = Files.newBufferedWriter(temporary)) {
+                    ledger.store(writer, "Files ExyliaLib installed, by content. Deleting this treats them all as edited.");
+                }
+                move(temporary, ledgerFile);
+            }
+            return written;
         } catch (IOException | URISyntaxException | SecurityException failure) {
             debug.warn("Could not refresh versioned directory \"" + resourceDirectory + "\": "
                     + failure.getMessage());
@@ -300,40 +325,72 @@ public final class PluginMenus {
         }
     }
 
-    /** Installs or updates one file, reporting a failure instead of throwing it. */
-    private boolean updateVersioned(Path packaged, Path onDisk, String name) {
+    /** Installs, updates or offers one file, reporting a failure instead of throwing it. */
+    private boolean updateEditable(Path packaged, Path onDisk, String name, Properties ledger) {
         try {
-            Integer packagedVersion = declaredMenuVersion(packaged);
+            String shipped = hash(packaged);
             if (Files.notExists(onDisk)) {
                 install(packaged, onDisk);
+                ledger.setProperty(name, shipped);
                 return true;
             }
-            if (packagedVersion == null) {
+            String present = hash(onDisk);
+            if (present.equals(shipped)) {
+                ledger.setProperty(name, shipped);
                 return true;
             }
-
-            Integer declared;
-            try {
-                declared = declaredMenuVersion(onDisk);
-            } catch (InvalidConfigurationException broken) {
-                debug.warn("Not updating " + name + " to version " + packagedVersion + ": it could not be read ("
-                        + broken.getMessage() + "). The file was left untouched.");
-                return false;
-            }
-            int current = declared == null ? 0 : declared;
-            if (current >= packagedVersion) {
+            if (present.equals(ledger.getProperty(name))) {
+                // Exactly what was installed, so there is nothing of the owner's to lose.
+                install(packaged, onDisk);
+                ledger.setProperty(name, shipped);
+                debug.log("Updated " + name + ".");
                 return true;
             }
 
-            Path previous = onDisk.resolveSibling(onDisk.getFileName() + ".v" + current);
-            Files.copy(onDisk, previous, StandardCopyOption.REPLACE_EXISTING);
-            install(packaged, onDisk);
-            debug.log("Updated " + name + " from version " + current + " to " + packagedVersion
-                    + "; the previous file was kept as " + previous.getFileName() + ".");
+            Integer packagedVersion = declaredMenuVersion(packaged);
+            if (packagedVersion != null) {
+                Integer declared;
+                try {
+                    declared = declaredMenuVersion(onDisk);
+                } catch (InvalidConfigurationException broken) {
+                    debug.warn("Not updating " + name + " to version " + packagedVersion + ": it could not be read ("
+                            + broken.getMessage() + "). The file was left untouched.");
+                    return false;
+                }
+                int current = declared == null ? 0 : declared;
+                if (current < packagedVersion) {
+                    Path previous = onDisk.resolveSibling(onDisk.getFileName() + ".v" + current);
+                    Files.copy(onDisk, previous, StandardCopyOption.REPLACE_EXISTING);
+                    install(packaged, onDisk);
+                    ledger.setProperty(name, shipped);
+                    debug.log("Updated " + name + " from version " + current + " to " + packagedVersion
+                            + "; the previous file was kept as " + previous.getFileName() + ".");
+                    return true;
+                }
+            }
+
+            // Remembered per content, so an owner who merged and deleted the
+            // offer is not handed the same one on every start.
+            String offeredKey = name + ".new";
+            if (!shipped.equals(ledger.getProperty(offeredKey))) {
+                Path offered = onDisk.resolveSibling(onDisk.getFileName() + ".new");
+                install(packaged, offered);
+                ledger.setProperty(offeredKey, shipped);
+                debug.warn(name + " was changed on this server, so it was kept. The plugin's new version is next to it as "
+                        + offered.getFileName() + ".");
+            }
             return true;
         } catch (IOException | InvalidConfigurationException | SecurityException failure) {
             debug.warn("Could not update " + name + ": " + failure.getMessage());
             return false;
+        }
+    }
+
+    private static String hash(Path file) throws IOException {
+        try {
+            return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(Files.readAllBytes(file)));
+        } catch (NoSuchAlgorithmException impossible) {
+            throw new IllegalStateException("Every JVM provides SHA-256.", impossible);
         }
     }
 

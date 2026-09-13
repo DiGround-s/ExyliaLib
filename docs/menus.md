@@ -72,22 +72,34 @@ menus players see, which a server owner is expected to reword, use
 menus.refreshVersionedDirectory(MyPlugin.class, "menus");
 ```
 
-- **Missing files are written**, versioned or not. One call installs the defaults.
-- **A file opts into updates** by declaring `menu-version: N` at its top. The file
-  on disk is replaced only when the packaged number is higher; a file with no
-  key counts as `0`, so the first version you declare reaches existing servers.
-  Raise the number when a change must reach them, such as a new button.
-- **Replacing discards the owner's changes**, so the old file is kept as
-  `<name>.v<old version>` (for example `main.yml.v1`) and the update is logged.
-- **A file on disk that does not parse is left untouched** and a warning names it.
-- Each file is moved into place atomically, and one failing file does not stop
-  the rest. Nothing on disk is ever deleted. The method returns `false` when any
-  file was left behind.
+Edits are detected by content, never by a version: the hash of every file it
+installs is kept in `.bundled-files` in the data folder. A plugin started by a
+loader reports the same version forever, and a number somebody must remember to
+raise is a change that silently never ships.
+
+- **Missing** — written. One call installs the defaults.
+- **Unchanged since it was installed** — replaced when the plugin ships
+  different content, with an `Updated menus/main.yml.` line.
+- **Edited on the server** — kept. The new content is written next to it as
+  `main.yml.new` with a warning, once per new content, so deleting the offer
+  after merging it does not bring it back on the next start.
+
+A file that was already on disk before the plugin used this method has no
+recorded hash, so it counts as edited unless it matches the packaged file.
+
+A change the old file cannot survive can force itself over edits by declaring a
+version higher than the one on disk (a file with no key is version `0`):
 
 ```yaml
 menu-version: 2
 title: "..."
 ```
+
+The replaced file is kept as `main.yml.v1`, and a file on disk that does not
+parse is left untouched and reported instead. Each file is moved into place
+atomically, one failing file does not stop the rest, and nothing on disk is ever
+deleted. The method returns `false` only when something could not be read or
+written.
 
 ## Opening
 

@@ -57,61 +57,167 @@ class PluginMenusVersionedDirectoryTest {
         return directory;
     }
 
-    @Test
-    void writesAFileNeverSeenBeforeAtItsPackagedVersion() throws Exception {
-        String directory = "versioned-fresh-install";
-        Files.writeString(packaged(directory).resolve("main.yml"), "menu-version: 1\ntitle: fresh");
-        List<String> messages = DebugCapture.start();
-
-        assertTrue(menus.refreshVersionedDirectory(PluginMenusVersionedDirectoryTest.class, directory),
-                messages::toString);
-
-        Path target = folder.resolve(directory + "/main.yml");
-        assertEquals("menu-version: 1\ntitle: fresh", Files.readString(target));
-        assertTrue(messages.isEmpty());
+    private boolean refresh(String directory) {
+        return menus.refreshVersionedDirectory(PluginMenusVersionedDirectoryTest.class, directory);
     }
 
     @Test
-    void replacesAFileWhoseOnDiskVersionIsOlder() throws Exception {
-        String directory = "versioned-older-on-disk";
+    void installsMissingFilesQuietly() throws Exception {
+        String directory = "editable-fresh-install";
+        Files.writeString(packaged(directory).resolve("main.yml"), "title: fresh");
+        List<String> messages = DebugCapture.start();
+
+        assertTrue(refresh(directory), messages::toString);
+
+        assertEquals("title: fresh", Files.readString(folder.resolve(directory + "/main.yml")));
+        assertTrue(messages.isEmpty(), messages::toString);
+    }
+
+    @Test
+    void updatesAFileNobodyChangedSinceItWasInstalled() throws Exception {
+        String directory = "editable-untouched";
+        Path source = packaged(directory).resolve("main.yml");
+        Files.writeString(source, "title: old");
+        assertTrue(refresh(directory));
+
+        Files.writeString(source, "title: new button");
+        List<String> messages = DebugCapture.start();
+        assertTrue(refresh(directory));
+
+        Path target = folder.resolve(directory + "/main.yml");
+        assertEquals("title: new button", Files.readString(target));
+        assertFalse(Files.exists(target.resolveSibling("main.yml.new")));
+        assertTrue(messages.stream().anyMatch(line -> line.contains("Updated " + directory + "/main.yml")),
+                messages::toString);
+    }
+
+    @Test
+    void keepsAnEditedFileAndOffersTheNewContentOnce() throws Exception {
+        String directory = "editable-edited";
+        Path source = packaged(directory).resolve("main.yml");
+        Files.writeString(source, "title: old");
+        assertTrue(refresh(directory));
+        Path target = folder.resolve(directory + "/main.yml");
+        Files.writeString(target, "title: reworded by the owner");
+
+        Files.writeString(source, "title: new button");
+        List<String> messages = DebugCapture.start();
+        assertTrue(refresh(directory));
+
+        Path offered = target.resolveSibling("main.yml.new");
+        assertEquals("title: reworded by the owner", Files.readString(target));
+        assertEquals("title: new button", Files.readString(offered));
+        assertTrue(messages.stream().anyMatch(line -> line.contains("main.yml.new")), messages::toString);
+
+        Files.delete(offered);
+        messages.clear();
+        assertTrue(refresh(directory));
+
+        assertFalse(Files.exists(offered));
+        assertTrue(messages.isEmpty(), messages::toString);
+    }
+
+    @Test
+    void offersAgainWhenThePluginShipsYetAnotherVersion() throws Exception {
+        String directory = "editable-offered-twice";
+        Path source = packaged(directory).resolve("main.yml");
+        Files.writeString(source, "title: old");
+        assertTrue(refresh(directory));
+        Path target = folder.resolve(directory + "/main.yml");
+        Files.writeString(target, "title: reworded by the owner");
+        Files.writeString(source, "title: second");
+        assertTrue(refresh(directory));
+
+        Files.writeString(source, "title: third");
+        assertTrue(refresh(directory));
+
+        assertEquals("title: third", Files.readString(target.resolveSibling("main.yml.new")));
+    }
+
+    @Test
+    void adoptsAFileThatMatchesThePackagedOneWithoutARecord() throws Exception {
+        String directory = "editable-adopted";
+        Path source = packaged(directory).resolve("main.yml");
+        Files.writeString(source, "title: same");
+        Path target = folder.resolve(directory + "/main.yml");
+        Files.createDirectories(target.getParent());
+        Files.writeString(target, "title: same");
+        assertTrue(refresh(directory));
+
+        Files.writeString(source, "title: new button");
+        assertTrue(refresh(directory));
+
+        assertEquals("title: new button", Files.readString(target));
+    }
+
+    @Test
+    void treatsAnUnrecordedDifferentFileAsEdited() throws Exception {
+        String directory = "editable-unrecorded";
+        Files.writeString(packaged(directory).resolve("main.yml"), "title: new");
+        Path target = folder.resolve(directory + "/main.yml");
+        Files.createDirectories(target.getParent());
+        Files.writeString(target, "title: from before");
+
+        assertTrue(refresh(directory));
+
+        assertEquals("title: from before", Files.readString(target));
+        assertEquals("title: new", Files.readString(target.resolveSibling("main.yml.new")));
+    }
+
+    @Test
+    void aHigherMenuVersionForcesItselfOverAnEditAndKeepsTheOldFile() throws Exception {
+        String directory = "editable-forced";
         Files.writeString(packaged(directory).resolve("main.yml"), "menu-version: 2\ntitle: new");
         Path target = folder.resolve(directory + "/main.yml");
         Files.createDirectories(target.getParent());
-        Files.writeString(target, "menu-version: 1\ntitle: old");
+        Files.writeString(target, "menu-version: 1\ntitle: edited");
         List<String> messages = DebugCapture.start();
 
-        assertTrue(menus.refreshVersionedDirectory(PluginMenusVersionedDirectoryTest.class, directory));
+        assertTrue(refresh(directory));
 
         assertEquals("menu-version: 2\ntitle: new", Files.readString(target));
-        assertEquals("menu-version: 1\ntitle: old", Files.readString(target.resolveSibling("main.yml.v1")));
+        assertEquals("menu-version: 1\ntitle: edited", Files.readString(target.resolveSibling("main.yml.v1")));
         assertTrue(messages.stream().anyMatch(line -> line.contains("from version 1 to 2")), messages::toString);
     }
 
     @Test
-    void updatesFilesInNestedDirectories() throws Exception {
-        String directory = "versioned-nested";
-        Path nested = packaged(directory).resolve("games");
-        Files.createDirectories(nested);
-        Files.writeString(nested.resolve("lobby.yml"), "menu-version: 2\ntitle: new");
-        Path target = folder.resolve(directory + "/games/lobby.yml");
+    void aFileWithNoMenuVersionCountsAsVersionZero() throws Exception {
+        String directory = "editable-forced-from-zero";
+        Files.writeString(packaged(directory).resolve("main.yml"), "menu-version: 1\ntitle: versioned now");
+        Path target = folder.resolve(directory + "/main.yml");
         Files.createDirectories(target.getParent());
-        Files.writeString(target, "menu-version: 1\ntitle: old");
+        Files.writeString(target, "title: predates versioning");
 
-        assertTrue(menus.refreshVersionedDirectory(PluginMenusVersionedDirectoryTest.class, directory));
+        assertTrue(refresh(directory));
 
-        assertEquals("menu-version: 2\ntitle: new", Files.readString(target));
+        assertEquals("menu-version: 1\ntitle: versioned now", Files.readString(target));
+        assertEquals("title: predates versioning", Files.readString(target.resolveSibling("main.yml.v0")));
+    }
+
+    @Test
+    void anEditAtTheSameMenuVersionIsOfferedNotForced() throws Exception {
+        String directory = "editable-same-version";
+        Files.writeString(packaged(directory).resolve("main.yml"), "menu-version: 2\ntitle: new");
+        Path target = folder.resolve(directory + "/main.yml");
+        Files.createDirectories(target.getParent());
+        Files.writeString(target, "menu-version: 2\ntitle: edited");
+
+        assertTrue(refresh(directory));
+
+        assertEquals("menu-version: 2\ntitle: edited", Files.readString(target));
+        assertTrue(Files.exists(target.resolveSibling("main.yml.new")));
     }
 
     @Test
     void leavesAnUnreadableFileOnDiskUntouchedAndSaysSo() throws Exception {
-        String directory = "versioned-unreadable-on-disk";
+        String directory = "editable-unreadable";
         Files.writeString(packaged(directory).resolve("main.yml"), "menu-version: 2\ntitle: new");
         Path target = folder.resolve(directory + "/main.yml");
         Files.createDirectories(target.getParent());
         Files.writeString(target, "menu-version: 1\ntitle: [unclosed");
         List<String> messages = DebugCapture.start();
 
-        assertFalse(menus.refreshVersionedDirectory(PluginMenusVersionedDirectoryTest.class, directory));
+        assertFalse(refresh(directory));
 
         assertEquals("menu-version: 1\ntitle: [unclosed", Files.readString(target));
         assertFalse(Files.exists(target.resolveSibling("main.yml.v1")));
@@ -119,81 +225,16 @@ class PluginMenusVersionedDirectoryTest {
     }
 
     @Test
-    void leavesAFileAlreadyAtThePackagedVersionExactlyAsItIs() throws Exception {
-        String directory = "versioned-already-caught-up";
-        Files.writeString(packaged(directory).resolve("main.yml"), "menu-version: 2\ntitle: new");
-        Path target = folder.resolve(directory + "/main.yml");
-        Files.createDirectories(target.getParent());
-        Files.writeString(target, "menu-version: 2\ntitle: hand-edited by an admin");
+    void updatesFilesInNestedDirectories() throws Exception {
+        String directory = "editable-nested";
+        Path nested = packaged(directory).resolve("games");
+        Files.createDirectories(nested);
+        Files.writeString(nested.resolve("lobby.yml"), "title: old");
+        assertTrue(refresh(directory));
 
-        assertTrue(menus.refreshVersionedDirectory(PluginMenusVersionedDirectoryTest.class, directory));
+        Files.writeString(nested.resolve("lobby.yml"), "title: new");
+        assertTrue(refresh(directory));
 
-        assertEquals("menu-version: 2\ntitle: hand-edited by an admin", Files.readString(target));
-    }
-
-    @Test
-    void leavesAFileAheadOfThePackagedVersionAlone() throws Exception {
-        String directory = "versioned-ahead-of-packaged";
-        Files.writeString(packaged(directory).resolve("main.yml"), "menu-version: 1\ntitle: rolled back");
-        Path target = folder.resolve(directory + "/main.yml");
-        Files.createDirectories(target.getParent());
-        Files.writeString(target, "menu-version: 3\ntitle: ahead");
-
-        assertTrue(menus.refreshVersionedDirectory(PluginMenusVersionedDirectoryTest.class, directory));
-
-        assertEquals("menu-version: 3\ntitle: ahead", Files.readString(target));
-    }
-
-    @Test
-    void replacesAFileAlreadyOnDiskWithNoVersionKeyOfItsOwn() throws Exception {
-        String directory = "versioned-predates-versioning";
-        Files.writeString(packaged(directory).resolve("main.yml"), "menu-version: 1\ntitle: versioned now");
-        Path target = folder.resolve(directory + "/main.yml");
-        Files.createDirectories(target.getParent());
-        Files.writeString(target, "title: predates versioning");
-
-        assertTrue(menus.refreshVersionedDirectory(PluginMenusVersionedDirectoryTest.class, directory));
-
-        assertEquals("menu-version: 1\ntitle: versioned now", Files.readString(target));
-        assertEquals("title: predates versioning", Files.readString(target.resolveSibling("main.yml.v0")));
-    }
-
-    @Test
-    void installsAMissingFileThatDoesNotDeclareAVersion() throws Exception {
-        String directory = "versioned-unversioned-missing";
-        Files.writeString(packaged(directory).resolve("main.yml"), "title: unversioned");
-
-        assertTrue(menus.refreshVersionedDirectory(PluginMenusVersionedDirectoryTest.class, directory));
-
-        assertEquals("title: unversioned", Files.readString(folder.resolve(directory + "/main.yml")));
-    }
-
-    @Test
-    void neverTouchesAFileThatDoesNotDeclareAVersion() throws Exception {
-        String directory = "versioned-opted-out";
-        Files.writeString(packaged(directory).resolve("main.yml"), "title: unversioned");
-        Path target = folder.resolve(directory + "/main.yml");
-        Files.createDirectories(target.getParent());
-        Files.writeString(target, "title: unversioned but hand-edited");
-
-        assertTrue(menus.refreshVersionedDirectory(PluginMenusVersionedDirectoryTest.class, directory));
-
-        assertEquals("title: unversioned but hand-edited", Files.readString(target));
-    }
-
-    @Test
-    void addsAFileThatIsNewInThisPackagedVersionWithoutTouchingItsSiblings() throws Exception {
-        String directory = "versioned-new-sibling";
-        Path root = packaged(directory);
-        Files.writeString(root.resolve("main.yml"), "menu-version: 1\ntitle: old");
-        Files.writeString(root.resolve("gridshot.yml"), "menu-version: 1\ntitle: new mode");
-        Path target = folder.resolve(directory);
-        Files.createDirectories(target);
-        Files.writeString(target.resolve("main.yml"), "menu-version: 1\ntitle: old");
-
-        assertTrue(menus.refreshVersionedDirectory(PluginMenusVersionedDirectoryTest.class, directory));
-
-        assertEquals("menu-version: 1\ntitle: old", Files.readString(target.resolve("main.yml")));
-        assertEquals("menu-version: 1\ntitle: new mode", Files.readString(target.resolve("gridshot.yml")));
+        assertEquals("title: new", Files.readString(folder.resolve(directory + "/games/lobby.yml")));
     }
 }
