@@ -943,17 +943,23 @@ public final class ReloadCommand {
                 raw.append("\n{letters_black}▎ {info}%file").append(id).append('%');
                 values.put("%file" + id + "%", file);
             }
-            raw.append("\n{letters_black}▎  {letters}%key").append(id).append("% {letters_black}» {muted}%now")
-                    .append(id).append("% {letters_black}→ ");
-            if (entry.change().kind() == net.exylia.lib.config.internal.DefaultsMerge.Kind.REMOVED) {
-                raw.append("{error}removed");
-            } else {
-                raw.append("{highlight}%next").append(id).append('%');
+            net.exylia.lib.config.internal.DefaultsMerge.Kind kind = entry.change().kind();
+            raw.append("\n{letters_black}▎  {letters}%key").append(id).append("% {letters_black}» ");
+            if (kind == net.exylia.lib.config.internal.DefaultsMerge.Kind.ADDED) {
+                raw.append("{success}new {highlight}%next").append(id).append('%');
                 values.put("%next" + id + "%", shown(entry.change().shipped()));
+            } else {
+                raw.append("{muted}%now").append(id).append("% {letters_black}→ ");
+                values.put("%now" + id + "%", shown(entry.change().current()));
+                if (kind == net.exylia.lib.config.internal.DefaultsMerge.Kind.REMOVED) {
+                    raw.append("{error}removed");
+                } else {
+                    raw.append("{highlight}%next").append(id).append('%');
+                    values.put("%next" + id + "%", shown(entry.change().shipped()));
+                }
             }
             raw.append(' ').append(updateLinks(String.valueOf(id), ""));
             values.put("%key" + id + "%", entry.change().dotted());
-            values.put("%now" + id + "%", shown(entry.change().current()));
         }
         raw.append("\n{letters_black}▎ ").append(updateLinks(ALL_TABLES_WORD, " all"));
 

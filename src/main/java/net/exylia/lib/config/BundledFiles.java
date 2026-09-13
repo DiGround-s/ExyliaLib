@@ -36,7 +36,8 @@ import java.util.stream.Collectors;
  * every key is compared with the defaults the owner last reviewed, kept in
  * {@code .defaults/files/} in the data folder:
  * <ul>
- *   <li><b>missing file</b> — written;</li>
+ *   <li><b>missing file</b> — written, unless it was installed before and the
+ *       owner deleted it;</li>
  *   <li><b>new key</b> — added to the owner's file at once, comments included:
  *       nobody can have chosen something that did not exist;</li>
  *   <li><b>changed or removed default</b> on a key still at its reviewed value
@@ -46,8 +47,9 @@ import java.util.stream.Collectors;
  *   <li><b>anything the owner changed or deleted</b> — never touched.</li>
  * </ul>
  *
- * <p>A server with nothing reviewed yet only gets missing keys; every value
- * already there counts as the owner's. A change the old file cannot survive
+ * <p>On a server with nothing reviewed yet every value already there counts as
+ * the owner's, and a key missing from a file is listed as new rather than added,
+ * since it may be one the owner deleted. A change the old file cannot survive
  * still forces itself over edits when the packaged file declares a
  * {@code menu-version} (or {@code defaults-version}) higher than the one on
  * disk; the replaced file is kept as {@code <name>.v<old version>}. A file on
@@ -114,6 +116,11 @@ public final class BundledFiles {
         Path reviewedPath = dataFolder.resolve(REVIEWED).resolve(file);
         try {
             if (Files.notExists(onDisk)) {
+                if (Files.exists(reviewedPath)) {
+                    // Installed before and gone now: the owner deleted it.
+                    DefaultUpdates.forget(plugin, name);
+                    return true;
+                }
                 install(packaged, onDisk, reviewedPath);
                 DefaultUpdates.forget(plugin, name);
                 return true;

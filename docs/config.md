@@ -263,8 +263,10 @@ Call it before reading the files, on enable and on reload. Missing files are
 written. For YAML, a key new in the plugin is added to the owner's file with its
 comments — nobody can have chosen something that did not exist — and a changed or
 removed default waits in `/exylialib updates`. A key the owner deleted is not
-added back. A file from before tracking only gets missing keys. Reviewed defaults
-live in `.defaults/files/`.
+added back, and neither is a file the owner deleted. On a server from before
+tracking, a key missing from a file may be one the owner deleted, so it is listed
+as **new** in `/exylialib updates` rather than added. Reviewed defaults live in
+`.defaults/files/`.
 
 - A file on disk that does not parse is left untouched and reported.
 - A packaged `menu-version` (or `defaults-version`) higher than the file's

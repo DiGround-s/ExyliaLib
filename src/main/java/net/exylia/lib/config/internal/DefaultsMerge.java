@@ -31,17 +31,22 @@ import java.util.Set;
  * </ul>
  *
  * <p>A key the owner deleted counts as theirs too, so a default they removed is
- * not added back. With nothing reviewed yet — a server that predates this — only
- * keys missing from disk are added, and every value already there is the
- * owner's.
+ * not added back. With nothing reviewed yet — a server that predates this — every
+ * value already there is the owner's, and a key missing from disk is offered as
+ * an added change rather than written: it may be one the owner deleted. The
+ * offer is remembered under {@link #OFFERED} until somebody decides.
  */
 public final class DefaultsMerge {
 
     /** A separator no key uses, so a key with a dot in it stays one key. */
     public static final char SEPARATOR = '\u0001';
 
-    /** Top-level keys that version a file rather than configure anything. */
-    private static final Set<String> BOOKKEEPING = Set.of("config-version", "menu-version", "defaults-version");
+    /** Where reviewed defaults remember keys offered to a file nobody had reviewed. */
+    public static final String OFFERED = "pending-additions";
+
+    /** Top-level keys that version or track a file rather than configure anything. */
+    private static final Set<String> BOOKKEEPING =
+            Set.of("config-version", "menu-version", "defaults-version", OFFERED);
 
     /** What kind of change a shipped default is. */
     public enum Kind {
@@ -105,7 +110,12 @@ public final class DefaultsMerge {
         List<Change> added = new ArrayList<>();
         List<Change> pending = new ArrayList<>();
         YamlConfiguration next = yaml();
-        walk(disk, reviewed, shipped, next, new ArrayList<>(), added, pending);
+        Set<String> offered = reviewed == null ? Set.of() : Set.copyOf(reviewed.getStringList(OFFERED));
+        List<String> stillOffered = new ArrayList<>();
+        walk(disk, reviewed, shipped, next, new ArrayList<>(), added, pending, offered, stillOffered);
+        if (!stillOffered.isEmpty()) {
+            next.set(OFFERED, stillOffered);
+        }
         return new Result(List.copyOf(added), List.copyOf(pending), next);
     }
 
@@ -119,6 +129,10 @@ public final class DefaultsMerge {
     /** Records a pending change as reviewed, leaving the owner's value as it is. */
     public static void keep(@NotNull ConfigurationSection reviewed, @NotNull Change change) {
         put(reviewed, joined(change.path()), change.shipped());
+        List<String> offered = new ArrayList<>(reviewed.getStringList(OFFERED));
+        if (offered.remove(change.dotted())) {
+            reviewed.set(OFFERED, offered.isEmpty() ? null : offered);
+        }
     }
 
     /** Whether two YAML values hold the same thing, sections compared by content. */
@@ -128,7 +142,8 @@ public final class DefaultsMerge {
 
     private static void walk(@Nullable ConfigurationSection disk, @Nullable ConfigurationSection reviewed,
                              ConfigurationSection shipped, ConfigurationSection next, List<String> path,
-                             List<Change> added, List<Change> pending) {
+                             List<Change> added, List<Change> pending,
+                             Set<String> offered, List<String> stillOffered) {
         Set<String> keys = new LinkedHashSet<>(shipped.getKeys(false));
         if (reviewed != null) {
             keys.addAll(reviewed.getKeys(false));
@@ -137,6 +152,7 @@ public final class DefaultsMerge {
         for (String key : keys) {
             List<String> childPath = new ArrayList<>(path);
             childPath.add(key);
+            String dotted = String.join(".", childPath);
             Object now = shipped.get(key);
             if (path.isEmpty() && BOOKKEEPING.contains(key)) {
                 // Written by the library, not chosen by anyone: never offered.
@@ -153,7 +169,17 @@ public final class DefaultsMerge {
                     && current instanceof ConfigurationSection currentSection
                     && (!known || before instanceof ConfigurationSection)) {
                 walk(currentSection, known ? (ConfigurationSection) before : null, nowSection,
-                        next.createSection(key), childPath, added, pending);
+                        next.createSection(key), childPath, added, pending, offered, stillOffered);
+                continue;
+            }
+
+            boolean absent = current == null && disk != null && !disk.contains(key);
+            if (known && absent && offered.contains(dotted)) {
+                if (now != null) {
+                    pending.add(new Change(childPath, Kind.ADDED, null, plain(now)));
+                    stillOffered.add(dotted);
+                    put(next, key, now);
+                }
                 continue;
             }
 
@@ -161,7 +187,12 @@ public final class DefaultsMerge {
                 if (now == null) {
                     continue;
                 }
-                if (current == null && disk != null && !disk.contains(key)) {
+                if (absent && reviewed == null) {
+                    // Nothing says whether the owner deleted this or never had it,
+                    // so it is offered rather than written.
+                    pending.add(new Change(childPath, Kind.ADDED, null, plain(now)));
+                    stillOffered.add(dotted);
+                } else if (absent) {
                     put(disk, key, now);
                     copyComments(shipped, disk, key);
                     added.add(new Change(childPath, Kind.ADDED, null, plain(now)));

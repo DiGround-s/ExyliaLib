@@ -26,7 +26,7 @@ class DefaultsMergeTest {
     }
 
     @Test
-    void aServerWithNothingReviewedOnlyGetsMissingKeys() throws Exception {
+    void aServerWithNothingReviewedIsOfferedWhatItLacksAndKeepsTheRest() throws Exception {
         YamlConfiguration disk = yaml("cooldown: 45\nitems:\n  close:\n    slot: 49\n");
         YamlConfiguration shipped = yaml("cooldown: 30\nitems:\n  close:\n    slot: 53\n  info:\n    slot: 4\n");
 
@@ -34,9 +34,29 @@ class DefaultsMergeTest {
 
         assertEquals(45, at(disk, "cooldown"));
         assertEquals(49, at(disk, "items", "close", "slot"));
-        assertEquals(4, at(disk, "items", "info", "slot"));
-        assertEquals(List.of("items.info"), result.added().stream().map(Change::dotted).toList());
-        assertTrue(result.pending().isEmpty());
+        assertNull(at(disk, "items", "info"));
+        assertTrue(result.added().isEmpty());
+        assertEquals(List.of("items.info"), result.pending().stream().map(Change::dotted).toList());
+        assertEquals(Kind.ADDED, result.pending().getFirst().kind());
+    }
+
+    @Test
+    void anOfferedAdditionStaysOfferedUntilDecided() throws Exception {
+        YamlConfiguration disk = yaml("cooldown: 30\n");
+        YamlConfiguration shipped = yaml("cooldown: 30\nrange: 12\n");
+        Result first = DefaultsMerge.merge(disk, null, shipped);
+
+        Result again = DefaultsMerge.merge(disk, first.reviewed(), shipped);
+        assertEquals(List.of("range"), again.pending().stream().map(Change::dotted).toList());
+        assertNull(at(disk, "range"));
+
+        YamlConfiguration reviewed = again.reviewed();
+        DefaultsMerge.keep(reviewed, again.pending().getFirst());
+        Result decided = DefaultsMerge.merge(disk, reviewed, shipped);
+
+        assertTrue(decided.pending().isEmpty());
+        assertTrue(decided.added().isEmpty());
+        assertNull(at(disk, "range"));
     }
 
     @Test

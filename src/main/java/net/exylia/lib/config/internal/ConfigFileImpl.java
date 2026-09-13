@@ -260,7 +260,10 @@ public final class ConfigFileImpl<T> implements ConfigFile<T> {
             DefaultsMerge.Result result = DefaultsMerge.merge(copy, reviewed, shipped);
             BundledResources.write(reviewedPath, result.reviewed().saveToString());
             DefaultUpdates.track(plugin, fileName, file.toPath(), reviewedPath, shippedText,
-                    this::reload, result.pending());
+                    this::reload, result.pending().stream()
+                            // The binder already writes every missing key of a config.
+                            .filter(change -> change.kind() != DefaultsMerge.Kind.ADDED)
+                            .toList());
         } catch (IOException | InvalidConfigurationException failure) {
             plugin.getLogger().log(Level.WARNING, "Could not compare " + fileName + " with its defaults", failure);
         }

@@ -134,15 +134,30 @@ class BundledFilesTest {
     }
 
     @Test
-    void aFileFromBeforeTrackingOnlyGetsMissingKeys() throws Exception {
+    void aFileFromBeforeTrackingIsOfferedWhatItLacks() throws Exception {
         pack("bundled-predates/main.yml", "cooldown: 30\nrange: 12\n");
         onDisk("bundled-predates/main.yml", "cooldown: 45\n");
 
         assertTrue(refresh("bundled-predates"));
+        assertTrue(refresh("bundled-predates"));
 
         assertEquals(45, value("bundled-predates/main.yml", "cooldown"));
+        assertEquals(null, value("bundled-predates/main.yml", "range"));
+        assertEquals(List.of("range"), pendingKeys());
+
+        assertEquals(1, DefaultUpdates.decide(pending -> true, true).applied());
         assertEquals(12, value("bundled-predates/main.yml", "range"));
-        assertTrue(DefaultUpdates.pending().isEmpty());
+    }
+
+    @Test
+    void aFileTheOwnerDeletedIsNotWrittenAgain() throws Exception {
+        pack("bundled-deleted/extra.yml", "title: extra");
+        assertTrue(refresh("bundled-deleted"));
+        Files.delete(folder.resolve("bundled-deleted/extra.yml"));
+
+        assertTrue(refresh("bundled-deleted"));
+
+        assertFalse(Files.exists(folder.resolve("bundled-deleted/extra.yml")));
     }
 
     @Test
