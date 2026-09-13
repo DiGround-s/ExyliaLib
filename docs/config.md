@@ -230,6 +230,12 @@ the plugin's data folder, and compares them on each load:
   as it is and listed in `/exylialib updates`.
 - **A value the owner changed** is theirs and is never listed.
 
+For a player, `/exylialib updates` opens a menu: plugins, then their files,
+then each change with the current value and the new default in its lore. Left
+click applies, right click keeps; shift-clicking a plugin or file decides all of
+it, and the buttons at the bottom decide everything the screen shows. The
+console gets the same list as text:
+
 ```
 EXYLIALIB updates
 ▎ ExyliaFFA [Apply all] [Keep all]

@@ -283,6 +283,7 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         // because nothing else waits on it: the first pass is a minute away.
         CleanupRuntime.init(this);
         LibCommands.register(this);
+        net.exylia.lib.internal.UpdatesMenu.init(this);
         // A tick after startup every plugin has enabled and read its files, so
         // pending defaults are announced once rather than file by file.
         Tasks.of(this).runLater(1L, () -> {
@@ -495,6 +496,7 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
             net.exylia.lib.ragdoll.internal.SkinCache.rewarm();
         }
         palette.reload();
+        net.exylia.lib.internal.UpdatesMenu.reload();
         // Both files are the library's own shared configuration, and a server
         // owner running one reload command means both. Keeping formats.yml on a
         // separate command would guarantee that the one nobody remembers is the
@@ -581,6 +583,7 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         // goes first: an editor lives in a window, and closing the window first
         // would strand the working copy nobody approved.
         EditorRuntime.releaseAll();
+        net.exylia.lib.internal.UpdatesMenu.release();
         Menus.releaseAll();
         Regions.releaseAll();
         Blocks.releaseAll();

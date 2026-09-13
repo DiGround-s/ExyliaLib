@@ -849,6 +849,10 @@ public final class ReloadCommand {
     @Subcommand("updates")
     @CommandPermission(DefaultUpdates.PERMISSION)
     public void updates(@NotNull CommandSender sender) {
+        if (sender instanceof org.bukkit.entity.Player player) {
+            UpdatesMenu.open(player);
+            return;
+        }
         updatesPanel(header(), DefaultUpdates.pending()).send(sender);
     }
 
