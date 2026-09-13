@@ -13,6 +13,7 @@ import java.nio.file.Path;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -77,10 +78,44 @@ class PluginMenusVersionedDirectoryTest {
         Path target = folder.resolve(directory + "/main.yml");
         Files.createDirectories(target.getParent());
         Files.writeString(target, "menu-version: 1\ntitle: old");
+        List<String> messages = DebugCapture.start();
 
         assertTrue(menus.refreshVersionedDirectory(PluginMenusVersionedDirectoryTest.class, directory));
 
         assertEquals("menu-version: 2\ntitle: new", Files.readString(target));
+        assertEquals("menu-version: 1\ntitle: old", Files.readString(target.resolveSibling("main.yml.v1")));
+        assertTrue(messages.stream().anyMatch(line -> line.contains("from version 1 to 2")), messages::toString);
+    }
+
+    @Test
+    void updatesFilesInNestedDirectories() throws Exception {
+        String directory = "versioned-nested";
+        Path nested = packaged(directory).resolve("games");
+        Files.createDirectories(nested);
+        Files.writeString(nested.resolve("lobby.yml"), "menu-version: 2\ntitle: new");
+        Path target = folder.resolve(directory + "/games/lobby.yml");
+        Files.createDirectories(target.getParent());
+        Files.writeString(target, "menu-version: 1\ntitle: old");
+
+        assertTrue(menus.refreshVersionedDirectory(PluginMenusVersionedDirectoryTest.class, directory));
+
+        assertEquals("menu-version: 2\ntitle: new", Files.readString(target));
+    }
+
+    @Test
+    void leavesAnUnreadableFileOnDiskUntouchedAndSaysSo() throws Exception {
+        String directory = "versioned-unreadable-on-disk";
+        Files.writeString(packaged(directory).resolve("main.yml"), "menu-version: 2\ntitle: new");
+        Path target = folder.resolve(directory + "/main.yml");
+        Files.createDirectories(target.getParent());
+        Files.writeString(target, "menu-version: 1\ntitle: [unclosed");
+        List<String> messages = DebugCapture.start();
+
+        assertFalse(menus.refreshVersionedDirectory(PluginMenusVersionedDirectoryTest.class, directory));
+
+        assertEquals("menu-version: 1\ntitle: [unclosed", Files.readString(target));
+        assertFalse(Files.exists(target.resolveSibling("main.yml.v1")));
+        assertTrue(messages.stream().anyMatch(line -> line.contains("could not be read")), messages::toString);
     }
 
     @Test
@@ -120,6 +155,17 @@ class PluginMenusVersionedDirectoryTest {
         assertTrue(menus.refreshVersionedDirectory(PluginMenusVersionedDirectoryTest.class, directory));
 
         assertEquals("menu-version: 1\ntitle: versioned now", Files.readString(target));
+        assertEquals("title: predates versioning", Files.readString(target.resolveSibling("main.yml.v0")));
+    }
+
+    @Test
+    void installsAMissingFileThatDoesNotDeclareAVersion() throws Exception {
+        String directory = "versioned-unversioned-missing";
+        Files.writeString(packaged(directory).resolve("main.yml"), "title: unversioned");
+
+        assertTrue(menus.refreshVersionedDirectory(PluginMenusVersionedDirectoryTest.class, directory));
+
+        assertEquals("title: unversioned", Files.readString(folder.resolve(directory + "/main.yml")));
     }
 
     @Test

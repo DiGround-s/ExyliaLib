@@ -64,32 +64,30 @@ guessing would hide the mistake.
 
 ### Refreshing versioned menus
 
-`refreshBundledDirectory` is the right call for a directory nobody is meant to
-hand-edit, such as an admin panel a plugin regenerates on every boot. For one a
-player sees and a server owner is expected to reword — wording, lore, the
-target-color palette — that would throw away the rewording on the next update.
-`refreshVersionedDirectory` updates only the files the plugin actually changed:
+`refreshBundledDirectory` suits a directory nobody is meant to hand-edit. For
+menus players see, which a server owner is expected to reword, use
+`refreshVersionedDirectory` instead of copying defaults by hand:
 
 ```java
-menus.refreshVersionedDirectory(MyPlugin.class, "menus/en/user");
+menus.refreshVersionedDirectory(MyPlugin.class, "menus");
 ```
 
-A packaged file opts in by declaring its own version at the top:
+- **Missing files are written**, versioned or not. One call installs the defaults.
+- **A file opts into updates** by declaring `menu-version: N` at its top. The file
+  on disk is replaced only when the packaged number is higher; a file with no
+  key counts as `0`, so the first version you declare reaches existing servers.
+  Raise the number when a change must reach them, such as a new button.
+- **Replacing discards the owner's changes**, so the old file is kept as
+  `<name>.v<old version>` (for example `main.yml.v1`) and the update is logged.
+- **A file on disk that does not parse is left untouched** and a warning names it.
+- Each file is moved into place atomically, and one failing file does not stop
+  the rest. Nothing on disk is ever deleted. The method returns `false` when any
+  file was left behind.
 
 ```yaml
 menu-version: 2
 title: "..."
 ```
-
-The number on disk is compared against the packaged one; the file is replaced
-only when the packaged version is higher, and is written with it, so the next
-call at the same version leaves it — and whatever an owner has since changed in
-it — alone. A file that has never been on disk is written straight to the
-packaged version, the same as a fresh install of `refreshBundledDirectory`
-would leave it. A packaged file with no `menu-version` key at all is left out of
-the comparison entirely, exactly as if this method had never been asked about
-it — declaring a version is what lets a later update reach installations that
-already have the file, without a way back to "no version" once one exists.
 
 ## Opening
 

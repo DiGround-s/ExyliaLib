@@ -9,6 +9,7 @@ import net.exylia.lib.ui.internal.BuiltInActions;
 import net.exylia.lib.ui.internal.MenuLoader;
 import net.exylia.lib.ui.internal.MenuRuntime;
 import org.bukkit.configuration.ConfigurationSection;
+import org.bukkit.configuration.InvalidConfigurationException;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
@@ -186,10 +187,7 @@ public final class PluginMenus {
     public boolean refreshBundledDirectory(@NotNull Class<?> anchor, @NotNull String resourceDirectory) {
         Path relative = bundledDirectory(resourceDirectory);
         Path dataFolder = plugin.getDataFolder().toPath().toAbsolutePath().normalize();
-        Path target = dataFolder.resolve(relative).normalize();
-        if (!target.startsWith(dataFolder)) {
-            throw new IllegalArgumentException("Resource directory must stay inside the plugin data folder.");
-        }
+        Path target = insideDataFolder(dataFolder, relative);
 
         Path staging = null;
         Path backup = null;
@@ -231,68 +229,61 @@ public final class PluginMenus {
     }
 
     /**
-     * Replaces packaged files in a directory whose {@code menu-version} is
-     * higher than the one already on disk, leaving every file that is caught
-     * up — including one an administrator changed since — exactly as it is.
+     * Installs a directory of menus players see and brings it up to date
+     * without undoing what a server owner changed in it.
      *
-     * <p>A packaged file opts in by declaring its own version at the top:
+     * <p>A packaged file opts into updates by declaring its version at the top:
      *
      * <pre>{@code
      * menu-version: 2
      * title: "..."
      * }</pre>
      *
-     * <p>A packaged file with no {@code menu-version} key is left out of the
-     * comparison entirely and never touched by this method, the same as one
-     * {@link #refreshBundledDirectory(Class, String)} was never asked about.
-     * A file that has never been on disk before is written at whatever
-     * version the packaged copy declares, same as a fresh install of
-     * {@link #refreshBundledDirectory(Class, String)} would leave it; one
-     * already on disk with no version key of its own is treated as version 0,
-     * so the very first version a file starts declaring is always enough to
-     * reach every installation that already has it.
+     * <p>Every packaged file is written when it is missing, versioned or not,
+     * so this one call replaces copying defaults by hand. A file already on
+     * disk is replaced only when the packaged {@code menu-version} is higher
+     * than its own; a file with no key counts as version 0, so the first
+     * version a file declares reaches installations that predate it. Replacing
+     * throws away the owner's changes, so the old file is kept next to it as
+     * {@code <name>.v<old version>} and the update is logged. A file on disk
+     * that does not parse is left untouched and reported: overwriting it would
+     * turn a typo into lost work.
      *
-     * <p>Unlike {@link #refreshBundledDirectory(Class, String)}, updating the
-     * plugin never wipes what an administrator changed in a file that is
-     * already at the packaged version or higher — only files whose declared
-     * version the plugin actually raised come back, which is what makes this
-     * the one to use for menus players see and administrators are expected to
-     * reword, such as a settings screen, rather than one nobody is meant to
-     * hand-edit in the first place.
+     * <p>Each file is moved into place atomically and a failing one does not
+     * stop the rest. Unlike {@link #refreshBundledDirectory(Class, String)},
+     * nothing on disk is ever deleted.
      *
      * <pre>{@code
-     * Menus.of(this).refreshVersionedDirectory(MyPlugin.class, "menus/en/user");
+     * Menus.of(this).refreshVersionedDirectory(MyPlugin.class, "menus");
      * }</pre>
      *
      * @param anchor the consumer plugin class packaged with the resources
      * @param resourceDirectory a relative resource and data-folder directory
-     * @return whether the packaged directory could be read and compared
-     *         without error; a file left alone for already being caught up
-     *         still counts as success
+     * @return whether every packaged file is now installed and up to date;
+     *         every reason it is not has been logged
      * @throws IllegalArgumentException if the directory is blank, absolute, or escapes the data folder
      * @since 1.157.0
      */
     public boolean refreshVersionedDirectory(@NotNull Class<?> anchor, @NotNull String resourceDirectory) {
         Path relative = bundledDirectory(resourceDirectory);
         Path dataFolder = plugin.getDataFolder().toPath().toAbsolutePath().normalize();
-        Path target = dataFolder.resolve(relative).normalize();
-        if (!target.startsWith(dataFolder)) {
-            throw new IllegalArgumentException("Resource directory must stay inside the plugin data folder.");
-        }
+        Path target = insideDataFolder(dataFolder, relative);
 
         Path staging = null;
         try {
             Files.createDirectories(dataFolder);
             staging = Files.createTempDirectory(dataFolder, ".bundled-");
             extractBundledDirectory(anchor, relative, staging);
-            Files.createDirectories(target);
 
+            boolean upToDate = true;
             try (var files = Files.walk(staging)) {
                 for (Path packaged : files.filter(Files::isRegularFile).toList()) {
-                    replaceIfPackagedIsNewer(packaged, target.resolve(staging.relativize(packaged)));
+                    Path file = staging.relativize(packaged);
+                    String name = relative.resolve(file).toString().replace('\\', '/');
+                    upToDate &= updateVersioned(packaged, target.resolve(file), name);
                 }
             }
-            return true;
+            return upToDate;
         } catch (IOException | URISyntaxException | SecurityException failure) {
             debug.warn("Could not refresh versioned directory \"" + resourceDirectory + "\": "
                     + failure.getMessage());
@@ -302,31 +293,65 @@ public final class PluginMenus {
         }
     }
 
-    private static void replaceIfPackagedIsNewer(Path packaged, Path onDisk) throws IOException {
-        Integer packagedVersion = declaredMenuVersion(packaged);
-        if (packagedVersion == null) {
-            return;
+    /** Installs or updates one file, reporting a failure instead of throwing it. */
+    private boolean updateVersioned(Path packaged, Path onDisk, String name) {
+        try {
+            Integer packagedVersion = declaredMenuVersion(packaged);
+            if (Files.notExists(onDisk)) {
+                install(packaged, onDisk);
+                return true;
+            }
+            if (packagedVersion == null) {
+                return true;
+            }
+
+            Integer declared;
+            try {
+                declared = declaredMenuVersion(onDisk);
+            } catch (InvalidConfigurationException broken) {
+                debug.warn("Not updating " + name + " to version " + packagedVersion + ": it could not be read ("
+                        + broken.getMessage() + "). The file was left untouched.");
+                return false;
+            }
+            int current = declared == null ? 0 : declared;
+            if (current >= packagedVersion) {
+                return true;
+            }
+
+            Path previous = onDisk.resolveSibling(onDisk.getFileName() + ".v" + current);
+            Files.copy(onDisk, previous, StandardCopyOption.REPLACE_EXISTING);
+            install(packaged, onDisk);
+            debug.log("Updated " + name + " from version " + current + " to " + packagedVersion
+                    + "; the previous file was kept as " + previous.getFileName() + ".");
+            return true;
+        } catch (IOException | InvalidConfigurationException | SecurityException failure) {
+            debug.warn("Could not update " + name + ": " + failure.getMessage());
+            return false;
         }
-        int onDiskVersion = Files.exists(onDisk) ? declaredMenuVersionOrZero(onDisk) : 0;
-        if (onDiskVersion >= packagedVersion) {
-            return;
-        }
+    }
+
+    /**
+     * Moves a staged file into place.
+     *
+     * <p>The staging directory lives in the data folder, so this is a rename:
+     * a crash halfway never leaves a truncated menu behind.
+     */
+    private static void install(Path packaged, Path onDisk) throws IOException {
         Files.createDirectories(onDisk.getParent());
-        Files.copy(packaged, onDisk, StandardCopyOption.REPLACE_EXISTING);
+        move(packaged, onDisk);
     }
 
-    private static int declaredMenuVersionOrZero(Path file) {
-        Integer version = declaredMenuVersion(file);
-        return version == null ? 0 : version;
-    }
-
-    /** The {@code menu-version} a YAML file declares, or {@code null} if it does not. */
-    private static @Nullable Integer declaredMenuVersion(Path file) {
+    /**
+     * The {@code menu-version} a YAML file declares, or {@code null} if it
+     * declares none or is not YAML.
+     */
+    private static @Nullable Integer declaredMenuVersion(Path file) throws IOException, InvalidConfigurationException {
         String name = file.getFileName().toString();
         if (!name.endsWith(".yml") && !name.endsWith(".yaml")) {
             return null;
         }
-        YamlConfiguration yaml = YamlConfiguration.loadConfiguration(file.toFile());
+        YamlConfiguration yaml = new YamlConfiguration();
+        yaml.load(file.toFile());
         return yaml.isInt(MENU_VERSION_KEY) ? yaml.getInt(MENU_VERSION_KEY) : null;
     }
 
@@ -514,6 +539,14 @@ public final class PluginMenus {
             throw new IllegalArgumentException("Resource directory must be relative and cannot escape its plugin.");
         }
         return directory;
+    }
+
+    private static Path insideDataFolder(Path dataFolder, Path relative) {
+        Path target = dataFolder.resolve(relative).normalize();
+        if (!target.startsWith(dataFolder)) {
+            throw new IllegalArgumentException("Resource directory must stay inside the plugin data folder.");
+        }
+        return target;
     }
 
     private static void extractBundledDirectory(Class<?> anchor, Path resourceDirectory, Path staging)
