@@ -178,6 +178,8 @@ public abstract class AbstractTaskScheduler implements TaskScheduler {
     private void report(Throwable throwable) {
         plugin.getLogger().log(Level.SEVERE,
                 "Task from " + plugin.getName() + " threw an exception", throwable);
+        // Caught here, so Paper never sees it: this is its only count.
+        net.exylia.lib.metrics.internal.MetricsRuntime.error(plugin, "runtime", throwable);
     }
 
     // ------------------------------------------------------------------

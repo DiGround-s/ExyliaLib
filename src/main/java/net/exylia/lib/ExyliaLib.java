@@ -170,6 +170,9 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         // and this used to sit at the end of onEnable where a broken version
         // could never reach it.
         startUpdateCheck();
+        // Right after the settings it reads, and before anything whose errors
+        // it should count.
+        net.exylia.lib.metrics.internal.MetricsRuntime.start(this);
 
         getServer().getPluginManager().registerEvents(this, this);
         // One listener for every plugin's menus: an inventory event fires once,
@@ -522,6 +525,9 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
 
     @Override
     public void onDisable() {
+        // Before the tasks go: a report scheduled on a stopped plugin would run
+        // inline, on the shutdown thread.
+        net.exylia.lib.metrics.internal.MetricsRuntime.stop();
         // Stage any newer release now, while the server is on its way down.
         // The next start applies plugins/update/ before it loads anything, so
         // staging here is what turns updating into a single restart. Run inline

@@ -294,6 +294,7 @@ public final class Debug {
             // name on it — printStackTrace wrote it to raw stdout, where it
             // arrives as unowned noise. This was the last antique in here.
             plugin.getLogger().log(java.util.logging.Level.WARNING, message, error);
+            net.exylia.lib.metrics.internal.MetricsRuntime.error(plugin, "runtime", error);
         }
     }
 

@@ -69,6 +69,11 @@ import net.exylia.lib.config.Configs;
 @Comment("Same base64 texture property every source in this module accepts.")
 @Comment("An invalid value falls back to the library default and is reported")
 @Comment("once, the same as any other unreadable config value.")
+@Comment("")
+@Comment("metrics: reports to stats.exylia.net the server software and versions,")
+@Comment("the versions of the Exylia plugins installed, and the errors those")
+@Comment("plugins throw. No player data and no IP addresses. Set enabled to")
+@Comment("false and nothing is ever sent.")
 public record LibrarySettings(
         @Comment("Whether to check for and download newer versions automatically.")
         boolean autoUpdate,
@@ -111,8 +116,28 @@ public record LibrarySettings(
         @Comment("  high    18 uploads: 4-pixel cubes, 19 pieces when a body breaks (about 5 new skins an hour on the free plan)")
         @Comment("  normal  10 uploads: every skin pixel kept exactly, 11 larger pieces (about 10 an hour)")
         @Comment("  low      5 uploads: one head per part, a third of the rows lost (about 20 an hour)")
-        String ragdollSkinQuality
+        String ragdollSkinQuality,
+
+        Metrics metrics
 ) {
+
+    /**
+     * The {@code metrics:} block.
+     *
+     * @param enabled whether anything is sent to stats.exylia.net
+     * @since 1.160.0
+     */
+    public record Metrics(
+            @Comment("Whether server software, Exylia plugin versions and Exylia plugin errors")
+            @Comment("are sent to stats.exylia.net. No player data, no IP addresses.")
+            boolean enabled
+    ) {
+
+        /** The default: on. */
+        public Metrics() {
+            this(true);
+        }
+    }
 
     /**
      * The neutral head texture ExyliaCommons shipped as its default, kept so
@@ -125,7 +150,7 @@ public record LibrarySettings(
 
     /** Safe defaults used when no config file exists yet. */
     public LibrarySettings() {
-        this(true, 30, false, true, "auto:0.4", "*", DEFAULT_FALLBACK_HEAD, "", "", "normal");
+        this(true, 30, false, true, "auto:0.4", "*", DEFAULT_FALLBACK_HEAD, "", "", "normal", new Metrics());
     }
 
     private static volatile LibrarySettings instance;
