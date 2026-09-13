@@ -224,11 +224,12 @@ public interface InputParser<T> {
          * worked at all despite being documented.
          *
          * <p>The units are exactly the ones {@code TimeFormats} writes, so
-         * anything shown to a player can be typed back in. That includes the
-         * decimal, since the compact style renders {@code "2.5h"}.
+         * anything shown to a player can be typed back in — including the
+         * space between parts, since the compact style renders
+         * {@code "59m 50s"}. A decimal is still accepted: {@code "2.5h"}.
          */
         private static final Pattern DURATION_PART =
-                Pattern.compile("(\\d+(?:\\.\\d+)?)\\s*(ms|mo|y|w|d|h|m|s)",
+                Pattern.compile("\\s*(\\d+(?:\\.\\d+)?)\\s*(ms|mo|y|w|d|h|m|s)",
                         Pattern.CASE_INSENSITIVE);
 
         private static final Pattern BARE_NUMBER = Pattern.compile("\\d+(?:\\.\\d+)?");

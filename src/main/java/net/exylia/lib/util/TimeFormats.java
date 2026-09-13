@@ -80,14 +80,17 @@ public final class TimeFormats {
         FULL,
 
         /**
-         * The largest unit that says something, and nothing else:
-         * {@code "3d"}, {@code "2.5h"}, {@code "45s"}.
+         * The two largest units that say something, whole:
+         * {@code "3d 4h"}, {@code "59m 50s"}, {@code "45s"}.
          *
          * <p>For a length of time that appears inside a sentence rather than as
          * the subject of the screen — how old a mail is, how long until a
          * posting expires, when a member was last seen. Those are read at a
-         * glance in a lore line, where {@code "3d"} is the whole answer and
+         * glance in a lore line, where {@code "3d 4h"} is the whole answer and
          * {@code "3d 4h 12m 6s"} is four numbers to skip past.
+         *
+         * <p>Never a decimal: {@code "59.9m"} asks a player to work out what a
+         * tenth of a minute is, and {@code "59m 50s"} does not.
          *
          * <p>The units run to years, which the other styles do not reach:
          * {@code CLOCK} and {@code FULL} count hours upwards forever, so a
@@ -265,30 +268,28 @@ public final class TimeFormats {
     }
 
     /**
-     * The largest unit that says something, with a tenth only where it does.
+     * The largest unit that says something, and the next one down when it is
+     * not zero.
      *
-     * <p>{@code 259200} is {@code "3d"} rather than {@code "3.0d"}, and
-     * {@code 9000} is {@code "2.5h"} rather than {@code "2h"} — a lore line
-     * that rounds two and a half hours down to two is telling a player they
-     * have half an hour they do not have.
+     * <p>{@code 259200} is {@code "3d"}, {@code 9000} is {@code "2h 30m"} and
+     * {@code 3590} is {@code "59m 50s"}. Floored, not rounded: a countdown
+     * that rounds up is telling a player they have time they do not have.
      *
      * <p>Below a second it is {@code "0s"}, not milliseconds. Nothing reading
      * this style cares about a gap that small; the styles that do are the
      * decimal ones above.
      */
     private static String compact(double seconds) {
+        long whole = (long) Math.floor(seconds);
         for (int index = 0; index < COMPACT_UNITS.length; index++) {
             long unit = COMPACT_UNITS[index];
-            if (seconds >= unit) {
-                double scaled = seconds / unit;
-                // Rounded half-up by hand rather than through the formatter,
-                // because the decimal is dropped more often than it is kept and
-                // formatting it only to strip it is work for nothing.
-                double rounded = Math.floor(scaled * 10 + 0.5) / 10;
-                long whole = (long) rounded;
-                int tenth = (int) Math.round((rounded - whole) * 10);
-                String suffix = COMPACT_SUFFIXES[index];
-                return tenth == 0 ? whole + suffix : whole + "." + tenth + suffix;
+            if (whole >= unit) {
+                String first = whole / unit + COMPACT_SUFFIXES[index];
+                if (index + 1 == COMPACT_UNITS.length) {
+                    return first;
+                }
+                long next = whole % unit / COMPACT_UNITS[index + 1];
+                return next == 0 ? first : first + " " + next + COMPACT_SUFFIXES[index + 1];
             }
         }
         return "0s";

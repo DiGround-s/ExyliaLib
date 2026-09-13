@@ -140,6 +140,17 @@ class TimeFormatsTest {
         assertEquals("3", TimeFormats.render(3.9, TimeFormats.Style.SECONDS));
     }
 
+    @Test
+    @DisplayName("compact keeps two whole units and never a decimal")
+    void compact() {
+        assertEquals("59m 50s", TimeFormats.render(3590.9, TimeFormats.Style.COMPACT));
+        assertEquals("2h 30m", TimeFormats.render(9000, TimeFormats.Style.COMPACT));
+        assertEquals("3d", TimeFormats.render(259200, TimeFormats.Style.COMPACT));
+        assertEquals("1h", TimeFormats.render(3659, TimeFormats.Style.COMPACT));
+        assertEquals("45s", TimeFormats.render(45.7, TimeFormats.Style.COMPACT));
+        assertEquals("0s", TimeFormats.render(0.4, TimeFormats.Style.COMPACT));
+    }
+
     // ------------------------------------------------------------------
     // Durations and named styles
     // ------------------------------------------------------------------

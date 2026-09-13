@@ -199,13 +199,13 @@ class DatesTest {
     }
 
     @Test
-    @DisplayName("a half unit keeps its decimal, because rounding it down is a lie")
+    @DisplayName("a half unit keeps the next unit down, because rounding it away is a lie")
     void halfUnits() {
         Instant now = MOMENT;
         // Telling a player they have two hours when they have two and a half is
-        // a smaller error than the reverse, and both are avoidable.
-        assertEquals("2.5h ago", Dates.relative(now, now.minusSeconds(9_000)));
-        assertEquals("in 1.5m", Dates.relative(now, now.plusSeconds(90)));
+        // avoidable, and so is making them work out what 2.5h means.
+        assertEquals("2h 30m ago", Dates.relative(now, now.minusSeconds(9_000)));
+        assertEquals("in 1m 30s", Dates.relative(now, now.plusSeconds(90)));
     }
 
     @Test
@@ -241,7 +241,7 @@ class DatesTest {
     @DisplayName("a zero timestamp is 1970, not a missing value this decides to hide")
     void epochIsADate() {
         String rendered = Dates.relativeMillis(0L);
-        assertTrue(rendered.endsWith("y ago"),
+        assertTrue(rendered.matches("\\d+y( \\d+mo)? ago"),
                 "expected an age in years, got: " + rendered);
     }
 
@@ -422,6 +422,6 @@ class DatesTest {
         // which is why the seconds field is read directly instead. The number
         // itself is only interesting in that it is a number and not a crash.
         assertDoesNotThrow(() -> Dates.relative(Instant.MIN, Instant.MAX));
-        assertEquals("in 2001328768.1y", Dates.relative(Instant.MIN, Instant.MAX));
+        assertEquals("in 2001328768y 1mo", Dates.relative(Instant.MIN, Instant.MAX));
     }
 }

@@ -114,6 +114,7 @@ class InputParserTest {
         assertEquals(Duration.ofDays(365), parsed(InputParser.duration(), "1y"));
         assertEquals(Duration.ofMinutes(150), parsed(InputParser.duration(), "2.5h"));
         assertEquals(Duration.ofDays(31), parsed(InputParser.duration(), "1mo1d"));
+        assertEquals(Duration.ofSeconds(3590), parsed(InputParser.duration(), "59m 50s"));
     }
 
     @Test

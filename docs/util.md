@@ -158,7 +158,7 @@ TimeFormats.render(95.0, TimeFormats.Style.CLOCK);   // "1:35"
 TimeFormats.render(3.34);                            // AUTO → "3.3"
 TimeFormats.render(3665, Style.FULL);                // "1h 1m 5s"
 TimeFormats.render(432000, Style.FULL);              // "5d"
-TimeFormats.render(9000, Style.COMPACT);             // "2.5h"
+TimeFormats.render(9000, Style.COMPACT);             // "2h 30m"
 ```
 
 | Style | Output | Notes |
@@ -169,7 +169,7 @@ TimeFormats.render(9000, Style.COMPACT);             // "2.5h"
 | `HUNDREDTHS` | `3.34` | |
 | `CLOCK` | `1:35`, `1:05:03` past an hour | padded |
 | `FULL` | `1h 5m 3s`, `2d 3h 4m 5s` | every part, days downwards; for durations read once |
-| `COMPACT` | `3d`, `2.5h`, `45s` | largest unit only, up to years; for a duration inside a sentence |
+| `COMPACT` | `3d`, `2h 30m`, `59m 50s` | two largest whole units, up to years, floored; for a duration inside a sentence |
 
 API: `render(double, Style)`, `render(Duration, Style)`, `render(double)` —
 AUTO, `render(double, String)` — style named the way a config names it
