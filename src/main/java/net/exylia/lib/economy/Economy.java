@@ -101,11 +101,12 @@ public final class Economy {
      * @return the ids
      */
     public static @NotNull java.util.Set<String> currencies() {
-        // Vault served by the library's own bridge is a stored currency under a
-        // second name: listing both shows one balance twice.
+        // Vault served by a currency that is itself registered is that currency
+        // under a second name: listing both shows one balance twice.
+        boolean alias = CurrencyRegistry.providers().values().stream().anyMatch(CurrencyProvider::servesVault);
         java.util.Set<String> ids = new java.util.LinkedHashSet<>();
         CurrencyRegistry.providers().forEach((id, provider) -> {
-            if (!(provider instanceof net.exylia.lib.economy.internal.VaultCurrency vault && vault.isBridged())) {
+            if (!(alias && provider instanceof net.exylia.lib.economy.internal.VaultCurrency)) {
                 ids.add(id);
             }
         });
@@ -154,92 +155,38 @@ public final class Economy {
     }
 
     /**
-     * A player's most recent lines in a stored currency's ledger, newest
-     * first.
+     * Lays the owner's choices over how currencies look.
      *
-     * <p>Empty for a currency that keeps no ledger — Vault, PlayerPoints, a
-     * plugin's own — and completes off the server thread.
+     * <p>{@link #info(String)} answers with what the provider says and, on
+     * top, whatever is laid here under that id: a name, a symbol, an icon, a
+     * format. The library reads no file for it. The plugin that keeps the
+     * owner's currency file hands the whole set over each time it reads it,
+     * and an empty map takes it away.
      *
-     * @param id     the currency's id
-     * @param player whose history
-     * @param limit  how many lines at most
-     * @return the lines
-     * @since 1.150.0
+     * @param overlays currency id → the parts to lay over; blank parts keep the provider's
+     * @since 1.159.0
      */
-    public static @NotNull java.util.concurrent.CompletableFuture<java.util.List<LedgerEntry>> history(
-            @NotNull String id, @NotNull UUID player, int limit) {
-        return net.exylia.lib.economy.internal.StoredEconomy.history(id, player, limit);
+    public static void overlays(@NotNull java.util.Map<String, CurrencyInfo> overlays) {
+        CurrencyRegistry.overlays(overlays);
     }
 
     /**
-     * The richest players in a stored currency, richest first.
+     * Tells the library what a balance is, when it changed outside it.
      *
-     * <p>Cached for a minute, because a leaderboard on a scoreboard is read
-     * every tick. Empty for a currency that is not stored by the library.
+     * <p>Balances are read from a short cache, refreshed for every change made
+     * through this facade. A provider whose balances also change on their own
+     * — loaded when a player joins, fetched for one who is somewhere else —
+     * puts the number here, or the reads that follow keep answering whatever
+     * the cache held before.
      *
-     * @param id    the currency's id
-     * @param limit how many at most
-     * @return the entries
-     * @since 1.150.0
+     * @param id      the currency's id
+     * @param player  whose balance
+     * @param balance what it is now
+     * @since 1.159.0
      */
-    public static @NotNull java.util.List<TopEntry> top(@NotNull String id, int limit) {
-        return net.exylia.lib.economy.internal.StoredEconomy.top(id, limit);
-    }
-
-    /**
-     * Swaps an amount of one currency for another at the configured rate.
-     *
-     * <p>The rate is the one {@code currencies.yml} sets on the source
-     * currency for the target. The source is withdrawn first, the target
-     * deposited second, and a failed deposit refunds the source — the same
-     * order a transfer between players uses.
-     *
-     * @param player who is exchanging
-     * @param from   the currency given
-     * @param to     the currency received
-     * @param amount how much of {@code from}
-     * @return the outcome, with the amount of {@code to} received as its amount
-     * @since 1.150.0
-     */
-    public static @NotNull EconomyResponse exchange(@NotNull UUID player, @NotNull String from,
-                                                    @NotNull String to, @NotNull BigDecimal amount) {
-        return net.exylia.lib.economy.internal.StoredEconomy.exchange(player, from, to, amount);
-    }
-
-    /**
-     * The rules {@code currencies.yml} sets on a stored currency: aliases,
-     * limits, transfer and exchange terms.
-     *
-     * <p>Empty for a currency the library does not store. What a plugin that
-     * puts commands on a currency reads — the library itself registers none.
-     *
-     * @since 1.151.0
-     */
-    public static @NotNull Optional<CurrencyRules> rules(@NotNull String id) {
-        return net.exylia.lib.economy.internal.StoredEconomy.rules(id);
-    }
-
-    /**
-     * What kind of thing a currency is.
-     *
-     * @since 1.151.0
-     */
-    public static @NotNull Kind kind(@NotNull String id) {
-        return net.exylia.lib.economy.internal.StoredEconomy.kind(id);
-    }
-
-    /** The kinds of currency, for a plugin deciding which ones fit a purpose. */
-    public enum Kind {
-        /** Kept by the library in its own table: works offline and across servers. */
-        STORED,
-        /** An item in the player's inventory. Read and paid while they are here; paid to an absent player on their next join. */
-        ITEM,
-        /** Experience levels or points. Read and paid while they are here; paid to an absent player on their next join. */
-        EXPERIENCE,
-        /** Vault, PlayerPoints or a plugin's own provider. */
-        EXTERNAL,
-        /** Nothing registered under that id. */
-        UNKNOWN
+    public static void remember(@NotNull String id, @NotNull UUID player, @NotNull BigDecimal balance) {
+        requirePlayer(player);
+        BalanceCache.remember(id, player, balance);
     }
 
     /**
@@ -266,11 +213,6 @@ public final class Economy {
         } catch (NumberFormatException notANumber) {
             return null;
         }
-    }
-
-    /** One line of a leaderboard. */
-    public record TopEntry(int position, @NotNull UUID player, @NotNull String name,
-                           @NotNull BigDecimal amount) {
     }
 
     // --------------------------------------------------------- default

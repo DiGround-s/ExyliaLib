@@ -61,12 +61,11 @@ public record EconomySettings(
     /**
      * The Exylia defaults: Vault where it exists, a short cache, no guessing.
      *
-     * <p>What a fresh {@code economy.yml} contains. The fallback names the
-     * library's own {@code dollars}, so a server with no economy plugin at all
-     * still has money that works instead of every price failing until somebody
-     * edits this file.
+     * <p>What a fresh {@code economy.yml} contains. The fallback is empty: the
+     * library keeps no currency of its own, and naming one it cannot promise
+     * is a fallback that serves nothing. An owner lists what their server has.
      */
     public EconomySettings() {
-        this("vault", List.of("dollars"), 500L);
+        this("vault", List.of(), 500L);
     }
 }

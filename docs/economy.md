@@ -325,8 +325,7 @@ default-currency: vault
 # available. The first available one in this list serves the
 # operation, and the switch is announced rather than silent —
 # a currency changing on its own is how a balance disappears.
-fallback:
-- dollars
+fallback: []
 # How long a balance, once read, may be reused, in milliseconds.
 # Balances are shown on scoreboards that refresh every tick,
 # and asking the economy on every tick makes our thin wrapper
@@ -342,7 +341,7 @@ config-version: 1
 | Key | Default | |
 | --- | --- | --- |
 | `default-currency` | `vault` | the id that answers when an operation names none |
-| `fallback` | `[dollars]` | the order to try when the default is not available |
+| `fallback` | `[]` | the order to try when the default is not available |
 | `balance-cache-millis` | `500` | how long a read balance may be reused |
 
 The built-in ids are `vault` and `points` — lowercase provider ids, not enum
@@ -606,65 +605,13 @@ every scoreboard line went to the economy plugin.
 
 ---
 
-## Currencies of your own (since 1.150.0)
+## Currencies of your own
 
-The library can *be* the economy. `plugins/ExyliaLib/currencies.yml` names
-currencies the library keeps in its own table, currencies that are items in
-the player's hands, and whether experience counts as one — and how every
-currency, Vault's included, looks.
+The library talks to economies and keeps none. Stored currencies, item and
+experience currencies, `currencies.yml`, the ledger, leaderboards and a
+currency published to Vault are ExyliaSurvivalCore's `economy` module.
 
-```yaml
-stored:
-  shards:
-    name: Shard
-    plural: Shards
-    symbol: "✦"
-    icon: AMETHYST_SHARD
-    decimals: 0
-    format: "%amount% %symbol%"
-    aliases: [shards, shard]      # /shards, /shards pay <player> <amount>, /shards top ...
-    start: 0
-    max: -1
-    permission: ""
-    transfer: { enabled: true, minimum: 1, tax-percent: 0 }
-    exchange: { enabled: false, rates: {} }   # e.g. rates: { gems: 0.01 }
-    leaderboard: true
-    networked: true
-    commands: true
-items:
-  netherite_ingots: { item: NETHERITE_INGOT, name: Netherite Ingot, plural: Netherite Ingots }
-experience: { levels: false, points: true }   # ids xp_levels and xp_points
-display:
-  vault: { name: Dollar, plural: Dollars, symbol: "$", icon: GOLD_INGOT, decimals: 2 }
-vault:
-  provide: dollars # a stored currency to publish as the server's Vault economy
-  force: false
-ledger:
-  enabled: true
-```
-
-Written once and never overwritten. `/exylialib reload` re-reads it.
-
-### How a stored currency is kept
-
-One row per player per currency (`exylia_balances`), written only by the
-server the player is on. A server they are not on — a market selling their
-listing while they play elsewhere, an admin giving money to somebody offline —
-writes an `exylia_balance_pending` row and publishes the player's id on the
-`economy` Redis channel; the server that has the player claims each pending
-row by deleting it and folds it in, and a player nobody has gets them on their
-next join. A change lands exactly once, and two servers never overwrite each
-other's total.
-
-The cost of that promise: withdrawing from somebody who is not on this server
-is queued too, and floored at zero when it lands. Every plugin in the ecosystem
-withdraws from a player standing in front of it; the queue is for the admin.
-
-### The ledger
-
-Every applied change is a line in `exylia_ledger` with the
-[`Transaction`](#transactions) it was made with. `/economy history [currency]
-[player]` and `Economy.history(id, uuid, limit)` read it, newest first.
+What stays here is what every currency shares, whoever keeps it.
 
 ### Transactions
 
@@ -678,45 +625,38 @@ Economy.of("coins").deposit(target, amount, Transaction.of("admin:give").by(staf
 Every operation without one carries `Transaction.NONE`. Whatever the currency,
 a successful change fires `BalanceChangeEvent` (before, after, transaction),
 so a scoreboard or a quest reacts without knowing which economy is underneath.
+A provider that keeps a ledger overrides the `Transaction` forms of
+`CurrencyProvider`; the library always calls those.
 
 ### How a currency looks
 
 `Economy.info(id)` is a `CurrencyInfo`: name, plural, symbol, icon, decimals
 and two formats. `Economy.format(id, amount)` writes an amount the way *that*
-currency writes it — `$1,250.00`, `3 Tokens`, `1.2k⛃` — and `display:` in
-`currencies.yml` lays the owner's choices over anything a provider says.
+currency writes it — `$1,250.00`, `3 Tokens`, `1.2k⛃`. The plugin that keeps
+the owner's currency file lays their choices over any provider with
+`Economy.overlays(map)` (since 1.159.0), replacing whatever it laid before.
 `Formats.money` keeps formatting the default currency.
 
-### Commands
+### A provider whose balances change on their own (since 1.159.0)
 
-The library registers none. It keeps the balances and exposes the rules —
-`Economy.rules(id)` gives a `CurrencyRules` (aliases, limits, transfer terms,
-exchange rates), `Economy.kind(id)` says whether a currency is stored, an item,
-experience or external, and `Economy.parseAmount("2.5k")` reads what players
-type. A plugin puts the commands on top; ExyliaSurvivalCore's `economy` module
-is the one that ships `/economy` and `/<alias>`.
+Reads are cached and every change made through the facade refreshes the cache.
+A provider whose numbers move without it — a balance loaded when a player
+joins, one fetched for a player on another server — calls
+`Economy.remember(id, uuid, balance)`, or reads keep the old number until the
+cache window ends.
+
+A provider published as the server's Vault economy answers `servesVault()`
+with `true` while Vault serves it. The `vault` currency is then that currency
+under a second name, and `Economy.currencies()` leaves `vault` out so a wallet
+lists the balance once.
+
+### Reading what players type
+
+`Economy.parseAmount("2.5k")` reads `100`, `2.5k`, `1m` and `3b`, and answers
+`null` for anything that is not a positive amount.
 
 ### Placeholders
 
 `%economy_balance%`, `%economy_balance_<currency>%`, `%economy_compact_<currency>%`,
-`%economy_raw_<currency>%`, `%economy_name_<currency>%`, `%economy_symbol_<currency>%`,
-`%economy_top_name_<n>_<currency>%`, `%economy_top_amount_<n>_<currency>%`.
+`%economy_raw_<currency>%`, `%economy_name_<currency>%`, `%economy_symbol_<currency>%`.
 All read memory; none touch the database on the thread that asked.
-
-### Vault
-
-`vault.provide: dollars` — the default — publishes that currency as the server's
-Vault economy, so every plugin that only speaks Vault runs on it, exactly as
-EssentialsX or CMI would register one. The Vault interface is a
-proxy built by name — nothing links against Vault.
-
-It is registered at the **lowest** priority: an economy plugin the owner
-installed sits above it and serves, whichever loaded first, and the library's
-currency serves only while there is none. `vault.force: true` registers it at
-the highest priority instead. The `vault` currency asks Vault for its economy
-on every call, so a plugin that takes over at runtime is followed at once.
-
-The published currency and `vault` are then one balance under two names, so
-`Economy.currencies()` leaves `vault` out while the library serves it: a wallet
-lists it once. A fresh server ships `dollars` for this and keeps `shards`
-apart — publishing a premium currency makes every Vault shop pay in it.

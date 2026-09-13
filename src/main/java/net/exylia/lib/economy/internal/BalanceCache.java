@@ -78,24 +78,6 @@ public final class BalanceCache {
     }
 
     /**
-     * Drops one cached balance.
-     *
-     * <p>The library calls this after every deposit, withdraw or set it makes,
-     * so its own writes are instantly visible to the next read — see the class
-     * Javadoc for why that matters more than the TTL.
-     */
-    /**
-     * What the cache holds, without loading anything.
-     *
-     * @return the balance, or {@code null} when nothing is cached
-     * @since 1.150.0
-     */
-    public static @org.jetbrains.annotations.Nullable BigDecimal peek(
-            @NotNull String currencyId, @NotNull UUID player) {
-        return cache.getIfPresent(new Key(currencyId, player));
-    }
-
-    /**
      * Puts a balance that was read elsewhere into the cache.
      *
      * @since 1.150.0
@@ -105,6 +87,13 @@ public final class BalanceCache {
         cache.put(new Key(currencyId, player), balance);
     }
 
+    /**
+     * Drops one cached balance.
+     *
+     * <p>The library calls this after every deposit, withdraw or set it makes,
+     * so its own writes are instantly visible to the next read — see the class
+     * Javadoc for why that matters more than the TTL.
+     */
     public static void invalidate(@NotNull String currencyId, @NotNull UUID player) {
         cache.invalidate(new Key(currencyId, player));
     }

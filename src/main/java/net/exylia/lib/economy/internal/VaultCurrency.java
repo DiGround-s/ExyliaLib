@@ -158,14 +158,6 @@ public final class VaultCurrency implements CurrencyProvider {
         return Bukkit.getPluginManager().isPluginEnabled(PLUGIN) && economy() != null;
     }
 
-    /**
-     * Whether Vault is served by the library's own bridge right now, which
-     * makes this id a stored currency under a second name.
-     */
-    public boolean isBridged() {
-        return VaultBridge.isBridge(economy());
-    }
-
     /** The economy Vault hands out right now, or {@code null} when none is registered. */
     private @Nullable Object economy() {
         RegisteredServiceProvider<?> registration = Bukkit.getServicesManager().getRegistration(economyClass);

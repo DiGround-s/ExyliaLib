@@ -177,13 +177,29 @@ public interface CurrencyProvider {
      * <p>Built from {@link #currencyName} and {@link #symbol()} unless the
      * provider knows better — a stored currency answers with everything its
      * file says. What a plugin should read is {@link Economy#info(String)},
-     * which lays the owner's {@code currencies.yml} overlay on top of this.
+     * which lays the owner's overlay ({@link Economy#overlays}) on top of this.
      *
      * @return the description
      * @since 1.150.0
      */
     default @NotNull CurrencyInfo info() {
         return CurrencyInfo.of(id(), currencyName(false), currencyName(true), symbol());
+    }
+
+    /**
+     * Whether Vault hands out this currency right now.
+     *
+     * <p>A plugin that publishes one of its own currencies as the server's
+     * Vault economy answers {@code true} while that registration is the one
+     * Vault serves. The {@code vault} currency is then this one under a second
+     * name, and {@link Economy#currencies()} lists it once. Asked on every
+     * call of {@code currencies()}: a service lookup at most.
+     *
+     * @return whether the {@code vault} currency is this one
+     * @since 1.159.0
+     */
+    default boolean servesVault() {
+        return false;
     }
 
     /**

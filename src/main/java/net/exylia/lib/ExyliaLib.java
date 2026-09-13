@@ -245,9 +245,7 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         // Starts only the database lifecycle. Each consumer loads database.yml
         // when it asks for its view, and opens lazily on its first repository.
         Databases.init(this);
-        // After the database and before the commands: the stored currencies keep
-        // rows, and /economy is registered against what this reads.
-        net.exylia.lib.economy.internal.StoredEconomy.init(this);
+        // Balances of whatever currencies turn up; the library keeps none itself.
         net.exylia.lib.economy.internal.EconomyPlaceholders.register(this);
         // The proxy bridge, over the Redis this plugin's own database.yml
         // names. After the database module, which is what reads that file.
@@ -408,8 +406,6 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         economy.onReload(settings -> {
             CurrencyRegistry.apply(settings);
             BalanceCache.apply(settings);
-            // currencies.yml is read again with it: one reload, both files.
-            net.exylia.lib.economy.internal.StoredEconomy.reload();
         });
     }
 
@@ -604,9 +600,6 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         // one — so a last write queued there has already been handed to the
         // pool. Before the task module, because the pool's own close is
         // synchronous and cancelling the tasks first would leave it open.
-        // Before the database goes: a balance still in memory is written on
-        // the way out, and a write with no database is a balance lost.
-        net.exylia.lib.economy.internal.StoredEconomy.shutdown();
         Databases.releaseAll();
         // Nothing to close: a transfer in flight owns its own streams and shuts
         // them in a finally. This drops the library reference so a transfer

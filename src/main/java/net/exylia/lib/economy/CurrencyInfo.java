@@ -12,9 +12,10 @@ import java.util.Locale;
  * How a currency presents itself: what it is called, what it looks like and
  * how an amount of it is written.
  *
- * <p>Every provider answers with one, and {@code currencies.yml} may overlay
- * any part of it — a server that wants Vault's money called "Coins" with a
- * gold ingot as its icon says so there, and every plugin drawing a price
+ * <p>Every provider answers with one, and the owner's overlay
+ * ({@code Economy.overlays}) may replace any part of it — a server that wants
+ * Vault's money called "Coins" with a gold ingot as its icon says so once,
+ * and every plugin drawing a price
  * follows, because none of them ever formats a number by hand.
  *
  * <h2>Formats</h2>
