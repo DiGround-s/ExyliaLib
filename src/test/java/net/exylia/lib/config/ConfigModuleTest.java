@@ -243,6 +243,31 @@ class ConfigModuleTest {
         assertEquals("arena", values.serverName());
     }
 
+    @Test
+    @DisplayName("a start with nothing to change leaves the owner's formatting alone")
+    void unchangedFileIsNotRewritten() throws IOException {
+        Configs.define(plugin, "config", Settings.class).load();
+        Configs.releaseAll();
+
+        String edited = contents("config").replace("server-name: lobby", "server-name: \"lobby\"");
+        Files.writeString(file("config"), edited);
+        Configs.define(plugin, "config", Settings.class).load();
+
+        assertEquals(edited, contents("config"), "the quotes the owner wrote must survive a start");
+    }
+
+    @Test
+    @DisplayName("a long string stays on one line")
+    void longStringIsNotFolded() throws IOException {
+        String longName = "lobby ".repeat(30).trim();
+        ConfigFile<Settings> config = Configs.define(plugin, "config", Settings.class).load();
+        config.update(values -> new Settings(values.poolSize(), longName, values.enabled(),
+                values.multiplier(), values.worlds(), values.mode(), values.nested()));
+
+        String yaml = contents("config");
+        assertTrue(yaml.contains("server-name: " + longName + "\n"), "the value must not be folded:\n" + yaml);
+    }
+
     // ------------------------------------------------------------------
     // Automatic updating
     // ------------------------------------------------------------------

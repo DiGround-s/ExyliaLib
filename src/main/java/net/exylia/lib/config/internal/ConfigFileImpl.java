@@ -76,7 +76,7 @@ public final class ConfigFileImpl<T> implements ConfigFile<T> {
 
     /** Reads the file for the first time, creating it when absent. */
     public void initialLoad() {
-        List<ConfigIssue> found = load(true);
+        List<ConfigIssue> found = load();
         logIssues(found);
     }
 
@@ -87,7 +87,7 @@ public final class ConfigFileImpl<T> implements ConfigFile<T> {
 
     @Override
     public @NotNull List<ConfigIssue> reload() {
-        List<ConfigIssue> found = load(false);
+        List<ConfigIssue> found = load();
         logIssues(found);
 
         T snapshot = values;
@@ -193,7 +193,7 @@ public final class ConfigFileImpl<T> implements ConfigFile<T> {
     // Loading
     // ------------------------------------------------------------------
 
-    private List<ConfigIssue> load(boolean initial) {
+    private List<ConfigIssue> load() {
         List<ConfigIssue> found = new ArrayList<>();
         boolean existed = file.exists();
 
@@ -210,11 +210,12 @@ public final class ConfigFileImpl<T> implements ConfigFile<T> {
         T bound = Binder.read(yaml, schema, defaults(), "", name, found);
         values = bound;
 
-        // Writing back is what makes new keys appear in existing files, and what
-        // keeps comments in sync with the code.
+        // Writing back is what makes new keys appear in existing files. Only a
+        // real change writes: every write re-renders the whole file, which
+        // re-quotes the owner's hand edits, so a plain start leaves it alone.
         boolean addedKeys = found.stream().anyMatch(issue -> issue.type() == ConfigIssue.Type.MISSING_KEY);
         boolean prunedKeys = found.stream().anyMatch(issue -> issue.type() == ConfigIssue.Type.UNKNOWN_KEY);
-        if (!existed || migrated || addedKeys || prunedKeys || initial) {
+        if (!existed || migrated || addedKeys || prunedKeys) {
             render(yaml, bound);
             writeFile(yaml);
         }
@@ -283,6 +284,9 @@ public final class ConfigFileImpl<T> implements ConfigFile<T> {
             Files.createDirectories(target.getParent());
 
             Path temporary = Files.createTempFile(target.getParent(), file.getName(), ".tmp");
+            // SnakeYAML folds any string past 80 columns onto several lines,
+            // which is most lore. Never fold.
+            yaml.options().width(Integer.MAX_VALUE);
             Files.writeString(temporary, yaml.saveToString(), StandardCharsets.UTF_8);
             try {
                 Files.move(temporary, target,
