@@ -62,6 +62,35 @@ enchantment — becomes a dead button and a line in the console, and the other
 fifty buttons still work. A file that does not describe a menu throws, because
 guessing would hide the mistake.
 
+### Refreshing versioned menus
+
+`refreshBundledDirectory` is the right call for a directory nobody is meant to
+hand-edit, such as an admin panel a plugin regenerates on every boot. For one a
+player sees and a server owner is expected to reword — wording, lore, the
+target-color palette — that would throw away the rewording on the next update.
+`refreshVersionedDirectory` updates only the files the plugin actually changed:
+
+```java
+menus.refreshVersionedDirectory(MyPlugin.class, "menus/en/user");
+```
+
+A packaged file opts in by declaring its own version at the top:
+
+```yaml
+menu-version: 2
+title: "..."
+```
+
+The number on disk is compared against the packaged one; the file is replaced
+only when the packaged version is higher, and is written with it, so the next
+call at the same version leaves it — and whatever an owner has since changed in
+it — alone. A file that has never been on disk is written straight to the
+packaged version, the same as a fresh install of `refreshBundledDirectory`
+would leave it. A packaged file with no `menu-version` key at all is left out of
+the comparison entirely, exactly as if this method had never been asked about
+it — declaring a version is what lets a later update reach installations that
+already have the file, without a way back to "no version" once one exists.
+
 ## Opening
 
 ```java
