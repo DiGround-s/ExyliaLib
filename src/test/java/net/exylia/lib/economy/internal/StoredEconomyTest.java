@@ -1,5 +1,6 @@
 package net.exylia.lib.economy.internal;
 
+import net.exylia.lib.FakePlayer;
 import net.exylia.lib.FakeServer;
 import net.exylia.lib.database.Databases;
 import net.exylia.lib.database.TestDatabases;
@@ -150,6 +151,33 @@ class StoredEconomyTest {
         assertTrue(Economy.currencies().contains("xp_levels"));
         assertEquals("Coins", Economy.info("coins").namePlural());
         assertEquals("$", Economy.info("vault").symbol());
+    }
+
+    @Test
+    @DisplayName("experience paid to a player who is not here is given on their next join")
+    void absentExperience() throws Exception {
+        FakePlayer bobby = new FakePlayer("Bobby");
+        UUID id = bobby.player().getUniqueId();
+        FakeServer.setPrimaryThread(false);
+
+        assertTrue(Economy.of("xp_points").deposit(id, new BigDecimal("30"), Transaction.of("test:sale")).isSuccess());
+        long deadline = System.currentTimeMillis() + 5000;
+        while (economy().pendingRows().where("player", id.toString()).find().get(5, TimeUnit.SECONDS).isEmpty()) {
+            if (System.currentTimeMillis() > deadline) throw new AssertionError("never queued");
+            Thread.sleep(10);
+        }
+        assertEquals(0, bobby.experience());
+
+        FakeServer.online(bobby.player());
+        economy().load(id, "Bobby");
+        deadline = System.currentTimeMillis() + 5000;
+        while (!economy().pendingRows().where("player", id.toString()).find().get(5, TimeUnit.SECONDS).isEmpty()) {
+            if (System.currentTimeMillis() > deadline) throw new AssertionError("never claimed");
+            Thread.sleep(10);
+        }
+        settle();
+        FakeServer.tick(1);
+        assertEquals(30, bobby.experience());
     }
 
     @Test

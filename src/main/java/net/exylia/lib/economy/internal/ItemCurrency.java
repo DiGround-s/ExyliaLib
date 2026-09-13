@@ -3,6 +3,7 @@ package net.exylia.lib.economy.internal;
 import net.exylia.lib.economy.CurrencyInfo;
 import net.exylia.lib.economy.CurrencyProvider;
 import net.exylia.lib.economy.EconomyResponse;
+import net.exylia.lib.economy.Transaction;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.entity.Player;
@@ -24,8 +25,9 @@ import java.util.UUID;
  * <p>The balance is how many of the item a player is carrying; paying takes
  * them out of the inventory, being paid puts them in, and what does not fit
  * lands at their feet — which is what a chest shop paying in emeralds has
- * always done. Only for players on this server: the item is in their hands,
- * not in a table.
+ * always done. The item is in their hands, not in a table, so only somebody
+ * on this server has a balance or can pay; somebody who is not here is still
+ * paid, on the next server that holds them.
  *
  * <p>Two items are the same currency when {@link ItemStack#isSimilar} says so,
  * which is what lets a renamed custom token be a currency of its own.
@@ -34,11 +36,13 @@ public final class ItemCurrency implements CurrencyProvider {
 
     private final CurrencyFile.Item settings;
     private final Plugin plugin;
+    private final StoredEconomy economy;
     private volatile ItemStack prototype;
 
-    ItemCurrency(CurrencyFile.Item settings, Plugin plugin) {
+    ItemCurrency(CurrencyFile.Item settings, Plugin plugin, StoredEconomy economy) {
         this.settings = settings;
         this.plugin = plugin;
+        this.economy = economy;
     }
 
     public @NotNull CurrencyFile.Item settings() {
@@ -79,25 +83,30 @@ public final class ItemCurrency implements CurrencyProvider {
 
     @Override
     public @NotNull EconomyResponse deposit(@NotNull UUID player, @NotNull BigDecimal amount) {
-        Player online = Bukkit.getPlayer(player);
+        return deposit(player, amount, Transaction.NONE);
+    }
+
+    @Override
+    public @NotNull EconomyResponse deposit(@NotNull UUID player, @NotNull BigDecimal amount,
+                                            @NotNull Transaction transaction) {
         ItemStack sample = prototype();
-        if (online == null || sample == null) {
-            return EconomyResponse.failure("Items can only be given to a player who is here.");
-        }
+        if (sample == null) return EconomyResponse.failure("This item currency names no item.");
         int units = amount.intValue();
         if (units <= 0) return EconomyResponse.invalidAmount();
-        int left = units;
-        while (left > 0) {
-            ItemStack stack = sample.clone();
-            int size = Math.min(left, stack.getMaxStackSize());
-            stack.setAmount(size);
-            Map<Integer, ItemStack> overflow = online.getInventory().addItem(stack);
-            for (ItemStack dropped : overflow.values()) {
-                online.getWorld().dropItemNaturally(online.getLocation(), dropped);
+        EconomyResponse later = economy.give(this, player, BigDecimal.valueOf(units), transaction, online -> {
+            int left = units;
+            while (left > 0) {
+                ItemStack stack = sample.clone();
+                int size = Math.min(left, stack.getMaxStackSize());
+                stack.setAmount(size);
+                Map<Integer, ItemStack> overflow = online.getInventory().addItem(stack);
+                for (ItemStack dropped : overflow.values()) {
+                    online.getWorld().dropItemNaturally(online.getLocation(), dropped);
+                }
+                left -= size;
             }
-            left -= size;
-        }
-        return EconomyResponse.success(BigDecimal.valueOf(units), balance(player));
+        });
+        return later != null ? later : EconomyResponse.success(BigDecimal.valueOf(units), balance(player));
     }
 
     @Override

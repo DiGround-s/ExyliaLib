@@ -190,10 +190,10 @@ public final class StoredEconomy implements Listener {
             stored.put(settings.id(), currency);
             register(currency);
         }
-        if (read.experienceLevels()) register(new ExperienceCurrency(true));
-        if (read.experiencePoints()) register(new ExperienceCurrency(false));
+        if (read.experienceLevels()) register(new ExperienceCurrency(true, this));
+        if (read.experiencePoints()) register(new ExperienceCurrency(false, this));
         for (CurrencyFile.Item item : read.items().values()) {
-            register(new ItemCurrency(item, plugin));
+            register(new ItemCurrency(item, plugin, this));
         }
         ready = true;
 
@@ -296,6 +296,7 @@ public final class StoredEconomy implements Listener {
                 claimPending(id, currency);
             });
         }
+        claimGifts(id);
     }
 
     /** Folds in what other servers queued for a player held here. */
@@ -319,6 +320,59 @@ public final class StoredEconomy implements Listener {
                 });
     }
 
+    /**
+     * Gives a player on this server what was queued for them in an item or
+     * experience currency.
+     *
+     * <p>Each row is taken by deleting it, then paid through the currency's
+     * own deposit: on the player's thread, or back into the queue when they
+     * left between the read and the claim.
+     */
+    private void claimGifts(UUID player) {
+        if (Bukkit.getPlayer(player) == null) return;
+        for (CurrencyProvider extra : List.copyOf(extras)) {
+            pending.where("player", player.toString()).where("currency", extra.id())
+                    .orderBy("created_at").find().thenAccept(rows -> {
+                        for (PendingRow row : rows) {
+                            pending.delete(row.id()).thenAccept(taken -> {
+                                if (!Boolean.TRUE.equals(taken)) return;
+                                Transaction transaction = Transaction.of(row.reason() == null ? "api" : row.reason())
+                                        .by(row.initiator() == null ? null : UUID.fromString(row.initiator()));
+                                extra.deposit(player, row.amount(), transaction);
+                            });
+                        }
+                    });
+        }
+    }
+
+    /**
+     * Pays a player in a currency that lives on them: items, experience.
+     *
+     * <p>On this server and on their thread, {@code give} runs now. On this
+     * server but another thread — a database callback paying a sale — it runs
+     * on theirs a moment later. Not here, it is queued like a stored change and
+     * given on the next server that holds them, so a sale paid to a seller who
+     * logged off is not paid to nobody.
+     *
+     * @return {@code null} when {@code give} ran now and the caller reads the
+     *         balance itself; otherwise the accepted amount
+     */
+    @Nullable EconomyResponse give(CurrencyProvider currency, UUID player, BigDecimal units,
+                                   Transaction transaction, java.util.function.Consumer<Player> give) {
+        Player online = Bukkit.getPlayer(player);
+        if (online != null && tasks.isOwnedBy(online)) {
+            give.accept(online);
+            return null;
+        }
+        Runnable later = () -> queue(currency.id(), player, units, false, transaction);
+        if (online == null) {
+            later.run();
+        } else {
+            tasks.runAtEntity(online, () -> give.accept(online), later);
+        }
+        return EconomyResponse.success(units, BigDecimal.ZERO);
+    }
+
     /** A message from another server: somebody's balance has something waiting. */
     private void wake(String payload) {
         UUID player;
@@ -330,6 +384,7 @@ public final class StoredEconomy implements Listener {
         for (StoredCurrency currency : stored.values()) {
             if (currency.isLoaded(player)) claimPending(player, currency);
         }
+        claimGifts(player);
     }
 
     /** Every so often: what the network did not tell us about. */
@@ -338,6 +393,7 @@ public final class StoredEconomy implements Listener {
             for (StoredCurrency currency : stored.values()) {
                 if (currency.isLoaded(online.getUniqueId())) claimPending(online.getUniqueId(), currency);
             }
+            claimGifts(online.getUniqueId());
         }
     }
 
@@ -375,7 +431,12 @@ public final class StoredEconomy implements Listener {
     /** A change for somebody this server does not hold: queue it and say so. */
     void queue(StoredCurrency currency, UUID player, BigDecimal amount, boolean absolute,
                Transaction transaction) {
-        pending.insert(new PendingRow(player, currency.id(), amount, absolute, transaction.reason(),
+        queue(currency.id(), player, amount, absolute, transaction);
+    }
+
+    private void queue(String currency, UUID player, BigDecimal amount, boolean absolute,
+                       Transaction transaction) {
+        pending.insert(new PendingRow(player, currency, amount, absolute, transaction.reason(),
                 transaction.initiator())).thenAccept(id -> {
             if (channel != null) channel.publish(player.toString());
         });

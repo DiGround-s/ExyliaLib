@@ -3,6 +3,7 @@ package net.exylia.lib.economy.internal;
 import net.exylia.lib.economy.CurrencyInfo;
 import net.exylia.lib.economy.CurrencyProvider;
 import net.exylia.lib.economy.EconomyResponse;
+import net.exylia.lib.economy.Transaction;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 import org.jetbrains.annotations.NotNull;
@@ -13,9 +14,9 @@ import java.util.UUID;
 /**
  * A player's experience as a currency: their levels, or their points.
  *
- * <p>Only for players on this server, because that is where experience is.
- * Anybody else has a balance of zero and cannot be paid, which the response
- * says rather than pretends.
+ * <p>Experience is on the player, so only somebody on this server has a
+ * balance or can pay. Paying them works anywhere: somebody who is not here is
+ * given it on the next server that holds them.
  *
  * <p>Points are the total a player has ever earned towards their current
  * state, read through {@code Player#calculateTotalExperiencePoints}; paying
@@ -28,9 +29,11 @@ public final class ExperienceCurrency implements CurrencyProvider {
 
     private final boolean levels;
     private final CurrencyInfo info;
+    private final StoredEconomy economy;
 
-    ExperienceCurrency(boolean levels) {
+    ExperienceCurrency(boolean levels, StoredEconomy economy) {
         this.levels = levels;
+        this.economy = economy;
         this.info = levels
                 ? new CurrencyInfo(LEVELS, "Level", "Levels", "", "EXPERIENCE_BOTTLE", 0, "%amount% %name%", "%amount% Lv")
                 : new CurrencyInfo(POINTS, "XP", "XP", "", "EXPERIENCE_BOTTLE", 0, "%amount% %name%", "%amount% XP");
@@ -65,16 +68,22 @@ public final class ExperienceCurrency implements CurrencyProvider {
 
     @Override
     public @NotNull EconomyResponse deposit(@NotNull UUID player, @NotNull BigDecimal amount) {
-        Player online = Bukkit.getPlayer(player);
-        if (online == null) return EconomyResponse.failure("Experience can only be given to a player who is here.");
+        return deposit(player, amount, Transaction.NONE);
+    }
+
+    @Override
+    public @NotNull EconomyResponse deposit(@NotNull UUID player, @NotNull BigDecimal amount,
+                                            @NotNull Transaction transaction) {
         int units = amount.intValue();
         if (units <= 0) return EconomyResponse.invalidAmount();
-        if (levels) {
-            online.giveExpLevels(units);
-        } else {
-            online.giveExp(units);
-        }
-        return EconomyResponse.success(BigDecimal.valueOf(units), balance(player));
+        EconomyResponse later = economy.give(this, player, BigDecimal.valueOf(units), transaction, online -> {
+            if (levels) {
+                online.giveExpLevels(units);
+            } else {
+                online.giveExp(units);
+            }
+        });
+        return later != null ? later : EconomyResponse.success(BigDecimal.valueOf(units), balance(player));
     }
 
     @Override

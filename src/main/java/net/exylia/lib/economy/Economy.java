@@ -224,9 +224,9 @@ public final class Economy {
     public enum Kind {
         /** Kept by the library in its own table: works offline and across servers. */
         STORED,
-        /** An item in the player's inventory. Only while they are here. */
+        /** An item in the player's inventory. Read and paid while they are here; paid to an absent player on their next join. */
         ITEM,
-        /** Experience levels or points. Only while they are here. */
+        /** Experience levels or points. Read and paid while they are here; paid to an absent player on their next join. */
         EXPERIENCE,
         /** Vault, PlayerPoints or a plugin's own provider. */
         EXTERNAL,
