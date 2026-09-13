@@ -88,8 +88,8 @@ class EconomyFileTest {
                         || yaml.contains("default-currency: 'vault'")
                         || yaml.contains("default-currency: \"vault\""),
                 () -> "expected a vault default:\n" + yaml);
-        assertTrue(yaml.contains("- points") || yaml.contains("- 'points'"),
-                () -> "expected points as the only fallback:\n" + yaml);
+        assertTrue(yaml.contains("- shards") || yaml.contains("- 'shards'"),
+                () -> "expected shards as the only fallback:\n" + yaml);
         assertTrue(yaml.contains("balance-cache-millis: 500"),
                 () -> "expected a 500 ms cache window:\n" + yaml);
     }

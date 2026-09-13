@@ -17,6 +17,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 import java.math.BigDecimal;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.UUID;
@@ -39,6 +40,41 @@ class StoredEconomyTest {
 
     private static final AtomicInteger DATABASE = new AtomicInteger();
 
+    /**
+     * Two stored currencies that trade, and XP levels: the shapes these tests
+     * need, kept here so a change to the shipped defaults does not move them.
+     */
+    private static final String CURRENCIES = """
+            stored:
+              coins:
+                name: Coin
+                plural: Coins
+                decimals: 0
+                exchange:
+                  enabled: true
+                  rates:
+                    gems: 0.01
+              gems:
+                name: Gem
+                plural: Gems
+                decimals: 0
+                transfer:
+                  enabled: false
+                exchange:
+                  enabled: true
+                  rates:
+                    coins: 100
+            experience:
+              levels: true
+              points: true
+            display:
+              vault:
+                name: Dollar
+                plural: Dollars
+                symbol: "$"
+                decimals: 2
+            """;
+
     @TempDir
     Path folder;
 
@@ -47,7 +83,8 @@ class StoredEconomyTest {
     private final UUID bob = UUID.randomUUID();
 
     @BeforeEach
-    void setUp() {
+    void setUp() throws Exception {
+        Files.writeString(folder.resolve(CurrencyFile.FILE), CURRENCIES);
         FakeServer.install();
         FakeServer.reset();
         FakeServer.runAsyncForReal();

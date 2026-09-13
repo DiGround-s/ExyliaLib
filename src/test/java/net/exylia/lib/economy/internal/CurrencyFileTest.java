@@ -37,18 +37,20 @@ class CurrencyFileTest {
         CurrencyFile.Contents read = CurrencyFile.load(plugin, Logger.getLogger("test"));
 
         assertTrue(Files.exists(folder.resolve("currencies.yml")));
-        assertEquals(2, read.stored().size());
-        CurrencyFile.Stored coins = read.stored().get("coins");
-        assertNotNull(coins);
-        assertEquals("Coins", coins.info().namePlural());
-        assertEquals(0, coins.info().decimals());
-        assertTrue(coins.aliases().contains("coins"));
-        assertEquals(new BigDecimal("0.01"), coins.rates().get("gems"));
-        assertFalse(read.stored().get("gems").transferable());
+        assertEquals(1, read.stored().size());
+        CurrencyFile.Stored shards = read.stored().get("shards");
+        assertNotNull(shards);
+        assertEquals("Shards", shards.info().namePlural());
+        assertEquals(0, shards.info().decimals());
+        assertTrue(shards.aliases().contains("shards"));
+        assertTrue(shards.transferable());
+        assertFalse(shards.exchangeable());
+        assertTrue(shards.rates().isEmpty());
         assertEquals(1, read.items().size());
-        assertEquals("EMERALD", read.items().get("emeralds").item());
-        assertTrue(read.experienceLevels());
-        assertEquals("coins", read.vaultProvide());
+        assertEquals("NETHERITE_INGOT", read.items().get("netherite_ingots").item());
+        assertFalse(read.experienceLevels());
+        assertTrue(read.experiencePoints());
+        assertEquals("", read.vaultProvide());
         assertNotNull(read.overlay("vault"));
         assertEquals("$", read.overlay("vault").symbol());
     }
@@ -59,12 +61,12 @@ class CurrencyFileTest {
         CurrencyFile.load(plugin, Logger.getLogger("test"));
         Path file = folder.resolve("currencies.yml");
         String yaml = Files.readString(file)
-                .replace("    name: Coin\n", "    name: Buck\n")
+                .replace("    name: Shard\n", "    name: Buck\n")
                 + "  bad id!:\n    name: Nope\n";
         Files.writeString(file, yaml);
 
         CurrencyFile.Contents read = CurrencyFile.load(plugin, Logger.getLogger("test"));
-        assertEquals("Buck", read.stored().get("coins").info().name());
-        assertEquals(2, read.stored().size());
+        assertEquals("Buck", read.stored().get("shards").info().name());
+        assertEquals(1, read.stored().size());
     }
 }
