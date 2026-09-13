@@ -9,6 +9,7 @@ import net.exylia.lib.ui.internal.BuiltInActions;
 import net.exylia.lib.ui.internal.MenuLoader;
 import net.exylia.lib.ui.internal.MenuRuntime;
 import org.bukkit.configuration.ConfigurationSection;
+import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
 import org.jetbrains.annotations.NotNull;
@@ -55,6 +56,9 @@ import java.util.jar.JarFile;
  * @since 1.22.0
  */
 public final class PluginMenus {
+
+    /** Key a packaged menu file can declare to opt into {@link #refreshVersionedDirectory}. */
+    private static final String MENU_VERSION_KEY = "menu-version";
 
     private final Plugin plugin;
     private final MenuRuntime runtime;
@@ -224,6 +228,106 @@ public final class PluginMenus {
         } finally {
             deleteTree(staging);
         }
+    }
+
+    /**
+     * Replaces packaged files in a directory whose {@code menu-version} is
+     * higher than the one already on disk, leaving every file that is caught
+     * up — including one an administrator changed since — exactly as it is.
+     *
+     * <p>A packaged file opts in by declaring its own version at the top:
+     *
+     * <pre>{@code
+     * menu-version: 2
+     * title: "..."
+     * }</pre>
+     *
+     * <p>A packaged file with no {@code menu-version} key is left out of the
+     * comparison entirely and never touched by this method, the same as one
+     * {@link #refreshBundledDirectory(Class, String)} was never asked about.
+     * A file that has never been on disk before is written at whatever
+     * version the packaged copy declares, same as a fresh install of
+     * {@link #refreshBundledDirectory(Class, String)} would leave it; one
+     * already on disk with no version key of its own is treated as version 0,
+     * so the very first version a file starts declaring is always enough to
+     * reach every installation that already has it.
+     *
+     * <p>Unlike {@link #refreshBundledDirectory(Class, String)}, updating the
+     * plugin never wipes what an administrator changed in a file that is
+     * already at the packaged version or higher — only files whose declared
+     * version the plugin actually raised come back, which is what makes this
+     * the one to use for menus players see and administrators are expected to
+     * reword, such as a settings screen, rather than one nobody is meant to
+     * hand-edit in the first place.
+     *
+     * <pre>{@code
+     * Menus.of(this).refreshVersionedDirectory(MyPlugin.class, "menus/en/user");
+     * }</pre>
+     *
+     * @param anchor the consumer plugin class packaged with the resources
+     * @param resourceDirectory a relative resource and data-folder directory
+     * @return whether the packaged directory could be read and compared
+     *         without error; a file left alone for already being caught up
+     *         still counts as success
+     * @throws IllegalArgumentException if the directory is blank, absolute, or escapes the data folder
+     * @since 1.157.0
+     */
+    public boolean refreshVersionedDirectory(@NotNull Class<?> anchor, @NotNull String resourceDirectory) {
+        Path relative = bundledDirectory(resourceDirectory);
+        Path dataFolder = plugin.getDataFolder().toPath().toAbsolutePath().normalize();
+        Path target = dataFolder.resolve(relative).normalize();
+        if (!target.startsWith(dataFolder)) {
+            throw new IllegalArgumentException("Resource directory must stay inside the plugin data folder.");
+        }
+
+        Path staging = null;
+        try {
+            Files.createDirectories(dataFolder);
+            staging = Files.createTempDirectory(dataFolder, ".bundled-");
+            extractBundledDirectory(anchor, relative, staging);
+            Files.createDirectories(target);
+
+            try (var files = Files.walk(staging)) {
+                for (Path packaged : files.filter(Files::isRegularFile).toList()) {
+                    replaceIfPackagedIsNewer(packaged, target.resolve(staging.relativize(packaged)));
+                }
+            }
+            return true;
+        } catch (IOException | URISyntaxException | SecurityException failure) {
+            debug.warn("Could not refresh versioned directory \"" + resourceDirectory + "\": "
+                    + failure.getMessage());
+            return false;
+        } finally {
+            deleteTree(staging);
+        }
+    }
+
+    private static void replaceIfPackagedIsNewer(Path packaged, Path onDisk) throws IOException {
+        Integer packagedVersion = declaredMenuVersion(packaged);
+        if (packagedVersion == null) {
+            return;
+        }
+        int onDiskVersion = Files.exists(onDisk) ? declaredMenuVersionOrZero(onDisk) : 0;
+        if (onDiskVersion >= packagedVersion) {
+            return;
+        }
+        Files.createDirectories(onDisk.getParent());
+        Files.copy(packaged, onDisk, StandardCopyOption.REPLACE_EXISTING);
+    }
+
+    private static int declaredMenuVersionOrZero(Path file) {
+        Integer version = declaredMenuVersion(file);
+        return version == null ? 0 : version;
+    }
+
+    /** The {@code menu-version} a YAML file declares, or {@code null} if it does not. */
+    private static @Nullable Integer declaredMenuVersion(Path file) {
+        String name = file.getFileName().toString();
+        if (!name.endsWith(".yml") && !name.endsWith(".yaml")) {
+            return null;
+        }
+        YamlConfiguration yaml = YamlConfiguration.loadConfiguration(file.toFile());
+        return yaml.isInt(MENU_VERSION_KEY) ? yaml.getInt(MENU_VERSION_KEY) : null;
     }
 
     // ------------------------------------------------------------------ opening

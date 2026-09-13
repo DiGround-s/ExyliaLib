@@ -1587,6 +1587,7 @@ Code root: `src/main/java/net/exylia/lib/`. Test root:
 | icon found in the catalog | `input/IconInput.Way.BROWSE` | `util/head/internal/HeadDb` | [docs/input.md](docs/input.md), [docs/heads.md](docs/heads.md) | 1.82.0 |
 | cleanup | — | `internal/cleanup/` (`CleanupRuntime`, `LogCleaner`, `CleanupSettings`); `init` in `ExyliaLib.onEnable`, `reload` in `reloadPalette` | [docs/cleanup.md](docs/cleanup.md) | 1.90.0 |
 | normalized time: `FULL` rolls up to days, and the parser reads back everything that is written (`ms w mo y` and decimals) | `util/TimeFormats.Style.FULL`; `input/InputParser.duration()` | — | [docs/util.md](docs/util.md), [docs/input.md](docs/input.md) | 1.87.0 |
+| version-aware bundled menu refresh | `ui/PluginMenus.refreshVersionedDirectory` | `ui/PluginMenus` (`declaredMenuVersion`, `replaceIfPackagedIsNewer`) | [docs/menus.md](docs/menus.md) | 1.157.0 |
 
 Root classes that are not a module: `ExyliaLib.java` (lifecycle and cleanup),
 `platform/Platform.java`, `internal/LibrarySettings`, `internal/ExyliaLibUpdater`.
