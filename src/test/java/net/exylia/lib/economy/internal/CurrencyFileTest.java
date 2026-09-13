@@ -37,7 +37,11 @@ class CurrencyFileTest {
         CurrencyFile.Contents read = CurrencyFile.load(plugin, Logger.getLogger("test"));
 
         assertTrue(Files.exists(folder.resolve("currencies.yml")));
-        assertEquals(1, read.stored().size());
+        assertEquals(2, read.stored().size());
+        CurrencyFile.Stored dollars = read.stored().get("dollars");
+        assertNotNull(dollars);
+        assertEquals(2, dollars.info().decimals());
+        assertEquals("$", dollars.info().symbol());
         CurrencyFile.Stored shards = read.stored().get("shards");
         assertNotNull(shards);
         assertEquals("Shards", shards.info().namePlural());
@@ -50,7 +54,7 @@ class CurrencyFileTest {
         assertEquals("NETHERITE_INGOT", read.items().get("netherite_ingots").item());
         assertFalse(read.experienceLevels());
         assertTrue(read.experiencePoints());
-        assertEquals("shards", read.vaultProvide());
+        assertEquals("dollars", read.vaultProvide());
         assertNotNull(read.overlay("vault"));
         assertEquals("$", read.overlay("vault").symbol());
     }
@@ -67,6 +71,6 @@ class CurrencyFileTest {
 
         CurrencyFile.Contents read = CurrencyFile.load(plugin, Logger.getLogger("test"));
         assertEquals("Buck", read.stored().get("shards").info().name());
-        assertEquals(1, read.stored().size());
+        assertEquals(2, read.stored().size());
     }
 }

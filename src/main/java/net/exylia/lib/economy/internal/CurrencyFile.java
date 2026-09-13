@@ -252,6 +252,28 @@ public final class CurrencyFile {
             #   commands        whether the alias commands exist at all
             # ---------------------------------------------------------------------
             stored:
+              dollars:
+                name: Dollar
+                plural: Dollars
+                symbol: "$"
+                icon: GOLD_INGOT
+                decimals: 2
+                format: "%symbol%%amount%"
+                compact-format: "%symbol%%amount%"
+                aliases: [dollars, dollar]
+                start: 0
+                max: -1
+                permission: ""
+                transfer:
+                  enabled: true
+                  minimum: 1
+                  tax-percent: 0
+                exchange:
+                  enabled: false
+                  rates: {}
+                leaderboard: true
+                networked: true
+                commands: true
               shards:
                 name: Shard
                 plural: Shards
@@ -328,7 +350,7 @@ public final class CurrencyFile {
             # none is installed, unless 'force' puts it on top.
             # ---------------------------------------------------------------------
             vault:
-              provide: shards
+              provide: dollars
               force: false
 
             # ---------------------------------------------------------------------

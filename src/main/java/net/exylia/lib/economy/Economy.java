@@ -101,7 +101,15 @@ public final class Economy {
      * @return the ids
      */
     public static @NotNull java.util.Set<String> currencies() {
-        return CurrencyRegistry.providers().keySet();
+        // Vault served by the library's own bridge is a stored currency under a
+        // second name: listing both shows one balance twice.
+        java.util.Set<String> ids = new java.util.LinkedHashSet<>();
+        CurrencyRegistry.providers().forEach((id, provider) -> {
+            if (!(provider instanceof net.exylia.lib.economy.internal.VaultCurrency vault && vault.isBridged())) {
+                ids.add(id);
+            }
+        });
+        return ids;
     }
 
     /**

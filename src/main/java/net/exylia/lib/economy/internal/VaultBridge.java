@@ -77,6 +77,12 @@ final class VaultBridge {
         CurrencyRegistry.detect(plugin);
     }
 
+    /** Whether an economy Vault hands out is this bridge. */
+    static boolean isBridge(@Nullable Object economy) {
+        return economy != null && Proxy.isProxyClass(economy.getClass())
+                && Proxy.getInvocationHandler(economy) instanceof Handler;
+    }
+
     void unpublish() {
         if (published == null || economyClass == null) return;
         unregisterService(published);

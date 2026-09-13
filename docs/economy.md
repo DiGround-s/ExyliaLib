@@ -326,7 +326,7 @@ default-currency: vault
 # operation, and the switch is announced rather than silent —
 # a currency changing on its own is how a balance disappears.
 fallback:
-- shards
+- dollars
 # How long a balance, once read, may be reused, in milliseconds.
 # Balances are shown on scoreboards that refresh every tick,
 # and asking the economy on every tick makes our thin wrapper
@@ -342,7 +342,7 @@ config-version: 1
 | Key | Default | |
 | --- | --- | --- |
 | `default-currency` | `vault` | the id that answers when an operation names none |
-| `fallback` | `[shards]` | the order to try when the default is not available |
+| `fallback` | `[dollars]` | the order to try when the default is not available |
 | `balance-cache-millis` | `500` | how long a read balance may be reused |
 
 The built-in ids are `vault` and `points` — lowercase provider ids, not enum
@@ -637,7 +637,7 @@ experience: { levels: false, points: true }   # ids xp_levels and xp_points
 display:
   vault: { name: Dollar, plural: Dollars, symbol: "$", icon: GOLD_INGOT, decimals: 2 }
 vault:
-  provide: shards  # a stored currency to publish as the server's Vault economy
+  provide: dollars # a stored currency to publish as the server's Vault economy
   force: false
 ledger:
   enabled: true
@@ -705,7 +705,7 @@ All read memory; none touch the database on the thread that asked.
 
 ### Vault
 
-`vault.provide: shards` — the default — publishes that currency as the server's
+`vault.provide: dollars` — the default — publishes that currency as the server's
 Vault economy, so every plugin that only speaks Vault runs on it, exactly as
 EssentialsX or CMI would register one. The Vault interface is a
 proxy built by name — nothing links against Vault.
@@ -715,3 +715,8 @@ installed sits above it and serves, whichever loaded first, and the library's
 currency serves only while there is none. `vault.force: true` registers it at
 the highest priority instead. The `vault` currency asks Vault for its economy
 on every call, so a plugin that takes over at runtime is followed at once.
+
+The published currency and `vault` are then one balance under two names, so
+`Economy.currencies()` leaves `vault` out while the library serves it: a wallet
+lists it once. A fresh server ships `dollars` for this and keeps `shards`
+apart — publishing a premium currency makes every Vault shop pay in it.

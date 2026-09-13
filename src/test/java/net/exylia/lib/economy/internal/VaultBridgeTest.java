@@ -24,7 +24,9 @@ import java.util.UUID;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * The library as the server's Vault economy: beneath any economy plugin, on
@@ -86,6 +88,9 @@ class VaultBridgeTest {
 
         assertEquals("ExyliaLib:shards", ((Economy) served()).getName());
         assertEquals("vault", net.exylia.lib.economy.Economy.info(null).id());
+        assertFalse(net.exylia.lib.economy.Economy.currencies().contains("vault"),
+                "vault is shards under a second name, and a wallet must not show it twice");
+        assertTrue(net.exylia.lib.economy.Economy.currencies().contains("shards"));
     }
 
     @Test
@@ -97,6 +102,7 @@ class VaultBridgeTest {
                 FakeServer.newPlugin("Essentials"), ServicePriority.Normal);
 
         assertSame(essentials, served());
+        assertTrue(net.exylia.lib.economy.Economy.currencies().contains("vault"));
         assertEquals(2, Bukkit.getServicesManager().getRegistrations(Economy.class).size());
         assertEquals(0, new BigDecimal("42").compareTo(
                 net.exylia.lib.economy.Economy.of("vault").balance(UUID.randomUUID())));
