@@ -50,7 +50,7 @@ class CurrencyFileTest {
         assertEquals("NETHERITE_INGOT", read.items().get("netherite_ingots").item());
         assertFalse(read.experienceLevels());
         assertTrue(read.experiencePoints());
-        assertEquals("", read.vaultProvide());
+        assertEquals("shards", read.vaultProvide());
         assertNotNull(read.overlay("vault"));
         assertEquals("$", read.overlay("vault").symbol());
     }

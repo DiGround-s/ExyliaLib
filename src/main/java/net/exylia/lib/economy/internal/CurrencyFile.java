@@ -323,11 +323,12 @@ public final class CurrencyFile {
 
             # ---------------------------------------------------------------------
             # vault: publish one stored currency as the server's Vault economy, so
-            # every plugin that only speaks Vault uses it. Blank = never. Only when
-            # no other economy plugin has registered one, unless 'force' is on.
+            # every plugin that only speaks Vault uses it. Blank = never. It sits
+            # beneath any economy plugin (EssentialsX, CMI) and serves only while
+            # none is installed, unless 'force' puts it on top.
             # ---------------------------------------------------------------------
             vault:
-              provide: ""
+              provide: shards
               force: false
 
             # ---------------------------------------------------------------------

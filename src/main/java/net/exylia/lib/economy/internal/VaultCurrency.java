@@ -27,11 +27,17 @@ import java.util.logging.Logger;
  * that takes the whole class down with it.
  *
  * <p>Everything expensive is resolved exactly once in {@link #tryCreate()}:
- * the service registration, the {@link Method} handles and the public
- * {@link Field} handles of Vault's response type. Balance reads happen on
- * every scoreboard tick of every player; a {@code Class.forName} or a
- * {@code getMethod} lookup on that path would be a hash-map miss plus a
- * reflection access check paid thousands of times a second for nothing.
+ * the {@link Method} handles and the public {@link Field} handles of Vault's
+ * response type. Balance reads happen on every scoreboard tick of every
+ * player; a {@code Class.forName} or a {@code getMethod} lookup on that path
+ * would be a hash-map miss plus a reflection access check paid thousands of
+ * times a second for nothing.
+ *
+ * <p>The economy behind Vault is <em>not</em> held: it is asked for on every
+ * call, a synchronized list lookup. Which plugin serves changes at runtime —
+ * the library's own economy registers beneath EssentialsX or CMI, and one
+ * of those loading after it takes over — and a held instance would keep
+ * charging the one that no longer serves.
  *
  * <h2>Precision</h2>
  * Vault reports balances as {@code double}. Every double that enters this
@@ -65,7 +71,7 @@ public final class VaultCurrency implements CurrencyProvider {
     private static final String ECONOMY_CLASS = "net.milkbowl.vault.economy.Economy";
     private static final String RESPONSE_CLASS = "net.milkbowl.vault.economy.EconomyResponse";
 
-    private final Object economy;
+    private final Class<?> economyClass;
     private final Method getBalance;
     private final Method depositPlayer;
     private final Method withdrawPlayer;
@@ -75,11 +81,11 @@ public final class VaultCurrency implements CurrencyProvider {
     private final Field responseBalance;
     private final Field responseError;
 
-    private VaultCurrency(Object economy,
+    private VaultCurrency(Class<?> economyClass,
                           Method getBalance, Method depositPlayer, Method withdrawPlayer,
                           Method currencyNameSingular, Method currencyNamePlural,
                           Method transactionSuccess, Field responseBalance, Field responseError) {
-        this.economy = economy;
+        this.economyClass = economyClass;
         this.getBalance = getBalance;
         this.depositPlayer = depositPlayer;
         this.withdrawPlayer = withdrawPlayer;
@@ -110,18 +116,12 @@ public final class VaultCurrency implements CurrencyProvider {
         }
         try {
             Class<?> economyClass = Class.forName(ECONOMY_CLASS);
-            RegisteredServiceProvider<?> registration =
-                    Bukkit.getServicesManager().getRegistration(economyClass);
-            if (registration == null) {
+            if (Bukkit.getServicesManager().getRegistration(economyClass) == null) {
                 // Vault without an economy plugin behind it serves nobody.
                 return null;
             }
-            Object economy = registration.getProvider();
-            if (economy == null) {
-                return null;
-            }
             Class<?> responseClass = Class.forName(RESPONSE_CLASS);
-            return new VaultCurrency(economy,
+            return new VaultCurrency(economyClass,
                     economyClass.getMethod("getBalance", OfflinePlayer.class),
                     economyClass.getMethod("depositPlayer", OfflinePlayer.class, double.class),
                     economyClass.getMethod("withdrawPlayer", OfflinePlayer.class, double.class),
@@ -155,13 +155,19 @@ public final class VaultCurrency implements CurrencyProvider {
         // A plugin-manager lookup, not a flag frozen at startup: Vault can be
         // disabled after we were created, and answering true then would send
         // every purchase into a provider that no longer exists.
-        return Bukkit.getPluginManager().isPluginEnabled(PLUGIN);
+        return Bukkit.getPluginManager().isPluginEnabled(PLUGIN) && economy() != null;
+    }
+
+    /** The economy Vault hands out right now, or {@code null} when none is registered. */
+    private @Nullable Object economy() {
+        RegisteredServiceProvider<?> registration = Bukkit.getServicesManager().getRegistration(economyClass);
+        return registration == null ? null : registration.getProvider();
     }
 
     @Override
     public @NotNull BigDecimal balance(@NotNull UUID player) {
         try {
-            double value = (Double) getBalance.invoke(economy, offline(player));
+            double value = (Double) getBalance.invoke(economy(), offline(player));
             return BigDecimal.valueOf(value);
         } catch (ReflectiveOperationException | RuntimeException e) {
             // balance() has no failure channel, and inventing a number is
@@ -180,7 +186,7 @@ public final class VaultCurrency implements CurrencyProvider {
             return EconomyResponse.invalidAmount();
         }
         try {
-            Object response = depositPlayer.invoke(economy, offline(player), amount.doubleValue());
+            Object response = depositPlayer.invoke(economy(), offline(player), amount.doubleValue());
             return adapt(response, amount);
         } catch (ReflectiveOperationException | RuntimeException e) {
             return EconomyResponse.failure("Vault deposit failed: " + describe(e));
@@ -201,7 +207,7 @@ public final class VaultCurrency implements CurrencyProvider {
             return EconomyResponse.insufficientFunds(amount, current);
         }
         try {
-            Object response = withdrawPlayer.invoke(economy, offline(player), amount.doubleValue());
+            Object response = withdrawPlayer.invoke(economy(), offline(player), amount.doubleValue());
             return adapt(response, amount);
         } catch (ReflectiveOperationException | RuntimeException e) {
             return EconomyResponse.failure("Vault withdraw failed: " + describe(e));
@@ -212,7 +218,7 @@ public final class VaultCurrency implements CurrencyProvider {
     public @NotNull String currencyName(boolean plural) {
         try {
             String name = (String) (plural ? currencyNamePlural : currencyNameSingular)
-                    .invoke(economy);
+                    .invoke(economy());
             if (name != null && !name.isBlank()) {
                 return name;
             }

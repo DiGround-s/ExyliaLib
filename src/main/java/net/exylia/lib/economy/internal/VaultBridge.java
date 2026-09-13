@@ -8,6 +8,7 @@ import net.exylia.lib.player.ExyliaPlayers;
 import org.bukkit.Bukkit;
 import org.bukkit.OfflinePlayer;
 import org.bukkit.plugin.Plugin;
+import org.bukkit.plugin.RegisteredServiceProvider;
 import org.bukkit.plugin.ServicePriority;
 import org.jetbrains.annotations.Nullable;
 
@@ -28,10 +29,12 @@ import java.util.UUID;
  * <em>reads</em> Vault: nothing here links against it, and a server without
  * Vault pays a caught {@code ClassNotFoundException} and nothing more.
  *
- * <p>Opt-in and polite by default: {@code vault.provide} names the currency,
- * and an economy some other plugin already registered is left alone unless
- * {@code vault.force} says otherwise. Two plugins both certain they are the
- * server's economy is how balances split in two.
+ * <p>Polite by default: {@code vault.provide} names the currency, and it is
+ * registered at the lowest priority, so an economy plugin the owner installed —
+ * EssentialsX, CMI — sits above it and serves, whichever of the two loaded
+ * first. This one serves only while nothing else does. {@code vault.force}
+ * registers it at the highest priority instead. Two plugins both certain they
+ * are the server's economy is how balances split in two.
  */
 final class VaultBridge {
 
@@ -58,16 +61,18 @@ final class VaultBridge {
                     + "' but Vault is not installed, so nothing is published.");
             return;
         }
-        if (!force && Bukkit.getServicesManager().getRegistration(economyClass) != null) {
-            plugin.getLogger().info("Economy: another plugin already provides the Vault economy; '"
-                    + currency.id() + "' is not published. Set vault.force to take over.");
-            return;
-        }
+        RegisteredServiceProvider<?> other = Bukkit.getServicesManager().getRegistration(economyClass);
         Object proxy = Proxy.newProxyInstance(economyClass.getClassLoader(),
                 new Class<?>[] {economyClass}, new Handler(currency));
-        registerService(proxy);
+        registerService(proxy, force ? ServicePriority.Highest : ServicePriority.Lowest);
         published = proxy;
-        plugin.getLogger().info("Economy: '" + currency.id() + "' is the server's Vault economy.");
+        if (other != null && !force) {
+            plugin.getLogger().info("Economy: " + other.getPlugin().getName() + " provides the Vault economy; '"
+                    + currency.id() + "' is registered beneath it and serves only without it."
+                    + " Set vault.force to put it on top.");
+        } else {
+            plugin.getLogger().info("Economy: '" + currency.id() + "' is the server's Vault economy.");
+        }
         // Vault's own view is a currency too, and it now points at us.
         CurrencyRegistry.detect(plugin);
     }
@@ -79,8 +84,8 @@ final class VaultBridge {
     }
 
     @SuppressWarnings({"unchecked", "rawtypes"})
-    private void registerService(Object proxy) {
-        Bukkit.getServicesManager().register((Class) economyClass, proxy, plugin, ServicePriority.Highest);
+    private void registerService(Object proxy, ServicePriority priority) {
+        Bukkit.getServicesManager().register((Class) economyClass, proxy, plugin, priority);
     }
 
     @SuppressWarnings({"unchecked", "rawtypes"})

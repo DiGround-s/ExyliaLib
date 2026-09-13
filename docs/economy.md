@@ -637,7 +637,7 @@ experience: { levels: false, points: true }   # ids xp_levels and xp_points
 display:
   vault: { name: Dollar, plural: Dollars, symbol: "$", icon: GOLD_INGOT, decimals: 2 }
 vault:
-  provide: ""      # a stored currency to publish as the server's Vault economy
+  provide: shards  # a stored currency to publish as the server's Vault economy
   force: false
 ledger:
   enabled: true
@@ -705,8 +705,13 @@ All read memory; none touch the database on the thread that asked.
 
 ### Vault
 
-`vault.provide: shards` publishes that currency as the server's
+`vault.provide: shards` — the default — publishes that currency as the server's
 Vault economy, so every plugin that only speaks Vault runs on it, exactly as
 EssentialsX or CMI would register one. The Vault interface is a
-proxy built by name — nothing links against Vault — and an economy some other
-plugin already registered is left alone unless `vault.force` says otherwise.
+proxy built by name — nothing links against Vault.
+
+It is registered at the **lowest** priority: an economy plugin the owner
+installed sits above it and serves, whichever loaded first, and the library's
+currency serves only while there is none. `vault.force: true` registers it at
+the highest priority instead. The `vault` currency asks Vault for its economy
+on every call, so a plugin that takes over at runtime is followed at once.

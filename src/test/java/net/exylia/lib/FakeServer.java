@@ -238,8 +238,13 @@ public final class FakeServer {
         DISABLED.add(plugin.getName());
     }
 
+    /** The real Bukkit services manager: priorities are what a test asserts. */
+    private static volatile org.bukkit.plugin.ServicesManager services =
+            new org.bukkit.plugin.SimpleServicesManager();
+
     /** Clears recorded tasks between tests. */
     public static void reset() {
+        services = new org.bukkit.plugin.SimpleServicesManager();
         asyncRunsForReal = false;
         deliverFiredEvents = false;
         tick = 0;
@@ -411,6 +416,7 @@ public final class FakeServer {
                 (proxy, method, args) -> switch (method.getName()) {
                     case "getScheduler" -> scheduler;
                     case "getPluginManager" -> PLUGIN_MANAGER;
+                    case "getServicesManager" -> services;
                     case "getConsoleSender" -> CONSOLE;
                     case "dispatchCommand" -> {
                         CONSOLE_COMMANDS.add(String.valueOf(args[1]));
