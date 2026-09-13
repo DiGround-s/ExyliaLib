@@ -1,16 +1,23 @@
 package net.exylia.lib.text;
 
-import net.exylia.lib.placeholder.Placeholders;
 import net.exylia.lib.placeholder.Request;
 import net.exylia.lib.placeholder.Template;
 import net.exylia.lib.placeholder.internal.CompiledTemplate;
+import net.exylia.lib.placeholder.internal.Loggers;
+import net.exylia.lib.placeholder.internal.TemplateCache;
 import net.exylia.lib.placeholder.internal.ValueRenderer;
 import net.kyori.adventure.text.minimessage.tag.resolver.TagResolver;
 import net.exylia.lib.text.internal.EffectTag;
 import net.exylia.lib.text.internal.EffectTagPlayer;
 import net.exylia.lib.text.internal.TextEngine;
 import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.TextComponent;
+import net.kyori.adventure.text.TranslatableComponent;
+import net.kyori.adventure.text.TranslationArgument;
 import net.kyori.adventure.text.event.ClickEvent;
+import net.kyori.adventure.text.event.HoverEvent;
+import net.kyori.adventure.text.format.Style;
+import net.kyori.adventure.text.renderer.ComponentRenderer;
 import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
 import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
 import org.bukkit.command.CommandSender;
@@ -24,7 +31,6 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import java.util.regex.Pattern;
 import java.util.Set;
 
 /**
@@ -91,6 +97,22 @@ public final class Text {
      * @param verbatim  whether that parse leaves the letters alone; see {@link #withVerbatim}
      */
     private record Substitution(String key, String value, boolean formatted, boolean verbatim) {
+
+        // Written out: a live bar compares its values once per redraw, and the
+        // generated forms went through method-handle chains the profile caught
+        // uninlined under every one of those comparisons.
+        @Override
+        public boolean equals(Object other) {
+            return this == other || other instanceof Substitution that
+                    && formatted == that.formatted && verbatim == that.verbatim
+                    && key.equals(that.key) && value.equals(that.value);
+        }
+
+        @Override
+        public int hashCode() {
+            return (key.hashCode() * 31 + value.hashCode()) * 4
+                    + (formatted ? 2 : 0) + (verbatim ? 1 : 0);
+        }
     }
 
     private final List<Substitution> substitutions;
@@ -512,28 +534,124 @@ public final class Text {
     /** Where the private-use markers start, well clear of anything a font draws. */
     private static final char MARKER_BASE = '\uE000';
 
-    /**
-     * Any marker, in one pattern.
-     *
-     * <p>{@code replaceText} walks the whole component tree once per call, so
-     * one call per value was one walk per value: an action bar with six
-     * values walked its tree six times per player per tick. One pattern that
-     * matches every marker, and a replacement that looks up which one it hit,
-     * is one walk.
-     */
-    private static final Pattern ANY_MARKER = Pattern.compile("[\\uE000-\\uE0FF]");
+    /** Where the markers end. */
+    private static final char MARKER_LAST = '\uE0FF';
 
-    /** Puts the values in for their markers, walking the tree once. */
-    private static Component substituteMarkers(Component component, Component[] replacements) {
+    /** The marker walk, in the shape a hover event renders its text through. */
+    private static final ComponentRenderer<Component[]> MARKERS = Text::replaceMarkers;
+
+    /**
+     * Puts the values in for their markers, walking the tree once.
+     *
+     * <p>This builds exactly the tree {@code replaceText} with a pattern
+     * matching any marker built, and a test holds the two to it. It is written
+     * out because a marker is a single known character: {@code replaceText}
+     * runs a regex matcher over every node, and a gradient is a node per
+     * letter, which put it at a quarter of what a live action bar costs to
+     * redraw. A node with no marker in it is handed back as it was.
+     */
+    static Component substituteMarkers(Component component, Component[] replacements) {
         if (replacements.length == 0) {
             return component;
         }
-        return component.replaceText(builder -> builder
-                .match(ANY_MARKER)
-                .replacement((match, ignored) -> {
-                    int index = match.group().charAt(0) - MARKER_BASE;
-                    return index < replacements.length ? replacements[index] : Component.text(match.group());
-                }));
+        return replaceMarkers(component, replacements);
+    }
+
+    private static Component replaceMarkers(Component component, Component[] replacements) {
+        List<Component> oldChildren = component.children();
+        int oldChildrenSize = oldChildren.size();
+        Style oldStyle = component.style();
+        List<Component> children = null;
+        Component modified = component;
+        if (component instanceof TextComponent text) {
+            String content = text.content();
+            int length = content.length();
+            int replacedUntil = 0;
+            boolean firstMatch = true;
+            for (int at = 0; at < length; at++) {
+                char character = content.charAt(at);
+                if (character < MARKER_BASE || character > MARKER_LAST) {
+                    continue;
+                }
+                int index = character - MARKER_BASE;
+                Component replacement = index < replacements.length
+                        ? replacements[index] : Component.text(String.valueOf(character));
+                if (at == 0) {
+                    if (length == 1) {
+                        modified = replacement;
+                        if (modified.style().hoverEvent() != null) {
+                            oldStyle = oldStyle.hoverEvent(null);
+                        }
+                        modified = modified.style(modified.style()
+                                .merge(component.style(), Style.Merge.Strategy.IF_ABSENT_ON_TARGET));
+                        children = new ArrayList<>(oldChildrenSize + modified.children().size());
+                        children.addAll(modified.children());
+                    } else {
+                        modified = Component.text("", component.style());
+                        children = new ArrayList<>(oldChildrenSize + 1);
+                        children.add(replacement);
+                    }
+                } else {
+                    if (children == null) {
+                        children = new ArrayList<>(oldChildrenSize + 2);
+                    }
+                    if (firstMatch) {
+                        modified = text.content(content.substring(0, at));
+                    } else if (replacedUntil < at) {
+                        children.add(Component.text(content.substring(replacedUntil, at)));
+                    }
+                    children.add(replacement);
+                }
+                firstMatch = false;
+                replacedUntil = at + 1;
+            }
+            if (replacedUntil > 0 && replacedUntil < length) {
+                children.add(Component.text(content.substring(replacedUntil)));
+            }
+        } else if (component instanceof TranslatableComponent translatable) {
+            List<TranslationArgument> arguments = translatable.arguments();
+            List<TranslationArgument> replaced = null;
+            for (int i = 0; i < arguments.size(); i++) {
+                TranslationArgument original = arguments.get(i);
+                TranslationArgument argument = original;
+                if (original.value() instanceof Component value) {
+                    Component rendered = replaceMarkers(value, replacements);
+                    if (rendered != value) {
+                        argument = TranslationArgument.component(rendered);
+                    }
+                }
+                if (argument != original && replaced == null) {
+                    replaced = new ArrayList<>(arguments.subList(0, i));
+                }
+                if (replaced != null) {
+                    replaced.add(argument);
+                }
+            }
+            if (replaced != null) {
+                modified = translatable.arguments(replaced);
+            }
+        }
+
+        HoverEvent<?> hover = oldStyle.hoverEvent();
+        if (hover != null) {
+            HoverEvent<?> rendered = hover.withRenderedValue(MARKERS, replacements);
+            if (rendered != hover) {
+                modified = modified.style(style -> style.hoverEvent(rendered));
+            }
+        }
+
+        for (int i = 0; i < oldChildrenSize; i++) {
+            Component child = oldChildren.get(i);
+            Component rendered = replaceMarkers(child, replacements);
+            if (rendered != child && children == null) {
+                children = new ArrayList<>(oldChildrenSize);
+                children.addAll(oldChildren.subList(0, i));
+            }
+            if (children != null) {
+                children.add(rendered);
+            }
+        }
+        return children != null ? modified.children(children) : modified;
     }
 
     /** A value and the marker standing in for it while the text is parsed. */
@@ -552,7 +670,10 @@ public final class Text {
         // so a value supplied through with() is not reported as unknown
         // moments before being substituted — which is exactly the false
         // alarm that fired on a live server.
-        Template template = Placeholders.compile(raw);
+        // From the shared cache: compiling afresh here re-scanned the same
+        // template on every build, which a profile put at a sixth of what a
+        // live action bar costs to redraw.
+        Template template = TemplateCache.get(raw, Loggers.get());
         // Nothing to resolve means nothing to exempt either, and handledNames()
         // builds a set: a lore line with no placeholder in it was allocating one
         // per render, on every line of every slot of every redraw.

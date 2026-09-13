@@ -84,7 +84,28 @@ public record RegionId(@NotNull String namespace, @NotNull String value)
     /** Orders identifiers lexicographically by their complete stable representation. */
     @Override
     public int compareTo(@NotNull RegionId other) {
-        return toString().compareTo(Objects.requireNonNull(other, "other").toString());
+        Objects.requireNonNull(other, "other");
+        // The same order as comparing the two toString()s, without building
+        // them: a region query compares ids while ordering its candidates, on
+        // every block a player steps into.
+        int length = namespace.length() + 1 + value.length();
+        int otherLength = other.namespace.length() + 1 + other.value.length();
+        int shared = Math.min(length, otherLength);
+        for (int index = 0; index < shared; index++) {
+            char mine = charAt(index);
+            char theirs = other.charAt(index);
+            if (mine != theirs) {
+                return mine - theirs;
+            }
+        }
+        return length - otherLength;
+    }
+
+    /** The character at a position of {@code namespace:value}. */
+    private char charAt(int index) {
+        int split = namespace.length();
+        return index < split ? namespace.charAt(index)
+                : index == split ? ':' : value.charAt(index - split - 1);
     }
 
     /** Returns the complete {@code namespace:value} representation. */

@@ -48,6 +48,10 @@ public final class TextEngine {
     private static final Cache<String, Component> CACHE = Caffeine.newBuilder()
             .maximumSize(4096)
             .expireAfterAccess(Duration.ofMinutes(10))
+            // Upkeep on the reading thread. The default hands it to the common
+            // pool, and waking a pool thread showed up under every redraw of a
+            // live bar: a futex call on the server thread for a cache hit.
+            .executor(Runnable::run)
             .build();
 
     /**
@@ -60,6 +64,7 @@ public final class TextEngine {
     private static final Cache<String, Component> EXACT = Caffeine.newBuilder()
             .maximumSize(1024)
             .expireAfterAccess(Duration.ofMinutes(10))
+            .executor(Runnable::run)
             .build();
 
     /**
@@ -280,6 +285,7 @@ public final class TextEngine {
     private static final Cache<String, Component> VALUES = Caffeine.newBuilder()
             .maximumSize(1024)
             .expireAfterAccess(Duration.ofMinutes(10))
+            .executor(Runnable::run)
             .build();
 
     /**
