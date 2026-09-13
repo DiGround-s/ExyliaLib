@@ -218,6 +218,62 @@ where. This is the strict cleanup ExyliaCommons performed. Three guarantees:
 - Nothing inside a `Map` block is touched — see
   [Blocks the owner names](#blocks-the-owner-names).
 
+## Default changes
+
+Since 1.158.0. A value still equal to its old default may be exactly what the
+owner wants, so a plugin update never rewrites one on its own. Every config
+remembers the defaults its owner last reviewed, in `.defaults/configs/` inside
+the plugin's data folder, and compares them on each load:
+
+- **A new key** is added, as it always was.
+- **A changed or removed default** on a key still at its reviewed value is left
+  as it is and listed in `/exylialib updates`.
+- **A value the owner changed** is theirs and is never listed.
+
+```
+EXYLIALIB updates
+▎ ExyliaFFA [Apply all] [Keep all]
+▎ config.yml
+▎  cooldown » 30 → 35 [Apply] [Keep]
+```
+
+`apply <number|plugin|all>` writes the new default into the file, reloads the
+file and runs the plugin's latest `Reloads`, so it is live at once. `keep`
+records the change as reviewed and leaves the value alone; it is never listed
+again. A file edited by hand after the list was shown is left alone and reported
+as stale.
+
+A server that predates this has nothing reviewed, so on its first load every
+value counts as the owner's and nothing is listed. Pending changes are announced
+once in the console after startup, and a player with `exylialib.updates`
+(default: op) is told on join, once per batch of changes.
+
+## Bundled files
+
+Since 1.158.0. Files a plugin ships for the owner to edit, rather than generates
+from a record — menus, catalogues of effects, cosmetics or items — follow the
+same rules through `BundledFiles`:
+
+```java
+BundledFiles.refresh(this, MyPlugin.class, "menus");        // a directory
+BundledFiles.refresh(this, MyPlugin.class, "effects.yml");  // one file
+```
+
+Call it before reading the files, on enable and on reload. Missing files are
+written. For YAML, a key new in the plugin is added to the owner's file with its
+comments — nobody can have chosen something that did not exist — and a changed or
+removed default waits in `/exylialib updates`. A key the owner deleted is not
+added back. A file from before tracking only gets missing keys. Reviewed defaults
+live in `.defaults/files/`.
+
+- A file on disk that does not parse is left untouched and reported.
+- A packaged `menu-version` (or `defaults-version`) higher than the file's
+  replaces it outright, keeping the old one as `<name>.v<old version>`: for a
+  change the old layout cannot survive.
+- Adding a key rewrites the file through YAML, which keeps comments but may
+  re-quote strings. A file with nothing new is never rewritten.
+- A file that is not YAML is only written when missing.
+
 ## When the file is wrong
 
 A typo in the user's file never crashes the plugin: each problem becomes a

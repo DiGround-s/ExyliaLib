@@ -1,6 +1,8 @@
 package net.exylia.lib.ui;
 
 import net.exylia.lib.action.Actions;
+import net.exylia.lib.config.BundledFiles;
+import net.exylia.lib.config.internal.BundledResources;
 import net.exylia.lib.action.PluginActions;
 import net.exylia.lib.debug.Debug;
 import net.exylia.lib.item.Problems;
@@ -9,37 +11,20 @@ import net.exylia.lib.ui.internal.BuiltInActions;
 import net.exylia.lib.ui.internal.MenuLoader;
 import net.exylia.lib.ui.internal.MenuRuntime;
 import org.bukkit.configuration.ConfigurationSection;
-import org.bukkit.configuration.InvalidConfigurationException;
-import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.io.IOException;
-import java.lang.reflect.Field;
-import java.lang.reflect.Modifier;
-import java.net.URI;
 import java.net.URISyntaxException;
-import java.net.URL;
-import java.nio.file.AtomicMoveNotSupportedException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.StandardCopyOption;
-import java.security.CodeSource;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
-import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Comparator;
-import java.util.HexFormat;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.Properties;
-import java.util.jar.JarEntry;
-import java.util.jar.JarFile;
 
 /**
  * The menus belonging to one plugin.
@@ -61,12 +46,6 @@ import java.util.jar.JarFile;
  * @since 1.22.0
  */
 public final class PluginMenus {
-
-    /** Key a packaged menu file declares to force {@link #refreshVersionedDirectory} over edits. */
-    private static final String MENU_VERSION_KEY = "menu-version";
-
-    /** What {@link #refreshVersionedDirectory} installed, by path: the hashes it compares against. */
-    private static final String INSTALLED_FILES = ".bundled-files";
 
     private final Plugin plugin;
     private final MenuRuntime runtime;
@@ -192,29 +171,29 @@ public final class PluginMenus {
      * @throws IllegalArgumentException if the directory is blank, absolute, or escapes the data folder
      */
     public boolean refreshBundledDirectory(@NotNull Class<?> anchor, @NotNull String resourceDirectory) {
-        Path relative = bundledDirectory(resourceDirectory);
+        Path relative = BundledResources.relative(resourceDirectory);
         Path dataFolder = plugin.getDataFolder().toPath().toAbsolutePath().normalize();
-        Path target = insideDataFolder(dataFolder, relative);
+        Path target = BundledResources.inside(dataFolder, relative);
 
         Path staging = null;
         Path backup = null;
         try {
             Files.createDirectories(dataFolder);
             staging = Files.createTempDirectory(dataFolder, ".bundled-");
-            extractBundledDirectory(anchor, relative, staging);
+            BundledResources.extract(anchor, relative, staging);
 
             backup = Files.createTempDirectory(dataFolder, ".previous-");
             Files.delete(backup);
             Files.createDirectories(target.getParent());
             if (Files.exists(target)) {
-                move(target, backup);
+                BundledResources.move(target, backup);
             }
             try {
-                move(staging, target);
+                BundledResources.move(staging, target);
             } catch (IOException replacementFailure) {
                 try {
                     if (Files.exists(backup)) {
-                        move(backup, target);
+                        BundledResources.move(backup, target);
                         backup = null;
                     }
                 } catch (IOException restorationFailure) {
@@ -223,7 +202,7 @@ public final class PluginMenus {
                 throw replacementFailure;
             }
             staging = null;
-            deleteTree(backup);
+            BundledResources.deleteTree(backup);
             backup = null;
             return true;
         } catch (IOException | URISyntaxException | SecurityException failure) {
@@ -231,42 +210,18 @@ public final class PluginMenus {
                     + failure.getMessage());
             return false;
         } finally {
-            deleteTree(staging);
+            BundledResources.deleteTree(staging);
         }
     }
 
     /**
-     * Installs a directory of files a server owner may edit, such as the menus
-     * players see, and keeps it up to date without undoing their edits.
+     * Installs and updates a directory of menus a server owner may edit.
      *
-     * <p>Whether a file was edited is decided by content, never by a version
-     * number: the hash of every file this method installs is kept in
-     * {@code .bundled-files} in the data folder. A plugin started by a loader
-     * reports the same version forever, and a number somebody must remember to
-     * raise is a change that silently never ships. For each packaged file:
-     *
-     * <ul>
-     *   <li><b>missing</b> — written;</li>
-     *   <li><b>unchanged since it was installed</b> — replaced when the plugin
-     *       ships different content, and logged;</li>
-     *   <li><b>edited on the server</b>, or present from before this method
-     *       tracked it — kept, and the plugin's new content is written next to
-     *       it as {@code <name>.new} with a warning, once per new content.</li>
-     * </ul>
-     *
-     * <p>A packaged file can still force itself over edits, for a change the
-     * old file cannot survive, by declaring a version higher than the one on
-     * disk (a file with no key is version 0):
-     *
-     * <pre>{@code
-     * menu-version: 2
-     * title: "..."
-     * }</pre>
-     *
-     * <p>The replaced file is kept as {@code <name>.v<old version>}; one that
-     * does not parse is left untouched and reported instead. Each file is moved
-     * into place atomically, a failing one does not stop the rest, and nothing
-     * on disk is ever deleted.
+     * <p>The same as {@link BundledFiles#refresh(Plugin, Class, String)} for a
+     * directory: missing files are written, keys new since the owner last
+     * reviewed the defaults are added, and a changed default waits in
+     * {@code /exylialib updates} rather than overwriting a value the owner may
+     * have chosen.
      *
      * <pre>{@code
      * Menus.of(this).refreshVersionedDirectory(MyPlugin.class, "menus");
@@ -274,149 +229,12 @@ public final class PluginMenus {
      *
      * @param anchor the consumer plugin class packaged with the resources
      * @param resourceDirectory a relative resource and data-folder directory
-     * @return {@code false} when the directory or a file in it could not be
-     *         read or written, each of which has been logged
+     * @return {@code false} when something could not be read or written, each of which has been logged
      * @throws IllegalArgumentException if the directory is blank, absolute, or escapes the data folder
      * @since 1.156.1
      */
     public boolean refreshVersionedDirectory(@NotNull Class<?> anchor, @NotNull String resourceDirectory) {
-        Path relative = bundledDirectory(resourceDirectory);
-        Path dataFolder = plugin.getDataFolder().toPath().toAbsolutePath().normalize();
-        Path target = insideDataFolder(dataFolder, relative);
-
-        Path staging = null;
-        try {
-            Files.createDirectories(dataFolder);
-            staging = Files.createTempDirectory(dataFolder, ".bundled-");
-            extractBundledDirectory(anchor, relative, staging);
-
-            Path ledgerFile = dataFolder.resolve(INSTALLED_FILES);
-            Properties ledger = new Properties();
-            if (Files.exists(ledgerFile)) {
-                try (var reader = Files.newBufferedReader(ledgerFile)) {
-                    ledger.load(reader);
-                }
-            }
-            Properties before = (Properties) ledger.clone();
-
-            boolean written = true;
-            try (var files = Files.walk(staging)) {
-                for (Path packaged : files.filter(Files::isRegularFile).toList()) {
-                    Path file = staging.relativize(packaged);
-                    String name = relative.resolve(file).toString().replace('\\', '/');
-                    written &= updateEditable(packaged, target.resolve(file), name, ledger);
-                }
-            }
-
-            if (!ledger.equals(before)) {
-                Path temporary = Files.createTempFile(dataFolder, INSTALLED_FILES, ".tmp");
-                try (var writer = Files.newBufferedWriter(temporary)) {
-                    ledger.store(writer, "Files ExyliaLib installed, by content. Deleting this treats them all as edited.");
-                }
-                move(temporary, ledgerFile);
-            }
-            return written;
-        } catch (IOException | URISyntaxException | SecurityException failure) {
-            debug.warn("Could not refresh versioned directory \"" + resourceDirectory + "\": "
-                    + failure.getMessage());
-            return false;
-        } finally {
-            deleteTree(staging);
-        }
-    }
-
-    /** Installs, updates or offers one file, reporting a failure instead of throwing it. */
-    private boolean updateEditable(Path packaged, Path onDisk, String name, Properties ledger) {
-        try {
-            String shipped = hash(packaged);
-            if (Files.notExists(onDisk)) {
-                install(packaged, onDisk);
-                ledger.setProperty(name, shipped);
-                return true;
-            }
-            String present = hash(onDisk);
-            if (present.equals(shipped)) {
-                ledger.setProperty(name, shipped);
-                return true;
-            }
-            if (present.equals(ledger.getProperty(name))) {
-                // Exactly what was installed, so there is nothing of the owner's to lose.
-                install(packaged, onDisk);
-                ledger.setProperty(name, shipped);
-                debug.log("Updated " + name + ".");
-                return true;
-            }
-
-            Integer packagedVersion = declaredMenuVersion(packaged);
-            if (packagedVersion != null) {
-                Integer declared;
-                try {
-                    declared = declaredMenuVersion(onDisk);
-                } catch (InvalidConfigurationException broken) {
-                    debug.warn("Not updating " + name + " to version " + packagedVersion + ": it could not be read ("
-                            + broken.getMessage() + "). The file was left untouched.");
-                    return false;
-                }
-                int current = declared == null ? 0 : declared;
-                if (current < packagedVersion) {
-                    Path previous = onDisk.resolveSibling(onDisk.getFileName() + ".v" + current);
-                    Files.copy(onDisk, previous, StandardCopyOption.REPLACE_EXISTING);
-                    install(packaged, onDisk);
-                    ledger.setProperty(name, shipped);
-                    debug.log("Updated " + name + " from version " + current + " to " + packagedVersion
-                            + "; the previous file was kept as " + previous.getFileName() + ".");
-                    return true;
-                }
-            }
-
-            // Remembered per content, so an owner who merged and deleted the
-            // offer is not handed the same one on every start.
-            String offeredKey = name + ".new";
-            if (!shipped.equals(ledger.getProperty(offeredKey))) {
-                Path offered = onDisk.resolveSibling(onDisk.getFileName() + ".new");
-                install(packaged, offered);
-                ledger.setProperty(offeredKey, shipped);
-                debug.warn(name + " was changed on this server, so it was kept. The plugin's new version is next to it as "
-                        + offered.getFileName() + ".");
-            }
-            return true;
-        } catch (IOException | InvalidConfigurationException | SecurityException failure) {
-            debug.warn("Could not update " + name + ": " + failure.getMessage());
-            return false;
-        }
-    }
-
-    private static String hash(Path file) throws IOException {
-        try {
-            return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(Files.readAllBytes(file)));
-        } catch (NoSuchAlgorithmException impossible) {
-            throw new IllegalStateException("Every JVM provides SHA-256.", impossible);
-        }
-    }
-
-    /**
-     * Moves a staged file into place.
-     *
-     * <p>The staging directory lives in the data folder, so this is a rename:
-     * a crash halfway never leaves a truncated menu behind.
-     */
-    private static void install(Path packaged, Path onDisk) throws IOException {
-        Files.createDirectories(onDisk.getParent());
-        move(packaged, onDisk);
-    }
-
-    /**
-     * The {@code menu-version} a YAML file declares, or {@code null} if it
-     * declares none or is not YAML.
-     */
-    private static @Nullable Integer declaredMenuVersion(Path file) throws IOException, InvalidConfigurationException {
-        String name = file.getFileName().toString();
-        if (!name.endsWith(".yml") && !name.endsWith(".yaml")) {
-            return null;
-        }
-        YamlConfiguration yaml = new YamlConfiguration();
-        yaml.load(file.toFile());
-        return yaml.isInt(MENU_VERSION_KEY) ? yaml.getInt(MENU_VERSION_KEY) : null;
+        return BundledFiles.refresh(plugin, anchor, resourceDirectory);
     }
 
     // ------------------------------------------------------------------ opening
@@ -592,191 +410,6 @@ public final class PluginMenus {
     /** Qualifies a short id with this plugin's namespace, for readable logs. */
     private String qualify(String id) {
         return id.indexOf(':') >= 0 ? id : actions.namespace() + ':' + id;
-    }
-
-    private static Path bundledDirectory(String resourceDirectory) {
-        if (resourceDirectory.isBlank()) {
-            throw new IllegalArgumentException("Resource directory cannot be blank.");
-        }
-        Path directory = Path.of(resourceDirectory).normalize();
-        if (directory.toString().isEmpty() || directory.isAbsolute() || directory.startsWith("..")) {
-            throw new IllegalArgumentException("Resource directory must be relative and cannot escape its plugin.");
-        }
-        return directory;
-    }
-
-    private static Path insideDataFolder(Path dataFolder, Path relative) {
-        Path target = dataFolder.resolve(relative).normalize();
-        if (!target.startsWith(dataFolder)) {
-            throw new IllegalArgumentException("Resource directory must stay inside the plugin data folder.");
-        }
-        return target;
-    }
-
-    private static void extractBundledDirectory(Class<?> anchor, Path resourceDirectory, Path staging)
-            throws IOException, URISyntaxException {
-        URL location = artifactOf(anchor);
-        if (location == null) {
-            // No artifact on disk to walk. A plugin whose classes were defined
-            // from bytes — a bootstrap loader that decrypts its payload in
-            // memory — has neither a jar to open nor a directory to list, and
-            // its resources live only inside its classloader.
-            extractFromClassLoader(anchor, resourceDirectory, staging);
-            return;
-        }
-        URI artifact = location.toURI();
-        if ("file".equals(artifact.getScheme()) && Files.isDirectory(Path.of(artifact))) {
-            Path source = Path.of(artifact).resolve(resourceDirectory).normalize();
-            if (!source.startsWith(Path.of(artifact)) || !Files.isDirectory(source)) {
-                throw new IOException("Packaged directory does not exist.");
-            }
-            try (var files = Files.walk(source)) {
-                for (Path file : files.filter(Files::isRegularFile).toList()) {
-                    Path destination = staging.resolve(source.relativize(file));
-                    Files.createDirectories(destination.getParent());
-                    Files.copy(file, destination);
-                }
-            }
-            return;
-        }
-
-        String prefix = prefixOf(resourceDirectory);
-        try (JarFile jar = new JarFile(Path.of(artifact).toFile())) {
-            boolean found = false;
-            for (var entries = jar.entries(); entries.hasMoreElements(); ) {
-                JarEntry entry = entries.nextElement();
-                if (entry.isDirectory() || !entry.getName().startsWith(prefix)) {
-                    continue;
-                }
-                found = true;
-                Path destination = staging.resolve(entry.getName().substring(prefix.length())).normalize();
-                if (!destination.startsWith(staging)) {
-                    throw new IOException("Packaged entry escapes the requested directory.");
-                }
-                Files.createDirectories(destination.getParent());
-                try (var input = jar.getInputStream(entry)) {
-                    Files.copy(input, destination);
-                }
-            }
-            if (!found) {
-                throw new IOException("Packaged directory does not exist.");
-            }
-        }
-    }
-
-    /**
-     * The artifact the class was loaded from, or {@code null} when there is
-     * none to read.
-     *
-     * <p>A class defined from a byte array carries the classloader's default
-     * protection domain, whose code source is present but locationless. Both
-     * that and a missing code source mean the same thing here: there is no jar
-     * or directory to walk.
-     */
-    private static URL artifactOf(Class<?> anchor) {
-        CodeSource source = anchor.getProtectionDomain().getCodeSource();
-        return source == null ? null : source.getLocation();
-    }
-
-    /** The resource path of a directory, always ending in a slash. */
-    private static String prefixOf(Path resourceDirectory) {
-        String prefix = resourceDirectory.toString().replace('\\', '/');
-        return prefix.endsWith("/") ? prefix : prefix + "/";
-    }
-
-    /**
-     * Copies a packaged directory out of the classloader itself.
-     *
-     * <p>The names come from the loader's own resource table and the bytes come
-     * back through {@link ClassLoader#getResourceAsStream}, so nothing here
-     * depends on the payload existing as a file.
-     */
-    private static void extractFromClassLoader(Class<?> anchor, Path resourceDirectory, Path staging)
-            throws IOException {
-        String prefix = prefixOf(resourceDirectory);
-        ClassLoader loader = anchor.getClassLoader();
-        Collection<String> names = bundledResourceNames(loader, prefix);
-        if (names.isEmpty()) {
-            throw new IOException("Packaged directory does not exist.");
-        }
-        for (String name : names) {
-            Path destination = staging.resolve(name.substring(prefix.length())).normalize();
-            if (!destination.startsWith(staging)) {
-                throw new IOException("Packaged entry escapes the requested directory.");
-            }
-            try (var input = loader.getResourceAsStream(name)) {
-                if (input == null) {
-                    continue;
-                }
-                Files.createDirectories(destination.getParent());
-                Files.copy(input, destination, StandardCopyOption.REPLACE_EXISTING);
-            }
-        }
-    }
-
-    /**
-     * The resources a classloader holds under a directory.
-     *
-     * <p>{@code ClassLoader} can hand back a resource by name but cannot list
-     * one, so a loader that keeps its payload in memory is asked for its table
-     * directly: every map it declares is read, and the keys that sit under the
-     * directory are the entries. Reflection is the only door there is, and a
-     * loader that does not open it simply reports nothing, which the caller
-     * reads as "no packaged directory".
-     */
-    private static Collection<String> bundledResourceNames(ClassLoader loader, String prefix) {
-        if (loader == null) {
-            return List.of();
-        }
-        List<String> names = new ArrayList<>();
-        for (Class<?> type = loader.getClass(); type != null && type != ClassLoader.class; type = type.getSuperclass()) {
-            for (Field field : type.getDeclaredFields()) {
-                if (!Map.class.isAssignableFrom(field.getType())) {
-                    continue;
-                }
-                try {
-                    field.setAccessible(true);
-                    Object value = field.get(Modifier.isStatic(field.getModifiers()) ? null : loader);
-                    if (!(value instanceof Map<?, ?> table)) {
-                        continue;
-                    }
-                    for (Object key : table.keySet()) {
-                        if (key instanceof String name && name.startsWith(prefix) && !name.endsWith("/")) {
-                            names.add(name);
-                        }
-                    }
-                } catch (RuntimeException | ReflectiveOperationException ignored) {
-                    // A table this loader will not open is a table with nothing
-                    // in it, as far as looking for packaged menus goes.
-                }
-            }
-        }
-        return names;
-    }
-
-    private static void move(Path source, Path target) throws IOException {
-        try {
-            Files.move(source, target, StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
-        } catch (AtomicMoveNotSupportedException ignored) {
-            Files.move(source, target, StandardCopyOption.REPLACE_EXISTING);
-        }
-    }
-
-    private static void deleteTree(Path directory) {
-        if (directory == null || !Files.exists(directory)) {
-            return;
-        }
-        try (var files = Files.walk(directory)) {
-            files.sorted(Comparator.reverseOrder()).forEach(path -> {
-                try {
-                    Files.deleteIfExists(path);
-                } catch (IOException ignored) {
-                    // A failed cleanup must not change the refresh result.
-                }
-            });
-        } catch (IOException ignored) {
-            // A failed cleanup must not change the refresh result.
-        }
     }
 
     /** The definitions this plugin registered, for diagnostics. */

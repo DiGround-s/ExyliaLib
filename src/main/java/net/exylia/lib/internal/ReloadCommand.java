@@ -5,6 +5,7 @@ import com.github.benmanes.caffeine.cache.Caffeine;
 import net.exylia.lib.ExyliaLib;
 import net.exylia.lib.action.Actions;
 import net.exylia.lib.config.Configs;
+import net.exylia.lib.config.internal.DefaultUpdates;
 import net.exylia.lib.database.Databases;
 import net.exylia.lib.database.PluginDatabase;
 import net.exylia.lib.database.transfer.TableTransfer;
@@ -40,7 +41,9 @@ import revxrsal.commands.node.ExecutionContext;
 
 import java.nio.file.Path;
 import java.time.Duration;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.function.Supplier;
@@ -224,6 +227,9 @@ public final class ReloadCommand {
                 + "\n{letters_black}▎ {secondary}Wipe {letters_black}» {letters}"
                 + "{muted}/exylialib wipe <plugin> <table|*>{letters} — empties tables, after a"
                 + " typed confirmation and an automatic dump."
+                + "\n{letters_black}▎ {secondary}Updates {letters_black}» {letters}"
+                + "{muted}/exylialib updates{letters} — default changes plugin updates shipped,"
+                + " to apply or keep."
         ).send(sender);
     }
 
@@ -799,6 +805,21 @@ public final class ReloadCommand {
      * itself from {@code @SuggestWith}. It reads the same registry the command
      * does, so a name that is suggested is a name that resolves.
      */
+    /** Suggests {@code all}, the plugins with pending changes, and each change's number. */
+    public static final class UpdateTargets implements SuggestionProvider<BukkitCommandActor> {
+
+        @Override
+        public java.util.Collection<String> getSuggestions(
+                @NotNull ExecutionContext<BukkitCommandActor> context) {
+            List<DefaultUpdates.Pending> pending = DefaultUpdates.pending();
+            List<String> targets = new java.util.ArrayList<>();
+            targets.add(ALL_TABLES_WORD);
+            pending.stream().map(DefaultUpdates.Pending::plugin).distinct().forEach(targets::add);
+            pending.forEach(entry -> targets.add(String.valueOf(entry.id())));
+            return targets;
+        }
+    }
+
     public static final class KnownPlugins implements SuggestionProvider<BukkitCommandActor> {
 
         @Override
@@ -816,6 +837,186 @@ public final class ReloadCommand {
      * {@code &l} stays open for the rest of the string, which is everything
      * else this text builds. Without the reset, the whole panel renders bold.
      */
+    /**
+     * Lists the default changes that plugin updates shipped and nobody has decided on.
+     *
+     * <p>New keys reach every file on their own. A changed default does not: a
+     * value still equal to its old default may be exactly what the owner
+     * wants, so it waits here until somebody applies or keeps it.
+     *
+     * @param sender who asked
+     */
+    @Subcommand("updates")
+    @CommandPermission(DefaultUpdates.PERMISSION)
+    public void updates(@NotNull CommandSender sender) {
+        updatesPanel(header(), DefaultUpdates.pending()).send(sender);
+    }
+
+    /**
+     * Writes pending defaults into their files and reloads what they belong to.
+     *
+     * @param sender who asked
+     * @param target a change's number, a plugin's name, or {@code all}
+     */
+    @Subcommand("updates apply")
+    @CommandPermission(DefaultUpdates.PERMISSION)
+    public void applyUpdates(@NotNull CommandSender sender,
+                             @SuggestWith(UpdateTargets.class) @NotNull String target) {
+        decide(sender, target, true);
+    }
+
+    /**
+     * Marks pending defaults as reviewed, leaving every value as it is.
+     *
+     * @param sender who asked
+     * @param target a change's number, a plugin's name, or {@code all}
+     */
+    @Subcommand("updates keep")
+    @CommandPermission(DefaultUpdates.PERMISSION)
+    public void keepUpdates(@NotNull CommandSender sender,
+                             @SuggestWith(UpdateTargets.class) @NotNull String target) {
+        decide(sender, target, false);
+    }
+
+    private void decide(CommandSender sender, String target, boolean apply) {
+        DefaultUpdates.Decision decision = DefaultUpdates.decide(updateTarget(target), apply);
+        decisionPanel(header(), target, decision, apply, DefaultUpdates.pending().size()).send(sender);
+    }
+
+    /**
+     * The line that tells an admin there is something to review.
+     *
+     * @return the line, or {@code null} when nothing is pending
+     */
+    public static @Nullable Text updatesNotice() {
+        List<DefaultUpdates.Pending> pending = DefaultUpdates.pending();
+        if (pending.isEmpty()) {
+            return null;
+        }
+        String plugins = String.join(", ", pending.stream().map(DefaultUpdates.Pending::plugin).distinct().toList());
+        return Text.of("{primary}✦ {info}%count% {letters}default " + (pending.size() == 1 ? "change" : "changes")
+                        + " to review {letters_black}» {letters}%plugins% "
+                        + "<click:run_command:'/exylialib updates'>{warning}[Review]</click>")
+                .with("%count%", pending.size())
+                .with("%plugins%", plugins);
+    }
+
+    /** Which pending changes a command argument means: a number, a plugin, or all of them. */
+    static java.util.function.Predicate<DefaultUpdates.Pending> updateTarget(String target) {
+        if (ALL_TABLES_WORD.equalsIgnoreCase(target) || ALL_TABLES.equals(target)) {
+            return pending -> true;
+        }
+        try {
+            int id = Integer.parseInt(target);
+            return pending -> pending.id() == id;
+        } catch (NumberFormatException notANumber) {
+            return pending -> pending.plugin().equalsIgnoreCase(target);
+        }
+    }
+
+    /**
+     * The review list, grouped by plugin and file.
+     *
+     * <p>Keys and values are inserted as literal text: a lore line full of
+     * palette tokens is shown as written, not painted.
+     */
+    static Text updatesPanel(String header, List<DefaultUpdates.Pending> pending) {
+        StringBuilder raw = new StringBuilder(header).append(" {muted}updates");
+        if (pending.isEmpty()) {
+            return Text.of(raw.append("\n{letters_black}▎ {success}Nothing to review. {letters}New defaults are added"
+                    + " on their own; changed ones wait here.").toString());
+        }
+        Map<String, Object> values = new LinkedHashMap<>();
+        String plugin = null;
+        String file = null;
+        for (DefaultUpdates.Pending entry : pending) {
+            int id = entry.id();
+            if (!entry.plugin().equals(plugin)) {
+                plugin = entry.plugin();
+                file = null;
+                raw.append("\n{letters_black}▎ {secondary}&l%plugin").append(id).append("%&r ")
+                        .append(updateLinks(plugin, " all"));
+                values.put("%plugin" + id + "%", plugin);
+            }
+            if (!entry.file().equals(file)) {
+                file = entry.file();
+                raw.append("\n{letters_black}▎ {info}%file").append(id).append('%');
+                values.put("%file" + id + "%", file);
+            }
+            raw.append("\n{letters_black}▎  {letters}%key").append(id).append("% {letters_black}» {muted}%now")
+                    .append(id).append("% {letters_black}→ ");
+            if (entry.change().kind() == net.exylia.lib.config.internal.DefaultsMerge.Kind.REMOVED) {
+                raw.append("{error}removed");
+            } else {
+                raw.append("{highlight}%next").append(id).append('%');
+                values.put("%next" + id + "%", shown(entry.change().shipped()));
+            }
+            raw.append(' ').append(updateLinks(String.valueOf(id), ""));
+            values.put("%key" + id + "%", entry.change().dotted());
+            values.put("%now" + id + "%", shown(entry.change().current()));
+        }
+        raw.append("\n{letters_black}▎ ").append(updateLinks(ALL_TABLES_WORD, " all"));
+
+        Text text = Text.of(raw.toString());
+        for (Map.Entry<String, Object> value : values.entrySet()) {
+            text = text.with(value.getKey(), value.getValue());
+        }
+        return text;
+    }
+
+    /** What a decision did, and what is left. */
+    static Text decisionPanel(String header, String target, DefaultUpdates.Decision decision,
+                              boolean apply, int remaining) {
+        StringBuilder raw = new StringBuilder(header).append(" {muted}updates");
+        int decided = apply ? decision.applied() : decision.kept();
+        if (decided == 0 && decision.stale() == 0) {
+            raw.append("\n{letters_black}▎ {warning}Nothing pending matches {letters}%target%{warning}.");
+        } else if (apply) {
+            raw.append("\n{letters_black}▎ {success}Applied {info}").append(decided)
+                    .append(decided == 1 ? " {letters}change." : " {letters}changes.");
+        } else {
+            raw.append("\n{letters_black}▎ {secondary}Kept {info}").append(decided)
+                    .append(decided == 1 ? " {letters}value as it was." : " {letters}values as they were.");
+        }
+        if (decision.stale() > 0) {
+            raw.append("\n{letters_black}▎ {warning}").append(decision.stale())
+                    .append(" {letters}changed on disk since the list was shown, and were left alone.");
+        }
+        if (!decision.reloaded().isEmpty()) {
+            raw.append("\n{letters_black}▎ {secondary}Reloaded {letters_black}» {letters}")
+                    .append(String.join("{letters_black}, {letters}", decision.reloaded()));
+        }
+        if (!decision.manual().isEmpty()) {
+            raw.append("\n{letters_black}▎ {warning}Reload {letters}").append(String.join(", ", decision.manual()))
+                    .append(" {warning}to see it live.");
+        }
+        if (remaining > 0) {
+            raw.append("\n{letters_black}▎ {info}").append(remaining).append(" {letters}still to review ")
+                    .append("<click:run_command:'/exylialib updates'>{warning}[Review]</click>");
+        }
+        return Text.of(raw.toString()).with("%target%", target);
+    }
+
+    private static String updateLinks(String target, String suffix) {
+        return "<click:run_command:'/exylialib updates apply " + target + "'>{success}[Apply" + suffix + "]</click> "
+                + "<click:run_command:'/exylialib updates keep " + target + "'>{muted}[Keep" + suffix + "]</click>";
+    }
+
+    /** A value short enough for one chat line. */
+    static String shown(@Nullable Object value) {
+        if (value == null) {
+            return "nothing";
+        }
+        if (value instanceof List<?> list) {
+            return list.size() == 1 ? "1 line" : list.size() + " lines";
+        }
+        if (value instanceof Map<?, ?>) {
+            return "a section";
+        }
+        String text = String.valueOf(value);
+        return text.length() > 40 ? text.substring(0, 39) + "…" : text;
+    }
+
     private String header() {
         return "{primary}&lEXYLIALIB&r {muted}v" + version.get();
     }

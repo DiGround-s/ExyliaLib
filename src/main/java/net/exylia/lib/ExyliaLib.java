@@ -124,6 +124,9 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
      */
     private static final long CLIENT_HANDSHAKE_TICKS = 20L;
 
+    /** How long after joining an admin is told about pending default changes. */
+    private static final long UPDATES_NOTICE_TICKS = 60L;
+
     /**
      * How often long cooldowns are written out: five minutes.
      *
@@ -280,6 +283,14 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         // because nothing else waits on it: the first pass is a minute away.
         CleanupRuntime.init(this);
         LibCommands.register(this);
+        // A tick after startup every plugin has enabled and read its files, so
+        // pending defaults are announced once rather than file by file.
+        Tasks.of(this).runLater(1L, () -> {
+            net.exylia.lib.text.Text notice = net.exylia.lib.internal.ReloadCommand.updatesNotice();
+            if (notice != null) {
+                getLogger().warning(notice.plain() + " — /exylialib updates");
+            }
+        });
         getLogger().info("ExyliaLib " + version() + " ready on " + Platform.current() + ".");
     }
 
@@ -605,6 +616,7 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         RedisRuntime.shutdown();
         Tasks.releaseAll();
         Configs.releaseAll();
+        net.exylia.lib.config.internal.DefaultUpdates.releaseAll();
         Placeholders.releaseAll();
         Actions.releaseAll();
         Commands.releaseAll();
@@ -709,6 +721,17 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
             ClientRuntime.forget(player);
             ClientRuntime.resend(player, false);
         });
+        // Once per batch of changes, and after the join messages so the line
+        // is not buried under them.
+        if (player.hasPermission(net.exylia.lib.config.internal.DefaultUpdates.PERMISSION)
+                && net.exylia.lib.config.internal.DefaultUpdates.shouldNotify(id)) {
+            Tasks.of(this).runAtEntityLater(player, UPDATES_NOTICE_TICKS, () -> {
+                net.exylia.lib.text.Text notice = net.exylia.lib.internal.ReloadCommand.updatesNotice();
+                if (notice != null) {
+                    notice.send(player);
+                }
+            });
+        }
     }
 
     /**
@@ -924,6 +947,7 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         // database.yml through Configs, so forgetting its files first would
         // strand a repository asked for during the plugin's own teardown.
         Configs.release(plugin);
+        net.exylia.lib.config.internal.DefaultUpdates.release(plugin.getName());
         // Last: everything above reports through it, so a line written while
         // the plugin lets go still names the plugin it belongs to.
         Debug.release(plugin);

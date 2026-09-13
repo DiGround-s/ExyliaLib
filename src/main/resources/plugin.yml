@@ -7,6 +7,10 @@ website: https://github.com/DiGround-s/ExyliaLib
 authors: [Exylia]
 load: STARTUP
 folia-supported: true
+permissions:
+  exylialib.updates:
+    description: Review default changes shipped by plugin updates, and be told about them on join.
+    default: op
 # Optional, and only for load order: with load: STARTUP the first placeholder
 # render can otherwise happen before PlaceholderAPI enables. The bridge re-checks
 # availability anyway, because a softdepend is a preference, not a guarantee.

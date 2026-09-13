@@ -53,6 +53,9 @@ public final class Reloads {
     private static final Map<String, List<Listener>> LIBRARY_LISTENERS =
             new ConcurrentHashMap<>();
 
+    /** The latest reload each plugin declared, so an applied default can be made live. */
+    private static final Map<String, Reloads> DECLARED = new ConcurrentHashMap<>();
+
     private final Plugin plugin;
     private final Debug debug;
     private final List<Step> steps = new ArrayList<>();
@@ -69,7 +72,24 @@ public final class Reloads {
      * @return a new, empty reload
      */
     public static @NotNull Reloads of(@NotNull Plugin plugin) {
-        return new Reloads(plugin);
+        Reloads reloads = new Reloads(plugin);
+        DECLARED.put(plugin.getName(), reloads);
+        return reloads;
+    }
+
+    /**
+     * The reload a plugin declared most recently.
+     *
+     * <p>What {@code /exylialib updates} runs after writing a new default into
+     * one of that plugin's files, so the change is live without asking the
+     * owner to reload it by hand.
+     *
+     * @param pluginName the plugin's name
+     * @return its reload, or {@code null} when it never declared one
+     * @since 1.158.0
+     */
+    public static @Nullable Reloads declared(@NotNull String pluginName) {
+        return DECLARED.get(pluginName);
     }
 
     /**
@@ -227,11 +247,13 @@ public final class Reloads {
     /** Drops one plugin's listeners. Called when it disables. */
     public static void release(@NotNull String pluginName) {
         LIBRARY_LISTENERS.remove(pluginName);
+        DECLARED.remove(pluginName);
     }
 
     /** Drops every listener. Called by the library on shutdown. */
     public static void releaseAll() {
         LIBRARY_LISTENERS.clear();
+        DECLARED.clear();
     }
 
     /** How many listeners are registered, for tests and diagnostics. */

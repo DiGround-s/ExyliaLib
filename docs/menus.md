@@ -72,34 +72,12 @@ menus players see, which a server owner is expected to reword, use
 menus.refreshVersionedDirectory(MyPlugin.class, "menus");
 ```
 
-Edits are detected by content, never by a version: the hash of every file it
-installs is kept in `.bundled-files` in the data folder. A plugin started by a
-loader reports the same version forever, and a number somebody must remember to
-raise is a change that silently never ships.
-
-- **Missing** — written. One call installs the defaults.
-- **Unchanged since it was installed** — replaced when the plugin ships
-  different content, with an `Updated menus/main.yml.` line.
-- **Edited on the server** — kept. The new content is written next to it as
-  `main.yml.new` with a warning, once per new content, so deleting the offer
-  after merging it does not bring it back on the next start.
-
-A file that was already on disk before the plugin used this method has no
-recorded hash, so it counts as edited unless it matches the packaged file.
-
-A change the old file cannot survive can force itself over edits by declaring a
-version higher than the one on disk (a file with no key is version `0`):
-
-```yaml
-menu-version: 2
-title: "..."
-```
-
-The replaced file is kept as `main.yml.v1`, and a file on disk that does not
-parse is left untouched and reported instead. Each file is moved into place
-atomically, one failing file does not stop the rest, and nothing on disk is ever
-deleted. The method returns `false` only when something could not be read or
-written.
+It is [`BundledFiles.refresh`](config.md#bundled-files) for a directory: missing
+files are written, keys new in the plugin are added to the owner's files, and a
+changed default — a slot moved, a lore line reworded — waits in
+`/exylialib updates` instead of overwriting a value the owner may have chosen.
+A new button whose slot an owner's item already uses does not break the menu:
+the owner's item, listed first, is the one drawn.
 
 ## Opening
 

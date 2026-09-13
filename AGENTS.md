@@ -1587,7 +1587,8 @@ Code root: `src/main/java/net/exylia/lib/`. Test root:
 | icon found in the catalog | `input/IconInput.Way.BROWSE` | `util/head/internal/HeadDb` | [docs/input.md](docs/input.md), [docs/heads.md](docs/heads.md) | 1.82.0 |
 | cleanup | — | `internal/cleanup/` (`CleanupRuntime`, `LogCleaner`, `CleanupSettings`); `init` in `ExyliaLib.onEnable`, `reload` in `reloadPalette` | [docs/cleanup.md](docs/cleanup.md) | 1.90.0 |
 | normalized time: `FULL` rolls up to days, and the parser reads back everything that is written (`ms w mo y` and decimals) | `util/TimeFormats.Style.FULL`; `input/InputParser.duration()` | — | [docs/util.md](docs/util.md), [docs/input.md](docs/input.md) | 1.87.0 |
-| editable bundled files: installed, updated while untouched (by hash in `.bundled-files`), offered as `.new` once edited | `ui/PluginMenus.refreshVersionedDirectory` | `ui/PluginMenus` (`updateEditable`, `declaredMenuVersion`) | [docs/menus.md](docs/menus.md) | 1.156.1 |
+| editable bundled files: installed, new keys added, changed defaults reviewed (`.defaults/files/`) | `config/BundledFiles.refresh`, `ui/PluginMenus.refreshVersionedDirectory` | `config/internal/` (`BundledResources`, `DefaultsMerge`) | [docs/config.md](docs/config.md), [docs/menus.md](docs/menus.md) | 1.158.0 |
+| default changes: configs add new keys, changed defaults wait for `/exylialib updates` (apply/keep, join notice for `exylialib.updates`) | `internal/ReloadCommand.updates`, `reload/Reloads.declared` | `config/internal/DefaultUpdates`, `ConfigFileImpl.followDefaults` (`.defaults/configs/`) | [docs/config.md](docs/config.md) | 1.158.0 |
 
 Root classes that are not a module: `ExyliaLib.java` (lifecycle and cleanup),
 `platform/Platform.java`, `internal/LibrarySettings`, `internal/ExyliaLibUpdater`.

@@ -206,6 +206,7 @@ public final class ConfigFileImpl<T> implements ConfigFile<T> {
         }
 
         boolean migrated = existed && migrate(yaml, found);
+        followDefaults(yaml, existed);
 
         T bound = Binder.read(yaml, schema, defaults(), "", name, found);
         values = bound;
@@ -222,6 +223,47 @@ public final class ConfigFileImpl<T> implements ConfigFile<T> {
 
         issues = List.copyOf(found);
         return issues;
+    }
+
+    /**
+     * Lists every default that changed since the owner last reviewed them in
+     * {@code /exylialib updates}.
+     *
+     * <p>A value equal to its old default may be exactly what the owner wants,
+     * so a changed default is never written here; see {@link DefaultsMerge}.
+     * Nothing is added either: missing keys are the binder's, which knows that
+     * a map's entries are examples written once. The reviewed defaults live in
+     * {@code .defaults/configs/}.
+     */
+    private void followDefaults(YamlConfiguration yaml, boolean existed) {
+        String fileName = name + ".yml";
+        Path reviewedPath = plugin.getDataFolder().toPath().resolve(".defaults").resolve("configs").resolve(fileName);
+        try {
+            YamlConfiguration rendered = new YamlConfiguration();
+            render(rendered, defaults());
+            String shippedText = rendered.saveToString();
+            if (!existed) {
+                BundledResources.write(reviewedPath, shippedText);
+                DefaultUpdates.forget(plugin, fileName);
+                return;
+            }
+
+            YamlConfiguration shipped = DefaultsMerge.yaml();
+            shipped.loadFromString(shippedText);
+            YamlConfiguration reviewed = null;
+            if (Files.exists(reviewedPath)) {
+                reviewed = DefaultsMerge.yaml();
+                reviewed.load(reviewedPath.toFile());
+            }
+            YamlConfiguration copy = new YamlConfiguration();
+            copy.loadFromString(yaml.saveToString());
+            DefaultsMerge.Result result = DefaultsMerge.merge(copy, reviewed, shipped);
+            BundledResources.write(reviewedPath, result.reviewed().saveToString());
+            DefaultUpdates.track(plugin, fileName, file.toPath(), reviewedPath, shippedText,
+                    this::reload, result.pending());
+        } catch (IOException | InvalidConfigurationException failure) {
+            plugin.getLogger().log(Level.WARNING, "Could not compare " + fileName + " with its defaults", failure);
+        }
     }
 
     private YamlConfiguration readFile(List<ConfigIssue> found) {
