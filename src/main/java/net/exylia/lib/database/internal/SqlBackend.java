@@ -275,14 +275,23 @@ public final class SqlBackend implements AutoCloseable {
      * <p>Idempotent: safe on every start, and safe when two servers start
      * against one database at the same moment.
      *
+     * <p>One table at a time per backend. Every repository prepares its table
+     * on the async scheduler the moment it is created, so a plugin update that
+     * adds columns to several tables alters them all at once — and H2 rebuilds
+     * a table to add a column while holding its schema lock, failing the others
+     * with "Timeout trying to lock table SYS". Schema work runs once per table
+     * per start, so queueing it costs nothing a player could notice.
+     *
      * @param model the record model
      * @return what changed
      * @throws SQLException if a statement failed for a reason other than
      *                      "already there"
      */
     public @NotNull SchemaReport ensureTable(@NotNull EntityModel<?> model) throws SQLException {
-        try (Connection connection = pool.getConnection()) {
-            return schema.ensure(connection, model);
+        synchronized (schema) {
+            try (Connection connection = pool.getConnection()) {
+                return schema.ensure(connection, model);
+            }
         }
     }
 

@@ -2,6 +2,7 @@ package net.exylia.lib.database;
 
 import net.exylia.lib.database.internal.Dialect;
 import net.exylia.lib.database.internal.EntityModel;
+import net.exylia.lib.database.internal.SchemaReport;
 import net.exylia.lib.database.internal.SqlBackend;
 import net.exylia.lib.database.internal.SqlSettings;
 import org.junit.jupiter.api.AfterEach;
@@ -435,6 +436,52 @@ class SqlBackendTest {
         assertEquals(1200, found.elo());
         assertNull(found.clan());
         assertEquals(List.of(), found.tags());
+    }
+
+    @Table("grown_a") record GrownA(@Id String id, @Column long before, @Column long added) { }
+    @Table("grown_b") record GrownB(@Id String id, @Column long before, @Column long added) { }
+    @Table("grown_c") record GrownC(@Id String id, @Column long before, @Column long added) { }
+    @Table("grown_d") record GrownD(@Id String id, @Column long before, @Column long added) { }
+    @Table("grown_e") record GrownE(@Id String id, @Column long before, @Column long added) { }
+    @Table("grown_f") record GrownF(@Id String id, @Column long before, @Column long added) { }
+
+    @Test
+    @DisplayName("tables that gained a column are upgraded side by side without timing out on H2's schema lock")
+    void upgradesTablesConcurrently() throws Exception {
+        // Reported from production: a plugin update added a column to several
+        // tables, every repository prepared its table at once on the async
+        // scheduler, and H2 — which rebuilds a table to add a column while
+        // holding its schema lock — failed the ones left waiting with
+        // "Timeout trying to lock table SYS".
+        List<EntityModel<?>> models = List.of(EntityModel.of(GrownA.class), EntityModel.of(GrownB.class),
+                EntityModel.of(GrownC.class), EntityModel.of(GrownD.class), EntityModel.of(GrownE.class),
+                EntityModel.of(GrownF.class));
+        try (Connection connection = connect(); Statement statement = connection.createStatement()) {
+            for (EntityModel<?> grown : models) {
+                statement.execute("CREATE TABLE \"" + grown.table() + "\" (\"id\" VARCHAR(36) NOT NULL,"
+                        + " \"before\" BIGINT, PRIMARY KEY (\"id\"))");
+                statement.execute("INSERT INTO \"" + grown.table() + "\" SELECT RANDOM_UUID(), X"
+                        + " FROM SYSTEM_RANGE(1, 50000)");
+            }
+        }
+
+        var start = new java.util.concurrent.CountDownLatch(1);
+        var pool = java.util.concurrent.Executors.newFixedThreadPool(models.size());
+        try {
+            List<java.util.concurrent.Future<SchemaReport>> reports = new ArrayList<>();
+            for (EntityModel<?> grown : models) {
+                reports.add(pool.submit(() -> {
+                    start.await();
+                    return backend.ensureTable(grown);
+                }));
+            }
+            start.countDown();
+            for (var report : reports) {
+                assertEquals(List.of("added"), report.get().addedColumns());
+            }
+        } finally {
+            pool.shutdownNow();
+        }
     }
 
     /**
