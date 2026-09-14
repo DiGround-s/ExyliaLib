@@ -58,10 +58,22 @@ public final class Shadows {
     }
 
     private static boolean available() {
+        return knowsShadows(Component.class);
+    }
+
+    /**
+     * Whether this component type can carry a shadow.
+     *
+     * <p>Asked of the component itself, not of the {@code ShadowColor} class:
+     * a plugin's class loader also sees every other plugin's classes, so one
+     * that bundles a newer Adventure makes the class resolvable on a server
+     * whose own {@link Component} has never heard of it.
+     */
+    static boolean knowsShadows(Class<?> component) {
         try {
-            Class.forName("net.kyori.adventure.text.format.ShadowColor");
+            component.getMethod("shadowColor");
             return true;
-        } catch (ClassNotFoundException | LinkageError tooOld) {
+        } catch (NoSuchMethodException | LinkageError tooOld) {
             return false;
         }
     }

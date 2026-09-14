@@ -1,5 +1,6 @@
 package net.exylia.lib.text;
 
+import net.exylia.lib.text.internal.Shadows;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.TextComponent;
 import net.kyori.adventure.text.format.Style;
@@ -198,10 +199,12 @@ public final class Gradients {
             // server that asked for a different strength. A shadow sitting on
             // a part with no colour of its own came from somewhere else — a
             // <shadow> tag, or the one colour a server puts under every line —
-            // and repainting is no reason to drop it.
+            // and repainting is no reason to drop it. A server whose Adventure
+            // predates shadows has none to drop, nor the method to drop it with.
             Style style = text.style();
+            Style bare = style.color() == null ? style : style.color(null);
             TextComponent.Builder builder = Component.text()
-                    .style(style.color() == null ? style : style.color(null).shadowColor(null));
+                    .style(bare != style && Shadows.supported() ? bare.shadowColor(null) : bare);
             text.content().codePoints().forEach(codePoint -> builder.append(
                     Component.text(new String(Character.toChars(codePoint)), colourAt.apply(cursor[0]++))));
             painted = builder.build();
