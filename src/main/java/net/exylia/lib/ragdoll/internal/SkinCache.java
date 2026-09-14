@@ -6,6 +6,7 @@ import com.github.benmanes.caffeine.cache.Caffeine;
 import net.exylia.lib.ragdoll.RagdollPart;
 import net.exylia.lib.ragdoll.RagdollSkin;
 import net.exylia.lib.skull.internal.Textures;
+import net.exylia.lib.task.TaskHandle;
 import net.exylia.lib.task.TaskScheduler;
 import net.exylia.lib.task.Tasks;
 import org.bukkit.Bukkit;
@@ -90,6 +91,10 @@ public final class SkinCache {
     /** What a body is drawn in until its real skin has been read. */
     private static final RagdollSkin FALLBACK = defaultSkin();
 
+    /** How often the skins of everyone online are touched: five minutes, well inside the expiry. */
+    private static final long KEEP_TICKS = 5 * 60 * 20L;
+
+    private static volatile TaskHandle keeper;
     private static volatile SkinCubes.Quality quality = SkinCubes.Quality.NORMAL;
     private static volatile boolean unknownQualityReported;
     private static volatile TaskScheduler scheduler;
@@ -104,6 +109,18 @@ public final class SkinCache {
         logger = plugin.getLogger();
         RagdollTextures.logger(plugin.getLogger());
         MineSkinQueue.start(plugin);
+        // A skin read at join and not worn for half an hour expires, and a read
+        // that failed is never asked again: either way the next death draws the
+        // default skin's colours under a real face. Touching every online
+        // player's skin well inside the expiry keeps it, and retries a failure.
+        if (keeper != null) {
+            keeper.cancel();
+        }
+        keeper = scheduler.runTimer(KEEP_TICKS, KEEP_TICKS, () -> {
+            for (Player player : Bukkit.getOnlinePlayers()) {
+                warm(player);
+            }
+        });
     }
 
     /**
@@ -113,6 +130,10 @@ public final class SkinCache {
      * are permanent, and forgetting them would only mean uploading them again.
      */
     public static void clear() {
+        if (keeper != null) {
+            keeper.cancel();
+            keeper = null;
+        }
         MineSkinQueue.stop();
         BY_TEXTURE.invalidateAll();
         PREPARED.invalidateAll();
