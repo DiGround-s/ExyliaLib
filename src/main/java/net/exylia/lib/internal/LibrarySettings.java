@@ -71,8 +71,9 @@ import net.exylia.lib.config.Configs;
 @Comment("once, the same as any other unreadable config value.")
 @Comment("")
 @Comment("metrics: reports to stats.exylia.net the server software and versions,")
-@Comment("the versions of the Exylia plugins installed, and the errors those")
-@Comment("plugins throw. No player data and no IP addresses. Set enabled to")
+@Comment("memory and thread use, the names and versions of the plugins installed,")
+@Comment("how the Exylia plugins are set up (event counts, region sizes) and the")
+@Comment("errors they throw. No player data and no IP addresses. Set enabled to")
 @Comment("false and nothing is ever sent.")
 public record LibrarySettings(
         @Comment("Whether to check for and download newer versions automatically.")
@@ -128,7 +129,7 @@ public record LibrarySettings(
      * @since 1.160.0
      */
     public record Metrics(
-            @Comment("Whether server software, Exylia plugin versions and Exylia plugin errors")
+            @Comment("Whether server software, installed plugins, Exylia plugin setup and errors")
             @Comment("are sent to stats.exylia.net. No player data, no IP addresses.")
             boolean enabled
     ) {

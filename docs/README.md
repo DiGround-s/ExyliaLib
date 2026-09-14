@@ -55,7 +55,7 @@ against the source — rules and routes are in `AGENTS.md` under
 | [Chat](chat.md) | Who reads whose chat messages: an event, an arena or a match whose chat is its own | 1.89.0 |
 | [Cleanup](cleanup.md) | The folders the server fills and never empties — old logs deleted on a timer | 1.90.0 |
 | [Heads](heads.md) | The decorative head catalogue, searchable from a menu — a page at a time, nothing downloaded | 1.82.0 |
-| [Metrics](metrics.md) | What the library reports to stats.exylia.net — server software, Exylia plugin versions and their errors — and how to turn it off | 1.160.0 |
+| [Metrics](metrics.md) | What the library reports to stats.exylia.net — server software, installed plugins, Exylia plugin setup and errors — how a plugin describes its setup, and how to turn it off | 1.160.0 (`Metrics.describe` 1.163.0) |
 | [Blocks](blocks.md) | Blocks in the world that answer clicks instead of behaving like their material — a crate, a shop, a warp pad — protected and registered by whoever placed them | 1.110.0 |
 | [Public API](api.md) | The contract third-party plugins write against: one published artifact covering every Exylia plugin, reached through `ExyliaAPI` | 1.112.0 |
 Migration notes:

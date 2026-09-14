@@ -823,6 +823,7 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         Chats.release(pluginName);
         Cosmetics.release(pluginName);
         Watchers.release(pluginName);
+        net.exylia.lib.metrics.internal.MetricsRuntime.release(pluginName);
         // And so is taking an overlay off: the player is still here, still
         // looking at buttons whose actions come from a classloader that is
         // going away.

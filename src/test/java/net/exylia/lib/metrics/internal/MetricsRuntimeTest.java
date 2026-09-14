@@ -1,6 +1,7 @@
 package net.exylia.lib.metrics.internal;
 
 import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import org.junit.jupiter.api.Test;
@@ -10,7 +11,9 @@ import java.net.URLClassLoader;
 import java.nio.charset.StandardCharsets;
 import java.sql.SQLException;
 import java.sql.SQLTransientConnectionException;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletionException;
@@ -92,7 +95,7 @@ class MetricsRuntimeTest {
 
         byte[] body = MetricsRuntime.encode(MetricsRuntime.payload(
                 "3f2b0c1e-6a4d-4c38-9f0e-2a7d5c9b1e44", facts, "1.160.0", plugins,
-                groups.drain(plugins.keySet())));
+                groups.drain(plugins.keySet()), null));
 
         assertTrue(body.length <= MetricsRuntime.MAX_BODY_BYTES);
         String json = new String(body, StandardCharsets.UTF_8);
@@ -109,5 +112,71 @@ class MetricsRuntimeTest {
         assertEquals(ErrorGroups.MAX_STACK, error.get("stack").getAsString().length());
         assertTrue(MetricsRuntime.NAME.matcher("ExyliaSurvivalCore").matches());
         assertFalse(MetricsRuntime.NAME.matcher("Exylia").matches());
+        assertFalse(parsed.has("inventory"), "an inventory already delivered is not resent");
+    }
+
+    enum Shape { CUBOID }
+
+    @Test
+    void detailsAreCopiedAsJsonAndWhatJsonCannotHoldIsRejected() {
+        Map<String, Object> region = new LinkedHashMap<>();
+        region.put("shape", Shape.CUBOID);
+        region.put("blocks", 1_250_000L);
+        region.put("ratio", Double.NaN);
+        region.put("world", null);
+        List<Object> regions = new ArrayList<>(List.of(region));
+        Map<String, Object> details = new LinkedHashMap<>();
+        details.put("events", 2);
+        details.put("regions", regions);
+
+        JsonElement json = MetricsRuntime.json(details, 0);
+        regions.clear();
+
+        assertEquals("{\"events\":2,\"regions\":[{\"shape\":\"CUBOID\",\"blocks\":1250000,\"ratio\":null,\"world\":null}]}",
+                new com.google.gson.GsonBuilder().serializeNulls().create().toJson(json));
+        assertThrows(IllegalArgumentException.class, () -> MetricsRuntime.json(Map.of("world", new Object()), 0));
+        Object deep = "leaf";
+        for (int i = 0; i <= MetricsRuntime.MAX_DEPTH; i++) {
+            deep = List.of(deep);
+        }
+        Object tooDeep = deep;
+        assertThrows(IllegalArgumentException.class, () -> MetricsRuntime.json(tooDeep, 0));
+    }
+
+    @Test
+    void inventoryListsEveryPluginButOnlyTheListedDescriptions() {
+        JsonArray installed = new JsonArray();
+        JsonObject worldEdit = new JsonObject();
+        worldEdit.addProperty("name", "WorldEdit");
+        worldEdit.addProperty("version", "7.3.0");
+        worldEdit.addProperty("enabled", true);
+        installed.add(worldEdit);
+        Map<String, JsonElement> details = new LinkedHashMap<>();
+        details.put("ExyliaEvents", JsonParser.parseString("{\"events\":3}"));
+        details.put("ExyliaDev", JsonParser.parseString("{\"events\":9}"));
+
+        JsonObject inventory = MetricsRuntime.inventory(installed, details, Set.of("ExyliaEvents", "ExyliaLib"));
+
+        assertEquals("WorldEdit", inventory.getAsJsonArray("plugins").get(0).getAsJsonObject().get("name").getAsString());
+        assertEquals(Set.of("ExyliaEvents"), inventory.getAsJsonObject("details").keySet());
+    }
+
+    @Test
+    void anInventoryThatDoesNotFitGoesAfterTheErrors() {
+        JsonObject details = new JsonObject();
+        details.addProperty("blob", "x".repeat(MetricsRuntime.MAX_BODY_BYTES));
+        JsonObject inventory = new JsonObject();
+        inventory.add("plugins", new JsonArray());
+        inventory.add("details", details);
+        ErrorGroups groups = new ErrorGroups();
+        groups.add("ExyliaCore", "2.3.1", "runtime", new RuntimeException("boom"));
+
+        JsonObject body = MetricsRuntime.payload("3f2b0c1e-6a4d-4c38-9f0e-2a7d5c9b1e44", new JsonObject(), "1.163.0",
+                Map.of("ExyliaCore", "2.3.1"), groups.drain(Set.of("ExyliaCore")), inventory);
+        byte[] encoded = MetricsRuntime.encode(body);
+
+        assertTrue(encoded.length <= MetricsRuntime.MAX_BODY_BYTES);
+        assertFalse(body.has("inventory"));
+        assertTrue(body.getAsJsonArray("errors").isEmpty());
     }
 }

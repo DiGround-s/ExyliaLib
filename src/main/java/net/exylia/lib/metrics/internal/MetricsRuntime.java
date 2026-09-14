@@ -3,8 +3,11 @@ package net.exylia.lib.metrics.internal;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonNull;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import com.google.gson.JsonPrimitive;
 import net.exylia.lib.ExyliaLib;
 import net.exylia.lib.debug.Debug;
 import net.exylia.lib.internal.LibrarySettings;
@@ -18,6 +21,7 @@ import org.jetbrains.annotations.Nullable;
 
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.lang.management.ManagementFactory;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
@@ -26,9 +30,13 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
+import java.util.Arrays;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.Set;
+import java.util.TreeMap;
 import java.util.UUID;
 import java.util.WeakHashMap;
 import java.util.concurrent.ConcurrentHashMap;
@@ -48,6 +56,11 @@ import java.util.regex.Pattern;
  * nothing at all. {@code metrics.enabled: false} in the library's config does
  * the same, and so does the stats server answering {@code enabled: false}.
  *
+ * <p>Every report carries what changes (players, threads, heap in use). The
+ * inventory — every plugin on the server and what the Exylia ones described
+ * through {@link net.exylia.lib.metrics.Metrics} — rides only on the first
+ * report that delivers it and again after it changes.
+ *
  * <p>Everything runs on the async scheduler, and every entry point swallows
  * its own failures: a report that cannot be built or delivered is a debug
  * line, never an exception in somebody else's code.
@@ -59,12 +72,17 @@ public final class MetricsRuntime {
     static final String ENDPOINT = "https://stats.exylia.net/api/v1/report";
     static final int MAX_BODY_BYTES = 256 * 1024;
     static final int MAX_PLUGINS = 100;
+    static final int MAX_INSTALLED = 1000;
+    static final int MAX_DETAILS_BYTES = 32 * 1024;
+    static final int MAX_TEXT = 128;
+    public static final int MAX_DEPTH = 8;
     static final Pattern NAME = Pattern.compile("^Exylia[A-Za-z0-9_-]{1,48}$");
 
     /** The platforms a Bukkit-side loader is generated for, as the class suffix. */
     private static final String[] PLATFORMS = {"Paper", "Spigot"};
     private static final Duration TIMEOUT = Duration.ofSeconds(10);
-    private static final long ERROR_FLUSH_TICKS = 60L * 20L;
+    private static final long FLUSH_TICKS = 60L * 20L;
+    private static final long MB = 1024L * 1024L;
     private static final Gson GSON = new GsonBuilder().serializeNulls().create();
     /** What {@code LukittuBootstrap} logs when the inner plugin throws while starting. */
     private static final String LOADER_STARTUP_FAILURE = "Failed to start inner loader plugin";
@@ -77,9 +95,15 @@ public final class MetricsRuntime {
     private final Map<Plugin, Boolean> production = Collections.synchronizedMap(new WeakHashMap<>());
     private final Map<Plugin, String> versions = Collections.synchronizedMap(new WeakHashMap<>());
     private final Map<Logger, Handler> watched = new ConcurrentHashMap<>();
+    private final Map<String, JsonElement> details = new ConcurrentHashMap<>();
     private final HttpClient http = HttpClient.newBuilder().connectTimeout(TIMEOUT).build();
     private volatile long intervalSeconds = 1800;
     private volatile boolean remoteOff;
+    /** Set by the first heartbeat: until then a new description waits, like the rest of the report. */
+    private volatile boolean started;
+    private volatile boolean detailsChanged;
+    /** The inventory the stats server last accepted, as sent. */
+    private volatile String deliveredInventory;
     private String server;
 
     private MetricsRuntime(ExyliaLib lib) {
@@ -104,7 +128,7 @@ public final class MetricsRuntime {
             runtime.watchLoaderStartups();
             long firstTicks = ThreadLocalRandom.current().nextLong(60, 301) * 20L;
             Tasks.of(lib).runAsyncLater(firstTicks, runtime::heartbeat);
-            Tasks.of(lib).runAsyncTimer(ERROR_FLUSH_TICKS, ERROR_FLUSH_TICKS, runtime::flushErrors);
+            Tasks.of(lib).runAsyncTimer(FLUSH_TICKS, FLUSH_TICKS, runtime::flush);
         } catch (Throwable failure) {
             instance = null;
             Debug.of(lib).debug("Metrics did not start: " + failure);
@@ -118,6 +142,45 @@ public final class MetricsRuntime {
         if (runtime != null) {
             runtime.watched.forEach((logger, handler) -> logger.removeHandler(handler));
             runtime.watched.clear();
+        }
+    }
+
+    /**
+     * Replaces what a plugin reports about its setup. See
+     * {@link net.exylia.lib.metrics.Metrics#describe}.
+     *
+     * @param plugin the plugin's name
+     * @param values what it describes
+     */
+    public static void describe(@NotNull String plugin, @NotNull Map<String, ?> values) {
+        MetricsRuntime runtime = instance;
+        if (runtime == null) {
+            return;
+        }
+        try {
+            JsonElement described = json(values, 0);
+            int size = GSON.toJson(described).getBytes(StandardCharsets.UTF_8).length;
+            if (size > MAX_DETAILS_BYTES) {
+                Debug.of(runtime.lib).debug("Metrics details of " + plugin + " take " + size
+                        + " bytes, over the " + MAX_DETAILS_BYTES + " allowed; the previous ones stay");
+                return;
+            }
+            runtime.details.put(plugin, described);
+            runtime.detailsChanged = true;
+        } catch (Throwable unreadable) {
+            Debug.of(runtime.lib).debug("Metrics details of " + plugin + " were not kept: " + unreadable.getMessage());
+        }
+    }
+
+    /**
+     * Forgets what a disabled plugin described.
+     *
+     * @param plugin the plugin's name
+     */
+    public static void release(@NotNull String plugin) {
+        MetricsRuntime runtime = instance;
+        if (runtime != null && runtime.details.remove(plugin) != null) {
+            runtime.detailsChanged = true;
         }
     }
 
@@ -178,14 +241,16 @@ public final class MetricsRuntime {
         if (instance != this) {
             return;
         }
+        started = true;
         send();
         if (instance == this && !remoteOff) {
             Tasks.of(lib).runAsyncLater(intervalSeconds * 20L, this::heartbeat);
         }
     }
 
-    private void flushErrors() {
-        if (instance == this && !errors.isEmpty()) {
+    /** Errors go out within a minute; so does a new description, once the first report did. */
+    private void flush() {
+        if (instance == this && (!errors.isEmpty() || (started && detailsChanged))) {
             send();
         }
     }
@@ -201,7 +266,12 @@ public final class MetricsRuntime {
             if (plugins.isEmpty()) {
                 return;
             }
-            byte[] body = encode(payload(serverId(), facts(), lib.version(), plugins, pending));
+            detailsChanged = false;
+            JsonObject inventory = inventory(installed(plugins), details, plugins.keySet());
+            String inventoryJson = GSON.toJson(inventory);
+            JsonObject report = payload(serverId(), facts(), lib.version(), plugins, pending,
+                    inventoryJson.equals(deliveredInventory) ? null : inventory);
+            byte[] body = encode(report);
             HttpRequest request = HttpRequest.newBuilder(URI.create(ENDPOINT))
                     .timeout(TIMEOUT)
                     .header("Content-Type", "application/json")
@@ -212,6 +282,9 @@ public final class MetricsRuntime {
             if (response.statusCode() != 200) {
                 Debug.of(lib).debug("Metrics report answered " + response.statusCode());
                 return;
+            }
+            if (report.has("inventory")) {
+                deliveredInventory = inventoryJson;
             }
             JsonObject answer = JsonParser.parseString(response.body()).getAsJsonObject();
             if (answer.has("interval")) {
@@ -240,6 +313,29 @@ public final class MetricsRuntime {
             found.put(lib.getName(), lib.version());
         }
         return found;
+    }
+
+    /**
+     * Every plugin on the server, by name, so a failure can be read against
+     * what it shares the server with. Listed plugins carry their real version.
+     */
+    @SuppressWarnings("deprecation") // getDescription(): the portable call, see ExyliaLib#version()
+    private static JsonArray installed(Map<String, String> listed) {
+        Plugin[] all = Bukkit.getPluginManager().getPlugins();
+        Arrays.sort(all, Comparator.comparing(Plugin::getName, String.CASE_INSENSITIVE_ORDER));
+        JsonArray list = new JsonArray();
+        for (Plugin plugin : all) {
+            if (list.size() >= MAX_INSTALLED) {
+                break;
+            }
+            JsonObject entry = new JsonObject();
+            entry.addProperty("name", clip(plugin.getName()));
+            entry.addProperty("version", clip(listed.getOrDefault(plugin.getName(),
+                    String.valueOf(plugin.getDescription().getVersion()))));
+            entry.addProperty("enabled", plugin.isEnabled());
+            list.add(entry);
+        }
+        return list;
     }
 
     private boolean counts(Plugin plugin) {
@@ -306,8 +402,8 @@ public final class MetricsRuntime {
         return branch != null && !branch.equals("dev");
     }
 
-    static JsonObject payload(String server, JsonObject facts, String lib,
-                              Map<String, String> plugins, JsonArray errors) {
+    static JsonObject payload(String server, JsonObject facts, String lib, Map<String, String> plugins,
+                              JsonArray errors, @Nullable JsonObject inventory) {
         JsonObject body = new JsonObject();
         body.addProperty("server", server);
         facts.entrySet().forEach(entry -> body.add(entry.getKey(), entry.getValue()));
@@ -321,10 +417,30 @@ public final class MetricsRuntime {
         });
         body.add("plugins", list);
         body.add("errors", errors);
+        if (inventory != null) {
+            body.add("inventory", inventory);
+        }
         return body;
     }
 
-    /** The body as sent, dropping the newest error groups until it fits. */
+    /** The installed plugins and the descriptions of the listed ones, in a stable order. */
+    static JsonObject inventory(JsonArray installed, Map<String, JsonElement> details, Set<String> listed) {
+        JsonObject described = new JsonObject();
+        new TreeMap<>(details).forEach((name, value) -> {
+            if (listed.contains(name)) {
+                described.add(name, value);
+            }
+        });
+        JsonObject inventory = new JsonObject();
+        inventory.add("plugins", installed);
+        inventory.add("details", described);
+        return inventory;
+    }
+
+    /**
+     * The body as sent, dropping the newest error groups until it fits, and
+     * the inventory last: it is resent on the next report anyway.
+     */
     static byte[] encode(JsonObject body) {
         JsonArray errors = body.getAsJsonArray("errors");
         byte[] bytes = GSON.toJson(body).getBytes(StandardCharsets.UTF_8);
@@ -332,7 +448,52 @@ public final class MetricsRuntime {
             errors.remove(errors.size() - 1);
             bytes = GSON.toJson(body).getBytes(StandardCharsets.UTF_8);
         }
+        if (bytes.length > MAX_BODY_BYTES && body.remove("inventory") != null) {
+            bytes = GSON.toJson(body).getBytes(StandardCharsets.UTF_8);
+        }
         return bytes;
+    }
+
+    /**
+     * A plugin's description as JSON, copied so the caller keeps its map.
+     *
+     * @throws IllegalArgumentException for a type JSON cannot hold, or nesting past {@link #MAX_DEPTH}
+     */
+    static JsonElement json(@Nullable Object value, int depth) {
+        if (depth > MAX_DEPTH) {
+            throw new IllegalArgumentException("nested deeper than " + MAX_DEPTH + " levels");
+        }
+        if (value == null) {
+            return JsonNull.INSTANCE;
+        }
+        if (value instanceof Boolean flag) {
+            return new JsonPrimitive(flag);
+        }
+        if (value instanceof Number number) {
+            double asDouble = number.doubleValue();
+            return Double.isFinite(asDouble) ? new JsonPrimitive(number) : JsonNull.INSTANCE;
+        }
+        if (value instanceof Enum<?> constant) {
+            return new JsonPrimitive(constant.name());
+        }
+        if (value instanceof CharSequence || value instanceof Character) {
+            return new JsonPrimitive(value.toString());
+        }
+        if (value instanceof Map<?, ?> map) {
+            JsonObject object = new JsonObject();
+            map.forEach((key, entry) -> object.add(String.valueOf(key), json(entry, depth + 1)));
+            return object;
+        }
+        if (value instanceof Iterable<?> items) {
+            JsonArray array = new JsonArray();
+            items.forEach(item -> array.add(json(item, depth + 1)));
+            return array;
+        }
+        throw new IllegalArgumentException("a " + value.getClass().getName() + " is not a details value");
+    }
+
+    private static String clip(String text) {
+        return text.length() <= MAX_TEXT ? text : text.substring(0, MAX_TEXT);
     }
 
     // ------------------------------------------------------------------
@@ -349,12 +510,30 @@ public final class MetricsRuntime {
         facts.addProperty("os", System.getProperty("os.name"));
         facts.addProperty("arch", System.getProperty("os.arch"));
         facts.addProperty("cores", runtime.availableProcessors());
-        facts.addProperty("memoryMb", runtime.maxMemory() / (1024 * 1024));
+        facts.addProperty("memoryMb", runtime.maxMemory() / MB);
+        facts.addProperty("heapUsedMb", (runtime.totalMemory() - runtime.freeMemory()) / MB);
+        facts.addProperty("threads", ManagementFactory.getThreadMXBean().getThreadCount());
+        Long systemMemory = systemMemoryMb();
+        if (systemMemory != null) {
+            facts.addProperty("systemMemoryMb", systemMemory);
+        }
         facts.addProperty("players", Bukkit.getOnlinePlayers().size());
         facts.addProperty("maxPlayers", Bukkit.getMaxPlayers());
         facts.addProperty("onlineMode", Bukkit.getOnlineMode());
         facts.addProperty("proxy", proxy());
         return facts;
+    }
+
+    /** The machine's memory (or the container's limit), when the JVM exposes it. */
+    private static @Nullable Long systemMemoryMb() {
+        try {
+            if (ManagementFactory.getOperatingSystemMXBean() instanceof com.sun.management.OperatingSystemMXBean os) {
+                return os.getTotalMemorySize() / MB;
+            }
+        } catch (Throwable unavailable) {
+            // A JVM without com.sun.management: the field is simply left out.
+        }
+        return null;
     }
 
     private static String minecraft() {
