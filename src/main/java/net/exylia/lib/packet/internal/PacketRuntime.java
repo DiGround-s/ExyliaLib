@@ -13,6 +13,7 @@ import net.exylia.lib.packet.RevealStyle;
 import net.exylia.lib.packet.SilentContainer;
 import net.exylia.lib.packet.Visibility;
 import net.exylia.lib.packet.VisibilityRule;
+import net.exylia.lib.packet.WorldBorders;
 import net.exylia.lib.task.Tasks;
 import org.bukkit.Bukkit;
 import org.bukkit.GameMode;
@@ -26,6 +27,7 @@ import org.bukkit.event.player.PlayerChangedWorldEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerMoveEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
+import org.bukkit.event.player.PlayerRespawnEvent;
 import org.bukkit.plugin.Plugin;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -163,6 +165,7 @@ public final class PacketRuntime {
         MESSAGE_RULES.clear();
         WARNED.clear();
         Mirrors.shutdown();
+        Borders.shutdown();
     }
 
     /** Installs a sink directly and resets state. For tests. */
@@ -314,6 +317,7 @@ public final class PacketRuntime {
         SPECTATING.remove(id);
         REVEALING.remove(id);
         Mirrors.forget(player);
+        Borders.forget(player);
     }
 
     // ------------------------------------------------------------------
@@ -337,6 +341,13 @@ public final class PacketRuntime {
             FAKED.remove(event.getPlayer().getUniqueId());
             // Its entities went with them: forget without sending a despawn.
             OUTLINED.remove(event.getPlayer().getUniqueId());
+            Borders.resend(event.getPlayer());
+        }
+
+        @EventHandler(priority = EventPriority.MONITOR)
+        public void onRespawn(PlayerRespawnEvent event) {
+            // A respawn resets the client's border like a world change does.
+            Borders.resend(event.getPlayer());
         }
 
         @EventHandler(ignoreCancelled = true)
@@ -365,6 +376,7 @@ public final class PacketRuntime {
         private final String name;
         private final SilentContainer containers;
         private final BlockOutlines outlines;
+        private final Borders borders;
 
         /** Its own object rather than another face of this one: {@code clear()} is already taken here. */
         private final Messages messages = new Messages() {
@@ -384,6 +396,7 @@ public final class PacketRuntime {
             this.name = plugin.getName();
             this.containers = new Mirrors(plugin);
             this.outlines = new BlockOutlines(plugin);
+            this.borders = new Borders(plugin);
         }
 
         /**
@@ -409,9 +422,11 @@ public final class PacketRuntime {
         @Override public @NotNull FakeGameMode fakeGameMode() { return this; }
         @Override public @NotNull SilentContainer silentContainer() { return containers; }
         @Override public @NotNull Messages messages() { return messages; }
+        @Override public @NotNull WorldBorders worldBorders() { return borders; }
 
         /** Puts back everything this plugin changed. */
         void clear() {
+            borders.release();
             for (UUID id : new ArrayList<>(FROZEN_BY.keySet())) {
                 if (name.equals(FROZEN_BY.get(id))) {
                     ANCHORS.remove(id);

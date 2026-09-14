@@ -49,6 +49,15 @@ public interface PacketSink {
     void abilities(Player viewer, boolean invulnerable, boolean flying,
                    boolean allowFlight, float flySpeed);
 
+    /**
+     * Tells a client where its world border is, and where it is going.
+     *
+     * <p>Sent past the listener, so the filter that keeps the world's own
+     * border from a viewer never drops this one.
+     */
+    void border(Player viewer, double x, double z, double from, double to, long millis,
+                int warningBlocks, int warningSeconds);
+
     /** Stops listening. */
     void close();
 }

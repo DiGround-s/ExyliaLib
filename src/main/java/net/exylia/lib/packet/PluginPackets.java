@@ -35,4 +35,11 @@ public interface PluginPackets {
 
     /** Lines on their way out that a viewer must not read. */
     @NotNull Messages messages();
+
+    /**
+     * World borders some players see and the world does not have.
+     *
+     * @since 1.162.0
+     */
+    @NotNull WorldBorders worldBorders();
 }

@@ -3,7 +3,8 @@
 Client-side tricks a staff plugin needs and the server has no API for: hiding
 a player from some viewers, drawing the invisible ones for staff, showing
 blocks that are not there, pinning a player in place, making one client
-believe it is a spectator, and watching a chest without opening it.
+believe it is a spectator, watching a chest without opening it, and world
+borders only some players see.
 
 Nothing here changes what the server believes. That is the point — no other
 plugin's checks break — and the limit: every helper below says what it does
@@ -155,10 +156,61 @@ touched (an item a shift-click lands there is handed back to the viewer);
 the source's own slot rules (a furnace's fuel slot) are not enforced on an
 editable mirror.
 
+## WorldBorders
+
+```java
+WorldBorders worldBorders();
+VirtualBorder create(Location center, double size);   // nobody sees it yet
+VirtualBorder seenBy(Player viewer);                  // null while they see the world's own
+
+// VirtualBorder
+void show(Player viewer);                    // replaces whatever border they saw
+void hide(Player viewer);                    // back to the world's own
+void size(double size, Duration over);       // one packet; each client animates it
+void size(double size);
+void center(double x, double z);
+void warning(int blocks, int seconds);       // when the screen turns red
+void damage(double perBlock, double buffer); // zero hurts nobody
+boolean contains(Location at);
+double size();                               // right now, mid-resize included
+Collection<Player> viewers();
+void remove();                               // hides it from everyone
+```
+
+A border per arena, per match or per zone, in the same world, each with its
+own edge and its own clock:
+
+```java
+VirtualBorder zone = Packets.of(this).worldBorders().create(arena.center(), 200);
+match.players().forEach(zone::show);
+zone.size(20, Duration.ofMinutes(2));
+```
+
+Every change is one initialize-border packet to each viewer. A resize is sent
+as where it starts, where it ends and how long it takes, so the client draws
+the whole animation and the server sends nothing while it runs; the width at
+any moment is worked out from that clock when asked. The world's own border
+packets are dropped on their way to a viewer who sees a virtual one in that
+world, so a `/worldborder` elsewhere cannot overwrite it; a respawn or a world
+change resends the right border a tick later, and a viewer in another world
+sees that world's border.
+
+The client stops at the edge, but a modified client, an ender pearl or a
+vehicle does not ask, so the server hurts viewers outside the way vanilla
+does: every ten ticks, `perBlock` damage for each block past `buffer`, at
+least one, with the `OUTSIDE_BORDER` damage type. Defaults are vanilla's —
+warning at 5 blocks or 15 seconds, 0.2 damage per block past 5.
+
+Limits: one border per player, across every plugin. Square only; a circle is
+particles or `FakeBlocks`. The server's collision, block placement and portals
+still follow the world's own border. `hide` sends the world's border as it
+stands, without a resize it may be in the middle of. Without PacketEvents a
+border can be created and shaped but shows to nobody and hurts nobody.
+
 ## Lifecycle
 
 What a plugin hid, froze, faked or opened is undone when that plugin is
-disabled. `Packets.releaseAll()` runs when the library disables and drops the
+disabled, and every border it created is removed. `Packets.releaseAll()` runs when the library disables and drops the
 listeners. Nothing survives a player leaving.
 
 ## Threading

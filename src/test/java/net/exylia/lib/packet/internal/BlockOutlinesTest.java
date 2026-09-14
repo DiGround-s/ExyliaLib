@@ -72,6 +72,11 @@ class BlockOutlinesTest {
         }
 
         @Override
+        public void border(Player viewer, double x, double z, double from, double to, long millis,
+                           int warningBlocks, int warningSeconds) {
+        }
+
+        @Override
         public void close() {
         }
     }

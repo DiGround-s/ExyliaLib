@@ -39,6 +39,7 @@ import com.github.retrooper.packetevents.protocol.teleport.RelativeFlag;
 import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerEntityTeleport;
 import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerEntityVelocity;
 import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerHurtAnimation;
+import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerInitializeWorldBorder;
 import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerMultiBlockChange;
 import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerPlayerAbilities;
 import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerPlayerInfoRemove;
@@ -173,6 +174,12 @@ final class PacketHooks extends PacketListenerAbstract implements PacketSink {
             return;
         }
         PacketTypeCommon type = event.getPacketType();
+        if (Borders.drawsAny() && isWorldBorder(type) && Borders.replaces(event.getPlayer())) {
+            // The world's own border, on its way to somebody who sees one of
+            // ours: it would overwrite it. Ours goes out past this listener.
+            event.setCancelled(true);
+            return;
+        }
         if (PacketRuntime.hidesAnything(viewer)) {
             if (type == PacketType.Play.Server.PLAYER_INFO_UPDATE) {
                 stripTabEntries(event, viewer);
@@ -248,6 +255,16 @@ final class PacketHooks extends PacketListenerAbstract implements PacketSink {
             return true;
         }
         return PacketRuntime.canRead(receiver, text);
+    }
+
+    private static boolean isWorldBorder(PacketTypeCommon type) {
+        return type == PacketType.Play.Server.INITIALIZE_WORLD_BORDER
+                || type == PacketType.Play.Server.WORLD_BORDER_LERP_SIZE
+                || type == PacketType.Play.Server.WORLD_BORDER_SIZE
+                || type == PacketType.Play.Server.WORLD_BORDER_CENTER
+                || type == PacketType.Play.Server.WORLD_BORDER_WARNING_DELAY
+                || type == PacketType.Play.Server.WORLD_BORDER_WARNING_REACH
+                || type == PacketType.Play.Server.WORLD_BORDER;
     }
 
     /** The entity a packet is about, or {@code -1} when it has none. */
@@ -497,5 +514,24 @@ final class PacketHooks extends PacketListenerAbstract implements PacketSink {
                           boolean allowFlight, float flySpeed) {
         send(viewer, new WrapperPlayServerPlayerAbilities(
                 invulnerable, flying, allowFlight, false, flySpeed, 0.1f));
+    }
+
+    /** How far a portal may place a player, which every border packet repeats. Vanilla's value. */
+    private static final int PORTAL_LIMIT = 29_999_984;
+
+    /**
+     * One packet for the whole border, whatever changed.
+     *
+     * <p>Sent silently: the listener above drops border packets on their way to
+     * a viewer who sees one of ours, and this is that one.
+     */
+    @Override
+    public void border(Player viewer, double x, double z, double from, double to, long millis,
+                       int warningBlocks, int warningSeconds) {
+        WrapperPlayServerInitializeWorldBorder packet =
+                new WrapperPlayServerInitializeWorldBorder(x, z, from, to, millis, PORTAL_LIMIT, 0, 0);
+        packet.setWarningBlocks(warningBlocks);
+        packet.setWarningTime(warningSeconds);
+        PacketEvents.getAPI().getPlayerManager().sendPacketSilently(viewer, packet);
     }
 }
