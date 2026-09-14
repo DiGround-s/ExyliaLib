@@ -239,6 +239,23 @@ class MenuLoaderTest {
     }
 
     @Test
+    @DisplayName("a page button outside the menu is refused when it is loaded, not when it is opened")
+    void pageButtonsMustFitTheMenu() {
+        assertThrows(IllegalArgumentException.class, () -> load("""
+                title: "Kits"
+                size: 45
+                pagination:
+                  slots: '0-26'
+                  item_template:
+                    material: PAPER
+                  navigation:
+                    next:
+                      slot: 45
+                      material: ARROW
+                """));
+    }
+
+    @Test
     @DisplayName("declaring both slot and slots is a mistake worth reporting")
     void slotAndSlotsTogetherAreRejected() {
         assertThrows(IllegalArgumentException.class, () -> load("""

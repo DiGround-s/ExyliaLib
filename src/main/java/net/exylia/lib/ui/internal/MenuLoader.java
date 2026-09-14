@@ -491,9 +491,18 @@ public final class MenuLoader {
         Map<String, UiItem> templates = readTemplates(id, section, binder);
         ConfigurationSection navigation = section.getConfigurationSection("navigation");
         ConfigurationSection filler = section.getConfigurationSection("filler");
-        return new UiSection(id, slots, templates,
-                placed(navigation, "previous", binder, "previous_page " + id),
-                placed(navigation, "next", binder, "next_page " + id),
+        UiSection.Placed previous = placed(navigation, "previous", binder, "previous_page " + id);
+        UiSection.Placed next = placed(navigation, "next", binder, "next_page " + id);
+        // An arrow is drawn into the window like any row, so an arrow past the
+        // last slot is the same mistake — and unchecked, it loaded fine and
+        // threw on every open of the menu instead.
+        for (UiSection.Placed arrow : new UiSection.Placed[] {previous, next}) {
+            if (arrow != null && arrow.slot() >= size) {
+                throw new IllegalArgumentException("Section \"" + id + "\" puts a page button in slot "
+                        + arrow.slot() + ", outside a menu of " + size);
+            }
+        }
+        return new UiSection(id, slots, templates, previous, next,
                 filler == null ? null : readItem(filler, binder));
     }
 
