@@ -8,9 +8,12 @@ import org.junit.jupiter.api.Test;
 import java.net.URL;
 import java.net.URLClassLoader;
 import java.nio.charset.StandardCharsets;
+import java.sql.SQLException;
+import java.sql.SQLTransientConnectionException;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.CompletionException;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -44,6 +47,18 @@ class MetricsRuntimeTest {
         assertEquals(4, first.get("count").getAsInt());
         assertTrue(first.get("stack").getAsString().contains("MetricsRuntimeTest"));
         assertTrue(groups.isEmpty());
+    }
+
+    @Test
+    void aDatabaseThatIsNotAnsweringIsNotAnError() {
+        ErrorGroups groups = new ErrorGroups();
+        groups.add("ExyliaCore", "1.0.0", "runtime", new CompletionException(
+                new SQLTransientConnectionException("Connection is not available, request timed out after 5000ms")));
+        groups.add("ExyliaCore", "1.0.0", "runtime", new SQLException("Communications link failure", "08S01"));
+        assertTrue(groups.isEmpty());
+
+        groups.add("ExyliaCore", "1.0.0", "runtime", new SQLException("You have an error in your SQL syntax", "42000"));
+        assertFalse(groups.isEmpty(), "a broken statement is still the plugin's bug");
     }
 
     @Test

@@ -176,6 +176,11 @@ public abstract class AbstractTaskScheduler implements TaskScheduler {
     }
 
     private void report(Throwable throwable) {
+        if (net.exylia.lib.database.internal.Outages.is(throwable)) {
+            // Not the task's bug: a line for the operator, said once per outage.
+            net.exylia.lib.debug.Debug.of(plugin).error("A task could not reach the database", throwable);
+            return;
+        }
         plugin.getLogger().log(Level.SEVERE,
                 "Task from " + plugin.getName() + " threw an exception", throwable);
         // Caught here, so Paper never sees it: this is its only count.

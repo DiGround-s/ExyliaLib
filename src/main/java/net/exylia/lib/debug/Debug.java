@@ -1,6 +1,7 @@
 package net.exylia.lib.debug;
 
 import com.github.lalyos.jfiglet.FigletFont;
+import net.exylia.lib.database.internal.Outages;
 import net.exylia.lib.text.Colors;
 import net.exylia.lib.text.Gradients;
 import net.kyori.adventure.text.Component;
@@ -94,6 +95,15 @@ public final class Debug {
     private final String name;
     private final Plugin plugin;
     private volatile boolean debugEnabled;
+
+    /** How long a database outage stays quiet after it was said. */
+    private static final long OUTAGE_QUIET_MILLIS = 30_000L;
+
+    /** When this plugin last said its database was not answering. */
+    private final java.util.concurrent.atomic.AtomicLong outageSaidAt = new java.util.concurrent.atomic.AtomicLong();
+
+    /** Failures of the same outage held back since it was last said. */
+    private final java.util.concurrent.atomic.AtomicInteger outageHeld = new java.util.concurrent.atomic.AtomicInteger();
 
     private Debug(Plugin plugin) {
         this.plugin = plugin;
@@ -277,6 +287,17 @@ public final class Debug {
     private void send(String label, String labelToken, TextColor labelFallback,
                       String bodyToken, TextColor bodyFallback, String message,
                       @Nullable Throwable error) {
+        Throwable outage = Outages.cause(error);
+        if (outage != null) {
+            // A database that stopped answering is the operator's to fix, and
+            // its stack says nothing they can act on: one line, then quiet
+            // while every other call that was waiting on it fails the same way.
+            message = outageNotice(message, outage);
+            if (message == null) {
+                return;
+            }
+            error = null;
+        }
         TextColor brackets = Colors.get("muted", BRACKETS);
         TextColor labelColour = Colors.get(labelToken, labelFallback);
         // The message is appended literally, never parsed: debug output is
@@ -296,6 +317,22 @@ public final class Debug {
             plugin.getLogger().log(java.util.logging.Level.WARNING, message, error);
             net.exylia.lib.metrics.internal.MetricsRuntime.error(plugin, "runtime", error);
         }
+    }
+
+    /**
+     * The line that says the database is not answering, or {@code null} while
+     * the last one is recent enough to still be on screen.
+     */
+    private @Nullable String outageNotice(String message, Throwable outage) {
+        long now = System.currentTimeMillis();
+        long said = outageSaidAt.get();
+        if (now - said < OUTAGE_QUIET_MILLIS || !outageSaidAt.compareAndSet(said, now)) {
+            outageHeld.incrementAndGet();
+            return null;
+        }
+        int held = outageHeld.getAndSet(0);
+        return message + " — the database is not answering: " + outage.getMessage()
+                + (held > 0 ? " (" + held + " more failed the same way since the last notice)" : "");
     }
 
     /**

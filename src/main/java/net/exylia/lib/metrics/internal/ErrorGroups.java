@@ -29,6 +29,11 @@ final class ErrorGroups {
     private final Map<List<String>, JsonObject> groups = new LinkedHashMap<>();
 
     synchronized void add(String plugin, String version, String phase, Throwable error) {
+        // A database that stopped answering is not a bug in the plugin, and one
+        // outage would otherwise arrive as a "bug" per table being written.
+        if (net.exylia.lib.database.internal.Outages.is(error)) {
+            return;
+        }
         String type = error.getClass().getName();
         String stack = trim(stackOf(error), MAX_STACK);
         List<String> key = List.of(plugin, type, stack);

@@ -10,12 +10,18 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
+import net.exylia.lib.database.DatabaseException;
+
+import java.sql.SQLTransientConnectionException;
 import java.util.List;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.CopyOnWriteArrayList;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNotSame;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -75,6 +81,26 @@ class DebugTest {
     @DisplayName("the same plugin gets the same instance")
     void cachedPerPlugin() {
         assertSame(debug, Debug.of(plugin));
+    }
+
+    @Test
+    @DisplayName("a database that is not answering is one line with no stack, then quiet")
+    void databaseOutage() {
+        Throwable poolTimeout = new CompletionException(new DatabaseException(
+                "Could not save on practice_player_settings (PlayerSettingsEntity): pool timed out",
+                new SQLTransientConnectionException(
+                        "exylia-mysql - Connection is not available, request timed out after 5000ms")));
+
+        debug.error("Failed to save lobby settings", poolTimeout);
+        debug.error("Failed to save lobby settings", poolTimeout);
+
+        assertEquals(1, out.size());
+        assertNull(out.get(0).error());
+        assertTrue(out.get(0).plain().contains("the database is not answering"));
+        assertTrue(out.get(0).plain().contains("request timed out after 5000ms"));
+
+        debug.error("A bug", new IllegalStateException("boom"));
+        assertNotNull(out.get(1).error(), "a code failure keeps its stack");
     }
 
     @Test
