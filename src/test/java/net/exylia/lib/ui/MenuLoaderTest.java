@@ -226,33 +226,46 @@ class MenuLoaderTest {
     }
 
     @Test
-    @DisplayName("a slot outside the menu is refused when it is loaded, not when it is opened")
-    void slotsMustFitTheMenu() {
-        assertThrows(IllegalArgumentException.class, () -> load("""
-                title: "Small"
-                size: 9
-                items:
-                  stray:
-                    slot: 40
-                    material: STONE
-                """));
-    }
+    @DisplayName("a slot outside the menu is reported and skipped when it is loaded, not thrown when it is opened")
+    void slotsOutsideTheMenuAreSkipped() {
+        List<String> problems = new ArrayList<>();
+        YamlConfiguration config = new YamlConfiguration();
+        try {
+            config.loadFromString("""
+                    title: "Kits"
+                    size: 45
+                    items:
+                      stray:
+                        slot: 49
+                        material: STONE
+                      close:
+                        slot: 40
+                        material: BARRIER
+                    pagination:
+                      slots: '0-26,50'
+                      item_template:
+                        material: PAPER
+                      navigation:
+                        previous:
+                          slot: 39
+                          material: ARROW
+                        next:
+                          slot: 45
+                          material: ARROW
+                    """);
+        } catch (Exception invalid) {
+            throw new IllegalStateException("test yaml is not valid", invalid);
+        }
 
-    @Test
-    @DisplayName("a page button outside the menu is refused when it is loaded, not when it is opened")
-    void pageButtonsMustFitTheMenu() {
-        assertThrows(IllegalArgumentException.class, () -> load("""
-                title: "Kits"
-                size: 45
-                pagination:
-                  slots: '0-26'
-                  item_template:
-                    material: PAPER
-                  navigation:
-                    next:
-                      slot: 45
-                      material: ARROW
-                """));
+        UiDefinition menu = MenuLoader.load("practice:test", config, actions::template,
+                UiSounds.DEFAULTS, (where, problem) -> problems.add(where));
+
+        assertEquals(List.of(40), List.copyOf(menu.items().keySet()));
+        UiSection list = menu.sections().values().iterator().next();
+        assertEquals(27, list.slots().size());
+        assertNotNull(list.previous());
+        assertNull(list.next());
+        assertEquals(3, problems.size(), "got: " + problems);
     }
 
     @Test
@@ -926,9 +939,9 @@ class MenuLoaderTest {
     }
 
     @Test
-    @DisplayName("a section slot outside the menu is a broken file")
+    @DisplayName("a named section keeps the slots that fit and drops the rest")
     void sectionSlotOutsideMenu() {
-        assertThrows(IllegalArgumentException.class, () -> load("""
+        UiDefinition menu = load("""
                 title: "Broken"
                 size: 27
                 sections:
@@ -936,7 +949,9 @@ class MenuLoaderTest {
                     slots: "10-40"
                     item_template:
                       material: STONE
-                """));
+                """);
+
+        assertEquals(17, menu.sections().get("kits").slots().size());
     }
 
     @Test

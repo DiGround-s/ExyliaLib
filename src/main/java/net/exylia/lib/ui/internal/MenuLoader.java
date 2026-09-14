@@ -31,7 +31,9 @@ import java.util.function.Function;
  *
  * <p>Where the old parser disagreed with itself, this one picks the safer
  * behaviour and says so: a malformed slot is an error wherever it appears,
- * rather than an error in one section and a silent nothing in another.
+ * rather than an error in one section and a silent nothing in another. A
+ * well-formed slot outside the window is reported and skipped, so one
+ * misplaced button does not take the whole menu down with it.
  */
 public final class MenuLoader {
 
@@ -74,10 +76,11 @@ public final class MenuLoader {
     /**
      * Compiles a menu, reporting anything wrong with its parts.
      *
-     * <p>Structural mistakes — a slot outside the menu, a size that is not a
-     * row count — are errors: they mean the file does not describe a menu, and
-     * guessing would hide the mistake. A mistyped action is not structural, so
-     * it becomes a dead button and a line in the console.
+     * <p>Structural mistakes — an unreadable slot, a size that is not a row
+     * count — are errors: they mean the file does not describe a menu, and
+     * guessing would hide the mistake. A mistyped action or a slot outside the
+     * menu is not structural, so it is left out and becomes a line in the
+     * console.
      *
      * @param id       the id to give it
      * @param config   the file's root section
@@ -230,9 +233,8 @@ public final class MenuLoader {
             }
             UiItem item = readItem(itemSection, binder);
             for (int slot : itemSlots(itemSection, key)) {
-                if (slot < 0 || slot >= size) {
-                    throw new IllegalArgumentException("Item \"" + key + "\" uses slot " + slot
-                            + ", outside a menu of " + size);
+                if (!fits(binder, "item \"" + key + "\"", slot, size)) {
+                    continue;
                 }
                 into.merge(slot, item, UiItem::withAlternate);
             }
@@ -478,32 +480,42 @@ public final class MenuLoader {
         if (section == null) {
             return null;
         }
-        List<Integer> slots = slots(section, "slots");
+        List<Integer> slots = new ArrayList<>(slots(section, "slots"));
+        slots.removeIf(slot -> !fits(binder, "section \"" + id + "\"", slot, size));
         if (slots.isEmpty()) {
             return null;
-        }
-        for (int slot : slots) {
-            if (slot < 0 || slot >= size) {
-                throw new IllegalArgumentException("Section \"" + id + "\" uses slot " + slot
-                        + ", outside a menu of " + size);
-            }
         }
         Map<String, UiItem> templates = readTemplates(id, section, binder);
         ConfigurationSection navigation = section.getConfigurationSection("navigation");
         ConfigurationSection filler = section.getConfigurationSection("filler");
-        UiSection.Placed previous = placed(navigation, "previous", binder, "previous_page " + id);
-        UiSection.Placed next = placed(navigation, "next", binder, "next_page " + id);
-        // An arrow is drawn into the window like any row, so an arrow past the
-        // last slot is the same mistake — and unchecked, it loaded fine and
-        // threw on every open of the menu instead.
-        for (UiSection.Placed arrow : new UiSection.Placed[] {previous, next}) {
-            if (arrow != null && arrow.slot() >= size) {
-                throw new IllegalArgumentException("Section \"" + id + "\" puts a page button in slot "
-                        + arrow.slot() + ", outside a menu of " + size);
-            }
-        }
-        return new UiSection(id, slots, templates, previous, next,
+        return new UiSection(id, slots, templates,
+                arrow(placed(navigation, "previous", binder, "previous_page " + id), id, binder, size),
+                arrow(placed(navigation, "next", binder, "next_page " + id), id, binder, size),
                 filler == null ? null : readItem(filler, binder));
+    }
+
+    /**
+     * Returns whether a slot lies inside the menu, reporting it when it does not.
+     *
+     * <p>Skipped rather than refused: a slot left behind by a shrunk {@code size}
+     * is one misplaced button, and the rest of the menu should still open. Kept
+     * out of the definition either way, because a slot past the window loads
+     * fine and then throws on every open.
+     */
+    private static boolean fits(Binder binder, String where, int slot, int size) {
+        if (slot >= 0 && slot < size) {
+            return true;
+        }
+        binder.problems().found(where + " slot " + slot,
+                "outside a menu of " + size + " slots; skipped");
+        return false;
+    }
+
+    /** Drops a page button that lies outside the menu. */
+    private static UiSection.Placed arrow(UiSection.Placed placed, String id,
+                                          Binder binder, int size) {
+        return placed == null || fits(binder, "page button of section \"" + id + "\"",
+                placed.slot(), size) ? placed : null;
     }
 
     /**
