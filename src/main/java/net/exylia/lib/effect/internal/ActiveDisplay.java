@@ -197,7 +197,15 @@ abstract class ActiveDisplay implements Display {
         EffectRuntime.unregister(this);
 
         if (clearScreen && viewer.isOnline()) {
-            run(() -> clear(viewer));
+            // A dead player is not a valid entity, so the entity task is skipped
+            // for them; the screen still belongs to a connected client and has to
+            // be cleared, or a boss bar stopped on death stays there for good.
+            Runnable clearing = () -> clear(viewer);
+            scheduler.runAtEntity(viewer, clearing, () -> {
+                if (viewer.isOnline()) {
+                    clearing.run();
+                }
+            });
         }
 
         Runnable action = runEnd ? onEnd : null;

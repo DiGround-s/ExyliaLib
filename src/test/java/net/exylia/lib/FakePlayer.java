@@ -37,6 +37,7 @@ public final class FakePlayer {
     private final List<String> commands = new CopyOnWriteArrayList<>();
     private volatile boolean acceptsCommands = true;
     private volatile boolean online = true;
+    private volatile boolean dead;
     private final java.util.Set<String> permissions = new java.util.concurrent.CopyOnWriteArraySet<>();
     private final java.util.concurrent.atomic.AtomicInteger experience =
             new java.util.concurrent.atomic.AtomicInteger();
@@ -60,7 +61,9 @@ public final class FakePlayer {
                     case "getLocation" -> location;
                     case "getWorld" -> location == null ? null : location.getWorld();
                     case "getName" -> this.name;
-                    case "isOnline", "isValid" -> online;
+                    case "isOnline" -> online;
+                    // Bukkit reports a dead player as invalid while they are still connected.
+                    case "isValid" -> online && !dead;
                     case "hasPermission" -> permissions.contains(String.valueOf(args[0]));
                     case "getInventory" -> inventory;
                     case "giveExp" -> {
@@ -307,6 +310,11 @@ public final class FakePlayer {
     /** How much experience this player was granted. */
     public int experience() {
         return experience.get();
+    }
+
+    /** Simulates the player dying: still connected, no longer a valid entity. */
+    public void die() {
+        dead = true;
     }
 
     /** Simulates the player leaving. */

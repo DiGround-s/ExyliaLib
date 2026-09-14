@@ -267,6 +267,19 @@ class DisplayTest {
     }
 
     @Test
+    @DisplayName("a boss bar stopped while its player is dead still leaves the screen")
+    void bossBarStoppedOnDeathIsRemoved() {
+        Display display = Effects.bossBar("{primary}Match").show(viewer.player());
+        FakeServer.tick(1);
+
+        viewer.die();
+        display.stop();
+        FakeServer.tick(1);
+
+        assertEquals(1, viewer.bossBarsHidden(), "death must not strand the bar on screen");
+    }
+
+    @Test
     @DisplayName("a boss bar with nothing changing costs no task at all")
     void staticBossBarDoesNotTick() {
         Effects.bossBar("Waiting for players").show(viewer.player());
