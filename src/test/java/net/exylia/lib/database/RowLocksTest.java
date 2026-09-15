@@ -146,4 +146,43 @@ class RowLocksTest {
 
         assertEquals(Optional.of("free"), await(locks.hold("9", () -> CompletableFuture.completedFuture("free"))));
     }
+
+    @Test
+    @DisplayName("a renewing hold outlives its lease, and is free once it ends")
+    void renewedLeaseOutlivesItself() {
+        RowLocks first = server().lease(Duration.ofMillis(300));
+        RowLocks second = server().attempts(1, Duration.ofMillis(1));
+        AtomicBoolean lost = new AtomicBoolean();
+
+        CompletableFuture<Optional<String>> held = first.holdRenewing("5", lease -> {
+            lease.lost().thenRun(() -> lost.set(true));
+            return later(1_200).thenApply(ignored -> "closed");
+        });
+        await(later(900));
+        Optional<String> stolen = await(second.hold("5", () -> CompletableFuture.completedFuture("stolen")));
+
+        assertTrue(stolen.isEmpty(), "three leases in, the renewed hold is still held");
+        assertEquals(Optional.of("closed"), await(held));
+        assertFalse(lost.get());
+        assertEquals(Optional.of("free"), await(second.hold("5", () -> CompletableFuture.completedFuture("free"))));
+    }
+
+    @Test
+    @DisplayName("a lease taken over fails its renewal, reports the loss and is not released over the new holder")
+    void takenOverLeaseIsLost() {
+        Repository<LockRow> rows = Databases.of(plugin).repository(LockRow.class);
+        RowLocks locks = server().lease(Duration.ofMinutes(1));
+
+        Optional<Boolean> renewed = await(locks.holdRenewing("3", lease -> rows.find("auctions:3")
+                .thenCompose(row -> rows.save(new LockRow("auctions:3", "thief",
+                        System.currentTimeMillis() + 60_000, row.orElseThrow().version() + 7)))
+                .thenCompose(ignored -> lease.renew())
+                .thenApply(won -> {
+                    assertTrue(lease.lost().isDone(), "the loss is reported");
+                    return won;
+                })));
+
+        assertEquals(Optional.of(false), renewed);
+        assertEquals("thief", await(rows.find("auctions:3")).orElseThrow().holder());
+    }
 }

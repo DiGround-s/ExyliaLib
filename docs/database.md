@@ -174,6 +174,25 @@ locks.hold(auction.id(), () -> auctions.find(auction.id()).thenCompose(this::bid
 - **The lease is a promise about time.** Keep it well above the longest the
   work takes plus the clock drift between servers, or a slow hold can be taken
   over while it still runs.
+- **`holdRenewing(key, lease -> work)`** (since 1.167.0) is for holds that last
+  as long as a player keeps something open. The lease stays short and is
+  renewed every third of it while the work is pending, so a crashed server's
+  lock is free one short lease later. Every renewal is a compare-and-set on the
+  version, so it fails once another server took the lock over;
+  `lease.lost()` completes then, or when the database has not answered a
+  renewal before the lease would run out. The work is not interrupted — it
+  listens to `lost()` and ends itself. `lease.renew()` extends it right now
+  and answers whether it is still held. Renewals stop when the work's future
+  completes and the lock is given back.
+
+```java
+locks.lease(Duration.ofSeconds(60)).holdRenewing(vault.id(), lease -> {
+    CompletableFuture<Void> closed = openWindow(player, vault);
+    lease.lost().thenRun(() -> saveAndClose(player, vault));   // database or scheduler thread
+    return closed;
+});
+```
+
 - Holds for the same key on one server queue behind each other before they
   reach the database, and the queue is forgotten when it empties.
 - The work runs on the database callback thread; hop through `Tasks` before
