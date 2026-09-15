@@ -311,7 +311,7 @@ public final class Effects {
          * three fields it has always been.
          *
          * @return the line
-         * @since 1.169.0
+         * @since 1.170.0
          */
         public @NotNull String line() {
             StringBuilder line = new StringBuilder(name)

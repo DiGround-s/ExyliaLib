@@ -29,7 +29,7 @@ ExyliaCommons unchanged and extended at the end:
   in the corner of the screen, and `AMBIENT` whether the particles are the
   faint beacon kind. Written `true`/`false` — or `yes`/`no` — and missing means
   what a potion normally does: particles and icon shown, not ambient. Since
-  1.169.0.
+  1.170.0.
 
 ```java
 Effects.apply(player, "SPEED|2|5|false|false");  // Speed II, nothing on screen
