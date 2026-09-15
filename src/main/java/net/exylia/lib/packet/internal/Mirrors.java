@@ -173,7 +173,8 @@ public final class Mirrors implements SilentContainer {
         if (anywhere) {
             return IntStream.range(0, sourceSize).toArray();
         }
-        return rawSlot < sourceSize ? new int[] {rawSlot} : new int[0];
+        // A click outside the window reports a negative raw slot (-999): it changes no slot.
+        return rawSlot >= 0 && rawSlot < sourceSize ? new int[] {rawSlot} : new int[0];
     }
 
     static void forget(Player viewer) {

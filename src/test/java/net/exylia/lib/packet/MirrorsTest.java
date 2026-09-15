@@ -43,6 +43,13 @@ class MirrorsTest {
     }
 
     @Test
+    @DisplayName("a click outside the window dirties nothing")
+    void outsideClick() {
+        assertEquals(0, Mirrors.touched(InventoryAction.DROP_ALL_CURSOR, -999, SOURCE, TOP).length);
+        assertEquals(0, Mirrors.touched(InventoryAction.NOTHING, -1, SOURCE, TOP).length);
+    }
+
+    @Test
     @DisplayName("shift-click from the bottom and double-click dirty every source slot, never the padding")
     void anywhere() {
         int[] all = java.util.stream.IntStream.range(0, SOURCE).toArray();
