@@ -135,15 +135,6 @@ final class Session implements UiSession {
 
     @Override
     public boolean page(@NotNull String section, int page) {
-        return page(section, page, true);
-    }
-
-    /** Moves a list back to where it was, without the page sound. */
-    boolean restorePage(String section, int page) {
-        return page(section, page, false);
-    }
-
-    private boolean page(String section, int page, boolean audible) {
         UiSection list = definition.section(section);
         if (list == null) {
             return false;
@@ -157,9 +148,6 @@ final class Session implements UiSession {
         pages.put(section, wanted);
         drawSection(list);
         retitle();
-        if (audible) {
-            runtime.play(viewer, definition.sounds().page());
-        }
         return true;
     }
 

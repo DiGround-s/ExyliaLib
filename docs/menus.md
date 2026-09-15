@@ -531,7 +531,7 @@ click_sounds:
 ```
 
 Or, more tidily, a block naming each one — `open`, `close`, `click`, `denied`,
-`failed`, `back`, `page`:
+`failed`:
 
 ```yaml
 sounds:
@@ -547,16 +547,30 @@ report.
 Anything not written falls back to the defaults: open
 `minecraft:block.ender_chest.open|1.0|1.4`, click
 `minecraft:block.note_block.hat|1.0|1.0`, close
-`minecraft:block.barrel.close|1.0|0.7`, page (next and previous)
-`minecraft:item.book.page_turn|1.0|1.0` and back
-`minecraft:item.bundle.remove_one|1.0|0.5`.
+`minecraft:block.barrel.close|1.0|0.7`.
+
+A button can sound like itself instead of the click. Page arrows and back buttons
+carry theirs:
+
+```yaml
+pagination:
+  navigation:
+    next:
+      slot: 50
+      sound: "minecraft:item.book.page_turn|1.0|1.0"
+items:
+  back:
+    slot: 49
+    sound: "minecraft:item.bundle.remove_one|1.0|0.5"
+```
+
+`sound: ""` makes a button silent; no `sound` means the menu's click.
 
 Opening a menu while another is on screen — a button, a command, `back` — is one
 screen changing, not a close and an open: the old menu's close sound and the new
 one's open sound are both skipped, so the click, page turn or back sound is heard
-on its own. Likewise a button that makes a menu sound of its own — a page arrow,
-`back`, `close`, a refusal — plays that sound instead of the click, not on top of
-it.
+on its own. Likewise a button whose action makes a menu sound — `close`, a
+refusal — plays that sound instead of the click, not on top of it.
 
 ## Lifecycle
 

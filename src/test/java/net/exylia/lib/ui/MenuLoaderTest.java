@@ -426,6 +426,39 @@ class MenuLoaderTest {
     }
 
     @Test
+    @DisplayName("a button and a page arrow can sound like themselves")
+    void itemSounds() {
+        UiDefinition menu = load("""
+                title: "Menu"
+                size: 54
+                pagination:
+                  slots: "0-44"
+                  navigation:
+                    next:
+                      slot: 50
+                      material: ARROW
+                      sound: "minecraft:item.book.page_turn|1.0|1.0"
+                items:
+                  back:
+                    slot: 49
+                    material: BARRIER
+                    sound: "minecraft:item.bundle.remove_one|1.0|0.5"
+                  quiet:
+                    slot: 48
+                    material: STONE
+                    sound: ""
+                  plain:
+                    slot: 47
+                    material: STONE
+                """);
+
+        assertEquals("minecraft:item.book.page_turn|1.0|1.0", menu.section().next().item().sound());
+        assertEquals("minecraft:item.bundle.remove_one|1.0|0.5", menu.items().get(49).sound());
+        assertEquals("", menu.items().get(48).sound(), "empty is a silent button");
+        assertNull(menu.items().get(47).sound(), "absent is the menu's click");
+    }
+
+    @Test
     @DisplayName("a mistyped action is a dead button and a reported problem, not a dead menu")
     void unknownActionsAreReportedButDoNotStopTheMenu() {
         List<String> problems = new ArrayList<>();

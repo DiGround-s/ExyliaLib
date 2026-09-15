@@ -164,10 +164,12 @@ public final class MenuListener implements Listener {
             Commands.of(session.runtime().plugin()).run(commands, viewer, data);
         }
 
-        // After the button ran, and only if it made no menu sound of its own: a
-        // page arrow, a back button or a close is heard once, never on top of a click.
+        // After the button ran, and only if it made no menu sound of its own — a
+        // close or a refusal is heard once, never on top of a click. A button with
+        // a sound of its own, a page arrow or a back button, plays that instead.
         if (MenuRuntime.soundsHeard(viewer) == heard) {
-            session.runtime().play(viewer, session.definition().sounds().click());
+            session.runtime().play(viewer, item.sound() != null
+                    ? item.sound() : session.definition().sounds().click());
         }
 
         // A button that toggles something has to show the new state, and what

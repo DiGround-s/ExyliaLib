@@ -337,9 +337,8 @@ public final class MenuRuntime {
         // forward, so that push is undone.
         forgetLast(viewer);
         for (Map.Entry<String, Integer> page : where.pages().entrySet()) {
-            session.restorePage(page.getKey(), page.getValue());
+            session.page(page.getKey(), page.getValue());
         }
-        play(viewer, definition.sounds().back());
         return true;
     }
 
@@ -369,7 +368,6 @@ public final class MenuRuntime {
         // Going up is not a step forward, so the screen open() recorded on the
         // way past is dropped.
         forgetLast(viewer);
-        play(viewer, definition.sounds().back());
         return true;
     }
 

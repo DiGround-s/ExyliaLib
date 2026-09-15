@@ -318,6 +318,8 @@ public final class MenuLoader {
                 .bindings(bindings.build())
                 .condition(section.getString("condition"))
                 .dependsOn(section.getStringList("depends-on"))
+                // Present but empty is a silent button, not the menu's click.
+                .sound(section.contains("sound") ? section.getString("sound", "") : null)
                 .build();
     }
 
@@ -407,7 +409,7 @@ public final class MenuLoader {
      */
     private static UiSounds readSounds(ConfigurationSection config, UiSounds defaults) {
         Map<String, Object> named = new LinkedHashMap<>();
-        for (String key : List.of("open", "close", "click", "denied", "failed", "back", "page")) {
+        for (String key : List.of("open", "close", "click", "denied", "failed")) {
             String listed = firstSound(config, key + "_sounds", key + "-sounds");
             if (listed != null) {
                 named.put(key, listed);
@@ -611,7 +613,8 @@ public final class MenuLoader {
             return new UiSection.Placed(slot, item);
         }
         return new UiSection.Placed(slot,
-                new UiItem(item.item(), paging, item.condition(), item.dependencies()));
+                new UiItem(item.item(), paging, item.condition(), item.dependencies(),
+                        item.alternates(), item.sound()));
     }
 
     private static Map<String, Object> values(ConfigurationSection section) {

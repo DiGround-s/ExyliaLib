@@ -19,8 +19,7 @@ import java.util.Map;
  * @since 1.22.0
  */
 public record UiSounds(@Nullable String open, @Nullable String close, @Nullable String click,
-                       @Nullable String denied, @Nullable String failed,
-                       @Nullable String back, @Nullable String page) {
+                       @Nullable String denied, @Nullable String failed) {
 
     /** What menus sound like unless somebody says otherwise. */
     public static final UiSounds DEFAULTS = new UiSounds(
@@ -28,12 +27,10 @@ public record UiSounds(@Nullable String open, @Nullable String close, @Nullable 
             "minecraft:block.barrel.close|1.0|0.7",
             "minecraft:block.note_block.hat|1.0|1.0",
             "BLOCK_NOTE_BLOCK_BASS|0.6|0.8",
-            "ENTITY_VILLAGER_NO|0.6|1",
-            "minecraft:item.bundle.remove_one|1.0|0.5",
-            "minecraft:item.book.page_turn|1.0|1.0");
+            "ENTITY_VILLAGER_NO|0.6|1");
 
     /** Nothing at all. */
-    public static final UiSounds SILENT = new UiSounds(null, null, null, null, null, null, null);
+    public static final UiSounds SILENT = new UiSounds(null, null, null, null, null);
 
     /**
      * Reads overrides from a configuration section, keeping the defaults for
@@ -53,9 +50,7 @@ public record UiSounds(@Nullable String open, @Nullable String close, @Nullable 
                 pick(values, "close", base.close()),
                 pick(values, "click", base.click()),
                 pick(values, "denied", base.denied()),
-                pick(values, "failed", base.failed()),
-                pick(values, "back", base.back()),
-                pick(values, "page", base.page()));
+                pick(values, "failed", base.failed()));
     }
 
     private static String pick(Map<String, Object> values, String key, String fallback) {

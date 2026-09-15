@@ -28,6 +28,8 @@ import java.util.function.Predicate;
  *                     that changes and left alone when it does not
  * @param alternates   what to draw in the same slot instead when this one's
  *                     condition fails, in the order the file wrote them
+ * @param sound        what pressing it sounds like instead of the menu's click,
+ *                     empty for silence, or {@code null} for the click
  * @since 1.22.0
  */
 public record UiItem(
@@ -35,11 +37,21 @@ public record UiItem(
         @NotNull ClickBindings bindings,
         @Nullable String condition,
         @NotNull List<String> dependencies,
-        @NotNull List<UiItem> alternates) {
+        @NotNull List<UiItem> alternates,
+        @Nullable String sound) {
 
     public UiItem {
         dependencies = List.copyOf(dependencies);
         alternates = List.copyOf(alternates);
+    }
+
+    /** A slot with no sound of its own. */
+    public UiItem(@NotNull Item item,
+                  @NotNull ClickBindings bindings,
+                  @Nullable String condition,
+                  @NotNull List<String> dependencies,
+                  @NotNull List<UiItem> alternates) {
+        this(item, bindings, condition, dependencies, alternates, null);
     }
 
     /** A slot with no alternates, which is what most slots are. */
@@ -63,7 +75,7 @@ public record UiItem(
     public @NotNull UiItem withAlternate(@NotNull UiItem alternate) {
         List<UiItem> chain = new ArrayList<>(alternates);
         chain.add(alternate);
-        return new UiItem(item, bindings, condition, dependencies, chain);
+        return new UiItem(item, bindings, condition, dependencies, chain, sound);
     }
 
     /**
@@ -109,6 +121,7 @@ public record UiItem(
         private ClickBindings bindings = ClickBindings.none();
         private String condition;
         private List<String> dependencies = List.of();
+        private String sound;
 
         private Builder(Item item) {
             this.item = item;
@@ -129,8 +142,13 @@ public record UiItem(
             return this;
         }
 
+        public @NotNull Builder sound(@Nullable String sound) {
+            this.sound = sound;
+            return this;
+        }
+
         public @NotNull UiItem build() {
-            return new UiItem(item, bindings, condition, dependencies);
+            return new UiItem(item, bindings, condition, dependencies, List.of(), sound);
         }
     }
 }
