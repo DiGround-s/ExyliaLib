@@ -30,9 +30,11 @@ class LibraryMessagesTest {
         assertEquals(LibraryMessages.Wizard.DEFAULT_ITEM, emptied.item());
 
         LibraryMessages.Selection selection = new LibraryMessages.Selection(
-                null, "", "  ", null, "", null, " ", "");
+                null, "", "  ", null, "", null, " ", "", null, " ");
         assertEquals(LibraryMessages.Selection.DEFAULT_FIRST_CORNER, selection.firstCorner());
         assertEquals(LibraryMessages.Selection.DEFAULT_GUIDE_CONFIRM, selection.guideConfirm());
+        assertEquals(LibraryMessages.Selection.DEFAULT_AREA, selection.area());
+        assertEquals(LibraryMessages.Selection.DEFAULT_GUIDE_CONFIRM_AREA, selection.guideConfirmArea());
     }
 
     @Test
@@ -70,6 +72,8 @@ class LibraryMessagesTest {
         assertTrue(lines.firstCorner().contains("%z%"));
         assertTrue(lines.volume().contains("%blocks%"));
         assertTrue(lines.guideConfirm().contains("%blocks%"));
+        assertTrue(lines.area().contains("%blocks%"));
+        assertTrue(lines.guideConfirmArea().contains("%blocks%"));
         assertTrue(lines.guideCorners().contains("%selector%"));
     }
 

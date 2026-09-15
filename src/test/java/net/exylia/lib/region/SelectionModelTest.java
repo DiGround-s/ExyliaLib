@@ -27,6 +27,9 @@ class SelectionModelTest {
         assertTrue(defaults.feedback());
         assertTrue(defaults.hasPreview());
         assertEquals(defaults, new SelectionOptions());
+        // Nothing that existed before full-height and virtual selectors changes.
+        assertEquals(SelectionHeight.NORMAL, defaults.height());
+        assertFalse(defaults.virtualSelector());
 
         SelectionOptions custom = new SelectionOptions(Material.STICK, false, false);
         assertEquals(Material.STICK, custom.selectorMaterial());
@@ -63,6 +66,30 @@ class SelectionModelTest {
                 () -> SelectionOptions.builder().previewSpacing(0.0));
         assertThrows(IllegalArgumentException.class,
                 () -> SelectionOptions.builder().previewPeriodTicks(0L));
+    }
+
+    @Test
+    @DisplayName("A full-height preset dresses the tool, and a bare height change does not")
+    void heightPresets() {
+        assertEquals(SelectionOptions.defaults(), SelectionOptions.builder(SelectionHeight.NORMAL).build());
+
+        SelectionOptions full = SelectionOptions.builder(SelectionHeight.FULL).build();
+        assertEquals(SelectionHeight.FULL, full.height());
+        assertEquals(Material.GOLDEN_HOE, full.selectorMaterial());
+        assertEquals(SelectionOptions.DEFAULT_FULL_HEIGHT_SELECTOR_NAME, full.selectorName());
+        assertEquals(SelectionOptions.DEFAULT_FULL_HEIGHT_SELECTOR_LORE, full.selectorLore());
+
+        SelectionOptions bare = SelectionOptions.builder().height(SelectionHeight.FULL).build();
+        assertEquals(Material.GOLDEN_AXE, bare.selectorMaterial(),
+                "height() is only the height: the caller's tool stays the caller's");
+        assertEquals(SelectionOptions.DEFAULT_SELECTOR_LORE, bare.selectorLore());
+
+        SelectionOptions virtual = full.toBuilder().virtualSelector(true).build();
+        assertTrue(virtual.virtualSelector());
+        assertEquals(virtual, virtual.toBuilder().build());
+        assertFalse(virtual.equals(full), "A drawn selector is not the same options as a given one");
+        assertFalse(full.equals(bare));
+        assertThrows(NullPointerException.class, () -> SelectionOptions.builder().height(null));
     }
 
     @Test

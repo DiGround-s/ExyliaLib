@@ -253,6 +253,7 @@ public final class PluginRegions {
      * @param player player whose UUID is selected; the player object is not retained
      * @return active owner-scoped selection session
      * @throws IllegalStateException if the player already has an active selection
+     * @throws UnsupportedOperationException never for the defaults; see the overload
      */
     public @NotNull SelectionSession beginSelection(@NotNull Player player) {
         return beginSelection(player, SelectionOptions.DEFAULT);
@@ -265,6 +266,9 @@ public final class PluginRegions {
      * @param options the selector, the preview and the confirmation rules
      * @return active owner-scoped selection session
      * @throws IllegalStateException if the player already has an active selection
+     * @throws UnsupportedOperationException if the options hand out a
+     *         {@link SelectionOptions#virtualSelector() virtual selector} and PacketEvents
+     *         is not installed; nothing is started
      */
     public @NotNull SelectionSession beginSelection(@NotNull Player player,
                                                      @NotNull SelectionOptions options) {

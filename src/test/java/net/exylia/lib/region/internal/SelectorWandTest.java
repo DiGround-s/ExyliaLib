@@ -23,6 +23,7 @@ import java.util.UUID;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotSame;
 import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -134,6 +135,21 @@ class SelectorWandTest {
                 "A caller that hands out nothing does not sweep the player's inventory either");
     }
 
+    @Test
+    @DisplayName("a selector that must not be real is refused without PacketEvents, before anything is handed over")
+    void virtualNeedsPackets() {
+        SelectionOptions virtual = SelectionOptions.builder()
+                .virtualSelector(true)
+                .feedback(false)
+                .previewParticle(null)
+                .build();
+
+        assertThrows(UnsupportedOperationException.class, () -> begin(virtual));
+        assertEquals(0, wand.given, "Falling back to a real item is exactly what was asked against");
+        assertTrue(SelectionRuntime.selection("SelectorWandOwner", player.player().getUniqueId()).isEmpty(),
+                "Nothing was registered, so the player can still select with a real tool");
+    }
+
     // ---------------------------------------------------------------- the slot
 
     @Test
@@ -214,6 +230,16 @@ class SelectorWandTest {
         public int give(Player player, ItemStack item) {
             given++;
             return 0;
+        }
+
+        @Override
+        public int overlay(Player player, ItemStack item) {
+            given++;
+            return 0;
+        }
+
+        @Override
+        public void unoverlay(Player player) {
         }
 
         @Override

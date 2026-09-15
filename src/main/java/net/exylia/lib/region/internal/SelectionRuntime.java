@@ -3,18 +3,26 @@ package net.exylia.lib.region.internal;
 import net.exylia.lib.debug.Debug;
 import net.exylia.lib.effect.Display;
 import net.exylia.lib.effect.Effects;
+import net.exylia.lib.packet.FakeBlocks;
+import net.exylia.lib.packet.Packets;
 import net.exylia.lib.region.BlockPosition;
 import net.exylia.lib.region.Cuboid;
 import net.exylia.lib.region.RegionShape;
+import net.exylia.lib.region.SelectionHeight;
 import net.exylia.lib.region.SelectionOptions;
 import net.exylia.lib.region.SelectionResult;
 import net.exylia.lib.region.SelectionSession;
 import net.exylia.lib.region.SelectionState;
+import net.exylia.lib.region.UnboundedYRectangle;
 import net.exylia.lib.platform.Platform;
 import net.exylia.lib.task.Tasks;
 import net.exylia.lib.text.LibraryMessages;
 import net.exylia.lib.text.Text;
 import org.bukkit.Bukkit;
+import org.bukkit.Location;
+import org.bukkit.Material;
+import org.bukkit.World;
+import org.bukkit.block.data.BlockData;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.plugin.Plugin;
@@ -23,6 +31,7 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
@@ -80,6 +89,8 @@ public final class SelectionRuntime {
      * @param options immutable selection options
      * @return new active session
      * @throws IllegalStateException if any plugin already has an active selector for the player
+     * @throws UnsupportedOperationException if the options hand out a virtual selector and
+     *         PacketEvents is not installed
      */
     public static @NotNull SelectionSession begin(@NotNull Plugin plugin,
                                                    @NotNull Player player,
@@ -87,6 +98,11 @@ public final class SelectionRuntime {
         Objects.requireNonNull(plugin, "plugin");
         Objects.requireNonNull(player, "player");
         Objects.requireNonNull(options, "options");
+        // Refused before anything is registered: falling back to a real item
+        // would hand out exactly what the caller asked never to hand out.
+        if (options.giveSelector() && options.virtualSelector() && !Packets.isAvailable()) {
+            throw new UnsupportedOperationException("A virtual selector needs PacketEvents");
+        }
         UUID playerId = player.getUniqueId();
         Session session;
         synchronized (LOCK) {
@@ -183,6 +199,60 @@ public final class SelectionRuntime {
         }
     }
 
+    // ------------------------------------------------------------- geometry
+
+    /**
+     * What a selection covers while it is being picked.
+     *
+     * <p>One corner is the block it is — or the column, at full height — so a
+     * player who clicked the wrong block sees that before walking to the far
+     * end. Two corners only make a shape when they share a world.
+     *
+     * @param height what the corners mean vertically
+     * @param first  the first corner, if set
+     * @param second the second corner, if set
+     * @return the shape, or {@code null} with no corner set
+     */
+    static @Nullable RegionShape shapeOf(@NotNull SelectionHeight height,
+                                         @Nullable BlockPosition first,
+                                         @Nullable BlockPosition second) {
+        BlockPosition other;
+        BlockPosition anchor;
+        if (first != null && second != null && first.world().equals(second.world())) {
+            anchor = first;
+            other = second;
+        } else {
+            anchor = first != null ? first : second;
+            other = anchor;
+        }
+        if (anchor == null) {
+            return null;
+        }
+        if (height == SelectionHeight.FULL) {
+            return new UnboundedYRectangle(
+                    Math.min(anchor.x(), other.x()), Math.min(anchor.z(), other.z()),
+                    Math.max(anchor.x(), other.x()) + 1, Math.max(anchor.z(), other.z()) + 1);
+        }
+        return Cuboid.blocks(anchor, other);
+    }
+
+    /**
+     * How many blocks a box holds, or how many columns a full-height rectangle
+     * spans.
+     *
+     * @param shape what {@link #shapeOf} answered
+     * @return the count, {@code 0} for nothing
+     */
+    static long sizeOf(@Nullable RegionShape shape) {
+        if (shape instanceof Cuboid box) {
+            return Math.round((box.maxX() - box.minX()) * (box.maxY() - box.minY()) * (box.maxZ() - box.minZ()));
+        }
+        if (shape instanceof UnboundedYRectangle columns) {
+            return Math.round((columns.maxX() - columns.minX()) * (columns.maxZ() - columns.minZ()));
+        }
+        return 0L;
+    }
+
     private record Key(String owner, UUID playerId) {
         private Key {
             Objects.requireNonNull(owner, "owner");
@@ -192,6 +262,10 @@ public final class SelectionRuntime {
 
     /** Internal mutable state behind the immutable public session view. */
     static final class Session implements SelectionSession {
+
+        /** A tower up a full-height corner: glass, with the corner's colour every fourth block. */
+        private static final int TOWER_STRIPE = 4;
+
         private final Key key;
         private final Plugin plugin;
         private final SelectionOptions options;
@@ -204,6 +278,9 @@ public final class SelectionRuntime {
         private volatile SelectionPreview preview;
         private volatile Display guidance;
         private volatile boolean equipped;
+        /** The fake blocks drawn up each full-height corner. Guarded by this. */
+        private List<Location> firstTower = List.of();
+        private List<Location> secondTower = List.of();
 
         private Session(Key key, Plugin plugin, SelectionOptions options) {
             this.key = key;
@@ -278,7 +355,11 @@ public final class SelectionRuntime {
                     return;
                 }
                 try {
-                    wand.give(player, item);
+                    if (options.virtualSelector()) {
+                        wand.overlay(player, item);
+                    } else {
+                        wand.give(player, item);
+                    }
                 } catch (RuntimeException | LinkageError unwritable) {
                     Debug.of(plugin).error("Could not hand the region selector to "
                             + player.getName() + '.', unwritable);
@@ -304,10 +385,16 @@ public final class SelectionRuntime {
             Player player = Bukkit.getPlayer(playerId());
             if (player == null || !player.isOnline()) {
                 // Left the server holding it. Nothing to write to, and the item
-                // is inert: without a session, a click with it is a click.
+                // is inert: without a session, a click with it is a click. A
+                // drawn one is forgotten by the packet module when they leave.
                 return;
             }
-            onPlayerThread(player, () -> wand.take(player));
+            onPlayerThread(player, () -> {
+                if (options.virtualSelector()) {
+                    wand.unoverlay(player);
+                }
+                wand.take(player);
+            });
         }
 
         // ------------------------------------------------------------- corners
@@ -350,6 +437,7 @@ public final class SelectionRuntime {
                 announce(player, selectingFirst, position, bothSet);
                 guide();
                 redraw(player);
+                tower(player, selectingFirst, position);
             }
             if (!bothSet && first != null && second != null && options.requireSameWorld()) {
                 Debug.of(plugin).debug("Region selection corners for " + playerId()
@@ -390,6 +478,10 @@ public final class SelectionRuntime {
 
         // -------------------------------------------------------- what is seen
 
+        private boolean fullHeight() {
+            return options.height() == SelectionHeight.FULL;
+        }
+
         private void announce(Player player, boolean selectingFirst, BlockPosition position,
                               boolean bothSet) {
             if (!options.feedback()) {
@@ -400,7 +492,8 @@ public final class SelectionRuntime {
             if (!bothSet) {
                 return;
             }
-            say(player, lines.volume().replace("%blocks%", String.valueOf(volume())));
+            say(player, (fullHeight() ? lines.area() : lines.volume())
+                    .replace("%blocks%", String.valueOf(size())));
         }
 
         private static String at(String line, BlockPosition position) {
@@ -451,7 +544,8 @@ public final class SelectionRuntime {
             }
             LibraryMessages.Selection lines = LibraryMessages.get().selection();
             if (now == SelectionState.AWAITING_CONFIRMATION) {
-                return lines.guideConfirm().replace("%blocks%", String.valueOf(volume()));
+                return (fullHeight() ? lines.guideConfirmArea() : lines.guideConfirm())
+                        .replace("%blocks%", String.valueOf(size()));
             }
             if (hasFirst && !hasSecond) {
                 return lines.guideFirst();
@@ -475,32 +569,19 @@ public final class SelectionRuntime {
             return options.selectorMaterial().name().toLowerCase(Locale.ROOT).replace('_', ' ');
         }
 
-        /** How many blocks the two corners enclose, both ends included. */
-        private long volume() {
-            Cuboid cuboid = shape() instanceof Cuboid box ? box : null;
-            if (cuboid == null) {
-                return 0L;
+        /** Blocks in the box, or columns at full height, once both corners share a world. */
+        private long size() {
+            synchronized (this) {
+                if (first == null || second == null || !first.world().equals(second.world())) {
+                    return 0L;
+                }
             }
-            return Math.round((cuboid.maxX() - cuboid.minX())
-                    * (cuboid.maxY() - cuboid.minY())
-                    * (cuboid.maxZ() - cuboid.minZ()));
+            return sizeOf(shape());
         }
 
-        /**
-         * What the preview draws right now.
-         *
-         * <p>One corner is the block it is: an admin who clicked the wrong block
-         * should see that before walking to the far end.
-         */
+        /** What the preview draws right now. */
         private synchronized @Nullable RegionShape shape() {
-            // Both corners only make a box when they share a world. An owner
-            // who allowed two worlds gets the first corner drawn rather than an
-            // exception from a cuboid that cannot exist.
-            if (first != null && second != null && first.world().equals(second.world())) {
-                return Cuboid.blocks(first, second);
-            }
-            BlockPosition only = first != null ? first : second;
-            return only == null ? null : Cuboid.block(only);
+            return shapeOf(options.height(), first, second);
         }
 
         private synchronized @Nullable UUID shapeWorld() {
@@ -524,6 +605,84 @@ public final class SelectionRuntime {
         }
 
         /**
+         * Draws a tower of fake blocks up a full-height corner.
+         *
+         * <p>The rectangle's outline is drawn at the player's height, which
+         * says nothing about the column above and below it; a tower up each
+         * corner does, the way claim tools draw it. Only in air, so it never
+         * hides a real block, and never placed: the server does not have it.
+         * Without PacketEvents the outline alone is drawn.
+         */
+        private void tower(Player player, boolean selectingFirst, BlockPosition corner) {
+            if (!fullHeight() || !options.hasPreview() || !Packets.isAvailable()) {
+                return;
+            }
+            Plugin library = RegionRuntime.library();
+            World world = Bukkit.getWorld(corner.world().id());
+            if (library == null || world == null) {
+                return;
+            }
+            FakeBlocks fake = Packets.of(library).fakeBlocks();
+            clearTower(player, fake, selectingFirst);
+            BlockData glass = Material.GLASS.createBlockData();
+            BlockData accent = (selectingFirst ? Material.EMERALD_BLOCK : Material.REDSTONE_BLOCK).createBlockData();
+            Tasks.of(library).runAtLocation(new Location(world, corner.x(), 0, corner.z()), () -> {
+                int minY = world.getMinHeight();
+                Map<Location, BlockData> blocks = new HashMap<>();
+                for (int y = minY; y < world.getMaxHeight(); y++) {
+                    if (world.getBlockAt(corner.x(), y, corner.z()).isEmpty()) {
+                        blocks.put(new Location(world, corner.x(), y, corner.z()),
+                                (y - minY) % TOWER_STRIPE == TOWER_STRIPE - 1 ? accent : glass);
+                    }
+                }
+                synchronized (this) {
+                    // Moved again, or over, while the column was being read.
+                    boolean open = state == SelectionState.ACTIVE || state == SelectionState.AWAITING_CONFIRMATION;
+                    if (!open || !corner.equals(selectingFirst ? first : second)) {
+                        return;
+                    }
+                    fake.show(player, blocks);
+                    List<Location> drawn = List.copyOf(blocks.keySet());
+                    if (selectingFirst) {
+                        firstTower = drawn;
+                    } else {
+                        secondTower = drawn;
+                    }
+                }
+            });
+        }
+
+        private void clearTower(Player player, FakeBlocks fake, boolean ofFirst) {
+            List<Location> drawn;
+            synchronized (this) {
+                drawn = ofFirst ? firstTower : secondTower;
+                if (ofFirst) {
+                    firstTower = List.of();
+                } else {
+                    secondTower = List.of();
+                }
+            }
+            if (!drawn.isEmpty()) {
+                fake.clear(player, drawn);
+            }
+        }
+
+        private void clearTowers() {
+            if (!fullHeight() || !options.hasPreview()) {
+                return;
+            }
+            Player player = Bukkit.getPlayer(playerId());
+            Plugin library = RegionRuntime.library();
+            if (player == null || library == null || !Packets.isAvailable()) {
+                // Gone: the packet module forgets what a player who left was shown.
+                return;
+            }
+            FakeBlocks fake = Packets.of(library).fakeBlocks();
+            clearTower(player, fake, true);
+            clearTower(player, fake, false);
+        }
+
+        /**
          * Gives back everything this session took, before anybody is told it
          * ended.
          *
@@ -538,6 +697,7 @@ public final class SelectionRuntime {
             try {
                 stopGuidance();
                 stopPreview();
+                clearTowers();
                 unequip();
             } catch (RuntimeException | LinkageError broken) {
                 Debug.of(plugin).error("Could not give back the region selector of "

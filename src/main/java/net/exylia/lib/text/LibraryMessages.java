@@ -146,6 +146,8 @@ public record LibraryMessages(
      * @param guideFirst   the standing prompt while only the first is set
      * @param guideSecond  the standing prompt while only the second is set
      * @param guideConfirm the standing prompt once the box is complete
+     * @param area         chat line naming how big a full-height selection is
+     * @param guideConfirmArea the standing prompt once a full-height selection is complete
      */
     public record Selection(
 
@@ -180,7 +182,16 @@ public record LibraryMessages(
             @Key("guide-confirm")
             @Comment("The action bar shown once the box is complete and is")
             @Comment("waiting to be confirmed. %blocks% is the volume.")
-            @NotNull String guideConfirm
+            @NotNull String guideConfirm,
+
+            @Comment("Sent when both corners of a full-height selection are set.")
+            @Comment("%blocks% is the number of columns.")
+            @NotNull String area,
+
+            @Key("guide-confirm-area")
+            @Comment("The action bar shown once a full-height selection is complete")
+            @Comment("and waiting to be confirmed. %blocks% is the number of columns.")
+            @NotNull String guideConfirmArea
     ) {
 
         /** The first corner, as a chat line. */
@@ -213,11 +224,20 @@ public record LibraryMessages(
                 "{warning}➥ {letters}Shift + left-click to confirm {letters_black}» "
                         + "{info}%blocks% {letters}blocks";
 
+        /** How big a full-height selection is. */
+        public static final String DEFAULT_AREA =
+                "{secondary}Selection: {info}%blocks% {letters}columns {letters_black}» {info}full height";
+
+        /** The standing prompt while a full-height selection waits to be confirmed. */
+        public static final String DEFAULT_GUIDE_CONFIRM_AREA =
+                "{warning}➥ {letters}Shift + left-click to confirm {letters_black}» "
+                        + "{info}%blocks% {letters}columns";
+
         /** The Exylia defaults. */
         public Selection() {
             this(DEFAULT_FIRST_CORNER, DEFAULT_SECOND_CORNER, DEFAULT_VOLUME, DEFAULT_CONFIRMED,
                     DEFAULT_GUIDE_CORNERS, DEFAULT_GUIDE_FIRST, DEFAULT_GUIDE_SECOND,
-                    DEFAULT_GUIDE_CONFIRM);
+                    DEFAULT_GUIDE_CONFIRM, DEFAULT_AREA, DEFAULT_GUIDE_CONFIRM_AREA);
         }
 
         public Selection {
@@ -229,6 +249,8 @@ public record LibraryMessages(
             guideFirst = orDefault(guideFirst, DEFAULT_GUIDE_FIRST);
             guideSecond = orDefault(guideSecond, DEFAULT_GUIDE_SECOND);
             guideConfirm = orDefault(guideConfirm, DEFAULT_GUIDE_CONFIRM);
+            area = orDefault(area, DEFAULT_AREA);
+            guideConfirmArea = orDefault(guideConfirmArea, DEFAULT_GUIDE_CONFIRM_AREA);
         }
     }
 

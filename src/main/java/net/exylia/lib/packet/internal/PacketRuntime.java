@@ -28,6 +28,7 @@ import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerMoveEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.event.player.PlayerRespawnEvent;
+import org.bukkit.inventory.ItemStack;
 import org.bukkit.plugin.Plugin;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -106,6 +107,58 @@ public final class PacketRuntime {
         return sink() != null;
     }
 
+    /** player -> the item drawn in a hotbar slot that does not hold it. */
+    private static final Map<UUID, Overlay> OVERLAYS = new ConcurrentHashMap<>();
+
+    /** One drawn item, and the hotbar slot it is drawn in. */
+    record Overlay(int slot, ItemStack item) {
+    }
+
+    /**
+     * Draws an item in one of a player's hotbar slots, whatever the server has
+     * there, until it is removed.
+     *
+     * <p>The server's own inventory packets for that slot are rewritten on
+     * their way out, so every redraw the server sends keeps it; nothing is
+     * sent here. {@code Player#updateInventory} draws it now.
+     *
+     * @param player     who sees it
+     * @param hotbarSlot 0–8
+     * @param item       what they see
+     */
+    public static void overlay(UUID player, int hotbarSlot, ItemStack item) {
+        OVERLAYS.put(player, new Overlay(hotbarSlot, item.clone()));
+        sink();
+    }
+
+    /** Stops drawing a player's overlay. The next inventory packet shows the truth. */
+    public static void removeOverlay(UUID player) {
+        OVERLAYS.remove(player);
+    }
+
+    /** The hotbar slot a player's overlay is drawn in, or {@code -1} for none. */
+    public static int overlaySlot(UUID player) {
+        Overlay overlay = OVERLAYS.get(player);
+        return overlay == null ? -1 : overlay.slot();
+    }
+
+    /** Whether anybody has an overlay, asked before a packet is decoded. */
+    static boolean overlaysAnything() {
+        return !OVERLAYS.isEmpty();
+    }
+
+    static @Nullable Overlay overlayOf(UUID player) {
+        return OVERLAYS.get(player);
+    }
+
+    /** Sends a player their inventory again, on their thread, after the client dropped an overlay. */
+    static void resync(Player player) {
+        Plugin plugin = lib;
+        if (plugin != null) {
+            Tasks.of(plugin).runAtEntity(player, player::updateInventory);
+        }
+    }
+
     /**
      * Puts an objective back in a player's sidebar slot.
      *
@@ -162,6 +215,7 @@ public final class PacketRuntime {
         OUTLINED.clear();
         SPECTATING.clear();
         REVEALING.clear();
+        OVERLAYS.clear();
         MESSAGE_RULES.clear();
         WARNED.clear();
         Mirrors.shutdown();
@@ -316,6 +370,7 @@ public final class PacketRuntime {
         OUTLINED.remove(id);
         SPECTATING.remove(id);
         REVEALING.remove(id);
+        OVERLAYS.remove(id);
         Mirrors.forget(player);
         Borders.forget(player);
     }

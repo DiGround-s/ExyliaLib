@@ -10,6 +10,8 @@ import com.github.retrooper.packetevents.protocol.packettype.PacketTypeCommon;
 import com.github.retrooper.packetevents.protocol.entity.data.EntityData;
 import com.github.retrooper.packetevents.protocol.entity.data.EntityDataTypes;
 import com.github.retrooper.packetevents.protocol.entity.type.EntityTypes;
+import com.github.retrooper.packetevents.protocol.item.ItemStack;
+import com.github.retrooper.packetevents.protocol.player.DiggingAction;
 import com.github.retrooper.packetevents.protocol.player.User;
 import com.github.retrooper.packetevents.util.Vector3d;
 import com.github.retrooper.packetevents.util.Vector3f;
@@ -17,6 +19,7 @@ import com.github.retrooper.packetevents.util.Vector3i;
 import com.github.retrooper.packetevents.wrapper.PacketWrapper;
 import net.exylia.lib.packet.RevealStyle;
 import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
+import com.github.retrooper.packetevents.wrapper.play.client.WrapperPlayClientPlayerDigging;
 import com.github.retrooper.packetevents.wrapper.play.client.WrapperPlayClientPlayerFlying;
 import com.github.retrooper.packetevents.wrapper.play.client.WrapperPlayClientVehicleMove;
 import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerBlockChange;
@@ -45,8 +48,11 @@ import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerPl
 import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerPlayerInfoRemove;
 import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerPlayerInfoUpdate;
 import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerPlayerPositionAndLook;
+import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerSetPlayerInventory;
+import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerSetSlot;
 import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerSpawnEntity;
 import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerSystemChatMessage;
+import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerWindowItems;
 import io.github.retrooper.packetevents.util.SpigotConversionUtil;
 import io.github.retrooper.packetevents.util.SpigotReflectionUtil;
 import org.bukkit.Location;
@@ -174,6 +180,12 @@ final class PacketHooks extends PacketListenerAbstract implements PacketSink {
             return;
         }
         PacketTypeCommon type = event.getPacketType();
+        if (PacketRuntime.overlaysAnything()) {
+            PacketRuntime.Overlay overlay = PacketRuntime.overlayOf(viewer);
+            if (overlay != null) {
+                drawOverlay(event, type, overlay);
+            }
+        }
         if (Borders.drawsAny() && isWorldBorder(type) && Borders.replaces(event.getPlayer())) {
             // The world's own border, on its way to somebody who sees one of
             // ours: it would overwrite it. Ours goes out past this listener.
@@ -195,6 +207,46 @@ final class PacketHooks extends PacketListenerAbstract implements PacketSink {
             RevealStyle style = PacketRuntime.revealStyle(viewer);
             if (style != null) {
                 draw(event, style);
+            }
+        }
+    }
+
+    /** The player's own inventory window. */
+    private static final int PLAYER_WINDOW = 0;
+
+    /** Where hotbar slot 0 sits in the player's own inventory window. */
+    private static final int HOTBAR_IN_WINDOW = 36;
+
+    /**
+     * Draws an overlaid item over the one slot it covers, in whichever
+     * inventory packet is carrying that slot.
+     *
+     * <p>Only the player's own window: a container's window carries the
+     * inventory too, at an offset that depends on the container, and the slot
+     * is drawn again when it closes. The state id is left as the server sent
+     * it, so the client's next click still matches.
+     */
+    private static void drawOverlay(PacketSendEvent event, PacketTypeCommon type, PacketRuntime.Overlay overlay) {
+        if (type == PacketType.Play.Server.SET_SLOT) {
+            WrapperPlayServerSetSlot packet = new WrapperPlayServerSetSlot(event);
+            if (packet.getWindowId() == PLAYER_WINDOW && packet.getSlot() == HOTBAR_IN_WINDOW + overlay.slot()) {
+                packet.setItem(SpigotConversionUtil.fromBukkitItemStack(overlay.item()));
+                event.markForReEncode(true);
+            }
+        } else if (type == PacketType.Play.Server.WINDOW_ITEMS) {
+            WrapperPlayServerWindowItems packet = new WrapperPlayServerWindowItems(event);
+            int index = HOTBAR_IN_WINDOW + overlay.slot();
+            if (packet.getWindowId() == PLAYER_WINDOW && index < packet.getItems().size()) {
+                List<ItemStack> drawn = new ArrayList<>(packet.getItems());
+                drawn.set(index, SpigotConversionUtil.fromBukkitItemStack(overlay.item()));
+                packet.setItems(drawn);
+                event.markForReEncode(true);
+            }
+        } else if (type == PacketType.Play.Server.SET_PLAYER_INVENTORY) {
+            WrapperPlayServerSetPlayerInventory packet = new WrapperPlayServerSetPlayerInventory(event);
+            if (packet.getSlot() == overlay.slot()) {
+                packet.setStack(SpigotConversionUtil.fromBukkitItemStack(overlay.item()));
+                event.markForReEncode(true);
             }
         }
     }
@@ -356,6 +408,10 @@ final class PacketHooks extends PacketListenerAbstract implements PacketSink {
         if (player == null) {
             return;
         }
+        if (PacketRuntime.overlaysAnything() && event.getPacketType() == PacketType.Play.Client.PLAYER_DIGGING
+                && keepsOverlay(event, player)) {
+            return;
+        }
         Location anchor = PacketRuntime.anchorOf(player);
         if (anchor == null) {
             return;
@@ -382,6 +438,30 @@ final class PacketHooks extends PacketListenerAbstract implements PacketSink {
             // WASD held while frozen: swallowed so a vehicle does not creep.
             event.setCancelled(true);
         }
+    }
+
+    /**
+     * Swallows a drop or a hand swap of an item only the client has.
+     *
+     * <p>With nothing real in the hand the server has no event to cancel and
+     * nothing to send back, while the client has already taken the item out of
+     * its hand. The packet is dropped and the inventory sent again, which the
+     * overlay draws over.
+     */
+    private static boolean keepsOverlay(PacketReceiveEvent event, UUID playerId) {
+        int slot = PacketRuntime.overlaySlot(playerId);
+        Object sender = event.getPlayer();
+        if (slot < 0 || !(sender instanceof Player player) || player.getInventory().getHeldItemSlot() != slot) {
+            return false;
+        }
+        DiggingAction action = new WrapperPlayClientPlayerDigging(event).getAction();
+        if (action != DiggingAction.DROP_ITEM && action != DiggingAction.DROP_ITEM_STACK
+                && action != DiggingAction.SWAP_ITEM_WITH_OFFHAND) {
+            return false;
+        }
+        event.setCancelled(true);
+        PacketRuntime.resync(player);
+        return true;
     }
 
     private static boolean moved(Location anchor, double x, double y, double z) {

@@ -15,6 +15,11 @@ import java.util.Objects;
  *         .selectorName("{primary}&lARENA SELECTOR")
  *         .previewParticle("FLAME")
  *         .build();
+ *
+ * // a claim: two columns, a hoe, and an item that only exists on the client
+ * SelectionOptions claim = SelectionOptions.builder(SelectionHeight.FULL)
+ *         .virtualSelector(true)
+ *         .build();
  * }</pre>
  *
  * <h2>The defaults are the ExyliaCommons selector, not WorldEdit's</h2>
@@ -36,6 +41,14 @@ public final class SelectionOptions {
     /** The material ExyliaCommons handed out, and the one handed out here. */
     public static final Material DEFAULT_SELECTOR = Material.GOLDEN_AXE;
 
+    /**
+     * The material handed out for a {@link SelectionHeight#FULL full-height}
+     * selection: a hoe, the tool players already know claims land with.
+     *
+     * @since 1.168.0
+     */
+    public static final Material FULL_HEIGHT_SELECTOR = Material.GOLDEN_HOE;
+
     /** The particle an outline is drawn with while a selection is open. */
     public static final String DEFAULT_PREVIEW_PARTICLE = "END_ROD";
 
@@ -56,6 +69,26 @@ public final class SelectionOptions {
             "",
             "{warning}➥ Shift + left-click to confirm");
 
+    /**
+     * What the full-height selector is called.
+     *
+     * @since 1.168.0
+     */
+    public static final String DEFAULT_FULL_HEIGHT_SELECTOR_NAME = "{primary}&lREGION SELECTOR";
+
+    /**
+     * What the full-height selector says it does.
+     *
+     * @since 1.168.0
+     */
+    public static final List<String> DEFAULT_FULL_HEIGHT_SELECTOR_LORE = List.of(
+            "{secondary}Selection:",
+            " {letters_black}▎ {letters}Left-click {letters_black}» {success}first corner",
+            " {letters_black}▎ {letters}Right-click {letters_black}» {error}second corner",
+            " {letters_black}▎ {letters}Height {letters_black}» {info}Full",
+            "",
+            "{warning}➥ Shift + left-click to confirm");
+
     /** Shared default options. */
     public static final SelectionOptions DEFAULT = builder().build();
 
@@ -70,6 +103,8 @@ public final class SelectionOptions {
     private final long previewPeriodTicks;
     private final String selectorName;
     private final List<String> selectorLore;
+    private final SelectionHeight height;
+    private final boolean virtualSelector;
 
     private SelectionOptions(Builder builder) {
         this.selectorMaterial = builder.selectorMaterial;
@@ -83,6 +118,8 @@ public final class SelectionOptions {
         this.previewPeriodTicks = builder.previewPeriodTicks;
         this.selectorName = builder.selectorName;
         this.selectorLore = builder.selectorLore;
+        this.height = builder.height;
+        this.virtualSelector = builder.virtualSelector;
     }
 
     /** The default options: a golden axe, given, previewed and confirmed. */
@@ -119,6 +156,28 @@ public final class SelectionOptions {
         return new Builder();
     }
 
+    /**
+     * A builder holding the defaults for a height.
+     *
+     * <p>{@link SelectionHeight#NORMAL} is exactly {@link #builder()}. For
+     * {@link SelectionHeight#FULL} the selector is a golden hoe named and
+     * described as a full-height one, so the tool in the hand already says the
+     * box is not what is being picked. Every value can still be changed.
+     *
+     * @param height what the corners mean vertically
+     * @return a builder preset for that height
+     * @since 1.168.0
+     */
+    public static @NotNull Builder builder(@NotNull SelectionHeight height) {
+        Builder builder = new Builder().height(height);
+        if (height == SelectionHeight.FULL) {
+            builder.selectorMaterial(FULL_HEIGHT_SELECTOR)
+                    .selectorName(DEFAULT_FULL_HEIGHT_SELECTOR_NAME)
+                    .selectorLore(DEFAULT_FULL_HEIGHT_SELECTOR_LORE);
+        }
+        return builder;
+    }
+
     /** A builder holding these options' values. */
     public @NotNull Builder toBuilder() {
         Builder builder = new Builder();
@@ -133,6 +192,8 @@ public final class SelectionOptions {
         builder.previewPeriodTicks = previewPeriodTicks;
         builder.selectorName = selectorName;
         builder.selectorLore = selectorLore;
+        builder.height = height;
+        builder.virtualSelector = virtualSelector;
         return builder;
     }
 
@@ -240,6 +301,36 @@ public final class SelectionOptions {
         return selectorLore;
     }
 
+    /**
+     * What the two corners mean vertically.
+     *
+     * <p>Only how the selection is drawn and counted: the result carries the
+     * exact clicked corners either way, and the caller decides the height it
+     * protects.
+     *
+     * @since 1.168.0
+     */
+    public @NotNull SelectionHeight height() {
+        return height;
+    }
+
+    /**
+     * Whether the handed-out selector exists only on the player's client.
+     *
+     * <p>The server inventory is never written: the held slot is drawn as the
+     * selector by packets for as long as the session lives, and whatever is
+     * really in that slot cannot be used while it looks like the tool. Nothing
+     * can be dropped, moved, stored, sold or copied out of creative, because
+     * there is nothing there to take. Needs PacketEvents: starting a selection
+     * that hands one out on a server without it throws
+     * {@link UnsupportedOperationException}.
+     *
+     * @since 1.168.0
+     */
+    public boolean virtualSelector() {
+        return virtualSelector;
+    }
+
     @Override
     public boolean equals(Object other) {
         if (this == other) {
@@ -256,20 +347,23 @@ public final class SelectionOptions {
                 && Double.compare(previewSpacing, options.previewSpacing) == 0
                 && previewPeriodTicks == options.previewPeriodTicks
                 && selectorName.equals(options.selectorName)
-                && selectorLore.equals(options.selectorLore);
+                && selectorLore.equals(options.selectorLore)
+                && height == options.height
+                && virtualSelector == options.virtualSelector;
     }
 
     @Override
     public int hashCode() {
         return Objects.hash(selectorMaterial, cancelInteractions, requireSameWorld, giveSelector,
                 requireConfirmation, feedback, previewParticle, previewSpacing, previewPeriodTicks,
-                selectorName, selectorLore);
+                selectorName, selectorLore, height, virtualSelector);
     }
 
     @Override
     public String toString() {
         return "SelectionOptions[" + selectorMaterial
-                + (giveSelector ? ", given" : "")
+                + ", " + height
+                + (giveSelector ? (virtualSelector ? ", virtual" : ", given") : "")
                 + (requireConfirmation ? ", confirmed" : "")
                 + (hasPreview() ? ", " + previewParticle : "")
                 + ']';
@@ -289,6 +383,8 @@ public final class SelectionOptions {
         private long previewPeriodTicks = DEFAULT_PREVIEW_PERIOD_TICKS;
         private String selectorName = DEFAULT_SELECTOR_NAME;
         private List<String> selectorLore = DEFAULT_SELECTOR_LORE;
+        private SelectionHeight height = SelectionHeight.NORMAL;
+        private boolean virtualSelector;
 
         private Builder() {
         }
@@ -425,6 +521,35 @@ public final class SelectionOptions {
          */
         public @NotNull Builder selectorLore(@NotNull List<String> selectorLore) {
             this.selectorLore = List.copyOf(Objects.requireNonNull(selectorLore, "selectorLore"));
+            return this;
+        }
+
+        /**
+         * What the two corners mean vertically.
+         *
+         * <p>Changes only that: the tool, its name and its lore stay what they
+         * are. {@link SelectionOptions#builder(SelectionHeight)} is the preset
+         * that dresses the tool for the height too.
+         *
+         * @param height the height
+         * @return this builder
+         * @since 1.168.0
+         */
+        public @NotNull Builder height(@NotNull SelectionHeight height) {
+            this.height = Objects.requireNonNull(height, "height");
+            return this;
+        }
+
+        /**
+         * Whether the handed-out selector exists only on the player's client.
+         *
+         * @param virtualSelector whether to draw it by packets instead of giving it
+         * @return this builder
+         * @see SelectionOptions#virtualSelector()
+         * @since 1.168.0
+         */
+        public @NotNull Builder virtualSelector(boolean virtualSelector) {
+            this.virtualSelector = virtualSelector;
             return this;
         }
 

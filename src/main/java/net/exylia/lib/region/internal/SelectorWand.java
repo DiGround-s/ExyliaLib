@@ -1,7 +1,10 @@
 package net.exylia.lib.region.internal;
 
+import net.exylia.lib.packet.internal.PacketRuntime;
 import net.exylia.lib.region.SelectionOptions;
 import net.exylia.lib.text.Text;
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.format.TextDecoration;
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
 import org.bukkit.enchantments.Enchantment;
@@ -33,6 +36,12 @@ import java.util.Objects;
  * a selection that silently did not arrive is worse than a stack an admin can
  * get back, and admins are who selects.
  *
+ * <h2>Or not given at all</h2>
+ * A {@link SelectionOptions#virtualSelector() virtual} selector is only drawn in
+ * the held slot, by packets, and nothing in the server inventory moves. That is
+ * the one to hand a player rather than an admin: an item that does not exist
+ * cannot be dropped, stored, sold or copied.
+ *
  * <h2>Which item is ours is written on it</h2>
  * The wand carries the owning plugin's name in its persistent data, so taking it
  * back removes the one we handed over and never the golden axe the player
@@ -59,6 +68,22 @@ public interface SelectorWand {
     int give(@NotNull Player player, @NotNull ItemStack wand);
 
     /**
+     * Draws the selector in the player's held slot without putting it there.
+     *
+     * @param player who sees it
+     * @param wand   the item they see
+     * @return the hotbar slot it is drawn in
+     */
+    int overlay(@NotNull Player player, @NotNull ItemStack wand);
+
+    /**
+     * Stops drawing the selector and shows the player their real inventory.
+     *
+     * @param player who saw it
+     */
+    void unoverlay(@NotNull Player player);
+
+    /**
      * Takes back every selection axe the player is carrying.
      *
      * <p>Every one, not only the one this session handed over. A selector that
@@ -82,10 +107,10 @@ public interface SelectorWand {
             if (meta == null) {
                 return wand;
             }
-            meta.displayName(Text.from(owner, options.selectorName()).build());
-            List<net.kyori.adventure.text.Component> lore = new ArrayList<>(options.selectorLore().size());
-            for (String line : options.selectorLore()) {
-                lore.add(Text.from(owner, line).build());
+            meta.displayName(line(owner, options.selectorName()));
+            List<Component> lore = new ArrayList<>(options.selectorLore().size());
+            for (String text : options.selectorLore()) {
+                lore.add(line(owner, text));
             }
             meta.lore(lore);
 
@@ -119,6 +144,22 @@ public interface SelectorWand {
             // be in the hand, and an inventory with no room has nowhere else to
             // put what was there.
             return held;
+        }
+
+        @Override
+        public int overlay(@NotNull Player player, @NotNull ItemStack wand) {
+            int held = player.getInventory().getHeldItemSlot();
+            PacketRuntime.overlay(player.getUniqueId(), held, wand);
+            // The server sends the whole inventory, and the packet module draws
+            // the selector over that one slot on its way out.
+            player.updateInventory();
+            return held;
+        }
+
+        @Override
+        public void unoverlay(@NotNull Player player) {
+            PacketRuntime.removeOverlay(player.getUniqueId());
+            player.updateInventory();
         }
 
         @Override
@@ -160,6 +201,17 @@ public interface SelectorWand {
      */
     NamespacedKey KEY = Objects.requireNonNull(
             NamespacedKey.fromString("exylialib:region_selector"), "selector key");
+
+    /**
+     * One line of the selector's name or lore.
+     *
+     * <p>Not italic: the client draws custom item text in italics unless it is
+     * told otherwise, and only menu items were being told.
+     */
+    private static Component line(Plugin owner, String text) {
+        return Text.from(owner, text).build()
+                .decorationIfAbsent(TextDecoration.ITALIC, TextDecoration.State.FALSE);
+    }
 
     /**
      * Whether a slot holds nothing.
