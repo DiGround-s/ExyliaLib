@@ -34,7 +34,7 @@ import java.lang.annotation.Target;
  * it is a length of time by its type, its bare number is seconds, and it is
  * written back as {@code 1m30s}. That is the better shape for anything new.
  *
- * @since 1.170.0
+ * @since 1.171.0
  */
 @Documented
 @Retention(RetentionPolicy.RUNTIME)

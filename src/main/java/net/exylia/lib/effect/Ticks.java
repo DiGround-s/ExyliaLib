@@ -134,7 +134,7 @@ public final class Ticks {
      * @param text     the duration as written
      * @param fallback returned in ticks when the text cannot be read
      * @return the duration in ticks
-     * @since 1.170.0
+     * @since 1.171.0
      */
     public static long parseTicks(String text, long fallback) {
         if (text == null) {
@@ -163,7 +163,7 @@ public final class Ticks {
      * @param text     the duration as written
      * @param fallback returned in seconds when the text cannot be read
      * @return the duration in seconds
-     * @since 1.170.0
+     * @since 1.171.0
      */
     public static double parseSeconds(String text, double fallback) {
         if (text == null) {
@@ -193,7 +193,7 @@ public final class Ticks {
      *
      * @param millis the duration in milliseconds
      * @return the duration as written, never blank
-     * @since 1.170.0
+     * @since 1.171.0
      */
     public static String write(long millis) {
         if (millis <= 0) {

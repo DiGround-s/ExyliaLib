@@ -34,7 +34,7 @@ records become nested YAML sections.
   `@Comment.Comments`. Comments are the server owner's manual: say what the
   value changes, in what unit, in what range.
 - `@Time(unit)` — the number is a length of time, written in that unit. Since
-  1.170.0; see below.
+  1.171.0; see below.
 
 ## Lengths of time
 

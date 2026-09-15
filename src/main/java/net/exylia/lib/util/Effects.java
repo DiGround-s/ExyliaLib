@@ -32,7 +32,7 @@ import java.util.List;
  *       is Speed II, which Bukkit calls amplifier 1. Missing means I.
  *   <li>{@code SECONDS} is a duration in seconds; the words {@code infinite}
  *       and {@code -1} mean the effect does not end on its own. Missing means
- *       10 seconds. Since 1.170.0 it also reads a duration written out, so
+ *       10 seconds. Since 1.171.0 it also reads a duration written out, so
  *       {@code 90}, {@code 90s} and {@code 1m30s} are the same effect.
  *   <li>{@code PARTICLES} is whether the swirls are drawn, {@code ICON}
  *       whether the effect shows in the corner of the screen, and

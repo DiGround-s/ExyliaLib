@@ -19,7 +19,7 @@ import java.util.Map;
  * ones already written.
  *
  * <p>Both numbers are ticks, and both also read a duration written out —
- * {@code interval: 1s} is the same as {@code interval: 20}. Since 1.170.0.
+ * {@code interval: 1s} is the same as {@code interval: 20}. Since 1.171.0.
  *
  * @param mode       when to redraw
  * @param interval   ticks between timed redraws, at least one

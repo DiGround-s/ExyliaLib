@@ -180,7 +180,7 @@ public final class Args {
      * @param fallback the value in seconds when the parameter is absent
      * @param problems where an unreadable value is reported
      * @return the length of time, in seconds
-     * @since 1.170.0
+     * @since 1.171.0
      */
     public double seconds(@NotNull String key, double fallback, @NotNull Problems problems) {
         String value = values.get(key);
@@ -206,7 +206,7 @@ public final class Args {
      * @param fallback the value in ticks when the parameter is absent
      * @param problems where an unreadable value is reported
      * @return the length of time, in ticks
-     * @since 1.170.0
+     * @since 1.171.0
      */
     public long ticks(@NotNull String key, long fallback, @NotNull Problems problems) {
         String value = values.get(key);
