@@ -64,6 +64,9 @@ public final class MenuRuntime {
      */
     private static final Map<UUID, Session> OPEN = new ConcurrentHashMap<>();
 
+    /** How many menu sounds each player has heard, so a click knows whether its button made one. */
+    private static final Map<UUID, Long> HEARD = new ConcurrentHashMap<>();
+
     private final Plugin plugin;
     private final PluginItems items;
 
@@ -334,7 +337,7 @@ public final class MenuRuntime {
         // forward, so that push is undone.
         forgetLast(viewer);
         for (Map.Entry<String, Integer> page : where.pages().entrySet()) {
-            session.page(page.getKey(), page.getValue());
+            session.restorePage(page.getKey(), page.getValue());
         }
         play(viewer, definition.sounds().back());
         return true;
@@ -460,6 +463,7 @@ public final class MenuRuntime {
     public void forget(UUID id) {
         history.remove(id);
         pages.remove(id);
+        HEARD.remove(id);
     }
 
     /** Plays one of a menu's sounds, if it has one. */
@@ -467,7 +471,12 @@ public final class MenuRuntime {
         if (sound == null || sound.isBlank()) {
             return;
         }
+        HEARD.merge(viewer.getUniqueId(), 1L, Long::sum);
         Effects.soundFrom(sound).show(viewer);
+    }
+
+    static long soundsHeard(Player viewer) {
+        return HEARD.getOrDefault(viewer.getUniqueId(), 0L);
     }
 
     /** Runs something on the thread that owns a player. */

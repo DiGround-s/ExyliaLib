@@ -154,7 +154,7 @@ public final class MenuListener implements Listener {
             return;
         }
 
-        session.runtime().play(viewer, session.definition().sounds().click());
+        long heard = MenuRuntime.soundsHeard(viewer);
 
         Map<String, Object> data = dataFor(session, rendered);
         if (!actions.isEmpty()) {
@@ -162,6 +162,12 @@ public final class MenuListener implements Listener {
         }
         if (!commands.isEmpty()) {
             Commands.of(session.runtime().plugin()).run(commands, viewer, data);
+        }
+
+        // After the button ran, and only if it made no menu sound of its own: a
+        // page arrow, a back button or a close is heard once, never on top of a click.
+        if (MenuRuntime.soundsHeard(viewer) == heard) {
+            session.runtime().play(viewer, session.definition().sounds().click());
         }
 
         // A button that toggles something has to show the new state, and what

@@ -554,7 +554,9 @@ Anything not written falls back to the defaults: open
 Opening a menu while another is on screen — a button, a command, `back` — is one
 screen changing, not a close and an open: the old menu's close sound and the new
 one's open sound are both skipped, so the click, page turn or back sound is heard
-on its own.
+on its own. Likewise a button that makes a menu sound of its own — a page arrow,
+`back`, `close`, a refusal — plays that sound instead of the click, not on top of
+it.
 
 ## Lifecycle
 
