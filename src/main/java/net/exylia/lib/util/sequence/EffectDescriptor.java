@@ -50,7 +50,7 @@ final class EffectDescriptor implements EditorDescriptor<EffectEntry> {
     private static final FormKey<String> CONDITION = FormKey.text("condition");
     private static final FormKey<String> PERMISSION = FormKey.text("permission");
     private static final FormKey<Long> PRIORITY = FormKey.integer("priority");
-    private static final FormKey<Long> DELAY = FormKey.integer("delay");
+    private static final FormKey<String> DELAY = FormKey.text("delay");
     private static final FormKey<String> RADIUS = FormKey.text("radius");
 
     private final Plugin plugin;
@@ -218,7 +218,9 @@ final class EffectDescriptor implements EditorDescriptor<EffectEntry> {
                 .text(NAME, "Name (blank to show the first line)", entry.name(), 2)
                 .decimal(CHANCE, "Chance out of 100", BigDecimal.valueOf(entry.chance()))
                 .text(RADIUS, "Seen by: a radius, 0 for them alone, or world", written(entry))
-                .integer(DELAY, "Ticks to wait first", entry.delayTicks())
+                .text(DELAY, "Waits first", net.exylia.lib.effect.Ticks.write(
+                        entry.delayTicks() * net.exylia.lib.effect.Ticks.MILLIS))
+                .hint("A bare number is ticks. 10t, 1s, 1m30s.")
                 .integer(PRIORITY, "Priority, higher plays first", entry.priority())
                 .text(CONDITION, "Condition (blank for none)", entry.condition(), 2)
                 .text(PERMISSION, "Permission (blank for none)", entry.permission())
@@ -230,7 +232,8 @@ final class EffectDescriptor implements EditorDescriptor<EffectEntry> {
                 .name(blankToNull(values.getText(NAME)))
                 .chance(values.getDecimal(CHANCE).doubleValue())
                 .radius(radius(values.getText(RADIUS)))
-                .delayTicks(values.getLong(DELAY))
+                .delayTicks(net.exylia.lib.effect.Ticks.parseTicks(
+                        values.getText(DELAY), entry.delayTicks()))
                 .priority((int) values.getLong(PRIORITY))
                 .condition(blankToNull(values.getText(CONDITION)))
                 .permission(blankToNull(values.getText(PERMISSION)))

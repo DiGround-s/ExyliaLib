@@ -2,6 +2,7 @@ package net.exylia.lib.util.teleport;
 
 import net.exylia.lib.config.Comment;
 import net.exylia.lib.config.Key;
+import net.exylia.lib.config.Time;
 
 /**
  * How a server owner wants teleports to behave by default.
@@ -50,7 +51,8 @@ public record TeleportSettings(
         @Comment("Zero by default, so nothing waits unless it was asked to. A")
         @Comment("countdown is a fairness rule for warps in a survival world; on a")
         @Comment("lobby it is only a delay the player did not ask for.")
-        double warmupSeconds,
+        @Comment("Reads a written duration too: 30s, 5m, 1m30s.")
+        @Time double warmupSeconds,
 
         @Key("cancel-on-move")
         @Comment("Whether walking during the countdown calls the teleport off.")
@@ -97,7 +99,8 @@ public record TeleportSettings(
         @Comment("a player reconnecting by hand, short enough that a destination")
         @Comment("nobody claimed does not move them on some later login.")
         @Comment("Allowed range: 30 to 3600.")
-        int crossServerTtlSeconds,
+        @Comment("Reads a written duration too: 30s, 5m, 1m30s.")
+        @Time int crossServerTtlSeconds,
 
         @Key("cross-server-settle-seconds")
         @Comment("How long the destination server waits after a player arrives")
@@ -108,7 +111,8 @@ public record TeleportSettings(
         @Comment("a client ends up in an empty grey void until it is nudged.")
         @Comment("Raise it on a server with slow chunk loading.")
         @Comment("Allowed range: 0.05 to 5.")
-        double crossServerSettleSeconds,
+        @Comment("Reads a written duration too: 30s, 5m, 1m30s.")
+        @Time double crossServerSettleSeconds,
 
         @Key("back-history-size")
         @Comment("How many places a player may walk back through.")
@@ -129,7 +133,8 @@ public record TeleportSettings(
         @Comment("an undo into a surprise: they type the command expecting the")
         @Comment("arena they just left and land in a mine they forgot about.")
         @Comment("Allowed range: 1 to 1440.")
-        int backHistoryMinutes,
+        @Comment("Reads a written duration too: 30m, 2h.")
+        @Time(Time.Unit.MINUTES) int backHistoryMinutes,
 
         @Key("tpa-expiry-seconds")
         @Comment("How long an unanswered teleport request stays askable,")
@@ -139,7 +144,8 @@ public record TeleportSettings(
         @Comment("finish and answer, short enough that accepting one does not")
         @Comment("drag a player out of wherever they got to since.")
         @Comment("Allowed range: 5 to 3600.")
-        int tpaExpirySeconds,
+        @Comment("Reads a written duration too: 30s, 5m, 1m30s.")
+        @Time int tpaExpirySeconds,
 
         @Key("tpa-max-pending")
         @Comment("How many requests one player may be sitting on at once.")

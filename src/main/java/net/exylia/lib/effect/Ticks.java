@@ -123,6 +123,112 @@ public final class Ticks {
         };
     }
 
+    /**
+     * The same, for a value whose bare number has always meant ticks.
+     *
+     * <p>{@code refresh.interval: 20} in a hundred and sixty-one deployed menus
+     * means twenty ticks, and it has to keep meaning that. A number with a unit
+     * on it is read the way it is written, so the same key also accepts
+     * {@code 1s} and {@code 1m30s} — the owner says which they meant.
+     *
+     * @param text     the duration as written
+     * @param fallback returned in ticks when the text cannot be read
+     * @return the duration in ticks
+     * @since 1.170.0
+     */
+    public static long parseTicks(String text, long fallback) {
+        if (text == null) {
+            return fallback;
+        }
+        String trimmed = text.trim();
+        if (trimmed.isEmpty()) {
+            return fallback;
+        }
+        // A bare number is the only case that differs from parse(): it is this
+        // key's own unit, not seconds.
+        try {
+            return Math.max(0, Math.round(Double.parseDouble(trimmed)));
+        } catch (NumberFormatException written) {
+            return parse(trimmed, fallback);
+        }
+    }
+
+    /**
+     * A duration in seconds, the unit most of the library's files are written in.
+     *
+     * <p>A bare number is seconds, as it always was; anything else is read by
+     * {@link #parse}. Decimals survive, because half a second of a title fading
+     * up is a real setting.
+     *
+     * @param text     the duration as written
+     * @param fallback returned in seconds when the text cannot be read
+     * @return the duration in seconds
+     * @since 1.170.0
+     */
+    public static double parseSeconds(String text, double fallback) {
+        if (text == null) {
+            return fallback;
+        }
+        String trimmed = text.trim();
+        if (trimmed.isEmpty()) {
+            return fallback;
+        }
+        try {
+            return Double.parseDouble(trimmed);
+        } catch (NumberFormatException written) {
+            long ticks = parse(trimmed, Long.MIN_VALUE);
+            return ticks == Long.MIN_VALUE ? fallback : toSeconds(ticks);
+        }
+    }
+
+    /**
+     * Writes a length of time the way these parsers read it back.
+     *
+     * <p>{@code 90000} is {@code "1m30s"}: no spaces, because a value written
+     * into a config file, a sequence line or an editor's box has to survive
+     * being read again, and every parser here stops at the first space.
+     *
+     * <p>{@link net.exylia.lib.util.TimeFormats} is what a <em>player</em>
+     * reads; this is what a file holds.
+     *
+     * @param millis the duration in milliseconds
+     * @return the duration as written, never blank
+     * @since 1.170.0
+     */
+    public static String write(long millis) {
+        if (millis <= 0) {
+            return "0s";
+        }
+        StringBuilder written = new StringBuilder();
+        long left = millis;
+        for (Unit unit : Unit.values()) {
+            long whole = left / unit.millis;
+            if (whole > 0) {
+                written.append(whole).append(unit.suffix);
+                left -= whole * unit.millis;
+            }
+        }
+        // Under a millisecond, which no config means and no parser would read.
+        return written.isEmpty() ? "0s" : written.toString();
+    }
+
+    /** The units {@link #write} uses, largest first. */
+    private enum Unit {
+        DAYS(86_400_000L, "d"),
+        HOURS(3_600_000L, "h"),
+        MINUTES(60_000L, "m"),
+        SECONDS(1_000L, "s"),
+        MILLIS(1L, "ms");
+
+        private final long millis;
+        private final String suffix;
+
+        Unit(long millis, String suffix) {
+            this.millis = millis;
+            this.suffix = suffix;
+        }
+    }
+
     /** What the single-unit reading refused, through the one parser that reads every unit. */
     private static long compound(String text, long fallback) {
         return net.exylia.lib.input.InputParser.duration().parse(text).optional()

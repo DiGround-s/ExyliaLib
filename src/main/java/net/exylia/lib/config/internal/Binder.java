@@ -80,7 +80,8 @@ final class Binder {
             }
 
             Object raw = section.get(component.key());
-            Coercions.Result result = Coercions.coerce(raw, component.type(), component.generic());
+            Coercions.Result result = Coercions.coerce(raw, component.type(), component.generic(),
+                    component.unit());
             if (result.failed()) {
                 issues.add(ConfigIssue.invalidValue(file, childPath, result.expected(), raw, fallback));
                 arguments[i] = fallback;
@@ -336,6 +337,11 @@ final class Binder {
 
     /** Converts values Bukkit's YAML writer would not render cleanly. */
     private static Object serialise(Object value) {
+        if (value instanceof java.time.Duration duration) {
+            // Written the way the parsers read it back: "1m30s", never the
+            // number of milliseconds a Duration would otherwise render as.
+            return net.exylia.lib.effect.Ticks.write(duration.toMillis());
+        }
         if (value instanceof Enum<?> constant) {
             return constant.name().toLowerCase(java.util.Locale.ROOT).replace('_', '-');
         }

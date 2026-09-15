@@ -18,6 +18,9 @@ import java.util.Map;
  * <p>A hundred and sixty-one deployed menus declare this, so the names are the
  * ones already written.
  *
+ * <p>Both numbers are ticks, and both also read a duration written out —
+ * {@code interval: 1s} is the same as {@code interval: 20}. Since 1.170.0.
+ *
  * @param mode       when to redraw
  * @param interval   ticks between timed redraws, at least one
  * @param clickDelay ticks to wait after a click before redrawing what it touched
@@ -87,16 +90,21 @@ public record UiRefresh(@NotNull Mode mode, int interval, int clickDelay) {
         return value == null ? null : String.valueOf(value);
     }
 
+    /**
+     * Reads a number of ticks, or a duration written out.
+     *
+     * <p>A bare number is ticks, because that is what the hundred and
+     * sixty-one deployed menus mean by {@code interval: 20}. Anything carrying
+     * a unit is read as written, so the same key takes {@code 1s} and
+     * {@code 1m30s} from anybody who would rather say it that way.
+     */
     private static int asInt(Object value, int fallback) {
         if (value instanceof Number number) {
             return number.intValue();
         }
         if (value instanceof String text) {
-            try {
-                return Integer.parseInt(text.trim());
-            } catch (NumberFormatException notANumber) {
-                return fallback;
-            }
+            return (int) Math.min(Integer.MAX_VALUE,
+                    net.exylia.lib.effect.Ticks.parseTicks(text, fallback));
         }
         return fallback;
     }

@@ -177,6 +177,18 @@ class EffectsTest {
     }
 
     @Test
+    @DisplayName("the duration is also read written out")
+    void durationWrittenOut() {
+        Effects.ParsedEffect written = Effects.parse("SPEED|2|1m30s");
+        assertNotNull(written);
+        assertEquals(1800, written.duration());
+
+        Effects.ParsedEffect bare = Effects.parse("SPEED|2|90");
+        assertNotNull(bare);
+        assertEquals(1800, bare.duration(), "a bare number is still seconds");
+    }
+
+    @Test
     @DisplayName("the word infinite and -1 both mean the effect does not end")
     void infiniteDuration() {
         Effects.ParsedEffect byWord = Effects.parse("SPEED|2|infinite");

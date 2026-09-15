@@ -19,7 +19,7 @@ Scoreboards.show(this, player, config.ffa());
 | `enabled` | show at all |
 | `title` | title lines |
 | `lines` | body lines |
-| `update` | `interval` (in **ticks**, like ExyliaCommons), `smart`, `cache` |
+| `update` | `interval` (in **ticks**, like ExyliaCommons; `1s` also reads), `smart`, `cache` |
 
 The YML keys are the ones ExyliaCommons wrote, so migrating a plugin does not
 make the server owner touch their file. The interval being ticks is a

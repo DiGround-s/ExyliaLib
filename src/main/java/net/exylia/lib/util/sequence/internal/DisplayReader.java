@@ -152,7 +152,7 @@ final class DisplayReader {
             to[1] = args.number("rise", 0.0, problems);
         }
         return DisplayMotion.builder()
-                .life((long) (args.number("life", 1.0, problems) * 1000))
+                .life((long) (args.seconds("life", 1.0, problems) * 1000))
                 .from(from[0], from[1], from[2])
                 .to(to[0], to[1], to[2])
                 .scale(size, size(args, "size_to", size, problems))

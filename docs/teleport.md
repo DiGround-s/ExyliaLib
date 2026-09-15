@@ -682,7 +682,7 @@ in the timer false and never finish.
 
 ```yaml
 teleport:
-  warmup-seconds: 3.0
+  warmup-seconds: 3.0          # seconds; every time below also reads 30s, 1m30s
   cancel-on-move: true
   cancel-on-damage: true
   safe-search-radius: 5

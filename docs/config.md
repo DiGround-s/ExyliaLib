@@ -33,6 +33,38 @@ records become nested YAML sections.
 - `@Comment("...")` — written above the value in the file; repeatable via
   `@Comment.Comments`. Comments are the server owner's manual: say what the
   value changes, in what unit, in what range.
+- `@Time(unit)` — the number is a length of time, written in that unit. Since
+  1.170.0; see below.
+
+## Lengths of time
+
+Anywhere a length of time is configured, the owner may write it out:
+`30s`, `1m30s`, `500ms`, `2d`, `40t`, `1w`, `1mo`, `2.5h`. Two ways to declare
+one:
+
+```java
+record Settings(
+        java.time.Duration lasts,              // the shape for anything new
+        @Time int timeoutSeconds,              // a number that was already there
+        @Time(Time.Unit.TICKS) long interval
+) { }
+```
+
+```yaml
+lasts: 1m30s
+timeout-seconds: 5m      # 300, as far as the record is concerned
+interval: 1s             # 20, because this key is written in ticks
+```
+
+**A bare number never changes meaning.** `@Time` declares the unit the key has
+always been written in, and that is both what a unitless number means and the
+unit the record is handed. `interval: 20` stays twenty ticks in every file that
+already says it. A `Duration` needs no annotation: its bare number is seconds,
+and it is written back out as `1m30s`.
+
+A rewrite of the file — the one that adds new keys — normalises an annotated
+number back to its number, so `5m` becomes `300`. A `Duration` keeps its
+notation. That is the reason to prefer `Duration` in anything new.
 
 ## Sections that do nothing
 

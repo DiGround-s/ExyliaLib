@@ -2,6 +2,7 @@ package net.exylia.lib.util.preview;
 
 import net.exylia.lib.config.Comment;
 import net.exylia.lib.config.Key;
+import net.exylia.lib.config.Time;
 import net.exylia.lib.util.teleport.ExyliaLocation;
 import org.bukkit.Location;
 import org.jetbrains.annotations.NotNull;
@@ -60,16 +61,19 @@ public record PreviewSettings(
         @Key("settle-ticks")
         @Comment("How long to wait after the teleport before playing, so the")
         @Comment("client has the new position before the first particle.")
-        int settleTicks,
+        @Comment("Reads a written duration too: 1s, 500ms, 2m.")
+        @Time(Time.Unit.TICKS) int settleTicks,
 
         @Key("linger-ticks")
         @Comment("How long the stage is held after the effect finishes.")
-        int lingerTicks,
+        @Comment("Reads a written duration too: 1s, 500ms, 2m.")
+        @Time(Time.Unit.TICKS) int lingerTicks,
 
         @Key("max-ticks")
         @Comment("The longest a preview may last. A safety net: whatever goes")
         @Comment("wrong, the player is returned after this.")
-        int maxTicks
+        @Comment("Reads a written duration too: 1s, 500ms, 2m.")
+        @Time(Time.Unit.TICKS) int maxTicks
 ) {
 
     /** Safe defaults with no stage, so a fresh install previews nothing. */

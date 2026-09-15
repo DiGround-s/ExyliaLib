@@ -450,7 +450,7 @@ player is already racing.
 
 ```yaml
 wizard:
-  timeout-seconds: 300                          # the whole run, not one question
+  timeout-seconds: 300                          # the whole run, not one question; 5m also reads
   max-redos: 3                                  # denials of the review before it gives up
   progress: true                                # the boss bar
   progress-text: '{primary}%title% {muted}(%step%/%steps%)'

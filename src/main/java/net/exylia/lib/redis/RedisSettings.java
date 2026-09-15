@@ -1,6 +1,7 @@
 package net.exylia.lib.redis;
 
 import net.exylia.lib.config.Comment;
+import net.exylia.lib.config.Time;
 import org.jetbrains.annotations.NotNull;
 
 /**
@@ -67,14 +68,16 @@ public record RedisSettings(
         @Comment("How long a row stays in Redis, in seconds.")
         @Comment("This is a cache, not storage: the database is still the truth,")
         @Comment("and an entry expiring only costs one query to rebuild.")
-        int ttlSeconds,
+        @Comment("Reads a written duration too: 30s, 5m, 1m30s.")
+        @Time int ttlSeconds,
 
         @Comment("How long a row stays in this server's own memory, in seconds.")
         @Comment("Shorter than the Redis one on purpose. This is the backstop for")
         @Comment("the one invalidation that never arrived, so a shorter value")
         @Comment("bounds how long a server can be wrong; it does not add queries,")
         @Comment("because a local miss is answered by Redis, not by the database.")
-        int localSeconds,
+        @Comment("Reads a written duration too: 30s, 5m, 1m30s.")
+        @Time int localSeconds,
 
         @Comment("Rows this server keeps in memory at most.")
         @Comment("Reached only on a very large network; past it the least useful")

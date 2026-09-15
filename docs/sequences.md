@@ -198,15 +198,15 @@ arguments — so a migrating plugin edits no configuration files.
 
 | Token | Arguments |
 | --- | --- |
-| `[DELAY] 0.15` | seconds |
+| `[DELAY] 0.15` | seconds, or written out: `1m30s` |
 | `[PARTICLE] FLAME` | `count:` `offset:x,y,z` `speed:` `y:` `color:` `size:` `block:` |
 | `[SOUND] NAME;volume;pitch` | also `volume:` `pitch:` |
 | `[LIGHTNING]` | `volume:` `pitch:` — flash, sparks and thunder; no strike, no fire, no damage |
 | `[EXPLOSION]` | `count:` `y:` |
 | `[FIREWORK]` | `color:` `fade:` `type:` `trail:` `flicker:` `power:` |
 | `[BLOCK_BREAK] STONE` | `count:` `offset:` `y:` |
-| `[POTION] speed;100;1` | also `duration:` `amplifier:` `particles:` `icon:` `ambient:` |
-| `[TITLE] title;subtitle;in;stay;out` | times in **seconds** |
+| `[POTION] speed;100;1` | also `duration:` `amplifier:` `particles:` `icon:` `ambient:` — the duration is **ticks**, or written out: `5s` |
+| `[TITLE] title;subtitle;in;stay;out` | times in **seconds**, or written out: `1m30s` |
 | `[ACTION_BAR] text` | |
 | `[COMMAND] give {player} ...` | `{player}` `{world}` `{x}` `{y}` `{z}` |
 | `[MESSAGE] text` | a chat line, since 1.57.0; centre it with `<center>` like any other message |

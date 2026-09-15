@@ -67,6 +67,17 @@ class ConfigModuleTest {
         FAST, SAFE, VERY_SAFE
     }
 
+    record Timings(
+            @Time int timeoutSeconds,
+            @Time(Time.Unit.TICKS) long interval,
+            @Time(Time.Unit.MILLIS) long cacheMillis,
+            java.time.Duration lasts
+    ) {
+        Timings() {
+            this(60, 20, 500, java.time.Duration.ofSeconds(90));
+        }
+    }
+
     record Renamed(int poolSize) {
         Renamed() {
             this(10);
@@ -180,6 +191,55 @@ class ConfigModuleTest {
 
     private String contents(String name) throws IOException {
         return Files.readString(file(name), StandardCharsets.UTF_8);
+    }
+
+    // ------------------------------------------------------------------
+    // Lengths of time
+    // ------------------------------------------------------------------
+
+    @Test
+    @DisplayName("a written duration is read into the unit the key is in")
+    void durationsAreReadInTheKeysOwnUnit() throws IOException {
+        Files.writeString(file("timings"), """
+                timeout-seconds: 5m
+                interval: 1s
+                cache-millis: 2s
+                lasts: 2m30s
+                """);
+
+        Timings values = Configs.define(plugin, "timings", Timings.class).load().get();
+
+        assertEquals(300, values.timeoutSeconds(), "five minutes in seconds");
+        assertEquals(20, values.interval(), "one second in ticks");
+        assertEquals(2000, values.cacheMillis(), "two seconds in millis");
+        assertEquals(150, values.lasts().toSeconds());
+    }
+
+    @Test
+    @DisplayName("a bare number keeps meaning the unit it always did")
+    void bareNumbersKeepTheirUnit() throws IOException {
+        Files.writeString(file("timings"), """
+                timeout-seconds: 45
+                interval: 20
+                cache-millis: 500
+                lasts: 90
+                """);
+
+        Timings values = Configs.define(plugin, "timings", Timings.class).load().get();
+
+        assertEquals(45, values.timeoutSeconds());
+        assertEquals(20, values.interval(), "twenty ticks, not twenty seconds");
+        assertEquals(500, values.cacheMillis());
+        assertEquals(90, values.lasts().toSeconds(), "a bare number is seconds for a Duration");
+    }
+
+    @Test
+    @DisplayName("a duration is written back in the notation it is read in")
+    void durationsAreWrittenReadably() throws IOException {
+        Configs.define(plugin, "timings", Timings.class).load();
+
+        String yaml = contents("timings");
+        assertTrue(yaml.contains("lasts: 1m30s"), "a Duration should be written out:\n" + yaml);
     }
 
     // ------------------------------------------------------------------

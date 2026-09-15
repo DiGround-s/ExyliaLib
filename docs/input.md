@@ -668,7 +668,7 @@ are kebab-case, as everywhere in the config module.
 # half-finished form forever, and the plugin that asked
 # should not wait for an answer that is never coming.
 # Set it high enough for somebody to read and think.
-timeout-seconds: 60
+timeout-seconds: 60      # seconds, or written out: 1m
 
 # What a player types in chat to stop being asked.
 # Only used when the question was asked in chat: a dialog,

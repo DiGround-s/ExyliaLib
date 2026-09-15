@@ -2,6 +2,7 @@ package net.exylia.lib.effect;
 
 import net.exylia.lib.config.Comment;
 import net.exylia.lib.config.Sparse;
+import net.exylia.lib.config.Time;
 
 import java.util.List;
 
@@ -104,12 +105,14 @@ public record EffectConfig(
 
             String subtitle,
 
-            double fadeIn,
+            @Comment("Reads a written duration too: 30s, 1m30s.")
+            @Time double fadeIn,
 
             @Comment("Seconds fully visible. 0 keeps it up until something stops it.")
-            double stay,
+            @Comment("Reads a written duration too: 30s, 1m30s.")
+            @Time double stay,
 
-            double fadeOut,
+            @Time double fadeOut,
 
             @Comment("auto, seconds, tenths, hundredths, clock or full.")
             String timeStyle) implements Sparse {
@@ -154,7 +157,8 @@ public record EffectConfig(
             String text,
 
             @Comment("Seconds to show it. 0 keeps it up until something stops it.")
-            double duration,
+            @Comment("Reads a written duration too: 30s, 1m30s.")
+            @Time double duration,
 
             @Comment("auto, seconds, tenths, hundredths, clock or full.")
             String timeStyle) implements Sparse {
@@ -201,7 +205,8 @@ public record EffectConfig(
             String overlay,
 
             @Comment("Counts up towards this many seconds, filling the bar.")
-            double countUp,
+            @Comment("Reads a written duration too: 30s, 1m30s.")
+            @Time double countUp,
 
             @Comment("Fill from 0.0 to 1.0, used when the bar is not counting.")
             double progress,

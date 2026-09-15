@@ -4,6 +4,7 @@ import net.exylia.lib.ExyliaLib;
 import net.exylia.lib.config.Comment;
 import net.exylia.lib.config.Key;
 import net.exylia.lib.config.Configs;
+import net.exylia.lib.config.Time;
 
 /**
  * Runtime settings for ExyliaLib itself.
@@ -80,7 +81,8 @@ public record LibrarySettings(
         boolean autoUpdate,
 
         @Comment("Minutes between update checks while running. 0 disables them.")
-        int updateCheckMinutes,
+        @Comment("Reads a written duration too: 30m, 2h.")
+        @Time(Time.Unit.MINUTES) int updateCheckMinutes,
 
         @Comment("Whether debug lines print, for every plugin using ExyliaLib.")
         boolean debug,

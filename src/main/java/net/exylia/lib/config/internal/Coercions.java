@@ -1,5 +1,9 @@
 package net.exylia.lib.config.internal;
 
+import net.exylia.lib.config.Time;
+import net.exylia.lib.input.InputParser;
+
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
@@ -48,8 +52,34 @@ final class Coercions {
      * @return the converted value, or a failure describing what was expected
      */
     static Result coerce(Object raw, Class<?> target, java.lang.reflect.Type generic) {
+        return coerce(raw, target, generic, null);
+    }
+
+    /**
+     * The same, for a component that says what unit its number is in.
+     *
+     * @param raw     the value as parsed from YAML
+     * @param target  the type the schema declares
+     * @param generic the generic type, used to find a list's element type
+     * @param unit    what a bare number means, or {@code null} when the
+     *                component is not a length of time
+     * @return the converted value, or a failure describing what was expected
+     */
+    static Result coerce(Object raw, Class<?> target, java.lang.reflect.Type generic,
+                         Time.Unit unit) {
         if (raw == null) {
             return Result.fail("a value");
+        }
+
+        if (target == Duration.class) {
+            return toDuration(raw);
+        }
+
+        if (unit != null && !isGroup(raw)) {
+            Result time = toTime(raw, target, unit);
+            if (time != null) {
+                return time;
+            }
         }
 
         if (target.isRecord() && !target.isInstance(raw)) {
@@ -135,6 +165,76 @@ final class Coercions {
             return "a list";
         }
         return "a " + target.getSimpleName();
+    }
+
+    /**
+     * A length of time written as a number, or in the notation every other
+     * Exylia field accepts.
+     *
+     * <p>A number goes through the ordinary numeric path untouched, so the
+     * value a file has always held keeps arriving exactly as it did — this is
+     * only ever reached for text. {@code null} means "not a duration", and the
+     * caller falls back to the ordinary rules so that a genuine typo is still
+     * reported as a number that could not be read.
+     */
+    private static Result toTime(Object raw, Class<?> target, Time.Unit unit) {
+        if (raw instanceof Number) {
+            return null;
+        }
+        String text = String.valueOf(raw).trim();
+        if (text.isEmpty()) {
+            return null;
+        }
+        // A quoted plain number is the same number, and the numeric path
+        // reports its range. Only a value carrying a unit belongs here.
+        try {
+            Double.parseDouble(text);
+            return null;
+        } catch (NumberFormatException written) {
+            // Carries a unit; read below.
+        }
+        Duration parsed = InputParser.duration().parse(text).value();
+        if (parsed == null) {
+            return null;
+        }
+        double amount = parsed.toMillis() / (double) unit.millis();
+        if (target == double.class || target == Double.class
+                || target == float.class || target == Float.class) {
+            return toDecimal(amount, narrow(target));
+        }
+        long whole = Math.round(amount);
+        if (target == int.class || target == Integer.class) {
+            // Boxed by its own branch rather than in a ternary: mixing Integer
+            // and Long there widens both to Long, and an int component of the
+            // record then refuses the value it was handed.
+            return toWhole(whole, Integer.MIN_VALUE, Integer.MAX_VALUE, "a length of time",
+                    value -> (int) value);
+        }
+        return toWhole(whole, Long.MIN_VALUE, Long.MAX_VALUE, "a length of time", value -> value);
+    }
+
+    /** Which primitive a decimal length of time is handed over as. */
+    private static java.util.function.Function<Number, Object> narrow(Class<?> target) {
+        return target == float.class || target == Float.class
+                ? Number::floatValue
+                : Number::doubleValue;
+    }
+
+    /** A length of time as its own type: a bare number is seconds. */
+    private static Result toDuration(Object raw) {
+        if (raw instanceof Duration duration) {
+            return Result.ok(duration);
+        }
+        if (isGroup(raw)) {
+            return Result.fail("a length of time, such as 30s or 1m30s");
+        }
+        if (raw instanceof Number number) {
+            return Result.ok(Duration.ofMillis(Math.round(number.doubleValue() * 1000)));
+        }
+        Duration parsed = InputParser.duration().parse(String.valueOf(raw).trim()).value();
+        return parsed == null
+                ? Result.fail("a length of time, such as 30s or 1m30s")
+                : Result.ok(parsed);
     }
 
     private static Result toBoolean(Object raw) {

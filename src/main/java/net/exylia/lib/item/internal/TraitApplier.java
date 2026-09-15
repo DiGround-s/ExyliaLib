@@ -138,7 +138,7 @@ public final class TraitApplier {
                 continue;
             }
             Integer amplifier = whole(resolve.apply(effect.amplifier()));
-            Integer duration = whole(resolve.apply(effect.duration()));
+            Integer duration = durationTicks(resolve.apply(effect.duration()));
             if (amplifier == null || duration == null) {
                 problems.found("potion effect " + effect.type(),
                         "the amplifier or duration is not a whole number");
@@ -362,6 +362,22 @@ public final class TraitApplier {
             }
         }
         item.setItemMeta(meta);
+    }
+
+    /**
+     * How long a custom potion effect lasts, in ticks.
+     *
+     * <p>A bare number is ticks, because {@code duration: 600} in every items
+     * file already means thirty seconds. {@code 30s} and {@code 1m30s} say the
+     * same thing without the multiplication.
+     */
+    private static Integer durationTicks(String value) {
+        Integer whole = whole(value);
+        if (whole != null) {
+            return whole;
+        }
+        long ticks = net.exylia.lib.effect.Ticks.parseTicks(value, Long.MIN_VALUE);
+        return ticks == Long.MIN_VALUE ? null : (int) Math.min(Integer.MAX_VALUE, ticks);
     }
 
     private static Integer whole(String value) {

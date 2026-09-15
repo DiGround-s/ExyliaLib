@@ -355,7 +355,7 @@ final class SequenceLine {
                     new Field("volume", "Volume", "1; also how far it carries"),
                     new Field("pitch", "Pitch", "1, from 0.5 to 2")));
             case "POTION" -> new Spec(token, Head.POTION, Form.NAMED, List.of(
-                    new Field("duration", "How long, in ticks", "100, which is 5 seconds"),
+                    new Field("duration", "How long", "ticks, or 5s; 100 by default"),
                     new Field("amplifier", "Strength", "0 is level I"),
                     Field.flag("particles", "Shows the swirling particles", true),
                     Field.flag("icon", "Shows the icon in the corner of the screen", true),
@@ -381,27 +381,27 @@ final class SequenceLine {
             case "TITLE" -> new Spec(token, Head.NONE, Form.POSITIONAL, List.of(
                     new Field("title", "Title", null),
                     new Field("subtitle", "Subtitle", null),
-                    new Field("fade_in", "Fade in, in seconds", "0.5"),
-                    new Field("stay", "Stays for, in seconds", "3.5"),
-                    new Field("fade_out", "Fade out, in seconds", "1")));
+                    new Field("fade_in", "Fade in", "0.5, or 500ms"),
+                    new Field("stay", "Stays for", "3.5, or 1m"),
+                    new Field("fade_out", "Fade out", "1, or 1s")));
             case "NPC" -> new Spec(token, Head.NONE, Form.NAMED, List.of(
                     new Field("pose", "How it lies",
                             "lying, standing, crawling, sneaking or spinning"),
-                    new Field("life", "Seconds it stays", "5"),
+                    new Field("life", "How long it stays", "5, or 1m30s"),
                     Field.flag("equip", "Wears what they died in", true),
                     new Field("glow", "Outline colour", "a name, #rrggbb or a {palette} token"),
                     new Field("y", "Height above the anchor", "0"),
                     Field.flag("face", "Turns to face whoever did it", true),
                     new Field("from", "Appears at, as x,y,z", "0,0,0"),
                     new Field("to", "Ends up at, as x,y,z", "0,0,0"),
-                    new Field("over", "Seconds the movement takes", "0.7"),
+                    new Field("over", "How long the movement takes", "0.7, or 700ms"),
                     new Field("ease", "How the movement is spread", "out, in, in_out or linear"),
                     new Field("gravity", "Falls at, in blocks per second squared", "0"),
                     new Field("turn", "Degrees it turns on the spot", "0"),
                     new Field("pose_to", "A second pose, so it goes down while you watch", null),
-                    new Field("after", "Seconds before that second pose", "0.4"),
+                    new Field("after", "How long before that second pose", "0.4, or 400ms"),
                     Field.flag("hurt", "Flinches when it is struck", false),
-                    new Field("move_after", "Seconds before any of that happens", "0")));
+                    new Field("move_after", "How long before any of that happens", "0, or 1s")));
             case "RAGDOLL" -> new Spec(token, Head.NONE, Form.NAMED, List.of(
                     new Field("pose", "What happens to the body",
                             "burst, spread, knocked, vortex, balloon, helicopter,"
@@ -416,10 +416,10 @@ final class SequenceLine {
                     new Field("hat", "What is worn on the head", "an item, as in CARVED_PUMPKIN"),
                     new Field("strings", "Puppet strings up to this height", "0 for none, or blocks"),
                     new Field("chains", "Chains from the wrists to the floor this far out", "0 for none, or blocks"),
-                    new Field("snip", "Seconds from the start when the strings or chains break", "the last frame"),
+                    new Field("snip", "How long from the start until the strings or chains break", "the last frame"),
                     new Field("seat", "Which spectator a {crowd} body wears", "0, 1, 2..."),
-                    new Field("life", "Seconds the pieces last", "2.2"),
-                    new Field("intact", "Seconds it stands whole first", "0.3"),
+                    new Field("life", "How long the pieces last", "2.2, or 2s200ms"),
+                    new Field("intact", "How long it stands whole first", "0.3, or 300ms"),
                     new Field("speed", "How fast the pieces leave, outwards", "3.2"),
                     new Field("up", "How fast they leave, upwards", "6.5"),
                     new Field("spread", "How much the pieces differ, 0 to 1", "0.45"),
@@ -434,11 +434,11 @@ final class SequenceLine {
                     Field.flag("settle", "Stops turning once it lands", true),
                     new Field("rise", "How far off the ground it hangs", "1.1"),
                     new Field("open", "How far the arms and legs open out", "0.55"),
-                    new Field("lift", "Seconds the lift takes", "0.45"),
-                    new Field("hang", "Seconds it hangs there", "0.9"),
+                    new Field("lift", "How long the lift takes", "0.45, or 450ms"),
+                    new Field("hang", "How long it hangs there", "0.9, or 900ms"),
                     new Field("turns", "Turns it makes while it hangs", "0.35"),
                     new Field("hits", "How many times it is struck", "3"),
-                    new Field("every", "Seconds between blows", "0.32"),
+                    new Field("every", "How long between blows", "0.32, or 320ms"),
                     new Field("force", "How far a blow shoves it, in blocks", "0.85"),
                     new Field("swell", "How many times its size a head reaches", "3"),
                     new Field("squash", "What is left of a flattened piece's height", "0.14"),
@@ -452,7 +452,7 @@ final class SequenceLine {
             case "MESSAGE" -> free(token, "The message", "One line; add another for a second.");
             case "COMMAND" -> free(token, "Command the console runs",
                     "%player_name% is the player. No leading slash.");
-            case "DELAY" -> free(token, "Seconds to wait", "0.2 is four ticks");
+            case "DELAY" -> free(token, "How long to wait", "0.2 is four ticks; 1m30s works too");
             default -> free(token, "The whole line, after the token", null);
         };
     }
@@ -482,14 +482,14 @@ final class SequenceLine {
         fields.add(new Field("color", "Colour", "a name or #rrggbb; dust particles only"));
         fields.add(new Field("size", "Size", "1; dust particles only"));
         fields.add(new Field("count", "Particles per point", "1"));
-        fields.add(new Field("ticks", "Frames it is drawn over", "1 draws it at once"));
-        fields.add(new Field("interval", "Seconds between frames", "0.05"));
+        fields.add(new Field("ticks", "Frames it is drawn over", "ticks, or 1s; 1 draws it at once"));
+        fields.add(new Field("interval", "How long between frames", "0.05, or 50ms"));
         fields.add(Field.flag("face", "Turns to face the player", false));
         fields.add(new Field("rotate", "Rotation, in degrees", "0"));
         fields.add(new Field("as", "Draw it with",
                 "item, block, head or text; leave empty for particles"));
         fields.add(new Field("repeat", "Times it plays", "1"));
-        fields.add(new Field("every", "Seconds between beats", "0.15"));
+        fields.add(new Field("every", "How long between beats", "0.15, or 150ms"));
         fields.add(new Field("turn_each", "Degrees further round each beat", "0"));
         return List.copyOf(fields);
     }
@@ -504,7 +504,7 @@ final class SequenceLine {
     private static List<Field> displayFields() {
         return List.of(
                 new Field("as", "Draw it with", "item, block, head or text"),
-                new Field("life", "Seconds it lasts", "1"),
+                new Field("life", "How long it lasts", "1, or 1m30s"),
                 new Field("from", "Starts at, as x,y,z", "0,0,0"),
                 new Field("to", "Ends at, as x,y,z", "0,0,0"),
                 new Field("rise", "Goes up by", "shorthand for to:0,n,0"),

@@ -1,6 +1,7 @@
 package net.exylia.lib.input;
 
 import net.exylia.lib.config.Comment;
+import net.exylia.lib.config.Time;
 
 /**
  * How the library asks players for things.
@@ -33,7 +34,8 @@ public record InputSettings(
         @Comment("half-finished form forever, and the plugin that asked")
         @Comment("should not wait for an answer that is never coming.")
         @Comment("Set it high enough for somebody to read and think.")
-        int timeoutSeconds,
+        @Comment("Reads a written duration too: 30s, 5m, 1m30s.")
+        @Time int timeoutSeconds,
 
         @Comment("What a player types in chat to stop being asked.")
         @Comment("Only used when the question was asked in chat: a dialog,")

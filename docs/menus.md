@@ -387,7 +387,7 @@ A menu can also ask to redraw itself:
 ```yaml
 refresh:
   mode: SMART      # DISABLED | FULL | SMART | ON_CLICK
-  interval: 20     # ticks, for the timed modes
+  interval: 20     # ticks, for the timed modes; 1s says the same thing
   click_delay: 4   # ticks after a click, for ON_CLICK and SMART
 ```
 

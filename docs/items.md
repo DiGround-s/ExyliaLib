@@ -292,7 +292,7 @@ potion:
   custom_effects:
     - type: SPEED
       amplifier: "%level%"  # resolved per viewer
-      duration: 600
+      duration: 600         # ticks, or written out: 30s
 
 armor_trim:
   pattern: "%helmet_trim_pattern%"

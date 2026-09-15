@@ -1,5 +1,6 @@
 package net.exylia.lib.util.sequence.internal;
 
+import net.exylia.lib.effect.Ticks;
 import net.exylia.lib.text.Colors;
 import org.bukkit.Color;
 import org.jetbrains.annotations.NotNull;
@@ -166,6 +167,58 @@ public final class Args {
             return 1;
         }
         return value;
+    }
+
+    /**
+     * A named parameter as a length of time, in seconds.
+     *
+     * <p>A bare number is seconds, which is what every timing in a sequence
+     * line has always been. Anything carrying a unit is read as written, so
+     * {@code life:1.5} and {@code life:1500ms} are the same line.
+     *
+     * @param key      the parameter
+     * @param fallback the value in seconds when the parameter is absent
+     * @param problems where an unreadable value is reported
+     * @return the length of time, in seconds
+     * @since 1.170.0
+     */
+    public double seconds(@NotNull String key, double fallback, @NotNull Problems problems) {
+        String value = values.get(key);
+        if (value == null) {
+            return fallback;
+        }
+        double read = Ticks.parseSeconds(value, Double.NaN);
+        if (Double.isNaN(read)) {
+            problems.found(key, "\"" + value + "\" is not a length of time, using " + fallback);
+            return fallback;
+        }
+        return read;
+    }
+
+    /**
+     * A named parameter as a length of time, in ticks.
+     *
+     * <p>For the parameters a bare number has always meant ticks in &mdash; a
+     * potion's duration, a shape's frame count. {@code 100} stays a hundred
+     * ticks; {@code 5s} is the same thing said out loud.
+     *
+     * @param key      the parameter
+     * @param fallback the value in ticks when the parameter is absent
+     * @param problems where an unreadable value is reported
+     * @return the length of time, in ticks
+     * @since 1.170.0
+     */
+    public long ticks(@NotNull String key, long fallback, @NotNull Problems problems) {
+        String value = values.get(key);
+        if (value == null) {
+            return fallback;
+        }
+        long read = Ticks.parseTicks(value, Long.MIN_VALUE);
+        if (read == Long.MIN_VALUE) {
+            problems.found(key, "\"" + value + "\" is not a length of time, using " + fallback);
+            return fallback;
+        }
+        return read;
     }
 
     /** A named parameter as a flag. */

@@ -3,6 +3,7 @@ package net.exylia.lib.economy;
 import net.exylia.lib.config.Comment;
 
 import java.util.List;
+import net.exylia.lib.config.Time;
 
 /**
  * Which currency answers an economy call, and how long a balance may be
@@ -55,7 +56,8 @@ public record EconomySettings(
         @Comment("the bottleneck it was meant to avoid. A balance a plugin")
         @Comment("changed through the library is refreshed at once; this only")
         @Comment("governs changes made outside it.")
-        long balanceCacheMillis
+        @Comment("Reads a written duration too: 500ms, 2s.")
+        @Time(Time.Unit.MILLIS) long balanceCacheMillis
 ) {
 
     /**

@@ -1,6 +1,7 @@
 package net.exylia.lib.config.internal;
 
 import net.exylia.lib.config.Comment;
+import net.exylia.lib.config.Time;
 import net.exylia.lib.config.Key;
 
 import java.lang.reflect.Constructor;
@@ -102,7 +103,8 @@ public final class SchemaCache {
                 component.getGenericType(),
                 commentsOf(component.getAnnotationsByType(Comment.class)),
                 nested,
-                map);
+                map,
+                unitOf(component));
     }
 
     /**
@@ -205,6 +207,12 @@ public final class SchemaCache {
      * own, and a second copy of this rule would drift the day somebody adds an
      * annotation to it.
      */
+    /** The unit a {@link Time} component's bare number is written in, if any. */
+    static Time.Unit unitOf(RecordComponent component) {
+        Time time = component.getAnnotation(Time.class);
+        return time == null ? null : time.value();
+    }
+
     static String keyOf(RecordComponent component) {
         Key key = component.getAnnotation(Key.class);
         return key != null ? key.value() : toKebabCase(component.getName());

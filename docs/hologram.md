@@ -26,7 +26,8 @@ Holograms.show(this, "trophy", location, config.trophy());
 
 The YML keys match what ExyliaCommons' `HologramTemplateSerializer` wrote,
 minus the ones that mean nothing here (chunks, disk persistence — a hologram
-is packets, not a file). The interval is in ticks, like the scoreboard:
+is packets, not a file). The interval is in ticks, like the scoreboard (and,
+like it, also reads `1s`):
 another scoped deviation so commons files keep working.
 
 ## API

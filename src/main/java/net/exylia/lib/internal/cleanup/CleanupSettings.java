@@ -2,6 +2,7 @@ package net.exylia.lib.internal.cleanup;
 
 import net.exylia.lib.config.Comment;
 import net.exylia.lib.config.Key;
+import net.exylia.lib.config.Time;
 
 /**
  * What the server keeps and what it throws away, from
@@ -49,7 +50,8 @@ public record CleanupSettings(
             @Comment("and neither is anything that is not a log file.")
             @Comment("Minimum 1: a value below that is read as 1, since deleting")
             @Comment("today's logs would take the one being written with them.")
-            int keepDays
+            @Comment("Reads a written duration too: 7d, 2w.")
+            @Time(Time.Unit.DAYS) int keepDays
     ) {
 
         /** A week, which is long enough to look into yesterday's crash. */

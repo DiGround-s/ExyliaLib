@@ -1,5 +1,6 @@
 package net.exylia.lib.util;
 
+import net.exylia.lib.effect.Ticks;
 import org.bukkit.entity.Player;
 import org.bukkit.potion.PotionEffect;
 import org.bukkit.potion.PotionEffectType;
@@ -31,7 +32,8 @@ import java.util.List;
  *       is Speed II, which Bukkit calls amplifier 1. Missing means I.
  *   <li>{@code SECONDS} is a duration in seconds; the words {@code infinite}
  *       and {@code -1} mean the effect does not end on its own. Missing means
- *       10 seconds.
+ *       10 seconds. Since 1.170.0 it also reads a duration written out, so
+ *       {@code 90}, {@code 90s} and {@code 1m30s} are the same effect.
  *   <li>{@code PARTICLES} is whether the swirls are drawn, {@code ICON}
  *       whether the effect shows in the corner of the screen, and
  *       {@code AMBIENT} whether the particles are the faint beacon kind.
@@ -316,7 +318,7 @@ public final class Effects {
         public @NotNull String line() {
             StringBuilder line = new StringBuilder(name)
                     .append('|').append(amplifier + 1)
-                    .append('|').append(duration == INFINITE ? "infinite" : duration / TICKS_PER_SECOND);
+                    .append('|').append(written(duration));
             if (!particles || !icon || ambient) {
                 line.append('|').append(particles).append('|').append(icon);
                 if (ambient) {
@@ -324,6 +326,16 @@ public final class Effects {
                 }
             }
             return line.toString();
+        }
+
+        /** Whole seconds stay the number every file already holds. */
+        private static String written(int duration) {
+            if (duration == INFINITE) {
+                return "infinite";
+            }
+            return duration % TICKS_PER_SECOND == 0
+                    ? String.valueOf(duration / TICKS_PER_SECOND)
+                    : Ticks.write(duration * (long) Ticks.MILLIS);
         }
     }
 
@@ -406,10 +418,13 @@ public final class Effects {
         int duration = DEFAULT_DURATION;
         if (pieces.length > 2) {
             String written = pieces[2].trim().toLowerCase();
-            if (written.equals("infinite") || written.equals("-1")) {
+            if (written.equals("infinite") || written.equals("-1") || written.equals("forever")) {
                 duration = INFINITE;
             } else {
-                duration = parseInt(written, 10) * TICKS_PER_SECOND;
+                // Seconds when it is a bare number, as every config already
+                // writes it; "90s", "1m30s" and "2.5" all say the same thing.
+                duration = (int) Math.round(
+                        Ticks.parseSeconds(written, 10) * TICKS_PER_SECOND);
             }
         }
         return new ParsedEffect(name, amplifier, duration,

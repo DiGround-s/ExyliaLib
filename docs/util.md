@@ -24,7 +24,9 @@ ExyliaCommons unchanged and extended at the end:
 - `LEVEL` is written the way a player reads it — `SPEED|2` is Speed II, which
   Bukkit calls amplifier 1. Missing means I.
 - `SECONDS` is a duration in seconds; the words `infinite` and `-1` mean the
-  effect does not end on its own. Missing means 10 seconds.
+  effect does not end on its own. Missing means 10 seconds. It also reads a
+  duration written out, so `90`, `90s` and `1m30s` are the same effect
+  (1.170.0).
 - `PARTICLES` is whether the swirls are drawn, `ICON` whether the effect shows
   in the corner of the screen, and `AMBIENT` whether the particles are the
   faint beacon kind. Written `true`/`false` — or `yes`/`no` — and missing means

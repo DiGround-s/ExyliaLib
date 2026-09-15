@@ -49,7 +49,9 @@ A teleport already does this for you: `onStart(effect)` counts over the warmup
 it was given.
 
 Times are **seconds with decimals** — `countdown(3.3)` is 3.3 real seconds,
-and `%time%` displays it as `3.3`. `%time%` belongs to the effect, never to
+and `%time%` displays it as `3.3`. In the file, every one of those keys also
+reads a duration written out: `stay: 1m30s` is the same as `stay: 90`
+(1.170.0). `%time%` belongs to the effect, never to
 the global registry: two countdowns on screen must not show the same number.
 `timeStyle` is a `TimeFormats` style name (`auto`, `tenths`, `clock`, ...).
 

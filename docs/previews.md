@@ -99,6 +99,7 @@ preview:
   settle-ticks: 4     # wait after the teleport, so the client has the position
   linger-ticks: 20    # how long to hold the stage after the effect ends
   max-ticks: 600      # the safety net
+  # Every one of these is ticks, and every one also reads 1s, 30s or 1m30s.
 ```
 
 `location` is the stored `ExyliaLocation` form, so it is the same text every

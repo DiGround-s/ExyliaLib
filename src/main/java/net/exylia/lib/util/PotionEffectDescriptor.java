@@ -2,6 +2,7 @@ package net.exylia.lib.util;
 
 import net.exylia.lib.input.FormKey;
 import net.exylia.lib.input.FormValues;
+import net.exylia.lib.effect.Ticks;
 import net.exylia.lib.util.Effects.ParsedEffect;
 import net.exylia.lib.util.editor.EditorDescriptor;
 import net.exylia.lib.util.editor.EditorForm;
@@ -53,7 +54,7 @@ final class PotionEffectDescriptor implements EditorDescriptor<ParsedEffect> {
     private static final int TICKS_PER_SECOND = 20;
 
     private static final FormKey<Long> LEVEL = FormKey.integer("level");
-    private static final FormKey<Long> SECONDS = FormKey.integer("seconds");
+    private static final FormKey<String> LASTS = FormKey.text("lasts");
     private static final FormKey<Boolean> PARTICLES = FormKey.flag("particles");
     private static final FormKey<Boolean> ICON = FormKey.flag("icon");
     private static final FormKey<Boolean> AMBIENT = FormKey.flag("ambient");
@@ -125,7 +126,8 @@ final class PotionEffectDescriptor implements EditorDescriptor<ParsedEffect> {
                                                                  @NotNull ParsedEffect entry) {
         return EditorForm.of(plugin, viewer, "{primary}&lEDIT EFFECT")
                 .integer(LEVEL, "Level, as a player reads it", entry.amplifier() + 1L)
-                .integer(SECONDS, "Seconds (-1 never ends)", seconds(entry))
+                .text(LASTS, "Lasts", lasts(entry))
+                .hint("30s, 1m30s, or forever.")
                 .flag(PARTICLES, "Show the swirling particles", entry.particles())
                 .flag(ICON, "Show the icon in the corner of the screen", entry.icon())
                 .flag(AMBIENT, "Faint particles, the way a beacon gives them", entry.ambient())
@@ -137,10 +139,7 @@ final class PotionEffectDescriptor implements EditorDescriptor<ParsedEffect> {
         // Level one is amplifier zero. Storing what was typed would make every
         // effect one level stronger than the admin asked for.
         int amplifier = (int) Math.max(1, values.getLong(LEVEL)) - 1;
-        long seconds = values.getLong(SECONDS);
-        int duration = seconds < 0
-                ? Effects.INFINITE
-                : (int) Math.max(1, seconds) * TICKS_PER_SECOND;
+        int duration = duration(values.getText(LASTS), entry.duration());
         return new ParsedEffect(entry.name(), amplifier, duration,
                 values.getBoolean(AMBIENT), values.getBoolean(PARTICLES), values.getBoolean(ICON));
     }
@@ -181,8 +180,32 @@ final class PotionEffectDescriptor implements EditorDescriptor<ParsedEffect> {
         return Editors.of(plugin).pick().potionEffect(viewer);
     }
 
-    private static long seconds(ParsedEffect entry) {
-        return entry.duration() == Effects.INFINITE ? -1L : entry.duration() / TICKS_PER_SECOND;
+    /** What the form starts with: the same words it accepts back. */
+    private static String lasts(ParsedEffect entry) {
+        return entry.duration() == Effects.INFINITE
+                ? "forever"
+                : Ticks.write(entry.duration() * Ticks.MILLIS);
+    }
+
+    /**
+     * How long the effect lasts, as the viewer wrote it.
+     *
+     * <p>{@code forever}, {@code -1} and a blank box all mean an effect nothing
+     * but a removal ends; everything else is read by the same parser every
+     * other duration in the library goes through, with a bare number as
+     * seconds. A value nobody can read keeps what the effect already had,
+     * rather than silently becoming ten seconds.
+     */
+    private static int duration(String written, int current) {
+        String text = written == null ? "" : written.trim().toLowerCase(Locale.ROOT);
+        if (text.isEmpty() || text.equals("forever") || text.equals("infinite") || text.equals("-1")) {
+            return Effects.INFINITE;
+        }
+        double seconds = Ticks.parseSeconds(text, Double.NaN);
+        if (Double.isNaN(seconds) || seconds <= 0) {
+            return current;
+        }
+        return (int) Math.max(1, Math.round(seconds * TICKS_PER_SECOND));
     }
 
     private static String duration(ParsedEffect entry) {

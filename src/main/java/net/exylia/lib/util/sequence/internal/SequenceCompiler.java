@@ -129,7 +129,7 @@ public final class SequenceCompiler {
         }
         return RepeatStep.of(step,
                 args.count("repeat", 1, onArg),
-                (long) (args.number("every", 0.15, onArg) * 1000),
+                (long) (args.seconds("every", 0.15, onArg) * 1000),
                 Math.toRadians(args.number("turn_each", 0.0, onArg)));
     }
 
@@ -196,8 +196,8 @@ public final class SequenceCompiler {
             points = moved;
         }
 
-        int ticks = args.count("ticks", 1, onArg);
-        double interval = args.number("interval", 0.05, onArg);
+        int ticks = (int) args.ticks("ticks", 1, onArg);
+        double interval = args.seconds("interval", 0.05, onArg);
         boolean faceSource = args.flag("face", false);
         double yaw = args.number("rotate", 0.0, onArg);
 
@@ -255,11 +255,9 @@ public final class SequenceCompiler {
     // ------------------------------------------------------------------ tokens
 
     private @Nullable SequenceStep delay(String rest, String line) {
-        double seconds;
-        try {
-            seconds = Double.parseDouble(rest.trim());
-        } catch (NumberFormatException malformed) {
-            problems.found(line, "\"" + rest + "\" is not a number of seconds");
+        double seconds = net.exylia.lib.effect.Ticks.parseSeconds(rest.trim(), Double.NaN);
+        if (Double.isNaN(seconds)) {
+            problems.found(line, "\"" + rest + "\" is not a length of time");
             return null;
         }
         if (seconds <= 0) {
@@ -372,7 +370,7 @@ public final class SequenceCompiler {
             problems.found(line, "there is no potion effect called \"" + args.head() + "\"");
             return null;
         }
-        int duration = (int) namedOrPositional(args, "duration", 1, 100, onArg);
+        int duration = (int) durationTicks(args, onArg);
         int amplifier = (int) namedOrPositional(args, "amplifier", 2, 0, onArg);
         boolean particles = args.flag("particles", true);
         boolean icon = args.flag("icon", true);
@@ -441,7 +439,7 @@ public final class SequenceCompiler {
             return null;
         }
         Color glow = args.colour("glow", null, onArg);
-        double life = args.number("life", 5.0, onArg);
+        double life = args.seconds("life", 5.0, onArg);
         args.reportUnknown(onArg, "pose", "life", "equip", "glow", "y", "face",
                 "from", "to", "over", "ease", "gravity", "turn", "pose_to", "after", "hurt",
                 "move_after", "scale", "hold", "offhand", "spin", "bob", "bob_every", "swing",
@@ -495,7 +493,7 @@ public final class SequenceCompiler {
                 : net.exylia.lib.ragdoll.RagdollAnimation.none();
         net.exylia.lib.ragdoll.RagdollFinish finish =
                 net.exylia.lib.ragdoll.RagdollFinish.of(args.text("then", "hold"));
-        double intact = args.number("intact", 0.3, onArg);
+        double intact = args.seconds("intact", 0.3, onArg);
         // Left unwritten, a choreography lives exactly as long as it takes and
         // then as long as its finish needs, so nobody has to add up their own
         // frames to stop the body vanishing halfway through them.
@@ -507,7 +505,7 @@ public final class SequenceCompiler {
         };
         double life = args.has("keys") && !args.has("life")
                 ? intact + animation.durationMillis() / 1000.0 + finishing
-                : args.number("life", 2.2, onArg);
+                : args.seconds("life", 2.2, onArg);
         net.exylia.lib.ragdoll.RagdollMotion.Builder body =
                 net.exylia.lib.ragdoll.RagdollMotion.builder()
                 .pose(net.exylia.lib.ragdoll.RagdollPose.of(
@@ -522,11 +520,11 @@ public final class SequenceCompiler {
                 .chains(args.number("chains", 0.0, onArg))
                 .rise(args.number("rise", 1.1, onArg))
                 .open(args.number("open", 0.55, onArg))
-                .lift(args.number("lift", 0.45, onArg))
-                .hang(args.number("hang", 0.9, onArg))
+                .lift(args.seconds("lift", 0.45, onArg))
+                .hang(args.seconds("hang", 0.9, onArg))
                 .turns(args.number("turns", 0.35, onArg))
                 .hits(args.count("hits", 3, onArg))
-                .every(args.number("every", 0.32, onArg))
+                .every(args.seconds("every", 0.32, onArg))
                 .force(args.number("force", 0.85, onArg))
                 .swell(args.number("swell", 3.0, onArg))
                 .squash(args.number("squash", 0.14, onArg))
@@ -549,7 +547,7 @@ public final class SequenceCompiler {
             body.heading(args.number("dir", 0.0, onArg));
         }
         if (args.has("snip")) {
-            body.snip(args.number("snip", 0.0, onArg));
+            body.snip(args.seconds("snip", 0.0, onArg));
         }
         // The plugin that owns this line keeps the textures its bodies are drawn
         // with. Registered while the file is read, so players who join before
@@ -603,18 +601,18 @@ public final class SequenceCompiler {
                 .from(from[0], from[1], from[2])
                 .to(to[0], to[1], to[2])
                 .gravity(args.number("gravity", 0.0, onArg))
-                .over((long) (args.number("over", 0.7, onArg) * 1000))
-                .startAfter((long) (args.number("move_after", 0.0, onArg) * 1000))
+                .over((long) (args.seconds("over", 0.7, onArg) * 1000))
+                .startAfter((long) (args.seconds("move_after", 0.0, onArg) * 1000))
                 .ease(net.exylia.lib.npc.NpcMotion.Easing.of(args.text("ease", "out")))
                 .turn(args.number("turn", 0.0, onArg))
                 .spin(args.number("spin", 0.0, onArg))
                 .bob(args.number("bob", 0.0, onArg),
-                        (long) (args.number("bob_every", 1.6, onArg) * 1000))
-                .swingEvery((long) (args.number("swing", 0.0, onArg) * 1000))
+                        (long) (args.seconds("bob_every", 1.6, onArg) * 1000))
+                .swingEvery((long) (args.seconds("swing", 0.0, onArg) * 1000))
                 .hurt(args.flag("hurt", false));
         if (args.has("pose_to")) {
             motion.collapsing(net.exylia.lib.npc.NpcPose.of(args.text("pose_to", "lying")),
-                    (long) (args.number("after", 0.4, onArg) * 1000));
+                    (long) (args.seconds("after", 0.4, onArg) * 1000));
         }
         return motion.build();
     }
@@ -657,11 +655,32 @@ public final class SequenceCompiler {
         if (parts.length <= index) {
             return (long) (fallbackSeconds * 1000);
         }
-        try {
-            return (long) (Double.parseDouble(parts[index].trim()) * 1000);
-        } catch (NumberFormatException malformed) {
-            return (long) (fallbackSeconds * 1000);
+        double seconds = net.exylia.lib.effect.Ticks.parseSeconds(parts[index].trim(), fallbackSeconds);
+        return (long) (seconds * 1000);
+    }
+
+    /**
+     * How long a {@code [POTION]} lasts, in ticks.
+     *
+     * <p>The one timing in a sequence line whose bare number is ticks rather
+     * than seconds: {@code [POTION] speed;100;1} has meant a hundred ticks
+     * since ExyliaCommons, and it still does. {@code duration:5s} says the same
+     * thing for anybody who would rather not multiply.
+     */
+    private long durationTicks(Args args, Args.Problems onArg) {
+        if (args.has("duration")) {
+            return args.ticks("duration", 100, onArg);
         }
+        String positional = args.positional(1);
+        if (positional == null) {
+            return 100;
+        }
+        long ticks = net.exylia.lib.effect.Ticks.parseTicks(positional.trim(), Long.MIN_VALUE);
+        if (ticks == Long.MIN_VALUE) {
+            onArg.found("duration", "\"" + positional + "\" is not a length of time, using 100");
+            return 100;
+        }
+        return ticks;
     }
 
     private double namedOrPositional(Args args, String name, int index, double fallback,

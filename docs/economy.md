@@ -282,7 +282,7 @@ this, a ten-line scoreboard on a twenty-player server asks the economy thousands
 of times a second, and the thin wrapper becomes the bottleneck it exists to
 avoid. `EconomyTest` pins it: three reads in one tick ask the provider once.
 
-**The TTL** is `balance-cache-millis` in `economy.yml`, default **500 ms**,
+**The TTL** is `balance-cache-millis` in `economy.yml`, default **500 ms** (or written out, `500ms`),
 `expireAfterWrite`, up to 4096 entries. Values below 1 ms are floored at 1 ms, so
 a misconfigured `0` cannot turn the cache off and read as a library slowdown.
 

@@ -44,6 +44,27 @@ class SequenceCompileTest {
         return SequenceAccess.sequence(compiler.compile(lines));
     }
 
+    // ------------------------------------------------------- lengths of time
+
+    @Test
+    @DisplayName("a timing reads a duration written out, and a bare number stays seconds")
+    void timingsReadWrittenDurations() {
+        Sequence written = compile(List.of("[DELAY] 1m30s", "[PARTICLE] FLAME"));
+        Sequence bare = compile(List.of("[DELAY] 90", "[PARTICLE] FLAME"));
+
+        assertEquals(90_000L, written.steps().get(0).holdMillis());
+        assertEquals(bare.steps().get(0).holdMillis(), written.steps().get(0).holdMillis());
+        assertTrue(problems.isEmpty(), "neither line is a problem: " + problems);
+    }
+
+    @Test
+    @DisplayName("a title's times read the same way")
+    void titleTimesReadWrittenDurations() {
+        Sequence written = compile(List.of("[TITLE] Hello;There;0.5;1m;1s"));
+        assertEquals(1, written.steps().size());
+        assertTrue(problems.isEmpty(), "the line should compile: " + problems);
+    }
+
     // ------------------------------------------------------- the commons files
 
     @Test

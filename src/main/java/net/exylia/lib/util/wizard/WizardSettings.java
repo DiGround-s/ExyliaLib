@@ -2,6 +2,7 @@ package net.exylia.lib.util.wizard;
 
 import net.exylia.lib.config.Comment;
 import net.exylia.lib.config.Key;
+import net.exylia.lib.config.Time;
 
 /**
  * How a plugin's guided flows behave.
@@ -46,7 +47,8 @@ public record WizardSettings(
         @Comment("Each question has its own shorter limit; this one bounds the")
         @Comment("total, so somebody who answers slowly forever still lets go")
         @Comment("of the flow eventually.")
-        int timeoutSeconds,
+        @Comment("Reads a written duration too: 30s, 5m, 1m30s.")
+        @Time int timeoutSeconds,
 
         @Key("max-redos")
         @Comment("How many times the review screen may be sent back to change")
@@ -81,7 +83,8 @@ public record WizardSettings(
 
         @Key("announce-seconds")
         @Comment("How long that title stays on screen.")
-        double announceSeconds
+        @Comment("Reads a written duration too: 30s, 5m, 1m30s.")
+        @Time double announceSeconds
 ) {
 
     /** The Exylia defaults: five minutes, three redos, a bar that names the step. */

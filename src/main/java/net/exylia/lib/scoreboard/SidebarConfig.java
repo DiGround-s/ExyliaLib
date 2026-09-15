@@ -1,6 +1,7 @@
 package net.exylia.lib.scoreboard;
 
 import net.exylia.lib.config.Comment;
+import net.exylia.lib.config.Time;
 
 import java.util.List;
 
@@ -113,7 +114,8 @@ public record SidebarConfig(
      */
     public record Update(
             @Comment("Ticks between refreshes. 20 ticks are one second.")
-            long interval,
+            @Comment("Reads a written duration too: 1s, 500ms, 2m.")
+            @Time(Time.Unit.TICKS) long interval,
 
             @Comment("Send only the lines that changed instead of the whole board.")
             boolean smart,

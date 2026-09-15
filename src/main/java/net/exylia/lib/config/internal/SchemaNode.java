@@ -47,6 +47,8 @@ record SchemaNode(Class<?> type,
      *                 otherwise {@code null}
      * @param map      the value side when this component is a {@code Map},
      *                 otherwise {@code null}
+     * @param unit     what a bare number means when this component is a length
+     *                 of time, otherwise {@code null}
      */
     record SchemaComponent(String name,
                            String key,
@@ -54,7 +56,8 @@ record SchemaNode(Class<?> type,
                            java.lang.reflect.Type generic,
                            List<String> comments,
                            SchemaNode nested,
-                           MapEntry map) {
+                           MapEntry map,
+                           net.exylia.lib.config.Time.Unit unit) {
 
         /** Returns whether this component is a nested section rather than a value. */
         boolean isSection() {

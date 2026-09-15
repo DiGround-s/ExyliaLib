@@ -3,6 +3,7 @@ package net.exylia.lib.hologram;
 import net.exylia.lib.config.Comment;
 
 import java.util.List;
+import net.exylia.lib.config.Time;
 
 /**
  * A hologram declared in a config file.
@@ -250,7 +251,8 @@ public record HologramConfig(
      */
     public record Refresh(
             @Comment("Ticks between refreshes. 20 ticks are one second.")
-            long updateInterval,
+            @Comment("Reads a written duration too: 1s, 500ms, 2m.")
+            @Time(Time.Unit.TICKS) long updateInterval,
 
             @Comment("Whether the lines refresh on their own.")
             @Comment("Lines without placeholders are drawn once and never refresh regardless.")
