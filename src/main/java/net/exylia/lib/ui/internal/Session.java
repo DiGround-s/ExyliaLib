@@ -79,6 +79,9 @@ final class Session implements UiSession {
 
     private boolean open = true;
 
+    /** Set while another menu replaces this one, so the swap makes no close sound. */
+    private boolean silentClose;
+
     /** The redraw timer, when the menu asked for one. */
     private net.exylia.lib.task.TaskHandle refresher;
 
@@ -566,6 +569,14 @@ final class Session implements UiSession {
     /** What is drawn in a slot, for the click handler. */
     @Nullable Rendered renderedAt(int slot) {
         return slots.get(slot);
+    }
+
+    void silenceClose(boolean silent) {
+        silentClose = silent;
+    }
+
+    boolean closeSilenced() {
+        return silentClose;
     }
 
     /** Stops everything this menu started. Called once, when it closes. */

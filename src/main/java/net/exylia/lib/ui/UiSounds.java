@@ -24,13 +24,13 @@ public record UiSounds(@Nullable String open, @Nullable String close, @Nullable 
 
     /** What menus sound like unless somebody says otherwise. */
     public static final UiSounds DEFAULTS = new UiSounds(
-            "BLOCK_BARREL_OPEN|0.6|1.4",
-            "BLOCK_BARREL_CLOSE|0.6|1.4",
-            "UI_BUTTON_CLICK|0.5|1.6",
+            "minecraft:block.ender_chest.open|1.0|1.4",
+            "minecraft:block.barrel.close|1.0|0.7",
+            "minecraft:block.note_block.hat|1.0|1.0",
             "BLOCK_NOTE_BLOCK_BASS|0.6|0.8",
             "ENTITY_VILLAGER_NO|0.6|1",
-            "UI_BUTTON_CLICK|0.5|1.2",
-            "ITEM_BOOK_PAGE_TURN|0.7|1.2");
+            "minecraft:item.bundle.remove_one|1.0|0.5",
+            "minecraft:item.book.page_turn|1.0|1.0");
 
     /** Nothing at all. */
     public static final UiSounds SILENT = new UiSounds(null, null, null, null, null, null, null);

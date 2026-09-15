@@ -525,9 +525,9 @@ actions:
 
 ```yaml
 open_sounds:
-  - "ENTITY_EXPERIENCE_ORB_PICKUP|1.0|1.2"
+  - "minecraft:block.ender_chest.open|1.0|1.4"
 click_sounds:
-  - "UI_BUTTON_CLICK|1.0|1.5"
+  - "minecraft:block.note_block.hat|1.0|1.0"
 ```
 
 Or, more tidily, a block naming each one — `open`, `close`, `click`, `denied`,
@@ -535,7 +535,7 @@ Or, more tidily, a block naming each one — `open`, `close`, `click`, `denied`,
 
 ```yaml
 sounds:
-  open: "BLOCK_BARREL_OPEN|0.6|1.4"
+  open: "minecraft:block.ender_chest.open|1.0|1.4"
   denied: ""        # silence, which is not the same as absent
 ```
 
@@ -543,6 +543,18 @@ Both spellings work and the block wins where a file has both. `denied` and
 `failed` play when a button refuses, so a click that did nothing sounds
 different from one that worked — the single most common "the menu is broken"
 report.
+
+Anything not written falls back to the defaults: open
+`minecraft:block.ender_chest.open|1.0|1.4`, click
+`minecraft:block.note_block.hat|1.0|1.0`, close
+`minecraft:block.barrel.close|1.0|0.7`, page (next and previous)
+`minecraft:item.book.page_turn|1.0|1.0` and back
+`minecraft:item.bundle.remove_one|1.0|0.5`.
+
+Opening a menu while another is on screen — a button, a command, `back` — is one
+screen changing, not a close and an open: the old menu's close sound and the new
+one's open sound are both skipped, so the click, page turn or back sound is heard
+on its own.
 
 ## Lifecycle
 

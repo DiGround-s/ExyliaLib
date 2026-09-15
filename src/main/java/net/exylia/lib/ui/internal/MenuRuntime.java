@@ -253,11 +253,23 @@ public final class MenuRuntime {
         }
         session.seed(sections);
         session.draw();
+        // One menu straight into another is one screen changing, not a close and
+        // an open: the click, page turn or back that caused it is the only sound.
+        if (previous != null) {
+            previous.silenceClose(true);
+        }
         viewer.openInventory(inventory);
+        if (previous != null) {
+            // Its close already fired inside openInventory. Cleared in case the
+            // open was cancelled and the old menu is still on screen.
+            previous.silenceClose(false);
+        }
         // After the open, not before: opening one window over another closes the
         // first, and that close arrives while this call is still running.
         OPEN.put(viewer.getUniqueId(), session);
-        play(viewer, definition.sounds().open());
+        if (previous == null) {
+            play(viewer, definition.sounds().open());
+        }
 
         session.startRefreshing();
         runOpenActions(session, viewer, definition);
@@ -384,7 +396,9 @@ public final class MenuRuntime {
         OPEN.remove(session.viewer().getUniqueId(), session);
         rememberPages(session);
         session.released();
-        play(session.viewer(), session.definition().sounds().close());
+        if (!session.closeSilenced()) {
+            play(session.viewer(), session.definition().sounds().close());
+        }
     }
 
     /** Notes where a menu was, for the next time the same player opens it. */
