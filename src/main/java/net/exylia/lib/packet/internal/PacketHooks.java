@@ -1,6 +1,7 @@
 package net.exylia.lib.packet.internal;
 
 import com.github.retrooper.packetevents.PacketEvents;
+import com.github.retrooper.packetevents.manager.server.ServerVersion;
 import com.github.retrooper.packetevents.event.PacketListenerAbstract;
 import com.github.retrooper.packetevents.event.PacketListenerPriority;
 import com.github.retrooper.packetevents.event.PacketReceiveEvent;
@@ -604,12 +605,18 @@ final class PacketHooks extends PacketListenerAbstract implements PacketSink {
      *
      * <p>Sent silently: the listener above drops border packets on their way to
      * a viewer who sees one of ours, and this is that one.
+     *
+     * <p>From 1.21.11 the client moves a border by game ticks, and the packet
+     * carries ticks: milliseconds there make every resize twenty times slower.
+     * The format follows the server; Via converts it for older clients.
      */
     @Override
     public void border(Player viewer, double x, double z, double from, double to, long millis,
                        int warningBlocks, int warningSeconds) {
+        long duration = PacketEvents.getAPI().getServerManager().getVersion()
+                .isNewerThanOrEquals(ServerVersion.V_1_21_11) ? millis / 50 : millis;
         WrapperPlayServerInitializeWorldBorder packet =
-                new WrapperPlayServerInitializeWorldBorder(x, z, from, to, millis, PORTAL_LIMIT, 0, 0);
+                new WrapperPlayServerInitializeWorldBorder(x, z, from, to, duration, PORTAL_LIMIT, 0, 0);
         packet.setWarningBlocks(warningBlocks);
         packet.setWarningTime(warningSeconds);
         PacketEvents.getAPI().getPlayerManager().sendPacketSilently(viewer, packet);
