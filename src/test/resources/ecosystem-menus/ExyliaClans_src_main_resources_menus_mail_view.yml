@@ -1,7 +1,6 @@
 title: "{primary}&lMESSAGE {muted}· %mail_subject%"
 size: 36
 type: SIMPLE
-animation: "center_out"
 
 open_sounds:
   - "ENTITY_EXPERIENCE_ORB_PICKUP|1.0|1.2"

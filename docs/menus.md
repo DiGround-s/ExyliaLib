@@ -421,54 +421,6 @@ and a list, and none of those is the slot that was clicked. The redraw reads the
 context as it is when it runs, so a plugin that redrew the menu itself in the
 meantime is not undone.
 
-## Animations
-
-```yaml
-animation: center_out
-```
-
-Or with a pace, in ticks between frames:
-
-```yaml
-animation:
-  type: rows_alternate
-  speed: 3
-```
-
-Seventeen shapes:
-
-| Name | What it does |
-| --- | --- |
-| `center_out` | outwards from the middle |
-| `explosion` | outwards in square rings |
-| `corners` | inwards from all four corners |
-| `cascade` | diagonally, top-left to bottom-right |
-| `slide_left`, `wave_horizontal` | column by column, left to right |
-| `slide_top`, `wave_vertical` | row by row, top to bottom |
-| `rows_alternate` | rows from the top and bottom alternately |
-| `columns_alternate` | columns from the left and right alternately |
-| `checkerboard` | light squares, then dark |
-| `snake` | left to right, then back again |
-| `spiral` | round the outside, inwards |
-| `spiral_out` | from the middle, outwards |
-| `typewriter` | one slot at a time, in reading order |
-| `random` | scattered, but the same scatter every time |
-| `none` | appears at once |
-
-Slots appear a frame at a time. Everything is drawn and recorded **before** the
-animation starts, so a click landing on a slot that has not visibly appeared yet
-still works — the alternative is a window during which buttons silently do
-nothing. Clicking skips the rest of it, because somebody who is interacting has
-stopped watching.
-
-`random` is seeded by the menu's size rather than by the clock, so it looks the
-same for everyone and can be cached like the rest.
-
-A name that is not one of these is reported when the file is read, and the menu
-appears at once. Reporting it matters: a misspelt name looks exactly like a menu
-that was never animated, so silence would leave an admin re-reading a config
-that was fine apart from one letter.
-
 ## Conditions
 
 ```yaml
@@ -606,8 +558,8 @@ so a player opening a chest on top of a menu is not mistaken for one of ours.
 
 | | |
 | --- | --- |
-| Public API | `ui/Menus`, `PluginMenus`, `UiSession`, `UiDefinition`, `UiSection`, `UiEntry`, `UiItem`, `UiKeys`, `UiFillers`, `UiRefresh`, `UiSounds`, `UiAnimationSpec`, `ClickBindings`, `ClickKind`, `ClickPolicy`, `Pages`, `Slots` |
-| Internal | `ui/internal/MenuLoader`, `MenuRuntime`, `MenuListener`, `Session`, `MenuHolder`, `Rendered`, `Conditions`, `OpenAnimation`, `BuiltInActions` |
+| Public API | `ui/Menus`, `PluginMenus`, `UiSession`, `UiDefinition`, `UiSection`, `UiEntry`, `UiItem`, `UiKeys`, `UiFillers`, `UiRefresh`, `UiSounds`, `ClickBindings`, `ClickKind`, `ClickPolicy`, `Pages`, `Slots` |
+| Internal | `ui/internal/MenuLoader`, `MenuRuntime`, `MenuListener`, `Session`, `MenuHolder`, `Rendered`, `Conditions`, `BuiltInActions` |
 | Tests | `src/test/java/net/exylia/lib/ui/` |
 
 `RealMenusTest` loads the sixty menu files ExyliaPracticeCore ships, unedited.

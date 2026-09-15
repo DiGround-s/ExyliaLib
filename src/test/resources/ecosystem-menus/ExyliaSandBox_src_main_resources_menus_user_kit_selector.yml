@@ -1,7 +1,6 @@
 title: "{primary}&lKITS"
 size: 27
 type: PAGINATION
-animation: "center_out"
 refresh:
   mode: ON_CLICK
   click_delay: 2

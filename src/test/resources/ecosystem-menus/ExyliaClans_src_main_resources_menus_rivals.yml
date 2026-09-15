@@ -1,7 +1,6 @@
 title: "{error}&lRIVALS {muted}%current_page%/%total_pages%"
 size: 27
 type: PAGINATION
-animation: "center_out"
 
 open_sounds:
   - "ENTITY_ENDER_DRAGON_GROWL|0.3|1.8"

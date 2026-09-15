@@ -79,15 +79,6 @@ final class Session implements UiSession {
 
     private boolean open = true;
 
-    /** The running open animation, if one is still revealing slots. */
-    private net.exylia.lib.task.TaskHandle animation;
-
-    /** Which frame of that animation comes next. */
-    private int frame;
-
-    /** Slots the animation has taken away and not yet put back. */
-    private Map<Integer, ItemStack> hidden = new LinkedHashMap<>();
-
     /** The redraw timer, when the menu asked for one. */
     private net.exylia.lib.task.TaskHandle refresher;
 
@@ -526,19 +517,6 @@ final class Session implements UiSession {
         return runtime;
     }
 
-    /**
-     * Shows the rest of the menu at once.
-     *
-     * <p>Called when a player clicks: somebody who is already interacting has
-     * stopped watching the animation, and making them wait for a button to
-     * finish appearing is the complaint every animated menu earns.
-     */
-    void skipAnimation() {
-        if (animation != null) {
-            finishAnimation();
-        }
-    }
-
     @Override
     public void remember(@NotNull String... keys) {
         remembered.addAll(Set.of(keys));
@@ -593,7 +571,6 @@ final class Session implements UiSession {
     /** Stops everything this menu started. Called once, when it closes. */
     void released() {
         open = false;
-        finishAnimation();
         if (refresher != null) {
             refresher.cancel();
             refresher = null;
@@ -617,105 +594,9 @@ final class Session implements UiSession {
         }
     }
 
-    /**
-     * Reveals the menu a frame at a time.
-     *
-     * <p>Everything is already drawn and recorded by the time this starts, so a
-     * click landing mid-animation on a slot that has not appeared yet still
-     * does the right thing: the session knows what is there even while the
-     * client cannot see it. Drawing it after would make the animation a window
-     * during which buttons silently do nothing.
-     *
-     * @param frames what appears when
-     * @param speed  ticks between frames
-     */
-    void animate(List<List<Integer>> frames, int speed) {
-        // Snapshot what is on screen, then take it away and put it back in
-        // pieces. Copied because the inventory is about to be cleared.
-        Map<Integer, ItemStack> drawn = new LinkedHashMap<>();
-        for (int slot = 0; slot < inventory.getSize(); slot++) {
-            ItemStack item = inventory.getItem(slot);
-            if (item != null) {
-                drawn.put(slot, item);
-            }
-        }
-        inventory.clear();
-
-        hidden = drawn;
-        frame = 0;
-        animation = runtime.tick(viewer, speed, handle -> {
-            if (!isOpen() || frame >= frames.size()) {
-                // They closed it, opened something else, or it finished.
-                finishAnimation();
-                return;
-            }
-            for (int slot : frames.get(frame)) {
-                reveal(slot);
-            }
-            frame++;
-        });
-    }
-
-    /**
-     * Stops a running animation and shows whatever it had not reached.
-     *
-     * <p>The important half. Cancelling the timer alone would leave the
-     * unrevealed slots empty for as long as the menu stayed open — a menu that
-     * is interrupted mid-animation would be permanently missing its corners.
-     */
-    private void finishAnimation() {
-        if (animation != null) {
-            animation.cancel();
-            animation = null;
-        }
-        if (hidden.isEmpty()) {
-            return;
-        }
-        for (int slot : List.copyOf(hidden.keySet())) {
-            reveal(slot);
-        }
-    }
-
-    /** Puts one slot back on screen, if the animation was still holding it. */
-    private void reveal(int slot) {
-        ItemStack item = hidden.remove(slot);
-        if (item != null) {
-            inventory.setItem(slot, item);
-        }
-    }
-
-    /**
-     * Writes one slot, respecting an animation that has not reached it.
-     *
-     * <p>Every drawing path goes through here. A list refreshed while the menu
-     * is still appearing would otherwise write into a slot the animation is
-     * about to overwrite with what was there before — the new rows would flash
-     * and vanish. Held instead, and revealed with the right contents.
-     */
+    /** Writes one slot. Every drawing path goes through here. */
     private void put(int slot, ItemStack item) {
-        if (isAnimating() && hidden.containsKey(slot)) {
-            if (item == null) {
-                // Emptied rather than replaced. Dropping it from the pending
-                // set is what makes it stay empty: a null left in there would
-                // be skipped on reveal and the old item would come back.
-                hidden.remove(slot);
-                inventory.setItem(slot, null);
-                return;
-            }
-            hidden.put(slot, item);
-            return;
-        }
         inventory.setItem(slot, item);
-    }
-
-    /**
-     * Returns whether an animation is still hiding part of the menu.
-     *
-     * <p>Anything that redraws asks first, because writing into a slot the
-     * animation still holds would be undone the moment it got there.
-     */
-    private boolean isAnimating() {
-        return animation != null;
     }
 
     /**

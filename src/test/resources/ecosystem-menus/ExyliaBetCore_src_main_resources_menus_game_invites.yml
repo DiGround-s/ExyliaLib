@@ -3,7 +3,6 @@
 title: '{primary}&lCHALLENGES {muted}%challenge_count% waiting'
 size: 45
 type: MULTI_PAGINATION
-animation: 'center_out'
 
 open_sounds:
   - 'ENTITY_EXPERIENCE_ORB_PICKUP|1.0|1.2'

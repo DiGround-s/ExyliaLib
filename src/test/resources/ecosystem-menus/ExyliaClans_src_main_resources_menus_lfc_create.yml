@@ -1,7 +1,6 @@
 title: "{primary}&lMY APPLICATION"
 size: 54
 type: PAGINATION
-animation: "center_out"
 refresh:
   mode: ON_CLICK
   click_delay: 4

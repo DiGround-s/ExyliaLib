@@ -259,14 +259,6 @@ public final class MenuRuntime {
         OPEN.put(viewer.getUniqueId(), session);
         play(viewer, definition.sounds().open());
 
-        List<List<Integer>> frames =
-                OpenAnimation.frames(definition.openAnimation(), definition.size());
-        // One frame is not an animation, and no frames means the file asked for
-        // a shape nobody implemented. Either way the menu is already drawn.
-        if (frames.size() > 1) {
-            session.animate(frames, definition.openAnimation().speed());
-        }
-
         session.startRefreshing();
         runOpenActions(session, viewer, definition);
         return session;
@@ -469,22 +461,22 @@ public final class MenuRuntime {
         Tasks.of(plugin).runAtEntity(viewer, action);
     }
 
+    /** Runs something once, later, beside a player. */
+    net.exylia.lib.task.TaskHandle later(Player viewer, long delay, Runnable work) {
+        return Tasks.of(plugin).runAtEntityLater(viewer, delay, work);
+    }
+
     /**
      * Runs something repeatedly beside a player.
      *
-     * <p>An entity timer, so it stops on its own when the player leaves — an
-     * animation revealing a menu nobody is looking at has nothing to reveal.
+     * <p>An entity timer, so it stops on its own when the player leaves — a
+     * refresh redrawing a menu nobody is looking at has nothing to redraw.
      *
      * @param viewer who it belongs to
      * @param period ticks between runs
      * @param work   what to do, given its own handle so it can stop
      * @return the handle
      */
-    /** Runs something once, later, beside a player. */
-    net.exylia.lib.task.TaskHandle later(Player viewer, long delay, Runnable work) {
-        return Tasks.of(plugin).runAtEntityLater(viewer, delay, work);
-    }
-
     net.exylia.lib.task.TaskHandle tick(Player viewer, long period,
                                         java.util.function.Consumer<net.exylia.lib.task.TaskHandle> work) {
         return Tasks.of(plugin).runAtEntityTimer(viewer, period, period, work);

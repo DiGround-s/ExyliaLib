@@ -3,7 +3,6 @@
 title: '{primary}&lRECORD {muted}— %subject%'
 size: 54
 type: MULTI_PAGINATION
-animation: 'center_out'
 
 open_sounds:
   - 'ENTITY_EXPERIENCE_ORB_PICKUP|1.0|1.2'

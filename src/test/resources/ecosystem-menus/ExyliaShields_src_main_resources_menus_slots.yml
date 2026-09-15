@@ -7,7 +7,6 @@ config:
 title: "{primary}&lMY SHIELDS {muted}%current_page%/%total_pages%"
 size: 54
 type: PAGINATION
-animation: "center_out"
 
 open_sounds:
   - "ENTITY_EXPERIENCE_ORB_PICKUP|1.0|1.2"

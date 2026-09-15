@@ -1,7 +1,6 @@
 title: "{primary}&lSTATS {muted}| {highlight}%player_name%"
 size: 54
 type: PAGINATION
-animation: "center_out"
 
 open_sounds:
   - "ENTITY_EXPERIENCE_ORB_PICKUP|1.0|1.2"

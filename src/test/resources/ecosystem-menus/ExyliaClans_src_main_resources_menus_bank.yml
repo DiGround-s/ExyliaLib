@@ -1,7 +1,6 @@
 title: "{primary}&lCLAN BANK {muted}· {highlight}%clan_name%"
 size: 27
 type: SIMPLE
-animation: "center_out"
 refresh:
   mode: SMART
   interval: 20

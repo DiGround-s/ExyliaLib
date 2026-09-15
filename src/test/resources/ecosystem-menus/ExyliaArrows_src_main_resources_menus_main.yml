@@ -4,7 +4,6 @@ type: MULTI_PAGINATION
 refresh:
   mode: ON_CLICK
   click_delay: 4
-animation: "center_out"
 
 open_sounds:
   - "ENTITY_ARROW_SHOOT|1.0|2.0"

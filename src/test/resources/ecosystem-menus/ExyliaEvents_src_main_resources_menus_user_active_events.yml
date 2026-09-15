@@ -1,7 +1,6 @@
 title: "{primary}&lACTIVE EVENTS {muted}%current_page%/%total_pages%"
 size: 27
 type: PAGINATION
-animation: "center_out"
 refresh:
   mode: SMART
   interval: 20

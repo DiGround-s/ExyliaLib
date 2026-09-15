@@ -1,7 +1,6 @@
 title: "{primary}&l%member_name%"
 size: 27
 type: SIMPLE
-animation: "center_out"
 
 open_sounds:
   - "ENTITY_EXPERIENCE_ORB_PICKUP|1.0|1.2"

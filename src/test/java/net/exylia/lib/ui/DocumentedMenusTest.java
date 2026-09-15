@@ -185,26 +185,6 @@ class DocumentedMenusTest {
     }
 
     @Test
-    @DisplayName("both animation forms in the doc are read")
-    void animations() {
-        assertEquals("center_out", load("""
-                title: "Menu"
-                size: 27
-                animation: center_out
-                """).openAnimation().type());
-
-        UiAnimationSpec longForm = load("""
-                title: "Menu"
-                size: 27
-                animation:
-                  type: rows_alternate
-                  speed: 3
-                """).openAnimation();
-        assertEquals("rows_alternate", longForm.type());
-        assertEquals(3, longForm.speed());
-    }
-
-    @Test
     @DisplayName("a condition on a slot is read")
     void conditions() {
         UiDefinition menu = load("""

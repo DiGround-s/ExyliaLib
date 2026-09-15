@@ -76,7 +76,6 @@ class EcosystemMenusTest {
         List<String> deadButtons = new ArrayList<>();
         int paginated = 0;
         int multiSection = 0;
-        int animated = 0;
         int refreshing = 0;
         int sounded = 0;
         int emptyListFiller = 0;
@@ -98,9 +97,6 @@ class EcosystemMenusTest {
                 }
                 if (menu.sections().size() > 1) {
                     multiSection++;
-                }
-                if (menu.openAnimation() != null) {
-                    animated++;
                 }
                 if (menu.refresh().mode() != UiRefresh.Mode.DISABLED) {
                     refreshing++;
@@ -131,7 +127,6 @@ class EcosystemMenusTest {
         // exactly how flags went unparsed in commons for years.
         assertTrue(paginated >= 145, "menus with a list: " + paginated);
         assertTrue(multiSection >= 12, "menus with several lists: " + multiSection);
-        assertTrue(animated >= 62, "menus with an open animation: " + animated);
         assertTrue(refreshing >= 122, "menus that redraw themselves: " + refreshing);
         assertTrue(sounded >= 255, "menus with their own open sound: " + sounded);
         assertTrue(emptyListFiller >= 127, "menus that say why a list is empty: " + emptyListFiller);

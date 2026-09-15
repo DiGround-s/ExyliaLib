@@ -464,7 +464,7 @@ whatever they have open.
   **the thing it is about**.
 - **`UiItem` composes an `Item`.** Appearance belongs to the `item` module, which
   four plugins use without opening a single GUI. Only what means something
-  exclusively on a screen lives here: clicks, condition, dependencies, animation.
+  exclusively on a screen lives here: clicks, condition, dependencies.
 - **Sections are first class.** A menu can have several paginated lists at once
   (13 real files do). A `pagination` block is read as a section called `main`, so
   the 153 single-list files never notice.
@@ -539,10 +539,6 @@ whatever they have open.
 - **`refresh: SMART` redraws only what can change.** A timer repainting static
   decoration is packets for an identical item. The timer only starts if there is
   something that can change, and it dies with the player.
-- **The animation draws first and hides afterwards.** Everything is registered
-  before it starts, so a click on a slot that isn't visible yet still works. The
-  other way round would be a window whose buttons silently do nothing. A click
-  skips the rest.
 - **The three fillers are three different things.** `global` is background;
   `pagination` is what someone with an empty list sees and **usually says why**;
   `custom` are panels with their own slots. Treating the second as background
@@ -1536,7 +1532,7 @@ Code root: `src/main/java/net/exylia/lib/`. Test root:
 | item | `item/Items`, `PluginItems`, `Item`, `Source`, `Appearance`, `Traits`, `Potion`, `Trim`, `Banner`, `Consumable`, `Modifier`, `Problems` | `item/internal/` | [docs/items.md](docs/items.md) | 1.22.0 |
 | values on a live item | `item/ItemValues`, `PluginItems.values()` | — | [docs/items.md](docs/items.md) | 1.63.0 |
 | util (expressions) | `util/Expressions` | — | [docs/util.md](docs/util.md) | 1.63.0 |
-| ui | `ui/Menus`, `PluginMenus`, `UiSession`, `UiDefinition`, `UiSection`, `UiEntry`, `UiItem`, `UiKeys`, `UiFillers`, `UiRefresh`, `UiSounds`, `UiAnimationSpec`, `ClickBindings`, `ClickKind`, `ClickPolicy`, `Pages`, `Slots` | `ui/internal/` | [docs/menus.md](docs/menus.md) | 1.22.0 |
+| ui | `ui/Menus`, `PluginMenus`, `UiSession`, `UiDefinition`, `UiSection`, `UiEntry`, `UiItem`, `UiKeys`, `UiFillers`, `UiRefresh`, `UiSounds`, `ClickBindings`, `ClickKind`, `ClickPolicy`, `Pages`, `Slots` | `ui/internal/` | [docs/menus.md](docs/menus.md) | 1.22.0 |
 | formatted row values | `ui/UiEntry.Builder.withFormatted`; `item/PluginItems.render(item, viewer, values, formatted)` | `item/internal/ItemRenderer.text` | [docs/menus.md](docs/menus.md), [docs/items.md](docs/items.md) | 1.28.0 |
 | small text | `small-text` in `internal/LibrarySettings`; measuring in `text/Centering` | `text/internal/SmallText`, `TextEngine.smallText` | [docs/text.md](docs/text.md) | 1.29.0 |
 | util (sequence) | `util/sequence/Sequences`, `PluginSequences`, `Sequence`, `SequenceTarget`, `SequenceRun`, `SequenceStep`, `Shape` | `util/sequence/internal/` | [docs/sequences.md](docs/sequences.md) | 1.30.0 |

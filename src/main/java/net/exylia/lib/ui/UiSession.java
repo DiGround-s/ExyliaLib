@@ -260,7 +260,7 @@ public interface UiSession {
     /**
      * Registers something to cancel when this menu closes.
      *
-     * <p>A delayed action sequence started by a button, an animation, a
+     * <p>A delayed action sequence started by a button, a
      * pending lookup: without this they outlive the screen and run against a
      * menu nobody is looking at.
      *

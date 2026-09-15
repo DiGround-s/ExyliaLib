@@ -21,11 +21,6 @@ import java.util.function.Predicate;
  * {@link Item} is: a definition is shared by every player looking at the menu,
  * and turning it into an item is per-viewer work done at render time.
  *
- * <p>There is deliberately no per-slot animation. The field existed, no file in
- * the ecosystem has ever written one, and an animation nobody can trigger is
- * worse than none: it reads as supported. A menu animates when it opens, which
- * is what {@code animation} at the root means.
- *
  * @param item         what to draw
  * @param bindings     what each kind of click does
  * @param condition    whether this slot is shown at all, or {@code null} for always

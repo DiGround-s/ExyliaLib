@@ -1,7 +1,6 @@
 title: "{primary}&lSELECT MATERIAL"
 size: 54
 type: PAGINATION
-animation: "rows_alternate"
 
 open_sounds:
   - "ENTITY_ARROW_SHOOT|1.0|2.0"

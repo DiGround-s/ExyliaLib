@@ -426,43 +426,6 @@ class MenuLoaderTest {
     }
 
     @Test
-    @DisplayName("an animation is a name, or a name with a speed")
-    void animations() {
-        // Every one of the 89 animated menus in the wild writes the short form.
-        UiDefinition shortForm = load("""
-                title: "Menu"
-                size: 27
-                animation: center_out
-                """);
-        assertEquals("center_out", shortForm.openAnimation().type());
-        assertEquals(2, shortForm.openAnimation().speed(), "a sensible default pace");
-
-        UiDefinition longForm = load("""
-                title: "Menu"
-                size: 27
-                animation:
-                  type: rows_alternate
-                  speed: 3
-                """);
-        assertEquals("rows_alternate", longForm.openAnimation().type());
-        assertEquals(3, longForm.openAnimation().speed());
-    }
-
-    @Test
-    @DisplayName("a speed of zero would be a frame every tick, not a stalled menu")
-    void animationSpeedIsAtLeastOne() {
-        UiDefinition menu = load("""
-                title: "Menu"
-                size: 27
-                animation:
-                  type: center_out
-                  speed: 0
-                """);
-
-        assertEquals(1, menu.openAnimation().speed());
-    }
-
-    @Test
     @DisplayName("a mistyped action is a dead button and a reported problem, not a dead menu")
     void unknownActionsAreReportedButDoNotStopTheMenu() {
         List<String> problems = new ArrayList<>();

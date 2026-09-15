@@ -1,7 +1,6 @@
 title: "{primary}&lRANK UP {muted}%current_page%/%total_pages%"
 size: 54
 type: PAGINATION
-animation: "center_out"
 refresh:
   mode: SMART
   interval: 20

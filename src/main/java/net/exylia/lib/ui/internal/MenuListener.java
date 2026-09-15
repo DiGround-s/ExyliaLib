@@ -81,10 +81,6 @@ public final class MenuListener implements Listener {
             return;
         }
 
-        // They are interacting, so they have stopped watching. Waiting for a
-        // button to finish appearing is the complaint every animated menu earns.
-        session.skipAnimation();
-
         Rendered rendered = session.renderedAt(slot);
         if (rendered == null || rendered.item() == null) {
             return;

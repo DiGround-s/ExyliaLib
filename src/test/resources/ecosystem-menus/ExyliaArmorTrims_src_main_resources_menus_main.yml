@@ -1,6 +1,5 @@
 title: "{primary}&lCUSTOMIZE ARMOR"
 size: 27
-animation: "rows_alternate"
 
 open_sounds:
   - "ENTITY_ARROW_SHOOT|1.0|2.0"

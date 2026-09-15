@@ -28,7 +28,6 @@ public record UiDefinition(
         @NotNull List<Integer> inputSlots,
         @NotNull UiSounds sounds,
         @NotNull UiRefresh refresh,
-        @Nullable UiAnimationSpec openAnimation,
         @NotNull List<String> openActions,
         @NotNull List<String> closeActions,
         @Nullable String parent) {
@@ -241,7 +240,7 @@ public record UiDefinition(
 
     /** Returns whether anything in this menu can change while it is open. */
     public boolean isDynamic() {
-        if (isPaginated() || openAnimation != null || title.indexOf('%') >= 0) {
+        if (isPaginated() || title.indexOf('%') >= 0) {
             return true;
         }
         for (UiItem item : items.values()) {

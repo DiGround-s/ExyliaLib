@@ -4,7 +4,6 @@ import net.exylia.lib.action.ActionTemplate;
 import net.exylia.lib.item.Items;
 import net.exylia.lib.ui.ClickBindings;
 import net.exylia.lib.ui.Slots;
-import net.exylia.lib.ui.UiAnimationSpec;
 import net.exylia.lib.ui.UiDefinition;
 import net.exylia.lib.ui.UiItem;
 import net.exylia.lib.ui.UiFillers;
@@ -163,7 +162,7 @@ public final class MenuLoader {
                 : UiRefresh.of(values(refreshSection));
 
         return new UiDefinition(id, title, kind, size, items, fillers, sections, inputSlots,
-                sounds, refresh, animation(config, "animation", binder.problems()),
+                sounds, refresh,
                 config.getStringList("open-actions"),
                 config.getStringList("close-actions"),
                 config.getString("parent"));
@@ -613,44 +612,6 @@ public final class MenuLoader {
         }
         return new UiSection.Placed(slot,
                 new UiItem(item.item(), paging, item.condition(), item.dependencies()));
-    }
-
-    private static UiAnimationSpec animation(ConfigurationSection section, String key,
-                                             Problems problems) {
-        if (!section.contains(key)) {
-            return null;
-        }
-        UiAnimationSpec spec;
-        if (section.isString(key)) {
-            spec = UiAnimationSpec.of(section.getString(key, "none"));
-        } else {
-            ConfigurationSection animation = section.getConfigurationSection(key);
-            if (animation == null) {
-                return null;
-            }
-            // The old format wrote the open animation under "open".
-            spec = animation.contains("open") && !animation.contains("type")
-                    ? UiAnimationSpec.of(animation.getString("open", "none"))
-                    : UiAnimationSpec.of(values(animation));
-        }
-        return checked(spec, problems);
-    }
-
-    /**
-     * Reports an animation name nothing can draw.
-     *
-     * <p>Worth saying out loud: a misspelt name is indistinguishable from a
-     * menu that simply appears, so without this an admin would be left
-     * wondering why their animation does nothing. The menu still loads — an
-     * animation is decoration.
-     */
-    private static UiAnimationSpec checked(UiAnimationSpec spec, Problems problems) {
-        if (!OpenAnimation.isKnown(spec.type())) {
-            problems.found("animation", "Unknown animation \"" + spec.type()
-                    + "\"; the menu will appear at once. Known: "
-                    + String.join(", ", new java.util.TreeSet<>(OpenAnimation.known())));
-        }
-        return spec;
     }
 
     private static Map<String, Object> values(ConfigurationSection section) {
