@@ -27,13 +27,7 @@ import java.util.Map;
  *
  * <p>A plugin never writes an expansion by hand. Registering a placeholder with
  * ExyliaLib is enough for it to appear in PlaceholderAPI under the plugin's own
- * identifier.
- *
- * <p>The identifier is the plugin's name unless it asked for another one with
- * {@code Placeholders.identifier}, which builds a second expansion over the
- * same registrations: {@code %practice_stats_kills%} and
- * {@code %exyliapracticecore_stats_kills%} are then two ways to write one
- * placeholder, and the long one keeps working for configs that already use it.
+ * identifier, its name in lower case. There is no other identifier.
  */
 final class PapiExpansion extends PlaceholderExpansion implements Relational {
 
@@ -62,14 +56,10 @@ final class PapiExpansion extends PlaceholderExpansion implements Relational {
             .expireAfterAccess(Duration.ofMinutes(10))
             .build();
 
-    PapiExpansion(Plugin plugin) {
-        this(plugin, plugin.getName().toLowerCase(Locale.ROOT));
-    }
-
     @SuppressWarnings("deprecation") // getDescription() is the portable one; see below.
-    PapiExpansion(Plugin plugin, String identifier) {
+    PapiExpansion(Plugin plugin) {
         this.owner = plugin.getName();
-        this.identifier = identifier.toLowerCase(Locale.ROOT);
+        this.identifier = plugin.getName().toLowerCase(Locale.ROOT);
         // Paper prefers getPluginMeta(), which does not exist on Spigot. The
         // deprecated call is the one that works on every platform.
         List<String> authors = plugin.getDescription().getAuthors();
@@ -77,9 +67,9 @@ final class PapiExpansion extends PlaceholderExpansion implements Relational {
         this.version = plugin.getDescription().getVersion();
     }
 
-    /** Builds and registers an expansion for a plugin, under one identifier. */
-    static Object create(Plugin plugin, String identifier) {
-        PapiExpansion expansion = new PapiExpansion(plugin, identifier);
+    /** Builds and registers the expansion of a plugin. */
+    static Object create(Plugin plugin) {
+        PapiExpansion expansion = new PapiExpansion(plugin);
         expansion.register();
         return expansion;
     }

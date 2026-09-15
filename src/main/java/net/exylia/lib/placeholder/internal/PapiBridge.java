@@ -6,9 +6,7 @@ import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
 
-import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
@@ -35,14 +33,10 @@ import java.util.logging.Level;
 public final class PapiBridge {
 
     /**
-     * The expansions of one plugin, by identifier, so unloading one plugin does
-     * not affect others and a plugin that asked for a second identifier gets a
-     * second expansion rather than losing its first.
+     * The expansion of each plugin, by plugin name, so unloading one plugin does
+     * not affect others. The identifier is always the plugin's own name.
      */
-    private static final Map<String, Map<String, Object>> EXPANSIONS = new ConcurrentHashMap<>();
-
-    /** The identifiers a plugin asked to answer under, on top of its own name. */
-    private static final Map<String, Set<String>> ALIASES = new ConcurrentHashMap<>();
+    private static final Map<String, Object> EXPANSIONS = new ConcurrentHashMap<>();
 
     /** The last value PlaceholderAPI gave for a piece of text, per player. */
     private static final Map<UUID, Map<String, String>> VALUES = new ConcurrentHashMap<>();
@@ -126,37 +120,7 @@ public final class PapiBridge {
         if (!available()) {
             return;
         }
-        Map<String, Object> expansions =
-                EXPANSIONS.computeIfAbsent(plugin.getName(), name -> new ConcurrentHashMap<>());
-        for (String identifier : identifiers(plugin)) {
-            expansions.computeIfAbsent(identifier, id -> PapiExpansion.create(plugin, id));
-        }
-    }
-
-    /**
-     * Publishes a plugin's placeholders under a second identifier as well.
-     *
-     * <p>Recorded whether or not PlaceholderAPI is installed, so a plugin that
-     * asks for its identifier while loading still gets it once the bridge comes
-     * up. The plugin's own name keeps answering: an identifier is added, never
-     * replaced, because the configs already written against the long name are
-     * not this call's to break.
-     *
-     * @param plugin     the plugin whose placeholders should also be visible
-     * @param identifier the extra identifier, such as {@code practice}
-     */
-    public static void alias(Plugin plugin, String identifier) {
-        ALIASES.computeIfAbsent(plugin.getName(), name -> ConcurrentHashMap.newKeySet())
-                .add(identifier.toLowerCase(Locale.ROOT));
-        refresh(plugin);
-    }
-
-    /** Every identifier a plugin answers under: its own name, then its aliases. */
-    private static Set<String> identifiers(Plugin plugin) {
-        Set<String> identifiers = new LinkedHashSet<>();
-        identifiers.add(plugin.getName().toLowerCase(Locale.ROOT));
-        identifiers.addAll(ALIASES.getOrDefault(plugin.getName(), Set.of()));
-        return identifiers;
+        EXPANSIONS.computeIfAbsent(plugin.getName(), name -> PapiExpansion.create(plugin));
     }
 
     /**
@@ -292,7 +256,6 @@ public final class PapiBridge {
         available = false;
         refresher = null;
         EXPANSIONS.clear();
-        ALIASES.clear();
         WANTED.clear();
         VALUES.clear();
         FAILURE_REPORTED.set(false);
@@ -306,25 +269,21 @@ public final class PapiBridge {
      * per-expansion caches that one does not cover.
      */
     public static void invalidateCompiled() {
-        EXPANSIONS.values().forEach(expansions ->
-                expansions.values().forEach(PapiExpansion::invalidate));
+        EXPANSIONS.values().forEach(PapiExpansion::invalidate);
     }
 
-    /** Removes a plugin's expansions, under every identifier it answered as. */
+    /** Removes a plugin's expansion. */
     public static void release(String pluginName) {
-        Map<String, Object> expansions = EXPANSIONS.remove(pluginName);
-        if (expansions != null) {
-            expansions.values().forEach(PapiExpansion::unregister);
+        Object expansion = EXPANSIONS.remove(pluginName);
+        if (expansion != null) {
+            PapiExpansion.unregister(expansion);
         }
-        ALIASES.remove(pluginName);
     }
 
     /** Removes every expansion and stops the refreshing pass. */
     public static void releaseAll() {
-        EXPANSIONS.values().forEach(expansions ->
-                expansions.values().forEach(PapiExpansion::unregister));
+        EXPANSIONS.values().forEach(PapiExpansion::unregister);
         EXPANSIONS.clear();
-        ALIASES.clear();
         stopRefreshing();
     }
 }
