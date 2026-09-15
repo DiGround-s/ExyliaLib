@@ -248,8 +248,6 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         // Starts only the database lifecycle. Each consumer loads database.yml
         // when it asks for its view, and opens lazily on its first repository.
         Databases.init(this);
-        // Balances of whatever currencies turn up; the library keeps none itself.
-        net.exylia.lib.economy.internal.EconomyPlaceholders.register(this);
         // The proxy bridge, over the Redis this plugin's own database.yml
         // names. After the database module, which is what reads that file.
         net.exylia.lib.proxy.internal.ProxyRuntime.init(this);

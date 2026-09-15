@@ -657,6 +657,6 @@ lists the balance once.
 
 ### Placeholders
 
-`%economy_balance%`, `%economy_balance_<currency>%`, `%economy_compact_<currency>%`,
-`%economy_raw_<currency>%`, `%economy_name_<currency>%`, `%economy_symbol_<currency>%`.
-All read memory; none touch the database on the thread that asked.
+The library registers none. The plugin that keeps the currencies owns
+`%economy_...%` (balances, names, symbols, leaderboards), so PlaceholderAPI
+answers them under that plugin's identifier.
