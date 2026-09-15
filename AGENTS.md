@@ -1590,6 +1590,12 @@ Code root: `src/main/java/net/exylia/lib/`. Test root:
 | normalized time: `FULL` rolls up to days, and the parser reads back everything that is written (`ms w mo y` and decimals) | `util/TimeFormats.Style.FULL`; `input/InputParser.duration()` | — | [docs/util.md](docs/util.md), [docs/input.md](docs/input.md) | 1.87.0 |
 | editable bundled files: installed, new keys added, changed defaults reviewed (`.defaults/files/`) | `config/BundledFiles.refresh`, `ui/PluginMenus.refreshVersionedDirectory` | `config/internal/` (`BundledResources`, `DefaultsMerge`) | [docs/config.md](docs/config.md), [docs/menus.md](docs/menus.md) | 1.158.0 |
 | default changes: configs add new keys, changed defaults wait for `/exylialib updates` (apply/keep, join notice for `exylialib.updates`) | `internal/ReloadCommand.updates`, `reload/Reloads.declared` | `config/internal/DefaultUpdates`, `ConfigFileImpl.followDefaults` (`.defaults/configs/`) | [docs/config.md](docs/config.md) | 1.158.0 |
+| atomic writes: counter increment and compare-and-set | `database/Repository.increment`, `updateIf` | `Storage.increment`/`updateIf` (`SqlBackend`: UPDATE then INSERT, SQLSTATE 23 adds to the winner; `MongoBackend`: `$inc` + `$setOnInsert`), `GatedStorage`, `redis/internal/CachedStorage` | [docs/database.md](docs/database.md) | 1.163.0 |
+| cross-server lease locks | `database/RowLocks` | `database/internal/LockRow` (`exylia_row_locks`) | [docs/database.md](docs/database.md) | 1.163.0 |
+| an answer back on the player's thread | `input/PluginInputs.answered` | — | [docs/input.md](docs/input.md) | 1.163.0 |
+| compound durations in `Ticks.parse` | `effect/Ticks.parse` (falls through to `InputParser.duration()`) | — | [docs/effects.md](docs/effects.md) | 1.163.0 |
+| persistent placed-block record | `block/PlacedBlocks` | `block/internal/PlacedBlockTracker` (chunk PDC `exylialib:placed_blocks`) | [docs/blocks.md](docs/blocks.md) | 1.163.0 |
+| item and experience currencies | `economy/ItemCurrency`, `ExperienceCurrency` | `economy/internal/PlayerThreadBalances` | [docs/economy.md](docs/economy.md) | 1.163.0 |
 
 Root classes that are not a module: `ExyliaLib.java` (lifecycle and cleanup),
 `platform/Platform.java`, `internal/LibrarySettings`, `internal/ExyliaLibUpdater`.
@@ -1621,6 +1627,7 @@ They are package-private on purpose; the tests live in the same package:
 | `region/internal/SelectionRuntime` | `installWand/resetWand` (how the selector reaches the player: building an `ItemStack` resolves the item registry, which no test environment has) |
 | `util/loot/internal/LootRolls` | `Dice` (the dice: roll, range and shuffle). The rest of the module decides over strings and numbers, so with this seam all the logic of a loot table is tested without randomness |
 | `util/loot/internal/LootItems` | the interface that builds the `ItemStack` — the only part of the module that needs a server; a double replaces it and the whole written grammar is tested without a registry |
+| `database/RowLocks` | `delayForTests` (the retry wait: the fake server only runs delayed tasks on a tick), `queuedKeys` (the per-key queue must empty) |
 | shared tests | `src/test/java/net/exylia/lib/FakeServer.java`, `FakePlayer.java`, `debug/DebugCapture.java`; `FakeServer.runAsyncForReal()` runs the async work on a real thread |
 
 **Fakes are not free, and a benchmark that calls them measures itself.**

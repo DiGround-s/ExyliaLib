@@ -576,6 +576,60 @@ public final class MongoBackend implements AutoCloseable {
     }
 
     /**
+     * Adds to one field with {@code $inc}, inserting the rest with
+     * {@code $setOnInsert} when the document is missing.
+     *
+     * <p>One atomic document update. Two upserts racing for a document that
+     * does not exist yet can both try to insert it; the loser is refused with a
+     * duplicate key and adds to the winner's document instead.
+     *
+     * @param model    the record model
+     * @param instance the document to create, carrying the amount in {@code column}
+     * @param column   the field added to
+     * @param <T>      the record type
+     * @since 1.163.0
+     */
+    public <T> void increment(@NotNull EntityModel<T> model, @NotNull T instance, @NotNull ColumnModel column) {
+        Document document = document(MongoDocuments.toDocument(model, instance));
+        Object id = document.remove(MongoDocuments.ID_FIELD);
+        String field = MongoDocuments.fieldOf(column);
+        Document add = new Document("$inc", new Document(field, document.remove(field)));
+        Document upsert = new Document(add);
+        if (!document.isEmpty()) {
+            upsert.append("$setOnInsert", document);
+        }
+        try {
+            collection(model).updateOne(Filters.eq(MongoDocuments.ID_FIELD, id), upsert,
+                    new UpdateOptions().upsert(true));
+        } catch (com.mongodb.MongoWriteException raced) {
+            if (raced.getError().getCategory() != com.mongodb.ErrorCategory.DUPLICATE_KEY) {
+                throw raced;
+            }
+            collection(model).updateOne(Filters.eq(MongoDocuments.ID_FIELD, id), add);
+        }
+    }
+
+    /**
+     * Replaces a document only while one field still holds a value.
+     *
+     * @param model    the record model
+     * @param instance the record to write
+     * @param column   the compared field
+     * @param expected the value it must hold, in record form
+     * @param <T>      the record type
+     * @return whether a document matched
+     * @since 1.163.0
+     */
+    public <T> boolean updateIf(@NotNull EntityModel<T> model, @NotNull T instance,
+                                @NotNull ColumnModel column, @Nullable Object expected) {
+        Document document = document(MongoDocuments.toDocument(model, instance));
+        Document filter = document(MongoDocuments.filter(model,
+                List.of(model.id().name(), column.name()),
+                java.util.Arrays.asList(model.id().decode(model.idOf(instance)), expected)));
+        return collection(model).replaceOne(filter, document).getMatchedCount() > 0;
+    }
+
+    /**
      * Inserts a record under a key this backend hands out, and returns it.
      *
      * <p>MongoDB has no counter of its own, so one is kept in a collection of

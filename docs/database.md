@@ -117,6 +117,70 @@ Commons buffered writes for thirty seconds by default, so a crash discarded half
 a minute of every player's progress on the whole server. Ignore the future if
 you do not care; wait for it before telling a player their purchase worked.
 
+### Counters and claims several servers write (since 1.163.0)
+
+A `find`, a change in memory and a `save` lose whichever of two servers writes
+first. These two do the arithmetic and the check inside the database:
+
+```java
+// one more kill, from any server; creates the row the first time
+kills.increment(new PlayerKills(uuid, 1), "kills");
+
+// claimed only if still unclaimed: exactly one caller is answered true
+votes.updateIf(vote.withClaimed(true), "claimed", false).thenAccept(won -> {
+    if (won) pay(player);
+});
+```
+
+- **`increment(row, column)`** adds the row's value of an `int` or `long` column
+  to the stored one, and stores the row as it is when there is none. The other
+  columns of an existing row are not touched. A generated key is refused: there
+  is no key to create the row under.
+- **`updateIf(row, column, expected)`** writes the whole row only while `column`
+  still holds `expected` (`null` compares as absent), and answers whether it
+  did. It never creates a row. Compare something exact — a number, a bounded
+  string, a boolean, a UUID.
+- **One statement on every engine.** SQL runs `UPDATE ... SET c = c + ?` under
+  the row lock and inserts on a miss; an insert that loses to another server
+  adds to the winner's row. The condition of `updateIf` sits in the `UPDATE`'s
+  `WHERE`. Mongo uses `$inc` with `$setOnInsert`, and `replaceOne` with the
+  condition in its filter.
+- **The cache follows.** An increment drops the cached row, a won `updateIf`
+  caches the row it wrote, and a lost one drops the stale copy it most likely
+  compared against.
+
+### Locks across servers (since 1.163.0)
+
+`RowLocks` holds a key for one server at a time, and a crash cannot leave it held:
+
+```java
+RowLocks locks = RowLocks.of(database, "auctions");
+
+locks.hold(auction.id(), () -> auctions.find(auction.id()).thenCompose(this::bid))
+     .thenAccept(done -> { if (done.isEmpty()) busy(player); });
+```
+
+- **`hold(key, work)`** takes the lock, runs the work and gives the lock back
+  however the work ends, a failed future or a thrown exception included. It
+  answers what the work answered, or empty without running it when another
+  server held the key for every attempt — 12 tries 150ms apart by default,
+  `attempts(n, retry)`.
+- **A lock is a lease**: one row in `exylia_row_locks` holding `namespace:key`,
+  the holder, an expiry and a version. Taking and giving back are an `updateIf`
+  on the version. A holder that crashed lets its lease run out — 30 seconds by
+  default, `lease(duration)` — and the next caller takes it over. A missing row
+  is created with a zero `increment`, so a restarting server never overwrites a
+  lock another server holds.
+- **The lease is a promise about time.** Keep it well above the longest the
+  work takes plus the clock drift between servers, or a slow hold can be taken
+  over while it still runs.
+- Holds for the same key on one server queue behind each other before they
+  reach the database, and the queue is forgotten when it empties.
+- The work runs on the database callback thread; hop through `Tasks` before
+  touching the game.
+- `forget(key)` deletes the row — only from inside the last hold on something
+  that is gone for good.
+
 ## Keys the database hands out
 
 Most tables key a row by something it already is — a player's `UUID`, a kit's
@@ -529,7 +593,7 @@ in the block its `type` names, not in `mysql` regardless.
 
 | | |
 | --- | --- |
-| Public API | `database/Databases`, `PluginDatabase`, `Repository`, `Query`, `Table`, `Column`, `Id`, `Indexed`, `Index`, `Codec`, `DatabaseException`, `DatabaseSettings` |
-| Internal | `database/internal/EntityModel`, `ColumnModel`, `IndexModel`, `IndexCoverage`, `CodecRegistry`, `Codecs`, `Coercions`, `Storage`, `SqlStorage`, `MongoStorage`, `GatedStorage`, `SqlBackend`, `SqlSchema`, `SqlSettings`, `SchemaReport`, `Dialect`, `AnsiDialect`, `H2Dialect`, `MySQLDialect`, `MariaDBDialect`, `PostgresDialect`, `MongoBackend`, `MongoDocuments`, `DatabaseRuntime`, `TaskExecutor` |
+| Public API | `database/Databases`, `PluginDatabase`, `Repository`, `RowLocks`, `Query`, `Table`, `Column`, `Id`, `Indexed`, `Index`, `Codec`, `DatabaseException`, `DatabaseSettings` |
+| Internal | `database/internal/EntityModel`, `LockRow`, `ColumnModel`, `IndexModel`, `IndexCoverage`, `CodecRegistry`, `Codecs`, `Coercions`, `Storage`, `SqlStorage`, `MongoStorage`, `GatedStorage`, `SqlBackend`, `SqlSchema`, `SqlSettings`, `SchemaReport`, `Dialect`, `AnsiDialect`, `H2Dialect`, `MySQLDialect`, `MariaDBDialect`, `PostgresDialect`, `MongoBackend`, `MongoDocuments`, `DatabaseRuntime`, `TaskExecutor` |
 | Moving a database | `database/transfer/` — see [transfer.md](transfer.md) |
 | Lifecycle | `ExyliaLib` starts target management; each consumer loads `database.yml` on view creation and leases a target lazily |

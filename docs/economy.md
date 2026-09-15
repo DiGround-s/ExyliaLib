@@ -598,20 +598,52 @@ every scoreboard line went to the economy plugin.
 
 | | |
 | --- | --- |
-| Public API | `economy/Economy` (with `Economy.CurrencyView`), `CurrencyProvider`, `EconomyResponse`, `TransferResult`, `EconomySettings`, `EconomyException` |
-| Internal | `economy/internal/CurrencyRegistry`, `BalanceCache`, `VaultCurrency`, `PlayerPointsCurrency` |
+| Public API | `economy/Economy` (with `Economy.CurrencyView`), `CurrencyProvider`, `EconomyResponse`, `TransferResult`, `EconomySettings`, `EconomyException`, `ItemCurrency`, `ExperienceCurrency` |
+| Internal | `economy/internal/CurrencyRegistry`, `BalanceCache`, `VaultCurrency`, `PlayerPointsCurrency`, `PlayerThreadBalances` |
 | Lifecycle | `ExyliaLib` — `economy.yml` read, settings applied, providers detected at enable; re-applied on `/exylialib reload` |
-| Tests | `src/test/java/net/exylia/lib/economy/internal/` — `EconomyTest`, `PrecisionTest`, `EconomyFileTest` |
+| Tests | `src/test/java/net/exylia/lib/economy/internal/` — `EconomyTest`, `PrecisionTest`, `EconomyFileTest`; `economy/ExperienceCurrencyTest` |
 
 ---
 
 ## Currencies of your own
 
-The library talks to economies and keeps none. Stored currencies, item and
-experience currencies, `currencies.yml`, the ledger, leaderboards and a
-currency published to Vault are ExyliaSurvivalCore's `economy` module.
+The library talks to economies and keeps no balances. Stored currencies,
+`currencies.yml`, the ledger, leaderboards and a currency published to Vault
+are ExyliaSurvivalCore's `economy` module.
 
 What stays here is what every currency shares, whoever keeps it.
+
+### Items and experience (since 1.163.0)
+
+Two providers whose balance is on the player rather than in a table, built by
+the plugin that registers them:
+
+```java
+PluginRewards rewards = Rewards.of(this)
+        .overflow(OverflowPolicy.QUEUE)
+        .pending(PendingRewards.database(this));
+
+Economy.register(ItemCurrency.of(rewards, emeraldInfo, new ItemStack(Material.EMERALD)));
+Economy.register(ExperienceCurrency.levels(rewards));   // xp_levels
+Economy.register(ExperienceCurrency.points(rewards));   // xp_points
+```
+
+- **Only the player's thread touches them.** A balance asked anywhere else — an
+  async scoreboard, a database callback — answers the last count taken on the
+  player's thread and asks for a fresh one, at most one pending per player;
+  `balanceLater` waits for the fresh count. A withdraw off that thread is
+  refused.
+- **A deposit is a reward delivery, never an item on the ground.** On the
+  player's thread items go through `PluginRewards` under its overflow policy, so
+  `QUEUE` keeps what does not fit for the next join. Anywhere else the deposit
+  is scheduled on the player's thread, and a player who is not on this server,
+  or who leaves before it runs, is owed it through `giveLater`. Without a
+  pending store that deposit answers a failure rather than vanishing. Owed
+  levels are kept as the vanilla `xp add <name> <n> levels` command, because
+  what a level is worth depends on the level the player will be at.
+- Amounts are whole units: a fraction is dropped, and anything past
+  `Integer.MAX_VALUE` is an invalid amount. Two items are the same currency
+  when `ItemStack.isSimilar` says so.
 
 ### Transactions
 

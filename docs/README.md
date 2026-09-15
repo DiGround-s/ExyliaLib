@@ -25,9 +25,9 @@ against the source — rules and routes are in `AGENTS.md` under
 | [Items](items.md) | Items described in configuration — menu icons, special items, kits, shields — read once and drawn per player; values stored on live items since 1.63.0 | 1.22.0 |
 | [Menus](menus.md) | Menus written in configuration: paginated lists, reactive redrawing, clicks bound to actions | 1.22.0 |
 | [Regions](regions.md) | Areas of the world: shapes, an immutable spatial index, overlapping policies, enter/exit events, selection and outlines | 1.23.0 |
-| [Database](database.md) | Records stored in H2, MySQL, MariaDB, PostgreSQL or MongoDB — one pool for the server, no reflection per row, no blocking calls | 1.24.0 |
+| [Database](database.md) | Records stored in H2, MySQL, MariaDB, PostgreSQL or MongoDB — one pool for the server, no reflection per row, no blocking calls; atomic counters, compare-and-set and cross-server `RowLocks` since 1.163.0 | 1.24.0 |
 | [Formats](formats.md) | Numbers, money, percentages and dates a player reads — and amounts a player types, such as `10M` | 1.25.0 |
-| [Economy](economy.md) | Balances, charges and transfers over Vault, PlayerPoints or a currency you write — one economy choice for the whole server | 1.26.0 |
+| [Economy](economy.md) | Balances, charges and transfers over Vault, PlayerPoints or a currency you write — one economy choice for the whole server; item and experience currencies since 1.163.0 | 1.26.0 |
 | [Input](input.md) | Asking a player for something: text, numbers, amounts, choices, a searchable registry, or a whole form in one window | 1.31.0 |
 | [NPCs](npcs.md) | Player-shaped entities that exist only on a client — a body where somebody died, a statue, a double | 1.88.2 |
 | [Ragdolls](ragdolls.md) | Bodies that come apart into their own pieces, each one solved in advance and drawn by the client | 1.120.0 |
@@ -56,7 +56,7 @@ against the source — rules and routes are in `AGENTS.md` under
 | [Cleanup](cleanup.md) | The folders the server fills and never empties — old logs deleted on a timer | 1.90.0 |
 | [Heads](heads.md) | The decorative head catalogue, searchable from a menu — a page at a time, nothing downloaded | 1.82.0 |
 | [Metrics](metrics.md) | What the library reports to stats.exylia.net — server software, installed plugins, Exylia plugin setup and errors — how a plugin describes its setup, and how to turn it off | 1.160.0 (`Metrics.describe` 1.163.0) |
-| [Blocks](blocks.md) | Blocks in the world that answer clicks instead of behaving like their material — a crate, a shop, a warp pad — protected and registered by whoever placed them | 1.110.0 |
+| [Blocks](blocks.md) | Blocks in the world that answer clicks instead of behaving like their material — a crate, a shop, a warp pad — protected and registered by whoever placed them; whether a player placed a block (`PlacedBlocks`) since 1.163.0 | 1.110.0 |
 | [Public API](api.md) | The contract third-party plugins write against: one published artifact covering every Exylia plugin, reached through `ExyliaAPI` | 1.112.0 |
 Migration notes:
 

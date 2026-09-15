@@ -79,6 +79,12 @@ public final class Ticks {
      * are spelled {@code t} because that is the only unit the server counts in
      * exactly.
      *
+     * <p>Since 1.163.0 anything {@link net.exylia.lib.input.InputParser#duration()}
+     * reads is read too: days, weeks, months, years and several parts at once,
+     * {@code 7d12h30m}. A caller that must tell the owner <em>why</em> a value
+     * was refused asks that parser instead, which answers with the reason
+     * rather than a fallback.
+     *
      * @param text     the duration as written
      * @param fallback returned when the text cannot be read
      * @return the duration in ticks
@@ -104,7 +110,7 @@ public final class Ticks {
         try {
             value = Double.parseDouble(number);
         } catch (NumberFormatException ignored) {
-            return fallback;
+            return compound(trimmed, fallback);
         }
 
         return switch (unit) {
@@ -113,7 +119,14 @@ public final class Ticks {
             case "t", "tick", "ticks" -> Math.max(0, Math.round(value));
             case "m", "min", "mins", "minute", "minutes" -> fromSeconds(value * 60);
             case "h", "hour", "hours" -> fromSeconds(value * 3600);
-            default -> fallback;
+            default -> compound(trimmed, fallback);
         };
+    }
+
+    /** What the single-unit reading refused, through the one parser that reads every unit. */
+    private static long compound(String text, long fallback) {
+        return net.exylia.lib.input.InputParser.duration().parse(text).optional()
+                .map(duration -> fromMillis(duration.toMillis()))
+                .orElse(fallback);
     }
 }

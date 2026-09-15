@@ -200,6 +200,9 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         // Clickable blocks: dormant until a plugin registers one, and every
         // handler returns on an empty map lookup.
         getServer().getPluginManager().registerEvents(new BlockListener(), this);
+        // Placed-block record: one set lookup per block event until a plugin tracks a material.
+        getServer().getPluginManager().registerEvents(
+                new net.exylia.lib.block.internal.PlacedBlockTracker(this), this);
         getServer().getPluginManager().registerEvents(new HarmlessFireworks(), this);
         loadPalette();
         loadFormats();
@@ -856,6 +859,7 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         // A registration whose handler comes from a dying classloader must not
         // answer another click. The blocks themselves stay standing.
         Blocks.release(pluginName);
+        net.exylia.lib.block.PlacedBlocks.release(pluginName);
         // Before the task module: a pending warmup owns an entity timer
         // belonging to this plugin and must be cancelled before its scheduler
         // goes away.

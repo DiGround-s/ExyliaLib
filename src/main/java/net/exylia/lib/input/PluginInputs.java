@@ -1,11 +1,16 @@
 package net.exylia.lib.input;
 
+import net.exylia.lib.task.TaskScheduler;
+import net.exylia.lib.task.Tasks;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 import java.math.BigDecimal;
 import java.util.Collection;
+import java.util.concurrent.CompletionStage;
+import java.util.function.Consumer;
 
 /**
  * Builder factory bound to one plugin owner.
@@ -29,6 +34,43 @@ public final class PluginInputs {
     /** Returns the plugin that owns requests created by this view. */
     public @NotNull Plugin plugin() {
         return plugin;
+    }
+
+    /**
+     * Runs what to do with an answer on the player's own thread, and what to do
+     * when they backed out.
+     *
+     * <p>A request finishes on whichever thread its transport answered on, and
+     * the two things a caller does next — open a menu, edit what the player is
+     * holding — belong to the player's thread. {@code abandoned} runs only for
+     * {@link InputOutcome#CANCELLED}: the player chose to leave, so reopening
+     * the screen they came from is what they expect. A timeout, a disconnect,
+     * a newer request or a shutdown reopens nothing, because there is nobody
+     * waiting for it or something else already owns the screen.
+     *
+     * <pre>{@code
+     * inputs.answered(player, inputs.text(player, "Name the home").open(),
+     *         name -> homes.create(player, name),
+     *         () -> homesMenu.open(player));
+     * }</pre>
+     *
+     * @param player    who was asked
+     * @param asked     the request's {@code open()}
+     * @param accepted  runs with the answer, on the player's thread
+     * @param abandoned runs when the player cancelled, on the player's thread; may be {@code null}
+     * @param <T>       the type asked for
+     * @since 1.163.0
+     */
+    public <T> void answered(@NotNull Player player, @NotNull CompletionStage<InputResult<T>> asked,
+                             @NotNull Consumer<? super T> accepted, @Nullable Runnable abandoned) {
+        TaskScheduler tasks = Tasks.of(plugin);
+        asked.thenAccept(result -> result
+                .ifCompleted(value -> tasks.runAtEntity(player, () -> accepted.accept(value)))
+                .otherwise(outcome -> {
+                    if (abandoned != null && outcome == InputOutcome.CANCELLED) {
+                        tasks.runAtEntity(player, abandoned);
+                    }
+                }));
     }
 
     /** Starts a free-form text request. */

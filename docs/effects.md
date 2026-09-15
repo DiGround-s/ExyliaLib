@@ -94,7 +94,10 @@ Members: `advance(ticks)`, `extend(ticks)`, `remaining()`, `elapsed()`,
 
 `Ticks`: `MILLIS = 50`, `PER_SECOND = 20`, `fromSeconds(double)`,
 `toSeconds(long)`, `fromMillis`, `toMillis`, and `parse(text, fallback)`
-understanding `s`, `ms`, `t`, `m`, `h` suffixes.
+understanding `s`, `ms`, `t`, `m`, `h` suffixes and, since 1.163.0, everything
+`InputParser.duration()` reads: `2d`, `1w`, `7d12h30m`. A value that must be
+reported when it is wrong is read with `InputParser.duration().parse(text)`,
+whose `error()` says why.
 
 ## Playing and stopping
 

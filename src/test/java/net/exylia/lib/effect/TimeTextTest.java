@@ -99,6 +99,16 @@ class TimeTextTest {
     }
 
     @Test
+    @DisplayName("days, weeks and several parts at once are understood")
+    void compoundDurationsAreUnderstood() {
+        assertEquals(1_728_000, Ticks.parse("1d", -1));
+        assertEquals(24_192_000, Ticks.parse("2w", -1));
+        assertEquals(1800, Ticks.parse("90s", -1));
+        assertEquals(12_996_000, Ticks.parse("7d12h30m", -1));
+        assertEquals(-1, Ticks.parse("7d12x", -1));
+    }
+
+    @Test
     @DisplayName("nonsense falls back instead of throwing")
     void nonsenseFallsBack() {
         assertEquals(-1, Ticks.parse("soon", -1));

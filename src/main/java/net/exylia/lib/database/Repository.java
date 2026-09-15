@@ -1,5 +1,6 @@
 package net.exylia.lib.database;
 
+import net.exylia.lib.database.internal.ColumnModel;
 import net.exylia.lib.database.internal.EntityModel;
 import net.exylia.lib.database.internal.Storage;
 import org.jetbrains.annotations.ApiStatus;
@@ -406,6 +407,101 @@ public final class Repository<T> {
             return CompletableFuture.completedFuture(false);
         }
         return reported("delete", storage.delete(model, id));
+    }
+
+    /**
+     * Adds to a whole-number column in the database itself, creating the row
+     * when there is none.
+     *
+     * <p>For a counter several servers write: a read, an addition in memory and
+     * a {@link #save} loses whichever write lands first. Here the amount is
+     * added where the row lives, so every call counts however many servers
+     * make it at once. The record passed in is both the row to create and the
+     * amount: its {@code column} value is what is added, and its other values
+     * are only written when the row did not exist.
+     *
+     * <pre>{@code
+     * // player_kills(uuid, kills): one more kill, from any server
+     * kills.increment(new PlayerKills(uuid, 1), "kills");
+     * }</pre>
+     *
+     * @param row    the row to create, carrying the amount to add
+     * @param column the column or component, an {@code int} or {@code long} other than the key
+     * @return completes when written
+     * @throws IllegalArgumentException if the column is unknown, is the key, is
+     *                                  not a whole number, or the key is generated
+     * @since 1.163.0
+     */
+    public @NotNull CompletableFuture<Void> increment(@NotNull T row, @NotNull String column) {
+        ColumnModel target = requireColumn("increment", column);
+        Class<?> type = target.storedType();
+        if (type != int.class && type != Integer.class && type != long.class && type != Long.class) {
+            throw new IllegalArgumentException("increment() adds whole numbers, and " + model.table()
+                    + "." + target.name() + " is a " + type.getSimpleName() + '.');
+        }
+        if (model.generatedId()) {
+            throw new IllegalArgumentException(model.type().getSimpleName()
+                    + " has a generated key, so there is no key to create the row under.");
+        }
+        if (frozen) {
+            return CompletableFuture.completedFuture(null);
+        }
+        return reported("increment", storage.increment(model, row, target));
+    }
+
+    /**
+     * Writes a record over its row only while one column still holds a value,
+     * and answers whether it did.
+     *
+     * <p>A compare-and-set. The comparison is part of the write, so of every
+     * caller on every server expecting the same value exactly one is answered
+     * {@code true}. That is what a one-shot claim needs — a reward claimed
+     * once, a version bumped by whoever read it last — and what a
+     * {@code find} followed by a {@code save} cannot give. Never creates a
+     * row: a missing one answers {@code false}.
+     *
+     * <pre>{@code
+     * // claimed only if nobody claimed it since it was read
+     * votes.updateIf(vote.withClaimed(true), "claimed", false).thenAccept(won -> {
+     *     if (won) pay(player);
+     * });
+     * }</pre>
+     *
+     * <p>Compare something exact: a number, a bounded string, a boolean, a
+     * UUID. A floating-point value or an unbounded text column may never
+     * compare equal.
+     *
+     * @param row      the record to write, carrying the key of its row
+     * @param column   the column or component compared, other than the key
+     * @param expected the value it must hold now, in record form; {@code null} for none
+     * @return completes with whether the row matched and was written
+     * @throws IllegalArgumentException if the column is unknown or is the key
+     * @since 1.163.0
+     */
+    public @NotNull CompletableFuture<Boolean> updateIf(@NotNull T row, @NotNull String column,
+                                                       @org.jetbrains.annotations.Nullable Object expected) {
+        ColumnModel target = requireColumn("updateIf", column);
+        if (model.generatedId() && model.hasPlaceholderId(row)) {
+            throw new IllegalArgumentException(model.type().getSimpleName()
+                    + " still carries the placeholder key, so updateIf() has no row to write to.");
+        }
+        if (frozen) {
+            return CompletableFuture.completedFuture(false);
+        }
+        return reported("updateIf", storage.updateIf(model, row, target, expected));
+    }
+
+    private ColumnModel requireColumn(String operation, String name) {
+        ColumnModel column = model.byComponent(name);
+        if (column == null) {
+            column = model.column(name);
+        }
+        if (column == null || column.id()) {
+            throw new IllegalArgumentException(operation + "() needs a column of " + model.table()
+                    + " other than its key, and '" + name + "' is " + (column == null ? "not one" : "the key")
+                    + '.');
+        }
+        return column;
     }
 
     // ------------------------------------------------------ used by Query

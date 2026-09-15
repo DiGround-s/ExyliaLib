@@ -1,6 +1,7 @@
 package net.exylia.lib.redis.internal;
 
 import net.exylia.lib.database.Query;
+import net.exylia.lib.database.internal.ColumnModel;
 import net.exylia.lib.database.internal.EntityModel;
 import net.exylia.lib.database.internal.Storage;
 import org.jetbrains.annotations.NotNull;
@@ -179,6 +180,34 @@ public final class CachedStorage implements Storage {
         return delegate.update(model, record).thenApplyAsync(ignored -> {
             cache.put(model, model.id().decode(model.idOf(record)), record);
             return null;
+        }, background);
+    }
+
+    @Override
+    public <T> @NotNull CompletableFuture<Void> increment(@NotNull EntityModel<T> model, @NotNull T record,
+                                                          @NotNull ColumnModel column) {
+        // Dropped, not put: the database computed the new value and this side
+        // never saw it.
+        return delegate.increment(model, record, column).thenApplyAsync(ignored -> {
+            cache.drop(model, model.id().decode(model.idOf(record)));
+            return null;
+        }, background);
+    }
+
+    @Override
+    public <T> @NotNull CompletableFuture<Boolean> updateIf(@NotNull EntityModel<T> model, @NotNull T record,
+                                                            @NotNull ColumnModel column,
+                                                            @Nullable Object expected) {
+        // A loser most likely compared against a stale cached row, so its copy
+        // goes too and the next read reaches the database.
+        return delegate.updateIf(model, record, column, expected).thenApplyAsync(won -> {
+            Object id = model.id().decode(model.idOf(record));
+            if (won) {
+                cache.put(model, id, record);
+            } else {
+                cache.drop(model, id);
+            }
+            return won;
         }, background);
     }
 

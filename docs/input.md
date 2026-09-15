@@ -245,6 +245,22 @@ inputs.integer(player, "How many slots?")
   player who cancelled wants to go back; a request that timed out or was
   replaced should leave the screen alone.
 
+### Back on the player's thread (since 1.163.0)
+
+Nearly every answer opens a menu or edits something the player holds, and it
+arrives on whichever thread the transport answered on. `answered` makes the hop
+and the reopen one call:
+
+```java
+inputs.answered(player, inputs.text(player, "Name the home").open(),
+        name -> homes.create(player, name),   // on the player's thread
+        () -> homesMenu.open(player));          // only when they cancelled
+```
+
+The abandoned callback runs for `CANCELLED` only, narrower than `byPlayer()`,
+which also counts a disconnect: nobody is left to show the menu to. It may be
+`null`.
+
 ---
 
 ## Forms
@@ -606,7 +622,7 @@ check in one leaving the other two wrong.
 | `decimal()` | exact decimals | a `BigDecimal`, never a `double` |
 | `amount()` | `10M`, `1.5k`, `2,500` | the same reader `/pay` uses; `1,5` is refused as ambiguous |
 | `flag()` | `yes`, `y`, `on`, `1`, `enable`, `si`, `sí`, and the negatives | generous on purpose: nobody typing `y` meant no |
-| `duration()` | `30s`, `5m`, `1h30m`, `2d`, `500ms`, `1w`, `1mo`, `1y`, `2.5h` | a bare number is **seconds**; every unit `TimeFormats` writes reads back (since 1.87.0) |
+| `duration()` | `30s`, `5m`, `1h30m`, `2d`, `500ms`, `1w`, `1mo`, `1y`, `2.5h` | a bare number is **seconds**; every unit `TimeFormats` writes reads back (since 1.87.0). A config reads with it too: `duration().parse(raw).error()` says why a value was refused, where `Ticks.parse` only falls back |
 | `id()` | strict identifier | spaces become `_`, case folds; a stray `!` is **reported** |
 | `slug()` | forgiving identifier | anything that is not an id is **dropped** |
 
@@ -832,4 +848,4 @@ name and a switch in the same window instead of a second prompt afterwards.
 | Public API | `input/Inputs`, `PluginInputs`, `InputRequest`, `TextInput`, `NumberInput`, `AmountInput`, `DurationInput`, `FlagInput`, `ConfirmInput`, `ChoiceInput`, `SearchInput`, `IconInput`, `FormInput`, `FormField`, `FormKey`, `FormValues`, `InputResult`, `InputOutcome`, `Validation`, `InputParser`, `InputException`, `InputSettings` |
 | Internal | `input/internal/` — `InputRuntime`, `InputSession`, `Transport`, `TransportKind`, `InputListener`, `DialogTransport`/`DialogPackets`, `BedrockTransport`/`Bedrocks`/`BedrockForms`, `SearchTransport`/`SearchView`, `MenuTransport`, `ChatTransport` |
 | Lifecycle | `ExyliaLib` — `input.yml` read and applied at enable, re-applied on `/exylialib reload`; sessions ended on quit, on plugin disable and on shutdown |
-| Tests | `src/test/java/net/exylia/lib/input/` — `InputParserTest`, `FormInputTest`, `SearchInputTest`, `IconInputTest`, `internal/InputSessionTest` |
+| Tests | `src/test/java/net/exylia/lib/input/` — `InputParserTest`, `AnsweredTest`, `FormInputTest`, `SearchInputTest`, `IconInputTest`, `internal/InputSessionTest` |

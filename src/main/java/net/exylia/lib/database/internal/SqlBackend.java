@@ -354,6 +354,115 @@ public final class SqlBackend implements AutoCloseable {
     }
 
     /**
+     * Adds to one column in the database, creating the row when it is missing.
+     *
+     * <p>An {@code UPDATE ... SET c = c + ?} first, which every engine applies
+     * under the row's lock. When it matched nothing the row is inserted; losing
+     * that insert to another server raises an integrity violation, and by then
+     * the row exists, so the addition is made to it. Standard SQL on all four
+     * engines rather than one upsert per dialect: {@code MERGE ... KEY} on H2
+     * cannot compute from the old value at all.
+     *
+     * @param model    the record model
+     * @param instance the row to create, carrying the amount in {@code column}
+     * @param column   the column added to
+     * @param <T>      the record type
+     * @throws SQLException if a write failed for any other reason
+     * @since 1.163.0
+     */
+    public <T> void increment(@NotNull EntityModel<T> model, @NotNull T instance,
+                              @NotNull ColumnModel column) throws SQLException {
+        String add = statements.computeIfAbsent("increment:" + model.type().getName() + ':' + column.name(),
+                key -> {
+                    String name = dialect.quote(dialect.identifier(column.name()));
+                    return "UPDATE " + dialect.quote(dialect.identifier(model.table())) + " SET " + name
+                            + " = " + name + " + ? WHERE "
+                            + dialect.quote(dialect.identifier(model.id().name())) + " = ?";
+                });
+        Object[] values = model.values(instance);
+        Object amount = values[model.columns().indexOf(column)];
+        Object id = values[model.idIndex()];
+        if (add(add, model, column, amount, id) > 0) {
+            return;
+        }
+        String insert = statements.computeIfAbsent("insertRow:" + model.type().getName(),
+                key -> dialect.insert(model));
+        try (Connection connection = pool.getConnection();
+             PreparedStatement statement = connection.prepareStatement(insert)) {
+            bindRow(statement, model, values);
+            statement.executeUpdate();
+        } catch (SQLException failure) {
+            if (!integrityViolation(failure)) {
+                throw failure;
+            }
+            // Somebody created the row between the two statements.
+            add(add, model, column, amount, id);
+        }
+    }
+
+    private int add(String sql, EntityModel<?> model, ColumnModel column,
+                    Object amount, Object id) throws SQLException {
+        try (Connection connection = pool.getConnection();
+             PreparedStatement statement = connection.prepareStatement(sql)) {
+            bind(statement, 1, column, amount);
+            bind(statement, 2, model.id(), id);
+            return statement.executeUpdate();
+        }
+    }
+
+    /** SQLSTATE class 23, which H2, MySQL, MariaDB and Postgres all use for a duplicate key. */
+    private static boolean integrityViolation(SQLException failure) {
+        for (Throwable cause = failure; cause != null; cause = cause.getCause()) {
+            if (cause instanceof SQLException sql && sql.getSQLState() != null
+                    && sql.getSQLState().startsWith("23")) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Writes a record over its row only while one column holds the expected value.
+     *
+     * <p>The row count answers the question: the condition sits in the
+     * {@code WHERE} of the one statement that writes. MySQL and MariaDB report
+     * matched rows by default, so a write that changes nothing still counts.
+     *
+     * @param model    the record model
+     * @param instance the record to write
+     * @param column   the compared column
+     * @param expected the value it must hold, in record form
+     * @param <T>      the record type
+     * @return whether a row matched
+     * @throws SQLException if the write failed
+     * @since 1.163.0
+     */
+    public <T> boolean updateIf(@NotNull EntityModel<T> model, @NotNull T instance,
+                                @NotNull ColumnModel column, @Nullable Object expected) throws SQLException {
+        Object encoded = column.encode(expected);
+        String sql = statements.computeIfAbsent("updateIf:" + model.type().getName() + ':' + column.name()
+                        + (encoded == null ? ":null" : ""),
+                key -> dialect.update(model) + " AND " + dialect.quote(dialect.identifier(column.name()))
+                        + (encoded == null ? " IS NULL" : " = ?"));
+        Object[] values = model.values(instance);
+        List<ColumnModel> columns = model.columns();
+        try (Connection connection = pool.getConnection();
+             PreparedStatement statement = connection.prepareStatement(sql)) {
+            int slot = 1;
+            for (int index = 0; index < values.length; index++) {
+                if (index != model.idIndex()) {
+                    bind(statement, slot++, columns.get(index), values[index]);
+                }
+            }
+            bind(statement, slot++, model.id(), values[model.idIndex()]);
+            if (encoded != null) {
+                bind(statement, slot, column, encoded);
+            }
+            return statement.executeUpdate() > 0;
+        }
+    }
+
+    /**
      * Writes many records in one batch.
      *
      * <p>One statement, one round trip per batch rather than per row: with

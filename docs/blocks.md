@@ -26,6 +26,34 @@ is that plugin's data, stored in its own table next to what each block *means*;
 a registry holding only locations would keep half of a row. Register them again
 on enable, from whatever the plugin already loads.
 
+## Who placed a block (since 1.163.0)
+
+`PlacedBlocks` answers "did a player put this here" anywhere in the world and
+across restarts: the check a mining or farming reward needs so nobody is paid
+for placing and breaking the same block.
+
+```java
+PlacedBlocks.track(this, List.of(Material.SUGAR_CANE, Material.DIAMOND_ORE));
+
+if (!PlacedBlocks.placedByPlayer(event.getBlock())) reward(player);
+```
+
+- **Only tracked materials are recorded**, the union of what every plugin asked
+  for; a plugin's request goes with it when it is disabled. Placing an untracked
+  block costs one set lookup.
+- **The record lives in the chunk's persistent data**, saved and loaded with the
+  blocks it describes and free while the chunk is unloaded. A chunk keeps at
+  most 4096 positions and forgets the oldest past that.
+- **A break forgets at `MONITOR`**, after every other listener asked, so a break
+  handler at any lower priority still sees the block as placed. A piston moves
+  the record with the block.
+- **Other endings keep the record**: an explosion, fire, a block grown over. The
+  answer errs on "placed", which withholds a reward rather than paying a farm.
+- Ask from the thread that owns the block, where its events already run.
+- Inside regions declaring `player_build_only`, ask `PluginRegions.placedByPlayer`
+  ([regions.md](regions.md)) instead: that record lives exactly as long as the
+  region, which is what an arena re-registered for its next match needs.
+
 ## API
 
 ### `Blocks`
@@ -108,6 +136,9 @@ moment ago: a Caffeine cache, five seconds, two thousand entries.
 
 - Public: `block/` — `Blocks`, `PluginBlocks`, `ClickableBlock`, `BlockClick`,
   `BlockButton`.
-- Internal: `block/internal/` — `BlockRuntime`, `BlockListener`.
+- Public since 1.163.0: `block/PlacedBlocks`.
+- Internal: `block/internal/` — `BlockRuntime`, `BlockListener`, `PlacedBlockTracker`.
+- Tests: `PlacedBlockTrackerTest` covers position packing, the per-chunk cap and
+  what a chunk records; the persistent data itself needs a server.
 - Tests: `BlockRegistryTest` covers block resolution across worlds, replacement,
   ownership, per-plugin release and the debounce.

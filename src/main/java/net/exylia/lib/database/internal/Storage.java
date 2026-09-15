@@ -137,6 +137,42 @@ public interface Storage {
     <T> @NotNull CompletableFuture<Void> update(@NotNull EntityModel<T> model, @NotNull T record);
 
     /**
+     * Adds a record's value of one whole-number column to the stored one, and
+     * stores the record as it is when there is no row yet.
+     *
+     * <p>The addition happens in the store, never as a read then a write, so
+     * two servers adding at once both count. The other columns of an existing
+     * row are left untouched.
+     *
+     * @param model  the compiled record model, whose key is not generated
+     * @param record the row to create, whose {@code column} value is the amount to add
+     * @param column a whole-number column other than the key
+     * @param <T>    the record type
+     * @return completes when written
+     * @since 1.163.0
+     */
+    <T> @NotNull CompletableFuture<Void> increment(@NotNull EntityModel<T> model, @NotNull T record,
+                                                   @NotNull ColumnModel column);
+
+    /**
+     * Writes a record over its row only while one column still holds a value.
+     *
+     * <p>The comparison and the write are one statement, so of several callers
+     * expecting the same value exactly one is answered {@code true}. Never
+     * creates a row.
+     *
+     * @param model    the compiled record model
+     * @param record   the record to write, carrying the key of its row
+     * @param column   the column compared, other than the key
+     * @param expected the value it must hold, in record form; {@code null} for none
+     * @param <T>      the record type
+     * @return whether the row matched and was written
+     * @since 1.163.0
+     */
+    <T> @NotNull CompletableFuture<Boolean> updateIf(@NotNull EntityModel<T> model, @NotNull T record,
+                                                     @NotNull ColumnModel column, @Nullable Object expected);
+
+    /**
      * Inserts a record whose key the store hands out, and answers that key.
      *
      * <p>Only ever called for a model whose key is generated; the value the
