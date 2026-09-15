@@ -14,6 +14,7 @@ import java.util.logging.Logger;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class PapiExpansionTest {
@@ -121,6 +122,39 @@ class PapiExpansionTest {
         assertEquals("red", new PapiExpansion(plugin).onRequest(null, "team_color"));
         // Written the long way it still resolves, rather than doubling again.
         assertEquals("red", new PapiExpansion(plugin).onRequest(null, "exyliaffa_team_color"));
+    }
+
+    /**
+     * An alias answers with the same registrations, and the plugin's own
+     * identifier keeps answering next to it.
+     */
+    @Test
+    void answersUnderAnAlias() {
+        Placeholders.identifier(plugin, "practice");
+        Placeholders.group(plugin, "stats").add("kills", request -> 7).register();
+
+        PapiExpansion alias = new PapiExpansion(plugin, "practice");
+
+        assertEquals("practice", alias.getIdentifier());
+        assertEquals("7", alias.onRequest(null, "stats_kills"));
+        assertEquals(List.of("stats_kills"), alias.getPlaceholders());
+        assertEquals("7", new PapiExpansion(plugin).onRequest(null, "stats_kills"));
+    }
+
+    /** A group prefixed with the plugin's name is still found through an alias. */
+    @Test
+    void anAliasFindsAGroupPrefixedWithThePluginName() {
+        Placeholders.group(plugin, "exyliaffa").add("team_color", request -> "red").register();
+
+        assertEquals("red", new PapiExpansion(plugin, "ffa").onRequest(null, "team_color"));
+    }
+
+    @Test
+    void refusesAnIdentifierThatIsNotOneWord() {
+        assertThrows(IllegalArgumentException.class,
+                () -> Placeholders.identifier(plugin, "exylia_practice"));
+        assertThrows(IllegalArgumentException.class, () -> Placeholders.identifier(plugin, " "));
+        assertThrows(IllegalArgumentException.class, () -> Placeholders.identifier(plugin, "a b"));
     }
 
     @Test

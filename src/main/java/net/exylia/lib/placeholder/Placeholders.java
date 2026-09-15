@@ -115,6 +115,42 @@ public final class Placeholders {
     }
 
     /**
+     * Lets a plugin's placeholders be written with a shorter name in front.
+     *
+     * <p>ExyliaPracticeCore answers {@code %exyliapracticecore_stats_kills%};
+     * after {@code identifier(plugin, "practice")} it answers
+     * {@code %practice_stats_kills%} as well, in PlaceholderAPI and in Exylia
+     * text alike. Both spellings keep working, so configs written the long way
+     * are untouched.
+     *
+     * <p>Safe before or after the placeholders are registered, and safe to call
+     * on every enable. A name another plugin already answers to is refused with
+     * a warning rather than taken from it. Forgotten when the plugin is
+     * disabled, like its placeholders.
+     *
+     * @param plugin     the plugin that owns the placeholders
+     * @param identifier the extra name, such as {@code practice}; one word,
+     *                   because PlaceholderAPI reads up to the first underscore
+     *                   as the identifier
+     * @throws IllegalArgumentException if the identifier is blank or contains
+     *                                  an underscore, a percent sign or a space
+     * @since 1.169.0
+     */
+    public static void identifier(@NotNull Plugin plugin, @NotNull String identifier) {
+        String name = identifier.trim().toLowerCase(Locale.ROOT);
+        if (name.isEmpty() || name.contains("_") || name.contains("%") || name.contains(" ")) {
+            throw new IllegalArgumentException("A placeholder identifier is one word without"
+                    + " \"_\", \"%\" or spaces, so \"" + identifier + "\" cannot be one.");
+        }
+        if (name.equals(plugin.getName().toLowerCase(Locale.ROOT))) {
+            return;
+        }
+        if (Registry.alias(plugin.getName(), name)) {
+            PapiBridge.refresh(plugin);
+        }
+    }
+
+    /**
      * Removes everything a plugin registered.
      *
      * <p>Called automatically when the plugin is disabled.

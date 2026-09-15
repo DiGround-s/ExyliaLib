@@ -1,6 +1,7 @@
 package net.exylia.lib.placeholder.internal;
 
 import me.clip.placeholderapi.PlaceholderAPI;
+import me.clip.placeholderapi.PlaceholderAPIPlugin;
 import me.clip.placeholderapi.expansion.PlaceholderExpansion;
 import me.clip.placeholderapi.expansion.Relational;
 import net.exylia.lib.placeholder.Request;
@@ -27,11 +28,18 @@ import java.util.Map;
  *
  * <p>A plugin never writes an expansion by hand. Registering a placeholder with
  * ExyliaLib is enough for it to appear in PlaceholderAPI under the plugin's own
- * identifier, its name in lower case. There is no other identifier.
+ * identifier, its name in lower case.
+ *
+ * <p>A plugin that asked for an alias with {@code Placeholders.identifier} gets
+ * a second expansion over the same registrations: {@code %practice_stats_kills%}
+ * and {@code %exyliapracticecore_stats_kills%} are two ways to write one
+ * placeholder.
  */
 final class PapiExpansion extends PlaceholderExpansion implements Relational {
 
     private final String identifier;
+    /** The plugin's own name in lower case, whatever this expansion answers as. */
+    private final String ownerId;
     private final String owner;
     private final String author;
     private final String version;
@@ -56,10 +64,15 @@ final class PapiExpansion extends PlaceholderExpansion implements Relational {
             .expireAfterAccess(Duration.ofMinutes(10))
             .build();
 
-    @SuppressWarnings("deprecation") // getDescription() is the portable one; see below.
     PapiExpansion(Plugin plugin) {
+        this(plugin, plugin.getName());
+    }
+
+    @SuppressWarnings("deprecation") // getDescription() is the portable one; see below.
+    PapiExpansion(Plugin plugin, String identifier) {
         this.owner = plugin.getName();
-        this.identifier = plugin.getName().toLowerCase(Locale.ROOT);
+        this.ownerId = owner.toLowerCase(Locale.ROOT);
+        this.identifier = identifier.toLowerCase(Locale.ROOT);
         // Paper prefers getPluginMeta(), which does not exist on Spigot. The
         // deprecated call is the one that works on every platform.
         List<String> authors = plugin.getDescription().getAuthors();
@@ -67,11 +80,28 @@ final class PapiExpansion extends PlaceholderExpansion implements Relational {
         this.version = plugin.getDescription().getVersion();
     }
 
-    /** Builds and registers the expansion of a plugin. */
-    static Object create(Plugin plugin) {
-        PapiExpansion expansion = new PapiExpansion(plugin);
-        expansion.register();
-        return expansion;
+    /**
+     * Builds and registers an expansion of a plugin under one identifier.
+     *
+     * <p>PlaceholderAPI registers over an expansion that already holds the
+     * identifier, silently unregistering it. That is right for the plugin's own
+     * name, where the holder is a stale copy of this one, and wrong for an
+     * alias, where it would be somebody else's expansion. So an alias only goes
+     * in over nothing or over this plugin's own earlier alias.
+     *
+     * @return the expansion, or {@code null} when it was not registered
+     */
+    static Object create(Plugin plugin, String identifier) {
+        PapiExpansion expansion = new PapiExpansion(plugin, identifier);
+        if (!expansion.identifier.equals(expansion.ownerId)) {
+            PlaceholderExpansion holder = PlaceholderAPIPlugin.getInstance()
+                    .getLocalExpansionManager().getExpansion(expansion.identifier);
+            if (holder != null && !(holder instanceof PapiExpansion papi
+                    && papi.owner.equals(expansion.owner))) {
+                return null;
+            }
+        }
+        return expansion.register() ? expansion : null;
     }
 
     /** Drops a previously created expansion's compiled names. */
@@ -81,9 +111,15 @@ final class PapiExpansion extends PlaceholderExpansion implements Relational {
         }
     }
 
-    /** Unregisters a previously created expansion. */
+    /**
+     * Unregisters a previously created expansion.
+     *
+     * <p>Only while it is still the one PlaceholderAPI holds: unregistering
+     * removes whatever sits under the identifier, which may by now be another
+     * plugin's expansion.
+     */
     static void unregister(Object expansion) {
-        if (expansion instanceof PapiExpansion papi) {
+        if (expansion instanceof PapiExpansion papi && papi.isRegistered()) {
             papi.unregister();
         }
     }
@@ -160,10 +196,12 @@ final class PapiExpansion extends PlaceholderExpansion implements Relational {
         // "exyliaevents_team_color", while PlaceholderAPI strips that same word
         // as the identifier and asks for "team_color". Without this the whole
         // group answered nothing, and writing %exyliaevents_exyliaevents_...%
-        // is not what anybody has in their config.
-        return params.startsWith(identifier + "_")
+        // is not what anybody has in their config. The plugin's name, not this
+        // expansion's identifier: an alias does not change what the group is
+        // called.
+        return params.startsWith(ownerId + "_")
                 ? null
-                : answer(viewer, target, identifier + "_" + params);
+                : answer(viewer, target, ownerId + "_" + params);
     }
 
     /** Resolves one name against what this plugin registered. */

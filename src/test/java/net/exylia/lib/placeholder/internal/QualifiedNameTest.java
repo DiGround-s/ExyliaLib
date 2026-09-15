@@ -64,6 +64,41 @@ class QualifiedNameTest {
     }
 
     @Test
+    void anAliasResolvesLikeThePluginName() {
+        Placeholders.group(ffa, "stats").add("kills", request -> 7).register();
+        Placeholders.identifier(ffa, "ffa");
+
+        assertEquals("7", Placeholders.apply("%ffa_stats_kills%"));
+        assertEquals("7", Placeholders.apply("%exyliaffa_stats_kills%"));
+        assertEquals("7", Placeholders.apply("%stats_kills%"));
+    }
+
+    @Test
+    void anAliasAnotherPluginAnswersToIsRefused() {
+        Placeholders.register(ffa, "total_players", request -> 42);
+        Placeholders.register(sandbox, "total_players", request -> 7);
+        Placeholders.identifier(ffa, "arena");
+
+        Placeholders.identifier(sandbox, "arena");
+        Placeholders.identifier(sandbox, "exyliaffa");
+
+        assertEquals("42", Placeholders.apply("%arena_total_players%"));
+        assertEquals("42", Placeholders.apply("%exyliaffa_total_players%"));
+    }
+
+    @Test
+    void anAliasGoesAwayWithItsPlugin() {
+        Placeholders.register(sandbox, "total_players", request -> 7);
+        Placeholders.identifier(sandbox, "sandbox");
+
+        Placeholders.unregisterAll("ExyliaSandBox");
+        Placeholders.register(ffa, "total_players", request -> 42);
+        Placeholders.identifier(ffa, "sandbox");
+
+        assertEquals("42", Placeholders.apply("%sandbox_total_players%"));
+    }
+
+    @Test
     void theOwnerGoesAwayWithItsPlugin() {
         Placeholders.register(sandbox, "total_players", request -> 7);
         assertTrue(Placeholders.has("exyliasandbox_total_players"));

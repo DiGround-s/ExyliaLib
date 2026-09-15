@@ -6,7 +6,9 @@ import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
 
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
@@ -33,10 +35,14 @@ import java.util.logging.Level;
 public final class PapiBridge {
 
     /**
-     * The expansion of each plugin, by plugin name, so unloading one plugin does
-     * not affect others. The identifier is always the plugin's own name.
+     * The expansions of each plugin, by plugin name and then by identifier, so
+     * unloading one plugin does not affect others and an alias is one more
+     * expansion next to the plugin's own.
      */
-    private static final Map<String, Object> EXPANSIONS = new ConcurrentHashMap<>();
+    private static final Map<String, Map<String, Object>> EXPANSIONS = new ConcurrentHashMap<>();
+
+    /** Identifiers PlaceholderAPI would not take, so each is reported once. */
+    private static final Set<String> REFUSED = ConcurrentHashMap.newKeySet();
 
     /** The last value PlaceholderAPI gave for a piece of text, per player. */
     private static final Map<UUID, Map<String, String>> VALUES = new ConcurrentHashMap<>();
@@ -110,9 +116,10 @@ public final class PapiBridge {
     /**
      * Publishes a plugin's placeholders to PlaceholderAPI.
      *
-     * <p>Safe to call repeatedly: the expansion is created once per plugin and
-     * reads the live registry, so later registrations are picked up without
-     * re-registering anything.
+     * <p>One expansion under the plugin's own name and one per alias. Safe to
+     * call repeatedly: each is created once and reads the live registry, so
+     * later registrations are picked up without re-registering anything. An
+     * identifier PlaceholderAPI refused is tried again on the next call.
      *
      * @param plugin the plugin whose placeholders should be visible
      */
@@ -120,7 +127,20 @@ public final class PapiBridge {
         if (!available()) {
             return;
         }
-        EXPANSIONS.computeIfAbsent(plugin.getName(), name -> PapiExpansion.create(plugin));
+        Map<String, Object> expansions =
+                EXPANSIONS.computeIfAbsent(plugin.getName(), name -> new ConcurrentHashMap<>());
+        Set<String> identifiers = new LinkedHashSet<>();
+        identifiers.add(plugin.getName().toLowerCase(Locale.ROOT));
+        identifiers.addAll(Registry.aliasesOf(plugin.getName()));
+        for (String identifier : identifiers) {
+            Object expansion = expansions.computeIfAbsent(identifier,
+                    id -> PapiExpansion.create(plugin, id));
+            if (expansion == null && REFUSED.add(identifier)) {
+                Loggers.get().warning("PlaceholderAPI already has an expansion called \""
+                        + identifier + "\", so " + plugin.getName()
+                        + " does not answer %" + identifier + "_...% there.");
+            }
+        }
     }
 
     /**
@@ -256,6 +276,7 @@ public final class PapiBridge {
         available = false;
         refresher = null;
         EXPANSIONS.clear();
+        REFUSED.clear();
         WANTED.clear();
         VALUES.clear();
         FAILURE_REPORTED.set(false);
@@ -269,21 +290,24 @@ public final class PapiBridge {
      * per-expansion caches that one does not cover.
      */
     public static void invalidateCompiled() {
-        EXPANSIONS.values().forEach(PapiExpansion::invalidate);
+        EXPANSIONS.values().forEach(expansions ->
+                expansions.values().forEach(PapiExpansion::invalidate));
     }
 
-    /** Removes a plugin's expansion. */
+    /** Removes a plugin's expansions, under every identifier it answered as. */
     public static void release(String pluginName) {
-        Object expansion = EXPANSIONS.remove(pluginName);
-        if (expansion != null) {
-            PapiExpansion.unregister(expansion);
+        Map<String, Object> expansions = EXPANSIONS.remove(pluginName);
+        if (expansions != null) {
+            expansions.values().forEach(PapiExpansion::unregister);
         }
     }
 
     /** Removes every expansion and stops the refreshing pass. */
     public static void releaseAll() {
-        EXPANSIONS.values().forEach(PapiExpansion::unregister);
+        EXPANSIONS.values().forEach(expansions ->
+                expansions.values().forEach(PapiExpansion::unregister));
         EXPANSIONS.clear();
+        REFUSED.clear();
         stopRefreshing();
     }
 }

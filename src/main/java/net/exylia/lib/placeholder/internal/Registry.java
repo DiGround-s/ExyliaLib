@@ -55,6 +55,16 @@ public final class Registry {
      */
     private static final Map<String, String> OWNER_IDS = new ConcurrentHashMap<>();
 
+    /**
+     * Extra spellings of a plugin's name, lower case, to the plugin name.
+     *
+     * <p>{@code practice} for ExyliaPracticeCore, so {@code %practice_stats_kills%}
+     * means {@code %exyliapracticecore_stats_kills%} in Exylia text as much as it
+     * does in PlaceholderAPI. Consulted after {@link #OWNER_IDS}, so a plugin
+     * really called {@code practice} keeps its own name.
+     */
+    private static final Map<String, String> ALIASES = new ConcurrentHashMap<>();
+
     /** Names that failed, so a broken resolver is reported once and not per render. */
     private static final Set<String> REPORTED = ConcurrentHashMap.newKeySet();
 
@@ -132,6 +142,7 @@ public final class Registry {
     public static int unregisterAll(String owner) {
         Map<String, Entry> owned = BY_OWNER.remove(owner);
         OWNER_IDS.remove(owner.toLowerCase(java.util.Locale.ROOT));
+        ALIASES.values().removeIf(owner::equals);
         List<String> names = new ArrayList<>();
         ENTRIES.forEach((name, entry) -> {
             if (entry.owner().equals(owner)) {
@@ -208,7 +219,11 @@ public final class Registry {
     private static Entry qualified(String name) {
         int split = name.indexOf('_');
         while (split > 0) {
-            String owner = OWNER_IDS.get(name.substring(0, split));
+            String prefix = name.substring(0, split);
+            String owner = OWNER_IDS.get(prefix);
+            if (owner == null) {
+                owner = ALIASES.get(prefix);
+            }
             if (owner != null) {
                 Map<String, Entry> owned = BY_OWNER.get(owner);
                 Entry entry = owned == null ? null : owned.get(name.substring(split + 1));
@@ -219,6 +234,50 @@ public final class Registry {
             split = name.indexOf('_', split + 1);
         }
         return null;
+    }
+
+    /**
+     * Gives a plugin a second name to be written with.
+     *
+     * <p>Refused, with a warning, when another plugin already answers to it:
+     * two plugins behind one {@code %practice_...%} would be the ambiguity the
+     * qualified spelling exists to remove.
+     *
+     * @param owner the plugin name
+     * @param alias the extra name, already lower case and validated
+     * @return whether the plugin now answers to it
+     */
+    public static boolean alias(String owner, String alias) {
+        String named = OWNER_IDS.get(alias);
+        if (named != null && !named.equals(owner)) {
+            return refuseAlias(owner, alias, named);
+        }
+        String holder = ALIASES.putIfAbsent(alias, owner);
+        if (holder != null && !holder.equals(owner)) {
+            return refuseAlias(owner, alias, holder);
+        }
+        if (holder == null) {
+            // Text compiled before the alias existed split on the wrong words.
+            TemplateCache.invalidate();
+        }
+        return true;
+    }
+
+    private static boolean refuseAlias(String owner, String alias, String holder) {
+        Loggers.get().warning(owner + " asked to answer as \"" + alias + "\", but " + holder
+                + " already does, so %" + alias + "_...% keeps meaning " + holder + ".");
+        return false;
+    }
+
+    /** Returns the extra names a plugin answers to, in no particular order. */
+    public static Set<String> aliasesOf(String owner) {
+        Set<String> aliases = new java.util.HashSet<>();
+        ALIASES.forEach((alias, holder) -> {
+            if (holder.equals(owner)) {
+                aliases.add(alias);
+            }
+        });
+        return aliases;
     }
 
     /** Returns the entry for a name, or {@code null}. */
@@ -349,6 +408,7 @@ public final class Registry {
         ENTRIES.clear();
         BY_OWNER.clear();
         OWNER_IDS.clear();
+        ALIASES.clear();
         REPORTED.clear();
         REPORTED_UNKNOWN.clear();
         REPORTED_OVERWRITE.clear();
