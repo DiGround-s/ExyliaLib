@@ -5,10 +5,17 @@ import net.exylia.lib.FakeServer;
 import net.exylia.lib.command.CommandResult;
 import net.exylia.lib.proxy.internal.BridgeCommands;
 import net.exylia.lib.proxy.internal.Frames;
+import net.exylia.lib.proxy.internal.ProxyRuntime;
+import net.exylia.lib.util.teleport.internal.CrossServer;
+import org.bukkit.plugin.Plugin;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -24,6 +31,33 @@ class ProxyTest {
     void server() {
         FakeServer.install();
         FakeServer.reset();
+    }
+
+    @Test
+    @DisplayName("this server's name comes from the plugin with Redis on, before the proxy answers, and never changes")
+    void serverNameIsStable(@TempDir Path folder) throws IOException {
+        Path staff = Files.createDirectories(folder.resolve("Staff"));
+        Path core = Files.createDirectories(folder.resolve("Core"));
+        Files.writeString(core.resolve("database.yml"), "database:\n  redis:\n    enabled: false\n");
+        Plugin corePlugin = FakeServer.newPlugin("Core", core.toFile());
+        FakeServer.plugins(corePlugin, FakeServer.newPlugin("Staff", staff.toFile()));
+        ProxyRuntime.shutdown();
+        try {
+            assertEquals("server-1", CrossServer.serverId(corePlugin), "no Redis anywhere: the plugin's own name");
+
+            Files.writeString(staff.resolve("database.yml"),
+                    "database:\n  redis:\n    enabled: true\n    server-id: survival\n");
+            ProxyRuntime.shutdown();
+            assertFalse(Proxy.isAvailable());
+            assertEquals("survival", CrossServer.serverId(corePlugin),
+                    "the bridge's name, with no proxy answering yet");
+
+            Files.writeString(staff.resolve("database.yml"),
+                    "database:\n  redis:\n    enabled: true\n    server-id: other\n");
+            assertEquals("survival", CrossServer.serverId(corePlugin), "picked once for the life of the server");
+        } finally {
+            ProxyRuntime.shutdown();
+        }
     }
 
     @Test

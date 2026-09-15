@@ -205,7 +205,9 @@ public final class CrossServer {
         // The bridge's name for this server is the one the proxy addresses
         // it by, and the proxy is the one that moves players: whatever a
         // plugin's own database.yml says, that is the name a place must carry.
-        return Proxy.isAvailable() ? ProxyRuntime.serverId() : settings(plugin).serverId();
+        // Taken from the bridge's settings, not from whether the proxy has
+        // answered, so the name never changes while the server runs.
+        return ProxyRuntime.networkServerId().orElseGet(() -> settings(plugin).serverId());
     }
 
     /**

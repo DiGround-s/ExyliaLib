@@ -1,8 +1,5 @@
 package net.exylia.lib.proxy.internal;
 
-import net.exylia.lib.config.ConfigFile;
-import net.exylia.lib.config.Configs;
-import net.exylia.lib.database.DatabaseSettings;
 import net.exylia.lib.database.internal.DatabaseRuntime;
 import net.exylia.lib.debug.Debug;
 import net.exylia.lib.proxy.ProxyReply;
@@ -11,13 +8,20 @@ import net.exylia.lib.redis.internal.RedisClient;
 import net.exylia.lib.redis.internal.RedisRuntime;
 import net.exylia.lib.task.TaskHandle;
 import net.exylia.lib.task.Tasks;
+import org.bukkit.Bukkit;
+import org.bukkit.configuration.ConfigurationSection;
+import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
 import org.jetbrains.annotations.ApiStatus;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+import java.io.File;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -82,6 +86,14 @@ public final class ProxyRuntime {
     private static volatile boolean warned;
     private static volatile Set<String> players = Set.of();
 
+    /** Which Redis the bridge rides; {@code null} until first asked, empty when none is on. */
+    @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
+    private static volatile @Nullable Optional<Network> network;
+
+    /** The plugin whose {@code database.yml} turns Redis on, and the name it gives this server. */
+    private record Network(@NotNull Plugin owner, @NotNull String serverId) {
+    }
+
     private ProxyRuntime() {
     }
 
@@ -90,8 +102,8 @@ public final class ProxyRuntime {
      *
      * <p>Not opened here: the plugins whose {@code database.yml} names the
      * network's Redis enable after the library does, so the first look is a
-     * second later, on the timer, and it keeps looking every ten seconds
-     * until one turns up.
+     * second later, on the timer, and a connection that fails is tried again
+     * every ten seconds.
      */
     public static synchronized void init(@NotNull Plugin plugin) {
         if (library != null) {
@@ -120,23 +132,11 @@ public final class ProxyRuntime {
             return true;
         }
         Debug debug = Debug.of(plugin);
+        Optional<Network> found = network();
         RedisSettings settings;
-        String from;
+        String from = found.map(chosen -> chosen.owner().getName()).orElse(plugin.getName());
         try {
-            settings = DatabaseRuntime.redis(plugin);
-            from = plugin.getName();
-            if (!settings.enabled()) {
-                for (ConfigFile<?> file : Configs.loaded()) {
-                    if ("database".equals(file.name()) && file.get() instanceof DatabaseSettings values
-                            && values.database() != null && values.database().redis() != null
-                            && values.database().redis().enabled()) {
-                        settings = values.database().redis();
-                        from = file instanceof net.exylia.lib.config.internal.ConfigFileImpl<?> impl
-                                ? impl.owner().getName() : "a plugin";
-                        break;
-                    }
-                }
-            }
+            settings = found.isPresent() ? DatabaseRuntime.redis(found.get().owner()) : new RedisSettings();
         } catch (RuntimeException | LinkageError unavailable) {
             if (!warned) {
                 warned = true;
@@ -147,10 +147,10 @@ public final class ProxyRuntime {
         if (!settings.enabled()) {
             if (!warned) {
                 warned = true;
-                debug.log("No plugin has Redis enabled in its database.yml yet, so there is no proxy"
-                        + " bridge: player-proxy: and console-proxy: commands and cross-server"
-                        + " teleports are unavailable. Turn on database.redis in any plugin's"
-                        + " database.yml, or in plugins/ExyliaLib/database.yml.");
+                debug.log("No plugin had Redis enabled in its database.yml when the server started, so"
+                        + " there is no proxy bridge: player-proxy: and console-proxy: commands and"
+                        + " cross-server teleports are unavailable. Turn on database.redis in any plugin's"
+                        + " database.yml, or in plugins/ExyliaLib/database.yml, and restart.");
             }
             return false;
         }
@@ -208,10 +208,74 @@ public final class ProxyRuntime {
         }
         PENDING.clear();
         PUSHES.clear();
+        network = null;
     }
 
     public static boolean isAvailable() {
         return available;
+    }
+
+    /**
+     * This server's name on the network, whether or not the proxy has answered.
+     *
+     * <p>A place is stamped with this name and compared against it later, so it
+     * cannot depend on the proxy being up: a proxy restarting with the servers,
+     * or one request timing out, would otherwise stamp one name now and compare
+     * against another afterwards, and every place saved in between would read
+     * as "on another server".
+     *
+     * @return the {@code server-id} of the plugin whose Redis the bridge rides,
+     *         or empty when no plugin turns Redis on
+     */
+    public static @NotNull Optional<String> networkServerId() {
+        return network().map(Network::serverId);
+    }
+
+    /**
+     * Picks the Redis the bridge rides, once for the life of the server.
+     *
+     * <p>Read straight from each installed plugin's {@code database.yml} rather
+     * than from the configs loaded so far: a plugin may ask for this server's
+     * name while it enables, before the plugin that owns the Redis block has
+     * loaded its file. The library's own file comes first, then the plugins in
+     * the order the server loaded them.
+     */
+    private static @NotNull Optional<Network> network() {
+        Optional<Network> known = network;
+        if (known != null) {
+            return known;
+        }
+        synchronized (ProxyRuntime.class) {
+            if (network == null) {
+                network = findNetwork();
+            }
+            return network;
+        }
+    }
+
+    private static Optional<Network> findNetwork() {
+        List<Plugin> candidates = new ArrayList<>();
+        Plugin own = library;
+        if (own != null) {
+            candidates.add(own);
+        }
+        if (Bukkit.getServer() != null) {
+            candidates.addAll(Arrays.asList(Bukkit.getPluginManager().getPlugins()));
+        }
+        for (Plugin candidate : candidates) {
+            File folder = candidate.getDataFolder();
+            File file = folder == null ? null : new File(folder, "database.yml");
+            if (file == null || !file.isFile()) {
+                continue;
+            }
+            ConfigurationSection block = YamlConfiguration.loadConfiguration(file)
+                    .getConfigurationSection("database.redis");
+            if (block != null && block.getBoolean("enabled")) {
+                String id = block.getString("server-id");
+                return Optional.of(new Network(candidate, id == null || id.isBlank() ? "server-1" : id.trim()));
+            }
+        }
+        return Optional.empty();
     }
 
     public static @NotNull Optional<String> bridge() {
