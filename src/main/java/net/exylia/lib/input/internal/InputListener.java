@@ -82,6 +82,11 @@ public final class InputListener implements Listener {
     /** Routes final close notification after other inventory handlers have run. */
     @EventHandler(priority = EventPriority.MONITOR)
     public void onClose(InventoryCloseEvent event) {
+        // A chunk unloading closes the block windows inside it, never an input
+        // window; reading such a window's holder would load that chunk and throw.
+        if (event.getReason() == InventoryCloseEvent.Reason.UNLOADED) {
+            return;
+        }
         if (event.getInventory().getHolder(false) instanceof InsertWindow window) {
             // Whatever was lent to the window goes back, on every ending.
             window.release(event.getPlayer() instanceof Player viewer ? viewer : null);

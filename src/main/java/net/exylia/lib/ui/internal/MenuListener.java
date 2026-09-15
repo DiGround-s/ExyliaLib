@@ -132,6 +132,11 @@ public final class MenuListener implements Listener {
      */
     @EventHandler(priority = EventPriority.MONITOR)
     public void onClose(InventoryCloseEvent event) {
+        // A chunk unloading closes the block windows inside it, never a menu;
+        // reading such a window's holder would load that chunk and throw.
+        if (event.getReason() == InventoryCloseEvent.Reason.UNLOADED) {
+            return;
+        }
         Session session = MenuRuntime.sessionOf(event.getInventory());
         if (session == null) {
             return;

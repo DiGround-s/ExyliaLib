@@ -76,6 +76,12 @@ public final class EditorListener implements Listener {
      */
     @EventHandler(priority = EventPriority.MONITOR)
     public void onClose(InventoryCloseEvent event) {
+        // A chunk unloading closes the block windows inside it, never an editor.
+        // Asking such a window for its holder reads the block, which loads the
+        // chunk being unloaded and throws.
+        if (event.getReason() == InventoryCloseEvent.Reason.UNLOADED) {
+            return;
+        }
         LoadoutHolder loadout = EditorRuntime.loadoutOf(event.getInventory());
         if (loadout != null) {
             // Closing keeps the layout: the items in the grid left the viewer's
