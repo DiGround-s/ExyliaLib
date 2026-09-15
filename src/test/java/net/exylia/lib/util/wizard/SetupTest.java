@@ -44,7 +44,7 @@ class SetupTest {
     @Test
     @DisplayName("a spawn answers with a facing, which is why it is not a block pick")
     void spawnKeepsFacing() {
-        harness.player().teleport(new Location(world, 8.5, 65, 12.5, 90f, 0f));
+        harness.player().teleportAsync(new Location(world, 8.5, 65, 12.5, 90f, 0f));
 
         AtomicReference<Location> answered = new AtomicReference<>();
         harness.wizards().setup(harness.player(), () -> { })

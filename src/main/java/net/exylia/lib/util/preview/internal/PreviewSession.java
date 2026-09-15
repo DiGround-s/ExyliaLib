@@ -102,7 +102,8 @@ final class PreviewSession implements Preview {
         captured.freeze(viewer);
         isolate();
 
-        viewer.teleport(seat());
+        // teleportAsync: Folia refuses the synchronous teleport on every thread.
+        viewer.teleportAsync(seat());
 
         // A tick or two before the first particle: the client has to have the
         // new position, or the effect is drawn around where the player was.
@@ -285,7 +286,12 @@ final class PreviewSession implements Preview {
             reveal();
             if (move && captured != null) {
                 try {
-                    viewer.teleport(captured.origin());
+                    viewer.teleportAsync(captured.origin()).whenComplete((moved, failed) -> {
+                        if (failed != null) {
+                            debug.error("A preview could not return " + viewer.getName()
+                                    + " to where they were.", failed);
+                        }
+                    });
                 } catch (RuntimeException failed) {
                     debug.error("A preview could not return " + viewer.getName()
                             + " to where they were.", failed);

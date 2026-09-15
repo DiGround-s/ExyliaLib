@@ -128,13 +128,10 @@ public final class FakePlayer {
                         bossBarsHidden.add(String.valueOf(args[0]));
                         yield null;
                     }
-                    case "teleport" -> {
-                        if (args[0] instanceof org.bukkit.Location where) {
-                            teleports.add(where.clone());
-                            this.location = where.clone();
-                        }
-                        yield true;
-                    }
+                    // Folia refuses the synchronous teleport on every thread, so
+                    // a fake that accepted it would let a Folia-only crash pass.
+                    case "teleport" -> throw new UnsupportedOperationException(
+                            "Must use teleportAsync while in region threading");
                     // Paper's asynchronous teleport, which is the one the
                     // teleport module uses. Recorded the same way, so a test
                     // asserts on where the player ended up rather than on which
