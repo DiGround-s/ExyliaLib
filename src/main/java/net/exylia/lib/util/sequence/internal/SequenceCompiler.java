@@ -374,8 +374,11 @@ public final class SequenceCompiler {
         }
         int duration = (int) namedOrPositional(args, "duration", 1, 100, onArg);
         int amplifier = (int) namedOrPositional(args, "amplifier", 2, 0, onArg);
-        args.reportUnknown(onArg, "duration", "amplifier");
-        return new Steps.Potion(type, duration, amplifier);
+        boolean particles = args.flag("particles", true);
+        boolean icon = args.flag("icon", true);
+        boolean ambient = args.flag("ambient", false);
+        args.reportUnknown(onArg, "duration", "amplifier", "particles", "icon", "ambient");
+        return new Steps.Potion(type, duration, amplifier, ambient, particles, icon);
     }
 
     private @Nullable SequenceStep blockBreak(Args args, String line, Args.Problems onArg) {

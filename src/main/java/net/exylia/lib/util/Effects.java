@@ -24,7 +24,7 @@ import java.util.List;
  * Effects.apply(player, classDef.getPassiveEffects()); // a list of such lines
  * }</pre>
  *
- * <p>The notation is {@code NAME|LEVEL|SECONDS}:
+ * <p>The notation is {@code NAME|LEVEL|SECONDS|PARTICLES|ICON|AMBIENT}:
  *
  * <ul>
  *   <li>{@code LEVEL} is written the way a player reads it — {@code SPEED|2}
@@ -32,7 +32,17 @@ import java.util.List;
  *   <li>{@code SECONDS} is a duration in seconds; the words {@code infinite}
  *       and {@code -1} mean the effect does not end on its own. Missing means
  *       10 seconds.
+ *   <li>{@code PARTICLES} is whether the swirls are drawn, {@code ICON}
+ *       whether the effect shows in the corner of the screen, and
+ *       {@code AMBIENT} whether the particles are the faint beacon kind.
+ *       Written as {@code true}/{@code false} — or {@code yes}/{@code no} —
+ *       and missing means the vanilla behaviour a potion has: particles and
+ *       icon shown, not ambient.
  * </ul>
+ *
+ * <pre>{@code
+ * Effects.apply(player, "SPEED|2|5|false|false");   // Speed II, nothing on screen
+ * }</pre>
  *
  * <p>Anything malformed — an empty line, a name with a colon from some other
  * notation, an unparseable number — is skipped, never fatal.
@@ -151,7 +161,7 @@ public final class Effects {
             if (e.name().isEmpty()) continue;
             Object type = resolver.resolve(e.name());
             if (type == null) continue;
-            applier.apply(player, type, e.amplifier(), e.duration());
+            applier.apply(player, type, e);
         }
     }
 
@@ -191,7 +201,7 @@ public final class Effects {
             if (e.name().isEmpty()) continue;
             Object type = resolver.resolve(e.name());
             if (type == null) continue;
-            applier.apply(player, type, e.amplifier(), INFINITE);
+            applier.apply(player, type, forever(e));
         }
     }
 
@@ -276,9 +286,44 @@ public final class Effects {
      * ticks, whatever unit the line used; {@link #INFINITE} when the line
      * asked for an effect that does not end.
      */
-    public record ParsedEffect(@NotNull String name, int amplifier, int duration) {
+    public record ParsedEffect(@NotNull String name, int amplifier, int duration,
+                               boolean ambient, boolean particles, boolean icon) {
         public ParsedEffect {
             if (name.isBlank()) throw new IllegalArgumentException("an effect needs a name");
+        }
+
+        /**
+         * The same effect drawn the way a potion normally is.
+         *
+         * <p>Particles and icon shown, not ambient — what every line written
+         * before those three fields existed meant, and what this class applied
+         * for them.
+         */
+        public ParsedEffect(@NotNull String name, int amplifier, int duration) {
+            this(name, amplifier, duration, false, true, true);
+        }
+
+        /**
+         * This effect as a config line, in the notation {@link #parse} reads.
+         *
+         * <p>The three display fields are only written when they differ from
+         * the vanilla behaviour, so a file an admin never touched stays the
+         * three fields it has always been.
+         *
+         * @return the line
+         * @since 1.169.0
+         */
+        public @NotNull String line() {
+            StringBuilder line = new StringBuilder(name)
+                    .append('|').append(amplifier + 1)
+                    .append('|').append(duration == INFINITE ? "infinite" : duration / TICKS_PER_SECOND);
+            if (!particles || !icon || ambient) {
+                line.append('|').append(particles).append('|').append(icon);
+                if (ambient) {
+                    line.append("|true");
+                }
+            }
+            return line.toString();
         }
     }
 
@@ -293,7 +338,7 @@ public final class Effects {
 
     @FunctionalInterface
     interface EffectApplier {
-        void apply(Player player, Object type, int amplifier, int duration);
+        void apply(Player player, Object type, ParsedEffect effect);
     }
 
     @FunctionalInterface
@@ -303,9 +348,10 @@ public final class Effects {
 
     private static volatile EffectResolver resolver
             = name -> PotionEffectType.getByName(name);
-    private static volatile EffectApplier applier = (player, type, amplifier, duration) ->
+    private static volatile EffectApplier applier = (player, type, effect) ->
             player.addPotionEffect(new PotionEffect(
-                    (PotionEffectType) type, duration, amplifier, false, true, true));
+                    (PotionEffectType) type, effect.duration(), effect.amplifier(),
+                    effect.ambient(), effect.particles(), effect.icon()));
     private static volatile EffectRemover remover = (player, type) ->
             player.removePotionEffect((PotionEffectType) type);
 
@@ -337,7 +383,9 @@ public final class Effects {
      */
     public static final int INFINITE = -1;
 
-    private static final int DEFAULT_DURATION = 200; // 10 seconds
+    private static final int TICKS_PER_SECOND = 20;
+
+    private static final int DEFAULT_DURATION = 10 * TICKS_PER_SECOND;
 
     private static final Cache<String, ParsedEffect> CACHE = Caffeine.newBuilder()
             .maximumSize(4096)
@@ -361,10 +409,33 @@ public final class Effects {
             if (written.equals("infinite") || written.equals("-1")) {
                 duration = INFINITE;
             } else {
-                duration = parseInt(written, 10) * 20;
+                duration = parseInt(written, 10) * TICKS_PER_SECOND;
             }
         }
-        return new ParsedEffect(name, amplifier, duration);
+        return new ParsedEffect(name, amplifier, duration,
+                flag(pieces, 5, false), flag(pieces, 3, true), flag(pieces, 4, true));
+    }
+
+    /** The same effect, with a duration nothing but {@link #remove} ends. */
+    private static ParsedEffect forever(ParsedEffect effect) {
+        return new ParsedEffect(effect.name(), effect.amplifier(), INFINITE,
+                effect.ambient(), effect.particles(), effect.icon());
+    }
+
+    /**
+     * One of the display fields, as written.
+     *
+     * <p>A field nobody wrote, or wrote something unreadable in, keeps the
+     * vanilla behaviour: a typo in {@code |flase} must not silently hide the
+     * particles of an effect the admin can see working.
+     */
+    private static boolean flag(String[] pieces, int index, boolean fallback) {
+        if (pieces.length <= index) return fallback;
+        return switch (pieces[index].trim().toLowerCase()) {
+            case "true", "yes", "on", "1" -> true;
+            case "false", "no", "off", "0" -> false;
+            default -> fallback;
+        };
     }
 
     private static int parseInt(String raw, int fallback) {

@@ -234,7 +234,11 @@ final class LineDescriptor implements EditorDescriptor<SequenceLine> {
             String current = spec.form() == SequenceLine.Form.POSITIONAL
                     ? line.segment(index)
                     : line.value(field.key());
-            form.text(key(field), field.label(), current);
+            if (field.isFlag()) {
+                form.flag(flagKey(field), field.label(), on(current, field.flag()));
+            } else {
+                form.text(key(field), field.label(), current);
+            }
             if (field.hint() != null) {
                 form.hint(field.hint());
             }
@@ -278,6 +282,16 @@ final class LineDescriptor implements EditorDescriptor<SequenceLine> {
     private Map<String, String> named(FormValues values, SequenceLine.Spec spec) {
         Map<String, String> named = new LinkedHashMap<>();
         for (SequenceLine.Field field : spec.fields()) {
+            if (field.isFlag()) {
+                // Only when it differs from what the parameter does anyway: a
+                // form submitted without touching a checkbox must not add
+                // "trail:true" to every firework line in the file.
+                boolean ticked = values.getBoolean(flagKey(field));
+                if (ticked != field.flag()) {
+                    named.put(field.key(), Boolean.toString(ticked));
+                }
+                continue;
+            }
             named.put(field.key(), text(values, field).replace(';', ' '));
         }
         return named;
@@ -289,6 +303,19 @@ final class LineDescriptor implements EditorDescriptor<SequenceLine> {
 
     private static FormKey<String> key(SequenceLine.Field field) {
         return FormKey.text(field.key());
+    }
+
+    private static FormKey<Boolean> flagKey(SequenceLine.Field field) {
+        return FormKey.flag(field.key());
+    }
+
+    /** What a checkbox starts ticked as: what the line says, or what the parameter does. */
+    private static boolean on(String written, boolean fallback) {
+        return switch (written.trim().toLowerCase(java.util.Locale.ROOT)) {
+            case "true", "yes", "on", "1" -> true;
+            case "false", "no", "off", "0" -> false;
+            default -> fallback;
+        };
     }
 
     private static String text(FormValues values, SequenceLine.Field field) {

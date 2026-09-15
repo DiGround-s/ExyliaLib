@@ -152,14 +152,15 @@ final class Steps {
     }
 
     /** A potion effect on whatever the sequence happened to. */
-    record Potion(PotionEffectType type, int durationTicks, int amplifier) implements SequenceStep {
+    record Potion(PotionEffectType type, int durationTicks, int amplifier,
+                  boolean ambient, boolean particles, boolean icon) implements SequenceStep {
         @Override
         public void play(@NotNull SequenceTarget target, @NotNull SequenceRun run) {
             if (!(target.target() instanceof LivingEntity living)) {
                 return;
             }
-            run.scheduler().runAtEntity(living, () ->
-                    living.addPotionEffect(new PotionEffect(type, durationTicks, amplifier)));
+            run.scheduler().runAtEntity(living, () -> living.addPotionEffect(new PotionEffect(
+                    type, durationTicks, amplifier, ambient, particles, icon)));
         }
     }
 

@@ -205,7 +205,7 @@ arguments — so a migrating plugin edits no configuration files.
 | `[EXPLOSION]` | `count:` `y:` |
 | `[FIREWORK]` | `color:` `fade:` `type:` `trail:` `flicker:` `power:` |
 | `[BLOCK_BREAK] STONE` | `count:` `offset:` `y:` |
-| `[POTION] speed;100;1` | also `duration:` `amplifier:` |
+| `[POTION] speed;100;1` | also `duration:` `amplifier:` `particles:` `icon:` `ambient:` |
 | `[TITLE] title;subtitle;in;stay;out` | times in **seconds** |
 | `[ACTION_BAR] text` | |
 | `[COMMAND] give {player} ...` | `{player}` `{world}` `{x}` `{y}` `{z}` |

@@ -15,6 +15,8 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNotSame;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 
 /**
  * Potion effects from a compact string: {@code NAME|LEVEL|SECONDS}, one
@@ -46,9 +48,9 @@ class EffectsTest {
         // The applier records "typeName:amplifier:duration".
         Effects.setResolver(name -> "SPEED".equals(name) || "JUMP_BOOST".equals(name)
                 || "REGENERATION".equals(name) || "DAMAGE_RESISTANCE".equals(name) ? name : null);
-        Effects.setApplier((p, type, amplifier, duration) -> {
+        Effects.setApplier((p, type, effect) -> {
             if (p.equals(player.player())) {
-                applied.add(type + ":" + amplifier + ":" + duration);
+                applied.add(type + ":" + effect.amplifier() + ":" + effect.duration());
             }
         });
         Effects.setRemover((p, type) -> {
@@ -119,6 +121,59 @@ class EffectsTest {
         assertNotNull(effect);
         assertEquals(2, effect.amplifier());
         assertEquals(200, effect.duration());
+    }
+
+    @Test
+    @DisplayName("particles, icon and ambient default to what a potion normally does")
+    void displayDefaults() {
+        Effects.ParsedEffect effect = Effects.parse("SPEED|2|5");
+        assertNotNull(effect);
+        assertTrue(effect.particles());
+        assertTrue(effect.icon());
+        assertFalse(effect.ambient());
+    }
+
+    @Test
+    @DisplayName("the display fields are read from the line, in any spelling")
+    void displayFields() {
+        Effects.ParsedEffect hidden = Effects.parse("SPEED|2|5|false|false");
+        assertNotNull(hidden);
+        assertFalse(hidden.particles());
+        assertFalse(hidden.icon());
+        assertFalse(hidden.ambient());
+
+        Effects.ParsedEffect ambient = Effects.parse("SPEED|2|5|yes|no|yes");
+        assertNotNull(ambient);
+        assertTrue(ambient.particles());
+        assertFalse(ambient.icon());
+        assertTrue(ambient.ambient());
+    }
+
+    @Test
+    @DisplayName("an unreadable display field keeps the vanilla behaviour")
+    void displayFieldTypo() {
+        Effects.ParsedEffect effect = Effects.parse("SPEED|2|5|flase");
+        assertNotNull(effect);
+        assertTrue(effect.particles());
+    }
+
+    @Test
+    @DisplayName("a line written back parses to the same effect")
+    void lineRoundTrips() {
+        for (String written : List.of("SPEED|2|5", "SPEED|1|infinite", "SPEED|3|5|false|false",
+                "SPEED|2|5|true|false|true")) {
+            Effects.ParsedEffect effect = Effects.parse(written);
+            assertNotNull(effect);
+            assertEquals(effect, Effects.parse(effect.line()));
+        }
+    }
+
+    @Test
+    @DisplayName("a line keeps its three fields while the display is vanilla")
+    void lineStaysShort() {
+        Effects.ParsedEffect effect = Effects.parse("SPEED|2|5");
+        assertNotNull(effect);
+        assertEquals("SPEED|2|5", effect.line());
     }
 
     @Test

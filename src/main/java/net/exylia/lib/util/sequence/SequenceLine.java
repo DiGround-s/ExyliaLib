@@ -231,8 +231,29 @@ final class SequenceLine {
         }
     }
 
-    /** One question a line's form asks. */
-    record Field(@NotNull String key, @NotNull String label, @Nullable String hint) {
+    /**
+     * One question a line's form asks.
+     *
+     * <p>{@code flag} is what makes it a checkbox rather than a box to type in,
+     * and holds what the parameter does when nobody writes it. A yes-or-no
+     * asked as text is a yes-or-no somebody spells {@code ture}.
+     */
+    record Field(@NotNull String key, @NotNull String label, @Nullable String hint,
+                 @Nullable Boolean flag) {
+
+        Field(@NotNull String key, @NotNull String label, @Nullable String hint) {
+            this(key, label, hint, null);
+        }
+
+        /** A checkbox, ticked to start with when the parameter defaults to on. */
+        static @NotNull Field flag(@NotNull String key, @NotNull String label, boolean fallback) {
+            return new Field(key, label, null, fallback);
+        }
+
+        /** Whether this is asked as a checkbox. */
+        boolean isFlag() {
+            return flag != null;
+        }
     }
 
     /** What a line's first segment names, and therefore what can search for it. */
@@ -335,7 +356,10 @@ final class SequenceLine {
                     new Field("pitch", "Pitch", "1, from 0.5 to 2")));
             case "POTION" -> new Spec(token, Head.POTION, Form.NAMED, List.of(
                     new Field("duration", "How long, in ticks", "100, which is 5 seconds"),
-                    new Field("amplifier", "Strength", "0 is level I")));
+                    new Field("amplifier", "Strength", "0 is level I"),
+                    Field.flag("particles", "Shows the swirling particles", true),
+                    Field.flag("icon", "Shows the icon in the corner of the screen", true),
+                    Field.flag("ambient", "Faint particles, the way a beacon gives them", false)));
             case "BLOCK_BREAK" -> new Spec(token, Head.MATERIAL, Form.NAMED, List.of(
                     new Field("count", "How many", "20"),
                     new Field("y", "Height above the anchor", "0"),
@@ -345,8 +369,8 @@ final class SequenceLine {
                     new Field("fade", "Colour it fades to", "orange"),
                     new Field("type", "Shape",
                             "BALL, BALL_LARGE, STAR, BURST or CREEPER"),
-                    new Field("trail", "Leaves a trail", "true or false"),
-                    new Field("flicker", "Twinkles", "true or false"),
+                    Field.flag("trail", "Leaves a trail", true),
+                    Field.flag("flicker", "Twinkles", false),
                     new Field("power", "Flight time", "0 detonates at once")));
             case "LIGHTNING" -> new Spec(token, Head.NONE, Form.NAMED, List.of(
                     new Field("volume", "Volume", "2"),
@@ -364,10 +388,10 @@ final class SequenceLine {
                     new Field("pose", "How it lies",
                             "lying, standing, crawling, sneaking or spinning"),
                     new Field("life", "Seconds it stays", "5"),
-                    new Field("equip", "Wears what they died in", "true or false"),
+                    Field.flag("equip", "Wears what they died in", true),
                     new Field("glow", "Outline colour", "a name, #rrggbb or a {palette} token"),
                     new Field("y", "Height above the anchor", "0"),
-                    new Field("face", "Turns to face whoever did it", "true or false"),
+                    Field.flag("face", "Turns to face whoever did it", true),
                     new Field("from", "Appears at, as x,y,z", "0,0,0"),
                     new Field("to", "Ends up at, as x,y,z", "0,0,0"),
                     new Field("over", "Seconds the movement takes", "0.7"),
@@ -376,7 +400,7 @@ final class SequenceLine {
                     new Field("turn", "Degrees it turns on the spot", "0"),
                     new Field("pose_to", "A second pose, so it goes down while you watch", null),
                     new Field("after", "Seconds before that second pose", "0.4"),
-                    new Field("hurt", "Flinches when it is struck", "true or false"),
+                    Field.flag("hurt", "Flinches when it is struck", false),
                     new Field("move_after", "Seconds before any of that happens", "0")));
             case "RAGDOLL" -> new Spec(token, Head.NONE, Form.NAMED, List.of(
                     new Field("pose", "What happens to the body",
@@ -406,8 +430,8 @@ final class SequenceLine {
                     new Field("size", "How big it is; 1 is player-sized", "1"),
                     new Field("light", "Light level, 0 to 15", "world's own"),
                     new Field("glow", "Outline colour", "a name, #rrggbb or a {palette} token"),
-                    new Field("fade", "Shrinks away at the end", "true or false"),
-                    new Field("settle", "Stops turning once it lands", "true or false"),
+                    Field.flag("fade", "Shrinks away at the end", true),
+                    Field.flag("settle", "Stops turning once it lands", true),
                     new Field("rise", "How far off the ground it hangs", "1.1"),
                     new Field("open", "How far the arms and legs open out", "0.55"),
                     new Field("lift", "Seconds the lift takes", "0.45"),
@@ -423,7 +447,7 @@ final class SequenceLine {
                     new Field("dir", "Which way it is thrown or flies, in degrees",
                             "0 is east, 90 is south"),
                     new Field("y", "Height above the anchor", "0"),
-                    new Field("face", "Turns to face whoever did it", "true or false")));
+                    Field.flag("face", "Turns to face whoever did it", true)));
             case "ACTION_BAR" -> free(token, "The line above the hotbar", null);
             case "MESSAGE" -> free(token, "The message", "One line; add another for a second.");
             case "COMMAND" -> free(token, "Command the console runs",
@@ -460,7 +484,7 @@ final class SequenceLine {
         fields.add(new Field("count", "Particles per point", "1"));
         fields.add(new Field("ticks", "Frames it is drawn over", "1 draws it at once"));
         fields.add(new Field("interval", "Seconds between frames", "0.05"));
-        fields.add(new Field("face", "Turns to face the player", "true or false"));
+        fields.add(Field.flag("face", "Turns to face the player", false));
         fields.add(new Field("rotate", "Rotation, in degrees", "0"));
         fields.add(new Field("as", "Draw it with",
                 "item, block, head or text; leave empty for particles"));
@@ -496,7 +520,7 @@ final class SequenceLine {
                 new Field("tilt", "Fixed tilt, in degrees", "0"),
                 new Field("roll", "Fixed roll, in degrees", "0"),
                 new Field("turn", "Fixed turn, in degrees", "0"),
-                new Field("face_out", "Points away from the centre", "true or false"),
+                Field.flag("face_out", "Points away from the centre", false),
                 new Field("pull", "Travels towards the centre", "1 reaches it"),
                 new Field("glow", "Outline colour", "a name, #rrggbb or a {palette} token"),
                 new Field("light", "Fixed light level", "0 to 15"),

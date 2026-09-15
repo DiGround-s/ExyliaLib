@@ -154,6 +154,28 @@ class SequenceLineTest {
     }
 
     @Test
+    @DisplayName("a yes-or-no parameter is asked as a checkbox, carrying its own default")
+    void booleanFieldsAreFlags() {
+        for (SequenceLine.Field field : SequenceLine.spec("FIREWORK", SHAPES).fields()) {
+            switch (field.key()) {
+                case "trail" -> assertEquals(Boolean.TRUE, field.flag(),
+                        "a firework trails unless told not to");
+                case "flicker" -> assertEquals(Boolean.FALSE, field.flag());
+                case "color" -> assertFalse(field.isFlag(), "a colour is typed, not ticked");
+                default -> { }
+            }
+        }
+    }
+
+    @Test
+    @DisplayName("a potion line can be told what it shows on screen")
+    void potionDisplayFields() {
+        List<String> keys = SequenceLine.spec("POTION", SHAPES).fields().stream()
+                .map(SequenceLine.Field::key).toList();
+        assertTrue(keys.containsAll(List.of("particles", "icon", "ambient")));
+    }
+
+    @Test
     @DisplayName("a shape is asked for its own parameters before the shared ones")
     void shapeFieldsComeFirst() {
         List<SequenceLine.Field> fields = SequenceLine.spec("SPIRAL", SHAPES).fields();

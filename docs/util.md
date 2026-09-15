@@ -17,13 +17,23 @@ Effects.apply(player, "SPEED|2|5");                  // Speed II, 5 seconds
 Effects.apply(player, classDef.getPassiveEffects()); // a list of such lines
 ```
 
-One effect per line, `NAME|LEVEL|SECONDS`, pipe-separated — the notation
-every Exylia config already writes, taken from ExyliaCommons unchanged:
+One effect per line, `NAME|LEVEL|SECONDS|PARTICLES|ICON|AMBIENT`,
+pipe-separated — the notation every Exylia config already writes, taken from
+ExyliaCommons unchanged and extended at the end:
 
 - `LEVEL` is written the way a player reads it — `SPEED|2` is Speed II, which
   Bukkit calls amplifier 1. Missing means I.
 - `SECONDS` is a duration in seconds; the words `infinite` and `-1` mean the
   effect does not end on its own. Missing means 10 seconds.
+- `PARTICLES` is whether the swirls are drawn, `ICON` whether the effect shows
+  in the corner of the screen, and `AMBIENT` whether the particles are the
+  faint beacon kind. Written `true`/`false` — or `yes`/`no` — and missing means
+  what a potion normally does: particles and icon shown, not ambient. Since
+  1.169.0.
+
+```java
+Effects.apply(player, "SPEED|2|5|false|false");  // Speed II, nothing on screen
+```
 
 Anything malformed — an empty line, a name with a colon from some other
 notation, an unparseable number — is skipped, never fatal. Several effects
@@ -31,7 +41,8 @@ are a `List<String>`, one line each, the way configs hand them over.
 
 | Method | Contract |
 | --- | --- |
-| `parse(raw)` → `ParsedEffect?` | pure parse of one line — `ParsedEffect(name, amplifier, durationTicks)` holds standard Java types, no Bukkit types; `null` when malformed |
+| `parse(raw)` → `ParsedEffect?` | pure parse of one line — `ParsedEffect(name, amplifier, durationTicks, ambient, particles, icon)` holds standard Java types, no Bukkit types; `null` when malformed |
+| `ParsedEffect.line()` | the effect written back as a config line; the display fields only appear when they differ from the vanilla behaviour |
 | `parse(lines)` → `List<ParsedEffect>` | a list of lines, malformed skipped |
 | `apply(player, raw)` / `apply(player, lines)` / `apply(player, ParsedEffect...)` | resolve and apply |
 | `applyInfinite(player, raw/lines/ParsedEffect...)` | apply with no end; the duration on the line is overridden |
