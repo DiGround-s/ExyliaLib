@@ -40,7 +40,9 @@ import java.util.Objects;
  * A {@link SelectionOptions#virtualSelector() virtual} selector is only drawn in
  * the held slot, by packets, and nothing in the server inventory moves. That is
  * the one to hand a player rather than an admin: an item that does not exist
- * cannot be dropped, stored, sold or copied.
+ * cannot be dropped, stored, sold or copied. Throwing it away is how the player
+ * puts it down: the drop ends the selection, and the slot goes back to holding
+ * what it always held.
  *
  * <h2>Which item is ours is written on it</h2>
  * The wand carries the owning plugin's name in its persistent data, so taking it
@@ -72,9 +74,11 @@ public interface SelectorWand {
      *
      * @param player who sees it
      * @param wand   the item they see
+     * @param onDrop what throwing the drawn selector away means, on the
+     *               player's thread
      * @return the hotbar slot it is drawn in
      */
-    int overlay(@NotNull Player player, @NotNull ItemStack wand);
+    int overlay(@NotNull Player player, @NotNull ItemStack wand, @NotNull Runnable onDrop);
 
     /**
      * Stops drawing the selector and shows the player their real inventory.
@@ -147,9 +151,9 @@ public interface SelectorWand {
         }
 
         @Override
-        public int overlay(@NotNull Player player, @NotNull ItemStack wand) {
+        public int overlay(@NotNull Player player, @NotNull ItemStack wand, @NotNull Runnable onDrop) {
             int held = player.getInventory().getHeldItemSlot();
-            PacketRuntime.overlay(player.getUniqueId(), held, wand);
+            PacketRuntime.overlay(player.getUniqueId(), held, wand, onDrop);
             // The server sends the whole inventory, and the packet module draws
             // the selector over that one slot on its way out.
             player.updateInventory();

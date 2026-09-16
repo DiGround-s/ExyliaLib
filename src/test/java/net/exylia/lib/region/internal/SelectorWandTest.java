@@ -233,7 +233,7 @@ class SelectorWandTest {
         }
 
         @Override
-        public int overlay(Player player, ItemStack item) {
+        public int overlay(Player player, ItemStack item, Runnable onDrop) {
             given++;
             return 0;
         }

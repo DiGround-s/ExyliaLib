@@ -356,7 +356,9 @@ public final class SelectionRuntime {
                 }
                 try {
                     if (options.virtualSelector()) {
-                        wand.overlay(player, item);
+                        // Thrown away is put down: the drawn selector is the
+                        // only thing the player has to give back.
+                        wand.overlay(player, item, this::cancel);
                     } else {
                         wand.give(player, item);
                     }

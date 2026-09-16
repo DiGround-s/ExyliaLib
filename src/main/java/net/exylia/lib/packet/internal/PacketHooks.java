@@ -447,21 +447,25 @@ final class PacketHooks extends PacketListenerAbstract implements PacketSink {
      * <p>With nothing real in the hand the server has no event to cancel and
      * nothing to send back, while the client has already taken the item out of
      * its hand. The packet is dropped and the inventory sent again, which the
-     * overlay draws over.
+     * overlay draws over — unless whoever drew it reads the drop as the end of
+     * what it was drawn for, and takes the overlay down itself.
      */
     private static boolean keepsOverlay(PacketReceiveEvent event, UUID playerId) {
-        int slot = PacketRuntime.overlaySlot(playerId);
+        PacketRuntime.Overlay overlay = PacketRuntime.overlayOf(playerId);
         Object sender = event.getPlayer();
-        if (slot < 0 || !(sender instanceof Player player) || player.getInventory().getHeldItemSlot() != slot) {
+        if (overlay == null || !(sender instanceof Player player)
+                || player.getInventory().getHeldItemSlot() != overlay.slot()) {
             return false;
         }
         DiggingAction action = new WrapperPlayClientPlayerDigging(event).getAction();
-        if (action != DiggingAction.DROP_ITEM && action != DiggingAction.DROP_ITEM_STACK
-                && action != DiggingAction.SWAP_ITEM_WITH_OFFHAND) {
+        boolean drop = action == DiggingAction.DROP_ITEM || action == DiggingAction.DROP_ITEM_STACK;
+        if (!drop && action != DiggingAction.SWAP_ITEM_WITH_OFFHAND) {
             return false;
         }
         event.setCancelled(true);
-        PacketRuntime.resync(player);
+        // A hand swap is only refused: the overlay stays, and so does whatever
+        // it was drawn for. Throwing it away is the player putting it down.
+        PacketRuntime.dropped(player, drop ? overlay.onDrop() : null);
         return true;
     }
 

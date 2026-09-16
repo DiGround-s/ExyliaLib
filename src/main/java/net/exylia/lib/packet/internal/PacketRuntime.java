@@ -110,8 +110,8 @@ public final class PacketRuntime {
     /** player -> the item drawn in a hotbar slot that does not hold it. */
     private static final Map<UUID, Overlay> OVERLAYS = new ConcurrentHashMap<>();
 
-    /** One drawn item, and the hotbar slot it is drawn in. */
-    record Overlay(int slot, ItemStack item) {
+    /** One drawn item, the hotbar slot it is drawn in, and what a drop of it means. */
+    record Overlay(int slot, ItemStack item, @Nullable Runnable onDrop) {
     }
 
     /**
@@ -125,9 +125,12 @@ public final class PacketRuntime {
      * @param player     who sees it
      * @param hotbarSlot 0–8
      * @param item       what they see
+     * @param onDrop     what a drop of the drawn item means, on the player's
+     *                   thread, or {@code null} to swallow the drop and keep
+     *                   drawing it
      */
-    public static void overlay(UUID player, int hotbarSlot, ItemStack item) {
-        OVERLAYS.put(player, new Overlay(hotbarSlot, item.clone()));
+    public static void overlay(UUID player, int hotbarSlot, ItemStack item, @Nullable Runnable onDrop) {
+        OVERLAYS.put(player, new Overlay(hotbarSlot, item.clone(), onDrop));
         sink();
     }
 
@@ -151,12 +154,28 @@ public final class PacketRuntime {
         return OVERLAYS.get(player);
     }
 
-    /** Sends a player their inventory again, on their thread, after the client dropped an overlay. */
-    static void resync(Player player) {
+    /**
+     * Answers a player's attempt to drop an item only their client has.
+     *
+     * <p>The owner of the overlay decides what that means — a selection reads
+     * it as "give me my inventory back" — and is told on the player's thread,
+     * where it may write to the inventory. Nobody listening leaves the overlay
+     * where it is, and either way the client is sent the truth again: it has
+     * already taken the drawn item out of its own hand.
+     *
+     * @param player who dropped it
+     */
+    static void dropped(Player player, @Nullable Runnable onDrop) {
         Plugin plugin = lib;
-        if (plugin != null) {
-            Tasks.of(plugin).runAtEntity(player, player::updateInventory);
+        if (plugin == null) {
+            return;
         }
+        Tasks.of(plugin).runAtEntity(player, () -> {
+            if (onDrop != null) {
+                onDrop.run();
+            }
+            player.updateInventory();
+        });
     }
 
     /**
