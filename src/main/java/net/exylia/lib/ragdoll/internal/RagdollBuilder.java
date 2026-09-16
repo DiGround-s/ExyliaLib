@@ -113,7 +113,7 @@ public final class RagdollBuilder {
             props.add(RagdollPieces.Prop.HAT);
         }
         for (RagdollPieces.Piece piece : RagdollPieces.solve(motion, detail, model.scaleFactor(),
-                facing, ThreadLocalRandom.current(), props, placed)) {
+                facing, ThreadLocalRandom.current(), props, placed, model.rigs())) {
             DisplayModel drawn = drawn(model, piece, detail);
             DisplayHandle handle = DisplayRuntime.show(owner, drawn,
                     DisplayMotion.of(piece.poses(), motion.lifeMillis()), at, viewers);
@@ -159,12 +159,19 @@ public final class RagdollBuilder {
 
     /** What one piece is drawn with: a face, a carried item, a head of real skin, or a block. */
     private static DisplayModel drawn(RagdollModel model, RagdollPieces.Piece piece, int detail) {
+        if (piece.prop() == RagdollPieces.Prop.RIG) {
+            // A prop block brings its own material, which is the whole point of
+            // one: a hat is not one item, it is eighty blocks of three colours.
+            return DisplayModel.block(BlockPalette.block(piece.block()))
+                    .glow(model.glowArgb())
+                    .light(model.brightness());
+        }
         if (piece.prop() != null) {
             ItemStack item = switch (piece.prop()) {
                 case MAIN_HAND -> model.mainHand();
                 case OFF_HAND -> model.offHand();
                 case HAT -> model.hat();
-                case STRING_RIGHT, STRING_LEFT, STRING_HEAD, CHAIN_RIGHT, CHAIN_LEFT -> null;
+                case RIG, STRING_RIGHT, STRING_LEFT, STRING_HEAD, CHAIN_RIGHT, CHAIN_LEFT -> null;
             };
             if (item == null && piece.prop().name().startsWith("STRING")) {
                 return DisplayModel.block(Material.WHITE_WOOL.createBlockData()).light(15);

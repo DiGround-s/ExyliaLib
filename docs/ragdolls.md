@@ -46,6 +46,41 @@ Skins are read from Mojang's texture server once per skin, in the background,
 when their owner joins — minutes before anybody kills them. A skin that has not
 arrived costs one death its colours and nothing else.
 
+## Things it carries
+
+`rig:` ties props to the body's joints, by name from ExyliaLib's own
+`rigs.yml`. Since 1.173.0.
+
+```yaml
+- '[RAGDOLL] {victim};keys:0.3 arm_r=90 | 0.4 arm_r=0;rig:tophat,wand'
+```
+
+A prop is blocks and a joint. Every block is solved with the body and carried by
+the joint the way a cell of an arm is carried by that arm, so a hat in a hand
+stays in that hand through a cartwheel and costs nothing but its own blocks.
+
+Joints are `head` `face` `chest` `hips` `hand_r` `hand_l` `foot_r` `foot_l`, and
+a joint is not the middle of a limb: `head` is the crown of the skull and
+`hand_r` is the end of the arm, so a hat hangs where a hat hangs.
+
+The props themselves live in `rigs.yml`, which is the server's rather than a
+plugin's — a top hat is a top hat whether a kill effect is wearing it or an
+emote is. Each is a joint and a few lines of `at`, `ring` and `disc`:
+
+```yaml
+crown:
+  joint: head
+  at: 0, 0.04, 0
+  blocks:
+    - 'ring GOLD_BLOCK r:0.26 n:16 y:0.00 s:0.095'
+    - 'ring GOLD_BLOCK r:0.26 n:5  y:0.18 s:0.090'
+```
+
+Nothing about any particular object is written into this library. `hold:` and
+`hat:` are still there for what they were always right for — a bottle, a card —
+but a block in a hand is a cube the size of a head and an item is a flat sprite,
+so anything with volume is a rig.
+
 ## Poses
 
 `pose:` is what happens to the body. All of them are solved in advance and all

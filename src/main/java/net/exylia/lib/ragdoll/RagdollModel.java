@@ -31,6 +31,9 @@ import org.jetbrains.annotations.Nullable;
  */
 public final class RagdollModel {
 
+    /** What is tied to its joints; empty for a body carrying nothing. */
+    private java.util.List<RagdollProp> rigs = java.util.List.of();
+
     /** The finest detail there is: a shell with the design on every face. */
     private static final int MAX_DETAIL = 5;
 
@@ -225,4 +228,25 @@ public final class RagdollModel {
         item.setItemMeta(meta);
         return item;
     }
+
+    /**
+     * Ties props to this body's joints.
+     *
+     * <p>Every block of every prop is solved with the body and moves with the
+     * joint it hangs off, so a hat stays in the hand that is holding it however
+     * the choreography throws that hand around.
+     *
+     * @param props what it carries; replaces whatever it carried before
+     * @return this model
+     */
+    public @NotNull RagdollModel rigs(@NotNull java.util.List<RagdollProp> props) {
+        this.rigs = java.util.List.copyOf(props);
+        return this;
+    }
+
+    /** What is tied to its joints. */
+    public @NotNull java.util.List<RagdollProp> rigs() {
+        return rigs;
+    }
 }
+

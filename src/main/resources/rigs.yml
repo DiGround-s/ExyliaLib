@@ -1,0 +1,102 @@
+# Things made of blocks that a body can wear, hold or carry.
+#
+# A prop is tied to a joint and moves with it. Not near it, not following it —
+# every block is solved with the body before the first frame is sent, so a hat
+# in a hand stays in that hand through a cartwheel and costs nothing extra.
+#
+# This file is the server's, not a plugin's. A top hat is a top hat whether a
+# kill effect is wearing it or an emote is, so every [RAGDOLL] line on the
+# server can reach every prop in here:
+#
+#   '[RAGDOLL] {victim};keys:...;rig:tophat'
+#   '[RAGDOLL] {victim};keys:...;rig:crown,wand'
+#
+# ── Joints ────────────────────────────────────────────────────────────────────
+#
+#   head        the top of the skull, where a hat sits
+#   face        the middle of the head, for a mask or glasses
+#   chest       the middle of the chest, for a badge
+#   hips        the waist, for a belt
+#   hand_r      the right hand. hand_l is the left
+#   foot_r      the right foot. foot_l is the left
+#
+# A joint is not the middle of a limb. Hanging a hat off the head's middle puts
+# it through the face; head is the crown of the skull, hand_r is the end of the
+# arm where the fingers are.
+#
+# ── Blocks ────────────────────────────────────────────────────────────────────
+#
+# Three words, a material, and named numbers:
+#
+#   at    MATERIAL x:0 y:0 z:0 s:0.1      one block
+#   ring  MATERIAL r:0.3 n:12 y:0 s:0.1   n blocks in a circle of radius r
+#   disc  MATERIAL r:0.3 y:0 s:0.1        a ring with its middle filled in
+#
+#   s:  how big each block is, in blocks
+#   x:  across the joint, towards the body's left
+#   y:  along the limb — up, for a head or a hand
+#   z:  the way the body faces
+#
+# Everything is in the joint's own axes, so a prop written once is right from
+# every angle and in every animation.
+#
+# For a ring to have no gaps in it, n is about 2*pi*r / s. A ring of radius 0.22
+# out of blocks of 0.10 wants 14 of them; asking for 6 gives you a hexagon.
+#
+# at: moves the whole prop off its joint. A hat wants to sit a little above the
+# crown rather than in it.
+#
+# A prop is capped at 256 blocks. Every one of them is a packet to every player
+# watching, and a body is rarely alone.
+
+rigs:
+
+  # A brim, a body, a band and a crown. The shape that made this file necessary:
+  # a black block held in a hand is a cube the size of a head, and an item is a
+  # flat sprite. Eighty small blocks are a hat.
+  tophat:
+    joint: head
+    at: 0, 0.06, 0
+    blocks:
+      - 'ring BLACK_CONCRETE r:0.40 n:16 y:0.00 s:0.10'
+      - 'ring BLACK_CONCRETE r:0.28 n:12 y:0.00 s:0.10'
+      - 'ring BLACK_CONCRETE r:0.22 n:14 y:0.10 s:0.10'
+      - 'ring BLACK_CONCRETE r:0.22 n:14 y:0.20 s:0.10'
+      - 'ring RED_CONCRETE   r:0.23 n:14 y:0.30 s:0.10'
+      - 'ring BLACK_CONCRETE r:0.22 n:14 y:0.40 s:0.10'
+      - 'disc BLACK_CONCRETE r:0.22 n:14 y:0.50 s:0.10'
+
+  # A band and five points, which is what makes it a crown and not a ring.
+  crown:
+    joint: head
+    at: 0, 0.04, 0
+    blocks:
+      - 'ring GOLD_BLOCK r:0.26 n:16 y:0.00 s:0.095'
+      - 'ring GOLD_BLOCK r:0.26 n:16 y:0.09 s:0.095'
+      - 'ring GOLD_BLOCK r:0.26 n:5  y:0.18 s:0.090'
+      - 'ring GOLD_BLOCK r:0.26 n:5  y:0.25 s:0.070'
+
+  # A handle and a tip, held rather than worn: y runs along the arm, so the
+  # stick points the way the hand does.
+  wand:
+    joint: hand_r
+    at: 0, 0, 0
+    blocks:
+      - 'at DARK_OAK_LOG y:0.00 s:0.07'
+      - 'at DARK_OAK_LOG y:0.07 s:0.07'
+      - 'at DARK_OAK_LOG y:0.14 s:0.07'
+      - 'at DARK_OAK_LOG y:0.21 s:0.07'
+      - 'at BONE_BLOCK   y:0.28 s:0.08'
+
+  # Two tiers, icing and three candles. Carried in a hand, which is where a cake
+  # goes: the whole thing turns with the wrist.
+  cake:
+    joint: hand_r
+    at: 0, 0.08, 0
+    blocks:
+      - 'disc BROWN_CONCRETE r:0.20 n:14 y:0.00 s:0.085'
+      - 'ring BROWN_CONCRETE r:0.20 n:14 y:0.08 s:0.085'
+      - 'disc WHITE_CONCRETE r:0.20 n:14 y:0.16 s:0.085'
+      - 'at   WHITE_CONCRETE x:0.08  y:0.24 z:0.00 s:0.05'
+      - 'at   WHITE_CONCRETE x:-0.05 y:0.24 z:0.06 s:0.05'
+      - 'at   WHITE_CONCRETE x:-0.05 y:0.24 z:-0.06 s:0.05'

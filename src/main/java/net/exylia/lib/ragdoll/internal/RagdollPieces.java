@@ -92,6 +92,15 @@ public final class RagdollPieces {
         /** A puppet string from the top of the head. */
         STRING_HEAD,
 
+        /**
+         * One block of a prop tied to a joint.
+         *
+         * <p>Unlike the three above it, this one brings its own material rather
+         * than taking an item off the model: a prop is many blocks and each of
+         * them may be a different one.
+         */
+        RIG,
+
         /** A chain from the floor at the body's right to the right wrist. */
         CHAIN_RIGHT,
 
@@ -183,6 +192,19 @@ public final class RagdollPieces {
     public static List<Piece> solve(RagdollMotion motion, int detail, double scale, Rotation facing,
                                     RandomGenerator random, Set<Prop> props,
                                     @Nullable List<Placed> placed) {
+        return solve(motion, detail, scale, facing, random, props, placed, List.of());
+    }
+
+    /**
+     * Solves a whole body, and whatever is tied to its joints.
+     *
+     * @param rigs props attached to joints; each block of each one is carried
+     *             by its joint exactly the way a cell is carried by its part
+     */
+    public static List<Piece> solve(RagdollMotion motion, int detail, double scale, Rotation facing,
+                                    RandomGenerator random, Set<Prop> props,
+                                    @Nullable List<Placed> placed,
+                                    List<net.exylia.lib.ragdoll.RagdollProp> rigs) {
         RagdollPart[] parts = RagdollPart.values();
         RagdollFlight.Flight[] flights = new RagdollFlight.Flight[parts.length];
         for (RagdollPart part : parts) {
@@ -282,6 +304,30 @@ public final class RagdollPieces {
                     solved.add(new Piece(part, cellX, cellY, null,
                             displayed(centres, motion, 0f, Rotation.NONE)));
                 }
+            }
+        }
+        for (net.exylia.lib.ragdoll.RagdollProp rig : rigs) {
+            net.exylia.lib.ragdoll.RagdollJoint joint = rig.joint();
+            RagdollFlight.Flight carrier = flights[joint.part().ordinal()];
+            for (net.exylia.lib.ragdoll.RagdollProp.Block block : rig.blocks()) {
+                // The joint's own place along the part, then the prop's offset
+                // from that joint, then the block's offset inside the prop. All
+                // three are in the part's axes, so all three are turned by
+                // whatever the part turned to — which is what keeps a hat in a
+                // hand through a cartwheel.
+                float[] local = {
+                        (float) ((rig.at()[0] + block.x()) * scale),
+                        (float) ((joint.up() + rig.at()[1] + block.y()) * scale),
+                        (float) ((rig.at()[2] + block.z()) * scale)};
+                float side = (float) (block.size() * scale);
+                List<DisplayKeyframe> centres =
+                        carried(carrier, local, new float[]{side, side, side});
+                if (finishing) {
+                    RagdollFinishes.extend(centres, motion, scale, middle, false, random,
+                            new RagdollFinishes.Spelling(-1, pieces, facing));
+                }
+                solved.add(new Piece(joint.part(), 0, 0, Prop.RIG,
+                        displayed(centres, motion, 0f, Rotation.NONE), block.material(), null));
             }
         }
         for (Prop prop : props) {

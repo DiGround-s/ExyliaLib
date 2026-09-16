@@ -66,6 +66,7 @@ import net.exylia.lib.debug.Debug;
 import net.exylia.lib.placeholder.Placeholders;
 import net.exylia.lib.redis.Channels;
 import net.exylia.lib.redis.internal.RedisRuntime;
+import net.exylia.lib.ragdoll.Rigs;
 import net.exylia.lib.reload.Reloads;
 import net.exylia.lib.region.Regions;
 import net.exylia.lib.region.internal.PlacedBlockListener;
@@ -212,6 +213,7 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         loadEconomy();
         loadInput();
         loadDisplays();
+        loadRigs();
         loadMessages();
         Placeholders.logger(getLogger());
         BuiltIn.register(this);
@@ -442,6 +444,24 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
      * becoming a packet flood, and it lives here because every plugin that
      * draws shares the same client.
      */
+    /**
+     * Reads {@code rigs.yml}: the props any plugin's bodies may carry.
+     *
+     * <p>Read here rather than by whoever uses them, because they belong to the
+     * server rather than to a plugin. A hat the owner designed is reachable from
+     * every {@code [RAGDOLL]} line on the box.
+     */
+    private void loadRigs() {
+        net.exylia.lib.config.BundledFiles.refresh(this, ExyliaLib.class, "rigs.yml");
+        java.io.File file = new java.io.File(getDataFolder(), "rigs.yml");
+        Rigs.replace(org.bukkit.configuration.file.YamlConfiguration
+                        .loadConfiguration(file).getConfigurationSection("rigs"),
+                (where, problem) -> getLogger().warning("rigs.yml " + where + ": " + problem));
+        if (Rigs.count() > 0) {
+            getLogger().info("Loaded " + Rigs.count() + " rigs");
+        }
+    }
+
     private void loadDisplays() {
         displays = Configs.define(this, "displays", DisplaySettings.class).load();
         DisplayRuntime.apply(displays.get());

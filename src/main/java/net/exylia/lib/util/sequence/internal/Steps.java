@@ -481,7 +481,8 @@ final class Steps {
      * <p>Whose body it is is decided when the sequence plays, because the
      * answer is whoever just died.
      */
-    record Ragdoll(String owner, Corpse.Face face, RagdollMotion burst, int detail, double scale,
+    record Ragdoll(String owner, Corpse.Face face, RagdollMotion burst,
+                   java.util.List<net.exylia.lib.ragdoll.RagdollProp> rigs, int detail, double scale,
                    int glowArgb, int brightness, double yShift, boolean facesSource,
                    @Nullable org.bukkit.inventory.ItemStack hold,
                    @Nullable org.bukkit.inventory.ItemStack offhand,
@@ -538,7 +539,8 @@ final class Steps {
                     .scale(scale)
                     .glow(glowArgb)
                     .light(brightness)
-                    .carrying(hold, offhand, hat);
+                    .carrying(hold, offhand, hat)
+                    .rigs(rigs);
             RagdollHandle handle = new RagdollHandle(
                     RagdollBuilder.show(owner, model, burst, where, observers));
             // Owned by the run as well as by the display module, so a preview

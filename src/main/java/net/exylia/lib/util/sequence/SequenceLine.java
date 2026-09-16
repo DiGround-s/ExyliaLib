@@ -425,6 +425,8 @@ final class SequenceLine {
                     new Field("chains", "Chains from the wrists to the floor this far out", "0 for none, or blocks"),
                     new Field("snip", "How long from the start until the strings or chains break", "the last frame"),
                     new Field("seat", "Which spectator a {crowd} body wears", "0, 1, 2..."),
+                    new Field("rig", "Props tied to its joints, by name from rigs.yml",
+                            "tophat, or crown,wand for two"),
                     new Field("life", "How long the pieces last", "2.2, or 2s200ms"),
                     new Field("intact", "How long it stands whole first", "0.3, or 300ms"),
                     new Field("speed", "How fast the pieces leave, outwards", "3.2"),

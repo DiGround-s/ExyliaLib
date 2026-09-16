@@ -466,6 +466,35 @@ public final class SequenceCompiler {
     }
 
     /**
+     * The props a body carries, resolved from their names when the file is read.
+     *
+     * <p>Named rather than written out here, because a prop is eighty blocks and
+     * a step is one line. They live in ExyliaLib's own {@code rigs.yml}, which
+     * makes a hat the server designed reachable from every plugin on it.
+     */
+    private java.util.List<net.exylia.lib.ragdoll.RagdollProp> rigs(
+            Args args, String line, Args.Problems onArg) {
+        if (!args.has("rig")) {
+            return java.util.List.of();
+        }
+        java.util.List<net.exylia.lib.ragdoll.RagdollProp> found = new java.util.ArrayList<>(2);
+        for (String name : args.text("rig", "").split(",")) {
+            String id = name.trim();
+            if (id.isEmpty()) {
+                continue;
+            }
+            net.exylia.lib.ragdoll.RagdollProp prop = net.exylia.lib.ragdoll.Rigs.get(id);
+            if (prop == null) {
+                onArg.found("rig", "there is no prop called \"" + id
+                        + "\" in rigs.yml; the body carries nothing");
+                continue;
+            }
+            found.add(prop);
+        }
+        return found;
+    }
+
+    /**
      * A shot of it, for whoever it is about.
      *
      * <p>The plugin itself rather than its name, because a shot has to give a
@@ -524,7 +553,8 @@ public final class SequenceCompiler {
                 "bounce", "spin", "fade", "settle", "detail", "size", "glow", "light",
                 "y", "face", "rise", "open", "lift", "hang", "turns", "hits", "every", "force",
                 "swell", "squash", "sign", "letters", "dir", "keys", "then", "follow",
-                "hold", "offhand", "hat", "hold_size", "hat_size", "hat_y", "strings", "chains", "snip", "seat");
+                "hold", "offhand", "hat", "hold_size", "hat_size", "hat_y", "strings", "chains", "snip", "seat",
+                "rig");
         // A spectator: whoever is watching fills the seat, so a crowd is the
         // real crowd.
         boolean crowd = args.head().trim().equalsIgnoreCase("{crowd}");
@@ -597,7 +627,7 @@ public final class SequenceCompiler {
         // with. Registered while the file is read, so players who join before
         // anybody dies already have their skins prepared.
         net.exylia.lib.ragdoll.internal.RagdollTextures.register(owner);
-        return new Steps.Ragdoll(owner, face, body.build(),
+        return new Steps.Ragdoll(owner, face, body.build(), rigs(args, line, onArg),
                 args.count("detail", 1, onArg),
                 args.number("size", 1.0, onArg),
                 glow == null ? -1 : glow.asRGB(),
