@@ -119,6 +119,47 @@ final class Steps {
         }
     }
 
+    /**
+     * How close the source has to be to the body for there to be no direction
+     * at all between them, in blocks squared. Ten centimetres.
+     */
+    private static final double SAME_SPOT = 0.01;
+
+    /**
+     * Turns a body towards whoever caused the effect.
+     *
+     * <p>Facing whoever did it is the difference between a body and a body that
+     * was looking at something, which is why {@code face:} is on by default.
+     *
+     * <h2>Unless they are the same person</h2>
+     * A self effect — an emote, a rank flourish, anything played with
+     * {@code SequenceTarget.of(player)} — has the source standing exactly where
+     * the body is drawn. There is no direction between a point and itself, and
+     * {@code atan2(0, 0)} is zero, which is due south: every emote on the server
+     * faced south whatever the player was looking at, while the camera filming
+     * it orbited the direction they really faced. The two disagreed by however
+     * far from south the player happened to be standing.
+     *
+     * <p>The location already carries the right yaw in that case, because it
+     * came from the player. So the answer is to leave it alone rather than to
+     * overwrite it with a degenerate angle.
+     *
+     * @param where  the body's location, turned in place
+     * @param source whoever caused it, or {@code null}
+     */
+    static void faceSource(@NotNull Location where, @Nullable Player source) {
+        if (source == null) {
+            return;
+        }
+        Location from = source.getLocation();
+        double dx = where.getX() - from.getX();
+        double dz = where.getZ() - from.getZ();
+        if (dx * dx + dz * dz < SAME_SPOT) {
+            return;
+        }
+        where.setYaw((float) Math.toDegrees(Math.atan2(dx, -dz)));
+    }
+
     /** A burst of particles at the anchor. */
     record Particles(ParticlePaint paint, double yShift) implements SequenceStep {
         @Override
@@ -343,13 +384,8 @@ final class Steps {
             if (pitch != 0f) {
                 where.setPitch(pitch);
             }
-            Player source = target.source();
-            if (facesSource && source != null) {
-                // Facing whoever did it, which is the difference between a body
-                // and a body that was looking at something.
-                where.setYaw((float) Math.toDegrees(Math.atan2(
-                        where.getX() - source.getLocation().getX(),
-                        source.getLocation().getZ() - where.getZ())));
+            if (facesSource) {
+                faceSource(where, target.source());
             }
             NpcHandle handle = NpcRuntime.show(owner, model, motion, where, lifeMillis, observers);
             if (handle == null) {
@@ -493,11 +529,8 @@ final class Steps {
             Location where = yShift == 0.0
                     ? target.location().clone()
                     : target.location().clone().add(0, yShift, 0);
-            Player source = target.source();
-            if (facesSource && source != null) {
-                where.setYaw((float) Math.toDegrees(Math.atan2(
-                        where.getX() - source.getLocation().getX(),
-                        source.getLocation().getZ() - where.getZ())));
+            if (facesSource) {
+                faceSource(where, target.source());
             }
             RagdollModel model = (whose != null ? RagdollModel.of(whose)
                     : RagdollModel.of(net.exylia.lib.ragdoll.internal.SkinCache.fallback(), null))

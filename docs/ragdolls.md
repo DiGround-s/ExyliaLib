@@ -89,6 +89,15 @@ body starts standing where it died, and starts moving once `intact` is over.
 Everything is in the body's own terms: forward is towards whoever it faces,
 right is its own right, angles are degrees.
 
+Which way it faces is `face:`, on by default: the body turns towards whoever
+caused the effect, which is what makes a corpse look at its killer. A self
+effect is the exception — an emote, a rank flourish, anything played with
+`SequenceTarget.of(player)` — because there the source is standing exactly
+where the body is drawn and there is no direction between a point and itself.
+Since 1.172.2 the body keeps the yaw its location already carried, which for a
+self effect is the way the player was looking. Before that it faced due south
+whatever they were looking at.
+
 | Channel | What it moves |
 |---|---|
 | `at=right,up,forward` | the hips, in blocks; also `right=` `up=` `forward=` one at a time |
