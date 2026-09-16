@@ -1,6 +1,9 @@
 package net.exylia.lib.util.sequence.internal;
 
 import net.exylia.lib.util.sequence.Shape;
+import net.exylia.lib.camera.CameraShot;
+import org.bukkit.Bukkit;
+import org.bukkit.plugin.Plugin;
 import net.exylia.lib.util.sequence.SequenceStep;
 import org.bukkit.Color;
 import org.bukkit.FireworkEffect;
@@ -108,6 +111,7 @@ public final class SequenceCompiler {
             case "MESSAGE" -> rest.isEmpty() ? null : new Steps.Message(rest);
             case "NPC" -> npc(args, line, onArg);
             case "RAGDOLL" -> ragdoll(args, line, onArg);
+            case "CAMERA" -> camera(args, line, onArg);
             default -> {
                 problems.found(line, "there is no effect called \"" + token + "\"");
                 yield null;
@@ -456,6 +460,43 @@ public final class SequenceCompiler {
                 held(args, "hold", onArg),
                 held(args, "offhand", onArg),
                 (float) args.number("pitch", 0.0, onArg));
+    }
+
+    /**
+     * A shot of it, for whoever it is about.
+     *
+     * <p>The plugin itself rather than its name, because a shot has to give a
+     * view back through the packet module and that is asked for by plugin. It is
+     * looked up here, once, while the plugin is loading its own files, rather
+     * than on every play.
+     */
+    private @Nullable SequenceStep camera(Args args, String line, Args.Problems onArg) {
+        args.reportUnknown(onArg, "keys", "who");
+        if (!args.has("keys")) {
+            problems.found(line, "needs where the camera goes, as in"
+                    + " [CAMERA] keys:0 close | 2 yaw=~360");
+            return null;
+        }
+        CameraShot shot = CameraShot.parse(args.text("keys", ""),
+                problem -> onArg.found("keys", problem));
+        if (shot.isEmpty()) {
+            problems.found(line, "has no shot to play: a camera needs at least one frame"
+                    + " that takes time to reach");
+            return null;
+        }
+        String said = args.text("who", args.headless() ? "source" : args.head()).trim();
+        Steps.Camera.Who who = switch (said.toLowerCase(Locale.ROOT)) {
+            case "target", "{target}", "victim", "{victim}" -> Steps.Camera.Who.TARGET;
+            case "both", "{both}" -> Steps.Camera.Who.BOTH;
+            default -> Steps.Camera.Who.SOURCE;
+        };
+        Plugin plugin = Bukkit.getPluginManager().getPlugin(owner);
+        if (plugin == null) {
+            problems.found(line, "belongs to \"" + owner + "\", which is not a plugin this"
+                    + " server has loaded, so there is nothing to give a view back through");
+            return null;
+        }
+        return new Steps.Camera(plugin, shot, who);
     }
 
     /**

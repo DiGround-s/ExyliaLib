@@ -213,6 +213,7 @@ arguments — so a migrating plugin edits no configuration files.
 | `[DISPLAY] NETHERITE_SWORD` | one display entity, since 1.85.0 — see [displays.md](displays.md) |
 | `[NPC] {victim}` | a body where it happened, since 1.88.2 — see [npcs.md](npcs.md) |
 | `[RAGDOLL] {victim}` | a body that comes apart into its own pieces, since 1.120.0 — see [ragdolls.md](ragdolls.md) |
+| `[CAMERA] keys:0 close \| 2 yaw=~360` | shows the subject themselves from outside, since 1.172.0 — `who:` is `source`, `target` or `both`, never the audience; see [cameras.md](cameras.md) |
 
 ### Shapes
 

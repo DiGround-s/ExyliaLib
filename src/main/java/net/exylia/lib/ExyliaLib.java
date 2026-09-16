@@ -46,6 +46,9 @@ import net.exylia.lib.overlay.internal.OverlayRuntime;
 import net.exylia.lib.packet.Packets;
 import net.exylia.lib.packet.internal.PacketRuntime;
 import net.exylia.lib.util.combat.internal.CombatRuntime;
+import net.exylia.lib.camera.Cameras;
+import net.exylia.lib.camera.internal.CameraListener;
+import net.exylia.lib.camera.internal.CameraRuntime;
 import net.exylia.lib.display.Displays;
 import net.exylia.lib.npc.Npcs;
 import net.exylia.lib.npc.internal.NpcRuntime;
@@ -230,6 +233,11 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         ClientRuntime.init(this);
         NametagRuntime.init(this);
         PacketRuntime.init(this);
+        // After the packet module, which a shot borrows the freeze and the
+        // spectator view from, and whose driver is one timer for every camera
+        // on the server rather than one per shot.
+        CameraRuntime.init(this);
+        getServer().getPluginManager().registerEvents(new CameraListener(), this);
         MenuRuntime.init(this);
         // Overlays refuse a pickup and forget a player who leaves; everything
         // else they refuse is refused as a packet.
@@ -554,6 +562,9 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         HologramRuntime.removeEverything();
         ClientRuntime.shutdown();
         NametagRuntime.shutdown();
+        // Before the packet module: giving a view back, unfreezing and drawing
+        // a client as itself again all go through it.
+        Cameras.releaseAll();
         Packets.releaseAll();
         // Before the task module, whose timers redraw them.
         Overlays.releaseAll();
@@ -817,6 +828,11 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         // Same reason: putting a nametag back to normal is a packet to a player
         // who is still on the server.
         NametagRuntime.release(pluginName);
+        // Before the packet module, and for its own reason: a player left
+        // looking through a camera nobody took away is looking out of an
+        // entity that no longer exists, and cannot walk, see their own body
+        // or get out of it.
+        Cameras.release(pluginName);
         // Same again: unhiding, unfreezing and restoring blocks are packets.
         Packets.release(pluginName);
         // A rule belongs to a classloader that is going away, and chat keeps

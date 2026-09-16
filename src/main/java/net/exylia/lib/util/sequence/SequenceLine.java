@@ -200,6 +200,7 @@ final class SequenceLine {
             case "DISPLAY" -> "ARMOR_STAND";
             case "NPC" -> "PLAYER_HEAD";
             case "RAGDOLL" -> "SKELETON_SKULL";
+            case "CAMERA" -> "SPYGLASS";
             case "" -> "BARRIER";
             default -> "END_ROD";
         };
@@ -318,6 +319,7 @@ final class SequenceLine {
         tokens.add("COMMAND");
         tokens.add("NPC");
         tokens.add("RAGDOLL");
+        tokens.add("CAMERA");
         tokens.add("DELAY");
         return List.copyOf(tokens);
     }
@@ -402,6 +404,11 @@ final class SequenceLine {
                     new Field("after", "How long before that second pose", "0.4, or 400ms"),
                     Field.flag("hurt", "Flinches when it is struck", false),
                     new Field("move_after", "How long before any of that happens", "0, or 1s")));
+            case "CAMERA" -> new Spec(token, Head.NONE, Form.NAMED, List.of(
+                    new Field("keys", "Where the camera goes, frame by frame",
+                            "0 close | 3.2 yaw=~360 ease=in_out | 0.6 distance=2.1 ease=out"),
+                    new Field("who", "Whose eyes it takes",
+                            "source, target or both; source by default")));
             case "RAGDOLL" -> new Spec(token, Head.NONE, Form.NAMED, List.of(
                     new Field("pose", "What happens to the body",
                             "burst, spread, knocked, vortex, balloon, helicopter,"

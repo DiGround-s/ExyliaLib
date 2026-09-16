@@ -1,5 +1,7 @@
 package net.exylia.lib.util.sequence.internal;
 
+import net.exylia.lib.camera.CameraShot;
+import net.exylia.lib.camera.internal.CameraRuntime;
 import net.exylia.lib.effect.internal.HarmlessFireworks;
 import net.exylia.lib.npc.NpcHandle;
 import net.exylia.lib.npc.NpcModel;
@@ -23,6 +25,7 @@ import org.bukkit.entity.Firework;
 import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.meta.FireworkMeta;
+import org.bukkit.plugin.Plugin;
 import org.bukkit.potion.PotionEffect;
 import org.bukkit.potion.PotionEffectType;
 import org.jetbrains.annotations.NotNull;
@@ -40,6 +43,55 @@ import java.util.List;
 final class Steps {
 
     private Steps() {
+    }
+
+    /**
+     * A shot of whatever the sequence is doing, shown to whoever it is about.
+     *
+     * <p>Only ever the one or two players the line names. An effect is played
+     * for everybody within its radius, and taking the eyes of thirty people
+     * standing near a kill would be a line nobody could write safely: the
+     * audience of a sequence and the subject of a camera are different things,
+     * and this is the step where that distinction matters most.
+     *
+     * <p>Its trail is the length of the shot, so a preview does not give the
+     * player back while they are still inside it.
+     */
+    record Camera(Plugin plugin, CameraShot shot, Camera.Who who) implements SequenceStep {
+
+        /** Whose eyes a shot takes. */
+        enum Who {
+
+            /** Whoever caused the sequence: the killer, or the player who asked. */
+            SOURCE,
+
+            /** Whoever it happened to, when that is a player. */
+            TARGET,
+
+            /** Both of them, through one camera and therefore one framing. */
+            BOTH
+        }
+
+        @Override
+        public void play(@NotNull SequenceTarget target, @NotNull SequenceRun run) {
+            List<Player> viewers = new java.util.ArrayList<>(2);
+            if (who != Who.TARGET && target.source() != null) {
+                viewers.add(target.source());
+            }
+            if (who != Who.SOURCE && target.target() instanceof Player subject
+                    && !viewers.contains(subject)) {
+                viewers.add(subject);
+            }
+            if (viewers.isEmpty()) {
+                return;
+            }
+            CameraRuntime.play(plugin, shot, target.location(), viewers);
+        }
+
+        @Override
+        public long trailMillis() {
+            return shot.durationMillis();
+        }
     }
 
     /** A burst of particles at the anchor. */

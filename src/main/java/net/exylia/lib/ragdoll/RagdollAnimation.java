@@ -1,6 +1,7 @@
 package net.exylia.lib.ragdoll;
 
 import net.exylia.lib.ragdoll.internal.RagdollRig;
+import net.exylia.lib.util.internal.Ease;
 import org.jetbrains.annotations.ApiStatus;
 import org.jetbrains.annotations.NotNull;
 
@@ -173,7 +174,7 @@ public final class RagdollAnimation {
                     if (!RagdollRig.isAngle(channel)) {
                         continue;
                     }
-                    double perTick = Math.abs(pose[channel] - previous[channel]) / millis * 50 * ease.peak;
+                    double perTick = Math.abs(pose[channel] - previous[channel]) / millis * 50 * ease.peak();
                     if (perTick > MAX_DEGREES_PER_TICK) {
                         problems.accept("frame " + written + " turns too fast for the client to"
                                 + " follow the right way round; give it longer");
@@ -454,78 +455,4 @@ public final class RagdollAnimation {
             // little forward so the arms pass in front of it.
             Map.entry("heart", "arms=22,0,202 head=-10"),
             Map.entry("arabesque", "leg_l=-78 arm_r=0,0,170 arm_l=0,0,95 body=18 head=-12"));
-
-    /** How a frame is arrived at. */
-    private enum Ease {
-
-        LINEAR(1),
-        IN(3),
-        OUT(3),
-        IN_OUT(3),
-        BACK(4.7),
-        ANTICIPATE(4.7),
-        ELASTIC(7),
-        BOUNCE(5.5),
-        SNAP(1),
-        SMOOTH(1.6);
-
-        /** How much faster than the average it runs at its fastest. */
-        private final double peak;
-
-        Ease(double peak) {
-            this.peak = peak;
-        }
-
-        static Ease of(String name) {
-            return switch (name.trim().toLowerCase(Locale.ROOT)) {
-                case "linear" -> LINEAR;
-                case "in" -> IN;
-                case "out" -> OUT;
-                case "in_out", "inout", "both" -> IN_OUT;
-                case "back", "overshoot" -> BACK;
-                case "anticipate", "windup" -> ANTICIPATE;
-                case "elastic", "spring" -> ELASTIC;
-                case "bounce" -> BOUNCE;
-                case "snap", "cut", "step" -> SNAP;
-                case "smooth", "spline", "flow" -> SMOOTH;
-                default -> null;
-            };
-        }
-
-        double at(double progress) {
-            double u = Math.clamp(progress, 0, 1);
-            final double c1 = 1.70158;
-            final double c3 = c1 + 1;
-            return switch (this) {
-                case LINEAR, SMOOTH -> u;
-                case IN -> u * u * u;
-                case OUT -> 1 - Math.pow(1 - u, 3);
-                case IN_OUT -> u < 0.5 ? 4 * u * u * u : 1 - Math.pow(-2 * u + 2, 3) / 2;
-                case BACK -> 1 + c3 * Math.pow(u - 1, 3) + c1 * Math.pow(u - 1, 2);
-                case ANTICIPATE -> c3 * u * u * u - c1 * u * u;
-                case ELASTIC -> u == 0 || u == 1 ? u
-                        : Math.pow(2, -10 * u) * Math.sin((u * 10 - 0.75) * (2 * Math.PI / 3)) + 1;
-                case BOUNCE -> bounce(u);
-                case SNAP -> u > 0 ? 1 : 0;
-            };
-        }
-
-        private static double bounce(double u) {
-            final double n1 = 7.5625;
-            final double d1 = 2.75;
-            if (u < 1 / d1) {
-                return n1 * u * u;
-            }
-            if (u < 2 / d1) {
-                double v = u - 1.5 / d1;
-                return n1 * v * v + 0.75;
-            }
-            if (u < 2.5 / d1) {
-                double v = u - 2.25 / d1;
-                return n1 * v * v + 0.9375;
-            }
-            double v = u - 2.625 / d1;
-            return n1 * v * v + 0.984375;
-        }
-    }
 }
