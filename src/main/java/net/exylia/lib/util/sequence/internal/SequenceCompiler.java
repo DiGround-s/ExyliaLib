@@ -111,7 +111,10 @@ public final class SequenceCompiler {
             case "MESSAGE" -> rest.isEmpty() ? null : new Steps.Message(rest);
             case "NPC" -> npc(args, line, onArg);
             case "RAGDOLL" -> ragdoll(args, line, onArg);
-            case "CAMERA" -> camera(args, line, onArg);
+            // Headless, like the other tokens whose first segment is a
+            // parameter rather than a name: [CAMERA] keys:... would
+            // otherwise read the whole shot as a head and throw it away.
+            case "CAMERA" -> camera(args.asHeadless(), line, onArg);
             default -> {
                 problems.found(line, "there is no effect called \"" + token + "\"");
                 yield null;
@@ -484,7 +487,7 @@ public final class SequenceCompiler {
                     + " that takes time to reach");
             return null;
         }
-        String said = args.text("who", args.headless() ? "source" : args.head()).trim();
+        String said = args.text("who", "source").trim();
         Steps.Camera.Who who = switch (said.toLowerCase(Locale.ROOT)) {
             case "target", "{target}", "victim", "{victim}" -> Steps.Camera.Who.TARGET;
             case "both", "{both}" -> Steps.Camera.Who.BOTH;

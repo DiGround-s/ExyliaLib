@@ -1,5 +1,6 @@
 package net.exylia.lib.util.sequence.internal;
 
+import net.exylia.lib.camera.CameraHandle;
 import net.exylia.lib.camera.CameraShot;
 import net.exylia.lib.camera.internal.CameraRuntime;
 import net.exylia.lib.effect.internal.HarmlessFireworks;
@@ -85,7 +86,31 @@ final class Steps {
             if (viewers.isEmpty()) {
                 return;
             }
-            CameraRuntime.play(plugin, shot, target.location(), viewers);
+            CameraHandle camera = CameraRuntime.play(plugin, shot, target.location(), viewers);
+            if (camera == null) {
+                return;
+            }
+            // Owned by the run as well as by the camera module, the same way a
+            // body is. A sequence that is called off mid-shot — a preview the
+            // player closed, an emote somebody was hit out of — has to give
+            // those eyes back with it, and the module's own end is the end of
+            // the shot rather than the end of the sequence.
+            run.owns(new TaskHandle() {
+                @Override
+                public void cancel() {
+                    camera.stop();
+                }
+
+                @Override
+                public boolean isCancelled() {
+                    return !camera.isRunning();
+                }
+
+                @Override
+                public boolean isRepeating() {
+                    return false;
+                }
+            });
         }
 
         @Override

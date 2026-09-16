@@ -134,9 +134,16 @@ Effects:
   - '[SOUND] ENTITY_PLAYER_LEVELUP;0.7;1.4'
 ```
 
+Parameters are separated by semicolons like every other line, and `keys:` comes
+last because its own value is full of spaces and bars.
+
 `who:` decides whose eyes it takes — `source` (the default: whoever caused the
 sequence), `target` (whoever it happened to, when that is a player) or `both`,
 through one camera and therefore one framing.
+
+A shot is cancelled with the sequence that started it. A preview the player
+closed, or an emote somebody was hit out of, gives those eyes back with the
+body it took them for.
 
 It is never the audience. An effect is played for everybody within its radius,
 and a line that took the eyes of thirty people standing near a kill is a line
