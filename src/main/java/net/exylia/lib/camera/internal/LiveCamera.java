@@ -32,7 +32,8 @@ final class LiveCamera implements CameraHandle {
     private final List<Player> viewers;
     private final int entityId;
     private final List<CameraPath.Frame> frames;
-    private final long startedAt;
+    private final boolean loop;
+    private long startedAt;
 
     /** What was already true of each viewer before the shot touched them. */
     private final boolean[] wasFrozen;
@@ -44,11 +45,12 @@ final class LiveCamera implements CameraHandle {
     private volatile boolean gone;
 
     LiveCamera(Plugin plugin, List<Player> viewers, int entityId,
-               List<CameraPath.Frame> frames, long now) {
+               List<CameraPath.Frame> frames, boolean loop, long now) {
         this.plugin = plugin;
         this.viewers = viewers;
         this.entityId = entityId;
         this.frames = frames;
+        this.loop = loop;
         this.startedAt = now;
         this.wasFrozen = new boolean[viewers.size()];
         this.wasCameraView = new boolean[viewers.size()];
@@ -103,19 +105,42 @@ final class LiveCamera implements CameraHandle {
         if (gone) {
             return true;
         }
+        long due = sendDue(sink, now);
+        // One hold past the last position, not on it: the client is still
+        // drawing its way into that position when the moment arrives, and
+        // ending there takes the last beat off every shot.
+        // A looping path comes round one sample early, because its last
+        // position is its first one: holding the shared position for a sample
+        // before starting again is a hitch once a cycle, forever.
+        if (due >= (loop ? frames.size() - 1 : frames.size())) {
+            if (!loop) {
+                end(sink);
+                return true;
+            }
+            // Round again from where the path was due to end rather than from
+            // now, so a late tick costs the shot nothing. Frame zero is not
+            // re-sent: a closed path ends where it began and the client is
+            // already there.
+            startedAt += (long) (frames.size() - 1) * CameraShot.SAMPLE_MILLIS;
+            if (now - startedAt >= (long) (frames.size() - 1) * CameraShot.SAMPLE_MILLIS) {
+                startedAt = now;
+            }
+            nextFrame = 1;
+            // On this pass, not the next: a cycle that waited a tick to start
+            // would lose a frame every time round.
+            sendDue(sink, now);
+        }
+        return false;
+    }
+
+    /** Sends every position the clock has reached, and answers where it is. */
+    private long sendDue(CameraSink sink, long now) {
         long due = (now - startedAt) / CameraShot.SAMPLE_MILLIS;
         while (nextFrame < frames.size() && nextFrame <= due) {
             sink.move(viewers, entityId, frames.get(nextFrame));
             nextFrame++;
         }
-        // One hold past the last position, not on it: the client is still
-        // drawing its way into that position when the moment arrives, and
-        // ending there takes the last beat off every shot.
-        if (due >= frames.size()) {
-            end(sink);
-            return true;
-        }
-        return false;
+        return due;
     }
 
     /**

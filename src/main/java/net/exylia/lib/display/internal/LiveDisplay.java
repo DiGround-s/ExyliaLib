@@ -20,13 +20,39 @@ final class LiveDisplay implements DisplayHandle {
 
     private static final long TICK_MS = 50L;
 
+    /**
+     * The longest anything is allowed to live, whatever it asked for.
+     *
+     * <p>A looping display is given a life that is really a safety net, and a
+     * caller that means "forever" writes a very large number. A day is past any
+     * honest use and keeps the arithmetic off the end of a {@code long}.
+     */
+    private static final long MAX_LIFE_MS = 24L * 60L * 60L * 1000L;
+
     private final String owner;
     private final int entityId;
     private final DisplayModel model;
     private final List<DisplayKeyframe> poses;
     private final List<Player> viewers;
-    private final long startedAt;
     private final long endsAt;
+
+    /**
+     * How long one cycle lasts, or {@code 0} when the poses play once.
+     *
+     * <p>Not the last pose's moment: a piece whose poses were thinned out ends
+     * its list wherever its own movement stopped mattering, and every piece of
+     * one body has to come round again on the same beat or the body tears
+     * itself apart over a few dozen cycles.
+     */
+    private final long cycleMillis;
+    private final double accel;
+    private final double maxSpeed;
+
+    /** When the cycle being played began, which moves on at every wrap. */
+    private long cycleStartedAt;
+
+    /** How much quicker than written this cycle is played. */
+    private double speed = 1.0;
 
     /** What it rides, or {@code 0} when it stands where it was drawn. */
     private final int vehicleId;
@@ -44,11 +70,14 @@ final class LiveDisplay implements DisplayHandle {
         this.model = model;
         this.poses = motion.poses();
         this.viewers = viewers;
-        this.startedAt = now;
+        this.cycleStartedAt = now;
+        this.cycleMillis = motion.cycleMillis();
+        this.accel = motion.accel();
+        this.maxSpeed = motion.maxSpeed();
         // One tick past the last pose. The client is still drawing its way into
         // that pose when the moment arrives, and removing it then took every
         // falling boulder away a frame before it landed.
-        this.endsAt = now + motion.lifeMillis() + TICK_MS;
+        this.endsAt = now + Math.min(MAX_LIFE_MS, Math.max(0L, motion.lifeMillis())) + TICK_MS;
     }
 
     /** Which plugin's effect this belongs to. */
@@ -102,14 +131,49 @@ final class LiveDisplay implements DisplayHandle {
             destroy(sink);
             return true;
         }
-        long elapsed = now - startedAt;
+        long elapsed = sendDue(sink, now);
+        if (cycleMillis > 0L && elapsed >= cycleMillis) {
+            wrap(now, elapsed);
+            // The new cycle's first due pose goes out on this same pass: a loop
+            // that waited for the next tick would lose one every cycle.
+            sendDue(sink, now);
+        }
+        return false;
+    }
+
+    /** Sends every pose the clock has reached, and answers where the clock is. */
+    private long sendDue(DisplaySink sink, long now) {
+        long elapsed = (long) ((now - cycleStartedAt) * speed);
         while (nextPose < poses.size() && elapsed >= poses.get(nextPose - 1).atMillis()) {
             DisplayKeyframe target = poses.get(nextPose);
-            long span = target.atMillis() - poses.get(nextPose - 1).atMillis();
+            long span = (long) ((target.atMillis() - poses.get(nextPose - 1).atMillis()) / speed);
             sink.pose(viewers, entityId, model, target, (int) Math.max(1L, span / TICK_MS));
             nextPose++;
         }
-        return false;
+        return elapsed;
+    }
+
+    /**
+     * Starts the cycle again, from wherever the clock actually is.
+     *
+     * <p>The new cycle begins at the moment the old one was due to end rather
+     * than at now, so a tick the server was late for is not a beat the dance
+     * loses. Speed climbs on the wrap, which is what makes a loop wind up.
+     *
+     * <p>The first pose is never re-sent: a closed cycle ends in the pose it
+     * began in, so the client is already standing in it and telling it so again
+     * is a packet that draws nothing.
+     */
+    private void wrap(long now, long elapsed) {
+        cycleStartedAt += (long) (cycleMillis / speed);
+        speed = Math.min(maxSpeed, speed * accel);
+        nextPose = 1;
+        if (elapsed - cycleMillis >= cycleMillis) {
+            // A cycle or more behind, which is a server that stopped for a
+            // second: catching up pose by pose would play the whole dance at
+            // once, so the clock is moved to now and the beat is simply lost.
+            cycleStartedAt = now;
+        }
     }
 
     /** Removes it from every client, once. */

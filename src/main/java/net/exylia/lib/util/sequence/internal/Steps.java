@@ -117,6 +117,11 @@ final class Steps {
         public long trailMillis() {
             return shot.durationMillis();
         }
+
+        @Override
+        public boolean isEndless() {
+            return shot.loops();
+        }
     }
 
     /**
@@ -561,6 +566,11 @@ final class Steps {
                     return false;
                 }
             });
+        }
+
+        @Override
+        public boolean isEndless() {
+            return burst.loop();
         }
     }
 

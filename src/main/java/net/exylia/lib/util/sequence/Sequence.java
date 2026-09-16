@@ -43,12 +43,15 @@ public final class Sequence {
     private final List<SequenceStep> steps;
     private final long durationMillis;
     private final boolean instant;
+    private final boolean endless;
 
     Sequence(@NotNull List<SequenceStep> steps) {
         this.steps = List.copyOf(steps);
         long elapsed = 0L;
         long longest = 0L;
+        boolean forever = false;
         for (SequenceStep step : this.steps) {
+            forever |= step.isEndless();
             // A step's own drawing runs from where the sequence had got to, so
             // the end of the whole thing is the furthest any step reaches, not
             // the sum of the delays.
@@ -56,7 +59,8 @@ public final class Sequence {
             elapsed += step.holdMillis();
         }
         this.durationMillis = Math.max(elapsed, longest);
-        this.instant = durationMillis == 0L;
+        this.instant = durationMillis == 0L && !forever;
+        this.endless = forever;
     }
 
     /**
@@ -105,6 +109,21 @@ public final class Sequence {
      */
     public long durationMillis() {
         return durationMillis;
+    }
+
+    /**
+     * Whether this plays until somebody stops it.
+     *
+     * <p>True of a sequence with a looping body or a looping camera in it.
+     * {@link #durationMillis()} is then one cycle rather than the whole thing,
+     * and whoever played it decides when it ends by cancelling its
+     * {@link SequenceRun}.
+     *
+     * @return whether it never finishes on its own
+     * @since 1.174.0
+     */
+    public boolean isEndless() {
+        return endless;
     }
 
     @Override

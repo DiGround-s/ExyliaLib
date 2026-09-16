@@ -55,4 +55,20 @@ public interface SequenceStep {
     default long trailMillis() {
         return 0L;
     }
+
+    /**
+     * Whether this step goes on until something stops it.
+     *
+     * <p>A looping body or a looping camera never reaches an end of its own, so
+     * a sequence containing one lasts as long as whoever played it lets it: the
+     * caller holds the {@link SequenceRun} and cancels it. {@link #trailMillis}
+     * stays the length of one cycle, which is what a preview needs in order to
+     * show a whole one.
+     *
+     * @return whether it never finishes on its own
+     * @since 1.174.0
+     */
+    default boolean isEndless() {
+        return false;
+    }
 }

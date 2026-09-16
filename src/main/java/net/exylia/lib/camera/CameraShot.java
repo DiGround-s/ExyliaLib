@@ -103,11 +103,41 @@ public final class CameraShot {
     private final long[] times;
     private final double[][] keys;
     private final Ease[] eases;
+    private final boolean loop;
 
     private CameraShot(long[] times, double[][] keys, Ease[] eases) {
+        this(times, keys, eases, false);
+    }
+
+    private CameraShot(long[] times, double[][] keys, Ease[] eases, boolean loop) {
         this.times = times;
         this.keys = keys;
         this.eases = eases;
+        this.loop = loop;
+    }
+
+    /**
+     * The same shot, played again as soon as it ends.
+     *
+     * <p>For a body that is still dancing when the camera runs out of path. The
+     * path has to come back to where it started &mdash; an orbit of a whole
+     * turn does, a swoop from far to near does not &mdash; because a loop
+     * whose ends do not meet jumps once a cycle, forever.
+     *
+     * @return the looping shot
+     * @since 1.174.0
+     */
+    public @NotNull CameraShot looping() {
+        return loop ? this : new CameraShot(times, keys, eases, true);
+    }
+
+    /**
+     * Whether this shot starts again when it ends.
+     *
+     * @since 1.174.0
+     */
+    public boolean loops() {
+        return loop;
     }
 
     /** A camera that sits behind the subject and does nothing. */

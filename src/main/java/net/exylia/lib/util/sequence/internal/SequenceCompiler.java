@@ -36,6 +36,21 @@ public final class SequenceCompiler {
     /** How many milliseconds a tick is, for the file's seconds. */
     private static final long TICK_MS = 50L;
 
+    /**
+     * How long a looping body lives when the file does not say.
+     *
+     * <p>Not how long it dances: whoever played it ends it. This is the net
+     * under a caller that forgets to, so a server is never left with a body
+     * dancing in an empty lobby until it restarts.
+     */
+    private static final double LOOP_LIFE_SECONDS = 300.0;
+
+    /** How far two poses may differ and still count as the same one. */
+    private static final double SAME_POSE = 0.001;
+
+    /** A turn, since an angle a whole turn on is the angle it started at. */
+    private static final double FULL_TURN = 360.0;
+
     private final Map<String, Shape> shapes;
     private final Problems problems;
 
@@ -503,7 +518,7 @@ public final class SequenceCompiler {
      * than on every play.
      */
     private @Nullable SequenceStep camera(Args args, String line, Args.Problems onArg) {
-        args.reportUnknown(onArg, "keys", "who");
+        args.reportUnknown(onArg, "keys", "who", "loop");
         if (!args.has("keys")) {
             problems.found(line, "needs where the camera goes, as in"
                     + " [CAMERA] keys:0 close | 2 yaw=~360");
@@ -511,6 +526,9 @@ public final class SequenceCompiler {
         }
         CameraShot shot = CameraShot.parse(args.text("keys", ""),
                 problem -> onArg.found("keys", problem));
+        if (args.flag("loop", false)) {
+            shot = shot.looping();
+        }
         if (shot.isEmpty()) {
             problems.found(line, "has no shot to play: a camera needs at least one frame"
                     + " that takes time to reach");
@@ -538,6 +556,33 @@ public final class SequenceCompiler {
      * numbers a burst is made of are a handful of doubles worked out when the
      * file was read.
      */
+    /**
+     * Reports a dance whose last frame is not its first.
+     *
+     * <p>A loop plays its frames again from the top, so a cycle that ends
+     * somewhere else jumps back to the beginning once a cycle, forever. It is
+     * reported rather than refused: the jump is a mistake in a dance, not a
+     * reason to leave the player without one.
+     *
+     * <p>A channel a whole turn on is where it started, which is what
+     * {@code turn=~360} is for and why it is not a complaint.
+     */
+    private static void unclosed(net.exylia.lib.ragdoll.RagdollAnimation animation,
+                                 Args.Problems onArg) {
+        double[] first = animation.at(0);
+        double[] last = animation.at(animation.durationMillis());
+        for (int channel = 0; channel < first.length && channel < last.length; channel++) {
+            double drift = Math.abs(last[channel] - first[channel]);
+            if (drift <= SAME_POSE || Math.abs(drift % FULL_TURN) <= 0.5
+                    || Math.abs(drift % FULL_TURN - FULL_TURN) <= 0.5) {
+                continue;
+            }
+            onArg.found("loop", "the last frame is not the first one, so the body will"
+                    + " snap back every cycle: end the dance in the pose it starts in");
+            return;
+        }
+    }
+
     private @Nullable SequenceStep ragdoll(Args args, String line, Args.Problems onArg) {
         if (args.headless()) {
             problems.found(line, "needs whose body it is, as in [RAGDOLL] {victim}");
@@ -554,7 +599,7 @@ public final class SequenceCompiler {
                 "y", "face", "rise", "open", "lift", "hang", "turns", "hits", "every", "force",
                 "swell", "squash", "sign", "letters", "dir", "keys", "then", "follow",
                 "hold", "offhand", "hat", "hold_size", "hat_size", "hat_y", "strings", "chains", "snip", "seat",
-                "rig");
+                "rig", "loop", "accel", "max_speed");
         // A spectator: whoever is watching fills the seat, so a crowd is the
         // real crowd.
         boolean crowd = args.head().trim().equalsIgnoreCase("{crowd}");
@@ -577,15 +622,29 @@ public final class SequenceCompiler {
             case BURST, COLLAPSE, DISSOLVE -> 1.8;
             case SPELL -> 2.6;
         };
-        double life = args.has("keys") && !args.has("life")
-                ? intact + animation.durationMillis() / 1000.0 + finishing
-                : args.seconds("life", 2.2, onArg);
+        boolean loop = args.flag("loop", false);
+        if (loop && !args.has("keys")) {
+            onArg.found("loop", "only a body with keys can loop: there is nothing to play again");
+            loop = false;
+        }
+        if (loop) {
+            unclosed(animation, onArg);
+        }
+        // A loop has no end of its own, so its life is a safety net rather than
+        // its length: whoever played it cancels the run when the dance is over,
+        // and this is only what happens if nobody ever does.
+        double life = args.has("life") ? args.seconds("life", 2.2, onArg)
+                : loop ? LOOP_LIFE_SECONDS
+                : args.has("keys") ? intact + animation.durationMillis() / 1000.0 + finishing
+                : 2.2;
         net.exylia.lib.ragdoll.RagdollMotion.Builder body =
                 net.exylia.lib.ragdoll.RagdollMotion.builder()
                 .pose(net.exylia.lib.ragdoll.RagdollPose.of(
                         args.text("pose", args.has("keys") ? "animate" : "burst")))
                 .animation(animation)
                 .finish(finish)
+                .loop(loop)
+                .winding(args.number("accel", 1.0, onArg), args.number("max_speed", 1.0, onArg))
                 .follow(args.number("follow", 0.0, onArg))
                 .holdSize(args.number("hold_size", 0.7, onArg))
                 .hatSize(args.number("hat_size", 0.6, onArg))

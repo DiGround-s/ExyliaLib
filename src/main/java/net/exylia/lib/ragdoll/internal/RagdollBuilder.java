@@ -115,8 +115,15 @@ public final class RagdollBuilder {
         for (RagdollPieces.Piece piece : RagdollPieces.solve(motion, detail, model.scaleFactor(),
                 facing, ThreadLocalRandom.current(), props, placed, model.rigs())) {
             DisplayModel drawn = drawn(model, piece, detail);
-            DisplayHandle handle = DisplayRuntime.show(owner, drawn,
-                    DisplayMotion.of(piece.poses(), motion.lifeMillis()), at, viewers);
+            // A looping body's poses cover one cycle, and the cycle is the
+            // choreography rather than the last pose any one piece happens to
+            // have kept: thinning leaves each piece a different last pose, and
+            // pieces that came round on their own beats would drift apart.
+            DisplayMotion drawnMotion = DisplayMotion.of(piece.poses(), motion.lifeMillis());
+            if (motion.loop()) {
+                drawnMotion = drawnMotion.looping(motion.finishAt(), motion.accel(), motion.maxSpeed());
+            }
+            DisplayHandle handle = DisplayRuntime.show(owner, drawn, drawnMotion, at, viewers);
             if (handle != null) {
                 shown.add(handle);
             }

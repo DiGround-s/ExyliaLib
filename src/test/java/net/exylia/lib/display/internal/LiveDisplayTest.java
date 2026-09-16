@@ -121,6 +121,77 @@ class LiveDisplayTest {
         assertEquals(List.of("pose@200 over 4", "pose@400 over 4", "pose@600 over 4"), sent);
     }
 
+    private LiveDisplay looping(long life, long cycle, double accel, double maxSpeed,
+                                long... poseTimes) {
+        List<DisplayKeyframe> poses = new ArrayList<>();
+        for (long at : poseTimes) {
+            poses.add(new DisplayKeyframe(at, 0f, 0f, 0f, Rotation.NONE, 1f, 1f, 1f));
+        }
+        return new LiveDisplay("Test", 7,
+                DisplayModel.text(Component.empty()),
+                DisplayMotion.of(poses, life).looping(cycle, accel, maxSpeed),
+                List.of(), 0L, 0);
+    }
+
+    @Test
+    @DisplayName("a looping display starts its poses again, without re-sending the first")
+    void loopsFromTheTop() {
+        LiveDisplay live = looping(10_000, 400, 1.0, 1.0, 0, 200, 400);
+        live.spawn(sink, new Location(null, 0, 0, 0));
+        sent.clear();
+
+        assertFalse(live.advance(sink, 0L));
+        assertEquals(List.of("pose@200 over 4"), sent);
+
+        sent.clear();
+        assertFalse(live.advance(sink, 200L));
+        assertEquals(List.of("pose@400 over 4"), sent);
+
+        // The cycle is up: round again, and the pose the body is already
+        // standing in is not sent twice.
+        sent.clear();
+        assertFalse(live.advance(sink, 400L));
+        assertEquals(List.of("pose@200 over 4"), sent);
+    }
+
+    @Test
+    @DisplayName("a loop that winds up plays each cycle quicker than the last")
+    void loopsFaster() {
+        LiveDisplay live = looping(10_000, 400, 2.0, 4.0, 0, 200, 400);
+        live.spawn(sink, new Location(null, 0, 0, 0));
+        sent.clear();
+
+        live.advance(sink, 0L);
+        live.advance(sink, 200L);
+        sent.clear();
+
+        // Second cycle at twice the speed: the same poses, half the spans, and
+        // the whole cycle takes 200ms rather than 400.
+        live.advance(sink, 400L);
+        assertEquals(List.of("pose@200 over 2"), sent);
+
+        sent.clear();
+        live.advance(sink, 500L);
+        assertEquals(List.of("pose@400 over 2"), sent);
+
+        sent.clear();
+        live.advance(sink, 600L);
+        assertEquals(List.of("pose@200 over 1"), sent, "the third cycle is quicker again");
+    }
+
+    @Test
+    @DisplayName("a loop still ends at its life, which is the net under a caller that forgets")
+    void loopsUntilItsLifeIsUp() {
+        LiveDisplay live = looping(1000, 400, 1.0, 1.0, 0, 200, 400);
+        live.spawn(sink, new Location(null, 0, 0, 0));
+
+        assertFalse(live.advance(sink, 800L), "still dancing well past one cycle");
+        sent.clear();
+
+        assertTrue(live.advance(sink, 1100L));
+        assertEquals(List.of("destroy"), sent);
+    }
+
     @Test
     @DisplayName("it is destroyed when its life is up, exactly once")
     void destroyedOnce() {

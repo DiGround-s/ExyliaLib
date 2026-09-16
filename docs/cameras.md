@@ -104,6 +104,20 @@ long and whoever is being filmed is standing still for it, either because they
 are frozen or because the emote they asked for is cancelled the moment they
 move.
 
+## Loops
+
+`loop:true` plays the path again as soon as it ends, which is what films a body
+dancing on a loop. The path has to come back to where it started — an orbit of a
+whole turn does, a swoop from far to near does not — because a shot whose ends
+do not meet jumps once a cycle for as long as somebody is watching it.
+
+```yaml
+- '[CAMERA] loop:true;keys:0 behind | 3.6 yaw=~360 ease=linear'
+```
+
+A looping shot ends the way every other one does: the player is hit, moves,
+asks, leaves, or whoever played the sequence cancels the run.
+
 ## Limits worth knowing before you write a shot
 
 - **A shot is at most 60 seconds.** Anything past that is dropped and reported

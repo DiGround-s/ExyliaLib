@@ -210,7 +210,9 @@ public final class RagdollPieces {
         for (RagdollPart part : parts) {
             flights[part.ordinal()] = RagdollFlight.solve(part, motion, scale, facing, random);
         }
-        boolean finishing = motion.pose() == RagdollPose.ANIMATE;
+        // A loop never reaches an end, so it never finishes at one: extending
+        // every piece with a burst nobody will see would only cost the poses.
+        boolean finishing = motion.pose() == RagdollPose.ANIMATE && !motion.loop();
         boolean spelling = motion.pose() == RagdollPose.SIGN;
         boolean placing = placed != null && !spelling
                 && !(finishing && motion.finish() == RagdollFinish.SPELL);

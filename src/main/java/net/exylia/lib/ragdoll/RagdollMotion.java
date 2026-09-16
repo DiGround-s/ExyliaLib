@@ -81,6 +81,9 @@ public final class RagdollMotion {
     private final boolean aimed;
     private final RagdollAnimation animation;
     private final RagdollFinish finish;
+    private final boolean loop;
+    private final double accel;
+    private final double maxSpeed;
     private final double follow;
     private final double holdSize;
     private final double hatSize;
@@ -116,6 +119,9 @@ public final class RagdollMotion {
         this.heading = builder.heading;
         this.aimed = builder.aimed;
         this.animation = builder.animation;
+        this.loop = builder.loop;
+        this.accel = builder.accel;
+        this.maxSpeed = builder.maxSpeed;
         this.finish = builder.finish;
         this.follow = builder.follow;
         this.holdSize = builder.holdSize;
@@ -326,6 +332,39 @@ public final class RagdollMotion {
         return intactMillis + animation.durationMillis();
     }
 
+    /**
+     * Whether the choreography plays again as soon as it ends, until the body
+     * is taken away.
+     *
+     * <p>For a dance rather than a death: the cycle has to end in the pose it
+     * began in, and {@link #finish()} is not used, because a loop never reaches
+     * an end to finish at. {@link #lifeMillis()} stops being how long it lasts
+     * and becomes the longest it is allowed to last.
+     *
+     * @since 1.174.0
+     */
+    public boolean loop() {
+        return loop;
+    }
+
+    /**
+     * What a looping body's speed is multiplied by at the end of every cycle.
+     *
+     * @since 1.174.0
+     */
+    public double accel() {
+        return accel;
+    }
+
+    /**
+     * The fastest a looping body is allowed to get, as a multiple of written speed.
+     *
+     * @since 1.174.0
+     */
+    public double maxSpeed() {
+        return maxSpeed;
+    }
+
     /** How much a choreographed body's loose joints lag and overshoot; 0 is none. */
     public double follow() {
         return follow;
@@ -376,6 +415,9 @@ public final class RagdollMotion {
         private boolean aimed;
         private RagdollAnimation animation = RagdollAnimation.none();
         private RagdollFinish finish = RagdollFinish.HOLD;
+        private boolean loop;
+        private double accel = 1.0;
+        private double maxSpeed = 1.0;
         private double follow;
         private double holdSize = 0.7;
         private double hatSize = 0.6;
@@ -480,6 +522,32 @@ public final class RagdollMotion {
          *
          * <p>It starts once the body has stood for {@code intact}.
          */
+        /**
+         * Plays the choreography over and over until the body is taken away.
+         *
+         * @param loop whether it repeats
+         * @return this builder
+         * @since 1.174.0
+         */
+        public @NotNull Builder loop(boolean loop) {
+            this.loop = loop;
+            return this;
+        }
+
+        /**
+         * Speeds a looping body up a little on every cycle.
+         *
+         * @param accel    what the speed is multiplied by each cycle, at least 1
+         * @param maxSpeed the fastest it may get, at least 1
+         * @return this builder
+         * @since 1.174.0
+         */
+        public @NotNull Builder winding(double accel, double maxSpeed) {
+            this.accel = Math.max(1.0, accel);
+            this.maxSpeed = Math.max(1.0, maxSpeed);
+            return this;
+        }
+
         public @NotNull Builder animation(@NotNull RagdollAnimation animation) {
             this.animation = animation;
             return this;

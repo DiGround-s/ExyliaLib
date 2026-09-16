@@ -154,7 +154,7 @@ public final class CameraRuntime {
             return null;
         }
         LiveCamera camera = new LiveCamera(plugin, List.copyOf(watching), sink.newEntityId(),
-                CameraPath.of(shot, subject), clock.getAsLong());
+                CameraPath.of(shot, subject), shot.loops(), clock.getAsLong());
         for (Player viewer : watching) {
             FILMING.put(viewer.getUniqueId(), camera);
         }

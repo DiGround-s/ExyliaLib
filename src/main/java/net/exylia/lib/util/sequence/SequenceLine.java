@@ -408,7 +408,8 @@ final class SequenceLine {
                     new Field("keys", "Where the camera goes, frame by frame",
                             "0 close | 3.2 yaw=~360 ease=in_out | 0.6 distance=2.1 ease=out"),
                     new Field("who", "Whose eyes it takes",
-                            "source, target or both; source by default")));
+                            "source, target or both; source by default"),
+                    Field.flag("loop", "Plays the path again when it ends; it must close", false)));
             case "RAGDOLL" -> new Spec(token, Head.NONE, Form.NAMED, List.of(
                     new Field("pose", "What happens to the body",
                             "burst, spread, knocked, vortex, balloon, helicopter,"
@@ -418,6 +419,9 @@ final class SequenceLine {
                     new Field("then", "What it does after the last frame",
                             "hold, burst, collapse, implode, dissolve or spell"),
                     new Field("follow", "How much the loose joints lag and overshoot", "0, 1 or 2"),
+                    Field.flag("loop", "Dances the frames again when they end; the cycle must close", false),
+                    new Field("accel", "What the speed is multiplied by each cycle", "1"),
+                    new Field("max_speed", "The fastest a looping body may get", "1"),
                     new Field("hold", "What the right hand holds", "an item, as in POPPY"),
                     new Field("offhand", "What the left hand holds", "an item"),
                     new Field("hat", "What is worn on the head", "an item, as in CARVED_PUMPKIN"),

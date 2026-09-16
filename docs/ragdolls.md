@@ -197,6 +197,32 @@ Leave `life` out and a choreography lives exactly as long as `intact`, its
 frames and its finish need. `RagdollMotion.finishAt()` is the millisecond the
 last frame lands, which is the number to time the finale's `[DELAY]` lines to.
 
+### Loops
+
+`loop:true` plays the frames again the moment they end, for as long as the body
+is there. A dance rather than a death: an emote somebody stands in, an idle, a
+sign that turns.
+
+```yaml
+- '[RAGDOLL] {victim};intact:0;follow:1.4;loop:true;accel:1.06;max_speed:2.4;keys:<one cycle>'
+```
+
+- **The cycle has to close.** The last frame must leave the body in the pose the
+  first one starts from, or it snaps back once a cycle, forever. Ending on a
+  bare `stand` is usually enough, and an angle a whole turn on (`turn=~360`)
+  counts as closed. A cycle that does not close is reported when the file is
+  read.
+- **`accel:` winds it up.** The speed is multiplied by it at the end of every
+  cycle and stops climbing at `max_speed:`. `1` and `1` keep the tempo.
+- **`then:` is not used.** A loop never reaches an end to finish at.
+- **`life:` becomes a limit rather than a length.** Whoever played the sequence
+  ends it by cancelling the run — an emote does it when the player moves, is hit
+  or asks. Left out, `life:` is five minutes, which is the net under a caller
+  that forgets, not a length anybody should rely on.
+
+It costs what one cycle costs however long it runs: the poses are solved once
+and the runtime walks them again from the top.
+
 ### Follow-through
 
 `follow:` adds the motion nobody animates: arms left behind when the hips shoot
