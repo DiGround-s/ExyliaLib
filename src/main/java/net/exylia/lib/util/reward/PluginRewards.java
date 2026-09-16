@@ -372,7 +372,16 @@ public final class PluginRewards {
             if (owed.isEmpty()) {
                 return;
             }
-            tasks.runAtEntity(player, () -> then.accept(give(player, owed)));
+            // The store has already let go of them, so the delivery is the only
+            // copy there is. A player who died, quit or changed server while the
+            // read was in flight has their entity task dropped, and the rewards
+            // would go with it: they are owed them again instead, and claim them
+            // on their next join.
+            tasks.runAtEntity(player, () -> then.accept(give(player, owed)), () -> {
+                debug.warn(id + " was gone before the rewards they claimed reached them;"
+                        + " they are owed them again.");
+                store.keep(id, owed);
+            });
         });
     }
 
