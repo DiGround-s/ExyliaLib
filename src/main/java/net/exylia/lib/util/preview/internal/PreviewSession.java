@@ -32,6 +32,9 @@ import java.util.concurrent.atomic.AtomicBoolean;
  */
 final class PreviewSession implements Preview {
 
+    /** How long an endless sequence is shown for: a few cycles of it. */
+    private static final long ENDLESS_PREVIEW_MILLIS = 6000L;
+
     private final Plugin plugin;
     private final Player viewer;
     private final UUID viewerId;
@@ -144,7 +147,11 @@ final class PreviewSession implements Preview {
         run = net.exylia.lib.util.sequence.Sequences.of(plugin)
                 .play(sequence, SequenceTarget.at(where).by(viewer).onlyTo(viewer));
 
-        long after = Math.max(1L, sequence.durationMillis() / 50L) + settings.lingerTicks();
+        // An endless sequence has no length to wait out: it is shown for long
+        // enough to read the loop and then ended, because a preview nobody can
+        // close is a player stuck on a stage watching themselves.
+        long showing = sequence.isEndless() ? ENDLESS_PREVIEW_MILLIS : sequence.durationMillis();
+        long after = Math.max(1L, showing / 50L) + settings.lingerTicks();
         scheduleAtViewer(after, this::end);
     }
 
