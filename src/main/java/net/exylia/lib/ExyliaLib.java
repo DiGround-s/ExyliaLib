@@ -51,6 +51,7 @@ import net.exylia.lib.camera.internal.CameraListener;
 import net.exylia.lib.camera.internal.CameraRuntime;
 import net.exylia.lib.display.Displays;
 import net.exylia.lib.npc.Npcs;
+import net.exylia.lib.replay.Replays;
 import net.exylia.lib.npc.internal.NpcRuntime;
 import net.exylia.lib.display.internal.DisplayRuntime;
 import net.exylia.lib.hologram.internal.HologramRuntime;
@@ -232,6 +233,8 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         // in before anybody dies in it.
         net.exylia.lib.ragdoll.internal.SkinCache.init(this);
         NpcRuntime.init(this);
+        // After the NPC module, whose bodies a playback is made of.
+        net.exylia.lib.replay.internal.ReplayRuntime.init(this);
         ClientRuntime.init(this);
         NametagRuntime.init(this);
         PacketRuntime.init(this);
@@ -576,6 +579,8 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         // After the sequences that drew them, for the same reason as above.
         Displays.releaseAll();
         net.exylia.lib.ragdoll.Ragdolls.releaseAll();
+        // Before the NPC module, for the reason its per-plugin release is.
+        Replays.releaseAll();
         Npcs.releaseAll();
         // Before releasing tasks: their refresh drivers are among them.
         BoardManager.stopEverything();
@@ -835,6 +840,10 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         // relogs, and no part of the server will take it off afterwards.
         Displays.release(pluginName);
         net.exylia.lib.ragdoll.Ragdolls.release(pluginName);
+        // Before the NPC module, which a playback borrows its bodies from:
+        // stopping one takes its own bodies away, and released the other way
+        // round it would be reaching for NPCs that had already gone.
+        Replays.release(pluginName);
         // Same reason again: a body left standing wears somebody's name until
         // that player relogs, and the server has no record of it to clean up.
         Npcs.release(pluginName);

@@ -62,6 +62,18 @@ class NpcLifetimeTest {
         }
 
         @Override
+        public void teleport(List<Player> viewers, int entityId, Location to) {
+            sent.add("teleport");
+        }
+
+        @Override
+        public void equip(List<Player> viewers, int entityId,
+                          org.bukkit.inventory.EquipmentSlot slot,
+                          org.bukkit.inventory.ItemStack item) {
+            sent.add("equip");
+        }
+
+        @Override
         public void hurt(List<Player> viewers, int entityId) {
             sent.add("hurt");
         }

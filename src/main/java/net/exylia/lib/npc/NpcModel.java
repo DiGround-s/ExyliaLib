@@ -90,6 +90,22 @@ public final class NpcModel {
                 NpcPose.STANDING, -1, null, null, null, 1.0, null);
     }
 
+    /**
+     * An NPC with a name and whatever skin the client draws by default.
+     *
+     * <p>The fallback rather than a choice: a recording whose skin could not be
+     * read, or a body for somebody this server has never seen. It is a name and
+     * a shape, which is still worth drawing.
+     *
+     * @param name the name it carries
+     * @return the model
+     * @since 1.175.0
+     */
+    public static @NotNull NpcModel of(@NotNull String name) {
+        return new NpcModel(UUID.randomUUID(), trimmedName(name), null, null,
+                NpcPose.STANDING, -1, null, null, null, 1.0, null);
+    }
+
     /** How it holds itself. */
     public @NotNull NpcModel pose(@NotNull NpcPose pose) {
         return new NpcModel(id, name, texture, signature, pose, glowArgb, wearing, held, offHand,

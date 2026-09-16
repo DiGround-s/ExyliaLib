@@ -4,6 +4,8 @@ import net.exylia.lib.npc.NpcModel;
 import net.exylia.lib.npc.NpcPose;
 import org.bukkit.Location;
 import org.bukkit.entity.Player;
+import org.bukkit.inventory.EquipmentSlot;
+import org.bukkit.inventory.ItemStack;
 
 import java.util.List;
 import java.util.UUID;
@@ -39,6 +41,23 @@ public interface NpcSink {
      */
     void move(List<Player> viewers, int entityId, double dx, double dy, double dz,
               float yaw, float pitch);
+
+    /**
+     * Puts it at a place outright, rather than a step from where it was.
+     *
+     * <p>For the jumps a relative step cannot carry: a pearl, a respawn, or a
+     * replay seeking to somewhere else entirely. The client does not smooth
+     * one of these, which is exactly what is wanted when nothing continuous
+     * happened between the two places.
+     */
+    void teleport(List<Player> viewers, int entityId, Location to);
+
+    /**
+     * Puts one thing in one slot, leaving the other five alone.
+     *
+     * @param item what goes there, or {@code null} to empty the slot
+     */
+    void equip(List<Player> viewers, int entityId, EquipmentSlot slot, ItemStack item);
 
     /** Makes it flinch. */
     void hurt(List<Player> viewers, int entityId);

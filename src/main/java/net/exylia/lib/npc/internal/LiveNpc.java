@@ -6,7 +6,10 @@ import net.exylia.lib.npc.NpcMotion;
 import net.exylia.lib.npc.NpcPose;
 import org.bukkit.Location;
 import org.bukkit.entity.Player;
+import org.bukkit.inventory.EquipmentSlot;
+import org.bukkit.inventory.ItemStack;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.List;
 
@@ -18,6 +21,15 @@ import java.util.List;
  * comparison of two longs.
  */
 final class LiveNpc implements NpcHandle {
+
+    /**
+     * How far a relative step can carry, in blocks.
+     *
+     * <p>The protocol writes one as a short in 4096ths of a block, so eight is
+     * the ceiling and anything at all near it overflows into a body that
+     * appears on the other side of the arena. Beyond this it is teleported.
+     */
+    private static final double MAX_STEP = 7.5;
 
     private final String owner;
     private final int entityId;
@@ -58,7 +70,10 @@ final class LiveNpc implements NpcHandle {
         this.viewers = viewers;
         this.at = at;
         this.startedAt = now;
-        this.endsAt = now + lifeMillis;
+        // A life of zero is one the caller keeps: the replay module drives
+        // bodies for as long as the recording runs, which is longer than any
+        // cap this module would put on a body nobody is watching over.
+        this.endsAt = lifeMillis <= 0L ? Long.MAX_VALUE : now + lifeMillis;
     }
 
     /** Which plugin's effect this belongs to. */
@@ -80,10 +95,25 @@ final class LiveNpc implements NpcHandle {
         sink.announce(viewers, model);
     }
 
-    /** Draws the body, once, on the tick after the identity was announced. */
+    /**
+     * Draws the body, once, on the tick after the identity was announced.
+     *
+     * <p>At where it has been moved to rather than where it appeared: a body
+     * driven by a replay is put somewhere before the runtime's first tick gets
+     * round to drawing it, and spawning it at the old place would have it
+     * appear at the arena's anchor and then jump to the player.
+     */
     private void draw(NpcSink sink) {
         drawn = true;
-        sink.spawn(viewers, entityId, model, at);
+        sink.spawn(viewers, entityId, model, current());
+    }
+
+    /** Where the client has it, or is about to be told it is. */
+    private Location current() {
+        Location here = at.clone();
+        here.add(sentX, sentY, sentZ);
+        here.setYaw(sentYaw);
+        return here;
     }
 
     /**
@@ -203,6 +233,59 @@ final class LiveNpc implements NpcHandle {
     public void pose(@NotNull NpcPose pose) {
         if (!gone) {
             NpcRuntime.sink().pose(viewers, entityId, model, pose);
+        }
+    }
+
+    @Override
+    public void moveTo(@NotNull Location to) {
+        if (gone) {
+            return;
+        }
+        NpcSink sink = NpcRuntime.sink();
+        if (sink == null) {
+            return;
+        }
+        double dx = to.getX() - (at.getX() + sentX);
+        double dy = to.getY() - (at.getY() + sentY);
+        double dz = to.getZ() - (at.getZ() + sentZ);
+        // Where it has been put is kept either way, so the next step is
+        // measured from where the client actually has it rather than from
+        // where it was spawned.
+        sentX = to.getX() - at.getX();
+        sentY = to.getY() - at.getY();
+        sentZ = to.getZ() - at.getZ();
+        sentYaw = to.getYaw();
+        if (!drawn) {
+            // Nothing to move yet: the body is drawn on the runtime's next
+            // tick, and draw() reads the position that was just recorded.
+            at.setPitch(to.getPitch());
+            return;
+        }
+        if (Math.abs(dx) < MAX_STEP && Math.abs(dy) < MAX_STEP && Math.abs(dz) < MAX_STEP) {
+            sink.move(viewers, entityId, dx, dy, dz, to.getYaw(), to.getPitch());
+            return;
+        }
+        sink.teleport(viewers, entityId, to);
+    }
+
+    @Override
+    public void equip(@NotNull EquipmentSlot slot, @Nullable ItemStack item) {
+        if (!gone) {
+            NpcRuntime.sink().equip(viewers, entityId, slot, item);
+        }
+    }
+
+    @Override
+    public void swing() {
+        if (!gone) {
+            NpcRuntime.sink().swing(viewers, entityId);
+        }
+    }
+
+    @Override
+    public void hurt() {
+        if (!gone) {
+            NpcRuntime.sink().hurt(viewers, entityId);
         }
     }
 }

@@ -31,6 +31,21 @@ NpcHandle body = npcs.show(corpse, victim.getLocation(), 4000, observers);
 body.lookAt(killer.getLocation());
 ```
 
+A handle can also be driven after it is shown — since 1.175.0:
+
+```java
+body.moveTo(next);                          // a step, or a teleport when it is too far
+body.equip(EquipmentSlot.HAND, sword);      // one slot, leaving the other five
+body.swing();
+body.hurt();
+```
+
+`moveTo` sends a relative step when the distance fits in one, which the client
+draws smoothly over the frames it has until the next; anything further is sent
+outright and arrives without being smoothed. That is what makes a body driven
+twenty times a second look like a player walking rather than a prop being
+nudged, and it is what the [replay module](replays.md) is built on.
+
 ## Nothing the server has to carry
 
 These are not entities. They are not ticked, not saved, not in any chunk, have

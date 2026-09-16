@@ -22,6 +22,7 @@ import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerEn
 import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerEntityMetadata;
 import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerEntityRelativeMoveAndRotation;
 import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerEntityRotation;
+import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerEntityTeleport;
 import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerPlayerInfoRemove;
 import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerPlayerInfoUpdate;
 import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerSpawnEntity;
@@ -180,6 +181,75 @@ final class NpcPackets implements NpcSink {
         PacketWrapper<?> head = new WrapperPlayServerEntityHeadLook(entityId, yaw);
         send(viewers, step);
         send(viewers, head);
+    }
+
+    @Override
+    public void teleport(List<Player> viewers, int entityId, Location to) {
+        PacketWrapper<?> jump = new WrapperPlayServerEntityTeleport(entityId,
+                new Vector3d(to.getX(), to.getY(), to.getZ()), to.getYaw(), to.getPitch(), false);
+        // The head is its own field and a teleport does not carry it: without
+        // this the body arrives facing the new way and the head keeps looking
+        // the old way, which is the single most recognisable packet-NPC bug.
+        PacketWrapper<?> head = new WrapperPlayServerEntityHeadLook(entityId, to.getYaw());
+        send(viewers, jump);
+        send(viewers, head);
+    }
+
+    @Override
+    public void equip(List<Player> viewers, int entityId,
+                      org.bukkit.inventory.EquipmentSlot slot,
+                      org.bukkit.inventory.ItemStack item) {
+        EquipmentSlot target = slotOf(slot);
+        if (target == null) {
+            return;
+        }
+        // Emptied rather than skipped: a slot left alone keeps whatever was
+        // drawn there, so a sword that was put away would stay in the hand.
+        com.github.retrooper.packetevents.protocol.item.ItemStack drawn =
+                item == null || item.getType().isAir()
+                        ? com.github.retrooper.packetevents.protocol.item.ItemStack.EMPTY
+                        : SpigotConversionUtil.fromBukkitItemStack(item);
+        send(viewers, new WrapperPlayServerEntityEquipment(entityId,
+                List.of(new Equipment(target, drawn))));
+    }
+
+    /** The protocol's name for a Bukkit slot, or {@code null} when it has none. */
+    private static EquipmentSlot slotOf(org.bukkit.inventory.EquipmentSlot slot) {
+        return switch (slot) {
+            case HAND -> EquipmentSlot.MAIN_HAND;
+            case OFF_HAND -> EquipmentSlot.OFF_HAND;
+            case HEAD -> EquipmentSlot.HELMET;
+            case CHEST -> EquipmentSlot.CHEST_PLATE;
+            case LEGS -> EquipmentSlot.LEGGINGS;
+            case FEET -> EquipmentSlot.BOOTS;
+            default -> null;
+        };
+    }
+
+    /**
+     * The skin a player is wearing, as the two strings a profile carries.
+     *
+     * <p>Read from the connection this server already holds, so it costs
+     * nothing and blocks on nothing. Kept rather than the player, because a
+     * recording outlives the session it was made in.
+     *
+     * @return {@code {value, signature}}, or {@code null} when there is none
+     */
+    static String[] textureOf(Player player) {
+        try {
+            User user = PacketEvents.getAPI().getPlayerManager().getUser(player);
+            if (user == null || user.getProfile() == null) {
+                return null;
+            }
+            List<TextureProperty> properties = user.getProfile().getTextureProperties();
+            if (properties == null || properties.isEmpty()) {
+                return null;
+            }
+            TextureProperty skin = properties.get(0);
+            return new String[] {skin.getValue(), skin.getSignature()};
+        } catch (Throwable gone) {
+            return null;
+        }
     }
 
     @Override

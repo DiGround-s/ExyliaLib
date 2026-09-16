@@ -143,6 +143,42 @@ public final class NpcRuntime {
      */
     public static NpcHandle show(String owner, NpcModel model, NpcMotion motion, Location at,
                                  long lifeMillis, List<Player> viewers) {
+        return start(owner, model, motion, at, Math.clamp(lifeMillis, 200L, MAX_LIFE_MILLIS),
+                viewers);
+    }
+
+    /**
+     * Shows one NPC whose life the caller keeps, rather than this module.
+     *
+     * <p>The cap on a life exists so that a mistyped effect file cannot leave a
+     * crowd standing about. A replay is the case it does not fit: the body has
+     * to last exactly as long as the recording it is playing, which is longer
+     * than any number this module would pick, and there is something watching
+     * over it the whole time. It still goes when its plugin is disabled and
+     * when the server stops, so it is not a body nothing will clean up &mdash;
+     * it is one whose third way out is {@link NpcHandle#remove()} instead of a
+     * timer.
+     *
+     * @param owner   the name of the plugin it belongs to
+     * @param model   who it looks like
+     * @param at      where it appears
+     * @param viewers who sees it
+     * @return the handle, which the caller must remove
+     */
+    @ApiStatus.Internal
+    public static NpcHandle showOwned(String owner, NpcModel model, Location at,
+                                      List<Player> viewers) {
+        return start(owner, model, NpcMotion.still(), at, 0L, viewers);
+    }
+
+    /** The skin a player is wearing, as {@code {value, signature}}, or null. */
+    @ApiStatus.Internal
+    public static String[] textureOf(Player player) {
+        return available ? NpcPackets.textureOf(player) : null;
+    }
+
+    private static NpcHandle start(String owner, NpcModel model, NpcMotion motion, Location at,
+                                   long lifeMillis, List<Player> viewers) {
         if (!available) {
             warnOnce(owner);
             return null;
@@ -155,7 +191,7 @@ public final class NpcRuntime {
             return null;
         }
         LiveNpc npc = new LiveNpc(owner, ids.next(), model, motion, viewers, at.clone(),
-                clock.getAsLong(), Math.clamp(lifeMillis, 200L, MAX_LIFE_MILLIS));
+                clock.getAsLong(), lifeMillis);
         npc.spawn(sink);
         LIVE.add(npc);
         return npc;
