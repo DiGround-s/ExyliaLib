@@ -301,7 +301,9 @@ Call it before reading the files, on enable and on reload. Missing files are
 written. For YAML, a key new in the plugin is added to the owner's file with its
 comments — nobody can have chosen something that did not exist — and a changed or
 removed default waits in `/exylialib updates`. A key the owner deleted is not
-added back, and neither is a file the owner deleted. On a server from before
+added back, but a missing file always is: deleting one from the data folder gets
+it back on the next start, and removing it for good means removing it from the
+plugin. On a server from before
 tracking, a key missing from a file may be one the owner deleted, so it is listed
 as **new** in `/exylialib updates` rather than added. Reviewed defaults live in
 `.defaults/files/`.

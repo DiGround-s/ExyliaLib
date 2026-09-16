@@ -36,8 +36,8 @@ import java.util.stream.Collectors;
  * every key is compared with the defaults the owner last reviewed, kept in
  * {@code .defaults/files/} in the data folder:
  * <ul>
- *   <li><b>missing file</b> — written, unless it was installed before and the
- *       owner deleted it;</li>
+ *   <li><b>missing file</b> — written, every time it is missing, whether it was
+ *       never installed or deleted afterwards;</li>
  *   <li><b>new key</b> — added to the owner's file at once, comments included:
  *       nobody can have chosen something that did not exist;</li>
  *   <li><b>changed or removed default</b> on a key still at its reviewed value
@@ -116,11 +116,9 @@ public final class BundledFiles {
         Path reviewedPath = dataFolder.resolve(REVIEWED).resolve(file);
         try {
             if (Files.notExists(onDisk)) {
-                if (Files.exists(reviewedPath)) {
-                    // Installed before and gone now: the owner deleted it.
-                    DefaultUpdates.forget(plugin, name);
-                    return true;
-                }
+                // Nothing on disk is nothing to keep: the file comes back, as
+                // a config does. Removing one for good means removing it from
+                // the plugin, not from the data folder.
                 install(packaged, onDisk, reviewedPath);
                 DefaultUpdates.forget(plugin, name);
                 return true;

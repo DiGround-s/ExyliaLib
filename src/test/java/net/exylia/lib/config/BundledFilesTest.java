@@ -150,14 +150,14 @@ class BundledFilesTest {
     }
 
     @Test
-    void aFileTheOwnerDeletedIsNotWrittenAgain() throws Exception {
+    void aFileTheOwnerDeletedIsWrittenAgain() throws Exception {
         pack("bundled-deleted/extra.yml", "title: extra");
         assertTrue(refresh("bundled-deleted"));
         Files.delete(folder.resolve("bundled-deleted/extra.yml"));
 
         assertTrue(refresh("bundled-deleted"));
 
-        assertFalse(Files.exists(folder.resolve("bundled-deleted/extra.yml")));
+        assertEquals("extra", value("bundled-deleted/extra.yml", "title"));
     }
 
     @Test
