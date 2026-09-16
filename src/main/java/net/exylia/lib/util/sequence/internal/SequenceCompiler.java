@@ -568,8 +568,8 @@ public final class SequenceCompiler {
      * {@code turn=~360} is for and why it is not a complaint.
      */
     private static void unclosed(net.exylia.lib.ragdoll.RagdollAnimation animation,
-                                 Args.Problems onArg) {
-        double[] first = animation.at(0);
+                                 long loopFrom, Args.Problems onArg) {
+        double[] first = animation.at(loopFrom);
         double[] last = animation.at(animation.durationMillis());
         for (int channel = 0; channel < first.length && channel < last.length; channel++) {
             double drift = Math.abs(last[channel] - first[channel]);
@@ -577,8 +577,8 @@ public final class SequenceCompiler {
                     || Math.abs(drift % FULL_TURN - FULL_TURN) <= 0.5) {
                 continue;
             }
-            onArg.found("loop", "the last frame is not the first one, so the body will"
-                    + " snap back every cycle: end the dance in the pose it starts in");
+            onArg.found("loop", "the last frame is not the pose the cycle goes back to, so the"
+                    + " body will snap every cycle: end the dance in the pose it loops from");
             return;
         }
     }
@@ -599,7 +599,7 @@ public final class SequenceCompiler {
                 "y", "face", "rise", "open", "lift", "hang", "turns", "hits", "every", "force",
                 "swell", "squash", "sign", "letters", "dir", "keys", "then", "follow",
                 "hold", "offhand", "hat", "hold_size", "hat_size", "hat_y", "strings", "chains", "snip", "seat",
-                "rig", "loop", "accel", "max_speed");
+                "rig", "loop", "loop_from", "accel", "max_speed");
         // A spectator: whoever is watching fills the seat, so a crowd is the
         // real crowd.
         boolean crowd = args.head().trim().equalsIgnoreCase("{crowd}");
@@ -627,8 +627,9 @@ public final class SequenceCompiler {
             onArg.found("loop", "only a body with keys can loop: there is nothing to play again");
             loop = false;
         }
+        double loopFrom = loop ? args.seconds("loop_from", 0.0, onArg) : 0.0;
         if (loop) {
-            unclosed(animation, onArg);
+            unclosed(animation, (long) (loopFrom * 1000), onArg);
         }
         // A loop has no end of its own, so its life is a safety net rather than
         // its length: whoever played it cancels the run when the dance is over,
@@ -644,6 +645,7 @@ public final class SequenceCompiler {
                 .animation(animation)
                 .finish(finish)
                 .loop(loop)
+                .loopFrom(loopFrom)
                 .winding(args.number("accel", 1.0, onArg), args.number("max_speed", 1.0, onArg))
                 .follow(args.number("follow", 0.0, onArg))
                 .holdSize(args.number("hold_size", 0.7, onArg))

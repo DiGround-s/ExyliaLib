@@ -45,6 +45,9 @@ final class LiveDisplay implements DisplayHandle {
      * itself apart over a few dozen cycles.
      */
     private final long cycleMillis;
+
+    /** Where a cycle goes back to: the end of the entry, which plays once. */
+    private final long loopFromMillis;
     private final double accel;
     private final double maxSpeed;
 
@@ -72,6 +75,7 @@ final class LiveDisplay implements DisplayHandle {
         this.viewers = viewers;
         this.cycleStartedAt = now;
         this.cycleMillis = motion.cycleMillis();
+        this.loopFromMillis = motion.loopFromMillis();
         this.accel = motion.accel();
         this.maxSpeed = motion.maxSpeed();
         // One tick past the last pose. The client is still drawing its way into
@@ -165,14 +169,25 @@ final class LiveDisplay implements DisplayHandle {
      * is a packet that draws nothing.
      */
     private void wrap(long now, long elapsed) {
-        cycleStartedAt += (long) (cycleMillis / speed);
+        long cycle = cycleMillis - loopFromMillis;
+        // The moment the cycle was due to end, before the speed changes: the
+        // new cycle hangs off that rather than off now, so a late tick costs
+        // the dance nothing.
+        long dueEnd = cycleStartedAt + (long) (cycleMillis / speed);
         speed = Math.min(maxSpeed, speed * accel);
-        nextPose = 1;
-        if (elapsed - cycleMillis >= cycleMillis) {
+        cycleStartedAt = dueEnd - (long) (loopFromMillis / speed);
+        if (now - dueEnd >= (long) (cycle / speed)) {
             // A cycle or more behind, which is a server that stopped for a
             // second: catching up pose by pose would play the whole dance at
             // once, so the clock is moved to now and the beat is simply lost.
-            cycleStartedAt = now;
+            cycleStartedAt = now - (long) (loopFromMillis / speed);
+        }
+        // Back to the first pose the cycle proper contains. The pose it goes
+        // back to is the one it just reached — a closed cycle ends where it
+        // begins — so sending that one again would draw nothing.
+        nextPose = 1;
+        while (nextPose < poses.size() && poses.get(nextPose).atMillis() <= loopFromMillis) {
+            nextPose++;
         }
     }
 

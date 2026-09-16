@@ -420,6 +420,7 @@ final class SequenceLine {
                             "hold, burst, collapse, implode, dissolve or spell"),
                     new Field("follow", "How much the loose joints lag and overshoot", "0, 1 or 2"),
                     Field.flag("loop", "Dances the frames again when they end; the cycle must close", false),
+                    new Field("loop_from", "How much of it is the entry, played once", "0, or 0.4"),
                     new Field("accel", "What the speed is multiplied by each cycle", "1"),
                     new Field("max_speed", "The fastest a looping body may get", "1"),
                     new Field("hold", "What the right hand holds", "an item, as in POPPY"),

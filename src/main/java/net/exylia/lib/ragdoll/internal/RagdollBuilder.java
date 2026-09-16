@@ -121,7 +121,9 @@ public final class RagdollBuilder {
             // pieces that came round on their own beats would drift apart.
             DisplayMotion drawnMotion = DisplayMotion.of(piece.poses(), motion.lifeMillis());
             if (motion.loop()) {
-                drawnMotion = drawnMotion.looping(motion.finishAt(), motion.accel(), motion.maxSpeed());
+                drawnMotion = drawnMotion.looping(
+                        motion.intactMillis() + motion.loopFromMillis(), motion.finishAt(),
+                        motion.accel(), motion.maxSpeed());
             }
             DisplayHandle handle = DisplayRuntime.show(owner, drawn, drawnMotion, at, viewers);
             if (handle != null) {

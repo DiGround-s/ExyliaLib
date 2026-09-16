@@ -180,6 +180,39 @@ class LiveDisplayTest {
     }
 
     @Test
+    @DisplayName("a loop with an entry plays the entry once and cycles the rest")
+    void loopsPastItsEntry() {
+        List<DisplayKeyframe> poses = new ArrayList<>();
+        for (long at : new long[]{0, 200, 400, 600}) {
+            poses.add(new DisplayKeyframe(at, 0f, 0f, 0f, Rotation.NONE, 1f, 1f, 1f));
+        }
+        LiveDisplay live = new LiveDisplay("Test", 7,
+                DisplayModel.text(Component.empty()),
+                DisplayMotion.of(poses, 10_000).looping(200, 600, 1.0, 1.0),
+                List.of(), 0L, 0);
+        live.spawn(sink, new Location(null, 0, 0, 0));
+        sent.clear();
+
+        // The entry: poses at 200 and 400 on their way past.
+        live.advance(sink, 0L);
+        live.advance(sink, 200L);
+        sent.clear();
+
+        // The end of the cycle, and back to where the entry left off rather
+        // than to the standing pose it started from.
+        live.advance(sink, 400L);
+        assertEquals(List.of("pose@600 over 4"), sent);
+
+        sent.clear();
+        live.advance(sink, 600L);
+        assertEquals(List.of("pose@400 over 4"), sent, "the cycle is 200 to 600, not 0 to 600");
+
+        sent.clear();
+        live.advance(sink, 800L);
+        assertEquals(List.of("pose@600 over 4"), sent);
+    }
+
+    @Test
     @DisplayName("a loop still ends at its life, which is the net under a caller that forgets")
     void loopsUntilItsLifeIsUp() {
         LiveDisplay live = looping(1000, 400, 1.0, 1.0, 0, 200, 400);

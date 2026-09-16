@@ -204,13 +204,17 @@ is there. A dance rather than a death: an emote somebody stands in, an idle, a
 sign that turns.
 
 ```yaml
-- '[RAGDOLL] {victim};intact:0;follow:1.4;loop:true;accel:1.06;max_speed:2.4;keys:<one cycle>'
+- '[RAGDOLL] {victim};intact:0;follow:1.4;loop:true;loop_from:0.35;accel:1.06;max_speed:2.4;keys:<entry> | <cycle>'
 ```
 
+- **`loop_from:` is where the cycle starts.** Everything before it is the entry
+  into the dance, played once: a body that looped its whole list would stand up
+  and start over every cycle. Write the entry, then the groove, and set
+  `loop_from:` to the seconds the entry takes.
 - **The cycle has to close.** The last frame must leave the body in the pose the
-  first one starts from, or it snaps back once a cycle, forever. Ending on a
-  bare `stand` is usually enough, and an angle a whole turn on (`turn=~360`)
-  counts as closed. A cycle that does not close is reported when the file is
+  cycle goes back to — the pose at `loop_from:`, or the standing start when
+  there is no entry — or it snaps once a cycle, forever. An angle a whole turn
+  on (`turn=~360`) counts as closed. A cycle that does not close is reported when the file is
   read.
 - **`accel:` winds it up.** The speed is multiplied by it at the end of every
   cycle and stops climbing at `max_speed:`. `1` and `1` keep the tempo.

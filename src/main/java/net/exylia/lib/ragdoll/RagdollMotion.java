@@ -82,6 +82,7 @@ public final class RagdollMotion {
     private final RagdollAnimation animation;
     private final RagdollFinish finish;
     private final boolean loop;
+    private final long loopFromMillis;
     private final double accel;
     private final double maxSpeed;
     private final double follow;
@@ -120,6 +121,7 @@ public final class RagdollMotion {
         this.aimed = builder.aimed;
         this.animation = builder.animation;
         this.loop = builder.loop;
+        this.loopFromMillis = builder.loopFromMillis;
         this.accel = builder.accel;
         this.maxSpeed = builder.maxSpeed;
         this.finish = builder.finish;
@@ -348,6 +350,19 @@ public final class RagdollMotion {
     }
 
     /**
+     * Where a looping body goes back to, counted from the first frame.
+     *
+     * <p>Everything before it is the entry into the dance and is played once:
+     * a body that looped its own way out of standing would stand up again
+     * every cycle.
+     *
+     * @since 1.174.0
+     */
+    public long loopFromMillis() {
+        return loopFromMillis;
+    }
+
+    /**
      * What a looping body's speed is multiplied by at the end of every cycle.
      *
      * @since 1.174.0
@@ -416,6 +431,7 @@ public final class RagdollMotion {
         private RagdollAnimation animation = RagdollAnimation.none();
         private RagdollFinish finish = RagdollFinish.HOLD;
         private boolean loop;
+        private long loopFromMillis;
         private double accel = 1.0;
         private double maxSpeed = 1.0;
         private double follow;
@@ -531,6 +547,18 @@ public final class RagdollMotion {
          */
         public @NotNull Builder loop(boolean loop) {
             this.loop = loop;
+            return this;
+        }
+
+        /**
+         * Where the loop goes back to, which is the end of the entry.
+         *
+         * @param seconds how much of the choreography is played only once
+         * @return this builder
+         * @since 1.174.0
+         */
+        public @NotNull Builder loopFrom(double seconds) {
+            this.loopFromMillis = (long) Math.max(0.0, seconds * 1000);
             return this;
         }
 
