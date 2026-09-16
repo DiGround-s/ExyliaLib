@@ -245,6 +245,16 @@ blocks come out the size of the shape.
 
 Every line takes `repeat:` `every:` and, for a shape, `turn_each:` — the same
 line played several times over on a beat, each beat turned a little further.
+A repeated line also takes `accel:` and `max_speed:`: the gap is divided by
+`accel:` after every beat and stops shortening at `max_speed:`, which is how a
+sound keeps up with a body that winds up. Since 1.177.0.
+
+A beat is also divided by the tempo of the play. A `[RAGDOLL]` line that says
+`tempo:1-1.6` makes the whole run quicker or slower by a number rolled once
+when it starts, and a repeating sound shortens its gap by exactly that, so the
+sounds keeping a dance's beat stay on it however the dance came out. Read it
+back with `SequenceRun.tempo()`; see [ragdolls.md](ragdolls.md). Since
+1.177.0.
 
 Every shape takes `color:` `size:` `count:` `ticks:` `interval:` `y:` on top of
 its own parameters. `ticks:1` draws the whole shape at once; above that it draws

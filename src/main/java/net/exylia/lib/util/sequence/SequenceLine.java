@@ -507,6 +507,8 @@ final class SequenceLine {
         fields.add(new Field("repeat", "Times it plays", "1"));
         fields.add(new Field("every", "How long between beats", "0.15, or 150ms"));
         fields.add(new Field("turn_each", "Degrees further round each beat", "0"));
+        fields.add(new Field("accel", "What the gap is divided by after each beat", "1"));
+        fields.add(new Field("max_speed", "The most the gap may be divided by", "1"));
         return List.copyOf(fields);
     }
 
@@ -546,6 +548,8 @@ final class SequenceLine {
                 new Field("hold", "How an item is held",
                         "0 the model itself, 5 head, 7 dropped, 8 item frame"),
                 new Field("repeat", "Times it plays", "1"),
-                new Field("every", "Seconds between beats", "0.15"));
+                new Field("every", "Seconds between beats", "0.15"),
+                new Field("accel", "What the gap is divided by after each beat", "1"),
+                new Field("max_speed", "The most the gap may be divided by", "1"));
     }
 }

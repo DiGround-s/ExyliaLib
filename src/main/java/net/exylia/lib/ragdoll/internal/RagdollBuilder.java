@@ -83,6 +83,23 @@ public final class RagdollBuilder {
      */
     public static List<DisplayHandle> show(String owner, RagdollModel model, RagdollMotion motion,
                                            Location at, List<Player> viewers) {
+        return show(owner, model, motion, at, viewers, 0.0);
+    }
+
+    /**
+     * The same, at a tempo somebody else rolled.
+     *
+     * <p>A sequence rolls one tempo for everything it plays, so the body is
+     * handed the number rather than rolling its own: a dance and the sounds
+     * keeping its beat have to agree. {@code 0} or less rolls from the motion's
+     * own range, which is what a caller with no sequence around it wants.
+     *
+     * @param tempo the tempo to play at, or {@code 0} to roll one
+     * @return the displays it put on screen
+     * @since 1.177.0
+     */
+    public static List<DisplayHandle> show(String owner, RagdollModel model, RagdollMotion motion,
+                                           Location at, List<Player> viewers, double tempo) {
         List<DisplayHandle> shown = new ArrayList<>();
         if (viewers.isEmpty()) {
             return shown;
@@ -102,12 +119,13 @@ public final class RagdollBuilder {
         if (placed == null && !spelling && model.detailCells() >= RagdollShell.DETAIL) {
             placed = RagdollShell.placed(RagdollShell.build(model.skin()));
         }
-        // One roll for the whole body. A tempo rolled per piece would run the
-        // head at one speed and the arms at another, which is not a dance being
+        // One tempo for the whole body: rolled per piece it would run the head
+        // at one speed and the arms at another, which is not a dance being
         // varied but a body coming apart.
-        double tempo = motion.tempoTo() > motion.tempoFrom()
-                ? ThreadLocalRandom.current().nextDouble(motion.tempoFrom(), motion.tempoTo())
-                : motion.tempoFrom();
+        double played = tempo > 0.0 ? tempo
+                : motion.tempoTo() > motion.tempoFrom()
+                        ? ThreadLocalRandom.current().nextDouble(motion.tempoFrom(), motion.tempoTo())
+                        : motion.tempoFrom();
         EnumSet<RagdollPieces.Prop> props = EnumSet.noneOf(RagdollPieces.Prop.class);
         if (model.mainHand() != null) {
             props.add(RagdollPieces.Prop.MAIN_HAND);
@@ -129,7 +147,7 @@ public final class RagdollBuilder {
             if (motion.loop()) {
                 drawnMotion = drawnMotion.looping(
                         motion.intactMillis() + motion.loopFromMillis(), motion.finishAt(),
-                        motion.accel(), motion.maxSpeed(), tempo);
+                        motion.accel(), motion.maxSpeed(), played);
             }
             DisplayHandle handle = DisplayRuntime.show(owner, drawn, drawnMotion, at, viewers);
             if (handle != null) {

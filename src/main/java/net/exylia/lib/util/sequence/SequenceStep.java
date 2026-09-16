@@ -71,4 +71,31 @@ public interface SequenceStep {
     default boolean isEndless() {
         return false;
     }
+
+    /**
+     * The slowest tempo a run containing this step may be played at.
+     *
+     * <p>A step that varies its own speed declares the range here rather than
+     * rolling it itself, because the roll belongs to the run: a body and the
+     * sounds that keep its beat have to agree about how fast this play is. The
+     * runtime rolls once from the widest range its steps declare and every step
+     * reads it back with {@link SequenceRun#tempo()}.
+     *
+     * @return the slowest tempo, where {@code 1} is as written
+     * @since 1.177.0
+     */
+    default double tempoFrom() {
+        return 1.0;
+    }
+
+    /**
+     * The quickest tempo a run containing this step may be played at.
+     *
+     * @return the quickest tempo, equal to {@link #tempoFrom()} when it does
+     *         not vary
+     * @since 1.177.0
+     */
+    default double tempoTo() {
+        return 1.0;
+    }
 }

@@ -291,6 +291,12 @@ public final class Args {
             if (key.startsWith("#") || WRAPPERS.contains(key)) {
                 continue;
             }
+            // The rhythm's own wind-up, and only when there is a rhythm: on a
+            // line with no repeat: they belong to whatever the line draws, and
+            // a body's accel: is reported by the body.
+            if (RHYTHM.contains(key) && values.containsKey("repeat")) {
+                continue;
+            }
             boolean recognised = false;
             for (String candidate : known) {
                 if (candidate.equals(key)) {
@@ -313,6 +319,10 @@ public final class Args {
      */
     private static final java.util.Set<String> WRAPPERS =
             java.util.Set.of("repeat", "every", "turn_each");
+
+    /** What a repeated line may say about how its beat quickens. */
+    private static final java.util.Set<String> RHYTHM =
+            java.util.Set.of("accel", "max_speed");
 
     /** Where a malformed argument is reported. */
     @FunctionalInterface

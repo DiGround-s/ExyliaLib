@@ -547,7 +547,7 @@ final class Steps {
                     .carrying(hold, offhand, hat)
                     .rigs(rigs);
             RagdollHandle handle = new RagdollHandle(
-                    RagdollBuilder.show(owner, model, burst, where, observers));
+                    RagdollBuilder.show(owner, model, burst, where, observers, run.tempo()));
             // Owned by the run as well as by the display module, so a preview
             // the player closed does not leave an arm spinning in the arena.
             run.owns(new TaskHandle() {
@@ -571,6 +571,16 @@ final class Steps {
         @Override
         public boolean isEndless() {
             return burst.loop();
+        }
+
+        @Override
+        public double tempoFrom() {
+            return burst.tempoFrom();
+        }
+
+        @Override
+        public double tempoTo() {
+            return burst.tempoTo();
         }
     }
 

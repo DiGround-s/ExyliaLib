@@ -65,6 +65,33 @@ class SequenceCompileTest {
         assertTrue(problems.isEmpty(), "the line should compile: " + problems);
     }
 
+    // ------------------------------------------------------- tempo and rhythm
+
+    @Test
+    @DisplayName("a body that rolls its tempo makes the whole play roll with it")
+    void aVaryingBodyVariesItsSequence() {
+        Sequence sequence = compile(List.of(
+                "[RAGDOLL] {victim};loop:true;tempo:0.9-1.6;loop_from:0.2;"
+                        + "keys:0.2 crouch | 0.3 stand | 0.3 crouch",
+                "[SOUND] BLOCK_NOTE_BLOCK_BIT;0.6;1.2;repeat:8;every:0.3"));
+
+        assertEquals(0.9, sequence.tempoFrom(), 1e-9);
+        assertEquals(1.6, sequence.tempoTo(), 1e-9);
+        assertTrue(problems.isEmpty(), "both lines should compile: " + problems);
+    }
+
+    @Test
+    @DisplayName("a rhythm that winds up puts each beat closer than the last")
+    void aWindingRhythmQuickens() {
+        Sequence sequence = compile(List.of(
+                "[SOUND] BLOCK_NOTE_BLOCK_BIT;0.6;1.2;repeat:4;every:0.4;accel:2;max_speed:4"));
+
+        // 400ms, then 200, then 100: the gap halves after every beat and stops
+        // halving at four times quicker than written.
+        assertEquals(700L, sequence.steps().get(0).trailMillis());
+        assertTrue(problems.isEmpty(), "the line should compile: " + problems);
+    }
+
     // ------------------------------------------------------- the commons files
 
     @Test

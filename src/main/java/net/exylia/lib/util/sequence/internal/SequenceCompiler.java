@@ -152,7 +152,9 @@ public final class SequenceCompiler {
         return RepeatStep.of(step,
                 args.count("repeat", 1, onArg),
                 (long) (args.seconds("every", 0.15, onArg) * 1000),
-                Math.toRadians(args.number("turn_each", 0.0, onArg)));
+                Math.toRadians(args.number("turn_each", 0.0, onArg)),
+                args.number("accel", 1.0, onArg),
+                args.number("max_speed", 1.0, onArg));
     }
 
     // ------------------------------------------------------------------ shapes

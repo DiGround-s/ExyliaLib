@@ -224,6 +224,12 @@ sign that turns.
   same dance twice. `max_speed:` is raised to the rolled tempo when it is below
   it, because a ceiling under the floor would slow the body down on its first
   wrap. Since 1.176.0.
+- **The whole sequence is rolled, not just the body.** The tempo belongs to the
+  play: every `[SOUND]` line in the same sequence that repeats on a beat
+  divides its `every:` by it, so a dance that came out quicker keeps its own
+  sounds on its own beats. A sound that must follow the wind-up as well says
+  `accel:` and `max_speed:` of its own — see [sequences.md](sequences.md).
+  Since 1.177.0.
 - **`then:` is not used.** A loop never reaches an end to finish at.
 - **`life:` becomes a limit rather than a length.** Whoever played the sequence
   ends it by cancelling the run — an emote does it when the player moves, is hit

@@ -37,6 +37,7 @@ public final class SequenceRun {
             (step, failure) -> { };
     private volatile boolean cancelled;
     private volatile boolean finished;
+    private volatile double tempo = 1.0;
 
     SequenceRun(@NotNull TaskScheduler scheduler, @NotNull Runnable onFinish) {
         this.scheduler = scheduler;
@@ -77,6 +78,28 @@ public final class SequenceRun {
             handle.cancel();
         }
         markFinished();
+    }
+
+    /**
+     * How fast this play is, where {@code 1} is the speed the lines were
+     * written at.
+     *
+     * <p>Rolled once when the run starts, from the range its steps declare, and
+     * read by everything in the sequence that has to agree about the beat: the
+     * body plays its frames at it and a repeating sound shortens its gap by it,
+     * so a dance that came out a shade quicker is still a dance whose sounds
+     * land on its own beats.
+     *
+     * @return the tempo of this play
+     * @since 1.177.0
+     */
+    public double tempo() {
+        return tempo;
+    }
+
+    @org.jetbrains.annotations.ApiStatus.Internal
+    public void tempo(double rolled) {
+        this.tempo = Math.max(0.1, rolled);
     }
 
     /** Whether this run was cancelled. */

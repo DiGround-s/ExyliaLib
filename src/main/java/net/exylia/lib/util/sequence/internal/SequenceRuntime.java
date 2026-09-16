@@ -46,6 +46,16 @@ final class SequenceRuntime {
             run.markFinished();
             return run;
         }
+        // One roll for the whole play, here rather than inside the step that
+        // asked for it: the body and the sounds keeping its beat have to be
+        // handed the same number, and a step rolling its own would give each
+        // line a tempo of its own.
+        if (sequence.tempoTo() > sequence.tempoFrom()) {
+            run.tempo(java.util.concurrent.ThreadLocalRandom.current()
+                    .nextDouble(sequence.tempoFrom(), sequence.tempoTo()));
+        } else {
+            run.tempo(sequence.tempoFrom());
+        }
         // The whole sequence is moved onto the location's thread once, rather
         // than each step moving itself: the steps run in order, and hopping per
         // step would let two of them arrive out of order.

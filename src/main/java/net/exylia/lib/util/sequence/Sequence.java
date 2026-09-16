@@ -44,14 +44,22 @@ public final class Sequence {
     private final long durationMillis;
     private final boolean instant;
     private final boolean endless;
+    private final double tempoFrom;
+    private final double tempoTo;
 
     Sequence(@NotNull List<SequenceStep> steps) {
         this.steps = List.copyOf(steps);
         long elapsed = 0L;
         long longest = 0L;
         boolean forever = false;
+        double slowest = 1.0;
+        double quickest = 1.0;
         for (SequenceStep step : this.steps) {
             forever |= step.isEndless();
+            // The widest of them: one line asking to vary is the whole
+            // sequence varying, because everything in it shares a beat.
+            slowest = Math.min(slowest, step.tempoFrom());
+            quickest = Math.max(quickest, step.tempoTo());
             // A step's own drawing runs from where the sequence had got to, so
             // the end of the whole thing is the furthest any step reaches, not
             // the sum of the delays.
@@ -61,6 +69,8 @@ public final class Sequence {
         this.durationMillis = Math.max(elapsed, longest);
         this.instant = durationMillis == 0L && !forever;
         this.endless = forever;
+        this.tempoFrom = slowest;
+        this.tempoTo = quickest;
     }
 
     /**
@@ -73,6 +83,26 @@ public final class Sequence {
      */
     public static @NotNull Sequence empty() {
         return new Sequence(List.of());
+    }
+
+    /**
+     * The slowest tempo a play of this sequence may be rolled at, where
+     * {@code 1} is the speed its lines were written at.
+     *
+     * @since 1.177.0
+     */
+    public double tempoFrom() {
+        return tempoFrom;
+    }
+
+    /**
+     * The quickest tempo a play may be rolled at; equal to
+     * {@link #tempoFrom()} when nothing in it varies.
+     *
+     * @since 1.177.0
+     */
+    public double tempoTo() {
+        return tempoTo;
     }
 
     /** The compiled steps, in order. */
