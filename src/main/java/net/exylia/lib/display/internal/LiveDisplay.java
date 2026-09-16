@@ -54,8 +54,14 @@ final class LiveDisplay implements DisplayHandle {
     /** When the cycle being played began, which moves on at every wrap. */
     private long cycleStartedAt;
 
-    /** How much quicker than written this cycle is played. */
-    private double speed = 1.0;
+    /**
+     * How much quicker than written this cycle is played.
+     *
+     * <p>Starts wherever the motion says rather than at one: a loop that is
+     * handed a rolled tempo has to be quicker from its first cycle, not from
+     * its second.
+     */
+    private double speed;
 
     /** What it rides, or {@code 0} when it stands where it was drawn. */
     private final int vehicleId;
@@ -78,6 +84,7 @@ final class LiveDisplay implements DisplayHandle {
         this.loopFromMillis = motion.loopFromMillis();
         this.accel = motion.accel();
         this.maxSpeed = motion.maxSpeed();
+        this.speed = motion.startSpeed();
         // One tick past the last pose. The client is still drawing its way into
         // that pose when the moment arrives, and removing it then took every
         // falling boulder away a frame before it landed.

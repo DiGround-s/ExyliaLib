@@ -108,19 +108,21 @@ public final class DisplayMotion {
     private final long cycleMillis;
     private final double accel;
     private final double maxSpeed;
+    private final double startSpeed;
 
     private DisplayMotion(List<DisplayKeyframe> poses, long lifeMillis) {
-        this(poses, lifeMillis, 0L, 0L, 1.0, 1.0);
+        this(poses, lifeMillis, 0L, 0L, 1.0, 1.0, 1.0);
     }
 
     private DisplayMotion(List<DisplayKeyframe> poses, long lifeMillis, long loopFromMillis,
-                          long cycleMillis, double accel, double maxSpeed) {
+                          long cycleMillis, double accel, double maxSpeed, double startSpeed) {
         this.poses = List.copyOf(poses);
         this.lifeMillis = lifeMillis;
         this.loopFromMillis = loopFromMillis;
         this.cycleMillis = cycleMillis;
         this.accel = accel;
         this.maxSpeed = maxSpeed;
+        this.startSpeed = startSpeed;
     }
 
     /**
@@ -190,11 +192,37 @@ public final class DisplayMotion {
      */
     public @NotNull DisplayMotion looping(long fromMillis, long toMillis, double accel,
                                           double maxSpeed) {
+        return looping(fromMillis, toMillis, accel, maxSpeed, 1.0);
+    }
+
+    /**
+     * The same, starting at a tempo of its own rather than at the one written.
+     *
+     * <p>What this is for is a loop that must not feel identical every time it
+     * is played: the caller rolls a tempo and hands it in, and the same frames
+     * come out quicker or slower without a second pose list. {@code 1} is the
+     * tempo the frames were written at, {@code 1.5} is half again as fast.
+     *
+     * <p>{@code maxSpeed} is raised to the starting tempo when it is below it,
+     * because a ceiling under the floor would slow the motion down on its first
+     * wrap instead of holding it where it started.
+     *
+     * @param fromMillis  where the cycle begins; everything before is the entry
+     * @param toMillis    where it ends and goes back, which is the last pose
+     * @param accel       what the speed is multiplied by each cycle, at least 1
+     * @param maxSpeed    the fastest it may get, at least 1
+     * @param startSpeed  the tempo the first cycle is played at, at least 0.1
+     * @return the looping motion
+     * @since 1.176.0
+     */
+    public @NotNull DisplayMotion looping(long fromMillis, long toMillis, double accel,
+                                          double maxSpeed, double startSpeed) {
         if (toMillis <= 0L || toMillis <= fromMillis) {
             return this;
         }
+        double start = Math.max(0.1, startSpeed);
         return new DisplayMotion(poses, lifeMillis, Math.max(0L, fromMillis), toMillis,
-                Math.max(1.0, accel), Math.max(1.0, maxSpeed));
+                Math.max(1.0, accel), Math.max(Math.max(1.0, maxSpeed), start), start);
     }
 
     /**
@@ -239,6 +267,15 @@ public final class DisplayMotion {
         return maxSpeed;
     }
 
+    /**
+     * The tempo its first cycle is played at, where {@code 1} is as written.
+     *
+     * @since 1.176.0
+     */
+    public double startSpeed() {
+        return startSpeed;
+    }
+
     /** How long the display lasts, in milliseconds. */
     public long lifeMillis() {
         return lifeMillis;
@@ -262,7 +299,8 @@ public final class DisplayMotion {
         for (DisplayKeyframe pose : poses) {
             turned.add(pose.turnedBy(last));
         }
-        return new DisplayMotion(turned, lifeMillis, loopFromMillis, cycleMillis, accel, maxSpeed);
+        return new DisplayMotion(turned, lifeMillis, loopFromMillis, cycleMillis, accel,
+                maxSpeed, startSpeed);
     }
 
     /**
@@ -288,7 +326,8 @@ public final class DisplayMotion {
             double progress = (double) pose.atMillis() / lifeMillis;
             drifted.add(pose.movedBy(dx * progress, dy * progress, dz * progress));
         }
-        return new DisplayMotion(drifted, lifeMillis, loopFromMillis, cycleMillis, accel, maxSpeed);
+        return new DisplayMotion(drifted, lifeMillis, loopFromMillis, cycleMillis, accel,
+                maxSpeed, startSpeed);
     }
 
     /**
@@ -321,7 +360,8 @@ public final class DisplayMotion {
                     x * cos + z * sin - x, 0.0, -x * sin + z * cos - z);
             orbited.add(facing ? moved.turnedBy(Rotation.around(Rotation.Axis.Y, angle)) : moved);
         }
-        return new DisplayMotion(orbited, lifeMillis, loopFromMillis, cycleMillis, accel, maxSpeed);
+        return new DisplayMotion(orbited, lifeMillis, loopFromMillis, cycleMillis, accel,
+                maxSpeed, startSpeed);
     }
 
     /**
@@ -346,7 +386,8 @@ public final class DisplayMotion {
                     (float) (pose.scaleY() * factor),
                     (float) (pose.scaleZ() * factor)));
         }
-        return new DisplayMotion(resized, lifeMillis, loopFromMillis, cycleMillis, accel, maxSpeed);
+        return new DisplayMotion(resized, lifeMillis, loopFromMillis, cycleMillis, accel,
+                maxSpeed, startSpeed);
     }
 
     /**
@@ -365,7 +406,8 @@ public final class DisplayMotion {
         for (DisplayKeyframe pose : poses) {
             moved.add(pose.movedBy(dx, dy, dz));
         }
-        return new DisplayMotion(moved, lifeMillis, loopFromMillis, cycleMillis, accel, maxSpeed);
+        return new DisplayMotion(moved, lifeMillis, loopFromMillis, cycleMillis, accel,
+                maxSpeed, startSpeed);
     }
 
     /**

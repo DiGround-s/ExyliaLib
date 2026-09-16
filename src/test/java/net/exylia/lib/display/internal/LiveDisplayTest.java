@@ -155,6 +155,34 @@ class LiveDisplayTest {
     }
 
     @Test
+    @DisplayName("a rolled tempo is quick from the first cycle, not from the second")
+    void startsAtTheTempoItWasGiven() {
+        List<DisplayKeyframe> poses = new ArrayList<>();
+        for (long at : new long[] {0, 200, 400}) {
+            poses.add(new DisplayKeyframe(at, 0f, 0f, 0f, Rotation.NONE, 1f, 1f, 1f));
+        }
+        LiveDisplay live = new LiveDisplay("Test", 7,
+                DisplayModel.text(Component.empty()),
+                DisplayMotion.of(poses, 10_000).looping(0L, 400L, 1.0, 1.0, 2.0),
+                List.of(), 0L, 0);
+        live.spawn(sink, new Location(null, 0, 0, 0));
+        sent.clear();
+
+        // Twice the written tempo: the same poses, half the spans, and the
+        // cycle is up at 200ms rather than at 400.
+        assertFalse(live.advance(sink, 0L));
+        assertEquals(List.of("pose@200 over 2"), sent);
+
+        sent.clear();
+        assertFalse(live.advance(sink, 100L));
+        assertEquals(List.of("pose@400 over 2"), sent);
+
+        sent.clear();
+        assertFalse(live.advance(sink, 200L));
+        assertEquals(List.of("pose@200 over 2"), sent, "it wrapped at half the written cycle");
+    }
+
+    @Test
     @DisplayName("a loop that winds up plays each cycle quicker than the last")
     void loopsFaster() {
         LiveDisplay live = looping(10_000, 400, 2.0, 4.0, 0, 200, 400);

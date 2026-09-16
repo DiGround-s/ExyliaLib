@@ -218,6 +218,12 @@ sign that turns.
   read.
 - **`accel:` winds it up.** The speed is multiplied by it at the end of every
   cycle and stops climbing at `max_speed:`. `1` and `1` keep the tempo.
+- **`tempo:` is where it starts.** `tempo:1.4` plays the same frames half again
+  as fast. Written as a range — `tempo:1-1.6` — it is rolled once per play and
+  shared by every piece of that body, so a dance somebody sees twice is not the
+  same dance twice. `max_speed:` is raised to the rolled tempo when it is below
+  it, because a ceiling under the floor would slow the body down on its first
+  wrap. Since 1.176.0.
 - **`then:` is not used.** A loop never reaches an end to finish at.
 - **`life:` becomes a limit rather than a length.** Whoever played the sequence
   ends it by cancelling the run — an emote does it when the player moves, is hit

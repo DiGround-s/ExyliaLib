@@ -599,7 +599,7 @@ public final class SequenceCompiler {
                 "y", "face", "rise", "open", "lift", "hang", "turns", "hits", "every", "force",
                 "swell", "squash", "sign", "letters", "dir", "keys", "then", "follow",
                 "hold", "offhand", "hat", "hold_size", "hat_size", "hat_y", "strings", "chains", "snip", "seat",
-                "rig", "loop", "loop_from", "accel", "max_speed");
+                "rig", "loop", "loop_from", "accel", "max_speed", "tempo");
         // A spectator: whoever is watching fills the seat, so a crowd is the
         // real crowd.
         boolean crowd = args.head().trim().equalsIgnoreCase("{crowd}");
@@ -638,6 +638,25 @@ public final class SequenceCompiler {
                 : loop ? LOOP_LIFE_SECONDS
                 : args.has("keys") ? intact + animation.durationMillis() / 1000.0 + finishing
                 : 2.2;
+        // tempo:1.4 plays it half again as fast; tempo:1-1.6 rolls that once
+        // per play, so the same dance is never quite the dance it was last
+        // time. Written as a range rather than as two parameters because it is
+        // one decision: how much this may vary.
+        double tempoFrom = 1.0;
+        double tempoTo = 1.0;
+        if (args.has("tempo")) {
+            String written = args.text("tempo", "1").trim();
+            int dash = written.indexOf('-', 1);
+            try {
+                tempoFrom = Double.parseDouble(dash < 0 ? written : written.substring(0, dash));
+                tempoTo = dash < 0 ? tempoFrom : Double.parseDouble(written.substring(dash + 1));
+            } catch (NumberFormatException broken) {
+                onArg.found("tempo", "\"" + written + "\" is not a speed or a range of them,"
+                        + " as in 1.4 or 1-1.6");
+                tempoFrom = 1.0;
+                tempoTo = 1.0;
+            }
+        }
         net.exylia.lib.ragdoll.RagdollMotion.Builder body =
                 net.exylia.lib.ragdoll.RagdollMotion.builder()
                 .pose(net.exylia.lib.ragdoll.RagdollPose.of(
@@ -647,6 +666,7 @@ public final class SequenceCompiler {
                 .loop(loop)
                 .loopFrom(loopFrom)
                 .winding(args.number("accel", 1.0, onArg), args.number("max_speed", 1.0, onArg))
+                .tempo(tempoFrom, tempoTo)
                 .follow(args.number("follow", 0.0, onArg))
                 .holdSize(args.number("hold_size", 0.7, onArg))
                 .hatSize(args.number("hat_size", 0.6, onArg))

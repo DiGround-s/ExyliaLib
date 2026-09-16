@@ -102,6 +102,12 @@ public final class RagdollBuilder {
         if (placed == null && !spelling && model.detailCells() >= RagdollShell.DETAIL) {
             placed = RagdollShell.placed(RagdollShell.build(model.skin()));
         }
+        // One roll for the whole body. A tempo rolled per piece would run the
+        // head at one speed and the arms at another, which is not a dance being
+        // varied but a body coming apart.
+        double tempo = motion.tempoTo() > motion.tempoFrom()
+                ? ThreadLocalRandom.current().nextDouble(motion.tempoFrom(), motion.tempoTo())
+                : motion.tempoFrom();
         EnumSet<RagdollPieces.Prop> props = EnumSet.noneOf(RagdollPieces.Prop.class);
         if (model.mainHand() != null) {
             props.add(RagdollPieces.Prop.MAIN_HAND);
@@ -123,7 +129,7 @@ public final class RagdollBuilder {
             if (motion.loop()) {
                 drawnMotion = drawnMotion.looping(
                         motion.intactMillis() + motion.loopFromMillis(), motion.finishAt(),
-                        motion.accel(), motion.maxSpeed());
+                        motion.accel(), motion.maxSpeed(), tempo);
             }
             DisplayHandle handle = DisplayRuntime.show(owner, drawn, drawnMotion, at, viewers);
             if (handle != null) {

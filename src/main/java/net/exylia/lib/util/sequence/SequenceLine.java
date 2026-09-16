@@ -423,6 +423,8 @@ final class SequenceLine {
                     new Field("loop_from", "How much of it is the entry, played once", "0, or 0.4"),
                     new Field("accel", "What the speed is multiplied by each cycle", "1"),
                     new Field("max_speed", "The fastest a looping body may get", "1"),
+                    new Field("tempo", "How fast it plays, or a range it rolls from each play",
+                            "1, or 1-1.6"),
                     new Field("hold", "What the right hand holds", "an item, as in POPPY"),
                     new Field("offhand", "What the left hand holds", "an item"),
                     new Field("hat", "What is worn on the head", "an item, as in CARVED_PUMPKIN"),

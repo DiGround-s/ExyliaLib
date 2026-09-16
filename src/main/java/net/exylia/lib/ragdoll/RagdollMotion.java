@@ -85,6 +85,8 @@ public final class RagdollMotion {
     private final long loopFromMillis;
     private final double accel;
     private final double maxSpeed;
+    private final double tempoFrom;
+    private final double tempoTo;
     private final double follow;
     private final double holdSize;
     private final double hatSize;
@@ -124,6 +126,8 @@ public final class RagdollMotion {
         this.loopFromMillis = builder.loopFromMillis;
         this.accel = builder.accel;
         this.maxSpeed = builder.maxSpeed;
+        this.tempoFrom = builder.tempoFrom;
+        this.tempoTo = builder.tempoTo;
         this.finish = builder.finish;
         this.follow = builder.follow;
         this.holdSize = builder.holdSize;
@@ -380,6 +384,26 @@ public final class RagdollMotion {
         return maxSpeed;
     }
 
+    /**
+     * The slowest tempo a play of this body may start at, where {@code 1} is
+     * the tempo its frames were written at.
+     *
+     * @since 1.176.0
+     */
+    public double tempoFrom() {
+        return tempoFrom;
+    }
+
+    /**
+     * The quickest tempo a play may start at; equal to {@link #tempoFrom()}
+     * when every play is to be identical.
+     *
+     * @since 1.176.0
+     */
+    public double tempoTo() {
+        return tempoTo;
+    }
+
     /** How much a choreographed body's loose joints lag and overshoot; 0 is none. */
     public double follow() {
         return follow;
@@ -434,6 +458,8 @@ public final class RagdollMotion {
         private long loopFromMillis;
         private double accel = 1.0;
         private double maxSpeed = 1.0;
+        private double tempoFrom = 1.0;
+        private double tempoTo = 1.0;
         private double follow;
         private double holdSize = 0.7;
         private double hatSize = 0.6;
@@ -573,6 +599,26 @@ public final class RagdollMotion {
         public @NotNull Builder winding(double accel, double maxSpeed) {
             this.accel = Math.max(1.0, accel);
             this.maxSpeed = Math.max(1.0, maxSpeed);
+            return this;
+        }
+
+        /**
+         * The tempo a play of this body starts at, or the range it is rolled
+         * from.
+         *
+         * <p>A loop played at exactly the tempo it was written at is the same
+         * loop every time anybody sees it. A range is rolled once per play and
+         * shared by every piece of that body, so one dance is a shade quicker
+         * than the last without a second pose list existing anywhere.
+         *
+         * @param from the slowest it may start, at least 0.1
+         * @param to   the quickest it may start; below {@code from} it is that
+         * @return this builder
+         * @since 1.176.0
+         */
+        public @NotNull Builder tempo(double from, double to) {
+            this.tempoFrom = Math.max(0.1, from);
+            this.tempoTo = Math.max(this.tempoFrom, to);
             return this;
         }
 
