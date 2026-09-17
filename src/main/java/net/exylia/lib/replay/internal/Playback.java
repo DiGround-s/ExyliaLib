@@ -21,6 +21,8 @@ import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -82,6 +84,32 @@ public final class Playback implements ReplayPlayback {
      */
     private final Dressed[] dressed;
 
+    /**
+     * Every position this recording ever changes, and what was there before the
+     * first change to it.
+     *
+     * <p>Both halves are needed to go backwards. Seeking to a tick before a wall
+     * was blown up has to put that wall back, and the only place the wall still
+     * exists is the {@code before} side of the mark that took it away.
+     */
+    private final Map<Location, BlockData> originals;
+
+    /** What has actually been drawn, so only that is taken away again. */
+    private final Set<Location> drawn = ConcurrentHashMap.newKeySet();
+
+    /**
+     * Whether the arena is really changed rather than drawn over.
+     *
+     * <p>Off by default, because a library that writes to somebody's world owes
+     * them a cleanup it cannot guarantee. On, when the caller owns the arena and
+     * says so &mdash; and then it is the better answer by a distance: a client
+     * predicts its own movement against its own copy of the world, so a viewer
+     * walking into a block the server does not have is corrected back out of it,
+     * tick after tick. That is the rubber-banding a packet-only replay has, and
+     * the one thing that cannot be fixed without agreeing with the server.
+     */
+    private volatile boolean solid;
+
     private volatile double position;
     private volatile double speed = 1.0;
     private volatile int rendered = -1;
@@ -109,6 +137,25 @@ public final class Playback implements ReplayPlayback {
             if (!actor.isPlayer()) types[index] = ReplayEntities.typeOf(actor.entityType());
         }
         this.dressed = dress(replay);
+        this.originals = originals(replay, this.anchor);
+    }
+
+    /** What was at each changed position before the recording touched it. */
+    private static Map<Location, BlockData> originals(Replay replay, Location anchor) {
+        Map<Location, BlockData> first = new LinkedHashMap<>();
+        for (ReplayMark mark : replay.marks()) {
+            if (!ReplayMark.BLOCK.equals(mark.kind())) continue;
+            Location at = WorldMarks.blockAt(anchor, mark.data());
+            // The first word on a position is the one that remembers what the
+            // arena looked like; every later one is already the replay's doing.
+            if (at != null) first.putIfAbsent(at, WorldMarks.blockBefore(mark.data()));
+        }
+        return first;
+    }
+
+    /** Whether the arena is really changed rather than drawn over for one viewer. */
+    void solid(boolean solid) {
+        this.solid = solid;
     }
 
     /** Reads every equipment mark back into a slot and an item, once. */
@@ -481,8 +528,24 @@ public final class Playback implements ReplayPlayback {
         scheduler.run(() -> what.accept(viewers, where));
     }
 
-    /** Shows a batch of changed blocks to everybody watching. */
+    /**
+     * Puts a batch of changed blocks in front of everybody watching.
+     *
+     * <p>Really, when the caller owns the arena; as packets otherwise.
+     */
     private void showBlocks(Map<Location, BlockData> blocks) {
+        if (blocks.isEmpty()) return;
+        drawn.addAll(blocks.keySet());
+        if (solid) {
+            Location where = blocks.keySet().iterator().next();
+            scheduler.runAtLocation(where, () -> blocks.forEach((at, data) -> {
+                // Without physics: a replay is a picture of what happened, and
+                // letting the world work out consequences would have sand fall
+                // and water spread all over again on top of the recording.
+                if (at.getWorld() != null) at.getBlock().setBlockData(data, false);
+            }));
+            return;
+        }
         scheduler.run(() -> {
             for (Player viewer : viewers) {
                 if (viewer != null && viewer.isOnline()) {
@@ -502,23 +565,45 @@ public final class Playback implements ReplayPlayback {
      * is the one the match was fought in.
      */
     private void rebuildWorld(int tick) {
-        clearWorld();
-        Map<Location, BlockData> state = new LinkedHashMap<>();
+        if (originals.isEmpty()) return;
+        // Every position the recording ever touches, set to what it was on this
+        // tick — its last change up to here, or what was there to begin with.
+        // Starting from the originals rather than from nothing is what makes a
+        // seek backwards put a blown-up wall back instead of leaving the hole.
+        Map<Location, BlockData> state = new LinkedHashMap<>(originals);
         for (ReplayMark mark : replay.marks()) {
             if (mark.tick() > tick) break;
             if (!ReplayMark.BLOCK.equals(mark.kind())) continue;
             Location at = WorldMarks.blockAt(anchor, mark.data());
             if (at != null) state.put(at, WorldMarks.blockData(mark.data()));
         }
-        if (!state.isEmpty()) showBlocks(state);
+        showBlocks(state);
     }
 
-    /** Puts every fake block back to the truth. */
+    /**
+     * Puts the arena back the way it was found.
+     *
+     * <p>Only the positions this playback actually drew. The module's own
+     * {@code clear(viewer)} takes away every fake block <em>any</em> plugin has
+     * ever shown that player &mdash; the registry is keyed by viewer and nothing
+     * else &mdash; so a replay ending would have wiped somebody else's cage,
+     * outline or preview off the same screen.
+     */
     private void clearWorld() {
+        if (drawn.isEmpty()) return;
+        List<Location> touched = new ArrayList<>(drawn);
+        drawn.clear();
+        if (solid) {
+            scheduler.runAtLocation(touched.getFirst(), () -> touched.forEach(at -> {
+                BlockData was = originals.get(at);
+                if (was != null && at.getWorld() != null) at.getBlock().setBlockData(was, false);
+            }));
+            return;
+        }
         scheduler.run(() -> {
             for (Player viewer : viewers) {
                 if (viewer != null && viewer.isOnline()) {
-                    ReplayRuntime.fakeBlocks().clear(viewer);
+                    ReplayRuntime.fakeBlocks().clear(viewer, touched);
                 }
             }
         });

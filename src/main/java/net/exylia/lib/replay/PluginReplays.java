@@ -68,7 +68,27 @@ public final class PluginReplays {
      */
     public @Nullable ReplayPlayback play(@NotNull Replay replay, @NotNull Location at,
                                          @NotNull List<Player> viewers) {
-        return ReplayRuntime.play(pluginName, replay, at, viewers);
+        return play(replay, at, viewers, ReplayWorld.PACKET);
+    }
+
+    /**
+     * The same, saying how the arena's blocks should come back.
+     *
+     * <p>{@link ReplayWorld#SOLID} for a caller that owns the place outright,
+     * which is the only way a viewer can stand on what the match built without
+     * the server arguing with their client about it.
+     *
+     * @param replay  what to show
+     * @param at      the anchor to rebuild it around
+     * @param viewers who sees it
+     * @param world   how the block changes are put back
+     * @return the handle, or {@code null}
+     * @since 1.179.0
+     */
+    public @Nullable ReplayPlayback play(@NotNull Replay replay, @NotNull Location at,
+                                         @NotNull List<Player> viewers,
+                                         @NotNull ReplayWorld world) {
+        return ReplayRuntime.play(pluginName, replay, at, viewers, world);
     }
 
     /** Ends everything this plugin is recording and showing. */

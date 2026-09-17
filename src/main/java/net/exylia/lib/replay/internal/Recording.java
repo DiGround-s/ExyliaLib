@@ -30,6 +30,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.CopyOnWriteArrayList;
 
 /**
  * One recording while it is running.
@@ -100,6 +101,19 @@ public final class Recording implements ReplayRecorder {
     private final Map<UUID, Follower> followers = new LinkedHashMap<>();
     private final ConcurrentLinkedQueue<ReplayMark> marks = new ConcurrentLinkedQueue<>();
 
+    /**
+     * Everything followed that is not a player, walked by one timer.
+     *
+     * <p>A timer each is what this used to be, and a crystal fight launches
+     * hundreds of things: four hundred one-tick timers on the server's own
+     * scheduler, every one of them to read one location. They are all inside
+     * the same arena, so one timer at the anchor reads all of them &mdash; which
+     * is also the region that owns them on Folia, so it is no less correct than
+     * a timer each was.
+     */
+    private final List<Follower> debris = new CopyOnWriteArrayList<>();
+
+    private volatile TaskHandle debrisTask;
     private volatile boolean running = true;
     private volatile int worldMarks;
     private Replay finished;
@@ -150,16 +164,57 @@ public final class Recording implements ReplayRecorder {
         if (!running || followers.size() >= MAX_ACTORS) return;
         Follower follower = new Follower(actor, player);
         followers.put(id, follower);
-        start(entity, follower);
+        if (player) {
+            start(entity, follower);
+            return;
+        }
+        follower.entity = entity;
+        debris.add(follower);
+        startDebris();
     }
 
-    /** Puts one thing's sampling timer on. */
+    /** Puts one player's sampling timer on. */
     private void start(Entity entity, Follower follower) {
-        // Bound to the entity rather than to the server, which is what makes a
-        // sample legal on Folia: where something is may only be read from the
-        // region that owns it.
+        // Bound to the player rather than to the server, which is what makes a
+        // sample legal on Folia: where somebody is may only be read from the
+        // region that owns them, and a player leaves the arena's region the
+        // moment they die and are sent to the lobby.
         follower.task = scheduler.runAtEntityTimer(entity, 1L, 1L,
                 () -> sample(entity, follower));
+    }
+
+    /** Starts the one timer that reads everything else, if it is not running. */
+    private void startDebris() {
+        if (debrisTask != null) return;
+        debrisTask = scheduler.runAtLocationTimer(anchor, 1L, 1L, this::sampleDebris);
+    }
+
+    /**
+     * Reads every arrow, pearl and crystal still in the arena.
+     *
+     * <p>One pass, on the region that owns the arena. Anything gone is dropped
+     * from the list and ends where it ended; anything that has wandered into
+     * another region is skipped rather than read illegally, which on Folia is
+     * the difference between a missing frame and a thrown exception.
+     */
+    private void sampleDebris() {
+        if (!running || debris.isEmpty()) return;
+        for (Follower follower : debris) {
+            Entity entity = follower.entity;
+            if (entity == null || !entity.isValid()) {
+                debris.remove(follower);
+                follower.entity = null;
+                continue;
+            }
+            try {
+                sample(entity, follower);
+            } catch (IllegalStateException elsewhere) {
+                // Folia: it is no longer this region's to read. A pearl that has
+                // left the arena is not worth chasing across the server.
+                debris.remove(follower);
+                follower.entity = null;
+            }
+        }
     }
 
     @Override
@@ -213,6 +268,7 @@ public final class Recording implements ReplayRecorder {
     public synchronized @NotNull Replay stop() {
         if (finished != null) return finished;
         running = false;
+        stopDebris();
         int frames = 0;
         for (Follower follower : followers.values()) {
             follower.stop();
@@ -245,10 +301,19 @@ public final class Recording implements ReplayRecorder {
     @Override
     public synchronized void cancel() {
         running = false;
+        stopDebris();
         followers.values().forEach(Follower::stop);
         followers.clear();
         marks.clear();
         ReplayRuntime.forget(this);
+    }
+
+    /** Ends the one timer the arena's debris is read by. */
+    private void stopDebris() {
+        TaskHandle task = debrisTask;
+        debrisTask = null;
+        debris.clear();
+        if (task != null) task.cancel();
     }
 
     /** Whether this recording is following somebody, for the shared listener. */
@@ -271,7 +336,7 @@ public final class Recording implements ReplayRecorder {
      */
     @SuppressWarnings("deprecation")
     private void sample(Entity entity, Follower follower) {
-        if (!running || follower.task == null) return;
+        if (!running || (follower.player && follower.task == null)) return;
         int tick = tick();
         if (tick >= MAX_FRAMES) {
             // Stopped rather than truncated: a recorder nobody ended is a bug,
@@ -282,10 +347,9 @@ public final class Recording implements ReplayRecorder {
             return;
         }
         if (!entity.isValid()) {
-            // An arrow that landed, a crystal that went off, a player who
-            // logged out. Nothing tells an entity timer that its entity is
-            // gone: on Folia it is simply never run again, and on Bukkit it
-            // would keep sampling something that no longer exists.
+            // A player who logged out. Nothing tells an entity timer that its
+            // player is gone: on Folia it is simply never run again, and on
+            // Bukkit it would keep sampling a connection that no longer exists.
             follower.stop();
             return;
         }
@@ -346,6 +410,9 @@ public final class Recording implements ReplayRecorder {
         private final boolean player;
         private final MotionTrack.Builder track = new MotionTrack.Builder();
         private final ItemStack[] equipment = new ItemStack[SLOTS.length];
+
+        /** What this follows, for the ones the shared timer reads. */
+        private volatile Entity entity;
         private volatile TaskHandle task;
 
         Follower(ReplayActor actor, boolean player) {

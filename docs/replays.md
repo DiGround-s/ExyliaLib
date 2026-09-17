@@ -138,6 +138,27 @@ The module does not decide. `toBytes()` gives a blob and `Replay.from(byte[])`
 reads one back, which goes in a column, a document, or a file — the same
 decision, and the same `Databases` module, as anything else a plugin stores.
 
+## Where the blocks go
+
+Two answers, and which is right depends on whether the caller owns the place:
+
+```java
+replays.play(replay, arena.spawn(), List.of(viewer));                        // PACKET
+replays.play(replay, arena.spawn(), List.of(viewer), ReplayWorld.SOLID);     // SOLID
+```
+
+`PACKET` draws the changed blocks for the viewer alone. It costs the server
+nothing and needs no cleanup — but **the client collides with them and the
+server does not**. A viewer who walks into a replayed wall is pushed back out of
+it by the next correction, which is the rubber-banding that looks like the
+client and the server disagreeing about where somebody is. They do.
+
+`SOLID` writes them into the world and puts every one of them back when the
+playback stops, exactly, from what the recording says was there before. Nothing
+is corrected because nothing disagrees: a viewer can stand on the bridge, walk
+into the crater and look around inside it. Only for a caller that owns the
+arena outright.
+
 ## Watching is private
 
 The bodies are packets, drawn by the NPC module. A playback exists on the

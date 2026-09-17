@@ -97,7 +97,8 @@ public final class ReplayRuntime {
 
     /** Starts a playback, or returns null when nobody can see it. */
     public static ReplayPlayback play(String owner, Replay replay, Location at,
-                                      List<Player> viewers) {
+                                      List<Player> viewers,
+                                      net.exylia.lib.replay.ReplayWorld world) {
         if (!isSupported()) {
             warnOnce(owner);
             return null;
@@ -106,6 +107,7 @@ public final class ReplayRuntime {
             return null;
         }
         Playback playback = new Playback(owner, replay, at, viewers, schedulerOrFail(owner));
+        playback.solid(world == net.exylia.lib.replay.ReplayWorld.SOLID);
         PLAYBACKS.add(playback);
         // Drawn now rather than on the driver's next tick, so a playback that
         // is opened paused still has bodies standing in it.
