@@ -152,6 +152,18 @@ public interface ReplayRecorder {
      */
     void explosion(@NotNull Location at, float power);
 
+    /**
+     * Writes down that the arena went back to how it started.
+     *
+     * <p>For a round reset, a mid-match regeneration, anything that pastes the
+     * map fresh. None of those fires a block event &mdash; a schematic paste
+     * writes the world directly &mdash; so nothing else can tell the recording
+     * that every change before now has been undone.
+     *
+     * @since 1.179.0
+     */
+    void reset();
+
     /** Which tick it is on, from zero. */
     int tick();
 

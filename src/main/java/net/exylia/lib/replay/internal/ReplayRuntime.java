@@ -109,8 +109,9 @@ public final class ReplayRuntime {
         Playback playback = new Playback(owner, replay, at, viewers, schedulerOrFail(owner));
         playback.solid(world == net.exylia.lib.replay.ReplayWorld.SOLID);
         PLAYBACKS.add(playback);
-        // Drawn now rather than on the driver's next tick, so a playback that
-        // is opened paused still has bodies standing in it.
+        // Queued rather than drawn here: every frame a playback draws is drawn
+        // by the one driver, and the first one is no exception. It lands on the
+        // next tick, which is fifty milliseconds nobody sees.
         playback.seek(0);
         return playback;
     }

@@ -60,6 +60,9 @@ public final class Playback implements ReplayPlayback {
     /** No entity drawn yet. */
     private static final int NONE = 0;
 
+    /** No seek waiting; a real tick is never this. */
+    private static final int NO_SEEK = Integer.MIN_VALUE;
+
     private final String owner;
     private final Replay replay;
     private final Location anchor;
@@ -117,6 +120,18 @@ public final class Playback implements ReplayPlayback {
     private volatile boolean looping;
     private volatile boolean audible = true;
     private volatile boolean stopped;
+
+    /**
+     * A seek somebody asked for, waiting for the driver to carry it out.
+     *
+     * <p>Seeking used to draw the new frame on whatever thread asked for it — a
+     * hotbar click, a command — while the driver was drawing the old one on its
+     * own. Two threads inside the same bodies, each computing a relative step
+     * from a position the other was in the middle of changing: the steps came
+     * out wrong and the bodies ended up somewhere neither side agreed on. Every
+     * frame is drawn by the driver now, and a seek is a number left for it.
+     */
+    private volatile int pendingSeek = NO_SEEK;
     private volatile Consumer<ReplayMark> onMark;
     private volatile Runnable onEnd;
 
@@ -197,6 +212,12 @@ public final class Playback implements ReplayPlayback {
      */
     void step() {
         if (stopped) return;
+        int wanted = pendingSeek;
+        if (wanted != NO_SEEK) {
+            pendingSeek = NO_SEEK;
+            jumpTo(wanted);
+            return;
+        }
         if (!paused) {
             int target = (int) Math.min(position, replay.frames() - 1);
             if (target != rendered) {
@@ -208,7 +229,7 @@ public final class Playback implements ReplayPlayback {
         }
         if (position < replay.frames()) return;
         if (looping) {
-            seek(0);
+            jumpTo(0);
             return;
         }
         // Held on the last frame rather than taken away: the end of a duel is
@@ -249,13 +270,20 @@ public final class Playback implements ReplayPlayback {
     @Override
     public void seek(int tick) {
         if (stopped) return;
-        int target = Math.clamp(tick, 0, Math.max(0, replay.frames() - 1));
+        // Left for the driver rather than done here. See pendingSeek.
+        pendingSeek = Math.clamp(tick, 0, Math.max(0, replay.frames() - 1));
+    }
+
+    /**
+     * Carries out a seek. Only ever on the driver's thread.
+     *
+     * <p>The one place a playback cannot carry on from what it last drew,
+     * because what it last drew may be an hour later in the fight — and going
+     * backwards, a wall that was blown up is a wall that has to come back.
+     */
+    private void jumpTo(int target) {
         position = target;
         rendered = target;
-        // The arena and everybody's kit, rebuilt from the marks. A seek is the
-        // one place a playback cannot carry on from what it last drew, because
-        // what it last drew may be an hour later in the fight — and going
-        // backwards, a wall that was blown up is a wall that has to come back.
         rebuildWorld(target);
         for (int actor = 0; actor < bodies.length; actor++) {
             restore(actor, target);
@@ -502,6 +530,12 @@ public final class Playback implements ReplayPlayback {
                 blast(mark);
                 return true;
             }
+            case ReplayMark.RESET -> {
+                // Everything drawn goes back, and the arena underneath is the
+                // one the next round was fought in.
+                clearWorld();
+                return true;
+            }
             default -> {
                 return false;
             }
@@ -573,6 +607,14 @@ public final class Playback implements ReplayPlayback {
         Map<Location, BlockData> state = new LinkedHashMap<>(originals);
         for (ReplayMark mark : replay.marks()) {
             if (mark.tick() > tick) break;
+            if (ReplayMark.RESET.equals(mark.kind())) {
+                // The arena was pasted fresh here, so nothing before it is
+                // still standing. Starting over from the originals is what
+                // stops a seek past a round reset stacking two rounds of
+                // rubble on top of each other.
+                state = new LinkedHashMap<>(originals);
+                continue;
+            }
             if (!ReplayMark.BLOCK.equals(mark.kind())) continue;
             Location at = WorldMarks.blockAt(anchor, mark.data());
             if (at != null) state.put(at, WorldMarks.blockData(mark.data()));

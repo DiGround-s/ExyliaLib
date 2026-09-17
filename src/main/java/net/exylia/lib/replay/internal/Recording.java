@@ -254,6 +254,14 @@ public final class Recording implements ReplayRecorder {
     }
 
     @Override
+    public void reset() {
+        if (!running) return;
+        // Not counted against the block budget: it is the one mark that makes
+        // the budget go further, by making everything before it irrelevant.
+        marks.add(new ReplayMark(tick(), ReplayMark.RESET, null, null));
+    }
+
+    @Override
     public int tick() {
         return (int) Math.min(MAX_FRAMES,
                 (System.nanoTime() - startedAt) / 1_000_000L / MILLIS_PER_TICK);

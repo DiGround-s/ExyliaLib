@@ -82,6 +82,23 @@ public final class PlacedBlocks {
     }
 
     /** Forgets what a plugin asked to track. What was recorded stays. */
+    /**
+     * Asks to be told when a block placed with a lifetime is cleared.
+     *
+     * <p>A temporary block is removed by writing the world directly, which
+     * fires no event: nothing else on the server can see it go. This is for
+     * whoever needs to &mdash; a recording of the match above all, which would
+     * otherwise keep showing a bridge that was taken away under somebody's
+     * feet.
+     *
+     * @param watcher told where the block was and what it had been
+     * @since 1.179.0
+     */
+    public static void watchExpiry(
+            @NotNull java.util.function.BiConsumer<org.bukkit.Location, Material> watcher) {
+        net.exylia.lib.region.internal.PlacedBlockRuntime.watch(watcher);
+    }
+
     public static void release(@NotNull String pluginName) {
         PlacedBlockTracker.release(pluginName);
     }

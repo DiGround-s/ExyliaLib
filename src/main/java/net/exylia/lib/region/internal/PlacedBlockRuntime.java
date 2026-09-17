@@ -305,8 +305,43 @@ public final class PlacedBlockRuntime {
             Block block = world.getBlockAt(x, y, z);
             if (block.getType() != entry.material()) return;
             block.setType(Material.AIR, false);
+            told(new Location(world, x, y, z), entry.material());
             reGive(owner, entry);
         });
+    }
+
+    /**
+     * Everyone who wants to know when a temporary block goes.
+     *
+     * <p>Clearing one is a direct write to the world, so it fires no block
+     * event and nothing on the server can see it happen. That is invisible in
+     * the ordinary case and wrong in one: a recording of the match cannot know
+     * the bridge somebody was standing on has just been taken away, so it keeps
+     * showing them walking on it.
+     */
+    private static final java.util.List<java.util.function.BiConsumer<Location, Material>>
+            WATCHERS = new java.util.concurrent.CopyOnWriteArrayList<>();
+
+    /** Adds somebody to be told when a temporary block is cleared. */
+    public static void watch(java.util.function.BiConsumer<Location, Material> watcher) {
+        WATCHERS.add(watcher);
+    }
+
+    /** Forgets every watcher, on shutdown. */
+    public static void unwatch() {
+        WATCHERS.clear();
+    }
+
+    private static void told(Location at, Material was) {
+        for (java.util.function.BiConsumer<Location, Material> watcher : WATCHERS) {
+            try {
+                watcher.accept(at, was);
+            } catch (RuntimeException failure) {
+                // One watcher that throws must not stop the block being cleared
+                // or the next watcher being told.
+                Bukkit.getLogger().warning("A placed-block watcher failed: " + failure);
+            }
+        }
     }
 
     private static void reGive(Plugin owner, Temporary entry) {

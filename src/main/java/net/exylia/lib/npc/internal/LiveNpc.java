@@ -31,6 +31,28 @@ final class LiveNpc implements NpcHandle {
      */
     private static final double MAX_STEP = 7.5;
 
+    /**
+     * What a relative step is measured in: 4096ths of a block.
+     *
+     * <p>The protocol carries one as a short in these units, so a step of any
+     * other size is not the step the client applies. Believing otherwise is how
+     * a body driven twenty times a second walks slowly away from where it is
+     * supposed to be: each move loses a fraction, nothing puts it back, and
+     * after a minute the body and the place it is meant to be are a block
+     * apart.
+     */
+    private static final double STEP_UNIT = 4096.0;
+
+    /**
+     * How many relative steps before one is sent outright instead.
+     *
+     * <p>Quantising each step keeps the drift at zero in theory. This is for the
+     * practice: a chunk the client reloads, a packet it drops, a rounding rule
+     * that differs by a unit. Once every five seconds a body says where it
+     * actually is, which costs one packet and ends any argument.
+     */
+    private static final int RESYNC_EVERY = 100;
+
     private final String owner;
     private final int entityId;
     private final NpcModel model;
@@ -57,6 +79,9 @@ final class LiveNpc implements NpcHandle {
 
     /** When the arm last swung. */
     private long swungAt = Long.MIN_VALUE / 2;
+
+    /** Relative steps since the last outright one. */
+    private int stepsSinceResync;
 
     private volatile boolean gone;
 
@@ -248,23 +273,37 @@ final class LiveNpc implements NpcHandle {
         double dx = to.getX() - (at.getX() + sentX);
         double dy = to.getY() - (at.getY() + sentY);
         double dz = to.getZ() - (at.getZ() + sentZ);
-        // Where it has been put is kept either way, so the next step is
-        // measured from where the client actually has it rather than from
-        // where it was spawned.
-        sentX = to.getX() - at.getX();
-        sentY = to.getY() - at.getY();
-        sentZ = to.getZ() - at.getZ();
+        // Where the client has it is updated by whichever branch below runs,
+        // because a relative step and a teleport leave it in different places:
+        // one lands on a 4096th of a block, the other exactly where asked.
         sentYaw = to.getYaw();
         if (!drawn) {
             // Nothing to move yet: the body is drawn on the runtime's next
-            // tick, and draw() reads the position that was just recorded.
+            // tick, and draw() reads the position recorded here.
+            sentX = to.getX() - at.getX();
+            sentY = to.getY() - at.getY();
+            sentZ = to.getZ() - at.getZ();
             at.setPitch(to.getPitch());
             return;
         }
-        if (Math.abs(dx) < MAX_STEP && Math.abs(dy) < MAX_STEP && Math.abs(dz) < MAX_STEP) {
-            sink.move(viewers, entityId, dx, dy, dz, to.getYaw(), to.getPitch());
+        if (Math.abs(dx) < MAX_STEP && Math.abs(dy) < MAX_STEP && Math.abs(dz) < MAX_STEP
+                && ++stepsSinceResync < RESYNC_EVERY) {
+            // Rounded to what the packet can actually carry, and then believed
+            // to be exactly that. Recording the step we wanted instead of the
+            // step we sent is what makes a body drift.
+            double qx = Math.round(dx * STEP_UNIT) / STEP_UNIT;
+            double qy = Math.round(dy * STEP_UNIT) / STEP_UNIT;
+            double qz = Math.round(dz * STEP_UNIT) / STEP_UNIT;
+            sentX += qx;
+            sentY += qy;
+            sentZ += qz;
+            sink.move(viewers, entityId, qx, qy, qz, to.getYaw(), to.getPitch());
             return;
         }
+        stepsSinceResync = 0;
+        sentX = to.getX() - at.getX();
+        sentY = to.getY() - at.getY();
+        sentZ = to.getZ() - at.getZ();
         sink.teleport(viewers, entityId, to);
     }
 

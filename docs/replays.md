@@ -278,7 +278,14 @@ Worth knowing before designing around it:
   direction.
 - **Anything nobody offered.** The module records what the plugin follows and
   tells it about. A fire that spread, a block that fell, a mob that wandered in
-  — if no `follow` or `block` call named it, it is not in the recording.
+  — if no `follow` or `block` call named it, it is not in the recording. The
+  ones that catch people out are the changes that fire *no event at all*: a
+  schematic paste, a direct `setType`, a temporary block expiring. Those need
+  `reset()` or a `block()` call from whatever does them, because nothing on the
+  server can see them happen.
+- **Pistons and flowing liquids.** A piston moves a column and has two ends;
+  flowing water fires a change per block per tick and would spend a whole
+  recording's budget on a puddle.
 
 ## A note on the format
 

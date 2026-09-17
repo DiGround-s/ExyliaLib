@@ -90,6 +90,20 @@ public record ReplayMark(int tick, @NotNull String kind, @Nullable UUID actor,
     public static final String EXPLOSION = "explosion";
 
     /**
+     * The arena went back to how it started.
+     *
+     * <p>Written by {@link ReplayRecorder#reset()}. A match played over several
+     * rounds pastes its arena fresh between them, and a plugin that regenerates
+     * mid-match does the same &mdash; neither of which fires a single block
+     * event, so without this the replay keeps every bridge and crater from the
+     * round before stacked on top of the new one.
+     *
+     * <p>The playback puts every block it has drawn back and starts collecting
+     * again from here, which is also what a seek across one does.
+     */
+    public static final String RESET = "reset";
+
+    /**
      * One with a line of text behind it, for a plugin's own kinds.
      *
      * @param tick  which frame

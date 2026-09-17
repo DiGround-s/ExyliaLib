@@ -626,6 +626,7 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         Menus.releaseAll();
         Regions.releaseAll();
         Blocks.releaseAll();
+        net.exylia.lib.region.internal.PlacedBlockRuntime.unwatch();
         Chats.releaseAll();
         Cosmetics.releaseAll();
         Watchers.releaseAll();
