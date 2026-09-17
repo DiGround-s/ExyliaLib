@@ -93,6 +93,25 @@ public interface ReplayPlayback {
     @Nullable Location locationOf(@NotNull UUID actor);
 
     /**
+     * Where a mark written with {@link ReplayRecorder#markAt} happened, in the
+     * world this playback is running in.
+     *
+     * @param mark the mark
+     * @return the place, or {@code null} when the mark was not written that way
+     * @since 1.181.0
+     */
+    @Nullable Location placeOf(@NotNull ReplayMark mark);
+
+    /**
+     * What was written beside such a mark.
+     *
+     * @param mark the mark
+     * @return the text, or {@code null}
+     * @since 1.181.0
+     */
+    @Nullable String textOf(@NotNull ReplayMark mark);
+
+    /**
      * Called for every mark the playback passes that it does not draw itself.
      *
      * <p>Swings, hits, deaths and equipment changes are handled by the module

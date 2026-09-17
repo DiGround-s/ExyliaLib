@@ -147,6 +147,41 @@ public final class WorldMarks {
         return (data[cursor.at] & 0xFF) / POWER_SCALE;
     }
 
+    /**
+     * Packs a place and a line of text, for a mark about somewhere rather than
+     * about somebody.
+     *
+     * <p>A splash of potion happens where the bottle broke, not where the person
+     * who threw it is now — and by the time it lands they have usually moved.
+     */
+    public static byte[] place(Location anchor, Location at, @Nullable String text) {
+        ByteArrayOutputStream out = new ByteArrayOutputStream(24);
+        writeVarInt(out, zigzag((int) Math.round((at.getX() - anchor.getX()) * MotionTrack.SCALE)));
+        writeVarInt(out, zigzag((int) Math.round((at.getY() - anchor.getY()) * MotionTrack.SCALE)));
+        writeVarInt(out, zigzag((int) Math.round((at.getZ() - anchor.getZ()) * MotionTrack.SCALE)));
+        if (text != null) {
+            byte[] written = text.getBytes(StandardCharsets.UTF_8);
+            out.write(written, 0, written.length);
+        }
+        return out.toByteArray();
+    }
+
+    /** Where it happened, in the world a playback is running in. */
+    public static @Nullable Location placeAt(Location anchor, byte[] data) {
+        return explosionAt(anchor, data);
+    }
+
+    /** What was written beside it, or {@code null}. */
+    public static @Nullable String placeText(byte[] data) {
+        if (data == null || data.length == 0) return null;
+        Cursor cursor = new Cursor(data);
+        cursor.varInt();
+        cursor.varInt();
+        cursor.varInt();
+        if (cursor.broken || cursor.at >= data.length) return null;
+        return new String(data, cursor.at, data.length - cursor.at, StandardCharsets.UTF_8);
+    }
+
     /** A position in a byte array, and whether reading it ran off the end. */
     private static final class Cursor {
 

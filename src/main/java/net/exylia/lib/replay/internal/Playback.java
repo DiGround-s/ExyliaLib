@@ -135,6 +135,16 @@ public final class Playback implements ReplayPlayback {
      * frame is drawn by the driver now, and a seek is a number left for it.
      */
     private volatile int pendingSeek = NO_SEEK;
+
+    /**
+     * Whether this frame is the landing of a seek rather than the next tick.
+     *
+     * <p>A body put one frame further on is stepped, because that is what makes
+     * walking look like walking. A body put a minute further back did not walk
+     * there, and stepping it produces a long smooth glide across the arena to
+     * the new place. Only the driver ever sets this, and only around one call.
+     */
+    private boolean snapping;
     private volatile Consumer<ReplayMark> onMark;
     private volatile Runnable onEnd;
 
@@ -292,7 +302,12 @@ public final class Playback implements ReplayPlayback {
         for (int actor = 0; actor < bodies.length; actor++) {
             restore(actor, target);
         }
-        render(target);
+        snapping = true;
+        try {
+            render(target);
+        } finally {
+            snapping = false;
+        }
     }
 
     @Override
@@ -327,6 +342,16 @@ public final class Playback implements ReplayPlayback {
         MotionTrack track = replay.tracks().get(index);
         int at = tick();
         return track.present(at) ? placed(track, at) : null;
+    }
+
+    @Override
+    public @Nullable Location placeOf(@NotNull ReplayMark mark) {
+        return mark.data() == null ? null : WorldMarks.placeAt(anchor, mark.data());
+    }
+
+    @Override
+    public @Nullable String textOf(@NotNull ReplayMark mark) {
+        return mark.data() == null ? null : WorldMarks.placeText(mark.data());
     }
 
     @Override
@@ -378,7 +403,11 @@ public final class Playback implements ReplayPlayback {
             body = spawn(index, track, tick);
             if (body == null) return;
         }
-        body.moveTo(placed(track, tick), track.onGround(tick));
+        if (snapping) {
+            body.teleportTo(placed(track, tick));
+        } else {
+            body.moveTo(placed(track, tick), track.onGround(tick));
+        }
         NpcPose pose = track.pose(tick);
         if (poses[index] != pose) {
             poses[index] = pose;

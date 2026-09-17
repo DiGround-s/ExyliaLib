@@ -78,6 +78,20 @@ public interface NpcHandle {
     void moveTo(@NotNull Location to, boolean onGround);
 
     /**
+     * Puts it somewhere outright, with no smoothing at all.
+     *
+     * <p>{@link #moveTo} sends a short hop as a relative step, which the client
+     * draws smoothly over the frames it has next. That is what makes walking
+     * look like walking, and it is exactly wrong for a jump that did not happen
+     * continuously: a replay seeking to another moment, or a body that pearled.
+     * Both should arrive, not glide.
+     *
+     * @param to where it goes
+     * @since 1.181.0
+     */
+    void teleportTo(@NotNull Location to);
+
+    /**
      * Whether it is holding an item up: drawing a bow, raising a shield, eating.
      *
      * @param using whether the main hand is in use

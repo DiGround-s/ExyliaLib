@@ -254,6 +254,13 @@ public final class Recording implements ReplayRecorder {
     }
 
     @Override
+    public void markAt(@NotNull String kind, @NotNull Location at, @Nullable String text) {
+        if (running) {
+            marks.add(new ReplayMark(tick(), kind, null, WorldMarks.place(anchor, at, text)));
+        }
+    }
+
+    @Override
     public void reset() {
         if (!running) return;
         // Not counted against the block budget: it is the one mark that makes

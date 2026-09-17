@@ -185,6 +185,7 @@ for free:
 | `BLOCK` | that block's own break or place sound, and its own pieces |
 | `EXPLOSION` | the flash and the bang, scaled to the blast |
 | a thing appearing | the bow, the pearl, the potion, the fuse |
+| a mark written at a place | whatever the plugin draws there — a potion breaking, a totem popping |
 | the frame's own `using` flag | the arm goes up: a bow drawn, a shield raised, an apple eaten |
 
 A break is heard and shattered as **what was there**, not as what is there now,
@@ -193,6 +194,12 @@ of glass sounds like glass; leave it out and every break in the replay is
 silent.
 
 `playback.sounds(false)` turns all of it off.
+
+Anything the module has no opinion about is the plugin's: `recorder.markAt(kind,
+at, text)` writes down that something happened *somewhere* rather than to
+somebody, and `playback.placeOf(mark)` gives it back in the arena the replay is
+running in. A splash of potion lands where the bottle broke, not where the
+person who threw it has since walked to.
 
 ## Controls
 

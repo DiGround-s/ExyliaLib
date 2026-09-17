@@ -11,7 +11,9 @@ import org.bukkit.inventory.ItemStack;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+import java.util.EnumMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * One NPC that is currently on somebody's screen.
@@ -25,11 +27,14 @@ final class LiveNpc implements NpcHandle {
     /**
      * How far a relative step can carry, in blocks.
      *
-     * <p>The protocol writes one as a short in 4096ths of a block, so eight is
-     * the ceiling and anything at all near it overflows into a body that
-     * appears on the other side of the arena. Beyond this it is teleported.
+     * <p>The protocol's own ceiling is eight blocks, but that is not the number
+     * that matters. The client <em>smooths</em> a relative step over the frames
+     * it draws next, so a five-block jump arrives as a body gliding across the
+     * arena rather than appearing at the other end of a pearl. Nothing on legs
+     * covers three blocks in a tick, so past this it did not walk there and is
+     * put there outright.
      */
-    private static final double MAX_STEP = 7.5;
+    private static final double MAX_STEP = 3.0;
 
     /**
      * What a relative step is measured in: 4096ths of a block.
@@ -83,6 +88,20 @@ final class LiveNpc implements NpcHandle {
     /** Relative steps since the last outright one. */
     private int stepsSinceResync;
 
+    /**
+     * What it should be wearing, holding and doing, before it exists.
+     *
+     * <p>A packet about an entity the client has not been told about yet is
+     * dropped on the floor, and the body is not drawn until the runtime's next
+     * tick. So everything said about it in that gap is kept here and said again
+     * the moment there is something to say it to &mdash; which is why armour
+     * used to appear only when its wearer was first hit: the hit was the first
+     * thing said late enough to land.
+     */
+    private final Map<EquipmentSlot, ItemStack> pendingKit = new EnumMap<>(EquipmentSlot.class);
+    private NpcPose pendingPose;
+    private Boolean pendingUsing;
+
     private volatile boolean gone;
 
     LiveNpc(String owner, int entityId, NpcModel model, NpcMotion motion, List<Player> viewers,
@@ -131,6 +150,23 @@ final class LiveNpc implements NpcHandle {
     private void draw(NpcSink sink) {
         drawn = true;
         sink.spawn(viewers, entityId, model, current());
+        flush(sink);
+    }
+
+    /** Says everything that was said to a body that did not exist yet. */
+    private void flush(NpcSink sink) {
+        if (!pendingKit.isEmpty()) {
+            pendingKit.forEach((slot, item) -> sink.equip(viewers, entityId, slot, item));
+            pendingKit.clear();
+        }
+        if (pendingPose != null) {
+            sink.pose(viewers, entityId, model, pendingPose);
+            pendingPose = null;
+        }
+        if (pendingUsing != null) {
+            sink.using(viewers, entityId, pendingUsing);
+            pendingUsing = null;
+        }
     }
 
     /** Where the client has it, or is about to be told it is. */
@@ -256,9 +292,12 @@ final class LiveNpc implements NpcHandle {
 
     @Override
     public void pose(@NotNull NpcPose pose) {
-        if (!gone) {
-            NpcRuntime.sink().pose(viewers, entityId, model, pose);
+        if (gone) return;
+        if (!drawn) {
+            pendingPose = pose;
+            return;
         }
+        NpcRuntime.sink().pose(viewers, entityId, model, pose);
     }
 
     @Override
@@ -268,8 +307,28 @@ final class LiveNpc implements NpcHandle {
 
     @Override
     public void using(boolean using) {
-        if (!gone) {
-            NpcRuntime.sink().using(viewers, entityId, using);
+        if (gone) return;
+        if (!drawn) {
+            pendingUsing = using;
+            return;
+        }
+        NpcRuntime.sink().using(viewers, entityId, using);
+    }
+
+    @Override
+    public void teleportTo(@NotNull Location to) {
+        if (gone) return;
+        NpcSink sink = NpcRuntime.sink();
+        if (sink == null) return;
+        sentX = to.getX() - at.getX();
+        sentY = to.getY() - at.getY();
+        sentZ = to.getZ() - at.getZ();
+        sentYaw = to.getYaw();
+        stepsSinceResync = 0;
+        if (drawn) {
+            sink.teleport(viewers, entityId, to);
+        } else {
+            at.setPitch(to.getPitch());
         }
     }
 
@@ -321,9 +380,12 @@ final class LiveNpc implements NpcHandle {
 
     @Override
     public void equip(@NotNull EquipmentSlot slot, @Nullable ItemStack item) {
-        if (!gone) {
-            NpcRuntime.sink().equip(viewers, entityId, slot, item);
+        if (gone) return;
+        if (!drawn) {
+            pendingKit.put(slot, item);
+            return;
         }
+        NpcRuntime.sink().equip(viewers, entityId, slot, item);
     }
 
     @Override

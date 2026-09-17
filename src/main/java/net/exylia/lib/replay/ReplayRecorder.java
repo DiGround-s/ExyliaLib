@@ -153,6 +153,23 @@ public interface ReplayRecorder {
     void explosion(@NotNull Location at, float power);
 
     /**
+     * Writes something down at a place rather than against a person.
+     *
+     * <p>For the things that happen somewhere: a bottle of potion breaking, a
+     * trap going off, a flag being taken. By the time one of those lands the
+     * person responsible has usually moved, so hanging it on them would draw it
+     * in the wrong place.
+     *
+     * <p>Read back with {@link ReplayPlayback#placeOf}.
+     *
+     * @param kind what happened
+     * @param at   where, in the world the recording is being made in
+     * @param text whatever the kind carries, or {@code null}
+     * @since 1.181.0
+     */
+    void markAt(@NotNull String kind, @NotNull Location at, @Nullable String text);
+
+    /**
      * Writes down that the arena went back to how it started.
      *
      * <p>For a round reset, a mid-match regeneration, anything that pastes the
