@@ -125,11 +125,18 @@ public interface ReplayRecorder {
      * stops being recorded and the fight does not, which is the right half to
      * keep.
      *
+     * <p>Both sides of the change are kept. What it became is what the
+     * playback draws; what it <em>was</em> is what the playback hears and
+     * shatters, because a block that turned to air took its own sound and its
+     * own colour with it. Pass the old one and a break sounds like the block
+     * that broke; leave it out and every break in the replay is silent.
+     *
      * @param at     where, in the world the recording is being made in
      * @param became what is there now, or {@code null} for air
+     * @param was    what was there a moment ago, or {@code null}
      * @since 1.176.0
      */
-    void block(@NotNull Location at, @Nullable BlockData became);
+    void block(@NotNull Location at, @Nullable BlockData became, @Nullable BlockData was);
 
     /**
      * Writes down that something went off.

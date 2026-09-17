@@ -182,11 +182,12 @@ public final class Recording implements ReplayRecorder {
     }
 
     @Override
-    public void block(@NotNull Location at, @Nullable BlockData became) {
+    public void block(@NotNull Location at, @Nullable BlockData became,
+                      @Nullable BlockData was) {
         if (!running || worldMarks >= MAX_WORLD_MARKS) return;
         worldMarks++;
         marks.add(new ReplayMark(tick(), ReplayMark.BLOCK, null,
-                WorldMarks.block(anchor, at, became)));
+                WorldMarks.block(anchor, at, became, was)));
     }
 
     @Override

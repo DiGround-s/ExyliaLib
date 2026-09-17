@@ -209,7 +209,7 @@ class ReplayCodecTest {
         for (int[] offset : new int[][] {{0, 0, 0}, {7, -3, 12}, {-40, 25, -61}, {300, 0, -300}}) {
             Location at = new Location(null, anchor.getBlockX() + offset[0],
                     anchor.getBlockY() + offset[1], anchor.getBlockZ() + offset[2]);
-            byte[] data = WorldMarks.block(anchor, at, null);
+            byte[] data = WorldMarks.block(anchor, at, null, null);
             Location back = WorldMarks.blockAt(anchor, data);
 
             assertEquals(at.getBlockX(), back.getBlockX(), "x");
@@ -281,7 +281,7 @@ class ReplayCodecTest {
         for (int change = 0; change < 5_000; change++) {
             Location at = new Location(null, change % 40 - 20, 64 + change % 8, change / 40 - 60);
             marks.add(new ReplayMark(change % frames, ReplayMark.BLOCK, null,
-                    WorldMarks.block(anchor, at, null)));
+                    WorldMarks.block(anchor, at, null, null)));
         }
 
         Replay everything = new Replay(UUID.randomUUID(), 1L, frames, actors, tracks, marks);

@@ -109,6 +109,22 @@ public interface ReplayPlayback {
      */
     void onEnd(@NotNull Runnable listener);
 
+    /**
+     * Whether the replay makes any noise.
+     *
+     * <p>On by default, and worth leaving on. A recording holds no audio, but
+     * a hit, a block breaking and a blast are already in it as marks, and every
+     * client already knows what those sound like. Played back in silence a
+     * replay reads as broken rather than as quiet.
+     *
+     * @param audible whether to play sounds and particles
+     * @since 1.178.0
+     */
+    void sounds(boolean audible);
+
+    /** Whether it is making any noise. */
+    boolean sounds();
+
     /** Takes the bodies away and ends it. Safe to call twice. */
     void stop();
 

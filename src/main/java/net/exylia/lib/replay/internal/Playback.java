@@ -11,9 +11,6 @@ import net.exylia.lib.replay.ReplayMark;
 import net.exylia.lib.replay.ReplayPlayback;
 import net.exylia.lib.task.TaskScheduler;
 import org.bukkit.Location;
-import org.bukkit.Particle;
-import org.bukkit.Sound;
-import org.bukkit.SoundCategory;
 import org.bukkit.block.data.BlockData;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.EquipmentSlot;
@@ -90,6 +87,7 @@ public final class Playback implements ReplayPlayback {
     private volatile int rendered = -1;
     private volatile boolean paused;
     private volatile boolean looping;
+    private volatile boolean audible = true;
     private volatile boolean stopped;
     private volatile Consumer<ReplayMark> onMark;
     private volatile Runnable onEnd;
@@ -234,6 +232,16 @@ public final class Playback implements ReplayPlayback {
     }
 
     @Override
+    public void sounds(boolean audible) {
+        this.audible = audible;
+    }
+
+    @Override
+    public boolean sounds() {
+        return audible;
+    }
+
+    @Override
     public @Nullable Location locationOf(@NotNull UUID actor) {
         int index = indexOf(actor);
         if (index < 0 || stopped) return null;
@@ -307,6 +315,10 @@ public final class Playback implements ReplayPlayback {
         if (entities[index] == NONE) {
             entities[index] = ReplayEntities.newEntityId();
             ReplayEntities.spawn(viewers, entities[index], type, at);
+            if (audible) {
+                String kind = replay.actors().get(index).entityType();
+                scheduler.run(() -> Ambience.appeared(viewers, kind, at));
+            }
             return;
         }
         ReplayEntities.teleport(viewers, entities[index], at);
@@ -335,6 +347,15 @@ public final class Playback implements ReplayPlayback {
         if (entities[index] != NONE) {
             ReplayEntities.destroy(viewers, entities[index]);
             entities[index] = NONE;
+            if (audible) {
+                ReplayActor actor = replay.actors().get(index);
+                MotionTrack track = replay.tracks().get(index);
+                int last = Math.max(track.firstTick(), track.lastTick() - 1);
+                if (track.present(last)) {
+                    Location at = placed(track, last);
+                    scheduler.run(() -> Ambience.gone(viewers, actor.entityType(), at));
+                }
+            }
         }
     }
 
@@ -356,6 +377,9 @@ public final class Playback implements ReplayPlayback {
         Consumer<ReplayMark> listener = onMark;
         List<ReplayMark> passed = null;
         Map<Location, BlockData> changed = null;
+        List<Location> heard = null;
+        List<BlockData> became = null;
+        List<BlockData> were = null;
         List<ReplayMark> all = replay.marks();
         for (int index = 0; index < all.size(); index++) {
             ReplayMark mark = all.get(index);
@@ -367,8 +391,17 @@ public final class Playback implements ReplayPlayback {
                 // per block per viewer where one map is a packet per section.
                 Location at = WorldMarks.blockAt(anchor, mark.data());
                 if (at != null) {
-                    if (changed == null) changed = new LinkedHashMap<>();
-                    changed.put(at, WorldMarks.blockData(mark.data()));
+                    if (changed == null) {
+                        changed = new LinkedHashMap<>();
+                        heard = new ArrayList<>();
+                        became = new ArrayList<>();
+                        were = new ArrayList<>();
+                    }
+                    BlockData now = WorldMarks.blockData(mark.data());
+                    changed.put(at, now);
+                    heard.add(at);
+                    became.add(now);
+                    were.add(WorldMarks.blockBefore(mark.data()));
                 }
                 continue;
             }
@@ -378,7 +411,15 @@ public final class Playback implements ReplayPlayback {
                 passed.add(mark);
             }
         }
-        if (changed != null) showBlocks(changed);
+        if (changed != null) {
+            showBlocks(changed);
+            if (audible) {
+                List<Location> places = heard;
+                List<BlockData> now = became;
+                List<BlockData> before = were;
+                scheduler.run(() -> Ambience.blocks(viewers, places, now, before));
+            }
+        }
         if (passed == null) return;
         // Handed over on the main thread, because whatever a plugin does with
         // one of these is almost always something Bukkit will not let it do
@@ -398,10 +439,12 @@ public final class Playback implements ReplayPlayback {
         switch (mark.kind()) {
             case ReplayMark.SWING -> {
                 if (body != null) body.swing();
+                heard(actor, Ambience::swing);
                 return true;
             }
             case ReplayMark.HURT -> {
                 if (body != null) body.hurt();
+                heard(actor, Ambience::hurt);
                 return true;
             }
             case ReplayMark.EQUIP -> {
@@ -421,19 +464,21 @@ public final class Playback implements ReplayPlayback {
     /** The flash and the bang, for the people watching and nobody else. */
     private void blast(ReplayMark mark) {
         Location at = WorldMarks.explosionAt(anchor, mark.data());
-        if (at == null) return;
+        if (at == null || !audible) return;
         float power = WorldMarks.explosionPower(mark.data());
         // On the server's own thread: a particle and a sound are Bukkit calls,
         // and this is a packet thread.
-        scheduler.run(() -> {
-            for (Player viewer : viewers) {
-                if (viewer == null || !viewer.isOnline()) continue;
-                viewer.spawnParticle(power >= 2f
-                        ? Particle.EXPLOSION_EMITTER : Particle.EXPLOSION, at, 1);
-                viewer.playSound(at, Sound.ENTITY_GENERIC_EXPLODE, SoundCategory.BLOCKS,
-                        Math.min(1f, power / 4f), 1f);
-            }
-        });
+        scheduler.run(() -> Ambience.explosion(viewers, at, power));
+    }
+
+    /** Plays something where one actor is standing right now. */
+    private void heard(int actor, java.util.function.BiConsumer<List<Player>, Location> what) {
+        if (!audible || actor < 0) return;
+        MotionTrack track = replay.tracks().get(actor);
+        int at = tick();
+        if (!track.present(at)) return;
+        Location where = placed(track, at);
+        scheduler.run(() -> what.accept(viewers, where));
     }
 
     /** Shows a batch of changed blocks to everybody watching. */

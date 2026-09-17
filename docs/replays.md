@@ -150,6 +150,28 @@ where it was with the same relative-step packet a real player's movement
 produces, and the client draws its own frames between one step and the next
 exactly as it does for anybody else.
 
+## It makes its own noise
+
+A recording holds no audio and does not need to. A hit, a block breaking, an
+arrow leaving a bow and a blast are already in it as marks, and every client
+already knows what those sound like — so the playback plays them from the marks,
+for free:
+
+| Mark | What the viewer gets |
+| --- | --- |
+| `HURT` | the hit sound, and damage particles on the body |
+| `SWING` | a quiet sweep |
+| `BLOCK` | that block's own break or place sound, and its own pieces |
+| `EXPLOSION` | the flash and the bang, scaled to the blast |
+| a thing appearing | the bow, the pearl, the potion, the fuse |
+
+A break is heard and shattered as **what was there**, not as what is there now,
+which is why `block(at, became, was)` takes both. Pass the old block and a pane
+of glass sounds like glass; leave it out and every break in the replay is
+silent.
+
+`playback.sounds(false)` turns all of it off.
+
 ## Controls
 
 ```java
