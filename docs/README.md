@@ -31,7 +31,7 @@ against the source — rules and routes are in `AGENTS.md` under
 | [Input](input.md) | Asking a player for something: text, numbers, amounts, choices, a searchable registry, or a whole form in one window | 1.31.0 |
 | [NPCs](npcs.md) | Player-shaped entities that exist only on a client — a body where somebody died, a statue, a double | 1.88.2 |
 | [Ragdolls](ragdolls.md) | Bodies that come apart into their own pieces, each one solved in advance and drawn by the client | 1.120.0 |
-| [Replays](replays.md) | Recording what happened and watching it again — the server's own state, sampled every tick, played back as packet bodies on the screens that asked for it | 1.175.0 |
+| [Replays](replays.md) | Recording what happened and watching it again — the server's own state, sampled every tick, played back as packet bodies on the screens that asked for it, arena and debris included | 1.175.0 |
 | [Cameras](cameras.md) | Showing a player themselves from outside — a shot solved in advance, drawn by the client, and always given back | 1.172.0 |
 | [Displays](displays.md) | Item, block and text displays that move, spin and fall by themselves — packet-only, animated by the client | 1.85.0 |
 | [Sequences](sequences.md) | Choreographed effects from configuration: shapes, sounds, delays — the ExyliaCommons syntax, compiled once; effects with odds, conditions and an audience since 1.57.0 | 1.30.0 |

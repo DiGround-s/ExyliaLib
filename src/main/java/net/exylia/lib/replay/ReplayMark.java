@@ -16,13 +16,14 @@ import java.util.UUID;
  * nothing had happened yet. They are kept here instead, as a list the playback
  * walks alongside the frames.
  *
- * <h2>The three the module draws itself</h2>
- * {@link #SWING}, {@link #HURT} and {@link #EQUIP} are recognised by the
- * playback, which swings the arm, makes the body flinch and changes what it is
- * holding without being asked. Every other kind &mdash; including
- * {@link #DEATH} and {@link #RESPAWN} &mdash; is handed to whoever asked for
- * the playback, through {@link ReplayPlayback#onMark}, and means whatever that
- * plugin decided it means.
+ * <h2>The five the module draws itself</h2>
+ * {@link #SWING}, {@link #HURT}, {@link #EQUIP}, {@link #BLOCK} and
+ * {@link #EXPLOSION} are recognised by the playback, which swings the arm,
+ * makes the body flinch, changes what it is holding, puts the arena back the
+ * way it was and sets off the blast &mdash; none of it asked for. Every other
+ * kind &mdash; including {@link #DEATH} and {@link #RESPAWN} &mdash; is handed
+ * to whoever asked for the playback, through {@link ReplayPlayback#onMark}, and
+ * means whatever that plugin decided it means.
  *
  * <p>Four of them are recorded for you: a swing, a hit, a death and a respawn
  * are read off the server's own events while a recording is running, so a
@@ -65,6 +66,28 @@ public record ReplayMark(int tick, @NotNull String kind, @Nullable UUID actor,
      * plugin should neither build nor read one of these by hand.
      */
     public static final String EQUIP = "equip";
+
+    /**
+     * One block in the arena became something else.
+     *
+     * <p>Written by {@link ReplayRecorder#block}. The playback shows it to the
+     * viewer and nobody else, so the arena a replay is watched in is never
+     * actually changed &mdash; which is what lets one be watched in an arena
+     * somebody else is about to fight in.
+     *
+     * <p>Its data is a position and a block, in a shape the module reads back
+     * itself, so a plugin should neither build nor read one of these by hand.
+     */
+    public static final String BLOCK = "block";
+
+    /**
+     * Something went off.
+     *
+     * <p>Written by {@link ReplayRecorder#explosion}. The blocks it took out
+     * are their own {@link #BLOCK} marks; this is the flash, the smoke and the
+     * bang, which without it is a crater that appears in silence.
+     */
+    public static final String EXPLOSION = "explosion";
 
     /**
      * One with a line of text behind it, for a plugin's own kinds.

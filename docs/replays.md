@@ -41,14 +41,46 @@ followed, the server's own answer to where they were:
 | Sprinting, on the ground | as the client reported them, which is what the server used |
 | Health | to the nearest half heart |
 
+Whether a bow is drawn, a shield is up or a gapple is going down rides in the
+same byte as the pose.
+
 Plus a second track of things that happened once rather than being true for a
-stretch: swings, hits, deaths, respawns, and equipment changes. Swings and hits
-are read off the server's own events, so a plugin that records a duel gets them
-without writing a listener.
+stretch: swings, hits, deaths, respawns, equipment changes, **block changes**
+and **explosions**. Swings and hits are read off the server's own events, so a
+plugin that records a duel gets them without writing a listener.
 
 **That is the state the fight was decided on.** For the question anybody
 actually asks a replay — *did that hit land, was he in range* — the recording
 is the authority, and the player's own screen is the thing that was guessing.
+
+## The arena, and everything else in it
+
+Players are not the only thing in a fight. Since 1.176.0 a recorder takes three
+more things, and the plugin says when, because only the plugin knows which of
+the server's events happened inside the match:
+
+```java
+recorder.follow(arrow);                      // anything that is not a player
+recorder.block(at, block.getBlockData());    // a block that changed
+recorder.explosion(at, event.getYield());    // the flash and the bang
+```
+
+**`follow(Entity)`** takes an arrow, a pearl, a splash potion, an end crystal, a
+block of primed TNT — anything with a position. A track only covers the ticks
+its actor was actually there for, which is what makes this affordable: an arrow
+flight is sixty frames, not the seven thousand the fight around it ran for. A
+recording follows four hundred things at most and drops the newest past that,
+because a crystal fight can put one in the arena every tick.
+
+**`block`** takes whatever the block is now — placed, broken, blown up, burnt.
+The playback shows it to the viewer as a fake block, so the arena a replay is
+watched in is never actually changed and somebody can be fighting in it a minute
+later. A seek backwards puts a crater back the way it was, because the state is
+rebuilt from every change up to that tick rather than carried forward.
+
+**`explosion`** is only the visual. Which blocks a blast actually removed is the
+server's answer, not a formula, so those come through `block` — a replay that
+guessed would disagree with the crater everybody remembers.
 
 ## What it cannot give back
 
@@ -77,9 +109,11 @@ back against an anchor facing another way is offset, not turned.
 
 ## What it costs
 
-A three minute duel between two players is about **twenty kilobytes** once it is
-written out — a column in a table rather than a file on a disk. Three things
-make that true, in this order:
+A three minute duel between two players measures about **29 kB** once it is
+written out. The same duel with three hundred crystals, arrows and TNT blocks in
+it and five thousand blocks taken out of the arena measures about **59 kB** —
+still a column in a table rather than a file on a disk. Three things make that
+true, in this order:
 
 1. Position is quantised to a thousandth of a block, which is finer than a
    client can show and exactly what is held in memory, so the round trip is
@@ -88,6 +122,10 @@ make that true, in this order:
    varint-encoded: standing still costs one byte an axis and walking costs two.
 3. The whole thing is gzipped, which is where the long runs of identical flag
    and rotation bytes go.
+
+A block change is three small integers and a block name, and a thing that lived
+for sixty ticks costs sixty frames. That is why the second number above is twice
+the first rather than fifty times it.
 
 Recording itself is a handful of field reads per followed player per tick.
 Playing back sends packets only when the tick being shown changes, so a playback
@@ -146,8 +184,8 @@ that is not being played.
 
 ## Marks
 
-`ReplayMark.SWING`, `HURT` and `EQUIP` are drawn by the module. `DEATH` and
-`RESPAWN` are recorded by it but drawn by nobody — what a death should look like
+`ReplayMark.SWING`, `HURT`, `EQUIP`, `BLOCK` and `EXPLOSION` are drawn by the
+module. `DEATH` and `RESPAWN` are recorded by it but drawn by nobody — what a death should look like
 is the plugin's decision. Everything else is a plugin's own:
 
 ```java
@@ -184,14 +222,24 @@ disabled is cancelled.
 
 `Replays.isSupported()` answers the second row.
 
-## What is not in it yet
+## What is not in it
 
 Worth knowing before designing around it:
 
-- **Projectiles and other entities.** Only players are followed. An arrow or a
-  pearl is not in the recording, and re-simulating one would drift away from the
-  death it caused — they have to be recorded as actors, which they are not yet.
-- **Blocks.** A block placed or broken during a recording is not replayed.
-- **Item use.** A drawn bow or a raised shield is not in the frame; the metadata
-  the NPC module writes has no room for it yet.
-- **Rotating an anchor.** A recording is offset, never turned.
+- **A thing's appearance beyond its type.** A non-player actor is drawn from its
+  type alone, so an arrow is an arrow and a crystal is a crystal — but a splash
+  potion is the default colour and a dropped item is invisible, because neither
+  carries what it is made of.
+- **Rotating an anchor.** A recording is offset, never turned. An arena played
+  back against an anchor facing another way is in the right place and the wrong
+  direction.
+- **Anything nobody offered.** The module records what the plugin follows and
+  tells it about. A fire that spread, a block that fell, a mob that wandered in
+  — if no `follow` or `block` call named it, it is not in the recording.
+
+## A note on the format
+
+`Replay.from` reads format 2 and refuses anything else with a clear message,
+including the format 1 written by 1.175.0. That version was never on a live
+server, so no recording exists in the old shape; carrying a reader for it would
+be a branch that could only rot.

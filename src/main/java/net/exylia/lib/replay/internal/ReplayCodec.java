@@ -46,8 +46,15 @@ public final class ReplayCodec {
     /** What a recording starts with, so a wrong blob fails loudly. */
     private static final int MAGIC = 0x45585250;
 
-    /** Bumped when the layout below changes in a way an old reader cannot follow. */
-    private static final byte VERSION = 1;
+    /**
+     * Bumped when the layout below changes in a way an old reader cannot follow.
+     *
+     * <p>Two added sparse tracks and actors that are not players. Nothing reads
+     * a format-1 recording: the format was never on a live server, and carrying
+     * a reader for a shape that no file was ever written in is a branch that
+     * can only ever rot.
+     */
+    private static final byte VERSION = 2;
 
     private ReplayCodec() {
     }
@@ -71,9 +78,10 @@ public final class ReplayCodec {
                 out.writeUTF(actor.name());
                 writeOptional(out, actor.texture());
                 writeOptional(out, actor.signature());
+                writeOptional(out, actor.entityType());
             }
             for (MotionTrack track : replay.tracks()) {
-                writeTrack(out, track, replay.frames());
+                writeTrack(out, track);
             }
 
             List<ReplayMark> marks = replay.marks();
@@ -104,9 +112,9 @@ public final class ReplayCodec {
                 throw new IllegalArgumentException("Not a recording");
             }
             byte version = in.readByte();
-            if (version > VERSION) {
-                throw new IllegalArgumentException("This recording was written by a newer"
-                        + " ExyliaLib (format " + version + ", this one reads " + VERSION + ")");
+            if (version != VERSION) {
+                throw new IllegalArgumentException("This recording is in format " + version
+                        + " and this ExyliaLib reads format " + VERSION);
             }
             UUID id = new UUID(in.readLong(), in.readLong());
             long createdAt = in.readLong();
@@ -117,11 +125,11 @@ public final class ReplayCodec {
             for (int index = 0; index < actorCount; index++) {
                 UUID who = new UUID(in.readLong(), in.readLong());
                 actors.add(new ReplayActor(who, in.readUTF(), readOptional(in),
-                        readOptional(in)));
+                        readOptional(in), readOptional(in)));
             }
             List<MotionTrack> tracks = new ArrayList<>(actorCount);
             for (int index = 0; index < actorCount; index++) {
-                tracks.add(readTrack(in, frames));
+                tracks.add(readTrack(in));
             }
 
             int markCount = readVarInt(in);
@@ -146,12 +154,13 @@ public final class ReplayCodec {
         }
     }
 
-    private static void writeTrack(DataOutputStream out, MotionTrack track, int frames)
-            throws IOException {
+    private static void writeTrack(DataOutputStream out, MotionTrack track) throws IOException {
+        writeVarInt(out, track.firstTick());
+        writeVarInt(out, track.length());
         int lastX = 0;
         int lastY = 0;
         int lastZ = 0;
-        for (int tick = 0; tick < frames; tick++) {
+        for (int tick = 0; tick < track.length(); tick++) {
             writeVarInt(out, zigzag(track.x[tick] - lastX));
             writeVarInt(out, zigzag(track.y[tick] - lastY));
             writeVarInt(out, zigzag(track.z[tick] - lastZ));
@@ -165,7 +174,9 @@ public final class ReplayCodec {
         }
     }
 
-    private static MotionTrack readTrack(DataInputStream in, int frames) throws IOException {
+    private static MotionTrack readTrack(DataInputStream in) throws IOException {
+        int firstTick = readVarInt(in);
+        int frames = readVarInt(in);
         int[] x = new int[frames];
         int[] y = new int[frames];
         int[] z = new int[frames];
@@ -188,7 +199,7 @@ public final class ReplayCodec {
             flags[tick] = in.readByte();
             health[tick] = in.readByte();
         }
-        return new MotionTrack(x, y, z, yaw, pitch, flags, health);
+        return new MotionTrack(firstTick, x, y, z, yaw, pitch, flags, health);
     }
 
     private static int indexOf(List<ReplayActor> actors, UUID actor) {

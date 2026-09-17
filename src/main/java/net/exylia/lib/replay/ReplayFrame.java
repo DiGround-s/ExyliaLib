@@ -28,6 +28,8 @@ import org.jetbrains.annotations.NotNull;
  * @param pose      how they were holding themselves
  * @param sprinting whether they were sprinting
  * @param onGround  whether they were standing on something
+ * @param using     whether they were holding an item up: a bow being drawn, a
+ *                  shield raised, a gapple being eaten
  * @param present   whether they were in the recording at all on this tick;
  *                  a frame that is not present carries nothing else worth
  *                  reading
@@ -35,7 +37,8 @@ import org.jetbrains.annotations.NotNull;
  */
 public record ReplayFrame(double x, double y, double z, float yaw, float pitch,
                           double health, @NotNull NpcPose pose,
-                          boolean sprinting, boolean onGround, boolean present) {
+                          boolean sprinting, boolean onGround, boolean using,
+                          boolean present) {
 
     /**
      * A tick nobody was there for.
@@ -45,5 +48,5 @@ public record ReplayFrame(double x, double y, double z, float yaw, float pitch,
      * worth reading on it.
      */
     public static final ReplayFrame ABSENT =
-            new ReplayFrame(0, 0, 0, 0, 0, 0, NpcPose.STANDING, false, false, false);
+            new ReplayFrame(0, 0, 0, 0, 0, 0, NpcPose.STANDING, false, false, false, false);
 }

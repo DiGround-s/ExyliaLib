@@ -23,12 +23,17 @@ import java.util.UUID;
  * @param id        their UUID, as the recording knew it
  * @param name      their name at the time, which is what the body is announced
  *                  under
- * @param texture   the base64 skin, or {@code null} when it could not be read
- * @param signature the signature that goes with it, or {@code null}
+ * @param texture    the base64 skin, or {@code null} when it could not be read
+ * @param signature  the signature that goes with it, or {@code null}
+ * @param entityType what to draw when this is not a player &mdash; an arrow, a
+ *                   crystal, a primed block of TNT &mdash; named as Bukkit
+ *                   names it. {@code null} for a player, which is drawn from
+ *                   the name and skin above instead.
  * @since 1.175.0
  */
 public record ReplayActor(@NotNull UUID id, @NotNull String name,
-                          @Nullable String texture, @Nullable String signature) {
+                          @Nullable String texture, @Nullable String signature,
+                          @Nullable String entityType) {
 
     /**
      * Reads a player's identity as it is right now.
@@ -42,6 +47,27 @@ public record ReplayActor(@NotNull UUID id, @NotNull String name,
     public static @NotNull ReplayActor of(@NotNull Player player) {
         String[] skin = NpcRuntime.textureOf(player);
         return new ReplayActor(player.getUniqueId(), player.getName(),
-                skin == null ? null : skin[0], skin == null ? null : skin[1]);
+                skin == null ? null : skin[0], skin == null ? null : skin[1], null);
+    }
+
+    /**
+     * Something that is not a player: an arrow in flight, a crystal on the
+     * ground, a block of TNT counting down.
+     *
+     * <p>Its type and nothing else. What an arrow looks like is the client's
+     * business, and a recording that tried to keep more than the type would be
+     * storing a copy of the game's own model.
+     *
+     * @param entity what it is
+     * @return its identity
+     */
+    public static @NotNull ReplayActor of(@NotNull org.bukkit.entity.Entity entity) {
+        return new ReplayActor(entity.getUniqueId(), entity.getType().name(), null, null,
+                entity.getType().name());
+    }
+
+    /** Whether this is a player, rather than something else in the arena. */
+    public boolean isPlayer() {
+        return entityType == null;
     }
 }

@@ -1,6 +1,8 @@
 package net.exylia.lib.replay.internal;
 
 import net.exylia.lib.npc.internal.NpcRuntime;
+import net.exylia.lib.packet.FakeBlocks;
+import net.exylia.lib.packet.Packets;
 import net.exylia.lib.replay.Replay;
 import net.exylia.lib.replay.ReplayMark;
 import net.exylia.lib.replay.ReplayPlayback;
@@ -55,6 +57,7 @@ public final class ReplayRuntime {
             new ConcurrentLinkedQueue<>();
 
     private static TaskScheduler scheduler;
+    private static FakeBlocks fakeBlocks;
     private static Logger logger = Logger.getLogger("ExyliaLib");
     private static TaskHandle driver;
     private static boolean warned;
@@ -74,6 +77,7 @@ public final class ReplayRuntime {
             if (driver != null) {
                 driver.cancel();
             }
+            fakeBlocks = Packets.of(plugin).fakeBlocks();
             driver = scheduler.runAsyncTimer(1L, 1L, ReplayRuntime::tick);
         }
         Bukkit.getPluginManager().registerEvents(new Events(), plugin);
@@ -107,6 +111,17 @@ public final class ReplayRuntime {
         // is opened paused still has bodies standing in it.
         playback.seek(0);
         return playback;
+    }
+
+    /**
+     * Where the arena a replay rebuilds is drawn.
+     *
+     * <p>The library's own rather than the watching plugin's, because these are
+     * the library's blocks: it is the one that puts them there and the one that
+     * takes them away again.
+     */
+    static FakeBlocks fakeBlocks() {
+        return fakeBlocks;
     }
 
     /** Forgets a recording that has ended itself. */

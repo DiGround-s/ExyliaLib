@@ -1,5 +1,8 @@
 package net.exylia.lib.replay;
 
+import org.bukkit.Location;
+import org.bukkit.block.data.BlockData;
+import org.bukkit.entity.Entity;
 import org.bukkit.entity.Player;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -26,9 +29,16 @@ import org.jetbrains.annotations.Nullable;
  * away for a pearl is in the recording without a listener for it. Swings and
  * hits are read off the server's own events for the same reason.
  *
- * <p>Everything else is the plugin's, through {@link #mark}: who won, when a
- * round started, a combo counter, whatever that plugin wants to draw on top of
- * the playback later.
+ * <p>The arena and everything else in it are the plugin's to offer, because
+ * only the plugin knows which of the server's events happened inside the match:
+ * {@link #follow(Entity)} for an arrow, a crystal or a block of TNT,
+ * {@link #block} for a block that changed, {@link #explosion} for a blast.
+ * Given those, a replay of a crystal or TNT fight shows the craters appearing
+ * where they appeared.
+ *
+ * <p>Everything else is the plugin's too, through {@link #mark}: who won, when
+ * a round started, a combo counter, whatever that plugin wants to draw on top
+ * of the playback later.
  *
  * <h2>It has to be stopped</h2>
  * A recording holds arrays that grow for as long as it runs. {@link #stop()}
@@ -52,6 +62,26 @@ public interface ReplayRecorder {
      * @param player who to record
      */
     void follow(@NotNull Player player);
+
+    /**
+     * Starts recording something that is not a player.
+     *
+     * <p>An arrow, an ender pearl, a splash potion, an end crystal, a block of
+     * TNT counting down. Its type and its position, tick by tick, for as long
+     * as it exists &mdash; which for most of them is a couple of seconds, so a
+     * recording holds only the ticks it was actually there for.
+     *
+     * <p>It stops being recorded by itself when it is gone, so nothing has to
+     * remember to let go of an arrow.
+     *
+     * <p>A recording follows a few hundred things at most. Past that the newest
+     * are not recorded: a replay missing some of its debris is a better failure
+     * than a server running out of memory during a crystal fight.
+     *
+     * @param entity what to record; a player given here is followed as one
+     * @since 1.176.0
+     */
+    void follow(@NotNull Entity entity);
 
     /**
      * Stops recording somebody, leaving what was already recorded of them.
@@ -83,6 +113,37 @@ public interface ReplayRecorder {
      * @param text  the line, read back with {@link ReplayMark#text()}
      */
     void mark(@NotNull String kind, @Nullable Player actor, @NotNull String text);
+
+    /**
+     * Writes down that a block changed.
+     *
+     * <p>Placed, broken, blown up, burnt: whatever the block is now. The
+     * playback shows it to the viewer alone, so the arena a replay is watched
+     * in is never really changed and can be fought in a minute later.
+     *
+     * <p>A recording holds tens of thousands of these. Past that the arena
+     * stops being recorded and the fight does not, which is the right half to
+     * keep.
+     *
+     * @param at     where, in the world the recording is being made in
+     * @param became what is there now, or {@code null} for air
+     * @since 1.176.0
+     */
+    void block(@NotNull Location at, @Nullable BlockData became);
+
+    /**
+     * Writes down that something went off.
+     *
+     * <p>Only the flash, the smoke and the bang. What it took out of the arena
+     * is its own {@link #block} calls, because the server decides which blocks
+     * an explosion actually removes and a replay that guessed would disagree
+     * with the crater everybody remembers.
+     *
+     * @param at    where it was centred
+     * @param power how big, as the server measures it
+     * @since 1.176.0
+     */
+    void explosion(@NotNull Location at, float power);
 
     /** Which tick it is on, from zero. */
     int tick();
