@@ -40,7 +40,7 @@ public interface NpcSink {
      * second is seen moving smoothly rather than in twenty jumps.
      */
     void move(List<Player> viewers, int entityId, double dx, double dy, double dz,
-              float yaw, float pitch);
+              float yaw, float pitch, boolean onGround);
 
     /**
      * Puts it at a place outright, rather than a step from where it was.
@@ -58,6 +58,16 @@ public interface NpcSink {
      * @param item what goes there, or {@code null} to empty the slot
      */
     void equip(List<Player> viewers, int entityId, EquipmentSlot slot, ItemStack item);
+
+    /**
+     * Whether it is holding an item up: drawing a bow, raising a shield,
+     * eating.
+     *
+     * <p>The one piece of a fight that a body otherwise stands perfectly still
+     * through. Without it somebody eating a golden apple is somebody doing
+     * nothing for two seconds.
+     */
+    void using(List<Player> viewers, int entityId, boolean using);
 
     /** Makes it flinch. */
     void hurt(List<Player> viewers, int entityId);

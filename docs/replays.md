@@ -185,6 +185,7 @@ for free:
 | `BLOCK` | that block's own break or place sound, and its own pieces |
 | `EXPLOSION` | the flash and the bang, scaled to the blast |
 | a thing appearing | the bow, the pearl, the potion, the fuse |
+| the frame's own `using` flag | the arm goes up: a bow drawn, a shield raised, an apple eaten |
 
 A break is heard and shattered as **what was there**, not as what is there now,
 which is why `block(at, became, was)` takes both. Pass the old block and a pane

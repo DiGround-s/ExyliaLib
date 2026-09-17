@@ -117,6 +117,11 @@ public final class MotionTrack {
         return POSES[flags[tick - firstTick] & POSE_MASK];
     }
 
+    /** Whether it was standing on something. */
+    public boolean onGround(int tick) {
+        return (flags[tick - firstTick] & ON_GROUND) != 0;
+    }
+
     /** Whether it was drawing a bow, raising a shield or eating. */
     public boolean using(int tick) {
         return (flags[tick - firstTick] & USING) != 0;

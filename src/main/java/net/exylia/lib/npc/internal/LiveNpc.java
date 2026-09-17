@@ -209,7 +209,7 @@ final class LiveNpc implements NpcHandle {
         sentY = target[1];
         sentZ = target[2];
         sentYaw = yaw;
-        sink.move(viewers, entityId, dx, dy, dz, yaw, at.getPitch());
+        sink.move(viewers, entityId, dx, dy, dz, yaw, at.getPitch(), false);
     }
 
     /** Takes it off every client, once. */
@@ -263,6 +263,18 @@ final class LiveNpc implements NpcHandle {
 
     @Override
     public void moveTo(@NotNull Location to) {
+        moveTo(to, false);
+    }
+
+    @Override
+    public void using(boolean using) {
+        if (!gone) {
+            NpcRuntime.sink().using(viewers, entityId, using);
+        }
+    }
+
+    @Override
+    public void moveTo(@NotNull Location to, boolean onGround) {
         if (gone) {
             return;
         }
@@ -297,7 +309,7 @@ final class LiveNpc implements NpcHandle {
             sentX += qx;
             sentY += qy;
             sentZ += qz;
-            sink.move(viewers, entityId, qx, qy, qz, to.getYaw(), to.getPitch());
+            sink.move(viewers, entityId, qx, qy, qz, to.getYaw(), to.getPitch(), onGround);
             return;
         }
         stepsSinceResync = 0;

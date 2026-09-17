@@ -73,6 +73,9 @@ public final class Playback implements ReplayPlayback {
     private final NpcHandle[] bodies;
     private final NpcPose[] poses;
 
+    /** Whether each body is currently drawn with its arm up. */
+    private final boolean[] using;
+
     /** Everything that is not a player, drawn as a bare packet entity. */
     private final int[] entities;
     private final EntityType[] types;
@@ -145,6 +148,7 @@ public final class Playback implements ReplayPlayback {
         int actors = replay.actors().size();
         this.bodies = new NpcHandle[actors];
         this.poses = new NpcPose[actors];
+        this.using = new boolean[actors];
         this.entities = new int[actors];
         this.types = new EntityType[actors];
         for (int index = 0; index < actors; index++) {
@@ -374,11 +378,18 @@ public final class Playback implements ReplayPlayback {
             body = spawn(index, track, tick);
             if (body == null) return;
         }
-        body.moveTo(placed(track, tick));
+        body.moveTo(placed(track, tick), track.onGround(tick));
         NpcPose pose = track.pose(tick);
         if (poses[index] != pose) {
             poses[index] = pose;
             body.pose(pose);
+        }
+        // Only on the tick it changes: a bow held drawn for two seconds is one
+        // packet, not forty.
+        boolean raised = track.using(tick);
+        if (using[index] != raised) {
+            using[index] = raised;
+            body.using(raised);
         }
     }
 
@@ -409,6 +420,7 @@ public final class Playback implements ReplayPlayback {
                 placed(track, tick), viewers);
         bodies[index] = body;
         poses[index] = track.pose(tick);
+        using[index] = false;
         if (body != null) restore(index, tick);
         return body;
     }
@@ -418,6 +430,7 @@ public final class Playback implements ReplayPlayback {
         NpcHandle body = bodies[index];
         bodies[index] = null;
         poses[index] = null;
+        using[index] = false;
         if (body != null) body.remove();
         if (entities[index] != NONE) {
             ReplayEntities.destroy(viewers, entities[index]);

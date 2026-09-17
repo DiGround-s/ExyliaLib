@@ -72,6 +72,17 @@ final class NpcPackets implements NpcSink {
     private static final int POSE = 6;
 
     /**
+     * Where a living entity keeps what its hands are doing.
+     *
+     * <p>Bit one is "the main hand is in use", which is the flag the client
+     * turns into a drawn bow, a raised shield and an apple being eaten. It has
+     * sat at eight since 1.9 and did not move in the 1.21.11 shuffle, which
+     * only touched the player fields further down.
+     */
+    private static final int HAND_STATES = 8;
+    private static final byte HAND_ACTIVE = 0x01;
+
+    /**
      * Which skin layers the client draws, from the vanilla protocol.
      *
      * <p>Left alone, an NPC has no jacket, no sleeves and no hat: the field
@@ -171,13 +182,30 @@ final class NpcPackets implements NpcSink {
     }
 
     @Override
+    public void using(List<Player> viewers, int entityId, boolean using) {
+        // Guarded: a metadata index that moved on a version nobody has tested
+        // is a disconnect, and an arm that does not rise is not worth one.
+        try {
+            send(viewers, new WrapperPlayServerEntityMetadata(entityId,
+                    List.of(new EntityData<>(HAND_STATES, EntityDataTypes.BYTE,
+                            using ? HAND_ACTIVE : (byte) 0))));
+        } catch (RuntimeException unsupported) {
+            // Nothing: the body simply does not raise its arm.
+        }
+    }
+
+    @Override
     public void move(List<Player> viewers, int entityId,
-                     double dx, double dy, double dz, float yaw, float pitch) {
+                     double dx, double dy, double dz, float yaw, float pitch,
+                     boolean onGround) {
         // The pitch is carried rather than zeroed: a body put down looking up at
         // what is about to land keeps looking up while it is shoved, and a step
         // that dropped it snapped every head level on the first frame it moved.
+        // Standing on something is carried rather than guessed: a body told it
+        // is always airborne is drawn falling through its own floor on the
+        // frames the client has to guess between two steps.
         PacketWrapper<?> step = new WrapperPlayServerEntityRelativeMoveAndRotation(
-                entityId, dx, dy, dz, yaw, pitch, false);
+                entityId, dx, dy, dz, yaw, pitch, onGround);
         PacketWrapper<?> head = new WrapperPlayServerEntityHeadLook(entityId, yaw);
         send(viewers, step);
         send(viewers, head);

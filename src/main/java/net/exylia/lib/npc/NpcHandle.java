@@ -65,6 +65,27 @@ public interface NpcHandle {
     void moveTo(@NotNull Location to);
 
     /**
+     * The same, saying whether it is standing on something.
+     *
+     * <p>Worth carrying. A body told it is always in the air is drawn falling
+     * through its own floor on the frames the client has to invent between two
+     * steps, which reads as a player sunk into the ground.
+     *
+     * @param to       where it goes
+     * @param onGround whether it is standing on something
+     * @since 1.180.0
+     */
+    void moveTo(@NotNull Location to, boolean onGround);
+
+    /**
+     * Whether it is holding an item up: drawing a bow, raising a shield, eating.
+     *
+     * @param using whether the main hand is in use
+     * @since 1.180.0
+     */
+    void using(boolean using);
+
+    /**
      * Changes one thing it is wearing or holding.
      *
      * @param slot which slot
