@@ -10,13 +10,6 @@ import net.exylia.lib.config.Time;
  * for every Exylia plugin, so a server owner changes the cancel word once
  * rather than in each plugin that happens to ask a question.
  *
- * <h2>What is not here</h2>
- * The Bedrock username prefix is deliberately <em>not</em> an input setting. It
- * says which players are on Bedrock, which is a fact about the server's players
- * rather than about asking them questions — a scoreboard, a tablist or a name
- * formatter needs the same answer. It lives in {@code config.yml} as
- * {@code bedrock-prefix}, where anything can read it.
- *
  * @param timeoutSeconds how long a request waits before giving up
  * @param cancelWord     what a player types to stop being asked
  * @param preferDialogs  whether to use the client's own dialog windows

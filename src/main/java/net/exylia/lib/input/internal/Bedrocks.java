@@ -1,9 +1,7 @@
 package net.exylia.lib.input.internal;
 
 import org.bukkit.Bukkit;
-import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
-import org.jetbrains.annotations.ApiStatus;
 import org.jetbrains.annotations.NotNull;
 
 import java.lang.reflect.Method;
@@ -18,14 +16,15 @@ import java.util.UUID;
  * on ordinary Java-only servers and avoiding repeated reflective lookup on each
  * capability check.
  *
- * <p>The username-prefix fallback is a library-wide compatibility setting, not
- * an input option. It defaults to {@code *}, matching common Geyser setups, and
- * can be replaced when the library configuration is wired.
+ * <p>Without the API the UUID answers, the way Geyser asks it be done:
+ * Floodgate gives an unlinked Bedrock player the UUID
+ * {@code 00000000-0000-0000-xxxx-xxxxxxxxxxxx}, its XUID with zeroed high bits.
+ * The name never does. Its prefix is a server setting that can be changed or
+ * removed, and a Java player may pick a name that starts with it.
  */
 public final class Bedrocks {
 
     private static final Access ACCESS = Access.detect();
-    private static volatile String prefix = "*";
 
     private Bedrocks() {
     }
@@ -33,10 +32,10 @@ public final class Bedrocks {
     /**
      * Returns whether the UUID belongs to a Bedrock player.
      *
-     * <p>Floodgate identity wins when its API is available. The prefix is only a
-     * fallback for installations that expose Bedrock users through Geyser but do
-     * not install Floodgate; this avoids classifying a Java player by name when
-     * Floodgate can answer authoritatively.
+     * <p>Floodgate wins when its API is available, because only it knows a
+     * linked player: one who joins from Bedrock under their Java account's UUID.
+     * Otherwise, on a backend behind a proxy running Floodgate for instance, the
+     * UUID is read the way Floodgate's own {@code isFloodgateId} reads it.
      */
     public static boolean isBedrock(@NotNull UUID playerId) {
         java.util.Objects.requireNonNull(playerId, "playerId");
@@ -44,21 +43,7 @@ public final class Bedrocks {
         if (floodgate != null) {
             return floodgate;
         }
-        Player player = Bukkit.getPlayer(playerId);
-        String configured = prefix;
-        return player != null && !configured.isEmpty() && player.getName().startsWith(configured);
-    }
-
-    /**
-     * Changes the shared fallback username prefix.
-     *
-     * <p>Internal until the library configuration owns this value. An empty
-     * prefix disables fallback detection; accepting it as "every name" would
-     * route all Java players into forms that their clients cannot display.
-     */
-    @ApiStatus.Internal
-    public static void prefix(@NotNull String newPrefix) {
-        prefix = java.util.Objects.requireNonNull(newPrefix, "newPrefix");
+        return playerId.getMostSignificantBits() == 0;
     }
 
     /** Whether Floodgate and the form adapter can currently serve requests. */

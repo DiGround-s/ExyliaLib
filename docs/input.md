@@ -698,23 +698,17 @@ config-version: 1
 move a deadline that is already running, so a player halfway through a form does
 not lose it because somebody edited a file.
 
-### Why `bedrock-prefix` is in `config.yml`, not here
+### How a Bedrock player is recognised
 
-It is the one setting a reader expects here and will not find. It lives in
-`plugins/ExyliaLib/config.yml` as `bedrock-prefix`, deliberately.
+There is no setting for it. Floodgate is asked when it is installed, since only
+it knows a linked player, one who joins from Bedrock under their Java account's
+UUID. Otherwise the UUID answers, as Geyser recommends: Floodgate gives an
+unlinked Bedrock player `00000000-0000-0000-xxxx-xxxxxxxxxxxx`, its XUID with
+the high bits zeroed, which is what a backend behind a Floodgate proxy sees.
 
-The prefix says **which players are on Bedrock**, and that is a fact about the
-server's players rather than about asking them questions. A scoreboard, a
-tablist, a name formatter and a menu that adapts to the client all need the same
-answer. Putting it in `input.yml` would make every one of them read the input
-module's configuration to find out something that has nothing to do with input —
-or, worse, keep a second copy that drifts.
-
-It is a fallback in the first place: Floodgate is asked authoritatively when it
-is installed, and the prefix only classifies players on installations that
-expose Bedrock users through Geyser without Floodgate. An empty prefix disables
-the fallback rather than matching every name, because treating "no prefix" as
-"everybody" would route all Java players into forms their clients cannot show.
+The name is never read. Its prefix is a Floodgate setting that can be changed or
+removed, and a Java player may choose a name that starts with it. The old
+`bedrock-prefix` key in `config.yml` is dropped from the file on the next start.
 
 ---
 

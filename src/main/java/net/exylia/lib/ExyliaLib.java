@@ -28,7 +28,6 @@ import net.exylia.lib.input.InputSettings;
 import net.exylia.lib.util.worldguard.WorldGuardFlags;
 import net.exylia.lib.text.LibraryMessages;
 import net.exylia.lib.input.Inputs;
-import net.exylia.lib.input.internal.Bedrocks;
 import net.exylia.lib.input.internal.ChatTransport;
 import net.exylia.lib.input.internal.DialogTransport;
 import net.exylia.lib.input.internal.InputListener;
@@ -432,10 +431,6 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
      * <p>Transports are discovered reflectively, so a server without
      * PacketEvents or Floodgate simply has fewer ways to ask and falls back to
      * chat and menus rather than failing to start.
-     *
-     * <p>The Bedrock prefix comes from {@code config.yml} rather than from
-     * here: it says which players are on Bedrock, which anything that adapts to
-     * the client needs, not only the part that asks them questions.
      */
     /**
      * Reads {@code displays.yml} and applies the ceiling on display effects.
@@ -495,7 +490,6 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         Inputs.defaultTimeout(java.time.Duration.ofSeconds(Math.max(1, settings.timeoutSeconds())));
         ChatTransport.setCancelWord(settings.cancelWord());
         DialogTransport.enabled(settings.preferDialogs());
-        Bedrocks.prefix(LibrarySettings.get().bedrockPrefix());
     }
 
     /**

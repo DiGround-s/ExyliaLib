@@ -51,13 +51,6 @@ import net.exylia.lib.config.Time;
 @Comment("A line that carries its own <shadow> tag keeps it either way.")
 @Comment("Needs Minecraft 1.21.4 or newer; older servers ignore it.")
 @Comment("")
-@Comment("bedrock-prefix: the character Floodgate puts in front of a Bedrock")
-@Comment("player's name. Used to tell Bedrock players from Java ones when")
-@Comment("Floodgate itself is not installed to be asked. It lives here")
-@Comment("rather than in input.yml because who is on Bedrock is a fact about")
-@Comment("your players, not about asking them questions: menus, forms and")
-@Comment("anything else that adapts to the client reads the same value.")
-@Comment("")
 @Comment("timezone: the calendar every scheduled thing is read in — the times")
 @Comment("an event starts at, and any other timetable a plugin keeps. Empty")
 @Comment("means the host's own zone, which is right until the host and the")
@@ -93,10 +86,6 @@ public record LibrarySettings(
         @Key("text-shadow")
         @Comment("The shadow under every line: #rrggbb, #rrggbbaa, auto, auto:0.5, none, or empty.")
         String textShadow,
-
-        @Comment("The prefix Floodgate adds to a Bedrock player's name.")
-        @Comment("Leave it empty if your Bedrock players have no prefix.")
-        String bedrockPrefix,
 
         @Comment("The base64 texture drawn on a head with no texture of its own.")
         String fallbackHead,
@@ -153,7 +142,7 @@ public record LibrarySettings(
 
     /** Safe defaults used when no config file exists yet. */
     public LibrarySettings() {
-        this(true, 30, false, true, "auto:0.4", "*", DEFAULT_FALLBACK_HEAD, "", "", "normal", new Metrics());
+        this(true, 30, false, true, "auto:0.4", DEFAULT_FALLBACK_HEAD, "", "", "normal", new Metrics());
     }
 
     private static volatile LibrarySettings instance;
