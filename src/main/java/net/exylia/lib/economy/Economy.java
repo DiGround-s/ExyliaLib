@@ -103,7 +103,7 @@ public final class Economy {
     public static @NotNull java.util.Set<String> currencies() {
         // Vault served by a currency that is itself registered is that currency
         // under a second name: listing both shows one balance twice.
-        boolean alias = CurrencyRegistry.providers().values().stream().anyMatch(CurrencyProvider::servesVault);
+        boolean alias = CurrencyRegistry.servingVault() != null;
         java.util.Set<String> ids = new java.util.LinkedHashSet<>();
         CurrencyRegistry.providers().forEach((id, provider) -> {
             if (!(alias && provider instanceof net.exylia.lib.economy.internal.VaultCurrency)) {
@@ -519,6 +519,15 @@ public final class Economy {
     private static void changed(CurrencyProvider currency, UUID player, BigDecimal before,
                                 BigDecimal after, Transaction transaction) {
         BalanceCache.invalidate(currency.id(), player);
+        // Vault served by a registered currency is that currency under a second
+        // name, and the change went through it: one event, under its real id.
+        // Otherwise an analytics listener counted every default-currency change
+        // twice, once as "vault" and once as the currency itself.
+        CurrencyProvider owner = "vault".equals(currency.id()) ? CurrencyRegistry.servingVault() : null;
+        if (owner != null) {
+            BalanceCache.invalidate(owner.id(), player);
+            currency = owner;
+        }
         if (currency.announcesChanges()) {
             return;
         }

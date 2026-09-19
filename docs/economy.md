@@ -665,6 +665,10 @@ Economy.of("coins").deposit(target, amount, Transaction.of("admin:give").by(staf
 Every operation without one carries `Transaction.NONE`. Whatever the currency,
 a successful change fires `BalanceChangeEvent` (before, after, transaction),
 so a scoreboard or a quest reacts without knowing which economy is underneath.
+Once per change: when Vault is served by a registered currency (its provider
+answers `servesVault()`), a change made through `vault` is that currency's, and
+fires once under **its** id — or not at all from the library when that provider
+announces its own changes. Before 1.184.0 it fired a second time as `vault`.
 A provider that keeps a ledger overrides the `Transaction` forms of
 `CurrencyProvider`; the library always calls those.
 

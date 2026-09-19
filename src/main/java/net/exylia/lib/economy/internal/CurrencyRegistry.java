@@ -304,6 +304,24 @@ public final class CurrencyRegistry {
     }
 
     /**
+     * The registered currency that Vault is serving right now, or {@code null}
+     * when Vault is served by another plugin or not at all.
+     *
+     * <p>That currency and the {@code vault} one are then one balance under two
+     * names: a change made through either lands in the same place.
+     *
+     * @since 1.184.0
+     */
+    public static @Nullable CurrencyProvider servingVault() {
+        for (CurrencyProvider provider : providers.values()) {
+            if (provider.servesVault()) {
+                return provider;
+            }
+        }
+        return null;
+    }
+
+    /**
      * Whether any registered provider can serve right now. The cheap check a
      * feature makes before offering anything that costs money.
      */

@@ -25,7 +25,9 @@ import java.util.UUID;
  * library moved it or the backend did in one step, and a refund is its own. A
  * provider that queues changes for another server fires it itself, where the
  * change lands ({@link CurrencyProvider#announcesChanges()}), so the sum of the
- * deltas across a network is the money that moved.
+ * deltas across a network is the money that moved. A change made through
+ * {@code vault} while Vault is served by a registered currency is that
+ * currency's, and carries its id, never {@code vault} (since 1.184.0).
  *
  * @since 1.150.0
  */

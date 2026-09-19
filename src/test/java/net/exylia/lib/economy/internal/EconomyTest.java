@@ -455,6 +455,38 @@ class EconomyTest {
         assertEquals(List.of(), changes());
     }
 
+    @Test
+    @DisplayName("a change through vault served by a registered currency is announced once, under that currency")
+    void vaultAliasIsAnnouncedOnce() {
+        FakeCurrency coins = new FakeCurrency("coins") {
+            @Override
+            public boolean servesVault() {
+                return true;
+            }
+        };
+        CurrencyRegistry.install("coins", coins);
+        FakeCurrency vault = install("vault");
+        vault.give(alice, "100");
+
+        Economy.of("vault").deposit(alice, new BigDecimal("5"), net.exylia.lib.economy.Transaction.of("sell"));
+        Economy.of("vault").transfer(alice, bob, new BigDecimal("10"));
+
+        assertEquals(List.of("alice:5:sell", "alice:-10:transfer", "bob:10:transfer"), changes());
+        assertTrue(FakeServer.events(BalanceChangeEvent.class).stream().allMatch(e -> e.currency().equals("coins")));
+    }
+
+    @Test
+    @DisplayName("vault served by another plugin keeps its own events")
+    void vaultWithoutAliasIsAnnounced() {
+        FakeCurrency vault = install("vault");
+        vault.give(alice, "100");
+
+        Economy.of("vault").deposit(alice, new BigDecimal("5"));
+
+        assertEquals(List.of("vault"), FakeServer.events(BalanceChangeEvent.class).stream()
+                .map(BalanceChangeEvent::currency).toList());
+    }
+
     // --------------------------------------------------------------- cache
 
     @Test
