@@ -256,9 +256,68 @@ anything in the game, as everywhere else in the library.
 
 ---
 
+## Accounts — is this the same person? (since 1.184.0)
+
+`Accounts` answers the question every reward, rating and referral asks before it
+pays: are these two accounts likely one person? It answers for the whole
+network, whether either of them is online or not.
+
+```java
+private Accounts accounts;
+
+@Override
+public void onEnable() {
+    accounts = Accounts.of(this);   // starts recording joins, and the players already online
+}
+
+// a rating, a bounty, a kill reward
+accounts.sameAddress(buyer, seller)
+        .exceptionally(failure -> true)          // the database is down: refuse
+        .thenAccept(alt -> tasks.runAtEntity(player, () -> {
+            if (alt) { refuse(player); return; }
+            pay(player);
+        }));
+
+// a referral that only counts for somebody new
+accounts.firstSeen(invited).thenAccept(first -> ...);
+```
+
+| Method | Contract |
+| --- | --- |
+| `Accounts.of(plugin)` | the plugin's accounts, the same instance every time; from this call on, every join on this server is recorded into the plugin's database. Released with the plugin. |
+| `sameAddress(UUID, UUID)` → `CompletableFuture<Boolean>` | `true` when both players joined from one address within the window, or are online here from the same address right now. A player is the same person as themselves. Completes exceptionally when the database cannot answer: the caller decides whether that refuses. |
+| `firstSeen(UUID)` → `CompletableFuture<Optional<Instant>>` | the earliest join any server recorded, empty for somebody never seen. Completes exceptionally when the database cannot answer, which must not read as "new". |
+| `window(Duration)` | a view that counts an address only when both used it within that long; `DEFAULT_WINDOW` is 30 days. |
+
+**What is stored.** Three tables in the plugin's database, created on first use:
+
+| Table | Row |
+| --- | --- |
+| `exylia_accounts` | `id` (player), `first_seen` (epoch ms) |
+| `exylia_account_addresses` | `id` (`<uuid>/<hash>`), `player` (indexed), `address` (hash), `last_seen` (epoch ms) |
+| `exylia_account_keys` | the network's hashing key: one row, created by the first server that asks |
+
+The address is **never stored**: only the first 16 bytes of an HMAC-SHA256
+of it, keyed with that shared secret, so every server on the database hashes the
+same address to the same value. IPv6 is hashed by its `/64`, the block one
+household is given, since the rest of the address rotates on its own.
+
+**Network-wide** means the plugins of every server point at one database, the
+same condition every other shared table has. **First seen** also takes the
+joining server's own `getFirstPlayed`, so a veteran is not new the first time a
+server that runs this sees them.
+
+**Cost.** A join does one read and one or two upserts, off the joining thread.
+`sameAddress` is two indexed reads; `firstSeen` one.
+
+**Not done.** Address rows are never pruned (one per player per address block);
+nothing here decides what a shared address means — a household shares one.
+
+---
+
 ## What it deliberately does not do
 
-- **It stores nothing.** No table, no new file. The library opens no database
+- **The directory stores nothing.** No table, no new file. The library opens no database
   of its own, so an identity table would live duplicated in every consumer's
   `database.yml`; the server's user cache, the proxy's player list and Mojang
   already hold the three answers between them.
@@ -284,3 +343,4 @@ anything in the game, as everywhere else in the library.
 | The Lamp glue | `PlayerArguments.java`, in each consumer plugin |
 | The messages | `text/LibraryMessages.Players` |
 | Joins recorded | `ExyliaLib.onPlayerJoin` |
+| Accounts | `player/Accounts.java`, rows in `player/internal/` (`AccountRow`, `AddressRow`, `AccountKeyRow`); test `player/AccountsTest` |

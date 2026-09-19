@@ -43,6 +43,7 @@ public final class FakePlayer {
             new java.util.concurrent.atomic.AtomicInteger();
     private volatile Object inventory;
     private volatile org.bukkit.Location location;
+    private volatile java.net.InetSocketAddress address;
     private final List<org.bukkit.Location> teleports = new CopyOnWriteArrayList<>();
     private final List<String> hidden = new CopyOnWriteArrayList<>();
     private final List<String> pluginMessages = new CopyOnWriteArrayList<>();
@@ -59,6 +60,7 @@ public final class FakePlayer {
                 (self, method, args) -> switch (method.getName()) {
                     case "getUniqueId" -> id;
                     case "getLocation" -> location;
+                    case "getAddress" -> address;
                     case "getWorld" -> location == null ? null : location.getWorld();
                     case "getName" -> this.name;
                     case "isOnline" -> online;
@@ -282,6 +284,12 @@ public final class FakePlayer {
     /** Puts the player somewhere, which is what makes distance checks work. */
     public FakePlayer at(org.bukkit.Location where) {
         this.location = where.clone();
+        return this;
+    }
+
+    /** Says where this player connected from. */
+    public FakePlayer from(String ip) {
+        this.address = new java.net.InetSocketAddress(ip, 25565);
         return this;
     }
 

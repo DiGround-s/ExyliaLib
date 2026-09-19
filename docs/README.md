@@ -16,7 +16,7 @@ against the source — rules and routes are in `AGENTS.md` under
 | [Hologram](hologram.md) | Packet holograms declared in config | 1.6.0 |
 | [Client](client.md) | Lunar/Feather waypoints, client cooldowns, teammate markers and teams; owned per plugin since 1.48.0 | 1.7.0 |
 | [Clan](clan.md) | One API over eight clan plugins and external bridges | 1.8.0 |
-| [Cooldowns](cooldowns.md) | The base every cooldown in the ecosystem sits on | 1.10.0 |
+| [Cooldowns](cooldowns.md) | The base every cooldown in the ecosystem sits on; `NetworkCooldowns` that survive relogs and server hops since 1.184.0 | 1.10.0 |
 | [Utilities](util.md) | `util.Effects` (potions from strings), `TimeFormats` and `Expressions` | 1.9.0 |
 | [Debug](debug.md) | Coloured console output: log, success, warn, error, debug — and the banner; server-wide switch since 1.27.0, gradient name and type labels since 1.35.0 | 1.13.0 |
 | [Reloading](reload.md) | `Reloads` steps, library-reload listeners, and `/exylialib` (`reload`, `info`, `stats`) | 1.14.0 |
@@ -38,7 +38,7 @@ against the source — rules and routes are in `AGENTS.md` under
 | [Previews](previews.md) | Showing one player an effect on a configured stage, and putting them back | 1.30.0 |
 | [Redis](redis.md) | A shared cache that makes one database look the same from every server — a change on one is visible on the others immediately | 1.31.0 |
 | [Proxy](proxy.md) | Talking to the proxy: `player-proxy:`/`console-proxy:` lines and `Proxy.request` reach ExyliaProxyUtils on Velocity or BungeeCord, and every request is answered | 1.101.0 |
-| [Players](players.md) | A player who is not here: one `ExyliaPlayer` over online, offline and network players, and the command arguments that resolve them without blocking | 1.146.0 |
+| [Players](players.md) | A player who is not here: one `ExyliaPlayer` over online, offline and network players, and the command arguments that resolve them without blocking; `Accounts` (same person? first seen) since 1.184.0 | 1.146.0 |
 | [Rewards](rewards.md) | What a player earned — items, commands, money, odds and conditions — stored exactly as ExyliaCommons stored it | 1.34.0 |
 | [Snapshots](snapshots.md) | A player's state kept for later — in memory for a menu, or stored so it survives a restart | 1.34.0 |
 | [Teleport](teleport.md) | Moving a player: countdowns that moving or damage calls off, safe landings, `/back`, requests, random spots and handovers to another server | 1.34.0 |

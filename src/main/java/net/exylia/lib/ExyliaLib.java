@@ -630,6 +630,8 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         // Same reason, and nothing else: every stored snapshot was durable the
         // moment it was taken, so a shutdown has nothing left to write.
         Snapshots.releaseAll();
+        net.exylia.lib.util.NetworkCooldowns.releaseAll();
+        net.exylia.lib.player.Accounts.releaseAll();
         // Before the datasources and the Redis client it shares: a subscriber
         // thread must stop before the pool that feeds it is closed.
         Channels.releaseAll();
@@ -681,6 +683,7 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         ClanRuntime.forget(event.getPlayer().getUniqueId());
         CombatRuntime.forget(event.getPlayer().getUniqueId());
         Cooldowns.forget(event.getPlayer().getUniqueId());
+        net.exylia.lib.util.NetworkCooldowns.left(event.getPlayer().getUniqueId());
         // Before the menu module: an editor is a window, and a player who left
         // is not coming back to a working copy nobody can see. Their clipboard
         // goes with them.
@@ -749,6 +752,10 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         // Reading a file is not something the main thread should wait for.
         java.util.UUID id = player.getUniqueId();
         Tasks.of(this).runAsync(() -> Cooldowns.load(id));
+        // Both only start a database call and return: the answer lands off
+        // this thread, and a network cooldown refuses until it has.
+        net.exylia.lib.util.NetworkCooldowns.joined(id);
+        net.exylia.lib.player.Accounts.joined(player);
         // An entity timer dies with its entity, so a player who leaves during
         // the wait costs nothing and needs no online check of its own.
         Tasks.of(this).runAtEntityLater(player, CLIENT_HANDSHAKE_TICKS, () -> {
@@ -981,6 +988,10 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         // snapshot this plugin took is already a row, so nothing has to be
         // written on the way out. Forgetting the repository is the whole job.
         Snapshots.release(plugin);
+        // Before the database module for the same reason: they hold the
+        // plugin's repositories, and a join must not write through a closed one.
+        net.exylia.lib.util.NetworkCooldowns.release(plugin);
+        net.exylia.lib.player.Accounts.release(plugin);
         // Here rather than in the event, so a plugin can still announce its
         // own shutdown from onDisable; before the datasources it shares a
         // client with.

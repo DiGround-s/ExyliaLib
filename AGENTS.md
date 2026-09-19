@@ -1592,6 +1592,9 @@ Code root: `src/main/java/net/exylia/lib/`. Test root:
 | compound durations in `Ticks.parse` | `effect/Ticks.parse` (falls through to `InputParser.duration()`) | — | [docs/effects.md](docs/effects.md) | 1.163.0 |
 | persistent placed-block record | `block/PlacedBlocks` | `block/internal/PlacedBlockTracker` (chunk PDC `exylialib:placed_blocks`) | [docs/blocks.md](docs/blocks.md) | 1.163.0 |
 | item and experience currencies | `economy/ItemCurrency`, `ExperienceCurrency` | `economy/internal/PlayerThreadBalances` | [docs/economy.md](docs/economy.md) | 1.163.0 |
+| network cooldowns (database-backed, relog and hop proof, unknown refuses) | `util/NetworkCooldowns` | `util/internal/NetworkCooldownRow` (`exylia_network_cooldowns`); `joined`/`left` in `ExyliaLib` join/quit, `release` in `releaseAfterDisable` | [docs/cooldowns.md](docs/cooldowns.md) | 1.184.0 |
+| alt accounts: same address (keyed hash, never the IP) and first seen, network-wide | `player/Accounts` | `player/internal/` (`AccountRow`, `AddressRow`, `AccountKeyRow`: `exylia_accounts`, `exylia_account_addresses`, `exylia_account_keys`); `joined` in `ExyliaLib.onPlayerJoin` | [docs/players.md](docs/players.md) | 1.184.0 |
+| a change through `vault` served by a registered currency fires once, under that currency | — | `economy/Economy.changed`, `economy/internal/CurrencyRegistry.servingVault` | [docs/economy.md](docs/economy.md) | 1.184.0 |
 
 Root classes that are not a module: `ExyliaLib.java` (lifecycle and cleanup),
 `platform/Platform.java`, `internal/LibrarySettings`, `internal/ExyliaLibUpdater`.
