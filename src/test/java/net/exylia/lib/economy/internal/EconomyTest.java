@@ -1,6 +1,7 @@
 package net.exylia.lib.economy.internal;
 
 import net.exylia.lib.FakeServer;
+import net.exylia.lib.economy.BalanceChangeEvent;
 import net.exylia.lib.economy.CurrencyProvider;
 import net.exylia.lib.economy.Economy;
 import net.exylia.lib.economy.EconomyException;
@@ -15,6 +16,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
@@ -376,6 +378,81 @@ class EconomyTest {
         assertTrue(nativeUsed[0], "the provider's own transfer must be used");
         assertEquals(0, new BigDecimal("30").compareTo(currency.balance(alice)));
         assertEquals(0, new BigDecimal("20").compareTo(currency.balance(bob)));
+    }
+
+    // -------------------------------------------------------------- events
+
+    /** Each event as "player:delta:reason", in the order fired. */
+    private List<String> changes() {
+        return FakeServer.events(BalanceChangeEvent.class).stream()
+                .map(e -> (e.player().equals(alice) ? "alice" : "bob") + ":" + e.delta().stripTrailingZeros().toPlainString()
+                        + ":" + e.transaction().reason())
+                .toList();
+    }
+
+    @Test
+    @DisplayName("a native transfer announces both sides, with the balances it left")
+    void nativeTransferAnnouncesBothSides() {
+        FakeCurrency currency = new FakeCurrency("test") {
+            @Override
+            public @Nullable TransferResult transfer(
+                    @NotNull UUID f, @NotNull UUID t, @NotNull BigDecimal amount) {
+                balances.put(f, balance(f).subtract(amount));
+                balances.put(t, balance(t).add(amount));
+                return TransferResult.success(f, t, amount);
+            }
+        };
+        CurrencyRegistry.install("test", currency);
+        CurrencyRegistry.apply(new EconomySettings("test", java.util.List.of(), 500L));
+        currency.give(alice, "50");
+
+        view().transfer(alice, bob, new BigDecimal("20"), net.exylia.lib.economy.Transaction.of("pay"));
+
+        assertEquals(List.of("alice:-20:pay", "bob:20:pay"), changes());
+        BalanceChangeEvent sent = FakeServer.events(BalanceChangeEvent.class).get(0);
+        assertEquals(0, new BigDecimal("50").compareTo(sent.before()));
+        assertEquals(0, new BigDecimal("30").compareTo(sent.after()));
+    }
+
+    @Test
+    @DisplayName("a refunded transfer announces the refund, so the deltas add up to nothing")
+    void refundIsAnnounced() {
+        FakeCurrency currency = new FakeCurrency("test") {
+            @Override
+            public @NotNull EconomyResponse deposit(@NotNull UUID player, @NotNull BigDecimal amount) {
+                if (player.equals(bob)) {
+                    return EconomyResponse.failure("receiver account frozen");
+                }
+                return super.deposit(player, amount);
+            }
+        };
+        CurrencyRegistry.install("test", currency);
+        CurrencyRegistry.apply(new EconomySettings("test", java.util.List.of(), 500L));
+        currency.give(alice, "100");
+
+        view().transfer(alice, bob, new BigDecimal("40"));
+
+        assertEquals(List.of("alice:-40:transfer", "alice:40:transfer:refund"), changes());
+    }
+
+    @Test
+    @DisplayName("a provider that announces its own changes is left to do so")
+    void announcingProviderIsNotAnnouncedTwice() {
+        FakeCurrency currency = new FakeCurrency("test") {
+            @Override
+            public boolean announcesChanges() {
+                return true;
+            }
+        };
+        CurrencyRegistry.install("test", currency);
+        CurrencyRegistry.apply(new EconomySettings("test", java.util.List.of(), 500L));
+        currency.give(alice, "100");
+
+        view().deposit(alice, new BigDecimal("5"));
+        view().withdraw(alice, new BigDecimal("5"));
+        view().transfer(alice, bob, new BigDecimal("10"));
+
+        assertEquals(List.of(), changes());
     }
 
     // --------------------------------------------------------------- cache

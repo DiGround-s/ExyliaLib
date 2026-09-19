@@ -435,6 +435,14 @@ honest implementation when there is no native set (Vault). It is two operations
 with a read in between, so a concurrent change makes the difference wrong.
 PlayerPoints overrides it.
 
+**Answer `announcesChanges()` when changes land somewhere else or later** (since
+1.183.0). `BalanceChangeEvent` is fired by the library from the response, once
+per change. A provider that queues a change for the server holding the player,
+or writes it after a delay, returns no real balance, so the event it would get is
+wrong or missing. It answers `true` and fires the event itself where each change
+lands, exactly once across the network; the library then only drops its cached
+balance.
+
 **Override `transfer` only when the backend moves money atomically.** The default
 returns `null`, which tells the library to run withdraw → verify → deposit →
 refund. A "transfer" that is really a withdraw then a deposit belongs in the

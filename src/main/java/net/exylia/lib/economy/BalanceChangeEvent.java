@@ -21,6 +21,12 @@ import java.util.UUID;
  * {@link #isAsynchronous()}; a listener that touches the world hops to the
  * player's thread first.
  *
+ * <p>Once per change: a transfer is two events, one per side, whether the
+ * library moved it or the backend did in one step, and a refund is its own. A
+ * provider that queues changes for another server fires it itself, where the
+ * change lands ({@link CurrencyProvider#announcesChanges()}), so the sum of the
+ * deltas across a network is the money that moved.
+ *
  * @since 1.150.0
  */
 public final class BalanceChangeEvent extends Event {

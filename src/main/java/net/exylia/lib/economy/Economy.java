@@ -481,8 +481,11 @@ public final class Economy {
             TransferResult nativeResult = currency.transfer(from, to, amount);
             if (nativeResult != null) {
                 if (nativeResult.isSuccess()) {
-                    BalanceCache.invalidate(currency.id(), from);
-                    BalanceCache.invalidate(currency.id(), to);
+                    // The backend moved it in one step and reports no balances: read them after.
+                    BigDecimal sent = currency.balance(from);
+                    BigDecimal received = currency.balance(to);
+                    changed(currency, from, sent.add(amount), sent, transaction);
+                    changed(currency, to, received.subtract(amount), received, transaction);
                 }
                 return nativeResult;
             }
@@ -516,6 +519,9 @@ public final class Economy {
     private static void changed(CurrencyProvider currency, UUID player, BigDecimal before,
                                 BigDecimal after, Transaction transaction) {
         BalanceCache.invalidate(currency.id(), player);
+        if (currency.announcesChanges()) {
+            return;
+        }
         try {
             org.bukkit.Bukkit.getPluginManager().callEvent(
                     new BalanceChangeEvent(player, currency.id(), before.max(BigDecimal.ZERO), after, transaction));
@@ -545,9 +551,10 @@ public final class Economy {
             return TransferResult.success(from, to, amount);
         }
 
-        EconomyResponse refunded = currency.deposit(from, amount, Transaction.of("transfer:refund"));
+        Transaction refund = Transaction.of("transfer:refund");
+        EconomyResponse refunded = currency.deposit(from, amount, refund);
         if (refunded.isSuccess()) {
-            BalanceCache.invalidate(currency.id(), from);
+            changed(currency, from, refunded.balance().subtract(amount), refunded.balance(), refund);
             logger.warning("Economy: deposit to " + to + " failed after charging "
                     + from + "; the " + amount + " was refunded. Reason: " + deposited.message());
             return TransferResult.withdrawFailed(from, to, amount,

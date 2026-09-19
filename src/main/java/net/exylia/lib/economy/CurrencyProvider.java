@@ -203,6 +203,24 @@ public interface CurrencyProvider {
     }
 
     /**
+     * Whether this provider fires {@link BalanceChangeEvent} itself.
+     *
+     * <p>The library fires the event when an operation returns, from what the
+     * response says. That is the truth for a provider that changes the balance
+     * on the spot. It is not for one that queues a change for another server,
+     * or writes it later: the response then holds no balance, and the change
+     * that finally lands would go unannounced. Such a provider answers
+     * {@code true} and fires the event where each change really lands, once per
+     * change across the network; the library then only drops its cached balance.
+     *
+     * @return whether the library must leave the event to the provider
+     * @since 1.183.0
+     */
+    default boolean announcesChanges() {
+        return false;
+    }
+
+    /**
      * Adds to a balance, carrying why.
      *
      * <p>A provider that keeps a ledger overrides this; every other one gets
