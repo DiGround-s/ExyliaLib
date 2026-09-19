@@ -92,7 +92,9 @@ public final class LegacyTranslator {
         for (int i = 0; i < length; i++) {
             char current = text.charAt(i);
 
-            if (current == '&' && i + 1 < length) {
+            // A section sign too: what PlaceholderAPI hands back is usually
+            // already translated, and MiniMessage refuses a string with one.
+            if ((current == '&' || current == '\u00a7') && i + 1 < length) {
                 int consumed = appendLegacy(text, i, result);
                 if (consumed > 0) {
                     i += consumed - 1;

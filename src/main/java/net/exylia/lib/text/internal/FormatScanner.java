@@ -21,7 +21,7 @@ public final class FormatScanner {
     /** Nothing to do: the text has no formatting characters at all. */
     public static final int PLAIN = 0;
 
-    /** Contains {@code &}, so a legacy colour pass is needed. */
+    /** Contains {@code &} or {@code \u00a7}, so a legacy colour pass is needed. */
     public static final int AMPERSAND = 1;
 
     /** Contains <code>{</code>, so palette tokens or placeholders may be present. */
@@ -44,7 +44,7 @@ public final class FormatScanner {
         int flags = PLAIN;
         for (int i = 0, length = text.length(); i < length; i++) {
             switch (text.charAt(i)) {
-                case '&' -> flags |= AMPERSAND;
+                case '&', '\u00a7' -> flags |= AMPERSAND;
                 case '{' -> flags |= BRACE;
                 case '<' -> flags |= ANGLE;
                 default -> {

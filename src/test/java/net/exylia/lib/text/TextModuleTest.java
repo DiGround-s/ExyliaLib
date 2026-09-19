@@ -108,6 +108,21 @@ class TextModuleTest {
     }
 
     @Test
+    @DisplayName("a section sign reads as its ampersand form, inside MiniMessage too")
+    void sectionSign() {
+        // What PlaceholderAPI hands back is usually already translated, and
+        // MiniMessage throws on a section sign, which used to cost the caller
+        // the whole line as raw text.
+        Component component = Text.component("<dark_gray>[<red>\u00a7c\u2718<dark_gray>]");
+
+        assertEquals("[\u2718]", plain(component));
+        assertEquals(NamedTextColor.DARK_GRAY, firstColor(component));
+        assertEquals(TextColor.fromHexString("#8a51c4"),
+                firstColor(Text.component("\u00a7x\u00a78\u00a7a\u00a75\u00a71\u00a7c\u00a74Exylia")),
+                "the hex form works with section signs as well");
+    }
+
+    @Test
     @DisplayName("MiniMessage tags keep working")
     void miniMessage() {
         Component component = Text.component("<red>Danger</red>");
