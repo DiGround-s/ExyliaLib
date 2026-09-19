@@ -19,6 +19,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -117,6 +118,28 @@ class MongoBackendTest {
 
         Stats back = MongoBackend.read(model, document);
         assertEquals(new BigDecimal("12.34"), back.balance());
+    }
+
+    @Test
+    @DisplayName("a sum is a match on the filter and one group over the stored field")
+    void sumPipeline() {
+        List<Document> stages = MongoBackend.sumPipeline(model, "balance", List.of("clan"), List.of("Nova"));
+        assertEquals(new Document("clan", "Nova"), stages.get(0).get("$match"));
+        assertEquals(new Document("_id", null).append("total", new Document("$sum", "$balance")),
+                stages.get(1).get("$group"));
+        assertEquals("$kill_streak", ((Document) ((Document) MongoBackend.sumPipeline(model, "killStreak",
+                List.of(), List.of()).get(1).get("$group")).get("total")).get("$sum"));
+        assertThrows(IllegalArgumentException.class,
+                () -> MongoBackend.sumPipeline(model, "clan", List.of(), List.of()));
+    }
+
+    @Test
+    @DisplayName("what $sum answers comes back as a BigDecimal, and nothing is zero")
+    void sumResult() {
+        assertEquals(new BigDecimal("12.34"), MongoBackend.decimal(new Decimal128(new BigDecimal("12.34"))));
+        assertEquals(new BigDecimal("42"), MongoBackend.decimal(42L));
+        assertEquals(new BigDecimal("2.5"), MongoBackend.decimal(2.5d));
+        assertEquals(BigDecimal.ZERO, MongoBackend.decimal(null));
     }
 
     @Test

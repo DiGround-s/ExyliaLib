@@ -336,6 +336,15 @@ abstract class AnsiDialect implements Dialect {
         return sql.toString();
     }
 
+    @Override
+    public @NotNull String sum(@NotNull EntityModel<?> model, @NotNull String column,
+                               @NotNull List<String> whereColumns) {
+        StringBuilder sql = new StringBuilder(64)
+                .append("SELECT SUM(").append(quote(identifier(column))).append(") FROM ").append(table(model));
+        appendWhere(sql, whereColumns);
+        return sql.toString();
+    }
+
     // ------------------------------------------------------------- validation
 
     @Override

@@ -150,6 +150,31 @@ public final class Query<T> {
     }
 
     /**
+     * Adds up one numeric column over the matching rows, without reading them.
+     *
+     * <p>The total of a currency across every player is one number the
+     * database already knows how to produce; reading four hundred thousand
+     * balances to add them here would be the same garbage {@link #count}
+     * avoids, and paging through them would count a balance that moved between
+     * pages twice. Order, limit and skip do not apply: a sum is over every row
+     * the filter lets through.
+     *
+     * <pre>{@code
+     * balances.where("currency", "coins").sum("amount")
+     *     .thenAccept(total -> log("coins in circulation: " + total));
+     * }</pre>
+     *
+     * @param column a numeric column, by column or record component name
+     * @return the total, {@code 0} when nothing matches
+     * @throws IllegalArgumentException if the column is not numeric or not on
+     *                                  the record
+     * @since 1.183.0
+     */
+    public @NotNull java.util.concurrent.CompletableFuture<java.math.BigDecimal> sum(@NotNull String column) {
+        return repository.runSum(this, column);
+    }
+
+    /**
      * Deletes the matching rows in the database.
      *
      * <p>Nothing is read. Used for retention sweeps, where reading a page in

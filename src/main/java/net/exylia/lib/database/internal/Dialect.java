@@ -613,6 +613,17 @@ public interface Dialect {
      */
     @NotNull String count(@NotNull EntityModel<?> model, @NotNull List<String> whereColumns);
 
+    /**
+     * {@code SELECT SUM(column)} with an optional filter.
+     *
+     * @param model        the record model
+     * @param column       the column added up, by its stored name
+     * @param whereColumns columns compared with {@code =}, joined by {@code AND}, may be empty
+     * @return one statement
+     * @since 1.183.0
+     */
+    @NotNull String sum(@NotNull EntityModel<?> model, @NotNull String column, @NotNull List<String> whereColumns);
+
     // ------------------------------------------------------------- diagnosis
 
     /**

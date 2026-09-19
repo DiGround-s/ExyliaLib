@@ -5,6 +5,7 @@ import net.exylia.lib.database.Query;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
@@ -114,6 +115,17 @@ public final class MongoStorage implements Storage {
         List<Object> values = new ArrayList<>(whereValues);
         IndexCoverage.check(model, columns, List.of(), warnings);
         return async(model, "count", () -> backend.count(model, columns, values));
+    }
+
+    @Override
+    public @NotNull CompletableFuture<BigDecimal> sum(@NotNull EntityModel<?> model,
+                                                      @NotNull String column,
+                                                      @NotNull List<String> whereColumns,
+                                                      @NotNull List<Object> whereValues) {
+        List<String> columns = List.copyOf(whereColumns);
+        List<Object> values = new ArrayList<>(whereValues);
+        IndexCoverage.check(model, columns, List.of(), warnings);
+        return async(model, "sum", () -> backend.sum(model, column, columns, values));
     }
 
     @Override

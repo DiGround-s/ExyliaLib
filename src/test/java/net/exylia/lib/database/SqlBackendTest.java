@@ -707,6 +707,28 @@ class SqlBackendTest {
     }
 
     @Test
+    @DisplayName("a sum adds up a column over the filtered rows, and is zero over none")
+    void sums() throws SQLException {
+        backend.ensureTable(model);
+        backend.saveAll(model, List.of(
+                withBalance(stats(UUID.randomUUID(), 1000, "red"), "10.50"),
+                withBalance(stats(UUID.randomUUID(), 1000, "red"), "4.25"),
+                withBalance(stats(UUID.randomUUID(), 1000, "blue"), "100")));
+
+        assertEquals(0, new BigDecimal("14.75").compareTo(backend.sum(model, "balance", List.of("clan"), List.of("red"))));
+        assertEquals(0, new BigDecimal("114.75").compareTo(backend.sum(model, "balance", List.of(), List.of())));
+        assertEquals(3000L, backend.sum(model, "elo", List.of(), List.of()).longValueExact());
+        assertEquals(BigDecimal.ZERO, backend.sum(model, "balance", List.of("clan"), List.of("green")));
+        assertThrows(IllegalArgumentException.class,
+                () -> backend.sum(model, "notes", List.of(), List.of()));
+    }
+
+    private static Stats withBalance(Stats row, String balance) {
+        return new Stats(row.uuid(), row.elo(), row.killStreak(), row.playtime(), row.ratio(), row.accuracy(),
+                row.banned(), row.clan(), row.rank(), new BigDecimal(balance), row.notes(), row.tags());
+    }
+
+    @Test
     @DisplayName("a batch writes every row in one transaction")
     void batch() throws SQLException {
         backend.ensureTable(model);

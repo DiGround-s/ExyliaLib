@@ -7,6 +7,7 @@ import net.exylia.lib.database.internal.Storage;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+import java.math.BigDecimal;
 import java.util.Collection;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
@@ -155,6 +156,14 @@ public final class CachedStorage implements Storage {
                                                   @NotNull List<String> whereColumns,
                                                   @NotNull List<Object> whereValues) {
         return delegate.count(model, whereColumns, whereValues);
+    }
+
+    @Override
+    public @NotNull CompletableFuture<BigDecimal> sum(@NotNull EntityModel<?> model,
+                                                      @NotNull String column,
+                                                      @NotNull List<String> whereColumns,
+                                                      @NotNull List<Object> whereValues) {
+        return delegate.sum(model, column, whereColumns, whereValues);
     }
 
     // ----------------------------------------------------------------- write

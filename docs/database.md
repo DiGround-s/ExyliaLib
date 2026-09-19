@@ -96,7 +96,15 @@ stats.where("kit_id", "boxing")         // filter
      .find();
 
 stats.where("kit_id", "boxing").count();   // counted in the database, nothing read
+balances.where("currency", "coins").sum("amount");   // added up in the database (since 1.183.0)
 ```
+
+`sum` takes a numeric column and answers a `BigDecimal`, zero when nothing
+matches. It is one `SUM` on SQL and one `$group` on MongoDB, so a total over every
+player is one number rather than every row read and added — or paged, which
+counts a value that moved between pages twice. Order, limit and skip do not
+apply to it. A column that is not stored as a number is refused on the calling
+thread, like any other mistake in code.
 
 Filters are equalities, which is what all forty-nine existing lookups in the
 ecosystem are. Anything richer belongs in the plugin: a repository that grows an

@@ -880,6 +880,51 @@ public final class SqlBackend implements AutoCloseable {
         }
     }
 
+    /**
+     * Adds up one numeric column over the rows matching a filter.
+     *
+     * @param model        the record model
+     * @param column       the column or component added up
+     * @param whereColumns column or component names, compared with equality
+     * @param whereValues  the values, in record form, one per column
+     * @return the total, {@link BigDecimal#ZERO} when nothing matches
+     * @throws SQLException             if the statement fails
+     * @throws IllegalArgumentException if the column is not numeric or not on the model
+     */
+    public @NotNull BigDecimal sum(@NotNull EntityModel<?> model,
+                                   @NotNull String column,
+                                   @NotNull List<String> whereColumns,
+                                   @NotNull List<Object> whereValues) throws SQLException {
+        if (whereColumns.size() != whereValues.size()) {
+            throw new IllegalArgumentException("sum on " + model.table() + " got "
+                    + whereColumns.size() + " columns and " + whereValues.size() + " values");
+        }
+        ColumnModel target = numericColumn(model, column);
+        List<ColumnModel> filter = resolve(model, whereColumns);
+        String sql = statements.computeIfAbsent(
+                "sum:" + model.type().getName() + ":" + target.name() + ":" + names(filter),
+                key -> dialect.sum(model, target.name(), names(filter)));
+        try (Connection connection = pool.getConnection();
+             PreparedStatement statement = connection.prepareStatement(sql)) {
+            bindWhere(statement, filter, whereValues);
+            try (ResultSet rows = statement.executeQuery()) {
+                // SUM over no rows is NULL on every engine, not zero.
+                BigDecimal total = rows.next() ? rows.getBigDecimal(1) : null;
+                return total == null ? BigDecimal.ZERO : total;
+            }
+        }
+    }
+
+    /** A column a sum can add up, or the reason it cannot. */
+    static @NotNull ColumnModel numericColumn(@NotNull EntityModel<?> model, @NotNull String name) {
+        ColumnModel column = columnOf(model, name);
+        if (!column.numeric()) {
+            throw new IllegalArgumentException("sum needs a numeric column, and '" + name + "' on "
+                    + model.table() + " is stored as " + column.storedType().getSimpleName());
+        }
+        return column;
+    }
+
     // ---------------------------------------------------------------- binding
 
     private static int bindWhere(@NotNull PreparedStatement statement,

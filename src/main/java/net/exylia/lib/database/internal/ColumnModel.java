@@ -182,6 +182,20 @@ public final class ColumnModel {
     }
 
     /**
+     * Whether the store holds a number here, which is what a sum can add up.
+     *
+     * <p>Decided on the stored type: a column a codec turns into text is text
+     * to the database, whatever the record calls it.
+     *
+     * @since 1.183.0
+     */
+    public boolean numeric() {
+        Class<?> type = storedType;
+        return type == int.class || type == long.class || type == double.class || type == float.class
+                || type == short.class || type == byte.class || Number.class.isAssignableFrom(type);
+    }
+
+    /**
      * Whether the database hands out this key rather than the caller.
      *
      * <p>Only ever true on the primary key. A column that is generated is left

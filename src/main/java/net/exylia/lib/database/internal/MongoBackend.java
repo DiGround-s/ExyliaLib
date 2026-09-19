@@ -1021,6 +1021,55 @@ public final class MongoBackend implements AutoCloseable {
     }
 
     /**
+     * Adds up one numeric field over the documents matching a filter.
+     *
+     * <p>One {@code $group} in the server, never the documents themselves:
+     * the total is a single number whatever the collection holds.
+     *
+     * @param model        the record model
+     * @param column       the column or component added up
+     * @param whereColumns column or component names, compared with equality
+     * @param whereValues  the values, in record form, one per column
+     * @return the total, {@link BigDecimal#ZERO} when nothing matches
+     * @throws IllegalArgumentException if the column is not numeric or not on the model
+     */
+    public @NotNull BigDecimal sum(@NotNull EntityModel<?> model,
+                                   @NotNull String column,
+                                   @NotNull List<String> whereColumns,
+                                   @NotNull List<Object> whereValues) {
+        Document result = collection(model).aggregate(sumPipeline(model, column, whereColumns, whereValues)).first();
+        return decimal(result == null ? null : result.get("total"));
+    }
+
+    /** The two stages of {@link #sum}: the filter, then one group over everything it let through. */
+    static @NotNull List<Document> sumPipeline(@NotNull EntityModel<?> model,
+                                               @NotNull String column,
+                                               @NotNull List<String> whereColumns,
+                                               @NotNull List<Object> whereValues) {
+        ColumnModel target = MongoDocuments.columnOf(model, column);
+        if (!target.numeric()) {
+            throw new IllegalArgumentException("sum needs a numeric column, and '" + column + "' on "
+                    + model.table() + " is stored as " + target.storedType().getSimpleName());
+        }
+        Document group = new Document("_id", null)
+                .append("total", new Document("$sum", "$" + MongoDocuments.fieldOf(target)));
+        return List.of(
+                new Document("$match", document(MongoDocuments.filter(model, whereColumns, whereValues))),
+                new Document("$group", group));
+    }
+
+    /** What {@code $sum} answered, as a BigDecimal: a Decimal128 for money, a plain number otherwise. */
+    static @NotNull BigDecimal decimal(@Nullable Object total) {
+        if (total instanceof Decimal128 decimal) {
+            return decimal.bigDecimalValue();
+        }
+        if (total instanceof Double || total instanceof Float) {
+            return BigDecimal.valueOf(((Number) total).doubleValue());
+        }
+        return total instanceof Number number ? new BigDecimal(number.toString()) : BigDecimal.ZERO;
+    }
+
+    /**
      * Whether anything matches a filter.
      *
      * <p>A capped find rather than a count, and only {@code _id} comes back.

@@ -515,6 +515,21 @@ public final class Repository<T> {
         return reported("count", storage.count(model, query.filterColumns(), query.filterValues()));
     }
 
+    CompletableFuture<java.math.BigDecimal> runSum(Query<T> query, String column) {
+        // Checked here, on the caller's thread: a sum over a text column is a
+        // bug at the call site, not a failure to log minutes later.
+        ColumnModel target = model.byComponent(column);
+        if (target == null) {
+            target = model.column(column);
+        }
+        if (target == null || !target.numeric()) {
+            throw new IllegalArgumentException("sum() needs a numeric column of " + model.table() + ", and '"
+                    + column + "' is " + (target == null ? "not one" : "stored as "
+                    + target.storedType().getSimpleName()) + '.');
+        }
+        return reported("sum", storage.sum(model, column, query.filterColumns(), query.filterValues()));
+    }
+
     CompletableFuture<Integer> runDelete(Query<T> query) {
         if (frozen) {
             return CompletableFuture.completedFuture(0);

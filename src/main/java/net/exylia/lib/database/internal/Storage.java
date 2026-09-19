@@ -4,6 +4,7 @@ import net.exylia.lib.database.Query;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+import java.math.BigDecimal;
 import java.util.Collection;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
@@ -95,6 +96,26 @@ public interface Storage {
     @NotNull CompletableFuture<Long> count(@NotNull EntityModel<?> model,
                                            @NotNull List<String> whereColumns,
                                            @NotNull List<Object> whereValues);
+
+    /**
+     * Adds up one numeric column over the rows matching a filter, without
+     * reading them.
+     *
+     * <p>The same reason as {@link #count}: a total over four hundred thousand
+     * balances is one number the store already knows how to produce, not four
+     * hundred thousand records to deserialise and add.
+     *
+     * @param model        the compiled record model
+     * @param column       a numeric column, by column or record-component name
+     * @param whereColumns column names compared with {@code =}, may be empty
+     * @param whereValues  the values, in record form, one per column
+     * @return the total, {@link BigDecimal#ZERO} when nothing matches
+     * @since 1.183.0
+     */
+    @NotNull CompletableFuture<BigDecimal> sum(@NotNull EntityModel<?> model,
+                                               @NotNull String column,
+                                               @NotNull List<String> whereColumns,
+                                               @NotNull List<Object> whereValues);
 
     /**
      * Whether a row with this key exists, without reading it.

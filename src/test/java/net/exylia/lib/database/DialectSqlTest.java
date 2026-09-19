@@ -614,6 +614,8 @@ class DialectSqlTest {
         assertEquals("DELETE FROM \"totals\" WHERE \"uuid\" = ?", H2.delete(model, List.of("uuid")));
         assertEquals("SELECT COUNT(*) FROM \"totals\"", H2.count(model, List.of()));
         assertEquals("SELECT COUNT(*) FROM \"totals\" WHERE \"elo\" = ?", H2.count(model, List.of("elo")));
+        assertEquals("SELECT SUM(\"elo\") FROM \"totals\"", H2.sum(model, "elo", List.of()));
+        assertEquals("SELECT SUM(`elo`) FROM `totals` WHERE `uuid` = ?", MYSQL.sum(model, "elo", List.of("uuid")));
     }
 
     @Test

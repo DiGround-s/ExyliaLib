@@ -190,6 +190,18 @@ class DatabasesTest {
     }
 
     @Test
+    @DisplayName("a query sums a column over its filter, and refuses a column that is not a number")
+    void querySums() {
+        Repository<Stats> repository = Databases.of(plugin).repository(Stats.class);
+        await(repository.saveAll(List.of(stats(UUID.randomUUID(), 100, "red"),
+                stats(UUID.randomUUID(), 20, "red"), stats(UUID.randomUUID(), 9, "blue"))));
+
+        assertEquals(120L, await(repository.where("clan", "red").sum("elo")).longValueExact());
+        assertEquals(129L, await(repository.all().sum("elo")).longValueExact());
+        assertThrows(IllegalArgumentException.class, () -> repository.all().sum("clan"));
+    }
+
+    @Test
     @DisplayName("a limit and a skip page through the rows without repeating one")
     void queryPages() {
         Repository<Stats> repository = Databases.of(plugin).repository(Stats.class);
