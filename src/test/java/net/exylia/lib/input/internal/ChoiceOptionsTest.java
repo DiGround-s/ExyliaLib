@@ -53,6 +53,14 @@ class ChoiceOptionsTest {
     }
 
     @Test
+    @DisplayName("the option in force is ticked, the others are not")
+    void theDefaultOptionIsMarked() {
+        ChoiceInput<String> choice = ways().defaultValue("insert");
+
+        assertEquals(List.of("MATERIAL", "{success}\u2714 INSERT", "HEAD"), ChoiceOptions.labels(choice));
+    }
+
+    @Test
     @DisplayName("a position comes back as the option's key")
     void positionsResolveToKeys() {
         ChoiceInput<String> choice = ways();

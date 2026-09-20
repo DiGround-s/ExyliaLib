@@ -4,6 +4,7 @@ import net.exylia.lib.input.ChoiceInput;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 
 /**
  * Reading a choice's options by position.
@@ -29,9 +30,23 @@ final class ChoiceOptions {
         List<?> options = choice.choices();
         List<String> labels = new ArrayList<>(options.size());
         for (Object option : options) {
-            labels.add(label(choice, option));
+            labels.add(labelOf(choice, option));
         }
         return labels;
+    }
+
+    /**
+     * An option's label, ticked when it is the one already in force.
+     *
+     * <p>A typed field opens prefilled with what it is about to change, and a
+     * list of options is the same question asked with buttons: without the
+     * tick an admin has to remember, or close the list, which value the thing
+     * currently holds. The request's default is what it opens on, so that is
+     * the option marked.
+     */
+    static String labelOf(ChoiceInput<?> choice, Object option) {
+        String label = label(choice, option);
+        return Objects.equals(choice.defaultValue(), option) ? "{success}\u2714 " + label : label;
     }
 
     /**

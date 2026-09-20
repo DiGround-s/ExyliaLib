@@ -342,9 +342,8 @@ final class BedrockForms {
         return InputRuntime.display(value);
     }
 
-    @SuppressWarnings("unchecked")
-    private static <T> String choiceLabel(ChoiceInput<?> untyped, Object value) {
-        return plain(((ChoiceInput<T>) untyped).labelOf((T) value));
+    private static String choiceLabel(ChoiceInput<?> untyped, Object value) {
+        return plain(ChoiceOptions.labelOf(untyped, value));
     }
 
     @SuppressWarnings("unchecked")

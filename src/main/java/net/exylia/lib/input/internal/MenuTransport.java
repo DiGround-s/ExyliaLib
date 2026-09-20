@@ -249,7 +249,7 @@ public final class MenuTransport implements Transport {
     private static <T> List<Option> choiceOptions(ChoiceInput<T> choice) {
         List<Option> options = new ArrayList<>(choice.choices().size());
         for (T value : choice.choices()) {
-            options.add(new Option(choice.keyOf(value), choice.labelOf(value), choice.iconOf(value)));
+            options.add(new Option(choice.keyOf(value), ChoiceOptions.labelOf(choice, value), choice.iconOf(value)));
         }
         return List.copyOf(options);
     }
