@@ -8,7 +8,6 @@ import net.exylia.lib.input.InputRequest;
 import net.exylia.lib.input.Validation;
 import net.exylia.lib.task.Tasks;
 import net.exylia.lib.text.Text;
-import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
@@ -41,8 +40,6 @@ import java.util.concurrent.ConcurrentMap;
  */
 public final class ChatTransport implements Transport {
 
-    private static final PlainTextComponentSerializer PLAIN =
-            PlainTextComponentSerializer.plainText();
     private static final String BACK_WORD = "back";
     private static volatile String cancelWord = "cancel";
 
@@ -103,17 +100,14 @@ public final class ChatTransport implements Transport {
     }
 
     /**
-     * Accepts a cancelled Paper chat event after the listener has established
-     * that this transport owns the active session.
+     * Accepts a cancelled chat line after the listener has established that
+     * this transport owns the active session.
      *
-     * <p>Only component serialization runs on the async event thread. Everything
-     * involving consumer parsers, player messages, form state, or terminal
-     * delivery is moved through {@link Tasks} to the entity-owning thread.
+     * <p>Nothing runs on the chat thread: everything involving consumer parsers,
+     * player messages, form state, or terminal delivery is moved through
+     * {@link Tasks} to the entity-owning thread.
      */
-    void accept(@NotNull InputSession session,
-                @NotNull io.papermc.paper.event.player.AsyncChatEvent event) {
-        String raw = PLAIN.serialize(event.message());
-        Player player = event.getPlayer();
+    void accept(@NotNull InputSession session, @NotNull Player player, @NotNull String raw) {
         Tasks.of(plugin).runAtEntity(player,
                 () -> answer(session, player, raw),
                 () -> session.end(InputOutcome.DISCONNECTED));

@@ -73,6 +73,11 @@ public final class PreviewRuntime implements Listener {
             return;
         }
         org.bukkit.Bukkit.getPluginManager().registerEvents(new PreviewRuntime(), library);
+        // Chat is locked like everything else during a preview, on whichever
+        // chat event the server uses: a line cancelled only on the modern one
+        // has already been read by every legacy listener.
+        net.exylia.lib.chat.ChatIntercept.register(library, EventPriority.LOWEST, true,
+                (player, message) -> ACTIVE.containsKey(player.getUniqueId()));
         listening = true;
     }
 
@@ -227,11 +232,6 @@ public final class PreviewRuntime implements Listener {
 
     @EventHandler(priority = EventPriority.LOWEST, ignoreCancelled = true)
     public void onCommand(PlayerCommandPreprocessEvent event) {
-        cancelIfPreviewing(event.getPlayer(), event);
-    }
-
-    @EventHandler(priority = EventPriority.LOWEST, ignoreCancelled = true)
-    public void onChat(io.papermc.paper.event.player.AsyncChatEvent event) {
         cancelIfPreviewing(event.getPlayer(), event);
     }
 

@@ -62,10 +62,10 @@ speaker)`.
 ## What is needed
 
 A chat plugin that lets the server deliver the message: Paper's own chat and
-every renderer-based chat plugin do. Both chat events are handled — the modern
-`AsyncChatEvent` and the legacy `AsyncPlayerChatEvent` — because which one
-carries the message is the chat plugin's choice, and on Paper they describe the
-same audience.
+every renderer-based chat plugin do. Only the modern `AsyncChatEvent` is
+handled: when a plugin still listens to the legacy `AsyncPlayerChatEvent`, Paper
+runs that one first and hands its recipients to the modern event's viewers, so
+the audience trimmed here is the audience delivered either way.
 
 A plugin that instead cancels the event and sends each line itself has taken
 delivery over; those copies are out of reach, and an audience handed over as
@@ -90,9 +90,54 @@ nothing that blocks. Registering and clearing a rule is safe from any thread.
 Nothing derived from the palette is cached here, so the module has no
 `invalidateAll()` and is deliberately absent from `ExyliaLib.loadPalette`.
 
+## Taking a line out of chat
+
+`ChatIntercept` is the other half of the module, and a different job: not who
+reads a message, but a message that never becomes one. Staff chat, a clan
+channel, a freeze session, an answer to a prompt — each reads what a player
+typed and cancels it. Since 1.185.0.
+
+```java
+intercept = ChatIntercept.register(this, EventPriority.LOWEST, true, (player, message) -> {
+    if (!staffChat.isToggled(player)) return false;
+    staffChat.send(player, message);
+    return true;   // taken out of public chat
+});
+...
+intercept.close();   // when the feature stops; disabling the plugin also drops it
+```
+
+| Method | Contract |
+| --- | --- |
+| `register(plugin, priority, ignoreCancelled, intercept)` | intercepts chat on the event this server uses |
+| `close()` | stops intercepting |
+
+The interception reads the player and the plain text they typed and returns
+whether it took the message: `true` cancels it, `false` leaves it alone.
+
+**Why it is not a plain `AsyncChatEvent` listener.** Paper runs the modern chat
+event alone only while no plugin listens to the legacy `AsyncPlayerChatEvent`.
+As soon as one does — DiscordSRV, WorldGuard, an older chat plugin — every
+message goes through the legacy event *first*, with all of its listeners, and
+only then reaches `AsyncChatEvent` carrying whatever that round decided. A
+cancel on the modern event is therefore a cancel those listeners never see:
+DiscordSRV reads the message at `MONITOR` on the legacy event, finds nothing
+cancelled, and posts a staff channel to Discord.
+
+So the interception goes where the server's chat really is. With a legacy
+listener present it registers there, its cancel is the first thing the others
+see, and Paper carries the cancel into the modern event. With none, it registers
+on `AsyncChatEvent` and the legacy path stays off — registering a legacy
+listener is what turns it on, and chat signatures, Velocity's signed chat and
+component formatting are all better off without it.
+
+The choice is made one tick after `register`, once every plugin has registered
+its listeners; nobody is online before that tick. The interception runs on the
+chat thread: read shared state and hop with `Tasks` before touching the world.
+
 ## Source
 
-- Public: `chat/Chats.java`, `chat/ChatRule.java`.
+- Public: `chat/Chats.java`, `chat/ChatRule.java`, `chat/ChatIntercept.java`.
 - Internal: `chat/internal/ChatRuntime.java` (the rules and their AND),
-  `chat/internal/ChatListener.java` (the two chat events and the quit that
+  `chat/internal/ChatListener.java` (the chat event and the quit that
   drops a bypass).

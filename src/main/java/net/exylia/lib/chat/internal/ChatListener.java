@@ -6,17 +6,16 @@ import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
-import org.bukkit.event.player.AsyncPlayerChatEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.plugin.Plugin;
 
 /**
  * Single Bukkit listener taking the receivers no rule allows off a message.
  *
- * <p>Both chat events are handled because a server's chat plugin decides which
- * one carries the message: a renderer-based plugin leaves the modern event's
- * viewers to the server, while an older one edits the legacy recipients. The
- * two describe the same set on Paper, so filtering both filters once.
+ * <p>Only the modern event is handled. When a plugin still listens to the
+ * legacy one Paper runs it first and then hands its recipients to the modern
+ * event's viewers, so the audience trimmed here is the audience delivered
+ * either way, and this plugin never turns the legacy path on.
  *
  * <p>{@code HIGHEST} lets the chat plugin build its message first and still
  * runs before delivery. Cancelled events are skipped: a message nobody
@@ -43,17 +42,6 @@ public final class ChatListener implements Listener {
         // what was said, not somebody's copy of it.
         remove(() -> event.viewers().removeIf(viewer ->
                 viewer instanceof Player listener && !ChatRuntime.canHear(listener, speaker)));
-    }
-
-    @SuppressWarnings("deprecation")
-    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
-    public void onLegacyChat(AsyncPlayerChatEvent event) {
-        if (ChatRuntime.idle()) {
-            return;
-        }
-        Player speaker = event.getPlayer();
-        remove(() -> event.getRecipients().removeIf(listener ->
-                !ChatRuntime.canHear(listener, speaker)));
     }
 
     /** A bypass lasts as long as the player is here; nothing outlives a quit. */

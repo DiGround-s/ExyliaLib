@@ -1,6 +1,5 @@
 package net.exylia.lib.input.internal;
 
-import io.papermc.paper.event.player.AsyncChatEvent;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
@@ -25,21 +24,26 @@ import org.jetbrains.annotations.Nullable;
 public final class InputListener implements Listener {
 
     /**
-     * Removes an answer from public chat before handing its component to chat.
+     * Removes an answer from public chat before handing it to the transport.
+     *
+     * <p>Registered through {@link net.exylia.lib.chat.ChatIntercept}, which
+     * puts it on the chat event this server really uses: an answer cancelled
+     * only on the modern event has already been read by every legacy listener,
+     * and a prompt's answer is nobody else's business.
      *
      * <p>{@code HIGHEST} lets ordinary chat policy run first but still cancels
-     * before broadcast. Cancelled events are not ignored because an input answer
-     * remains private even when another plugin already cancelled normal chat.
+     * before broadcast. Cancelled messages are not skipped because an input
+     * answer remains private even when another plugin already cancelled normal
+     * chat.
      */
-    @EventHandler(priority = EventPriority.HIGHEST)
-    public void onChat(AsyncChatEvent event) {
-        InputSession session = InputRuntime.active(event.getPlayer().getUniqueId());
+    public static boolean onChat(Player player, String message) {
+        InputSession session = InputRuntime.active(player.getUniqueId());
         ChatTransport transport = transport(session, ChatTransport.class);
         if (transport == null || session.transportKind() != TransportKind.CHAT) {
-            return;
+            return false;
         }
-        event.setCancelled(true);
-        transport.accept(session, event);
+        transport.accept(session, player, message);
+        return true;
     }
 
     /** Routes clicks; both transports cancel first and fail closed. */

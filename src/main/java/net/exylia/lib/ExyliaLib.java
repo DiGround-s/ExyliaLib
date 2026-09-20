@@ -185,6 +185,11 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         // One listener for every plugin's questions, for the same reason: a
         // chat or inventory event fires once and the session says whose it is.
         getServer().getPluginManager().registerEvents(new InputListener(), this);
+        // The chat answer to a prompt is taken out of chat separately: it has to
+        // land on whichever chat event this server uses, or a legacy listener
+        // reads the answer before the cancel reaches it.
+        net.exylia.lib.chat.ChatIntercept.register(this, org.bukkit.event.EventPriority.HIGHEST, false,
+                InputListener::onChat);
         // And one for every plugin's list editors and icon pickers. Separate
         // from the menu listener because an editor window is not a menu window:
         // it carries its own holder, and a click in it is a row or a control
