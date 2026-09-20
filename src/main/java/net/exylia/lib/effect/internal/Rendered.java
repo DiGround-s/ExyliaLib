@@ -34,8 +34,8 @@ import org.bukkit.entity.Player;
  * <p>Fourth, a plugin that already substituted its own values hands over a
  * {@link Text} rather than a string. The values ride on the component tree, so
  * the template stays the same string every redraw and its parse stays cached.
- * A bar built from {@code "Vida: 14.3"} parsed a new string every tick; one
- * built from {@code Text.of("Vida: %hp%").with("%hp%", "14.3")} parses once.
+ * A bar built from {@code "Health: 14.3"} parsed a new string every tick; one
+ * built from {@code Text.of("Health: %hp%").with("%hp%", "14.3")} parses once.
  */
 final class Rendered {
 

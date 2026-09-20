@@ -58,7 +58,7 @@ None. This change is purely additive; no existing module's public API changes ex
 
 **Generic rebuild.** Read the record's components via the canonical constructor's parameter order, substitute index *i*, `newInstance`, hand the result to `ConfigFile.update`. All of it inside `panel/internal`.
 
-**Unsupported types.** A component whose type has no editor is rendered **read-only** with its `@Comment` lore and a "not editable here" note, reported once via `Debug`/`Problems`, and **excluded from the rebuild path** — its existing value is passed through untouched. The panel and the config must survive an unsupported field. This mirrors the item module's "una parte ilegible se reporta y se salta".
+**Unsupported types.** A component whose type has no editor is rendered **read-only** with its `@Comment` lore and a "not editable here" note, reported once via `Debug`/`Problems`, and **excluded from the rebuild path** — its existing value is passed through untouched. The panel and the config must survive an unsupported field. This mirrors the item module's "an unreadable part is reported and skipped".
 
 **Reuse, do not rewrite.** Search is `SearchInput` + `internal/SearchTransport` (682 L, DIALOG > BEDROCK > ANVIL_SEARCH > MENU > CHAT ladder). Multi-field edit is `FormInput`/`FormField`/`FormKey`/`FormValues`. Confirmation is `ConfirmInput.dangerous()`. Row identity is `UiKeys.ENTRY` — the exact seam that removes Commons' static per-player maps and the potion editor's index bug (entries are addressed by their carried value, never by list index). Rewards reuse `RewardEntry.toBuilder()` (preserves id), `copy()` (new id), `preview()`, `resolvedIcon()` — whose Javadoc already says it was designed for an editor menu.
 
@@ -112,7 +112,7 @@ The change is additive and isolated, so rollback is deletion, not migration:
 2. **Partial revert** — slices are independent by construction. Dropping `list-panel` + descriptors leaves the engine and settings panel working; dropping everything but the schema projection leaves a small, useful additive API.
 3. **Runtime kill** — no existing behaviour is routed through `panel`. Not opening a panel is the off switch; no config flag or migration is needed.
 4. **Config safety** — panels write only through `ConfigFile.update`, which already writes the file from the record. A reverted panel leaves valid YAML behind; there is no panel-specific on-disk format to unwind.
-5. **Compatibility** — public config keys and existing module APIs are untouched, so a revert cannot strand a `.yml`. `build.gradle` version is not modified here, so no published tag is implicated (per the "el versionado es inmutable" rule).
+5. **Compatibility** — public config keys and existing module APIs are untouched, so a revert cannot strand a `.yml`. `build.gradle` version is not modified here, so no published tag is implicated (per the "versioning is immutable" rule).
 
 ## Dependencies
 

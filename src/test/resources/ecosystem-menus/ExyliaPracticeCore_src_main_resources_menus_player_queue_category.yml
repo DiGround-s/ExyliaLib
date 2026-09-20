@@ -33,8 +33,8 @@ pagination:
     lore:
       - ""
       - " {muted}❙ {letters}Kits: {highlight}%kit_count%"
-      - " {muted}❙ {letters}En cola: {highlight}%queue_count%"
-      - " {muted}❙ {letters}Jugando: {highlight}%game_count%"
+      - " {muted}❙ {letters}In queue: {highlight}%queue_count%"
+      - " {muted}❙ {letters}Playing: {highlight}%game_count%"
       - ""
       - "{success}» Click to browse kits"
     actions:

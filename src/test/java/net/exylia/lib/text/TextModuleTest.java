@@ -43,11 +43,11 @@ class TextModuleTest {
         // What a scoreboard line looks like once the palette token inside the
         // placeholder has been parsed: the token is no longer one component,
         // so matching it whole against the parsed tree finds nothing.
-        String raw = "{secondary}RANGO: %rank_or:{error}none%";
+        String raw = "{secondary}RANK: %rank_or:{error}none%";
         Component component = Text.component(raw,
                 java.util.List.of("%rank_or:{error}none%", "&aVIP"));
 
-        assertEquals("RANGO: VIP", plain(component));
+        assertEquals("RANK: VIP", plain(component));
     }
 
     @Test

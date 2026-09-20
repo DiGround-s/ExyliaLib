@@ -50,35 +50,35 @@ class DisplayTextTest {
     @Test
     @DisplayName("the same string pushed again is neither parsed nor redrawn")
     void unchangedStringIsANoOp() {
-        Display bar = Effects.actionBar("Vida: 14.3").permanent().show(viewer.player());
+        Display bar = Effects.actionBar("Health: 14.3").permanent().show(viewer.player());
         FakeServer.tick(1);
         assertEquals(1, viewer.actionBars().size());
 
-        bar.text("Vida: 14.3");
-        bar.text("Vida: 14.3");
+        bar.text("Health: 14.3");
+        bar.text("Health: 14.3");
         FakeServer.tick(1);
 
         assertEquals(1, viewer.actionBars().size(), "an unchanged bar must not be re-sent");
 
-        bar.text("Vida: 13.0");
+        bar.text("Health: 13.0");
         FakeServer.tick(1);
         assertEquals(2, viewer.actionBars().size());
-        assertEquals("Vida: 13.0", viewer.actionBars().get(1));
+        assertEquals("Health: 13.0", viewer.actionBars().get(1));
     }
 
     @Test
     @DisplayName("a Text with values parses its template once, however often the values change")
     void textWithValuesKeepsTheTemplateCached() {
-        Display bar = Effects.actionBar("{primary}Vida: %hp%").permanent().show(viewer.player());
+        Display bar = Effects.actionBar("{primary}Health: %hp%").permanent().show(viewer.player());
         FakeServer.tick(1);
         TextEngine.invalidate();
 
         for (int health = 20; health > 0; health--) {
-            bar.text(Text.of("{primary}Vida: %hp%").with("%hp%", health));
+            bar.text(Text.of("{primary}Health: %hp%").with("%hp%", health));
             FakeServer.tick(1);
         }
 
-        assertEquals("Vida: 1", viewer.actionBars().get(viewer.actionBars().size() - 1));
+        assertEquals("Health: 1", viewer.actionBars().get(viewer.actionBars().size() - 1));
         assertTrue(TextEngine.cacheSize() <= 1,
                 "one template must cost one cache entry, not one per value: "
                         + TextEngine.cacheSize());
@@ -89,13 +89,13 @@ class DisplayTextTest {
     void shownFromTextStartsWithValues() {
         TextEngine.invalidate();
         for (int health = 20; health > 0; health--) {
-            Effects.actionBar(Text.of("{primary}Vida: %hp%").with("%hp%", health))
+            Effects.actionBar(Text.of("{primary}Health: %hp%").with("%hp%", health))
                     .permanent().show(viewer.player());
             FakeServer.tick(1);
         }
 
-        assertEquals("Vida: 20", viewer.actionBars().get(0));
-        assertEquals("Vida: 1", viewer.actionBars().get(viewer.actionBars().size() - 1));
+        assertEquals("Health: 20", viewer.actionBars().get(0));
+        assertEquals("Health: 1", viewer.actionBars().get(viewer.actionBars().size() - 1));
         assertTrue(TextEngine.cacheSize() <= 1, "one template, one entry: " + TextEngine.cacheSize());
     }
 
@@ -119,26 +119,26 @@ class DisplayTextTest {
     @Test
     @DisplayName("the same Text pushed again is neither built nor sent")
     void unchangedTextIsANoOp() {
-        Display bar = Effects.actionBar(Text.of("{primary}Vida: %hp%").with("%hp%", 20))
+        Display bar = Effects.actionBar(Text.of("{primary}Health: %hp%").with("%hp%", 20))
                 .permanent().show(viewer.player());
         FakeServer.tick(1);
         assertEquals(1, viewer.actionBars().size());
 
-        bar.text(Text.of("{primary}Vida: %hp%").with("%hp%", 20));
+        bar.text(Text.of("{primary}Health: %hp%").with("%hp%", 20));
         FakeServer.tick(1);
         assertEquals(1, viewer.actionBars().size(), "an unchanged bar must not be re-sent");
 
-        bar.text(Text.of("{primary}Vida: %hp%").with("%hp%", 19));
+        bar.text(Text.of("{primary}Health: %hp%").with("%hp%", 19));
         FakeServer.tick(1);
-        assertEquals("Vida: 19", viewer.actionBars().get(viewer.actionBars().size() - 1));
+        assertEquals("Health: 19", viewer.actionBars().get(viewer.actionBars().size() - 1));
     }
 
     @Test
     @DisplayName("several values land in their own places in one walk")
     void severalValuesInOneWalk() {
         Text text = Text.of("{primary}%a% <gradient:red:blue>%b%</gradient> %c%")
-                .with("%a%", "uno").withFormatted("%b%", "<bold>dos</bold>").with("%c%", "tres");
-        assertEquals("uno dos tres", net.kyori.adventure.text.serializer.plain
+                .with("%a%", "one").withFormatted("%b%", "<bold>two</bold>").with("%c%", "three");
+        assertEquals("one two three", net.kyori.adventure.text.serializer.plain
                 .PlainTextComponentSerializer.plainText().serialize(text.build()));
     }
 
@@ -147,12 +147,12 @@ class DisplayTextTest {
     void plainStringsMissTheCache() {
         // The shape the profile caught, kept as the contrast the fix is measured
         // against: this is what a plugin pays for doing its own replace().
-        Display bar = Effects.actionBar("{primary}Vida: 20").permanent().show(viewer.player());
+        Display bar = Effects.actionBar("{primary}Health: 20").permanent().show(viewer.player());
         FakeServer.tick(1);
         TextEngine.invalidate();
 
         for (int health = 19; health > 0; health--) {
-            bar.text("{primary}Vida: " + health);
+            bar.text("{primary}Health: " + health);
             FakeServer.tick(1);
         }
 

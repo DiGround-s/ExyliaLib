@@ -93,7 +93,7 @@ Seams first — RED cannot be written without them.
 - [ ] 2b.2 RED: create `panel/PanelLayoutFallbackTest.java` — a `LayoutSource` returning invalid YAML opens on `BUILT_IN`, reports **exactly one** problem via `DebugCapture`, stays operable.
 - [ ] 2b.3 RED: extend it — an **absent** layout degrades identically, with one report; and opening three times still reports once.
 - [ ] 2b.4 RED: extend it — a layout declaring save at slot 49, re-read with the owner's edit to slot 45, draws save at slot 45 on the next open (asserted through the draw sink, seam 2). No slot or size is hardcoded in engine control flow.
-- [ ] 2b.5 GREEN: create `resources/panels/settings.yml` and `resources/panels/list.yml` — slots, sizes, titles, colours; palette tokens only, never inline hex (AGENTS §Texto y color).
+- [ ] 2b.5 GREEN: create `resources/panels/settings.yml` and `resources/panels/list.yml` — slots, sizes, titles, colours; palette tokens only, never inline hex (AGENTS §Text and color).
 - [ ] 2b.6 GREEN: implement YAML loading in `Layouts` on top of `LayoutSource`, falling back to `BUILT_IN` on missing, unreadable, or malformed input, reported once via `Debug.of(ExyliaLib)`.
 - [ ] 2b.7 GREEN: modify `ExyliaLib.java` — `Menus.of(this).refreshBundledDirectory(ExyliaLib.class, "panels")` at enable, into `plugins/ExyliaLib/panels/`.
 - [ ] 2b.8 **Sabotage**: let malformed YAML propagate instead of falling back → `PanelLayoutFallbackTest` must fail. Report per open instead of once → 2b.3 must fail. Restore; record in the PR body.

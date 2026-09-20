@@ -842,12 +842,12 @@ class ConfigModuleTest {
         ConfigFile<Screen> messages = Configs.define(plugin, "messages", Screen.class).load();
 
         Files.writeString(file("config"), contents("config").replace("pool-size: 10", "pool-size: 77"));
-        Files.writeString(file("messages"), contents("messages").replace("Welcome", "Bienvenido"));
+        Files.writeString(file("messages"), contents("messages").replace("Welcome", "Welcome back"));
 
         Configs.reloadAll(plugin);
 
         assertEquals(77, config.get().poolSize());
-        assertEquals("Bienvenido", messages.get().banner().text(),
+        assertEquals("Welcome back", messages.get().banner().text(),
                 "the second file has to reload too:\n" + contents("messages"));
     }
 
@@ -859,11 +859,11 @@ class ConfigModuleTest {
 
         // A compact constructor that rejects the value: Binder.read throws.
         Files.writeString(file("ranged"), "amount: -5\n");
-        Files.writeString(file("messages"), contents("messages").replace("Welcome", "Bienvenido"));
+        Files.writeString(file("messages"), contents("messages").replace("Welcome", "Welcome back"));
 
         Configs.reloadAll(plugin);
 
-        assertEquals("Bienvenido", messages.get().banner().text(),
+        assertEquals("Welcome back", messages.get().banner().text(),
                 "a plugin's other files must still reload:\n" + contents("messages"));
         assertEquals(1, ranged.get().amount(), "the rejected file keeps what was in use");
     }

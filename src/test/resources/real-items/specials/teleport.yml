@@ -45,7 +45,7 @@ action-config:
   type: "SWITCH" # TO | FROM | BACK | SWITCH | RANDOM
   delay: 0
 
-  # Efectos de teletransporte en ubicaciones de origen y destino
+  # Teleport effects played at both the origin and the destination
   teleport-effects:
     particles:
       enabled: true

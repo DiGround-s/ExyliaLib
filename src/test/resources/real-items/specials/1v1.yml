@@ -62,7 +62,7 @@ action-config:
 #  # Default arena if player is not in any mapped region
 #  default_arena: "default-arena"
 
-  # Boss bar de countdown durante la pelea
+  # Countdown boss bar shown during the fight
   fight-bossbar:
     enabled: true
     text: "{warning}⚔ &fTime: {warning}%time_formatted% &f| {error}%player1% &fvs {error}%player2%"
@@ -71,7 +71,7 @@ action-config:
     permanent: false
     update-interval: 2
 
-  # Boss bar de countdown durante la fase de loot
+  # Countdown boss bar shown during the loot phase
   loot-bossbar:
     enabled: true
     text: "{success}💰 &fLoot Time: {success}%time_formatted%"

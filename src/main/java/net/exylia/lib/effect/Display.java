@@ -70,7 +70,7 @@ public interface Display {
      * <p>The way to drive a bar whose numbers change every redraw. The values
      * are substituted on the parsed component rather than in the string, so
      * the template parses once however often the numbers change; a bar handed
-     * {@code "Vida: 14.3"} as a string parses a new string every time.
+     * {@code "Health: 14.3"} as a string parses a new string every time.
      *
      * <pre>{@code
      * bar.text(Text.of(template).with("%hp%", health));

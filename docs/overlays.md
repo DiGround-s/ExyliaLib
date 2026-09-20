@@ -77,7 +77,7 @@ items:
   leave:
     slot: 8
     material: BARRIER
-    name: '{error}&lSALIR DE STAFF'
+    name: '{error}&lLEAVE STAFF MODE'
     actions:
       - 'any: staff:leave'
 ```

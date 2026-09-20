@@ -55,7 +55,7 @@ class MarkerSubstitutionTest {
     @Test
     void markersInsideParsedTrees() {
         MiniMessage mini = MiniMessage.miniMessage();
-        same(mini.deserialize("<gradient:#8a51c4:#ff6b9d>Vida \uE000 y \uE001</gradient> <gray>ping \uE002"));
+        same(mini.deserialize("<gradient:#8a51c4:#ff6b9d>Health \uE000 and \uE001</gradient> <gray>ping \uE002"));
         same(mini.deserialize("<bold><red>\uE000</red></bold><hover:show_text:'<green>\uE001 hits'>hover</hover>"));
         same(Component.text().append(Component.text("a"), Component.text("\uE001", NamedTextColor.AQUA)
                 .append(Component.text(" \uE000"))).build());

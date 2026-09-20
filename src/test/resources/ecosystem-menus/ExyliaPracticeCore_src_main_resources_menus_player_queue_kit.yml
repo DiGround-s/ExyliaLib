@@ -32,8 +32,8 @@ pagination:
     amount: "%playing_count%"
     lore:
       - ""
-      - " {muted}❙ {letters}En cola: %queue_player%"
-      - " {muted}❙ {letters}Jugando: {highlight}%playing_count%"
+      - " {muted}❙ {letters}In queue: %queue_player%"
+      - " {muted}❙ {letters}Playing: {highlight}%playing_count%"
       - ""
       - " %in_queue_indicator%"
     actions:

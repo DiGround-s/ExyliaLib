@@ -98,11 +98,11 @@ class TextShadowTest {
         // Parsed on its own and put in afterwards: the value is read in the
         // colour around it, so it must not carry a shadow of its own. A grey
         // one under gold text is what this looked like on a live server.
-        Component line = Text.of("{highlight}hola %x%").withFormatted("%x%", "<bold>mundo").build();
+        Component line = Text.of("{highlight}hello %x%").withFormatted("%x%", "<bold>world").build();
         assertEquals(ShadowColor.shadowColor(0xFF403600), line.shadowColor());
         assertNull(line.children().get(0).shadowColor());
         // A value with a colour of its own still casts its own.
-        Component coloured = Text.of("{highlight}hola %x%").withFormatted("%x%", "<#ff0000>mundo").build();
+        Component coloured = Text.of("{highlight}hello %x%").withFormatted("%x%", "<#ff0000>world").build();
         assertEquals(ShadowColor.shadowColor(0xFF400000), coloured.children().get(0).shadowColor());
     }
 
