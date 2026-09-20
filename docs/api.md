@@ -163,6 +163,10 @@ it cancels the death it handles, so neither `PlayerDeathEvent` nor
 API: `PlayerTotemSaveEvent` after a save, and `PlayerTotemHoldEvent` before a
 death is held open for one, which a plugin running its own deaths cancels.
 
+`EventsService` also takes minigames of your own: `registerMinigame` adds one
+that behaves like a built-in, with the same admin setup, arena protection,
+statistics and rewards. See [custom-minigames.md](custom-minigames.md).
+
 ExyliaProxyUtils is not here. It runs on Velocity and BungeeCord, which have no
 Bukkit `ServicesManager` and no Lukittu Spigot loader, so it needs a different
 mechanism than this one.

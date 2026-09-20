@@ -60,6 +60,7 @@ against the source — rules and routes are in `AGENTS.md` under
 | [Metrics](metrics.md) | What the library reports to stats.exylia.net — server software, installed plugins, Exylia plugin setup and errors — how a plugin describes its setup, and how to turn it off | 1.160.0 (`Metrics.describe` 1.163.0) |
 | [Blocks](blocks.md) | Blocks in the world that answer clicks instead of behaving like their material — a crate, a shop, a warp pad — protected and registered by whoever placed them; whether a player placed a block (`PlacedBlocks`) since 1.163.0 | 1.110.0 |
 | [Public API](api.md) | The contract third-party plugins write against: one published artifact covering every Exylia plugin, reached through `ExyliaAPI` | 1.112.0 |
+| [Custom minigames](custom-minigames.md) | Registering a minigame of your own with ExyliaEvents: what you declare, what it does for you | 1.186.0 |
 Migration notes:
 
 - [Migrating ExyliaFFA](migration-ffa.md) — what FFA needs, and the four things

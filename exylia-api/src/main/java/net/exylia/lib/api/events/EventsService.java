@@ -1,7 +1,11 @@
 package net.exylia.lib.api.events;
 
 import net.exylia.lib.api.ExyliaAPI;
+import net.exylia.lib.api.events.custom.MinigameDefinition;
+import net.exylia.lib.api.events.custom.MinigameHandler;
+
 import org.bukkit.entity.Player;
+import org.bukkit.plugin.Plugin;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Unmodifiable;
 
@@ -28,6 +32,14 @@ import java.util.UUID;
  * under, so anything that persists — a leaderboard, a menu, a placeholder — keys
  * on a definition id, while a join, a spectate or a force-end names the id of a
  * run that exists right now.
+ *
+ * <h2>Your own minigames</h2>
+ * {@link #registerMinigame} adds a minigame ExyliaEvents did not ship. It gets
+ * the admin setup flow, the arena protection, the statistics and the rewards
+ * every built-in one has; what it brings is a {@link MinigameDefinition} and a
+ * {@link MinigameHandler}. See
+ * {@link net.exylia.lib.api.events.custom.MinigameDefinition} for the worked
+ * example.
  *
  * <h2>Queries are cheap, actions are not</h2>
  * Everything that returns a value reads from the plugin's caches and is safe to
@@ -261,4 +273,58 @@ public interface EventsService {
      * @since 1.3.0
      */
     void openMenu(@NotNull Player player);
+
+    // ── Your own minigames ────────────────────────────────────────
+
+    /**
+     * Adds a minigame of your own to ExyliaEvents.
+     *
+     * <p>Call it once, from your plugin's {@code onEnable}, after declaring
+     * {@code depend: [ExyliaEvents]} in your {@code plugin.yml} so ExyliaEvents
+     * is already up. The minigame appears in the admin menus immediately; the
+     * arenas of it an admin configures are stored, protected, validated and
+     * scheduled exactly like a built-in one's.
+     *
+     * <p>Registering the same id twice replaces nothing and is refused, and so
+     * is an id a built-in minigame already uses, because an arena stored
+     * against that id would suddenly be played by different rules. The
+     * registration is dropped by itself when your plugin disables, so a
+     * {@code /reload} of it does not leave a dead minigame behind.
+     *
+     * @param owner      your plugin, which the minigame's tasks and listeners
+     *                   are registered against
+     * @param definition what the minigame is
+     * @return {@code true} when it was registered; {@code false} when the id was
+     *         taken, with the reason in the console
+     * @since 1.7.0
+     */
+    boolean registerMinigame(@NotNull Plugin owner, @NotNull MinigameDefinition definition);
+
+    /**
+     * Removes a minigame you registered.
+     *
+     * <p>Any run of it still going is ended first. The arenas an admin
+     * configured are kept: they are rows in ExyliaEvents' database and start
+     * working again the moment the minigame is registered once more.
+     *
+     * <p>Rarely needed by hand — a plugin disabling unregisters its own
+     * minigames — but it is here for a plugin that reloads itself.
+     *
+     * @param minigameId the id it was registered under
+     * @return {@code true} when a minigame of yours was removed
+     * @since 1.7.0
+     */
+    boolean unregisterMinigame(@NotNull String minigameId);
+
+    /**
+     * The ids of every minigame registered through {@link #registerMinigame}.
+     *
+     * <p>The ones plugins added, never the built-in ones.
+     *
+     * @return the registered ids, in no particular order
+     * @since 1.7.0
+     */
+    @NotNull
+    @Unmodifiable
+    List<String> registeredMinigames();
 }
