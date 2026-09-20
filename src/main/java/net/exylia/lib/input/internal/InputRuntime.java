@@ -5,6 +5,7 @@ import net.exylia.lib.input.InputResult;
 import net.exylia.lib.task.TaskHandle;
 import net.exylia.lib.task.TaskScheduler;
 import net.exylia.lib.task.Tasks;
+import net.exylia.lib.util.TimeFormats;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
@@ -64,6 +65,32 @@ public final class InputRuntime {
 
     private InputRuntime() {
         throw new AssertionError("No instances.");
+    }
+
+    /**
+     * Writes a value the way the player has to type it back.
+     *
+     * <p>A prefilled box is an offer to edit, so what it shows must be
+     * something the request's own parser reads: {@code Duration.toString()}
+     * writes {@code PT1M}, which a duration box then refuses. Milliseconds
+     * below a second, because {@code TimeFormats} floors those away and a
+     * default that comes back as {@code 0s} is a value silently lost.
+     *
+     * @param value the default, or {@code null} for an empty box
+     * @return the text to prefill
+     * @since 1.185.1
+     */
+    public static @NotNull String display(@Nullable Object value) {
+        if (value == null) {
+            return "";
+        }
+        if (value instanceof Duration duration) {
+            long millis = duration.toMillis();
+            return millis > 0 && millis % 1000 != 0
+                    ? millis + "ms"
+                    : TimeFormats.render(duration, TimeFormats.Style.FULL);
+        }
+        return String.valueOf(value);
     }
 
     /**

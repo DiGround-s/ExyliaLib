@@ -339,7 +339,7 @@ final class BedrockForms {
     }
 
     private static String stringify(@Nullable Object value) {
-        return value == null ? "" : String.valueOf(value);
+        return InputRuntime.display(value);
     }
 
     @SuppressWarnings("unchecked")
