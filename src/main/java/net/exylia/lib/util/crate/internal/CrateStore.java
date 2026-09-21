@@ -4,6 +4,7 @@ import net.exylia.lib.database.Databases;
 import net.exylia.lib.database.Repository;
 import net.exylia.lib.debug.Debug;
 import net.exylia.lib.task.Tasks;
+import net.exylia.lib.util.crate.CrateImport;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
@@ -18,6 +19,7 @@ import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Consumer;
+import java.util.function.Function;
 import java.util.function.IntSupplier;
 import java.util.function.UnaryOperator;
 
@@ -53,6 +55,7 @@ public final class CrateStore implements Listener {
     private final Repository<CrateRow> rows;
     private final IntSupplier startKeys;
     private final Consumer<UUID> changed;
+    private final Function<UUID, CompletableFuture<CrateImport>> importer;
     private final Map<UUID, Session> sessions = new ConcurrentHashMap<>();
 
     /**
@@ -62,11 +65,23 @@ public final class CrateStore implements Listener {
      *                  the thread that changed it
      */
     public CrateStore(@NotNull Plugin plugin, @NotNull IntSupplier startKeys, @NotNull Consumer<UUID> changed) {
+        this(plugin, startKeys, changed, uuid -> null);
+    }
+
+    /**
+     * @param importer what a player had before, asked only when their row is
+     *                 about to be created; a {@code null} future or a
+     *                 {@code null} answer means nothing, and the row starts
+     *                 as a new one does
+     */
+    public CrateStore(@NotNull Plugin plugin, @NotNull IntSupplier startKeys, @NotNull Consumer<UUID> changed,
+                      @NotNull Function<UUID, CompletableFuture<CrateImport>> importer) {
         this.plugin = plugin;
         this.owner = plugin.getName();
         this.rows = Databases.of(plugin).repository(CrateRow.class);
         this.startKeys = startKeys;
         this.changed = changed;
+        this.importer = importer;
     }
 
     // ------------------------------------------------------------------
@@ -114,9 +129,12 @@ public final class CrateStore implements Listener {
                 .thenCompose(found -> {
                     if (found.isPresent()) return CompletableFuture.completedFuture(found.get());
                     // The start keys are written on the row that is created, not
-                    // on every read, so they are handed out once ever.
-                    CrateRow fresh = CrateRow.fresh(owner, uuid, startKeys.getAsInt());
-                    return rows.save(fresh).thenApply(ignored -> fresh);
+                    // on every read, so they are handed out once ever. So is an
+                    // import: once the row exists it is never asked again, and a
+                    // failed one fails the read, which is tried again later
+                    // rather than creating a row that would forget it.
+                    return seed(uuid, startKeys.getAsInt())
+                            .thenCompose(seed -> rows.save(seed.row()).thenApply(ignored -> seed.row()));
                 })
                 .whenComplete((row, failure) -> {
                     if (sessions.get(uuid) != session) return;
@@ -157,13 +175,22 @@ public final class CrateStore implements Listener {
      * A player's row whether or not they are here, without caching it.
      *
      * <p>A row that does not exist yet reads as empty, with no start keys:
-     * those belong to the row a join creates.
+     * those belong to the row a join creates. When the plugin imports, it reads
+     * as what was imported instead, and that row is created here.
      */
     public @NotNull CompletableFuture<CrateRow> fetch(@NotNull UUID uuid) {
         CrateRow cached = row(uuid);
         if (cached != null) return CompletableFuture.completedFuture(cached);
         return rows.find(CrateRow.key(owner, uuid))
-                .thenApply(found -> found.orElseGet(() -> CrateRow.fresh(owner, uuid, 0)));
+                .thenCompose(found -> {
+                    if (found.isPresent()) return CompletableFuture.completedFuture(found.get());
+                    // Something imported is written now, as the row it creates:
+                    // otherwise every read would ask the plugin's table again,
+                    // and would answer keys nobody can spend.
+                    return seed(uuid, 0).thenCompose(seed -> seed.imported()
+                            ? rows.save(seed.row()).thenApply(ignored -> seed.row())
+                            : CompletableFuture.completedFuture(seed.row()));
+                });
     }
 
     // ------------------------------------------------------------------
@@ -229,10 +256,16 @@ public final class CrateStore implements Listener {
         }
 
         return rows.find(CrateRow.key(owner, uuid))
-                .thenCompose(found -> {
-                    CrateRow before = found.orElseGet(() -> CrateRow.fresh(owner, uuid, 0));
+                .thenCompose(found -> found.isPresent()
+                        ? CompletableFuture.completedFuture(new Seed(found.get(), false))
+                        : seed(uuid, 0))
+                .thenCompose(seed -> {
+                    CrateRow before = seed.row();
                     CrateRow after = change.apply(before);
-                    if (after == before) return CompletableFuture.completedFuture(before);
+                    // An imported row is written even when the change did
+                    // nothing: it is being created, and not writing it would
+                    // ask the plugin's table again next time.
+                    if (after == before && !seed.imported()) return CompletableFuture.completedFuture(before);
                     CrateRow stamped = after.touched();
                     return rows.save(stamped).thenApply(ignored -> stamped);
                 })
@@ -251,6 +284,34 @@ public final class CrateStore implements Listener {
                         return after;
                     });
                 });
+    }
+
+    /**
+     * A row about to be created, and whether it carries an import.
+     *
+     * @param row      what to write
+     * @param imported whether the plugin had something for this player
+     */
+    private record Seed(CrateRow row, boolean imported) {
+    }
+
+    /**
+     * What a row that does not exist yet starts as: what the plugin had for the
+     * player, or the start keys when it had nothing. Nothing is written here.
+     *
+     * @return fails when the import fails, so no row is created without it
+     */
+    private CompletableFuture<Seed> seed(UUID uuid, int startKeys) {
+        CompletableFuture<CrateImport> asked;
+        try {
+            asked = importer.apply(uuid);
+        } catch (RuntimeException failure) {
+            return CompletableFuture.failedFuture(failure);
+        }
+        if (asked == null) asked = CompletableFuture.completedFuture(null);
+        return asked.thenApply(imported -> imported == null
+                ? new Seed(CrateRow.fresh(owner, uuid, startKeys), false)
+                : new Seed(CrateRow.imported(owner, uuid, imported.keys(), imported.unlocked()), true));
     }
 
     /** Applies a change in memory and queues its write. The caller holds the session. */

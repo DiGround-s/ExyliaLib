@@ -351,10 +351,11 @@ public final class CrateScreens<T> implements Listener {
         context.put("amount", bought.size());
         putStatus(context::put, player);
 
+        CrateFaces<T> drawn = new CrateFaces<>(prizes.catalogue(), prizes.tiers(), player);
         UiSession session = menus.openNow(player, definition, context,
-                Map.of(REELS, cells(reels, 0),
+                Map.of(REELS, cells(reels, 0, drawn),
                         AGAIN, List.of(UiEntry.row().template("waiting").build())));
-        animate(session, reels);
+        animate(session, reels, drawn);
     }
 
     private @Nullable T any(List<T> faces) {
@@ -366,7 +367,7 @@ public final class CrateScreens<T> implements Listener {
      * Runs the reels until the last one lands, on one timer: they are drawn into
      * the same section, and two timers writing it would undo each other's column.
      */
-    private void animate(UiSession session, List<Reel<T>> reels) {
+    private void animate(UiSession session, List<Reel<T>> reels, CrateFaces<T> faces) {
         Player player = session.viewer();
         long[] elapsed = {0};
         int[] drawn = {-1};
@@ -401,7 +402,7 @@ public final class CrateScreens<T> implements Listener {
                 // windows of packets saying the same thing.
                 if (position != drawn[0] || done) {
                     drawn[0] = position;
-                    session.entries(REELS, cells(reels, elapsed[0]));
+                    session.entries(REELS, cells(reels, elapsed[0], faces));
                     // Every other face: one sound each is twenty a second, a
                     // rattle rather than a reel, and the widening gap between
                     // clicks is what makes the slowdown audible.
@@ -439,11 +440,15 @@ public final class CrateScreens<T> implements Listener {
         CrateMessages lines = messages.get();
         String line = outcome.status() == Prizes.Status.DUPLICATE ? lines.duplicate() : lines.won();
         if (line.isBlank()) return;
-        Text.from(plugin, line)
-                .withFormatted("%reward%", prizes.catalogue().name(prize))
+        String name = prizes.catalogue().name(prize);
+        Text text = Text.from(plugin, line)
+                .withFormatted("%reward%", name)
                 .withFormatted("%tier%", tierName(outcome.tierId()))
-                .with("%refund%", outcome.refunded())
-                .send(player);
+                .with("%refund%", outcome.refunded());
+        // The name a plugin's own crate filled, so its owners' lines keep working.
+        String alias = CrateFaces.alias(prizes.catalogue());
+        if (alias != null) text = text.withFormatted('%' + alias + '%', name);
+        text.send(player);
     }
 
     // ------------------------------------------------------------------
@@ -455,7 +460,7 @@ public final class CrateScreens<T> implements Listener {
      * included: rows fill a section's slots in order, so three reels that only
      * sent three columns would be drawn in the first three.
      */
-    private List<UiEntry> cells(List<Reel<T>> reels, long elapsed) {
+    private List<UiEntry> cells(List<Reel<T>> reels, long elapsed, CrateFaces<T> faces) {
         List<UiEntry> rows = new ArrayList<>(Reel.COLUMNS * Reel.ROWS);
         for (int column = Reel.FIRST_COLUMN; column <= Reel.LAST_COLUMN; column++) {
             Reel<T> reel = null;
@@ -464,7 +469,7 @@ public final class CrateScreens<T> implements Listener {
             }
             for (int row = 0; row < Reel.ROWS; row++) {
                 if (reel != null) {
-                    rows.add(cell(reel, row, elapsed));
+                    rows.add(cell(reel, row, elapsed, faces));
                 } else {
                     // The landing line runs right across, reel or no reel: one
                     // crate on its own is then a lane on a track.
@@ -480,12 +485,12 @@ public final class CrateScreens<T> implements Listener {
      * came within a slot of stays on screen, because half of what a crate is
      * worth is the legendary that went past the line.
      */
-    private UiEntry cell(Reel<T> reel, int row, long elapsed) {
+    private UiEntry cell(Reel<T> reel, int row, long elapsed, CrateFaces<T> faces) {
         T face = reel.faceAt(elapsed, row);
         if (face == null) return blank();
 
         Prizes.Outcome<T> outcome = reel.outcome();
-        UiEntry.Builder entry = face(face).with("refund", outcome == null ? 0 : outcome.refunded());
+        UiEntry.Builder entry = faces.face(face).with("refund", outcome == null ? 0 : outcome.refunded());
         if (outcome == null || !reel.landed(elapsed)) {
             return entry.template(row == Reel.WINNER_ROW ? "middle" : null).build();
         }
@@ -499,22 +504,6 @@ public final class CrateScreens<T> implements Listener {
 
     private static UiEntry lane() {
         return UiEntry.row().template("lane").build();
-    }
-
-    /** Everything a template can say about one reward, its rarity included. */
-    private UiEntry.Builder face(T reward) {
-        CrateCatalogue<T> catalogue = prizes.catalogue();
-        TierTable tiers = prizes.tiers();
-        String tierId = tiers.resolveId(catalogue.tier(reward));
-        CrateTier tier = tiers.get(tierId);
-        return UiEntry.of(reward)
-                .with("reward_id", prizes.idOf(reward))
-                .withFormatted("reward_name", catalogue.name(reward))
-                .with("reward_material", catalogue.icon(reward))
-                .withFormatted("reward_description", catalogue.description(reward))
-                .with("reward_tier_id", tierId)
-                .withFormatted("reward_tier", tier.color() + tier.name())
-                .withFormatted("reward_tier_color", tier.color());
     }
 
     // ------------------------------------------------------------------

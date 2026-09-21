@@ -3,7 +3,8 @@
 A crate a plugin gets by handing over its catalogue: one key in, one random
 reward out. The roll, the keys, the reels, the payout, the blocks that open it
 and the player rows are shared. What a reward is stays with the plugin.
-Available since 1.189.0.
+Available since 1.189.0; importing a plugin's own crate data, legacy key items,
+placeholder aliases and item icons since 1.190.0.
 
 Entry point: `net.exylia.lib.util.crate.Crates`.
 
@@ -91,6 +92,18 @@ crate:
 `%prefix%` is the plugin's own, as `Prefixes` holds it. A line left blank is not
 sent.
 
+### Every word a player reads belongs to the plugin
+
+The library ships no menu file and no message file, and creates none: it reads
+the plugin's two menus by the ids passed to `start`, and every line, item name,
+lore and rarity name comes from the `CrateSettings`, `CrateMessages` and
+`CrateCatalogue` the plugin hands over. The record defaults above are a
+starting point, not the product. The plugin writes them into its own
+`config.yml` and `messages.yml` — nested as the sections shown, or mapped from
+keys it already has (see *Moving a plugin's own crate onto this module*) — so
+its server owners translate and restyle them where they edit everything else,
+and a library update never rewrites what they wrote.
+
 ## What is shared and what is not
 
 | The crate | The plugin |
@@ -139,12 +152,28 @@ then with `item_template`.
 
 | Where | Placeholders |
 | --- | --- |
-| `reels` rows | `%reward_id%`, `%reward_name%`, `%reward_material%`, `%reward_description%`, `%reward_tier%` (colour and name), `%reward_tier_id%`, `%reward_tier_color%`, `%refund%` (keys a duplicate gave back) |
+| `reels` rows | `%reward_id%`, `%reward_name%`, `%reward_material%`, `%reward_description%`, `%reward_tier%` (colour and name), `%reward_tier_id%`, `%reward_tier_color%`, `%refund%` (keys a duplicate gave back); the same seven under the catalogue's `placeholderPrefix()` as well, such as `%effect_id%` |
 | `amounts` rows | `%amount%`, `%keys%`, `%missing%` (keys that choice still needs) |
 | anywhere | `%keys%`, `%unlocked_count%` (catalogue rewards owned, unlocked or `ownsOtherwise`), `%catalogue_count%`; `%amount%` on the opening screen |
 
 The winner and duplicate templates' clicks are the plugin's own actions — wear
-it, preview it — so they are only YAML.
+it, preview it — so they are only YAML. Every row value above reaches a
+template's `actions` as well as its name and lore, so
+`left: killeffect:choose %effect_id%` on `winner_template`, `duplicate_template`
+or `near_template` gets the reward that cell shows; a click's `UiKeys.ENTRY` is
+the reward itself.
+
+### Drawing a reward as its real item
+
+`material: "%reward_material%"` is the icon string `CrateCatalogue.icon(reward)`
+answers. A reward a material cannot show — a banner with a shield's patterns, a
+trimmed or dyed armour piece, a token with its own model — answers
+`icon(reward, viewer)` with the item instead. It is carried in
+`%reward_material%` as a `bytes:` snapshot, the same form a stored icon uses:
+the item's look survives (patterns, trim, colour, model, glint) and its own
+name and lore are dropped, so the template's `name`, `lore`, `glowing` and
+`hide-attributes` are drawn on top of it. It is asked once per reward per
+opening. A template that writes a literal material ignores it.
 
 ### Reference `menus/crate.yml`
 
@@ -459,6 +488,15 @@ items:
 | `keyItem(viewer)`, `isKey(item)`, `giveKeyItems(player, amount)` | Key items that can be held, traded and dropped |
 | `tierIds()`, `tierId(written)`, `tier(id)`, `count(tierId)`, `odds(tierId)` | The rarities, how many rewards each holds, and the odds an opening honours |
 | `bindBlock(block)`, `unbindBlock(block)`, `boundBlocks()`, `clearBlocks()` | The blocks that open it, saved through `saveBlocks` |
+| `importing(uuid -> future)` | Seeds a row from the plugin's own table, once, when the row is created (1.190.0) |
+| `legacyKeys(key, value)` | Also accepts key items tagged `key=value` in the plugin's item values (1.190.0) |
+
+And on the catalogue, both optional (1.190.0):
+
+| Method | Default | Does |
+| --- | --- | --- |
+| `icon(reward, viewer)` | `null` | The real item a reel draws, instead of the `icon(reward)` string |
+| `placeholderPrefix()` | `null` | A second spelling for the reel placeholders and the `%reward%` of `won` and `duplicate` |
 
 ## Contracts
 
@@ -516,6 +554,136 @@ ever. A row changed for somebody who is not here is read, changed and written,
 and never cached; one written by an admin before the player ever joined carries
 no start keys.
 
+With `importing`, the row a join, an edit or a read creates is seeded from what
+the importer answers instead of the start keys, and written at once; the
+importer is never asked again for that player, because the row now exists. An
+importer that answers `null` leaves the row as it would have been. One that
+fails creates nothing: the join tries again five seconds later and an edit or a
+read fails, so nothing is lost to a database that blinked.
+
+## Moving a plugin's own crate onto this module
+
+For ExyliaKillEffect, ExyliaHitEffect, ExyliaArrows and ExyliaEmotes, which each
+carry a copy of the crate this module was ported from. Nothing moves in the
+server's files: `config.yml` keeps its top-level `tiers:` and `key-item:` and
+its `crate:` section, `messages.yml` keeps its flat `crate-*` keys, the menus
+keep their `%effect_*%` placeholders, and the players' table keeps its columns.
+
+**Delete** `crate/Crate.java`, `crate/CrateBlocks.java`, `menu/CrateMenu.java`,
+`crate/CrateReward.java` (the `crate.reward` field of the plugin's record takes
+the library's `CrateReward` instead: same values in the file, and ExyliaEmotes'
+`UNLOCK`/`ITEM` are a subset), the rolling half of `Tiers` (`roll`, `shareOf`;
+`resolveId`, `get` and `colorOf` still serve the placeholders), the `crate` and
+`crate_open` actions the plugin registered itself, its
+`Rewards.of(plugin).claimOnJoin(...)` (the crate sets the same one up in
+`start`), and every use of `crate_keys` and `unlocked` in
+`PlayerStore`/`PlayerData` other than the import's read — spendKey, addKeys,
+setKeys, keysOf, unlock, lock, clearUnlocked, unlockedOf.
+
+**Keep** the `PlayerData` record's `crate_keys` and `unlocked` columns as they are,
+never written again. Dropping them is a destructive migration for nothing: the
+import reads them once per player, and a rollback to the previous version reads
+them again.
+Keep the `Tier` record (its `material` is still the plugin's own lore), the key
+item's look, the token item, the admin commands and the placeholders.
+
+**Pass**:
+
+```java
+crates = Crates.of(plugin)
+        // The keys and unlocks every player already had, carried across once.
+        .importing(uuid -> players.find(uuid).thenApply(old -> old
+                .map(row -> new CrateImport(row.crateKeys(), row.unlockedIds()))
+                .orElse(null)))
+        // The key items already in inventories: EffectItems tags them item=key.
+        .legacyKeys(EffectItems.KEY_ITEM, EffectItems.KIND_KEY)
+        .start(new CrateCatalogue<EffectDefinition>() {
+                    public Collection<EffectDefinition> all() { return registry.all(); }
+                    public String id(EffectDefinition e) { return e.id(); }
+                    public String tier(EffectDefinition e) { return e.tierId(); }
+                    public String name(EffectDefinition e) { return e.name(); }
+                    public String icon(EffectDefinition e) { return e.icon(); }
+                    public String description(EffectDefinition e) { return e.description(); }
+                    public ItemStack token(EffectDefinition e, Player viewer) { return items.token(e, viewer); }
+                    public boolean ownsOtherwise(Player p, EffectDefinition e) { return e.mayUse(p); }
+                    // %effect_id%... in the menus, %effect% in crate-won and crate-duplicate.
+                    public String placeholderPrefix() { return "effect"; }
+                },
+                this::crateSettings, this::crateMessages,
+                bound -> settings.update(c -> c.withCrateBlocks(bound)),
+                menus, actions, "crate", "crate_open");
+```
+
+The importer reads the plugin's own row off the main thread and answers
+`null` when there is none, so a newcomer gets the start keys. Any row it does
+find is imported as it is, even with no keys and nothing unlocked: an old
+player who spent everything is not a newcomer. A store whose read makes up a
+blank row for somebody it never saw must say so rather than answer that blank
+row as an import.
+Pass `0` as the old store's starting keys from now on: the crate's `start-keys`
+is the one that is handed out. ExyliaEmotes passes `"emote"` as the prefix and
+its `EmoteItems` constants. The two suppliers build the library's records from the
+plugin's own, which is all the mapping there is:
+
+```java
+private CrateSettings crateSettings() {
+    KillSettings s = settings();
+    KillSettings.Crate c = s.crate();
+    Map<String, CrateTier> tiers = new LinkedHashMap<>();
+    s.tiers().forEach((id, t) -> tiers.put(id, new CrateTier(t.name(), t.color(), t.chance(), t.priority())));
+    KillSettings.ItemLook key = s.keyItem();
+    return new CrateSettings(c.enabled(), c.startKeys(), c.duplicateRefund(),
+            c.reward(), c.blocks(), c.maxAtOnce(), c.spinFrames(),
+            c.staggerSeconds(), c.onSpin(), c.onWin(), c.onDuplicate(),
+            new CrateSettings.KeyItem(key.material(), key.name(), key.lore(), key.glow()), tiers);
+}
+
+private CrateMessages crateMessages() {
+    KillMessages m = lines();
+    return new CrateMessages(m.crateWon(), m.crateDuplicate(), m.crateNoKeys(), m.crateBusy(),
+            m.crateEmpty(), m.crateDisabled(), m.givenKey(), m.rewardsClaimed());
+}
+```
+
+They are asked often — several times a frame while reels spin — so a plugin
+that would rather not rebuild them keeps the last result and rebuilds only when
+its config snapshot changes (`settings.get() != last`). Note the key-items line:
+the crate's `keys-received` is what it says when it hands key *items* over, which
+is the plugin's `given-key`, not its own `keys-received` about keys on the
+account; that one stays with the admin command.
+
+**Then** point what is left at the crate:
+
+| Was | Now |
+| --- | --- |
+| `crateMenu.open(player)`, `openCrate` in the API service | `crates.open(player)` |
+| `players.keysOf(uuid)`, `keys(uuid)` in the service | `crates.keys(uuid)` |
+| `players.addKeys(player, n)`, `setKeys` | `crates.addKeys(uuid, n)`, `crates.setKeys(uuid, n)` |
+| `players.unlock(player, id)` (answered `boolean`) | `crates.unlock(uuid, id)`; `.getNow(false)` answers at once for a player in memory |
+| `players.isUnlocked(uuid, id)`, `%..._unlocked_<id>%` | `crates.owns(uuid, id)` |
+| `unlockedOf(uuid)`, `%..._unlocked%` | `crates.unlocked(uuid)`, filtered by what the registry still declares |
+| `%..._tier_count_<id>%` | `crates.count(tierId)` |
+| `items.key(viewer)` and the `item key` command | `crates.keyItem(viewer)` or `crates.giveKeyItems(player, n)` |
+| `items.isKey(stack)` | `crates.isKey(stack)` |
+| `crateBlocks.add/remove/all/clear` | `crates.bindBlock/unbindBlock/boundBlocks/clearBlocks` |
+| `crateBlocks.rebuild()` on reload | `crates.rebuild()` |
+| `players.onChange` redrawing the crate | the crate redraws its own screen; `crates.onChange` for the plugin's other menus |
+| `owns(player, effect)` reading the row | `effect.mayUse(player) \|\| crates.owns(uuid, effect.id())` |
+
+**What changes for players**, all of it on purpose:
+
+- `%unlocked_count%` on the two screens counts what the player owns, unlocked or
+  through `ownsOtherwise`, where the old screens counted only what a crate had
+  unlocked.
+- ExyliaEmotes' `reward: ITEM` meant "unlock nothing and refund the key". Here
+  a catalogue with no token item treats `ITEM` as `UNLOCK`, because a key must
+  never buy nothing. An emote server that wants a sink sets `enabled: false`.
+- A reel still falling when a player leaves pays out the way the effect crates
+  already did: unlocked on the row, and a token (for plugins that have one)
+  kept for the next join.
+- A held legacy key opens the crate as before; what is handed back for a key a
+  crate could not use is the crate's own key item.
+
 ## Lifecycle
 
 `Crates.release(plugin)` runs when the plugin is disabled, before its menus,
@@ -528,6 +696,6 @@ so there is nothing to invalidate on reload.
 
 | | |
 | --- | --- |
-| Public API | `util/crate/Crates`, `PluginCrates`, `CrateCatalogue`, `CrateSettings`, `CrateMessages`, `CrateTier`, `CrateReward` |
-| Internal | `util/crate/internal/CrateStore`, `CrateRow`, `Prizes`, `TierTable`, `Reel`, `CrateScreens`, `BoundBlocks` |
-| Tests | `util/crate/CrateReelTest`, `CrateTierTest`, `CratePrizesTest`, `CrateSettingsTest` |
+| Public API | `util/crate/Crates`, `PluginCrates`, `CrateCatalogue`, `CrateSettings`, `CrateMessages`, `CrateTier`, `CrateReward`, `CrateImport` |
+| Internal | `util/crate/internal/CrateStore`, `CrateRow`, `Prizes`, `TierTable`, `Reel`, `CrateScreens`, `CrateFaces`, `BoundBlocks` |
+| Tests | `util/crate/CrateReelTest`, `CrateTierTest`, `CratePrizesTest`, `CrateSettingsTest`, `CrateMigrationTest` |

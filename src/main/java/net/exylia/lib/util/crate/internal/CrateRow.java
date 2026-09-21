@@ -57,6 +57,21 @@ public record CrateRow(
         return new CrateRow(key(plugin, uuid), plugin, uuid, Math.max(0, keys), null, now, now);
     }
 
+    /**
+     * A row nobody has written yet, seeded with what the player had in the
+     * plugin's own table. Ids are normalised as the crate stores them; blank
+     * ones, ones carrying a comma and repeats are left out.
+     */
+    public static @NotNull CrateRow imported(@NotNull String plugin, @NotNull UUID uuid, int keys,
+                                             @NotNull List<String> unlocked) {
+        CrateRow row = fresh(plugin, uuid, keys);
+        for (String written : unlocked) {
+            String id = TierTable.normalise(written);
+            if (!id.isEmpty() && !id.contains(SEPARATOR)) row = row.withUnlocked(id);
+        }
+        return row;
+    }
+
     public @NotNull List<String> unlockedIds() {
         if (unlocked == null || unlocked.isEmpty()) return List.of();
         return List.of(unlocked.split(SEPARATOR));

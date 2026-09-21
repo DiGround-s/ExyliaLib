@@ -39,6 +39,8 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
+import java.util.function.Function;
+import java.util.function.Predicate;
 import java.util.function.Supplier;
 
 /**
@@ -75,6 +77,8 @@ public final class PluginCrates {
     private final ItemValues values;
     private final List<Consumer<UUID>> listeners = new CopyOnWriteArrayList<>();
     private volatile @Nullable Running<?> running;
+    private volatile @Nullable Function<UUID, CompletableFuture<CrateImport>> importer;
+    private volatile Predicate<ItemStack> legacyKey = item -> false;
 
     /** Everything a started crate holds, dropped whole by {@link #stop}. */
     private record Running<T>(Supplier<CrateSettings> settings, Supplier<CrateMessages> messages,
@@ -135,7 +139,7 @@ public final class PluginCrates {
                     say(viewer, messages.get().rewardsClaimed(), delivery.given());
                 });
 
-        CrateStore store = new CrateStore(plugin, () -> settings.get().startKeys(), this::changed);
+        CrateStore store = new CrateStore(plugin, () -> settings.get().startKeys(), this::changed, this::imported);
         Prizes<T> prizes = new Prizes<>(catalogue, store, settings, (prize, player) -> {
             ItemStack token = catalogue.token(prize, player);
             if (token == null) return null;
@@ -204,6 +208,74 @@ public final class PluginCrates {
         current.actions().unregister("crate");
         current.actions().unregister("crate_open");
         current.store().closeAll();
+    }
+
+    /**
+     * Seeds a player's crate row from the plugin's own table, for a plugin
+     * whose crate kept keys and unlocks itself before it moved onto this
+     * module.
+     *
+     * <pre>{@code
+     * Crates.of(this)
+     *         .importing(uuid -> oldPlayers.find(uuid).thenApply(old -> old
+     *                 .map(row -> new CrateImport(row.crateKeys(), row.unlockedIds()))
+     *                 .orElse(null)))
+     *         .start(...);
+     * }</pre>
+     *
+     * <p>Asked exactly when the crate is about to create a player's row — on
+     * their first join after the move, or when a command changes or reads a
+     * player who has no row yet — and never again for that player, because
+     * from then on the row exists. That is what makes it safe to leave in for
+     * good: it cannot hand anybody their old keys twice.
+     *
+     * <p>Answer {@code null} for somebody the old table never saw: their row
+     * starts with the start keys, as it would with no import. Anything else is
+     * imported as it is, even with no keys and nothing unlocked: an old player
+     * who spent everything is not a newcomer. So a plugin that makes a blank row
+     * for everybody it looks up must answer {@code null} for a row it did not
+     * already have, not an empty import. An import
+     * replaces the start keys rather than adding to them, since a player who
+     * had a row there was already given them there. An answer that fails
+     * creates no row: the join is tried again a little later and a command
+     * fails, so nothing the player had is lost to a database that blinked.
+     *
+     * <p>The old columns are only read. Leave them where they are rather than
+     * dropping them: they are what a rollback to the plugin's previous version
+     * reads, and a later import of the same player never happens.
+     *
+     * @param importer what a player had, asked with their id on the thread
+     *                 that just read the crate table, so it must not touch the
+     *                 Bukkit API; {@code null} stops importing
+     * @return this
+     * @since 1.190.0
+     */
+    public @NotNull PluginCrates importing(@Nullable Function<UUID, CompletableFuture<CrateImport>> importer) {
+        this.importer = importer;
+        return this;
+    }
+
+    /**
+     * Accepts the key items a plugin's own crate handed out before it moved
+     * onto this module, which players still carry.
+     *
+     * <p>An item is one of them when it carries {@code value} under
+     * {@code key} in this plugin's item values — {@code legacyKeys("item", "key")}
+     * for a plugin that tagged its keys {@code item=key}. From then on
+     * {@link #isKey} answers {@code true} for them, a right click on a bound
+     * block spends one from the hand like a key this crate made, and they are
+     * never placed, eaten or thrown, whatever they are drawn as. What a crate
+     * hands back for a key it could not use is always its own key item.
+     *
+     * @param key   the item value that says what kind of item it is
+     * @param value what it holds on a key
+     * @return this
+     * @since 1.190.0
+     */
+    public @NotNull PluginCrates legacyKeys(@NotNull String key, @NotNull String value) {
+        Items.of(plugin).inert(key);
+        this.legacyKey = item -> value.equals(values.text(item, key, ""));
+        return this;
     }
 
     /**
@@ -381,9 +453,12 @@ public final class PluginCrates {
         return stack;
     }
 
-    /** Whether an item is one of this plugin's crate keys. Safe from any thread. */
+    /**
+     * Whether an item is one of this plugin's crate keys, or one of the keys
+     * {@link #legacyKeys} accepts. Safe from any thread.
+     */
     public boolean isKey(@Nullable ItemStack item) {
-        return values.flag(item, KEY_TAG, false);
+        return values.flag(item, KEY_TAG, false) || legacyKey.test(item);
     }
 
     /**
@@ -512,6 +587,12 @@ public final class PluginCrates {
 
     private void say(Player player, String line, int amount) {
         if (!line.isBlank()) Text.from(plugin, line).with("%amount%", amount).send(player);
+    }
+
+    /** What the plugin's import answers for a player, or nothing when it does not import. */
+    private @Nullable CompletableFuture<CrateImport> imported(UUID player) {
+        Function<UUID, CompletableFuture<CrateImport>> current = importer;
+        return current == null ? null : current.apply(player);
     }
 
     /** A row changed: the question redraws, and so does whatever the plugin listens with. */

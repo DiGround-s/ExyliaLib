@@ -37,7 +37,7 @@ against the source — rules and routes are in `AGENTS.md` under
 | [Sequences](sequences.md) | Choreographed effects from configuration: shapes, sounds, delays — the ExyliaCommons syntax, compiled once; effects with odds, conditions and an audience since 1.57.0 | 1.30.0 |
 | [Previews](previews.md) | Showing one player an effect on a configured stage, and putting them back | 1.30.0 |
 | [Showcases](showcases.md) | Places that show a plugin's cosmetics off on a loop to whoever stands near — the places, the pacing and the cleanup shared, the turn left to the plugin | 1.188.0 |
-| [Crates](crates.md) | A crate a plugin gets by handing over its catalogue — the roll, the keys, the reels, the payout, the blocks and the player rows shared, the rewards left to the plugin | 1.189.0 |
+| [Crates](crates.md) | A crate a plugin gets by handing over its catalogue — the roll, the keys, the reels, the payout, the blocks and the player rows shared, the rewards left to the plugin; importing a plugin's own crate data, legacy key items, placeholder aliases and item icons since 1.190.0 | 1.189.0 |
 | [Redis](redis.md) | A shared cache that makes one database look the same from every server — a change on one is visible on the others immediately | 1.31.0 |
 | [Proxy](proxy.md) | Talking to the proxy: `player-proxy:`/`console-proxy:` lines and `Proxy.request` reach ExyliaProxyUtils on Velocity or BungeeCord, and every request is answered | 1.101.0 |
 | [Players](players.md) | A player who is not here: one `ExyliaPlayer` over online, offline and network players, and the command arguments that resolve them without blocking; `Accounts` (same person? first seen) since 1.184.0 | 1.146.0 |

@@ -55,6 +55,53 @@ public interface CrateCatalogue<T> {
     /** The material, head or other item source it is drawn as on the reels. */
     @NotNull String icon(@NotNull T reward);
 
+    /**
+     * The real item a reward is drawn as on the reels, for a reward a material
+     * name cannot show: a banner carrying a shield's patterns, a trimmed or
+     * dyed armour piece, a token with its own model.
+     *
+     * <p>It becomes what the reel templates' {@code material: "%reward_material%"}
+     * resolves to, the same way a stored icon does: the item's look is kept —
+     * patterns, trim, colour, model, glint — and its own name and lore are
+     * dropped, so the template's name and lore are drawn on top of it. A
+     * template that writes a literal material instead ignores it.
+     *
+     * <p>Asked once per reward per opening and kept for that opening only, so
+     * a change in the catalogue shows on the next one.
+     *
+     * @param reward what is drawn
+     * @param viewer who is watching the reels
+     * @return the item, or {@code null} to draw {@link #icon(Object)} as before
+     * @since 1.190.0
+     */
+    default @Nullable ItemStack icon(@NotNull T reward, @NotNull Player viewer) {
+        return null;
+    }
+
+    /**
+     * A second name the reel placeholders and the won and duplicate lines
+     * answer to, for a plugin whose server owners already wrote their menus and
+     * messages against its own crate.
+     *
+     * <p>With {@code "effect"}, every reel row carries {@code %effect_id%},
+     * {@code %effect_name%}, {@code %effect_material%},
+     * {@code %effect_description%}, {@code %effect_tier%},
+     * {@code %effect_tier_id%} and {@code %effect_tier_color%} next to their
+     * {@code %reward_*%} names, click actions included, and the two chat lines
+     * fill {@code %effect%} as well as {@code %reward%}. Nothing is renamed:
+     * both spellings resolve, so neither a customised file nor a fresh one
+     * breaks.
+     *
+     * <p>Trimmed and lower-cased; blank, {@code reward}, or anything but
+     * letters, digits and underscores means no alias.
+     *
+     * @return the alias, or {@code null} for none
+     * @since 1.190.0
+     */
+    default @Nullable String placeholderPrefix() {
+        return null;
+    }
+
     /** One line about it, formatting included, or an empty string. */
     @NotNull String description(@NotNull T reward);
 
