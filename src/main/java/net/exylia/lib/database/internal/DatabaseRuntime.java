@@ -25,6 +25,12 @@ public final class DatabaseRuntime {
             Set.of("h2", "mysql", "mariadb", "postgres", "postgresql", "pgsql");
     private static final Object LOCK = new Object();
 
+    /** How long a failed connection is remembered before it is tried again. */
+    private static final long RETRY_AFTER_MILLIS = 30_000L;
+
+    /** Plugins already told about the embedded file they left behind. */
+    private static final Set<String> STRANDED_REPORTED = java.util.concurrent.ConcurrentHashMap.newKeySet();
+
     private static volatile Plugin library;
     private static volatile Executor executor;
     private static Map<TargetKey, Target> targets = new LinkedHashMap<>();
@@ -111,10 +117,16 @@ public final class DatabaseRuntime {
                 .load().get();
 
         if (values.mongo() || SQL_ENGINES.contains(values.engine())) {
+            warnStrandedEmbedded(plugin, values);
             return values;
         }
-        Debug.of(plugin).warn("database.yml asks for the engine \"" + values.engine()
-                + "\", which does not exist. Using the embedded h2 database instead."
+        // An error rather than a warning: the plugin keeps running, but every
+        // row it was meant to send to a server is landing in a local file
+        // instead, which is the kind of thing that is only noticed once the
+        // data is needed somewhere else.
+        Debug.of(plugin).error("database.yml asks for the engine \"" + values.engine()
+                + "\", which does not exist, so this plugin is storing everything in its own"
+                + " embedded h2 file and nothing it writes reaches a database server."
                 + " Valid values are: h2, mysql, mariadb, postgresql, mongodb.");
         // The engine falls back; everything else the owner configured, the
         // Redis block included, is still theirs and still honoured.
@@ -123,6 +135,49 @@ public final class DatabaseRuntime {
                 values.database().mysql(), values.database().mariadb(),
                 values.database().postgresql(), values.database().mongodb(),
                 values.database().redis()));
+    }
+
+    /**
+     * Says so when a plugin on a database server still has its old H2 file.
+     *
+     * <p>A plugin that was moved from {@code h2} to {@code mysql} leaves its
+     * embedded file behind, full of the rows it held on the day of the move.
+     * Nothing opens it again, so it is harmless until somebody wonders where
+     * the missing history went, or moves the server and copies the file along
+     * with it. One line at startup is what turns it from a discovery into a
+     * decision: import it or delete it.
+     *
+     * @param plugin the consumer
+     * @param values its configuration, already known to name a valid engine
+     */
+    private static void warnStrandedEmbedded(Plugin plugin, DatabaseSettings values) {
+        // Configuration is resolved once for the datasource and again for the
+        // Redis block, and both land here: the line is worth one printing.
+        if (values.embedded() || !STRANDED_REPORTED.add(plugin.getName())) {
+            return;
+        }
+        Path file = embeddedFile(plugin, values);
+        if (file == null || !java.nio.file.Files.exists(file)) {
+            return;
+        }
+        Debug.of(plugin).warn("This plugin stores its data in " + values.engine()
+                + ", but the embedded database it used before is still on disk at "
+                + file + ". Nothing reads it: whatever it holds is not in "
+                + values.engine() + ". Import it with \"/exylialib import\" or delete it.");
+    }
+
+    /** Where this plugin's embedded file is, or would be. */
+    private static @Nullable Path embeddedFile(Plugin plugin, DatabaseSettings values) {
+        DatabaseSettings.Database block = values.database();
+        DatabaseSettings.H2 h2 = block == null ? null : block.h2();
+        String name = h2 == null || h2.file() == null || h2.file().isBlank()
+                ? "database/h2" : h2.file();
+        try {
+            // The extension H2 itself adds; the configured name carries none.
+            return dataFolder(plugin).resolve(name + ".mv.db");
+        } catch (RuntimeException noFolder) {
+            return null;
+        }
     }
 
     /**
@@ -263,6 +318,11 @@ public final class DatabaseRuntime {
             return target.isReady();
         }
 
+        /** Whether the last attempt to open this target failed. */
+        public boolean isFailed() {
+            return target.isFailed();
+        }
+
         public <T> @NotNull CompletableFuture<T> submit(@NotNull Supplier<CompletableFuture<T>> operation) {
             return target.submit(operation);
         }
@@ -285,6 +345,7 @@ public final class DatabaseRuntime {
         private final SqlSettings settings;
         private final Plugin owner;
         private CompletableFuture<Storage> storage;
+        private long attempted;
         private int owners;
         private int operations;
         private boolean closing;
@@ -296,15 +357,38 @@ public final class DatabaseRuntime {
             this.owner = owner;
         }
 
+        /**
+         * The open connection, opening it the first time and again after a
+         * failure.
+         *
+         * <p>A database that was down when the server started used to stay
+         * down for the rest of the run: the failed attempt was kept and handed
+         * to every later call, so a plugin came back only when somebody
+         * reloaded it. Retrying costs one connection attempt per
+         * {@link #RETRY_AFTER_MILLIS} — the calls in between still fail fast on
+         * the last failure, and still say so — and a server that starts before
+         * its MariaDB does heals itself.
+         */
         private synchronized @NotNull CompletableFuture<Storage> storage() {
-            if (storage == null) {
+            if (storage == null || retryDue()) {
+                attempted = System.currentTimeMillis();
                 storage = openAsync(owner, settings, key.poolName());
             }
             return storage;
         }
 
+        private boolean retryDue() {
+            return !closing && !closed
+                    && storage.isCompletedExceptionally()
+                    && System.currentTimeMillis() - attempted >= RETRY_AFTER_MILLIS;
+        }
+
         private synchronized boolean isReady() {
             return storage != null && storage.isDone() && !storage.isCompletedExceptionally();
+        }
+
+        private synchronized boolean isFailed() {
+            return storage != null && storage.isCompletedExceptionally();
         }
 
         private synchronized <T> @NotNull CompletableFuture<T> submit(

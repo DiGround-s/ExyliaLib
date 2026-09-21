@@ -46,8 +46,9 @@ import java.util.function.Supplier;
  */
 public final class GatedStorage implements Storage {
 
-    private final CompletableFuture<Storage> ready;
+    private final Supplier<CompletableFuture<Storage>> ready;
     private final OperationGate operations;
+    private volatile @Nullable CompletableFuture<Storage> latest;
 
     /**
      * A view that waits for a store to become usable.
@@ -56,7 +57,7 @@ public final class GatedStorage implements Storage {
      *              the table exists, or fails with why it never will
      */
     public GatedStorage(@NotNull CompletableFuture<Storage> ready) {
-        this(ready, Supplier::get);
+        this(() -> ready, Supplier::get);
     }
 
     /**
@@ -64,6 +65,24 @@ public final class GatedStorage implements Storage {
      * owns the eventual connection.
      */
     public GatedStorage(@NotNull CompletableFuture<Storage> ready, @NotNull OperationGate operations) {
+        this(() -> ready, operations);
+    }
+
+    /**
+     * A view that asks for the store before every operation.
+     *
+     * <p>Asking again is what lets a repository recover: the supplier hands
+     * back the same preparation while it is pending or done, and starts a new
+     * one once the last attempt failed and its cooldown has passed. A database
+     * that was unreachable at startup therefore comes back on its own, rather
+     * than staying broken until the plugin is reloaded.
+     *
+     * @param ready      supplies the preparation to wait on
+     * @param operations the target that owns the eventual connection
+     * @since 1.186.0
+     */
+    public GatedStorage(@NotNull Supplier<CompletableFuture<Storage>> ready,
+                        @NotNull OperationGate operations) {
         this.ready = ready;
         this.operations = operations;
     }
@@ -226,7 +245,11 @@ public final class GatedStorage implements Storage {
      * in front of a scheduler round trip.
      */
     private <R> CompletableFuture<R> after(@NotNull Function<Storage, CompletableFuture<R>> work) {
-        return operations.submit(() -> ready.thenCompose(work));
+        return operations.submit(() -> {
+            CompletableFuture<Storage> prepared = ready.get();
+            latest = prepared;
+            return prepared.thenCompose(work);
+        });
     }
 
     /** A target-owned gate that keeps already-queued work alive through release. */
@@ -238,6 +261,7 @@ public final class GatedStorage implements Storage {
 
     @Override
     public String toString() {
-        return "GatedStorage[" + (ready.isDone() ? "ready" : "preparing") + ']';
+        CompletableFuture<Storage> prepared = latest;
+        return "GatedStorage[" + (prepared != null && prepared.isDone() ? "ready" : "preparing") + ']';
     }
 }

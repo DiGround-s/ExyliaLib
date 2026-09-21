@@ -334,6 +334,19 @@ public final class ReloadCommand {
                 .append(" {letters_black}(").append(onOff(Databases.isReady())).append("{letters_black})");
         text.append("\n{letters_black}▎ {letters}Plugins {letters_black}» {info}")
                 .append(Databases.registered());
+        // One line per plugin: the aggregate above says "on" while a single
+        // plugin's database is unreachable, which is how an outage stays
+        // invisible on a server where the other nine are fine.
+        for (String name : Databases.registeredPlugins()) {
+            net.exylia.lib.database.PluginDatabase view = Databases.find(name);
+            if (view == null) {
+                continue;
+            }
+            String state = view.status();
+            text.append("\n{letters_black}▎ ▎ {letters}").append(name)
+                    .append(" {letters_black}» ")
+                    .append(state.endsWith("ready") ? "{info}" : "{warning}").append(state);
+        }
         text.append("\n{letters_black}▎ {letters}Redis {letters_black}» ")
                 .append(Redis.isActive() ? "{success}on {letters_black}(" + Redis.stats() + ")" : "{muted}off");
 

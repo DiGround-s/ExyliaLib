@@ -10,6 +10,7 @@ import net.exylia.lib.redis.Channel;
 import net.exylia.lib.redis.internal.RedisRuntime;
 import net.exylia.lib.redis.internal.RowCache;
 import org.bukkit.plugin.Plugin;
+import org.jetbrains.annotations.ApiStatus;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -67,6 +68,9 @@ import java.util.function.Consumer;
  * @since 1.24.0
  */
 public final class PluginDatabase {
+
+    /** How long a failed preparation is kept before it is tried again. */
+    private static final long RETRY_AFTER_MILLIS = 30_000L;
 
     private final Plugin plugin;
     private final SqlSettings settings;
@@ -284,7 +288,8 @@ public final class PluginDatabase {
         EntityModel<T> model = EntityModel.of(recordType);
         DatabaseRuntime.Lease target = lease();
         Debug debug = Debug.of(plugin);
-        return new Repository<>(new GatedStorage(prepare(target, model), target::submit), model,
+        return new Repository<>(new GatedStorage(retrying(() -> prepare(target, model)),
+                target::submit), model,
                 // Against the plugin that owns the repository, not the library:
                 // the console line has to name whose query broke.
                 debug::error);
@@ -314,6 +319,38 @@ public final class PluginDatabase {
      * does — which is the honest answer. A read answered with an empty list
      * would be indistinguishable from a database that is simply new.
      */
+    /**
+     * Keeps one preparation, and starts a new one once the last has failed.
+     *
+     * <p>Preparing is opening the connection and creating the table, and both
+     * fail together when the server is not there. Holding on to that failure
+     * is what used to make an outage permanent for the rest of the run. A
+     * failed attempt is kept for {@link #RETRY_AFTER_MILLIS} — long enough
+     * that a table which is genuinely wrong is not retried once per query, and
+     * short enough that a database coming back is noticed within a minute.
+     *
+     * @param prepare how to start a preparation
+     * @return a supplier of the current preparation
+     */
+    private static java.util.function.Supplier<CompletableFuture<Storage>> retrying(
+            java.util.function.Supplier<CompletableFuture<Storage>> prepare) {
+        return new java.util.function.Supplier<>() {
+
+            private CompletableFuture<Storage> current;
+            private long attempted;
+
+            @Override
+            public synchronized CompletableFuture<Storage> get() {
+                if (current == null || (current.isCompletedExceptionally()
+                        && System.currentTimeMillis() - attempted >= RETRY_AFTER_MILLIS)) {
+                    attempted = System.currentTimeMillis();
+                    current = prepare.get();
+                }
+                return current;
+            }
+        };
+    }
+
     private CompletableFuture<Storage> prepare(DatabaseRuntime.Lease target, EntityModel<?> model) {
         Debug debug = Debug.of(plugin);
         return target.submit(() -> target.storage().thenApply(opened ->
@@ -348,6 +385,32 @@ public final class PluginDatabase {
                             + failure.getMessage(), failure);
                     return CompletableFuture.failedFuture(failure);
                 })));
+    }
+
+    /**
+     * What this plugin's storage is doing, for the library's own command.
+     *
+     * <p>The aggregate the command used to show said "on" when any plugin had
+     * a database open, so one plugin whose MariaDB was unreachable was hidden
+     * behind the ones whose was not.
+     *
+     * @return the engine and its state
+     * @since 1.186.0
+     */
+    @ApiStatus.Internal
+    public @NotNull String status() {
+        DatabaseRuntime.Lease current;
+        synchronized (this) {
+            current = lease;
+        }
+        String engine = settings.engine();
+        if (current == null) {
+            return engine + ", nothing opened yet";
+        }
+        if (current.isFailed()) {
+            return engine + ", not answering";
+        }
+        return engine + (current.isReady() ? ", ready" : ", opening");
     }
 
     private synchronized DatabaseRuntime.Lease lease() {

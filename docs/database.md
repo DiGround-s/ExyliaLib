@@ -469,6 +469,38 @@ stack trace, no console line, nothing to search the logs for. Dropping the
 future is the caller's mistake; a database error that reaches nobody at all
 was the library's.
 
+### An outage is not permanent (since 1.186.0)
+
+A database that was unreachable when the server started used to stay
+unreachable for the rest of the run: the failed connection was kept and handed
+to every later call, so a plugin came back only when somebody reloaded it. The
+connection and the table preparation are now retried, at most once every 30
+seconds. The calls in between still fail fast on the last failure, and still
+say so, so nothing becomes quieter — a server that starts before its MariaDB
+does simply heals itself.
+
+### An embedded file left behind (since 1.186.0)
+
+A plugin configured for a database server that still has its old `h2.mv.db`
+says so once at startup:
+
+```
+[ExyliaClans] This plugin stores its data in mysql, but the embedded database it
+used before is still on disk at plugins/ExyliaClans/database/h2.mv.db. Nothing
+reads it: whatever it holds is not in mysql. Import it with "/exylialib import"
+or delete it.
+```
+
+Nothing opens that file, so it is harmless until somebody wonders where the
+missing history went — or moves the server and copies the file along with it.
+
+### An engine that does not exist
+
+A `type:` nothing recognises still falls back to the embedded database, because
+refusing to start would take a whole server down over a typo. It is an **error**
+rather than a warning, and says what actually happens: the plugin is writing to
+a local file and nothing it stores reaches a database server.
+
 ## Hearing another server's writes (since 1.155.0)
 
 The [cache module](redis.md) keeps a `find` honest across the network. It

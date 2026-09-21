@@ -410,6 +410,34 @@ class DatabasesTest {
     }
 
     @Test
+    @DisplayName("a store that failed to prepare is prepared again on the next call")
+    void preparationIsRetried() throws Exception {
+        // The outage that used to last the whole run: the first preparation
+        // failed, its failure was kept, and every later call was answered with
+        // it until somebody reloaded the plugin.
+        // Counted rather than merely registered: the table is created in the
+        // background, and the raw view below does not wait for it.
+        Databases.of(plugin).repository(Stats.class).count().get(TIMEOUT_SECONDS, TimeUnit.SECONDS);
+        java.util.concurrent.CompletableFuture<net.exylia.lib.database.internal.Storage> open =
+                net.exylia.lib.database.internal.DatabaseRuntime.storage();
+        java.util.concurrent.atomic.AtomicInteger attempts =
+                new java.util.concurrent.atomic.AtomicInteger();
+        var view = new net.exylia.lib.database.internal.GatedStorage(
+                () -> attempts.incrementAndGet() == 1
+                        ? java.util.concurrent.CompletableFuture.failedFuture(
+                                new IllegalStateException("the database is not answering"))
+                        : open,
+                java.util.function.Supplier::get);
+        var model = net.exylia.lib.database.internal.EntityModel.of(Stats.class);
+
+        assertThrows(ExecutionException.class, () -> view.exists(model, UUID.randomUUID())
+                .get(TIMEOUT_SECONDS, TimeUnit.SECONDS));
+
+        assertFalse(view.exists(model, UUID.randomUUID()).get(TIMEOUT_SECONDS, TimeUnit.SECONDS));
+        assertEquals(2, attempts.get());
+    }
+
+    @Test
     @DisplayName("a failure to prepare fails every operation rather than answering empty")
     void aBrokenTableFailsLoudly() {
         // Pointed at a database file that cannot exist: /dev/null is a device,
