@@ -76,6 +76,7 @@ import net.exylia.lib.region.internal.SelectionListener;
 import net.exylia.lib.text.Prefixes;
 import net.exylia.lib.util.Cooldowns;
 import net.exylia.lib.util.preview.Previews;
+import net.exylia.lib.util.showcase.Showcases;
 import net.exylia.lib.util.teleport.Teleports;
 import net.exylia.lib.util.reward.Rewards;
 import net.exylia.lib.util.sequence.Sequences;
@@ -581,6 +582,10 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         EffectRuntime.stopEverything();
         EffectRuntime.releaseAll();
         Previews.releaseAll();
+        // Before the sequences and NPCs a turn put on screen: cancelling the
+        // turn is what takes them away, and its own task has to be cancelled
+        // while the scheduler is still there.
+        Showcases.releaseAll();
         Teleports.releaseAll();
         Sequences.releaseAll();
         // After the sequences that drew them, for the same reason as above.
@@ -846,6 +851,8 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         // Before the sequence module: a preview owns a run and must put its
         // player back before that run is cancelled underneath it.
         Previews.release(pluginName);
+        // Before the sequences and NPCs its turns put on screen.
+        Showcases.release(pluginName);
         // Before the task module, for the same reason: a sequence schedules the
         // frames of its own animation, and a frame belonging to a classloader
         // that is going away must not fire.

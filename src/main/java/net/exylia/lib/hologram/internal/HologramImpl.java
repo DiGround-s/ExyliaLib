@@ -192,6 +192,11 @@ final class HologramImpl implements Hologram {
         refresh();
     }
 
+    /** The filter a hologram is born with, set before anything can draw it. */
+    void initialFilter(@Nullable Predicate<Player> filter) {
+        this.filter = filter;
+    }
+
     @Override
     public void visibleIf(@Nullable Predicate<Player> filter) {
         this.filter = filter;

@@ -36,6 +36,7 @@ against the source — rules and routes are in `AGENTS.md` under
 | [Displays](displays.md) | Item, block and text displays that move, spin and fall by themselves — packet-only, animated by the client | 1.85.0 |
 | [Sequences](sequences.md) | Choreographed effects from configuration: shapes, sounds, delays — the ExyliaCommons syntax, compiled once; effects with odds, conditions and an audience since 1.57.0 | 1.30.0 |
 | [Previews](previews.md) | Showing one player an effect on a configured stage, and putting them back | 1.30.0 |
+| [Showcases](showcases.md) | Places that show a plugin's cosmetics off on a loop to whoever stands near — the places, the pacing and the cleanup shared, the turn left to the plugin | 1.188.0 |
 | [Redis](redis.md) | A shared cache that makes one database look the same from every server — a change on one is visible on the others immediately | 1.31.0 |
 | [Proxy](proxy.md) | Talking to the proxy: `player-proxy:`/`console-proxy:` lines and `Proxy.request` reach ExyliaProxyUtils on Velocity or BungeeCord, and every request is answered | 1.101.0 |
 | [Players](players.md) | A player who is not here: one `ExyliaPlayer` over online, offline and network players, and the command arguments that resolve them without blocking; `Accounts` (same person? first seen) since 1.184.0 | 1.146.0 |

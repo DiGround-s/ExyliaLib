@@ -37,6 +37,7 @@ another scoped deviation so commons files keep working.
 | Method | Contract |
 | --- | --- |
 | `show(plugin, id, location, config)` / with `data` | create and show |
+| `show(plugin, id, location, config, visibleIf)` | create and show only to the players the filter lets through, from the first frame (since 1.188.0); `visibleIf` on a shown hologram leaves a moment in which it can be drawn for everybody in range |
 | `get(plugin, id)` / `all(plugin)` | queries |
 | `remove(plugin, id)` / `removeAll(plugin)` | cleanup |
 | `isSupported()` | false when PacketEvents is absent — nothing draws, everything still works |

@@ -133,6 +133,12 @@ public final class HologramRuntime {
      */
     public static Hologram show(Plugin plugin, String id, Location location,
                                 HologramConfig config, Map<String, Object> data) {
+        return show(plugin, id, location, config, data, null);
+    }
+
+    public static Hologram show(Plugin plugin, String id, Location location,
+                                HologramConfig config, Map<String, Object> data,
+                                java.util.function.Predicate<org.bukkit.entity.Player> filter) {
         if (plugin == null || id == null || location == null || config == null) {
             throw new IllegalArgumentException("plugin, id, location and config must not be null");
         }
@@ -149,6 +155,9 @@ public final class HologramRuntime {
         if (data != null && !data.isEmpty()) {
             hologram.updateData(data);
         }
+        // Before it is registered, so the driver never draws it for somebody
+        // the filter would have left out.
+        hologram.initialFilter(filter);
 
         synchronized (LOCK) {
             Map<String, HologramImpl> owned =

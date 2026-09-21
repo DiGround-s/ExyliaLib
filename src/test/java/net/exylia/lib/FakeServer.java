@@ -324,6 +324,10 @@ public final class FakeServer {
                     case "hashCode" -> System.identityHashCode(proxy);
                     case "equals" -> proxy == args[0];
                     case "toString" -> "FakeWorld[" + name + "]";
+                    // Whoever is online and standing in this world.
+                    case "getPlayers" -> ONLINE.stream()
+                            .filter(player -> player.getLocation() != null && player.getLocation().getWorld() == proxy)
+                            .toList();
                     // Enough of a block for Location.getBlock(), which anything
                     // that snaps a position to its block goes through.
                     case "getBlockAt" -> args[0] instanceof org.bukkit.Location where

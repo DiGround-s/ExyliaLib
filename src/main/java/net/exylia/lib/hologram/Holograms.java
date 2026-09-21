@@ -96,6 +96,30 @@ public final class Holograms {
     }
 
     /**
+     * Shows a hologram only to the players a filter lets through, from its very
+     * first frame.
+     *
+     * <p>{@link Hologram#visibleIf} on a hologram already shown leaves a moment
+     * in which the driver may draw it for everybody in range. A hologram meant
+     * for a few players &mdash; a label over a showcase, a name over somebody's
+     * own body &mdash; is given its filter here instead.
+     *
+     * @param plugin    the plugin it belongs to
+     * @param id        a name unique within that plugin
+     * @param location  where it stands, before the configured offset
+     * @param config    what it looks like
+     * @param visibleIf who sees it, on top of the view distance
+     * @return the hologram, never {@code null}
+     * @since 1.188.0
+     */
+    public static @NotNull Hologram show(@NotNull Plugin plugin, @NotNull String id,
+                                         @NotNull Location location,
+                                         @NotNull HologramConfig config,
+                                         @NotNull java.util.function.Predicate<org.bukkit.entity.Player> visibleIf) {
+        return HologramRuntime.show(plugin, id, location, config, null, visibleIf);
+    }
+
+    /**
      * Returns a hologram by name.
      *
      * @param plugin the plugin that created it
