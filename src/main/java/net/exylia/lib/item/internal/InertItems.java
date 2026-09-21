@@ -53,15 +53,19 @@ public final class InertItems implements Listener {
     /**
      * Marks a plugin's items as inert.
      *
-     * <p>Idempotent: asking twice replaces the keys rather than registering a
+     * <p>Idempotent: asking twice adds to the keys rather than registering a
      * second listener, so a plugin that reloads in place does not end up with
-     * one guard per reload.
+     * one guard per reload. Added rather than replaced, because a plugin's
+     * items can be marked from more than one place: the plugin itself, and a
+     * library module drawing items on its behalf, such as a crate's keys.
      */
     public static void mark(@NotNull Plugin plugin, @NotNull ItemValues values,
                             @NotNull Set<String> keys) {
         GUARDS.compute(plugin.getName(), (name, existing) -> {
             if (existing != null) {
-                existing.keys = Set.copyOf(keys);
+                Set<String> merged = new java.util.HashSet<>(existing.keys);
+                merged.addAll(keys);
+                existing.keys = Set.copyOf(merged);
                 return existing;
             }
             InertItems guard = new InertItems(values, Set.copyOf(keys));

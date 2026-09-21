@@ -76,6 +76,7 @@ import net.exylia.lib.region.internal.SelectionListener;
 import net.exylia.lib.text.Prefixes;
 import net.exylia.lib.util.Cooldowns;
 import net.exylia.lib.util.preview.Previews;
+import net.exylia.lib.util.crate.Crates;
 import net.exylia.lib.util.showcase.Showcases;
 import net.exylia.lib.util.teleport.Teleports;
 import net.exylia.lib.util.reward.Rewards;
@@ -586,6 +587,9 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         // turn is what takes them away, and its own task has to be cancelled
         // while the scheduler is still there.
         Showcases.releaseAll();
+        // Before the menus, blocks, actions and tasks a crate borrows, and
+        // before the databases: reels in the air are paid out onto rows.
+        Crates.releaseAll();
         Teleports.releaseAll();
         Sequences.releaseAll();
         // After the sequences that drew them, for the same reason as above.
@@ -853,6 +857,10 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         Previews.release(pluginName);
         // Before the sequences and NPCs its turns put on screen.
         Showcases.release(pluginName);
+        // Before the menus, blocks, actions and tasks a crate borrows: reels in
+        // the air are cancelled and paid out onto the player's row, which the
+        // plugin's database, released a tick later, still writes.
+        Crates.release(pluginName);
         // Before the task module, for the same reason: a sequence schedules the
         // frames of its own animation, and a frame belonging to a classloader
         // that is going away must not fire.

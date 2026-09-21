@@ -76,7 +76,9 @@ public final class PluginItems {
      * one drawn as a golden apple is eaten, and either way the player has spent
      * something they were meant to keep.
      *
-     * <p>Idempotent, so a plugin that reloads in place can call it again.
+     * <p>Idempotent, so a plugin that reloads in place can call it again. Keys
+     * are added to the ones already marked, never replace them: a library
+     * module that draws items for this plugin marks its own key the same way.
      *
      * @param keys the keys that mark an item as this plugin's own
      * @since 1.84.4
