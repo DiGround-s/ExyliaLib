@@ -79,7 +79,7 @@ public final class GatedStorage implements Storage {
      *
      * @param ready      supplies the preparation to wait on
      * @param operations the target that owns the eventual connection
-     * @since 1.186.0
+     * @since 1.187.0
      */
     public GatedStorage(@NotNull Supplier<CompletableFuture<Storage>> ready,
                         @NotNull OperationGate operations) {

@@ -395,7 +395,7 @@ public final class PluginDatabase {
      * behind the ones whose was not.
      *
      * @return the engine and its state
-     * @since 1.186.0
+     * @since 1.187.0
      */
     @ApiStatus.Internal
     public @NotNull String status() {

@@ -113,7 +113,7 @@ Redis.stats();      // hits, misses, failures, rows held
 A low hit rate across a network usually means the servers disagree about
 `key-prefix`, or share a `server-id`.
 
-Since 1.186.0 any open connection counts, not only the ones a row cache uses:
+Since 1.187.0 any open connection counts, not only the ones a row cache uses:
 a server whose plugins only publish and subscribe has no cache at all, and
 reporting that as "off" said its working Redis was down. `stats()` then names
 what is connected and says there is no row cache in use.

@@ -469,7 +469,7 @@ stack trace, no console line, nothing to search the logs for. Dropping the
 future is the caller's mistake; a database error that reaches nobody at all
 was the library's.
 
-### An outage is not permanent (since 1.186.0)
+### An outage is not permanent (since 1.187.0)
 
 A database that was unreachable when the server started used to stay
 unreachable for the rest of the run: the failed connection was kept and handed
@@ -479,7 +479,7 @@ seconds. The calls in between still fail fast on the last failure, and still
 say so, so nothing becomes quieter — a server that starts before its MariaDB
 does simply heals itself.
 
-### An embedded file left behind (since 1.186.0)
+### An embedded file left behind (since 1.187.0)
 
 A plugin configured for a database server that still has its old `h2.mv.db`
 says so once at startup:
