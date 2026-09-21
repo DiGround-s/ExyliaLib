@@ -56,8 +56,22 @@ public final class Channels {
 
     private static PluginChannels open(Plugin plugin) {
         RedisSettings settings = settings(plugin);
+        // The connection is asked for rather than held: one that was down when
+        // the plugin enabled used to leave its channels local for the rest of
+        // the run, and nothing said so again after the first line.
         return new PluginChannels(plugin, settings.keyPrefix(), settings.serverId(),
-                client(plugin, settings));
+                () -> client(plugin, settings));
+    }
+
+    /**
+     * Opens the subscriptions of every plugin whose Redis was not there yet.
+     *
+     * <p>Called on a timer by the library. Publishing recovers on its own
+     * because it asks for the connection every time, but a server that only
+     * listens never asks, and would stay deaf until it was restarted.
+     */
+    public static void reconnect() {
+        VIEWS.values().forEach(PluginChannels::reconnect);
     }
 
     /** Closes the channels of this load of a plugin, leaving a newer load alone. */

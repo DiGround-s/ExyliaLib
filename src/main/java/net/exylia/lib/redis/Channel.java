@@ -8,6 +8,7 @@ import org.jetbrains.annotations.Nullable;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.Consumer;
+import java.util.function.Supplier;
 
 /**
  * A named pub/sub channel every server of the network shares.
@@ -40,18 +41,18 @@ public final class Channel {
     private final String name;
     private final String key;
     private final String serverId;
-    private final @Nullable RedisClient client;
+    private final Supplier<@Nullable RedisClient> clients;
     private final Debug debug;
     private final List<Consumer<Message>> handlers = new CopyOnWriteArrayList<>();
     private volatile @Nullable RedisClient.Subscription wire;
     private volatile boolean closed;
 
     Channel(@NotNull String name, @NotNull String key, @NotNull String serverId,
-            @Nullable RedisClient client, @NotNull Debug debug) {
+            @NotNull Supplier<@Nullable RedisClient> clients, @NotNull Debug debug) {
         this.name = name;
         this.key = key;
         this.serverId = serverId;
-        this.client = client;
+        this.clients = clients;
         this.debug = debug;
     }
 
@@ -69,7 +70,7 @@ public final class Channel {
      * @return whether other servers receive what is published here
      */
     public boolean isNetworked() {
-        return client != null;
+        return clients.get() != null;
     }
 
     /**
@@ -84,6 +85,10 @@ public final class Channel {
         if (closed) {
             return;
         }
+        // Asked for on every publish rather than held from the first one: a
+        // Redis that was down when this channel was created is reachable again
+        // the moment it comes back, without a reload.
+        RedisClient client = clients.get();
         if (client != null) {
             try {
                 client.publish(key, serverId + SEPARATOR + payload);
@@ -119,8 +124,21 @@ public final class Channel {
         void close();
     }
 
+    /**
+     * Opens the subscription if a connection has appeared since the last try.
+     *
+     * <p>Called on the library's timer. A listening server never publishes, so
+     * nothing else would ever ask Redis for a connection again.
+     */
+    synchronized void reconnect() {
+        if (wire == null && !handlers.isEmpty()) {
+            openWire();
+        }
+    }
+
     /** One Redis subscription per channel, opened by the first subscriber. */
     private synchronized void openWire() {
+        RedisClient client = clients.get();
         if (client == null || wire != null || closed) {
             return;
         }

@@ -9,6 +9,7 @@ import org.jetbrains.annotations.Nullable;
 import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Supplier;
 
 /**
  * The channels one plugin owns.
@@ -24,15 +25,15 @@ public final class PluginChannels {
     private final Plugin plugin;
     private final String prefix;
     private final String serverId;
-    private final @Nullable RedisClient client;
+    private final Supplier<@Nullable RedisClient> clients;
     private final Map<String, Channel> channels = new ConcurrentHashMap<>();
 
     PluginChannels(@NotNull Plugin plugin, @NotNull String keyPrefix, @NotNull String serverId,
-                   @Nullable RedisClient client) {
+                   @NotNull Supplier<@Nullable RedisClient> clients) {
         this.plugin = plugin;
         this.prefix = keyPrefix + ":ch:" + plugin.getName().toLowerCase(Locale.ROOT) + ':';
         this.serverId = serverId;
-        this.client = client;
+        this.clients = clients;
     }
 
     /**
@@ -46,7 +47,12 @@ public final class PluginChannels {
             throw new IllegalArgumentException("A channel needs a name.");
         }
         return channels.computeIfAbsent(name, key ->
-                new Channel(key, prefix + key, serverId, client, Debug.of(plugin)));
+                new Channel(key, prefix + key, serverId, clients, Debug.of(plugin)));
+    }
+
+    /** Subscribes the channels whose Redis was not reachable before. */
+    void reconnect() {
+        channels.values().forEach(Channel::reconnect);
     }
 
     /** Closes every channel; done for you when the plugin disables. */

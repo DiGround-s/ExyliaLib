@@ -33,6 +33,12 @@ public final class RedisRuntime {
     private static final Map<String, RowCache> CACHES = new LinkedHashMap<>();
     private static final Map<String, RedisClient> CLIENTS = new LinkedHashMap<>();
 
+    /** When a connection that failed may be attempted again, by key. */
+    private static final Map<String, Long> RETRIES = new LinkedHashMap<>();
+
+    /** How long a failed connection is left alone before it is tried again. */
+    private static final long RETRY_AFTER_MILLIS = 30_000L;
+
     /** Set by tests so a cache can be exercised without a Redis server. */
     private static volatile ClientFactory factory = JedisClient::open;
 
@@ -102,25 +108,45 @@ public final class RedisRuntime {
         }
     }
 
-    /** The one place a client is opened. Callers hold {@link #LOCK}. */
+    /**
+     * The one place a client is opened. Callers hold {@link #LOCK}.
+     *
+     * <p>A failed attempt is remembered for {@link #RETRY_AFTER_MILLIS} rather
+     * than forever: whoever asks next tries again, so a Redis that comes back
+     * is picked up without reloading anything. Within that window the answer is
+     * {@code null} without a console line, because the line was printed when
+     * the attempt actually failed.
+     */
     private static @Nullable RedisClient openLocked(Plugin plugin, RedisSettings settings,
                                                     String key, Debug debug) {
         RedisClient existing = CLIENTS.get(key);
         if (existing != null) {
             return existing;
         }
+        long now = System.currentTimeMillis();
+        Long quietUntil = RETRIES.get(key);
+        if (quietUntil != null && now < quietUntil) {
+            return null;
+        }
         try {
             RedisClient opened = factory.open(settings, "exylia-" + plugin.getName());
             CLIENTS.put(key, opened);
+            if (RETRIES.remove(key) != null) {
+                // The recovery is as worth a line as the failure was: without
+                // it the last word on Redis in the log is that it was down.
+                debug.warn("Redis is answering again at " + settings.host() + ':'
+                        + settings.port() + ". Cross-server delivery is back on.");
+            }
             return opened;
         } catch (Throwable unreachable) {
             // Never fatal. A plugin whose Redis is down must still enable,
             // and it will: the database is the truth and it is still there.
+            RETRIES.put(key, now + RETRY_AFTER_MILLIS);
             debug.warn("Redis is configured but could not be reached at " + settings.host()
                     + ':' + settings.port() + " (" + unreachable.getMessage() + ")."
                     + " Continuing without a shared cache: everything works, reads just go"
                     + " to the database. Cross-server changes will not be visible until"
-                    + " this is fixed.");
+                    + " this is fixed. Trying again in " + (RETRY_AFTER_MILLIS / 1000) + "s.");
             return null;
         }
     }
@@ -152,13 +178,20 @@ public final class RedisRuntime {
                 }
             });
             CLIENTS.clear();
+            RETRIES.clear();
         }
     }
 
-    /** Whether any cache is connected, for diagnostics. */
+    /**
+     * Whether Redis is connected, for diagnostics.
+     *
+     * <p>Any open connection counts, not only the ones a row cache uses: a
+     * server whose plugins only publish and subscribe has no cache at all, and
+     * reporting that as "off" said its working Redis was down.
+     */
     public static boolean isActive() {
         synchronized (LOCK) {
-            return !CACHES.isEmpty();
+            return !CACHES.isEmpty() || !CLIENTS.isEmpty();
         }
     }
 
@@ -166,7 +199,10 @@ public final class RedisRuntime {
     public static @NotNull String stats() {
         synchronized (LOCK) {
             if (CACHES.isEmpty()) {
-                return "no Redis cache is running";
+                return CLIENTS.isEmpty()
+                        ? "no Redis connection is open"
+                        : "connected to " + String.join(", ", CLIENTS.keySet())
+                                + ", no row cache in use";
             }
             StringBuilder summary = new StringBuilder();
             for (RowCache cache : CACHES.values()) {

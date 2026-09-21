@@ -106,12 +106,23 @@ by the database.
 ## Diagnostics
 
 ```java
-Redis.isActive();   // whether a cache is connected and serving reads
+Redis.isActive();   // whether Redis is connected at all
 Redis.stats();      // hits, misses, failures, rows held
 ```
 
 A low hit rate across a network usually means the servers disagree about
 `key-prefix`, or share a `server-id`.
+
+Since 1.186.0 any open connection counts, not only the ones a row cache uses:
+a server whose plugins only publish and subscribe has no cache at all, and
+reporting that as "off" said its working Redis was down. `stats()` then names
+what is connected and says there is no row cache in use.
+
+A Redis that could not be reached is retried every 30 seconds rather than
+written off for the run. Publishing recovers on its own, because the connection
+is asked for on every message; a subscription is re-opened by the library's own
+timer, within a minute. Both ends of the outage reach the console: the failure
+when it happens, and a line saying Redis is answering again when it recovers.
 
 ## Channels
 

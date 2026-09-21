@@ -71,7 +71,8 @@ class ChannelsTest {
 
     /** A second server: its own client on the shared network, its own name. */
     private PluginChannels server(String serverId) {
-        return new PluginChannels(plugin, "exylia", serverId, new MemoryClient(redis));
+        MemoryClient client = new MemoryClient(redis);
+        return new PluginChannels(plugin, "exylia", serverId, () -> client);
     }
 
     @Test
@@ -167,10 +168,48 @@ class ChannelsTest {
     }
 
     @Test
+    @DisplayName("\"a server that only publishes still reports Redis as on\"")
+    void pubSubOnlyCountsAsActive() {
+        withRedis("lobby-1");
+        Channels.of(plugin).channel("alerts").publish("hello");
+
+        // The status used to be read from the row caches alone, so a server
+        // whose Redis carried every message reported it as off.
+        assertTrue(Redis.isActive());
+        assertTrue(Redis.stats().contains("no row cache in use"));
+    }
+
+    @Test
+    @DisplayName("\"a channel subscribes once the Redis that was down comes back\"")
+    void reconnectsWhenRedisReturns() {
+        MemoryClient client = new MemoryClient(redis);
+        // Down when the plugin enabled: nothing to hand the channel yet.
+        java.util.concurrent.atomic.AtomicReference<MemoryClient> live =
+                new java.util.concurrent.atomic.AtomicReference<>();
+        PluginChannels arena = new PluginChannels(plugin, "exylia", "arena-1", live::get);
+        List<Message> onArena = new ArrayList<>();
+        arena.channel("alerts").subscribe(onArena::add);
+        PluginChannels lobby = server("lobby-1");
+
+        lobby.channel("alerts").publish("before");
+        assertFalse(arena.channel("alerts").isNetworked());
+        assertTrue(onArena.isEmpty());
+
+        // Redis is back, and the timer asks the channels to try again.
+        live.set(client);
+        arena.reconnect();
+        lobby.channel("alerts").publish("after");
+
+        assertEquals(List.of(new Message("lobby-1", "after", false)), onArena);
+        lobby.close();
+        arena.close();
+    }
+
+    @Test
     @DisplayName("\"an unreachable Redis still delivers locally, once\"")
     void unreachableFallsBackLocally() {
         MemoryClient broken = new MemoryClient(redis);
-        PluginChannels lobby = new PluginChannels(plugin, "exylia", "lobby-1", broken);
+        PluginChannels lobby = new PluginChannels(plugin, "exylia", "lobby-1", () -> broken);
         List<Message> seen = new ArrayList<>();
         lobby.channel("alerts").subscribe(seen::add);
         broken.failing(true);

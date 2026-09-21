@@ -140,6 +140,9 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
      */
     private static final long COOLDOWN_FLUSH_TICKS = 20L * 60L * 5L;
 
+    /** How often a channel whose Redis was unreachable tries to subscribe again. */
+    private static final long CHANNEL_RECONNECT_TICKS = 20L * 60L;
+
     private ConfigFile<Palette> palette;
     private ConfigFile<FormatSettings> formats;
     private ConfigFile<EconomySettings> economy;
@@ -298,6 +301,11 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         // than everything.
         Tasks.of(this).runAsyncTimer(
                 COOLDOWN_FLUSH_TICKS, COOLDOWN_FLUSH_TICKS, Cooldowns::flushAll);
+        // Subscriptions that could not be opened because Redis was down are
+        // retried here. Publishing heals itself on the next message; a server
+        // that only listens has nothing that would ever ask again.
+        Tasks.of(this).runAsyncTimer(CHANNEL_RECONNECT_TICKS, CHANNEL_RECONNECT_TICKS,
+                net.exylia.lib.redis.Channels::reconnect);
         // Housekeeping of the server's own folders, on a timer of its own. Last
         // because nothing else waits on it: the first pass is a minute away.
         CleanupRuntime.init(this);
