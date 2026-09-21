@@ -91,8 +91,8 @@ public final class MetricsRuntime {
 
     private final ExyliaLib lib;
     private final ErrorGroups errors = new ErrorGroups();
-    /** Whether a plugin is production, per load: a reload brings a new Plugin object. */
-    private final Map<Plugin, Boolean> production = Collections.synchronizedMap(new WeakHashMap<>());
+    /** The loader branch of a plugin, per load: a reload brings a new Plugin object. */
+    private final Map<Plugin, String> branches = Collections.synchronizedMap(new WeakHashMap<>());
     private final Map<Plugin, String> versions = Collections.synchronizedMap(new WeakHashMap<>());
     private final Map<Logger, Handler> watched = new ConcurrentHashMap<>();
     private final Map<String, JsonElement> details = new ConcurrentHashMap<>();
@@ -307,6 +307,13 @@ public final class MetricsRuntime {
             }
             if (plugin != lib && NAME.matcher(plugin.getName()).matches() && counts(plugin)) {
                 found.put(plugin.getName(), version(plugin));
+            } else if (plugin != lib && NAME.matcher(plugin.getName()).matches()
+                    && development(plugin)) {
+                // Listed, and marked. A development build on a production
+                // server is exactly what an inventory is for, and dropping it
+                // made the one server that should stand out the one that
+                // looked emptiest.
+                found.put(plugin.getName(), version(plugin) + "-dev");
             }
         }
         if (!found.isEmpty()) {
@@ -339,8 +346,23 @@ public final class MetricsRuntime {
     }
 
     private boolean counts(Plugin plugin) {
-        return plugin == lib || production.computeIfAbsent(plugin,
-                p -> production(branch(p.getClass().getClassLoader())));
+        return plugin == lib || production(branchOf(plugin));
+    }
+
+    /** Whether this plugin runs through a loader built on the development branch. */
+    private boolean development(Plugin plugin) {
+        return "dev".equals(branchOf(plugin));
+    }
+
+    /** The branch this plugin's loader was built on, remembered per load. */
+    private @Nullable String branchOf(Plugin plugin) {
+        // A WeakHashMap cannot hold a null value apart, so the absence of a
+        // loader is stored as the empty string and read back as null.
+        String cached = branches.computeIfAbsent(plugin, p -> {
+            String branch = branch(p.getClass().getClassLoader());
+            return branch == null ? "" : branch;
+        });
+        return cached.isEmpty() ? null : cached;
     }
 
     /** Generated once, kept in its own file so no config rewrite can lose it. */
