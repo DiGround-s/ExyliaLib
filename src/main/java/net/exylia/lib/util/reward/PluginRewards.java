@@ -226,6 +226,54 @@ public final class PluginRewards {
     }
 
     /**
+     * Gives a player their rewards, with every item thrown out at a spot
+     * instead of put in their inventory.
+     *
+     * <p>A pinata, a loot burst, a boss that spills its drops: the items land
+     * on the ground for whoever grabs them, while money, experience, commands,
+     * messages and potions still reach the player. Each reward is rolled,
+     * checked and reported exactly as {@link #give(Player, List)} does, and the
+     * overflow policy never applies, because nothing goes into an inventory.
+     *
+     * <p>Must be called on the thread that owns both the player and the spot.
+     *
+     * @param player  who earned them
+     * @param rewards what they earned
+     * @param at      where the items come out
+     * @return what became of each reward
+     * @since 1.191.0
+     */
+    public @NotNull RewardDelivery giveDropping(@NotNull Player player,
+                                                @NotNull List<RewardEntry> rewards,
+                                                @NotNull org.bukkit.Location at) {
+        if (rewards.isEmpty()) {
+            return RewardDelivery.EMPTY;
+        }
+        ItemGiver hands = items;
+        ItemGiver scattering = new ItemGiver() {
+            @Override
+            public int give(@NotNull Player ignored, @NotNull String snapshot, int amount) {
+                return hands.dropAt(at, snapshot, amount) ? 0 : UNREADABLE;
+            }
+
+            @Override
+            public void drop(@NotNull Player ignored, @NotNull String snapshot, int amount) {
+                hands.dropAt(at, snapshot, amount);
+            }
+
+            @Override
+            public boolean dropAt(@NotNull org.bukkit.Location where, @NotNull String snapshot, int amount) {
+                return hands.dropAt(where, snapshot, amount);
+            }
+        };
+        List<RewardResult> results = new ArrayList<>(rewards.size());
+        for (RewardEntry entry : Rolls.ordered(rewards)) {
+            results.add(deliver(entry, player, scattering));
+        }
+        return new RewardDelivery(results);
+    }
+
+    /**
      * Gives a player their rewards, wherever the caller happens to be.
      *
      * <p>The work is moved onto the thread that owns the player, so this is the
@@ -388,6 +436,10 @@ public final class PluginRewards {
     // ------------------------------------------------------------------ inside
 
     private RewardResult deliver(RewardEntry entry, Player player) {
+        return deliver(entry, player, items);
+    }
+
+    private RewardResult deliver(RewardEntry entry, Player player, ItemGiver giver) {
         // Before the roll, unlike commons, which rolled first. Who may receive a
         // reward does not depend on chance, and asking in that order made a rare
         // reward report a lost roll when the real answer was a misspelled
@@ -408,7 +460,7 @@ public final class PluginRewards {
         }
 
         int amount = Rolls.amount(entry, dice);
-        RewardResult result = Providers.give(entry, player, amount, this::leftOver, items, tasks);
+        RewardResult result = Providers.give(entry, player, amount, this::leftOver, giver, tasks);
         record(entry, result, player);
         return result;
     }

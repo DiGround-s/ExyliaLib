@@ -1,6 +1,7 @@
 package net.exylia.lib.util.reward.internal;
 
 import net.exylia.lib.item.Source;
+import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
@@ -9,6 +10,7 @@ import org.jetbrains.annotations.Nullable;
 
 import java.util.Base64;
 import java.util.Map;
+import java.util.concurrent.ThreadLocalRandom;
 
 /**
  * Putting an item in a player's hands.
@@ -46,6 +48,18 @@ public interface ItemGiver {
      */
     void drop(@NotNull Player player, @NotNull String snapshot, int amount);
 
+    /**
+     * Throws some of an item out of a spot, as if it burst out of something
+     * standing there.
+     *
+     * @param at       where it comes out
+     * @param snapshot the item
+     * @param amount   how many
+     * @return {@code false} if the snapshot names nothing
+     * @since 1.191.0
+     */
+    boolean dropAt(@NotNull Location at, @NotNull String snapshot, int amount);
+
     /** The real one. */
     ItemGiver BUKKIT = new ItemGiver() {
 
@@ -67,6 +81,26 @@ public interface ItemGiver {
             }
             item.setAmount(amount);
             player.getWorld().dropItemNaturally(player.getLocation(), item);
+        }
+
+        @Override
+        public boolean dropAt(@NotNull Location at, @NotNull String snapshot, int amount) {
+            ItemStack item = build(snapshot);
+            if (item == null) {
+                return false;
+            }
+            // One entity per full stack, each flung its own way: a pile of
+            // sixty-four in one entity is a pickup, not a burst.
+            int left = amount;
+            while (left > 0) {
+                ItemStack part = item.clone();
+                part.setAmount(Math.min(left, Math.max(1, item.getMaxStackSize())));
+                left -= part.getAmount();
+                ThreadLocalRandom random = ThreadLocalRandom.current();
+                at.getWorld().dropItem(at, part).setVelocity(new org.bukkit.util.Vector(
+                        random.nextDouble(-0.25, 0.25), random.nextDouble(0.3, 0.5), random.nextDouble(-0.25, 0.25)));
+            }
+            return true;
         }
     };
 

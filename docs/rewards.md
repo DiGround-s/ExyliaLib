@@ -170,6 +170,7 @@ RewardDelivery delivery = rewards.give(player, event.rewards());
 | `give(Player, List<RewardEntry>)` | gives all of them |
 | `give(Player, RewardEntry)` | gives one |
 | `giveOnPlayerThread(Player, List, Consumer<RewardDelivery>)` | the same, from any thread |
+| `giveDropping(Player, List<RewardEntry>, Location)` | gives all of them, but throws every item out at the spot instead (since 1.191.0) |
 | `roll(Player, List<RewardEntry>)` | picks one by weight and gives it |
 | `pick(List<RewardEntry>)` | chooses one without giving it |
 | `giveLater(UUID, List<RewardEntry>)` | keeps them for a player who is not here |
@@ -179,6 +180,13 @@ RewardDelivery delivery = rewards.give(player, event.rewards());
 `giveOnPlayerThread` is the one to call from a database callback or any other
 async path — it moves the work there itself, which is what makes it correct on
 Folia.
+
+`giveDropping` is for rewards that should spill onto the ground — a piñata, a
+loot burst — rather than land in a pocket. Items come out of the spot one entity
+per stack, each flung its own way; money, experience, commands, messages and
+potions still reach the player. The rolls, checks and outcomes are the ones
+`give` uses, and the overflow policy never applies, because nothing goes into an
+inventory. Call it on the thread that owns both the player and the spot.
 
 ### What happens to each reward, in order
 

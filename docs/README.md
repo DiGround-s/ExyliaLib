@@ -41,7 +41,7 @@ against the source — rules and routes are in `AGENTS.md` under
 | [Redis](redis.md) | A shared cache that makes one database look the same from every server — a change on one is visible on the others immediately | 1.31.0 |
 | [Proxy](proxy.md) | Talking to the proxy: `player-proxy:`/`console-proxy:` lines and `Proxy.request` reach ExyliaProxyUtils on Velocity or BungeeCord, and every request is answered | 1.101.0 |
 | [Players](players.md) | A player who is not here: one `ExyliaPlayer` over online, offline and network players, and the command arguments that resolve them without blocking; `Accounts` (same person? first seen) since 1.184.0 | 1.146.0 |
-| [Rewards](rewards.md) | What a player earned — items, commands, money, odds and conditions — stored exactly as ExyliaCommons stored it | 1.34.0 |
+| [Rewards](rewards.md) | What a player earned — items, commands, money, odds and conditions — stored exactly as ExyliaCommons stored it; items thrown out at a spot with `giveDropping` since 1.191.0 | 1.34.0 |
 | [Snapshots](snapshots.md) | A player's state kept for later — in memory for a menu, or stored so it survives a restart | 1.34.0 |
 | [Teleport](teleport.md) | Moving a player: countdowns that moving or damage calls off, safe landings, `/back`, requests, random spots and handovers to another server | 1.34.0 |
 | [WorldGuard](worldguard.md) | Region lookups and Exylia's own region flags — `kill-effects`, `hit-effects`, `arrows-effects` | 1.74.0 |

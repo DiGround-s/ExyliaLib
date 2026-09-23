@@ -143,6 +143,25 @@ class RewardDeliveryTest {
         assertTrue(player.messages().isEmpty(), player.messages()::toString);
     }
 
+    @Test
+    @DisplayName("giving dropping throws the items out at the spot and still hands over the rest")
+    void dropping() {
+        Location spot = new Location(player.player().getWorld(), 10, 70, 10);
+        bag.roomFor(0);
+
+        RewardDelivery delivery = rewards.giveDropping(player.player(), List.of(
+                RewardEntry.item("DIAMOND").itemAmount(3).deliveryMessage("Burst").build(),
+                RewardEntry.command("eco give Steve 5").build(),
+                RewardEntry.item("UNREADABLE").build()), spot);
+
+        assertEquals(2, delivery.given());
+        assertEquals(1, delivery.failed());
+        assertEquals(List.of("DIAMOND x3 @10,70,10"), bag.scattered);
+        assertTrue(bag.given.isEmpty() && bag.dropped.isEmpty(), "nothing went near the inventory");
+        assertEquals(List.of("eco give Steve 5"), FakeServer.consoleCommands());
+        assertEquals(List.of("Burst"), player.messages());
+    }
+
     // ------------------------------------------------------------------
     // Commons bug 1: an item nobody had room for was destroyed
     // ------------------------------------------------------------------
@@ -717,6 +736,7 @@ class RewardDeliveryTest {
 
         private final List<String> given = new java.util.ArrayList<>();
         private final List<String> dropped = new java.util.ArrayList<>();
+        private final List<String> scattered = new java.util.ArrayList<>();
         private int free = Integer.MAX_VALUE;
 
         void roomFor(int amount) {
@@ -739,6 +759,15 @@ class RewardDeliveryTest {
         @Override
         public void drop(org.bukkit.entity.Player player, String snapshot, int amount) {
             dropped.add(snapshot + " x" + amount);
+        }
+
+        @Override
+        public boolean dropAt(Location at, String snapshot, int amount) {
+            if (snapshot.equals("UNREADABLE")) {
+                return false;
+            }
+            scattered.add(snapshot + " x" + amount + " @" + at.getBlockX() + "," + at.getBlockY() + "," + at.getBlockZ());
+            return true;
         }
     }
 
