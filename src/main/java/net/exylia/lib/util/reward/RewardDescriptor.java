@@ -169,35 +169,51 @@ public final class RewardDescriptor implements EditorDescriptor<RewardEntry> {
     /**
      * One window with every field this reward's type has.
      *
-     * <p>An item reward is a special case and only one: an item is picked, not
-     * typed, so the icon picker comes first and the form follows with the rest.
+     * <p>An item reward is asked for its item only when it has none: a reward
+     * being created has nothing to edit yet, while one that already holds an
+     * item is edited like the rest and re-picks it through the same flag the
+     * other types change their icon with.
      */
     @Override
     public @NotNull CompletionStage<Optional<RewardEntry>> edit(@NotNull Player viewer,
                                                                 @NotNull RewardEntry entry) {
-        if (entry.type() == RewardType.ITEM) {
-            // Whole, not as an icon: this is the item the player is handed, so
-            // the name it was given and the lore under it are the reward rather
-            // than decoration a screen will write again. The room is the
-            // column's: rewardsJson holds 8192 characters for the whole list.
-            return Inputs.of(plugin).icon(viewer, "{primary}&lWHAT ITEM?")
-                    .wholeItem()
-                    .maxLength(ITEM_MAX_LENGTH)
-                    .open()
-                    .thenCompose(icon -> icon.completed()
-                            ? form(viewer, entry.toBuilder().itemSnapshot(icon.value()).build())
+        if (entry.type() == RewardType.ITEM && !notBlank(entry.itemSnapshot())) {
+            return pickItem(viewer, entry)
+                    .thenCompose(picked -> picked.isPresent()
+                            ? form(viewer, picked.get())
                             : CompletableFuture.completedFuture(Optional.<RewardEntry>empty()));
         }
         return form(viewer, entry);
     }
 
+    /**
+     * Asks what the reward hands out.
+     *
+     * <p>Whole, not as an icon: this is the item the player is handed, so the
+     * name it was given and the lore under it are the reward rather than
+     * decoration a screen will write again. The room is the column's:
+     * rewardsJson holds 8192 characters for the whole list.
+     *
+     * @return the reward carrying the picked item, or empty when nothing was picked
+     */
+    private CompletionStage<Optional<RewardEntry>> pickItem(Player viewer, RewardEntry entry) {
+        return Inputs.of(plugin).icon(viewer, "{primary}&lWHAT ITEM?")
+                .wholeItem()
+                .maxLength(ITEM_MAX_LENGTH)
+                .open()
+                .thenApply(icon -> icon.completed()
+                        ? Optional.of(entry.toBuilder().itemSnapshot(icon.value()).build())
+                        : Optional.empty());
+    }
+
     private CompletionStage<Optional<RewardEntry>> form(Player viewer, RewardEntry entry) {
+        boolean isItem = entry.type() == RewardType.ITEM;
         EditorForm form = EditorForm.of(plugin, viewer, "{primary}&lEDIT REWARD")
                 .text(NAME, "Display name", entry.name(), 2)
-                .flag(ICON, "Change the icon", false)
+                .flag(ICON, isItem ? "Change the item" : "Change the icon", false)
                 .hint(iconHint(entry));
 
-        boolean payload = entry.type() != RewardType.ITEM;
+        boolean payload = !isItem;
         if (payload) {
             form.text(PAYLOAD, payloadLabel(entry.type()), payloadOf(entry), payloadLines(entry.type()))
                     .hint(payloadHint(entry.type()));
@@ -243,6 +259,11 @@ public final class RewardDescriptor implements EditorDescriptor<RewardEntry> {
      * than throwing the form away.
      */
     private CompletionStage<Optional<RewardEntry>> pickIcon(Player viewer, RewardEntry entry) {
+        if (entry.type() == RewardType.ITEM) {
+            // The item is the icon for this type, so the flag changes the
+            // reward itself rather than a picture hung in front of it.
+            return pickItem(viewer, entry).thenApply(picked -> Optional.of(picked.orElse(entry)));
+        }
         return Inputs.of(plugin).icon(viewer, "{primary}&lWHAT ICON?")
                 .open()
                 .thenApply(result -> Optional.of(result.completed()
