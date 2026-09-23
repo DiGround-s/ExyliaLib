@@ -1,6 +1,7 @@
 package net.exylia.lib.util.editor.internal;
 
 import net.exylia.lib.debug.Debug;
+import net.exylia.lib.task.Tasks;
 import net.exylia.lib.util.editor.Clipboard;
 import net.exylia.lib.util.editor.EditorButton;
 import net.exylia.lib.util.editor.EditorDescriptor;
@@ -264,14 +265,39 @@ public final class EditorHolder<T> implements InventoryHolder {
         if (!finish()) {
             return;
         }
-        onSave.accept(List.copyOf(entries));
+        List<T> saved = List.copyOf(entries);
+        later(() -> onSave.accept(saved), "save a list");
     }
 
     void cancel() {
         if (!finish()) {
             return;
         }
-        onCancel.run();
+        later(onCancel, "close a list editor");
+    }
+
+    /**
+     * Runs a caller's callback on the next tick, as {@link LoadoutHolder} does.
+     *
+     * <p>Every ending happens inside a click or a close, and the callback almost
+     * always reopens the screen the editor came from. Opened inside a close, the
+     * client shows a window the server no longer tracks, and its items can be
+     * taken; opened inside the save button, the close that follows shuts it.
+     */
+    private void later(Runnable callback, String what) {
+        Runnable guarded = () -> {
+            try {
+                callback.run();
+            } catch (RuntimeException broken) {
+                Debug.of(plugin).error("A list editor could not " + what + ".", broken);
+            }
+        };
+        Player viewer = viewer();
+        if (viewer == null) {
+            guarded.run();
+            return;
+        }
+        Tasks.of(EditorRuntime.scheduler(plugin)).runAtEntity(viewer, guarded, guarded);
     }
 
     /** The element a slot on the current page is showing, if any. */
