@@ -51,6 +51,40 @@ MobTemplate knight = MobTemplate.of("frost_knight", EntityType.ZOMBIE)
         .withMoney(250);
 ```
 
+### A random mob
+
+`MobTemplate.random(id, random)` (since 1.193.0) rolls a random but playable
+template, for an admin who wants to see what the module can do:
+
+- **Type** — weighted from a curated list: zombie, husk, drowned, skeleton,
+  stray, wither skeleton, piglin brute, vindicator, pillager, evoker, spider,
+  cave spider, blaze, enderman, slime, magma cube, witch, iron golem, wolf and,
+  rarely, ravager. Never a warden.
+- **Name** — `{primary}&l` + a flavour prefix (`ASTRAL`, `VOID`, `NEBULA`...),
+  the type, sometimes a suffix (`HERALD`, `STALKER`...), and the health bar
+  `&8[{success}%health%&8/{info}%max_health%&8]`. Palette tokens only.
+- **Equipment** — only on types that show it: 0-4 armour pieces of one tier
+  (leather to netherite) on the zombie and skeleton families and the piglin
+  brute, and a fitting main hand (a tier sword or axe, a bow for skeletons and
+  strays, a crossbow for pillagers, a trident for drowned). One in four is
+  enchanted: protection, sharpness or power I-III.
+- **Attributes** — 2-5 of the nine: `max_health` 20-150, `attack_damage` 2-14,
+  `movement_speed` 0.2-0.4, `armor` 2-12, `armor_toughness` 1-6,
+  `knockback_resistance` 0.1-0.8, `follow_range` 16-40, `attack_knockback`
+  0.5-2, `scale` 0.7-1.8 (1.3 at most for golems and ravagers).
+- **Flags** — 0-3 the type can use: `BABY` only on zombies, husks, drowned and
+  wolves, `NO_SUN_BURN` only on what burns, `FIRE_IMMUNE` never on what already
+  is, `AGGRESSIVE` on neutral types and always on wolves and golems.
+- **Effects** — 0-2 infinite buffs (speed, strength, resistance, regeneration,
+  fire resistance, jump boost) at level I-II.
+- **Skills** — 1-4 different types, each on a trigger that suits it, with sane
+  numbers. `SUMMON` summons the template itself, `EFFECT` plays one of a few
+  known particle and sound lines, `COMMAND` is never rolled.
+- **Payout** — 5-60 experience, 5-80 money, no rewards (those are the admin's).
+
+The same seed gives the same template. The equipment is real items, so the
+call needs a running server.
+
 ## API
 
 | Call | Contract |
@@ -211,6 +245,7 @@ keys written as `minecraft:max_health` or `generic.max_health` read as
 | | |
 | --- | --- |
 | Public API | `util/mob/Mobs`, `PluginMobs`, `MobTemplate`, `MobSkill`, `MobFlag`, `MobDeath`, `MobCodec` |
+| Random templates | `util/mob/RandomTemplate` (package-private, behind `MobTemplate.random`) |
 | Editor | `util/mob/MobSkillDescriptor` |
 | Runtime | `util/mob/internal/MobEngine` (listeners, spawn, skills), `LiveMob` (cooldowns, damage ledger) |
-| Tests | `util/mob/MobCodecTest`, `util/mob/internal/LiveMobTest` |
+| Tests | `util/mob/MobCodecTest`, `util/mob/RandomTemplateTest`, `util/mob/internal/LiveMobTest` |

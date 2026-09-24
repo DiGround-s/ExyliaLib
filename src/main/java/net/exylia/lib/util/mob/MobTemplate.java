@@ -15,6 +15,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.random.RandomGenerator;
 
 /**
  * Everything a custom mob is: what it is, what it wears, how strong it is and
@@ -93,6 +94,30 @@ public record MobTemplate(@NotNull String id, @NotNull EntityType type, @NotNull
     public static @NotNull MobTemplate of(@NotNull String id, @NotNull EntityType type) {
         return new MobTemplate(id, type, "", List.of(), Map.of(), Set.of(), List.of(),
                 List.of(), List.of(), 0, 0);
+    }
+
+    /**
+     * A random but playable template, to show what a mob can be.
+     *
+     * <p>A hostile-capable type from a curated list (no warden, ravagers are
+     * rare), a {@code {primary}} name with the health bar, armour of one
+     * material tier and a weapon that fits the type where it can wear them,
+     * sometimes enchanted, two to five attributes in sensible ranges, flags
+     * the type can use, up to two potion effects, one to four skills on
+     * triggers that suit them, {@code 5-60} experience and {@code 5-80} money.
+     * Never a {@link MobSkill.Type#COMMAND} skill; a {@link MobSkill.Type#SUMMON}
+     * summons this very template. No rewards: those are the admin's.
+     *
+     * <p>The same seed gives the same template. Needs a running server for the
+     * equipment items.
+     *
+     * @param id     the new template's id
+     * @param random where every choice comes from
+     * @return the template
+     * @since 1.193.0
+     */
+    public static @NotNull MobTemplate random(@NotNull String id, @NotNull RandomGenerator random) {
+        return RandomTemplate.roll(id, random, RandomTemplate.SERVER_ITEMS);
     }
 
     /** Whether a flag is on. */
