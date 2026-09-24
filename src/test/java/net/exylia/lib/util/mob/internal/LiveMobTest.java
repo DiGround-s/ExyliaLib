@@ -176,4 +176,23 @@ class LiveMobTest {
         assertTrue(mob.endBoost(second));
         assertEquals(0.175, mob.baseSpeed());
     }
+
+    @Test
+    @DisplayName("the global cooldown only ever moves later, and a staged cast holds the mob's turn until it ends")
+    void globalCooldownAndActive() {
+        LiveMob mob = mob(MobSkill.of(MobSkill.Type.LEAP, MobSkill.Trigger.INTERVAL));
+
+        assertFalse(mob.globalCooling(0));
+        mob.globalCooldown(3_000);
+        mob.globalCooldown(1_000);
+        assertTrue(mob.globalCooling(2_999), "an earlier deadline does not shorten it");
+        assertFalse(mob.globalCooling(3_000));
+
+        assertNull(mob.active());
+        MobCaster.Active active = new MobCaster.Active();
+        mob.active(active);
+        assertEquals(active, mob.active());
+        mob.active(null);
+        assertNull(mob.active());
+    }
 }

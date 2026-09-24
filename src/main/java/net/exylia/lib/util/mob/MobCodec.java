@@ -39,7 +39,12 @@ import java.util.function.BiConsumer;
  * effects     ["SPEED|2|infinite","FIRE_RESISTANCE|1|infinite"]
  * behaviour   {"hits":40,"hitCooldown":0.5,"lifetime":300.0,"roam":12.0}
  * look        {"variant":"CREAMY","body":"CYCLE","glow":"RANDOM","aura":"confetti"}
+ * fight       {"gcd":1.5,"groups":{"melee":6.0},"phases":[{"below":0.5,"suffix":" &c⚡","speed":1.3}]}
  * }</pre>
+ *
+ * <p>A skill cast some way other than at once carries a {@code "cast"} object
+ * (since 1.198.0): {@code {"name":"slam","aim":"SELF","windup":0.9,"group":"melee",
+ * "when":{"nearby":16.0,"maxRange":6.0}}}.
  *
  * <p>A field that holds its default is not written, times are seconds, and an
  * empty part is stored as {@code null}, not as {@code []}. A chance or
@@ -73,6 +78,31 @@ public final class MobCodec {
     private static final String BODY = "body";
     private static final String GLOW = "glow";
     private static final String AURA = "aura";
+    private static final String CAST = "cast";
+    private static final String NAME = "name";
+    private static final String AIM = "aim";
+    private static final String WINDUP = "windup";
+    private static final String STYLE = "style";
+    private static final String TINT = "tint";
+    private static final String SPREAD = "spread";
+    private static final String WHEN = "when";
+    private static final String GROUP = "group";
+    private static final String THEN = "then";
+    private static final String WINDUP_LINES = "windupLines";
+    private static final String MIN_HEALTH = "minHealth";
+    private static final String MAX_HEALTH = "maxHealth";
+    private static final String MIN_RANGE = "minRange";
+    private static final String MAX_RANGE = "maxRange";
+    private static final String NEARBY = "nearby";
+    private static final String PHASE = "phase";
+    private static final String GCD = "gcd";
+    private static final String GROUPS = "groups";
+    private static final String PHASES = "phases";
+    private static final String BELOW = "below";
+    private static final String SUFFIX = "suffix";
+    private static final String SPEED = "speed";
+    private static final String DAMAGE = "damage";
+    private static final String RESIST = "resist";
 
     private static final double DEFAULT_CHANCE = 1;
     private static final double DEFAULT_THRESHOLD = 0.3;
@@ -107,6 +137,7 @@ public final class MobCodec {
             if (!skill.duration().isZero()) json.addProperty(DURATION, seconds(skill.duration()));
             if (!skill.text().isEmpty()) json.addProperty(TEXT, skill.text());
             if (!skill.effect().isEmpty()) json.addProperty(EFFECT, skill.effect());
+            if (!skill.cast().equals(MobSkill.Cast.NONE)) json.add(CAST, cast(skill.cast()));
             array.add(json);
         }
         return array.toString();
@@ -150,9 +181,147 @@ public final class MobCodec {
                     number(json, AMOUNT, 0),
                     duration(number(json, DURATION, 0)),
                     string(json, TEXT),
-                    string(json, EFFECT)));
+                    string(json, EFFECT),
+                    cast(json.get(CAST), where + ".cast", problems)));
         }
         return List.copyOf(skills);
+    }
+
+    private static JsonObject cast(MobSkill.Cast cast) {
+        JsonObject json = new JsonObject();
+        if (!cast.name().isEmpty()) json.addProperty(NAME, cast.name());
+        if (cast.aim() != MobSkill.Aim.AUTO) json.addProperty(AIM, cast.aim().name());
+        if (!cast.windup().isZero()) json.addProperty(WINDUP, seconds(cast.windup()));
+        if (!cast.style().isEmpty()) json.addProperty(STYLE, cast.style());
+        if (!cast.tint().isEmpty()) json.addProperty(TINT, cast.tint());
+        if (cast.spread() != 0) json.addProperty(SPREAD, cast.spread());
+        MobSkill.Gate when = cast.when();
+        if (!when.equals(MobSkill.Gate.ANY)) {
+            JsonObject gate = new JsonObject();
+            if (when.minHealth() != 0) gate.addProperty(MIN_HEALTH, when.minHealth());
+            if (when.maxHealth() != 1) gate.addProperty(MAX_HEALTH, when.maxHealth());
+            if (when.minRange() != 0) gate.addProperty(MIN_RANGE, when.minRange());
+            if (when.maxRange() != 0) gate.addProperty(MAX_RANGE, when.maxRange());
+            if (when.nearby() != 0) gate.addProperty(NEARBY, when.nearby());
+            if (when.phase() != 0) gate.addProperty(PHASE, when.phase());
+            json.add(WHEN, gate);
+        }
+        if (!cast.group().isEmpty()) json.addProperty(GROUP, cast.group());
+        if (!cast.then().isEmpty()) json.addProperty(THEN, cast.then());
+        if (!cast.windupLines().isEmpty()) json.addProperty(WINDUP_LINES, cast.windupLines());
+        return json;
+    }
+
+    /** A missing cast is {@link MobSkill.Cast#NONE}; an unknown aim reads as AUTO and is reported. */
+    private static MobSkill.Cast cast(@Nullable JsonElement element, String where,
+                                      BiConsumer<String, String> problems) {
+        if (element == null || element.isJsonNull()) return MobSkill.Cast.NONE;
+        if (!element.isJsonObject()) {
+            problems.accept(where, "not a cast");
+            return MobSkill.Cast.NONE;
+        }
+        JsonObject json = element.getAsJsonObject();
+        String aimName = string(json, AIM);
+        MobSkill.Aim aim = aimName.isEmpty() ? MobSkill.Aim.AUTO : constant(MobSkill.Aim.class, aimName);
+        if (aim == null) {
+            problems.accept(where, "unknown aim " + aimName + "; read as AUTO");
+            aim = MobSkill.Aim.AUTO;
+        }
+        MobSkill.Gate when = MobSkill.Gate.ANY;
+        JsonElement gate = json.get(WHEN);
+        if (gate != null && gate.isJsonObject()) {
+            JsonObject values = gate.getAsJsonObject();
+            when = new MobSkill.Gate(number(values, MIN_HEALTH, 0), number(values, MAX_HEALTH, 1),
+                    number(values, MIN_RANGE, 0), number(values, MAX_RANGE, 0), number(values, NEARBY, 0),
+                    (int) Math.max(0, Math.min(Integer.MAX_VALUE, number(values, PHASE, 0))));
+        } else if (gate != null && !gate.isJsonNull()) {
+            problems.accept(where + ".when", "not a condition object");
+        }
+        return new MobSkill.Cast(string(json, NAME), aim, duration(number(json, WINDUP, 0)),
+                string(json, STYLE), string(json, TINT), number(json, SPREAD, 0), when,
+                string(json, GROUP), string(json, THEN), string(json, WINDUP_LINES));
+    }
+
+    // ------------------------------------------------------------------- fight
+
+    /**
+     * Writes a fight.
+     *
+     * @param fight the fight
+     * @return the JSON object, or {@code null} for {@link MobFight#NONE}
+     * @since 1.198.0
+     */
+    public static @Nullable String encodeFight(@NotNull MobFight fight) {
+        if (fight.equals(MobFight.NONE)) return null;
+        JsonObject json = new JsonObject();
+        if (!fight.globalCooldown().isZero()) json.addProperty(GCD, seconds(fight.globalCooldown()));
+        if (!fight.groups().isEmpty()) {
+            JsonObject groups = new JsonObject();
+            fight.groups().forEach((name, period) -> groups.addProperty(name, seconds(period)));
+            json.add(GROUPS, groups);
+        }
+        if (!fight.phases().isEmpty()) {
+            JsonArray phases = new JsonArray();
+            for (MobPhase phase : fight.phases()) {
+                JsonObject each = new JsonObject();
+                each.addProperty(BELOW, phase.below());
+                if (!phase.style().isEmpty()) each.addProperty(STYLE, phase.style());
+                if (!phase.suffix().isEmpty()) each.addProperty(SUFFIX, phase.suffix());
+                if (phase.speed() != 1) each.addProperty(SPEED, phase.speed());
+                if (phase.damage() != 1) each.addProperty(DAMAGE, phase.damage());
+                if (phase.resist() != 1) each.addProperty(RESIST, phase.resist());
+                phases.add(each);
+            }
+            json.add(PHASES, phases);
+        }
+        return json.toString();
+    }
+
+    /** Reads a stored fight, ignoring what it cannot understand. @since 1.198.0 */
+    public static @NotNull MobFight decodeFight(@Nullable String stored) {
+        return decodeFight(stored, SILENT);
+    }
+
+    /**
+     * Reads a stored fight, reporting what it had to skip. A group period or a
+     * phase that is not readable costs itself; a missing field keeps its default.
+     *
+     * @param stored   the column value, possibly {@code null}
+     * @param problems told where the trouble was and what it was
+     * @return the fight, {@link MobFight#NONE} for nothing readable
+     * @since 1.198.0
+     */
+    public static @NotNull MobFight decodeFight(@Nullable String stored, @NotNull BiConsumer<String, String> problems) {
+        JsonObject json = object(stored, "fight", problems);
+        if (json == null) return MobFight.NONE;
+        Map<String, Duration> groups = new LinkedHashMap<>();
+        JsonElement groupsJson = json.get(GROUPS);
+        if (groupsJson != null && groupsJson.isJsonObject()) {
+            for (Map.Entry<String, JsonElement> entry : groupsJson.getAsJsonObject().entrySet()) {
+                JsonElement value = entry.getValue();
+                if (!value.isJsonPrimitive() || !value.getAsJsonPrimitive().isNumber()) {
+                    problems.accept("fight.groups." + entry.getKey(), "not a number of seconds");
+                    continue;
+                }
+                groups.put(entry.getKey(), duration(value.getAsDouble()));
+            }
+        }
+        List<MobPhase> phases = new ArrayList<>();
+        JsonElement phasesJson = json.get(PHASES);
+        if (phasesJson != null && phasesJson.isJsonArray()) {
+            JsonArray array = phasesJson.getAsJsonArray();
+            for (int index = 0; index < array.size(); index++) {
+                JsonElement element = array.get(index);
+                if (!element.isJsonObject() || number(element.getAsJsonObject(), BELOW, -1) <= 0) {
+                    problems.accept("fight.phases[" + index + "]", "not a phase with a below share");
+                    continue;
+                }
+                JsonObject phase = element.getAsJsonObject();
+                phases.add(new MobPhase(number(phase, BELOW, 0), string(phase, STYLE), string(phase, SUFFIX),
+                        number(phase, SPEED, 1), number(phase, DAMAGE, 1), number(phase, RESIST, 1)));
+            }
+        }
+        return new MobFight(duration(number(json, GCD, 0)), groups, phases);
     }
 
     // --------------------------------------------------------------- behaviour

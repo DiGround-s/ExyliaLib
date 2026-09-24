@@ -59,13 +59,15 @@ import java.util.random.RandomGenerator;
  * @param money      what the consumer pays its killer; the library never pays it
  * @param behaviour  hits or health, lifetime and roam (since 1.195.0)
  * @param look       variant, body, outline colour and aura (since 1.195.0)
+ * @param fight      global cooldown, rotation groups and phases (since 1.198.0)
  * @since 1.192.0
  */
 public record MobTemplate(@NotNull String id, @NotNull EntityType type, @NotNull String name,
                           @NotNull List<ItemStack> equipment, @NotNull Map<String, Double> attributes,
                           @NotNull Set<MobFlag> flags, @NotNull List<ParsedEffect> effects,
                           @NotNull List<MobSkill> skills, @NotNull List<RewardEntry> rewards,
-                          int exp, double money, @NotNull MobBehaviour behaviour, @NotNull MobLook look) {
+                          int exp, double money, @NotNull MobBehaviour behaviour, @NotNull MobLook look,
+                          @NotNull MobFight fight) {
 
     /** The attribute keys the editor offers, in the order it offers them. */
     public static final List<String> ATTRIBUTES = List.of("max_health", "attack_damage",
@@ -87,6 +89,21 @@ public record MobTemplate(@NotNull String id, @NotNull EntityType type, @NotNull
         money = Double.isFinite(money) ? Math.max(0, money) : 0;
         behaviour = behaviour == null ? MobBehaviour.NONE : behaviour;
         look = look == null ? MobLook.NONE : look;
+        fight = fight == null ? MobFight.NONE : fight;
+    }
+
+    /**
+     * A template whose skills fight on their own: the shape before 1.198.0.
+     *
+     * @since 1.195.0
+     */
+    public MobTemplate(@NotNull String id, @NotNull EntityType type, @NotNull String name,
+                       @NotNull List<ItemStack> equipment, @NotNull Map<String, Double> attributes,
+                       @NotNull Set<MobFlag> flags, @NotNull List<ParsedEffect> effects,
+                       @NotNull List<MobSkill> skills, @NotNull List<RewardEntry> rewards,
+                       int exp, double money, @NotNull MobBehaviour behaviour, @NotNull MobLook look) {
+        this(id, type, name, equipment, attributes, flags, effects, skills, rewards, exp, money,
+                behaviour, look, MobFight.NONE);
     }
 
     /**
@@ -100,7 +117,7 @@ public record MobTemplate(@NotNull String id, @NotNull EntityType type, @NotNull
                        @NotNull List<MobSkill> skills, @NotNull List<RewardEntry> rewards,
                        int exp, double money) {
         this(id, type, name, equipment, attributes, flags, effects, skills, rewards, exp, money,
-                MobBehaviour.NONE, MobLook.NONE);
+                MobBehaviour.NONE, MobLook.NONE, MobFight.NONE);
     }
 
     /**
@@ -112,7 +129,7 @@ public record MobTemplate(@NotNull String id, @NotNull EntityType type, @NotNull
      */
     public static @NotNull MobTemplate of(@NotNull String id, @NotNull EntityType type) {
         return new MobTemplate(id, type, "", List.of(), Map.of(), Set.of(), List.of(),
-                List.of(), List.of(), 0, 0, MobBehaviour.NONE, MobLook.NONE);
+                List.of(), List.of(), 0, 0, MobBehaviour.NONE, MobLook.NONE, MobFight.NONE);
     }
 
     /**
@@ -160,56 +177,61 @@ public record MobTemplate(@NotNull String id, @NotNull EntityType type, @NotNull
     public static final int MAIN_HAND = Loadout.HOTBAR_START;
 
     public @NotNull MobTemplate withId(@NotNull String id) {
-        return new MobTemplate(id, type, name, equipment, attributes, flags, effects, skills, rewards, exp, money, behaviour, look);
+        return new MobTemplate(id, type, name, equipment, attributes, flags, effects, skills, rewards, exp, money, behaviour, look, fight);
     }
 
     public @NotNull MobTemplate withType(@NotNull EntityType type) {
-        return new MobTemplate(id, type, name, equipment, attributes, flags, effects, skills, rewards, exp, money, behaviour, look);
+        return new MobTemplate(id, type, name, equipment, attributes, flags, effects, skills, rewards, exp, money, behaviour, look, fight);
     }
 
     public @NotNull MobTemplate withName(@NotNull String name) {
-        return new MobTemplate(id, type, name, equipment, attributes, flags, effects, skills, rewards, exp, money, behaviour, look);
+        return new MobTemplate(id, type, name, equipment, attributes, flags, effects, skills, rewards, exp, money, behaviour, look, fight);
     }
 
     public @NotNull MobTemplate withEquipment(@NotNull List<ItemStack> equipment) {
-        return new MobTemplate(id, type, name, equipment, attributes, flags, effects, skills, rewards, exp, money, behaviour, look);
+        return new MobTemplate(id, type, name, equipment, attributes, flags, effects, skills, rewards, exp, money, behaviour, look, fight);
     }
 
     public @NotNull MobTemplate withAttributes(@NotNull Map<String, Double> attributes) {
-        return new MobTemplate(id, type, name, equipment, attributes, flags, effects, skills, rewards, exp, money, behaviour, look);
+        return new MobTemplate(id, type, name, equipment, attributes, flags, effects, skills, rewards, exp, money, behaviour, look, fight);
     }
 
     public @NotNull MobTemplate withFlags(@NotNull Set<MobFlag> flags) {
-        return new MobTemplate(id, type, name, equipment, attributes, flags, effects, skills, rewards, exp, money, behaviour, look);
+        return new MobTemplate(id, type, name, equipment, attributes, flags, effects, skills, rewards, exp, money, behaviour, look, fight);
     }
 
     public @NotNull MobTemplate withEffects(@NotNull List<ParsedEffect> effects) {
-        return new MobTemplate(id, type, name, equipment, attributes, flags, effects, skills, rewards, exp, money, behaviour, look);
+        return new MobTemplate(id, type, name, equipment, attributes, flags, effects, skills, rewards, exp, money, behaviour, look, fight);
     }
 
     public @NotNull MobTemplate withSkills(@NotNull List<MobSkill> skills) {
-        return new MobTemplate(id, type, name, equipment, attributes, flags, effects, skills, rewards, exp, money, behaviour, look);
+        return new MobTemplate(id, type, name, equipment, attributes, flags, effects, skills, rewards, exp, money, behaviour, look, fight);
     }
 
     public @NotNull MobTemplate withRewards(@NotNull List<RewardEntry> rewards) {
-        return new MobTemplate(id, type, name, equipment, attributes, flags, effects, skills, rewards, exp, money, behaviour, look);
+        return new MobTemplate(id, type, name, equipment, attributes, flags, effects, skills, rewards, exp, money, behaviour, look, fight);
     }
 
     public @NotNull MobTemplate withExp(int exp) {
-        return new MobTemplate(id, type, name, equipment, attributes, flags, effects, skills, rewards, exp, money, behaviour, look);
+        return new MobTemplate(id, type, name, equipment, attributes, flags, effects, skills, rewards, exp, money, behaviour, look, fight);
     }
 
     public @NotNull MobTemplate withMoney(double money) {
-        return new MobTemplate(id, type, name, equipment, attributes, flags, effects, skills, rewards, exp, money, behaviour, look);
+        return new MobTemplate(id, type, name, equipment, attributes, flags, effects, skills, rewards, exp, money, behaviour, look, fight);
     }
 
     /** @since 1.195.0 */
     public @NotNull MobTemplate withBehaviour(@NotNull MobBehaviour behaviour) {
-        return new MobTemplate(id, type, name, equipment, attributes, flags, effects, skills, rewards, exp, money, behaviour, look);
+        return new MobTemplate(id, type, name, equipment, attributes, flags, effects, skills, rewards, exp, money, behaviour, look, fight);
+    }
+
+    /** @since 1.198.0 */
+    public @NotNull MobTemplate withFight(@NotNull MobFight fight) {
+        return new MobTemplate(id, type, name, equipment, attributes, flags, effects, skills, rewards, exp, money, behaviour, look, fight);
     }
 
     /** @since 1.195.0 */
     public @NotNull MobTemplate withLook(@NotNull MobLook look) {
-        return new MobTemplate(id, type, name, equipment, attributes, flags, effects, skills, rewards, exp, money, behaviour, look);
+        return new MobTemplate(id, type, name, equipment, attributes, flags, effects, skills, rewards, exp, money, behaviour, look, fight);
     }
 }

@@ -2,6 +2,7 @@ package net.exylia.lib.util.mob;
 
 import net.exylia.lib.input.FormField;
 import net.exylia.lib.input.FormKey;
+import net.exylia.lib.input.Inputs;
 import net.exylia.lib.task.TaskScheduler;
 import net.exylia.lib.task.Tasks;
 import net.exylia.lib.util.editor.EditorForm;
@@ -9,6 +10,7 @@ import net.exylia.lib.util.editor.Editors;
 import net.exylia.lib.util.editor.ListEditor;
 import net.exylia.lib.util.mob.internal.MobEngine;
 import org.bukkit.Location;
+import org.bukkit.Material;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.EntityType;
 import org.bukkit.entity.LivingEntity;
@@ -476,6 +478,78 @@ public final class PluginMobs {
                 bodies.isEmpty() ? look.body() : values.getOr(body, ""),
                 values.getOr(glow, ""),
                 values.getOr(aura, "")));
+    }
+
+    /**
+     * The fight a template's skills share: first which part, then its screen.
+     *
+     * <ul>
+     *   <li><b>TIMING</b> — one form: the global cooldown, and one period per
+     *       rotation group the skills use. A group left out of
+     *       {@code groupsInUse} loses its period on save.</li>
+     *   <li><b>PHASES</b> — a list editor over the phases: below which share of
+     *       health each starts, its name suffix, style and multipliers.</li>
+     * </ul>
+     *
+     * <pre>{@code
+     * Set<String> groups = template.skills().stream().map(skill -> skill.cast().group())
+     *         .filter(group -> !group.isEmpty()).collect(Collectors.toSet());
+     * mobs.fightEditor(player, template.fight(), groups)
+     *     .thenAccept(edited -> edited.ifPresent(fight -> store.save(template.withFight(fight))));
+     * }</pre>
+     *
+     * @param viewer      who is editing
+     * @param fight       the fight as it stands
+     * @param groupsInUse the rotation groups the template's skills name
+     * @return the edited fight, or nothing when the viewer backed out
+     * @since 1.198.0
+     */
+    public @NotNull CompletionStage<Optional<MobFight>> fightEditor(@NotNull Player viewer, @NotNull MobFight fight,
+                                                                    @NotNull Set<String> groupsInUse) {
+        List<String> groups = new java.util.TreeSet<>(groupsInUse).stream().filter(group -> !group.isBlank()).toList();
+        return Inputs.of(plugin)
+                .choice(viewer, "{primary}&lFIGHT", List.of("TIMING", "PHASES"))
+                .label(part -> part.equals("TIMING") ? "{primary}&lTIMING"
+                        : "{primary}&lPHASES &8[{info}" + fight.phases().size() + "&8]")
+                .icon(part -> part.equals("TIMING") ? Material.CLOCK : Material.BLAZE_POWDER)
+                .key(part -> part)
+                .open()
+                .thenCompose(part -> {
+                    if (!part.completed()) return CompletableFuture.completedFuture(Optional.<MobFight>empty());
+                    return part.value().equals("TIMING") ? fightTiming(viewer, fight, groups) : phases(viewer, fight);
+                });
+    }
+
+    private CompletionStage<Optional<MobFight>> fightTiming(Player viewer, MobFight fight, List<String> groups) {
+        FormKey<Duration> gcd = FormKey.duration("gcd");
+        EditorForm form = EditorForm.of(plugin, viewer, "{primary}&lTIMING")
+                .field(gcd, FormField.duration(gcd, "Between two attacks")
+                        .defaultValue(zeroAsBlank(fight.globalCooldown())).optional())
+                .hint("After any skill but EFFECT and COMMAND, how long before the next. 0 for none.");
+        for (int index = 0; index < groups.size(); index++) {
+            FormKey<Duration> period = FormKey.duration("group_" + index);
+            form.field(period, FormField.duration(period, "Group " + groups.get(index) + ", every")
+                            .defaultValue(fight.period(groups.get(index))))
+                    .hint("One skill of the group per period, picked by weight. 1s at least.");
+        }
+        return form.ask(values -> {
+            Map<String, Duration> periods = new LinkedHashMap<>();
+            for (int index = 0; index < groups.size(); index++) {
+                periods.put(groups.get(index), values.getOr(FormKey.duration("group_" + index),
+                        fight.period(groups.get(index))));
+            }
+            return new MobFight(values.getOr(gcd, Duration.ZERO), periods, fight.phases());
+        });
+    }
+
+    private CompletionStage<Optional<MobFight>> phases(Player viewer, MobFight fight) {
+        CompletableFuture<Optional<MobFight>> edited = new CompletableFuture<>();
+        Editors.of(plugin).list(new MobPhaseDescriptor(plugin), MobPhase.class, fight.phases())
+                .title("{primary}&lPHASES")
+                .onSave(phases -> edited.complete(Optional.of(fight.withPhases(phases))))
+                .onCancel(() -> edited.complete(Optional.empty()))
+                .open(viewer);
+        return edited;
     }
 
     /** Prefilled; blank keeps the value, so the hints say NONE clears it. */

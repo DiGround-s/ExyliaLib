@@ -6,7 +6,9 @@ applies the template, runs the skills, keeps the health in the name current,
 tracks who hurt each mob and tells the plugin when one dies. Storage, spawners
 and payouts stay with the plugin. Available since 1.192.0; hits mode,
 lifetime, roam, looks, auras, skill effects and the `JUMP`, `SIZE`, `SPEED` and
-`BABY` skills since 1.195.0.
+`BABY` skills since 1.195.0; staged casts (wind-up, aim, conditions, rotation
+groups, chains) and the fight (global cooldown, group periods, phases) since
+1.198.0.
 
 Entry point: `net.exylia.lib.util.mob.Mobs`.
 
@@ -142,6 +144,7 @@ call needs a running server.
 | `flagsEditor(Player, Set<MobFlag>)` → `CompletionStage<Optional<Set<MobFlag>>>` | one form, a checkbox per flag |
 | `behaviourEditor(Player, MobBehaviour)` → `CompletionStage<Optional<MobBehaviour>>` | since 1.195.0; one form: hits, hit cooldown, lifetime (durations), roam |
 | `lookEditor(Player, EntityType, MobLook)` → `CompletionStage<Optional<MobLook>>` | since 1.195.0; one form: variant and body (only for types that have them), outline colour, aura; each hint lists the choices |
+| `fightEditor(Player, MobFight, Set<String> groupsInUse)` → `CompletionStage<Optional<MobFight>>` | since 1.198.0; asks TIMING or PHASES. TIMING is one form: the global cooldown and one period per group in `groupsInUse` (a group not in it loses its period). PHASES is a list editor over `MobPhase` |
 
 ### The template
 
@@ -159,6 +162,7 @@ call needs a running server.
 | `exp` | `int` | added to the experience it drops |
 | `behaviour` | `MobBehaviour` | since 1.195.0; hits mode, lifetime and roam, see below. `MobBehaviour.NONE` by default |
 | `look` | `MobLook` | since 1.195.0; variant, body, outline colour and aura, see below. `MobLook.NONE` by default |
+| `fight` | `MobFight` | since 1.198.0; global cooldown, rotation group periods and phases, see below. `MobFight.NONE` by default |
 | `money` | `double` | stored, never paid by the library. One amount in no named currency: a consumer with several currencies keeps its own per-currency amounts beside the template and reads this as its default currency's (SurvivalCore does) |
 
 ### Flags
@@ -184,7 +188,8 @@ No library mob goes through a portal (since 1.195.0): the other side would be
 an entity the runtime is not tracking.
 
 The constructor without `behaviour` and `look` (11 components) is kept and
-means `NONE` for both.
+means `NONE` for both; the one without `fight` (13 components) means
+`MobFight.NONE`.
 
 ## Behaviour (since 1.195.0)
 
@@ -271,8 +276,10 @@ mob keeps the one-second timer.
 
 A `MobSkill` is one flat record: `trigger`, `type`, `chance` (0-1), `cooldown`,
 `threshold` (0-1), `radius`, `amount`, `duration`, `text`, `effect` (since
-1.195.0). Each type reads a few of those fields and ignores the rest. The
-constructor without `effect` (9 components) is kept.
+1.195.0) and `cast` (since 1.198.0, see *Casting*). Each type reads a few of
+those fields and ignores the rest. The constructors without `effect` (9
+components) and without `cast` (10 components) are kept; the latter means
+`Cast.NONE`.
 
 `effect` works for every type: sequence lines, one per line, played at the mob
 each time the skill goes off (after it did something: a `BABY` on a baby or a
@@ -287,6 +294,7 @@ leaves and again where it lands. Seen within `effectRadius`.
 | `DAMAGED` | when it is hurt and survives the hit; in hits mode on every counted hit (the breaking one only casts `EFFECT` skills) |
 | `LOW_HEALTH` | once, the first time its health drops to `threshold` of its maximum; in hits mode, hits left over hits |
 | `DEATH` | as it dies |
+| `PHASE` | since 1.198.0; as its fight enters a new phase; with `cast.when.phase` set, only as it enters that one |
 
 | Type | Reads | Does |
 | --- | --- | --- |
@@ -320,6 +328,117 @@ fires whether or not anybody is near.
 A skill cast while another of the same mob's skills is being cast is ignored,
 so an attack skill that deals damage cannot trigger itself. A skill that throws
 is reported once and keeps being tried.
+
+## Casting (since 1.198.0)
+
+`MobSkill.Cast(String name, Aim aim, Duration windup, String style, String tint,
+double spread, Gate when, String group, String then, String windupLines)`,
+`Cast.NONE`, `withName`/`withAim`/`withWindup`/`withSpread`/`withWhen`/`withGroup`/`withThen`/`withWindupLines`;
+`skill.withCast(cast)`. `Cast.NONE` is exactly the behaviour before 1.198.0.
+
+```java
+MobSkill slam = MobSkill.of(MobSkill.Type.AREA_DAMAGE, MobSkill.Trigger.INTERVAL)
+        .withCast(MobSkill.Cast.NONE.withName("slam").withAim(MobSkill.Aim.SELF)
+                .withWindup(Duration.ofMillis(900))
+                .withWindupLines("[SOUND] ENTITY_RAVAGER_ROAR;1;0.7")
+                .withWhen(MobSkill.Gate.ANY.withNearby(16).withRange(0, 6)));
+```
+
+### Who may cast, and when
+
+Checked in this order, all before the dice, so a skill kept out keeps its
+cooldown for later:
+
+1. the trigger;
+2. a minion never summons;
+3. `when` (`MobSkill.Gate(minHealth, maxHealth, minRange, maxRange, nearby, phase)`,
+   `Gate.ANY`, `withHealth`/`withRange`/`withNearby`/`withPhase`, `admits(...)`):
+   its share of health (hits left in hits mode) within `minHealth`-`maxHealth`;
+   its target within `minRange`-`maxRange` blocks (`0` is no limit; with either
+   set, no target means no cast); a survival or adventure player within
+   `nearby` blocks when `nearby > 0`; the fight in `phase` when `phase > 0`;
+4. a target, where the skill needs one (`needsTarget()`), and for the aims that
+   find their own players, at least one within reach;
+5. for a major skill (`major()`: anything but `EFFECT` and `COMMAND`), the
+   fight's global cooldown and no other staged cast under way;
+6. then its chance and cooldown, as before.
+
+### Stages
+
+- **Wind-up** (`windup > 0`, 10 s at most): the mob is rooted (a
+  `movement_speed` modifier of −100% plus Paper's `stopPathfinding`), turns
+  towards its target, and `windupLines` play at it. Nothing lands yet.
+- **Impact**: the mechanics land where the aim says, and the skill's `effect`
+  lines play; then `then` is cast.
+- **Recovery**: 8 ticks later the root comes off.
+
+A major staged cast holds the mob's turn from wind-up to the end of recovery;
+a death, a break, an expiry or the plugin going away drops it without landing.
+An `EFFECT` or `COMMAND` with a wind-up is only delayed: it neither roots nor
+holds the turn. With `windup = 0` the skill lands inline, in the same call,
+exactly as before. Each stage is one delayed entity task; nothing runs per tick.
+
+### Aim
+
+`MobSkill.Aim`: where it lands, worked out at impact against what was locked
+as the wind-up started (the mob's spot and facing, where its target stood,
+capped at 24 blocks).
+
+| Aim | Lands on |
+| --- | --- |
+| `AUTO` | each type's own targeting, as before |
+| `TARGET` | the target, wherever it is now |
+| `NEAREST` / `FARTHEST` / `RANDOM` | one survival or adventure player within `radius` (16 when 0) |
+| `ALL` | every such player within `radius` (16 when 0) |
+| `CONE` | every such player within `radius` (16 when 0) and half of `spread` degrees (60 when 0) of the facing locked at the wind-up; 2.5 blocks of height either way |
+| `LINE` | every such player within half of `spread` blocks (1.6 when 0) of a line `radius` long (16 when 0) towards where the target stood |
+| `SELF` | the mob; an area type reaches everybody within `radius` |
+| `GROUND` | where the target's feet were as the wind-up started, so it can be dodged; an area type reaches everybody within `radius` of it, any other type whoever stands within 1.5 blocks |
+
+`AREA_DAMAGE`, `PUSH` and a `POTION` with a radius aimed at one body (`TARGET`,
+`NEAREST`, `FARTHEST`, `RANDOM`) reach everybody within `radius` of it. `PULL`,
+`POTION`, `LIGHTNING`, `IGNITE`, `PROJECTILE` (8 at most) and `COMMAND` act on
+each body found; `LIGHTNING` with nobody strikes the spot. `LEAP` jumps at the
+landing point, `TELEPORT` appears behind the first body (or on a free `GROUND`
+spot), `SUMMON` sets its minions on the first body. `HEAL`, `JUMP`, `SIZE`,
+`SPEED`, `BABY` and `EFFECT` act on the mob and ignore the aim. On Folia the
+mechanics run on the landing spot's region when the mob's thread does not own it.
+
+`style` and `tint` are stored for the style library and read by nothing yet.
+
+### Rotation groups and chains
+
+An `INTERVAL` skill with a `group` does not roll on its own (`grouped()`). Once
+per the group's period (`MobFight.groups`, 10 s when unset, 1 s at least; the
+first waits one period) exactly one member is cast: among those that pass the
+checks above and their own `cooldown` (zero: every period), picked with
+`chance` as the weight. A period in which nobody may be cast is not spent, so
+the group goes off as soon as one can.
+
+`then` names another skill of the same mob (`name`, any case). It is cast right
+after this one lands, past the dice, its cooldown, the global cooldown and the
+turn, never past its `when`. Chains stop after 4 hops, so `A → B → A` does not
+loop.
+
+## Fight (since 1.198.0)
+
+`MobFight(Duration globalCooldown, Map<String, Duration> groups, List<MobPhase> phases)`,
+`MobFight.NONE`, `period(group)`, `phaseAt(share)`, `phase(n)`,
+`withGlobalCooldown`/`withGroups`/`withPhases`. Groups are sorted by name, phases
+by `below`, highest first; a phase at 0 or 1 is dropped.
+
+- `globalCooldown`: after any major cast starts, the wind-up plus this long
+  before another major one may start.
+- Phases: `MobPhase(double below, String style, String suffix, double speed,
+  double damage, double resist)`. The fight starts in phase 1 and is in phase
+  `1 + ` the number of `below` shares its health (hits left in hits mode) has
+  dropped under, checked on every hit it survives. It never goes back. Entering
+  a phase replaces the previous one's `movement_speed` and `attack_damage`
+  multipliers (attribute modifiers, so they stack with `SPEED` skills), appends
+  ` suffix` to its name, and casts its `PHASE` skills. `resist` divides the
+  damage it takes, in health mode. Multipliers are kept within 0.1-10. When one
+  hit crosses two thresholds only the phase it lands in casts. `style` is
+  stored for the style library and read by nothing yet.
 
 ## Death
 
@@ -358,7 +477,18 @@ flags       ["NO_VANILLA_DROPS","NO_SUN_BURN"]
 effects     ["SPEED|1|infinite"]
 behaviour   {"hits":40,"hitCooldown":0.5,"lifetime":300.0,"roam":12.0}
 look        {"variant":"CREAMY","body":"CYCLE","glow":"CYCLE","aura":"confetti"}
+fight       {"gcd":1.5,"groups":{"melee":6.0,"tricks":4.0},"phases":[{"below":0.5,"style":"enrage","suffix":"&c⚡","speed":1.3,"damage":1.25}]}
 ```
+
+A skill cast some other way than `Cast.NONE` writes a `"cast"` object (since
+1.198.0), defaults left out: `{"name":"slam","aim":"SELF","windup":0.9,
+"style":"slam","tint":"{warning}","spread":60.0,"when":{"minHealth":0.1,
+"maxHealth":0.8,"minRange":2.0,"maxRange":6.0,"nearby":16.0,"phase":2},
+"group":"melee","then":"stomp","windupLines":"[SOUND] ..."}`. A skill without
+one reads as `Cast.NONE` and writes back byte for byte as it was stored. An
+unknown `aim` is reported and read as `AUTO`. `encodeFight`/`decodeFight` write
+`null` for `NONE`; a group period that is not a number or a phase without a
+`below` costs itself and is reported.
 
 A skill writes `"effect"` when it has one; a skill stored before 1.195.0 reads
 with none. `encodeBehaviour`/`decodeBehaviour` and `encodeLook`/`decodeLook`
@@ -377,7 +507,8 @@ keys written as `minecraft:max_health` or `generic.max_health` read as
 
 | Part | Screen |
 | --- | --- |
-| skills | `mobs.skillsEditor(skills)` — add asks the type, then the trigger, then a form with only the fields that type reads, plus "Effect lines" for every type (`NONE` clears them: a blank box keeps a prefilled value) |
+| skills | `mobs.skillsEditor(skills)` — add asks the type, then the trigger, then a form with only the fields that type reads, plus "Effect lines" for every type (`NONE` clears them: a blank box keeps a prefilled value). A row click asks which section (since 1.198.0): MECHANICS (that form), TIMING & AIM (wind-up, aim, spread, rotation group for `INTERVAL`, name, then, wind-up lines) or CONDITIONS (health band, target range, a player nearby, phase). A grouped row shows its weight and share of its group |
+| fight | `mobs.fightEditor(player, fight, groupsInUse)` — TIMING (global cooldown, a period per group) or PHASES (list: below, name suffix, style, speed, damage, resistance) |
 | behaviour | `mobs.behaviourEditor(player, behaviour)` — hits, hit cooldown and lifetime as durations, roam |
 | look | `mobs.lookEditor(player, type, look)` — variant and body only for types that have them; `NONE` clears a part |
 | attributes | `mobs.attributesEditor(player, attributes)` — blank keeps the vanilla value |
@@ -419,8 +550,8 @@ keys written as `minecraft:max_health` or `generic.max_health` read as
 
 | | |
 | --- | --- |
-| Public API | `util/mob/Mobs`, `PluginMobs`, `MobTemplate`, `MobSkill`, `MobFlag`, `MobDeath`, `MobCodec`, `MobBehaviour`, `MobLook`, `MobHit` |
+| Public API | `util/mob/Mobs`, `PluginMobs`, `MobTemplate`, `MobSkill` (with `Cast`, `Gate`, `Aim`), `MobFlag`, `MobDeath`, `MobCodec`, `MobBehaviour`, `MobLook`, `MobHit`, `MobFight`, `MobPhase` |
 | Random templates | `util/mob/RandomTemplate` (package-private, behind `MobTemplate.random`) |
-| Editor | `util/mob/MobSkillDescriptor` |
-| Runtime | `util/mob/internal/MobEngine` (listeners, spawn, skills, hits mode, look, wander, leash), `LiveMob` (cooldowns, damage ledger, hits, lifetime, leash) |
-| Tests | `util/mob/MobCodecTest`, `util/mob/RandomTemplateTest`, `util/mob/MobSkillDescriptorTest`, `util/mob/internal/LiveMobTest`, `util/mob/internal/MobEngineTest` |
+| Editor | `util/mob/MobSkillDescriptor`, `MobPhaseDescriptor` |
+| Runtime | `util/mob/internal/MobEngine` (listeners, spawn, what each type does, hits mode, look, wander, leash), `MobCaster` (conditions, rotation groups, staged casts, aimed impacts, chains, phases), `MobAim` (aim geometry, no server), `LiveMob` (cooldowns, groups, global cooldown, cast under way, phase, damage ledger, hits, lifetime, leash) |
+| Tests | `util/mob/MobCodecTest`, `util/mob/RandomTemplateTest`, `util/mob/MobSkillDescriptorTest`, `util/mob/GateTest`, `util/mob/internal/LiveMobTest`, `util/mob/internal/MobEngineTest`, `util/mob/internal/MobAimTest`, `util/mob/internal/RotationTest`, `util/mob/internal/MobCasterTest` |

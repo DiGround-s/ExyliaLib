@@ -40,12 +40,14 @@ import java.util.Objects;
  * @param effect    sequence lines, one per line, played at the mob each time the
  *                  skill goes off, whatever its type; a {@link Type#TELEPORT} plays
  *                  them where it leaves and where it lands. Blank for none (since 1.195.0)
+ * @param cast      how it is cast: wind-up, aim, conditions, rotation group and chain;
+ *                  {@link Cast#NONE} casts it at once, as before 1.198.0 (since 1.198.0)
  * @since 1.192.0
  */
 public record MobSkill(@NotNull Trigger trigger, @NotNull Type type, double chance,
                        @NotNull Duration cooldown, double threshold, double radius,
                        double amount, @NotNull Duration duration, @NotNull String text,
-                       @NotNull String effect) {
+                       @NotNull String effect, @NotNull Cast cast) {
 
     /** When a skill is tried. */
     public enum Trigger {
@@ -60,7 +62,14 @@ public record MobSkill(@NotNull Trigger trigger, @NotNull Type type, double chan
         /** Once, the first time its health drops to {@link MobSkill#threshold()}. */
         LOW_HEALTH,
         /** As it dies. */
-        DEATH;
+        DEATH,
+        /**
+         * As its fight enters a new phase ({@link MobFight#phases()}); with
+         * {@link Gate#phase()} set, only as it enters that one.
+         *
+         * @since 1.198.0
+         */
+        PHASE;
 
         /** The trigger as a person reads it. */
         public @NotNull String readable() {
@@ -180,6 +189,18 @@ public record MobSkill(@NotNull Trigger trigger, @NotNull Type type, double chan
         amount = Double.isFinite(amount) ? Math.max(0, amount) : 0;
         text = text == null ? "" : text;
         effect = effect == null ? "" : effect;
+        cast = cast == null ? Cast.NONE : cast;
+    }
+
+    /**
+     * A skill cast at once, as before 1.198.0.
+     *
+     * @since 1.195.0
+     */
+    public MobSkill(@NotNull Trigger trigger, @NotNull Type type, double chance, @NotNull Duration cooldown,
+                    double threshold, double radius, double amount, @NotNull Duration duration,
+                    @NotNull String text, @NotNull String effect) {
+        this(trigger, type, chance, cooldown, threshold, radius, amount, duration, text, effect, Cast.NONE);
     }
 
     /**
@@ -190,7 +211,7 @@ public record MobSkill(@NotNull Trigger trigger, @NotNull Type type, double chan
     public MobSkill(@NotNull Trigger trigger, @NotNull Type type, double chance, @NotNull Duration cooldown,
                     double threshold, double radius, double amount, @NotNull Duration duration,
                     @NotNull String text) {
-        this(trigger, type, chance, cooldown, threshold, radius, amount, duration, text, "");
+        this(trigger, type, chance, cooldown, threshold, radius, amount, duration, text, "", Cast.NONE);
     }
 
     /**
@@ -222,22 +243,22 @@ public record MobSkill(@NotNull Trigger trigger, @NotNull Type type, double chan
 
     /** The same skill, tried on another trigger. */
     public @NotNull MobSkill withTrigger(@NotNull Trigger trigger) {
-        return new MobSkill(trigger, type, chance, cooldown, threshold, radius, amount, duration, text, effect);
+        return new MobSkill(trigger, type, chance, cooldown, threshold, radius, amount, duration, text, effect, cast);
     }
 
     /** The same skill, with other odds. */
     public @NotNull MobSkill withChance(double chance) {
-        return new MobSkill(trigger, type, chance, cooldown, threshold, radius, amount, duration, text, effect);
+        return new MobSkill(trigger, type, chance, cooldown, threshold, radius, amount, duration, text, effect, cast);
     }
 
     /** The same skill, with another cooldown or period. */
     public @NotNull MobSkill withCooldown(@NotNull Duration cooldown) {
-        return new MobSkill(trigger, type, chance, cooldown, threshold, radius, amount, duration, text, effect);
+        return new MobSkill(trigger, type, chance, cooldown, threshold, radius, amount, duration, text, effect, cast);
     }
 
     /** The same skill, with another text. */
     public @NotNull MobSkill withText(@NotNull String text) {
-        return new MobSkill(trigger, type, chance, cooldown, threshold, radius, amount, duration, text, effect);
+        return new MobSkill(trigger, type, chance, cooldown, threshold, radius, amount, duration, text, effect, cast);
     }
 
     /**
@@ -246,18 +267,59 @@ public record MobSkill(@NotNull Trigger trigger, @NotNull Type type, double chan
      * @since 1.195.0
      */
     public @NotNull MobSkill withEffect(@NotNull String effect) {
-        return new MobSkill(trigger, type, chance, cooldown, threshold, radius, amount, duration, text, effect);
+        return new MobSkill(trigger, type, chance, cooldown, threshold, radius, amount, duration, text, effect, cast);
+    }
+
+    /**
+     * The same skill, cast another way.
+     *
+     * @since 1.198.0
+     */
+    public @NotNull MobSkill withCast(@NotNull Cast cast) {
+        return new MobSkill(trigger, type, chance, cooldown, threshold, radius, amount, duration, text, effect, cast);
     }
 
     /**
      * Whether it does nothing without somebody to aim at: its type's answer,
-     * except a POTION or TELEPORT with a radius.
+     * except a POTION or TELEPORT with a radius. Since 1.198.0 the aim decides
+     * first: {@link Aim#TARGET} and {@link Aim#GROUND} need the target, the
+     * aims that find their own players and {@link Aim#SELF} do not.
      *
      * @since 1.195.0
      */
     public boolean needsTarget() {
+        switch (cast.aim()) {
+            case TARGET, GROUND -> {
+                return true;
+            }
+            case NEAREST, FARTHEST, RANDOM, ALL, CONE, LINE, SELF -> {
+                return false;
+            }
+            case AUTO -> { }
+        }
         if ((type == Type.POTION || type == Type.TELEPORT) && radius > 0) return false;
         return type.needsTarget();
+    }
+
+    /**
+     * Whether it counts as a real attack: anything but {@link Type#EFFECT} and
+     * {@link Type#COMMAND}. Only these wait out the fight's global cooldown and
+     * each other's casts.
+     *
+     * @since 1.198.0
+     */
+    public boolean major() {
+        return type != Type.EFFECT && type != Type.COMMAND;
+    }
+
+    /**
+     * Whether it takes turns in a rotation group rather than rolling on its own:
+     * an {@link Trigger#INTERVAL} skill with a {@link Cast#group()}.
+     *
+     * @since 1.198.0
+     */
+    public boolean grouped() {
+        return trigger == Trigger.INTERVAL && !cast.group().isEmpty();
     }
 
     /**
@@ -274,5 +336,227 @@ public record MobSkill(@NotNull Trigger trigger, @NotNull Type type, double chan
 
     private static double clamp(double value) {
         return Double.isFinite(value) ? Math.max(0, Math.min(1, value)) : 0;
+    }
+
+    private static double positive(double value) {
+        return Double.isFinite(value) ? Math.max(0, value) : 0;
+    }
+
+    private static String trimmed(String value) {
+        return value == null ? "" : value.trim();
+    }
+
+    // ------------------------------------------------------------------- cast
+
+    /**
+     * Where a skill lands, worked out as it lands.
+     *
+     * <p>{@link #AUTO} is each type's own targeting, exactly as before 1.198.0.
+     * The others find their players at impact, so somebody who walks out of a
+     * cone or a line during the wind-up is not hit.
+     *
+     * @since 1.198.0
+     */
+    public enum Aim {
+        /** Each type's own targeting: the target, or everybody within {@code radius}. */
+        AUTO,
+        /** The skill's target, wherever it has moved to. */
+        TARGET,
+        /** The nearest survival or adventure player within {@code radius}, 16 when it is 0. */
+        NEAREST,
+        /** The farthest such player within {@code radius}, 16 when it is 0. */
+        FARTHEST,
+        /** Any one such player within {@code radius}, 16 when it is 0. */
+        RANDOM,
+        /** Every such player within {@code radius} of the mob, 16 when it is 0. */
+        ALL,
+        /**
+         * Every such player within {@code radius} (16 when 0) and within half of
+         * {@link Cast#spread()} degrees (60 when 0) of where the mob faced as the
+         * wind-up started.
+         */
+        CONE,
+        /**
+         * Every such player within half of {@link Cast#spread()} blocks (1.6 when 0)
+         * of a line {@code radius} long (16 when 0), from the mob towards where its
+         * target stood as the wind-up started.
+         */
+        LINE,
+        /** The mob itself; an area type reaches everybody within {@code radius} of it. */
+        SELF,
+        /**
+         * Where the target's feet were as the wind-up started, so the attack can be
+         * dodged; an area type reaches everybody within {@code radius} of that spot,
+         * anything else whoever stands within a block and a half of it.
+         */
+        GROUND;
+
+        /** The aim as a person reads it. */
+        public @NotNull String readable() {
+            return name().toLowerCase(Locale.ROOT);
+        }
+    }
+
+    /**
+     * When a skill may be cast at all, checked before its dice so a skill kept
+     * out keeps its cooldown for later.
+     *
+     * <pre>{@code
+     * // Only while somebody is within 16 blocks and the mob is below half health.
+     * Gate gate = Gate.ANY.withNearby(16).withHealth(0, 0.5);
+     * }</pre>
+     *
+     * @param minHealth the least share of its health (hits left in hits mode) it casts at, {@code 0-1}
+     * @param maxHealth the most share of its health it casts at, {@code 0-1}
+     * @param minRange  the closest its target may be, in blocks; {@code 0} for no limit
+     * @param maxRange  the farthest its target may be, in blocks; {@code 0} for no limit.
+     *                  A skill with either range and no target is not cast
+     * @param nearby    above {@code 0}, it needs a survival or adventure player within
+     *                  that many blocks of the mob; {@code 0} needs nobody
+     * @param phase     the fight phase it is cast in ({@code 1} is the start); {@code 0} for any
+     * @since 1.198.0
+     */
+    public record Gate(double minHealth, double maxHealth, double minRange, double maxRange,
+                       double nearby, int phase) {
+
+        /** No condition at all. */
+        public static final Gate ANY = new Gate(0, 1, 0, 0, 0, 0);
+
+        public Gate {
+            minHealth = clamp(minHealth);
+            maxHealth = Double.isFinite(maxHealth) ? clamp(maxHealth) : 1;
+            minRange = positive(minRange);
+            maxRange = positive(maxRange);
+            nearby = positive(nearby);
+            phase = Math.max(0, phase);
+        }
+
+        /**
+         * Whether a cast may go through.
+         *
+         * @param health          the mob's share of health (hits left in hits mode), {@code 0-1}
+         * @param targetDistance  blocks to its target, {@code NaN} for no target
+         * @param nearestDistance blocks to the nearest survival or adventure player,
+         *                        {@code NaN} for nobody; only read when {@link #nearby()} is set
+         * @param currentPhase    the fight phase it is in
+         * @return whether every condition holds
+         */
+        public boolean admits(double health, double targetDistance, double nearestDistance, int currentPhase) {
+            if (health < minHealth || health > maxHealth) return false;
+            if (minRange > 0 || maxRange > 0) {
+                if (Double.isNaN(targetDistance) || targetDistance < minRange) return false;
+                if (maxRange > 0 && targetDistance > maxRange) return false;
+            }
+            if (nearby > 0 && (Double.isNaN(nearestDistance) || nearestDistance > nearby)) return false;
+            return phase == 0 || phase == currentPhase;
+        }
+
+        public @NotNull Gate withHealth(double min, double max) {
+            return new Gate(min, max, minRange, maxRange, nearby, phase);
+        }
+
+        public @NotNull Gate withRange(double min, double max) {
+            return new Gate(minHealth, maxHealth, min, max, nearby, phase);
+        }
+
+        public @NotNull Gate withNearby(double blocks) {
+            return new Gate(minHealth, maxHealth, minRange, maxRange, blocks, phase);
+        }
+
+        public @NotNull Gate withPhase(int phase) {
+            return new Gate(minHealth, maxHealth, minRange, maxRange, nearby, phase);
+        }
+    }
+
+    /**
+     * How a skill is cast: a wind-up the players can see coming, where it lands,
+     * when it may go, whom it takes turns with and what follows it.
+     *
+     * <pre>{@code
+     * MobSkill slam = MobSkill.of(MobSkill.Type.AREA_DAMAGE, MobSkill.Trigger.INTERVAL)
+     *         .withCast(MobSkill.Cast.NONE.withName("slam").withAim(MobSkill.Aim.SELF)
+     *                 .withWindup(Duration.ofMillis(900))
+     *                 .withWhen(MobSkill.Gate.ANY.withNearby(16)));
+     * }</pre>
+     *
+     * <h2>The stages</h2>
+     * With a wind-up the mob stops where it is, turns to its aim and plays
+     * {@link #windupLines()}; when the wind-up ends the skill lands where its
+     * {@link #aim()} says and plays the skill's {@code effect} lines; a short
+     * recovery later it moves again. With no wind-up it lands at once, exactly
+     * as before 1.198.0.
+     *
+     * @param name        what {@link #then()} calls it by; blank for no name
+     * @param aim         where it lands
+     * @param windup      how long the mob telegraphs before it lands; zero for at once
+     * @param style       the look it is cast with; blank for its type's own. Stored for
+     *                    the style library, which nothing reads yet
+     * @param tint        the colour that look is drawn in, a {@code {token}} or {@code #rrggbb};
+     *                    blank for the style's own. Stored, not read yet
+     * @param spread      a {@link Aim#CONE}'s angle in degrees or a {@link Aim#LINE}'s
+     *                    width in blocks; {@code 0} for 60 degrees or 1.6 blocks
+     * @param when        when it may be cast
+     * @param group       for an {@link Trigger#INTERVAL} skill, the rotation group it takes
+     *                    turns in (see {@link MobFight#groups()}); blank rolls on its own
+     * @param then        the {@link #name()} of a skill of the same mob cast right after
+     *                    this one lands; blank for none
+     * @param windupLines sequence lines played at the mob as the wind-up starts, one per line
+     * @since 1.198.0
+     */
+    public record Cast(@NotNull String name, @NotNull Aim aim, @NotNull Duration windup,
+                       @NotNull String style, @NotNull String tint, double spread, @NotNull Gate when,
+                       @NotNull String group, @NotNull String then, @NotNull String windupLines) {
+
+        /** The longest wind-up: a telegraph, not a timer. Declared first: {@link #NONE} is built with it. */
+        public static final Duration MAX_WINDUP = Duration.ofSeconds(10);
+
+        /** Cast at once, at its type's own target, whenever its trigger and dice say. */
+        public static final Cast NONE = new Cast("", Aim.AUTO, Duration.ZERO, "", "", 0, Gate.ANY, "", "", "");
+
+        public Cast {
+            name = trimmed(name);
+            aim = aim == null ? Aim.AUTO : aim;
+            windup = windup == null || windup.isNegative() ? Duration.ZERO
+                    : windup.compareTo(MAX_WINDUP) > 0 ? MAX_WINDUP : windup;
+            style = trimmed(style);
+            tint = trimmed(tint);
+            spread = positive(spread);
+            when = when == null ? Gate.ANY : when;
+            group = trimmed(group);
+            then = trimmed(then);
+            windupLines = windupLines == null ? "" : windupLines.strip();
+        }
+
+        public @NotNull Cast withName(@NotNull String name) {
+            return new Cast(name, aim, windup, style, tint, spread, when, group, then, windupLines);
+        }
+
+        public @NotNull Cast withAim(@NotNull Aim aim) {
+            return new Cast(name, aim, windup, style, tint, spread, when, group, then, windupLines);
+        }
+
+        public @NotNull Cast withWindup(@NotNull Duration windup) {
+            return new Cast(name, aim, windup, style, tint, spread, when, group, then, windupLines);
+        }
+
+        public @NotNull Cast withSpread(double spread) {
+            return new Cast(name, aim, windup, style, tint, spread, when, group, then, windupLines);
+        }
+
+        public @NotNull Cast withWhen(@NotNull Gate when) {
+            return new Cast(name, aim, windup, style, tint, spread, when, group, then, windupLines);
+        }
+
+        public @NotNull Cast withGroup(@NotNull String group) {
+            return new Cast(name, aim, windup, style, tint, spread, when, group, then, windupLines);
+        }
+
+        public @NotNull Cast withThen(@NotNull String then) {
+            return new Cast(name, aim, windup, style, tint, spread, when, group, then, windupLines);
+        }
+
+        public @NotNull Cast withWindupLines(@NotNull String windupLines) {
+            return new Cast(name, aim, windup, style, tint, spread, when, group, then, windupLines);
+        }
     }
 }

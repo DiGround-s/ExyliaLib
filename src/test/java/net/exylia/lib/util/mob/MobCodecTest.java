@@ -203,4 +203,74 @@ class MobCodecTest {
         assertEquals(1.0, read.get(0).chance());
         assertEquals(0.0, read.get(0).threshold());
     }
+
+    @Test
+    @DisplayName("a 1.195 skill column decodes to no cast and re-encodes byte for byte")
+    void goldenLegacySkills() {
+        String stored = "[{\"trigger\":\"DAMAGED\",\"type\":\"EFFECT\",\"text\":\"[SOUND] ENTITY_LLAMA_HURT;1;1.4\"},"
+                + "{\"trigger\":\"INTERVAL\",\"type\":\"TELEPORT\",\"chance\":0.25,\"cooldown\":4.0,\"radius\":6.0,"
+                + "\"effect\":\"[PARTICLE] PORTAL;count:50\"},"
+                + "{\"trigger\":\"LOW_HEALTH\",\"type\":\"HEAL\",\"cooldown\":5.0,\"threshold\":0.4,\"amount\":20.0}]";
+
+        List<MobSkill> read = MobCodec.decodeSkills(stored, this::problem);
+
+        assertEquals(3, read.size());
+        read.forEach(skill -> assertEquals(MobSkill.Cast.NONE, skill.cast()));
+        assertEquals(stored, MobCodec.encodeSkills(read));
+        assertNull(MobCodec.encodeFight(MobFight.NONE));
+        assertEquals(MobFight.NONE, MobCodec.decodeFight(null));
+        assertTrue(problems.isEmpty(), problems.toString());
+    }
+
+    @Test
+    @DisplayName("a cast round-trips with every field, and writes only what is not a default")
+    void castRoundTrip() {
+        MobSkill.Cast cast = new MobSkill.Cast("slam", MobSkill.Aim.CONE, Duration.ofMillis(900), "slam", "{warning}",
+                75, new MobSkill.Gate(0.1, 0.8, 2, 6, 16, 2), "melee", "stomp", "[SOUND] ENTITY_RAVAGER_ROAR;1;0.7");
+        MobSkill skill = MobSkill.of(MobSkill.Type.AREA_DAMAGE, MobSkill.Trigger.INTERVAL).withCast(cast);
+
+        assertEquals(List.of(skill), MobCodec.decodeSkills(MobCodec.encodeSkills(List.of(skill)), this::problem));
+        MobSkill slam = MobSkill.of(MobSkill.Type.AREA_DAMAGE, MobSkill.Trigger.INTERVAL).withCast(MobSkill.Cast.NONE
+                .withName("slam").withAim(MobSkill.Aim.SELF).withWindup(Duration.ofMillis(900)).withGroup("melee")
+                .withWhen(MobSkill.Gate.ANY.withNearby(16).withRange(0, 6)));
+        assertEquals("[{\"trigger\":\"INTERVAL\",\"type\":\"AREA_DAMAGE\",\"cooldown\":10.0,\"radius\":4.0,"
+                + "\"amount\":4.0,\"cast\":{\"name\":\"slam\",\"aim\":\"SELF\",\"windup\":0.9,"
+                + "\"when\":{\"maxRange\":6.0,\"nearby\":16.0},\"group\":\"melee\"}}]",
+                MobCodec.encodeSkills(List.of(slam)));
+        assertTrue(problems.isEmpty(), problems.toString());
+    }
+
+    @Test
+    @DisplayName("an unknown aim is reported and read as AUTO; the rest of the cast survives")
+    void unknownAim() {
+        MobSkill skill = MobCodec.decodeSkills("[{\"trigger\":\"INTERVAL\",\"type\":\"PUSH\","
+                + "\"cast\":{\"aim\":\"SIDEWAYS\",\"windup\":1.5,\"when\":7}}]", this::problem).get(0);
+
+        assertEquals(MobSkill.Aim.AUTO, skill.cast().aim());
+        assertEquals(Duration.ofMillis(1500), skill.cast().windup());
+        assertEquals(MobSkill.Gate.ANY, skill.cast().when());
+        assertEquals(2, problems.size(), problems.toString());
+    }
+
+    @Test
+    @DisplayName("a fight round-trips, sorts its phases and drops what it cannot read")
+    void fightRoundTrip() {
+        MobFight fight = new MobFight(Duration.ofMillis(1500),
+                Map.of("tricks", Duration.ofSeconds(4), "melee", Duration.ofSeconds(6)),
+                List.of(new MobPhase(0.25, "", "&4☠", 1.5, 1.5, 2), new MobPhase(0.5, "enrage", "&c⚡", 1.3, 1.25, 1)));
+
+        String stored = MobCodec.encodeFight(fight);
+
+        assertEquals("{\"gcd\":1.5,\"groups\":{\"melee\":6.0,\"tricks\":4.0},\"phases\":["
+                + "{\"below\":0.5,\"style\":\"enrage\",\"suffix\":\"&c⚡\",\"speed\":1.3,\"damage\":1.25},"
+                + "{\"below\":0.25,\"suffix\":\"&4☠\",\"speed\":1.5,\"damage\":1.5,\"resist\":2.0}]}", stored);
+        assertEquals(fight, MobCodec.decodeFight(stored, this::problem));
+        assertTrue(problems.isEmpty(), problems.toString());
+
+        MobFight tolerant = MobCodec.decodeFight("{\"groups\":{\"a\":\"soon\",\"b\":2},"
+                + "\"phases\":[{\"suffix\":\"x\"},{\"below\":0.3}]}", this::problem);
+        assertEquals(Map.of("b", Duration.ofSeconds(2)), tolerant.groups());
+        assertEquals(1, tolerant.phases().size());
+        assertEquals(2, problems.size(), problems.toString());
+    }
 }

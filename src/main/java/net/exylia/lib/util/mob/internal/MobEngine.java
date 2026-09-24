@@ -22,6 +22,7 @@ import com.destroystokyo.paper.entity.Pathfinder;
 import net.exylia.lib.util.mob.MobBehaviour;
 import net.exylia.lib.util.mob.MobHit;
 import net.exylia.lib.util.mob.MobLook;
+import net.exylia.lib.util.mob.MobPhase;
 import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.Bukkit;
 import org.bukkit.DyeColor;
@@ -187,11 +188,14 @@ public final class MobEngine implements Listener {
 
     private volatile boolean stopped;
 
+    private final MobCaster caster;
+
     public MobEngine(@NotNull Plugin plugin) {
         this.plugin = plugin;
         this.tasks = Tasks.of(plugin);
         this.debug = Debug.of(plugin);
         this.prefix = plugin.getName() + ":";
+        this.caster = new MobCaster(this, tasks);
     }
 
     /** Registers the listeners and the prune, and clears what a previous run left. */
@@ -237,6 +241,7 @@ public final class MobEngine implements Listener {
         templates.clear();
         for (LiveMob mob : mobs) {
             mob.end();
+            caster.cancel(mob);
             LivingEntity entity = mob.entity();
             if (entity != null) remove(entity, mob.glowShown());
         }
@@ -425,7 +430,7 @@ public final class MobEngine implements Listener {
             }
             entity.addPotionEffect(potion);
         }
-        render(entity, template, template.behaviour().hits(), 0);
+        render(entity, template, template.behaviour().hits(), 0, "");
     }
 
     private static @Nullable ItemStack item(MobTemplate template, int index) {
@@ -518,8 +523,18 @@ public final class MobEngine implements Listener {
         if (after <= 0) return;
 
         fire(MobSkill.Trigger.DAMAGED, entity, mob, attacker, false);
-        lowHealth(entity, mob, after / maxHealth(entity));
+        double share = after / maxHealth(entity);
+        caster.lowHealth(entity, mob, share);
+        caster.phase(entity, mob, share);
         nameLater(entity, mob);
+    }
+
+    /** A fight phase's resistance: health mode only, since hits mode cancels every hit anyway. */
+    @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
+    public void onResist(EntityDamageEvent event) {
+        LiveMob mob = live.get(event.getEntity().getUniqueId());
+        if (mob == null || mob.usesHits() || mob.fightPhase() == 1) return;
+        event.setDamage(MobCaster.resisted(mob, event.getDamage()));
     }
 
     /**
@@ -553,7 +568,10 @@ public final class MobEngine implements Listener {
         // The breaking hit still looks and sounds like a hit; nothing else is
         // cast on a mob that is about to go.
         fire(MobSkill.Trigger.DAMAGED, entity, mob, player, broken);
-        if (!broken) lowHealth(entity, mob, left / (double) mob.maxHits());
+        if (!broken) {
+            caster.lowHealth(entity, mob, left / (double) mob.maxHits());
+            caster.phase(entity, mob, left / (double) mob.maxHits());
+        }
         MobHit hit = new MobHit(mob.template(), entity, player, left, mob.maxHits());
         for (Consumer<MobHit> handler : hits) {
             try {
@@ -578,6 +596,7 @@ public final class MobEngine implements Listener {
     private void finish(LivingEntity entity, LiveMob mob, MobDeath.Cause cause, @Nullable Player killer) {
         if (!live.remove(entity.getUniqueId(), mob)) return;
         mob.end();
+        caster.cancel(mob);
         MobTemplate template = mob.template();
         Location at = entity.getLocation();
         if (cause == MobDeath.Cause.BROKEN) {
@@ -612,6 +631,7 @@ public final class MobEngine implements Listener {
         LiveMob mob = live.remove(entity.getUniqueId());
         if (mob == null) return;
         mob.end();
+        caster.cancel(mob);
         MobTemplate template = mob.template();
         if (template.has(MobFlag.NO_VANILLA_DROPS)) event.getDrops().clear();
         // What the look put on its back is equipment, and equipment never drops.
@@ -712,78 +732,34 @@ public final class MobEngine implements Listener {
     // ----------------------------------------------------------------- skills
 
     private void fire(MobSkill.Trigger trigger, LivingEntity entity, LiveMob mob, @Nullable LivingEntity about) {
-        fire(trigger, entity, mob, about, false);
+        caster.fire(trigger, entity, mob, about, false);
     }
 
     /** @param effectsOnly cast only the EFFECT skills: the hit that breaks a mob in hits mode */
     private void fire(MobSkill.Trigger trigger, LivingEntity entity, LiveMob mob, @Nullable LivingEntity about,
                       boolean effectsOnly) {
-        List<MobSkill> skills = mob.template().skills();
-        if (skills.isEmpty()) return;
-        long now = System.currentTimeMillis();
-        LivingEntity target = null;
-        boolean looked = false;
-        for (int index = 0; index < skills.size(); index++) {
-            MobSkill skill = skills.get(index);
-            if (skill.trigger() != trigger) continue;
-            if (effectsOnly && skill.type() != MobSkill.Type.EFFECT) continue;
-            if (skill.type() == MobSkill.Type.SUMMON && mob.summoned()) continue;
-            // Looked up once per trigger and only when a skill is about to use
-            // it: the nearest-player fallback is a query on the world.
-            if (!looked) {
-                target = target(entity, about);
-                looked = true;
-            }
-            // Checked before the dice so a skill with nobody to aim at keeps
-            // its cooldown for when somebody arrives.
-            if (target == null && skill.needsTarget()) continue;
-            if (!mob.attempt(index, skill, now, ThreadLocalRandom.current().nextDouble())) continue;
-            cast(entity, mob, index, skill, target);
-        }
+        caster.fire(trigger, entity, mob, about, effectsOnly);
     }
 
-    private void lowHealth(LivingEntity entity, LiveMob mob, double fraction) {
-        List<MobSkill> skills = mob.template().skills();
-        for (int index = 0; index < skills.size(); index++) {
-            MobSkill skill = skills.get(index);
-            if (skill.trigger() != MobSkill.Trigger.LOW_HEALTH) continue;
-            if (skill.type() == MobSkill.Type.SUMMON && mob.summoned()) continue;
-            if (!mob.lowHealth(index, skill, fraction, ThreadLocalRandom.current().nextDouble())) continue;
-            LivingEntity target = target(entity, null);
-            if (target == null && skill.needsTarget()) continue;
-            cast(entity, mob, index, skill, target);
+    /** Whether the runtime still tracks this entity as this mob: a stage of a cast checks it before it acts. */
+    boolean tracks(LivingEntity entity, LiveMob mob) {
+        return live.get(entity.getUniqueId()) == mob;
+    }
+
+    /** A skill that threw: reported once per mob and skill, and it keeps being tried. */
+    void failed(LiveMob mob, int index, MobSkill skill, Throwable failure) {
+        if (reported.add("cast:" + mob.template().id() + ":" + index)) {
+            debug.error("Mob " + mob.template().id() + ": skill " + (index + 1) + " ("
+                    + skill.type() + ") failed; it keeps being tried.", failure);
         }
     }
 
     /**
-     * Casts one skill, guarded against itself.
-     *
-     * <p>A skill that hurts somebody raises a damage event, which is an attack
-     * trigger for this very mob: without the guard, an attack skill that deals
-     * area damage on a zero cooldown recurses until the stack gives out.
-     */
-    private void cast(LivingEntity entity, LiveMob mob, int index, MobSkill skill, @Nullable LivingEntity target) {
-        if (mob.casting()) return;
-        mob.casting(true);
-        try {
-            Location from = entity.getLocation();
-            if (apply(entity, mob, skill, target)) play(skill.effect(), from, entity);
-        } catch (RuntimeException | LinkageError failure) {
-            if (reported.add("cast:" + mob.template().id() + ":" + index)) {
-                debug.error("Mob " + mob.template().id() + ": skill " + (index + 1) + " ("
-                        + skill.type() + ") failed; it keeps being tried.", failure);
-            }
-        } finally {
-            mob.casting(false);
-        }
-    }
-
-    /**
-     * What each type does; {@link #fire} has already checked the target where it needs one.
+     * What each type does at its own target; the caster has already checked the target where it needs one.
      *
      * @return whether it did something, which is when its effect lines play
      */
-    private boolean apply(LivingEntity entity, LiveMob mob, MobSkill skill, @Nullable LivingEntity target) {
+    boolean apply(LivingEntity entity, LiveMob mob, MobSkill skill, @Nullable LivingEntity target) {
         Location at = entity.getLocation();
         double strength = skill.amount() > 0 ? skill.amount() : 1;
         switch (skill.type()) {
@@ -922,7 +898,7 @@ public final class MobEngine implements Listener {
     }
 
     /** From one place towards another, level with the ground; zero when they coincide. */
-    private static Vector flat(Location from, Location to) {
+    static Vector flat(Location from, Location to) {
         Vector direction = to.toVector().subtract(from.toVector()).setY(0);
         return direction.lengthSquared() < 1.0E-6 ? direction : direction.normalize();
     }
@@ -941,7 +917,7 @@ public final class MobEngine implements Listener {
         return destination;
     }
 
-    private static void move(LivingEntity entity, Location destination) {
+    static void move(LivingEntity entity, Location destination) {
         if (Platform.isFolia()) {
             entity.teleportAsync(destination);
         } else {
@@ -950,7 +926,7 @@ public final class MobEngine implements Listener {
     }
 
     /** Runs a command skill from the console, on the global thread it needs. */
-    private void command(LiveMob mob, MobSkill skill, @Nullable LivingEntity target) {
+    void command(LiveMob mob, MobSkill skill, @Nullable LivingEntity target) {
         String command = skill.text().trim();
         if (command.startsWith("/")) command = command.substring(1);
         if (command.isEmpty()) return;
@@ -969,13 +945,13 @@ public final class MobEngine implements Listener {
         return nearest(entity, NEAREST);
     }
 
-    private static boolean usable(LivingEntity from, @Nullable LivingEntity target) {
+    static boolean usable(LivingEntity from, @Nullable LivingEntity target) {
         if (target == null || target == from || !target.isValid() || target.isDead()) return false;
         if (target instanceof Player player && !huntable(player)) return false;
         return target.getWorld().equals(from.getWorld());
     }
 
-    private static boolean huntable(Player player) {
+    static boolean huntable(Player player) {
         return !player.isDead() && (player.getGameMode() == GameMode.SURVIVAL
                 || player.getGameMode() == GameMode.ADVENTURE);
     }
@@ -1049,7 +1025,7 @@ public final class MobEngine implements Listener {
     }
 
     /** Plays sequence lines, one per line, seen within the effect radius. */
-    private void play(String text, Location at, @Nullable Entity on) {
+    void play(String text, Location at, @Nullable Entity on) {
         String lines = text.trim();
         if (lines.isEmpty()) return;
         PluginSequences plugins = Sequences.of(plugin);
@@ -1090,18 +1066,24 @@ public final class MobEngine implements Listener {
 
     /** Puts a potion skill's effect on whoever it reaches. */
     void potion(LivingEntity entity, LiveMob mob, MobSkill skill, @Nullable LivingEntity target) {
-        ParsedEffect parsed = Effects.parse(skill.text());
-        PotionEffect effect = parsed == null ? null : potion(parsed);
-        if (effect == null) {
-            report("potion:" + mob.template().id() + ":" + skill.text(), "Mob " + mob.template().id()
-                    + ": " + skill.text() + " is not a potion effect line such as SLOWNESS|2|5.");
-            return;
-        }
+        PotionEffect effect = potionOf(mob, skill);
+        if (effect == null) return;
         if (skill.radius() > 0) {
             for (Player player : playersNear(entity, skill.radius())) player.addPotionEffect(effect);
         } else if (target != null) {
             target.addPotionEffect(effect);
         }
+    }
+
+    /** A potion skill's effect, or {@code null}, reported once, when its line names none. */
+    @Nullable PotionEffect potionOf(LiveMob mob, MobSkill skill) {
+        ParsedEffect parsed = Effects.parse(skill.text());
+        PotionEffect effect = parsed == null ? null : potion(parsed);
+        if (effect == null) {
+            report("potion:" + mob.template().id() + ":" + skill.text(), "Mob " + mob.template().id()
+                    + ": " + skill.text() + " is not a potion effect line such as SLOWNESS|2|5.");
+        }
+        return effect;
     }
 
     // ---------------------------------------------------------------- helpers
@@ -1115,7 +1097,8 @@ public final class MobEngine implements Listener {
     }
 
     void name(LivingEntity entity, LiveMob mob) {
-        render(entity, mob.template(), mob.hitsLeft(), mob.phase());
+        MobPhase phase = mob.template().fight().phase(mob.fightPhase());
+        render(entity, mob.template(), mob.hitsLeft(), mob.phase(), phase == null ? "" : phase.suffix());
     }
 
     /**
@@ -1123,10 +1106,12 @@ public final class MobEngine implements Listener {
      *
      * @param hitsLeft the hits it has left, read only in hits mode
      * @param phase    the fast timer's phase: a {@code <rainbow>} moves one step every other pass
+     * @param suffix   what the fight phase it is in adds to the name
      */
-    void render(LivingEntity entity, MobTemplate template, int hitsLeft, int phase) {
+    void render(LivingEntity entity, MobTemplate template, int hitsLeft, int phase, String suffix) {
         String name = template.name();
         if (name.isBlank()) return;
+        if (!suffix.isEmpty()) name = name + " " + suffix;
         if (name.contains("<rainbow>")) name = name.replace("<rainbow>", "<rainbow:" + (phase / 2 % 10) + ">");
         MobBehaviour behaviour = template.behaviour();
         entity.customName(Text.of(name)
@@ -1355,7 +1340,7 @@ public final class MobEngine implements Listener {
         return String.valueOf((long) Math.ceil(health));
     }
 
-    private static @Nullable AttributeInstance instance(LivingEntity entity, String key) {
+    static @Nullable AttributeInstance instance(LivingEntity entity, String key) {
         Attribute attribute = attribute(key);
         return attribute == null ? null : entity.getAttribute(attribute);
     }

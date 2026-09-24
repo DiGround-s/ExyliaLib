@@ -40,6 +40,11 @@ public final class LiveMob {
     private double total;
     private boolean casting;
     private volatile @Nullable TaskHandle timer;
+    /** When each rotation group may go next, by name. */
+    private final Map<String, Long> groupReadyAt = new HashMap<>();
+    private long globalReadyAt;
+    private @Nullable MobCaster.Active active;
+    private int fightPhase = 1;
 
     // Read and written on the mob's own thread only: its timer and its events.
     private @Nullable Location home;
@@ -78,7 +83,13 @@ public final class LiveMob {
             // An interval skill waits its first period: a mob that fires the
             // moment it appears reads as a spawn skill nobody wrote.
             MobSkill skill = skills.get(index);
-            if (skill.trigger() == MobSkill.Trigger.INTERVAL) readyAt[index] = now + skill.period().toMillis();
+            if (skill.grouped()) {
+                // The group waits its first period instead; the member's own cooldown starts on its first cast.
+                groupReadyAt.putIfAbsent(skill.cast().group(),
+                        now + template.fight().period(skill.cast().group()).toMillis());
+            } else if (skill.trigger() == MobSkill.Trigger.INTERVAL) {
+                readyAt[index] = now + skill.period().toMillis();
+            }
         }
     }
 
@@ -312,6 +323,94 @@ public final class LiveMob {
         if (spent[index] || fraction > skill.threshold()) return false;
         spent[index] = true;
         return roll < skill.chance();
+    }
+
+    /**
+     * The rotation groups this mob's skills take turns in, by name.
+     *
+     * @return the names, in no particular order
+     */
+    public synchronized @NotNull java.util.Set<String> groups() {
+        return java.util.Set.copyOf(groupReadyAt.keySet());
+    }
+
+    /** Whether a rotation group's period has come round. */
+    public synchronized boolean groupDue(@NotNull String group, long now) {
+        Long ready = groupReadyAt.get(group);
+        return ready != null && now >= ready;
+    }
+
+    /**
+     * Picks the one skill a rotation group casts this period.
+     *
+     * <p>Among the members that may be cast now — the caller's conditions, and
+     * each member's own cooldown here — one is picked with its {@code chance}
+     * as its weight. The period is spent only when there was somebody to pick:
+     * a group whose members are all kept out goes off as soon as one may.
+     *
+     * @param group    the group's name
+     * @param period   its period, in milliseconds
+     * @param eligible the positions of the members whose conditions hold
+     * @param now      the time, in milliseconds
+     * @param roll     a uniform draw in {@code [0, 1)}
+     * @return the position of the skill to cast, or {@code -1} for none
+     */
+    public synchronized int rotate(@NotNull String group, long period, @NotNull List<Integer> eligible,
+                                   long now, double roll) {
+        if (!groupDue(group, now)) return -1;
+        List<MobSkill> skills = template.skills();
+        double total = 0;
+        for (int index : eligible) {
+            if (now >= readyAt[index]) total += skills.get(index).chance();
+        }
+        if (total <= 0) return -1;
+        double left = roll * total;
+        int picked = -1;
+        for (int index : eligible) {
+            if (now < readyAt[index] || skills.get(index).chance() <= 0) continue;
+            picked = index;
+            left -= skills.get(index).chance();
+            if (left < 0) break;
+        }
+        groupReadyAt.put(group, now + period);
+        readyAt[picked] = now + skills.get(picked).cooldown().toMillis();
+        return picked;
+    }
+
+    /** Whether the fight's global cooldown still holds major skills back. */
+    public synchronized boolean globalCooling(long now) {
+        return now < globalReadyAt;
+    }
+
+    /** Holds major skills back until then. */
+    public synchronized void globalCooldown(long until) {
+        globalReadyAt = Math.max(globalReadyAt, until);
+    }
+
+    /** The staged cast under way, or {@code null}; the mob's own thread only. */
+    public @Nullable MobCaster.Active active() {
+        return active;
+    }
+
+    public void active(@Nullable MobCaster.Active active) {
+        this.active = active;
+    }
+
+    /** The fight phase it is in, {@code 1} at the start. */
+    public synchronized int fightPhase() {
+        return fightPhase;
+    }
+
+    /**
+     * Moves the fight on to a phase; it never goes back.
+     *
+     * @param phase the phase its health falls in now
+     * @return whether that is a phase it had not reached
+     */
+    public synchronized boolean enterPhase(int phase) {
+        if (phase <= fightPhase) return false;
+        fightPhase = phase;
+        return true;
     }
 
     // ------------------------------------------------------------------ damage
