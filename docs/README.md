@@ -34,6 +34,7 @@ against the source — rules and routes are in `AGENTS.md` under
 | [Replays](replays.md) | Recording what happened and watching it again — the server's own state, sampled every tick, played back as packet bodies on the screens that asked for it, arena and debris included | 1.175.0 |
 | [Cameras](cameras.md) | Showing a player themselves from outside — a shot solved in advance, drawn by the client, and always given back | 1.172.0 |
 | [Displays](displays.md) | Item, block and text displays that move, spin and fall by themselves — packet-only, animated by the client | 1.85.0 |
+| [VFX](vfx.md) | Effects built in Java and played as one: a timeline of displays, sounds, particles and screen shake, ground telegraphs, floating damage numbers, chained motions and flat ragdoll skins | 1.197.0 |
 | [Sequences](sequences.md) | Choreographed effects from configuration: shapes, sounds, delays — the ExyliaCommons syntax, compiled once; effects with odds, conditions and an audience since 1.57.0 | 1.30.0 |
 | [Previews](previews.md) | Showing one player an effect on a configured stage, and putting them back | 1.30.0 |
 | [Showcases](showcases.md) | Places that show a plugin's cosmetics off on a loop to whoever stands near — the places, the pacing and the cleanup shared, the turn left to the plugin | 1.188.0 |

@@ -213,6 +213,7 @@ arguments — so a migrating plugin edits no configuration files.
 | `[DISPLAY] NETHERITE_SWORD` | one display entity, since 1.85.0 — see [displays.md](displays.md) |
 | `[NPC] {victim}` | a body where it happened, since 1.88.2 — see [npcs.md](npcs.md) |
 | `[RAGDOLL] {victim}` | a body that comes apart into its own pieces, since 1.120.0 — see [ragdolls.md](ragdolls.md) |
+| `[SHAKE] radius:10;times:2;every:0.08` | tilts the camera of the observers within `radius` blocks (10), as a hit does: no damage, no sound. `times:` tilts (1), `every:` apart (0.1 s). How far it tilts is each viewer's own damage-tilt setting. Since 1.197.0; see [vfx.md](vfx.md) |
 | `[CAMERA] keys:0 close \| 2 yaw=~360` | shows the subject themselves from outside, since 1.172.0 — `who:` is `source`, `target` or `both`, never the audience; see [cameras.md](cameras.md) |
 
 ### Shapes

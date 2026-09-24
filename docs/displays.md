@@ -38,6 +38,14 @@ DisplayMotion thrown = DisplayMotion.builder()
 displays.show(blade, thrown, where, observers);
 ```
 
+Two movements with their own easing go one after the other with
+`DisplayMotion.chain(rise, fall)` (since 1.197.0). Each segment writes its
+offsets relative to the spawn point, so a segment starts where the previous one
+ended by being written that way. An effect whose shape is only known when it
+plays (a line to a target, a warning circle on the ground, a number rising out
+of a hit) is built with `Vfx`, `Telegraphs` and `Indicators`: see
+[vfx.md](vfx.md).
+
 ## The client does the animating
 
 A display is told a pose and how long it has to get there, and draws every frame
@@ -92,7 +100,7 @@ leaves a plain head rather than delaying the effect.
 | `to:x,y,z` | where it ends | `0,0,0` |
 | `rise:` | shorthand for `to:0,n,0` | |
 | `gravity:` | falls at this many blocks per second squared, on top of the line | `0`; vanilla is about `32` |
-| `ease:` | how the movement is spread over its life: `in`, `out`, `in_out` | `linear` |
+| `ease:` | how the movement is spread over its life: `in`, `out`, `in_out`; since 1.197.0 also `back` (overshoots and settles), `bounce` and `elastic` | `linear` |
 | `spin:` | turns over its whole life; `x,y,z` for a tumble on three axes at once | `0` |
 | `axis:` | which axis a single-number spin turns around: `x`, `y` or `z` | `y` |
 | `orbit:` | turns each point carries round the anchor over its life | `0` |
@@ -271,7 +279,9 @@ an effect players report as broken.
 ## Source and tests
 
 - Public: `display/` — `Displays`, `PluginDisplays`, `DisplayModel`,
-  `DisplayMotion`, `DisplayKeyframe`, `DisplayHandle`, `Rotation`.
+  `DisplayMotion`, `DisplayKeyframe`, `DisplayHandle`, `Rotation`; and the
+  timeline pieces documented in [vfx.md](vfx.md): `Vfx`, `VfxRun`,
+  `Telegraphs`, `Indicators`.
 - Internal: `display/internal/` — the driver and the one class that names
   PacketEvents.
 - In sequences: `util/sequence/internal/DisplayPaint`, `DisplayReader`, and the
@@ -279,4 +289,6 @@ an effect players report as broken.
 - Tests: `RotationTest` asserts the quaternion composition as numbers;
   `DisplayMotionTest` asserts the poses a described movement produces, including
   that a spin is cut finely enough never to run backwards; `LiveDisplayTest`
-  asserts when each pose is sent and that a display is always destroyed, once.
+  asserts when each pose is sent and that a display is always destroyed, once;
+  `DisplayMotionChainTest` asserts chained segments and the overshooting
+  curves.

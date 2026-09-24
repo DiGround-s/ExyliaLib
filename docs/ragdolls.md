@@ -12,6 +12,11 @@ ragdolls.show(
         nearby);
 ```
 
+A body that is not a player's (a mob, a dummy) wears
+`RagdollModel.of(RagdollSkin.flat(colours), headItem)`. `RagdollSkin.flat` has
+one colour per part and needs nothing fetched (since 1.197.0; see
+[vfx.md](vfx.md)).
+
 ## What it is for
 
 The moment a kill effect is actually about. A body that stands for a beat and
