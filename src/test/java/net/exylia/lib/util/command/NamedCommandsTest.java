@@ -107,4 +107,12 @@ class NamedCommandsTest {
         assertEquals("(not set)", NamedCommand.blank().displayName());
         assertFalse(NamedCommand.blank().isRunnable());
     }
+
+    @Test
+    @DisplayName("a pasted block is one command per line, blanks and slashes dropped")
+    void pastedLines() {
+        assertEquals(List.of("give %player_name% diamond 1", "say hi", "eco give %player_name% 10"),
+                NamedCommands.lines("give %player_name% diamond 1\n\n  /say hi  \r\n/ eco give %player_name% 10\n   "));
+        assertTrue(NamedCommands.lines("  \n\n").isEmpty());
+    }
 }

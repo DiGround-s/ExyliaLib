@@ -146,6 +146,52 @@ public interface EditorDescriptor<T> {
     }
 
     /**
+     * Whether a single new element is configured through {@link #edit} before
+     * it becomes a row.
+     *
+     * <p>True by default, which is what add has always meant. Return false where
+     * whatever {@link #createAll} answered with is already the finished element
+     * and {@link #edit} would only ask for it again &mdash; an item put down in a
+     * slot, where editing means putting a different one down.
+     *
+     * @return whether one new element opens its edit
+     * @since 1.196.0
+     */
+    default boolean editsNew() {
+        return true;
+    }
+
+    /**
+     * Whether this type can change every row at once.
+     *
+     * <p>When true, the editor draws an edit-all button that calls
+     * {@link #editAll}. False by default, and the button is not drawn.
+     *
+     * @return whether {@link #editAll} is implemented
+     * @since 1.196.0
+     */
+    default boolean editsAll() {
+        return false;
+    }
+
+    /**
+     * Asks for one change and applies it to every row.
+     *
+     * <p>What somebody who just imported thirty items at a hundred percent needs:
+     * one form, not thirty. The answer is the whole list, in the same order;
+     * answering with nothing leaves the list as it was.
+     *
+     * @param viewer  who is editing
+     * @param entries every row, in order; the editor's own copy
+     * @return the rows after the change, or nothing
+     * @since 1.196.0
+     */
+    default @NotNull CompletionStage<Optional<List<T>>> editAll(@NotNull Player viewer,
+                                                                @NotNull List<T> entries) {
+        return java.util.concurrent.CompletableFuture.completedFuture(Optional.empty());
+    }
+
+    /**
      * The same element again, under a new identity.
      *
      * <p>What paste means. An implementation that returns the element unchanged

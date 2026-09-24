@@ -6,6 +6,8 @@ import net.exylia.lib.input.Inputs;
 import net.exylia.lib.input.internal.InsertWindow;
 import net.exylia.lib.item.Source;
 import net.exylia.lib.text.Text;
+import net.exylia.lib.util.command.NamedCommands;
+import net.exylia.lib.input.FormField;
 import net.exylia.lib.util.editor.EditorDescriptor;
 import net.exylia.lib.util.editor.EditorForm;
 import net.kyori.adventure.text.Component;
@@ -69,6 +71,12 @@ public final class RewardDescriptor implements EditorDescriptor<RewardEntry> {
 
     /** The extra answer to "what does it give?" that adds one item reward per item put down. */
     private static final String SEVERAL_ITEMS = "SEVERAL_ITEMS";
+
+    /** The same for commands: one command reward per line typed. */
+    private static final String SEVERAL_COMMANDS = "SEVERAL_COMMANDS";
+
+    /** In the edit-all form, what a text field is written as to clear it on every row. */
+    private static final String CLEAR = "-";
 
     /** Said under the command field, where the wrong guess fails silently. */
     private static final String COMMAND_HINT = "%player_name% is the player, no leading slash";
@@ -166,17 +174,24 @@ public final class RewardDescriptor implements EditorDescriptor<RewardEntry> {
         List<String> answers = new ArrayList<>();
         for (RewardType type : RewardType.values()) {
             answers.add(type.name());
+            if (type == RewardType.COMMAND) {
+                answers.add(SEVERAL_COMMANDS);
+            }
             if (type == RewardType.ITEM) {
                 answers.add(SEVERAL_ITEMS);
             }
         }
         return Inputs.of(plugin).choice(viewer, "{primary}&lWHAT DOES IT GIVE?", answers)
-                .label(answer -> answer.equals(SEVERAL_ITEMS)
-                        ? "{primary}&lSEVERAL ITEMS"
-                        : "{primary}&l" + answer.toUpperCase(Locale.ROOT))
-                .icon(answer -> answer.equals(SEVERAL_ITEMS)
-                        ? Material.HOPPER
-                        : iconOf(RewardType.valueOf(answer)))
+                .label(answer -> switch (answer) {
+                    case SEVERAL_ITEMS -> "{primary}&lSEVERAL ITEMS";
+                    case SEVERAL_COMMANDS -> "{primary}&lSEVERAL COMMANDS";
+                    default -> "{primary}&l" + answer.toUpperCase(Locale.ROOT);
+                })
+                .icon(answer -> switch (answer) {
+                    case SEVERAL_ITEMS -> Material.HOPPER;
+                    case SEVERAL_COMMANDS -> Material.CHAIN_COMMAND_BLOCK;
+                    default -> iconOf(RewardType.valueOf(answer));
+                })
                 .key(answer -> answer)
                 .open()
                 .thenCompose(result -> {
@@ -186,6 +201,17 @@ public final class RewardDescriptor implements EditorDescriptor<RewardEntry> {
                     if (result.value().equals(SEVERAL_ITEMS)) {
                         return InsertWindow.openForItems(plugin, viewer, "{primary}&lINSERT THE ITEMS")
                                 .thenApply(items -> fromItems(viewer, items));
+                    }
+                    if (result.value().equals(SEVERAL_COMMANDS)) {
+                        return Inputs.of(plugin).text(viewer, "{primary}&lWHAT DO THEY RUN?")
+                                .lines(6)
+                                .hint(COMMAND_HINT + "; one command per line")
+                                .open()
+                                .thenApply(typed -> typed.completed()
+                                        ? NamedCommands.lines(typed.value()).stream()
+                                                .map(line -> RewardEntry.of(RewardType.COMMAND).command(line).build())
+                                                .toList()
+                                        : List.<RewardEntry>of());
                     }
                     return CompletableFuture.completedFuture(
                             List.of(RewardEntry.of(RewardType.valueOf(result.value())).build()));
@@ -212,6 +238,62 @@ public final class RewardDescriptor implements EditorDescriptor<RewardEntry> {
                     .send(viewer);
         }
         return entries;
+    }
+
+    @Override
+    public boolean editsAll() {
+        return true;
+    }
+
+    /**
+     * One form whose answers land on every reward.
+     *
+     * <p>Every field starts blank, and a blank field changes nothing: an admin
+     * rebalancing chances does not want every permission rewritten with it.
+     * A text field written as {@value #CLEAR} empties itself on every row.
+     */
+    @Override
+    public @NotNull CompletionStage<Optional<List<RewardEntry>>> editAll(@NotNull Player viewer,
+                                                                         @NotNull List<RewardEntry> entries) {
+        String clearHint = "blank keeps each one; " + CLEAR + " removes it from all";
+        return EditorForm.of(plugin, viewer, "{primary}&lEDIT ALL " + entries.size() + " REWARDS")
+                .field(CHANCE, FormField.decimal(CHANCE, "Chance out of 100").optional())
+                .hint("blank keeps each one's own")
+                .field(WEIGHT, FormField.decimal(WEIGHT, "Weight against its siblings").optional())
+                .hint("blank keeps each one's own")
+                .text(PERMISSION, "Permission needed", null)
+                .hint(clearHint)
+                .text(CONDITION, "Condition", null, 2)
+                .hint(clearHint)
+                .text(MESSAGE, "Message when it lands", null, 3)
+                .hint(clearHint)
+                .ask(values -> entries.stream().map(entry -> {
+                    RewardEntry.Builder builder = entry.toBuilder();
+                    if (values.has(CHANCE)) {
+                        builder.chance(values.getDecimal(CHANCE).doubleValue());
+                    }
+                    if (values.has(WEIGHT)) {
+                        builder.weight(values.getDecimal(WEIGHT).doubleValue());
+                    }
+                    String permission = values.getText(PERMISSION);
+                    if (!permission.isBlank()) {
+                        builder.permission(cleared(permission));
+                    }
+                    String condition = values.getText(CONDITION);
+                    if (!condition.isBlank()) {
+                        builder.condition(cleared(condition));
+                    }
+                    String message = values.getText(MESSAGE);
+                    if (!message.isBlank()) {
+                        builder.deliveryMessage(cleared(message));
+                    }
+                    return builder.build();
+                }).toList());
+    }
+
+    /** What an edit-all text answer sets: nothing when it is {@value #CLEAR}. */
+    private static String cleared(String answer) {
+        return answer.strip().equals(CLEAR) ? null : answer;
     }
 
     @Override

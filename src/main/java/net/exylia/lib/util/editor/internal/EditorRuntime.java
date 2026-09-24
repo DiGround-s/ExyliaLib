@@ -185,7 +185,7 @@ public final class EditorRuntime {
                         + viewer.getName() + '.', failure);
             }
             List<T> made = failure == null && created != null ? created : List.of();
-            if (made.size() == 1) {
+            if (made.size() == 1 && holder.descriptor().editsNew()) {
                 edit(holder, viewer, made.get(0), true);
                 return;
             }
@@ -232,6 +232,37 @@ public final class EditorRuntime {
                 // A new row nobody finished configuring is not a row. Adding it
                 // first and removing it here would be the same thing with a
                 // flicker; it is simply never added.
+                holder.page(holder.page());
+            }
+            reopen(holder);
+        });
+    }
+
+    /**
+     * Runs a descriptor's edit-all and puts every answered row in place.
+     *
+     * <p>The same guards as a single edit: a failing stage leaves the list as it
+     * was and the screen comes back.
+     */
+    static <T> void editAll(EditorHolder<T> holder, Player viewer) {
+        if (!holder.descriptor().editsAll() || holder.entries().isEmpty()) {
+            return;
+        }
+        closeForQuestion(holder, viewer);
+        java.util.concurrent.CompletionStage<Optional<List<T>>> asked;
+        try {
+            asked = holder.descriptor().editAll(viewer, List.copyOf(holder.entries()));
+        } catch (RuntimeException broken) {
+            asked = java.util.concurrent.CompletableFuture.failedFuture(broken);
+        }
+        asked.whenComplete((edited, failure) -> {
+            if (failure != null) {
+                Debug.of(holder.plugin()).error("An editor could not edit every entry for "
+                        + viewer.getName() + '.', failure);
+            } else if (edited != null && edited.isPresent()) {
+                List<T> rows = edited.get().stream().filter(Objects::nonNull).toList();
+                holder.entries().clear();
+                holder.entries().addAll(rows);
                 holder.page(holder.page());
             }
             reopen(holder);

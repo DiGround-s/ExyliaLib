@@ -193,6 +193,24 @@ public final class NamedCommands {
     }
 
     /**
+     * Every non-blank line of a pasted block, trimmed, without a leading slash.
+     *
+     * <p>Shared by every editor that adds several commands at once, so a pasted
+     * block reads the same in a reward list, a loot table and a command list.
+     *
+     * @param text what was typed or pasted
+     * @return one command per line, in order
+     * @since 1.196.0
+     */
+    public static @NotNull List<String> lines(@NotNull String text) {
+        return text.lines()
+                .map(String::strip)
+                .map(line -> line.startsWith("/") ? line.substring(1).strip() : line)
+                .filter(line -> !line.isEmpty())
+                .toList();
+    }
+
+    /**
      * Reads the plain {@code List<String>} form that came before names.
      *
      * <p>Every plugin started with one of these, and rows from that era are

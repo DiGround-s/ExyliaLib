@@ -62,6 +62,18 @@ final class ItemListEditor implements EditorDescriptor<ItemStack> {
         return InsertWindow.openForItem(plugin, viewer, "{primary}&lINSERT AN ITEM");
     }
 
+    /** Add opens the five-row window: a kit is usually put down all at once. */
+    @Override
+    public @NotNull CompletionStage<List<ItemStack>> createAll(@NotNull Player viewer) {
+        return InsertWindow.openForItems(plugin, viewer, "{primary}&lINSERT THE ITEMS");
+    }
+
+    /** The item put down is the finished row; editing would ask for it again. */
+    @Override
+    public boolean editsNew() {
+        return false;
+    }
+
     @Override
     public @NotNull ItemStack copy(@NotNull ItemStack entry) {
         return entry.clone();

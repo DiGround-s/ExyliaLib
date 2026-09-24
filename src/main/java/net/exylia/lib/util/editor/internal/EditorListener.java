@@ -107,6 +107,7 @@ public final class EditorListener implements Listener {
             case EditorHolder.SLOT_ADD -> add(holder, viewer);
             case EditorHolder.SLOT_PASTE -> paste(holder, viewer);
             case EditorHolder.SLOT_COPY_ALL -> copyAll(holder, viewer);
+            case EditorHolder.SLOT_EDIT_ALL -> EditorRuntime.editAll(holder, viewer);
             case EditorHolder.SLOT_PREVIOUS -> turn(holder, -1);
             case EditorHolder.SLOT_NEXT -> turn(holder, 1);
             case EditorHolder.SLOT_SAVE -> close(holder, viewer, true);

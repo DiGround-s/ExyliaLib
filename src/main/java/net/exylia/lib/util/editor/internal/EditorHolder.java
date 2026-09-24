@@ -63,6 +63,7 @@ public final class EditorHolder<T> implements InventoryHolder {
     static final int SLOT_PREVIOUS = 47;
     static final int SLOT_COPY_ALL = 48;
     static final int SLOT_INFO = 49;
+    static final int SLOT_EDIT_ALL = 50;
     static final int SLOT_NEXT = 51;
     static final int SLOT_SAVE = 52;
     static final int SLOT_CANCEL = 53;
@@ -451,6 +452,14 @@ public final class EditorHolder<T> implements InventoryHolder {
                             "{letters_black}▎ {letters}ready to paste somewhere else.",
                             "",
                             "{warning}➥ Click to copy")));
+        }
+
+        if (descriptor.editsAll() && !entries.isEmpty()) {
+            inventory.setItem(SLOT_EDIT_ALL, Icons.button(Material.ANVIL, "{info}&lEDIT ALL",
+                    List.of("{letters_black}▎ {letters}Change a value on every",
+                            "{letters_black}▎ {letters}entry here at once {letters_black}(" + entries.size() + ")",
+                            "",
+                            "{warning}➥ Click to edit all")));
         }
 
         if (page > 0) {

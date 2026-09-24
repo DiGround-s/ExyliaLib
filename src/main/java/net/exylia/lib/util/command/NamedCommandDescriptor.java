@@ -1,6 +1,7 @@
 package net.exylia.lib.util.command;
 
 import net.exylia.lib.input.FormKey;
+import net.exylia.lib.input.Inputs;
 import net.exylia.lib.util.editor.EditorDescriptor;
 import net.exylia.lib.util.editor.EditorForm;
 import org.bukkit.entity.Player;
@@ -56,6 +57,26 @@ final class NamedCommandDescriptor implements EditorDescriptor<NamedCommand> {
     @Override
     public @NotNull NamedCommand create() {
         return NamedCommand.blank();
+    }
+
+    /**
+     * Asks for the commands, one per line.
+     *
+     * <p>One line is one command and still opens its form, where it can be
+     * named; several become several rows at once, which is what pasting ten
+     * commands in meant.
+     */
+    @Override
+    public @NotNull CompletionStage<List<NamedCommand>> createAll(@NotNull Player viewer) {
+        return Inputs.of(plugin).text(viewer, "{primary}&lWHAT DOES IT RUN?")
+                .lines(6)
+                .hint("One command per line, without the slash")
+                .open()
+                .thenApply(result -> result.completed()
+                        ? NamedCommands.lines(result.value()).stream()
+                                .map(line -> NamedCommand.of(null, line))
+                                .toList()
+                        : List.of());
     }
 
     @Override

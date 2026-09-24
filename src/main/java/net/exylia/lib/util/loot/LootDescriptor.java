@@ -1,8 +1,11 @@
 package net.exylia.lib.util.loot;
 
+import net.exylia.lib.input.FormField;
 import net.exylia.lib.input.FormKey;
 import net.exylia.lib.input.FormValues;
 import net.exylia.lib.input.Inputs;
+import net.exylia.lib.input.internal.InsertWindow;
+import net.exylia.lib.util.command.NamedCommands;
 import net.exylia.lib.text.Text;
 import net.exylia.lib.util.editor.EditorDescriptor;
 import net.exylia.lib.util.editor.EditorForm;
@@ -133,6 +136,10 @@ public final class LootDescriptor implements EditorDescriptor<LootEntry> {
                     return switch (result.value()) {
                         case ITEM -> one(LootType.ITEM);
                         case COMMAND -> one(LootType.COMMAND);
+                        case SEVERAL_ITEMS -> InsertWindow.openForItems(plugin, viewer,
+                                        "{primary}&lINSERT THE ITEMS")
+                                .thenApply(items -> imported(plugin, viewer, items));
+                        case SEVERAL_COMMANDS -> severalCommands(viewer);
                         case CHEST -> fromChest(viewer);
                     };
                 });
@@ -169,8 +176,29 @@ public final class LootDescriptor implements EditorDescriptor<LootEntry> {
             Text.from(plugin, "{error}That block holds nothing to import.").send(viewer);
             return List.of();
         }
+        return imported(plugin, viewer, java.util.Arrays.asList(container.getInventory().getContents()));
+    }
+
+    /** One command line per line typed, at the weight a new line gets. */
+    private CompletionStage<List<LootEntry>> severalCommands(Player viewer) {
+        return Inputs.of(plugin).text(viewer, "{primary}&lWHAT DO THEY RUN?")
+                .lines(6)
+                .hint("%player_name% is the player; one command per line, no slash")
+                .open()
+                .thenApply(typed -> typed.completed()
+                        ? NamedCommands.lines(typed.value()).stream()
+                                .map(line -> LootEntry.of(LootType.COMMAND).command(line).build())
+                                .toList()
+                        : List.<LootEntry>of());
+    }
+
+    /** Every stack as a loot line, whether it came from a chest or the insert window. */
+    private static List<LootEntry> imported(Plugin plugin, Player viewer, List<ItemStack> items) {
+        if (items.isEmpty()) {
+            return List.of();
+        }
         List<LootEntry> entries = new ArrayList<>();
-        for (ItemStack item : container.getInventory().getContents()) {
+        for (ItemStack item : items) {
             if (item == null || item.getType() == Material.AIR) {
                 continue;
             }
@@ -182,6 +210,38 @@ public final class LootDescriptor implements EditorDescriptor<LootEntry> {
         Text.from(plugin, "{success}Imported {info}" + entries.size()
                 + " {success}line" + (entries.size() == 1 ? "" : "s") + ".").send(viewer);
         return entries;
+    }
+
+    @Override
+    public boolean editsAll() {
+        return true;
+    }
+
+    /**
+     * One form whose answers land on every line.
+     *
+     * <p>Blank changes nothing, so a weight can be set across the table
+     * without touching the tiers; a tier written as {@code -} is removed.
+     */
+    @Override
+    public @NotNull CompletionStage<Optional<List<LootEntry>>> editAll(@NotNull Player viewer,
+                                                                       @NotNull List<LootEntry> entries) {
+        return EditorForm.of(plugin, viewer, "{primary}&lEDIT ALL " + entries.size() + " LINES")
+                .field(WEIGHT, FormField.decimal(WEIGHT, "Weight").optional())
+                .hint("blank keeps each one's own")
+                .text(TIER, "Tier", null)
+                .hint("blank keeps each one; - removes it from all")
+                .ask(values -> entries.stream().map(entry -> {
+                    LootEntry.Builder builder = entry.toBuilder();
+                    if (values.has(WEIGHT)) {
+                        builder.weight(values.getDecimal(WEIGHT).doubleValue());
+                    }
+                    String tier = values.getText(TIER).strip();
+                    if (!tier.isEmpty()) {
+                        builder.tier(tier.equals("-") ? null : tier);
+                    }
+                    return builder.build();
+                }).toList());
     }
 
     @Override
@@ -290,6 +350,8 @@ public final class LootDescriptor implements EditorDescriptor<LootEntry> {
 
         ITEM("{primary}&lAN ITEM", LootType.ITEM.defaultIcon()),
         COMMAND("{primary}&lA COMMAND", LootType.COMMAND.defaultIcon()),
+        SEVERAL_ITEMS("{primary}&lSEVERAL ITEMS", "HOPPER"),
+        SEVERAL_COMMANDS("{primary}&lSEVERAL COMMANDS", "CHAIN_COMMAND_BLOCK"),
         CHEST("{highlight}&lEVERYTHING IN A CHEST", "CHEST");
 
         private final String label;
