@@ -166,6 +166,9 @@ number, and a line whose item they could no longer produce was a line they could
 no longer touch. Only a line that has **no** item yet — the one add just made —
 is still asked for it first.
 
+Since 1.194.0 that new line opens its form on the inserted stack: *Least* 1 and
+*Most* the stack size, as a chest import reads it.
+
 ## The written form
 
 `Loot.parseAll` reads the compact grammar every event config already holds:

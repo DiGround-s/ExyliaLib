@@ -85,6 +85,7 @@ public final class IconInput {
     private int maxLength = DEFAULT_MAX_LENGTH;
     private Duration timeout;
     private boolean whole;
+    private Consumer<? super ItemStack> inserted;
 
     IconInput(PluginInputs inputs, Player player, String prompt) {
         this.inputs = inputs;
@@ -141,6 +142,24 @@ public final class IconInput {
      */
     public @NotNull IconInput wholeItem() {
         this.whole = true;
+        return this;
+    }
+
+    /**
+     * Also hands over the inserted item itself, when that is how the answer
+     * was given.
+     *
+     * <p>The answer is a string, and a string drops what an icon never needs:
+     * how many were in the slot, and — without {@link #wholeItem()} — the name.
+     * A form that goes on to ask for those opens on what was actually put in.
+     * Called with a copy, before the answer completes, and only when it does.
+     *
+     * @param seen what to do with the item
+     * @return this
+     * @since 1.194.0
+     */
+    public @NotNull IconInput inserted(@NotNull Consumer<? super ItemStack> seen) {
+        this.inserted = Inputs.require(seen, "seen");
         return this;
     }
 
@@ -236,7 +255,13 @@ public final class IconInput {
         // the lore, which an icon drops on the way out.
         return InsertWindow.openForItem(inputs.plugin(), player, prompt)
                 .thenApply(inserted -> inserted
-                        .map(item -> stored((whole ? Source.whole(item) : Source.of(item)).raw()))
+                        .map(item -> {
+                            InputResult<String> answer = stored((whole ? Source.whole(item) : Source.of(item)).raw());
+                            if (answer.completed() && this.inserted != null) {
+                                this.inserted.accept(item.clone());
+                            }
+                            return answer;
+                        })
                         .orElseGet(() -> InputResult.ended(InputOutcome.CANCELLED)));
     }
 

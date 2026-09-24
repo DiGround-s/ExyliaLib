@@ -535,6 +535,11 @@ and the lore because whatever draws it writes its own — which is right for a
 menu row and wrong for the item a reward hands over. Raise `maxLength` with it:
 512 is what an icon column allows, and a written item is longer than that.
 
+**`inserted(item -> ...)` hands over the item itself**, since 1.194.0, when the
+answer came through the insert window. The string answer has no stack size,
+and without `wholeItem()` no name either; a form that goes on to ask for those
+opens on what was put in. Called with a copy, only when the answer completes.
+
 **`INSERT` replaced reading the player's main hand**, in 1.59.0. Holding the
 item meant closing whatever screen you were on, finding it, holding it and
 reopening — and from inside a menu it could not be done at all. A window with

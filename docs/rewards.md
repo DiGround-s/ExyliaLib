@@ -112,6 +112,14 @@ was read as an *icon*, which drops the name and lore on purpose — right for a
 menu row, wrong for the reward itself, and the reason a written sword arrived
 plain.
 
+**A new item reward opens on its item**, since 1.194.0. The form that follows
+the pick is filled from what was picked: *Display name* is the item's own name
+(written as MiniMessage, so its colours read back the same) or, without one,
+its material as words (`Blaze Rod`); *Least*/*Most amount* are the stack size
+that was put in. Before, both came up empty and 1, and a stack of sixteen was
+handed out one at a time. Re-picking the item on an existing reward changes
+only the item.
+
 `ECONOMY` carries its amount as **text**, not a `double`: a decimal that goes
 through a `double` on its way to the database does not come back the same.
 

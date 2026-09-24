@@ -5,10 +5,17 @@ import net.exylia.lib.input.FormValues;
 import net.exylia.lib.input.Inputs;
 import net.exylia.lib.util.editor.EditorDescriptor;
 import net.exylia.lib.util.editor.EditorForm;
+import net.exylia.lib.item.Source;
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.format.TextDecoration;
+import net.kyori.adventure.text.minimessage.MiniMessage;
 import org.bukkit.Material;
 import org.bukkit.entity.Player;
+import org.bukkit.inventory.ItemStack;
+import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.plugin.Plugin;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 import java.math.BigDecimal;
 import java.util.ArrayList;
@@ -18,6 +25,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
+import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * How a reward draws and edits itself on screen.
@@ -178,7 +186,7 @@ public final class RewardDescriptor implements EditorDescriptor<RewardEntry> {
     public @NotNull CompletionStage<Optional<RewardEntry>> edit(@NotNull Player viewer,
                                                                 @NotNull RewardEntry entry) {
         if (entry.type() == RewardType.ITEM && !notBlank(entry.itemSnapshot())) {
-            return pickItem(viewer, entry)
+            return pickItem(viewer, entry, true)
                     .thenCompose(picked -> picked.isPresent()
                             ? form(viewer, picked.get())
                             : CompletableFuture.completedFuture(Optional.<RewardEntry>empty()));
@@ -196,14 +204,66 @@ public final class RewardDescriptor implements EditorDescriptor<RewardEntry> {
      *
      * @return the reward carrying the picked item, or empty when nothing was picked
      */
-    private CompletionStage<Optional<RewardEntry>> pickItem(Player viewer, RewardEntry entry) {
+    private CompletionStage<Optional<RewardEntry>> pickItem(Player viewer, RewardEntry entry, boolean creating) {
+        AtomicReference<ItemStack> inserted = new AtomicReference<>();
         return Inputs.of(plugin).icon(viewer, "{primary}&lWHAT ITEM?")
                 .wholeItem()
                 .maxLength(ITEM_MAX_LENGTH)
+                .inserted(inserted::set)
                 .open()
-                .thenApply(icon -> icon.completed()
-                        ? Optional.of(entry.toBuilder().itemSnapshot(icon.value()).build())
-                        : Optional.empty());
+                .thenApply(icon -> {
+                    if (!icon.completed()) {
+                        return Optional.empty();
+                    }
+                    RewardEntry picked = entry.toBuilder().itemSnapshot(icon.value()).build();
+                    if (!creating) {
+                        return Optional.of(picked);
+                    }
+                    ItemStack item = inserted.get();
+                    return Optional.of(item == null
+                            ? prefilled(picked, null, Source.of(icon.value()).label(), 1)
+                            : prefilled(picked, customName(item),
+                                    Source.of(item.getType().name()).label(), item.getAmount()));
+                });
+    }
+
+    /**
+     * A reward just made from an item, opening on what that item is.
+     *
+     * <p>A create with a real starting value is prefilled: the name the item
+     * was given, or its material read as words, and as many as were put in.
+     * The name only labels the reward on screen; the item handed over keeps
+     * its own.
+     *
+     * @param entry      the reward carrying the item
+     * @param customName the item's own name in Exylia text, or {@code null}
+     * @param fallback   what the item reads as without one, such as {@code Blaze Rod}
+     * @param amount     how many were put in
+     * @return the reward, named and counted unless it already was named
+     */
+    static RewardEntry prefilled(RewardEntry entry, @Nullable String customName, String fallback, int amount) {
+        RewardEntry.Builder builder = entry.toBuilder().fixedAmount(Math.max(1, amount));
+        if (!notBlank(entry.name())) {
+            builder.name(notBlank(customName) ? customName : blankToNull(fallback));
+        }
+        return builder.build();
+    }
+
+    /**
+     * An item's own name, written so it reads back the same.
+     *
+     * <p>MiniMessage is what Exylia text parses underneath, so the gradient or
+     * colours the name carries survive the trip. The root's italic is dropped:
+     * it is the client's default for a renamed item, not a choice.
+     */
+    private static @Nullable String customName(ItemStack item) {
+        ItemMeta meta = item.getItemMeta();
+        if (meta == null || !meta.hasDisplayName()) {
+            return null;
+        }
+        Component name = meta.displayName();
+        return name == null ? null : MiniMessage.miniMessage()
+                .serialize(name.decoration(TextDecoration.ITALIC, TextDecoration.State.NOT_SET));
     }
 
     private CompletionStage<Optional<RewardEntry>> form(Player viewer, RewardEntry entry) {
@@ -262,7 +322,7 @@ public final class RewardDescriptor implements EditorDescriptor<RewardEntry> {
         if (entry.type() == RewardType.ITEM) {
             // The item is the icon for this type, so the flag changes the
             // reward itself rather than a picture hung in front of it.
-            return pickItem(viewer, entry).thenApply(picked -> Optional.of(picked.orElse(entry)));
+            return pickItem(viewer, entry, false).thenApply(picked -> Optional.of(picked.orElse(entry)));
         }
         return Inputs.of(plugin).icon(viewer, "{primary}&lWHAT ICON?")
                 .open()

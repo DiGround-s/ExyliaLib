@@ -216,20 +216,35 @@ public final class LootDescriptor implements EditorDescriptor<LootEntry> {
     public @NotNull CompletionStage<Optional<LootEntry>> edit(@NotNull Player viewer,
                                                               @NotNull LootEntry entry) {
         if (entry.isItem() && entry.itemSnapshot() == null) {
-            return pick(viewer, entry).thenCompose(picked -> picked.isPresent()
+            return pick(viewer, entry, true).thenCompose(picked -> picked.isPresent()
                     ? form(viewer, picked.get())
                     : CompletableFuture.completedFuture(Optional.<LootEntry>empty()));
         }
         return form(viewer, entry);
     }
 
-    /** Opens the one-slot window and puts whatever is inserted on the line. */
-    private CompletionStage<Optional<LootEntry>> pick(Player viewer, LootEntry entry) {
+    /**
+     * Opens the one-slot window and puts whatever is inserted on the line.
+     *
+     * <p>A line being created opens its form on as many as were put in, the
+     * same starting value a chest import gives.
+     */
+    private CompletionStage<Optional<LootEntry>> pick(Player viewer, LootEntry entry, boolean creating) {
+        AtomicReference<ItemStack> inserted = new AtomicReference<>();
         return Inputs.of(plugin).icon(viewer, "{primary}&lWHICH ITEM?")
+                .inserted(inserted::set)
                 .open()
-                .thenApply(icon -> icon.completed()
-                        ? Optional.of(entry.toBuilder().itemSnapshot(icon.value()).build())
-                        : Optional.<LootEntry>empty());
+                .thenApply(icon -> {
+                    if (!icon.completed()) {
+                        return Optional.<LootEntry>empty();
+                    }
+                    LootEntry.Builder picked = entry.toBuilder().itemSnapshot(icon.value());
+                    ItemStack item = inserted.get();
+                    if (creating && item != null) {
+                        picked.amountBetween(1, Math.max(1, item.getAmount()));
+                    }
+                    return Optional.of(picked.build());
+                });
     }
 
     private CompletionStage<Optional<LootEntry>> form(Player viewer, LootEntry entry) {
@@ -262,7 +277,7 @@ public final class LootDescriptor implements EditorDescriptor<LootEntry> {
                     // Backing out of the window keeps the numbers just answered:
                     // they were a separate question, and losing them would make
                     // the flag a trap.
-                    return pick(viewer, edited.entry())
+                    return pick(viewer, edited.entry(), false)
                             .thenApply(picked -> picked.or(() -> Optional.of(edited.entry())));
                 });
     }

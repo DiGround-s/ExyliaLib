@@ -115,7 +115,7 @@ call needs a running server.
 | `skills` | `List<MobSkill>` | see below |
 | `rewards` | `List<RewardEntry>` | stored, never given by the library |
 | `exp` | `int` | added to the experience it drops |
-| `money` | `double` | stored, never paid by the library |
+| `money` | `double` | stored, never paid by the library. One amount in no named currency: a consumer with several currencies keeps its own per-currency amounts beside the template and reads this as its default currency's (SurvivalCore does) |
 
 ### Flags
 
