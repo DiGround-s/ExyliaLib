@@ -49,6 +49,21 @@ final class ChoiceOptions {
         return Objects.equals(choice.defaultValue(), option) ? "{success}\u2714 " + label : label;
     }
 
+    /** Every option's description, in the order they are offered; {@code null} where there is none. */
+    static List<String> descriptions(ChoiceInput<?> choice) {
+        List<?> options = choice.choices();
+        List<String> descriptions = new ArrayList<>(options.size());
+        for (Object option : options) {
+            descriptions.add(description(choice, option));
+        }
+        return descriptions;
+    }
+
+    @SuppressWarnings("unchecked")
+    static <T> String description(ChoiceInput<?> untyped, Object option) {
+        return ((ChoiceInput<T>) untyped).descriptionOf((T) option);
+    }
+
     /**
      * The key of the option at a position, as the raw answer for it.
      *

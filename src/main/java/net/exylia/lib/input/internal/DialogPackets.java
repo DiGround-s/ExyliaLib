@@ -288,9 +288,11 @@ final class DialogPackets {
      */
     private static List<ActionButton> choiceButtons(ChoiceInput<?> choice, String stateKey) {
         List<String> labels = ChoiceOptions.labels(choice);
+        List<String> descriptions = ChoiceOptions.descriptions(choice);
         List<ActionButton> buttons = new ArrayList<>(labels.size());
         for (int index = 0; index < labels.size(); index++) {
-            buttons.add(button(labels.get(index), CHOOSE + index + "/" + stateKey));
+            buttons.add(button(labels.get(index), descriptions.get(index), CHOOSE + index + "/" + stateKey,
+                    CONTROL_WIDTH));
         }
         return buttons;
     }

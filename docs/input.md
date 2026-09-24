@@ -184,7 +184,7 @@ sends it as its own line, and a transport with nowhere to put it drops it.
 | `AmountInput` | `minimum(BigDecimal)`, `maximum(BigDecimal)` | inclusive |
 | `DurationInput` | `atLeast(Duration)`, `atMost(Duration)` | inclusive; a negative bound throws |
 | `ConfirmInput` | `confirmLabel(String)`, `denyLabel(String)`, `dangerous()` | `dangerous()` lets a transport use danger styling |
-| `ChoiceInput<T>` | `label(fn)`, `key(fn)`, `icon(fn)` | |
+| `ChoiceInput<T>` | `label(fn)`, `key(fn)`, `icon(fn)`, `description(fn)` | `description` (since 1.200.0): one short line per option, the item's lore in a menu and the button's tooltip in a dialog; `null` for none |
 | `SearchInput<T>` | `label(fn)`, `key(fn)`, `icon(fn)`, `iconItem(fn)`, `source(Pages<T>)`, `pageSize(int)`, `matcher(BiPredicate<T,String>)` | `iconItem` draws a built stack instead of a material; `source` fetches results a page at a time |
 
 `ChoiceInput` and `SearchInput` answer with **the element itself**, not a key

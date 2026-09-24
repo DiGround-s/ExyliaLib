@@ -199,7 +199,7 @@ public final class MenuTransport implements Transport {
         int end = Math.min(start + PAGE_CAPACITY, holder.options().size());
         for (int index = start; index < end; index++) {
             Option option = holder.options().get(index);
-            inventory.setItem(index - start, item(option.icon(), option.label()));
+            inventory.setItem(index - start, item(option.icon(), option.label(), option.description()));
         }
 
         if (inventory.getSize() == 54 && holder.page() > 0) {
@@ -249,7 +249,8 @@ public final class MenuTransport implements Transport {
     private static <T> List<Option> choiceOptions(ChoiceInput<T> choice) {
         List<Option> options = new ArrayList<>(choice.choices().size());
         for (T value : choice.choices()) {
-            options.add(new Option(choice.keyOf(value), ChoiceOptions.labelOf(choice, value), choice.iconOf(value)));
+            options.add(new Option(choice.keyOf(value), ChoiceOptions.labelOf(choice, value), choice.iconOf(value),
+                    choice.descriptionOf(value)));
         }
         return List.copyOf(options);
     }
@@ -281,9 +282,17 @@ public final class MenuTransport implements Transport {
     }
 
     private static ItemStack item(Material material, String label) {
+        return item(material, label, null);
+    }
+
+    private static ItemStack item(Material material, String label, @Nullable String description) {
         ItemStack item = new ItemStack(material);
         ItemMeta meta = item.getItemMeta();
         meta.displayName(Text.of(label).build());
+        if (description != null) {
+            meta.lore(List.of(Text.of(" {letters_black}▎ {letters}%text%").withFormatted("%text%", description)
+                    .build().decoration(net.kyori.adventure.text.format.TextDecoration.ITALIC, false)));
+        }
         item.setItemMeta(meta);
         return item;
     }
@@ -306,7 +315,11 @@ public final class MenuTransport implements Transport {
         return inventory.getHolder(false) instanceof MenuHolder holder ? holder : null;
     }
 
-    private record Option(String raw, String label, Material icon) {
+    private record Option(String raw, String label, Material icon, @Nullable String description) {
+
+        Option(String raw, String label, Material icon) {
+            this(raw, label, icon, null);
+        }
     }
 
     /** Holder identity is the authority; client-reported item stacks are ignored. */

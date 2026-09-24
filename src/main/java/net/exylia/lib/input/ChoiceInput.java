@@ -27,6 +27,7 @@ public class ChoiceInput<T> extends InputRequest<T, ChoiceInput<T>> {
     private Function<T, String> label = String::valueOf;
     private Function<T, String> key;
     private Function<T, Material> icon = ignored -> Material.PAPER;
+    private Function<T, String> description = ignored -> null;
     private volatile ChoiceIndex<T> index;
 
     ChoiceInput(String pluginName, Player player, String prompt, Collection<T> choices) {
@@ -63,6 +64,17 @@ public class ChoiceInput<T> extends InputRequest<T, ChoiceInput<T>> {
     /** Sets a lightweight Bukkit material icon without coupling choices to item definitions. */
     public @NotNull ChoiceInput<T> icon(@NotNull Function<T, Material> icon) {
         this.icon = Inputs.require(icon, "icon");
+        return this;
+    }
+
+    /**
+     * Sets one short line saying what each option does: the item's lore in a
+     * menu, the button's tooltip in a dialog. {@code null} for none.
+     *
+     * @since 1.200.0
+     */
+    public @NotNull ChoiceInput<T> description(@NotNull Function<T, String> description) {
+        this.description = Inputs.require(description, "description");
         return this;
     }
 
@@ -123,6 +135,13 @@ public class ChoiceInput<T> extends InputRequest<T, ChoiceInput<T>> {
             throw new InputException("choice icon must not be null");
         }
         return material;
+    }
+
+    /** Returns an option's description, or {@code null} for none. */
+    @ApiStatus.Internal
+    public final @org.jetbrains.annotations.Nullable String descriptionOf(@NotNull T choice) {
+        String text = description.apply(Inputs.require(choice, "choice"));
+        return text == null || text.isBlank() ? null : text;
     }
 
     private ChoiceIndex<T> ensureIndex() {
