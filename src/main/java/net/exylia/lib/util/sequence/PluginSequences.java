@@ -183,6 +183,41 @@ public final class PluginSequences {
     }
 
     /**
+     * Edits loose sequence lines on the line list screen: one row per line,
+     * added from the token picker and edited as a form, never typed as
+     * notation.
+     *
+     * <pre>{@code
+     * sequences.editLines(player, "{primary}&lIMPACT LINES", skill.effect())
+     *          .thenAccept(edited -> edited.ifPresent(lines -> save(skill.withEffect(lines))));
+     * }</pre>
+     *
+     * @param viewer who is editing
+     * @param title  the screen's title
+     * @param lines  the lines as they stand, one per line; blank for none
+     * @return the lines saved, one per line, blank when every row was removed;
+     *         nothing when the viewer backed out
+     * @since 1.200.0
+     */
+    public @NotNull java.util.concurrent.CompletionStage<java.util.Optional<String>> editLines(
+            @NotNull org.bukkit.entity.Player viewer, @NotNull String title, @NotNull String lines) {
+        java.util.List<SequenceLine> rows = new java.util.ArrayList<>();
+        for (String line : lines.split("\\R")) {
+            if (!line.isBlank()) rows.add(SequenceLine.of(line.strip()));
+        }
+        java.util.concurrent.CompletableFuture<java.util.Optional<String>> answer =
+                new java.util.concurrent.CompletableFuture<>();
+        net.exylia.lib.util.editor.Editors.of(plugin)
+                .list(new LineDescriptor(plugin, shapeNames()), SequenceLine.class, rows)
+                .title(title)
+                .onSave(edited -> answer.complete(java.util.Optional.of(edited.stream().map(SequenceLine::text)
+                        .filter(text -> !text.isBlank()).collect(java.util.stream.Collectors.joining("\n")))))
+                .onCancel(() -> answer.complete(java.util.Optional.empty()))
+                .open(viewer);
+        return answer;
+    }
+
+    /**
      * Plays a sequence for one player and nobody else.
      *
      * <p>What a menu preview wants: the player sees their choice, the arena

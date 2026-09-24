@@ -159,6 +159,17 @@ behind the **`WHEN IT PLAYS`** button on that screen, and the two halves are
 kept or dropped together: the lines screen's save writes both, its cancel throws
 away both.
 
+Loose lines with no gating — a mob skill's wind-up or impact lines — open the
+same lines screen on their own (since 1.200.0):
+
+```java
+sequences.editLines(player, "{primary}&lIMPACT LINES", skill.effect())
+         .thenAccept(edited -> edited.ifPresent(lines -> save(skill.withEffect(lines))));
+```
+
+It answers the lines saved, one per line (blank when every row was removed), or
+nothing when the player backed out.
+
 A token the library does not recognise — a shape a plugin registered and later
 removed, a line typed by hand — is still drawn, still editable as its own text,
 and comes back exactly as it was written. An editor that deletes what it cannot
