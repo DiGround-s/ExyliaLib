@@ -1,5 +1,6 @@
 package net.exylia.lib.display;
 
+import net.exylia.lib.util.internal.Ease;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.ArrayList;
@@ -45,18 +46,6 @@ public final class DisplayMotion {
     /** A ceiling, so a file asking for forty turns does not send forty packets a viewer. */
     private static final int MAX_POSES = 48;
 
-    /** Poses an eased movement needs before the curve reads as a curve. */
-    private static final int POSES_PER_EASE = 12;
-
-    /**
-     * How much faster an eased movement runs at its fastest than a flat one.
-     *
-     * <p>A cubic ease spends a third of its distance in its last sixth, so a
-     * spin that is comfortably cut up on a flat movement is not on an eased
-     * one. The pose count is multiplied by this rather than by guesswork.
-     */
-    private static final int EASE_PEAK = 3;
-
     /**
      * How a movement is spread across its own life.
      *
@@ -64,41 +53,96 @@ public final class DisplayMotion {
      * Everything the client does between two poses is a straight line at a
      * constant rate; this is what puts the poses where they need to be for that
      * to add up to a blow.
+     *
+     * <p>The curves are the library's own, shared with ragdolls and cameras, so
+     * {@code back} means the same overshoot wherever it is written.
      */
     public enum Easing {
 
         /** The same rate from start to finish. */
-        LINEAR,
+        LINEAR(Ease.LINEAR, 2),
 
         /** Slow, then very fast. A wind-up and a strike. */
-        IN,
+        IN(Ease.IN, 12),
 
         /** Fast, then settling. An impact coming to rest. */
-        OUT,
+        OUT(Ease.OUT, 12),
 
         /** Slow, fast, slow. A whole gesture in one line. */
-        IN_OUT;
+        IN_OUT(Ease.IN_OUT, 12),
 
-        /** Reads an easing from configuration, defaulting to {@link #LINEAR}. */
+        /**
+         * Past the target and back. A spike bursting out of the ground, a
+         * pulse that swells before it settles.
+         *
+         * @since 1.197.0
+         */
+        BACK(Ease.BACK, 16),
+
+        /**
+         * Lands, hops twice and settles. Something dropped that is solid.
+         *
+         * @since 1.197.0
+         */
+        BOUNCE(Ease.BOUNCE, 24),
+
+        /**
+         * Springs past the target a few times, each smaller. Something that
+         * snapped into place.
+         *
+         * @since 1.197.0
+         */
+        ELASTIC(Ease.ELASTIC, 24);
+
+        private final Ease curve;
+
+        /**
+         * Poses the curve needs before it reads as itself. A bounce sampled at
+         * twelve points is a wobble; it needs about six per hop.
+         */
+        private final int poses;
+
+        Easing(Ease curve, int poses) {
+            this.curve = curve;
+            this.poses = poses;
+        }
+
+        /**
+         * Reads an easing from configuration, defaulting to {@link #LINEAR}.
+         *
+         * <p>{@code back}/{@code overshoot}, {@code bounce} and
+         * {@code elastic}/{@code spring} since 1.197.0.
+         */
         public static @NotNull Easing of(@NotNull String name) {
             return switch (name.trim().toUpperCase(java.util.Locale.ROOT)) {
                 case "IN", "ACCELERATE" -> IN;
                 case "OUT", "DECELERATE" -> OUT;
                 case "IN_OUT", "BOTH" -> IN_OUT;
+                case "BACK", "OVERSHOOT" -> BACK;
+                case "BOUNCE" -> BOUNCE;
+                case "ELASTIC", "SPRING" -> ELASTIC;
                 default -> LINEAR;
             };
         }
 
-        /** Where the movement has got to, at a given fraction of its life. */
+        /**
+         * Where the movement has got to, at a given fraction of its life.
+         *
+         * <p>May leave 0..1 on the overshooting curves; that is the overshoot.
+         */
         double at(double progress) {
-            return switch (this) {
-                case IN -> progress * progress * progress;
-                case OUT -> 1 - Math.pow(1 - progress, 3);
-                case IN_OUT -> progress < 0.5
-                        ? 4 * progress * progress * progress
-                        : 1 - Math.pow(-2 * progress + 2, 3) / 2;
-                default -> progress;
-            };
+            return curve.at(progress);
+        }
+
+        /**
+         * How much faster than the average this curve runs at its fastest.
+         *
+         * <p>A spin eased this way is cut into that many more poses, so the
+         * fastest stretch still turns less than half a turn between two of
+         * them.
+         */
+        double peak() {
+            return curve.peak();
         }
     }
 
@@ -145,6 +189,59 @@ public final class DisplayMotion {
      */
     public static @NotNull DisplayMotion of(@NotNull List<DisplayKeyframe> poses, long lifeMillis) {
         return poses.isEmpty() ? still(lifeMillis) : new DisplayMotion(poses, lifeMillis);
+    }
+
+    /**
+     * Several movements played back to back, as one.
+     *
+     * <pre>{@code
+     * DisplayMotion debris = DisplayMotion.chain(
+     *         DisplayMotion.builder().life(150).to(0, 0.6, 0).ease(Easing.OUT).build(),
+     *         DisplayMotion.builder().life(300).from(0, 0.6, 0).to(0, -0.2, 0)
+     *                 .ease(Easing.IN).build());
+     * }</pre>
+     *
+     * <p>A rise and then a fall, a pop and then a drift: two curves one builder
+     * cannot say, because each has its own easing. Offsets stay what each
+     * segment wrote, relative to where the display was spawned, so a segment
+     * starts where the one before it ended by being written that way &mdash;
+     * its own first pose is taken as that end and not sent again. A segment
+     * whose poses stop before its life is up holds still for the rest of it,
+     * and the next one only starts moving once that hold is over.
+     *
+     * <p>Each segment keeps its own spin cutting, so a tumbling fall is as
+     * correct chained as alone. Loops are not carried over: the chain plays
+     * once, and {@link #looping} can be applied to the result.
+     *
+     * @param segments the movements, in order; at least one
+     * @return one motion lasting the sum of their lives
+     * @since 1.197.0
+     */
+    public static @NotNull DisplayMotion chain(@NotNull DisplayMotion @NotNull ... segments) {
+        if (segments.length == 0) {
+            throw new IllegalArgumentException("A chain needs at least one segment.");
+        }
+        List<DisplayKeyframe> joined = new ArrayList<>();
+        long offset = 0L;
+        for (int index = 0; index < segments.length; index++) {
+            List<DisplayKeyframe> own = segments[index].poses;
+            if (index > 0) {
+                DisplayKeyframe last = joined.get(joined.size() - 1);
+                if (last.atMillis() < offset) {
+                    // Held, not drifted: without a pose at the seam the client
+                    // would ease towards the next segment across the whole hold.
+                    joined.add(new DisplayKeyframe(offset, last.x(), last.y(), last.z(),
+                            last.rotation(), last.scaleX(), last.scaleY(), last.scaleZ()));
+                }
+            }
+            for (int pose = index == 0 ? 0 : 1; pose < own.size(); pose++) {
+                DisplayKeyframe frame = own.get(pose);
+                joined.add(new DisplayKeyframe(offset + frame.atMillis(), frame.x(), frame.y(),
+                        frame.z(), frame.rotation(), frame.scaleX(), frame.scaleY(), frame.scaleZ()));
+            }
+            offset += Math.max(0L, segments[index].lifeMillis);
+        }
+        return new DisplayMotion(joined, offset);
     }
 
     /** A builder for the movements configuration can describe. */
@@ -599,7 +696,7 @@ public final class DisplayMotion {
          * a curve. The most demanding of the three wins.
          */
         private int poseCount() {
-            int peak = easing == Easing.LINEAR ? 1 : EASE_PEAK;
+            double peak = easing.peak();
             int needed = 2;
             double turns = Math.abs(spinX) + Math.abs(spinY) + Math.abs(spinZ);
             if (turns != 0.0) {
@@ -611,9 +708,7 @@ public final class DisplayMotion {
             if (gravity != 0.0) {
                 needed = Math.max(needed, POSES_PER_FALL);
             }
-            if (easing != Easing.LINEAR) {
-                needed = Math.max(needed, POSES_PER_EASE);
-            }
+            needed = Math.max(needed, easing.poses);
             return Math.min(needed, MAX_POSES);
         }
     }
