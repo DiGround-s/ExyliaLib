@@ -53,6 +53,13 @@ public final class LootDescriptor implements EditorDescriptor<LootEntry> {
     private static final FormKey<BigDecimal> WEIGHT = FormKey.decimal("weight");
     private static final FormKey<String> TIER = FormKey.text("tier");
 
+    /**
+     * Room for one inserted item, name, lore and components included. The
+     * loot columns are unbounded text; this only stops a shulker full of books
+     * from landing in a table.
+     */
+    private static final int ITEM_MAX_LENGTH = 16384;
+
     private final Plugin plugin;
 
     LootDescriptor(Plugin plugin) {
@@ -288,10 +295,15 @@ public final class LootDescriptor implements EditorDescriptor<LootEntry> {
      *
      * <p>A line being created opens its form on as many as were put in, the
      * same starting value a chest import gives.
+     *
+     * <p>Whole, not as an icon: the line hands this item out, so the name and
+     * lore it was given are the loot, the same as a chest import stores them.
      */
     private CompletionStage<Optional<LootEntry>> pick(Player viewer, LootEntry entry, boolean creating) {
         AtomicReference<ItemStack> inserted = new AtomicReference<>();
         return Inputs.of(plugin).icon(viewer, "{primary}&lWHICH ITEM?")
+                .wholeItem()
+                .maxLength(ITEM_MAX_LENGTH)
                 .inserted(inserted::set)
                 .open()
                 .thenApply(icon -> {

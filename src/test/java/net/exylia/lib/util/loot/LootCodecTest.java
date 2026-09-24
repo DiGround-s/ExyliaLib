@@ -195,4 +195,21 @@ class LootCodecTest {
         assertEquals(written, read);
         assertTrue(problems.isEmpty(), problems::toString);
     }
+
+    @Test
+    @DisplayName("a whole inserted item is stored byte for byte beside a legacy material line")
+    void wholeItemBesideLegacyLine() {
+        // What the editor stores for a named, lored item: a long snapshot.
+        String whole = "bytes:" + "A".repeat(12_000) + "==";
+        String stored = LootCodec.encode(List.of(
+                LootEntry.item(whole).id("named").build(),
+                LootEntry.item("DIAMOND").id("plain").build()));
+
+        List<LootEntry> read = decode(stored);
+
+        assertEquals(whole, read.get(0).itemSnapshot());
+        assertEquals(whole, read.get(0).resolvedIcon());
+        assertEquals("DIAMOND", read.get(1).itemSnapshot());
+        assertTrue(problems.isEmpty(), problems::toString);
+    }
 }
