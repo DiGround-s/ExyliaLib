@@ -1,5 +1,6 @@
 package net.exylia.lib.util.mob.internal;
 
+import net.exylia.lib.util.mob.MobBehaviour;
 import net.exylia.lib.util.mob.MobSkill;
 import net.exylia.lib.util.mob.MobTemplate;
 import org.bukkit.entity.EntityType;
@@ -109,5 +110,70 @@ class LiveMobTest {
     @DisplayName("a mob with no timer yet counts as gone")
     void aliveNeedsTimer() {
         assertFalse(mob().alive());
+    }
+
+    private static LiveMob hitsMob(int hits, long cooldownMillis, long lifetimeMillis) {
+        return new LiveMob(MobTemplate.of("pinata", EntityType.LLAMA).withBehaviour(new MobBehaviour(hits,
+                Duration.ofMillis(cooldownMillis), Duration.ofMillis(lifetimeMillis), 0)), null, false, 0);
+    }
+
+    @Test
+    @DisplayName("hits count down, one per player per cooldown, and each counts one in the ledger")
+    void hitsCountDown() {
+        LiveMob mob = hitsMob(3, 500, 0);
+
+        assertTrue(mob.usesHits());
+        assertEquals(2, mob.hit(ALEX, 1_000));
+        assertEquals(-1, mob.hit(ALEX, 1_499), "Alex is still on his cooldown");
+        assertEquals(1, mob.hit(STEVE, 1_100), "the cooldown is per player");
+        assertEquals(0, mob.hit(ALEX, 1_500), "the last hit breaks it");
+        assertEquals(-1, mob.hit(STEVE, 5_000), "a broken mob counts nothing");
+
+        assertEquals(Map.of(ALEX, 2.0, STEVE, 1.0), mob.damage());
+        assertEquals(ALEX, mob.topDamager());
+        assertEquals(1.0, mob.playerShare());
+        assertEquals(0, mob.hitsLeft());
+        assertEquals(3, mob.maxHits());
+    }
+
+    @Test
+    @DisplayName("a mob with no hits is a health mob and counts none")
+    void healthMobCountsNoHits() {
+        LiveMob mob = mob();
+
+        assertFalse(mob.usesHits());
+        assertEquals(-1, mob.hit(ALEX, 0));
+    }
+
+    @Test
+    @DisplayName("the lifetime runs out at its length, and zero never does")
+    void lifetime() {
+        assertFalse(hitsMob(1, 0, 60_000).expired(59_999));
+        assertTrue(hitsMob(1, 0, 60_000).expired(60_000));
+        assertFalse(mob().expired(Long.MAX_VALUE / 2));
+    }
+
+    @Test
+    @DisplayName("the leash walks back past the roam and teleports eight blocks further")
+    void leash() {
+        assertEquals(LiveMob.Leash.STAY, LiveMob.leash(true, 10 * 10, 10));
+        assertEquals(LiveMob.Leash.WALK_BACK, LiveMob.leash(true, 10.1 * 10.1, 10));
+        assertEquals(LiveMob.Leash.WALK_BACK, LiveMob.leash(true, 18 * 18, 10));
+        assertEquals(LiveMob.Leash.TELEPORT_BACK, LiveMob.leash(true, 18.1 * 18.1, 10));
+        assertEquals(LiveMob.Leash.TELEPORT_BACK, LiveMob.leash(false, 0, 10), "another world");
+        assertEquals(LiveMob.Leash.STAY, LiveMob.leash(false, 1e9, 0), "no roam, no leash");
+    }
+
+    @Test
+    @DisplayName("only the latest speed boost puts the speed back")
+    void speedBoost() {
+        LiveMob mob = mob();
+        mob.baseSpeed(0.175);
+        int first = mob.boostSpeed();
+        int second = mob.boostSpeed();
+
+        assertFalse(mob.endBoost(first), "an earlier boost must not cut the later one short");
+        assertTrue(mob.endBoost(second));
+        assertEquals(0.175, mob.baseSpeed());
     }
 }

@@ -145,6 +145,9 @@ inputs.text(player, "{primary}New display name")
 correcting it rather than retyping thirty characters of colour tokens from
 memory. It was always there and simply never used.
 
+The box shows the value the way it is typed back: a `Duration` as `1m` or
+`1h 30m` (1.185.1), a `BigDecimal` plain — `100`, never `1E+2` (1.195.0).
+
 `lines` asks for a taller box. A one-line dialog field shows about twenty
 characters, which is editing a display name or a command blind. It is a hint: a
 transport with no notion of height — chat — ignores it, and a one-line box never

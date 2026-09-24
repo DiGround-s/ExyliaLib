@@ -112,6 +112,13 @@ class RandomTemplateTest {
             assertTrue(template.exp() >= 5 && template.exp() <= 60, where);
             assertTrue(template.money() >= 5 && template.money() <= 80, where);
             assertTrue(template.rewards().isEmpty(), where);
+            assertEquals(MobBehaviour.NONE, template.behaviour(), where + " never hits mode");
+            assertEquals(MobLook.NONE, template.look(), where);
+            for (MobSkill skill : template.skills()) {
+                assertFalse(List.of(MobSkill.Type.JUMP, MobSkill.Type.SIZE, MobSkill.Type.SPEED, MobSkill.Type.BABY)
+                        .contains(skill.type()), where + " rolled a type added after 1.193.0");
+                assertTrue(skill.effect().isEmpty(), where);
+            }
 
             List<String> problems = new ArrayList<>();
             assertEquals(template.skills(), MobCodec.decodeSkills(MobCodec.encodeSkills(template.skills()),
@@ -123,6 +130,21 @@ class RandomTemplateTest {
             assertTrue(problems.isEmpty(), where + " " + problems);
         }
     }
+
+    @Test
+    @DisplayName("a seed still rolls the mob it rolled when random templates shipped")
+    void stableAcrossReleases() {
+        StringBuilder all = new StringBuilder();
+        for (long seed = 0; seed < 50; seed++) {
+            MobTemplate template = roll(seed);
+            all.append(template.type()).append(template.name()).append(MobCodec.encodeSkills(template.skills()))
+                    .append(MobCodec.encodeFlags(template.flags())).append(template.exp()).append(template.money());
+        }
+        assertEquals(FINGERPRINT, all.toString().hashCode());
+    }
+
+    /** Rolled by 1.193.0; a new skill type, flag or look must never change what a seed gives. */
+    private static final int FINGERPRINT = 2057257300;
 
     @Test
     @DisplayName("the same seed gives the same mob")

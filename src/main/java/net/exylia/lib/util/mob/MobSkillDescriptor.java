@@ -49,6 +49,7 @@ final class MobSkillDescriptor implements EditorDescriptor<MobSkill> {
     private static final FormKey<BigDecimal> AMOUNT = FormKey.decimal("amount");
     private static final FormKey<Duration> DURATION = FormKey.duration("duration");
     private static final FormKey<String> TEXT = FormKey.text("text");
+    private static final FormKey<String> EFFECT = FormKey.text("effect");
 
     private final Plugin plugin;
 
@@ -76,6 +77,7 @@ final class MobSkillDescriptor implements EditorDescriptor<MobSkill> {
             lore.add(" {letters_black}▎ {letters}Cooldown {letters_black}» {info}" + time(skill.cooldown()) + " ⌚");
         }
         List<String> settings = settings(skill);
+        if (!skill.effect().isBlank()) settings.add(line("Looks like", firstLine(skill.effect())));
         if (!settings.isEmpty()) {
             lore.add("");
             lore.add("{secondary}Settings:");
@@ -116,7 +118,16 @@ final class MobSkillDescriptor implements EditorDescriptor<MobSkill> {
                 if (!skill.text().isBlank()) lines.add(line(skill.type() == MobSkill.Type.EFFECT ? "Plays" : "Runs",
                         firstLine(skill.text())));
             }
-            case TELEPORT -> { }
+            case TELEPORT -> {
+                if (skill.radius() > 0) lines.add(line("Blinks up to", number(skill.radius()) + " blocks"));
+            }
+            case JUMP -> lines.add(line("Strength", number(skill.amount())));
+            case SIZE -> lines.add(line("Scale", skill.text().isBlank() ? "{error}none" : skill.text()));
+            case SPEED -> {
+                lines.add(line("Speed", "×" + number(skill.amount())));
+                lines.add(line("For", time(skill.duration()) + " ⌚"));
+            }
+            case BABY -> lines.add(line("For", time(skill.duration()) + " ⌚"));
         }
         return lines;
     }
@@ -155,7 +166,7 @@ final class MobSkillDescriptor implements EditorDescriptor<MobSkill> {
     public @NotNull MobSkill copy(@NotNull MobSkill skill) {
         // A record: equal but its own row, and nothing in it is mutable.
         return new MobSkill(skill.trigger(), skill.type(), skill.chance(), skill.cooldown(),
-                skill.threshold(), skill.radius(), skill.amount(), skill.duration(), skill.text());
+                skill.threshold(), skill.radius(), skill.amount(), skill.duration(), skill.text(), skill.effect());
     }
 
     @Override
@@ -167,7 +178,7 @@ final class MobSkillDescriptor implements EditorDescriptor<MobSkill> {
     @Override
     public boolean isComplete(@NotNull MobSkill skill) {
         return switch (skill.type()) {
-            case POTION, SUMMON, EFFECT, COMMAND -> !skill.text().isBlank();
+            case POTION, SUMMON, EFFECT, COMMAND, SIZE -> !skill.text().isBlank();
             default -> true;
         };
     }
@@ -212,27 +223,51 @@ final class MobSkillDescriptor implements EditorDescriptor<MobSkill> {
                     .hint("One per line, such as [PARTICLE] FLAME;count:20");
             case COMMAND -> form.text(TEXT, "Command the console runs", skill.text(), 3)
                     .hint("%player% is the target, %mob% the template id. No leading slash.");
-            case TELEPORT -> { }
+            case TELEPORT -> form.decimal(RADIUS, "Radius, in blocks", decimal(skill.radius()))
+                    .hint("0 appears behind the target. Above 0 blinks to a random spot on the ground that far.");
+            case JUMP -> form.decimal(AMOUNT, "Strength", decimal(skill.amount()))
+                    .hint("Upward speed. 0.8 is a hop, 1.5 a leap.");
+            case SIZE -> form.text(TEXT, "Scale", skill.text())
+                    .hint("min|max, such as 0.7|1.8, or one number. 0.1 at least.");
+            case SPEED -> form.decimal(AMOUNT, "Speed, times its own", decimal(skill.amount()))
+                    .field(DURATION, FormField.duration(DURATION, "For").defaultValue(skill.duration()));
+            case BABY -> form.field(DURATION, FormField.duration(DURATION, "For").defaultValue(skill.duration()));
         }
+        form.field(EFFECT, PluginMobs.optionalText(EFFECT, "Effect lines", skill.effect()).lines(4))
+                .hint(skill.type() == MobSkill.Type.TELEPORT
+                        ? "Played where it leaves and where it lands. One per line. NONE for none."
+                        : "Played as it goes off. One per line, such as [SOUND] ENTITY_LLAMA_SPIT;1;1. NONE for none.");
         return form.ask(values -> rebuild(skill, values));
     }
 
     /** The answers back into a skill; a field the form did not ask keeps its value. */
-    private static MobSkill rebuild(MobSkill skill, FormValues values) {
+    static MobSkill rebuild(MobSkill skill, FormValues values) {
         MobSkill.Trigger trigger = trigger(values.getOr(WHEN, ""), skill.trigger());
         return new MobSkill(trigger, skill.type(),
-                read(values, CHANCE, skill.chance() * 100) / 100,
+                unit(read(values, CHANCE, skill.chance() * 100) / 100),
                 values.getOr(COOLDOWN, Duration.ZERO),
-                read(values, THRESHOLD, skill.threshold() * 100) / 100,
+                unit(read(values, THRESHOLD, skill.threshold() * 100) / 100),
                 read(values, RADIUS, skill.radius()),
                 read(values, AMOUNT, skill.amount()),
                 values.getOr(DURATION, skill.duration()),
-                values.has(TEXT) ? values.get(TEXT).trim() : (touchesText(skill.type()) ? "" : skill.text()));
+                values.has(TEXT) ? values.get(TEXT).trim() : (touchesText(skill.type()) ? "" : skill.text()),
+                effectLines(values.getOr(EFFECT, "")));
+    }
+
+    /** Effect lines as typed; {@code NONE} clears them, since a blank box keeps the old ones. */
+    private static String effectLines(String typed) {
+        String lines = typed.trim();
+        return lines.equalsIgnoreCase("NONE") ? "" : lines;
+    }
+
+    /** A share typed as a percent, kept within {@code 0-1} whatever was typed. */
+    private static double unit(double value) {
+        return Double.isFinite(value) ? Math.max(0, Math.min(1, value)) : 0;
     }
 
     private static boolean touchesText(MobSkill.Type type) {
         return switch (type) {
-            case POTION, SUMMON, PROJECTILE, EFFECT, COMMAND -> true;
+            case POTION, SUMMON, PROJECTILE, EFFECT, COMMAND, SIZE -> true;
             default -> false;
         };
     }
@@ -250,8 +285,13 @@ final class MobSkillDescriptor implements EditorDescriptor<MobSkill> {
         return values.has(key) ? values.get(key).doubleValue() : current;
     }
 
-    private static BigDecimal decimal(double value) {
-        return BigDecimal.valueOf(value).setScale(2, RoundingMode.HALF_UP).stripTrailingZeros();
+    /**
+     * A value as the form shows it: two decimals at most, never in scientific
+     * notation ({@code 100} stripped of its zeros is {@code 1E+2}).
+     */
+    static BigDecimal decimal(double value) {
+        BigDecimal rounded = BigDecimal.valueOf(value).setScale(2, RoundingMode.HALF_UP).stripTrailingZeros();
+        return rounded.scale() < 0 ? rounded.setScale(0) : rounded;
     }
 
     private static String when(MobSkill skill) {
@@ -301,6 +341,10 @@ final class MobSkillDescriptor implements EditorDescriptor<MobSkill> {
             case IGNITE -> Material.FLINT_AND_STEEL;
             case EFFECT -> Material.BLAZE_POWDER;
             case COMMAND -> Material.COMMAND_BLOCK;
+            case JUMP -> Material.SLIME_BALL;
+            case SIZE -> Material.PUFFERFISH;
+            case SPEED -> Material.SUGAR;
+            case BABY -> Material.EGG;
         };
     }
 

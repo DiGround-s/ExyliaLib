@@ -34,14 +34,18 @@ import java.util.Objects;
  *                  health, {@code 0} to {@code 1}, that it fires at
  * @param radius    blocks, for the types that reach everybody nearby
  * @param amount    strength, damage, speed, count or percent, depending on the type
- * @param duration  how long, for {@link Type#IGNITE}
- * @param text      an effect line, a template id, a projectile, sequence lines or
- *                  a command, depending on the type; never {@code null}
+ * @param duration  how long, for {@link Type#IGNITE}, {@link Type#SPEED} and {@link Type#BABY}
+ * @param text      an effect line, a template id, a projectile, sequence lines, a
+ *                  scale range or a command, depending on the type; never {@code null}
+ * @param effect    sequence lines, one per line, played at the mob each time the
+ *                  skill goes off, whatever its type; a {@link Type#TELEPORT} plays
+ *                  them where it leaves and where it lands. Blank for none (since 1.195.0)
  * @since 1.192.0
  */
 public record MobSkill(@NotNull Trigger trigger, @NotNull Type type, double chance,
                        @NotNull Duration cooldown, double threshold, double radius,
-                       double amount, @NotNull Duration duration, @NotNull String text) {
+                       double amount, @NotNull Duration duration, @NotNull String text,
+                       @NotNull String effect) {
 
     /** When a skill is tried. */
     public enum Trigger {
@@ -99,12 +103,43 @@ public record MobSkill(@NotNull Trigger trigger, @NotNull Type type, double chan
         PROJECTILE(true),
         /** Restores {@code amount} percent of the mob's maximum health. */
         HEAL(false),
-        /** Appears behind the target. */
+        /**
+         * Appears a step and a half behind the target; with {@code radius} above
+         * zero it needs no target and blinks instead to a random spot on the
+         * ground up to that far, never outside its {@link MobBehaviour#roam()}.
+         */
         TELEPORT(true),
         /** Deals {@code amount} damage to every player within {@code radius}. */
         AREA_DAMAGE(false),
         /** Sets the target on fire for {@code duration}. */
         IGNITE(true),
+        /**
+         * Jumps straight up, {@code amount} as the upward speed.
+         *
+         * @since 1.195.0
+         */
+        JUMP(false),
+        /**
+         * Changes its {@code scale} to a random value in the range in {@code text}:
+         * {@code 0.7|1.8}, or one number for a fixed size. {@code 0.1} at least.
+         *
+         * @since 1.195.0
+         */
+        SIZE(false),
+        /**
+         * Runs {@code amount} times as fast as it spawned for {@code duration},
+         * then goes back to that speed.
+         *
+         * @since 1.195.0
+         */
+        SPEED(false),
+        /**
+         * Turns into a baby for {@code duration}, then grows back; only an adult
+         * of a type that ages.
+         *
+         * @since 1.195.0
+         */
+        BABY(false),
         /** Plays the sequence lines in {@code text}, one per line, at the mob. */
         EFFECT(false),
         /**
@@ -144,6 +179,18 @@ public record MobSkill(@NotNull Trigger trigger, @NotNull Type type, double chan
         radius = Double.isFinite(radius) ? Math.max(0, radius) : 0;
         amount = Double.isFinite(amount) ? Math.max(0, amount) : 0;
         text = text == null ? "" : text;
+        effect = effect == null ? "" : effect;
+    }
+
+    /**
+     * A skill with no {@code effect}: the shape before 1.195.0.
+     *
+     * @since 1.192.0
+     */
+    public MobSkill(@NotNull Trigger trigger, @NotNull Type type, double chance, @NotNull Duration cooldown,
+                    double threshold, double radius, double amount, @NotNull Duration duration,
+                    @NotNull String text) {
+        this(trigger, type, chance, cooldown, threshold, radius, amount, duration, text, "");
     }
 
     /**
@@ -165,28 +212,52 @@ public record MobSkill(@NotNull Trigger trigger, @NotNull Type type, double chan
             case HEAL -> new MobSkill(trigger, type, 1, cooldown, 0.3, 0, 20, Duration.ZERO, "");
             case AREA_DAMAGE -> new MobSkill(trigger, type, 1, cooldown, 0.3, 4, 4, Duration.ZERO, "");
             case IGNITE -> new MobSkill(trigger, type, 1, cooldown, 0.3, 0, 0, Duration.ofSeconds(3), "");
+            case JUMP -> new MobSkill(trigger, type, 1, cooldown, 0.3, 0, 0.8, Duration.ZERO, "");
+            case SIZE -> new MobSkill(trigger, type, 1, cooldown, 0.3, 0, 0, Duration.ZERO, "0.7|1.8");
+            case SPEED -> new MobSkill(trigger, type, 1, cooldown, 0.3, 0, 1.5, Duration.ofSeconds(5), "");
+            case BABY -> new MobSkill(trigger, type, 1, cooldown, 0.3, 0, 0, Duration.ofSeconds(5), "");
             case TELEPORT, EFFECT, COMMAND -> new MobSkill(trigger, type, 1, cooldown, 0.3, 0, 0, Duration.ZERO, "");
         };
     }
 
     /** The same skill, tried on another trigger. */
     public @NotNull MobSkill withTrigger(@NotNull Trigger trigger) {
-        return new MobSkill(trigger, type, chance, cooldown, threshold, radius, amount, duration, text);
+        return new MobSkill(trigger, type, chance, cooldown, threshold, radius, amount, duration, text, effect);
     }
 
     /** The same skill, with other odds. */
     public @NotNull MobSkill withChance(double chance) {
-        return new MobSkill(trigger, type, chance, cooldown, threshold, radius, amount, duration, text);
+        return new MobSkill(trigger, type, chance, cooldown, threshold, radius, amount, duration, text, effect);
     }
 
     /** The same skill, with another cooldown or period. */
     public @NotNull MobSkill withCooldown(@NotNull Duration cooldown) {
-        return new MobSkill(trigger, type, chance, cooldown, threshold, radius, amount, duration, text);
+        return new MobSkill(trigger, type, chance, cooldown, threshold, radius, amount, duration, text, effect);
     }
 
     /** The same skill, with another text. */
     public @NotNull MobSkill withText(@NotNull String text) {
-        return new MobSkill(trigger, type, chance, cooldown, threshold, radius, amount, duration, text);
+        return new MobSkill(trigger, type, chance, cooldown, threshold, radius, amount, duration, text, effect);
+    }
+
+    /**
+     * The same skill, with other lines played as it goes off.
+     *
+     * @since 1.195.0
+     */
+    public @NotNull MobSkill withEffect(@NotNull String effect) {
+        return new MobSkill(trigger, type, chance, cooldown, threshold, radius, amount, duration, text, effect);
+    }
+
+    /**
+     * Whether it does nothing without somebody to aim at: its type's answer,
+     * except a POTION or TELEPORT with a radius.
+     *
+     * @since 1.195.0
+     */
+    public boolean needsTarget() {
+        if ((type == Type.POTION || type == Type.TELEPORT) && radius > 0) return false;
+        return type.needsTarget();
     }
 
     /**

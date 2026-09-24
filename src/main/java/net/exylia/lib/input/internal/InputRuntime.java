@@ -74,7 +74,9 @@ public final class InputRuntime {
      * something the request's own parser reads: {@code Duration.toString()}
      * writes {@code PT1M}, which a duration box then refuses. Milliseconds
      * below a second, because {@code TimeFormats} floors those away and a
-     * default that comes back as {@code 0s} is a value silently lost.
+     * default that comes back as {@code 0s} is a value silently lost. A
+     * {@code BigDecimal} is written plain ({@code 100}, never {@code 1E+2}),
+     * since 1.195.0.
      *
      * @param value the default, or {@code null} for an empty box
      * @return the text to prefill
@@ -89,6 +91,12 @@ public final class InputRuntime {
             return millis > 0 && millis % 1000 != 0
                     ? millis + "ms"
                     : TimeFormats.render(duration, TimeFormats.Style.FULL);
+        }
+        if (value instanceof java.math.BigDecimal decimal) {
+            // toString() goes scientific once the scale is negative: 100 with
+            // its trailing zeros stripped reads 1E+2, and a box showing that
+            // is a number the admin no longer recognises.
+            return decimal.stripTrailingZeros().toPlainString();
         }
         return String.valueOf(value);
     }

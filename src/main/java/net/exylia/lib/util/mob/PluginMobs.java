@@ -10,6 +10,7 @@ import net.exylia.lib.util.editor.ListEditor;
 import net.exylia.lib.util.mob.internal.MobEngine;
 import org.bukkit.Location;
 import org.bukkit.entity.Entity;
+import org.bukkit.entity.EntityType;
 import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
@@ -17,10 +18,12 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.math.BigDecimal;
+import java.time.Duration;
 import java.util.Collection;
 import java.util.EnumSet;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
@@ -47,15 +50,19 @@ import java.util.function.Consumer;
  * }</pre>
  *
  * <h2>Threads</h2>
- * The registry, {@link #live}, {@link #count} and {@link #onDeath} are safe
- * from any thread. {@link #spawn} is too: it moves onto the location's thread.
+ * The registry, {@link #live}, {@link #count}, the handlers, {@link #auras}
+ * and {@link #effectRadius} are safe from any thread. {@link #spawn} is too: it moves onto the location's thread.
  * {@link #templateOf} and {@link #isMob} read the entity and belong on its
- * thread. Death handlers run on the dying mob's thread, inside the death event.
+ * thread. Death and hit handlers run on the mob's thread: a death inside the
+ * death event, a break or an expiry just before the mob is removed.
  *
  * <h2>Lifecycle</h2>
  * Listeners and timers belong to the plugin. When it is disabled, its live
  * mobs are removed and its templates forgotten. Every mob runs one entity timer,
- * once a second, for its interval skills and its hunting; that is also how the
+ * once a second, for its interval skills, hunting, lifetime, leash and look
+ * cycles — every other tick instead for a mob with an aura, a {@code <rainbow>}
+ * name or {@link MobFlag#WANDERS}, which does the one-second work on every
+ * tenth pass; that is also how the
  * runtime learns a mob is gone without a Paper-only event, so {@link #live} and
  * {@link #count} can still include a mob for up to a second after it was
  * unloaded or removed by something else.
@@ -222,6 +229,105 @@ public final class PluginMobs {
         return this;
     }
 
+    /**
+     * Stops telling a death handler. A module that can be turned off and on
+     * again removes its handler as it goes off, or it is told every death twice.
+     *
+     * @param handler the same instance {@link #onDeath} was given
+     * @return whether it was listening
+     * @since 1.195.0
+     */
+    public boolean offDeath(@NotNull Consumer<MobDeath> handler) {
+        return engine.offDeath(Objects.requireNonNull(handler, "handler"));
+    }
+
+    /**
+     * Listens for counted hits on this plugin's mobs in hits mode
+     * ({@link MobBehaviour#usesHits()}), the breaking one included.
+     *
+     * <p>A handler that throws is reported and does not stop the others.
+     *
+     * @param handler told each counted hit, on the mob's thread, after its
+     *                {@code DAMAGED} skills and before the break
+     * @return this
+     * @since 1.195.0
+     */
+    public @NotNull PluginMobs onHit(@NotNull Consumer<MobHit> handler) {
+        engine.onHit(Objects.requireNonNull(handler, "handler"));
+        return this;
+    }
+
+    /**
+     * Stops telling a hit handler.
+     *
+     * @param handler the same instance {@link #onHit} was given
+     * @return whether it was listening
+     * @since 1.195.0
+     */
+    public boolean offHit(@NotNull Consumer<MobHit> handler) {
+        return engine.offHit(Objects.requireNonNull(handler, "handler"));
+    }
+
+    // ------------------------------------------------------------------- looks
+
+    /**
+     * The auras a {@link MobLook#aura()} can name, replacing the ones before.
+     *
+     * <pre>{@code
+     * mobs.auras(Map.of("sparks", List.of(
+     *         "[CIRCLE] FIREWORK;radius:1.0;points:3;y:1.4;rotate:%angle%",
+     *         "[PARTICLE] END_ROD;count:1;offset:0.5,0.6,0.5;speed:0.01;y:1.4")));
+     * }</pre>
+     *
+     * <p>Each entry is an aura's name and the sequence lines of one frame. A
+     * frame is drawn at the mob's feet every other tick; {@code %angle%}
+     * turns 20 degrees a frame (a full turn in 18 frames) and {@code %angle2%}
+     * and {@code %angle3%} run 120 and 240 degrees ahead of it, so a
+     * {@code rotate:%angle%} shape spins around the mob. The map's order counts:
+     * a look naming an aura that is not here wears the first one, and CYCLE and
+     * RANDOM pick from them all. Mobs alive keep the aura they spawned with,
+     * except a CYCLE, which reads the new set on its next second.
+     *
+     * @param auras frame lines by aura name, in order; copied
+     * @return this
+     * @since 1.195.0
+     */
+    public @NotNull PluginMobs auras(@NotNull Map<String, List<String>> auras) {
+        engine.auras(Objects.requireNonNull(auras, "auras"));
+        return this;
+    }
+
+    /**
+     * The auras registered, in order.
+     *
+     * @since 1.195.0
+     */
+    public @NotNull Map<String, List<String>> auras() {
+        return engine.auras();
+    }
+
+    /**
+     * How far away skill effect lines, effect skills and auras are seen, in
+     * blocks; {@value net.exylia.lib.util.sequence.SequenceTarget#DEFAULT_RADIUS} until set.
+     *
+     * @param blocks the radius
+     * @return this
+     * @since 1.195.0
+     */
+    public @NotNull PluginMobs effectRadius(double blocks) {
+        engine.effectRadius(blocks);
+        return this;
+    }
+
+    /**
+     * How far away effects are seen, in blocks.
+     *
+     * @since 1.195.0
+     */
+    public double effectRadius() {
+        return engine.effectRadius();
+    }
+
     // ----------------------------------------------------------------- editors
 
     /**
@@ -299,6 +405,90 @@ public final class PluginMobs {
             }
             return Set.copyOf(edited);
         });
+    }
+
+    /**
+     * One form for a {@link MobBehaviour}, prefilled: hits, hit cooldown,
+     * lifetime and roam.
+     *
+     * @param viewer    who is editing
+     * @param behaviour the behaviour as it stands
+     * @return the edited behaviour, or nothing when the viewer backed out
+     * @since 1.195.0
+     */
+    public @NotNull CompletionStage<Optional<MobBehaviour>> behaviourEditor(@NotNull Player viewer,
+                                                                            @NotNull MobBehaviour behaviour) {
+        FormKey<Long> hits = FormKey.integer("hits");
+        FormKey<Duration> cooldown = FormKey.duration("hit_cooldown");
+        FormKey<Duration> lifetime = FormKey.duration("lifetime");
+        FormKey<BigDecimal> roam = FormKey.decimal("roam");
+        EditorForm form = EditorForm.of(plugin, viewer, "{primary}&lBEHAVIOUR")
+                .integer(hits, "Hits to break it", behaviour.hits())
+                .hint("0 lets its health decide. Above 0 nothing hurts it; each player's hit counts one.")
+                .field(cooldown, FormField.duration(cooldown, "Between two hits of one player")
+                        .defaultValue(zeroAsBlank(behaviour.hitCooldown())).optional())
+                .hint("Hits mode only. 500ms, 1s. 0 for none.")
+                .field(lifetime, FormField.duration(lifetime, "Leaves after")
+                        .defaultValue(zeroAsBlank(behaviour.lifetime())).optional())
+                .hint("5m, 1h. 0 stays until it dies.")
+                .decimal(roam, "Roam, in blocks", BigDecimal.valueOf(behaviour.roam()).stripTrailingZeros())
+                .hint("0 goes anywhere. Past it, it walks back; 8 blocks further, it is put back.");
+        return form.ask(values -> new MobBehaviour(
+                (int) Math.max(0, Math.min(Integer.MAX_VALUE, values.getOr(hits, 0L))),
+                values.getOr(cooldown, Duration.ZERO),
+                values.getOr(lifetime, Duration.ZERO),
+                values.getOr(roam, BigDecimal.ZERO).doubleValue()));
+    }
+
+    /**
+     * One form for a {@link MobLook}, prefilled, with the choices of this
+     * type in each hint. A field the type cannot use (a zombie's variant, a
+     * cow's body) is not asked and keeps its value.
+     *
+     * @param viewer who is editing
+     * @param type   the template's type, which decides the variants and bodies offered
+     * @param look   the look as it stands
+     * @return the edited look, or nothing when the viewer backed out
+     * @since 1.195.0
+     */
+    public @NotNull CompletionStage<Optional<MobLook>> lookEditor(@NotNull Player viewer, @NotNull EntityType type,
+                                                                  @NotNull MobLook look) {
+        FormKey<String> variant = FormKey.text("variant");
+        FormKey<String> body = FormKey.text("body");
+        FormKey<String> glow = FormKey.text("glow");
+        FormKey<String> aura = FormKey.text("aura");
+        List<String> variants = MobLook.variants(type);
+        List<String> bodies = MobLook.bodies(type);
+        EditorForm form = EditorForm.of(plugin, viewer, "{primary}&lLOOK");
+        if (!variants.isEmpty()) {
+            form.field(variant, optionalText(variant, "Variant", look.variant())).hint(choices(variants));
+        }
+        if (!bodies.isEmpty()) {
+            form.field(body, optionalText(body, "Worn on its back", look.body())).hint(choices(bodies));
+        }
+        form.field(glow, optionalText(glow, "Outline colour", look.glow()))
+                .hint(choices(MobLook.GLOWS) + " Any value makes it glow.");
+        Collection<String> auraNames = engine.auras().keySet();
+        form.field(aura, optionalText(aura, "Aura", look.aura()))
+                .hint(auraNames.isEmpty() ? "No auras are registered. NONE for none." : choices(List.copyOf(auraNames)));
+        return form.ask(values -> new MobLook(
+                variants.isEmpty() ? look.variant() : values.getOr(variant, ""),
+                bodies.isEmpty() ? look.body() : values.getOr(body, ""),
+                values.getOr(glow, ""),
+                values.getOr(aura, "")));
+    }
+
+    /** Prefilled; blank keeps the value, so the hints say NONE clears it. */
+    static FormField<String> optionalText(FormKey<String> key, String label, String current) {
+        return FormField.text(key, label).defaultValue(current).optional();
+    }
+
+    private static String choices(List<String> names) {
+        return String.join(", ", names).toLowerCase(Locale.ROOT) + ", CYCLE or RANDOM. NONE for vanilla.";
+    }
+
+    private static @Nullable Duration zeroAsBlank(Duration duration) {
+        return duration.isZero() ? null : duration;
     }
 
     private static String readable(String key) {

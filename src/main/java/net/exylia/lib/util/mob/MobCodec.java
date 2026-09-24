@@ -37,10 +37,13 @@ import java.util.function.BiConsumer;
  * attributes  {"max_health":80.0,"attack_damage":7.0}
  * flags       ["NO_SUN_BURN","NO_VANILLA_DROPS"]
  * effects     ["SPEED|2|infinite","FIRE_RESISTANCE|1|infinite"]
+ * behaviour   {"hits":40,"hitCooldown":0.5,"lifetime":300.0,"roam":12.0}
+ * look        {"variant":"CREAMY","body":"CYCLE","glow":"RANDOM","aura":"confetti"}
  * }</pre>
  *
- * <p>A skill field that holds its default is not written, times are seconds,
- * and an empty part is stored as {@code null}, not as {@code []}.
+ * <p>A field that holds its default is not written, times are seconds, and an
+ * empty part is stored as {@code null}, not as {@code []}. A chance or
+ * threshold out of {@code 0-1} reads clamped into it.
  *
  * <h2>Reading is tolerant</h2>
  * An unknown trigger, type or flag, an attribute that is not a number and an
@@ -61,6 +64,15 @@ public final class MobCodec {
     private static final String AMOUNT = "amount";
     private static final String DURATION = "duration";
     private static final String TEXT = "text";
+    private static final String EFFECT = "effect";
+    private static final String HITS = "hits";
+    private static final String HIT_COOLDOWN = "hitCooldown";
+    private static final String LIFETIME = "lifetime";
+    private static final String ROAM = "roam";
+    private static final String VARIANT = "variant";
+    private static final String BODY = "body";
+    private static final String GLOW = "glow";
+    private static final String AURA = "aura";
 
     private static final double DEFAULT_CHANCE = 1;
     private static final double DEFAULT_THRESHOLD = 0.3;
@@ -94,6 +106,7 @@ public final class MobCodec {
             if (skill.amount() != 0) json.addProperty(AMOUNT, skill.amount());
             if (!skill.duration().isZero()) json.addProperty(DURATION, seconds(skill.duration()));
             if (!skill.text().isEmpty()) json.addProperty(TEXT, skill.text());
+            if (!skill.effect().isEmpty()) json.addProperty(EFFECT, skill.effect());
             array.add(json);
         }
         return array.toString();
@@ -136,9 +149,94 @@ public final class MobCodec {
                     number(json, RADIUS, 0),
                     number(json, AMOUNT, 0),
                     duration(number(json, DURATION, 0)),
-                    string(json, TEXT)));
+                    string(json, TEXT),
+                    string(json, EFFECT)));
         }
         return List.copyOf(skills);
+    }
+
+    // --------------------------------------------------------------- behaviour
+
+    /**
+     * Writes a behaviour.
+     *
+     * @param behaviour the behaviour
+     * @return the JSON object, or {@code null} for {@link MobBehaviour#NONE}
+     * @since 1.195.0
+     */
+    public static @Nullable String encodeBehaviour(@NotNull MobBehaviour behaviour) {
+        if (behaviour.equals(MobBehaviour.NONE)) return null;
+        JsonObject json = new JsonObject();
+        if (behaviour.hits() != 0) json.addProperty(HITS, behaviour.hits());
+        if (!behaviour.hitCooldown().isZero()) json.addProperty(HIT_COOLDOWN, seconds(behaviour.hitCooldown()));
+        if (!behaviour.lifetime().isZero()) json.addProperty(LIFETIME, seconds(behaviour.lifetime()));
+        if (behaviour.roam() != 0) json.addProperty(ROAM, behaviour.roam());
+        return json.toString();
+    }
+
+    /** Reads a stored behaviour, ignoring what it cannot understand. @since 1.195.0 */
+    public static @NotNull MobBehaviour decodeBehaviour(@Nullable String stored) {
+        return decodeBehaviour(stored, SILENT);
+    }
+
+    /**
+     * Reads a stored behaviour, reporting what it had to skip. A field that is
+     * missing or not a number keeps its default.
+     *
+     * @param stored   the column value, possibly {@code null}
+     * @param problems told where the trouble was and what it was
+     * @return the behaviour, {@link MobBehaviour#NONE} for nothing readable
+     * @since 1.195.0
+     */
+    public static @NotNull MobBehaviour decodeBehaviour(@Nullable String stored,
+                                                        @NotNull BiConsumer<String, String> problems) {
+        JsonObject json = object(stored, "behaviour", problems);
+        if (json == null) return MobBehaviour.NONE;
+        double hits = number(json, HITS, 0);
+        return new MobBehaviour((int) Math.min(Integer.MAX_VALUE, Math.max(0, hits)),
+                duration(number(json, HIT_COOLDOWN, 0)),
+                duration(number(json, LIFETIME, 0)),
+                number(json, ROAM, 0));
+    }
+
+    // -------------------------------------------------------------------- look
+
+    /**
+     * Writes a look.
+     *
+     * @param look the look
+     * @return the JSON object, or {@code null} for {@link MobLook#NONE}
+     * @since 1.195.0
+     */
+    public static @Nullable String encodeLook(@NotNull MobLook look) {
+        if (look.equals(MobLook.NONE)) return null;
+        JsonObject json = new JsonObject();
+        if (!look.variant().isEmpty()) json.addProperty(VARIANT, look.variant());
+        if (!look.body().isEmpty()) json.addProperty(BODY, look.body());
+        if (!look.glow().isEmpty()) json.addProperty(GLOW, look.glow());
+        if (!look.aura().isEmpty()) json.addProperty(AURA, look.aura());
+        return json.toString();
+    }
+
+    /** Reads a stored look, ignoring what it cannot understand. @since 1.195.0 */
+    public static @NotNull MobLook decodeLook(@Nullable String stored) {
+        return decodeLook(stored, SILENT);
+    }
+
+    /**
+     * Reads a stored look, reporting what it had to skip. The names are not
+     * checked here: a variant or aura the server does not know is the engine's
+     * to report as the mob spawns.
+     *
+     * @param stored   the column value, possibly {@code null}
+     * @param problems told where the trouble was and what it was
+     * @return the look, {@link MobLook#NONE} for nothing readable
+     * @since 1.195.0
+     */
+    public static @NotNull MobLook decodeLook(@Nullable String stored, @NotNull BiConsumer<String, String> problems) {
+        JsonObject json = object(stored, "look", problems);
+        if (json == null) return MobLook.NONE;
+        return new MobLook(string(json, VARIANT), string(json, BODY), string(json, GLOW), string(json, AURA));
     }
 
     // -------------------------------------------------------------- attributes
@@ -309,6 +407,18 @@ public final class MobCodec {
             return new JsonArray();
         }
         return root.getAsJsonArray();
+    }
+
+    private static @Nullable JsonObject object(@Nullable String stored, String where,
+                                               BiConsumer<String, String> problems) {
+        if (stored == null || stored.isBlank()) return null;
+        JsonElement root = parse(stored, where, problems);
+        if (root == null) return null;
+        if (!root.isJsonObject()) {
+            problems.accept(where, "expected an object");
+            return null;
+        }
+        return root.getAsJsonObject();
     }
 
     private static @Nullable JsonElement parse(String stored, String where, BiConsumer<String, String> problems) {

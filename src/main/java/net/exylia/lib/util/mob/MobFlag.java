@@ -35,7 +35,28 @@ public enum MobFlag {
      * is neutral. A type with no attack of its own — a cow, a villager — follows
      * but cannot hurt anybody.
      */
-    AGGRESSIVE("Hunts the nearest player");
+    AGGRESSIVE("Hunts the nearest player"),
+    /**
+     * Always on the move: whenever it has no target and no path, it runs to a
+     * random spot within its {@link MobBehaviour#roam()}, or ten blocks when it
+     * has none. Checked every other tick.
+     *
+     * @since 1.195.0
+     */
+    WANDERS("Always runs around"),
+    /**
+     * Nobody rides, leashes, feeds, breeds, opens or right-clicks it.
+     *
+     * @since 1.195.0
+     */
+    NO_INTERACT("Cannot be ridden, leashed, fed or opened"),
+    /**
+     * Never targets anything, so it never attacks or spits. Wins over
+     * {@link #AGGRESSIVE}. Its skills still aim at the nearest player.
+     *
+     * @since 1.195.0
+     */
+    PASSIVE("Never targets anything");
 
     private final String description;
 

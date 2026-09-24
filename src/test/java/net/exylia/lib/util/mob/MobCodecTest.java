@@ -12,6 +12,7 @@ import java.util.Map;
 import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -135,5 +136,71 @@ class MobCodecTest {
         assertTrue(MobCodec.decodeSkills("{oops", this::problem).isEmpty());
         assertTrue(MobCodec.decodeFlags("{\"a\":1}", this::problem).isEmpty());
         assertEquals(2, problems.size());
+    }
+
+    @Test
+    @DisplayName("a behaviour round-trips, writes only what is not a default, and none is null")
+    void behaviourRoundTrip() {
+        MobBehaviour behaviour = new MobBehaviour(40, Duration.ofMillis(500), Duration.ofMinutes(5), 12.5);
+
+        assertEquals(behaviour, MobCodec.decodeBehaviour(MobCodec.encodeBehaviour(behaviour), this::problem));
+        assertEquals("{\"hits\":40,\"hitCooldown\":0.5,\"lifetime\":300.0,\"roam\":12.5}",
+                MobCodec.encodeBehaviour(behaviour));
+        assertEquals("{\"roam\":3.0}", MobCodec.encodeBehaviour(MobBehaviour.NONE.withRoam(3)));
+        assertEquals("{\"hits\":5}", MobCodec.encodeBehaviour(MobBehaviour.NONE.withHits(5)));
+        assertNull(MobCodec.encodeBehaviour(MobBehaviour.NONE));
+        assertEquals(MobBehaviour.NONE, MobCodec.decodeBehaviour(null));
+        assertTrue(problems.isEmpty(), problems.toString());
+    }
+
+    @Test
+    @DisplayName("a behaviour it cannot read costs the field, never the template")
+    void behaviourTolerant() {
+        assertEquals(MobBehaviour.NONE.withHits(5),
+                MobCodec.decodeBehaviour("{\"hits\":5,\"roam\":\"far\",\"lifetime\":-3,\"wings\":true}", this::problem));
+        assertEquals(MobBehaviour.NONE, MobCodec.decodeBehaviour("[1,2]", this::problem));
+        assertEquals(MobBehaviour.NONE, MobCodec.decodeBehaviour("{broken", this::problem));
+        assertEquals(2, problems.size(), problems.toString());
+    }
+
+    @Test
+    @DisplayName("a look round-trips, blanks are not written, and keywords read in any case")
+    void lookRoundTrip() {
+        MobLook look = new MobLook("CREAMY", MobLook.CYCLE, "light_purple", "confetti");
+
+        assertEquals(look, MobCodec.decodeLook(MobCodec.encodeLook(look), this::problem));
+        assertEquals("{\"body\":\"CYCLE\",\"aura\":\"confetti\"}",
+                MobCodec.encodeLook(new MobLook("", "cycle", " ", "confetti")));
+        assertNull(MobCodec.encodeLook(MobLook.NONE));
+        assertEquals(MobLook.NONE.withGlow(MobLook.RANDOM),
+                MobCodec.decodeLook("{\"glow\":\"random\",\"sparkle\":1}", this::problem));
+        assertEquals(MobLook.NONE, MobCodec.decodeLook("\"text\"", this::problem));
+        assertEquals(1, problems.size(), problems.toString());
+    }
+
+    @Test
+    @DisplayName("a skill stored before effects existed still reads, and effects round-trip")
+    void skillEffect() {
+        List<MobSkill> old = MobCodec.decodeSkills(
+                "[{\"trigger\":\"DAMAGED\",\"type\":\"PUSH\",\"radius\":3.0,\"amount\":1.2}]", this::problem);
+        assertEquals(1, old.size());
+        assertEquals("", old.get(0).effect());
+
+        MobSkill blink = new MobSkill(MobSkill.Trigger.INTERVAL, MobSkill.Type.TELEPORT, 0.25, Duration.ofSeconds(4),
+                0.3, 6, 0, Duration.ZERO, "", "[SOUND] ENTITY_ENDERMAN_TELEPORT;1;1.2\n[PARTICLE] PORTAL;count:50");
+        String stored = MobCodec.encodeSkills(List.of(blink));
+        assertTrue(stored.contains("\"effect\":"), stored);
+        assertEquals(List.of(blink), MobCodec.decodeSkills(stored, this::problem));
+        assertTrue(problems.isEmpty(), problems.toString());
+    }
+
+    @Test
+    @DisplayName("a chance saved out of range by the old percent form reads back clamped")
+    void chanceClamped() {
+        List<MobSkill> read = MobCodec.decodeSkills(
+                "[{\"trigger\":\"DAMAGED\",\"type\":\"JUMP\",\"chance\":1000000.0,\"threshold\":-2}]");
+
+        assertEquals(1.0, read.get(0).chance());
+        assertEquals(0.0, read.get(0).threshold());
     }
 }

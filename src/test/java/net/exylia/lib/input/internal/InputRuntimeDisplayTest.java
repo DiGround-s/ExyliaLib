@@ -46,6 +46,15 @@ class InputRuntimeDisplayTest {
     }
 
     @Test
+    @DisplayName("A decimal is written plain, never in scientific notation")
+    void showsDecimalsPlain() {
+        assertEquals("100", InputRuntime.display(new java.math.BigDecimal("100.00").stripTrailingZeros()));
+        assertEquals("100", InputRuntime.display(new java.math.BigDecimal("1E+2")));
+        assertEquals("0.5", InputRuntime.display(new java.math.BigDecimal("0.50")));
+        assertEquals("0", InputRuntime.display(java.math.BigDecimal.ZERO.setScale(2)));
+    }
+
+    @Test
     @DisplayName("Everything else is written as it always was")
     void leavesOtherValuesAlone() {
         assertEquals("", InputRuntime.display(null));

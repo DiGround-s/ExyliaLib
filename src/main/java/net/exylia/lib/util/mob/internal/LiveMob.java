@@ -3,6 +3,7 @@ package net.exylia.lib.util.mob.internal;
 import net.exylia.lib.task.TaskHandle;
 import net.exylia.lib.util.mob.MobSkill;
 import net.exylia.lib.util.mob.MobTemplate;
+import org.bukkit.Location;
 import org.bukkit.entity.LivingEntity;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -14,7 +15,8 @@ import java.util.Map;
 import java.util.UUID;
 
 /**
- * One custom mob while it is alive: its skills' clocks and who hurt it.
+ * One custom mob while it is alive: its skills' clocks, who hurt it, its hits,
+ * its home and what it currently looks like.
  *
  * <p>Touched from the mob's own thread — its events and its timer — so the
  * locking is for Folia moving it between regions, never for contention.
@@ -30,9 +32,31 @@ public final class LiveMob {
     private final boolean[] spent;
     private final Map<UUID, Double> byPlayer = new HashMap<>();
     private final List<UUID> minions = new ArrayList<>();
+    private final long spawnedAt;
+    private final int maxHits;
+    /** When each player's last counted hit landed; bounded by who hit this one mob. */
+    private final Map<UUID, Long> lastHit = new HashMap<>();
+    private int hitsLeft;
     private double total;
     private boolean casting;
     private volatile @Nullable TaskHandle timer;
+
+    // Read and written on the mob's own thread only: its timer and its events.
+    private @Nullable Location home;
+    private double baseSpeed = Double.NaN;
+    private int speedBoost;
+    private int phase;
+    private int seconds;
+    private @Nullable String[] aura;
+    private volatile @Nullable String glowShown;
+    private @NotNull String variant = "";
+    private @NotNull String body = "";
+
+    /** What a leash asks of a mob, from how far it strayed. */
+    public enum Leash { STAY, WALK_BACK, TELEPORT_BACK }
+
+    /** Beyond the roam, how far a mob may be before it is teleported rather than walked back. */
+    public static final double LEASH_SLACK = 8;
 
     /**
      * @param template what it was spawned from
@@ -44,6 +68,9 @@ public final class LiveMob {
         this.template = template;
         this.entity = entity;
         this.summoned = summoned;
+        this.spawnedAt = now;
+        this.maxHits = template.behaviour().hits();
+        this.hitsLeft = maxHits;
         List<MobSkill> skills = template.skills();
         this.readyAt = new long[skills.size()];
         this.spent = new boolean[skills.size()];
@@ -81,6 +108,155 @@ public final class LiveMob {
     public void end() {
         TaskHandle handle = timer;
         if (handle != null) handle.cancel();
+    }
+
+    // --------------------------------------------------------------- behaviour
+
+    /** Whether hits break it rather than health. */
+    public boolean usesHits() {
+        return maxHits > 0;
+    }
+
+    public int maxHits() {
+        return maxHits;
+    }
+
+    public synchronized int hitsLeft() {
+        return hitsLeft;
+    }
+
+    /**
+     * Counts a player's hit in hits mode.
+     *
+     * <p>One per player per {@link net.exylia.lib.util.mob.MobBehaviour#hitCooldown()},
+     * and each counted hit is one point in the damage ledger, so the top damager
+     * is whoever hit most.
+     *
+     * @param player who hit it
+     * @param now    the time, in milliseconds
+     * @return the hits left after this one, or {@code -1} when it was not counted:
+     *         the player's cooldown, a mob already broken, or one not in hits mode
+     */
+    public synchronized int hit(@NotNull UUID player, long now) {
+        if (hitsLeft <= 0) return -1;
+        Long last = lastHit.get(player);
+        if (last != null && now - last < template.behaviour().hitCooldown().toMillis()) return -1;
+        lastHit.put(player, now);
+        hurt(player, 1);
+        return --hitsLeft;
+    }
+
+    /** Whether its lifetime has run out. */
+    public boolean expired(long now) {
+        long lifetime = template.behaviour().lifetime().toMillis();
+        return lifetime > 0 && now - spawnedAt >= lifetime;
+    }
+
+    /**
+     * What the leash asks of a mob.
+     *
+     * @param sameWorld       whether it is in the world it spawned in
+     * @param distanceSquared how far it is from where it spawned, squared
+     * @param roam            how far it may go; {@code 0} for no leash
+     * @return what to do
+     */
+    public static @NotNull Leash leash(boolean sameWorld, double distanceSquared, double roam) {
+        if (roam <= 0) return Leash.STAY;
+        double far = roam + LEASH_SLACK;
+        if (!sameWorld || distanceSquared > far * far) return Leash.TELEPORT_BACK;
+        return distanceSquared > roam * roam ? Leash.WALK_BACK : Leash.STAY;
+    }
+
+    public @Nullable Location home() {
+        return home;
+    }
+
+    public void home(@NotNull Location home) {
+        this.home = home;
+    }
+
+    /** Its movement speed as it spawned; {@code NaN} when its type has none. */
+    public double baseSpeed() {
+        return baseSpeed;
+    }
+
+    public void baseSpeed(double baseSpeed) {
+        this.baseSpeed = baseSpeed;
+    }
+
+    /**
+     * Starts a speed boost.
+     *
+     * @return the boost's token, which {@link #endBoost} needs to put the speed back
+     */
+    public int boostSpeed() {
+        return ++speedBoost;
+    }
+
+    /**
+     * Whether a boost ending may put the speed back: only the latest one, so an
+     * earlier boost running out does not cut a later one short.
+     *
+     * @param token what {@link #boostSpeed} answered
+     * @return whether to restore {@link #baseSpeed}
+     */
+    public boolean endBoost(int token) {
+        return token == speedBoost;
+    }
+
+    // -------------------------------------------------------------------- look
+
+    /** One step of the fast timer; the new phase. */
+    public int step() {
+        return ++phase;
+    }
+
+    public int phase() {
+        return phase;
+    }
+
+    /** One step of the one-second work; the seconds it has lived. */
+    public int second() {
+        return ++seconds;
+    }
+
+    /** How many one-second passes it has had: what a CYCLE look counts by. */
+    public int secondsLived() {
+        return seconds;
+    }
+
+    /** The aura it wears, one text per frame, or {@code null} for none. */
+    public @Nullable String[] aura() {
+        return aura;
+    }
+
+    public void aura(@Nullable String[] aura) {
+        this.aura = aura;
+    }
+
+    /** The outline colour it is in a team for, or {@code null}. */
+    public @Nullable String glowShown() {
+        return glowShown;
+    }
+
+    public void glowShown(@Nullable String glowShown) {
+        this.glowShown = glowShown;
+    }
+
+    public @NotNull String variantShown() {
+        return variant;
+    }
+
+    public void variantShown(@NotNull String variant) {
+        this.variant = variant;
+    }
+
+    public @NotNull String bodyShown() {
+        return body;
+    }
+
+    public void bodyShown(@NotNull String body) {
+        this.body = body;
     }
 
     // ------------------------------------------------------------------ skills
