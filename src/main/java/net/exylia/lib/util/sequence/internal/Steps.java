@@ -199,6 +199,20 @@ final class Steps {
     }
 
     /**
+     * The camera of everyone near it tilts, as if they had been hit.
+     *
+     * <p>Only the observers the line already has, narrowed to its own radius:
+     * a player who turned effects off is not shaken either. The strength is
+     * the viewer's own damage-tilt setting, never ours.
+     */
+    record Shake(double radius) implements SequenceStep {
+        @Override
+        public void play(@NotNull SequenceTarget target, @NotNull SequenceRun run) {
+            net.exylia.lib.packet.internal.ScreenShake.shake(target.location(), target.observers(), radius);
+        }
+    }
+
+    /**
      * The look and sound of a lightning strike, without the strike.
      *
      * <p>No entity, no fire, no damage: a flash, sparks and thunder. What every

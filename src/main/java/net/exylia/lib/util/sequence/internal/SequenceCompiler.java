@@ -130,6 +130,7 @@ public final class SequenceCompiler {
             // parameter rather than a name: [CAMERA] keys:... would
             // otherwise read the whole shot as a head and throw it away.
             case "CAMERA" -> camera(args.asHeadless(), line, onArg);
+            case "SHAKE" -> shake(args.asHeadless(), onArg);
             default -> {
                 problems.found(line, "there is no effect called \"" + token + "\"");
                 yield null;
@@ -344,6 +345,21 @@ public final class SequenceCompiler {
         float pitch = (float) namedOrPositional(args, "pitch", 2, 1.0, onArg);
         args.reportUnknown(onArg, "volume", "pitch");
         return new Steps.Noise(key, volume, pitch);
+    }
+
+    /**
+     * {@code [SHAKE] radius:10;times:2;every:0.08}.
+     *
+     * <p>{@code times:} rather than {@code repeat:} because two tilts a beat
+     * apart are one shake, not a line played twice; it compiles to the same
+     * beat all the same.
+     */
+    private SequenceStep shake(Args args, Args.Problems onArg) {
+        double radius = args.number("radius", 10.0, onArg);
+        int times = args.atLeastOne("times", 1, onArg);
+        long every = (long) (args.seconds("every", 0.1, onArg) * 1000);
+        args.reportUnknown(onArg, "radius", "times", "every");
+        return RepeatStep.of(new Steps.Shake(radius), times, every, 0.0);
     }
 
     private SequenceStep lightning(Args args, Args.Problems onArg) {

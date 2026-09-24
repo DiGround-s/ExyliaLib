@@ -65,6 +65,27 @@ class SequenceCompileTest {
         assertTrue(problems.isEmpty(), "the line should compile: " + problems);
     }
 
+    // ------------------------------------------------------------------ shake
+
+    @Test
+    @DisplayName("a shake compiles with its radius, times and gap, and lasts as long as its beats")
+    void shakeCompiles() {
+        List<String> found = new java.util.ArrayList<>();
+        var compiler = SequenceAccess.compiler(SequenceAccess.builtInShapes(),
+                (line, problem) -> found.add(line + ": " + problem));
+        Sequence once = SequenceAccess.sequence(compiler.compile(List.of("[SHAKE]")));
+        Sequence thrice = SequenceAccess.sequence(compiler.compile(
+                List.of("[SHAKE] radius:10;times:3;every:0.1")));
+        SequenceAccess.sequence(compiler.compile(List.of("[SHAKE] radius:10;strength:9")));
+
+        assertEquals(1, once.steps().size());
+        assertEquals(1, thrice.steps().size());
+        assertTrue(thrice.durationMillis() >= 200, "three beats a tenth apart: "
+                + thrice.durationMillis());
+        assertEquals(1, found.size(), "only the unknown strength: is reported: " + found);
+        assertTrue(found.get(0).contains("strength"));
+    }
+
     // ------------------------------------------------------- tempo and rhythm
 
     @Test

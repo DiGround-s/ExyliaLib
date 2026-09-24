@@ -144,13 +144,22 @@ class SequenceLineTest {
 
         for (String token : List.of("PARTICLE", "SOUND", "POTION", "FIREWORK", "TITLE",
                 "ACTION_BAR", "MESSAGE", "COMMAND", "LIGHTNING", "EXPLOSION",
-                "BLOCK_BREAK", "NPC", "DELAY")) {
+                "BLOCK_BREAK", "NPC", "SHAKE", "DELAY")) {
             assertTrue(tokens.contains(token), token + " is missing from the picker");
         }
         for (String shape : SHAPES) {
             assertTrue(tokens.contains(shape.toUpperCase(java.util.Locale.ROOT)),
                     shape + " is missing from the picker");
         }
+    }
+
+    @Test
+    @DisplayName("a shake line asks how far, how many times and how often")
+    void shakeFields() {
+        SequenceLine.Spec spec = SequenceLine.spec("SHAKE", SHAPES);
+        assertEquals(SequenceLine.Form.NAMED, spec.form());
+        assertEquals(List.of("radius", "times", "every"),
+                spec.fields().stream().map(SequenceLine.Field::key).toList());
     }
 
     @Test

@@ -46,6 +46,7 @@ public final class FakePlayer {
     private volatile java.net.InetSocketAddress address;
     private final List<org.bukkit.Location> teleports = new CopyOnWriteArrayList<>();
     private final List<String> hidden = new CopyOnWriteArrayList<>();
+    private final List<Float> hurtAnimations = new CopyOnWriteArrayList<>();
     private final List<String> pluginMessages = new CopyOnWriteArrayList<>();
     private volatile boolean allowFlight;
     private volatile boolean flying;
@@ -181,6 +182,12 @@ public final class FakePlayer {
                         pluginMessages.add(String.valueOf(args[1]));
                         yield null;
                     }
+                    // The camera tilt a hit plays, sent to a player about
+                    // themselves; recorded as the yaw it came from.
+                    case "sendHurtAnimation" -> {
+                        hurtAnimations.add((Float) args[0]);
+                        yield null;
+                    }
                     case "hashCode" -> System.identityHashCode(self);
                     case "equals" -> self == args[0];
                     case "toString" -> "FakePlayer[" + this.name + "]";
@@ -279,6 +286,11 @@ public final class FakePlayer {
     /** How many times a shown boss bar's progress actually moved. */
     public int bossBarProgressChanges() {
         return bossBarProgressChanges.get();
+    }
+
+    /** The camera tilts this player was sent, as the yaw each came from. */
+    public List<Float> hurtAnimations() {
+        return hurtAnimations;
     }
 
     /** Puts the player somewhere, which is what makes distance checks work. */

@@ -201,6 +201,7 @@ final class SequenceLine {
             case "NPC" -> "PLAYER_HEAD";
             case "RAGDOLL" -> "SKELETON_SKULL";
             case "CAMERA" -> "SPYGLASS";
+            case "SHAKE" -> "ANVIL";
             case "" -> "BARRIER";
             default -> "END_ROD";
         };
@@ -320,6 +321,7 @@ final class SequenceLine {
         tokens.add("NPC");
         tokens.add("RAGDOLL");
         tokens.add("CAMERA");
+        tokens.add("SHAKE");
         tokens.add("DELAY");
         return List.copyOf(tokens);
     }
@@ -377,6 +379,10 @@ final class SequenceLine {
             case "LIGHTNING" -> new Spec(token, Head.NONE, Form.NAMED, List.of(
                     new Field("volume", "Volume", "2"),
                     new Field("pitch", "Pitch", "1")));
+            case "SHAKE" -> new Spec(token, Head.NONE, Form.NAMED, List.of(
+                    new Field("radius", "Shakes players this close, in blocks", "10"),
+                    new Field("times", "How many tilts", "1"),
+                    new Field("every", "How long between tilts", "0.1, or 100ms")));
             case "EXPLOSION" -> new Spec(token, Head.NONE, Form.NAMED, List.of(
                     new Field("count", "How many", "1"),
                     new Field("y", "Height above the anchor", "0")));
@@ -527,7 +533,8 @@ final class SequenceLine {
                 new Field("to", "Ends at, as x,y,z", "0,0,0"),
                 new Field("rise", "Goes up by", "shorthand for to:0,n,0"),
                 new Field("gravity", "Falls at, in blocks per second squared", "0; vanilla is 32"),
-                new Field("ease", "How the movement is spread", "in, out, in_out or linear"),
+                new Field("ease", "How the movement is spread",
+                        "in, out, in_out, back, bounce, elastic or linear"),
                 new Field("spin", "Turns over its life", "0, or x,y,z for a tumble"),
                 new Field("axis", "Turns around", "x, y or z"),
                 new Field("orbit", "Turns it carries round the anchor", "0"),
