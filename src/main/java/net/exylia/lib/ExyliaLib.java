@@ -590,6 +590,7 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         // Before the menus, blocks, actions and tasks a crate borrows, and
         // before the databases: reels in the air are paid out onto rows.
         Crates.releaseAll();
+        net.exylia.lib.util.mob.Mobs.releaseAll();
         Teleports.releaseAll();
         Sequences.releaseAll();
         // After the sequences that drew them, for the same reason as above.
@@ -861,6 +862,10 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         // the air are cancelled and paid out onto the player's row, which the
         // plugin's database, released a tick later, still writes.
         Crates.release(pluginName);
+        // Before the task module and the sequences an effect skill plays: live
+        // mobs are taken out of the world, which a plugin that is going away
+        // can no longer run.
+        net.exylia.lib.util.mob.Mobs.release(pluginName);
         // Before the task module, for the same reason: a sequence schedules the
         // frames of its own animation, and a frame belonging to a classloader
         // that is going away must not fire.

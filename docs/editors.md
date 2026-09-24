@@ -26,6 +26,7 @@ library ships the editors as well as the machine.
 | `NamedCommands.editor(plugin, commands)` | named console commands |
 | `Effects.editor(plugin, effects)` | potion effects |
 | `Sequences.of(plugin).editor(effects)` | effects with odds, conditions and an audience |
+| `Mobs.of(plugin).skillsEditor(skills)` | a custom mob's [skills](mobs.md) |
 | `Editors.of(plugin).items(items)` | real items — kits, shop stock |
 | `Editors.of(plugin).loadout(items)` | a whole loadout, in an inventory-shaped grid |
 | `Editors.of(plugin).locations(places)` | spawn points, arena corners |
