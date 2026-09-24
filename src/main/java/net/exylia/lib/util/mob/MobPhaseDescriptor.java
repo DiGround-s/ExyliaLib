@@ -52,7 +52,7 @@ final class MobPhaseDescriptor implements EditorDescriptor<MobPhase> {
         lore.add("{secondary}Phase:");
         lore.add(line("Starts below", number(phase.below() * 100) + "% health"));
         if (!phase.suffix().isBlank()) lore.add(" {letters_black}▎ {letters}Name gains {letters_black}» " + phase.suffix());
-        if (!phase.style().isEmpty()) lore.add(line("Style", phase.style()));
+        lore.add(line("Style", phase.style().isEmpty() ? "enrage {letters_black}(auto)" : phase.style()));
         lore.add(line("Speed", "×" + number(phase.speed())));
         lore.add(line("Damage", "×" + number(phase.damage())));
         lore.add(line("Resists", "×" + number(phase.resist())));
@@ -88,7 +88,8 @@ final class MobPhaseDescriptor implements EditorDescriptor<MobPhase> {
                 .field(SUFFIX, PluginMobs.optionalText(SUFFIX, "Name gains", phase.suffix()))
                 .hint("Added to its name while in this phase, such as &c⚡. NONE for none.")
                 .field(STYLE, PluginMobs.optionalText(STYLE, "Style", phase.style()))
-                .hint("How the change looks. Blank for the default.")
+                .hint("How the change looks, the mob held still 1.2s for it: enrage by default, or any skill style "
+                        + "(nova, burst, portal...). NONE for none, which also skips the hold.")
                 .decimal(SPEED, "Speed, times its own", MobSkillDescriptor.decimal(phase.speed()))
                 .decimal(DAMAGE, "Damage, times its own", MobSkillDescriptor.decimal(phase.damage()))
                 .decimal(RESIST, "Resistance", MobSkillDescriptor.decimal(phase.resist()))

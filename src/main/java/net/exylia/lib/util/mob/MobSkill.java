@@ -84,7 +84,12 @@ public record MobSkill(@NotNull Trigger trigger, @NotNull Type type, double chan
      * to aim at.
      */
     public enum Type {
-        /** Jumps at the target. Reads {@code amount} as strength, {@code 1} by default. */
+        /**
+         * Jumps at the target. Reads {@code amount} as strength, {@code 1} by
+         * default. Since 1.200.0, with a {@code radius} above zero it lands
+         * hard: everyone within that radius of where it comes down takes its
+         * attack damage and is knocked back.
+         */
         LEAP(true),
         /** Yanks the target to the mob. Reads {@code amount} as strength. */
         PULL(true),
@@ -118,7 +123,11 @@ public record MobSkill(@NotNull Trigger trigger, @NotNull Type type, double chan
          * ground up to that far, never outside its {@link MobBehaviour#roam()}.
          */
         TELEPORT(true),
-        /** Deals {@code amount} damage to every player within {@code radius}. */
+        /**
+         * Deals {@code amount} damage to every player within {@code radius};
+         * since 1.200.0 a {@code duration} above zero also sets them on fire
+         * that long.
+         */
         AREA_DAMAGE(false),
         /** Sets the target on fire for {@code duration}. */
         IGNITE(true),
@@ -156,7 +165,53 @@ public record MobSkill(@NotNull Trigger trigger, @NotNull Type type, double chan
          * name, and a command naming it is skipped when the target is not a
          * player; {@code %mob%} is the template id.
          */
-        COMMAND(false);
+        COMMAND(false),
+        /**
+         * Charges in a straight line towards where its target stood as the
+         * wind-up began, {@code radius} blocks (12 when 0, 24 at most), stopping
+         * at a wall. Whoever it runs through takes {@code amount} damage and is
+         * thrown aside, once each.
+         *
+         * @since 1.200.0
+         */
+        DASH(true),
+        /**
+         * Hits its target for {@code amount} damage, then jumps to the nearest
+         * player it has not hit within {@code radius} blocks (6 when 0) of the
+         * last one, {@code text} jumps in all (4 when blank, 8 at most), one
+         * every tenth of a second.
+         *
+         * @since 1.200.0
+         */
+        CHAIN(true),
+        /**
+         * Takes {@code amount} percent less damage for {@code duration}; at 100
+         * nothing hurts it. In hits mode no hit is counted while it lasts.
+         *
+         * @since 1.200.0
+         */
+        SHIELD(false),
+        /**
+         * Leaves an area {@code radius} blocks wide (3 when 0) for
+         * {@code duration} (30 seconds at most) that deals {@code amount} damage
+         * a second to the players inside, and puts the potion effect line in
+         * {@code text} on them, if any. Where its target stood; aimed at
+         * {@link Aim#SELF} it goes with the mob. Two at most per mob.
+         *
+         * @since 1.200.0
+         */
+        ZONE(false),
+        /**
+         * Rains {@code amount} strikes (5 when 0, 16 at most) on spots within
+         * {@code radius} blocks (6 when 0) of its target, or of the mob with
+         * nobody to aim at, each shown on the ground a second before it lands
+         * and a fifth of a second after the one before. Whoever stands within
+         * a block and a half of one takes the damage in {@code text} (4 when
+         * blank).
+         *
+         * @since 1.200.0
+         */
+        BARRAGE(false);
 
         private final boolean needsTarget;
 
@@ -238,6 +293,11 @@ public record MobSkill(@NotNull Trigger trigger, @NotNull Type type, double chan
             case SPEED -> new MobSkill(trigger, type, 1, cooldown, 0.3, 0, 1.5, Duration.ofSeconds(5), "");
             case BABY -> new MobSkill(trigger, type, 1, cooldown, 0.3, 0, 0, Duration.ofSeconds(5), "");
             case TELEPORT, EFFECT, COMMAND -> new MobSkill(trigger, type, 1, cooldown, 0.3, 0, 0, Duration.ZERO, "");
+            case DASH -> new MobSkill(trigger, type, 1, cooldown, 0.3, 12, 6, Duration.ZERO, "");
+            case CHAIN -> new MobSkill(trigger, type, 1, cooldown, 0.3, 6, 4, Duration.ZERO, "4");
+            case SHIELD -> new MobSkill(trigger, type, 1, cooldown, 0.3, 0, 60, Duration.ofSeconds(5), "");
+            case ZONE -> new MobSkill(trigger, type, 1, cooldown, 0.3, 3, 2, Duration.ofSeconds(5), "");
+            case BARRAGE -> new MobSkill(trigger, type, 1, cooldown, 0.3, 6, 5, Duration.ZERO, "4");
         };
     }
 
@@ -489,10 +549,12 @@ public record MobSkill(@NotNull Trigger trigger, @NotNull Type type, double chan
      * @param name        what {@link #then()} calls it by; blank for no name
      * @param aim         where it lands
      * @param windup      how long the mob telegraphs before it lands; zero for at once
-     * @param style       the look it is cast with; blank for its type's own. Stored for
-     *                    the style library, which nothing reads yet
+     * @param style       the look it is cast with, one of {@link MobSkills#STYLES}; blank
+     *                    for its type's own ({@link MobSkills#autoStyle}), which only plays
+     *                    while the skill has no {@code effect} lines; {@link MobSkills#NO_STYLE}
+     *                    for none. An id this version does not know plays as blank
      * @param tint        the colour that look is drawn in, a {@code {token}} or {@code #rrggbb};
-     *                    blank for the style's own. Stored, not read yet
+     *                    blank for the style's own theme colour ({@link MobTheme})
      * @param spread      a {@link Aim#CONE}'s angle in degrees or a {@link Aim#LINE}'s
      *                    width in blocks; {@code 0} for 60 degrees or 1.6 blocks
      * @param when        when it may be cast
@@ -552,6 +614,16 @@ public record MobSkill(@NotNull Trigger trigger, @NotNull Type type, double chan
         }
 
         public @NotNull Cast withThen(@NotNull String then) {
+            return new Cast(name, aim, windup, style, tint, spread, when, group, then, windupLines);
+        }
+
+        /** @since 1.200.0 */
+        public @NotNull Cast withStyle(@NotNull String style) {
+            return new Cast(name, aim, windup, style, tint, spread, when, group, then, windupLines);
+        }
+
+        /** @since 1.200.0 */
+        public @NotNull Cast withTint(@NotNull String tint) {
             return new Cast(name, aim, windup, style, tint, spread, when, group, then, windupLines);
         }
 

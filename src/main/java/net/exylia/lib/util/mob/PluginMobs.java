@@ -359,6 +359,51 @@ public final class PluginMobs {
         return engine.visuals();
     }
 
+    /**
+     * The colours skill styles are drawn in, by role. {@link MobTheme#DEFAULT}
+     * until set; palette tokens follow a palette reload on their own.
+     *
+     * <pre>{@code
+     * mobs.theme(MobTheme.DEFAULT.withTelegraph(config.telegraph()));
+     * }</pre>
+     *
+     * @param theme the colours
+     * @return this
+     * @since 1.200.0
+     */
+    public @NotNull PluginMobs theme(@NotNull MobTheme theme) {
+        engine.theme(Objects.requireNonNull(theme, "theme"));
+        return this;
+    }
+
+    /**
+     * The colours skill styles are drawn in.
+     *
+     * @since 1.200.0
+     */
+    public @NotNull MobTheme theme() {
+        return engine.theme();
+    }
+
+    /**
+     * Plays a skill's style to one player: a stand-in caster appears four
+     * blocks in front of them and casts it at them, wind-up and impact, with
+     * everything that plays out over time — a dash, a chain's jumps, a zone, a
+     * shield, a barrage. Nobody else sees it and nothing lands: no damage, no
+     * mob, no minion. The skills editor's PREVIEW does this.
+     *
+     * <p>On the player's thread.
+     *
+     * @param viewer who watches it
+     * @param skill  the skill, as it would be cast
+     * @return how long it plays, in milliseconds; {@code 0} when the skill has
+     *         no style ({@link MobSkills#styleOf})
+     * @since 1.200.0
+     */
+    public long preview(@NotNull Player viewer, @NotNull MobSkill skill) {
+        return engine.preview(Objects.requireNonNull(viewer, "viewer"), Objects.requireNonNull(skill, "skill"));
+    }
+
     // ----------------------------------------------------------------- editors
 
     /**
@@ -371,14 +416,17 @@ public final class PluginMobs {
      *     .open(player);
      * }</pre>
      *
-     * <p>Adding asks what the skill does, then when, then opens a form with
-     * only the fields that type reads.
+     * <p>Adding offers the {@link MobSkills#library()} first — each preset
+     * prefilled, asked only when it fires — or CUSTOM, which asks what the skill
+     * does, then when, then opens a form with only the fields that type reads.
+     * A row click offers MECHANICS, TIMING &amp; AIM, CONDITIONS, LOOK (style,
+     * tint, wind-up and impact lines) and PREVIEW.
      *
      * @param skills what is being edited; copied, never held
      * @return the editor, ready to open
      */
     public @NotNull ListEditor<MobSkill> skillsEditor(@NotNull List<MobSkill> skills) {
-        return Editors.of(plugin).list(new MobSkillDescriptor(plugin), MobSkill.class, skills);
+        return Editors.of(plugin).list(new MobSkillDescriptor(plugin, this), MobSkill.class, skills);
     }
 
     /**

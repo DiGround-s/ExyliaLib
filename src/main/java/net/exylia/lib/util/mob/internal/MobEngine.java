@@ -23,6 +23,7 @@ import net.exylia.lib.util.mob.MobBehaviour;
 import net.exylia.lib.util.mob.MobHit;
 import net.exylia.lib.util.mob.MobLook;
 import net.exylia.lib.util.mob.MobPhase;
+import net.exylia.lib.util.mob.MobTheme;
 import net.exylia.lib.util.mob.MobVisuals;
 import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.Bukkit;
@@ -191,14 +192,18 @@ public final class MobEngine implements Listener {
 
     private final MobCaster caster;
     private final MobReactions reactions;
+    private final MobShows shows;
+    private final MobMoves moves;
 
     public MobEngine(@NotNull Plugin plugin) {
         this.plugin = plugin;
         this.tasks = Tasks.of(plugin);
         this.debug = Debug.of(plugin);
         this.prefix = plugin.getName() + ":";
-        this.caster = new MobCaster(this, tasks);
         this.reactions = new MobReactions(plugin, tasks, this::effectRadius);
+        this.shows = new MobShows(plugin, tasks, this, reactions);
+        this.moves = new MobMoves(this, tasks, shows);
+        this.caster = new MobCaster(this, tasks, shows, moves);
     }
 
     /** Registers the listeners and the prune, and clears what a previous run left. */
@@ -206,6 +211,8 @@ public final class MobEngine implements Listener {
         plugin.getServer().getPluginManager().registerEvents(this, plugin);
         tasks.runAsyncTimer(PRUNE, PRUNE, () -> live.values().removeIf(mob -> {
             if (mob.alive()) return false;
+            // Its zones, strikes and shield stop with it, whichever way it went.
+            mob.endLingering();
             // Gone some way the runtime never saw: a chunk unloading. Its team
             // entry would outlive it, and teams live on the main scoreboard.
             String glow = mob.glowShown();
@@ -310,6 +317,24 @@ public final class MobEngine implements Listener {
         return reactions.visuals();
     }
 
+    public void theme(@NotNull MobTheme theme) {
+        shows.theme(theme);
+    }
+
+    public @NotNull MobTheme theme() {
+        return shows.theme();
+    }
+
+    /**
+     * Plays a skill's style to one player, from a stand-in four blocks ahead of
+     * them; on the player's thread.
+     *
+     * @return how long it plays, in milliseconds; {@code 0} when it has no style
+     */
+    public long preview(@NotNull Player viewer, @NotNull MobSkill skill) {
+        return shows.preview(viewer, skill);
+    }
+
     // ------------------------------------------------------------------ lookup
 
     public boolean isMob(@NotNull Entity entity) {
@@ -352,6 +377,12 @@ public final class MobEngine implements Listener {
      */
     public @NotNull LivingEntity spawnHere(@NotNull MobTemplate template, @NotNull Location location,
                                            boolean summoned) {
+        return spawnHere(template, location, summoned, true);
+    }
+
+    /** @param entrance whether it plays its entrance; not when a summon's portal is its entrance */
+    @NotNull LivingEntity spawnHere(@NotNull MobTemplate template, @NotNull Location location, boolean summoned,
+                                    boolean entrance) {
         if (stopped) throw new IllegalStateException(plugin.getName() + "'s mobs have been released");
         Class<? extends Entity> type = template.type().getEntityClass();
         if (type == null || !LivingEntity.class.isAssignableFrom(type) || !template.type().isSpawnable()) {
@@ -380,7 +411,7 @@ public final class MobEngine implements Listener {
         mob.timer(tasks.runAtEntityTimer(entity, period, period, () -> tick(entity, mob, fast)));
         live.put(entity.getUniqueId(), mob);
         fire(MobSkill.Trigger.SPAWN, entity, mob, null);
-        reactions.spawn(entity, mob);
+        if (entrance) reactions.spawn(entity, mob);
         return entity;
     }
 
@@ -543,12 +574,28 @@ public final class MobEngine implements Listener {
         nameLater(entity, mob);
     }
 
-    /** A fight phase's resistance: health mode only, since hits mode cancels every hit anyway. */
+    /**
+     * A fight phase's resistance and a shield: health mode only, since hits
+     * mode cancels every hit anyway. A shield that stops the whole hit cancels
+     * it, so there is no flinch either.
+     */
     @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
     public void onResist(EntityDamageEvent event) {
         LiveMob mob = live.get(event.getEntity().getUniqueId());
-        if (mob == null || mob.usesHits() || mob.fightPhase() == 1) return;
-        event.setDamage(MobCaster.resisted(mob, event.getDamage()));
+        if (mob == null || mob.usesHits() || !(event.getEntity() instanceof LivingEntity entity)) return;
+        double damage = event.getDamage();
+        if (mob.fightPhase() != 1) damage = MobCaster.resisted(mob, damage);
+        long now = System.currentTimeMillis();
+        if (mob.shielded(now) > 0) {
+            damage = MobMoves.throughShield(mob, damage, now);
+            Entity damager = event instanceof EntityDamageByEntityEvent byEntity ? byEntity.getDamager() : null;
+            shows.absorbed(entity, mob, damager, damage <= 0);
+            if (damage <= 0) {
+                event.setCancelled(true);
+                return;
+            }
+        }
+        event.setDamage(damage);
     }
 
     /**
@@ -569,6 +616,11 @@ public final class MobEngine implements Listener {
         if (cause != EntityDamageEvent.DamageCause.ENTITY_ATTACK
                 || !(event instanceof EntityDamageByEntityEvent byEntity)
                 || !(byEntity.getDamager() instanceof Player player)) {
+            return;
+        }
+        // Behind a shield, a hit is not counted: it only rings off it.
+        if (!MobMoves.countsHit(mob, System.currentTimeMillis())) {
+            shows.absorbed(entity, mob, player, true);
             return;
         }
         int left = mob.hit(player.getUniqueId(), System.currentTimeMillis());
@@ -761,6 +813,11 @@ public final class MobEngine implements Listener {
         caster.fire(trigger, entity, mob, about, effectsOnly);
     }
 
+    /** What plays the types that take their time; for tests. */
+    MobMoves moves() {
+        return moves;
+    }
+
     /** Whether the runtime still tracks this entity as this mob: a stage of a cast checks it before it acts. */
     boolean tracks(LivingEntity entity, LiveMob mob) {
         return live.get(entity.getUniqueId()) == mob;
@@ -779,20 +836,26 @@ public final class MobEngine implements Listener {
      *
      * @return whether it did something, which is when its effect lines play
      */
-    boolean apply(LivingEntity entity, LiveMob mob, MobSkill skill, @Nullable LivingEntity target) {
+    boolean apply(LivingEntity entity, LiveMob mob, MobSkill skill, @Nullable LivingEntity target, Stage stage) {
         Location at = entity.getLocation();
         double strength = skill.amount() > 0 ? skill.amount() : 1;
+        if (target != null && skill.type().needsTarget() && skill.type() != MobSkill.Type.POTION) {
+            stage.reached(List.of(target));
+        }
         switch (skill.type()) {
-            case LEAP -> entity.setVelocity(flat(at, target.getLocation())
-                    .multiply(0.9 * strength).setY(Math.min(1.2, 0.45 * strength)));
+            case LEAP -> {
+                entity.setVelocity(flat(at, target.getLocation())
+                        .multiply(0.9 * strength).setY(Math.min(1.2, 0.45 * strength)));
+                moves.pounce(entity, mob, skill, stage);
+            }
             case PULL -> target.setVelocity(flat(target.getLocation(), at).multiply(0.9 * strength).setY(0.35));
             case PUSH -> {
                 for (Player player : playersNear(entity, skill.radius())) {
                     player.setVelocity(flat(at, player.getLocation()).multiply(strength).setY(0.45));
                 }
             }
-            case POTION -> potion(entity, mob, skill, target);
-            case SUMMON -> summon(entity, mob, skill, target);
+            case POTION -> stage.reached(potion(entity, mob, skill, target));
+            case SUMMON -> stage.reached(summon(entity, mob, skill, target, stage.spots));
             case LIGHTNING -> {
                 target.getWorld().strikeLightningEffect(target.getLocation());
                 if (skill.amount() > 0) target.damage(skill.amount(), entity);
@@ -809,10 +872,30 @@ public final class MobEngine implements Listener {
             case TELEPORT -> {
                 Location landed = skill.radius() > 0 ? blink(entity, mob, skill.radius()) : behind(entity, target);
                 if (landed == null) return false;
+                stage.moved(at, landed);
                 play(skill.effect(), landed, entity);
             }
             case AREA_DAMAGE -> {
-                for (Player player : playersNear(entity, skill.radius())) player.damage(skill.amount(), entity);
+                List<Player> reached = playersNear(entity, skill.radius());
+                for (Player player : reached) {
+                    player.damage(skill.amount(), entity);
+                    burn(player, skill.duration());
+                }
+                stage.reached(reached);
+            }
+            case DASH -> stage.busy(moves.dash(entity, mob, skill, stage, stage.lock.point()));
+            case CHAIN -> {
+                return moves.chain(entity, mob, skill, stage, target);
+            }
+            case SHIELD -> moves.shield(entity, mob, skill, stage);
+            case ZONE -> {
+                Location centre = stage.lock.point() == null ? at : stage.lock.point();
+                stage.landed(centre);
+                return moves.zone(entity, mob, skill, stage, centre, false) != null;
+            }
+            case BARRAGE -> {
+                Location centre = stage.lock.point() == null ? at : stage.lock.point();
+                moves.barrage(entity, mob, skill, stage, centre);
             }
             case IGNITE -> target.setFireTicks(Math.max(target.getFireTicks(),
                     (int) Math.min(Integer.MAX_VALUE, skill.duration().toMillis() / 50)));
@@ -1010,32 +1093,70 @@ public final class MobEngine implements Listener {
 
     // ------------------------------------------------------ the larger skills
 
-    /** Spawns a summon skill's minions, keeping no more than it allows alive. */
-    void summon(LivingEntity entity, LiveMob mob, MobSkill skill, @Nullable LivingEntity target) {
+    /**
+     * Spawns a summon skill's minions, keeping no more than it allows alive.
+     *
+     * @param planned where they stand, chosen as the wind-up began so their
+     *                portals opened there; empty to choose now. A spot that no
+     *                longer fits is chosen again
+     * @return the minions spawned
+     */
+    List<LivingEntity> summon(LivingEntity entity, LiveMob mob, MobSkill skill, @Nullable LivingEntity target,
+                              List<Location> planned) {
         MobTemplate minion = templates.get(skill.text().trim());
         if (minion == null) {
             report("summon:" + mob.template().id() + ":" + skill.text(), "Mob " + mob.template().id()
                     + ": summons " + skill.text() + ", which is not a registered template.");
-            return;
+            return List.of();
         }
+        int missing = missing(mob, skill);
+        // The portals were the entrance: the minions do not rise out of the ground on top of them.
+        boolean entrance = planned.isEmpty();
+        List<LivingEntity> spawned = new ArrayList<>();
+        for (int count = 0; count < missing; count++) {
+            Location spot = count < planned.size() && fits(planned.get(count)) ? planned.get(count)
+                    : spot(entity, skill);
+            LivingEntity child = spawnHere(minion, spot, true, entrance);
+            mob.minion(child.getUniqueId());
+            if (target != null && child instanceof Mob hunter) hunter.setTarget(target);
+            spawned.add(child);
+        }
+        return spawned;
+    }
+
+    /** Where a summon's minions will stand, chosen ahead so their portals open there. */
+    List<Location> summonSpots(LivingEntity entity, LiveMob mob, MobSkill skill) {
+        if (templates.get(skill.text().trim()) == null) return List.of();
+        List<Location> spots = new ArrayList<>();
+        for (int count = missing(mob, skill); count > 0; count--) spots.add(spot(entity, skill));
+        return spots;
+    }
+
+    private int missing(LiveMob mob, MobSkill skill) {
         int cap = (int) Math.min(MAX_MINIONS, Math.max(1, Math.round(skill.amount())));
-        int missing = cap - mob.minions(id -> {
+        return cap - mob.minions(id -> {
             LiveMob alive = live.get(id);
             return alive != null && alive.alive();
         });
+    }
+
+    /** Somewhere a mob fits and this thread may touch; otherwise at the summoner's feet. */
+    private Location spot(LivingEntity entity, MobSkill skill) {
         double spread = Math.min(MAX_SPREAD, skill.radius() > 0 ? skill.radius() : 3);
         Location at = entity.getLocation();
-        for (int count = 0; count < missing; count++) {
-            Location spot = at.clone().add(offset(spread), 0, offset(spread));
-            // Somewhere a mob fits and this thread may touch; otherwise at the summoner's feet.
-            if (!tasks.isOwnedBy(spot) || !spot.getBlock().isPassable()
-                    || !spot.clone().add(0, 1, 0).getBlock().isPassable()) {
-                spot = at;
-            }
-            LivingEntity child = spawnHere(minion, spot, true);
-            mob.minion(child.getUniqueId());
-            if (target != null && child instanceof Mob hunter) hunter.setTarget(target);
-        }
+        Location spot = at.clone().add(offset(spread), 0, offset(spread));
+        return fits(spot) ? spot : at;
+    }
+
+    private boolean fits(Location spot) {
+        return tasks.isOwnedBy(spot) && spot.getBlock().isPassable()
+                && spot.clone().add(0, 1, 0).getBlock().isPassable();
+    }
+
+    /** Sets a body alight for a while, never shortening a fire it already had. */
+    static void burn(LivingEntity body, java.time.Duration duration) {
+        if (duration.isZero()) return;
+        body.setFireTicks(Math.max(body.getFireTicks(), (int) Math.min(Integer.MAX_VALUE, duration.toMillis() / 50)));
     }
 
     private static double offset(double spread) {
@@ -1087,15 +1208,22 @@ public final class MobEngine implements Listener {
         }
     }
 
-    /** Puts a potion skill's effect on whoever it reaches. */
-    void potion(LivingEntity entity, LiveMob mob, MobSkill skill, @Nullable LivingEntity target) {
+    /**
+     * Puts a potion skill's effect on whoever it reaches.
+     *
+     * @return who it reached
+     */
+    List<LivingEntity> potion(LivingEntity entity, LiveMob mob, MobSkill skill, @Nullable LivingEntity target) {
         PotionEffect effect = potionOf(mob, skill);
-        if (effect == null) return;
+        if (effect == null) return List.of();
+        List<LivingEntity> reached = new ArrayList<>();
         if (skill.radius() > 0) {
-            for (Player player : playersNear(entity, skill.radius())) player.addPotionEffect(effect);
+            reached.addAll(playersNear(entity, skill.radius()));
         } else if (target != null) {
-            target.addPotionEffect(effect);
+            reached.add(target);
         }
+        reached.forEach(body -> body.addPotionEffect(effect));
+        return reached;
     }
 
     /** A potion skill's effect, or {@code null}, reported once, when its line names none. */
@@ -1370,6 +1498,35 @@ public final class MobEngine implements Listener {
 
     static double maxHealth(LivingEntity entity) {
         return value(entity, "max_health", entity.getHealth());
+    }
+
+    /** What a mob's own blow deals: its attack damage, 2 for a type that has none. */
+    static double attackDamage(LivingEntity entity) {
+        return value(entity, "attack_damage", 2);
+    }
+
+    /**
+     * Lights its outline in a colour for a while, or for good: an enrage.
+     *
+     * @param colour a named outline colour
+     * @param ticks  how long; {@code 0} keeps it
+     */
+    void flare(LivingEntity entity, LiveMob mob, String colour, long ticks) {
+        boolean glowing = entity.isGlowing();
+        String before = mob.glowShown();
+        entity.setGlowing(true);
+        glow(entity, mob, colour);
+        if (ticks <= 0) return;
+        tasks.runAtEntityLater(entity, ticks, () -> {
+            if (!tracks(entity, mob)) return;
+            if (before != null) {
+                glow(entity, mob, before);
+            } else {
+                unglow(entity.getUniqueId(), mob.glowShown());
+                mob.glowShown(null);
+            }
+            entity.setGlowing(glowing);
+        });
     }
 
     private static double value(LivingEntity entity, String key, double fallback) {

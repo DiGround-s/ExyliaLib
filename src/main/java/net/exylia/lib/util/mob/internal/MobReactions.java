@@ -171,8 +171,11 @@ final class MobReactions {
         return visuals.reactions() && Displays.isSupported();
     }
 
-    /** Takes a slot for a large effect until {@code lengthMillis} from now, or says there is none. */
-    private boolean claim(long lengthMillis) {
+    /**
+     * Takes a slot for a large effect until {@code lengthMillis} from now, or
+     * says there is none. Entrances, deaths and skill styles share the slots.
+     */
+    boolean claim(long lengthMillis) {
         long now = System.currentTimeMillis();
         synchronized (playing) {
             playing.removeIf(end -> end <= now);
@@ -252,23 +255,20 @@ final class MobReactions {
         vfx.play(plugin);
     }
 
-    /** A ring opening upright in front of it, a pull inwards, and out it steps. */
-    private void portal(LivingEntity entity, Location at, List<Player> viewers) {
+    /** A ring opening upright in front of it, a pull inwards, and out it steps; a summon style's minions too. */
+    void portal(LivingEntity entity, Location at, List<Player> viewers) {
         Vfx vfx = Vfx.at(at).viewers(viewers);
         if (!claim(1300L)) return;
         tasks.runAtEntityLater(entity, REVEAL_TICKS, MobBodies.vanish(entity));
         double height = Math.max(0.6, entity.getHeight());
         double radius = Math.clamp(Math.max(height, entity.getWidth()) * 0.62, 0.7, 2.2);
         Location centre = at.clone().add(0, height / 2 + 0.05, 0);
-        double yaw = Math.toRadians(at.getYaw());
         // The ring stands across the way the mob faces, so it walks out of it.
-        double rightX = Math.cos(yaw);
-        double rightZ = Math.sin(yaw);
-        Rotation upright = Rotation.around(Rotation.Axis.Y, -yaw);
+        double yaw = Math.toRadians(at.getYaw());
         DisplayModel frame = DisplayModel.block(MobBodies.block(Material.CRYING_OBSIDIAN)).light(15);
         DisplayModel shard = DisplayModel.block(MobBodies.block(Material.PURPLE_STAINED_GLASS)).light(15);
-        ring(vfx, centre, frame, radius, vfx.lod() ? 8 : 14, 0.26, rightX, rightZ, upright, 18L);
-        ring(vfx, centre, shard, radius * 0.5, vfx.lod() ? 4 : 8, 0.18, rightX, rightZ, upright, 40L);
+        ring(vfx, 0, centre, frame, radius, vfx.lod() ? 8 : 14, 0.26, yaw, 18L, 820L);
+        ring(vfx, 0, centre, shard, radius * 0.5, vfx.lod() ? 4 : 8, 0.18, yaw, 40L, 820L);
         for (long beat = 0; beat <= 500; beat += 100) {
             vfx.particle(beat, Particle.REVERSE_PORTAL, centre, 8, radius * 0.3, radius * 0.3, radius * 0.3, 0.02, null);
         }
@@ -282,10 +282,17 @@ final class MobReactions {
 
     /**
      * An upright ring of plates: each grows in on an overshoot, holds, and is
-     * pulled into the middle as the mob steps out.
+     * pulled into the middle.
+     *
+     * @param atMillis  when the first plate starts growing
+     * @param yaw       the way the ring faces, in radians; it stands across it
+     * @param collapse  when, from the start of the effect, the plates are pulled in
      */
-    private static void ring(Vfx vfx, Location centre, DisplayModel model, double radius, int pieces, double size,
-                             double rightX, double rightZ, Rotation upright, long stagger) {
+    static void ring(Vfx vfx, long atMillis, Location centre, DisplayModel model, double radius, int pieces,
+                     double size, double yaw, long stagger, long collapse) {
+        double rightX = Math.cos(yaw);
+        double rightZ = Math.sin(yaw);
+        Rotation upright = Rotation.around(Rotation.Axis.Y, -yaw);
         for (int piece = 0; piece < pieces; piece++) {
             double angle = Math.PI * 2 * piece / pieces;
             double across = Math.cos(angle) * radius;
@@ -293,14 +300,14 @@ final class MobReactions {
             double y = Math.sin(angle) * radius;
             double z = rightZ * across;
             Rotation turned = Rotation.around(Rotation.Axis.Z, angle + Math.PI / 4).then(upright);
-            long start = piece * stagger;
+            long start = atMillis + piece * stagger;
             DisplayMotion grow = DisplayMotion.builder().life(280).from(x * 0.6, y * 0.6, z * 0.6).to(x, y, z)
                     .rotation(turned).scale(0.02, size).ease(DisplayMotion.Easing.BACK).build();
-            DisplayMotion held = DisplayMotion.builder().life(Math.max(50L, 540L - start)).from(x, y, z).to(x, y, z)
-                    .rotation(turned).scale(size, size).build();
-            DisplayMotion collapse = DisplayMotion.builder().life(260).from(x, y, z).to(0, 0, 0)
+            DisplayMotion held = DisplayMotion.builder().life(Math.max(50L, collapse - start - 280L)).from(x, y, z)
+                    .to(x, y, z).rotation(turned).scale(size, size).build();
+            DisplayMotion shut = DisplayMotion.builder().life(260).from(x, y, z).to(0, 0, 0)
                     .rotation(turned).scale(size, 0.01).ease(DisplayMotion.Easing.IN).build();
-            vfx.display(start, model, DisplayMotion.chain(grow, held, collapse), centre);
+            vfx.display(start, model, DisplayMotion.chain(grow, held, shut), centre);
         }
     }
 

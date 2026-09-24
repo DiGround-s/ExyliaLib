@@ -8,7 +8,8 @@ and payouts stay with the plugin. Available since 1.192.0; hits mode,
 lifetime, roam, looks, auras, skill effects and the `JUMP`, `SIZE`, `SPEED` and
 `BABY` skills since 1.195.0; staged casts (wind-up, aim, conditions, rotation
 groups, chains) and the fight (global cooldown, group periods, phases) since
-1.198.0.
+1.198.0; reactions since 1.199.0; the skill library, styles, theme, preview and
+the `DASH`, `CHAIN`, `SHIELD`, `ZONE` and `BARRAGE` skills since 1.200.0.
 
 Entry point: `net.exylia.lib.util.mob.Mobs`.
 
@@ -360,7 +361,7 @@ leaves and again where it lands. Seen within `effectRadius`.
 
 | Type | Reads | Does |
 | --- | --- | --- |
-| `LEAP` | `amount` strength | jumps at the target |
+| `LEAP` | `amount` strength, `radius` (since 1.200.0) | jumps at the target; with `radius` > 0 it lands hard: whoever is within `radius` as it comes down (polled every 2 ticks, 1.5 s at most) takes its `attack_damage` (2 without one) and is knocked back |
 | `PULL` | `amount` strength | yanks the target to the mob |
 | `PUSH` | `radius`, `amount` strength | throws every player in range away |
 | `POTION` | `text` effect line (`SLOWNESS\|2\|5`), `radius` | the effect on the target, or on every player in range when `radius` > 0 |
@@ -369,7 +370,7 @@ leaves and again where it lands. Seen within `effectRadius`.
 | `PROJECTILE` | `text` kind, `amount` speed | `FIREBALL`, `SMALL_FIREBALL`, `WITHER_SKULL`, `ARROW` or `SNOWBALL` at the target; its explosions break no blocks |
 | `HEAL` | `amount` percent | restores that share of its maximum health |
 | `TELEPORT` | `radius` | `0`: a step and a half behind the target, if it fits there. Above `0` (since 1.195.0): needs no target and blinks to a random spot 1-`radius` blocks away, on top of the highest block, in a loaded chunk this thread owns and inside its `roam`; eight tries |
-| `AREA_DAMAGE` | `radius`, `amount` damage | hurts every player in range |
+| `AREA_DAMAGE` | `radius`, `amount` damage, `duration` (since 1.200.0) | hurts every player in range; a `duration` > 0 also sets them alight that long |
 | `IGNITE` | `duration` | sets the target on fire |
 | `JUMP` | `amount` upward speed (0.8 by default) | since 1.195.0; jumps straight up |
 | `SIZE` | `text` `min\|max` or one number (`0.7\|1.8` by default) | since 1.195.0; a random `scale` in the range, either order, `0.1` at least |
@@ -377,6 +378,11 @@ leaves and again where it lands. Seen within `effectRadius`.
 | `BABY` | `duration` (5s) | since 1.195.0; an adult of a type that ages turns baby (its age locked), then adult again |
 | `EFFECT` | `text` sequence lines, one per line | plays them at the mob ([sequences](sequences.md)), seen within `effectRadius` |
 | `COMMAND` | `text` command | from the console; `%player%` is the target's name (skipped when the target is not a player), `%mob%` the template id |
+| `DASH` | `radius` reach (12 when 0, 24 at most), `amount` damage | since 1.200.0; charges in a straight line towards where its target stood as the wind-up began (towards the aim point with an aim of its own; the way it faced with `SELF`): a push every 2 ticks, about 22 blocks a second, until it has gone its reach, stalls against a wall or runs out of pushes. Whoever it runs through (1.3 blocks plus half its width) takes `amount` once and is thrown aside. Its recovery waits the dash out |
+| `CHAIN` | `amount` damage, `text` jumps (4 when blank, 1-8), `radius` jump range (6 when 0) | since 1.200.0; hits its target, then every 2 ticks jumps to the nearest survival or adventure player it has not hit within `radius` of the last one, on that spot's thread; stops when nobody is left or the mob is gone |
+| `SHIELD` | `amount` percent blocked, `duration` (5 s when 0, 30 s at most) | since 1.200.0; every hit loses that share (100 cancels it: no flinch); in hits mode no hit counts while it lasts |
+| `ZONE` | `radius` (3 when 0), `amount` damage a second, `duration` (5 s when 0, 30 s at most), `text` optional potion line | since 1.200.0; an area where its target stood (`AUTO`), where its aim lands, or riding the mob with `SELF`. Every half second the survival and adventure players inside take half of `amount` and the potion. Two per mob at most; it closes when its time is up, its mob dies or unloads, or its ground unloads |
+| `BARRAGE` | `amount` strikes (5 when 0, 16 at most), `radius` scatter (6 when 0), `text` damage per strike (4 when blank) | since 1.200.0; the first strike on its target's spot (the mob's with none), the rest scattered over the disc, a fifth of a second apart. Each shows for a second before it lands on whoever stands within 1.5 blocks |
 
 `chance` is rolled every time the skill is tried; `cooldown` is the shortest gap
 between two casts and only starts when the skill fires. The target is the mob's
@@ -395,7 +401,8 @@ is reported once and keeps being tried.
 
 `MobSkill.Cast(String name, Aim aim, Duration windup, String style, String tint,
 double spread, Gate when, String group, String then, String windupLines)`,
-`Cast.NONE`, `withName`/`withAim`/`withWindup`/`withSpread`/`withWhen`/`withGroup`/`withThen`/`withWindupLines`;
+`Cast.NONE`, `withName`/`withAim`/`withWindup`/`withSpread`/`withWhen`/`withGroup`/`withThen`/`withWindupLines`,
+`withStyle`/`withTint` (since 1.200.0);
 `skill.withCast(cast)`. `Cast.NONE` is exactly the behaviour before 1.198.0.
 
 ```java
@@ -466,7 +473,9 @@ spot), `SUMMON` sets its minions on the first body. `HEAL`, `JUMP`, `SIZE`,
 `SPEED`, `BABY` and `EFFECT` act on the mob and ignore the aim. On Folia the
 mechanics run on the landing spot's region when the mob's thread does not own it.
 
-`style` and `tint` are stored for the style library and read by nothing yet.
+`style` and `tint` choose the look (see *Styles*). `DASH`, `ZONE` and
+`BARRAGE` start on the mob's thread whatever their aim, since they move it or
+keep a timer of their own.
 
 ### Rotation groups and chains
 
@@ -499,8 +508,97 @@ by `below`, highest first; a phase at 0 or 1 is dropped.
   multipliers (attribute modifiers, so they stack with `SPEED` skills), appends
   ` suffix` to its name, and casts its `PHASE` skills. `resist` divides the
   damage it takes, in health mode. Multipliers are kept within 0.1-10. When one
-  hit crosses two thresholds only the phase it lands in casts. `style` is
-  stored for the style library and read by nothing yet.
+  hit crosses two thresholds only the phase it lands in casts. Since 1.200.0
+  the change plays `style` (`enrage` when blank, any skill style, `none` for
+  nothing): the mob is held still for 1.2 s (24 ticks) while it winds up, and
+  its `PHASE` skills are cast when it ends. A mob in the middle of a cast is not
+  interrupted: the change is drawn at once and its `PHASE` skills cast right
+  away. `enrage` lights its outline in the theme's danger colour for good.
+
+## Styles (since 1.200.0)
+
+A style is how a skill looks: a wind-up that tells players what is coming and
+where, and an impact when it lands. It is drawn with packets through
+[`Vfx`](vfx.md) and never touches gameplay: with nobody within `effectRadius`,
+or the plugin already playing `MobVisuals.maxCasts` large effects (entrances,
+deaths and styles share them), a cast is simply not drawn and plays exactly the
+same. Past 15 viewers every style draws its rings and debris at half.
+
+`MobSkills.STYLES` lists them; `Cast.style` picks one, `Cast.tint` recolours
+its main colour (a `{token}` or `#rrggbb`), `Cast.withStyle`/`withTint`.
+
+- **Blank** plays `MobSkills.autoStyle(skill)`, but only while the skill has
+  no `effect` lines: an older skill with a look of its own keeps exactly that
+  look. `none` draws nothing. An id this version does not know plays as blank.
+- `MobSkills.styleOf(skill)` is the style a skill is drawn in, after those rules.
+- The parts of a type that happen over time are drawn as the mechanics reach
+  them: a dash's afterimages, a chain's arcs, a zone, a shield, a barrage's
+  strikes, a hard landing.
+
+| Type | AUTO draws |
+| --- | --- |
+| `AREA_DAMAGE` | slam |
+| `LEAP` / `PULL` / `PUSH` | pounce / hook / burst |
+| `POTION` | nova for `SLOWNESS` with a radius, puff otherwise (in the potion's own colour) |
+| `SUMMON` / `TELEPORT` / `HEAL` | portal / blink / renew |
+| `LIGHTNING`, `CHAIN` | chain |
+| `PROJECTILE` | volley |
+| `IGNITE` | puff, in the fire colour |
+| `JUMP` / `SIZE` / `SPEED` / `BABY` | hop / inflate / zoom / shrink |
+| `DASH` / `SHIELD` / `BARRAGE` | charge / bubble / rain |
+| `ZONE` | blades aimed at `SELF`, miasma otherwise |
+| `EFFECT` / `COMMAND` | none |
+
+### The library
+
+`MobSkills.library()` → `List<Preset(String id, String label, Material icon,
+String blurb, MobSkill skill)>`, `MobSkills.preset(id)`. A preset is an
+ordinary skill on `INTERVAL`; nothing about it is special once it is on a
+template.
+
+| Preset | Skill | Wind-up (the warning) | Impact |
+| --- | --- | --- | --- |
+| `slam` GROUND SLAM | `AREA_DAMAGE` r5, 8 dmg, `SELF`, 0.9 s, target within 6 | a circle filling to r; a crouch, then a hop that lands as it fills | three rings of the ground under it burst up as tilted slabs and sink, dust, a thud and an anvil, a shake |
+| `meteor` METEOR | `AREA_DAMAGE` r3, 10 dmg, burns 3 s, `GROUND`, 1.6 s | a circle in danger with a cross in fire on the spot; fire crackling there; a glowing rock falls from behind the mob with a burning trail | molten debris, a splat that glows and sinks, a ring of flame, lava and smoke, an explosion, a shake |
+| `blades` BLADE RING | `ZONE` r3, 3 dmg/s, 4 s, `SELF`, 0.5 s, a player within 6 | a circle, and six blades rising into a ring | the blades ride the mob, turning, a sweep every half second; they fly off as it ends |
+| `charge` CHARGE | `DASH` 12 blocks, 7 dmg, 0.7 s, target 4-16 away | a lane to where it will run, filling from the mob; hooves scraping, a snort, a ram's wind-up | a gust behind it; an afterimage in its own colours every stride; whoever it hits flashes with a ram's thud and a jolt; stars round its head as it stops |
+| `chain` CHAIN LIGHTNING | `CHAIN` 4 dmg, 4 jumps, range 6, 0.5 s | an orb of light gathering in its hands, sparks, a charge | a crooked white arc with a halo to each body, a flicker after it, a crack rising in pitch with each jump |
+| `bubble` SHIELD BUBBLE | `SHIELD` 60 %, 5 s, 0.4 s | enchant sparkles gathering, a ring on the ground, a chime | three stacked rings of glass rise round it and turn, alternate ways; each hit it takes flashes a pane where it struck; at the end they are thrown off and break |
+| `portal` SUMMON PORTAL | `SUMMON` 2 alive, spread 3, 1.2 s, a player within 16 | an upright ring of crying obsidian opening at each spot a minion will stand, turned to the summoner, portal dust drawn in | each minion steps out of its ring as it closes; no entrance of its own on top |
+| `miasma` MIASMA | `ZONE` r3.5, 1 dmg/s, `POISON\|1\|3`, 6 s, `GROUND`, 0.8 s | a circle where you stood, and a flask thrown onto it | the pool's edge laid on the ground, a cloud over it and bubbles rising through it, a brew now and then |
+| `nova` FROST NOVA | `POTION` `SLOWNESS\|3\|3` r5, `SELF`, 0.6 s | a ring closing in, snowflakes drawn to it | two rings of ice spikes burst out leaning outwards and hold two seconds, snow, breaking glass; everyone slowed wears a ring of ice at their feet while it lasts |
+| `blink` BLINK | `TELEPORT` behind the target, target 3-20 away | none | the body folds into a line and its shards are pulled in; five ticks later it opens where it lands, shards thrown off |
+| `renew` RENEW | `HEAL` 20 %, 0.8 s, below 60 % health | a circle in heal colour and five hearts going round and up | three rings pulsing out, hearts, a chime; the heal number |
+| `enrage` ENRAGE | `SPEED` ×1.4 for 8 s, 1.2 s, below half health | it swells, a growl, a heartbeat that quickens | a roar, a shockwave of crimson plates, a shake; its outline turns the danger colour while it lasts |
+| `rain` ARROW RAIN | `BARRAGE` 5 strikes, scatter 6, 4 dmg each, 0.6 s | a crossbow drawn, arrows loosed into the sky | a circle per strike for a second, an arrow falling into it, sticking, and a hit |
+| `pounce` POUNCE | `LEAP` ×1.2, lands hard within 2, 0.5 s, target 3-10 away | a crouch; a circle where it will come down | dust as it springs; broken ground in a small ring as it lands, a thud and a jolt |
+| `hook` HOOK | `PULL` ×1.4, 0.3 s, target 5-14 away | a chain spinning in its hand | a chain paid out to you, a clank, the reel |
+| `volley` VOLLEY | `PROJECTILE` `FIREBALL` ×1.5, 0.4 s, target 4-24 away | smoke (and flame, for fire) at its hands, a warning sound per projectile | a muzzle flash towards you and the shot's own sound |
+
+The styles with no preset of their own: `burst` (a shockwave ring of glass
+flung out to the radius, a gust), `hop` (a ring of dust and kicked-up ground,
+sparks rising), `inflate` (a shell of glass plates thrown off as it swells, a
+pufferfish), `zoom` (streaks flying back from it, a gust), `shrink` (the
+shell pulled in, a puff), `puff` (a cloud in the skill's colour on whoever it
+reached; a potion with a radius also rings out to it).
+
+### Theme
+
+`PluginMobs.theme(MobTheme)`, `theme()`. `MobTheme(telegraph, danger, heal,
+shield, arcane, fire, frost, poison, shock, crit)`, `MobTheme.DEFAULT` =
+`{warning}`, `{error}`, `{success}`, `{info}`, `{primary}`, `#ff7a1a`,
+`#9be7ff`, `#7bc043`, `#8fd3ff`, `{warning}`; `with*` for each,
+`of(MobTheme.Role)`. A value is a palette token, read as it plays so a palette
+reload shows at once, or `#rrggbb`; anything else draws the role's default.
+
+### Preview
+
+`PluginMobs.preview(Player, MobSkill)` plays a skill's style to that player
+alone: a stand-in of white glass four blocks in front of them casts it at them,
+wind-up and impact, with everything its type draws over time (a zone or a
+shield at most 5 s). Nothing lands: no damage, no mob, no minion. Returns how
+long it plays in milliseconds, `0` for a skill with no style. On the player's
+thread.
 
 ## Death
 
@@ -572,7 +670,7 @@ keys written as `minecraft:max_health` or `generic.max_health` read as
 
 | Part | Screen |
 | --- | --- |
-| skills | `mobs.skillsEditor(skills)` — add asks the type, then the trigger, then a form with only the fields that type reads, plus "Effect lines" for every type (`NONE` clears them: a blank box keeps a prefilled value). A row click asks which section (since 1.198.0): MECHANICS (that form), TIMING & AIM (wind-up, aim, spread, rotation group for `INTERVAL`, name, then, wind-up lines) or CONDITIONS (health band, target range, a player nearby, phase). A grouped row shows its weight and share of its group |
+| skills | `mobs.skillsEditor(skills)` — add offers the library first (since 1.200.0: icon, name and its one-line blurb), then CUSTOM. A preset asks only when it fires (its own trigger ticked), then opens its form prefilled. CUSTOM asks the type, then the trigger, then a form with only the fields that type reads, plus "Effect lines" for every type (`NONE` clears them: a blank box keeps a prefilled value). A row click asks which section (since 1.198.0): MECHANICS (that form), TIMING & AIM (wind-up, aim, spread, rotation group for `INTERVAL`, name, then, wind-up lines), CONDITIONS (health band, target range, a player nearby, phase), LOOK (since 1.200.0: STYLE — AUTO showing what it draws, NONE and every style, the current one ticked; TINT — THEME, the palette's tokens or a typed `#rrggbb`; WIND-UP LINES and IMPACT LINES on the sequence line screen) or ▶ PREVIEW (the screen steps aside while it plays, then the sections come back; only offered for a skill with a style). A grouped row shows its weight and share of its group; the lore shows its style, "(auto)" when blank |
 | fight | `mobs.fightEditor(player, fight, groupsInUse)` — TIMING (global cooldown, a period per group) or PHASES (list: below, name suffix, style, speed, damage, resistance) |
 | behaviour | `mobs.behaviourEditor(player, behaviour)` — hits, hit cooldown and lifetime as durations, roam |
 | look | `mobs.lookEditor(player, type, look)` — APPEARANCE (variant and body only for types that have them; `NONE` clears a part) or REACTIONS (pick one, then AUTO, NONE or an id, the current one ticked) |
@@ -616,8 +714,8 @@ keys written as `minecraft:max_health` or `generic.max_health` read as
 
 | | |
 | --- | --- |
-| Public API | `util/mob/Mobs`, `PluginMobs`, `MobTemplate`, `MobSkill` (with `Cast`, `Gate`, `Aim`), `MobFlag`, `MobDeath`, `MobCodec`, `MobBehaviour`, `MobLook`, `MobHit`, `MobFight`, `MobPhase`, `MobVisuals` |
+| Public API | `util/mob/Mobs`, `PluginMobs`, `MobTemplate`, `MobSkill` (with `Cast`, `Gate`, `Aim`), `MobFlag`, `MobDeath`, `MobCodec`, `MobBehaviour`, `MobLook`, `MobHit`, `MobFight`, `MobPhase`, `MobVisuals`, `MobTheme`, `MobSkills` |
 | Random templates | `util/mob/RandomTemplate` (package-private, behind `MobTemplate.random`) |
 | Editor | `util/mob/MobSkillDescriptor`, `MobPhaseDescriptor` |
-| Runtime | `util/mob/internal/MobEngine` (listeners, spawn, what each type does, hits mode, look, wander, leash), `MobCaster` (conditions, rotation groups, staged casts, aimed impacts, chains, phases), `MobAim` (aim geometry, no server), `MobReactions` (entrances, hits, heals, deaths, the low look; what AUTO picks; the large-effect cap), `MobBodies` (humanoid skins and heads, block palettes, vanish), `LiveMob` (cooldowns, groups, global cooldown, cast under way, phase, damage ledger, hits, lifetime, leash) |
-| Tests | `util/mob/MobCodecTest`, `util/mob/RandomTemplateTest`, `util/mob/MobSkillDescriptorTest`, `util/mob/GateTest`, `util/mob/internal/LiveMobTest`, `util/mob/internal/MobEngineTest`, `util/mob/internal/MobAimTest`, `util/mob/internal/RotationTest`, `util/mob/internal/MobCasterTest`, `util/mob/internal/MobBodiesTest`, `util/mob/internal/MobReactionsTest` |
+| Runtime | `util/mob/internal/MobEngine` (listeners, spawn, what each type does, hits mode, look, wander, leash), `MobCaster` (conditions, rotation groups, staged casts, aimed impacts, chains, phases), `MobAim` (aim geometry, no server), `MobReactions` (entrances, hits, heals, deaths, the low look; what AUTO picks; the large-effect cap), `MobBodies` (humanoid skins and heads, block palettes, vanish), `MobStyle` (every style's wind-up and impact), `MobShows` (plays them, the over-time parts, the preview, the cap), `MobMoves` (dash, chain, shield, zone, barrage, a hard landing), `Stage` (one cast: where, at whom, who is watching, what it reached), `Shapes` (models, colours, sounds, shared shapes), `LiveMob` (cooldowns, groups, global cooldown, cast under way, phase, damage ledger, hits, lifetime, leash) |
+| Tests | `util/mob/MobCodecTest`, `util/mob/RandomTemplateTest`, `util/mob/MobSkillDescriptorTest`, `util/mob/GateTest`, `util/mob/internal/LiveMobTest`, `util/mob/internal/MobEngineTest`, `util/mob/internal/MobAimTest`, `util/mob/internal/RotationTest`, `util/mob/internal/MobCasterTest`, `util/mob/internal/MobBodiesTest`, `util/mob/internal/MobReactionsTest`, `util/mob/MobSkillsTest`, `util/mob/internal/MobStylesTest` (every style within budget at both levels of detail, the counts, real sounds), `util/mob/internal/MobMovesTest` (zones end on unload and death, shields) |

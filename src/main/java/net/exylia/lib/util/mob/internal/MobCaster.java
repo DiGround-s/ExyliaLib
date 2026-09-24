@@ -5,6 +5,7 @@ import net.exylia.lib.task.TaskScheduler;
 import net.exylia.lib.util.mob.MobFight;
 import net.exylia.lib.util.mob.MobPhase;
 import net.exylia.lib.util.mob.MobSkill;
+import net.exylia.lib.util.mob.MobSkills;
 import org.bukkit.Location;
 import org.bukkit.NamespacedKey;
 import org.bukkit.attribute.AttributeInstance;
@@ -49,17 +50,28 @@ final class MobCaster {
     private static final AttributeModifier ROOT =
             new AttributeModifier(ROOT_KEY, -1, AttributeModifier.Operation.MULTIPLY_SCALAR_1);
 
+    /** How long a phase change holds the mob while its style plays, in ticks. */
+    static final long TRANSITION = 24L;
+
     private final MobEngine engine;
     private final TaskScheduler tasks;
+    private final MobShows shows;
+    private final MobMoves moves;
 
-    MobCaster(MobEngine engine, TaskScheduler tasks) {
+    MobCaster(MobEngine engine, TaskScheduler tasks, MobShows shows, MobMoves moves) {
         this.engine = engine;
         this.tasks = tasks;
+        this.shows = shows;
+        this.moves = moves;
     }
 
-    /** One staged major cast under way: the stage waiting to run, which a death cancels. */
+    /**
+     * One staged major cast under way: the stage waiting to run, which a death
+     * cancels, and what it has drawn, which a death takes off the screen.
+     */
     static final class Active {
         volatile @Nullable TaskHandle stage;
+        volatile @Nullable Stage show;
     }
 
     // ------------------------------------------------------------------ fire
@@ -156,15 +168,16 @@ final class MobCaster {
         }
         MobAim.Lock lock = MobAim.lock(entity.getLocation(), target == null ? null : target.getLocation());
         if (cast.windup().isZero()) {
-            land(entity, mob, index, skill, lock, target, depth);
+            land(entity, mob, index, skill, lock, target, depth, shows.begin(entity, mob, skill, lock));
             return;
         }
         long windup = ticks(cast.windup().toMillis());
         if (!skill.major()) {
             // A sound or a command with a wind-up is only late: it neither roots the mob nor holds its turn.
             engine.play(cast.windupLines(), entity.getLocation(), entity);
+            Stage stage = shows.begin(entity, mob, skill, lock);
             tasks.runAtEntityLater(entity, windup, () -> {
-                if (mob.alive() && engine.tracks(entity, mob)) land(entity, mob, index, skill, lock, target, depth);
+                if (mob.alive() && engine.tracks(entity, mob)) land(entity, mob, index, skill, lock, target, depth, stage);
             });
             return;
         }
@@ -173,12 +186,14 @@ final class MobCaster {
         root(entity);
         if (lock.point() != null) entity.setRotation(lock.yaw(), entity.getLocation().getPitch());
         engine.play(cast.windupLines(), entity.getLocation(), entity);
+        Stage stage = shows.begin(entity, mob, skill, lock);
+        active.show = stage;
         active.stage = tasks.runAtEntityLater(entity, windup, () -> {
             if (!current(entity, mob, active)) return;
-            land(entity, mob, index, skill, lock, target, depth);
-            // A chain may have taken over; only the cast still in charge recovers.
+            land(entity, mob, index, skill, lock, target, depth, stage);
+            // A chain may have taken over; only the cast still in charge recovers, after a dash has run.
             if (mob.active() == active) {
-                active.stage = tasks.runAtEntityLater(entity, RECOVERY, () -> end(entity, mob, active));
+                active.stage = tasks.runAtEntityLater(entity, RECOVERY + stage.busy(), () -> end(entity, mob, active));
             }
         });
     }
@@ -202,7 +217,11 @@ final class MobCaster {
     void cancel(LiveMob mob) {
         Active active = mob.active();
         mob.active(null);
-        if (active != null && active.stage != null) active.stage.cancel();
+        if (active != null) {
+            if (active.stage != null) active.stage.cancel();
+            if (active.show != null) active.show.cancel();
+        }
+        mob.endLingering();
     }
 
     /**
@@ -213,7 +232,7 @@ final class MobCaster {
      * area damage on a zero cooldown recurses until the stack gives out.
      */
     private void land(LivingEntity entity, LiveMob mob, int index, MobSkill skill, MobAim.Lock lock,
-                      @Nullable LivingEntity target, int depth) {
+                      @Nullable LivingEntity target, int depth, Stage stage) {
         if (mob.casting()) return;
         mob.casting(true);
         try {
@@ -225,11 +244,14 @@ final class MobCaster {
                 if (!skill.cast().windup().isZero() && skill.needsTarget() && !MobEngine.usable(entity, aimed)) {
                     aimed = engine.target(entity, null);
                 }
-                did = (aimed != null || !skill.needsTarget()) && engine.apply(entity, mob, skill, aimed);
+                did = (aimed != null || !skill.needsTarget()) && engine.apply(entity, mob, skill, aimed, stage);
             } else {
-                did = aimed(entity, mob, skill, lock, target);
+                did = aimed(entity, mob, skill, lock, target, stage);
             }
-            if (did) engine.play(skill.effect(), from, entity);
+            if (did) {
+                engine.play(skill.effect(), from, entity);
+                shows.land(stage);
+            }
         } catch (RuntimeException | LinkageError failure) {
             engine.failed(mob, index, skill, failure);
         } finally {
@@ -273,11 +295,11 @@ final class MobCaster {
      * @return whether it did something, which is when its effect lines play
      */
     private boolean aimed(LivingEntity entity, LiveMob mob, MobSkill skill, MobAim.Lock lock,
-                          @Nullable LivingEntity target) {
+                          @Nullable LivingEntity target, Stage stage) {
         switch (skill.type()) {
             // What happens to the mob itself goes where its type sends it.
-            case HEAL, JUMP, SIZE, SPEED, BABY, EFFECT -> {
-                return engine.apply(entity, mob, skill, target);
+            case HEAL, JUMP, SIZE, SPEED, BABY, EFFECT, SHIELD -> {
+                return engine.apply(entity, mob, skill, target, stage);
             }
             default -> { }
         }
@@ -334,8 +356,31 @@ final class MobCaster {
         // Pushed away from where it lands, except the aims that sweep out from the mob.
         boolean fromPoint = !sweeps;
         Location landing = point;
+        stage.landed(aim == MobSkill.Aim.LINE ? entity.getLocation() : point);
+        // What moves the mob, or stays on its own timer, starts here, on the mob's thread.
+        switch (skill.type()) {
+            case LEAP -> {
+                double strength = skill.amount() > 0 ? skill.amount() : 1;
+                entity.setVelocity(MobEngine.flat(entity.getLocation(), landing)
+                        .multiply(0.9 * strength).setY(Math.min(1.2, 0.45 * strength)));
+                moves.pounce(entity, mob, skill, stage);
+                return true;
+            }
+            case DASH -> {
+                stage.busy(moves.dash(entity, mob, skill, stage, aim == MobSkill.Aim.SELF ? null : landing));
+                return true;
+            }
+            case ZONE -> {
+                return moves.zone(entity, mob, skill, stage, landing, aim == MobSkill.Aim.SELF) != null;
+            }
+            case BARRAGE -> {
+                moves.barrage(entity, mob, skill, stage, landing);
+                return true;
+            }
+            default -> { }
+        }
         Runnable work = () -> hitAll(entity, mob, skill, landing,
-                around ? playersAround(landing, area) : victims, fromPoint);
+                around ? playersAround(landing, area) : victims, fromPoint, stage);
         // On Folia the spot may belong to another region than the mob; its players are that region's.
         if (tasks.isOwnedBy(landing)) {
             work.run();
@@ -373,12 +418,17 @@ final class MobCaster {
      * @param fromPoint pushes go away from the landing point rather than from the mob
      */
     private void hitAll(LivingEntity entity, LiveMob mob, MobSkill skill, Location point, List<LivingEntity> hit,
-                        boolean fromPoint) {
+                        boolean fromPoint, Stage stage) {
         Location at = entity.getLocation();
         double strength = skill.amount() > 0 ? skill.amount() : 1;
+        // A summon's bodies are its minions, not the players it set them on.
+        if (skill.type() != MobSkill.Type.SUMMON) stage.reached(hit);
         switch (skill.type()) {
-            case LEAP -> entity.setVelocity(MobEngine.flat(at, point)
-                    .multiply(0.9 * strength).setY(Math.min(1.2, 0.45 * strength)));
+            // Started on the mob's thread in aimed(): they move the mob or keep their own timer.
+            case LEAP, DASH, ZONE, BARRAGE, SHIELD -> { }
+            case CHAIN -> {
+                if (!hit.isEmpty()) moves.chain(entity, mob, skill, stage, hit.getFirst());
+            }
             case PULL -> hit.forEach(body -> body.setVelocity(
                     MobEngine.flat(body.getLocation(), at).multiply(0.9 * strength).setY(0.35)));
             case PUSH -> {
@@ -397,7 +447,10 @@ final class MobCaster {
                 }
             }
             case PROJECTILE -> hit.stream().limit(MAX_VOLLEY).forEach(body -> engine.shoot(entity, mob, skill, body));
-            case AREA_DAMAGE -> hit.forEach(body -> body.damage(skill.amount(), entity));
+            case AREA_DAMAGE -> hit.forEach(body -> {
+                body.damage(skill.amount(), entity);
+                MobEngine.burn(body, skill.duration());
+            });
             case IGNITE -> hit.forEach(body -> body.setFireTicks(Math.max(body.getFireTicks(),
                     (int) Math.min(Integer.MAX_VALUE, skill.duration().toMillis() / 50))));
             case COMMAND -> {
@@ -406,21 +459,23 @@ final class MobCaster {
             }
             case TELEPORT -> {
                 if (skill.radius() > 0) {
-                    engine.apply(entity, mob, skill, null);
+                    engine.apply(entity, mob, skill, null, stage);
                 } else if (!hit.isEmpty()) {
-                    engine.apply(entity, mob, skill, hit.getFirst());
+                    engine.apply(entity, mob, skill, hit.getFirst(), stage);
                 } else {
                     Location spot = point.clone();
                     spot.setYaw(at.getYaw());
                     spot.setPitch(at.getPitch());
                     if (spot.getBlock().isPassable() && spot.clone().add(0, 1, 0).getBlock().isPassable()) {
                         MobEngine.move(entity, spot);
+                        stage.moved(at, spot);
                         engine.play(skill.effect(), spot, entity);
                     }
                 }
             }
-            case SUMMON -> engine.summon(entity, mob, skill, hit.isEmpty() ? null : hit.getFirst());
-            case HEAL, JUMP, SIZE, SPEED, BABY, EFFECT -> engine.apply(entity, mob, skill, null);
+            case SUMMON -> stage.reached(engine.summon(entity, mob, skill, hit.isEmpty() ? null : hit.getFirst(),
+                    stage.spots));
+            case HEAL, JUMP, SIZE, SPEED, BABY, EFFECT -> engine.apply(entity, mob, skill, null, stage);
         }
     }
 
@@ -442,9 +497,26 @@ final class MobCaster {
             multiply(entity, "movement_speed", phase.speed());
             multiply(entity, "attack_damage", phase.damage());
         }
-        // P4: the phase's style plays here, the mob rooted for its wind-up.
         engine.name(entity, mob);
-        fire(MobSkill.Trigger.PHASE, entity, mob, null, false);
+        // The change plays its style, the mob held still for it, and its PHASE skills come after. A cast
+        // under way is not cut short: it lands, and the change is only drawn over it.
+        boolean still = phase != null && !phase.style().equalsIgnoreCase(MobSkills.NO_STYLE);
+        if (!still || mob.active() != null) {
+            if (still) shows.land(shows.transition(entity, mob, phase, false));
+            fire(MobSkill.Trigger.PHASE, entity, mob, null, false);
+            return;
+        }
+        Active active = new Active();
+        mob.active(active);
+        root(entity);
+        Stage stage = shows.transition(entity, mob, phase, true);
+        active.show = stage;
+        active.stage = tasks.runAtEntityLater(entity, TRANSITION, () -> {
+            if (!current(entity, mob, active)) return;
+            shows.land(stage);
+            end(entity, mob, active);
+            fire(MobSkill.Trigger.PHASE, entity, mob, null, false);
+        });
     }
 
     /** The damage a hit does after the phase's resistance. */

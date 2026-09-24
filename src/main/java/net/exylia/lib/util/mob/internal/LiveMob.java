@@ -483,6 +483,83 @@ public final class LiveMob {
         return Math.min(1, players / total);
     }
 
+    // ----------------------------------------------------------------- shield
+
+    private double shieldShare;
+    private long shieldUntil;
+    private long wardShownAt = Long.MIN_VALUE / 2;
+
+    /**
+     * Raises a shield: {@code share} of every hit is taken off until then.
+     *
+     * @param share how much of a hit it stops, {@code 0-1}; {@code 1} stops all of it
+     * @param until when it drops, in milliseconds
+     */
+    public synchronized void shield(double share, long until) {
+        shieldShare = Double.isFinite(share) ? Math.max(0, Math.min(1, share)) : 0;
+        shieldUntil = until;
+    }
+
+    /** How much of a hit the shield stops now, {@code 0} with none up. */
+    public synchronized double shielded(long now) {
+        return now < shieldUntil ? shieldShare : 0;
+    }
+
+    /** Whether a hit the shield took may flash now: one every {@code gapMillis}. */
+    public synchronized boolean wardShown(long now, long gapMillis) {
+        if (now - wardShownAt < gapMillis) return false;
+        wardShownAt = now;
+        return true;
+    }
+
+    // --------------------------------------------------------------- lingering
+
+    private final List<Runnable> lingering = new ArrayList<>();
+    private int zones;
+
+    /**
+     * Something that outlasts the cast that started it — a zone, a barrage, a
+     * shield's look — and must stop when the mob does.
+     *
+     * @param stop what stops it; run once, from {@link #endLingering}
+     */
+    public synchronized void linger(@NotNull Runnable stop) {
+        lingering.add(stop);
+    }
+
+    /** Takes a stopper back once what it stopped ended on its own. */
+    public synchronized void unlinger(@NotNull Runnable stop) {
+        lingering.remove(stop);
+    }
+
+    /** Stops everything still lingering, once each. */
+    public void endLingering() {
+        List<Runnable> stops;
+        synchronized (this) {
+            stops = List.copyOf(lingering);
+            lingering.clear();
+            zones = 0;
+        }
+        stops.forEach(Runnable::run);
+    }
+
+    /**
+     * Takes a zone slot.
+     *
+     * @param most how many may be up at once
+     * @return whether there was one
+     */
+    public synchronized boolean openZone(int most) {
+        if (zones >= most) return false;
+        zones++;
+        return true;
+    }
+
+    /** Gives a zone slot back. */
+    public synchronized void closeZone() {
+        zones = Math.max(0, zones - 1);
+    }
+
     // ----------------------------------------------------------------- minions
 
     /** The minions it summoned that are still counted, pruned by {@code alive}. */

@@ -16,8 +16,9 @@ import org.jetbrains.annotations.NotNull;
  *
  * @param below  it enters this phase when its health (hits left in hits mode) drops
  *               below this share, {@code 0-1} exclusive
- * @param style  the look of the change; blank for the default. Stored for the style
- *               library, which nothing reads yet
+ * @param style  the look of the change, any of {@link MobSkills#STYLES}: blank for
+ *               {@code enrage}, {@link MobSkills#NO_STYLE} for none. The mob is held
+ *               still while it plays (since 1.200.0)
  * @param suffix appended to its name, after a space, while it is in this phase, in Exylia
  *               text notation; surrounding blanks are dropped
  * @param speed  its movement speed times this, {@code 0.1-10}
