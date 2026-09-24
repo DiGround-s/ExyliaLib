@@ -54,15 +54,22 @@ public final class InsertWindow implements InventoryHolder {
 
     private static final int SLOT_CONFIRM = 22;
 
+    /** The bulk window: five open rows over a row of fillers. */
+    private static final int BULK_SIZE = 54;
+    private static final int BULK_SLOTS = 45;
+    private static final int BULK_CONFIRM = 49;
+
     private final Plugin plugin;
     private final UUID viewerId;
-    private final CompletableFuture<Optional<ItemStack>> answer = new CompletableFuture<>();
+    private final boolean bulk;
+    private final CompletableFuture<List<ItemStack>> answer = new CompletableFuture<>();
     private Inventory inventory;
     private boolean finished;
 
-    private InsertWindow(Plugin plugin, Player viewer) {
+    private InsertWindow(Plugin plugin, Player viewer, boolean bulk) {
         this.plugin = plugin;
         this.viewerId = viewer.getUniqueId();
+        this.bulk = bulk;
     }
 
     /**
@@ -96,15 +103,47 @@ public final class InsertWindow implements InventoryHolder {
     public static @NotNull CompletionStage<Optional<ItemStack>> openForItem(@NotNull Plugin plugin,
                                                                             @NotNull Player viewer,
                                                                             @NotNull String title) {
-        InsertWindow window = new InsertWindow(plugin, viewer);
-        Tasks.of(plugin).runAtEntity(viewer, () -> {
-            Inventory inventory = Bukkit.createInventory(window, SIZE,
-                    Text.from(plugin, title).forPlayer(viewer).build());
+        return show(new InsertWindow(plugin, viewer, false), viewer, title)
+                .thenApply(items -> items.stream().findFirst());
+    }
+
+    /**
+     * Opens a window with five open rows and answers with everything put in it.
+     *
+     * <p>For adding many items at once: shift-click them in from the inventory
+     * and confirm once. Each answer is a clone, and every item goes back to the
+     * player exactly as with the one-slot window.
+     *
+     * @param plugin who is asking
+     * @param viewer who is inserting
+     * @param title  the window title
+     * @return the items in slot order, empty when they closed it empty-handed
+     * @since 1.196.0
+     */
+    public static @NotNull CompletionStage<List<ItemStack>> openForItems(@NotNull Plugin plugin,
+                                                                         @NotNull Player viewer,
+                                                                         @NotNull String title) {
+        return show(new InsertWindow(plugin, viewer, true), viewer, title);
+    }
+
+    private static CompletionStage<List<ItemStack>> show(InsertWindow window, Player viewer,
+                                                         String title) {
+        Tasks.of(window.plugin).runAtEntity(viewer, () -> {
+            Inventory inventory = Bukkit.createInventory(window, window.bulk ? BULK_SIZE : SIZE,
+                    Text.from(window.plugin, title).forPlayer(viewer).build());
             window.inventory = inventory;
             window.draw();
             viewer.openInventory(inventory);
         });
         return window.answer;
+    }
+
+    private boolean isInput(int slot) {
+        return bulk ? slot >= 0 && slot < BULK_SLOTS : slot == SLOT;
+    }
+
+    private int confirmSlot() {
+        return bulk ? BULK_CONFIRM : SLOT_CONFIRM;
     }
 
     @Override
@@ -114,10 +153,19 @@ public final class InsertWindow implements InventoryHolder {
 
     private void draw() {
         ItemStack filler = pane();
-        for (int slot = 0; slot < SIZE; slot++) {
-            inventory.setItem(slot, filler);
+        for (int slot = 0; slot < inventory.getSize(); slot++) {
+            inventory.setItem(slot, isInput(slot) ? null : filler);
         }
-        inventory.setItem(SLOT, null);
+        if (bulk) {
+            inventory.setItem(BULK_CONFIRM, button(Material.LIME_DYE, "{success}&lUSE THESE ITEMS",
+                    "{letters_black}▎ {letters}Each item above becomes",
+                    "{letters_black}▎ {letters}its own entry.",
+                    "",
+                    "{letters_black}▎ {letters}You get the items back either way.",
+                    "",
+                    "{warning}➥ Click to confirm"));
+            return;
+        }
         inventory.setItem(SLOT_CONFIRM, button(Material.LIME_DYE, "{success}&lUSE THIS ITEM",
                 "{letters_black}▎ {letters}Read the item above and use",
                 "{letters_black}▎ {letters}it as the icon.",
@@ -146,25 +194,25 @@ public final class InsertWindow implements InventoryHolder {
         if (event.getClickedInventory() != event.getView().getTopInventory()) {
             return;
         }
-        if (event.getSlot() == SLOT_CONFIRM) {
+        if (event.getSlot() == confirmSlot()) {
             event.setCancelled(true);
             confirm(viewer);
             return;
         }
-        if (event.getSlot() != SLOT) {
+        if (!isInput(event.getSlot())) {
             event.setCancelled(true);
         }
     }
 
     /**
-     * A drag over the window: allowed into the one slot and nowhere else.
+     * A drag over the window: allowed into the open slots and nowhere else.
      *
      * @param event the drag
      */
-    public static void drag(@NotNull InventoryDragEvent event) {
+    public void drag(@NotNull InventoryDragEvent event) {
         int top = event.getView().getTopInventory().getSize();
         for (int slot : event.getRawSlots()) {
-            if (slot < top && slot != SLOT) {
+            if (slot < top && !isInput(slot)) {
                 event.setCancelled(true);
                 return;
             }
@@ -173,13 +221,19 @@ public final class InsertWindow implements InventoryHolder {
 
     /** What the confirm button does. */
     private void confirm(Player viewer) {
-        ItemStack inserted = inventory.getItem(SLOT);
-        if (inserted == null || inserted.getType() == Material.AIR) {
+        List<ItemStack> inserted = new ArrayList<>();
+        for (int slot = 0; slot < inventory.getSize(); slot++) {
+            ItemStack item = isInput(slot) ? inventory.getItem(slot) : null;
+            if (item != null && item.getType() != Material.AIR) {
+                // Cloned, not taken: the caller keeps a copy and the player
+                // keeps the item they lent.
+                inserted.add(item.clone());
+            }
+        }
+        if (inserted.isEmpty()) {
             return;
         }
-        // Cloned, not taken: the caller keeps a copy and the player keeps the
-        // item they lent.
-        complete(Optional.of(inserted.clone()));
+        complete(inserted);
         viewer.closeInventory();
     }
 
@@ -191,15 +245,21 @@ public final class InsertWindow implements InventoryHolder {
      * this window.
      */
     public void release(@Nullable Player viewer) {
-        ItemStack inserted = inventory == null ? null : inventory.getItem(SLOT);
+        List<ItemStack> lent = new ArrayList<>();
         if (inventory != null) {
-            inventory.setItem(SLOT, null);
+            for (int slot = 0; slot < inventory.getSize(); slot++) {
+                ItemStack item = isInput(slot) ? inventory.getItem(slot) : null;
+                if (item != null && item.getType() != Material.AIR) {
+                    lent.add(item);
+                    inventory.setItem(slot, null);
+                }
+            }
         }
-        complete(Optional.empty());
-        if (inserted == null || inserted.getType() == Material.AIR || viewer == null) {
+        complete(List.of());
+        if (lent.isEmpty() || viewer == null) {
             return;
         }
-        Map<Integer, ItemStack> leftOver = viewer.getInventory().addItem(inserted);
+        Map<Integer, ItemStack> leftOver = viewer.getInventory().addItem(lent.toArray(ItemStack[]::new));
         for (ItemStack rest : leftOver.values()) {
             viewer.getWorld().dropItemNaturally(viewer.getLocation(), rest);
         }
@@ -239,7 +299,7 @@ public final class InsertWindow implements InventoryHolder {
                 .decorationIfAbsent(TextDecoration.ITALIC, TextDecoration.State.FALSE);
     }
 
-    private void complete(Optional<ItemStack> value) {
+    private void complete(List<ItemStack> value) {
         if (finished) {
             return;
         }

@@ -3,9 +3,11 @@ package net.exylia.lib.util.reward;
 import net.exylia.lib.input.FormKey;
 import net.exylia.lib.input.FormValues;
 import net.exylia.lib.input.Inputs;
+import net.exylia.lib.input.internal.InsertWindow;
+import net.exylia.lib.item.Source;
+import net.exylia.lib.text.Text;
 import net.exylia.lib.util.editor.EditorDescriptor;
 import net.exylia.lib.util.editor.EditorForm;
-import net.exylia.lib.item.Source;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.TextDecoration;
 import net.kyori.adventure.text.minimessage.MiniMessage;
@@ -64,6 +66,9 @@ public final class RewardDescriptor implements EditorDescriptor<RewardEntry> {
     private static final FormKey<String> PERMISSION = FormKey.text("permission");
     private static final FormKey<String> CONDITION = FormKey.text("condition");
     private static final FormKey<String> MESSAGE = FormKey.text("message");
+
+    /** The extra answer to "what does it give?" that adds one item reward per item put down. */
+    private static final String SEVERAL_ITEMS = "SEVERAL_ITEMS";
 
     /** Said under the command field, where the wrong guess fails silently. */
     private static final String COMMAND_HINT = "%player_name% is the player, no leading slash";
@@ -146,6 +151,67 @@ public final class RewardDescriptor implements EditorDescriptor<RewardEntry> {
                 .thenApply(result -> result.completed()
                         ? Optional.of(RewardEntry.of(result.value()).build())
                         : Optional.empty());
+    }
+
+    /**
+     * The same question, with one more answer: several items at once.
+     *
+     * <p>Picked, it opens a window with five open rows. Every stack put in it
+     * becomes its own item reward, at its own stack size, and they are added
+     * without a form each: whoever is importing a whole inventory is not asking
+     * to be asked thirty times.
+     */
+    @Override
+    public @NotNull CompletionStage<List<RewardEntry>> createAll(@NotNull Player viewer) {
+        List<String> answers = new ArrayList<>();
+        for (RewardType type : RewardType.values()) {
+            answers.add(type.name());
+            if (type == RewardType.ITEM) {
+                answers.add(SEVERAL_ITEMS);
+            }
+        }
+        return Inputs.of(plugin).choice(viewer, "{primary}&lWHAT DOES IT GIVE?", answers)
+                .label(answer -> answer.equals(SEVERAL_ITEMS)
+                        ? "{primary}&lSEVERAL ITEMS"
+                        : "{primary}&l" + answer.toUpperCase(Locale.ROOT))
+                .icon(answer -> answer.equals(SEVERAL_ITEMS)
+                        ? Material.HOPPER
+                        : iconOf(RewardType.valueOf(answer)))
+                .key(answer -> answer)
+                .open()
+                .thenCompose(result -> {
+                    if (!result.completed()) {
+                        return CompletableFuture.completedFuture(List.<RewardEntry>of());
+                    }
+                    if (result.value().equals(SEVERAL_ITEMS)) {
+                        return InsertWindow.openForItems(plugin, viewer, "{primary}&lINSERT THE ITEMS")
+                                .thenApply(items -> fromItems(viewer, items));
+                    }
+                    return CompletableFuture.completedFuture(
+                            List.of(RewardEntry.of(RewardType.valueOf(result.value())).build()));
+                });
+    }
+
+    /** One item reward per stack, skipping any too big to store. */
+    private List<RewardEntry> fromItems(Player viewer, List<ItemStack> items) {
+        List<RewardEntry> entries = new ArrayList<>(items.size());
+        int skipped = 0;
+        for (ItemStack item : items) {
+            String snapshot = Source.whole(item).raw();
+            if (snapshot.length() > ITEM_MAX_LENGTH) {
+                skipped++;
+                continue;
+            }
+            entries.add(prefilled(RewardEntry.item(snapshot).build(), customName(item),
+                    Source.of(item.getType().name()).label(), item.getAmount()));
+        }
+        if (!items.isEmpty()) {
+            Text.from(plugin, "{success}Added {info}" + entries.size() + " {success}reward"
+                    + (entries.size() == 1 ? "" : "s") + "."
+                    + (skipped == 0 ? "" : " {error}" + skipped + " too big to store were left out."))
+                    .send(viewer);
+        }
+        return entries;
     }
 
     @Override

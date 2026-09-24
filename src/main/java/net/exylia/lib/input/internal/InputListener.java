@@ -68,8 +68,8 @@ public final class InputListener implements Listener {
     /** Routes drags so no drag variant can write into an input window. */
     @EventHandler(priority = EventPriority.HIGHEST)
     public void onDrag(InventoryDragEvent event) {
-        if (event.getView().getTopInventory().getHolder(false) instanceof InsertWindow) {
-            InsertWindow.drag(event);
+        if (event.getView().getTopInventory().getHolder(false) instanceof InsertWindow window) {
+            window.drag(event);
             return;
         }
         MenuTransport menu = MenuTransport.transportOf(event.getView().getTopInventory());
