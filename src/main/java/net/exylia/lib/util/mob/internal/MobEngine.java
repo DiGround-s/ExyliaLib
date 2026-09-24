@@ -23,6 +23,7 @@ import net.exylia.lib.util.mob.MobBehaviour;
 import net.exylia.lib.util.mob.MobHit;
 import net.exylia.lib.util.mob.MobLook;
 import net.exylia.lib.util.mob.MobPhase;
+import net.exylia.lib.util.mob.MobVisuals;
 import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.Bukkit;
 import org.bukkit.DyeColor;
@@ -189,6 +190,7 @@ public final class MobEngine implements Listener {
     private volatile boolean stopped;
 
     private final MobCaster caster;
+    private final MobReactions reactions;
 
     public MobEngine(@NotNull Plugin plugin) {
         this.plugin = plugin;
@@ -196,6 +198,7 @@ public final class MobEngine implements Listener {
         this.debug = Debug.of(plugin);
         this.prefix = plugin.getName() + ":";
         this.caster = new MobCaster(this, tasks);
+        this.reactions = new MobReactions(plugin, tasks, this::effectRadius);
     }
 
     /** Registers the listeners and the prune, and clears what a previous run left. */
@@ -299,6 +302,14 @@ public final class MobEngine implements Listener {
         return effectRadius;
     }
 
+    public void visuals(@NotNull MobVisuals visuals) {
+        reactions.visuals(visuals);
+    }
+
+    public @NotNull MobVisuals visuals() {
+        return reactions.visuals();
+    }
+
     // ------------------------------------------------------------------ lookup
 
     public boolean isMob(@NotNull Entity entity) {
@@ -369,6 +380,7 @@ public final class MobEngine implements Listener {
         mob.timer(tasks.runAtEntityTimer(entity, period, period, () -> tick(entity, mob, fast)));
         live.put(entity.getUniqueId(), mob);
         fire(MobSkill.Trigger.SPAWN, entity, mob, null);
+        reactions.spawn(entity, mob);
         return entity;
     }
 
@@ -468,8 +480,9 @@ public final class MobEngine implements Listener {
             return;
         }
         leash(entity, mob);
-        mob.second();
+        int seconds = mob.second();
         look(entity, mob, false);
+        reactions.low(entity, mob, seconds);
         if (mob.template().has(MobFlag.AGGRESSIVE) && !mob.template().has(MobFlag.PASSIVE)
                 && entity instanceof Mob hunter && !usable(hunter, hunter.getTarget())) {
             double range = Math.min(HUNT_LIMIT, value(hunter, "follow_range", NEAREST));
@@ -520,6 +533,7 @@ public final class MobEngine implements Listener {
         // Capped at what it had left, so an overkill does not buy a bigger share.
         mob.hurt(damager == null ? null : playerOf(damager), Math.min(dealt, health));
         double after = health - dealt;
+        reactions.hurt(entity, mob, Math.min(dealt, health), critical(event), damager, after <= 0);
         if (after <= 0) return;
 
         fire(MobSkill.Trigger.DAMAGED, entity, mob, attacker, false);
@@ -565,6 +579,7 @@ public final class MobEngine implements Listener {
     private void hit(LivingEntity entity, LiveMob mob, Player player, int left) {
         entity.playHurtAnimation(player.getLocation().getYaw());
         boolean broken = left == 0;
+        if (!broken) reactions.hit(entity, mob, player, left);
         // The breaking hit still looks and sounds like a hit; nothing else is
         // cast on a mob that is about to go.
         fire(MobSkill.Trigger.DAMAGED, entity, mob, player, broken);
@@ -605,6 +620,8 @@ public final class MobEngine implements Listener {
             if (exp > 0) at.getWorld().spawn(at, ExperienceOrb.class, orb -> orb.setExperience(exp));
         }
         tell(new MobDeath(template, entity, at, killer, mob.damage(), mob.topDamager(), mob.playerShare(), cause));
+        // Drawn while it still stands; removed straight after, so there is no body to hide.
+        if (cause == MobDeath.Cause.BROKEN) reactions.death(entity, mob, killer);
         unglow(entity.getUniqueId(), mob.glowShown());
         entity.remove();
     }
@@ -622,7 +639,9 @@ public final class MobEngine implements Listener {
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onHeal(EntityRegainHealthEvent event) {
         LiveMob mob = live.get(event.getEntity().getUniqueId());
-        if (mob != null && event.getEntity() instanceof LivingEntity entity) nameLater(entity, mob);
+        if (mob == null || !(event.getEntity() instanceof LivingEntity entity)) return;
+        nameLater(entity, mob);
+        reactions.heal(entity, mob, Math.min(event.getAmount(), maxHealth(entity) - entity.getHealth()));
     }
 
     @EventHandler(priority = EventPriority.HIGH)
@@ -645,6 +664,7 @@ public final class MobEngine implements Listener {
         fire(MobSkill.Trigger.DEATH, entity, mob, killer, false);
         tell(new MobDeath(template, entity, entity.getLocation(), killer,
                 mob.damage(), mob.topDamager(), mob.playerShare(), MobDeath.Cause.KILLED));
+        if (reactions.death(entity, mob, killer)) reactions.hideBody(entity);
     }
 
     /** A slime splitting or a zombie drowning would be a vanilla mob wearing our tag. */
@@ -780,8 +800,11 @@ public final class MobEngine implements Listener {
             case PROJECTILE -> shoot(entity, mob, skill, target);
             case HEAL -> {
                 double max = maxHealth(entity);
-                entity.setHealth(Math.min(max, entity.getHealth() + max * skill.amount() / 100));
+                double before = entity.getHealth();
+                entity.setHealth(Math.min(max, before + max * skill.amount() / 100));
                 nameLater(entity, mob);
+                // Set, not regained: no event says so, so the reaction is asked here.
+                reactions.heal(entity, mob, entity.getHealth() - before);
             }
             case TELEPORT -> {
                 Location landed = skill.radius() > 0 ? blink(entity, mob, skill.radius()) : behind(entity, target);
@@ -1367,6 +1390,15 @@ public final class MobEngine implements Listener {
         PotionEffectType type = PotionEffectType.getByName(effect.name());
         return type == null ? null : new PotionEffect(type, effect.duration(), effect.amplifier(),
                 effect.ambient(), effect.particles(), effect.icon());
+    }
+
+    /** A player's critical hit; Spigot cannot say, so there it never is one. */
+    private static boolean critical(EntityDamageEvent event) {
+        try {
+            return event instanceof EntityDamageByEntityEvent byEntity && byEntity.isCritical();
+        } catch (LinkageError spigot) {
+            return false;
+        }
     }
 
     /** The living thing behind a hit: the archer behind an arrow. */

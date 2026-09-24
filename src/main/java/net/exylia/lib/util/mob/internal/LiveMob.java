@@ -45,6 +45,9 @@ public final class LiveMob {
     private long globalReadyAt;
     private @Nullable MobCaster.Active active;
     private int fightPhase = 1;
+    /** When a hurt and a heal reaction last showed; far in the past until the first. */
+    private long hurtShownAt = Long.MIN_VALUE / 2;
+    private long healShownAt = Long.MIN_VALUE / 2;
 
     // Read and written on the mob's own thread only: its timer and its events.
     private @Nullable Location home;
@@ -410,6 +413,33 @@ public final class LiveMob {
     public synchronized boolean enterPhase(int phase) {
         if (phase <= fightPhase) return false;
         fightPhase = phase;
+        return true;
+    }
+
+    // --------------------------------------------------------------- reactions
+
+    /**
+     * Whether a hurt reaction may show now, taking the turn when it may.
+     *
+     * <p>A sword hits five times a second and a sweep hits a crowd; one burst
+     * of sparks per {@code gapMillis} per mob is what keeps a fight readable
+     * and the packets flat. The numbers are not held back by this: they merge
+     * on their own.
+     *
+     * @param now       the time, in milliseconds
+     * @param gapMillis the least time between two
+     * @return whether to draw it
+     */
+    public synchronized boolean hurtShown(long now, long gapMillis) {
+        if (now - hurtShownAt < gapMillis) return false;
+        hurtShownAt = now;
+        return true;
+    }
+
+    /** The same for healing, which regeneration raises every few ticks. */
+    public synchronized boolean healShown(long now, long gapMillis) {
+        if (now - healShownAt < gapMillis) return false;
+        healShownAt = now;
         return true;
     }
 

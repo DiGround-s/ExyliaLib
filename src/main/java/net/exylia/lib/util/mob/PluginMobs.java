@@ -330,6 +330,35 @@ public final class PluginMobs {
         return engine.effectRadius();
     }
 
+    /**
+     * How much these mobs draw: whether they react at all, how far their
+     * numbers are seen, how hard the screen shakes and how many large effects
+     * play at once. {@link MobVisuals#DEFAULT} until set; applies to mobs
+     * already alive from their next reaction.
+     *
+     * <pre>{@code
+     * mobs.visuals(new MobVisuals(config.indicatorRange(), config.maxCasts(),
+     *         config.reactions(), config.shake()));
+     * }</pre>
+     *
+     * @param visuals the settings
+     * @return this
+     * @since 1.199.0
+     */
+    public @NotNull PluginMobs visuals(@NotNull MobVisuals visuals) {
+        engine.visuals(Objects.requireNonNull(visuals, "visuals"));
+        return this;
+    }
+
+    /**
+     * How much these mobs draw.
+     *
+     * @since 1.199.0
+     */
+    public @NotNull MobVisuals visuals() {
+        return engine.visuals();
+    }
+
     // ----------------------------------------------------------------- editors
 
     /**
@@ -443,9 +472,16 @@ public final class PluginMobs {
     }
 
     /**
-     * One form for a {@link MobLook}, prefilled, with the choices of this
-     * type in each hint. A field the type cannot use (a zombie's variant, a
-     * cow's body) is not asked and keeps its value.
+     * A {@link MobLook}, one part at a time: first APPEARANCE or REACTIONS.
+     *
+     * <ul>
+     *   <li><b>APPEARANCE</b> &mdash; one form, prefilled, with the choices of
+     *       this type in each hint. A field the type cannot use (a zombie's
+     *       variant, a cow's body) is not asked and keeps its value.</li>
+     *   <li><b>REACTIONS</b> &mdash; which reaction: spawn, hurt, death, low or
+     *       numbers, each showing what it is set to; then a choice of AUTO, NONE
+     *       and the reactions there are, with the current one ticked.</li>
+     * </ul>
      *
      * @param viewer who is editing
      * @param type   the template's type, which decides the variants and bodies offered
@@ -455,13 +491,26 @@ public final class PluginMobs {
      */
     public @NotNull CompletionStage<Optional<MobLook>> lookEditor(@NotNull Player viewer, @NotNull EntityType type,
                                                                   @NotNull MobLook look) {
+        return Inputs.of(plugin)
+                .choice(viewer, "{primary}&lLOOK", List.of("APPEARANCE", "REACTIONS"))
+                .label(part -> "{primary}&l" + part)
+                .icon(part -> part.equals("APPEARANCE") ? Material.PINK_CARPET : Material.FIREWORK_STAR)
+                .key(part -> part)
+                .open()
+                .thenCompose(part -> {
+                    if (!part.completed()) return CompletableFuture.completedFuture(Optional.<MobLook>empty());
+                    return part.value().equals("APPEARANCE") ? appearance(viewer, type, look) : reactions(viewer, look);
+                });
+    }
+
+    private CompletionStage<Optional<MobLook>> appearance(Player viewer, EntityType type, MobLook look) {
         FormKey<String> variant = FormKey.text("variant");
         FormKey<String> body = FormKey.text("body");
         FormKey<String> glow = FormKey.text("glow");
         FormKey<String> aura = FormKey.text("aura");
         List<String> variants = MobLook.variants(type);
         List<String> bodies = MobLook.bodies(type);
-        EditorForm form = EditorForm.of(plugin, viewer, "{primary}&lLOOK");
+        EditorForm form = EditorForm.of(plugin, viewer, "{primary}&lAPPEARANCE");
         if (!variants.isEmpty()) {
             form.field(variant, optionalText(variant, "Variant", look.variant())).hint(choices(variants));
         }
@@ -473,11 +522,105 @@ public final class PluginMobs {
         Collection<String> auraNames = engine.auras().keySet();
         form.field(aura, optionalText(aura, "Aura", look.aura()))
                 .hint(auraNames.isEmpty() ? "No auras are registered. NONE for none." : choices(List.copyOf(auraNames)));
-        return form.ask(values -> new MobLook(
-                variants.isEmpty() ? look.variant() : values.getOr(variant, ""),
-                bodies.isEmpty() ? look.body() : values.getOr(body, ""),
-                values.getOr(glow, ""),
-                values.getOr(aura, "")));
+        return form.ask(values -> look
+                .withVariant(variants.isEmpty() ? look.variant() : values.getOr(variant, ""))
+                .withBody(bodies.isEmpty() ? look.body() : values.getOr(body, ""))
+                .withGlow(values.getOr(glow, ""))
+                .withAura(values.getOr(aura, "")));
+    }
+
+    /** The reactions a look can set, in the order the menu lists them. */
+    private enum Reaction {
+        SPAWN(Material.ENDER_EYE, MobLook.SPAWNS),
+        HURT(Material.IRON_SWORD, MobLook.HURTS),
+        DEATH(Material.SKELETON_SKULL, MobLook.DEATHS),
+        LOW(Material.REDSTONE, MobLook.LOWS),
+        NUMBERS(Material.NAME_TAG, List.of());
+
+        private final Material icon;
+        private final List<String> ids;
+
+        Reaction(Material icon, List<String> ids) {
+            this.icon = icon;
+            this.ids = ids;
+        }
+
+        String of(MobLook look) {
+            return switch (this) {
+                case SPAWN -> look.spawn();
+                case HURT -> look.hurt();
+                case DEATH -> look.death();
+                case LOW -> look.low();
+                case NUMBERS -> look.numbers() ? "on" : "off";
+            };
+        }
+
+        MobLook with(MobLook look, String id) {
+            return switch (this) {
+                case SPAWN -> look.withSpawn(id);
+                case HURT -> look.withHurt(id);
+                case DEATH -> look.withDeath(id);
+                case LOW -> look.withLow(id);
+                case NUMBERS -> look.withNumbers(id.equals("on"));
+            };
+        }
+    }
+
+    private CompletionStage<Optional<MobLook>> reactions(Player viewer, MobLook look) {
+        return Inputs.of(plugin)
+                .choice(viewer, "{primary}&lREACTIONS", List.of(Reaction.values()))
+                .label(reaction -> "{primary}&l" + reaction.name() + " &8[{info}" + shown(reaction.of(look)) + "&8]")
+                .icon(reaction -> reaction.icon)
+                .key(Enum::name)
+                .open()
+                .thenCompose(reaction -> {
+                    if (!reaction.completed()) return CompletableFuture.completedFuture(Optional.<MobLook>empty());
+                    Reaction part = reaction.value();
+                    List<String> options = new java.util.ArrayList<>();
+                    if (part == Reaction.NUMBERS) {
+                        options.addAll(List.of("on", "off"));
+                    } else {
+                        options.add("auto");
+                        options.add(MobLook.OFF);
+                        options.addAll(part.ids);
+                    }
+                    String current = part.of(look).isEmpty() ? "auto" : part.of(look);
+                    return Inputs.of(plugin)
+                            .choice(viewer, "{primary}&l" + part.name(), options)
+                            .label(option -> "{primary}&l" + option.toUpperCase(Locale.ROOT))
+                            .icon(option -> reactionIcon(option, part.icon))
+                            .key(option -> option)
+                            .defaultValue(options.contains(current) ? current : "auto")
+                            .open()
+                            .thenApply(picked -> picked.completed()
+                                    ? Optional.of(part.with(look, picked.value()))
+                                    : Optional.<MobLook>empty());
+                });
+    }
+
+    /** What a reaction reads as in a menu: AUTO for blank. */
+    private static String shown(String id) {
+        return id.isEmpty() ? "auto" : id;
+    }
+
+    private static Material reactionIcon(String option, Material fallback) {
+        return switch (option) {
+            case "auto" -> Material.NETHER_STAR;
+            case MobLook.OFF, "off" -> Material.BARRIER;
+            case "on" -> Material.LIME_DYE;
+            case "rise" -> Material.ROOTED_DIRT;
+            case "portal" -> Material.CRYING_OBSIDIAN;
+            case "drop" -> Material.FEATHER;
+            case "bolt" -> Material.LIGHTNING_ROD;
+            case "spark" -> Material.FLINT_AND_STEEL;
+            case "pop" -> Material.COOKIE;
+            case "ragdoll" -> Material.ARMOR_STAND;
+            case "shatter" -> Material.GLASS;
+            case "pinata" -> Material.FIREWORK_ROCKET;
+            case "wounded" -> Material.REDSTONE;
+            case "frantic" -> Material.WATER_BUCKET;
+            default -> fallback;
+        };
     }
 
     /**

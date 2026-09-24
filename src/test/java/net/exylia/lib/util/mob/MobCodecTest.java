@@ -179,6 +179,30 @@ class MobCodecTest {
     }
 
     @Test
+    @DisplayName("reactions round-trip, AUTO and numbers-on are not written, and a 1.195 look reads with every reaction AUTO")
+    void lookReactions() {
+        String stored = "{\"variant\":\"CREAMY\",\"body\":\"CYCLE\",\"glow\":\"RANDOM\",\"aura\":\"confetti\"}";
+        MobLook old = MobCodec.decodeLook(stored, this::problem);
+        assertEquals(new MobLook("CREAMY", MobLook.CYCLE, MobLook.RANDOM, "confetti"), old);
+        assertEquals(MobLook.AUTO, old.spawn());
+        assertTrue(old.numbers());
+        assertEquals(stored, MobCodec.encodeLook(old), "an old look writes back byte for byte");
+
+        MobLook look = MobLook.NONE.withSpawn(" Portal ").withHurt("auto").withDeath("OFF").withLow("frantic")
+                .withNumbers(false);
+        assertEquals("portal", look.spawn());
+        assertEquals(MobLook.AUTO, look.hurt());
+        assertEquals(MobLook.OFF, look.death());
+        assertEquals("{\"spawn\":\"portal\",\"death\":\"none\",\"low\":\"frantic\",\"numbers\":false}",
+                MobCodec.encodeLook(look));
+        assertEquals(look, MobCodec.decodeLook(MobCodec.encodeLook(look), this::problem));
+        assertTrue(look.vanillaAppearance());
+        assertEquals(MobLook.NONE, MobCodec.decodeLook("{\"numbers\":\"maybe\"}", this::problem),
+                "a numbers flag that is no boolean keeps them on");
+        assertEquals(0, problems.size(), problems.toString());
+    }
+
+    @Test
     @DisplayName("a skill stored before effects existed still reads, and effects round-trip")
     void skillEffect() {
         List<MobSkill> old = MobCodec.decodeSkills(

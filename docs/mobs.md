@@ -138,12 +138,13 @@ call needs a running server.
 | `offDeath(Consumer<MobDeath>)` → `boolean` | since 1.195.0; stops telling that same instance; whether it was listening |
 | `onHit(Consumer<MobHit>)` / `offHit(Consumer<MobHit>)` → `boolean` | since 1.195.0; every counted hit in hits mode, the breaking one included, on the mob's thread |
 | `auras(Map<String, List<String>>)` / `auras()` | since 1.195.0; the named auras a look can wear, replacing the ones before; in order, the first is the fallback |
-| `effectRadius(double)` / `effectRadius()` | since 1.195.0; blocks from which skill effects, effect skills and auras are seen; 32 until set |
+| `effectRadius(double)` / `effectRadius()` | since 1.195.0; blocks from which skill effects, effect skills and auras are seen; 32 until set. Entrances and deaths are seen from here too |
+| `visuals(MobVisuals)` / `visuals()` | since 1.199.0; the reactions switch, the numbers' range, the shake multiplier and the cap on large effects at once; `MobVisuals.DEFAULT` until set, see [Reactions](#reactions-since-11990) |
 | `skillsEditor(List<MobSkill>)` → `ListEditor<MobSkill>` | the list editor over skills |
 | `attributesEditor(Player, Map<String, Double>)` → `CompletionStage<Optional<Map<String, Double>>>` | one form, a field per attribute |
 | `flagsEditor(Player, Set<MobFlag>)` → `CompletionStage<Optional<Set<MobFlag>>>` | one form, a checkbox per flag |
 | `behaviourEditor(Player, MobBehaviour)` → `CompletionStage<Optional<MobBehaviour>>` | since 1.195.0; one form: hits, hit cooldown, lifetime (durations), roam |
-| `lookEditor(Player, EntityType, MobLook)` → `CompletionStage<Optional<MobLook>>` | since 1.195.0; one form: variant and body (only for types that have them), outline colour, aura; each hint lists the choices |
+| `lookEditor(Player, EntityType, MobLook)` → `CompletionStage<Optional<MobLook>>` | since 1.195.0; asks APPEARANCE or REACTIONS (since 1.199.0). APPEARANCE is one form: variant and body (only for types that have them), outline colour, aura; each hint lists the choices. REACTIONS lists spawn, hurt, death, low and numbers with what each is set to; picking one opens a choice of AUTO, NONE and its ids with the current one ticked, and saves that one change |
 | `fightEditor(Player, MobFight, Set<String> groupsInUse)` → `CompletionStage<Optional<MobFight>>` | since 1.198.0; asks TIMING or PHASES. TIMING is one form: the global cooldown and one period per group in `groupsInUse` (a group not in it loses its period). PHASES is a list editor over `MobPhase` |
 
 ### The template
@@ -161,7 +162,7 @@ call needs a running server.
 | `rewards` | `List<RewardEntry>` | stored, never given by the library |
 | `exp` | `int` | added to the experience it drops |
 | `behaviour` | `MobBehaviour` | since 1.195.0; hits mode, lifetime and roam, see below. `MobBehaviour.NONE` by default |
-| `look` | `MobLook` | since 1.195.0; variant, body, outline colour and aura, see below. `MobLook.NONE` by default |
+| `look` | `MobLook` | since 1.195.0; variant, body, outline colour and aura, and since 1.199.0 its reactions, see below. `MobLook.NONE` by default: vanilla appearance, AUTO reactions |
 | `fight` | `MobFight` | since 1.198.0; global cooldown, rotation group periods and phases, see below. `MobFight.NONE` by default |
 | `money` | `double` | stored, never paid by the library. One amount in no named currency: a consumer with several currencies keeps its own per-currency amounts beside the template and reads this as its default currency's (SurvivalCore does) |
 
@@ -254,6 +255,67 @@ scoreboard; the mob leaves it when it dies, breaks, expires, is removed on
 disable, or is found gone by the prune. Folia has no main scoreboard to write
 to, so there the outline stays white. A name or material the type cannot use is
 reported once and skipped.
+
+### Reactions (since 1.199.0)
+
+`MobLook` carries five more components: `spawn`, `hurt`, `death`, `low` (a
+reaction id, `MobLook.AUTO` = blank, or `MobLook.OFF` = `none`) and `numbers`
+(a boolean, `true` by default). The four-argument constructor is kept and means
+every reaction AUTO with numbers on; `withSpawn`/`withHurt`/`withDeath`/
+`withLow`/`withNumbers` change one. Ids read in any case; `auto` reads as blank
+and `off` as `none`. An id this version does not draw plays AUTO.
+
+| Reaction | Ids (`MobLook.SPAWNS`, `HURTS`, `DEATHS`, `LOWS`) | AUTO |
+| --- | --- | --- |
+| `spawn` | `rise`, `portal`, `drop`, `bolt` | `drop` in hits mode, else `rise`; a mob standing on nothing solid comes through a `portal`, and a `drop` with no room above rises |
+| `hurt` | `spark`, `pop` | `pop` in hits mode, else `spark` |
+| `death` | `ragdoll`, `shatter`, `pinata` | `pinata` in hits mode, `ragdoll` for a humanoid (zombie, husk, drowned, zombie villager, skeleton, stray, bogged, wither skeleton, piglin, piglin brute, zombified piglin, vindicator, pillager, evoker, illusioner, witch), else `shatter`; a `ragdoll` on anything else, or where ragdolls cannot be drawn, shatters |
+| `low` | `wounded`, `frantic` | `frantic` in hits mode, else `wounded` |
+
+What each one draws:
+
+| Id | Recipe |
+| --- | --- |
+| `rise` | Hidden for 12 ticks. 12 chunks of the block it stands on erupt around its feet on an overshoot, 22 ms apart, hold 180 ms and are thrown aside to land and melt; the ground crumbles four times, then it appears in a spray of that block with its break sound |
+| `portal` | Hidden for 12 ticks. An upright ring of 14 crying obsidian plates grows in across the way it faces, an inner ring of 8 purple glass shards with it, reverse-portal particles pull inwards; it steps out at 600 ms and both rings collapse into the middle. End portal frame, respawn anchor and teleport sounds |
+| `drop` | Spawns 6 blocks up with 1.5 s of slow falling over a warning circle (`{accent}` in hits mode, else `{warning}`) that fills for 1.6 s, trailing cloud; on landing (polled every 2 ticks, 4 s at most) ground chunks kick outwards, a puff, a thud and a 6-block shake, and confetti for a hits-mode mob. The one reaction that touches the mob: it needs `6 + height` free blocks above, or rises instead |
+| `bolt` | Hidden for 6 ticks. Sparks at its feet and a beacon charge, then at 300 ms a jagged glowing bolt (a white core, a pale blue halo) strikes from 16 blocks up, a thinner flicker follows at 420 ms; impact, a quiet thunder, end-rod and spark bursts, scorch smoke and an 8-block shake. No real lightning: nothing burns and nobody across the world hears it |
+| `spark` | 8 crits at the wound (plus enchanted-hit sparks on a critical hit); a hit of 15% of its health or more also knocks 3 chips of its palette off the side away from the attacker, which land and melt |
+| `pop` | Squashes a scale modifier +12% for 3 ticks (on top of any SIZE skill), 4 candies spill off the far side from the hitter and land, confetti in `{accent}`, `{highlight}` and `{info}`, an egg pop and a sparkle |
+| `ragdoll` | The body in flat per-type colours (`RagdollSkin.flat`), detail 2, light 15, at the mob's scale (half for a baby), wearing its type's head (`ZOMBIE_HEAD`, `SKELETON_SKULL`, `WITHER_SKELETON_SKULL`, `PIGLIN_HEAD`; a plain head otherwise) or a head it wears; its helmet as a hat, its hands' items carried. Thrown apart away from the killer (a burst: 0.1 s intact, 2 s life) with a puff |
+| `shatter` | 14 to 20 blocks (more for a bigger body) from its whole body in its palette &mdash; the type's colours, the variant's where it changes them, the wool of a carpet on its back leading &mdash; arc out 0.6-1.6 blocks, land exactly on the ground, rest and melt; a puff, block dust and the first block's break sound |
+| `pinata` | `shatter`, plus 20 candies fountaining 1.2-3 blocks out that lie on the ground almost a second, two rounds of confetti, two firework bursts, a blast, a twinkle and a level-up chime, and a 6-block shake |
+| `wounded` | Below its lowest `LOW_HEALTH` threshold, or a quarter: red dust drips from it every second, and every other second a two-beat heartbeat plays to players within 12 blocks |
+| `frantic` | The same moment in hits mode: sweat splashes off its head twice a second and every other second it squeaks |
+
+`numbers`: damage as `{error}7.5` (a critical hit `{warning}&l✦ 12`), healing as
+`{success}+4 ❤`, and in hits mode the hits left as `{highlight}✦ 23`, through
+`Indicators`. A heal of 5% of its health or more (regeneration, a HEAL skill)
+also raises three hearts around it.
+
+**What it costs.** Every reaction is a visual, built on the mob's thread with
+`Vfx` and packets, and gives up rather than waits:
+
+- Nobody within `effectRadius` (entrances and deaths) or 32 blocks (hits,
+  healing, the low look) &rarr; nothing is built.
+- `MobVisuals.reactions` off, or no display runtime &rarr; nothing at all.
+- Hurt bursts at most every 4 ticks per mob, heal bursts every 10; the
+  numbers merge on their own within 300 ms.
+- Entrances and deaths count against `MobVisuals.maxCasts` (24 by default)
+  large effects at once per plugin; past that the next one is simply not drawn.
+- Above 15 viewers bursts halve (and a ragdoll drops to detail 1).
+- Shakes play `MobVisuals.shake` times their designed beats; `0` turns them off.
+
+A death with a drawn body hides the real one: invisible at once, removed a
+tick later, once the drops and experience are in the world; a death another
+plugin cancelled is shown again. A break in hits mode is drawn while the mob
+still stands and removed with it, as before. With nothing drawn the vanilla
+death plays.
+
+```java
+mobs.visuals(new MobVisuals(24, 24, true, 1.0));   // indicatorRange, maxCasts, reactions, shake
+template.withLook(template.look().withSpawn("portal").withDeath(MobLook.OFF).withNumbers(false));
+```
 
 ### Auras
 
@@ -476,7 +538,7 @@ attributes  {"attack_damage":7.0,"max_health":80.0}
 flags       ["NO_VANILLA_DROPS","NO_SUN_BURN"]
 effects     ["SPEED|1|infinite"]
 behaviour   {"hits":40,"hitCooldown":0.5,"lifetime":300.0,"roam":12.0}
-look        {"variant":"CREAMY","body":"CYCLE","glow":"CYCLE","aura":"confetti"}
+look        {"variant":"CREAMY","body":"CYCLE","glow":"CYCLE","aura":"confetti","spawn":"portal","death":"none","numbers":false}
 fight       {"gcd":1.5,"groups":{"melee":6.0,"tricks":4.0},"phases":[{"below":0.5,"style":"enrage","suffix":"&c⚡","speed":1.3,"damage":1.25}]}
 ```
 
@@ -493,7 +555,10 @@ unknown `aim` is reported and read as `AUTO`. `encodeFight`/`decodeFight` write
 A skill writes `"effect"` when it has one; a skill stored before 1.195.0 reads
 with none. `encodeBehaviour`/`decodeBehaviour` and `encodeLook`/`decodeLook`
 (since 1.195.0) write `null` for `NONE`, omit defaults, keep times in seconds,
-and read a field that is missing or not a number as its default. A chance or
+and read a field that is missing or not a number as its default. A look's
+reactions (since 1.199.0) are written only when not AUTO and `numbers` only
+when `false`, so a look stored before them reads with every reaction AUTO and
+writes back byte for byte. A chance or
 threshold outside 0-1 reads clamped.
 
 A skill field holding its default is not written, times are seconds, and an
@@ -510,7 +575,7 @@ keys written as `minecraft:max_health` or `generic.max_health` read as
 | skills | `mobs.skillsEditor(skills)` — add asks the type, then the trigger, then a form with only the fields that type reads, plus "Effect lines" for every type (`NONE` clears them: a blank box keeps a prefilled value). A row click asks which section (since 1.198.0): MECHANICS (that form), TIMING & AIM (wind-up, aim, spread, rotation group for `INTERVAL`, name, then, wind-up lines) or CONDITIONS (health band, target range, a player nearby, phase). A grouped row shows its weight and share of its group |
 | fight | `mobs.fightEditor(player, fight, groupsInUse)` — TIMING (global cooldown, a period per group) or PHASES (list: below, name suffix, style, speed, damage, resistance) |
 | behaviour | `mobs.behaviourEditor(player, behaviour)` — hits, hit cooldown and lifetime as durations, roam |
-| look | `mobs.lookEditor(player, type, look)` — variant and body only for types that have them; `NONE` clears a part |
+| look | `mobs.lookEditor(player, type, look)` — APPEARANCE (variant and body only for types that have them; `NONE` clears a part) or REACTIONS (pick one, then AUTO, NONE or an id, the current one ticked) |
 | attributes | `mobs.attributesEditor(player, attributes)` — blank keeps the vanilla value |
 | flags | `mobs.flagsEditor(player, flags)` |
 | equipment | `Editors.of(plugin).loadout(template.equipment())` |
@@ -537,7 +602,8 @@ keys written as `minecraft:max_health` or `generic.max_health` read as
 - When the plugin is disabled its live mobs are removed, its templates and
   death handlers forgotten, its listeners unregistered.
 - Palette reloads: not applicable. Nothing derived from the palette is kept; a
-  name is rendered onto the entity at spawn and on every health change.
+  name is rendered onto the entity at spawn and on every health change, and a
+  reaction reads its colours as it plays.
 
 ## What it deliberately does not do
 
@@ -550,8 +616,8 @@ keys written as `minecraft:max_health` or `generic.max_health` read as
 
 | | |
 | --- | --- |
-| Public API | `util/mob/Mobs`, `PluginMobs`, `MobTemplate`, `MobSkill` (with `Cast`, `Gate`, `Aim`), `MobFlag`, `MobDeath`, `MobCodec`, `MobBehaviour`, `MobLook`, `MobHit`, `MobFight`, `MobPhase` |
+| Public API | `util/mob/Mobs`, `PluginMobs`, `MobTemplate`, `MobSkill` (with `Cast`, `Gate`, `Aim`), `MobFlag`, `MobDeath`, `MobCodec`, `MobBehaviour`, `MobLook`, `MobHit`, `MobFight`, `MobPhase`, `MobVisuals` |
 | Random templates | `util/mob/RandomTemplate` (package-private, behind `MobTemplate.random`) |
 | Editor | `util/mob/MobSkillDescriptor`, `MobPhaseDescriptor` |
-| Runtime | `util/mob/internal/MobEngine` (listeners, spawn, what each type does, hits mode, look, wander, leash), `MobCaster` (conditions, rotation groups, staged casts, aimed impacts, chains, phases), `MobAim` (aim geometry, no server), `LiveMob` (cooldowns, groups, global cooldown, cast under way, phase, damage ledger, hits, lifetime, leash) |
-| Tests | `util/mob/MobCodecTest`, `util/mob/RandomTemplateTest`, `util/mob/MobSkillDescriptorTest`, `util/mob/GateTest`, `util/mob/internal/LiveMobTest`, `util/mob/internal/MobEngineTest`, `util/mob/internal/MobAimTest`, `util/mob/internal/RotationTest`, `util/mob/internal/MobCasterTest` |
+| Runtime | `util/mob/internal/MobEngine` (listeners, spawn, what each type does, hits mode, look, wander, leash), `MobCaster` (conditions, rotation groups, staged casts, aimed impacts, chains, phases), `MobAim` (aim geometry, no server), `MobReactions` (entrances, hits, heals, deaths, the low look; what AUTO picks; the large-effect cap), `MobBodies` (humanoid skins and heads, block palettes, vanish), `LiveMob` (cooldowns, groups, global cooldown, cast under way, phase, damage ledger, hits, lifetime, leash) |
+| Tests | `util/mob/MobCodecTest`, `util/mob/RandomTemplateTest`, `util/mob/MobSkillDescriptorTest`, `util/mob/GateTest`, `util/mob/internal/LiveMobTest`, `util/mob/internal/MobEngineTest`, `util/mob/internal/MobAimTest`, `util/mob/internal/RotationTest`, `util/mob/internal/MobCasterTest`, `util/mob/internal/MobBodiesTest`, `util/mob/internal/MobReactionsTest` |

@@ -38,7 +38,7 @@ import java.util.function.BiConsumer;
  * flags       ["NO_SUN_BURN","NO_VANILLA_DROPS"]
  * effects     ["SPEED|2|infinite","FIRE_RESISTANCE|1|infinite"]
  * behaviour   {"hits":40,"hitCooldown":0.5,"lifetime":300.0,"roam":12.0}
- * look        {"variant":"CREAMY","body":"CYCLE","glow":"RANDOM","aura":"confetti"}
+ * look        {"variant":"CREAMY","body":"CYCLE","glow":"RANDOM","aura":"confetti","death":"none","numbers":false}
  * fight       {"gcd":1.5,"groups":{"melee":6.0},"phases":[{"below":0.5,"suffix":" &c⚡","speed":1.3}]}
  * }</pre>
  *
@@ -78,6 +78,11 @@ public final class MobCodec {
     private static final String BODY = "body";
     private static final String GLOW = "glow";
     private static final String AURA = "aura";
+    private static final String SPAWN = "spawn";
+    private static final String HURT = "hurt";
+    private static final String DEATH = "death";
+    private static final String LOW = "low";
+    private static final String NUMBERS = "numbers";
     private static final String CAST = "cast";
     private static final String NAME = "name";
     private static final String AIM = "aim";
@@ -384,6 +389,11 @@ public final class MobCodec {
         if (!look.body().isEmpty()) json.addProperty(BODY, look.body());
         if (!look.glow().isEmpty()) json.addProperty(GLOW, look.glow());
         if (!look.aura().isEmpty()) json.addProperty(AURA, look.aura());
+        if (!look.spawn().isEmpty()) json.addProperty(SPAWN, look.spawn());
+        if (!look.hurt().isEmpty()) json.addProperty(HURT, look.hurt());
+        if (!look.death().isEmpty()) json.addProperty(DEATH, look.death());
+        if (!look.low().isEmpty()) json.addProperty(LOW, look.low());
+        if (!look.numbers()) json.addProperty(NUMBERS, false);
         return json.toString();
     }
 
@@ -395,7 +405,9 @@ public final class MobCodec {
     /**
      * Reads a stored look, reporting what it had to skip. The names are not
      * checked here: a variant or aura the server does not know is the engine's
-     * to report as the mob spawns.
+     * to report as the mob spawns, and a reaction it does not know plays AUTO.
+     * A look stored before reactions existed reads with every reaction AUTO
+     * and numbers on.
      *
      * @param stored   the column value, possibly {@code null}
      * @param problems told where the trouble was and what it was
@@ -405,7 +417,11 @@ public final class MobCodec {
     public static @NotNull MobLook decodeLook(@Nullable String stored, @NotNull BiConsumer<String, String> problems) {
         JsonObject json = object(stored, "look", problems);
         if (json == null) return MobLook.NONE;
-        return new MobLook(string(json, VARIANT), string(json, BODY), string(json, GLOW), string(json, AURA));
+        JsonElement numbers = json.get(NUMBERS);
+        boolean shown = numbers == null || !numbers.isJsonPrimitive() || !numbers.getAsJsonPrimitive().isBoolean()
+                || numbers.getAsBoolean();
+        return new MobLook(string(json, VARIANT), string(json, BODY), string(json, GLOW), string(json, AURA),
+                string(json, SPAWN), string(json, HURT), string(json, DEATH), string(json, LOW), shown);
     }
 
     // -------------------------------------------------------------- attributes
