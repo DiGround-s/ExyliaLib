@@ -6,6 +6,7 @@ import com.github.retrooper.packetevents.event.PacketListenerCommon;
 import com.github.retrooper.packetevents.event.PacketReceiveEvent;
 import com.github.retrooper.packetevents.protocol.ConnectionState;
 import com.github.retrooper.packetevents.protocol.dialog.CommonDialogData;
+import com.github.retrooper.packetevents.protocol.dialog.ConfirmationDialog;
 import com.github.retrooper.packetevents.protocol.dialog.Dialog;
 import com.github.retrooper.packetevents.protocol.dialog.DialogAction;
 import com.github.retrooper.packetevents.protocol.dialog.MultiActionDialog;
@@ -91,6 +92,8 @@ final class DialogPackets {
     /** Action id prefix carrying which option was pressed, by position. */
     private static final String CHOOSE = "choose";
     private static final int CONTROL_WIDTH = 260;
+    /** A footer button: vanilla's own width, so two sit side by side on a small screen. */
+    private static final int FOOTER_WIDTH = 150;
     /** Action id prefix carrying which position of a grid was pressed. */
     private static final String SLOT = "slot";
     /** A grid cell: two digits and the client's own padding, nine to a row. */
@@ -258,10 +261,15 @@ final class DialogPackets {
                 ? formInputs(form, state.values(), state.validation())
                 : List.of(singleInput((InputRequest<?, ?>) request, state.values().get("value"), state.validation()));
         String submitLabel = request instanceof FormInput form ? form.submitLabel() : "Submit";
-        ActionButton submit = button(submitLabel, "submit/" + state.key());
         CommonDialogData common = new CommonDialogData(
                 Text.component(prompt(request)), null, true, false, DialogAction.CLOSE, body, inputs);
-        return new MultiActionDialog(common, List.of(submit), cancel, 1);
+        // A confirmation dialog, not a multi-action one: the client draws a
+        // multi-action dialog's buttons at the end of the scrolled body, so a
+        // long form hid Submit below every field while Cancel stayed pinned.
+        // Here both sit in the footer, always in view.
+        return new ConfirmationDialog(common,
+                button(submitLabel, null, "submit/" + state.key(), FOOTER_WIDTH),
+                button("Cancel", null, "cancel/" + state.key(), FOOTER_WIDTH));
     }
 
     /**
