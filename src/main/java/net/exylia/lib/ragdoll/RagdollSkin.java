@@ -72,6 +72,41 @@ public final class RagdollSkin {
     }
 
     /**
+     * A skin with one colour per part and no picture behind it.
+     *
+     * <pre>{@code
+     * RagdollSkin zombie = RagdollSkin.flat(Map.of(
+     *         RagdollPart.HEAD, 0x4A7A3A, RagdollPart.TORSO, 0x2E8C8C,
+     *         RagdollPart.ARM_RIGHT, 0x4A7A3A, RagdollPart.ARM_LEFT, 0x4A7A3A,
+     *         RagdollPart.LEG_RIGHT, 0x3A3A8C, RagdollPart.LEG_LEFT, 0x3A3A8C));
+     * }</pre>
+     *
+     * <p>For a body that is not a player's: a mob, a statue, a dummy. Nothing
+     * is fetched and nothing is decoded, so it is ready in the tick it is
+     * asked for. Every face of a part is that colour, so the body is drawn in
+     * blocks at any detail; a part left out of the map is drawn in the neutral
+     * grey a missing part always gets.
+     *
+     * <p>Build it once per kind of body and keep it: it is immutable, and one
+     * instance is what lets every death of that mob share it.
+     *
+     * @param colours per part, as {@code 0xRRGGBB}; any alpha given is ignored
+     * @return the skin
+     * @since 1.197.0
+     */
+    public static @NotNull RagdollSkin flat(@NotNull Map<RagdollPart, Integer> colours) {
+        Map<RagdollPart, int[]> nets = new EnumMap<>(RagdollPart.class);
+        for (Map.Entry<RagdollPart, Integer> entry : colours.entrySet()) {
+            RagdollPart part = entry.getKey();
+            int depth = depth(part);
+            int[] net = new int[2 * (depth + part.skinWidth()) * (depth + part.skinHeight())];
+            java.util.Arrays.fill(net, 0xFF000000 | (entry.getValue() & 0xFFFFFF));
+            nets.put(part, net);
+        }
+        return new RagdollSkin(nets);
+    }
+
+    /**
      * The pieces this skin is cut into at a quality, each painted as a head.
      *
      * <p>Cut the first time a quality is asked for and kept, so changing the
