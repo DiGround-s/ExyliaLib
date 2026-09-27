@@ -6,6 +6,10 @@ import net.exylia.lib.clan.Clan;
 import net.exylia.lib.clan.ClanBridge;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
+import org.bukkit.event.EventHandler;
+import org.bukkit.event.EventPriority;
+import org.bukkit.event.Listener;
+import org.bukkit.event.server.PluginEnableEvent;
 import org.bukkit.plugin.Plugin;
 
 import java.time.Duration;
@@ -61,11 +65,26 @@ public final class ClanRuntime {
     /**
      * Scans for a clan plugin and picks the active provider.
      *
-     * <p>Called by ExyliaLib at startup.
+     * <p>Called by ExyliaLib at startup. This library loads at {@code STARTUP},
+     * so almost every clan plugin enables after it and a single sweep here
+     * found nothing: clans stayed off for the whole session until a reload.
+     * Every later enable therefore sweeps again while no provider is active.
      */
     public static void init(Plugin libPlugin) {
         logger = libPlugin.getLogger();
         detect();
+        Bukkit.getPluginManager().registerEvents(new LateProviderWatcher(), libPlugin);
+    }
+
+    /** Looks again whenever a plugin enables and no clan plugin was found yet. */
+    private static final class LateProviderWatcher implements Listener {
+        @EventHandler(priority = EventPriority.MONITOR)
+        public void onPluginEnable(PluginEnableEvent event) {
+            if (active == null) {
+                detect();
+                invalidate();
+            }
+        }
     }
 
     private static void detect() {
