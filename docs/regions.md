@@ -257,6 +257,10 @@ a bucket (`break`), placing and pouring (`build`), the block lists
 `breakable_blocks`), `player_build_only`, using blocks and
 entities (`interact`), PvP (`pvp`), fall damage, dropping and picking up.
 
+The flags themselves are edited on the library's
+[policy editor](editors.md#the-policy-editor): `regions.policyEditor(policies)`
+hands back the edited `PolicySet` (since 1.202.0).
+
 ### Why this does not reintroduce the old problem
 
 The old system cancelled on everybody's behalf, so two plugins claiming the same
@@ -619,5 +623,5 @@ ExyliaLib registers one listener for the whole server.
 | | |
 | --- | --- |
 | Public API | `region/Regions`, `PluginRegions`, `RegionSnapshot`, `RegionId`, `WorldIdentity`, `BlockPosition`, `RegionShape` (`Cuboid`, `UnboundedYRectangle`, `Sphere`, `HorizontalCylinder`), `HorizontalBounds`, `VerticalBounds`, `PolicyKey`, `PolicySet`, `PolicyResolution`, `CommonRegionPolicies`, `MaterialSet`, `RegionData`, `RegionCodec`, `PlayerRegionChangeEvent`, `RegionChangeCause`, `SelectionOptions`, `SelectionSession`, `SelectionResult`, `SelectionState`, `VisualizationOptions`, `RegionVisualization` |
-| Internal | `region/internal/RegionIndex`, `RegionRuntime`, `RegionListener`, `PlacedBlockRuntime`, `PlacedBlockListener`, `RegionEnforcement`, `EnforcementListener`, `Culprits`, `PositionSet`, `RegionEntities`, `SelectionRuntime`, `SelectionListener`, `SelectorWand`, `SelectionPreview`, `VisualizationRuntime`, `OutlineSampler` |
+| Internal | `region/internal/RegionIndex`, `RegionRuntime`, `RegionListener`, `PlacedBlockRuntime`, `PlacedBlockListener`, `RegionEnforcement`, `EnforcementListener`, `Culprits`, `PolicyDraft`, `PolicyLooks`, `PolicyEditorHolder`, `PolicyEditorListener`, `PositionSet`, `RegionEntities`, `SelectionRuntime`, `SelectionListener`, `SelectorWand`, `SelectionPreview`, `VisualizationRuntime`, `OutlineSampler` |
 | Lifecycle | `ExyliaLib` — listener registration, release before `Tasks.release` |

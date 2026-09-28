@@ -1,6 +1,7 @@
 package net.exylia.lib.region;
 
 import net.exylia.lib.region.internal.PlacedBlockRuntime;
+import net.exylia.lib.region.internal.PolicyEditorHolder;
 import net.exylia.lib.region.internal.RegionEnforcement;
 import net.exylia.lib.region.internal.RegionRuntime;
 import net.exylia.lib.region.internal.SelectionRuntime;
@@ -84,6 +85,7 @@ public final class Regions {
         SelectionRuntime.release(pluginName);
         VisualizationRuntime.release(pluginName);
         RegionEnforcement.stop(pluginName);
+        PolicyEditorHolder.release(pluginName);
         return RegionRuntime.release(pluginName);
     }
 
@@ -93,6 +95,7 @@ public final class Regions {
         VisualizationRuntime.releaseAll();
         PlacedBlockRuntime.releaseAll();
         RegionEnforcement.releaseAll();
+        PolicyEditorHolder.releaseAll();
         RegionRuntime.releaseAll();
     }
 }

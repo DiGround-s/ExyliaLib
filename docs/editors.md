@@ -30,6 +30,7 @@ library ships the editors as well as the machine.
 | `Editors.of(plugin).items(items)` | real items — kits, shop stock |
 | `Editors.of(plugin).loadout(items)` | a whole loadout, in an inventory-shaped grid |
 | `Editors.of(plugin).locations(places)` | spawn points, arena corners |
+| `Regions.of(plugin).policyEditor(policies)` | a region's [policies](regions.md): flags, block lists, lifetime (1.202.0) |
 | `Editors.of(plugin).list(descriptor, type, entries)` | the sixth thing, the one only your plugin has |
 
 The entry point lives with the type, not with the engine: `PluginRewards` knows
@@ -95,6 +96,57 @@ loadout is read by people far more often than it is handed to `setContents`.
 This is the mapping ExyliaSurvivalCore had written out three times, and the three
 did not agree: the preview drew the twenty-eighth item under a pane labelled
 "hotbar" and the sixth in the middle of the armour row.
+
+## The policy editor
+
+Since 1.202.0.
+
+A region's flags on one screen: a `PolicySet` in, the edited `PolicySet` out.
+Every plugin with an arena used to draw its own — duel rooms, regen zones,
+event arenas — each with its own idea of what a click does and what "not set"
+means.
+
+```java
+Regions.of(this).policyEditor(arena.policies())
+        .title("{primary}&lARENA FLAGS")
+        .keys(CommonRegionPolicies.PVP, CommonRegionPolicies.BUILD, CommonRegionPolicies.BREAK,
+              CommonRegionPolicies.BREAKABLE_BLOCKS_ONLY, CommonRegionPolicies.BREAKABLE_BLOCKS)
+        .defaults(ArenaDefaults.POLICIES)
+        .locked(CommonRegionPolicies.PVP, "The game switches this by itself")
+        .onSave(edited -> arenas.save(arena.withPolicies(edited)))
+        .onCancel(() -> ArenaMenu.open(player))
+        .open(player);
+```
+
+| Row type | Click | Right click |
+| --- | --- | --- |
+| `Boolean` | cycles **Default** → **Allow** → **Deny** → **Default** | back to Default |
+| `MaterialSet` | opens a list editor of materials; add asks the material picker | back to Default |
+| `Integer` | asks for a whole number, zero or more | back to Default |
+
+| Builder | |
+| --- | --- |
+| `title(text)` | the window title |
+| `keys(keys...)` | which rows, in order; default every boolean in `CommonRegionPolicies`; 1 to 28 |
+| `defaults(policySet)` | what Default resolves to, drawn on every row; a key it does not declare falls back to its own default. Without it, Default reads *Set by the plugin* |
+| `locked(key, reason)` | the row is drawn with its reason and never changes |
+| `describe(key, icon, name, description)` | replaces a built-in look, or gives one to a key of your own (required for those) |
+| `onSave(set -> ...)` / `onCancel(() -> ...)` | as in every other editor |
+
+**Default is an absent declaration**, not the key's default written down: a
+region that says nothing keeps following whatever decides for it, and a later
+change to the defaults reaches it. Keys the editor does not show pass through
+to `onSave` untouched, so an editor over the booleans never drops a block list.
+
+Nothing is written until save, like the list editors: cancel, closing the
+window, leaving and the plugin disabling all end in `onCancel`. A block list or
+a number is a question, so the window steps aside for it and comes back with
+the answer applied.
+
+Every key in `CommonRegionPolicies` has a built-in icon, name and one-line
+description; the icons are the ones ExyliaEvents, ExyliaPracticeCore and
+ExyliaFFA already agreed on. A plugin that wants its own words passes them
+through `describe`, the same way a button's text is passed to `EditorButton`.
 
 ## What the viewer gets
 
@@ -381,6 +433,7 @@ its gating plus a sequence rather than a forty-field bean over eight types.
 | --- | --- |
 | Public API | `util/editor/Editors`, `PluginEditors`, `ListEditor`, `EditorDescriptor`, `EditorForm`, `EditorButton`, `EditorView`, `Clipboard`, `Pickers` |
 | Loadout editor | `util/editor/Loadout`, `LoadoutEditor`, `internal/LoadoutHolder` |
+| Policy editor | `region/PolicyEditor`, `PluginRegions.policyEditor`; `region/internal/PolicyDraft` (the state, server-free), `PolicyLooks`, `PolicyEditorHolder`, `PolicyEditorListener`, `MaterialDescriptor` |
 | Shipped descriptors | `util/reward/RewardDescriptor`, `util/loot/LootDescriptor`, `util/command/NamedCommandDescriptor`, `util/sequence/EffectDescriptor`, `util/PotionEffectDescriptor`, `util/editor/ItemListEditor`, `LocationDescriptor` |
 | Internal | `util/editor/internal/` — `EditorRuntime`, `EditorHolder`, `EditorListener`, `Icons` |
 | Tests | `src/test/java/net/exylia/lib/util/editor/` |
@@ -390,4 +443,5 @@ its gating plus a sequence rather than a forty-field bean over eight types.
 The module keeps nothing derived from the palette. Buttons are built when a page
 is drawn, from raw text such as `{primary}&lSAVE`, and a page is redrawn after
 every click — so there is no `invalidateAll()` and no hook in
-`ExyliaLib.loadPalette`. See [reload.md](reload.md).
+`ExyliaLib.loadPalette`. The policy editor is the same: it redraws from raw
+text after every click. See [reload.md](reload.md).

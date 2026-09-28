@@ -215,6 +215,28 @@ public final class PluginRegions {
     }
 
     /**
+     * A screen for editing a set of policies: tri-state flags, block lists and
+     * the temporary block lifetime.
+     *
+     * <pre>{@code
+     * Regions.of(this).policyEditor(arena.policies())
+     *         .title("{primary}&lARENA FLAGS")
+     *         .locked(CommonRegionPolicies.PVP, "The game switches this by itself")
+     *         .onSave(edited -> arenas.save(arena.withPolicies(edited)))
+     *         .onCancel(() -> ArenaMenu.open(player))
+     *         .open(player);
+     * }</pre>
+     *
+     * @param policies what is being edited; never modified
+     * @return an editor to configure and open
+     * @see PolicyEditor
+     * @since 1.202.0
+     */
+    public @NotNull PolicyEditor policyEditor(@NotNull PolicySet policies) {
+        return new PolicyEditor(plugin, policies);
+    }
+
+    /**
      * Whether a player put this block here, inside one of this plugin's regions.
      *
      * <p>The library records the block a player places in any region declaring

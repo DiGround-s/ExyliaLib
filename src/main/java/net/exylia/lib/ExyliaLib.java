@@ -215,6 +215,8 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         getServer().getPluginManager().registerEvents(
                 new net.exylia.lib.region.internal.EnforcementListener(), this);
         getServer().getPluginManager().registerEvents(new SelectionListener(), this);
+        getServer().getPluginManager().registerEvents(
+                new net.exylia.lib.region.internal.PolicyEditorListener(), this);
         // Clickable blocks: dormant until a plugin registers one, and every
         // handler returns on an empty map lookup.
         getServer().getPluginManager().registerEvents(new BlockListener(), this);
