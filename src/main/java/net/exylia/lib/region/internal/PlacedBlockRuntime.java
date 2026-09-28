@@ -32,9 +32,10 @@ import java.util.concurrent.atomic.AtomicInteger;
  * Which blocks inside a region a player put there, and when the temporary ones go.
  *
  * <h2>What this is and is not</h2>
- * The region module states what a region declares and never cancels an event on its
- * behalf; enforcing {@code player_build_only} stays the consumer's decision, made
- * with {@code PluginRegions.placedByPlayer}. What no consumer can hold on its own is
+ * The region module cancels an event only for an owner that opted in with
+ * {@code PluginRegions.enforce}, and only over that owner's regions; otherwise
+ * enforcing {@code player_build_only} stays the consumer's decision, made with
+ * {@code PluginRegions.placedByPlayer}. What no consumer can hold on its own is
  * the <em>answer</em>: block ownership is per-region state that outlives any one
  * event, and every plugin keeping its own copy would mean every plugin paying for
  * the same table and getting a different answer where regions overlap. So the
@@ -140,8 +141,8 @@ public final class PlacedBlockRuntime {
      * declares one.
      *
      * <p>Creative is not special-cased here. Whether an operator's placement counts is
-     * a question about enforcement, and enforcement is the consumer's; the record just
-     * states what happened.
+     * a question about enforcement, which is the owner's audience to answer; the record
+     * just states what happened.
      *
      * @param region region containing the block, which must declare a tracking policy
      * @param playerId player owed the block back when the region re-gives it, or

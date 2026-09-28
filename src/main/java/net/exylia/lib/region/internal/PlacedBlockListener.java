@@ -46,8 +46,9 @@ import java.util.UUID;
  * the block is still recorded when that check reads it, and forgotten immediately
  * after.
  *
- * <p>No handler ever cancels anything. The library states what a region declares;
- * the consumer decides what to do about it.
+ * <p>No handler here ever cancels anything: this listener only keeps the record.
+ * Refusing a break is {@link EnforcementListener}'s, for owners that opted in, or
+ * the consumer's own.
  */
 public final class PlacedBlockListener implements Listener {
 

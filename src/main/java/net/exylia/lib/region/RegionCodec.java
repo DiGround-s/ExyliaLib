@@ -1,12 +1,16 @@
 package net.exylia.lib.region;
 
+import org.bukkit.Material;
 import org.jetbrains.annotations.NotNull;
 
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.logging.Logger;
 
 /**
  * Converts immutable region snapshots to and from portable persistence values.
@@ -15,9 +19,15 @@ import java.util.Objects;
  * identifiers, duplicate identifiers with incompatible types, unsupported policy types, and scalar
  * values that cannot be converted without loss are rejected rather than silently dropped.
  *
+ * <p>A {@link MaterialSet} policy is persisted as a list of material names. On decode, a name
+ * no material answers to is the one exception to rejection: it is skipped and reported, so a
+ * block a Minecraft update renamed costs one list entry rather than the region (since 1.201.0).
+ *
  * @since 1.23.0
  */
 public final class RegionCodec {
+
+    private static final Logger LOGGER = Logger.getLogger("ExyliaLib");
 
     private RegionCodec() { }
 
@@ -101,6 +111,13 @@ public final class RegionCodec {
     private static Object encodeScalar(PolicyKey<?> key, Object value) {
         key.cast(value);
         Class<?> type = key.type();
+        if (type == MaterialSet.class) {
+            List<String> names = new ArrayList<>();
+            for (Material material : ((MaterialSet) value).materials()) {
+                names.add(material.name());
+            }
+            return List.copyOf(names);
+        }
         if (type == Boolean.class || type == String.class || isSupportedNumber(type)) {
             if (value instanceof Number number && !Double.isFinite(number.doubleValue())) {
                 throw new IllegalArgumentException("Policy number must be finite: " + key.id());
@@ -124,6 +141,11 @@ public final class RegionCodec {
                 throw incompatibleScalar(key, scalar);
             }
             decoded = scalar;
+        } else if (type == MaterialSet.class) {
+            if (!(scalar instanceof List<?> names)) {
+                throw incompatibleScalar(key, scalar);
+            }
+            decoded = decodeMaterials(key.id(), names);
         } else if (isSupportedNumber(type)) {
             if (!(scalar instanceof Number number)) {
                 throw incompatibleScalar(key, scalar);
@@ -134,6 +156,24 @@ public final class RegionCodec {
                     + type.getName());
         }
         return type.cast(decoded);
+    }
+
+    /**
+     * A name no material answers to is skipped and reported, never fatal: a block
+     * renamed or removed by a Minecraft update would otherwise make the whole region
+     * unloadable, and one missing entry in a list costs only that entry.
+     */
+    private static MaterialSet decodeMaterials(RegionId id, List<?> names) {
+        List<Material> materials = new ArrayList<>(names.size());
+        for (Object name : names) {
+            Material material = name instanceof String text ? Material.matchMaterial(text) : null;
+            if (material == null) {
+                LOGGER.warning("Region policy " + id + " names an unknown material, skipped: " + name);
+                continue;
+            }
+            materials.add(material);
+        }
+        return MaterialSet.of(materials);
     }
 
     private static Object convertNumber(Class<?> type, Number number, RegionId id) {

@@ -210,6 +210,10 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         // Block ownership, for the regions that declare they need it. Dormant
         // otherwise: every handler reads one volatile flag and returns.
         getServer().getPluginManager().registerEvents(new PlacedBlockListener(this), this);
+        // Enforcement of the common policies, for the owners that asked for it.
+        // Dormant otherwise: every handler reads one volatile flag and returns.
+        getServer().getPluginManager().registerEvents(
+                new net.exylia.lib.region.internal.EnforcementListener(), this);
         getServer().getPluginManager().registerEvents(new SelectionListener(), this);
         // Clickable blocks: dormant until a plugin registers one, and every
         // handler returns on an empty map lookup.

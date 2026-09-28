@@ -1,11 +1,13 @@
 package net.exylia.lib.region;
 
 import net.exylia.lib.region.internal.PlacedBlockRuntime;
+import net.exylia.lib.region.internal.RegionEnforcement;
 import net.exylia.lib.region.internal.RegionEntities;
 import net.exylia.lib.region.internal.RegionRuntime;
 import net.exylia.lib.region.internal.SelectionRuntime;
 import net.exylia.lib.region.internal.VisualizationRuntime;
 import org.bukkit.Bukkit;
+import org.bukkit.GameMode;
 import org.bukkit.Location;
 import org.bukkit.block.Block;
 import org.bukkit.World;
@@ -20,6 +22,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.function.BiPredicate;
 import java.util.function.Predicate;
 
 /** Owner-scoped access to the shared region runtime for one exact plugin instance. */
@@ -136,13 +139,89 @@ public final class PluginRegions {
     }
 
     /**
+     * Has the library enforce {@link CommonRegionPolicies} on this plugin's regions, for
+     * every player not in creative mode.
+     *
+     * <p>Opt-in and owner-scoped: only this plugin's regions are enforced, and only
+     * because this plugin asked. Another plugin's regions are never judged by this
+     * call, and a region of another plugin never relaxes or tightens these. Breaking,
+     * building, block and decoration use, PvP (from either side, through projectiles,
+     * TNT, potions and pets), fall damage, dropping and picking up are refused where the
+     * applying regions say so; the first applying region in priority order that declares
+     * a policy decides it, and none declaring it means the policy's permissive default.
+     *
+     * <pre>{@code
+     * PluginRegions regions = Regions.of(plugin);
+     * regions.enforce();
+     * }</pre>
+     *
+     * <p>Refusals happen at {@code HIGH}, so a listener of this plugin at {@code HIGHEST}
+     * can still overrule one. Ends with {@link #stopEnforcing()} or when the plugin is
+     * disabled.
+     *
+     * @since 1.201.0
+     */
+    public void enforce() {
+        enforce((player, region) -> player.getGameMode() != GameMode.CREATIVE);
+    }
+
+    /**
+     * Has the library enforce {@link CommonRegionPolicies} on this plugin's regions, only
+     * for the players the audience accepts in each region.
+     *
+     * <p>The audience is asked per region, so a player in a game is held by the rules of
+     * the arena they play in and not by those of an arena they only walk through. A
+     * region the audience rejects is left out of the resolution for that player, as if
+     * it were not there. Calling it again replaces the audience.
+     *
+     * <pre>{@code
+     * // An event's rules hold its own players, inside its own arena.
+     * regions.enforce((player, region) -> events.of(player)
+     *         .map(event -> event.arenaId().equals(region.id()))
+     *         .orElse(false));
+     *
+     * // A game's rules hold whoever is in a game.
+     * regions.enforce((player, region) -> sessions.contains(player.getUniqueId()));
+     * }</pre>
+     *
+     * <h2>Threading</h2>
+     * The audience runs inside the event on the thread that owns it, which on Folia is a
+     * region thread: it must be cheap, must not block, and must read only thread-safe
+     * state.
+     *
+     * @param audience whether a region's rules apply to a player
+     * @since 1.201.0
+     */
+    public void enforce(@NotNull BiPredicate<Player, RegionSnapshot> audience) {
+        RegionEnforcement.enforce(owner, Objects.requireNonNull(audience, "audience"));
+    }
+
+    /**
+     * Stops enforcing this plugin's regions. Also happens when the plugin is disabled.
+     *
+     * @since 1.201.0
+     */
+    public void stopEnforcing() {
+        RegionEnforcement.stop(owner);
+    }
+
+    /**
+     * Whether the library is enforcing this plugin's regions.
+     *
+     * @since 1.201.0
+     */
+    public boolean enforcing() {
+        return RegionEnforcement.enforcing(owner);
+    }
+
+    /**
      * Whether a player put this block here, inside one of this plugin's regions.
      *
      * <p>The library records the block a player places in any region declaring
      * {@code player_build_only} or {@code temporary_blocks}, and forgets it when the
      * block is broken or the region goes away. This is the question that record
-     * answers; cancelling the break is still this plugin's call, exactly as with
-     * every other policy.
+     * answers. Under {@link #enforce()} the library applies it itself; a plugin that
+     * does not enforce makes the call on its own:
      *
      * <pre>{@code
      * if (regions.resolve(location, CommonRegionPolicies.PLAYER_BUILD_ONLY).value()

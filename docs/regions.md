@@ -73,7 +73,9 @@ The old system let the top region decide everything, so a small high-priority
 region silently switched off every rule of the one it sat in.
 
 `CommonRegionPolicies` carries the sixteen keys the ecosystem already uses,
-with the same names and the same defaults. Policies are open namespaced keys,
+with the same names and the same defaults, plus the two block lists
+`allowed_blocks` and `breakable_blocks` (1.201.0), whose value is a
+`MaterialSet` and whose default is empty. Policies are open namespaced keys,
 not an enum, so a plugin can add its own without changing the library.
 
 ## Queries
@@ -237,16 +239,100 @@ respawn events that move a player without one. All four feed the tracker, which
 is what stops a player who was teleported into a zone from counting as outside it
 until their first step.
 
+## Enforcing a region's policies
+
+*Since 1.201.0.*
+
+Declaring a policy refuses nothing by itself. A plugin that wants the common
+policies applied to its regions says so once, and the library does it:
+
+```java
+PluginRegions regions = Regions.of(this);
+regions.enforce();                     // everyone but creative mode
+```
+
+That replaces the listener every consumer used to write: breaking and scooping
+a bucket (`break`), placing and pouring (`build`), the block lists
+(`allowed_blocks_only` + `allowed_blocks`, `breakable_blocks_only` +
+`breakable_blocks`), `player_build_only`, using blocks, armour stands and item
+frames (`interact`), PvP (`pvp`), fall damage, dropping and picking up.
+
+### Why this does not reintroduce the old problem
+
+The old system cancelled on everybody's behalf, so two plugins claiming the same
+block fought over it silently. This does not, for two reasons:
+
+- **Opt-in per owner.** Nothing is enforced for a plugin that did not call
+  `enforce`. Declaring policies is still just declaring them.
+- **Owner-scoped.** An enforcing plugin is judged over its own regions only. At
+  a point, its regions that apply to the player are taken in priority order and
+  the first that declares the policy decides; none declaring it means the
+  key's permissive default. Another plugin's region, whatever its priority,
+  neither enforces nor relaxes it. The action is refused when any enforcing
+  owner refuses it.
+
+### Who the rules hold
+
+The audience decides, per region, whether that region's rules apply to a
+player. A region it rejects is left out, as if it were not there. Calling
+`enforce` again replaces the audience.
+
+```java
+// Survival or sandbox: everyone but creative mode (the no-argument form).
+regions.enforce();
+
+// A game: whoever is in a match or a session, anywhere in this plugin's regions.
+regions.enforce((player, region) -> sessions.contains(player.getUniqueId()));
+
+// An event: its own players, inside its own arena, and nowhere else.
+regions.enforce((player, region) -> events.of(player)
+        .map(event -> event.arenaId().equals(region.id()))
+        .orElse(false));
+```
+
+The audience runs inside the event on the thread that owns it — a region
+thread on Folia — so it must be cheap and read only thread-safe state.
+
+### What each policy refuses
+
+| Policy | Refused |
+| --- | --- |
+| `break` | breaking a block; filling a bucket from one |
+| `build` | placing a block (both halves of a door or bed); emptying a bucket |
+| `breakable_blocks_only` | when it holds, `breakable_blocks` alone decides for the material, even where `break` is false |
+| `allowed_blocks_only` | when it holds, `allowed_blocks` alone decides; a bucket counts as its item, such as `WATER_BUCKET` |
+| `player_build_only` | breaking (or scooping) what no player placed; independent of `break`, which still refuses on its own |
+| `interact` | using a clicked block — the item in hand still works, so eating, pearls and bows go through; stepping on plates and farmland; right-clicking armour stands, item frames and paintings |
+| `pvp` | a player hurting a player, directly or through an arrow, TNT, a crystal, a harmful potion or a tamed pet, when a region applying to the victim at the victim's place, or to the attacker at the attacker's, says no |
+| `fall_damage` | fall damage at the player's position |
+| `item_drop` / `item_pickup` | dropping / picking up at the player's position |
+
+Refusals happen at `HIGH` with `ignoreCancelled`, so the owning plugin can
+still overrule one at `HIGHEST` — a duel room re-allowing PvP in a no-PvP
+zone.
+
+Not enforced, on purpose: `entry`, `exit` and `region_members_only` have a single
+consumer and the library has no concept of members; explosions have no player
+to put through an audience, so each consumer keeps its own explosion rules;
+temporary and re-given blocks were already the library's, and are unchanged.
+
+`stopEnforcing()` ends it, and so does disabling the plugin. A server where no
+plugin enforces pays one volatile read per event the listener handles, and
+nothing else.
+
 ## Who placed this block
 
-The region module never cancels an event on a plugin's behalf. It says what a
-region declares; acting on it is the consumer's. `player_build_only` is the one
-policy a consumer cannot act on alone, because the answer is not in the event:
+The region module cancels an event only for a plugin that opted in with
+`enforce`, and only over that plugin's own regions. It says what a region
+declares; without `enforce`, acting on it is the consumer's. `player_build_only`
+is the one policy a consumer cannot act on alone, because the answer is not in
+the event:
 whether a block was put there by a player is state that outlives every event,
 and every plugin keeping its own copy would mean every plugin paying for the
 same table and disagreeing wherever regions overlap.
 
-So the library keeps the record, and the decision stays where the others are:
+So the library keeps the record. Under `enforce` it also applies it; a plugin
+that does not enforce makes the decision where the others are:
 
 ```java
 if (regions.resolve(location, CommonRegionPolicies.PLAYER_BUILD_ONLY).value()
@@ -500,12 +586,15 @@ RegionSnapshot back = RegionCodec.decode(data, myPolicyKeys);
 
 `RegionData` is a format version, an id, an owner, a world UUID with its name
 kept as a fallback, a shape type with its coordinates, a priority and scalar
-policies. It maps onto one encoded column or onto plain columns, whichever the
+policies; a block list (`MaterialSet`) is stored as a list of material names. It maps onto one encoded column or onto plain columns, whichever the
 database module ends up wanting.
 
 Decoding a policy the caller did not declare **fails** rather than dropping it
 silently. The old serializer swallowed every error and returned `null`, so a
 region with one bad field simply stopped existing with nothing in the console.
+The one exception is a material name nothing answers to inside a block list: it
+is skipped and logged, so a block a Minecraft update renamed costs that entry,
+not the region.
 
 ## Threads
 
@@ -522,13 +611,13 @@ the players standing in its regions on the way out.
 ## Lifecycle
 
 Nothing survives the plugin that made it. Disabling one releases its regions,
-its selections and its outlines, and leaves every other plugin's alone.
+its selections, its outlines and its enforcement, and leaves every other plugin's alone.
 ExyliaLib registers one listener for the whole server.
 
 ## Where the code is
 
 | | |
 | --- | --- |
-| Public API | `region/Regions`, `PluginRegions`, `RegionSnapshot`, `RegionId`, `WorldIdentity`, `BlockPosition`, `RegionShape` (`Cuboid`, `UnboundedYRectangle`, `Sphere`, `HorizontalCylinder`), `HorizontalBounds`, `VerticalBounds`, `PolicyKey`, `PolicySet`, `PolicyResolution`, `CommonRegionPolicies`, `RegionData`, `RegionCodec`, `PlayerRegionChangeEvent`, `RegionChangeCause`, `SelectionOptions`, `SelectionSession`, `SelectionResult`, `SelectionState`, `VisualizationOptions`, `RegionVisualization` |
-| Internal | `region/internal/RegionIndex`, `RegionRuntime`, `RegionListener`, `PlacedBlockRuntime`, `PlacedBlockListener`, `PositionSet`, `RegionEntities`, `SelectionRuntime`, `SelectionListener`, `SelectorWand`, `SelectionPreview`, `VisualizationRuntime`, `OutlineSampler` |
+| Public API | `region/Regions`, `PluginRegions`, `RegionSnapshot`, `RegionId`, `WorldIdentity`, `BlockPosition`, `RegionShape` (`Cuboid`, `UnboundedYRectangle`, `Sphere`, `HorizontalCylinder`), `HorizontalBounds`, `VerticalBounds`, `PolicyKey`, `PolicySet`, `PolicyResolution`, `CommonRegionPolicies`, `MaterialSet`, `RegionData`, `RegionCodec`, `PlayerRegionChangeEvent`, `RegionChangeCause`, `SelectionOptions`, `SelectionSession`, `SelectionResult`, `SelectionState`, `VisualizationOptions`, `RegionVisualization` |
+| Internal | `region/internal/RegionIndex`, `RegionRuntime`, `RegionListener`, `PlacedBlockRuntime`, `PlacedBlockListener`, `RegionEnforcement`, `EnforcementListener`, `Culprits`, `PositionSet`, `RegionEntities`, `SelectionRuntime`, `SelectionListener`, `SelectorWand`, `SelectionPreview`, `VisualizationRuntime`, `OutlineSampler` |
 | Lifecycle | `ExyliaLib` — listener registration, release before `Tasks.release` |

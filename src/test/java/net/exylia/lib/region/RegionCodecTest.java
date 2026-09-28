@@ -141,6 +141,36 @@ class RegionCodecTest {
                 RegionData.ShapeType.CUBOID, new double[]{0, 0, 0, 1, 1, 1}, 0, policies);
     }
 
+    @Test
+    @DisplayName("Codec round-trips block lists as material names")
+    void roundTripsMaterialSets() {
+        List<PolicyKey<?>> keys = List.of(CommonRegionPolicies.ALLOWED_BLOCKS,
+                CommonRegionPolicies.BREAKABLE_BLOCKS);
+        PolicySet policies = PolicySet.of(CommonRegionPolicies.ALLOWED_BLOCKS,
+                        MaterialSet.of(org.bukkit.Material.SANDSTONE, org.bukkit.Material.OAK_PLANKS))
+                .with(CommonRegionPolicies.BREAKABLE_BLOCKS, MaterialSet.empty());
+        RegionSnapshot original = region(new Sphere(1, 2, 3, 4), policies);
+        RegionData data = RegionCodec.encode(original, keys);
+
+        assertEquals(List.of("OAK_PLANKS", "SANDSTONE"), data.policies().get("exylia:allowed_blocks"));
+        assertEquals(original, RegionCodec.decode(data, keys));
+    }
+
+    @Test
+    @DisplayName("Codec skips an unknown material name instead of refusing the region")
+    void skipsUnknownMaterials() {
+        List<PolicyKey<?>> keys = List.of(CommonRegionPolicies.BREAKABLE_BLOCKS);
+        RegionSnapshot original = region(new Sphere(1, 2, 3, 4), PolicySet.empty());
+        RegionData encoded = RegionCodec.encode(original, keys);
+        RegionData data = new RegionData(encoded.formatVersion(), encoded.id(), encoded.owner(),
+                encoded.worldId(), encoded.fallbackWorldName(), encoded.shapeType(), encoded.coordinates(),
+                encoded.priority(), Map.of("exylia:breakable_blocks", List.of("stone", "NOT_A_BLOCK")));
+
+        RegionSnapshot decoded = RegionCodec.decode(data, keys);
+        assertEquals(MaterialSet.of(org.bukkit.Material.STONE),
+                decoded.policySet().explicit(CommonRegionPolicies.BREAKABLE_BLOCKS).orElseThrow());
+    }
+
     private static RegionSnapshot region(RegionShape shape, PolicySet policies) {
         return new RegionSnapshot(RegionId.parse("test:region"), "owner", WORLD, shape, 9, policies);
     }

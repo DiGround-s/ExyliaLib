@@ -12,9 +12,10 @@ import java.util.UUID;
  *
  * <p>Shape coordinates are positional and interpreted by {@link ShapeType}: cuboid stores six
  * bounds, unbounded rectangle four bounds, sphere four center/radius values, and horizontal
- * cylinder three center/radius values. Policy values are limited to booleans, strings, and finite
- * numbers so a future database adapter can store this value in one encoded column or split it into
- * scalar columns. This class performs no JSON or database work.
+ * cylinder three center/radius values. Policy values are limited to booleans, strings, finite
+ * numbers, and lists of strings (a block list, since 1.201.0) so a future database adapter can
+ * store this value in one encoded column or split it into columns. This class performs no JSON or
+ * database work.
  *
  * @param formatVersion persistence schema version
  * @param id namespaced region identifier
@@ -24,7 +25,7 @@ import java.util.UUID;
  * @param shapeType concrete shape discriminator
  * @param coordinates positional shape coordinates
  * @param priority region precedence
- * @param policies namespaced policy identifiers mapped to scalar values
+ * @param policies namespaced policy identifiers mapped to scalar or string-list values
  * @since 1.23.0
  */
 public record RegionData(int formatVersion, @NotNull String id, @NotNull String owner,
@@ -104,6 +105,15 @@ public record RegionData(int formatVersion, @NotNull String id, @NotNull String 
             }
             return value;
         }
-        throw new IllegalArgumentException("Policy value must be boolean, string, or number: " + key);
+        if (value instanceof java.util.List<?> list) {
+            for (Object element : list) {
+                if (!(element instanceof String)) {
+                    throw new IllegalArgumentException("Policy list must contain only strings: " + key);
+                }
+            }
+            return java.util.List.copyOf(list);
+        }
+        throw new IllegalArgumentException(
+                "Policy value must be boolean, string, number, or list of strings: " + key);
     }
 }

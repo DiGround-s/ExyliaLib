@@ -1,7 +1,7 @@
 package net.exylia.lib.region;
 
 /**
- * Standard boolean policies matching the deployed Exylia Commons region keys and defaults.
+ * Standard policies matching the deployed Exylia Commons region keys and defaults.
  *
  * <p>The {@code exylia} namespace is a stable ownership namespace for shared Exylia policies. Key
  * values remain exactly compatible with Commons.
@@ -35,10 +35,30 @@ public final class CommonRegionPolicies {
     public static final PolicyKey<Boolean> ITEM_DROP = bool("item_drop", true);
     public static final PolicyKey<Boolean> ITEM_PICKUP = bool("item_pickup", true);
     public static final PolicyKey<Boolean> FALL_DAMAGE = bool("fall_damage", true);
+    /**
+     * The materials a player may place while {@link #ALLOWED_BLOCKS_ONLY} holds.
+     *
+     * <p>Commons kept the list on the region object and every consumer copied it into
+     * a private field; as a policy it is persisted with the region and read by
+     * {@link PluginRegions#enforce()}.
+     *
+     * @since 1.201.0
+     */
+    public static final PolicyKey<MaterialSet> ALLOWED_BLOCKS = materials("allowed_blocks");
+    /**
+     * The materials a player may break while {@link #BREAKABLE_BLOCKS_ONLY} holds.
+     *
+     * @since 1.201.0
+     */
+    public static final PolicyKey<MaterialSet> BREAKABLE_BLOCKS = materials("breakable_blocks");
 
     private CommonRegionPolicies() { }
 
     private static PolicyKey<Boolean> bool(String value, boolean defaultValue) {
         return PolicyKey.of(new RegionId("exylia", value), Boolean.class, defaultValue);
+    }
+
+    private static PolicyKey<MaterialSet> materials(String value) {
+        return PolicyKey.of(new RegionId("exylia", value), MaterialSet.class, MaterialSet.empty());
     }
 }
