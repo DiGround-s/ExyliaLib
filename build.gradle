@@ -60,12 +60,16 @@ repositories {
         name = 'enginehub'
         url = 'https://maven.enginehub.org/repo/'
     }
-    // TAB's API only. JitPack builds from source and answers slowly for
-    // anything else, so it is never asked for anything else.
+    // TAB's API, and ZelTeams' API for the clan provider's test. JitPack
+    // builds from source and answers slowly for anything else, so it is never
+    // asked for anything else.
     maven {
         name = 'jitpack'
         url = 'https://jitpack.io'
-        content { includeGroup 'com.github.NEZNAMY' }
+        content {
+            includeGroup 'com.github.NEZNAMY'
+            includeGroup 'com.github.Zeltuv'
+        }
     }
 }
 
@@ -214,6 +218,9 @@ dependencies {
     testImplementation 'io.github.revxrsal:lamp.bukkit:4.0.0-rc.17'
     testImplementation 'com.github.ben-manes.caffeine:caffeine:3.2.4'
     testImplementation 'me.clip:placeholderapi:2.11.5'
+    // The real ZelTeams interfaces, so its provider's test fails when a name
+    // it reaches for by reflection is not in the API any more.
+    testImplementation 'com.github.Zeltuv:zelteams-api:3.4.0'
 }
 
 java {

@@ -1004,7 +1004,7 @@ server with none of them never tries to load a missing class.
 |---|---|---|---|
 | FactionsUUID | leader, co-leader and moderator, members | yes | yes |
 | HuskTowns | mayor, ranks between the extremes, residents | no | no |
-| ZelTeams | owner, priority above zero, members | no | no |
+| ZelTeams | owner, priority above zero, members | yes | no |
 | RunithClans | leader and admin, co-leader and mod, members | no | no |
 | UltimateClans | leader and members | no | no |
 | Kingdoms | leader, moderators, members | yes | yes |
