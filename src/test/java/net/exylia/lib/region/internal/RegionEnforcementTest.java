@@ -107,6 +107,16 @@ class RegionEnforcementTest {
     }
 
     @Test
+    @DisplayName("an audience that throws skips its regions instead of failing the event")
+    void throwingAudienceIsIsolated() {
+        register(regions, "arena", 0, PolicySet.of(CommonRegionPolicies.PVP, false));
+        regions.enforce((who, region) -> {
+            throw new IllegalStateException("consumer bug");
+        });
+        assertFalse(denies(Check.PVP, null));
+    }
+
+    @Test
     @DisplayName("the default audience exempts creative mode")
     void creativeIsExempt() {
         register(regions, "arena", 0, PolicySet.of(CommonRegionPolicies.ITEM_DROP, false));

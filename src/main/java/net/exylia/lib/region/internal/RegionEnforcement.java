@@ -17,6 +17,7 @@ import java.util.Objects;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+import java.util.logging.Logger;
 import java.util.function.BiPredicate;
 
 /**
@@ -57,6 +58,9 @@ public final class RegionEnforcement {
     private static final ConcurrentMap<String, BiPredicate<Player, RegionSnapshot>> AUDIENCES =
             new ConcurrentHashMap<>();
     private static volatile boolean active;
+    private static final Logger LOGGER = Logger.getLogger("ExyliaLib");
+    /** Owners whose audience has thrown, so the failure is reported once rather than per event. */
+    private static final java.util.Set<String> FAILED = ConcurrentHashMap.newKeySet();
 
     private RegionEnforcement() {
     }
@@ -71,6 +75,7 @@ public final class RegionEnforcement {
     /** Stops enforcing one owner's regions; returns whether it was enforcing. */
     public static synchronized boolean stop(@NotNull String owner) {
         boolean removed = AUDIENCES.remove(Objects.requireNonNull(owner, "owner")) != null;
+        FAILED.remove(owner);
         active = !AUDIENCES.isEmpty();
         return removed;
     }
@@ -78,6 +83,7 @@ public final class RegionEnforcement {
     /** Stops enforcing everything, on shutdown. */
     public static synchronized void releaseAll() {
         AUDIENCES.clear();
+        FAILED.clear();
         active = false;
     }
 
@@ -138,7 +144,7 @@ public final class RegionEnforcement {
         List<RegionSnapshot> applying = null;
         for (int index = 0; index < regions.size(); index++) {
             RegionSnapshot region = regions.get(index);
-            if (!audience.test(player, region)) continue;
+            if (!accepts(audience, player, region)) continue;
             if (applying == null) applying = new ArrayList<>(regions.size());
             applying.add(region);
         }
@@ -152,6 +158,23 @@ public final class RegionEnforcement {
                     CommonRegionPolicies.ALLOWED_BLOCKS, CommonRegionPolicies.BUILD, material);
             default -> !value(applying, check.key);
         };
+    }
+
+    /**
+     * A consumer's audience that throws exempts the player from that region instead of
+     * failing the event: one plugin's bug must not break every block break on the server.
+     */
+    private static boolean accepts(BiPredicate<Player, RegionSnapshot> audience,
+                                   Player player, RegionSnapshot region) {
+        try {
+            return audience.test(player, region);
+        } catch (RuntimeException failure) {
+            if (FAILED.add(region.owner())) {
+                LOGGER.warning("The region audience of " + region.owner()
+                        + " failed; its rules are skipped for that player: " + failure);
+            }
+            return false;
+        }
     }
 
     private static boolean mayChange(List<RegionSnapshot> applying, PolicyKey<Boolean> only,

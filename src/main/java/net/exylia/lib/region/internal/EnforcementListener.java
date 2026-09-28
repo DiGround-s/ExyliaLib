@@ -5,9 +5,7 @@ import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.block.Block;
 import org.bukkit.entity.AreaEffectCloud;
-import org.bukkit.entity.ArmorStand;
 import org.bukkit.entity.Entity;
-import org.bukkit.entity.Hanging;
 import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Player;
 import org.bukkit.event.Event;
@@ -109,14 +107,14 @@ public final class EnforcementListener implements Listener {
     @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
     public void onInteractEntity(PlayerInteractEntityEvent event) {
         if (!RegionEnforcement.active()) return;
-        if (decoration(event.getRightClicked(), event.getPlayer())) event.setCancelled(true);
+        if (usesEntity(event.getRightClicked(), event.getPlayer())) event.setCancelled(true);
     }
 
     /** Armour stands are clicked through this one; it has its own handler list. */
     @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
     public void onInteractAtEntity(PlayerInteractAtEntityEvent event) {
         if (!RegionEnforcement.active()) return;
-        if (decoration(event.getRightClicked(), event.getPlayer())) event.setCancelled(true);
+        if (usesEntity(event.getRightClicked(), event.getPlayer())) event.setCancelled(true);
     }
 
     /**
@@ -178,9 +176,13 @@ public final class EnforcementListener implements Listener {
         if (denies(player, player.getLocation(), Check.ITEM_PICKUP)) event.setCancelled(true);
     }
 
-    /** Armour stands, item frames and paintings: blocks in all but name. */
-    private static boolean decoration(Entity entity, Player player) {
-        return (entity instanceof ArmorStand || entity instanceof Hanging)
+    /**
+     * Any entity but a player: armour stands and frames, but also trading, mounting,
+     * leashing and milking. Right-clicking a player is left to the plugins that give it
+     * a meaning.
+     */
+    private static boolean usesEntity(Entity entity, Player player) {
+        return !(entity instanceof Player)
                 && denies(player, entity.getLocation(), Check.INTERACT);
     }
 
