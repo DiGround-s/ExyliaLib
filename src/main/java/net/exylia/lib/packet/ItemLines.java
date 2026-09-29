@@ -32,11 +32,14 @@ import org.jetbrains.annotations.NotNull;
  * them, and their inventory is sent again when they enter or leave creative.
  *
  * <h2>Limits</h2>
- * The client believes the lines are there. A click in survival sends the
- * decorated item back as what the client thinks it holds; the server keeps its
- * own and answers with the slot again, which is decorated again. Lines already
- * on screen stay until the slot is sent again: call {@link #refresh} when the
- * provider's answer changes for everybody.
+ * The client believes the lines are there, so amount-dependent lines can
+ * change its local merge prediction. For click protocols with state IDs
+ * (1.17.1+), the server executes the click against its real items and sends
+ * the authoritative container and cursor. A next-tick resend also covers
+ * Bukkit click/drag changes. This corrects predictions; it cannot prevent a
+ * transient difference before the server's response reaches the client.
+ * Lines already on screen stay until the slot is sent again: call
+ * {@link #refresh} when the provider's answer changes for everybody.
  *
  * @since 1.203.0
  */

@@ -244,25 +244,31 @@ double chest or an entity. A window opened without the server's open
 event — one drawn with packets — counts as a menu in all its slots.
 
 The provider runs on a packet thread for every non-empty slot: keep it
-cheap, and read only what is safe off the server thread. The item it is
-handed is a copy holding one item, whatever the stack holds (since 1.203.1).
-The client stacks only identical items, lore included: lines that changed
-with the amount — a stack's total price — kept two stacks apart on screen
-while the server merged them, and clicks drew duplicates until the server
-corrected them. Write what one item is: a price each, not a total.
+cheap, and read only what is safe off the server thread. Each provider gets
+an independent copy with the real stack amount, so a stack total can use
+`item.getAmount()` without changing the server's item or another provider's
+input. This replaces the amount-of-one restriction introduced in 1.203.1.
 
-Limits: a player in creative is never decorated — their client hands every
-slot back to the server, which would store the lines — and their inventory
-is sent again as they enter or leave creative. A click in survival sends
-the decorated item back as what the client believes it holds; the server
-keeps its own and answers with the slot again, decorated again. Where the
-client's prediction and the server part ways — a shift-click landing in
-another slot, a cancelled click in a menu — a slot that answer skipped showed
-the item twice, so since 1.205.2 the window is sent again a tick after every
-click and drag while any plugin writes lines: one packet per click, and no
-ghost left behind. What is on
-screen does not follow a provider whose answer changed until the slots are
-sent again: call `refresh` or `refreshAll`.
+### Clicks and client prediction
+
+For click protocols with state IDs (1.17.1+), the library requests the
+server's full authoritative container and cursor after the original click.
+The click action and predicted item payloads are preserved, including the
+hashed item payload introduced in 1.21.5. The existing next-tick, per-player
+coalesced resend after Bukkit clicks and drags remains as a fallback for
+cancelled actions and plugin changes. Older protocols retain that fallback.
+
+**This repairs predictions, not the client's prediction algorithm.** Two
+stacks with different totals have different client-side lore; the client
+may briefly draw a different merge or total before the server response
+arrives. Do not promise zero visual latency. Verify merges of unequal
+stacks, splits, shift-clicks, double-click collection, drag distribution,
+number-key swaps, cancelled menu clicks and cursor contents in-game.
+
+A player in creative is never decorated: their client hands slots back to
+the server, which would store the lines. Inventory is resent when entering
+or leaving creative. A provider's changed answer appears when its slots are
+sent again; call `refresh` or `refreshAll` when prices change independently.
 
 ## Lifecycle
 

@@ -25,6 +25,7 @@ import net.exylia.lib.packet.RevealStyle;
 import net.kyori.adventure.text.Component;
 import org.bukkit.GameMode;
 import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
+import com.github.retrooper.packetevents.wrapper.play.client.WrapperPlayClientClickWindow;
 import com.github.retrooper.packetevents.wrapper.play.client.WrapperPlayClientPlayerDigging;
 import com.github.retrooper.packetevents.wrapper.play.client.WrapperPlayClientPlayerFlying;
 import com.github.retrooper.packetevents.wrapper.play.client.WrapperPlayClientVehicleMove;
@@ -498,7 +499,7 @@ final class PacketHooks extends PacketListenerAbstract implements PacketSink {
     }
 
     // ------------------------------------------------------------------
-    // Inbound: freeze
+    // Inbound: inventory reconciliation and freeze
     // ------------------------------------------------------------------
 
     @Override
@@ -508,6 +509,7 @@ final class PacketHooks extends PacketListenerAbstract implements PacketSink {
         if (player == null) {
             return;
         }
+        reconcileItemClick(event);
         if (PacketRuntime.overlaysAnything() && event.getPacketType() == PacketType.Play.Client.PLAYER_DIGGING
                 && keepsOverlay(event, player)) {
             return;
@@ -538,6 +540,29 @@ final class PacketHooks extends PacketListenerAbstract implements PacketSink {
             // WASD held while frozen: swallowed so a vehicle does not creep.
             event.setCancelled(true);
         }
+    }
+
+    /**
+     * Lets the server execute the real click, then send its entire result.
+     *
+     * <p>Packet lore can change the client's merge prediction. Modern servers
+     * execute a click with a stale state ID normally, but finish by sending
+     * the full container and cursor instead of trusting the predicted slots.
+     * Native IDs are masked to 0..32767, so -1 always requests that path.
+     * Only the revision changes: action, slot, button and predicted item/hash
+     * payloads stay intact, including the hashed protocol since 1.21.5.
+     */
+    private static void reconcileItemClick(PacketReceiveEvent event) {
+        if (event.isCancelled() || event.getPacketType() != PacketType.Play.Client.CLICK_WINDOW
+                || !ItemDecor.decoratesAnything()
+                || event.getServerVersion().isOlderThan(ServerVersion.V_1_17_1)
+                || !(event.getPlayer() instanceof Player viewer)
+                || viewer.getGameMode() == GameMode.CREATIVE) {
+            return;
+        }
+        WrapperPlayClientClickWindow packet = new WrapperPlayClientClickWindow(event);
+        packet.setStateID(Optional.of(-1));
+        event.markForReEncode(true);
     }
 
     /**

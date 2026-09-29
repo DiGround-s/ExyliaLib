@@ -94,35 +94,29 @@ class ItemDecorTest {
     }
 
     @Test
-    @DisplayName("each provider after the first gets its own copy of the item")
-    void copies() {
+    @DisplayName("providers receive the real amount without sharing mutations")
+    void independentStackAmounts() {
         Stack original = new Stack();
+        original.setAmount(37);
         Object[] seen = new Object[2];
         Packets.of(skins).itemLines().provider((v, item, place) -> {
             seen[0] = item;
-            return null;
+            assertEquals(37, item.getAmount());
+            item.setAmount(1);
+            return List.of(Component.text("skin"));
         });
         Packets.of(shop).itemLines().provider((v, item, place) -> {
             seen[1] = item;
-            return null;
+            return List.of(Component.text("total " + item.getAmount() * 20));
         });
-        ItemDecor.lines(viewer, original, ItemPlace.OWN);
-        assertSame(original, seen[0]);
-        assertFalse(original == seen[1]);
-    }
 
-    @Test
-    @DisplayName("a provider sees one item, whatever the stack holds, so its lines cannot split stacks")
-    void oneItem() {
-        int[] seen = new int[1];
-        Packets.of(shop).itemLines().provider((v, item, place) -> {
-            seen[0] = item.getAmount();
-            return null;
-        });
-        Stack stack = new Stack();
-        stack.setAmount(37);
-        ItemDecor.lines(viewer, stack, ItemPlace.OWN);
-        assertEquals(1, seen[0]);
+        List<Component> lines = ItemDecor.lines(viewer, original, ItemPlace.OWN);
+
+        assertEquals(List.of("skin", "total 740"), lines.stream().map(ItemDecorTest::plain).toList());
+        assertEquals(37, original.getAmount());
+        assertFalse(original == seen[0]);
+        assertFalse(original == seen[1]);
+        assertFalse(seen[0] == seen[1]);
     }
 
     @Test

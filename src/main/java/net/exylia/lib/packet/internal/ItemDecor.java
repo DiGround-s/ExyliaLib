@@ -139,26 +139,21 @@ final class ItemDecor {
      * <p>A provider that throws writes nothing and is reported once; the
      * others still write theirs.
      *
-     * <p>Providers are handed a single item, whatever the stack holds. The
-     * client stacks only items that are identical, lore included: lines that
-     * changed with the amount would keep two stacks apart on screen while the
-     * server merges them, and every such click would draw a duplicate until
-     * the server corrected it. One item cannot tell a provider the amount.
-     *
-     * @param item the viewer's copy of the item, which this changes to one
+     * <p>Every provider receives an independent copy with the real stack
+     * amount. Amount-dependent lines are corrected after clicks by the packet
+     * listener; one provider cannot change the amount seen by another.
      *
      * @return the lines, upright unless they say otherwise; empty for none
      */
     static @NotNull List<Component> lines(@NotNull Player viewer, @NotNull ItemStack item, @NotNull ItemPlace place) {
         List<Registered> providers = ordered;
-        item.setAmount(1);
         List<Component> out = null;
         for (int i = 0; i < providers.size(); i++) {
             Registered registered = providers.get(i);
             List<Component> mine;
             try {
                 // Each provider gets an item nobody before it could have changed.
-                mine = registered.provider().lines(viewer, i == 0 ? item : item.clone(), place);
+                mine = registered.provider().lines(viewer, item.clone(), place);
             } catch (Throwable failure) {
                 if (FAILED.add(registered.owner().getName())) {
                     Debug.of(registered.owner()).warn("Item lines could not be written: " + failure);
