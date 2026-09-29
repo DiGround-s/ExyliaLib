@@ -20,10 +20,12 @@ import org.jetbrains.annotations.NotNull;
 
 import java.math.BigDecimal;
 import java.util.ArrayList;
+import java.util.EnumSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.atomic.AtomicReference;
@@ -52,6 +54,7 @@ public final class LootDescriptor implements EditorDescriptor<LootEntry> {
     private static final FormKey<Long> MAXIMUM = FormKey.integer("maximum");
     private static final FormKey<BigDecimal> WEIGHT = FormKey.decimal("weight");
     private static final FormKey<String> TIER = FormKey.text("tier");
+    private static final FormKey<String> CURRENCY = FormKey.text("currency");
 
     /**
      * Room for one inserted item, name, lore and components included. The
@@ -61,9 +64,12 @@ public final class LootDescriptor implements EditorDescriptor<LootEntry> {
     private static final int ITEM_MAX_LENGTH = 16384;
 
     private final Plugin plugin;
+    /** What add may put in: a table whose caller only hands out items offers nothing else. */
+    private final Set<LootType> kinds;
 
-    LootDescriptor(Plugin plugin) {
+    LootDescriptor(Plugin plugin, Set<LootType> kinds) {
         this.plugin = Objects.requireNonNull(plugin, "plugin");
+        this.kinds = kinds.isEmpty() ? EnumSet.of(LootType.ITEM) : EnumSet.copyOf(kinds);
     }
 
     @Override
@@ -96,6 +102,11 @@ public final class LootDescriptor implements EditorDescriptor<LootEntry> {
         if (entry.isCommand()) {
             lore.add(" {letters_black}▎ {letters}Command {letters_black}» {warning}"
                     + entry.displayName());
+        } else if (entry.isEconomy()) {
+            lore.add(" {letters_black}▎ {letters}Money {letters_black}» {success}" + entry.minAmount()
+                    + (entry.isRanged() ? " {muted}— {success}" + entry.maxAmount() : ""));
+            lore.add(" {letters_black}▎ {letters}Currency {letters_black}» {info}"
+                    + (entry.currency() == null ? "default" : entry.currency()));
         } else {
             lore.add(" {letters_black}▎ {letters}Amount {letters_black}» {info}" + entry.minAmount()
                     + (entry.isRanged() ? " {muted}— {info}" + entry.maxAmount() : ""));
@@ -130,8 +141,10 @@ public final class LootDescriptor implements EditorDescriptor<LootEntry> {
      */
     @Override
     public @NotNull CompletionStage<List<LootEntry>> createAll(@NotNull Player viewer) {
-        return Inputs.of(plugin).choice(viewer, "{primary}&lWHAT DO YOU WANT TO ADD?",
-                        List.of(Adding.values()))
+        List<Adding> offered = java.util.Arrays.stream(Adding.values())
+                .filter(adding -> kinds.contains(adding.kind))
+                .toList();
+        return Inputs.of(plugin).choice(viewer, "{primary}&lWHAT DO YOU WANT TO ADD?", offered)
                 .label(Adding::label)
                 .icon(Adding::icon)
                 .key(Enum::name)
@@ -147,6 +160,7 @@ public final class LootDescriptor implements EditorDescriptor<LootEntry> {
                                         "{primary}&lINSERT THE ITEMS")
                                 .thenApply(items -> imported(plugin, viewer, items));
                         case SEVERAL_COMMANDS -> severalCommands(viewer);
+                        case MONEY -> one(LootType.ECONOMY);
                         case CHEST -> fromChest(viewer);
                     };
                 });
@@ -263,9 +277,11 @@ public final class LootDescriptor implements EditorDescriptor<LootEntry> {
 
     @Override
     public boolean isComplete(@NotNull LootEntry entry) {
-        return entry.isCommand()
-                ? entry.command() != null && !entry.command().isBlank()
-                : entry.itemSnapshot() != null;
+        return switch (entry.type()) {
+            case COMMAND -> entry.command() != null && !entry.command().isBlank();
+            case ECONOMY -> true;
+            case ITEM -> entry.itemSnapshot() != null;
+        };
     }
 
     /**
@@ -322,22 +338,28 @@ public final class LootDescriptor implements EditorDescriptor<LootEntry> {
     private CompletionStage<Optional<LootEntry>> form(Player viewer, LootEntry entry) {
         EditorForm form = EditorForm.of(plugin, viewer, "{primary}&lEDIT LOOT");
         boolean command = entry.isCommand();
+        boolean money = entry.isEconomy();
         if (command) {
             form.text(COMMAND, "Command the console runs", entry.command(), 3)
                     .hint("%player_name% is the player, no leading slash");
+        } else if (money) {
+            form.integer(MINIMUM, "Least money", entry.minAmount())
+                    .integer(MAXIMUM, "Most money", entry.maxAmount())
+                    .text(CURRENCY, "Currency (blank for the default)", entry.currency())
+                    .hint("A whole amount between the two, paid each time the line comes up");
         } else {
             form.integer(MINIMUM, "Least amount", entry.minAmount())
                     .integer(MAXIMUM, "Most amount", entry.maxAmount());
         }
         form.decimal(WEIGHT, "Weight", BigDecimal.valueOf(entry.weight()))
                 .text(TIER, "Tier (blank for none)", entry.tier());
-        if (!command) {
+        if (entry.isItem()) {
             form.flag(REPLACE, "Put a different item in", false)
                     .hint("Leave it off to keep the item this line already gives");
         }
 
-        return form.ask(values -> new Edited(rebuild(entry, values, command),
-                        !command && values.getBoolean(REPLACE)))
+        return form.ask(values -> new Edited(rebuild(entry, values),
+                        entry.isItem() && values.getBoolean(REPLACE)))
                 .thenCompose(answered -> {
                     if (answered.isEmpty()) {
                         return CompletableFuture.completedFuture(Optional.<LootEntry>empty());
@@ -360,18 +382,22 @@ public final class LootDescriptor implements EditorDescriptor<LootEntry> {
     /** What one press of add can put in a loot table. */
     private enum Adding {
 
-        ITEM("{primary}&lAN ITEM", LootType.ITEM.defaultIcon()),
-        COMMAND("{primary}&lA COMMAND", LootType.COMMAND.defaultIcon()),
-        SEVERAL_ITEMS("{primary}&lSEVERAL ITEMS", "HOPPER"),
-        SEVERAL_COMMANDS("{primary}&lSEVERAL COMMANDS", "CHAIN_COMMAND_BLOCK"),
-        CHEST("{highlight}&lEVERYTHING IN A CHEST", "CHEST");
+        ITEM("{primary}&lAN ITEM", LootType.ITEM.defaultIcon(), LootType.ITEM),
+        COMMAND("{primary}&lA COMMAND", LootType.COMMAND.defaultIcon(), LootType.COMMAND),
+        MONEY("{primary}&lMONEY", LootType.ECONOMY.defaultIcon(), LootType.ECONOMY),
+        SEVERAL_ITEMS("{primary}&lSEVERAL ITEMS", "HOPPER", LootType.ITEM),
+        SEVERAL_COMMANDS("{primary}&lSEVERAL COMMANDS", "CHAIN_COMMAND_BLOCK", LootType.COMMAND),
+        CHEST("{highlight}&lEVERYTHING IN A CHEST", "CHEST", LootType.ITEM);
 
         private final String label;
         private final String icon;
+        /** What the table has to accept for this to be offered. */
+        private final LootType kind;
 
-        Adding(String label, String icon) {
+        Adding(String label, String icon, LootType kind) {
             this.label = label;
             this.icon = icon;
+            this.kind = kind;
         }
 
         String label() {
@@ -384,13 +410,16 @@ public final class LootDescriptor implements EditorDescriptor<LootEntry> {
         }
     }
 
-    private static LootEntry rebuild(LootEntry entry, FormValues values, boolean command) {
+    private static LootEntry rebuild(LootEntry entry, FormValues values) {
         LootEntry.Builder builder = entry.toBuilder()
                 .weight(values.getDecimal(WEIGHT).doubleValue())
                 .tier(blankToNull(values.getText(TIER)));
-        if (command) {
+        if (entry.isCommand()) {
             builder.command(blankToNull(values.getText(COMMAND)));
         } else {
+            if (entry.isEconomy()) {
+                builder.currency(blankToNull(values.getText(CURRENCY).strip().toLowerCase(Locale.ROOT)));
+            }
             // Put in order rather than refused: somebody who typed them the
             // wrong way round meant a range, and losing the line teaches them
             // nothing at a time nobody is reading the log.

@@ -58,6 +58,7 @@ public final class LootEntry {
     private final int minAmount;
     private final int maxAmount;
     private final String command;
+    private final String currency;
     private final double weight;
     private final String tier;
 
@@ -68,6 +69,7 @@ public final class LootEntry {
         this.minAmount = builder.minAmount;
         this.maxAmount = builder.maxAmount;
         this.command = builder.command;
+        this.currency = builder.currency;
         this.weight = builder.weight;
         this.tier = builder.tier;
     }
@@ -102,6 +104,15 @@ public final class LootEntry {
         return type == LootType.COMMAND;
     }
 
+    /**
+     * Whether this entry pays money.
+     *
+     * @since 1.204.0
+     */
+    public boolean isEconomy() {
+        return type == LootType.ECONOMY;
+    }
+
     // ------------------------------------------------------------ its payload
 
     /**
@@ -126,6 +137,16 @@ public final class LootEntry {
      */
     public @Nullable String command() {
         return command;
+    }
+
+    /**
+     * The currency, for {@link LootType#ECONOMY}.
+     *
+     * @return the currency id, or {@code null} for the server's default one
+     * @since 1.204.0
+     */
+    public @Nullable String currency() {
+        return currency;
     }
 
     // ---------------------------------------------------------------- amounts
@@ -191,6 +212,10 @@ public final class LootEntry {
         if (isCommand()) {
             return command != null && !command.isBlank() ? command : "(no command)";
         }
+        if (isEconomy()) {
+            String amount = minAmount == maxAmount ? String.valueOf(minAmount) : minAmount + "-" + maxAmount;
+            return amount + " " + (currency != null && !currency.isBlank() ? currency : "MONEY");
+        }
         return itemSnapshot != null ? readable(itemSnapshot) : "(not set)";
     }
 
@@ -250,6 +275,7 @@ public final class LootEntry {
         builder.minAmount = minAmount;
         builder.maxAmount = maxAmount;
         builder.command = command;
+        builder.currency = currency;
         builder.weight = weight;
         builder.tier = tier;
         return builder;
@@ -323,6 +349,7 @@ public final class LootEntry {
         private int minAmount = 1;
         private int maxAmount = 1;
         private String command;
+        private String currency;
         private double weight = DEFAULT_WEIGHT;
         private String tier;
 
@@ -363,6 +390,18 @@ public final class LootEntry {
          */
         public @NotNull Builder command(@Nullable String command) {
             this.command = command;
+            return this;
+        }
+
+        /**
+         * The currency a money entry pays in.
+         *
+         * @param currency the currency id, or {@code null} for the default one
+         * @return this builder
+         * @since 1.204.0
+         */
+        public @NotNull Builder currency(@Nullable String currency) {
+            this.currency = currency == null || currency.isBlank() ? null : currency;
             return this;
         }
 

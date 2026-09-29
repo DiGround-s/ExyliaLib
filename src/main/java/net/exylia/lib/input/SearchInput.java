@@ -64,7 +64,13 @@ public final class SearchInput<T> extends InputRequest<T, SearchInput<T>> {
         this.choices = List.of();
     }
 
-    /** Sets the text players see and the default string precomputed for search. */
+    /**
+     * Sets the text players see and the default string precomputed for search.
+     *
+     * <p>Plain text: the view draws it in the primary colour, bold, and prints
+     * whatever it is handed as written. A label carrying {@code {primary}&l}
+     * shows those characters on the item.
+     */
     public @NotNull SearchInput<T> label(@NotNull Function<T, String> label) {
         this.label = Inputs.require(label, "label");
         this.index = null;

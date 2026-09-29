@@ -98,10 +98,11 @@ LootEntry another = bread.copy();                          // a second line
 | Part | What it is |
 | --- | --- |
 | `id()` | identity, stable across edits; what an editor menu finds a clicked row by |
-| `type()` | `ITEM` or `COMMAND`; `isItem()` and `isCommand()` read it |
+| `type()` | `ITEM`, `COMMAND` or `ECONOMY` (1.204.0); `isItem()`, `isCommand()` and `isEconomy()` read it |
 | `itemSnapshot()` | the item, as a material name, a head string or a `bytes:` snapshot |
 | `command()` | the console command, for a `COMMAND` line |
-| `minAmount()` / `maxAmount()` / `isRanged()` | the stack size, both ends included |
+| `currency()` | the currency an `ECONOMY` line pays in; `null` is the server's default one |
+| `minAmount()` / `maxAmount()` / `isRanged()` | the stack size, both ends included; for an `ECONOMY` line, the money — whole amounts |
 | `weight()` | see [above](#two-readings-of-one-weight); defaults to `LootEntry.DEFAULT_WEIGHT`, which is commons' `50.0` |
 | `tier()` | `COMMON`, `RARE`, whatever the plugin groups by. **The library never reads it** |
 | `displayName()` / `resolvedIcon()` | what a menu shows and draws, without a server |
@@ -132,7 +133,12 @@ Loot.editor(this, template.entries())
 ```
 
 The [editor](editors.md) screen: pagination, add, edit, delete, copy, paste,
-save and cancel. A table copied here pastes into any other loot editor — a chest
+save and cancel. `Loot.editor(plugin, entries, kinds)` (1.204.0) says which kinds
+of line add offers — the two-argument form offers items and commands, as it
+always did. A table rolled with `roll` gives items only, so offering money there
+would configure a line that is silently skipped; a caller reading `rollEntries`
+that pays money passes `EnumSet.allOf(LootType.class)`. Paying is the caller's:
+`Loot.amountOf(entry)` rolls how much, in `entry.currency()`. A table copied here pastes into any other loot editor — a chest
 into a spawner, a spawner into an event — because they are the same rows in the
 same format.
 
@@ -142,6 +148,7 @@ same format.
 | --- | --- |
 | `AN ITEM` | one line; the one-slot window asks which item, then the form |
 | `A COMMAND` | one line; the form asks for the command |
+| `MONEY` | one line (1.204.0, when the table accepts `ECONOMY`); the form asks for the least and most money and the currency |
 | `EVERYTHING IN A CHEST` | the screen closes, the admin left-clicks a container, and **every** item in it becomes a line at weight `100.0`, amount `1—<stack size>` |
 
 The import is the ExyliaCommons feature the migration lost. There, every plugin

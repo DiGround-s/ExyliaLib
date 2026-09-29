@@ -162,8 +162,8 @@ public final class Pickers {
         options.add(CUSTOM);
         return Inputs.of(plugin).search(viewer, "{primary}&lWHICH COLOUR?", options)
                 .label(name -> name.equals(CUSTOM)
-                        ? "{highlight}&lTYPE A HEX VALUE"
-                        : "{primary}&l" + name.toUpperCase(Locale.ROOT))
+                        ? "TYPE A HEX VALUE"
+                        : name.toUpperCase(Locale.ROOT))
                 .key(name -> name)
                 .icon(Pickers::dye)
                 .open()

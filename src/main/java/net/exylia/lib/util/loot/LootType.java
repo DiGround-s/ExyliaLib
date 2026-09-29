@@ -21,7 +21,16 @@ public enum LootType {
     ITEM("BARRIER"),
 
     /** A console command, held in {@link LootEntry#command()}. */
-    COMMAND("COMMAND_BLOCK");
+    COMMAND("COMMAND_BLOCK"),
+
+    /**
+     * Money: a whole amount between {@link LootEntry#minAmount()} and
+     * {@link LootEntry#maxAmount()}, in {@link LootEntry#currency()}. The
+     * caller pays it, the way it runs a command.
+     *
+     * @since 1.204.0
+     */
+    ECONOMY("GOLD_INGOT");
 
     private final String defaultIcon;
 

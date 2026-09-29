@@ -212,4 +212,22 @@ class LootCodecTest {
         assertEquals("DIAMOND", read.get(1).itemSnapshot());
         assertTrue(problems.isEmpty(), problems::toString);
     }
+
+    @Test
+    @DisplayName("a money entry keeps its range and currency, and a default currency writes none")
+    void moneyRoundTrip() {
+        LootEntry gems = LootEntry.of(LootType.ECONOMY).amountBetween(5, 10).currency("gems").build();
+        LootEntry cash = LootEntry.of(LootType.ECONOMY).amount(3).currency(" ").build();
+
+        List<LootEntry> read = LootCodec.decode(LootCodec.encode(List.of(gems, cash)));
+
+        assertTrue(read.get(0).isEconomy());
+        assertEquals(5, read.get(0).minAmount());
+        assertEquals(10, read.get(0).maxAmount());
+        assertEquals("gems", read.get(0).currency());
+        assertNull(read.get(1).currency());
+        assertFalse(LootCodec.encode(cash).contains("currency"));
+        assertEquals("5-10 gems", read.get(0).displayName());
+        assertNull(Loot.itemOf(read.get(0)));
+    }
 }

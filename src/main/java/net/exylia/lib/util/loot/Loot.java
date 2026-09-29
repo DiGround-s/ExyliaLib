@@ -11,7 +11,9 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
+import java.util.EnumSet;
 import java.util.List;
+import java.util.Set;
 import java.util.function.BiConsumer;
 
 /**
@@ -88,7 +90,25 @@ public final class Loot {
      */
     public static @NotNull ListEditor<LootEntry> editor(@NotNull Plugin plugin,
                                                         @NotNull List<LootEntry> entries) {
-        return Editors.of(plugin).list(new LootDescriptor(plugin), LootEntry.class, entries);
+        return editor(plugin, entries, EnumSet.of(LootType.ITEM, LootType.COMMAND));
+    }
+
+    /**
+     * {@link #editor(Plugin, List)} offering only the kinds of line the caller
+     * hands out.
+     *
+     * <p>A chest rolled with {@link #roll} gives items and nothing else; a mine
+     * that reads {@link #rollEntries} runs commands and pays money too. Add
+     * offers what the table will do, so nobody configures a line that is
+     * silently skipped.
+     *
+     * @param kinds what add offers
+     * @since 1.204.0
+     */
+    public static @NotNull ListEditor<LootEntry> editor(@NotNull Plugin plugin,
+                                                        @NotNull List<LootEntry> entries,
+                                                        @NotNull Set<LootType> kinds) {
+        return Editors.of(plugin).list(new LootDescriptor(plugin, kinds), LootEntry.class, entries);
     }
 
     // ---------------------------------------------------------------- writing

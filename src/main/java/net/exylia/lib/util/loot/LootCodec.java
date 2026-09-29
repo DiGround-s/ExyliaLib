@@ -69,6 +69,8 @@ public final class LootCodec {
     private static final String COMMAND = "command";
     private static final String WEIGHT = "weight";
     private static final String TIER = "tier";
+    /** Ours, not the bean's: money entries are newer than ExyliaCommons. */
+    private static final String CURRENCY = "currency";
 
     /** Ignores what it cannot read, which is what a stored row deserves. */
     private static final BiConsumer<String, String> SILENT = (where, problem) -> { };
@@ -113,6 +115,7 @@ public final class LootCodec {
         addIfPresent(json, COMMAND, entry.command());
         json.addProperty(WEIGHT, entry.weight());
         addIfPresent(json, TIER, entry.tier());
+        addIfPresent(json, CURRENCY, entry.currency());
         return json;
     }
 
@@ -190,7 +193,8 @@ public final class LootCodec {
                 .id(string(json, ID) != null ? string(json, ID) : UUID.randomUUID().toString())
                 .itemSnapshot(string(json, ITEM_SNAPSHOT))
                 .command(string(json, COMMAND))
-                .tier(string(json, TIER));
+                .tier(string(json, TIER))
+                .currency(string(json, CURRENCY));
 
         int min = number(json, MIN_AMOUNT, 1);
         int max = number(json, MAX_AMOUNT, min);

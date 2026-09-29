@@ -160,7 +160,7 @@ final class LineDescriptor implements EditorDescriptor<SequenceLine> {
     private CompletionStage<Optional<String>> token(Player viewer) {
         List<String> tokens = SequenceLine.tokens(shapeNames);
         return Inputs.of(plugin).search(viewer, "{primary}&lWHAT DOES IT PLAY?", tokens)
-                .label(token -> "{primary}&l" + token.replace('_', ' '))
+                .label(token -> token.replace('_', ' ').toUpperCase(java.util.Locale.ROOT))
                 .key(token -> token)
                 .icon(token -> material(SequenceLine.icon(token)))
                 .open()
