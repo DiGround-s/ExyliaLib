@@ -4,6 +4,8 @@ import net.exylia.lib.debug.Debug;
 import net.exylia.lib.packet.FakeBlocks;
 import net.exylia.lib.packet.FakeGameMode;
 import net.exylia.lib.packet.GlowingBlocks;
+import net.exylia.lib.packet.ItemLineProvider;
+import net.exylia.lib.packet.ItemLines;
 import net.exylia.lib.packet.MessageRule;
 import net.exylia.lib.packet.Messages;
 import net.exylia.lib.packet.Movement;
@@ -23,11 +25,15 @@ import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
+import org.bukkit.event.inventory.InventoryCloseEvent;
+import org.bukkit.event.inventory.InventoryOpenEvent;
 import org.bukkit.event.player.PlayerChangedWorldEvent;
+import org.bukkit.event.player.PlayerGameModeChangeEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerMoveEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.event.player.PlayerRespawnEvent;
+import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.plugin.Plugin;
 import org.jetbrains.annotations.NotNull;
@@ -212,10 +218,17 @@ public final class PacketRuntime {
             impl.clear();
         }
         Mirrors.release(pluginName);
+        if (ItemDecor.unregister(pluginName)) {
+            // Its lines are on screen until the slots are sent again.
+            resendAll();
+        }
     }
 
     /** Drops the listeners and everything remembered. */
     public static void shutdown() {
+        // First, so releasing each plugin below schedules no resend on a
+        // library that is going down.
+        ItemDecor.shutdown();
         for (String name : new ArrayList<>(BY_PLUGIN.keySet())) {
             release(name);
         }
@@ -391,10 +404,33 @@ public final class PacketRuntime {
         REVEALING.remove(id);
         OVERLAYS.remove(id);
         Mirrors.forget(player);
+        ItemDecor.forget(id);
         Borders.forget(player);
     }
 
     // ------------------------------------------------------------------
+
+    /** Sends a viewer's inventory and open window again, on their thread. */
+    static void resend(Player viewer) {
+        Plugin plugin = lib;
+        if (plugin != null && sink() != null) {
+            Tasks.of(plugin).runAtEntity(viewer, viewer::updateInventory);
+        }
+    }
+
+    /** {@link #resend} a tick later, once whatever changed has been applied. */
+    static void resendLater(Player viewer) {
+        Plugin plugin = lib;
+        if (plugin != null && sink() != null) {
+            Tasks.of(plugin).runAtEntityLater(viewer, 1, viewer::updateInventory);
+        }
+    }
+
+    static void resendAll() {
+        for (Player viewer : Bukkit.getOnlinePlayers()) {
+            resend(viewer);
+        }
+    }
 
     /** Bukkit's side: the safety net under the packet path, and cleanup. */
     static final class BukkitHooks implements Listener {
@@ -416,6 +452,30 @@ public final class PacketRuntime {
             // Its entities went with them: forget without sending a despawn.
             OUTLINED.remove(event.getPlayer().getUniqueId());
             Borders.resend(event.getPlayer());
+        }
+
+        @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+        public void onOpen(InventoryOpenEvent event) {
+            // Read here, on the server thread, for the packet thread to use
+            // once the window's number goes out.
+            Inventory top = event.getView().getTopInventory();
+            ItemDecor.opening(event.getPlayer().getUniqueId(), top.getSize(), top.getHolder(false));
+        }
+
+        @EventHandler(priority = EventPriority.MONITOR)
+        public void onClose(InventoryCloseEvent event) {
+            ItemDecor.closed(event.getPlayer().getUniqueId());
+        }
+
+        @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+        public void onGameMode(PlayerGameModeChangeEvent event) {
+            // Entering creative: the client must hold the items as they are,
+            // before it hands any of them back. Leaving it: draw the lines again.
+            boolean creativeBefore = event.getPlayer().getGameMode() == GameMode.CREATIVE;
+            boolean creativeAfter = event.getNewGameMode() == GameMode.CREATIVE;
+            if (creativeBefore != creativeAfter && ItemDecor.decoratesAnything()) {
+                resendLater(event.getPlayer());
+            }
         }
 
         @EventHandler(priority = EventPriority.MONITOR)
@@ -453,6 +513,30 @@ public final class PacketRuntime {
         private final Borders borders;
 
         /** Its own object rather than another face of this one: {@code clear()} is already taken here. */
+        private final ItemLines itemLines = new ItemLines() {
+            @Override
+            public void provider(@NotNull ItemLineProvider provider) {
+                ItemDecor.register(plugin, provider);
+            }
+
+            @Override
+            public void clearProvider() {
+                if (ItemDecor.unregister(name)) {
+                    resendAll();
+                }
+            }
+
+            @Override
+            public void refresh(@NotNull Player viewer) {
+                resend(viewer);
+            }
+
+            @Override
+            public void refreshAll() {
+                resendAll();
+            }
+        };
+
         private final Messages messages = new Messages() {
             @Override
             public void rule(@NotNull MessageRule rule) {
@@ -497,6 +581,7 @@ public final class PacketRuntime {
         @Override public @NotNull SilentContainer silentContainer() { return containers; }
         @Override public @NotNull Messages messages() { return messages; }
         @Override public @NotNull WorldBorders worldBorders() { return borders; }
+        @Override public @NotNull ItemLines itemLines() { return itemLines; }
 
         /** Puts back everything this plugin changed. */
         void clear() {

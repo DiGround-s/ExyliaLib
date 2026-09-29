@@ -3,8 +3,8 @@
 Client-side tricks a staff plugin needs and the server has no API for: hiding
 a player from some viewers, drawing the invisible ones for staff, showing
 blocks that are not there, pinning a player in place, making one client
-believe it is a spectator, watching a chest without opening it, and world
-borders only some players see.
+believe it is a spectator, watching a chest without opening it, world
+borders only some players see, and lines under an item only its viewer reads.
 
 Nothing here changes what the server believes. That is the point — no other
 plugin's checks break — and the limit: every helper below says what it does
@@ -207,9 +207,57 @@ still follow the world's own border. `hide` sends the world's border as it
 stands, without a resize it may be in the middle of. Without PacketEvents a
 border can be created and shaped but shows to nobody and hurts nobody.
 
+## ItemLines
+
+```java
+ItemLines itemLines();
+void provider(ItemLineProvider provider);    // one per plugin, replaces its previous one
+void clearProvider();
+void refresh(Player viewer);                  // send their inventory and window again
+void refreshAll();
+
+// ItemLineProvider: (viewer, item, place) -> List<Component>, or null for none
+// ItemPlace: container, holder; isMenu() for a window that is not a real container
+```
+
+Lines written under an item's lore on the packet that carries it to one
+viewer: a price, a skin's name, uses left. The item on the server never
+has them, so nothing reading its lore finds them and nothing has to take
+them off again.
+
+```java
+Packets.of(this).itemLines().provider((viewer, item, place) ->
+        place.isMenu() ? null : List.of(Text.of("{letters}Worth: {success}$" + worth(item)).build()));
+```
+
+Every plugin's lines are appended under the item's own lore, in the order
+the plugins registered; a plugin's provider goes when it is disabled, and
+the slots are sent again so its lines leave the screen. A line with no
+italic of its own is drawn upright. A provider that throws writes nothing,
+is reported once, and the others still write theirs.
+
+Every slot the client is sent is asked about: the viewer's own inventory,
+their cursor, and the window they have open. `ItemPlace` says which: a slot
+of the window itself carries the window's holder, read on the server thread
+when it opened, and `isMenu()` is true unless that holder is a block, a
+double chest or an entity. A window opened without the server's open
+event — one drawn with packets — counts as a menu in all its slots.
+
+The provider runs on a packet thread for every non-empty slot: keep it
+cheap, and read only what is safe off the server thread. The item it is
+handed is a copy.
+
+Limits: a player in creative is never decorated — their client hands every
+slot back to the server, which would store the lines — and their inventory
+is sent again as they enter or leave creative. A click in survival sends
+the decorated item back as what the client believes it holds; the server
+keeps its own and answers with the slot again, decorated again. What is on
+screen does not follow a provider whose answer changed until the slots are
+sent again: call `refresh` or `refreshAll`.
+
 ## Lifecycle
 
-What a plugin hid, froze, faked or opened is undone when that plugin is
+What a plugin hid, froze, faked, opened or wrote under items is undone when that plugin is
 disabled, and every border it created is removed. `Packets.releaseAll()` runs when the library disables and drops the
 listeners. Nothing survives a player leaving.
 

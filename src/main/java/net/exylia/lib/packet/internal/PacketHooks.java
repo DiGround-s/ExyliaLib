@@ -11,6 +11,8 @@ import com.github.retrooper.packetevents.protocol.packettype.PacketTypeCommon;
 import com.github.retrooper.packetevents.protocol.entity.data.EntityData;
 import com.github.retrooper.packetevents.protocol.entity.data.EntityDataTypes;
 import com.github.retrooper.packetevents.protocol.entity.type.EntityTypes;
+import com.github.retrooper.packetevents.protocol.component.ComponentTypes;
+import com.github.retrooper.packetevents.protocol.component.builtin.item.ItemLore;
 import com.github.retrooper.packetevents.protocol.item.ItemStack;
 import com.github.retrooper.packetevents.protocol.player.DiggingAction;
 import com.github.retrooper.packetevents.protocol.player.User;
@@ -18,7 +20,10 @@ import com.github.retrooper.packetevents.util.Vector3d;
 import com.github.retrooper.packetevents.util.Vector3f;
 import com.github.retrooper.packetevents.util.Vector3i;
 import com.github.retrooper.packetevents.wrapper.PacketWrapper;
+import net.exylia.lib.packet.ItemPlace;
 import net.exylia.lib.packet.RevealStyle;
+import net.kyori.adventure.text.Component;
+import org.bukkit.GameMode;
 import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
 import com.github.retrooper.packetevents.wrapper.play.client.WrapperPlayClientPlayerDigging;
 import com.github.retrooper.packetevents.wrapper.play.client.WrapperPlayClientPlayerFlying;
@@ -49,6 +54,8 @@ import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerPl
 import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerPlayerInfoRemove;
 import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerPlayerInfoUpdate;
 import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerPlayerPositionAndLook;
+import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerOpenWindow;
+import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerSetCursorItem;
 import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerSetPlayerInventory;
 import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerSetSlot;
 import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerSpawnEntity;
@@ -187,6 +194,11 @@ final class PacketHooks extends PacketListenerAbstract implements PacketSink {
                 drawOverlay(event, type, overlay);
             }
         }
+        if (type == PacketType.Play.Server.OPEN_WINDOW) {
+            ItemDecor.opened(viewer, new WrapperPlayServerOpenWindow(event).getContainerId());
+        } else if (ItemDecor.decoratesAnything() && carriesItems(type)) {
+            decorate(event, type, viewer);
+        }
         if (Borders.drawsAny() && isWorldBorder(type) && Borders.replaces(event.getPlayer())) {
             // The world's own border, on its way to somebody who sees one of
             // ours: it would overwrite it. Ours goes out past this listener.
@@ -214,6 +226,93 @@ final class PacketHooks extends PacketListenerAbstract implements PacketSink {
 
     /** The player's own inventory window. */
     private static final int PLAYER_WINDOW = 0;
+
+    // ------------------------------------------------------------------
+    // Outbound: item lines
+    // ------------------------------------------------------------------
+
+    private static boolean carriesItems(PacketTypeCommon type) {
+        return type == PacketType.Play.Server.SET_SLOT
+                || type == PacketType.Play.Server.WINDOW_ITEMS
+                || type == PacketType.Play.Server.SET_CURSOR_ITEM
+                || type == PacketType.Play.Server.SET_PLAYER_INVENTORY;
+    }
+
+    /**
+     * Writes every plugin's lines under the items of one inventory packet.
+     *
+     * <p>Four packets carry them: one slot of a window, a whole window with
+     * the cursor, and — split out of the first since 1.21.2 — the cursor alone
+     * and one slot of the player's own inventory. Missing either of the last
+     * two draws a bare item the moment anything is picked up.
+     */
+    private static void decorate(PacketSendEvent event, PacketTypeCommon type, UUID viewerId) {
+        if (!(event.getPlayer() instanceof Player viewer) || viewer.getGameMode() == GameMode.CREATIVE) {
+            return;
+        }
+        if (type == PacketType.Play.Server.SET_SLOT) {
+            WrapperPlayServerSetSlot packet = new WrapperPlayServerSetSlot(event);
+            ItemStack drawn = decorated(viewer, packet.getItem(),
+                    ItemDecor.place(viewerId, packet.getWindowId(), packet.getSlot()));
+            if (drawn != null) {
+                packet.setItem(drawn);
+                event.markForReEncode(true);
+            }
+        } else if (type == PacketType.Play.Server.WINDOW_ITEMS) {
+            WrapperPlayServerWindowItems packet = new WrapperPlayServerWindowItems(event);
+            List<ItemStack> items = new ArrayList<>(packet.getItems());
+            boolean changed = false;
+            for (int slot = 0; slot < items.size(); slot++) {
+                ItemStack drawn = decorated(viewer, items.get(slot),
+                        ItemDecor.place(viewerId, packet.getWindowId(), slot));
+                if (drawn != null) {
+                    items.set(slot, drawn);
+                    changed = true;
+                }
+            }
+            ItemStack carried = packet.getCarriedItem().orElse(null);
+            ItemStack drawnCarried = carried == null ? null : decorated(viewer, carried, ItemPlace.OWN);
+            if (drawnCarried != null) {
+                packet.setCarriedItem(drawnCarried);
+                changed = true;
+            }
+            if (changed) {
+                packet.setItems(items);
+                event.markForReEncode(true);
+            }
+        } else if (type == PacketType.Play.Server.SET_CURSOR_ITEM) {
+            WrapperPlayServerSetCursorItem packet = new WrapperPlayServerSetCursorItem(event);
+            ItemStack drawn = decorated(viewer, packet.getStack(), ItemPlace.OWN);
+            if (drawn != null) {
+                packet.setStack(drawn);
+                event.markForReEncode(true);
+            }
+        } else {
+            WrapperPlayServerSetPlayerInventory packet = new WrapperPlayServerSetPlayerInventory(event);
+            ItemStack drawn = decorated(viewer, packet.getStack(), ItemPlace.OWN);
+            if (drawn != null) {
+                packet.setStack(drawn);
+                event.markForReEncode(true);
+            }
+        }
+    }
+
+    /** A copy of the item with every plugin's lines under its lore, or {@code null} when none has any. */
+    private static ItemStack decorated(Player viewer, ItemStack item, ItemPlace place) {
+        if (item == null || item.isEmpty()) {
+            return null;
+        }
+        List<Component> lines = ItemDecor.lines(viewer, SpigotConversionUtil.toBukkitItemStack(item), place);
+        if (lines.isEmpty()) {
+            return null;
+        }
+        ItemStack copy = item.copy();
+        ItemLore own = copy.getComponentOr(ComponentTypes.LORE, null);
+        List<Component> all = new ArrayList<>(own == null ? List.of() : own.getLines());
+        all.addAll(lines);
+        copy.setComponent(ComponentTypes.LORE, new ItemLore(all));
+        return copy;
+    }
 
     /** Where hotbar slot 0 sits in the player's own inventory window. */
     private static final int HOTBAR_IN_WINDOW = 36;

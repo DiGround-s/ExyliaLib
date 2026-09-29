@@ -42,4 +42,11 @@ public interface PluginPackets {
      * @since 1.162.0
      */
     @NotNull WorldBorders worldBorders();
+
+    /**
+     * Lines written under items on their way to one viewer.
+     *
+     * @since 1.203.0
+     */
+    @NotNull ItemLines itemLines();
 }
