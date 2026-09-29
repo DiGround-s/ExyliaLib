@@ -178,9 +178,8 @@ final class BedrockForms {
             if (field.kind() == FormField.Kind.FLAG) {
                 ACCESS.toggle.invoke(builder, label, Boolean.parseBoolean(initial));
             } else {
-                // FormField.Kind.CHOICE currently carries no options. An input preserves the
-                // raw key and still obeys form.parseRaw; inventing a dropdown would lose data.
-                // A Bedrock input has a real placeholder, so the hint goes where the client
+                // A choice is typed here: its hint lists the keys, and form.parseRaw
+                // refuses anything else. A Bedrock input has a real placeholder, so the hint goes where the client
                 // already draws one: inside the empty box, gone as soon as the player types.
                 ACCESS.input.invoke(builder, label, plain(field.hint()), initial);
             }

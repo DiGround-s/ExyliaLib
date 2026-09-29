@@ -34,6 +34,21 @@ public final class FormField<T> {
     private T defaultValue;
     private int lines = 1;
     private String hint;
+    private List<Option> options = List.of();
+
+    /**
+     * One answer a {@link Kind#CHOICE} field offers.
+     *
+     * @param key   what the answer is, as {@link FormValues} returns it
+     * @param label what the player reads; colour tokens allowed
+     * @since 1.205.0
+     */
+    public record Option(@NotNull String key, @NotNull String label) {
+        public Option {
+            Inputs.require(key, "key");
+            Inputs.require(label, "label");
+        }
+    }
 
     private FormField(FormKey<T> key, String label, InputParser<T> parser, Kind kind) {
         this.key = Inputs.require(key, "key");
@@ -78,6 +93,47 @@ public final class FormField<T> {
     public static @NotNull FormField<Duration> duration(@NotNull FormKey<Duration> key,
                                                          @NotNull String label) {
         return of(key, label, InputParser.duration(), Kind.DURATION);
+    }
+
+    /**
+     * Creates a field answered by picking one of a few options.
+     *
+     * <p>A dialog draws it as a button that cycles through the labels, so
+     * nobody has to remember an id and nothing typed can be wrong. Where the
+     * client has no such control the key is typed, and a wrong one is answered
+     * with the list of keys.
+     * The answer is always one of the keys.
+     *
+     * @param options what may be picked, in the order shown; at least one
+     * @since 1.205.0
+     */
+    public static @NotNull FormField<String> choice(@NotNull FormKey<String> key,
+                                                    @NotNull String label,
+                                                    @NotNull List<Option> options) {
+        List<Option> offered = List.copyOf(Inputs.require(options, "options"));
+        if (offered.isEmpty()) {
+            throw new InputException("a choice needs at least one option");
+        }
+        FormField<String> field = of(key, label, raw -> {
+            for (Option option : offered) {
+                if (option.key().equalsIgnoreCase(raw)) {
+                    return InputParser.Parsed.of(option.key());
+                }
+            }
+            return InputParser.Parsed.rejected("Choose one of: "
+                    + String.join(", ", offered.stream().map(Option::key).toList()));
+        }, Kind.CHOICE);
+        field.options = offered;
+        return field;
+    }
+
+    /**
+     * What a {@link Kind#CHOICE} field offers; empty for any other kind.
+     *
+     * @since 1.205.0
+     */
+    public @NotNull List<Option> options() {
+        return options;
     }
 
     /** Creates a yes-or-no field. */

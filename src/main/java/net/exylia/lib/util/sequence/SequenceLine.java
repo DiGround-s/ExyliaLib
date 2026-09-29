@@ -298,17 +298,27 @@ final class SequenceLine {
     }
 
     /**
+     * The picker's one entry for every shape: chosen, it opens the shapes on a
+     * page of their own. Not a token any line is written with.
+     */
+    static final String SHAPES = "PARTICLE_SHAPE";
+
+    /**
      * What the picker offers, in the order it offers them.
      *
-     * <p>The effects an admin reaches for first, then the shapes, then the
-     * plumbing. Not alphabetical: a list that opens on {@code ACTION_BAR} is a
-     * list that buries {@code PARTICLE}.
+     * <p>The effects an admin reaches for first, then the plumbing. Not
+     * alphabetical: a list that opens on {@code ACTION_BAR} is a list that
+     * buries {@code PARTICLE}. The shapes are one entry, {@link #SHAPES}: there
+     * are dozens of them, and listed here they buried everything after them
+     * under a page of identical rods.
      */
     static @NotNull List<String> tokens(@NotNull Set<String> shapeNames) {
         List<String> tokens = new ArrayList<>();
         tokens.add("PARTICLE");
         tokens.add("SOUND");
-        tokens.addAll(shapeTokens(shapeNames));
+        if (!shapeNames.isEmpty()) {
+            tokens.add(SHAPES);
+        }
         tokens.add("FIREWORK");
         tokens.add("POTION");
         tokens.add("LIGHTNING");

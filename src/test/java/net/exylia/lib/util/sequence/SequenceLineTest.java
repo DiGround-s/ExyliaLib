@@ -147,9 +147,14 @@ class SequenceLineTest {
                 "BLOCK_BREAK", "NPC", "SHAKE", "DELAY")) {
             assertTrue(tokens.contains(token), token + " is missing from the picker");
         }
+        // Every shape sits behind the one entry, on a page of its own.
+        assertTrue(tokens.contains(SequenceLine.SHAPES));
+        List<String> shapes = SequenceLine.shapeTokens(SHAPES);
         for (String shape : SHAPES) {
-            assertTrue(tokens.contains(shape.toUpperCase(java.util.Locale.ROOT)),
-                    shape + " is missing from the picker");
+            assertTrue(shapes.contains(shape.toUpperCase(java.util.Locale.ROOT)),
+                    shape + " is missing from the shape picker");
+            assertTrue(!tokens.contains(shape.toUpperCase(java.util.Locale.ROOT)),
+                    shape + " is listed among the other effects");
         }
     }
 

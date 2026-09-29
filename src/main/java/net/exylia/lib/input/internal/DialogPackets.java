@@ -19,6 +19,7 @@ import com.github.retrooper.packetevents.protocol.dialog.button.CommonButtonData
 import com.github.retrooper.packetevents.protocol.dialog.input.BooleanInputControl;
 import com.github.retrooper.packetevents.protocol.dialog.input.Input;
 import com.github.retrooper.packetevents.protocol.dialog.input.InputControl;
+import com.github.retrooper.packetevents.protocol.dialog.input.SingleOptionInputControl;
 import com.github.retrooper.packetevents.protocol.dialog.input.TextInputControl;
 import com.github.retrooper.packetevents.protocol.nbt.NBT;
 import com.github.retrooper.packetevents.protocol.nbt.NBTByte;
@@ -346,15 +347,32 @@ final class DialogPackets {
             Component label = Text.component(field.label());
             InputControl control = switch (field.kind()) {
                 case FLAG -> new BooleanInputControl(label, Boolean.parseBoolean(initial), "true", "false");
-                // FormField currently exposes parser semantics but no choice option list. A text
-                // control is therefore the only lossless raw-value control until such metadata exists.
-                case TEXT, INTEGER, DECIMAL, AMOUNT, DURATION, CHOICE ->
+                case CHOICE -> field.options().isEmpty()
+                        ? new TextInputControl(CONTROL_WIDTH, label, true, initial, TEXT_LIMIT, null)
+                        : options(field, label, initial);
+                case TEXT, INTEGER, DECIMAL, AMOUNT, DURATION ->
                         new TextInputControl(CONTROL_WIDTH, label, true, initial, TEXT_LIMIT,
                                 multiline(field.lines()));
             };
             inputs.add(new Input(name, control));
         }
         return inputs;
+    }
+
+    /**
+     * A button that cycles through a choice's labels, starting on the current
+     * answer — or the first, when the current one is not offered.
+     */
+    private static SingleOptionInputControl options(FormField<?> field, Component label, String initial) {
+        List<FormField.Option> offered = field.options();
+        boolean known = offered.stream().anyMatch(option -> option.key().equalsIgnoreCase(initial));
+        List<SingleOptionInputControl.Entry> entries = new ArrayList<>(offered.size());
+        for (int index = 0; index < offered.size(); index++) {
+            FormField.Option option = offered.get(index);
+            boolean selected = known ? option.key().equalsIgnoreCase(initial) : index == 0;
+            entries.add(new SingleOptionInputControl.Entry(option.key(), Text.component(option.label()), selected));
+        }
+        return new SingleOptionInputControl(CONTROL_WIDTH, entries, label, true);
     }
 
     /**

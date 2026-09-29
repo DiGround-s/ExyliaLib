@@ -113,6 +113,23 @@ public final class EditorForm {
     }
 
     /**
+     * A field answered by picking one option, starting on the current one.
+     *
+     * @param key     where the answer is read from: one of the options' keys
+     * @param label   what the field is called
+     * @param current the key being edited; the first option when it is not offered
+     * @param options what may be picked, in the order shown
+     * @return this form
+     * @since 1.205.0
+     */
+    public @NotNull EditorForm choice(@NotNull FormKey<String> key, @NotNull String label,
+                                      String current, @NotNull List<FormField.Option> options) {
+        FormField<String> field = FormField.choice(key, label, options);
+        boolean offered = options.stream().anyMatch(option -> option.key().equals(current));
+        return add(key, field.defaultValue(offered ? current : options.get(0).key()));
+    }
+
+    /**
      * A whole-number field, prefilled.
      *
      * @param key     where the answer is read from

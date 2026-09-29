@@ -158,8 +158,14 @@ final class LineDescriptor implements EditorDescriptor<SequenceLine> {
     }
 
     private CompletionStage<Optional<String>> token(Player viewer) {
-        List<String> tokens = SequenceLine.tokens(shapeNames);
-        return Inputs.of(plugin).search(viewer, "{primary}&lWHAT DOES IT PLAY?", tokens)
+        return pickToken(viewer, "{primary}&lWHAT DOES IT PLAY?", SequenceLine.tokens(shapeNames))
+                .thenCompose(token -> token.isPresent() && token.get().equals(SequenceLine.SHAPES)
+                        ? pickToken(viewer, "{primary}&lWHICH SHAPE?", SequenceLine.shapeTokens(shapeNames))
+                        : CompletableFuture.completedFuture(token));
+    }
+
+    private CompletionStage<Optional<String>> pickToken(Player viewer, String prompt, List<String> tokens) {
+        return Inputs.of(plugin).search(viewer, prompt, tokens)
                 .label(token -> token.replace('_', ' ').toUpperCase(java.util.Locale.ROOT))
                 .key(token -> token)
                 .icon(token -> material(SequenceLine.icon(token)))

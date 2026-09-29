@@ -338,6 +338,14 @@ A `FormField` adds the per-field controls: `optional()`, `required()`,
 transport reads to pick a control, and it is semantic rather than tied to any
 one client protocol.
 
+`FormField.choice(key, label, options)` (1.205.0) is a `CHOICE` field with its
+answers: a list of `FormField.Option(key, label)`. A dialog draws a button that
+cycles through the labels, starting on the default, so nobody types an id from
+memory; chat and Bedrock take the key typed, and a wrong one is answered with
+the list. The answer is always one of the keys. `EditorForm.choice(key, label,
+current, options)` is the same, prefilled — the loot editor picks a money
+line's currency this way.
+
 ### Two levels of validation, and why they run in that order
 
 **Per field** is a predicate on one value. **Cross field** is a rule that no
