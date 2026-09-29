@@ -343,8 +343,10 @@ answers: a list of `FormField.Option(key, label)`. A dialog draws a button that
 cycles through the labels, starting on the default, so nobody types an id from
 memory; chat and Bedrock take the key typed, and a wrong one is answered with
 the list. The answer is always one of the keys. `EditorForm.choice(key, label,
-current, options)` is the same, prefilled — the loot editor picks a money
-line's currency this way.
+current, options)` is the same, prefilled. `EditorForm.currency(key, label,
+current)` (1.205.1) offers the server's currencies, the default first, and
+`EditorForm.currencyOf(values, key)` reads it back as an id or `null` for the
+default: the reward and loot editors pick a money line's currency this way.
 
 ### Two levels of validation, and why they run in that order
 

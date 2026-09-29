@@ -1,6 +1,5 @@
 package net.exylia.lib.util.loot;
 
-import net.exylia.lib.economy.Economy;
 import net.exylia.lib.input.FormField;
 import net.exylia.lib.input.FormKey;
 import net.exylia.lib.input.FormValues;
@@ -346,8 +345,7 @@ public final class LootDescriptor implements EditorDescriptor<LootEntry> {
         } else if (money) {
             form.integer(MINIMUM, "Least money", entry.minAmount())
                     .integer(MAXIMUM, "Most money", entry.maxAmount())
-                    .choice(CURRENCY, "Currency", entry.currency() == null ? DEFAULT_CURRENCY : entry.currency(),
-                            currencies(entry.currency()))
+                    .currency(CURRENCY, "Currency", entry.currency())
                     .hint("A whole amount between the two, paid each time the line comes up");
         } else {
             form.integer(MINIMUM, "Least amount", entry.minAmount())
@@ -420,8 +418,7 @@ public final class LootDescriptor implements EditorDescriptor<LootEntry> {
             builder.command(blankToNull(values.getText(COMMAND)));
         } else {
             if (entry.isEconomy()) {
-                String currency = values.getText(CURRENCY);
-                builder.currency(currency == null || currency.equals(DEFAULT_CURRENCY) ? null : currency);
+                builder.currency(EditorForm.currencyOf(values, CURRENCY));
             }
             // Put in order rather than refused: somebody who typed them the
             // wrong way round meant a range, and losing the line teaches them
@@ -458,31 +455,6 @@ public final class LootDescriptor implements EditorDescriptor<LootEntry> {
 
     private static String number(double value) {
         return value == Math.floor(value) ? String.valueOf((long) value) : String.valueOf(value);
-    }
-
-    /** The option that stores no currency: the server's default one, whatever it is then. */
-    private static final String DEFAULT_CURRENCY = "default";
-
-    /**
-     * Every currency the server has, the default first, and the line's own
-     * even if it is gone — so opening the form never changes what it pays in.
-     */
-    private static List<FormField.Option> currencies(String current) {
-        List<FormField.Option> options = new ArrayList<>();
-        String fallback = Economy.isAvailable() ? Economy.info(null).namePlural() : "money";
-        options.add(new FormField.Option(DEFAULT_CURRENCY, "{letters}Default {muted}(" + fallback + ")"));
-        List<String> ids = new ArrayList<>(Economy.currencies());
-        ids.sort(String::compareToIgnoreCase);
-        if (current != null && ids.stream().noneMatch(current::equalsIgnoreCase)) {
-            ids.add(current);
-        }
-        for (String id : ids) {
-            if (id.equalsIgnoreCase(DEFAULT_CURRENCY)) {
-                continue;
-            }
-            options.add(new FormField.Option(id, "{letters}" + Economy.info(id).namePlural() + " {muted}(" + id + ")"));
-        }
-        return options;
     }
 
     private static String blankToNull(String value) {

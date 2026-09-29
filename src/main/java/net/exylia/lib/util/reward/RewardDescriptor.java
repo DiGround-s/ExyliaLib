@@ -427,7 +427,7 @@ public final class RewardDescriptor implements EditorDescriptor<RewardEntry> {
                     .hint(payloadHint(entry.type()));
         }
         if (entry.type() == RewardType.ECONOMY) {
-            form.text(CURRENCY, "Currency (blank for the default)", entry.currency());
+            form.currency(CURRENCY, "Currency", entry.currency());
         }
         boolean counted = entry.type() == RewardType.ITEM || entry.type() == RewardType.EXPERIENCE;
         if (counted) {
@@ -507,7 +507,7 @@ public final class RewardDescriptor implements EditorDescriptor<RewardEntry> {
             }
         }
         if (currency) {
-            builder.currency(blankToNull(values.getText(CURRENCY)));
+            builder.currency(EditorForm.currencyOf(values, CURRENCY));
         }
         if (amounts) {
             int least = (int) Math.max(1, values.getLong(MINIMUM));

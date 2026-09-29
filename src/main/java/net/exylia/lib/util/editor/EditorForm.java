@@ -1,5 +1,6 @@
 package net.exylia.lib.util.editor;
 
+import net.exylia.lib.economy.Economy;
 import net.exylia.lib.input.FormField;
 import net.exylia.lib.input.FormInput;
 import net.exylia.lib.input.FormKey;
@@ -127,6 +128,55 @@ public final class EditorForm {
         FormField<String> field = FormField.choice(key, label, options);
         boolean offered = options.stream().anyMatch(option -> option.key().equals(current));
         return add(key, field.defaultValue(offered ? current : options.get(0).key()));
+    }
+
+    /**
+     * A currency picked from the ones the server has, starting on the current one.
+     *
+     * <p>The first option is the server's default currency, whatever it is
+     * when the value is used; read it back with {@link #currencyOf}, which
+     * answers {@code null} for it. A currency the value names that the server
+     * no longer has is still offered, so opening the form never changes what
+     * something pays in.
+     *
+     * @param current the currency being edited, {@code null} for the default
+     * @return this form
+     * @since 1.205.1
+     */
+    public @NotNull EditorForm currency(@NotNull FormKey<String> key, @NotNull String label, String current) {
+        return choice(key, label, current == null ? DEFAULT_CURRENCY : current, currencies(current));
+    }
+
+    /**
+     * What a {@link #currency} field answered.
+     *
+     * @return the currency id, or {@code null} for the server's default one
+     * @since 1.205.1
+     */
+    public static String currencyOf(@NotNull FormValues values, @NotNull FormKey<String> key) {
+        String picked = values.getText(key);
+        return picked == null || picked.isBlank() || picked.equals(DEFAULT_CURRENCY) ? null : picked;
+    }
+
+    /** The option that stores no currency. */
+    private static final String DEFAULT_CURRENCY = "default";
+
+    private static List<FormField.Option> currencies(String current) {
+        List<FormField.Option> options = new ArrayList<>();
+        String fallback = Economy.isAvailable() ? Economy.info(null).namePlural() : "money";
+        options.add(new FormField.Option(DEFAULT_CURRENCY, "{letters}Default {muted}(" + fallback + ")"));
+        List<String> ids = new ArrayList<>(Economy.currencies());
+        ids.sort(String::compareToIgnoreCase);
+        if (current != null && ids.stream().noneMatch(current::equalsIgnoreCase)) {
+            ids.add(current);
+        }
+        for (String id : ids) {
+            if (!id.equalsIgnoreCase(DEFAULT_CURRENCY)) {
+                options.add(new FormField.Option(id,
+                        "{letters}" + Economy.info(id).namePlural() + " {muted}(" + id + ")"));
+            }
+        }
+        return options;
     }
 
     /**
