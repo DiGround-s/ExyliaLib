@@ -255,7 +255,12 @@ Limits: a player in creative is never decorated — their client hands every
 slot back to the server, which would store the lines — and their inventory
 is sent again as they enter or leave creative. A click in survival sends
 the decorated item back as what the client believes it holds; the server
-keeps its own and answers with the slot again, decorated again. What is on
+keeps its own and answers with the slot again, decorated again. Where the
+client's prediction and the server part ways — a shift-click landing in
+another slot, a cancelled click in a menu — a slot that answer skipped showed
+the item twice, so since 1.205.2 the window is sent again a tick after every
+click and drag while any plugin writes lines: one packet per click, and no
+ghost left behind. What is on
 screen does not follow a provider whose answer changed until the slots are
 sent again: call `refresh` or `refreshAll`.
 

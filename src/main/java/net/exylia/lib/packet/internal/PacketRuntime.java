@@ -25,7 +25,9 @@ import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
+import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.inventory.InventoryCloseEvent;
+import org.bukkit.event.inventory.InventoryDragEvent;
 import org.bukkit.event.inventory.InventoryOpenEvent;
 import org.bukkit.event.player.PlayerChangedWorldEvent;
 import org.bukkit.event.player.PlayerGameModeChangeEvent;
@@ -405,6 +407,7 @@ public final class PacketRuntime {
         OVERLAYS.remove(id);
         Mirrors.forget(player);
         ItemDecor.forget(id);
+        RESYNCING.remove(id);
         Borders.forget(player);
     }
 
@@ -424,6 +427,37 @@ public final class PacketRuntime {
         if (plugin != null && sink() != null) {
             Tasks.of(plugin).runAtEntityLater(viewer, 1, viewer::updateInventory);
         }
+    }
+
+    /** Players with a resend already queued for the next tick, so a burst of clicks sends once. */
+    private static final Set<UUID> RESYNCING = ConcurrentHashMap.newKeySet();
+
+    /**
+     * Sends the window again a tick after a click, when items carry lines.
+     *
+     * <p>The client predicts a click with the items it was shown, and those
+     * carry lines the server's do not. Most of the time the server's answer
+     * puts every slot right; when a prediction and the server part ways — a
+     * shift-click that lands in another slot, a cancelled click in a menu — a
+     * slot the answer skipped kept the prediction, and the player saw an item
+     * twice until the window was sent again. Sending it again after every
+     * click is one packet at the speed a person clicks, and leaves nothing
+     * behind.
+     */
+    static void resyncAfterClick(org.bukkit.entity.HumanEntity who) {
+        if (!(who instanceof Player player) || !ItemDecor.decoratesAnything()
+                || player.getGameMode() == GameMode.CREATIVE) {
+            return;
+        }
+        Plugin plugin = lib;
+        if (plugin == null || sink() == null || !RESYNCING.add(player.getUniqueId())) {
+            return;
+        }
+        // A task for a dead player never runs; the respawn clears the mark.
+        Tasks.of(plugin).runAtEntityLater(player, 1, () -> {
+            RESYNCING.remove(player.getUniqueId());
+            player.updateInventory();
+        });
     }
 
     static void resendAll() {
@@ -467,6 +501,16 @@ public final class PacketRuntime {
             ItemDecor.closed(event.getPlayer().getUniqueId());
         }
 
+        @EventHandler(priority = EventPriority.MONITOR)
+        public void onClick(InventoryClickEvent event) {
+            resyncAfterClick(event.getWhoClicked());
+        }
+
+        @EventHandler(priority = EventPriority.MONITOR)
+        public void onDrag(InventoryDragEvent event) {
+            resyncAfterClick(event.getWhoClicked());
+        }
+
         @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
         public void onGameMode(PlayerGameModeChangeEvent event) {
             // Entering creative: the client must hold the items as they are,
@@ -480,6 +524,7 @@ public final class PacketRuntime {
 
         @EventHandler(priority = EventPriority.MONITOR)
         public void onRespawn(PlayerRespawnEvent event) {
+            RESYNCING.remove(event.getPlayer().getUniqueId());
             // A respawn resets the client's border like a world change does.
             Borders.resend(event.getPlayer());
         }
