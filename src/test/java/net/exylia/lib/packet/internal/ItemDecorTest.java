@@ -112,6 +112,20 @@ class ItemDecorTest {
     }
 
     @Test
+    @DisplayName("a provider sees one item, whatever the stack holds, so its lines cannot split stacks")
+    void oneItem() {
+        int[] seen = new int[1];
+        Packets.of(shop).itemLines().provider((v, item, place) -> {
+            seen[0] = item.getAmount();
+            return null;
+        });
+        Stack stack = new Stack();
+        stack.setAmount(37);
+        ItemDecor.lines(viewer, stack, ItemPlace.OWN);
+        assertEquals(1, seen[0]);
+    }
+
+    @Test
     @DisplayName("a window's own slots are the container's, the rest are the viewer's")
     void placeInWindow() {
         InventoryHolder chest = holder(BlockState.class);
@@ -163,9 +177,23 @@ class ItemDecorTest {
             return Material.STONE;
         }
 
+        private int amount = 1;
+
+        @Override
+        public int getAmount() {
+            return amount;
+        }
+
+        @Override
+        public void setAmount(int amount) {
+            this.amount = amount;
+        }
+
         @Override
         public ItemStack clone() {
-            return new Stack();
+            Stack copy = new Stack();
+            copy.amount = amount;
+            return copy;
         }
     }
 }

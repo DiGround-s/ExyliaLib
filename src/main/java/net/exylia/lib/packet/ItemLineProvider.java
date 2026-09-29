@@ -27,7 +27,10 @@ public interface ItemLineProvider {
      * is set upright, the way an item name is.
      *
      * @param viewer the player it is being sent to
-     * @param item   a copy of the item as the server has it
+     * @param item   a copy of the item as the server has it, always one of it:
+     *               the lines must be the same for every stack of the same
+     *               item, or the client stops stacking them and a click shows
+     *               a duplicate until the server corrects it
      * @param place  where it is drawn
      * @return the lines, or {@code null}
      */

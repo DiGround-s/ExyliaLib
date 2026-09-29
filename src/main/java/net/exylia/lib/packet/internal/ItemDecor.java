@@ -139,10 +139,19 @@ final class ItemDecor {
      * <p>A provider that throws writes nothing and is reported once; the
      * others still write theirs.
      *
+     * <p>Providers are handed a single item, whatever the stack holds. The
+     * client stacks only items that are identical, lore included: lines that
+     * changed with the amount would keep two stacks apart on screen while the
+     * server merges them, and every such click would draw a duplicate until
+     * the server corrected it. One item cannot tell a provider the amount.
+     *
+     * @param item the viewer's copy of the item, which this changes to one
+     *
      * @return the lines, upright unless they say otherwise; empty for none
      */
     static @NotNull List<Component> lines(@NotNull Player viewer, @NotNull ItemStack item, @NotNull ItemPlace place) {
         List<Registered> providers = ordered;
+        item.setAmount(1);
         List<Component> out = null;
         for (int i = 0; i < providers.size(); i++) {
             Registered registered = providers.get(i);

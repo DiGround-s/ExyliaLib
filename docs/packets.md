@@ -245,7 +245,11 @@ event — one drawn with packets — counts as a menu in all its slots.
 
 The provider runs on a packet thread for every non-empty slot: keep it
 cheap, and read only what is safe off the server thread. The item it is
-handed is a copy.
+handed is a copy holding one item, whatever the stack holds (since 1.203.1).
+The client stacks only identical items, lore included: lines that changed
+with the amount — a stack's total price — kept two stacks apart on screen
+while the server merged them, and clicks drew duplicates until the server
+corrected them. Write what one item is: a price each, not a total.
 
 Limits: a player in creative is never decorated — their client hands every
 slot back to the server, which would store the lines — and their inventory
