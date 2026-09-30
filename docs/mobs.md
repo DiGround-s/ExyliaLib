@@ -574,6 +574,12 @@ template.
 | `pounce` POUNCE | `LEAP` ×1.2, lands hard within 2, 0.5 s, target 3-10 away | a crouch; a circle where it will come down | dust as it springs; broken ground in a small ring as it lands, a thud and a jolt |
 | `hook` HOOK | `PULL` ×1.4, 0.3 s, target 5-14 away | a chain spinning in its hand | a chain paid out to you, a clank, the reel |
 | `volley` VOLLEY | `PROJECTILE` `FIREBALL` ×1.5, 0.4 s, target 4-24 away | smoke (and flame, for fire) at its hands, a warning sound per projectile | a muzzle flash towards you and the shot's own sound |
+| `cleave` CLEAVE (since 1.209.0) | `AREA_DAMAGE` 9 dmg, `CONE` 120° r4.5, 0.7 s, target within 4.5 | the wedge fills while a netherite axe is drawn back past the edge the swing starts from | a fan of axes and glass blades swept across the wedge, edge to edge, crits on whoever it caught |
+| `fissure` EARTHSPLITTER (since 1.209.0) | `AREA_DAMAGE` 8 dmg, `LINE` 12 long 2.4 wide, 1 s, target 3-12 away | the strip fills while a crack of dust runs ahead of it; a crouch, a hop that lands as it fills | the ground splits from the mob outwards, slabs leaning away from the line one side then the other, a shake |
+| `vortex` GRAVITY WELL (since 1.209.0) | `PULL` ×1.1, `ALL` r8, 0.9 s, target 4-8 away | a ring closing in, a three-armed spiral tightening on the mob, a dark heart growing with obsidian orbiting it | the heart swells and collapses, a streak from each body it drags, a sonic boom |
+| `dread` DREAD (since 1.209.0) | `POTION` `DARKNESS\|1\|6` r10, 1 s, a player within 10 | souls drifting in from the whole area, a quickening heartbeat, a shriek | a wall of shadow running out to the edge, two rings of shuddering air, souls over everyone caught |
+| `eruption` ERUPTION (since 1.209.0) | `AREA_DAMAGE` 9 dmg r2.5, burns 4 s, `GROUND`, 1.3 s, target within 18 | a circle where you stood, glowing cracks spreading to its edge, lava bubbling | a geyser of magma thrown up and falling back, rocks flung out, a ring of fire |
+| `smite` SMITE (since 1.209.0) | `LIGHTNING` 7 dmg, `GROUND`, 1.1 s, target within 20 | a circle and cross, runes turning round them, a thread of light coming down at the end | a pillar of light from the sky, the ground cracking round it, sparks |
 
 The styles with no preset of their own: `burst` (a shockwave ring of glass
 flung out to the radius, a gust), `hop` (a ring of dust and kicked-up ground,

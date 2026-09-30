@@ -41,6 +41,7 @@ public final class MobSkills {
     public static final List<String> STYLES = List.of(
             "slam", "meteor", "blades", "charge", "chain", "bubble", "portal", "miasma", "nova", "blink",
             "renew", "enrage", "rain", "pounce", "hook", "volley",
+            "cleave", "fissure", "vortex", "dread", "eruption", "smite",
             "burst", "hop", "inflate", "zoom", "shrink", "puff");
 
     private MobSkills() {
@@ -108,7 +109,27 @@ public final class MobSkills {
                             .withCast(cast("hook", MobSkill.Aim.AUTO, 300).withWhen(MobSkill.Gate.ANY.withRange(5, 14)))),
             preset("volley", "VOLLEY", Material.FIRE_CHARGE, "Takes aim, then fires at you.",
                     skill(MobSkill.Type.PROJECTILE, 8, 0, 1.5, 0, "FIREBALL")
-                            .withCast(cast("volley", MobSkill.Aim.AUTO, 400).withWhen(MobSkill.Gate.ANY.withRange(4, 24)))));
+                            .withCast(cast("volley", MobSkill.Aim.AUTO, 400).withWhen(MobSkill.Gate.ANY.withRange(4, 24)))),
+            preset("cleave", "CLEAVE", Material.NETHERITE_AXE, "Winds back, then sweeps everything ahead.",
+                    skill(MobSkill.Type.AREA_DAMAGE, 9, 4.5, 9, 0, "")
+                            .withCast(cast("cleave", MobSkill.Aim.CONE, 700).withSpread(120)
+                                    .withWhen(MobSkill.Gate.ANY.withRange(0, 4.5)))),
+            preset("fissure", "EARTHSPLITTER", Material.CRACKED_DEEPSLATE_BRICKS, "Splits the ground in a line at you.",
+                    skill(MobSkill.Type.AREA_DAMAGE, 14, 12, 8, 0, "")
+                            .withCast(cast("fissure", MobSkill.Aim.LINE, 1000).withSpread(2.4)
+                                    .withWhen(MobSkill.Gate.ANY.withRange(3, 12)))),
+            preset("vortex", "GRAVITY WELL", Material.HEAVY_CORE, "Drags everyone around it inwards.",
+                    skill(MobSkill.Type.PULL, 16, 8, 1.1, 0, "")
+                            .withCast(cast("vortex", MobSkill.Aim.ALL, 900).withWhen(MobSkill.Gate.ANY.withRange(4, 8)))),
+            preset("dread", "DREAD", Material.SCULK_SHRIEKER, "A shriek that drowns everyone in darkness.",
+                    skill(MobSkill.Type.POTION, 25, 10, 0, 0, "DARKNESS|1|6")
+                            .withCast(cast("dread", MobSkill.Aim.AUTO, 1000).withWhen(MobSkill.Gate.ANY.withNearby(10)))),
+            preset("eruption", "ERUPTION", Material.MAGMA_CREAM, "The ground under you boils, then bursts.",
+                    skill(MobSkill.Type.AREA_DAMAGE, 15, 2.5, 9, 4, "")
+                            .withCast(cast("eruption", MobSkill.Aim.GROUND, 1300).withWhen(MobSkill.Gate.ANY.withRange(0, 18)))),
+            preset("smite", "SMITE", Material.TRIDENT, "Marks a spot, then calls a bolt onto it.",
+                    skill(MobSkill.Type.LIGHTNING, 12, 0, 7, 0, "")
+                            .withCast(cast("smite", MobSkill.Aim.GROUND, 1100).withWhen(MobSkill.Gate.ANY.withRange(0, 20)))));
 
     /** Every preset, in the order an editor lists them. */
     public static @NotNull List<Preset> library() {

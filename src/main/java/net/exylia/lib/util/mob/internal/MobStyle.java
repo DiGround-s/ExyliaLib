@@ -183,9 +183,16 @@ enum MobStyle {
 
         @Override
         void impact(Stage s, Vfx v, Location at) {
+            double r = radius(s, 3);
             Shapes.sound(v, 0, "ENTITY_PLAYER_ATTACK_SWEEP", 0.9f, 0.9f);
+            Shapes.sound(v, 60, "ITEM_TRIDENT_RIPTIDE_2", 0.6f, 1.3f);
             v.particle(0, Particle.SWEEP_ATTACK, at.clone().add(0, s.height * 0.45, 0), s.count(6, 3),
-                    radius(s, 3) * 0.5, 0.1, radius(s, 3) * 0.5, 0, null);
+                    r * 0.5, 0.1, r * 0.5, 0, null);
+            Shapes.circle(v, 0, Particle.CRIT, at.clone().add(0, s.height * 0.45, 0), r * 0.6, s.count(16, 8), 0.5,
+                    null);
+            for (LivingEntity body : s.reached()) {
+                v.particle(0, Particle.DAMAGE_INDICATOR, chest(body), s.count(4, 2), 0.2, 0.3, 0.2, 0.1, null);
+            }
         }
     },
 
@@ -217,8 +224,22 @@ enum MobStyle {
             for (int puff = 0; puff < s.count(4, 2); puff++) {
                 v.particle(0, Particle.CLOUD, at.clone().add(0, 0.3, 0), 0, back.getX(), 0.05, back.getZ(), 0.25, null);
             }
+            // Where it digs in to stop: the ground kicked up ahead of it.
+            ThreadLocalRandom random = ThreadLocalRandom.current();
+            Vector ahead = back.clone().multiply(-1);
+            DisplayModel dirt = DisplayModel.block(s.ground);
+            int chips = s.count(6, 3);
+            for (int chip = 0; chip < chips; chip++) {
+                double spread = random.nextDouble(-0.7, 0.7);
+                double out = random.nextDouble(0.8, 1.6);
+                double dx = ahead.getX() * out - ahead.getZ() * spread;
+                double dz = ahead.getZ() * out + ahead.getX() * spread;
+                v.display(0, dirt, Shapes.thrown(ahead.getX() * s.width * 0.5, 0.1, ahead.getZ() * s.width * 0.5,
+                        dx, dz, random.nextDouble(0.15, 0.25), random.nextLong(380, 520), random, 250L));
+            }
             Shapes.sound(v, 0, "ENTITY_GOAT_LONG_JUMP", 1.0f, 0.8f);
             Shapes.sound(v, 0, "ENTITY_PLAYER_ATTACK_SWEEP", 0.8f, 0.6f);
+            shake(s, v, 0, 8, 1);
         }
     },
 
@@ -269,6 +290,7 @@ enum MobStyle {
 
         @Override
         void impact(Stage s, Vfx v, Location at) {
+            shell(s, v, at, false);
             Shapes.sound(v, 0, "BLOCK_BEACON_ACTIVATE", 0.8f, 1.6f);
             Shapes.sound(v, 0, "BLOCK_AMETHYST_BLOCK_RESONATE", 1.0f, 1.2f);
             v.particle(0, Particle.END_ROD, at.clone().add(0, s.height * 0.5, 0), s.count(10, 5),
@@ -689,6 +711,384 @@ enum MobStyle {
         }
     },
 
+    CLEAVE("cleave", Role.DANGER) {
+        @Override
+        void windup(Stage s, Vfx v) {
+            long w = s.windup();
+            double reach = Math.min(MobAim.reach(s.skill), 16);
+            double half = Math.toRadians(MobAim.spread(s.skill)) / 2;
+            Telegraphs.cone(v, 0, s.origin(), s.yaw(), reach, Math.toDegrees(half * 2), w, s.main());
+            // The axe is drawn back past the edge the swing starts from, and held there.
+            double facing = heading(s);
+            double from = facing - half * 0.3;
+            double to = facing - half - 0.6;
+            double hold = s.width * 0.5 + 0.7;
+            double y = s.height * 0.7;
+            v.display(0, Shapes.item(Material.NETHERITE_AXE), DisplayMotion.chain(
+                    DisplayMotion.builder().life(Math.max(50L, w * 3 / 4))
+                            .from(Math.cos(from) * hold, y * 0.8, Math.sin(from) * hold)
+                            .to(Math.cos(to) * hold, y + 0.4, Math.sin(to) * hold)
+                            .rotation(blade(to)).scale(0.6, 1.3).ease(DisplayMotion.Easing.OUT).build(),
+                    DisplayMotion.builder().life(Math.max(50L, w / 4))
+                            .from(Math.cos(to) * hold, y + 0.4, Math.sin(to) * hold)
+                            .to(Math.cos(to) * hold, y + 0.4, Math.sin(to) * hold)
+                            .rotation(blade(to)).scale(1.3, 1.3).build()), s.origin());
+            for (long beat = w / 2; beat < w; beat += 100) {
+                v.particle(beat, Particle.DUST, s.origin().add(Math.cos(to) * hold, y + 0.5, Math.sin(to) * hold),
+                        s.count(3, 2), 0.15, 0.15, 0.15, 0, Shapes.dust(s.main(), 1.2f));
+            }
+            Shapes.sound(v, 0, "ITEM_AXE_SCRAPE", 1.0f, 0.6f);
+            Shapes.sound(v, w / 2, "ENTITY_RAVAGER_STEP", 0.8f, 0.7f);
+            Shapes.sound(v, Math.max(0, w - 150), "ITEM_TRIDENT_RIPTIDE_1", 0.7f, 0.7f);
+        }
+
+        @Override
+        void impact(Stage s, Vfx v, Location at) {
+            double reach = Math.min(MobAim.reach(s.skill), 16);
+            double half = Math.toRadians(MobAim.spread(s.skill)) / 2;
+            double facing = heading(s);
+            double y = s.height * 0.45;
+            // A fan of blades swept across the wedge, first edge first, each flung out as it passes.
+            int blades = s.count(10, 5);
+            DisplayModel axe = Shapes.item(Material.NETHERITE_AXE);
+            DisplayModel trail = Shapes.glowing(Shapes.nearestGlass(s.main()), s.main());
+            for (int blade = 0; blade < blades; blade++) {
+                double angle = facing - half + half * 2 * blade / Math.max(1, blades - 1);
+                double x = Math.cos(angle);
+                double z = Math.sin(angle);
+                long delay = blade * 22L;
+                v.display(delay, blade % 2 == 0 ? axe : trail, DisplayMotion.builder().life(260)
+                        .from(x * reach * 0.25, y, z * reach * 0.25).to(x * reach * 0.8, y - 0.2, z * reach * 0.8)
+                        .rotation(blade % 2 == 0 ? blade(angle) : Shapes.facing(angle + Math.PI / 2))
+                        .scale(blade % 2 == 0 ? new double[]{1.2, 1.2, 1.2} : new double[]{0.9, 0.05, 0.3},
+                                new double[]{0.2, 0.2, 0.2})
+                        .ease(DisplayMotion.Easing.OUT).build(), at);
+                v.particle(delay, Particle.SWEEP_ATTACK, at.clone().add(x * reach * 0.55, y, z * reach * 0.55), 1,
+                        0, 0, 0, 0, null);
+            }
+            for (LivingEntity body : s.reached()) {
+                v.particle(120, Particle.CRIT, chest(body), s.count(12, 6), 0.3, 0.4, 0.3, 0.3, null);
+            }
+            v.particle(0, Particle.BLOCK, at.clone().add(0, 0.1, 0), s.count(10, 5), reach * 0.3, 0.05, reach * 0.3,
+                    0.1, s.ground);
+            Shapes.sound(v, 0, "ENTITY_PLAYER_ATTACK_SWEEP", 1.0f, 0.6f);
+            Shapes.sound(v, 40, "ENTITY_RAVAGER_ATTACK", 0.9f, 1.0f);
+            Shapes.sound(v, 80, "ENTITY_PLAYER_ATTACK_STRONG", 0.8f, 0.8f);
+            shake(s, v, 0, reach + 4, 1);
+        }
+    },
+
+    FISSURE("fissure", Role.TELEGRAPH) {
+        @Override
+        void windup(Stage s, Vfx v) {
+            long w = s.windup();
+            Location from = s.origin();
+            Location end = MobAim.lineEnd(s.lock, Math.min(MobAim.reach(s.skill), MobAim.MAX_DISTANCE));
+            Telegraphs.line(v, 0, from, end, MobAim.spread(s.skill), w, s.main());
+            pulse(s, v, 0, -0.08, w / 50);
+            // The crack runs out ahead of the fill, a dust trail along the ground.
+            Vector step = end.toVector().subtract(from.toVector());
+            for (long beat = 0; beat < w; beat += 100) {
+                double t = Math.min(1, (double) beat / Math.max(1, w) * 1.2);
+                Location crack = from.clone().add(step.clone().multiply(t)).add(0, 0.1, 0);
+                v.particle(beat, Particle.BLOCK, crack, s.count(6, 3), 0.25, 0.05, 0.25, 0.1, s.ground);
+            }
+            for (long beat = 0; beat < w; beat += 350) {
+                Shapes.sound(v, beat, "BLOCK_DEEPSLATE_BREAK", 0.7f, 0.5f);
+            }
+            Shapes.sound(v, 0, "ENTITY_IRON_GOLEM_ATTACK", 0.9f, 0.5f);
+            if (w >= HOP_AIR + 150) {
+                hop(s, v, w - HOP_AIR, 0.45);
+                Shapes.sound(v, w - HOP_AIR, "ENTITY_GOAT_LONG_JUMP", 0.9f, 0.6f);
+            }
+        }
+
+        @Override
+        void impact(Stage s, Vfx v, Location at) {
+            Location from = s.origin();
+            Location end = MobAim.lineEnd(s.lock, Math.min(MobAim.reach(s.skill), MobAim.MAX_DISTANCE));
+            double dx = end.getX() - from.getX();
+            double dz = end.getZ() - from.getZ();
+            double length = Math.max(1, Math.hypot(dx, dz));
+            double angle = Math.atan2(dz, dx);
+            double width = MobAim.spread(s.skill);
+            ThreadLocalRandom random = ThreadLocalRandom.current();
+            DisplayModel slab = DisplayModel.block(s.ground);
+            int pieces = (int) Math.clamp(Math.round(length / 0.8), 4, s.count(16, 8));
+            // A ripple: the ground splits from the mob outwards, one slab each side in turn.
+            for (int piece = 0; piece < pieces; piece++) {
+                double t = (piece + 0.5) / pieces;
+                double sideSign = piece % 2 == 0 ? 1 : -1;
+                double side = sideSign * width * random.nextDouble(0.15, 0.35);
+                double x = dx * t - Math.sin(angle) * side;
+                double z = dz * t + Math.cos(angle) * side;
+                double w = random.nextDouble(0.6, 0.9);
+                double h = random.nextDouble(0.8, 1.3);
+                double[] shape = {w, h, w * 0.7};
+                double top = h * 0.4;
+                Rotation lean = Shapes.outward(angle + Math.PI / 2 * sideSign, random.nextDouble(0.3, 0.55));
+                long delay = piece * 30L;
+                v.display(delay, slab, DisplayMotion.chain(
+                        DisplayMotion.builder().life(160).from(x, -h * 0.5 - 0.1, z).to(x, top, z).rotation(lean)
+                                .scale(shape, shape).ease(DisplayMotion.Easing.BACK).build(),
+                        DisplayMotion.still(300),
+                        DisplayMotion.builder().life(300).from(x, top, z).to(x, -h * 0.6, z).rotation(lean)
+                                .scale(shape, new double[]{w * 0.9, h * 0.6, w * 0.6})
+                                .ease(DisplayMotion.Easing.IN).build()), from);
+                Location spot = from.clone().add(x, 0.2, z);
+                v.particle(delay, Particle.BLOCK, spot, s.count(6, 3), 0.3, 0.1, 0.3, 0.1, s.ground)
+                        .particle(delay, Particle.DUST_PLUME, spot, 2, 0.2, 0.05, 0.2, 0.02, null);
+                if (piece % 3 == 0) Shapes.sound(v, delay, spot, "BLOCK_BASALT_BREAK", 0.9f, 0.6f);
+            }
+            breakSound(s, v, 0, 1.0f, 0.5f);
+            Shapes.sound(v, 0, "ENTITY_GENERIC_EXPLODE", 0.5f, 0.5f);
+            shake(s, v, 0, length + 6, 2);
+        }
+    },
+
+    VORTEX("vortex", Role.ARCANE) {
+        @Override
+        void windup(Stage s, Vfx v) {
+            long w = s.windup();
+            double r = radius(s, 8);
+            Location feet = s.origin();
+            Location core = feet.clone().add(0, s.height * 0.6, 0);
+            Telegraphs.ring(v, 0, feet, r, w, s.main());
+            // Three arms of a spiral turning in on the mob, tighter every beat.
+            Particle.DustOptions dust = Shapes.dust(s.main(), 1.2f);
+            int arm = s.count(7, 4);
+            for (long beat = 0; beat < w; beat += 100) {
+                double share = 1 - 0.6 * beat / Math.max(1, w);
+                for (int spiral = 0; spiral < 3; spiral++) {
+                    for (int point = 0; point < arm; point++) {
+                        double out = r * share * (point + 1) / arm;
+                        double angle = Math.PI * 2 * spiral / 3 + point * 0.45 + beat * 0.006;
+                        v.particle(beat, Particle.DUST, feet.clone().add(Math.cos(angle) * out, 0.3,
+                                Math.sin(angle) * out), 1, 0, 0, 0, 0, dust);
+                    }
+                }
+                v.particle(beat, Particle.PORTAL, core, s.count(10, 5), r * 0.2, 0.4, r * 0.2, 1.2, null);
+            }
+            DisplayModel heart = Shapes.glowing(Material.BLACK_STAINED_GLASS, s.main());
+            v.display(0, heart, DisplayMotion.builder().life(Math.max(50L, w)).scale(0.05, 0.8).spin(1, 3, 2)
+                    .ease(DisplayMotion.Easing.IN).build(), core);
+            DisplayModel shard = Shapes.block(Material.CRYING_OBSIDIAN);
+            int shards = s.count(6, 3);
+            for (int piece = 0; piece < shards; piece++) {
+                v.display(0, shard, orbit(1.4 + s.width * 0.5, 0, 0.2, Math.PI * 2 * piece / shards, 2,
+                        Math.max(50L, w), 0.1, 0.22), core.clone().subtract(0, 0.2, 0));
+            }
+            Shapes.sound(v, 0, "BLOCK_PORTAL_TRIGGER", 0.4f, 1.8f);
+            Shapes.sound(v, w / 3, "BLOCK_RESPAWN_ANCHOR_CHARGE", 0.7f, 0.6f);
+            Shapes.sound(v, Math.max(0, w - 400), "ENTITY_WARDEN_SONIC_CHARGE", 0.6f, 1.4f);
+        }
+
+        @Override
+        void impact(Stage s, Vfx v, Location at) {
+            Location core = at.clone().add(0, s.height * 0.6, 0);
+            DisplayModel heart = Shapes.glowing(Material.BLACK_STAINED_GLASS, s.main());
+            v.display(0, heart, DisplayMotion.chain(
+                    DisplayMotion.builder().life(150).scale(0.8, 1.2).spin(0, 2, 0).ease(DisplayMotion.Easing.OUT).build(),
+                    DisplayMotion.builder().life(200).scale(1.2, 0.02).spin(0, 3, 0).ease(DisplayMotion.Easing.IN).build()),
+                    core);
+            // A streak from each body it drags to the heart.
+            DisplayModel streak = Shapes.glowing(Shapes.nearestGlass(s.main()), s.main());
+            int shown = 0;
+            for (LivingEntity body : s.reached()) {
+                if (shown++ >= 6) break;
+                v.beam(0, chest(body), core, streak, 0.08, 250);
+                v.particle(0, Particle.REVERSE_PORTAL, chest(body), s.count(10, 5), 0.3, 0.4, 0.3, 0.05, null);
+            }
+            if (shown == 0 && s.preview) v.beam(0, s.point().add(0, 1.2, 0), core, streak, 0.08, 250);
+            double r = radius(s, 8);
+            Shapes.circle(v, 0, Particle.REVERSE_PORTAL, at.clone().add(0, 0.3, 0), r * 0.7, s.count(20, 10), 0, null);
+            v.particle(0, Particle.PORTAL, core, s.count(40, 20), r * 0.35, 0.6, r * 0.35, 1.5, null)
+                    .particle(350, Particle.SONIC_BOOM, core, 1, 0, 0, 0, 0, null);
+            Shapes.sound(v, 0, "ENTITY_ENDERMAN_TELEPORT", 1.0f, 0.5f);
+            Shapes.sound(v, 0, "BLOCK_RESPAWN_ANCHOR_DEPLETE", 1.0f, 0.6f);
+            Shapes.sound(v, 350, "ENTITY_WARDEN_SONIC_BOOM", 0.5f, 1.6f);
+            shake(s, v, 350, r + 4, 1);
+        }
+    },
+
+    DREAD("dread", Role.ARCANE) {
+        @Override
+        void windup(Stage s, Vfx v) {
+            long w = s.windup();
+            double r = radius(s, 10);
+            Location feet = s.origin();
+            Telegraphs.ring(v, 0, feet, r, w, s.main());
+            pulse(s, v, 0, 0.12, w / 50 + 2);
+            ThreadLocalRandom random = ThreadLocalRandom.current();
+            for (long beat = 0; beat < w; beat += 100) {
+                for (int soul = 0; soul < s.count(4, 2); soul++) {
+                    double angle = random.nextDouble(Math.PI * 2);
+                    double out = random.nextDouble(1, r);
+                    v.particle(beat, Particle.SCULK_SOUL, feet.clone().add(Math.cos(angle) * out, 0.2,
+                            Math.sin(angle) * out), 0, -Math.cos(angle), 0.3, -Math.sin(angle), 0.08, null);
+                }
+                v.particle(beat, Particle.LARGE_SMOKE, feet.clone().add(0, s.height + 0.2, 0), s.count(2, 1),
+                        s.width * 0.3, 0.1, s.width * 0.3, 0.01, null);
+            }
+            // A heartbeat that quickens until the shriek.
+            double[] beats = {0, 0.4, 0.68, 0.86};
+            for (double beat : beats) Shapes.sound(v, Math.round(w * beat), "ENTITY_WARDEN_HEARTBEAT", 1.0f, 0.8f);
+            Shapes.sound(v, Math.max(0, w - 300), "BLOCK_SCULK_SHRIEKER_SHRIEK", 1.0f, 0.8f);
+        }
+
+        @Override
+        void impact(Stage s, Vfx v, Location at) {
+            double r = radius(s, 10);
+            // A wall of shadow runs out to the edge, and the air shudders twice behind it.
+            int plates = s.count(20, 10);
+            DisplayModel shade = Shapes.glowless(Material.BLACK_STAINED_GLASS);
+            double arc = Math.PI * 2 * r / plates * 1.05;
+            for (int plate = 0; plate < plates; plate++) {
+                double angle = Math.PI * 2 * plate / plates;
+                double x = Math.cos(angle);
+                double z = Math.sin(angle);
+                v.display(0, shade, DisplayMotion.builder().life(550).from(x * 0.6, 0.1, z * 0.6)
+                        .to(x * r, 0.1, z * r).rotation(Shapes.facing(angle))
+                        .scale(new double[]{0.4, 1.4, 0.1}, new double[]{arc, 0.02, 0.05})
+                        .ease(DisplayMotion.Easing.OUT).build());
+            }
+            double[] rings = {0.35, 0.7};
+            for (int ring = 0; ring < rings.length; ring++) {
+                Shapes.circle(v, 120L + ring * 150L, Particle.SONIC_BOOM, at.clone().add(0, 1.0, 0), r * rings[ring],
+                        s.count(8, 4), 0, null);
+            }
+            Location head = at.clone().add(0, s.height * 0.8, 0);
+            v.particle(0, Particle.SQUID_INK, head, s.count(20, 10), s.width * 0.5, 0.3, s.width * 0.5, 0.15, null)
+                    .particle(0, Particle.SCULK_SOUL, head, s.count(12, 6), 0.4, 0.4, 0.4, 0.1, null);
+            for (LivingEntity body : s.reached()) {
+                v.particle(150, Particle.SCULK_SOUL, body.getLocation().add(0, body.getHeight() + 0.2, 0),
+                        s.count(6, 3), 0.2, 0.1, 0.2, 0.02, null);
+            }
+            Shapes.sound(v, 0, "ENTITY_WARDEN_ROAR", 1.0f, 0.9f);
+            Shapes.sound(v, 120, "ENTITY_WARDEN_SONIC_BOOM", 0.6f, 0.7f);
+            shake(s, v, 0, r + 4, 2);
+        }
+    },
+
+    ERUPTION("eruption", Role.FIRE) {
+        @Override
+        void windup(Stage s, Vfx v) {
+            long w = s.windup();
+            Location centre = spot(s);
+            double r = radius(s, 2.5);
+            Telegraphs.circle(v, 0, centre, r, w, s.main());
+            // Glowing cracks spread from the middle to the edge as it heats up.
+            int cracks = s.count(6, 4);
+            DisplayModel magma = Shapes.glowing(Material.MAGMA_BLOCK, s.main());
+            for (int crack = 0; crack < cracks; crack++) {
+                double angle = Math.PI * 2 * crack / cracks + 0.4;
+                double x = Math.cos(angle);
+                double z = Math.sin(angle);
+                v.display(0, magma, DisplayMotion.builder().life(Math.max(50L, w))
+                        .from(0, 0.04, 0).to(x * r * 0.45, 0.04, z * r * 0.45).rotation(Shapes.facing(angle))
+                        .scale(new double[]{0.1, 0.04, 0.02}, new double[]{0.16, 0.04, r * 0.9})
+                        .ease(DisplayMotion.Easing.OUT).build(), centre);
+            }
+            for (long beat = 0; beat < w; beat += 150) {
+                double heat = (double) beat / Math.max(1, w);
+                v.particle(beat, Particle.LAVA, centre.clone().add(0, 0.2, 0), 1 + (int) Math.round(heat * 2),
+                        r * 0.3, 0, r * 0.3, 0, null)
+                        .particle(beat, Particle.SMOKE, centre.clone().add(0, 0.2, 0), s.count(4, 2), r * 0.4, 0.05,
+                                r * 0.4, 0.02, null);
+            }
+            for (long beat = 0; beat < w; beat += 280) Shapes.sound(v, beat, centre, "BLOCK_LAVA_POP", 0.9f, 0.7f);
+            Shapes.sound(v, 0, centre, "BLOCK_LAVA_AMBIENT", 1.0f, 0.8f);
+            Shapes.sound(v, 0, "ENTITY_BLAZE_AMBIENT", 0.7f, 0.6f);
+            Shapes.sound(v, Math.max(0, w - 120), centre, "ITEM_FIRECHARGE_USE", 1.0f, 0.6f);
+        }
+
+        @Override
+        void impact(Stage s, Vfx v, Location at) {
+            double r = radius(s, 2.5);
+            ThreadLocalRandom random = ThreadLocalRandom.current();
+            // A geyser: magma thrown up in a column that rises, hangs and falls back into the ground.
+            DisplayModel magma = Shapes.glowing(Material.MAGMA_BLOCK, s.main());
+            int column = s.count(7, 4);
+            for (int piece = 0; piece < column; piece++) {
+                double x = random.nextDouble(-0.3, 0.3);
+                double z = random.nextDouble(-0.3, 0.3);
+                double peak = 1.5 + piece * 0.8;
+                double size = random.nextDouble(0.5, 0.8) * (1 - piece * 0.06);
+                v.display(piece * 25L, magma, DisplayMotion.chain(
+                        DisplayMotion.builder().life(320).from(x, 0, z).to(x, peak, z).spin(1, 1, 0)
+                                .scale(size, size).ease(DisplayMotion.Easing.OUT).build(),
+                        DisplayMotion.builder().life(380).from(x, peak, z).to(x * 3, -0.3, z * 3).spin(1, 0, 1)
+                                .scale(size, 0.05).ease(DisplayMotion.Easing.IN).build()));
+            }
+            int debris = s.count(8, 4);
+            for (int piece = 0; piece < debris; piece++) {
+                double angle = Math.PI * 2 * piece / debris + random.nextDouble(-0.3, 0.3);
+                double out = r * random.nextDouble(0.8, 1.4);
+                v.display(0, Shapes.block(piece % 2 == 0 ? Material.BLACKSTONE : Material.MAGMA_BLOCK),
+                        Shapes.thrown(0, 0.4, 0, Math.cos(angle) * out, Math.sin(angle) * out,
+                                random.nextDouble(0.25, 0.4), random.nextLong(600, 850), random, 400L));
+            }
+            for (int step = 0; step < 6; step++) {
+                Location up = at.clone().add(0, 0.5 + step * 0.9, 0);
+                v.particle(step * 40L, Particle.FLAME, up, s.count(10, 5), 0.3, 0.3, 0.3, 0.05, null)
+                        .particle(step * 40L, Particle.LAVA, up, 2, 0.3, 0.3, 0.3, 0, null);
+            }
+            v.particle(0, Particle.EXPLOSION, at.clone().add(0, 0.5, 0), 1)
+                    .particle(200, Particle.LARGE_SMOKE, at.clone().add(0, 2, 0), s.count(16, 8), r * 0.4, 1.2, r * 0.4,
+                            0.02, null);
+            Shapes.circle(v, 0, Particle.FLAME, at.clone().add(0, 0.15, 0), r, s.count(16, 8), 0.15, null);
+            Shapes.sound(v, 0, "ENTITY_GENERIC_EXPLODE", 0.9f, 0.8f);
+            Shapes.sound(v, 0, "ENTITY_BLAZE_SHOOT", 1.0f, 0.5f);
+            Shapes.sound(v, 300, "BLOCK_LAVA_EXTINGUISH", 0.7f, 0.8f);
+            shake(s, v, 0, r + 8, 2);
+        }
+    },
+
+    SMITE("smite", Role.SHOCK) {
+        @Override
+        void windup(Stage s, Vfx v) {
+            long w = s.windup();
+            Location centre = spot(s);
+            double r = s.skill.radius() > 0 ? radius(s, MobAim.SPOT) : MobAim.SPOT;
+            Telegraphs.circle(v, 0, centre, r, w, s.main());
+            Telegraphs.cross(v, 0, centre, r * 1.4, w, s.main());
+            // Runes turn round the mark, and a thread of light comes down onto it at the end.
+            DisplayModel rune = DisplayModel.text(Text.of(glyph(s, Role.SHOCK, "✦")).build()).light(15);
+            int runes = s.count(4, 2);
+            for (int piece = 0; piece < runes; piece++) {
+                v.display(0, rune, orbit(r + 0.3, 0.3, 0.6, Math.PI * 2 * piece / runes, 1,
+                        Math.max(50L, w), 0.8, 1.4), centre);
+            }
+            long thread = w / 2;
+            v.beam(thread, centre.clone().add(0, 16, 0), centre.clone().add(0, 0.1, 0),
+                    Shapes.glowing(Shapes.nearestGlass(s.main()), s.main()), 0.05, Math.max(50L, w - thread));
+            Location hands = hands(s);
+            for (long beat = 0; beat < w; beat += 100) {
+                v.particle(beat, Particle.ELECTRIC_SPARK, hands, s.count(4, 2), 0.3, 0.3, 0.3, 0.02, null);
+            }
+            Shapes.sound(v, 0, "BLOCK_BEACON_POWER_SELECT", 0.7f, 1.4f);
+            Shapes.sound(v, thread, centre, "BLOCK_RESPAWN_ANCHOR_CHARGE", 0.8f, 1.6f);
+        }
+
+        @Override
+        void impact(Stage s, Vfx v, Location at) {
+            double r = s.skill.radius() > 0 ? radius(s, MobAim.SPOT) : MobAim.SPOT;
+            Location sky = at.clone().add(0, 20, 0);
+            Location ground = at.clone().add(0, 0.05, 0);
+            DisplayModel core = Shapes.glowing(Material.WHITE_CONCRETE, Shapes.lighter(s.main(), 0.6));
+            v.beam(0, sky, ground, core, 0.35, 280);
+            if (!s.lod) v.beam(0, sky, ground, Shapes.glowing(Shapes.nearestGlass(s.main()), s.main()), 0.9, 180);
+            quake(s, v, 60, r + 0.5, new double[]{0.8}, 10);
+            Shapes.circle(v, 0, Particle.ELECTRIC_SPARK, at.clone().add(0, 0.2, 0), r, s.count(16, 8), 0.4, null);
+            v.particle(0, Particle.END_ROD, at.clone().add(0, 1, 0), s.count(20, 10), 0.3, 1.0, 0.3, 0.15, null)
+                    .particle(0, Particle.FIREWORK, at.clone().add(0, 0.5, 0), s.count(10, 5), r * 0.3, 0.2, r * 0.3,
+                            0.1, null);
+            Shapes.sound(v, 0, "ENTITY_LIGHTNING_BOLT_IMPACT", 1.0f, 0.8f);
+            Shapes.sound(v, 0, "ITEM_TRIDENT_THUNDER", 0.8f, 1.3f);
+            shake(s, v, 0, r + 8, 2);
+        }
+    },
+
     BURST("burst", Role.ARCANE) {
         @Override
         void windup(Stage s, Vfx v) {
@@ -905,6 +1305,12 @@ enum MobStyle {
                 default -> s.origin();
             };
         };
+    }
+
+    /** The way the cast faced as it began, as an angle from east towards south. */
+    static double heading(Stage s) {
+        Vector ahead = MobAim.facing(s.yaw());
+        return Math.atan2(ahead.getZ(), ahead.getX());
     }
 
     /** In front of its chest: where a caster's hands are. */
@@ -1166,7 +1572,7 @@ enum MobStyle {
             case BARRAGE -> 1_000L + 200L * Math.max(1, Math.round(skill.amount()));
             default -> 0L;
         };
-        return Math.max(lingering, this == NOVA ? 2_400L : 1_200L);
+        return Math.max(lingering, this == NOVA || this == DREAD || this == ERUPTION ? 2_400L : 1_200L);
     }
 
 }
