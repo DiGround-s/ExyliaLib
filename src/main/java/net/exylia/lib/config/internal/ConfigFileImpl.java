@@ -2,6 +2,7 @@ package net.exylia.lib.config.internal;
 
 import net.exylia.lib.config.ConfigFile;
 import net.exylia.lib.config.ConfigIssue;
+import net.exylia.lib.config.Languages;
 import net.exylia.lib.config.Migration;
 import net.exylia.lib.config.Schema;
 import org.bukkit.configuration.ConfigurationSection;
@@ -54,7 +55,14 @@ public final class ConfigFileImpl<T> implements ConfigFile<T> {
     private final Schema projection;
     private final int currentVersion;
     private final Map<Integer, Migration> migrations;
-    private final File file;
+    private final boolean translated;
+    /** Where the file is, which moves with the language of a translated file. */
+    private volatile File file;
+    /** The file's path without extension, relative to the data folder. */
+    private volatile String path;
+    /** The defaults in the language they were last built for. */
+    private volatile String defaultsLanguage;
+    private volatile T translatedDefaults;
     private final List<Consumer<T>> listeners = new CopyOnWriteArrayList<>();
 
     /** Published atomically on reload; readers never see a half-applied config. */
@@ -62,7 +70,7 @@ public final class ConfigFileImpl<T> implements ConfigFile<T> {
     private volatile List<ConfigIssue> issues = List.of();
 
     public ConfigFileImpl(Plugin plugin, String name, Class<T> schemaType,
-                          int currentVersion, Map<Integer, Migration> migrations) {
+                          int currentVersion, Map<Integer, Migration> migrations, boolean translated) {
         this.plugin = plugin;
         this.name = name;
         this.schemaType = schemaType;
@@ -70,7 +78,8 @@ public final class ConfigFileImpl<T> implements ConfigFile<T> {
         this.projection = SchemaProjection.of(schemaType, plugin.getName());
         this.currentVersion = currentVersion;
         this.migrations = migrations;
-        this.file = new File(plugin.getDataFolder(), name.replace('/', File.separatorChar) + ".yml");
+        this.translated = translated;
+        locate();
         this.values = defaults();
     }
 
@@ -193,7 +202,17 @@ public final class ConfigFileImpl<T> implements ConfigFile<T> {
     // Loading
     // ------------------------------------------------------------------
 
+    /** Finds the file, which for a translated one depends on {@code config.yml}. */
+    private void locate() {
+        String located = translated
+                ? Languages.path(plugin, name + ".yml").replaceFirst("\\.yml$", "")
+                : name;
+        path = located;
+        file = new File(plugin.getDataFolder(), located.replace('/', File.separatorChar) + ".yml");
+    }
+
     private List<ConfigIssue> load() {
+        locate();
         List<ConfigIssue> found = new ArrayList<>();
         boolean existed = file.exists();
 
@@ -236,7 +255,7 @@ public final class ConfigFileImpl<T> implements ConfigFile<T> {
      * {@code .defaults/configs/}.
      */
     private void followDefaults(YamlConfiguration yaml, boolean existed) {
-        String fileName = name + ".yml";
+        String fileName = path + ".yml";
         Path reviewedPath = plugin.getDataFolder().toPath().resolve(".defaults").resolve("configs").resolve(fileName);
         try {
             YamlConfiguration rendered = new YamlConfiguration();
@@ -344,8 +363,43 @@ public final class ConfigFileImpl<T> implements ConfigFile<T> {
         }
     }
 
-    @SuppressWarnings("unchecked")
+    /**
+     * The defaults in the file's language.
+     *
+     * <p>The record holds English. A translation packaged at
+     * {@code lang/<code>/<name>.yml} is read over it, so a key it does not
+     * translate keeps the English default.
+     */
     private T defaults() {
+        if (!translated) {
+            return recordDefaults();
+        }
+        String language = Languages.code(plugin);
+        T cached = translatedDefaults;
+        if (cached != null && language.equals(defaultsLanguage)) {
+            return cached;
+        }
+        T base = recordDefaults();
+        T built = base;
+        ClassLoader loader = schemaType.getClassLoader();
+        String resource = "lang/" + language + "/" + name + ".yml";
+        try (var input = loader == null ? null : loader.getResourceAsStream(resource)) {
+            if (input != null) {
+                YamlConfiguration packaged = new YamlConfiguration();
+                packaged.loadFromString(new String(input.readAllBytes(), StandardCharsets.UTF_8));
+                built = Binder.read(packaged, schema, base, "", resource, new ArrayList<>());
+            }
+        } catch (IOException | InvalidConfigurationException failure) {
+            plugin.getLogger().log(Level.WARNING, "Could not read the packaged " + resource
+                    + ", so " + name + ".yml uses its English defaults", failure);
+        }
+        translatedDefaults = built;
+        defaultsLanguage = language;
+        return built;
+    }
+
+    @SuppressWarnings("unchecked")
+    private T recordDefaults() {
         try {
             var constructor = schemaType.getDeclaredConstructor();
             constructor.setAccessible(true);

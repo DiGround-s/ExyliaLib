@@ -82,6 +82,17 @@ public final class BundledFiles {
      */
     public static boolean refresh(@NotNull Plugin plugin, @NotNull Class<?> anchor, @NotNull String resource) {
         Path relative = BundledResources.relative(resource);
+        return refresh(plugin, anchor, List.of(relative), relative, resource);
+    }
+
+    /**
+     * Installs and updates a file assembled from several packaged layers.
+     *
+     * @param layers   the packaged paths, lowest first, each laid over the ones before
+     * @param relative where the result lives, relative to the data folder
+     * @param label    how the resource is named in a warning
+     */
+    static boolean refresh(Plugin plugin, Class<?> anchor, List<Path> layers, Path relative, String label) {
         Path dataFolder = plugin.getDataFolder().toPath().toAbsolutePath().normalize();
         BundledResources.inside(dataFolder, relative);
         Debug debug = Debug.of(plugin);
@@ -90,7 +101,7 @@ public final class BundledFiles {
         try {
             Files.createDirectories(dataFolder);
             staging = Files.createTempDirectory(dataFolder, ".bundled-");
-            boolean single = BundledResources.extract(anchor, relative, staging);
+            boolean single = BundledResources.extractLayers(anchor, layers, staging);
             Properties legacy = legacyLedger(dataFolder);
 
             boolean written = true;
@@ -102,7 +113,7 @@ public final class BundledFiles {
             }
             return written;
         } catch (IOException | URISyntaxException | SecurityException failure) {
-            debug.warn("Could not refresh bundled files \"" + resource + "\": " + failure.getMessage());
+            debug.warn("Could not refresh bundled files \"" + label + "\": " + failure.getMessage());
             return false;
         } finally {
             BundledResources.deleteTree(staging);

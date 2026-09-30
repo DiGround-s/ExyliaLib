@@ -1,0 +1,240 @@
+package net.exylia.lib.config;
+
+import net.exylia.lib.config.internal.BundledResources;
+import net.exylia.lib.debug.Debug;
+import org.bukkit.configuration.file.YamlConfiguration;
+import org.bukkit.plugin.Plugin;
+import org.jetbrains.annotations.NotNull;
+
+import java.io.File;
+import java.io.IOException;
+import java.net.URISyntaxException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Locale;
+import java.util.regex.Pattern;
+
+/**
+ * The language a plugin's menus and messages are written in.
+ *
+ * <p>Each language is a folder of complete files under {@code lang/} in the
+ * data folder, chosen by the {@code language} key of the plugin's
+ * {@code config.yml}:
+ *
+ * <pre>
+ * plugins/MyPlugin/config.yml          language: es
+ * plugins/MyPlugin/lang/es/messages.yml
+ * plugins/MyPlugin/lang/es/menus/...
+ * </pre>
+ *
+ * <p>A plugin packages its files the same way, under {@code lang/<code>/} in the
+ * jar. English is the base every other language is laid over, so a file or a
+ * key not translated yet still arrives, in English. A code nothing is packaged
+ * for — {@code custom}, or one an owner invented — is simply English to start
+ * from, and the owner's to rewrite.
+ *
+ * <pre>{@code
+ * Configs.define(this, "config", Settings.class)          // declares String language, "en"
+ *         .version(4).migration(3, Languages.ADOPT_EXISTING).load();
+ * Configs.define(this, "messages", Messages.class).translated().load();
+ * Languages.refresh(this, MyPlugin.class, "menus");
+ * File main = Languages.file(this, "menus/main.yml");
+ * }</pre>
+ *
+ * <p><b>Servers that ran the plugin before it was translated</b> keep what they
+ * edited: the first time a translated file is asked for, the one at its old
+ * place ({@code menus/}, {@code messages.yml}) moves to {@code lang/custom/},
+ * reviewed defaults included, and {@link #ADOPT_EXISTING} points the existing
+ * {@code config.yml} at it. A fresh install has neither and starts in English.
+ *
+ * <p>{@code config.yml} is read straight from disk every time, so it has to be
+ * loaded before the files that follow it, and a reload picks up a changed
+ * language without a restart.
+ *
+ * @since 1.214.0
+ */
+public final class Languages {
+
+    /** The key in {@code config.yml} that names the language. */
+    public static final String KEY = "language";
+
+    /** The language every other is laid over, and the one a fresh install uses. */
+    public static final String ENGLISH = "en";
+
+    /** Where the files of a server that predates translations are moved. */
+    public static final String CUSTOM = "custom";
+
+    /**
+     * The config migration that keeps a server on the files it already had.
+     *
+     * <p>Register it on {@code config.yml} at the version that introduces the
+     * {@code language} key: it runs only for a file written before that, which
+     * is exactly a server that already ran the plugin.
+     */
+    public static final Migration ADOPT_EXISTING = data -> {
+        if (!data.contains(KEY)) {
+            data.set(KEY, CUSTOM);
+        }
+    };
+
+    private static final String FOLDER = "lang";
+    private static final Pattern CODE = Pattern.compile("[a-z0-9_-]{1,32}");
+
+    private Languages() {
+    }
+
+    /**
+     * The language the plugin's {@code config.yml} names, or English.
+     *
+     * @param plugin the plugin
+     * @return a lower-case code such as {@code en}, {@code es} or {@code custom}
+     */
+    public static @NotNull String code(@NotNull Plugin plugin) {
+        File config = new File(plugin.getDataFolder(), "config.yml");
+        if (!config.isFile()) {
+            return ENGLISH;
+        }
+        String raw = YamlConfiguration.loadConfiguration(config).getString(KEY, ENGLISH);
+        String code = raw.trim().toLowerCase(Locale.ROOT);
+        if (!CODE.matcher(code).matches()) {
+            Debug.of(plugin).warn("language \"" + raw + "\" in config.yml is not a language code "
+                    + "(letters, digits, - and _), so English is used.");
+            return ENGLISH;
+        }
+        return code;
+    }
+
+    /**
+     * Where a translated file lives, relative to the data folder.
+     *
+     * <p>Moves the file from its place before translations into
+     * {@code lang/custom/} first, if it is still there.
+     *
+     * @param plugin   the plugin
+     * @param resource the path inside a language folder, such as {@code menus/main.yml}
+     * @return {@code lang/<code>/<resource>}
+     */
+    public static @NotNull String path(@NotNull Plugin plugin, @NotNull String resource) {
+        Path relative = BundledResources.relative(resource);
+        adopt(plugin, relative);
+        return FOLDER + "/" + code(plugin) + "/" + slashed(relative);
+    }
+
+    /**
+     * The file {@link #path(Plugin, String)} names.
+     *
+     * @param plugin   the plugin
+     * @param resource the path inside a language folder
+     * @return the file in the data folder, which may not exist
+     */
+    public static @NotNull File file(@NotNull Plugin plugin, @NotNull String resource) {
+        return new File(plugin.getDataFolder(), path(plugin, resource));
+    }
+
+    /**
+     * Installs and updates a translated file or directory the owner may edit.
+     *
+     * <p>{@link BundledFiles#refresh(Plugin, Class, String)} for the current
+     * language: missing files are written, new keys added, and a changed default
+     * waits in {@code /exylialib updates}.
+     *
+     * @param plugin   the plugin
+     * @param anchor   a class packaged with the resources
+     * @param resource the path inside a language folder, the same in the jar and on disk
+     * @return {@code false} when something could not be read or written, each of which is logged
+     */
+    public static boolean refresh(@NotNull Plugin plugin, @NotNull Class<?> anchor, @NotNull String resource) {
+        Path target = Path.of(path(plugin, resource));
+        return BundledFiles.refresh(plugin, anchor, layers(plugin, resource), target, resource);
+    }
+
+    /**
+     * Replaces a translated directory with its packaged files, dropping edits.
+     *
+     * <p>For screens the plugin owns rather than the server owner, such as
+     * admin menus, which are rewritten from the jar on every start.
+     *
+     * @param plugin   the plugin
+     * @param anchor   a class packaged with the resources
+     * @param resource the directory inside a language folder
+     * @return whether the directory was replaced; a failure is logged and leaves the old one
+     */
+    public static boolean replace(@NotNull Plugin plugin, @NotNull Class<?> anchor, @NotNull String resource) {
+        Path dataFolder = plugin.getDataFolder().toPath().toAbsolutePath().normalize();
+        Path target = BundledResources.inside(dataFolder, Path.of(path(plugin, resource)));
+        try {
+            BundledResources.replaceDirectory(anchor, layers(plugin, resource), dataFolder, target);
+            return true;
+        } catch (IOException | URISyntaxException | SecurityException failure) {
+            Debug.of(plugin).warn("Could not refresh bundled directory \"" + target + "\": "
+                    + failure.getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * The packaged paths a translated resource is assembled from, lowest first.
+     *
+     * <p>The untranslated path comes first so a plugin whose English files still
+     * sit at the root of its jar keeps working.
+     */
+    static List<Path> layers(Plugin plugin, String resource) {
+        Path relative = BundledResources.relative(resource);
+        String code = code(plugin);
+        List<Path> layers = new ArrayList<>(List.of(relative, Path.of(FOLDER, ENGLISH).resolve(relative)));
+        if (!code.equals(ENGLISH)) {
+            layers.add(Path.of(FOLDER, code).resolve(relative));
+        }
+        return layers;
+    }
+
+    /**
+     * Moves a file from before translations into {@code lang/custom/}.
+     *
+     * <p>Only when nothing is there yet, so it can never overwrite a custom
+     * translation. Its reviewed defaults move with it, or every edit would look
+     * like a pending update the first time the file is compared.
+     */
+    private static void adopt(Plugin plugin, Path relative) {
+        Path dataFolder = plugin.getDataFolder().toPath().toAbsolutePath().normalize();
+        Path legacy = BundledResources.inside(dataFolder, relative);
+        Path adopted = dataFolder.resolve(FOLDER).resolve(CUSTOM).resolve(relative);
+        if (!Files.exists(legacy) || Files.exists(adopted)) {
+            return;
+        }
+        try {
+            BundledResources.move(legacy, adopted);
+            for (String kind : List.of("files", "configs")) {
+                Path reviewed = dataFolder.resolve(".defaults").resolve(kind);
+                if (Files.exists(reviewed.resolve(relative))) {
+                    BundledResources.move(reviewed.resolve(relative),
+                            reviewed.resolve(FOLDER).resolve(CUSTOM).resolve(relative));
+                }
+            }
+            removeEmptyParents(dataFolder, legacy.getParent());
+            Debug.of(plugin).log("Moved " + slashed(relative) + " to " + FOLDER + "/" + CUSTOM + "/"
+                    + slashed(relative) + " so the edits it holds are kept.");
+        } catch (IOException | SecurityException failure) {
+            Debug.of(plugin).warn("Could not move " + slashed(relative) + " into " + FOLDER + "/"
+                    + CUSTOM + "/: " + failure.getMessage());
+        }
+    }
+
+    private static void removeEmptyParents(Path dataFolder, Path directory) throws IOException {
+        while (directory != null && !directory.equals(dataFolder) && directory.startsWith(dataFolder)) {
+            try (var entries = Files.list(directory)) {
+                if (entries.findAny().isPresent()) {
+                    return;
+                }
+            }
+            Files.delete(directory);
+            directory = directory.getParent();
+        }
+    }
+
+    private static String slashed(Path relative) {
+        return relative.toString().replace('\\', '/');
+    }
+}

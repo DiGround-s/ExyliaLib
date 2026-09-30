@@ -175,42 +175,13 @@ public final class PluginMenus {
         Path dataFolder = plugin.getDataFolder().toPath().toAbsolutePath().normalize();
         Path target = BundledResources.inside(dataFolder, relative);
 
-        Path staging = null;
-        Path backup = null;
         try {
-            Files.createDirectories(dataFolder);
-            staging = Files.createTempDirectory(dataFolder, ".bundled-");
-            BundledResources.extract(anchor, relative, staging);
-
-            backup = Files.createTempDirectory(dataFolder, ".previous-");
-            Files.delete(backup);
-            Files.createDirectories(target.getParent());
-            if (Files.exists(target)) {
-                BundledResources.move(target, backup);
-            }
-            try {
-                BundledResources.move(staging, target);
-            } catch (IOException replacementFailure) {
-                try {
-                    if (Files.exists(backup)) {
-                        BundledResources.move(backup, target);
-                        backup = null;
-                    }
-                } catch (IOException restorationFailure) {
-                    replacementFailure.addSuppressed(restorationFailure);
-                }
-                throw replacementFailure;
-            }
-            staging = null;
-            BundledResources.deleteTree(backup);
-            backup = null;
+            BundledResources.replaceDirectory(anchor, List.of(relative), dataFolder, target);
             return true;
         } catch (IOException | URISyntaxException | SecurityException failure) {
             debug.warn("Could not refresh bundled directory \"" + resourceDirectory + "\": "
                     + failure.getMessage());
             return false;
-        } finally {
-            BundledResources.deleteTree(staging);
         }
     }
 

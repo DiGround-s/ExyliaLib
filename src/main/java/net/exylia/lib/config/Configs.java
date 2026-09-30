@@ -176,6 +176,7 @@ public final class Configs {
         private final Class<T> schema;
         private final Map<Integer, Migration> migrations = new java.util.TreeMap<>();
         private int version = 1;
+        private boolean translated;
 
         Builder(Plugin plugin, String name, Class<T> schema) {
             this.plugin = plugin;
@@ -228,6 +229,23 @@ public final class Configs {
         }
 
         /**
+         * Keeps this file in the plugin's language folder.
+         *
+         * <p>The file lives at {@code lang/<code>/<name>.yml} for the language
+         * {@code config.yml} names, and follows it on reload. The record still
+         * holds the English defaults; a language packaged as
+         * {@code lang/<code>/<name>.yml} in the jar replaces the ones it
+         * translates. See {@link Languages}.
+         *
+         * @return this builder
+         * @since 1.214.0
+         */
+        public @NotNull Builder<T> translated() {
+            this.translated = true;
+            return this;
+        }
+
+        /**
          * Reads the file, creating or updating it as needed, and returns the
          * handle.
          *
@@ -254,7 +272,8 @@ public final class Configs {
                 release(cached.owner());
             }
             return (ConfigFile<T>) FILES.computeIfAbsent(key, ignored -> {
-                ConfigFileImpl<T> file = new ConfigFileImpl<>(plugin, name, schema, version, Map.copyOf(migrations));
+                ConfigFileImpl<T> file = new ConfigFileImpl<>(plugin, name, schema, version, Map.copyOf(migrations),
+                        translated);
                 file.initialLoad();
                 return file;
             });

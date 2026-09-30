@@ -1,5 +1,7 @@
 package net.exylia.lib.config.internal;
 
+import org.bukkit.configuration.InvalidConfigurationException;
+import org.bukkit.configuration.file.YamlConfiguration;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -138,6 +140,150 @@ public final class BundledResources {
                 throw new IOException("Packaged directory does not exist.");
             }
             return false;
+        }
+    }
+
+    /**
+     * Copies several packaged versions of one resource into {@code staging}, each
+     * laid over the ones before it.
+     *
+     * <p>How a translation is read: the English files first, then the chosen
+     * language's on top, so a file or key nobody has translated yet still
+     * arrives in English rather than not at all. A layer that is not packaged is
+     * skipped.
+     *
+     * @param anchor  a class packaged with the resources
+     * @param layers  the relative resource paths, lowest first
+     * @param staging an empty directory to copy into
+     * @return {@code true} when the resource is one file, copied as {@code staging/<its name>}
+     * @throws IOException when no layer is packaged, or copying fails
+     */
+    public static boolean extractLayers(@NotNull Class<?> anchor, @NotNull List<Path> layers,
+                                        @NotNull Path staging) throws IOException, URISyntaxException {
+        Boolean single = null;
+        for (Path layer : layers) {
+            Path scratch = Files.createTempDirectory(staging.getParent(), ".layer-");
+            try {
+                boolean one;
+                try {
+                    one = extract(anchor, layer, scratch);
+                } catch (IOException missing) {
+                    if (Files.exists(scratch) && isEmpty(scratch)) {
+                        continue;
+                    }
+                    throw missing;
+                }
+                single = single == null ? one : single;
+                try (var files = Files.walk(scratch)) {
+                    for (Path file : files.filter(Files::isRegularFile).toList()) {
+                        // A single file is staged under its own name, which
+                        // differs between layers only if the paths do.
+                        Path destination = one
+                                ? staging.resolve(layers.get(0).getFileName().toString())
+                                : staging.resolve(scratch.relativize(file));
+                        Files.createDirectories(destination.getParent());
+                        if (Files.exists(destination) && isYaml(destination)) {
+                            layer(file, destination);
+                        } else {
+                            Files.copy(file, destination, StandardCopyOption.REPLACE_EXISTING);
+                        }
+                    }
+                }
+            } finally {
+                deleteTree(scratch);
+            }
+        }
+        if (single == null) {
+            throw new IOException("Packaged directory does not exist.");
+        }
+        return single;
+    }
+
+    /**
+     * Replaces a directory in a data folder with its packaged files.
+     *
+     * <p>The packaged files are staged before the existing target is moved
+     * aside, so a failure at any point leaves the previous directory in place.
+     *
+     * @param anchor     a class packaged with the resources
+     * @param layers     the packaged paths, lowest first, each laid over the ones before
+     * @param dataFolder the plugin's data folder, where staging happens
+     * @param target     the directory to replace
+     */
+    public static void replaceDirectory(@NotNull Class<?> anchor, @NotNull List<Path> layers,
+                                        @NotNull Path dataFolder, @NotNull Path target)
+            throws IOException, URISyntaxException {
+        Path staging = null;
+        Path backup = null;
+        try {
+            Files.createDirectories(dataFolder);
+            staging = Files.createTempDirectory(dataFolder, ".bundled-");
+            extractLayers(anchor, layers, staging);
+
+            backup = Files.createTempDirectory(dataFolder, ".previous-");
+            Files.delete(backup);
+            Files.createDirectories(target.getParent());
+            if (Files.exists(target)) {
+                move(target, backup);
+            }
+            try {
+                move(staging, target);
+            } catch (IOException replacementFailure) {
+                try {
+                    if (Files.exists(backup)) {
+                        move(backup, target);
+                        backup = null;
+                    }
+                } catch (IOException restorationFailure) {
+                    replacementFailure.addSuppressed(restorationFailure);
+                }
+                throw replacementFailure;
+            }
+            staging = null;
+            deleteTree(backup);
+        } finally {
+            deleteTree(staging);
+        }
+    }
+
+    /**
+     * Lays one YAML file over another: the upper wins, and a key only the lower
+     * has is added, so a button new in English reaches a translation that does
+     * not have it yet. An upper file with nothing to add is copied byte for byte.
+     */
+    private static void layer(Path upper, Path lower) throws IOException {
+        YamlConfiguration top = new YamlConfiguration();
+        YamlConfiguration base = new YamlConfiguration();
+        try {
+            top.loadFromString(Files.readString(upper, StandardCharsets.UTF_8));
+            base.loadFromString(Files.readString(lower, StandardCharsets.UTF_8));
+        } catch (InvalidConfigurationException broken) {
+            Files.copy(upper, lower, StandardCopyOption.REPLACE_EXISTING);
+            return;
+        }
+        boolean added = false;
+        for (String key : base.getKeys(true)) {
+            if (!base.isConfigurationSection(key) && !top.contains(key)) {
+                top.set(key, base.get(key));
+                added = true;
+            }
+        }
+        if (!added) {
+            Files.copy(upper, lower, StandardCopyOption.REPLACE_EXISTING);
+            return;
+        }
+        top.options().width(Integer.MAX_VALUE);
+        Files.writeString(lower, top.saveToString(), StandardCharsets.UTF_8);
+    }
+
+    private static boolean isYaml(Path file) {
+        String name = file.getFileName().toString();
+        return name.endsWith(".yml") || name.endsWith(".yaml");
+    }
+
+    private static boolean isEmpty(Path directory) throws IOException {
+        try (var entries = Files.list(directory)) {
+            return entries.findAny().isEmpty();
         }
     }
 
