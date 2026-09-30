@@ -63,6 +63,8 @@ public final class ConfigFileImpl<T> implements ConfigFile<T> {
     /** The defaults in the language they were last built for. */
     private volatile String defaultsLanguage;
     private volatile T translatedDefaults;
+    /** Whether the last load hit a migration step that threw. */
+    private boolean migrationFailed;
     private final List<Consumer<T>> listeners = new CopyOnWriteArrayList<>();
 
     /** Published atomically on reload; readers never see a half-applied config. */
@@ -224,7 +226,12 @@ public final class ConfigFileImpl<T> implements ConfigFile<T> {
             return issues;
         }
 
+        migrationFailed = false;
         boolean migrated = existed && migrate(yaml, found);
+        // A step that threw left the file half-way between two layouts.
+        // Writing it would stamp it as upgraded and prune whatever the failed
+        // step was meant to carry across, so the file stays exactly as it is
+        // and the next start tries again.
         followDefaults(yaml, existed);
 
         T bound = Binder.read(yaml, schema, defaults(), "", name, found);
@@ -235,7 +242,7 @@ public final class ConfigFileImpl<T> implements ConfigFile<T> {
         // re-quotes the owner's hand edits, so a plain start leaves it alone.
         boolean addedKeys = found.stream().anyMatch(issue -> issue.type() == ConfigIssue.Type.MISSING_KEY);
         boolean prunedKeys = found.stream().anyMatch(issue -> issue.type() == ConfigIssue.Type.UNKNOWN_KEY);
-        if (!existed || migrated || addedKeys || prunedKeys) {
+        if (!migrationFailed && (!existed || migrated || addedKeys || prunedKeys)) {
             render(yaml, bound);
             writeFile(yaml);
         }
@@ -327,7 +334,10 @@ public final class ConfigFileImpl<T> implements ConfigFile<T> {
                 found.add(new ConfigIssue(ConfigIssue.Type.INVALID_VALUE, name,
                         "migration from version " + version + " failed: " + throwable.getMessage(), name));
                 plugin.getLogger().log(Level.SEVERE,
-                        "Migration of " + name + ".yml from version " + version + " failed", throwable);
+                        "Migration of " + name + ".yml from version " + version + " failed; the file was "
+                                + "left as it is and the migration runs again on the next start", throwable);
+                migrationFailed = true;
+                return true;
             }
         }
 

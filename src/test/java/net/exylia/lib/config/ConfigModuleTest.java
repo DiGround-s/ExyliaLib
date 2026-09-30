@@ -576,6 +576,23 @@ class ConfigModuleTest {
     }
 
     @Test
+    @DisplayName("a migration that throws leaves the file untouched for the next start")
+    void failedMigrationLeavesTheFileAlone() throws IOException {
+        String original = "config-version: 1\npool: 33\nkeep-me: yes\n";
+        Files.writeString(file("db"), original);
+
+        ConfigFile<Renamed> config = Configs.define(plugin, "db", Renamed.class)
+                .version(2)
+                .migration(1, data -> {
+                    throw new IllegalStateException("disk full");
+                })
+                .load();
+
+        assertEquals(10, config.get().poolSize(), "the running values fall back to defaults");
+        assertEquals(original, contents("db"), "nothing is pruned or stamped as upgraded");
+    }
+
+    @Test
     @DisplayName("migrations do not run twice")
     void migrationsRunOnlyOnce() throws IOException {
         Files.writeString(file("db"), "config-version: 1\npool: 33\n");
