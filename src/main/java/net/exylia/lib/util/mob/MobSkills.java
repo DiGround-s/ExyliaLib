@@ -42,6 +42,7 @@ public final class MobSkills {
             "slam", "meteor", "blades", "charge", "chain", "bubble", "portal", "miasma", "nova", "blink",
             "renew", "enrage", "rain", "pounce", "hook", "volley",
             "cleave", "fissure", "vortex", "dread", "eruption", "smite",
+            "judgement", "supernova", "tempest", "starfall", "prism",
             "burst", "hop", "inflate", "zoom", "shrink", "puff");
 
     private MobSkills() {
@@ -129,7 +130,24 @@ public final class MobSkills {
                             .withCast(cast("eruption", MobSkill.Aim.GROUND, 1300).withWhen(MobSkill.Gate.ANY.withRange(0, 18)))),
             preset("smite", "SMITE", Material.TRIDENT, "Marks a spot, then calls a bolt onto it.",
                     skill(MobSkill.Type.LIGHTNING, 12, 0, 7, 0, "")
-                            .withCast(cast("smite", MobSkill.Aim.GROUND, 1100).withWhen(MobSkill.Gate.ANY.withRange(0, 20)))));
+                            .withCast(cast("smite", MobSkill.Aim.GROUND, 1100).withWhen(MobSkill.Gate.ANY.withRange(0, 20)))),
+            preset("judgement", "JUDGEMENT", Material.GOLDEN_SWORD, "A giant blade falls from the sky onto you.",
+                    skill(MobSkill.Type.AREA_DAMAGE, 22, 4, 12, 0, "")
+                            .withCast(cast("judgement", MobSkill.Aim.GROUND, 2200).withWhen(MobSkill.Gate.ANY.withRange(0, 20)))),
+            preset("supernova", "SUPERNOVA", Material.NETHER_STAR, "Swallows the light, then bursts like a star.",
+                    skill(MobSkill.Type.AREA_DAMAGE, 35, 7, 14, 3, "")
+                            .withCast(cast("supernova", MobSkill.Aim.SELF, 2600)
+                                    .withWhen(MobSkill.Gate.ANY.withHealth(0, 0.5).withNearby(7)))),
+            preset("tempest", "TEMPEST", Material.WIND_CHARGE, "Spins up a tornado that hurls you away.",
+                    skill(MobSkill.Type.PUSH, 18, 6, 1.8, 0, "")
+                            .withCast(cast("tempest", MobSkill.Aim.SELF, 1500).withWhen(MobSkill.Gate.ANY.withNearby(5)))),
+            preset("starfall", "STARFALL", Material.AMETHYST_CLUSTER, "Draws a constellation, then drops its stars.",
+                    skill(MobSkill.Type.BARRAGE, 20, 7, 9, 0, "5")
+                            .withCast(cast("starfall", MobSkill.Aim.AUTO, 1400).withWhen(MobSkill.Gate.ANY.withRange(0, 20)))),
+            preset("prism", "PRISM BEAM", Material.AMETHYST_SHARD, "Focuses a crystal, then fires a searing beam.",
+                    skill(MobSkill.Type.AREA_DAMAGE, 16, 16, 10, 0, "")
+                            .withCast(cast("prism", MobSkill.Aim.LINE, 1600).withSpread(1.4)
+                                    .withWhen(MobSkill.Gate.ANY.withRange(4, 16)))));
 
     /** Every preset, in the order an editor lists them. */
     public static @NotNull List<Preset> library() {

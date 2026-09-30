@@ -41,7 +41,7 @@ class MobSkillsTest {
                 assertFalse(preset.skill().cast().windup().isZero(), preset.id() + " gives fair warning");
             }
         }
-        assertEquals(22, MobSkills.library().size());
+        assertEquals(27, MobSkills.library().size());
         assertNotNull(MobSkills.preset(" SLAM "));
         assertNull(MobSkills.preset("fireworks"));
     }

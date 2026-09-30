@@ -1089,6 +1089,389 @@ enum MobStyle {
         }
     },
 
+    JUDGEMENT("judgement", Role.CRIT) {
+        @Override
+        void windup(Stage s, Vfx v) {
+            long w = s.windup();
+            Location centre = spot(s);
+            double r = radius(s, 4);
+            Telegraphs.circle(v, 0, centre, r, w, s.main());
+            Telegraphs.cross(v, 0, centre, r * 1.2, w, s.main());
+            // Runes turn slowly round the mark while the blade is lowered.
+            DisplayModel rune = DisplayModel.text(Text.of(glyph(s, Role.CRIT, "✚")).build()).light(15);
+            int runes = s.count(6, 3);
+            for (int piece = 0; piece < runes; piece++) {
+                v.display(piece * 50L, rune, orbit(r + 0.4, 0.4, 0.4, Math.PI * 2 * piece / runes, 0.5,
+                        Math.max(50L, w - piece * 50L), 1.0, 1.8), centre);
+            }
+            // The blade: it appears high up, hangs turning slowly, then drops in the last beat.
+            long appear = w / 5;
+            long drop = Math.min(350L, Math.max(100L, w / 5));
+            long hang = Math.max(50L, w - appear - drop);
+            DisplayModel sword = Shapes.item(Material.GOLDEN_SWORD).light(15);
+            Rotation down = Rotation.around(Rotation.Axis.Z, -Math.PI * 3 / 4);
+            double size = Math.clamp(r * 1.6, 4, 9);
+            v.display(appear, sword, DisplayMotion.chain(
+                    DisplayMotion.builder().life(hang).from(0, 24, 0).to(0, 17, 0).rotation(down)
+                            .spin(Rotation.Axis.Y, 0.5).scale(size * 0.3, size).ease(DisplayMotion.Easing.OUT).build(),
+                    DisplayMotion.builder().life(drop).from(0, 17, 0).to(0, size * 0.35, 0).rotation(down)
+                            .scale(size, size).ease(DisplayMotion.Easing.IN).build()), centre);
+            v.beam(appear + hang / 3, centre.clone().add(0, 16, 0), centre.clone().add(0, 0.1, 0),
+                    Shapes.glowing(Shapes.nearestGlass(s.main()), s.main()), 0.06, Math.max(50L, hang * 2 / 3 + drop));
+            for (long beat = appear; beat < w; beat += 150) {
+                v.particle(beat, Particle.END_ROD, centre.clone().add(0, 0.3, 0), s.count(3, 2), r * 0.5, 0.1,
+                        r * 0.5, 0.02, null);
+            }
+            Shapes.sound(v, 0, "BLOCK_BEACON_ACTIVATE", 0.8f, 0.6f);
+            for (int toll = 0; toll < 3; toll++) {
+                Shapes.sound(v, appear + hang * toll / 3, centre, "BLOCK_BELL_USE", 1.0f, 0.5f + toll * 0.1f);
+            }
+            Shapes.sound(v, appear + hang, centre, "ITEM_TRIDENT_THROW", 1.0f, 0.5f);
+        }
+
+        @Override
+        void impact(Stage s, Vfx v, Location at) {
+            double r = radius(s, 4);
+            double size = Math.clamp(r * 1.6, 4, 9);
+            Rotation down = Rotation.around(Rotation.Axis.Z, -Math.PI * 3 / 4);
+            // Driven into the ground, it stands a moment and sinks away.
+            v.display(0, Shapes.item(Material.GOLDEN_SWORD).light(15), DisplayMotion.chain(
+                    DisplayMotion.builder().life(80).from(0, size * 0.35, 0).to(0, size * 0.22, 0).rotation(down)
+                            .scale(size, size).ease(DisplayMotion.Easing.OUT).build(),
+                    DisplayMotion.still(1100),
+                    DisplayMotion.builder().life(400).from(0, size * 0.22, 0).to(0, -size * 0.4, 0).rotation(down)
+                            .scale(size, size * 0.6).ease(DisplayMotion.Easing.IN).build()));
+            quake(s, v, 0, r, new double[]{0.35, 0.7, 1.0}, 14);
+            DisplayModel glow = Shapes.glowing(Shapes.nearestGlass(s.main()), s.main());
+            v.beam(0, at.clone().add(0, 18, 0), at.clone().add(0, 0.1, 0), glow, 1.2, 220);
+            Shapes.circle(v, 60, Particle.END_ROD, at.clone().add(0, 0.3, 0), r * 0.5, s.count(20, 10), 0.35, null);
+            v.particle(0, Particle.EXPLOSION, at.clone().add(0, 0.5, 0), 2, 0.5, 0.2, 0.5, 0, null)
+                    .particle(0, Particle.CRIT, at.clone().add(0, 1, 0), s.count(30, 15), r * 0.4, 0.6, r * 0.4, 0.4, null)
+                    .particle(0, Particle.BLOCK, at.clone().add(0, 0.2, 0), s.count(20, 10), r * 0.4, 0.1, r * 0.4,
+                            0.15, s.ground);
+            Shapes.sound(v, 0, "ENTITY_GENERIC_EXPLODE", 1.0f, 0.6f);
+            Shapes.sound(v, 0, "BLOCK_ANVIL_LAND", 0.8f, 0.5f);
+            Shapes.sound(v, 0, "ITEM_TRIDENT_THUNDER", 0.8f, 0.8f);
+            Shapes.sound(v, 150, "BLOCK_BELL_RESONATE", 1.0f, 0.7f);
+            breakSound(s, v, 0, 1.0f, 0.5f);
+            shake(s, v, 0, r + 10, 3);
+        }
+    },
+
+    SUPERNOVA("supernova", Role.FIRE) {
+        @Override
+        void windup(Stage s, Vfx v) {
+            long w = s.windup();
+            double r = radius(s, 7);
+            Location feet = s.origin();
+            Location core = sun(s);
+            Telegraphs.circle(v, 0, feet, r, w, s.main());
+            pulse(s, v, 0, 0.1, w / 50);
+            // A sun grows over its head, and in the last beat collapses in on itself.
+            long collapse = Math.min(300L, w / 4);
+            long grow = Math.max(50L, w - collapse);
+            DisplayModel shell = Shapes.glowing(Shapes.nearestGlass(s.main()), s.main());
+            DisplayModel heart = Shapes.glowing(Material.WHITE_CONCRETE, Shapes.lighter(s.main(), 0.7));
+            v.display(0, shell, DisplayMotion.chain(
+                    DisplayMotion.builder().life(grow).scale(0.1, 1.8).spin(1, 2, 1).ease(DisplayMotion.Easing.OUT).build(),
+                    DisplayMotion.builder().life(collapse).scale(1.8, 0.2).spin(0, 3, 0).ease(DisplayMotion.Easing.IN).build()),
+                    core);
+            v.display(0, heart, DisplayMotion.chain(
+                    DisplayMotion.builder().life(grow).scale(0.05, 0.9).spin(2, 1, 2).ease(DisplayMotion.Easing.OUT).build(),
+                    DisplayMotion.builder().life(collapse).scale(0.9, 0.15).ease(DisplayMotion.Easing.IN).build()), core);
+            // Light pulled in from all round: motes that fly into the sun one after another.
+            ThreadLocalRandom random = ThreadLocalRandom.current();
+            int motes = s.count(14, 7);
+            DisplayModel mote = Shapes.glowing(Shapes.nearestGlass(s.main()), s.main());
+            double dy = core.getY() - feet.getY();
+            for (int piece = 0; piece < motes; piece++) {
+                double angle = random.nextDouble(Math.PI * 2);
+                double out = r * random.nextDouble(0.6, 1.0);
+                long start = grow * piece / motes;
+                v.display(start, mote, DisplayMotion.builder().life(Math.max(50L, Math.min(700L, grow - start)))
+                        .from(Math.cos(angle) * out, random.nextDouble(0.2, 1.5) - dy, Math.sin(angle) * out)
+                        .to(0, 0, 0).spin(1, 1, 1).scale(0.22, 0.05).ease(DisplayMotion.Easing.IN).build(), core);
+            }
+            for (long beat = 0; beat < grow; beat += 100) {
+                for (int ray = 0; ray < s.count(4, 2); ray++) {
+                    double angle = random.nextDouble(Math.PI * 2);
+                    Location from = feet.clone().add(Math.cos(angle) * r, 0.3, Math.sin(angle) * r);
+                    Vector towards = core.toVector().subtract(from.toVector());
+                    v.particle(beat, Particle.END_ROD, from, 0, towards.getX(), towards.getY(), towards.getZ(),
+                            0.12, null);
+                }
+                v.particle(beat, Particle.FLAME, core, s.count(4, 2), 0.4, 0.4, 0.4, 0.01, null);
+            }
+            double[] beats = {0, 0.3, 0.52, 0.68, 0.8, 0.88};
+            for (int beat = 0; beat < beats.length; beat++) {
+                Shapes.sound(v, Math.round(grow * beats[beat]), core, "BLOCK_RESPAWN_ANCHOR_CHARGE", 0.9f,
+                        (float) (0.5 + beat * 0.15));
+            }
+            Shapes.sound(v, 0, "BLOCK_BEACON_AMBIENT", 1.0f, 0.5f);
+            Shapes.sound(v, grow, core, "BLOCK_BEACON_DEACTIVATE", 1.0f, 0.5f);
+        }
+
+        @Override
+        void impact(Stage s, Vfx v, Location at) {
+            double r = radius(s, 7);
+            Location core = at.clone().add(0, sun(s).getY() - s.origin().getY(), 0);
+            DisplayModel heart = Shapes.glowing(Material.WHITE_CONCRETE, Shapes.lighter(s.main(), 0.7));
+            v.display(0, heart, DisplayMotion.builder().life(260).scale(0.3, 4.5).ease(DisplayMotion.Easing.OUT).build(),
+                    core);
+            // A shell of light bursting out in every direction: points spread evenly over a sphere.
+            DisplayModel shard = Shapes.glowing(Shapes.nearestGlass(s.main()), s.main());
+            int shards = s.count(26, 12);
+            double golden = Math.PI * (3 - Math.sqrt(5));
+            double dy = core.getY() - at.getY();
+            for (int piece = 0; piece < shards; piece++) {
+                double y = 1 - 2 * (piece + 0.5) / shards;
+                double ring = Math.sqrt(1 - y * y);
+                double angle = golden * piece;
+                double x = Math.cos(angle) * ring;
+                double z = Math.sin(angle) * ring;
+                double far = r * 0.9;
+                v.display(0, shard, DisplayMotion.builder().life(520).from(x * 0.5, dy + y * 0.5, z * 0.5)
+                        .to(x * far, Math.max(0.2, dy + y * far * 0.6), z * far).rotation(Shapes.along(x, y, z))
+                        .scale(new double[]{0.35, 0.35, 0.9}, new double[]{0.05, 0.05, 0.2})
+                        .ease(DisplayMotion.Easing.OUT).build());
+            }
+            int plates = s.count(22, 11);
+            DisplayModel magma = DisplayModel.block(MobBodies.block(Material.MAGMA_BLOCK)).light(15);
+            double arc = Math.PI * 2 * r / plates * 1.05;
+            for (int plate = 0; plate < plates; plate++) {
+                double angle = Math.PI * 2 * plate / plates;
+                double x = Math.cos(angle);
+                double z = Math.sin(angle);
+                v.display(40, magma, DisplayMotion.builder().life(500).from(x * 0.8, 0.1, z * 0.8)
+                        .to(x * r, 0.05, z * r).rotation(Shapes.facing(angle))
+                        .scale(new double[]{0.5, 0.25, 0.35}, new double[]{arc, 0.02, 0.1})
+                        .ease(DisplayMotion.Easing.OUT).build());
+            }
+            v.particle(0, Particle.EXPLOSION_EMITTER, core, 1)
+                    .particle(0, Particle.FLAME, core, s.count(60, 30), 0.3, 0.3, 0.3, 0.45, null)
+                    .particle(0, Particle.LAVA, at.clone().add(0, 0.5, 0), s.count(14, 7), r * 0.4, 0.3, r * 0.4, 0, null)
+                    .particle(150, Particle.FIREWORK, core, s.count(30, 15), 0.5, 0.5, 0.5, 0.35, null);
+            Shapes.sound(v, 0, "ENTITY_GENERIC_EXPLODE", 1.2f, 0.5f);
+            Shapes.sound(v, 0, "ENTITY_DRAGON_FIREBALL_EXPLODE", 1.0f, 0.6f);
+            Shapes.sound(v, 80, "ENTITY_LIGHTNING_BOLT_THUNDER", 0.7f, 0.7f);
+            Shapes.sound(v, 200, "ENTITY_FIREWORK_ROCKET_TWINKLE", 0.8f, 0.8f);
+            shake(s, v, 0, r + 12, 3);
+        }
+
+        /** Where the sun hangs: over its head, a little clear of it. */
+        private Location sun(Stage s) {
+            return s.origin().add(0, s.height + 1.4, 0);
+        }
+    },
+
+    TEMPEST("tempest", Role.SHOCK) {
+        @Override
+        void windup(Stage s, Vfx v) {
+            long w = s.windup();
+            double r = radius(s, 6);
+            Location feet = s.origin();
+            Telegraphs.circle(v, 0, feet, r, w, s.main());
+            // A funnel: layers turning faster the lower they are, wider the higher.
+            int layers = s.count(8, 4);
+            DisplayModel streak = Shapes.glowing(Material.WHITE_STAINED_GLASS, s.main());
+            long life = Math.max(50L, w);
+            for (int layer = 0; layer < layers; layer++) {
+                double reach = 0.5 + s.width * 0.5 + layer * 0.32;
+                double y = 0.2 + layer * 0.55;
+                double turns = Math.max(1, life / 400.0) * (1.6 - layer * 0.08);
+                for (int side = 0; side < 2; side++) {
+                    double start = Math.PI * side + layer * 0.7;
+                    v.display(layer * 40L, streak, orbit(reach, y, y + 0.3, start, turns, life - layer * 40L,
+                            0.1, 0.45));
+                }
+            }
+            ThreadLocalRandom random = ThreadLocalRandom.current();
+            for (long beat = 0; beat < w; beat += 100) {
+                double angle = beat * 0.02;
+                for (int arm = 0; arm < 3; arm++) {
+                    double a = angle + Math.PI * 2 * arm / 3;
+                    double reach = r * random.nextDouble(0.4, 1.0);
+                    v.particle(beat, Particle.CLOUD, feet.clone().add(Math.cos(a) * reach, 0.2, Math.sin(a) * reach),
+                            0, -Math.sin(a), 0.15, Math.cos(a), 0.3, null);
+                }
+                v.particle(beat, Particle.BLOCK, feet.clone().add(0, 0.1, 0), s.count(3, 2), r * 0.3, 0.05, r * 0.3,
+                        0.1, s.ground);
+            }
+            for (long beat = 0; beat < w; beat += 450) Shapes.sound(v, beat, "ENTITY_BREEZE_WHIRL", 1.0f, 0.6f);
+            Shapes.sound(v, 0, "ENTITY_BREEZE_CHARGE", 1.0f, 0.6f);
+            Shapes.sound(v, Math.max(0, w - 300), "ENTITY_BREEZE_INHALE", 1.0f, 0.5f);
+        }
+
+        @Override
+        void impact(Stage s, Vfx v, Location at) {
+            double r = radius(s, 6);
+            ThreadLocalRandom random = ThreadLocalRandom.current();
+            // The funnel comes apart: every streak flung out and up along the way it was turning.
+            int pieces = s.count(16, 8);
+            DisplayModel streak = Shapes.glowing(Material.WHITE_STAINED_GLASS, s.main());
+            for (int piece = 0; piece < pieces; piece++) {
+                double angle = Math.PI * 2 * piece / pieces;
+                double y = 0.2 + (piece % 8) * 0.55;
+                double near = 0.5 + s.width * 0.5 + (piece % 8) * 0.32;
+                double swirl = angle + 1.2;
+                v.display(0, streak, DisplayMotion.builder().life(450)
+                        .from(Math.cos(angle) * near, y, Math.sin(angle) * near)
+                        .to(Math.cos(swirl) * r, y + random.nextDouble(1, 3), Math.sin(swirl) * r)
+                        .rotation(Shapes.facing(swirl)).spin(0, 2, 0)
+                        .scale(new double[]{0.45, 0.06, 0.2}, new double[]{0.05, 0.02, 0.05})
+                        .ease(DisplayMotion.Easing.OUT).build());
+            }
+            int plates = s.count(18, 9);
+            DisplayModel ring = Shapes.glowing(Shapes.nearestGlass(s.main()), s.main());
+            double arc = Math.PI * 2 * r / plates * 1.1;
+            for (int plate = 0; plate < plates; plate++) {
+                double angle = Math.PI * 2 * plate / plates;
+                double x = Math.cos(angle);
+                double z = Math.sin(angle);
+                v.display(0, ring, DisplayMotion.builder().life(380).from(x * 0.6, 0.3, z * 0.6)
+                        .to(x * r, 0.2, z * r).rotation(Shapes.facing(angle))
+                        .scale(new double[]{0.5, 0.35, 0.25}, new double[]{arc, 0.02, 0.1})
+                        .ease(DisplayMotion.Easing.OUT).build());
+            }
+            for (LivingEntity body : s.reached()) {
+                v.particle(0, Particle.CLOUD, chest(body), s.count(8, 4), 0.2, 0.4, 0.2, 0.15, null)
+                        .particle(0, Particle.SWEEP_ATTACK, chest(body), 1, 0, 0, 0, 0, null);
+            }
+            v.particle(0, Particle.GUST_EMITTER_LARGE, at.clone().add(0, 1, 0), 1)
+                    .particle(0, Particle.CLOUD, at.clone().add(0, 1.5, 0), s.count(30, 15), 0.5, 1.2, 0.5, 0.35, null);
+            Shapes.sound(v, 0, "ENTITY_BREEZE_WIND_BURST", 1.2f, 0.6f);
+            Shapes.sound(v, 0, "ENTITY_WIND_CHARGE_WIND_BURST", 1.0f, 0.8f);
+            Shapes.sound(v, 100, "ITEM_TRIDENT_RIPTIDE_3", 0.8f, 0.8f);
+            shake(s, v, 0, r + 6, 2);
+        }
+    },
+
+    STARFALL("starfall", Role.ARCANE) {
+        @Override
+        void windup(Stage s, Vfx v) {
+            long w = s.windup();
+            Location centre = spot(s);
+            double r = radius(s, 7);
+            pulse(s, v, 0, 0.08, w / 50);
+            // A constellation drawn star by star over the area, joined as each one lights.
+            ThreadLocalRandom random = ThreadLocalRandom.current();
+            int stars = s.count(7, 4);
+            List<Location> points = new ArrayList<>(stars);
+            for (int star = 0; star < stars; star++) {
+                double angle = Math.PI * 2 * star / stars + random.nextDouble(-0.3, 0.3);
+                double out = r * random.nextDouble(0.3, 0.8);
+                points.add(centre.clone().add(Math.cos(angle) * out, random.nextDouble(9, 12), Math.sin(angle) * out));
+            }
+            DisplayModel glyph = DisplayModel.text(Text.of(glyph(s, Role.ARCANE, "✦")).build()).light(15)
+                    .billboard("CENTER");
+            DisplayModel thread = Shapes.glowing(Shapes.nearestGlass(s.main()), s.main());
+            long step = Math.max(50L, w * 2 / 3 / stars);
+            for (int star = 0; star < stars; star++) {
+                long lit = star * step;
+                long left = Math.max(50L, w - lit + 200);
+                v.display(lit, glyph, DisplayMotion.chain(
+                        DisplayMotion.builder().life(180).scale(0.5, 4.5).ease(DisplayMotion.Easing.BACK).build(),
+                        DisplayMotion.builder().life(Math.max(50L, left - 180)).scale(4.5, 3.2).build()),
+                        points.get(star));
+                if (star > 0) v.beam(lit, points.get(star - 1), points.get(star), thread, 0.04, left);
+                Shapes.sound(v, lit, points.get(star), "BLOCK_AMETHYST_BLOCK_CHIME", 1.0f, (float) (0.8 + star * 0.15));
+            }
+            Location hands = hands(s);
+            for (long beat = 0; beat < w; beat += 100) {
+                v.particle(beat, Particle.END_ROD, hands, 0, 0, 1, 0, 0.3, null);
+            }
+            Shapes.sound(v, 0, "BLOCK_BEACON_POWER_SELECT", 0.8f, 1.5f);
+            Shapes.sound(v, Math.max(0, w - 200), "ENTITY_FIREWORK_ROCKET_LAUNCH", 1.0f, 0.6f);
+        }
+
+        @Override
+        void impact(Stage s, Vfx v, Location at) {
+            Location hands = hands(s);
+            v.particle(0, Particle.END_ROD, hands, s.count(12, 6), 0.2, 0.2, 0.2, 0.15, null)
+                    .particle(0, Particle.FIREWORK, hands, s.count(8, 4), 0.1, 0.1, 0.1, 0.1, null);
+            Shapes.sound(v, 0, "ENTITY_ILLUSIONER_CAST_SPELL", 1.0f, 1.2f);
+        }
+    },
+
+    PRISM("prism", Role.SHOCK) {
+        @Override
+        void windup(Stage s, Vfx v) {
+            long w = s.windup();
+            Location from = s.origin();
+            Location end = MobAim.lineEnd(s.lock, Math.min(MobAim.reach(s.skill), MobAim.MAX_DISTANCE));
+            Telegraphs.line(v, 0, from, end, MobAim.spread(s.skill), w, s.main());
+            Location hands = hands(s);
+            // A crystal turning faster and faster, three rings of light closing round it.
+            DisplayModel crystal = Shapes.glowing(Shapes.nearestGlass(s.main()), s.main());
+            Rotation diamond = Rotation.around(Rotation.Axis.X, Math.PI / 4).then(Rotation.around(Rotation.Axis.Z, Math.PI / 4));
+            long life = Math.max(50L, w);
+            v.display(0, crystal, DisplayMotion.builder().life(life).rotation(diamond).scale(0.1, 0.55)
+                    .spin(0, Math.max(2, life / 150.0), 0).ease(DisplayMotion.Easing.IN).build(), hands);
+            DisplayModel core = Shapes.glowing(Material.WHITE_CONCRETE, Shapes.lighter(s.main(), 0.6));
+            v.display(life / 3, core, DisplayMotion.builder().life(Math.max(50L, life * 2 / 3)).scale(0.02, 0.25)
+                    .spin(1, 2, 1).ease(DisplayMotion.Easing.IN).build(), hands);
+            int beads = s.count(6, 3);
+            for (int ring = 0; ring < 3; ring++) {
+                for (int bead = 0; bead < beads; bead++) {
+                    v.display(ring * life / 4, crystal, orbit(1.4 - ring * 0.35, -0.05 + ring * 0.05, 0.05,
+                            Math.PI * 2 * bead / beads, 1 + ring, Math.max(50L, life - ring * life / 4), 0.12, 0.08),
+                            hands.clone().subtract(0, 0.05, 0));
+                }
+            }
+            // A thin aiming line flickers on in the last third.
+            DisplayModel sight = Shapes.glowing(Shapes.nearestGlass(s.main()), s.main());
+            Location far = end.clone().add(0, hands.getY() - from.getY(), 0);
+            for (long flick = w * 2 / 3; flick < w; flick += 150) {
+                v.beam(flick, hands, far, sight, 0.03, 90);
+            }
+            for (long beat = 0; beat < w; beat += 100) {
+                v.particle(beat, Particle.ELECTRIC_SPARK, hands, s.count(4, 2), 0.35, 0.35, 0.35, 0.05, null);
+            }
+            for (int tone = 0; tone < 4; tone++) {
+                Shapes.sound(v, w * tone / 4, "BLOCK_BEACON_POWER_SELECT", 0.7f, (float) (0.8 + tone * 0.3));
+            }
+            Shapes.sound(v, Math.max(0, w - 500), "ENTITY_GUARDIAN_ATTACK", 1.0f, 1.2f);
+        }
+
+        @Override
+        void impact(Stage s, Vfx v, Location at) {
+            Location from = s.origin();
+            Location end = MobAim.lineEnd(s.lock, Math.min(MobAim.reach(s.skill), MobAim.MAX_DISTANCE));
+            Location hands = hands(s);
+            Location far = end.clone().add(0, hands.getY() - from.getY(), 0);
+            DisplayModel core = Shapes.glowing(Material.WHITE_CONCRETE, Shapes.lighter(s.main(), 0.6));
+            DisplayModel halo = Shapes.glowing(Shapes.nearestGlass(s.main()), s.main());
+            // The beam: a white core held a moment, a halo round it pulsing twice.
+            v.beam(0, hands, far, core, 0.28, 650);
+            if (!s.lod) {
+                v.beam(0, hands, far, halo, 0.75, 280);
+                v.beam(320, hands, far, halo, 0.6, 250);
+            }
+            double length = hands.distance(far);
+            int marks = (int) Math.clamp(Math.round(length), 4, s.count(16, 8));
+            Vector step = far.toVector().subtract(hands.toVector()).multiply(1.0 / marks);
+            for (int mark = 1; mark <= marks; mark++) {
+                Location on = hands.clone().add(step.clone().multiply(mark));
+                Location ground = on.clone();
+                ground.setY(from.getY() + 0.1);
+                long when = mark * 12L;
+                v.particle(when, Particle.ELECTRIC_SPARK, on, 3, 0.15, 0.15, 0.15, 0.1, null)
+                        .particle(when + 100, Particle.SMOKE, ground, 2, 0.2, 0.02, 0.2, 0.01, null)
+                        .particle(when, Particle.END_ROD, on, 1, 0.05, 0.05, 0.05, 0.05, null);
+            }
+            v.particle(0, Particle.EXPLOSION, far, 1)
+                    .particle(0, Particle.FIREWORK, far, s.count(16, 8), 0.3, 0.3, 0.3, 0.2, null)
+                    .particle(0, Particle.CLOUD, hands, s.count(6, 3), 0.1, 0.1, 0.1, 0.08, null);
+            for (LivingEntity body : s.reached()) {
+                v.particle(0, Particle.CRIT, chest(body), s.count(12, 6), 0.3, 0.4, 0.3, 0.3, null);
+            }
+            Shapes.sound(v, 0, "ENTITY_WARDEN_SONIC_BOOM", 0.7f, 1.8f);
+            Shapes.sound(v, 0, far, "ENTITY_GENERIC_EXPLODE", 0.6f, 1.4f);
+            Shapes.sound(v, 600, "BLOCK_BEACON_DEACTIVATE", 0.8f, 1.6f);
+            shake(s, v, 0, 6, 1);
+        }
+    },
+
     BURST("burst", Role.ARCANE) {
         @Override
         void windup(Stage s, Vfx v) {
@@ -1572,7 +1955,7 @@ enum MobStyle {
             case BARRAGE -> 1_000L + 200L * Math.max(1, Math.round(skill.amount()));
             default -> 0L;
         };
-        return Math.max(lingering, this == NOVA || this == DREAD || this == ERUPTION ? 2_400L : 1_200L);
+        return Math.max(lingering, this == NOVA || this == DREAD || this == ERUPTION || this == JUDGEMENT || this == SUPERNOVA ? 2_400L : 1_200L);
     }
 
 }

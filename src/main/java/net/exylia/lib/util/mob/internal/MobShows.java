@@ -484,6 +484,10 @@ final class MobShows {
     /** One barrage strike on its own effect: circle, falling arrow, impact, the arrow left standing. */
     static void strike(Stage stage, Vfx vfx, long delay, Location point) {
         Telegraphs.circle(vfx, delay, point, MobMoves.STRIKE, MobMoves.STRIKE_LEAD_TICKS * 50L, stage.main());
+        if (stage.style == MobStyle.STARFALL) {
+            star(stage, vfx, delay + MobMoves.STRIKE_LEAD_TICKS * 50L, point);
+            return;
+        }
         long fall = 380;
         long lands = delay + MobMoves.STRIKE_LEAD_TICKS * 50L;
         DisplayModel arrow = Shapes.item(Material.ARROW).billboard("VERTICAL");
@@ -499,6 +503,41 @@ final class MobShows {
                 .particle(lands, Particle.BLOCK, impact, 6, 0.3, 0.05, 0.3, 0.05, MobStyle.groundOf(point));
         Shapes.sound(vfx, lands - fall, point, "ENTITY_ARROW_SHOOT", 0.35f, 1.5f);
         Shapes.sound(vfx, lands, point, "ENTITY_ARROW_HIT", 1.0f, 1.1f);
+    }
+
+    /**
+     * A falling star for a starfall's strike: a glowing stone and its glyph come
+     * down at a slant with a trail of light, and burst where they land.
+     */
+    static void star(Stage stage, Vfx vfx, long lands, Location point) {
+        long fall = 520;
+        ThreadLocalRandom random = ThreadLocalRandom.current();
+        double angle = random.nextDouble(Math.PI * 2);
+        double sx = Math.cos(angle) * 5;
+        double sz = Math.sin(angle) * 5;
+        double sy = 13;
+        long start = Math.max(0L, lands - fall);
+        DisplayModel rock = Shapes.glowing(Shapes.nearestGlass(stage.main()), stage.main());
+        vfx.display(start, rock, DisplayMotion.builder().life(fall).from(sx, sy, sz).to(0, 0.4, 0)
+                .spin(2, 2, 1).scale(0.55, 0.4).ease(DisplayMotion.Easing.IN).build(), point);
+        DisplayModel glyph = DisplayModel.text(Text.of(MobStyle.glyph(stage, Role.ARCANE, "✦")).build()).light(15)
+                .billboard("CENTER");
+        vfx.display(start, glyph, DisplayMotion.builder().life(fall).from(sx, sy + 0.3, sz).to(0, 0.7, 0)
+                .scale(3.5, 2.0).ease(DisplayMotion.Easing.IN).build(), point);
+        for (int step = 0; step <= 6; step++) {
+            double t = step / 6.0;
+            double eased = t * t;
+            vfx.particle(start + Math.round(fall * t), Particle.END_ROD,
+                    point.clone().add(sx * (1 - eased), sy + (0.4 - sy) * eased, sz * (1 - eased)), 2, 0.08, 0.08,
+                    0.08, 0.01, null);
+        }
+        Location impact = point.clone().add(0, 0.3, 0);
+        vfx.particle(lands, Particle.FIREWORK, impact, 14, 0.15, 0.15, 0.15, 0.2, null)
+                .particle(lands, Particle.DUST, impact, 12, 0.5, 0.2, 0.5, 0, Shapes.dust(stage.main(), 1.4f))
+                .particle(lands, Particle.BLOCK, impact, 6, 0.3, 0.05, 0.3, 0.05, MobStyle.groundOf(point));
+        Shapes.sound(vfx, start, point, "ENTITY_FIREWORK_ROCKET_LAUNCH", 0.4f, 1.6f);
+        Shapes.sound(vfx, lands, point, "ENTITY_FIREWORK_ROCKET_BLAST", 1.0f, 0.8f);
+        Shapes.sound(vfx, lands, point, "BLOCK_AMETHYST_BLOCK_BREAK", 1.0f, 1.2f);
     }
 
     /**
