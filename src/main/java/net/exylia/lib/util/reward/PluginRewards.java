@@ -128,6 +128,16 @@ public final class PluginRewards {
     }
 
     /**
+     * Where this plugin's rewards wait, as {@link #pending(PendingRewards)} set it.
+     *
+     * @return the store, or {@code null} when the plugin never set one
+     * @since 1.220.0
+     */
+    public @Nullable PendingRewards pending() {
+        return pending;
+    }
+
+    /**
      * Hands every player what they are owed as they join, and says nothing.
      *
      * <p>The listener a plugin would otherwise write, and the one it is easiest
@@ -520,6 +530,31 @@ public final class PluginRewards {
      */
     public void claim(@NotNull Player player,
                       @NotNull java.util.function.Consumer<RewardDelivery> then) {
+        claim(player, PendingRewards::claim, false, then);
+    }
+
+    /**
+     * Hands a player one batch they were owed, leaving the rest waiting.
+     *
+     * <p>What a staff screen's "give now" does. Arranged like
+     * {@link #claim(Player, java.util.function.Consumer)}: the store is read
+     * off the main thread and the delivery comes back onto the player's.
+     *
+     * @param player who receives it
+     * @param batch  its {@link PendingBatch#id()}
+     * @param then   told what became of it, on the player's thread; told
+     *               {@link RewardDelivery#EMPTY} when the batch was already
+     *               gone, and not called when the store could not be read
+     * @since 1.220.0
+     */
+    public void claim(@NotNull Player player, @NotNull String batch,
+                      @NotNull java.util.function.Consumer<RewardDelivery> then) {
+        claim(player, (store, id) -> store.take(id, batch), true, then);
+    }
+
+    private void claim(Player player,
+                       java.util.function.BiFunction<PendingRewards, UUID, List<RewardEntry>> take,
+                       boolean tellNothing, java.util.function.Consumer<RewardDelivery> then) {
         PendingRewards store = pending;
         if (store == null) {
             then.accept(RewardDelivery.EMPTY);
@@ -529,12 +564,15 @@ public final class PluginRewards {
         tasks.runAsync(() -> {
             List<RewardEntry> owed;
             try {
-                owed = store.claim(id);
+                owed = take.apply(store, id);
             } catch (RuntimeException unreadable) {
                 debug.error("Could not read the rewards owed to " + id + ".", unreadable);
                 return;
             }
             if (owed.isEmpty()) {
+                if (tellNothing) {
+                    tasks.runAtEntity(player, () -> then.accept(RewardDelivery.EMPTY));
+                }
                 return;
             }
             // The store has already let go of them, so the delivery is the only

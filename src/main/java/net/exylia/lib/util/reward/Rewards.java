@@ -279,6 +279,16 @@ public final class Rewards {
         BY_PLUGIN.clear();
     }
 
+    /**
+     * Every plugin using the module, for a screen that looks across all of them.
+     *
+     * @return their views, in no particular order
+     * @since 1.220.0
+     */
+    public static @NotNull java.util.Collection<PluginRewards> all() {
+        return List.copyOf(BY_PLUGIN.values());
+    }
+
     /** How many plugins are using the module. */
     public static int registered() {
         return BY_PLUGIN.size();

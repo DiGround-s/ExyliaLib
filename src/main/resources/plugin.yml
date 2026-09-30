@@ -11,6 +11,9 @@ permissions:
   exylialib.updates:
     description: Review default changes shipped by plugin updates, and be told about them on join.
     default: op
+  exylialib.pendingrewards:
+    description: Review the rewards players are still owed, and give or cancel them.
+    default: op
 # Every Exylia plugin needs packetevents next to the library: the server refuses
 # to load either without it, rather than starting with its packet features dark.
 depend: [packetevents]

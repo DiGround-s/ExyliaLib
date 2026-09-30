@@ -5,6 +5,7 @@ import net.exylia.lib.database.Repository;
 import net.exylia.lib.debug.Debug;
 import net.exylia.lib.task.TaskScheduler;
 import net.exylia.lib.task.Tasks;
+import net.exylia.lib.util.reward.PendingBatch;
 import net.exylia.lib.util.reward.PendingRewardRow;
 import net.exylia.lib.util.reward.PendingRewards;
 import net.exylia.lib.util.reward.RewardEntry;
@@ -12,7 +13,9 @@ import org.bukkit.plugin.Plugin;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 /**
@@ -93,12 +96,7 @@ public final class DatabasePending implements PendingRewards {
      */
     @Override
     public @NotNull List<RewardEntry> claim(@NotNull UUID player) {
-        List<PendingRewardRow> held = rows.all()
-                .where("plugin", name)
-                .where("owner", player.toString())
-                .orderBy("owedAt")
-                .find()
-                .join();
+        List<PendingRewardRow> held = held(player);
         if (held.isEmpty()) return List.of();
 
         List<RewardEntry> owed = new ArrayList<>();
@@ -110,5 +108,60 @@ public final class DatabasePending implements PendingRewards {
             }
         }
         return owed;
+    }
+
+    @Override
+    public boolean browsable() {
+        return true;
+    }
+
+    /**
+     * {@inheritDoc}
+     *
+     * <p>Reads every row this plugin keeps, payloads included. Bounded by
+     * {@link #MOST_PER_PLAYER}, and only a staff screen asks.
+     */
+    @Override
+    public @NotNull Map<UUID, Integer> owed() {
+        Map<UUID, Integer> owed = new LinkedHashMap<>();
+        for (PendingRewardRow row : rows.all().where("plugin", name).orderBy("owedAt").find().join()) {
+            try {
+                owed.merge(UUID.fromString(row.owner()), 1, Integer::sum);
+            } catch (IllegalArgumentException unreadable) {
+                debug.warn("Pending reward " + row.id() + " names no player: " + row.owner());
+            }
+        }
+        return owed;
+    }
+
+    @Override
+    public @NotNull List<PendingBatch> peek(@NotNull UUID player) {
+        return held(player).stream()
+                .map(row -> new PendingBatch(row.id(), row.owedAt(), null, row.rewards()))
+                .toList();
+    }
+
+    /**
+     * {@inheritDoc}
+     *
+     * <p>Deleted before it is returned, and returned only when this call was
+     * the one that deleted it.
+     */
+    @Override
+    public @NotNull List<RewardEntry> take(@NotNull UUID player, @NotNull String batch) {
+        PendingRewardRow row = rows.find(batch).join().orElse(null);
+        if (row == null || !row.plugin().equals(name) || !row.owner().equals(player.toString())) {
+            return List.of();
+        }
+        return Boolean.TRUE.equals(rows.delete(row.id()).join()) ? row.rewards() : List.of();
+    }
+
+    private List<PendingRewardRow> held(UUID player) {
+        return rows.all()
+                .where("plugin", name)
+                .where("owner", player.toString())
+                .orderBy("owedAt")
+                .find()
+                .join();
     }
 }

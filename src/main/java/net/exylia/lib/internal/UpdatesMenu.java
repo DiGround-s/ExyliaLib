@@ -33,6 +33,8 @@ import java.util.function.Predicate;
 /**
  * The screens behind {@code /exylialib updates}: plugins, their files, and each change.
  *
+ * <p>Also compiles {@link PendingRewardsMenu}'s screens, which share its menus.
+ *
  * <p>The library ships no resource files, so the screens are YAML held here and
  * compiled like any plugin's menu. Which plugin and file a screen is showing lives
  * in its session context, never in a per-player map, so two admins reviewing at
@@ -92,6 +94,7 @@ public final class UpdatesMenu {
         actions.registerSync("updates_open", (context, arguments) -> openScope(context));
         actions.registerSync("updates_apply", (context, arguments) -> decide(context, true));
         actions.registerSync("updates_keep", (context, arguments) -> decide(context, false));
+        PendingRewardsMenu.init(plugin);
 
         PluginMenus built = Menus.of(plugin, NAMESPACE);
         load(built);
@@ -110,6 +113,7 @@ public final class UpdatesMenu {
     /** Forgets the screens, when the library disables. */
     public static void release() {
         menus = null;
+        PendingRewardsMenu.release();
     }
 
     /**
@@ -137,6 +141,9 @@ public final class UpdatesMenu {
         frame(changes);
         changesWords(changes);
         target.load(CHANGES, changes);
+        // Same namespace, same PluginMenus: unload() forgets every screen the
+        // library owns, so each reload has to compile all of them again.
+        PendingRewardsMenu.load(target);
     }
 
     private static YamlConfiguration yaml(String text) {

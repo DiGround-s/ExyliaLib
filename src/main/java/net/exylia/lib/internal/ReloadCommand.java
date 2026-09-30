@@ -219,6 +219,7 @@ public final class ReloadCommand {
                 + "\n" + Phrases.tr("{letters_black}▎ {secondary}Import {letters_black}» {letters}{muted}/exylialib import <plugin> <file> [force]{letters} — reads one back; force MERGES rather than replacing.")
                 + "\n" + Phrases.tr("{letters_black}▎ {secondary}Wipe {letters_black}» {letters}{muted}/exylialib wipe <plugin> <table|*>{letters} — empties tables, after a typed confirmation and an automatic dump.")
                 + "\n" + Phrases.tr("{letters_black}▎ {secondary}Updates {letters_black}» {letters}{muted}/exylialib updates{letters} — default changes plugin updates shipped, to apply or keep.")
+                + "\n" + Phrases.tr("{letters_black}▎ {secondary}Pending rewards {letters_black}» {letters}{muted}/exylialib pendingrewards [player]{letters} — rewards waiting to be delivered, to give now or cancel.")
         ).send(sender);
     }
 
@@ -832,6 +833,62 @@ public final class ReloadCommand {
      * {@code &l} stays open for the rest of the string, which is everything
      * else this text builds. Without the reset, the whole panel renders bold.
      */
+    /**
+     * Opens the rewards players are still owed, across every plugin.
+     *
+     * <p>A player gets the menu, straight on one player's batches when a name
+     * is given; the console gets a summary of who is owed what.
+     *
+     * @param sender who asked
+     * @param player whose rewards, or {@code null} for everybody
+     */
+    @Subcommand("pendingrewards")
+    @CommandPermission(PendingRewardsMenu.PERMISSION)
+    public void pendingRewards(@NotNull CommandSender sender,
+                               @Optional @SuggestWith(OnlinePlayers.class) @Nullable String player) {
+        if (!(sender instanceof org.bukkit.entity.Player viewer)) {
+            PendingRewardsMenu.panel(sender, header());
+            return;
+        }
+        if (player == null) {
+            PendingRewardsMenu.open(viewer);
+            return;
+        }
+        org.bukkit.OfflinePlayer target = known(player);
+        if (target == null) {
+            Text.of(header() + "\n" + Phrases.tr("{letters_black}▎ {error}Nobody called {0} has played here.", player))
+                    .send(sender);
+            return;
+        }
+        PendingRewardsMenu.open(viewer, target.getUniqueId(),
+                target.getName() != null ? target.getName() : player);
+    }
+
+    /**
+     * A player by name, online or not.
+     *
+     * <p>ponytail: walks every offline player when the name is not online; a
+     * lookup by the server's name cache if big servers ever feel it.
+     */
+    private static org.bukkit.OfflinePlayer known(String name) {
+        org.bukkit.entity.Player online = Bukkit.getPlayerExact(name);
+        if (online != null) return online;
+        for (org.bukkit.OfflinePlayer offline : Bukkit.getOfflinePlayers()) {
+            if (name.equalsIgnoreCase(offline.getName())) return offline;
+        }
+        return null;
+    }
+
+    /** Suggests the players who are online. */
+    public static final class OnlinePlayers implements SuggestionProvider<BukkitCommandActor> {
+
+        @Override
+        public java.util.Collection<String> getSuggestions(
+                @NotNull ExecutionContext<BukkitCommandActor> context) {
+            return Bukkit.getOnlinePlayers().stream().map(org.bukkit.entity.Player::getName).toList();
+        }
+    }
+
     /**
      * Lists the default changes that plugin updates shipped and nobody has decided on.
      *

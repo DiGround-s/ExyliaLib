@@ -5,6 +5,7 @@ import org.bukkit.plugin.Plugin;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 /**
@@ -102,4 +103,64 @@ public interface PendingRewards {
      * @return what they were owed, possibly empty
      */
     @NotNull List<RewardEntry> claim(@NotNull UUID player);
+
+    // ------------------------------------------------------------- inspection
+
+    // What /exylialib pendingrewards reads. Default methods, so a store written
+    // against an older library keeps loading; the screen shows it as a store
+    // it cannot look into rather than as a player who is owed nothing.
+
+    /**
+     * Whether this store answers {@link #owed}, {@link #peek} and {@link #take}.
+     *
+     * @return {@code true} when the three are implemented
+     * @since 1.220.0
+     */
+    default boolean browsable() {
+        return false;
+    }
+
+    /**
+     * Everybody who is owed something, and how many batches each.
+     *
+     * <p>Called off the main thread.
+     *
+     * @return batches owed, by player; empty when nobody is owed anything
+     * @throws UnsupportedOperationException when the store is not {@link #browsable()}
+     * @since 1.220.0
+     */
+    default @NotNull Map<UUID, Integer> owed() {
+        throw new UnsupportedOperationException(getClass().getName() + " cannot be browsed");
+    }
+
+    /**
+     * What a player is owed, oldest first, leaving it where it is.
+     *
+     * <p>Called off the main thread.
+     *
+     * @param player whose rewards
+     * @return the batches, possibly empty
+     * @throws UnsupportedOperationException when the store is not {@link #browsable()}
+     * @since 1.220.0
+     */
+    default @NotNull List<PendingBatch> peek(@NotNull UUID player) {
+        throw new UnsupportedOperationException(getClass().getName() + " cannot be browsed");
+    }
+
+    /**
+     * Takes one batch, leaving the rest.
+     *
+     * <p>The same promise as {@link #claim}: whatever comes back has already
+     * left the store, and a batch somebody else took first comes back empty,
+     * never twice. Called off the main thread.
+     *
+     * @param player whose batch
+     * @param batch  its {@link PendingBatch#id()}
+     * @return what it held, or empty when it was already gone
+     * @throws UnsupportedOperationException when the store is not {@link #browsable()}
+     * @since 1.220.0
+     */
+    default @NotNull List<RewardEntry> take(@NotNull UUID player, @NotNull String batch) {
+        throw new UnsupportedOperationException(getClass().getName() + " cannot be browsed");
+    }
 }
