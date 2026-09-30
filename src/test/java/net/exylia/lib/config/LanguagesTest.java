@@ -114,6 +114,19 @@ class LanguagesTest {
     }
 
     @Test
+    void aDirectoryAdoptedPieceByPieceStillArrivesWhole() throws Exception {
+        onDisk("lang-parts/admin/main.yml", "title: admin");
+        onDisk("lang-parts/shop.yml", "title: mine");
+
+        Languages.path(plugin, "lang-parts/admin");
+        Languages.path(plugin, "lang-parts");
+
+        assertEquals("title: admin", read("lang/custom/lang-parts/admin/main.yml"));
+        assertEquals("title: mine", read("lang/custom/lang-parts/shop.yml"));
+        assertFalse(Files.exists(folder.resolve("lang-parts")));
+    }
+
+    @Test
     void aTranslationIsLaidOverEnglish() throws Exception {
         pack("lang/en/lang-layers/main.yml", "title: Main\nfooter: Close\n");
         pack("lang/en/lang-layers/other.yml", "title: Other\n");

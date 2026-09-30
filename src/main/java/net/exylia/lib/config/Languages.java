@@ -193,33 +193,65 @@ public final class Languages {
     /**
      * Moves a file from before translations into {@code lang/custom/}.
      *
-     * <p>Only when nothing is there yet, so it can never overwrite a custom
+     * <p>Never over a file already there, so it can never overwrite a custom
      * translation. Its reviewed defaults move with it, or every edit would look
      * like a pending update the first time the file is compared.
      */
     private static void adopt(Plugin plugin, Path relative) {
         Path dataFolder = plugin.getDataFolder().toPath().toAbsolutePath().normalize();
         Path legacy = BundledResources.inside(dataFolder, relative);
-        Path adopted = dataFolder.resolve(FOLDER).resolve(CUSTOM).resolve(relative);
-        if (!Files.exists(legacy) || Files.exists(adopted)) {
+        if (!Files.exists(legacy)) {
             return;
         }
         try {
-            BundledResources.move(legacy, adopted);
+            boolean moved = merge(legacy, dataFolder.resolve(FOLDER).resolve(CUSTOM).resolve(relative));
             for (String kind : List.of("files", "configs")) {
                 Path reviewed = dataFolder.resolve(".defaults").resolve(kind);
                 if (Files.exists(reviewed.resolve(relative))) {
-                    BundledResources.move(reviewed.resolve(relative),
-                            reviewed.resolve(FOLDER).resolve(CUSTOM).resolve(relative));
+                    merge(reviewed.resolve(relative), reviewed.resolve(FOLDER).resolve(CUSTOM).resolve(relative));
                 }
             }
             removeEmptyParents(dataFolder, legacy.getParent());
-            Debug.of(plugin).log("Moved " + slashed(relative) + " to " + FOLDER + "/" + CUSTOM + "/"
-                    + slashed(relative) + " so the edits it holds are kept.");
+            if (moved) {
+                Debug.of(plugin).log("Moved " + slashed(relative) + " to " + FOLDER + "/" + CUSTOM + "/"
+                        + slashed(relative) + " so the edits it holds are kept.");
+            }
         } catch (IOException | SecurityException failure) {
             Debug.of(plugin).warn("Could not move " + slashed(relative) + " into " + FOLDER + "/"
                     + CUSTOM + "/: " + failure.getMessage());
         }
+    }
+
+    /**
+     * Moves a file or directory to where it is adopted, file by file into a
+     * directory that already exists.
+     *
+     * <p>A directory adopted piece by piece — {@code menus/admin} before the
+     * rest of {@code menus} — still arrives whole. A file already at its new
+     * place is never overwritten, and its old copy stays where it was.
+     *
+     * @return whether anything moved
+     */
+    private static boolean merge(Path from, Path to) throws IOException {
+        if (Files.notExists(to)) {
+            BundledResources.move(from, to);
+            return true;
+        }
+        if (!Files.isDirectory(from) || !Files.isDirectory(to)) {
+            return false;
+        }
+        boolean moved = false;
+        try (var children = Files.list(from)) {
+            for (Path child : children.toList()) {
+                moved |= merge(child, to.resolve(child.getFileName().toString()));
+            }
+        }
+        try (var left = Files.list(from)) {
+            if (left.findAny().isEmpty()) {
+                Files.delete(from);
+            }
+        }
+        return moved;
     }
 
     private static void removeEmptyParents(Path dataFolder, Path directory) throws IOException {
