@@ -1,6 +1,7 @@
 package net.exylia.lib.config;
 
 import net.exylia.lib.config.internal.ConfigFileImpl;
+import net.exylia.lib.config.internal.MovedValues;
 import net.exylia.lib.config.internal.SchemaCache;
 import org.bukkit.plugin.Plugin;
 import org.jetbrains.annotations.NotNull;
@@ -85,6 +86,56 @@ public final class Configs {
     }
 
     /**
+     * A migration that moves keys out of this file and into another of the
+     * same plugin.
+     *
+     * <p>For text leaving a settings file for a messages file: the owner's
+     * values arrive at the new paths whichever file loads first, and a value
+     * still at its English default is not carried, so a translated file keeps
+     * its translation.
+     *
+     * <pre>{@code
+     * Configs.define(this, "config", Settings.class)
+     *         .version(3)
+     *         .migration(2, Configs.moveTo(this, "messages", Map.of(
+     *                 "combat.action-bar", "combat.action-bar")))
+     *         .load();
+     * }</pre>
+     *
+     * @param plugin the plugin owning both files
+     * @param target the target's name as declared, such as {@code messages}
+     *               or {@code modules/homes/messages}
+     * @param paths  each old path in this file mapped to its path in the target;
+     *               a section moves with everything under it
+     * @return the migration step
+     * @since 1.218.0
+     */
+    public static @NotNull Migration moveTo(@NotNull Plugin plugin, @NotNull String target,
+                                            @NotNull Map<String, String> paths) {
+        Map<String, String> copy = Map.copyOf(paths);
+        return data -> copy.forEach((from, to) -> {
+            MovedValues.hold(plugin.getName(), target, to, data.get(from));
+            data.remove(from);
+        });
+    }
+
+    /**
+     * Reloads the files of a plugin that were read before values moved into them.
+     *
+     * <p>Called by the config module after every load. Consumers do not need
+     * to call this.
+     *
+     * @param plugin the plugin
+     */
+    public static void deliverMoved(@NotNull Plugin plugin) {
+        for (ConfigFileImpl<?> file : FILES.values()) {
+            if (file.ownedBy(plugin) && file.awaitsMoved()) {
+                file.reload();
+            }
+        }
+    }
+
+    /**
      * Reloads every config file declared by a plugin.
      *
      * <p>Intended for a {@code /reload} command. Files are reloaded one by one,
@@ -128,6 +179,7 @@ public final class Configs {
      */
     public static void release(@NotNull String pluginName) {
         FILES.values().removeIf(file -> file.pluginName().equals(pluginName));
+        MovedValues.release(pluginName);
         SchemaCache.release(pluginName);
     }
 

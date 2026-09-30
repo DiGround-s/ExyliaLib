@@ -2,6 +2,7 @@ package net.exylia.lib.config.internal;
 
 import net.exylia.lib.config.ConfigFile;
 import net.exylia.lib.config.ConfigIssue;
+import net.exylia.lib.config.Configs;
 import net.exylia.lib.config.Languages;
 import net.exylia.lib.config.Migration;
 import net.exylia.lib.config.Schema;
@@ -204,6 +205,26 @@ public final class ConfigFileImpl<T> implements ConfigFile<T> {
     // Loading
     // ------------------------------------------------------------------
 
+    /**
+     * Takes the values another file's migration moved into this one.
+     *
+     * <p>Compared with the English defaults so an untouched default never
+     * overwrites a translation.
+     */
+    private boolean receiveMoved(YamlConfiguration yaml) {
+        if (!MovedValues.waiting(plugin.getName(), name)) {
+            return false;
+        }
+        YamlConfiguration english = new YamlConfiguration();
+        Binder.write(english, schema, recordDefaults(), recordDefaults(), "");
+        return MovedValues.deliver(plugin.getName(), name, yaml, english);
+    }
+
+    /** Whether values moved from another file are waiting for this one. */
+    public boolean awaitsMoved() {
+        return MovedValues.waiting(plugin.getName(), name);
+    }
+
     /** Finds the file, which for a translated one depends on {@code config.yml}. */
     private void locate() {
         String located = translated
@@ -233,6 +254,7 @@ public final class ConfigFileImpl<T> implements ConfigFile<T> {
         // step was meant to carry across, so the file stays exactly as it is
         // and the next start tries again.
         followDefaults(yaml, existed);
+        boolean received = receiveMoved(yaml);
 
         T bound = Binder.read(yaml, schema, defaults(), "", name, found);
         values = bound;
@@ -242,12 +264,15 @@ public final class ConfigFileImpl<T> implements ConfigFile<T> {
         // re-quotes the owner's hand edits, so a plain start leaves it alone.
         boolean addedKeys = found.stream().anyMatch(issue -> issue.type() == ConfigIssue.Type.MISSING_KEY);
         boolean prunedKeys = found.stream().anyMatch(issue -> issue.type() == ConfigIssue.Type.UNKNOWN_KEY);
-        if (!migrationFailed && (!existed || migrated || addedKeys || prunedKeys)) {
+        if (!migrationFailed && (!existed || migrated || received || addedKeys || prunedKeys)) {
             render(yaml, bound);
             writeFile(yaml);
         }
 
         issues = List.copyOf(found);
+        // A migration of this file may have taken values for another one that
+        // was already read, which reads them now rather than next start.
+        Configs.deliverMoved(plugin);
         return issues;
     }
 

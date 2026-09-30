@@ -198,6 +198,58 @@ class LanguagesTest {
         assertTrue(read("lang/custom/lang-old.yml").contains("Howdy"));
     }
 
+    record Source(int size) {
+        Source() {
+            this(3);
+        }
+    }
+
+    private ConfigFile<Source> source() {
+        return Configs.define(plugin, "lang-source", Source.class)
+                .version(2)
+                .migration(1, Configs.moveTo(plugin, "lang-target", java.util.Map.of("bar", "farewell")))
+                .load();
+    }
+
+    @Test
+    void movedTextReachesATargetReadBefore() throws Exception {
+        onDisk("lang-source.yml", "size: 5\nbar: Later\n");
+        ConfigFile<Messages> target = Configs.define(plugin, "lang-target", Messages.class).load();
+
+        source();
+
+        assertEquals("Later", target.get().farewell());
+        assertFalse(read("lang-source.yml").contains("bar:"));
+        assertTrue(read("lang-target.yml").contains("Later"));
+    }
+
+    @Test
+    void movedTextReachesATargetReadAfter() throws Exception {
+        onDisk("lang-source.yml", "size: 5\nbar: Later\n");
+        onDisk("lang-target.yml", "greeting: Hi\n");
+
+        source();
+        ConfigFile<Messages> target = Configs.define(plugin, "lang-target", Messages.class).load();
+
+        assertEquals("Later", target.get().farewell());
+        assertEquals("Hi", target.get().greeting());
+    }
+
+    @Test
+    void anUntouchedEnglishDefaultNeverCoversATranslation() throws Exception {
+        pack("lang/es/lang-moved.yml", "farewell: Adios\n");
+        onDisk("config.yml", "language: es\n");
+        onDisk("lang-source.yml", "size: 5\nbar: Bye\n");
+
+        Configs.define(plugin, "lang-source", Source.class)
+                .version(2)
+                .migration(1, Configs.moveTo(plugin, "lang-moved", java.util.Map.of("bar", "farewell")))
+                .load();
+        ConfigFile<Messages> target = Configs.define(plugin, "lang-moved", Messages.class).translated().load();
+
+        assertEquals("Adios", target.get().farewell());
+    }
+
     @Test
     void aCodeThatIsNotOneFallsBackToEnglish() throws Exception {
         onDisk("config.yml", "language: '../../etc'\n");
