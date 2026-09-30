@@ -32,7 +32,8 @@ final class Previews {
                     ? " " + entry.currency()
                     : " coins");
             case EXPERIENCE -> amounts(entry) + " XP";
-            case POTION -> orMissing(entry.value());
+            case POTION -> entry.value() == null || entry.value().isBlank() ? orMissing(entry.value())
+                    : net.exylia.lib.util.Effects.describe(entry.value());
         };
     }
 

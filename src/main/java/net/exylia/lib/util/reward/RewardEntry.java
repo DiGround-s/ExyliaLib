@@ -130,7 +130,7 @@ public final class RewardEntry {
      *
      * <p>An amount for {@link RewardType#ECONOMY} and
      * {@link RewardType#EXPERIENCE}, and a potion string such as
-     * {@code SPEED:1:300} for {@link RewardType#POTION}.
+     * {@code SPEED|2|15} for {@link RewardType#POTION}.
      *
      * @since 1.34.0
      */
@@ -371,7 +371,7 @@ public final class RewardEntry {
      * A reward that applies a potion effect.
      *
      * @param effect the effect, written as {@link net.exylia.lib.util.Effects}
-     *               reads it: {@code SPEED:1:300}
+     *               reads it, one per line: {@code SPEED|2|15}
      * @since 1.34.0
      */
     public static @NotNull Builder potion(@NotNull String effect) {

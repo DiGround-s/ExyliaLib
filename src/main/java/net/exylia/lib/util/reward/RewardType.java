@@ -49,7 +49,7 @@ public enum RewardType {
 
     /**
      * Applies a potion effect, written the way {@link net.exylia.lib.util.Effects}
-     * reads it: {@code SPEED:1:300}.
+     * reads it, one per line: {@code SPEED|2|15}.
      *
      * @since 1.34.0
      */

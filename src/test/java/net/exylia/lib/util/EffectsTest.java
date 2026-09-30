@@ -397,4 +397,14 @@ class EffectsTest {
         assertEquals(0, applied.size());
         assertEquals(0, removed.size());
     }
+
+    @Test
+    @DisplayName("several effects join one per line and read back as a person says them")
+    void joinAndDescribe() {
+        String lines = Effects.join(Effects.parse(List.of("SLOWNESS|6|3", "POISON|1|4|false")));
+        assertEquals("SLOWNESS|6|3\nPOISON|1|4|false|true", lines);
+        assertEquals(2, Effects.parse(lines.lines().toList()).size());
+        assertEquals("none", Effects.describe(""));
+        assertEquals(true, Effects.describe(lines).startsWith("Slowness VI"));
+    }
 }

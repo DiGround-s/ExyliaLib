@@ -325,7 +325,7 @@ final class MobMoves {
         long endsAt = System.currentTimeMillis() + millis;
         double radius = zoneRadius(skill);
         double perPulse = skill.amount() * ZONE_TICKS / 20.0;
-        PotionEffect potion = skill.text().isBlank() ? null : engine.potionOf(mob, skill);
+        java.util.List<PotionEffect> potions = engine.potionsOf(mob, skill);
         Zone zone = new Zone(mob);
         mob.linger(zone.stopper);
         zone.look = shows.zone(stage, centre, riding ? entity : null, radius, millis);
@@ -342,7 +342,7 @@ final class MobMoves {
             int count = pulses.incrementAndGet();
             for (Player player : playersAround(at, radius)) {
                 if (perPulse > 0) hurt(entity, mob, player, perPulse);
-                if (potion != null) player.addPotionEffect(potion);
+                player.addPotionEffects(potions);
             }
             if (riding) shows.zoneTick(stage, at, count);
         };

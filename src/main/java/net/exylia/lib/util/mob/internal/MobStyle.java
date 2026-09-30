@@ -1535,9 +1535,9 @@ enum MobStyle {
         return upper.isEmpty() || upper.contains("FIREBALL");
     }
 
-    /** A potion line's length in milliseconds: {@code NAME|LEVEL|SECONDS}, 3 s when it says none. */
-    static long potionMillis(String line) {
-        String[] parts = line.split("\\|");
+    /** The first potion line's length in milliseconds: {@code NAME|LEVEL|SECONDS}, 3 s when it says none. */
+    static long potionMillis(String lines) {
+        String[] parts = lines.lines().findFirst().orElse("").split("\\|");
         if (parts.length < 3) return 3000L;
         try {
             return Math.round(Double.parseDouble(parts[2].trim()) * 1000);

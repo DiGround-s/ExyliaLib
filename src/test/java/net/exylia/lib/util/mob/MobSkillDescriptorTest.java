@@ -60,18 +60,15 @@ class MobSkillDescriptorTest {
     }
 
     @Test
-    @DisplayName("the potion fields write a line back, keep its display flags, and leave the lines alone")
-    void potionRoundTrip() throws ReflectiveOperationException {
-        MobSkill skill = MobSkill.of(MobSkill.Type.POTION, MobSkill.Trigger.INTERVAL)
-                .withText("SLOWNESS|1|5|false").withEffect("[SOUND] X;1;1");
-
-        MobSkill edited = MobSkillDescriptor.rebuild(skill, values(Map.of("potion", "slowness",
-                "potion_level", 6L, "potion_time", java.time.Duration.ofMillis(2500))));
-
-        assertEquals("SLOWNESS|6|2.5|false", edited.text());
-        assertEquals("[SOUND] X;1;1", edited.effect(), "the lines are edited under LOOK, not wiped here");
-        assertEquals("", MobSkillDescriptor.potionLine("POISON|1|3", values(Map.of("potion", "none"))));
-        assertEquals("POISON|1|3", MobSkillDescriptor.potionLine("POISON|1|3", values(Map.of())));
+    @DisplayName("a potion's or an effect's text is kept by the form, which no longer types it")
+    void listTextKept() throws ReflectiveOperationException {
+        MobSkill potion = MobSkill.of(MobSkill.Type.POTION, MobSkill.Trigger.INTERVAL)
+                .withText("SLOWNESS|6|3\nPOISON|2|4").withEffect("[SOUND] X;1;1");
+        MobSkill edited = MobSkillDescriptor.rebuild(potion, values(Map.of("radius", new BigDecimal("5"))));
+        assertEquals("SLOWNESS|6|3\nPOISON|2|4", edited.text());
+        assertEquals("[SOUND] X;1;1", edited.effect());
+        MobSkill effect = MobSkill.of(MobSkill.Type.EFFECT, MobSkill.Trigger.INTERVAL).withText("[SOUND] X;1;1");
+        assertEquals("[SOUND] X;1;1", MobSkillDescriptor.rebuild(effect, values(Map.of())).text());
     }
 
     @Test

@@ -87,9 +87,9 @@ final class MobPhaseDescriptor implements EditorDescriptor<MobPhase> {
                 .hint("Hits left in hits mode. Between 0 and 100.")
                 .field(SUFFIX, PluginMobs.optionalText(SUFFIX, "Name gains", phase.suffix()))
                 .hint("Added to its name while in this phase, such as &c⚡. NONE for none.")
-                .field(STYLE, PluginMobs.optionalText(STYLE, "Style", phase.style()))
-                .hint("How the change looks, the mob held still 1.2s for it: enrage by default, or any skill style "
-                        + "(nova, burst, portal...). NONE for none, which also skips the hold.")
+                .choice(STYLE, "Style", phase.style().isBlank() ? DEFAULT_STYLE : phase.style().toLowerCase(java.util.Locale.ROOT),
+                        MobSkillDescriptor.options(styles(), phase.style().toLowerCase(java.util.Locale.ROOT)))
+                .hint("How the change looks, the mob held still 1.2s for it. Default is enrage; none also skips the hold.")
                 .decimal(SPEED, "Speed, times its own", MobSkillDescriptor.decimal(phase.speed()))
                 .decimal(DAMAGE, "Damage, times its own", MobSkillDescriptor.decimal(phase.damage()))
                 .decimal(RESIST, "Resistance", MobSkillDescriptor.decimal(phase.resist()))
@@ -100,11 +100,26 @@ final class MobPhaseDescriptor implements EditorDescriptor<MobPhase> {
     static MobPhase rebuild(MobPhase phase, FormValues values) {
         String suffix = values.getOr(SUFFIX, "");
         return new MobPhase(read(values, BELOW, phase.below() * 100) / 100,
-                values.getOr(STYLE, "").trim(),
+                style(values.getOr(STYLE, "")),
                 suffix.trim().equalsIgnoreCase("NONE") ? "" : suffix,
                 read(values, SPEED, phase.speed()),
                 read(values, DAMAGE, phase.damage()),
                 read(values, RESIST, phase.resist()));
+    }
+
+    /** The phase styles offered: the default, none, then every skill style. */
+    private static final String DEFAULT_STYLE = "default";
+
+    private static java.util.List<String> styles() {
+        java.util.List<String> styles = new java.util.ArrayList<>(List.of(DEFAULT_STYLE));
+        styles.add(MobSkills.NO_STYLE);
+        styles.addAll(MobSkills.STYLES);
+        return styles;
+    }
+
+    private static String style(String picked) {
+        String style = picked.trim();
+        return style.equalsIgnoreCase(DEFAULT_STYLE) ? "" : style;
     }
 
     private static double read(FormValues values, FormKey<BigDecimal> key, double current) {

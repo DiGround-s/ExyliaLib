@@ -281,6 +281,76 @@ public final class Effects {
     }
 
     /**
+     * Edits effect lines on the potion effect screen and hands back what was
+     * saved: the way a form that holds effects as text asks for them, so nobody
+     * types {@code NAME|LEVEL|SECONDS} and one field can hold several.
+     *
+     * <pre>{@code
+     * Effects.edit(plugin, player, "{primary}&lEFFECTS", skill.text())
+     *        .thenAccept(edited -> edited.ifPresent(lines -> save(skill.withText(lines))));
+     * }</pre>
+     *
+     * @param lines the effects as they stand, one line each; blank for none.
+     *              A line nothing reads is dropped
+     * @return the effects saved, one line each, blank when every row was
+     *         removed; nothing when the viewer backed out
+     * @since 1.210.0
+     */
+    public static @NotNull java.util.concurrent.CompletionStage<java.util.Optional<String>> edit(
+            @NotNull org.bukkit.plugin.Plugin plugin, @NotNull Player viewer, @NotNull String title,
+            @NotNull String lines) {
+        java.util.concurrent.CompletableFuture<java.util.Optional<String>> answer =
+                new java.util.concurrent.CompletableFuture<>();
+        editor(plugin, parse(lines.lines().toList()))
+                .title(title)
+                .onSave(edited -> answer.complete(java.util.Optional.of(join(edited))))
+                .onCancel(() -> answer.complete(java.util.Optional.empty()))
+                .open(viewer);
+        return answer;
+    }
+
+    /**
+     * Effects as text, one line each: what {@link #edit} hands back.
+     *
+     * @since 1.210.0
+     */
+    public static @NotNull String join(@NotNull List<ParsedEffect> effects) {
+        StringBuilder joined = new StringBuilder();
+        for (ParsedEffect effect : effects) {
+            if (!joined.isEmpty()) joined.append('\n');
+            joined.append(effect.line());
+        }
+        return joined.toString();
+    }
+
+    /**
+     * Effect lines as a person reads them, for a lore line or a hint:
+     * {@code Slowness VI 3s, Poison II 4s}.
+     *
+     * @param lines one effect per line
+     * @return the summary, or {@code none}
+     * @since 1.210.0
+     */
+    public static @NotNull String describe(@NotNull String lines) {
+        List<ParsedEffect> effects = parse(lines.lines().toList());
+        if (effects.isEmpty()) return "none";
+        List<String> parts = new ArrayList<>(effects.size());
+        for (ParsedEffect effect : effects) {
+            String name = effect.name().toLowerCase(java.util.Locale.ROOT).replace('_', ' ');
+            String level = effect.amplifier() > 0 ? " " + roman(effect.amplifier() + 1) : "";
+            String time = effect.duration() == INFINITE ? "" : " " + net.exylia.lib.util.TimeFormats
+                    .render(effect.duration() / (double) TICKS_PER_SECOND);
+            parts.add(Character.toUpperCase(name.charAt(0)) + name.substring(1) + level + time);
+        }
+        return String.join(", ", parts);
+    }
+
+    private static String roman(int level) {
+        String[] numerals = {"", "I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X"};
+        return level < numerals.length ? numerals[level] : String.valueOf(level);
+    }
+
+    /**
      * An effect spec: name, amplifier and duration in ticks. No Bukkit types.
      *
      * <p>The amplifier is Bukkit's — zero-based, so what a config writes as

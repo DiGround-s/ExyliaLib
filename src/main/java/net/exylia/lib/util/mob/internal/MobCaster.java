@@ -436,8 +436,8 @@ final class MobCaster {
                 hit.forEach(body -> body.setVelocity(MobEngine.flat(centre, body.getLocation()).multiply(strength).setY(0.45)));
             }
             case POTION -> {
-                PotionEffect effect = engine.potionOf(mob, skill);
-                if (effect != null) hit.forEach(body -> body.addPotionEffect(effect));
+                List<PotionEffect> effects = engine.potionsOf(mob, skill);
+                hit.forEach(body -> body.addPotionEffects(effects));
             }
             case LIGHTNING -> {
                 if (hit.isEmpty()) point.getWorld().strikeLightningEffect(point);

@@ -563,21 +563,23 @@ public final class PluginMobs {
         List<String> bodies = MobLook.bodies(type);
         EditorForm form = EditorForm.of(plugin, viewer, "{primary}&lAPPEARANCE");
         if (!variants.isEmpty()) {
-            form.field(variant, optionalText(variant, "Variant", look.variant())).hint(choices(variants));
+            pick(form, variant, "Variant", look.variant(), variants, true).hint("CYCLE changes it every second.");
         }
         if (!bodies.isEmpty()) {
-            form.field(body, optionalText(body, "Worn on its back", look.body())).hint(choices(bodies));
+            pick(form, body, "Worn on its back", look.body(), bodies, true);
         }
-        form.field(glow, optionalText(glow, "Outline colour", look.glow()))
-                .hint(choices(MobLook.GLOWS) + " Any value makes it glow.");
-        Collection<String> auraNames = engine.auras().keySet();
-        form.field(aura, optionalText(aura, "Aura", look.aura()))
-                .hint(auraNames.isEmpty() ? "No auras are registered. NONE for none." : choices(List.copyOf(auraNames)));
+        pick(form, glow, "Outline colour", look.glow(), MobLook.GLOWS, true).hint("Anything but NONE makes it glow.");
+        List<String> auraNames = List.copyOf(engine.auras().keySet());
+        if (auraNames.isEmpty()) {
+            form.field(aura, optionalText(aura, "Aura", look.aura())).hint("No auras are registered. NONE for none.");
+        } else {
+            pick(form, aura, "Aura", look.aura(), auraNames, false);
+        }
         return form.ask(values -> look
-                .withVariant(variants.isEmpty() ? look.variant() : values.getOr(variant, ""))
-                .withBody(bodies.isEmpty() ? look.body() : values.getOr(body, ""))
-                .withGlow(values.getOr(glow, ""))
-                .withAura(values.getOr(aura, "")));
+                .withVariant(variants.isEmpty() ? look.variant() : none(values.getOr(variant, "")))
+                .withBody(bodies.isEmpty() ? look.body() : none(values.getOr(body, "")))
+                .withGlow(none(values.getOr(glow, "")))
+                .withAura(none(values.getOr(aura, ""))));
     }
 
     /** The reactions a look can set, in the order the menu lists them. */
@@ -751,8 +753,21 @@ public final class PluginMobs {
         return FormField.text(key, label).defaultValue(current).optional();
     }
 
-    private static String choices(List<String> names) {
-        return String.join(", ", names).toLowerCase(Locale.ROOT) + ", CYCLE or RANDOM. NONE for vanilla.";
+    /** A part picked from its names, NONE first, and CYCLE and RANDOM when the part has them. */
+    private static EditorForm pick(EditorForm form, FormKey<String> key, String label, String current,
+                                   List<String> names, boolean rolls) {
+        List<String> keys = new java.util.ArrayList<>();
+        keys.add(NONE);
+        if (rolls) keys.addAll(List.of(MobLook.CYCLE, MobLook.RANDOM));
+        keys.addAll(names);
+        String shown = current.isBlank() ? NONE : current;
+        return form.choice(key, label, shown, MobSkillDescriptor.options(keys, shown));
+    }
+
+    private static final String NONE = "NONE";
+
+    private static String none(String picked) {
+        return picked.trim().equalsIgnoreCase(NONE) ? "" : picked.trim();
     }
 
     private static @Nullable Duration zeroAsBlank(Duration duration) {

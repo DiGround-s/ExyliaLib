@@ -711,7 +711,7 @@ final class MobShows {
     @SuppressWarnings("deprecation")
     static int potionColour(String line, int fallback) {
         try {
-            Effects.ParsedEffect parsed = Effects.parse(line);
+            Effects.ParsedEffect parsed = Effects.parse(line.lines().findFirst().orElse(""));
             PotionEffectType type = parsed == null ? null : PotionEffectType.getByName(parsed.name());
             return type == null ? fallback : type.getColor().asRGB();
         } catch (RuntimeException | LinkageError noServer) {

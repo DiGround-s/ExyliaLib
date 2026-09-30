@@ -1225,27 +1225,36 @@ public final class MobEngine implements Listener {
      * @return who it reached
      */
     List<LivingEntity> potion(LivingEntity entity, LiveMob mob, MobSkill skill, @Nullable LivingEntity target) {
-        PotionEffect effect = potionOf(mob, skill);
-        if (effect == null) return List.of();
+        List<PotionEffect> effects = potionsOf(mob, skill);
+        if (effects.isEmpty()) return List.of();
         List<LivingEntity> reached = new ArrayList<>();
         if (skill.radius() > 0) {
             reached.addAll(playersNear(entity, skill.radius()));
         } else if (target != null) {
             reached.add(target);
         }
-        reached.forEach(body -> body.addPotionEffect(effect));
+        reached.forEach(body -> body.addPotionEffects(effects));
         return reached;
     }
 
-    /** A potion skill's effect, or {@code null}, reported once, when its line names none. */
-    @Nullable PotionEffect potionOf(LiveMob mob, MobSkill skill) {
-        ParsedEffect parsed = Effects.parse(skill.text());
-        PotionEffect effect = parsed == null ? null : potion(parsed);
-        if (effect == null) {
-            report("potion:" + mob.template().id() + ":" + skill.text(), "Mob " + mob.template().id()
-                    + ": " + skill.text() + " is not a potion effect line such as SLOWNESS|2|5.");
+    /**
+     * A potion skill's effects, one per line (several since 1.210.0); a line
+     * that names none is skipped and reported once.
+     */
+    List<PotionEffect> potionsOf(LiveMob mob, MobSkill skill) {
+        List<PotionEffect> effects = new ArrayList<>(1);
+        for (String line : skill.text().lines().toList()) {
+            if (line.isBlank()) continue;
+            ParsedEffect parsed = Effects.parse(line);
+            PotionEffect effect = parsed == null ? null : potion(parsed);
+            if (effect == null) {
+                report("potion:" + mob.template().id() + ":" + line, "Mob " + mob.template().id()
+                        + ": " + line + " is not a potion effect line such as SLOWNESS|2|5.");
+            } else {
+                effects.add(effect);
+            }
         }
-        return effect;
+        return effects;
     }
 
     // ---------------------------------------------------------------- helpers

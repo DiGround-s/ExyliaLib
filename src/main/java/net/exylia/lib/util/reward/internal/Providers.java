@@ -14,6 +14,7 @@ import org.bukkit.entity.Player;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+import java.util.List;
 import java.math.BigDecimal;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -186,10 +187,14 @@ public final class Providers {
         if (effect == null || effect.isBlank()) {
             return RewardResult.failed(entry, "names no effect");
         }
-        if (Effects.parse(effect) == null) {
-            return RewardResult.failed(entry, "has an effect that could not be read: " + effect);
+        // One effect per line since 1.210.0; a line nothing reads fails the reward before any is given.
+        List<String> lines = effect.lines().filter(line -> !line.isBlank()).toList();
+        for (String line : lines) {
+            if (Effects.parse(line) == null) {
+                return RewardResult.failed(entry, "has an effect that could not be read: " + line);
+            }
         }
-        Effects.apply(player, effect);
+        Effects.apply(player, lines);
         return RewardResult.given(entry);
     }
 

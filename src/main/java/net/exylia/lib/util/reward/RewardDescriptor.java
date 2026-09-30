@@ -59,6 +59,7 @@ public final class RewardDescriptor implements EditorDescriptor<RewardEntry> {
 
     private static final FormKey<String> NAME = FormKey.text("name");
     private static final FormKey<Boolean> ICON = FormKey.flag("icon");
+    private static final FormKey<Boolean> EFFECTS = FormKey.flag("effects");
     private static final FormKey<String> PAYLOAD = FormKey.text("payload");
     private static final FormKey<String> CURRENCY = FormKey.text("currency");
     private static final FormKey<Long> MINIMUM = FormKey.integer("minimum");
@@ -421,7 +422,14 @@ public final class RewardDescriptor implements EditorDescriptor<RewardEntry> {
                 .flag(ICON, isItem ? "Change the item" : "Change the icon", false)
                 .hint(iconHint(entry));
 
-        boolean payload = !isItem;
+        boolean potion = entry.type() == RewardType.POTION;
+        boolean payload = !isItem && !potion;
+        if (potion) {
+            // Picked on the effect screen, never typed: several at once, levels as the game shows them.
+            form.flag(EFFECTS, "Change the effects", entry.value() == null || entry.value().isBlank())
+                    .hint("now " + net.exylia.lib.util.Effects.describe(payloadOf(entry))
+                            + "; the effect list opens after submitting");
+        }
         if (payload) {
             form.text(PAYLOAD, payloadLabel(entry.type()), payloadOf(entry), payloadLines(entry.type()))
                     .hint(payloadHint(entry.type()));
@@ -446,16 +454,29 @@ public final class RewardDescriptor implements EditorDescriptor<RewardEntry> {
         boolean withCurrency = entry.type() == RewardType.ECONOMY;
         return form.<Draft>ask(values -> new Draft(
                         rebuild(entry, values, withPayload, withAmounts, withCurrency),
-                        values.getBoolean(ICON)))
-                .thenCompose(draft -> draft.isEmpty()
-                        ? CompletableFuture.completedFuture(Optional.<RewardEntry>empty())
-                        : draft.get().pick()
-                                ? pickIcon(viewer, draft.get().entry())
-                                : CompletableFuture.completedFuture(Optional.of(draft.get().entry())));
+                        values.getBoolean(ICON), potion && values.getOr(EFFECTS, false)))
+                .thenCompose(draft -> {
+                    if (draft.isEmpty()) return CompletableFuture.completedFuture(Optional.<RewardEntry>empty());
+                    Draft answered = draft.get();
+                    CompletionStage<RewardEntry> withEffects = answered.effects()
+                            ? pickEffects(viewer, answered.entry())
+                            : CompletableFuture.completedFuture(answered.entry());
+                    return withEffects.thenCompose(edited -> answered.pick()
+                            ? pickIcon(viewer, edited)
+                            : CompletableFuture.completedFuture(Optional.of(edited)));
+                });
     }
 
-    /** What the form answered, and whether the icon question follows it. */
-    private record Draft(RewardEntry entry, boolean pick) {
+    /** What the form answered, and whether the effect and icon questions follow it. */
+    private record Draft(RewardEntry entry, boolean pick, boolean effects) {
+    }
+
+    /** The potion effects, on the effect screen; backing out keeps what it had. */
+    private CompletionStage<RewardEntry> pickEffects(Player viewer, RewardEntry entry) {
+        String current = entry.value() == null ? "" : entry.value();
+        return net.exylia.lib.util.Effects.edit(plugin, viewer, "{primary}&lWHAT EFFECTS?", current)
+                .thenApply(edited -> edited.map(lines -> entry.toBuilder().value(blankToNull(lines)).build())
+                        .orElse(entry));
     }
 
     /**
@@ -529,7 +550,7 @@ public final class RewardDescriptor implements EditorDescriptor<RewardEntry> {
             case MESSAGE -> "Message to send";
             case ECONOMY -> "How much money";
             case EXPERIENCE -> "How much experience";
-            case POTION -> "Effect, as SPEED:1:300";
+            case POTION -> "Effects";
             case ITEM -> "Item";
         };
     }

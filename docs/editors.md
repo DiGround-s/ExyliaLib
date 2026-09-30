@@ -24,7 +24,7 @@ library ships the editors as well as the machine.
 | `Rewards.of(plugin).editor(rewards)` | [rewards](rewards.md) |
 | `Loot.editor(plugin, entries)` | [loot tables](loot.md) |
 | `NamedCommands.editor(plugin, commands)` | named console commands |
-| `Effects.editor(plugin, effects)` | potion effects |
+| `Effects.editor(plugin, effects)` | potion effects; `Effects.edit(plugin, viewer, title, lines)` (1.210.0) opens it for effect lines held as text and hands back the lines saved, as `sequences.editLines` does for sequence lines |
 | `Sequences.of(plugin).editor(effects)` | effects with odds, conditions and an audience |
 | `Mobs.of(plugin).skillsEditor(skills)` | a custom mob's [skills](mobs.md) |
 | `Editors.of(plugin).items(items)` | real items — kits, shop stock |
