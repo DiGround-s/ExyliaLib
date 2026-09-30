@@ -32,7 +32,7 @@ class LanguagesTest {
 
     record Settings(String language, int size) {
         Settings() {
-            this(Languages.ENGLISH, 3);
+            this(Languages.DEFAULT, 3);
         }
     }
 
@@ -83,7 +83,8 @@ class LanguagesTest {
 
     @Test
     void aFreshInstallIsEnglish() {
-        assertEquals(Languages.ENGLISH, config().get().language());
+        assertEquals(Languages.DEFAULT, config().get().language());
+        assertEquals(Languages.ENGLISH, Languages.code(plugin), "no library language set means English");
         assertEquals("lang/en/menus/main.yml", Languages.path(plugin, "menus/main.yml"));
     }
 
@@ -248,6 +249,23 @@ class LanguagesTest {
         ConfigFile<Messages> target = Configs.define(plugin, "lang-moved", Messages.class).translated().load();
 
         assertEquals("Adios", target.get().farewell());
+    }
+
+    @Test
+    void aPluginOnDefaultFollowsTheLibrary() throws Exception {
+        Path library = folder.getParent().resolve("ExyliaLib");
+        Files.createDirectories(library);
+        Files.writeString(library.resolve("config.yml"), "language: pt\n");
+        try {
+            onDisk("config.yml", "language: default\n");
+            assertEquals("pt", Languages.code(plugin));
+
+            onDisk("config.yml", "language: es\n");
+            assertEquals("es", Languages.code(plugin), "a plugin's own language wins");
+        } finally {
+            Files.delete(library.resolve("config.yml"));
+            Files.delete(library);
+        }
     }
 
     @Test

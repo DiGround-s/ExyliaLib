@@ -71,7 +71,8 @@ import net.exylia.lib.config.Time;
 @Comment("errors they throw. No player data and no IP addresses. Set enabled to")
 @Comment("false and nothing is ever sent.")
 public record LibrarySettings(
-        @Comment("Language of the library's own screens, prompts and messages: en, es or pt.")
+        @Comment("Language of the whole server: en, es or pt. Every Exylia plugin whose own")
+        @Comment("language is 'default' follows it, and so do the library's screens and prompts.")
         @Comment("Each one is a folder under lang/. 'custom' holds the messages this server had")
         @Comment("before languages existed; any other name starts as English.")
         String language,

@@ -29,6 +29,10 @@ import java.util.regex.Pattern;
  * plugins/MyPlugin/lang/es/menus/...
  * </pre>
  *
+ * <p>The server's language is set once, in ExyliaLib's own {@code config.yml};
+ * a plugin whose {@code language} is {@code default} — what a fresh install
+ * writes — follows it, and any other value sets that plugin alone.
+ *
  * <p>A plugin packages its files the same way, under {@code lang/<code>/} in the
  * jar. English is the base every other language is laid over, so a file or a
  * key not translated yet still arrives, in English. A code nothing is packaged
@@ -36,7 +40,7 @@ import java.util.regex.Pattern;
  * from, and the owner's to rewrite.
  *
  * <pre>{@code
- * Configs.define(this, "config", Settings.class)          // declares String language, "en"
+ * Configs.define(this, "config", Settings.class)          // declares String language, Languages.DEFAULT
  *         .version(4).migration(3, Languages.ADOPT_EXISTING).load();
  * Configs.define(this, "messages", Messages.class).translated().load();
  * Languages.refresh(this, MyPlugin.class, "menus");
@@ -63,6 +67,9 @@ public final class Languages {
     /** The language every other is laid over, and the one a fresh install uses. */
     public static final String ENGLISH = "en";
 
+    /** A plugin's language that follows ExyliaLib's, and what a fresh install writes. */
+    public static final String DEFAULT = "default";
+
     /** Where the files of a server that predates translations are moved. */
     public static final String CUSTOM = "custom";
 
@@ -80,28 +87,45 @@ public final class Languages {
     };
 
     private static final String FOLDER = "lang";
+    private static final String LIBRARY = "ExyliaLib";
     private static final Pattern CODE = Pattern.compile("[a-z0-9_-]{1,32}");
 
     private Languages() {
     }
 
     /**
-     * The language the plugin's {@code config.yml} names, or English.
+     * The language a plugin speaks.
+     *
+     * <p>What its {@code config.yml} names; {@code default}, or no value at
+     * all, means the one ExyliaLib's {@code config.yml} names, and English when
+     * that names none either.
      *
      * @param plugin the plugin
      * @return a lower-case code such as {@code en}, {@code es} or {@code custom}
      */
     public static @NotNull String code(@NotNull Plugin plugin) {
-        File config = new File(plugin.getDataFolder(), "config.yml");
-        if (!config.isFile()) {
-            return ENGLISH;
+        String own = read(plugin, plugin.getDataFolder());
+        if (!own.equals(DEFAULT)) {
+            return own;
         }
-        String raw = YamlConfiguration.loadConfiguration(config).getString(KEY, ENGLISH);
+        // The library's folder sits next to every plugin's.
+        File library = new File(plugin.getDataFolder().getParentFile(), LIBRARY);
+        String shared = plugin.getName().equals(LIBRARY) ? DEFAULT : read(plugin, library);
+        return shared.equals(DEFAULT) ? ENGLISH : shared;
+    }
+
+    /** The language one data folder's {@code config.yml} names, or {@link #DEFAULT}. */
+    private static String read(Plugin plugin, File dataFolder) {
+        File config = new File(dataFolder, "config.yml");
+        if (!config.isFile()) {
+            return DEFAULT;
+        }
+        String raw = YamlConfiguration.loadConfiguration(config).getString(KEY, DEFAULT);
         String code = raw.trim().toLowerCase(Locale.ROOT);
         if (!CODE.matcher(code).matches()) {
-            Debug.of(plugin).warn("language \"" + raw + "\" in config.yml is not a language code "
-                    + "(letters, digits, - and _), so English is used.");
-            return ENGLISH;
+            Debug.of(plugin).warn("language \"" + raw + "\" in " + dataFolder.getName()
+                    + "/config.yml is not a language code (letters, digits, - and _), so it is ignored.");
+            return DEFAULT;
         }
         return code;
     }
