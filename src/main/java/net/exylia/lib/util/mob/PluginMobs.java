@@ -244,13 +244,16 @@ public final class PluginMobs {
     }
 
     /**
-     * Listens for counted hits on this plugin's mobs in hits mode
-     * ({@link MobBehaviour#usesHits()}), the breaking one included.
+     * Listens for players' hits on this plugin's mobs: counted hits in hits
+     * mode ({@link MobBehaviour#usesHits()}), the breaking one included, and
+     * melee hits or projectiles that did damage in health mode, the killing
+     * one included. {@link MobHit#counted()} tells them apart.
      *
      * <p>A handler that throws is reported and does not stop the others.
      *
-     * @param handler told each counted hit, on the mob's thread, after its
-     *                {@code DAMAGED} skills and before the break
+     * @param handler told each hit, on the mob's thread; in hits mode after its
+     *                {@code DAMAGED} skills and before the break, in health mode
+     *                once the damage is final, before it dies
      * @return this
      * @since 1.195.0
      */

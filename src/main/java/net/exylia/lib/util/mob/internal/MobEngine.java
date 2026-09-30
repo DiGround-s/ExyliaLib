@@ -565,6 +565,13 @@ public final class MobEngine implements Listener {
         mob.hurt(damager == null ? null : playerOf(damager), Math.min(dealt, health));
         double after = health - dealt;
         reactions.hurt(entity, mob, Math.min(dealt, health), critical(event), damager, after <= 0);
+        Player player = damager instanceof Player direct ? direct
+                : damager instanceof Projectile projectile && projectile.getShooter() instanceof Player shooter
+                ? shooter : null;
+        if (player != null && dealt > 0) {
+            tell(new MobHit(mob.template(), entity, player, (int) Math.ceil(Math.max(0, after)),
+                    (int) Math.ceil(maxHealth(entity)), Math.min(dealt, health)));
+        }
         if (after <= 0) return;
 
         fire(MobSkill.Trigger.DAMAGED, entity, mob, attacker, false);
@@ -639,18 +646,22 @@ public final class MobEngine implements Listener {
             caster.lowHealth(entity, mob, left / (double) mob.maxHits());
             caster.phase(entity, mob, left / (double) mob.maxHits());
         }
-        MobHit hit = new MobHit(mob.template(), entity, player, left, mob.maxHits());
-        for (Consumer<MobHit> handler : hits) {
-            try {
-                handler.accept(hit);
-            } catch (RuntimeException | LinkageError failure) {
-                debug.error("A mob hit handler failed for " + mob.template().id() + ".", failure);
-            }
-        }
+        tell(new MobHit(mob.template(), entity, player, left, mob.maxHits(), 1));
         if (broken) {
             finish(entity, mob, MobDeath.Cause.BROKEN, player);
         } else {
             name(entity, mob);
+        }
+    }
+
+    /** Tells the hit handlers; one that throws does not stop the others. */
+    private void tell(MobHit hit) {
+        for (Consumer<MobHit> handler : hits) {
+            try {
+                handler.accept(hit);
+            } catch (RuntimeException | LinkageError failure) {
+                debug.error("A mob hit handler failed for " + hit.template().id() + ".", failure);
+            }
         }
     }
 
