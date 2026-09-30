@@ -1,5 +1,6 @@
 package net.exylia.lib.util.reward;
 
+import net.exylia.lib.text.Phrases;
 import net.exylia.lib.item.Source;
 
 import java.util.Locale;
@@ -28,10 +29,10 @@ final class Previews {
             case COMMAND -> orMissing(entry.command());
             case MESSAGE -> orMissing(entry.message());
             case ITEM -> item(entry);
-            case ECONOMY -> amounts(entry) + (entry.currency() != null
-                    ? " " + entry.currency()
-                    : " coins");
-            case EXPERIENCE -> amounts(entry) + " XP";
+            case ECONOMY -> entry.currency() != null
+                    ? amounts(entry) + " " + entry.currency()
+                    : Phrases.tr("{0} coins", amounts(entry));
+            case EXPERIENCE -> Phrases.tr("{0} XP", amounts(entry));
             case POTION -> entry.value() == null || entry.value().isBlank() ? orMissing(entry.value())
                     : net.exylia.lib.util.Effects.describe(entry.value());
         };
@@ -51,7 +52,7 @@ final class Previews {
     private static String item(RewardEntry entry) {
         String snapshot = entry.itemSnapshot();
         if (snapshot == null) {
-            return "(no item)";
+            return Phrases.tr("(no item)");
         }
         String prefix = amountPrefix(entry);
         return prefix + readable(snapshot);
@@ -80,9 +81,9 @@ final class Previews {
         return switch (source) {
             case Source.OfMaterial material ->
                     material.raw().toLowerCase(Locale.ROOT).replace('_', ' ');
-            case Source.OfHead ignored -> "custom skull";
-            case Source.OfHeadTemplate ignored -> "custom skull";
-            case Source.OfSnapshot ignored -> "item";
+            case Source.OfHead ignored -> Phrases.tr("custom skull");
+            case Source.OfHeadTemplate ignored -> Phrases.tr("custom skull");
+            case Source.OfSnapshot ignored -> Phrases.tr("item");
         };
     }
 
@@ -97,10 +98,10 @@ final class Previews {
         if (entry.isRanged()) {
             return entry.minAmount() + "-" + entry.maxAmount();
         }
-        return entry.value() != null ? entry.value() : "(not set)";
+        return entry.value() != null ? entry.value() : Phrases.tr("(not set)");
     }
 
     private static String orMissing(String value) {
-        return value != null && !value.isBlank() ? value : "(not set)";
+        return value != null && !value.isBlank() ? value : Phrases.tr("(not set)");
     }
 }

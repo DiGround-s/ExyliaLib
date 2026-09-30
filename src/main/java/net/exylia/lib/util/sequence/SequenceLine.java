@@ -1,5 +1,6 @@
 package net.exylia.lib.util.sequence;
 
+import net.exylia.lib.text.Phrases;
 import net.exylia.lib.util.sequence.internal.Shapes;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -358,134 +359,133 @@ final class SequenceLine {
         }
         return switch (token) {
             case "PARTICLE" -> new Spec(token, Head.PARTICLE, Form.NAMED, List.of(
-                    new Field("count", "How many", "1"),
-                    new Field("speed", "Speed", "0 stays put"),
-                    new Field("y", "Height above the anchor", "0"),
-                    new Field("color", "Colour", "a name or #rrggbb; dust particles only"),
-                    new Field("size", "Size", "1; dust particles only"),
-                    new Field("offset", "Spread, as x,y,z", "0,0,0"),
-                    new Field("block", "Block it is made of", "for block and item particles")));
+                    new Field("count", Phrases.tr("How many"), "1"),
+                    new Field("speed", Phrases.tr("Speed"), Phrases.tr("0 stays put")),
+                    new Field("y", Phrases.tr("Height above the anchor"), "0"),
+                    new Field("color", Phrases.tr("Colour"), Phrases.tr("a name or #rrggbb; dust particles only")),
+                    new Field("size", Phrases.tr("Size"), Phrases.tr("1; dust particles only")),
+                    new Field("offset", Phrases.tr("Spread, as x,y,z"), "0,0,0"),
+                    new Field("block", Phrases.tr("Block it is made of"), Phrases.tr("for block and item particles"))));
             case "SOUND" -> new Spec(token, Head.SOUND, Form.NAMED, List.of(
-                    new Field("volume", "Volume", "1; also how far it carries"),
-                    new Field("pitch", "Pitch", "1, from 0.5 to 2")));
+                    new Field("volume", Phrases.tr("Volume"), Phrases.tr("1; also how far it carries")),
+                    new Field("pitch", Phrases.tr("Pitch"), Phrases.tr("1, from 0.5 to 2"))));
             case "POTION" -> new Spec(token, Head.POTION, Form.NAMED, List.of(
-                    new Field("duration", "How long", "ticks, or 5s; 100 by default"),
-                    new Field("amplifier", "Strength", "0 is level I"),
-                    Field.flag("particles", "Shows the swirling particles", true),
-                    Field.flag("icon", "Shows the icon in the corner of the screen", true),
-                    Field.flag("ambient", "Faint particles, the way a beacon gives them", false)));
+                    new Field("duration", Phrases.tr("How long"), Phrases.tr("ticks, or 5s; 100 by default")),
+                    new Field("amplifier", Phrases.tr("Strength"), Phrases.tr("0 is level I")),
+                    Field.flag("particles", Phrases.tr("Shows the swirling particles"), true),
+                    Field.flag("icon", Phrases.tr("Shows the icon in the corner of the screen"), true),
+                    Field.flag("ambient", Phrases.tr("Faint particles, the way a beacon gives them"), false)));
             case "BLOCK_BREAK" -> new Spec(token, Head.MATERIAL, Form.NAMED, List.of(
-                    new Field("count", "How many", "20"),
-                    new Field("y", "Height above the anchor", "0"),
-                    new Field("offset", "Spread, as x,y,z", "0.3,0.3,0.3")));
+                    new Field("count", Phrases.tr("How many"), "20"),
+                    new Field("y", Phrases.tr("Height above the anchor"), "0"),
+                    new Field("offset", Phrases.tr("Spread, as x,y,z"), "0.3,0.3,0.3")));
             case "FIREWORK" -> new Spec(token, Head.NONE, Form.NAMED, List.of(
-                    new Field("color", "Colour", "a name or #rrggbb"),
-                    new Field("fade", "Colour it fades to", "orange"),
-                    new Field("type", "Shape",
-                            "BALL, BALL_LARGE, STAR, BURST or CREEPER"),
-                    Field.flag("trail", "Leaves a trail", true),
-                    Field.flag("flicker", "Twinkles", false),
-                    new Field("power", "Flight time", "0 detonates at once")));
+                    new Field("color", Phrases.tr("Colour"), Phrases.tr("a name or #rrggbb")),
+                    new Field("fade", Phrases.tr("Colour it fades to"), "orange"),
+                    new Field("type", Phrases.tr("Shape"),
+                            Phrases.tr("BALL, BALL_LARGE, STAR, BURST or CREEPER")),
+                    Field.flag("trail", Phrases.tr("Leaves a trail"), true),
+                    Field.flag("flicker", Phrases.tr("Twinkles"), false),
+                    new Field("power", Phrases.tr("Flight time"), Phrases.tr("0 detonates at once"))));
             case "LIGHTNING" -> new Spec(token, Head.NONE, Form.NAMED, List.of(
-                    new Field("volume", "Volume", "2"),
-                    new Field("pitch", "Pitch", "1")));
+                    new Field("volume", Phrases.tr("Volume"), "2"),
+                    new Field("pitch", Phrases.tr("Pitch"), "1")));
             case "SHAKE" -> new Spec(token, Head.NONE, Form.NAMED, List.of(
-                    new Field("radius", "Shakes players this close, in blocks", "10"),
-                    new Field("times", "How many tilts", "1"),
-                    new Field("every", "How long between tilts", "0.1, or 100ms")));
+                    new Field("radius", Phrases.tr("Shakes players this close, in blocks"), "10"),
+                    new Field("times", Phrases.tr("How many tilts"), "1"),
+                    new Field("every", Phrases.tr("How long between tilts"), Phrases.tr("0.1, or 100ms"))));
             case "EXPLOSION" -> new Spec(token, Head.NONE, Form.NAMED, List.of(
-                    new Field("count", "How many", "1"),
-                    new Field("y", "Height above the anchor", "0")));
+                    new Field("count", Phrases.tr("How many"), "1"),
+                    new Field("y", Phrases.tr("Height above the anchor"), "0")));
             case "TITLE" -> new Spec(token, Head.NONE, Form.POSITIONAL, List.of(
-                    new Field("title", "Title", null),
-                    new Field("subtitle", "Subtitle", null),
-                    new Field("fade_in", "Fade in", "0.5, or 500ms"),
-                    new Field("stay", "Stays for", "3.5, or 1m"),
-                    new Field("fade_out", "Fade out", "1, or 1s")));
+                    new Field("title", Phrases.tr("Title"), null),
+                    new Field("subtitle", Phrases.tr("Subtitle"), null),
+                    new Field("fade_in", Phrases.tr("Fade in"), Phrases.tr("0.5, or 500ms")),
+                    new Field("stay", Phrases.tr("Stays for"), Phrases.tr("3.5, or 1m")),
+                    new Field("fade_out", Phrases.tr("Fade out"), Phrases.tr("1, or 1s"))));
             case "NPC" -> new Spec(token, Head.NONE, Form.NAMED, List.of(
-                    new Field("pose", "How it lies",
-                            "lying, standing, crawling, sneaking or spinning"),
-                    new Field("life", "How long it stays", "5, or 1m30s"),
-                    Field.flag("equip", "Wears what they died in", true),
-                    new Field("glow", "Outline colour", "a name, #rrggbb or a {palette} token"),
-                    new Field("y", "Height above the anchor", "0"),
-                    Field.flag("face", "Turns to face whoever did it", true),
-                    new Field("from", "Appears at, as x,y,z", "0,0,0"),
-                    new Field("to", "Ends up at, as x,y,z", "0,0,0"),
-                    new Field("over", "How long the movement takes", "0.7, or 700ms"),
-                    new Field("ease", "How the movement is spread", "out, in, in_out or linear"),
-                    new Field("gravity", "Falls at, in blocks per second squared", "0"),
-                    new Field("turn", "Degrees it turns on the spot", "0"),
-                    new Field("pose_to", "A second pose, so it goes down while you watch", null),
-                    new Field("after", "How long before that second pose", "0.4, or 400ms"),
-                    Field.flag("hurt", "Flinches when it is struck", false),
-                    new Field("move_after", "How long before any of that happens", "0, or 1s")));
+                    new Field("pose", Phrases.tr("How it lies"),
+                            Phrases.tr("lying, standing, crawling, sneaking or spinning")),
+                    new Field("life", Phrases.tr("How long it stays"), Phrases.tr("5, or 1m30s")),
+                    Field.flag("equip", Phrases.tr("Wears what they died in"), true),
+                    new Field("glow", Phrases.tr("Outline colour"), Phrases.tr("a name, #rrggbb or a {palette} token")),
+                    new Field("y", Phrases.tr("Height above the anchor"), "0"),
+                    Field.flag("face", Phrases.tr("Turns to face whoever did it"), true),
+                    new Field("from", Phrases.tr("Appears at, as x,y,z"), "0,0,0"),
+                    new Field("to", Phrases.tr("Ends up at, as x,y,z"), "0,0,0"),
+                    new Field("over", Phrases.tr("How long the movement takes"), Phrases.tr("0.7, or 700ms")),
+                    new Field("ease", Phrases.tr("How the movement is spread"), Phrases.tr("out, in, in_out or linear")),
+                    new Field("gravity", Phrases.tr("Falls at, in blocks per second squared"), "0"),
+                    new Field("turn", Phrases.tr("Degrees it turns on the spot"), "0"),
+                    new Field("pose_to", Phrases.tr("A second pose, so it goes down while you watch"), null),
+                    new Field("after", Phrases.tr("How long before that second pose"), Phrases.tr("0.4, or 400ms")),
+                    Field.flag("hurt", Phrases.tr("Flinches when it is struck"), false),
+                    new Field("move_after", Phrases.tr("How long before any of that happens"), Phrases.tr("0, or 1s"))));
             case "CAMERA" -> new Spec(token, Head.NONE, Form.NAMED, List.of(
-                    new Field("keys", "Where the camera goes, frame by frame",
+                    new Field("keys", Phrases.tr("Where the camera goes, frame by frame"),
                             "0 close | 3.2 yaw=~360 ease=in_out | 0.6 distance=2.1 ease=out"),
-                    new Field("who", "Whose eyes it takes",
-                            "source, target or both; source by default"),
-                    Field.flag("loop", "Plays the path again when it ends; it must close", false)));
+                    new Field("who", Phrases.tr("Whose eyes it takes"),
+                            Phrases.tr("source, target or both; source by default")),
+                    Field.flag("loop", Phrases.tr("Plays the path again when it ends; it must close"), false)));
             case "RAGDOLL" -> new Spec(token, Head.NONE, Form.NAMED, List.of(
-                    new Field("pose", "What happens to the body",
-                            "burst, spread, knocked, vortex, balloon, helicopter,"
-                                    + " plane, flatten, melt, sign, thrown or animate"),
-                    new Field("keys", "The choreography, frame by frame",
+                    new Field("pose", Phrases.tr("What happens to the body"),
+                            Phrases.tr("burst, spread, knocked, vortex, balloon, helicopter, plane, flatten, melt, sign, thrown or animate")),
+                    new Field("keys", Phrases.tr("The choreography, frame by frame"),
                             "0.3 crouch | 0.4 up=1.5 flip=~-360 ease=out | 0.3 up=0 ease=bounce"),
-                    new Field("then", "What it does after the last frame",
-                            "hold, burst, collapse, implode, dissolve or spell"),
-                    new Field("follow", "How much the loose joints lag and overshoot", "0, 1 or 2"),
-                    Field.flag("loop", "Dances the frames again when they end; the cycle must close", false),
-                    new Field("loop_from", "How much of it is the entry, played once", "0, or 0.4"),
-                    new Field("accel", "What the speed is multiplied by each cycle", "1"),
-                    new Field("max_speed", "The fastest a looping body may get", "1"),
-                    new Field("tempo", "How fast it plays, or a range it rolls from each play",
-                            "1, or 1-1.6"),
-                    new Field("hold", "What the right hand holds", "an item, as in POPPY"),
-                    new Field("offhand", "What the left hand holds", "an item"),
-                    new Field("hat", "What is worn on the head", "an item, as in CARVED_PUMPKIN"),
-                    new Field("strings", "Puppet strings up to this height", "0 for none, or blocks"),
-                    new Field("chains", "Chains from the wrists to the floor this far out", "0 for none, or blocks"),
-                    new Field("snip", "How long from the start until the strings or chains break", "the last frame"),
-                    new Field("seat", "Which spectator a {crowd} body wears", "0, 1, 2..."),
-                    new Field("rig", "Props tied to its joints, by name from rigs.yml",
-                            "tophat, or crown,wand for two"),
-                    new Field("life", "How long the pieces last", "2.2, or 2s200ms"),
-                    new Field("intact", "How long it stands whole first", "0.3, or 300ms"),
-                    new Field("speed", "How fast the pieces leave, outwards", "3.2"),
-                    new Field("up", "How fast they leave, upwards", "6.5"),
-                    new Field("spread", "How much the pieces differ, 0 to 1", "0.45"),
-                    new Field("gravity", "Falls at, in blocks per second squared", "26"),
-                    new Field("bounce", "Speed kept on landing, 0 to 1", "0.32"),
-                    new Field("spin", "Turns a second", "1.8"),
-                    new Field("detail", "How finely a body in blocks is drawn, 1 to 5 (5: the design on every face)", "1"),
-                    new Field("size", "How big it is; 1 is player-sized", "1"),
-                    new Field("light", "Light level, 0 to 15", "world's own"),
-                    new Field("glow", "Outline colour", "a name, #rrggbb or a {palette} token"),
-                    Field.flag("fade", "Shrinks away at the end", true),
-                    Field.flag("settle", "Stops turning once it lands", true),
-                    new Field("rise", "How far off the ground it hangs", "1.1"),
-                    new Field("open", "How far the arms and legs open out", "0.55"),
-                    new Field("lift", "How long the lift takes", "0.45, or 450ms"),
-                    new Field("hang", "How long it hangs there", "0.9, or 900ms"),
-                    new Field("turns", "Turns it makes while it hangs", "0.35"),
-                    new Field("hits", "How many times it is struck", "3"),
-                    new Field("every", "How long between blows", "0.32, or 320ms"),
-                    new Field("force", "How far a blow shoves it, in blocks", "0.85"),
-                    new Field("swell", "How many times its size a head reaches", "3"),
-                    new Field("squash", "What is left of a flattened piece's height", "0.14"),
-                    new Field("sign", "What a sign body spells", "EZ"),
-                    new Field("letters", "How tall one letter is, in blocks", "2.4"),
-                    new Field("dir", "Which way it is thrown or flies, in degrees",
-                            "0 is east, 90 is south"),
-                    new Field("y", "Height above the anchor", "0"),
-                    Field.flag("face", "Turns to face whoever did it", true)));
-            case "ACTION_BAR" -> free(token, "The line above the hotbar", null);
-            case "MESSAGE" -> free(token, "The message", "One line; add another for a second.");
-            case "COMMAND" -> free(token, "Command the console runs",
-                    "%player_name% is the player. No leading slash.");
-            case "DELAY" -> free(token, "How long to wait", "0.2 is four ticks; 1m30s works too");
-            default -> free(token, "The whole line, after the token", null);
+                    new Field("then", Phrases.tr("What it does after the last frame"),
+                            Phrases.tr("hold, burst, collapse, implode, dissolve or spell")),
+                    new Field("follow", Phrases.tr("How much the loose joints lag and overshoot"), Phrases.tr("0, 1 or 2")),
+                    Field.flag("loop", Phrases.tr("Dances the frames again when they end; the cycle must close"), false),
+                    new Field("loop_from", Phrases.tr("How much of it is the entry, played once"), Phrases.tr("0, or 0.4")),
+                    new Field("accel", Phrases.tr("What the speed is multiplied by each cycle"), "1"),
+                    new Field("max_speed", Phrases.tr("The fastest a looping body may get"), "1"),
+                    new Field("tempo", Phrases.tr("How fast it plays, or a range it rolls from each play"),
+                            Phrases.tr("1, or 1-1.6")),
+                    new Field("hold", Phrases.tr("What the right hand holds"), Phrases.tr("an item, as in POPPY")),
+                    new Field("offhand", Phrases.tr("What the left hand holds"), Phrases.tr("an item")),
+                    new Field("hat", Phrases.tr("What is worn on the head"), Phrases.tr("an item, as in CARVED_PUMPKIN")),
+                    new Field("strings", Phrases.tr("Puppet strings up to this height"), Phrases.tr("0 for none, or blocks")),
+                    new Field("chains", Phrases.tr("Chains from the wrists to the floor this far out"), Phrases.tr("0 for none, or blocks")),
+                    new Field("snip", Phrases.tr("How long from the start until the strings or chains break"), Phrases.tr("the last frame")),
+                    new Field("seat", Phrases.tr("Which spectator a {crowd} body wears"), "0, 1, 2..."),
+                    new Field("rig", Phrases.tr("Props tied to its joints, by name from rigs.yml"),
+                            Phrases.tr("tophat, or crown,wand for two")),
+                    new Field("life", Phrases.tr("How long the pieces last"), Phrases.tr("2.2, or 2s200ms")),
+                    new Field("intact", Phrases.tr("How long it stands whole first"), Phrases.tr("0.3, or 300ms")),
+                    new Field("speed", Phrases.tr("How fast the pieces leave, outwards"), "3.2"),
+                    new Field("up", Phrases.tr("How fast they leave, upwards"), "6.5"),
+                    new Field("spread", Phrases.tr("How much the pieces differ, 0 to 1"), "0.45"),
+                    new Field("gravity", Phrases.tr("Falls at, in blocks per second squared"), "26"),
+                    new Field("bounce", Phrases.tr("Speed kept on landing, 0 to 1"), "0.32"),
+                    new Field("spin", Phrases.tr("Turns a second"), "1.8"),
+                    new Field("detail", Phrases.tr("How finely a body in blocks is drawn, 1 to 5 (5: the design on every face)"), "1"),
+                    new Field("size", Phrases.tr("How big it is; 1 is player-sized"), "1"),
+                    new Field("light", Phrases.tr("Light level, 0 to 15"), Phrases.tr("world's own")),
+                    new Field("glow", Phrases.tr("Outline colour"), Phrases.tr("a name, #rrggbb or a {palette} token")),
+                    Field.flag("fade", Phrases.tr("Shrinks away at the end"), true),
+                    Field.flag("settle", Phrases.tr("Stops turning once it lands"), true),
+                    new Field("rise", Phrases.tr("How far off the ground it hangs"), "1.1"),
+                    new Field("open", Phrases.tr("How far the arms and legs open out"), "0.55"),
+                    new Field("lift", Phrases.tr("How long the lift takes"), Phrases.tr("0.45, or 450ms")),
+                    new Field("hang", Phrases.tr("How long it hangs there"), Phrases.tr("0.9, or 900ms")),
+                    new Field("turns", Phrases.tr("Turns it makes while it hangs"), "0.35"),
+                    new Field("hits", Phrases.tr("How many times it is struck"), "3"),
+                    new Field("every", Phrases.tr("How long between blows"), Phrases.tr("0.32, or 320ms")),
+                    new Field("force", Phrases.tr("How far a blow shoves it, in blocks"), "0.85"),
+                    new Field("swell", Phrases.tr("How many times its size a head reaches"), "3"),
+                    new Field("squash", Phrases.tr("What is left of a flattened piece's height"), "0.14"),
+                    new Field("sign", Phrases.tr("What a sign body spells"), "EZ"),
+                    new Field("letters", Phrases.tr("How tall one letter is, in blocks"), "2.4"),
+                    new Field("dir", Phrases.tr("Which way it is thrown or flies, in degrees"),
+                            Phrases.tr("0 is east, 90 is south")),
+                    new Field("y", Phrases.tr("Height above the anchor"), "0"),
+                    Field.flag("face", Phrases.tr("Turns to face whoever did it"), true)));
+            case "ACTION_BAR" -> free(token, Phrases.tr("The line above the hotbar"), null);
+            case "MESSAGE" -> free(token, Phrases.tr("The message"), Phrases.tr("One line; add another for a second."));
+            case "COMMAND" -> free(token, Phrases.tr("Command the console runs"),
+                    Phrases.tr("%player_name% is the player. No leading slash."));
+            case "DELAY" -> free(token, Phrases.tr("How long to wait"), Phrases.tr("0.2 is four ticks; 1m30s works too"));
+            default -> free(token, Phrases.tr("The whole line, after the token"), null);
         };
     }
 
@@ -509,22 +509,22 @@ final class SequenceLine {
         for (String parameter : Shapes.parametersOf(token)) {
             fields.add(new Field(parameter, pretty(parameter), null));
         }
-        fields.add(new Field("y", "Height above the anchor", null));
-        fields.add(new Field("scale", "Scale", "1"));
-        fields.add(new Field("color", "Colour", "a name or #rrggbb; dust particles only"));
-        fields.add(new Field("size", "Size", "1; dust particles only"));
-        fields.add(new Field("count", "Particles per point", "1"));
-        fields.add(new Field("ticks", "Frames it is drawn over", "ticks, or 1s; 1 draws it at once"));
-        fields.add(new Field("interval", "How long between frames", "0.05, or 50ms"));
-        fields.add(Field.flag("face", "Turns to face the player", false));
-        fields.add(new Field("rotate", "Rotation, in degrees", "0"));
-        fields.add(new Field("as", "Draw it with",
-                "item, block, head or text; leave empty for particles"));
-        fields.add(new Field("repeat", "Times it plays", "1"));
-        fields.add(new Field("every", "How long between beats", "0.15, or 150ms"));
-        fields.add(new Field("turn_each", "Degrees further round each beat", "0"));
-        fields.add(new Field("accel", "What the gap is divided by after each beat", "1"));
-        fields.add(new Field("max_speed", "The most the gap may be divided by", "1"));
+        fields.add(new Field("y", Phrases.tr("Height above the anchor"), null));
+        fields.add(new Field("scale", Phrases.tr("Scale"), "1"));
+        fields.add(new Field("color", Phrases.tr("Colour"), Phrases.tr("a name or #rrggbb; dust particles only")));
+        fields.add(new Field("size", Phrases.tr("Size"), Phrases.tr("1; dust particles only")));
+        fields.add(new Field("count", Phrases.tr("Particles per point"), "1"));
+        fields.add(new Field("ticks", Phrases.tr("Frames it is drawn over"), Phrases.tr("ticks, or 1s; 1 draws it at once")));
+        fields.add(new Field("interval", Phrases.tr("How long between frames"), Phrases.tr("0.05, or 50ms")));
+        fields.add(Field.flag("face", Phrases.tr("Turns to face the player"), false));
+        fields.add(new Field("rotate", Phrases.tr("Rotation, in degrees"), "0"));
+        fields.add(new Field("as", Phrases.tr("Draw it with"),
+                Phrases.tr("item, block, head or text; leave empty for particles")));
+        fields.add(new Field("repeat", Phrases.tr("Times it plays"), "1"));
+        fields.add(new Field("every", Phrases.tr("How long between beats"), Phrases.tr("0.15, or 150ms")));
+        fields.add(new Field("turn_each", Phrases.tr("Degrees further round each beat"), "0"));
+        fields.add(new Field("accel", Phrases.tr("What the gap is divided by after each beat"), "1"));
+        fields.add(new Field("max_speed", Phrases.tr("The most the gap may be divided by"), "1"));
         return List.copyOf(fields);
     }
 
@@ -537,36 +537,36 @@ final class SequenceLine {
      */
     private static List<Field> displayFields() {
         return List.of(
-                new Field("as", "Draw it with", "item, block, head or text"),
-                new Field("life", "How long it lasts", "1, or 1m30s"),
-                new Field("from", "Starts at, as x,y,z", "0,0,0"),
-                new Field("to", "Ends at, as x,y,z", "0,0,0"),
-                new Field("rise", "Goes up by", "shorthand for to:0,n,0"),
-                new Field("gravity", "Falls at, in blocks per second squared", "0; vanilla is 32"),
-                new Field("ease", "How the movement is spread",
-                        "in, out, in_out, back, bounce, elastic or linear"),
-                new Field("spin", "Turns over its life", "0, or x,y,z for a tumble"),
-                new Field("axis", "Turns around", "x, y or z"),
-                new Field("orbit", "Turns it carries round the anchor", "0"),
-                new Field("vary", "How much the pieces differ in size", "0 to 1"),
-                new Field("follow", "Carried by whoever set it off", "true, victim or false"),
-                new Field("size", "Size it starts at", "1"),
-                new Field("size_to", "Size it ends at", "same as size"),
-                new Field("tilt", "Fixed tilt, in degrees", "0"),
-                new Field("roll", "Fixed roll, in degrees", "0"),
-                new Field("turn", "Fixed turn, in degrees", "0"),
-                Field.flag("face_out", "Points away from the centre", false),
-                new Field("pull", "Travels towards the centre", "1 reaches it"),
-                new Field("glow", "Outline colour", "a name, #rrggbb or a {palette} token"),
-                new Field("light", "Fixed light level", "0 to 15"),
-                new Field("model", "Custom model data", "for a resource pack model"),
-                new Field("billboard", "Turns to face the viewer",
-                        "FIXED, VERTICAL, HORIZONTAL or CENTER"),
-                new Field("hold", "How an item is held",
-                        "0 the model itself, 5 head, 7 dropped, 8 item frame"),
-                new Field("repeat", "Times it plays", "1"),
-                new Field("every", "Seconds between beats", "0.15"),
-                new Field("accel", "What the gap is divided by after each beat", "1"),
-                new Field("max_speed", "The most the gap may be divided by", "1"));
+                new Field("as", Phrases.tr("Draw it with"), Phrases.tr("item, block, head or text")),
+                new Field("life", Phrases.tr("How long it lasts"), Phrases.tr("1, or 1m30s")),
+                new Field("from", Phrases.tr("Starts at, as x,y,z"), "0,0,0"),
+                new Field("to", Phrases.tr("Ends at, as x,y,z"), "0,0,0"),
+                new Field("rise", Phrases.tr("Goes up by"), Phrases.tr("shorthand for to:0,n,0")),
+                new Field("gravity", Phrases.tr("Falls at, in blocks per second squared"), Phrases.tr("0; vanilla is 32")),
+                new Field("ease", Phrases.tr("How the movement is spread"),
+                        Phrases.tr("in, out, in_out, back, bounce, elastic or linear")),
+                new Field("spin", Phrases.tr("Turns over its life"), Phrases.tr("0, or x,y,z for a tumble")),
+                new Field("axis", Phrases.tr("Turns around"), Phrases.tr("x, y or z")),
+                new Field("orbit", Phrases.tr("Turns it carries round the anchor"), "0"),
+                new Field("vary", Phrases.tr("How much the pieces differ in size"), Phrases.tr("0 to 1")),
+                new Field("follow", Phrases.tr("Carried by whoever set it off"), Phrases.tr("true, victim or false")),
+                new Field("size", Phrases.tr("Size it starts at"), "1"),
+                new Field("size_to", Phrases.tr("Size it ends at"), Phrases.tr("same as size")),
+                new Field("tilt", Phrases.tr("Fixed tilt, in degrees"), "0"),
+                new Field("roll", Phrases.tr("Fixed roll, in degrees"), "0"),
+                new Field("turn", Phrases.tr("Fixed turn, in degrees"), "0"),
+                Field.flag("face_out", Phrases.tr("Points away from the centre"), false),
+                new Field("pull", Phrases.tr("Travels towards the centre"), Phrases.tr("1 reaches it")),
+                new Field("glow", Phrases.tr("Outline colour"), Phrases.tr("a name, #rrggbb or a {palette} token")),
+                new Field("light", Phrases.tr("Fixed light level"), Phrases.tr("0 to 15")),
+                new Field("model", Phrases.tr("Custom model data"), Phrases.tr("for a resource pack model")),
+                new Field("billboard", Phrases.tr("Turns to face the viewer"),
+                        Phrases.tr("FIXED, VERTICAL, HORIZONTAL or CENTER")),
+                new Field("hold", Phrases.tr("How an item is held"),
+                        Phrases.tr("0 the model itself, 5 head, 7 dropped, 8 item frame")),
+                new Field("repeat", Phrases.tr("Times it plays"), "1"),
+                new Field("every", Phrases.tr("Seconds between beats"), "0.15"),
+                new Field("accel", Phrases.tr("What the gap is divided by after each beat"), "1"),
+                new Field("max_speed", Phrases.tr("The most the gap may be divided by"), "1"));
     }
 }

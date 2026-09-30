@@ -4,6 +4,7 @@ import net.exylia.lib.ExyliaLib;
 import net.exylia.lib.config.Comment;
 import net.exylia.lib.config.Key;
 import net.exylia.lib.config.Configs;
+import net.exylia.lib.config.Languages;
 import net.exylia.lib.config.Time;
 
 /**
@@ -70,6 +71,11 @@ import net.exylia.lib.config.Time;
 @Comment("errors they throw. No player data and no IP addresses. Set enabled to")
 @Comment("false and nothing is ever sent.")
 public record LibrarySettings(
+        @Comment("Language of the library's own screens, prompts and messages: en, es or pt.")
+        @Comment("Each one is a folder under lang/. 'custom' holds the messages this server had")
+        @Comment("before languages existed; any other name starts as English.")
+        String language,
+
         @Comment("Whether to check for and download newer versions automatically.")
         boolean autoUpdate,
 
@@ -142,7 +148,7 @@ public record LibrarySettings(
 
     /** Safe defaults used when no config file exists yet. */
     public LibrarySettings() {
-        this(true, 30, false, true, "auto:0.4", DEFAULT_FALLBACK_HEAD, "", "", "normal", new Metrics());
+        this(Languages.ENGLISH, true, 30, false, true, "auto:0.4", DEFAULT_FALLBACK_HEAD, "", "", "normal", new Metrics());
     }
 
     private static volatile LibrarySettings instance;
@@ -154,7 +160,11 @@ public record LibrarySettings(
      */
     public static LibrarySettings load(ExyliaLib plugin) {
         if (instance != null) return instance;
-        file = Configs.define(plugin, "config", LibrarySettings.class).load();
+        file = Configs.define(plugin, "config", LibrarySettings.class)
+                // A server that ran the library before languages keeps the
+                // messages it had, moved into lang/custom/.
+                .version(2).migration(1, Languages.ADOPT_EXISTING)
+                .load();
         instance = file.get();
         return instance;
     }

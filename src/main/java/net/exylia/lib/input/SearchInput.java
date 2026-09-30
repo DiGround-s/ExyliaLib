@@ -1,6 +1,7 @@
 package net.exylia.lib.input;
 
 import net.exylia.lib.input.internal.TransportKind;
+import net.exylia.lib.text.Phrases;
 import org.bukkit.Material;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
@@ -42,7 +43,7 @@ public final class SearchInput<T> extends InputRequest<T, SearchInput<T>> {
     private volatile SearchIndex<T> index;
 
     SearchInput(String pluginName, Player player, String prompt, Collection<T> choices) {
-        super(pluginName, player, prompt, raw -> InputParser.Parsed.rejected("Choose one of the available options."));
+        super(pluginName, player, prompt, raw -> InputParser.Parsed.rejected(Phrases.tr("Choose one of the available options.")));
         if (choices == null || choices.isEmpty()) {
             throw new InputException("choices must not be empty");
         }
@@ -60,7 +61,7 @@ public final class SearchInput<T> extends InputRequest<T, SearchInput<T>> {
      * options is not a list a server holds in memory to filter it.
      */
     SearchInput(String pluginName, Player player, String prompt) {
-        super(pluginName, player, prompt, raw -> InputParser.Parsed.rejected("Choose one of the available options."));
+        super(pluginName, player, prompt, raw -> InputParser.Parsed.rejected(Phrases.tr("Choose one of the available options.")));
         this.choices = List.of();
     }
 
@@ -149,21 +150,21 @@ public final class SearchInput<T> extends InputRequest<T, SearchInput<T>> {
     @Override
     public @NotNull InputParser.Parsed<T> parseRaw(@NotNull String raw) {
         if (raw == null) {
-            return InputParser.Parsed.rejected("Choose one of the available options.");
+            return InputParser.Parsed.rejected(Phrases.tr("Choose one of the available options."));
         }
         final String key;
         try {
             String transformed = transform().apply(raw.trim());
             if (transformed == null) {
-                return InputParser.Parsed.rejected("Choose one of the available options.");
+                return InputParser.Parsed.rejected(Phrases.tr("Choose one of the available options."));
             }
             key = ChoiceInput.normalizeKey(transformed);
         } catch (RuntimeException invalid) {
-            return InputParser.Parsed.rejected("Choose one of the available options.");
+            return InputParser.Parsed.rejected(Phrases.tr("Choose one of the available options."));
         }
         T value = ensureIndex().byKey().get(key);
         if (value == null) {
-            return InputParser.Parsed.rejected("Choose one of the available options.");
+            return InputParser.Parsed.rejected(Phrases.tr("Choose one of the available options."));
         }
         Validation validation = validate(value);
         return validation.valid() ? InputParser.Parsed.of(value)

@@ -1,5 +1,6 @@
 package net.exylia.lib.util.sequence;
 
+import net.exylia.lib.text.Phrases;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -198,7 +199,7 @@ public final class EffectEntry {
         if (name != null && !name.isBlank()) {
             return name;
         }
-        return lines.isEmpty() ? "(nothing yet)" : lines.get(0);
+        return lines.isEmpty() ? Phrases.tr("(nothing yet)") : lines.get(0);
     }
 
     // ---------------------------------------------------------------- building

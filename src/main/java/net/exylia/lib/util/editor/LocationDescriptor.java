@@ -1,5 +1,6 @@
 package net.exylia.lib.util.editor;
 
+import net.exylia.lib.text.Phrases;
 import net.exylia.lib.util.teleport.ExyliaLocation;
 import org.bukkit.Location;
 import org.bukkit.entity.Player;
@@ -51,16 +52,15 @@ final class LocationDescriptor implements EditorDescriptor<ExyliaLocation> {
     @Override
     public @NotNull List<String> lore(@NotNull ExyliaLocation entry) {
         List<String> lore = new java.util.ArrayList<>(6);
-        lore.add("{secondary}Place:");
+        lore.add(Phrases.tr("{secondary}Place:"));
         if (!entry.isLocal()) {
-            lore.add(" {letters_black}▎ {letters}Server {letters_black}» {info}" + entry.server());
+            lore.add(Phrases.tr(" {letters_black}▎ {letters}Server {letters_black}» {info}{0}", entry.server()));
         }
-        lore.add(" {letters_black}▎ {letters}World {letters_black}» {info}" + entry.world());
-        lore.add(" {letters_black}▎ {letters}At {letters_black}» {info}"
-                + round(entry.x()) + "{letters_black}, {info}" + round(entry.y())
-                + "{letters_black}, {info}" + round(entry.z()));
+        lore.add(Phrases.tr(" {letters_black}▎ {letters}World {letters_black}» {info}{0}", entry.world()));
+        lore.add(Phrases.tr(" {letters_black}▎ {letters}At {letters_black}» {info}{0}{letters_black}, {info}{1}{letters_black}, {info}{2}",
+                round(entry.x()), round(entry.y()), round(entry.z())));
         lore.add("");
-        lore.add("{warning}➥ Editing moves it to where you stand");
+        lore.add(Phrases.tr("{warning}➥ Editing moves it to where you stand"));
         return lore;
     }
 

@@ -1,0 +1,19 @@
+wizard:
+  stand: '{warning}➥ {letters}Párate donde lo quieres y {highlight}agáchate + clic{letters}.'
+  point: '{warning}➥ {letters}Haz clic izq. en el bloque que quieres.'
+  region: '{warning}➥ {letters}Clic izq. en una esquina y clic der. en la otra, luego {highlight}Shift + clic izq. {letters}para confirmar.'
+  item: '{warning}➥ {letters}Sostén el ítem que quieres y luego confirma.'
+selection:
+  first-corner: '{success}● {letters}Primera esquina {letters_black}» {info}%x%, %y%, %z%'
+  second-corner: '{error}● {letters}Segunda esquina {letters_black}» {info}%x%, %y%, %z%'
+  volume: '{secondary}Selección: {info}%blocks% {letters}bloques'
+  confirmed: '{success}● {letters}Selección confirmada'
+  guide-corners: '{letters}Marca dos esquinas con clic izq. y clic der. usando el {highlight}%selector%'
+  guide-first: '{letters}Clic der. en la {error}segunda esquina'
+  guide-second: '{letters}Clic izq. en la {success}primera esquina'
+  guide-confirm: '{warning}➥ {letters}Shift + clic izq. para confirmar {letters_black}» {info}%blocks% {letters}bloques'
+  area: '{secondary}Selección: {info}%blocks% {letters}columnas {letters_black}» {info}altura completa'
+  guide-confirm-area: '{warning}➥ {letters}Shift + clic izq. para confirmar {letters_black}» {info}%blocks% {letters}columnas'
+players:
+  not-found: '[sound:ENTITY_VILLAGER_NO|1|1]{error}✖ {letters}No se encontró ningún jugador llamado {highlight}%player%{letters}.'
+  not-here: '[sound:ENTITY_VILLAGER_NO|1|1]{error}✖ {highlight}%player% {letters}no está en este servidor.'

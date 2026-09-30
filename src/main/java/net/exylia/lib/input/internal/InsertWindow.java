@@ -2,6 +2,7 @@ package net.exylia.lib.input.internal;
 
 import net.exylia.lib.item.Source;
 import net.exylia.lib.task.Tasks;
+import net.exylia.lib.text.Phrases;
 import net.exylia.lib.text.Text;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.TextDecoration;
@@ -157,22 +158,22 @@ public final class InsertWindow implements InventoryHolder {
             inventory.setItem(slot, isInput(slot) ? null : filler);
         }
         if (bulk) {
-            inventory.setItem(BULK_CONFIRM, button(Material.LIME_DYE, "{success}&lUSE THESE ITEMS",
-                    "{letters_black}▎ {letters}Each item above becomes",
-                    "{letters_black}▎ {letters}its own entry.",
+            inventory.setItem(BULK_CONFIRM, button(Material.LIME_DYE, Phrases.tr("{success}&lUSE THESE ITEMS"),
+                    Phrases.tr("{letters_black}▎ {letters}Each item above becomes"),
+                    Phrases.tr("{letters_black}▎ {letters}its own entry."),
                     "",
-                    "{letters_black}▎ {letters}You get the items back either way.",
+                    Phrases.tr("{letters_black}▎ {letters}You get the items back either way."),
                     "",
-                    "{warning}➥ Click to confirm"));
+                    Phrases.tr("{warning}➥ Click to confirm")));
             return;
         }
-        inventory.setItem(SLOT_CONFIRM, button(Material.LIME_DYE, "{success}&lUSE THIS ITEM",
-                "{letters_black}▎ {letters}Read the item above and use",
-                "{letters_black}▎ {letters}it as the icon.",
+        inventory.setItem(SLOT_CONFIRM, button(Material.LIME_DYE, Phrases.tr("{success}&lUSE THIS ITEM"),
+                Phrases.tr("{letters_black}▎ {letters}Read the item above and use"),
+                Phrases.tr("{letters_black}▎ {letters}it as the icon."),
                 "",
-                "{letters_black}▎ {letters}You get the item back either way.",
+                Phrases.tr("{letters_black}▎ {letters}You get the item back either way."),
                 "",
-                "{warning}➥ Click to confirm"));
+                Phrases.tr("{warning}➥ Click to confirm")));
     }
 
     /**

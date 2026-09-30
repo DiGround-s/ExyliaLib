@@ -2,6 +2,7 @@ package net.exylia.lib.util.editor;
 
 import net.exylia.lib.item.Source;
 import net.exylia.lib.input.internal.InsertWindow;
+import net.exylia.lib.text.Phrases;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.plugin.Plugin;
@@ -48,8 +49,8 @@ final class ItemListEditor implements EditorDescriptor<ItemStack> {
 
     @Override
     public @NotNull List<String> lore(@NotNull ItemStack entry) {
-        return List.of("{secondary}Stack:",
-                " {letters_black}▎ {letters}Amount {letters_black}» {info}" + entry.getAmount());
+        return List.of(Phrases.tr("{secondary}Stack:"),
+                Phrases.tr(" {letters_black}▎ {letters}Amount {letters_black}» {info}{0}", entry.getAmount()));
     }
 
     @Override
@@ -59,13 +60,13 @@ final class ItemListEditor implements EditorDescriptor<ItemStack> {
 
     @Override
     public @NotNull CompletionStage<Optional<ItemStack>> create(@NotNull Player viewer) {
-        return InsertWindow.openForItem(plugin, viewer, "{primary}&lINSERT AN ITEM");
+        return InsertWindow.openForItem(plugin, viewer, Phrases.tr("{primary}&lINSERT AN ITEM"));
     }
 
     /** Add opens the five-row window: a kit is usually put down all at once. */
     @Override
     public @NotNull CompletionStage<List<ItemStack>> createAll(@NotNull Player viewer) {
-        return InsertWindow.openForItems(plugin, viewer, "{primary}&lINSERT THE ITEMS");
+        return InsertWindow.openForItems(plugin, viewer, Phrases.tr("{primary}&lINSERT THE ITEMS"));
     }
 
     /** The item put down is the finished row; editing would ask for it again. */
@@ -88,6 +89,6 @@ final class ItemListEditor implements EditorDescriptor<ItemStack> {
     @Override
     public @NotNull CompletionStage<Optional<ItemStack>> edit(@NotNull Player viewer,
                                                               @NotNull ItemStack entry) {
-        return InsertWindow.openForItem(plugin, viewer, "{primary}&lREPLACE THE ITEM");
+        return InsertWindow.openForItem(plugin, viewer, Phrases.tr("{primary}&lREPLACE THE ITEM"));
     }
 }

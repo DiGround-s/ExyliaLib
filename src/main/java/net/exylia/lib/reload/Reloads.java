@@ -1,6 +1,7 @@
 package net.exylia.lib.reload;
 
 import net.exylia.lib.debug.Debug;
+import net.exylia.lib.text.Phrases;
 import net.exylia.lib.text.Prefixes;
 import net.exylia.lib.text.Text;
 import org.bukkit.command.CommandSender;
@@ -184,15 +185,16 @@ public final class Reloads {
         String prefix = Prefixes.get(plugin) == null ? "" : "%prefix% ";
         if (report.ok()) {
             return "[sound:ENTITY_EXPERIENCE_ORB_PICKUP|1.0|1.0]" + prefix
-                    + "{success}Reloaded {highlight}" + report.steps()
-                    + " {success}" + (report.steps() == 1 ? "step" : "steps")
-                    + " in {info}" + report.millis() + "ms";
+                    + (report.steps() == 1
+                            ? Phrases.tr("{success}Reloaded {highlight}{0} {success}step in {info}{1}ms",
+                                    report.steps(), report.millis())
+                            : Phrases.tr("{success}Reloaded {highlight}{0} {success}steps in {info}{1}ms",
+                                    report.steps(), report.millis()));
         }
         return "[sound:ENTITY_VILLAGER_NO|1.0|1.0]" + prefix
-                + "{warning}Reloaded {highlight}"
-                + (report.steps() - report.failed().size()) + "/" + report.steps()
-                + " {warning}steps in {info}" + report.millis() + "ms"
-                + " {letters_black}» {error}" + String.join(", ", report.failed());
+                + Phrases.tr("{warning}Reloaded {highlight}{0}/{1} {warning}steps in {info}{2}ms {letters_black}» {error}{3}",
+                        report.steps() - report.failed().size(), report.steps(), report.millis(),
+                        String.join(", ", report.failed()));
     }
 
     /** Returns how many steps are declared. */

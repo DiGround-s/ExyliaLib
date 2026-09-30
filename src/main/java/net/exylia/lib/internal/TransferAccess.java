@@ -7,6 +7,7 @@ import net.exylia.lib.database.transfer.TransferReport;
 import net.exylia.lib.database.transfer.Transfers;
 import net.exylia.lib.redis.Redis;
 import net.exylia.lib.database.Repository;
+import net.exylia.lib.text.Phrases;
 import org.bukkit.plugin.Plugin;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -100,7 +101,7 @@ interface TransferAccess {
                 PluginDatabase database = Databases.find(pluginName);
                 if (database == null) {
                     return CompletableFuture.completedFuture(TransferReport.failed(
-                            pluginName + " has no registered tables.", java.time.Duration.ZERO));
+                            Phrases.tr("{0} has no registered tables.", pluginName), java.time.Duration.ZERO));
                 }
                 return Transfers.of(database.plugin()).export(folder);
             }
@@ -112,7 +113,7 @@ interface TransferAccess {
                 PluginDatabase database = Databases.find(pluginName);
                 if (database == null) {
                     return CompletableFuture.completedFuture(TransferReport.failed(
-                            pluginName + " has no registered tables.", java.time.Duration.ZERO));
+                            Phrases.tr("{0} has no registered tables.", pluginName), java.time.Duration.ZERO));
                 }
                 return Transfers.of(database.plugin()).importFrom(file, force).thenApply(report -> {
                     // A table put back from a dump is one the admin wants written
@@ -130,7 +131,7 @@ interface TransferAccess {
                 PluginDatabase database = Databases.find(pluginName);
                 if (database == null) {
                     return CompletableFuture.completedFuture(TransferReport.failed(
-                            pluginName + " has no registered tables.", java.time.Duration.ZERO));
+                            Phrases.tr("{0} has no registered tables.", pluginName), java.time.Duration.ZERO));
                 }
                 Plugin plugin = database.plugin();
                 CompletableFuture<TransferReport> wiped = table == null

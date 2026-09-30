@@ -1,5 +1,6 @@
 package net.exylia.lib.format;
 
+import net.exylia.lib.text.Phrases;
 import net.exylia.lib.util.TimeFormats;
 import org.jetbrains.annotations.NotNull;
 
@@ -187,10 +188,14 @@ public final class Dates {
      * note on the class for why an absurd-but-writable date is printed rather
      * than hidden behind this.
      */
-    private static final String UNKNOWN = "unknown";
+    private static String unknown() {
+        return Phrases.tr("unknown");
+    }
 
     /** What a difference too small to be worth a number reads as. */
-    private static final String JUST_NOW = "just now";
+    private static String justNow() {
+        return Phrases.tr("just now");
+    }
 
     /**
      * How close to now counts as now, in seconds.
@@ -469,10 +474,10 @@ public final class Dates {
         double seconds = between.getSeconds() + between.getNano() / 1_000_000_000.0;
         double magnitude = Math.abs(seconds);
         if (magnitude < JUST_NOW_SECONDS) {
-            return JUST_NOW;
+            return justNow();
         }
         String rendered = TimeFormats.render(magnitude, TimeFormats.Style.COMPACT);
-        return seconds < 0 ? rendered + " ago" : "in " + rendered;
+        return seconds < 0 ? Phrases.tr("{0} ago", rendered) : Phrases.tr("in {0}", rendered);
     }
 
     /**
@@ -516,7 +521,7 @@ public final class Dates {
         try {
             return LocalDateTime.ofInstant(when, zone).format(formatter);
         } catch (DateTimeException | ArithmeticException notADate) {
-            return UNKNOWN;
+            return unknown();
         }
     }
 
@@ -525,7 +530,7 @@ public final class Dates {
         try {
             return when.format(formatter);
         } catch (DateTimeException | ArithmeticException notADate) {
-            return UNKNOWN;
+            return unknown();
         }
     }
 }

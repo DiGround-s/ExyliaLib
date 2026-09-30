@@ -2,6 +2,7 @@ package net.exylia.lib.economy;
 
 import net.exylia.lib.economy.internal.PlayerThreadBalances;
 import net.exylia.lib.task.TaskScheduler;
+import net.exylia.lib.text.Phrases;
 import net.exylia.lib.task.Tasks;
 import net.exylia.lib.util.reward.PluginRewards;
 import net.exylia.lib.util.reward.RewardEntry;
@@ -88,7 +89,7 @@ public final class ExperienceCurrency implements CurrencyProvider {
 
     @Override
     public @NotNull String displayName() {
-        return levels ? "Experience levels" : "Experience points";
+        return levels ? Phrases.tr("Experience levels") : Phrases.tr("Experience points");
     }
 
     @Override

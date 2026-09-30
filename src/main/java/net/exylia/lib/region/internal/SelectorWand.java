@@ -2,6 +2,7 @@ package net.exylia.lib.region.internal;
 
 import net.exylia.lib.packet.internal.PacketRuntime;
 import net.exylia.lib.region.SelectionOptions;
+import net.exylia.lib.text.Phrases;
 import net.exylia.lib.text.Text;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.TextDecoration;
@@ -111,9 +112,10 @@ public interface SelectorWand {
             if (meta == null) {
                 return wand;
             }
-            meta.displayName(line(owner, options.selectorName()));
-            List<Component> lore = new ArrayList<>(options.selectorLore().size());
-            for (String text : options.selectorLore()) {
+            meta.displayName(line(owner, name(options.selectorName())));
+            List<String> lines = lore(options.selectorLore());
+            List<Component> lore = new ArrayList<>(lines.size());
+            for (String text : lines) {
                 lore.add(line(owner, text));
             }
             meta.lore(lore);
@@ -129,6 +131,32 @@ public interface SelectorWand {
             meta.getPersistentDataContainer().set(KEY, PersistentDataType.BYTE, (byte) 1);
             wand.setItemMeta(meta);
             return wand;
+        }
+
+        /** The library's own default name, in the library's language; a plugin's own name as it is. */
+        private String name(String name) {
+            return name.equals(SelectionOptions.DEFAULT_SELECTOR_NAME)
+                    ? Phrases.tr("{primary}&lREGION SELECTOR") : name;
+        }
+
+        /** The library's own default lore, in the library's language; a plugin's own lore as it is. */
+        private List<String> lore(List<String> lore) {
+            if (lore.equals(SelectionOptions.DEFAULT_SELECTOR_LORE)) {
+                return List.of(Phrases.tr("{secondary}Selection:"),
+                        Phrases.tr(" {letters_black}▎ {letters}Left-click {letters_black}» {success}first corner"),
+                        Phrases.tr(" {letters_black}▎ {letters}Right-click {letters_black}» {error}second corner"),
+                        "",
+                        Phrases.tr("{warning}➥ Shift + left-click to confirm"));
+            }
+            if (lore.equals(SelectionOptions.DEFAULT_FULL_HEIGHT_SELECTOR_LORE)) {
+                return List.of(Phrases.tr("{secondary}Selection:"),
+                        Phrases.tr(" {letters_black}▎ {letters}Left-click {letters_black}» {success}first corner"),
+                        Phrases.tr(" {letters_black}▎ {letters}Right-click {letters_black}» {error}second corner"),
+                        Phrases.tr(" {letters_black}▎ {letters}Height {letters_black}» {info}Full"),
+                        "",
+                        Phrases.tr("{warning}➥ Shift + left-click to confirm"));
+            }
+            return lore;
         }
 
         @Override

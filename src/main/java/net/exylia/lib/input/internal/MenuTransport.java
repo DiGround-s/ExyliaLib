@@ -6,6 +6,7 @@ import net.exylia.lib.input.FlagInput;
 import net.exylia.lib.input.InputOutcome;
 import net.exylia.lib.input.InputParser;
 import net.exylia.lib.input.InputRequest;
+import net.exylia.lib.text.Phrases;
 import net.exylia.lib.text.Text;
 import net.kyori.adventure.text.Component;
 import org.bukkit.Bukkit;
@@ -203,13 +204,13 @@ public final class MenuTransport implements Transport {
         }
 
         if (inventory.getSize() == 54 && holder.page() > 0) {
-            inventory.setItem(PREVIOUS_SLOT, item(Material.ARROW, "{primary}Previous"));
+            inventory.setItem(PREVIOUS_SLOT, item(Material.ARROW, Phrases.tr("{primary}Previous")));
         }
         int cancelSlot = inventory.getSize() == 54 ? CANCEL_SLOT : inventory.getSize() - 1;
-        inventory.setItem(cancelSlot, item(Material.BARRIER, "{error}Cancel"));
+        inventory.setItem(cancelSlot, item(Material.BARRIER, Phrases.tr("{error}Cancel")));
         if (inventory.getSize() == 54
                 && holder.page() + 1 < pages(holder.options().size())) {
-            inventory.setItem(NEXT_SLOT, item(Material.ARROW, "{primary}Next"));
+            inventory.setItem(NEXT_SLOT, item(Material.ARROW, Phrases.tr("{primary}Next")));
         }
     }
 
@@ -224,7 +225,7 @@ public final class MenuTransport implements Transport {
         }
         Text.of("{error}%error%")
                 .with("%error%", parsed.error() == null
-                        ? "That option is not accepted." : parsed.error())
+                        ? Phrases.tr("That option is not accepted.") : parsed.error())
                 .send(player);
     }
 
@@ -240,8 +241,8 @@ public final class MenuTransport implements Transport {
         }
         if (request instanceof FlagInput) {
             return List.of(
-                    new Option("true", "Yes", Material.LIME_CONCRETE),
-                    new Option("false", "No", Material.RED_CONCRETE));
+                    new Option("true", Phrases.tr("Yes"), Material.LIME_CONCRETE),
+                    new Option("false", Phrases.tr("No"), Material.RED_CONCRETE));
         }
         return null;
     }
@@ -269,7 +270,7 @@ public final class MenuTransport implements Transport {
 
     private static Component titleOf(Object request, int page, int pages) {
         String prompt = request instanceof InputRequest<?, ?> input
-                ? input.prompt() : "Choose an option";
+                ? input.prompt() : Phrases.tr("Choose an option");
         if (pages == 1) {
             return Text.of("%prompt%").withFormatted("%prompt%", prompt).build();
         }

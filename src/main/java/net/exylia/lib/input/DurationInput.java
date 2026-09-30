@@ -1,5 +1,6 @@
 package net.exylia.lib.input;
 
+import net.exylia.lib.text.Phrases;
 import org.bukkit.entity.Player;
 import org.jetbrains.annotations.NotNull;
 
@@ -30,7 +31,7 @@ public final class DurationInput extends InputRequest<Duration, DurationInput> {
         }
         this.minimum = minimum;
         return validate(value -> value.compareTo(minimum) >= 0,
-                "Enter a duration of at least " + minimum + '.');
+                Phrases.tr("Enter a duration of at least {0}.", minimum));
     }
 
     /** Applies an inclusive longest duration. */
@@ -44,6 +45,6 @@ public final class DurationInput extends InputRequest<Duration, DurationInput> {
         }
         this.maximum = maximum;
         return validate(value -> value.compareTo(maximum) <= 0,
-                "Enter a duration of at most " + maximum + '.');
+                Phrases.tr("Enter a duration of at most {0}.", maximum));
     }
 }

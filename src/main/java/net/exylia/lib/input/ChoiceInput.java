@@ -1,5 +1,6 @@
 package net.exylia.lib.input;
 
+import net.exylia.lib.text.Phrases;
 import org.bukkit.Material;
 import org.bukkit.entity.Player;
 import org.jetbrains.annotations.ApiStatus;
@@ -31,7 +32,7 @@ public class ChoiceInput<T> extends InputRequest<T, ChoiceInput<T>> {
     private volatile ChoiceIndex<T> index;
 
     ChoiceInput(String pluginName, Player player, String prompt, Collection<T> choices) {
-        super(pluginName, player, prompt, raw -> InputParser.Parsed.rejected("Choose one of the available options."));
+        super(pluginName, player, prompt, raw -> InputParser.Parsed.rejected(Phrases.tr("Choose one of the available options.")));
         if (choices == null || choices.isEmpty()) {
             throw new InputException("choices must not be empty");
         }
@@ -82,21 +83,21 @@ public class ChoiceInput<T> extends InputRequest<T, ChoiceInput<T>> {
     @Override
     public @NotNull InputParser.Parsed<T> parseRaw(@NotNull String raw) {
         if (raw == null) {
-            return InputParser.Parsed.rejected("Choose one of the available options.");
+            return InputParser.Parsed.rejected(Phrases.tr("Choose one of the available options."));
         }
         final String normalized;
         try {
             String transformed = transform().apply(raw.trim());
             normalized = transformed == null ? null : normalizeKey(transformed);
         } catch (RuntimeException failure) {
-            return InputParser.Parsed.rejected("Choose one of the available options.");
+            return InputParser.Parsed.rejected(Phrases.tr("Choose one of the available options."));
         }
         if (normalized == null) {
-            return InputParser.Parsed.rejected("Choose one of the available options.");
+            return InputParser.Parsed.rejected(Phrases.tr("Choose one of the available options."));
         }
         T value = ensureIndex().byKey().get(normalized);
         if (value == null) {
-            return InputParser.Parsed.rejected("Choose one of the available options.");
+            return InputParser.Parsed.rejected(Phrases.tr("Choose one of the available options."));
         }
         Validation validation = validate(value);
         return validation.valid()

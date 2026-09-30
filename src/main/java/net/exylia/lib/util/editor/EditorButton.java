@@ -1,5 +1,6 @@
 package net.exylia.lib.util.editor;
 
+import net.exylia.lib.text.Phrases;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.ArrayList;
@@ -113,12 +114,12 @@ public final class EditorButton<T> {
     public static <T> @NotNull EditorButton<T> preset(@NotNull Supplier<List<T>> preset) {
         Objects.requireNonNull(preset, "preset");
         return EditorButton.<T>of("CHEST_MINECART")
-                .name("{highlight}&lLOAD DEFAULTS")
-                .lore("{secondary}Information:",
-                        " {letters_black}▎ {letters}Replaces everything here with",
-                        " {letters_black}▎ {letters}the recommended list.",
+                .name(Phrases.tr("{highlight}&lLOAD DEFAULTS"))
+                .lore(Phrases.tr("{secondary}Information:"),
+                        Phrases.tr(" {letters_black}▎ {letters}Replaces everything here with"),
+                        Phrases.tr(" {letters_black}▎ {letters}the recommended list."),
                         "",
-                        "{warning}➥ Click to load, then save")
+                        Phrases.tr("{warning}➥ Click to load, then save"))
                 .glowing()
                 .onClick(view -> view.replaceAll(preset.get()))
                 .build();
@@ -133,7 +134,7 @@ public final class EditorButton<T> {
 
         private final String icon;
         private final List<String> lore = new ArrayList<>();
-        private String name = "{primary}&lBUTTON";
+        private String name = Phrases.tr("{primary}&lBUTTON");
         private boolean glowing;
         private Consumer<EditorView<T>> onClick = view -> { };
 

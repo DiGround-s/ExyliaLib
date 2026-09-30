@@ -5,6 +5,7 @@ import net.exylia.lib.input.FormKey;
 import net.exylia.lib.input.Inputs;
 import net.exylia.lib.task.TaskScheduler;
 import net.exylia.lib.task.Tasks;
+import net.exylia.lib.text.Phrases;
 import net.exylia.lib.util.editor.EditorForm;
 import net.exylia.lib.util.editor.Editors;
 import net.exylia.lib.util.editor.ListEditor;
@@ -444,7 +445,7 @@ public final class PluginMobs {
      */
     public @NotNull CompletionStage<Optional<Map<String, Double>>> attributesEditor(
             @NotNull Player viewer, @NotNull Map<String, Double> attributes) {
-        EditorForm form = EditorForm.of(plugin, viewer, "{primary}&lATTRIBUTES");
+        EditorForm form = EditorForm.of(plugin, viewer, Phrases.tr("{primary}&lATTRIBUTES"));
         for (String key : MobTemplate.ATTRIBUTES) {
             FormKey<BigDecimal> field = FormKey.decimal(key);
             Double current = attributes.get(key);
@@ -452,7 +453,7 @@ public final class PluginMobs {
                     .defaultValue(current == null ? null : BigDecimal.valueOf(current))
                     .optional());
         }
-        form.hint("Blank keeps the vanilla value.");
+        form.hint(Phrases.tr("Blank keeps the vanilla value."));
         return form.ask(values -> {
             Map<String, Double> edited = new LinkedHashMap<>(attributes);
             for (String key : MobTemplate.ATTRIBUTES) {
@@ -476,7 +477,7 @@ public final class PluginMobs {
      */
     public @NotNull CompletionStage<Optional<Set<MobFlag>>> flagsEditor(@NotNull Player viewer,
                                                                         @NotNull Set<MobFlag> flags) {
-        EditorForm form = EditorForm.of(plugin, viewer, "{primary}&lFLAGS");
+        EditorForm form = EditorForm.of(plugin, viewer, Phrases.tr("{primary}&lFLAGS"));
         for (MobFlag flag : MobFlag.values()) {
             form.flag(FormKey.flag(flag.name()), flag.description(), flags.contains(flag));
         }
@@ -504,17 +505,17 @@ public final class PluginMobs {
         FormKey<Duration> cooldown = FormKey.duration("hit_cooldown");
         FormKey<Duration> lifetime = FormKey.duration("lifetime");
         FormKey<BigDecimal> roam = FormKey.decimal("roam");
-        EditorForm form = EditorForm.of(plugin, viewer, "{primary}&lBEHAVIOUR")
-                .integer(hits, "Hits to break it", behaviour.hits())
-                .hint("0 lets its health decide. Above 0 nothing hurts it; each player's hit counts one.")
-                .field(cooldown, FormField.duration(cooldown, "Between two hits of one player")
+        EditorForm form = EditorForm.of(plugin, viewer, Phrases.tr("{primary}&lBEHAVIOUR"))
+                .integer(hits, Phrases.tr("Hits to break it"), behaviour.hits())
+                .hint(Phrases.tr("0 lets its health decide. Above 0 nothing hurts it; each player's hit counts one."))
+                .field(cooldown, FormField.duration(cooldown, Phrases.tr("Between two hits of one player"))
                         .defaultValue(zeroAsBlank(behaviour.hitCooldown())).optional())
-                .hint("Hits mode only. 500ms, 1s. 0 for none.")
-                .field(lifetime, FormField.duration(lifetime, "Leaves after")
+                .hint(Phrases.tr("Hits mode only. 500ms, 1s. 0 for none."))
+                .field(lifetime, FormField.duration(lifetime, Phrases.tr("Leaves after"))
                         .defaultValue(zeroAsBlank(behaviour.lifetime())).optional())
-                .hint("5m, 1h. 0 stays until it dies.")
-                .decimal(roam, "Roam, in blocks", BigDecimal.valueOf(behaviour.roam()).stripTrailingZeros())
-                .hint("0 goes anywhere. Past it, it walks back; 8 blocks further, it is put back.");
+                .hint(Phrases.tr("5m, 1h. 0 stays until it dies."))
+                .decimal(roam, Phrases.tr("Roam, in blocks"), BigDecimal.valueOf(behaviour.roam()).stripTrailingZeros())
+                .hint(Phrases.tr("0 goes anywhere. Past it, it walks back; 8 blocks further, it is put back."));
         return form.ask(values -> new MobBehaviour(
                 (int) Math.max(0, Math.min(Integer.MAX_VALUE, values.getOr(hits, 0L))),
                 values.getOr(cooldown, Duration.ZERO),
@@ -543,8 +544,9 @@ public final class PluginMobs {
     public @NotNull CompletionStage<Optional<MobLook>> lookEditor(@NotNull Player viewer, @NotNull EntityType type,
                                                                   @NotNull MobLook look) {
         return Inputs.of(plugin)
-                .choice(viewer, "{primary}&lLOOK", List.of("APPEARANCE", "REACTIONS"))
-                .label(part -> "{primary}&l" + part)
+                .choice(viewer, Phrases.tr("{primary}&lLOOK"), List.of("APPEARANCE", "REACTIONS"))
+                .label(part -> part.equals("APPEARANCE") ? Phrases.tr("{primary}&lAPPEARANCE")
+                        : Phrases.tr("{primary}&lREACTIONS"))
                 .icon(part -> part.equals("APPEARANCE") ? Material.PINK_CARPET : Material.FIREWORK_STAR)
                 .key(part -> part)
                 .open()
@@ -561,19 +563,19 @@ public final class PluginMobs {
         FormKey<String> aura = FormKey.text("aura");
         List<String> variants = MobLook.variants(type);
         List<String> bodies = MobLook.bodies(type);
-        EditorForm form = EditorForm.of(plugin, viewer, "{primary}&lAPPEARANCE");
+        EditorForm form = EditorForm.of(plugin, viewer, Phrases.tr("{primary}&lAPPEARANCE"));
         if (!variants.isEmpty()) {
-            pick(form, variant, "Variant", look.variant(), variants, true).hint("CYCLE changes it every second.");
+            pick(form, variant, Phrases.tr("Variant"), look.variant(), variants, true).hint(Phrases.tr("CYCLE changes it every second."));
         }
         if (!bodies.isEmpty()) {
-            pick(form, body, "Worn on its back", look.body(), bodies, true);
+            pick(form, body, Phrases.tr("Worn on its back"), look.body(), bodies, true);
         }
-        pick(form, glow, "Outline colour", look.glow(), MobLook.GLOWS, true).hint("Anything but NONE makes it glow.");
+        pick(form, glow, Phrases.tr("Outline colour"), look.glow(), MobLook.GLOWS, true).hint(Phrases.tr("Anything but NONE makes it glow."));
         List<String> auraNames = List.copyOf(engine.auras().keySet());
         if (auraNames.isEmpty()) {
-            form.field(aura, optionalText(aura, "Aura", look.aura())).hint("No auras are registered. NONE for none.");
+            form.field(aura, optionalText(aura, Phrases.tr("Aura"), look.aura())).hint(Phrases.tr("No auras are registered. NONE for none."));
         } else {
-            pick(form, aura, "Aura", look.aura(), auraNames, false);
+            pick(form, aura, Phrases.tr("Aura"), look.aura(), auraNames, false);
         }
         return form.ask(values -> look
                 .withVariant(variants.isEmpty() ? look.variant() : none(values.getOr(variant, "")))
@@ -621,7 +623,7 @@ public final class PluginMobs {
 
     private CompletionStage<Optional<MobLook>> reactions(Player viewer, MobLook look) {
         return Inputs.of(plugin)
-                .choice(viewer, "{primary}&lREACTIONS", List.of(Reaction.values()))
+                .choice(viewer, Phrases.tr("{primary}&lREACTIONS"), List.of(Reaction.values()))
                 .label(reaction -> "{primary}&l" + reaction.name() + " &8[{info}" + shown(reaction.of(look)) + "&8]")
                 .icon(reaction -> reaction.icon)
                 .key(Enum::name)
@@ -653,7 +655,7 @@ public final class PluginMobs {
 
     /** What a reaction reads as in a menu: AUTO for blank. */
     private static String shown(String id) {
-        return id.isEmpty() ? "auto" : id;
+        return id.isEmpty() ? Phrases.tr("auto") : id;
     }
 
     private static Material reactionIcon(String option, Material fallback) {
@@ -704,9 +706,9 @@ public final class PluginMobs {
                                                                     @NotNull Set<String> groupsInUse) {
         List<String> groups = new java.util.TreeSet<>(groupsInUse).stream().filter(group -> !group.isBlank()).toList();
         return Inputs.of(plugin)
-                .choice(viewer, "{primary}&lFIGHT", List.of("TIMING", "PHASES"))
-                .label(part -> part.equals("TIMING") ? "{primary}&lTIMING"
-                        : "{primary}&lPHASES &8[{info}" + fight.phases().size() + "&8]")
+                .choice(viewer, Phrases.tr("{primary}&lFIGHT"), List.of("TIMING", "PHASES"))
+                .label(part -> part.equals("TIMING") ? Phrases.tr("{primary}&lTIMING")
+                        : Phrases.tr("{primary}&lPHASES &8[{info}{0}&8]", fight.phases().size()))
                 .icon(part -> part.equals("TIMING") ? Material.CLOCK : Material.BLAZE_POWDER)
                 .key(part -> part)
                 .open()
@@ -718,15 +720,16 @@ public final class PluginMobs {
 
     private CompletionStage<Optional<MobFight>> fightTiming(Player viewer, MobFight fight, List<String> groups) {
         FormKey<Duration> gcd = FormKey.duration("gcd");
-        EditorForm form = EditorForm.of(plugin, viewer, "{primary}&lTIMING")
-                .field(gcd, FormField.duration(gcd, "Between two attacks")
+        EditorForm form = EditorForm.of(plugin, viewer, Phrases.tr("{primary}&lTIMING"))
+                .field(gcd, FormField.duration(gcd, Phrases.tr("Between two attacks"))
                         .defaultValue(zeroAsBlank(fight.globalCooldown())).optional())
-                .hint("After any skill but EFFECT and COMMAND, how long before the next. 0 for none.");
+                .hint(Phrases.tr("After any skill but EFFECT and COMMAND, how long before the next. 0 for none."));
         for (int index = 0; index < groups.size(); index++) {
             FormKey<Duration> period = FormKey.duration("group_" + index);
-            form.field(period, FormField.duration(period, "Group " + groups.get(index) + ", every")
+            form.field(period, FormField.duration(period, Phrases.tr("Group {0}, every", groups.get(index)))
+
                             .defaultValue(fight.period(groups.get(index))))
-                    .hint("One skill of the group per period, picked by weight. 1s at least.");
+                    .hint(Phrases.tr("One skill of the group per period, picked by weight. 1s at least."));
         }
         return form.ask(values -> {
             Map<String, Duration> periods = new LinkedHashMap<>();
@@ -741,7 +744,7 @@ public final class PluginMobs {
     private CompletionStage<Optional<MobFight>> phases(Player viewer, MobFight fight) {
         CompletableFuture<Optional<MobFight>> edited = new CompletableFuture<>();
         Editors.of(plugin).list(new MobPhaseDescriptor(plugin), MobPhase.class, fight.phases())
-                .title("{primary}&lPHASES")
+                .title(Phrases.tr("{primary}&lPHASES"))
                 .onSave(phases -> edited.complete(Optional.of(fight.withPhases(phases))))
                 .onCancel(() -> edited.complete(Optional.empty()))
                 .open(viewer);

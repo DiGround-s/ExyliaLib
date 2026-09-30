@@ -1,5 +1,6 @@
 package net.exylia.lib.util.loot;
 
+import net.exylia.lib.text.Phrases;
 import net.exylia.lib.item.Source;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -210,13 +211,13 @@ public final class LootEntry {
      */
     public @NotNull String displayName() {
         if (isCommand()) {
-            return command != null && !command.isBlank() ? command : "(no command)";
+            return command != null && !command.isBlank() ? command : Phrases.tr("(no command)");
         }
         if (isEconomy()) {
             String amount = minAmount == maxAmount ? String.valueOf(minAmount) : minAmount + "-" + maxAmount;
-            return amount + " " + (currency != null && !currency.isBlank() ? currency : "MONEY");
+            return amount + " " + (currency != null && !currency.isBlank() ? currency : Phrases.tr("MONEY"));
         }
-        return itemSnapshot != null ? readable(itemSnapshot) : "(not set)";
+        return itemSnapshot != null ? readable(itemSnapshot) : Phrases.tr("(not set)");
     }
 
     /**

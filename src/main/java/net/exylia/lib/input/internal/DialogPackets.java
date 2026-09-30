@@ -49,6 +49,7 @@ import net.exylia.lib.input.SearchInput;
 import net.exylia.lib.input.SlotInput;
 import net.exylia.lib.input.Validation;
 import net.exylia.lib.task.Tasks;
+import net.exylia.lib.text.Phrases;
 import net.exylia.lib.text.Text;
 import net.kyori.adventure.text.Component;
 import org.bukkit.Bukkit;
@@ -246,7 +247,7 @@ final class DialogPackets {
 
     private static Dialog dialog(State state) {
         Object request = state.session().request();
-        ActionButton cancel = button("Cancel", "cancel/" + state.key());
+        ActionButton cancel = button(Phrases.tr("Cancel"), "cancel/" + state.key());
         List<DialogBody> body = notes(request, state.validation());
         if (request instanceof ChoiceInput<?> choice) {
             return new MultiActionDialog(new CommonDialogData(Text.component(prompt(request)),
@@ -261,7 +262,7 @@ final class DialogPackets {
         List<Input> inputs = request instanceof FormInput form
                 ? formInputs(form, state.values(), state.validation())
                 : List.of(singleInput((InputRequest<?, ?>) request, state.values().get("value"), state.validation()));
-        String submitLabel = request instanceof FormInput form ? form.submitLabel() : "Submit";
+        String submitLabel = request instanceof FormInput form ? form.submitLabel() : Phrases.tr("Submit");
         CommonDialogData common = new CommonDialogData(
                 Text.component(prompt(request)), null, true, false, DialogAction.CLOSE, body, inputs);
         // A confirmation dialog, not a multi-action one: the client draws a
@@ -270,7 +271,7 @@ final class DialogPackets {
         // Here both sit in the footer, always in view.
         return new ConfirmationDialog(common,
                 button(submitLabel, null, "submit/" + state.key(), FOOTER_WIDTH),
-                button("Cancel", null, "cancel/" + state.key(), FOOTER_WIDTH));
+                button(Phrases.tr("Cancel"), null, "cancel/" + state.key(), FOOTER_WIDTH));
     }
 
     /**
@@ -312,13 +313,14 @@ final class DialogPackets {
         for (int slot = 0; slot < grid.slots(); slot++) {
             boolean taken = grid.isTaken(slot);
             String occupant = grid.occupant(slot);
-            String tooltip = taken ? "{error}Taken" + (occupant == null ? "" : " {letters_black}\u00bb {letters}" + occupant)
-                    : "{success}Free";
+            String tooltip = !taken ? Phrases.tr("{success}Free")
+                    : occupant == null ? Phrases.tr("{error}Taken")
+                    : Phrases.tr("{error}Taken {letters_black}\u00bb {letters}{0}", occupant);
             buttons.add(button((taken ? "{error}" : "{success}") + slot, tooltip,
                     SLOT + slot + "/" + stateKey, CELL_WIDTH));
         }
         if (grid.allowsAuto()) {
-            buttons.add(button("{muted}AUTO", "{muted}Place it at the next free position",
+            buttons.add(button(Phrases.tr("{muted}AUTO"), Phrases.tr("{muted}Place it at the next free position"),
                     SLOT + SlotInput.AUTO + "/" + stateKey, CELL_WIDTH));
         }
         return buttons;

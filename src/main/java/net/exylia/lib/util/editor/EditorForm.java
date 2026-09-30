@@ -6,6 +6,7 @@ import net.exylia.lib.input.FormInput;
 import net.exylia.lib.input.FormKey;
 import net.exylia.lib.input.FormValues;
 import net.exylia.lib.input.Inputs;
+import net.exylia.lib.text.Phrases;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
 import org.jetbrains.annotations.NotNull;
@@ -163,8 +164,8 @@ public final class EditorForm {
 
     private static List<FormField.Option> currencies(String current) {
         List<FormField.Option> options = new ArrayList<>();
-        String fallback = Economy.isAvailable() ? Economy.info(null).namePlural() : "money";
-        options.add(new FormField.Option(DEFAULT_CURRENCY, "{letters}Default {muted}(" + fallback + ")"));
+        String fallback = Economy.isAvailable() ? Economy.info(null).namePlural() : Phrases.tr("money");
+        options.add(new FormField.Option(DEFAULT_CURRENCY, Phrases.tr("{letters}Default {muted}({0})", fallback)));
         List<String> ids = new ArrayList<>(Economy.currencies());
         ids.sort(String::compareToIgnoreCase);
         if (current != null && ids.stream().noneMatch(current::equalsIgnoreCase)) {

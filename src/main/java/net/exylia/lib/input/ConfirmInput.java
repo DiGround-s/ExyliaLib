@@ -1,5 +1,6 @@
 package net.exylia.lib.input;
 
+import net.exylia.lib.text.Phrases;
 import org.bukkit.entity.Player;
 import org.jetbrains.annotations.ApiStatus;
 import org.jetbrains.annotations.NotNull;
@@ -12,8 +13,8 @@ import org.jetbrains.annotations.NotNull;
  */
 public final class ConfirmInput extends InputRequest<Boolean, ConfirmInput> {
 
-    private String confirmLabel = "Confirm";
-    private String denyLabel = "Cancel";
+    private String confirmLabel = Phrases.tr("Confirm");
+    private String denyLabel = Phrases.tr("Cancel");
     private boolean dangerous;
 
     ConfirmInput(String pluginName, Player player, String prompt) {

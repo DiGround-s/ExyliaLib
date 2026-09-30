@@ -2,6 +2,7 @@ package net.exylia.lib.input;
 
 import net.exylia.lib.input.internal.InsertWindow;
 import net.exylia.lib.item.Source;
+import net.exylia.lib.text.Phrases;
 import net.exylia.lib.text.Text;
 import net.exylia.lib.util.head.Heads;
 import org.bukkit.Material;
@@ -216,23 +217,23 @@ public final class IconInput {
     /** Asks for the icon itself, whichever way it is being given. */
     private CompletionStage<InputResult<String>> ask(Way way) {
         return switch (way) {
-            case MATERIAL -> timed(inputs.search(player, "{warning}Search a material", Items.ALL)
+            case MATERIAL -> timed(inputs.search(player, Phrases.tr("{warning}Search a material"), Items.ALL)
                     .label(Material::name)
                     .key(Material::name)
                     .icon(material -> material))
                     .open()
                     .thenApply(result -> map(result, Material::name));
             case INSERT -> insert();
-            case BROWSE -> timed(Heads.browse(inputs, player, "{warning}Browse a head"))
+            case BROWSE -> timed(Heads.browse(inputs, player, Phrases.tr("{warning}Browse a head")))
                     .open()
                     .thenApply(result -> result.completed()
                             ? stored(result.value().icon())
                             : ended(result));
-            case HEAD -> timed(inputs.text(player, "{warning}Paste a head"
-                    + " {muted}(playerhead-Notch, basehead-<base64>, urlhead-<url>)")
-                    .validate(IconInput::isHead, "{error}That is not a head.")
+            case HEAD -> timed(inputs.text(player,
+                            Phrases.tr("{warning}Paste a head {muted}(playerhead-Notch, basehead-<base64>, urlhead-<url>)"))
+                    .validate(IconInput::isHead, Phrases.tr("{error}That is not a head."))
                     .validate(value -> value.length() <= maxLength,
-                            "{error}That head is too long to store."))
+                            Phrases.tr("{error}That head is too long to store.")))
                     .open()
                     .thenApply(result -> map(result, Function.identity()));
         };
@@ -269,9 +270,9 @@ public final class IconInput {
     private InputResult<String> stored(String icon) {
         if (icon.length() > maxLength) {
             Text.of(whole
-                    ? "{error}That item is too big to store. Shorten its lore, or use a plainer item."
-                    : "{error}That item is too big to store as an icon."
-                    + " Pick a material or a head instead.").send(player);
+                    ? Phrases.tr("{error}That item is too big to store. Shorten its lore, or use a plainer item.")
+                    : Phrases.tr("{error}That item is too big to store as an icon. Pick a material or a head instead."))
+                    .send(player);
             return InputResult.ended(InputOutcome.CANCELLED);
         }
         return InputResult.completed(icon);
@@ -307,36 +308,39 @@ public final class IconInput {
     public enum Way {
 
         /** Chosen from every item the server has. */
-        MATERIAL("Material", Material.GRASS_BLOCK),
+        MATERIAL(Material.GRASS_BLOCK),
 
         /**
          * Put in a slot, read exactly as it is, and handed straight back.
          *
          * @since 1.59.0
          */
-        INSERT("Insert an item", Material.HOPPER),
+        INSERT(Material.HOPPER),
 
         /** A head, pasted as a texture, a URL or a player name. */
-        HEAD("A head", Material.PLAYER_HEAD),
+        HEAD(Material.PLAYER_HEAD),
 
         /**
          * Searched for by name in the head catalogue.
          *
          * @since 1.82.0
          */
-        BROWSE("Browse a head", Material.SPYGLASS);
+        BROWSE(Material.SPYGLASS);
 
-        private final String label;
         private final Material icon;
 
-        Way(String label, Material icon) {
-            this.label = label;
+        Way(Material icon) {
             this.icon = icon;
         }
 
         /** What this way is called on screen. */
         public @NotNull String label() {
-            return label;
+            return switch (this) {
+                case MATERIAL -> Phrases.tr("Material");
+                case INSERT -> Phrases.tr("Insert an item");
+                case HEAD -> Phrases.tr("A head");
+                case BROWSE -> Phrases.tr("Browse a head");
+            };
         }
 
         /** What this way is drawn as. */

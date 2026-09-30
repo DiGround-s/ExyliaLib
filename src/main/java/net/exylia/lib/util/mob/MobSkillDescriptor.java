@@ -4,6 +4,7 @@ import net.exylia.lib.input.FormField;
 import net.exylia.lib.input.FormKey;
 import net.exylia.lib.input.FormValues;
 import net.exylia.lib.input.Inputs;
+import net.exylia.lib.text.Phrases;
 import net.exylia.lib.util.Effects;
 import net.exylia.lib.util.TimeFormats;
 import net.exylia.lib.util.editor.EditorDescriptor;
@@ -88,18 +89,27 @@ final class MobSkillDescriptor implements EditorDescriptor<MobSkill> {
      * {@link #edit(Player, MobSkill)}.
      */
     enum Section {
-        MECHANICS("{primary}&lMECHANICS", Material.PISTON),
-        TIMING("{primary}&lTIMING & AIM", Material.CLOCK),
-        CONDITIONS("{primary}&lCONDITIONS", Material.COMPARATOR),
-        LOOK("{primary}&lLOOK", Material.PAINTING),
-        PREVIEW("{primary}&l▶ PREVIEW", Material.ENDER_EYE);
+        MECHANICS(Material.PISTON),
+        TIMING(Material.CLOCK),
+        CONDITIONS(Material.COMPARATOR),
+        LOOK(Material.PAINTING),
+        PREVIEW(Material.ENDER_EYE);
 
-        final String label;
         final Material icon;
 
-        Section(String label, Material icon) {
-            this.label = label;
+        Section(Material icon) {
             this.icon = icon;
+        }
+
+        /** Its name on the button, in the library's language as the screen opens. */
+        String label() {
+            return switch (this) {
+                case MECHANICS -> Phrases.tr("{primary}&lMECHANICS");
+                case TIMING -> Phrases.tr("{primary}&lTIMING & AIM");
+                case CONDITIONS -> Phrases.tr("{primary}&lCONDITIONS");
+                case LOOK -> Phrases.tr("{primary}&lLOOK");
+                case PREVIEW -> Phrases.tr("{primary}&l▶ PREVIEW");
+            };
         }
     }
 
@@ -135,35 +145,35 @@ final class MobSkillDescriptor implements EditorDescriptor<MobSkill> {
     @Override
     public @NotNull List<String> lore(@NotNull MobSkill skill, @NotNull List<MobSkill> siblings) {
         List<String> lore = new ArrayList<>(20);
-        lore.add("{secondary}Skill:");
-        lore.add(" {letters_black}▎ {letters}When {letters_black}» {info}" + when(skill));
+        lore.add(Phrases.tr("{secondary}Skill:"));
+        lore.add(Phrases.tr(" {letters_black}▎ {letters}When {letters_black}» {info}{0}", when(skill)));
         if (skill.grouped()) {
             double total = siblings.stream().filter(MobSkill::grouped)
                     .filter(other -> other.cast().group().equals(skill.cast().group()))
                     .mapToDouble(MobSkill::chance).sum();
-            lore.add(line("Weight", number(skill.chance() * 100)
+            lore.add(line(Phrases.tr("Weight"), number(skill.chance() * 100)
                     + (total > 0 ? " {letters_black}(" + "{info}" + percent(skill.chance() / total) + "%{letters_black})" : "")));
             if (!skill.cooldown().isZero()) {
-                lore.add(" {letters_black}▎ {letters}Cooldown {letters_black}» {info}" + time(skill.cooldown()) + " ⌚");
+                lore.add(Phrases.tr(" {letters_black}▎ {letters}Cooldown {letters_black}» {info}{0} ⌚", time(skill.cooldown())));
             }
         } else {
-            lore.add(" {letters_black}▎ {letters}Chance {letters_black}» {info}" + percent(skill.chance()) + "%");
+            lore.add(Phrases.tr(" {letters_black}▎ {letters}Chance {letters_black}» {info}{0}%", percent(skill.chance())));
             if (skill.trigger() != MobSkill.Trigger.INTERVAL && !skill.cooldown().isZero()) {
-                lore.add(" {letters_black}▎ {letters}Cooldown {letters_black}» {info}" + time(skill.cooldown()) + " ⌚");
+                lore.add(Phrases.tr(" {letters_black}▎ {letters}Cooldown {letters_black}» {info}{0} ⌚", time(skill.cooldown())));
             }
         }
         List<String> settings = settings(skill);
-        if (!skill.effect().isBlank()) settings.add(line("Looks like", firstLine(skill.effect())));
+        if (!skill.effect().isBlank()) settings.add(line(Phrases.tr("Looks like"), firstLine(skill.effect())));
         if (!settings.isEmpty()) {
             lore.add("");
-            lore.add("{secondary}Settings:");
+            lore.add(Phrases.tr("{secondary}Settings:"));
             lore.addAll(settings);
         }
         List<String> cast = cast(skill.cast());
         cast.addAll(look(skill));
         if (!cast.isEmpty()) {
             lore.add("");
-            lore.add("{secondary}Cast:");
+            lore.add(Phrases.tr("{secondary}Cast:"));
             lore.addAll(cast);
         }
         return lore;
@@ -172,24 +182,24 @@ final class MobSkillDescriptor implements EditorDescriptor<MobSkill> {
     /** One line per part of the cast that is not its default. */
     static List<String> cast(MobSkill.Cast cast) {
         List<String> lines = new ArrayList<>(8);
-        if (!cast.name().isEmpty()) lines.add(line("Name", cast.name()));
-        if (!cast.windup().isZero()) lines.add(line("Wind-up", time(cast.windup()) + " ⌚"));
+        if (!cast.name().isEmpty()) lines.add(line(Phrases.tr("Name"), cast.name()));
+        if (!cast.windup().isZero()) lines.add(line(Phrases.tr("Wind-up"), time(cast.windup()) + " ⌚"));
         if (cast.aim() != MobSkill.Aim.AUTO) {
             String spread = cast.spread() <= 0 ? "" : cast.aim() == MobSkill.Aim.CONE ? " " + number(cast.spread()) + "°"
-                    : cast.aim() == MobSkill.Aim.LINE ? " " + number(cast.spread()) + " wide" : "";
-            lines.add(line("Aim", cast.aim().readable() + spread));
+                    : cast.aim() == MobSkill.Aim.LINE ? " " + Phrases.tr("{0} wide", number(cast.spread())) : "";
+            lines.add(line(Phrases.tr("Aim"), cast.aim().readable() + spread));
         }
         MobSkill.Gate when = cast.when();
         if (when.minHealth() > 0 || when.maxHealth() < 1) {
-            lines.add(line("Health", percent(when.minHealth()) + "-" + percent(when.maxHealth()) + "%"));
+            lines.add(line(Phrases.tr("Health"), percent(when.minHealth()) + "-" + percent(when.maxHealth()) + "%"));
         }
         if (when.minRange() > 0 || when.maxRange() > 0) {
-            lines.add(line("Target", number(when.minRange()) + "-"
-                    + (when.maxRange() > 0 ? number(when.maxRange()) : "∞") + " blocks"));
+            lines.add(line(Phrases.tr("Target"), Phrases.tr("{0}-{1} blocks", number(when.minRange()),
+                    when.maxRange() > 0 ? number(when.maxRange()) : "∞")));
         }
-        if (when.nearby() > 0) lines.add(line("Needs a player within", number(when.nearby()) + " blocks"));
-        if (when.phase() > 0) lines.add(line("Phase", String.valueOf(when.phase())));
-        if (!cast.then().isEmpty()) lines.add(line("Then", "→ " + cast.then()));
+        if (when.nearby() > 0) lines.add(line(Phrases.tr("Needs a player within"), Phrases.tr("{0} blocks", number(when.nearby()))));
+        if (when.phase() > 0) lines.add(line(Phrases.tr("Phase"), String.valueOf(when.phase())));
+        if (!cast.then().isEmpty()) lines.add(line(Phrases.tr("Then"), "→ " + cast.then()));
         return lines;
     }
 
@@ -198,9 +208,9 @@ final class MobSkillDescriptor implements EditorDescriptor<MobSkill> {
         List<String> lines = new ArrayList<>(2);
         String style = MobSkills.styleOf(skill);
         if (!style.equals(MobSkills.NO_STYLE)) {
-            lines.add(line("Style", style + (skill.cast().style().isEmpty() ? " {letters_black}(auto)" : "")));
+            lines.add(line(Phrases.tr("Style"), style + (skill.cast().style().isEmpty() ? Phrases.tr(" {letters_black}(auto)") : "")));
         }
-        if (!skill.cast().tint().isEmpty()) lines.add(line("Tint", skill.cast().tint()));
+        if (!skill.cast().tint().isEmpty()) lines.add(line(Phrases.tr("Tint"), skill.cast().tint()));
         return lines;
     }
 
@@ -209,72 +219,72 @@ final class MobSkillDescriptor implements EditorDescriptor<MobSkill> {
         List<String> lines = new ArrayList<>(3);
         switch (skill.type()) {
             case LEAP -> {
-                lines.add(line("Strength", number(skill.amount())));
-                if (skill.radius() > 0) lines.add(line("Lands hard within", number(skill.radius()) + " blocks"));
+                lines.add(line(Phrases.tr("Strength"), number(skill.amount())));
+                if (skill.radius() > 0) lines.add(line(Phrases.tr("Lands hard within"), Phrases.tr("{0} blocks", number(skill.radius()))));
             }
-            case PULL -> lines.add(line("Strength", number(skill.amount())));
+            case PULL -> lines.add(line(Phrases.tr("Strength"), number(skill.amount())));
             case PUSH -> {
-                lines.add(line("Radius", number(skill.radius()) + " blocks"));
-                lines.add(line("Strength", number(skill.amount())));
+                lines.add(line(Phrases.tr("Radius"), Phrases.tr("{0} blocks", number(skill.radius()))));
+                lines.add(line(Phrases.tr("Strength"), number(skill.amount())));
             }
             case POTION -> {
-                lines.add(line("Effect", Effects.describe(skill.text())));
-                lines.add(line("Reaches", skill.radius() > 0 ? number(skill.radius()) + " blocks" : "the target"));
+                lines.add(line(Phrases.tr("Effect"), Effects.describe(skill.text())));
+                lines.add(line(Phrases.tr("Reaches"), skill.radius() > 0 ? Phrases.tr("{0} blocks", number(skill.radius())) : Phrases.tr("the target")));
             }
             case SUMMON -> {
-                lines.add(line("Template", skill.text().isBlank() ? "{error}none" : skill.text()));
-                lines.add(line("Alive at once", number(Math.max(1, Math.round(skill.amount())))));
+                lines.add(line(Phrases.tr("Template"), skill.text().isBlank() ? Phrases.tr("{error}none") : skill.text()));
+                lines.add(line(Phrases.tr("Alive at once"), number(Math.max(1, Math.round(skill.amount())))));
             }
-            case LIGHTNING -> lines.add(line("Damage", skill.amount() > 0 ? number(skill.amount()) : "none"));
+            case LIGHTNING -> lines.add(line(Phrases.tr("Damage"), skill.amount() > 0 ? number(skill.amount()) : Phrases.tr("none")));
             case PROJECTILE -> {
-                lines.add(line("Throws", skill.text().isBlank() ? "FIREBALL" : skill.text()));
-                lines.add(line("Speed", number(skill.amount())));
+                lines.add(line(Phrases.tr("Throws"), skill.text().isBlank() ? "FIREBALL" : skill.text()));
+                lines.add(line(Phrases.tr("Speed"), number(skill.amount())));
             }
-            case HEAL -> lines.add(line("Restores", number(skill.amount()) + "%"));
+            case HEAL -> lines.add(line(Phrases.tr("Restores"), number(skill.amount()) + "%"));
             case AREA_DAMAGE -> {
-                lines.add(line("Radius", number(skill.radius()) + " blocks"));
-                lines.add(line("Damage", number(skill.amount())));
-                if (!skill.duration().isZero()) lines.add(line("Burns", time(skill.duration()) + " ⌚"));
+                lines.add(line(Phrases.tr("Radius"), Phrases.tr("{0} blocks", number(skill.radius()))));
+                lines.add(line(Phrases.tr("Damage"), number(skill.amount())));
+                if (!skill.duration().isZero()) lines.add(line(Phrases.tr("Burns"), time(skill.duration()) + " ⌚"));
             }
             case DASH -> {
-                lines.add(line("Reach", number(skill.radius() > 0 ? skill.radius() : 12) + " blocks"));
-                lines.add(line("Damage", number(skill.amount())));
+                lines.add(line(Phrases.tr("Reach"), Phrases.tr("{0} blocks", number(skill.radius() > 0 ? skill.radius() : 12))));
+                lines.add(line(Phrases.tr("Damage"), number(skill.amount())));
             }
             case CHAIN -> {
-                lines.add(line("Damage", number(skill.amount())));
-                lines.add(line("Jumps", skill.text().isBlank() ? "4" : skill.text()));
-                lines.add(line("Jump range", number(skill.radius() > 0 ? skill.radius() : 6) + " blocks"));
+                lines.add(line(Phrases.tr("Damage"), number(skill.amount())));
+                lines.add(line(Phrases.tr("Jumps"), skill.text().isBlank() ? "4" : skill.text()));
+                lines.add(line(Phrases.tr("Jump range"), Phrases.tr("{0} blocks", number(skill.radius() > 0 ? skill.radius() : 6))));
             }
             case SHIELD -> {
-                lines.add(line("Blocks", number(skill.amount()) + "%"));
-                lines.add(line("For", time(skill.duration()) + " ⌚"));
+                lines.add(line(Phrases.tr("Blocks"), number(skill.amount()) + "%"));
+                lines.add(line(Phrases.tr("For"), time(skill.duration()) + " ⌚"));
             }
             case ZONE -> {
-                lines.add(line("Radius", number(skill.radius() > 0 ? skill.radius() : 3) + " blocks"));
-                lines.add(line("Damage", number(skill.amount()) + " a second"));
-                if (!skill.text().isBlank()) lines.add(line("Effect", Effects.describe(skill.text())));
-                lines.add(line("Lasts", time(skill.duration()) + " ⌚"));
+                lines.add(line(Phrases.tr("Radius"), Phrases.tr("{0} blocks", number(skill.radius() > 0 ? skill.radius() : 3))));
+                lines.add(line(Phrases.tr("Damage"), Phrases.tr("{0} a second", number(skill.amount()))));
+                if (!skill.text().isBlank()) lines.add(line(Phrases.tr("Effect"), Effects.describe(skill.text())));
+                lines.add(line(Phrases.tr("Lasts"), time(skill.duration()) + " ⌚"));
             }
             case BARRAGE -> {
-                lines.add(line("Strikes", number(skill.amount() > 0 ? skill.amount() : 5)));
-                lines.add(line("Scatter", number(skill.radius() > 0 ? skill.radius() : 6) + " blocks"));
-                lines.add(line("Damage each", skill.text().isBlank() ? "4" : skill.text()));
+                lines.add(line(Phrases.tr("Strikes"), number(skill.amount() > 0 ? skill.amount() : 5)));
+                lines.add(line(Phrases.tr("Scatter"), Phrases.tr("{0} blocks", number(skill.radius() > 0 ? skill.radius() : 6))));
+                lines.add(line(Phrases.tr("Damage each"), skill.text().isBlank() ? "4" : skill.text()));
             }
-            case IGNITE -> lines.add(line("Burns", time(skill.duration()) + " ⌚"));
+            case IGNITE -> lines.add(line(Phrases.tr("Burns"), time(skill.duration()) + " ⌚"));
             case EFFECT, COMMAND -> {
-                if (!skill.text().isBlank()) lines.add(line(skill.type() == MobSkill.Type.EFFECT ? "Plays" : "Runs",
+                if (!skill.text().isBlank()) lines.add(line(skill.type() == MobSkill.Type.EFFECT ? Phrases.tr("Plays") : Phrases.tr("Runs"),
                         firstLine(skill.text())));
             }
             case TELEPORT -> {
-                if (skill.radius() > 0) lines.add(line("Blinks up to", number(skill.radius()) + " blocks"));
+                if (skill.radius() > 0) lines.add(line(Phrases.tr("Blinks up to"), Phrases.tr("{0} blocks", number(skill.radius()))));
             }
-            case JUMP -> lines.add(line("Strength", number(skill.amount())));
-            case SIZE -> lines.add(line("Scale", skill.text().isBlank() ? "{error}none" : skill.text()));
+            case JUMP -> lines.add(line(Phrases.tr("Strength"), number(skill.amount())));
+            case SIZE -> lines.add(line(Phrases.tr("Scale"), skill.text().isBlank() ? Phrases.tr("{error}none") : skill.text()));
             case SPEED -> {
-                lines.add(line("Speed", "×" + number(skill.amount())));
-                lines.add(line("For", time(skill.duration()) + " ⌚"));
+                lines.add(line(Phrases.tr("Speed"), "×" + number(skill.amount())));
+                lines.add(line(Phrases.tr("For"), time(skill.duration()) + " ⌚"));
             }
-            case BABY -> lines.add(line("For", time(skill.duration()) + " ⌚"));
+            case BABY -> lines.add(line(Phrases.tr("For"), time(skill.duration()) + " ⌚"));
         }
         return lines;
     }
@@ -296,11 +306,11 @@ final class MobSkillDescriptor implements EditorDescriptor<MobSkill> {
         List<Object> options = new ArrayList<>(MobSkills.library());
         options.add(CUSTOM);
         return Inputs.of(plugin)
-                .choice(viewer, "{primary}&lADD A SKILL", options)
+                .choice(viewer, Phrases.tr("{primary}&lADD A SKILL"), options)
                 .label(option -> option instanceof MobSkills.Preset preset ? "{primary}&l" + preset.label()
-                        : "{primary}&lCUSTOM")
+                        : Phrases.tr("{primary}&lCUSTOM"))
                 .description(option -> option instanceof MobSkills.Preset preset ? preset.blurb()
-                        : "Pick what it does and build it from scratch.")
+                        : Phrases.tr("Pick what it does and build it from scratch."))
                 .icon(option -> option instanceof MobSkills.Preset preset ? preset.icon() : Material.WRITABLE_BOOK)
                 .key(option -> option instanceof MobSkills.Preset preset ? preset.id() : CUSTOM)
                 .open()
@@ -308,7 +318,7 @@ final class MobSkillDescriptor implements EditorDescriptor<MobSkill> {
                     if (!picked.completed()) return CompletableFuture.completedFuture(Optional.<MobSkill>empty());
                     if (!(picked.value() instanceof MobSkills.Preset preset)) return custom(viewer);
                     return Inputs.of(plugin)
-                            .choice(viewer, "{primary}&lWHEN?", List.of(MobSkill.Trigger.values()))
+                            .choice(viewer, Phrases.tr("{primary}&lWHEN?"), List.of(MobSkill.Trigger.values()))
                             .label(trigger -> "{primary}&l" + trigger.readable().toUpperCase(Locale.ROOT))
                             .icon(MobSkillDescriptor::iconOf)
                             .key(Enum::name)
@@ -323,7 +333,7 @@ final class MobSkillDescriptor implements EditorDescriptor<MobSkill> {
     /** Asks what it does, then when, then the form with only what that type reads. */
     private CompletionStage<Optional<MobSkill>> custom(Player viewer) {
         return Inputs.of(plugin)
-                .choice(viewer, "{primary}&lWHAT DOES IT DO?", List.of(MobSkill.Type.values()))
+                .choice(viewer, Phrases.tr("{primary}&lWHAT DOES IT DO?"), List.of(MobSkill.Type.values()))
                 .label(type -> "{primary}&l" + type.readable().toUpperCase(Locale.ROOT))
                 .icon(MobSkillDescriptor::iconOf)
                 .key(Enum::name)
@@ -333,7 +343,7 @@ final class MobSkillDescriptor implements EditorDescriptor<MobSkill> {
                         return CompletableFuture.completedFuture(Optional.<MobSkill>empty());
                     }
                     return Inputs.of(plugin)
-                            .choice(viewer, "{primary}&lWHEN?", List.of(MobSkill.Trigger.values()))
+                            .choice(viewer, Phrases.tr("{primary}&lWHEN?"), List.of(MobSkill.Trigger.values()))
                             .label(trigger -> "{primary}&l" + trigger.readable().toUpperCase(Locale.ROOT))
                             .icon(MobSkillDescriptor::iconOf)
                             .key(Enum::name)
@@ -379,14 +389,14 @@ final class MobSkillDescriptor implements EditorDescriptor<MobSkill> {
         // Nothing to watch on a skill drawn in no style.
         if (mobs == null || MobSkills.styleOf(skill).equals(MobSkills.NO_STYLE)) sections.remove(Section.PREVIEW);
         return Inputs.of(plugin)
-                .choice(viewer, "{primary}&lEDIT " + skill.type().readable().toUpperCase(Locale.ROOT), sections)
-                .label(section -> section.label)
+                .choice(viewer, Phrases.tr("{primary}&lEDIT {0}", skill.type().readable().toUpperCase(Locale.ROOT)), sections)
+                .label(Section::label)
                 .description(section -> switch (section) {
-                    case MECHANICS -> "When it fires and what it does.";
-                    case TIMING -> "Wind-up, aim, turns and what it chains into.";
-                    case CONDITIONS -> "Health, range and players it needs.";
-                    case LOOK -> "Its style, tint and your own lines.";
-                    case PREVIEW -> "Watch it from a stand-in four blocks ahead.";
+                    case MECHANICS -> Phrases.tr("When it fires and what it does.");
+                    case TIMING -> Phrases.tr("Wind-up, aim, turns and what it chains into.");
+                    case CONDITIONS -> Phrases.tr("Health, range and players it needs.");
+                    case LOOK -> Phrases.tr("Its style, tint and your own lines.");
+                    case PREVIEW -> Phrases.tr("Watch it from a stand-in four blocks ahead.");
                 })
                 .icon(section -> section == Section.MECHANICS ? iconOf(skill.type()) : section.icon)
                 .key(Enum::name)
@@ -411,85 +421,85 @@ final class MobSkillDescriptor implements EditorDescriptor<MobSkill> {
      */
     private CompletionStage<Optional<MobSkill>> mechanics(Player viewer, MobSkill skill, boolean fresh) {
         boolean interval = skill.trigger() == MobSkill.Trigger.INTERVAL;
-        EditorForm form = EditorForm.of(plugin, viewer, "{primary}&lEDIT SKILL")
-                .choice(WHEN, "When", skill.trigger().name(), options(MobSkill.Trigger.values()))
-                .decimal(CHANCE, skill.grouped() ? "Weight in its group" : "Chance, in percent",
+        EditorForm form = EditorForm.of(plugin, viewer, Phrases.tr("{primary}&lEDIT SKILL"))
+                .choice(WHEN, Phrases.tr("When"), skill.trigger().name(), options(MobSkill.Trigger.values()))
+                .decimal(CHANCE, skill.grouped() ? Phrases.tr("Weight in its group") : Phrases.tr("Chance, in percent"),
                         decimal(skill.chance() * 100))
-                .field(COOLDOWN, FormField.duration(COOLDOWN, interval ? "Every" : "Cooldown")
+                .field(COOLDOWN, FormField.duration(COOLDOWN, interval ? Phrases.tr("Every") : Phrases.tr("Cooldown"))
                         .defaultValue(skill.cooldown()).optional())
-                .hint(skill.grouped() ? "Its group decides how often. This is the least time between two of its own casts; 0 for none."
-                        : interval ? "How often it is tried. 1s at least." : "The shortest gap between two casts. 5s, 1m.");
+                .hint(skill.grouped() ? Phrases.tr("Its group decides how often. This is the least time between two of its own casts; 0 for none.")
+                        : interval ? Phrases.tr("How often it is tried. 1s at least.") : Phrases.tr("The shortest gap between two casts. 5s, 1m."));
         if (skill.trigger() == MobSkill.Trigger.LOW_HEALTH) {
-            form.decimal(THRESHOLD, "Fires at this much health, in percent", decimal(skill.threshold() * 100));
+            form.decimal(THRESHOLD, Phrases.tr("Fires at this much health, in percent"), decimal(skill.threshold() * 100));
         }
         switch (skill.type()) {
-            case LEAP -> form.decimal(AMOUNT, "Strength", decimal(skill.amount()))
-                    .decimal(RADIUS, "Lands hard within, in blocks", decimal(skill.radius()))
-                    .hint("0 only leaps. Above 0, whoever is that close as it lands takes its attack damage.");
-            case PULL -> form.decimal(AMOUNT, "Strength", decimal(skill.amount()));
-            case PUSH -> form.decimal(RADIUS, "Radius, in blocks", decimal(skill.radius()))
-                    .decimal(AMOUNT, "Strength", decimal(skill.amount()));
-            case POTION -> form.flag(PICK, "Change the effects", fresh)
-                    .hint("Now " + Effects.describe(skill.text()) + ". The effect list opens after submitting.")
-                    .decimal(RADIUS, "Radius, in blocks", decimal(skill.radius()))
-                    .hint("0 gives it to the target alone.");
+            case LEAP -> form.decimal(AMOUNT, Phrases.tr("Strength"), decimal(skill.amount()))
+                    .decimal(RADIUS, Phrases.tr("Lands hard within, in blocks"), decimal(skill.radius()))
+                    .hint(Phrases.tr("0 only leaps. Above 0, whoever is that close as it lands takes its attack damage."));
+            case PULL -> form.decimal(AMOUNT, Phrases.tr("Strength"), decimal(skill.amount()));
+            case PUSH -> form.decimal(RADIUS, Phrases.tr("Radius, in blocks"), decimal(skill.radius()))
+                    .decimal(AMOUNT, Phrases.tr("Strength"), decimal(skill.amount()));
+            case POTION -> form.flag(PICK, Phrases.tr("Change the effects"), fresh)
+                    .hint(Phrases.tr("Now {0}. The effect list opens after submitting.", Effects.describe(skill.text())))
+                    .decimal(RADIUS, Phrases.tr("Radius, in blocks"), decimal(skill.radius()))
+                    .hint(Phrases.tr("0 gives it to the target alone."));
             case SUMMON -> template(form, skill.text())
-                    .hint("Minions never summon.")
-                    .decimal(AMOUNT, "Alive at once", decimal(skill.amount()))
-                    .hint("Ten at most.")
-                    .decimal(RADIUS, "Spread, in blocks", decimal(skill.radius()));
-            case LIGHTNING -> form.decimal(AMOUNT, "Damage", decimal(skill.amount()))
-                    .hint("0 is only the flash.");
-            case PROJECTILE -> form.choice(TEXT, "Projectile", skill.text().trim().toUpperCase(Locale.ROOT),
+                    .hint(Phrases.tr("Minions never summon."))
+                    .decimal(AMOUNT, Phrases.tr("Alive at once"), decimal(skill.amount()))
+                    .hint(Phrases.tr("Ten at most."))
+                    .decimal(RADIUS, Phrases.tr("Spread, in blocks"), decimal(skill.radius()));
+            case LIGHTNING -> form.decimal(AMOUNT, Phrases.tr("Damage"), decimal(skill.amount()))
+                    .hint(Phrases.tr("0 is only the flash."));
+            case PROJECTILE -> form.choice(TEXT, Phrases.tr("Projectile"), skill.text().trim().toUpperCase(Locale.ROOT),
                             options(PROJECTILES, skill.text().trim().toUpperCase(Locale.ROOT)))
-                    .decimal(AMOUNT, "Speed", decimal(skill.amount()));
-            case HEAL -> form.decimal(AMOUNT, "Restores, in percent of max health", decimal(skill.amount()));
-            case AREA_DAMAGE -> form.decimal(RADIUS, "Radius, in blocks", decimal(skill.radius()))
-                    .decimal(AMOUNT, "Damage", decimal(skill.amount()))
-                    .field(DURATION, FormField.duration(DURATION, "Sets them alight for")
+                    .decimal(AMOUNT, Phrases.tr("Speed"), decimal(skill.amount()));
+            case HEAL -> form.decimal(AMOUNT, Phrases.tr("Restores, in percent of max health"), decimal(skill.amount()));
+            case AREA_DAMAGE -> form.decimal(RADIUS, Phrases.tr("Radius, in blocks"), decimal(skill.radius()))
+                    .decimal(AMOUNT, Phrases.tr("Damage"), decimal(skill.amount()))
+                    .field(DURATION, FormField.duration(DURATION, Phrases.tr("Sets them alight for"))
                             .defaultValue(zeroAsBlank(skill.duration())).optional())
-                    .hint("0 for no fire. 3s.");
-            case DASH -> form.decimal(RADIUS, "Reach, in blocks", decimal(skill.radius()))
-                    .hint("12 when 0, 24 at most. It runs the way it faced as it wound up.")
-                    .decimal(AMOUNT, "Damage", decimal(skill.amount()))
-                    .hint("Once to each player it runs through, who is thrown aside.");
-            case CHAIN -> form.decimal(AMOUNT, "Damage", decimal(skill.amount()))
-                    .integer(JUMPS, "Jumps", (long) jumpsOf(skill))
-                    .hint("Players it hits in all, the target first. 8 at most.")
-                    .decimal(RADIUS, "Jump range, in blocks", decimal(skill.radius()))
-                    .hint("How far it leaps from one player to the next. 6 when 0.");
-            case SHIELD -> form.decimal(AMOUNT, "Damage it blocks, in percent", decimal(skill.amount()))
-                    .hint("100 blocks every hit. In hits mode no hit counts while it lasts.")
-                    .field(DURATION, FormField.duration(DURATION, "For").defaultValue(skill.duration()));
+                    .hint(Phrases.tr("0 for no fire. 3s."));
+            case DASH -> form.decimal(RADIUS, Phrases.tr("Reach, in blocks"), decimal(skill.radius()))
+                    .hint(Phrases.tr("12 when 0, 24 at most. It runs the way it faced as it wound up."))
+                    .decimal(AMOUNT, Phrases.tr("Damage"), decimal(skill.amount()))
+                    .hint(Phrases.tr("Once to each player it runs through, who is thrown aside."));
+            case CHAIN -> form.decimal(AMOUNT, Phrases.tr("Damage"), decimal(skill.amount()))
+                    .integer(JUMPS, Phrases.tr("Jumps"), (long) jumpsOf(skill))
+                    .hint(Phrases.tr("Players it hits in all, the target first. 8 at most."))
+                    .decimal(RADIUS, Phrases.tr("Jump range, in blocks"), decimal(skill.radius()))
+                    .hint(Phrases.tr("How far it leaps from one player to the next. 6 when 0."));
+            case SHIELD -> form.decimal(AMOUNT, Phrases.tr("Damage it blocks, in percent"), decimal(skill.amount()))
+                    .hint(Phrases.tr("100 blocks every hit. In hits mode no hit counts while it lasts."))
+                    .field(DURATION, FormField.duration(DURATION, Phrases.tr("For")).defaultValue(skill.duration()));
             case ZONE -> {
-                form.decimal(RADIUS, "Radius, in blocks", decimal(skill.radius()))
-                    .decimal(AMOUNT, "Damage a second", decimal(skill.amount()))
-                    .field(DURATION, FormField.duration(DURATION, "Lasts").defaultValue(skill.duration()))
-                    .hint("30s at most. Two per mob at once. Aim SELF makes it go with the mob.")
-                    .flag(PICK, "Change the effects on those inside", false)
-                    .hint("Now " + Effects.describe(skill.text()) + ". The effect list opens after submitting.");
+                form.decimal(RADIUS, Phrases.tr("Radius, in blocks"), decimal(skill.radius()))
+                    .decimal(AMOUNT, Phrases.tr("Damage a second"), decimal(skill.amount()))
+                    .field(DURATION, FormField.duration(DURATION, Phrases.tr("Lasts")).defaultValue(skill.duration()))
+                    .hint(Phrases.tr("30s at most. Two per mob at once. Aim SELF makes it go with the mob."))
+                    .flag(PICK, Phrases.tr("Change the effects on those inside"), false)
+                    .hint(Phrases.tr("Now {0}. The effect list opens after submitting.", Effects.describe(skill.text())));
             }
-            case BARRAGE -> form.decimal(AMOUNT, "Strikes", decimal(skill.amount()))
-                    .hint("16 at most, a fifth of a second apart.")
-                    .decimal(RADIUS, "Scatter, in blocks", decimal(skill.radius()))
-                    .hint("Around its target. 6 when 0.")
-                    .decimal(STRIKE, "Damage per strike", decimal(strikeOf(skill)))
-                    .hint("To whoever stands within a block and a half as it lands.");
-            case IGNITE -> form.field(DURATION, FormField.duration(DURATION, "Burns for")
+            case BARRAGE -> form.decimal(AMOUNT, Phrases.tr("Strikes"), decimal(skill.amount()))
+                    .hint(Phrases.tr("16 at most, a fifth of a second apart."))
+                    .decimal(RADIUS, Phrases.tr("Scatter, in blocks"), decimal(skill.radius()))
+                    .hint(Phrases.tr("Around its target. 6 when 0."))
+                    .decimal(STRIKE, Phrases.tr("Damage per strike"), decimal(strikeOf(skill)))
+                    .hint(Phrases.tr("To whoever stands within a block and a half as it lands."));
+            case IGNITE -> form.field(DURATION, FormField.duration(DURATION, Phrases.tr("Burns for"))
                     .defaultValue(skill.duration()));
-            case EFFECT -> form.flag(PICK, "Change what it plays", fresh)
-                    .hint("Now " + lineCount(skill.text()) + ". The line list opens after submitting.");
-            case COMMAND -> form.text(TEXT, "Command the console runs", skill.text(), 3)
-                    .hint("%player% is the target, %mob% the template id. No leading slash.");
-            case TELEPORT -> form.decimal(RADIUS, "Radius, in blocks", decimal(skill.radius()))
-                    .hint("0 appears behind the target. Above 0 blinks to a random spot on the ground that far.");
-            case JUMP -> form.decimal(AMOUNT, "Strength", decimal(skill.amount()))
-                    .hint("Upward speed. 0.8 is a hop, 1.5 a leap.");
-            case SIZE -> form.text(TEXT, "Scale", skill.text())
-                    .hint("min|max, such as 0.7|1.8, or one number. 0.1 at least.");
-            case SPEED -> form.decimal(AMOUNT, "Speed, times its own", decimal(skill.amount()))
-                    .field(DURATION, FormField.duration(DURATION, "For").defaultValue(skill.duration()));
-            case BABY -> form.field(DURATION, FormField.duration(DURATION, "For").defaultValue(skill.duration()));
+            case EFFECT -> form.flag(PICK, Phrases.tr("Change what it plays"), fresh)
+                    .hint(Phrases.tr("Now {0}. The line list opens after submitting.", lineCount(skill.text())));
+            case COMMAND -> form.text(TEXT, Phrases.tr("Command the console runs"), skill.text(), 3)
+                    .hint(Phrases.tr("%player% is the target, %mob% the template id. No leading slash."));
+            case TELEPORT -> form.decimal(RADIUS, Phrases.tr("Radius, in blocks"), decimal(skill.radius()))
+                    .hint(Phrases.tr("0 appears behind the target. Above 0 blinks to a random spot on the ground that far."));
+            case JUMP -> form.decimal(AMOUNT, Phrases.tr("Strength"), decimal(skill.amount()))
+                    .hint(Phrases.tr("Upward speed. 0.8 is a hop, 1.5 a leap."));
+            case SIZE -> form.text(TEXT, Phrases.tr("Scale"), skill.text())
+                    .hint(Phrases.tr("min|max, such as 0.7|1.8, or one number. 0.1 at least."));
+            case SPEED -> form.decimal(AMOUNT, Phrases.tr("Speed, times its own"), decimal(skill.amount()))
+                    .field(DURATION, FormField.duration(DURATION, Phrases.tr("For")).defaultValue(skill.duration()));
+            case BABY -> form.field(DURATION, FormField.duration(DURATION, Phrases.tr("For")).defaultValue(skill.duration()));
         }
         // Its own lines are edited under LOOK, in the line editor, not typed here.
         return form.<Draft>ask(values -> new Draft(rebuild(skill, values), values.getOr(PICK, false)))
@@ -508,21 +518,21 @@ final class MobSkillDescriptor implements EditorDescriptor<MobSkill> {
      */
     private CompletionStage<Optional<MobSkill>> pick(Player viewer, MobSkill skill) {
         CompletionStage<Optional<String>> picked = skill.type() == MobSkill.Type.EFFECT
-                ? Sequences.of(plugin).editLines(viewer, "{primary}&lWHAT IT PLAYS", skill.text())
-                : Effects.edit(plugin, viewer, "{primary}&lEFFECTS", skill.text());
+                ? Sequences.of(plugin).editLines(viewer, Phrases.tr("{primary}&lWHAT IT PLAYS"), skill.text())
+                : Effects.edit(plugin, viewer, Phrases.tr("{primary}&lEFFECTS"), skill.text());
         return picked.thenApply(text -> Optional.of(text.map(skill::withText).orElse(skill)));
     }
 
     private static String lineCount(String lines) {
         long count = lines.lines().filter(line -> !line.isBlank()).count();
-        return count == 0 ? "nothing" : count == 1 ? "1 line" : count + " lines";
+        return count == 0 ? Phrases.tr("nothing") : count == 1 ? Phrases.tr("1 line") : Phrases.tr("{0} lines", count);
     }
 
     /** The plugin's templates to pick from, when it is known and has any; else the id typed. */
     private EditorForm template(EditorForm form, String current) {
-        if (mobs == null || mobs.templates().isEmpty()) return form.text(TEXT, "Template id", current);
+        if (mobs == null || mobs.templates().isEmpty()) return form.text(TEXT, Phrases.tr("Template id"), current);
         List<String> ids = mobs.templates().stream().map(MobTemplate::id).sorted().toList();
-        return form.choice(TEXT, "Template", current, options(ids, current));
+        return form.choice(TEXT, Phrases.tr("Template"), current, options(ids, current));
     }
 
     /** Enum constants as options, read the way a person says them. */
@@ -570,18 +580,19 @@ final class MobSkillDescriptor implements EditorDescriptor<MobSkill> {
     private CompletionStage<Optional<MobSkill>> look(Player viewer, MobSkill skill) {
         MobSkill.Cast cast = skill.cast();
         return Inputs.of(plugin)
-                .choice(viewer, "{primary}&lLOOK", List.of(LookPart.values()))
+                .choice(viewer, Phrases.tr("{primary}&lLOOK"), List.of(LookPart.values()))
                 .label(part -> switch (part) {
-                    case STYLE -> "{primary}&lSTYLE &8[{info}" + shownStyle(skill) + "&8]";
-                    case TINT -> "{primary}&lTINT &8[{info}" + (cast.tint().isEmpty() ? "theme" : cast.tint()) + "&8]";
-                    case WINDUP_LINES -> "{primary}&lWIND-UP LINES &8[{info}" + count(cast.windupLines()) + "&8]";
-                    case IMPACT_LINES -> "{primary}&lIMPACT LINES &8[{info}" + count(skill.effect()) + "&8]";
+                    case STYLE -> Phrases.tr("{primary}&lSTYLE &8[{info}{0}&8]", shownStyle(skill));
+                    case TINT -> Phrases.tr("{primary}&lTINT &8[{info}{0}&8]",
+                            cast.tint().isEmpty() ? Phrases.tr("theme") : cast.tint());
+                    case WINDUP_LINES -> Phrases.tr("{primary}&lWIND-UP LINES &8[{info}{0}&8]", count(cast.windupLines()));
+                    case IMPACT_LINES -> Phrases.tr("{primary}&lIMPACT LINES &8[{info}{0}&8]", count(skill.effect()));
                 })
                 .description(part -> switch (part) {
-                    case STYLE -> "How it is drawn: its warning, its release and its impact.";
-                    case TINT -> "The colour it is drawn in; the theme's by default.";
-                    case WINDUP_LINES -> "Your own lines, played as the wind-up starts.";
-                    case IMPACT_LINES -> "Your own lines, played as it lands. With any, AUTO draws no style.";
+                    case STYLE -> Phrases.tr("How it is drawn: its warning, its release and its impact.");
+                    case TINT -> Phrases.tr("The colour it is drawn in; the theme's by default.");
+                    case WINDUP_LINES -> Phrases.tr("Your own lines, played as the wind-up starts.");
+                    case IMPACT_LINES -> Phrases.tr("Your own lines, played as it lands. With any, AUTO draws no style.");
                 })
                 .icon(part -> switch (part) {
                     case STYLE -> Material.PAINTING;
@@ -597,10 +608,10 @@ final class MobSkillDescriptor implements EditorDescriptor<MobSkill> {
                         case STYLE -> style(viewer, skill);
                         case TINT -> tint(viewer, skill);
                         case WINDUP_LINES -> Sequences.of(plugin)
-                                .editLines(viewer, "{primary}&lWIND-UP LINES", cast.windupLines())
+                                .editLines(viewer, Phrases.tr("{primary}&lWIND-UP LINES"), cast.windupLines())
                                 .thenApply(lines -> lines.map(text -> skill.withCast(cast.withWindupLines(text))));
                         case IMPACT_LINES -> Sequences.of(plugin)
-                                .editLines(viewer, "{primary}&lIMPACT LINES", skill.effect())
+                                .editLines(viewer, Phrases.tr("{primary}&lIMPACT LINES"), skill.effect())
                                 .thenApply(lines -> lines.map(skill::withEffect));
                     };
                 });
@@ -609,12 +620,12 @@ final class MobSkillDescriptor implements EditorDescriptor<MobSkill> {
     /** The style as a row reads it: its own, or what AUTO draws. */
     static String shownStyle(MobSkill skill) {
         if (!skill.cast().style().isEmpty()) return skill.cast().style();
-        return "auto: " + MobSkills.styleOf(skill);
+        return Phrases.tr("auto: {0}", MobSkills.styleOf(skill));
     }
 
     private static String count(String lines) {
         long count = lines.lines().filter(line -> !line.isBlank()).count();
-        return count == 0 ? "none" : String.valueOf(count);
+        return count == 0 ? Phrases.tr("none") : String.valueOf(count);
     }
 
     private static final String AUTO = "auto";
@@ -625,10 +636,10 @@ final class MobSkillDescriptor implements EditorDescriptor<MobSkill> {
         options.add(MobSkills.NO_STYLE);
         options.addAll(MobSkills.STYLES);
         String current = skill.cast().style().isEmpty() ? AUTO : skill.cast().style().toLowerCase(Locale.ROOT);
-        String auto = skill.effect().isBlank() ? MobSkills.autoStyle(skill) : "none: it has impact lines";
+        String auto = skill.effect().isBlank() ? MobSkills.autoStyle(skill) : Phrases.tr("none: it has impact lines");
         return Inputs.of(plugin)
-                .choice(viewer, "{primary}&lSTYLE", options)
-                .label(option -> option.equals(AUTO) ? "{primary}&lAUTO &8[{info}" + auto + "&8]"
+                .choice(viewer, Phrases.tr("{primary}&lSTYLE"), options)
+                .label(option -> option.equals(AUTO) ? Phrases.tr("{primary}&lAUTO &8[{info}{0}&8]", auto)
                         : "{primary}&l" + option.toUpperCase(Locale.ROOT))
                 .description(MobSkillDescriptor::blurb)
                 .icon(MobSkillDescriptor::styleIcon)
@@ -649,10 +660,10 @@ final class MobSkillDescriptor implements EditorDescriptor<MobSkill> {
         String current = skill.cast().tint();
         String ticked = current.isEmpty() ? "theme" : TINTS.contains(current) ? current : "custom";
         return Inputs.of(plugin)
-                .choice(viewer, "{primary}&lTINT", TINTS)
+                .choice(viewer, Phrases.tr("{primary}&lTINT"), TINTS)
                 .label(option -> switch (option) {
-                    case "theme" -> "{primary}&lTHEME";
-                    case "custom" -> "{primary}&lCUSTOM &8[{info}#rrggbb&8]";
+                    case "theme" -> Phrases.tr("{primary}&lTHEME");
+                    case "custom" -> Phrases.tr("{primary}&lCUSTOM &8[{info}#rrggbb&8]");
                     default -> option + "&l" + option.substring(1, option.length() - 1).toUpperCase(Locale.ROOT);
                 })
                 .icon(MobSkillDescriptor::tintIcon)
@@ -664,10 +675,10 @@ final class MobSkillDescriptor implements EditorDescriptor<MobSkill> {
                     return switch (picked.value()) {
                         case "theme" -> CompletableFuture.completedFuture(
                                 Optional.of(skill.withCast(skill.cast().withTint(""))));
-                        case "custom" -> Inputs.of(plugin).text(viewer, "{primary}Type a colour as #rrggbb")
+                        case "custom" -> Inputs.of(plugin).text(viewer, Phrases.tr("{primary}Type a colour as #rrggbb"))
                                 .defaultValue(current.startsWith("#") ? current : null)
                                 .validate(typed -> typed.trim().matches("#[0-9a-fA-F]{6}"),
-                                        "Write it as #rrggbb, such as #8a51c4.")
+                                        Phrases.tr("Write it as #rrggbb, such as #8a51c4."))
                                 .open()
                                 .thenApply(typed -> typed.completed()
                                         ? Optional.of(skill.withCast(skill.cast()
@@ -698,14 +709,14 @@ final class MobSkillDescriptor implements EditorDescriptor<MobSkill> {
         MobSkills.Preset preset = MobSkills.preset(style);
         if (preset != null) return preset.blurb();
         return switch (style) {
-            case AUTO -> "The style that suits its type.";
-            case MobSkills.NO_STYLE -> "Nothing drawn; only its own lines play.";
-            case "burst" -> "A shockwave ring that throws people back.";
-            case "hop" -> "A spring off the ground in a puff of dust.";
-            case "inflate" -> "Swells up with a pop.";
-            case "zoom" -> "Speed lines and a gust.";
-            case "shrink" -> "Shrinks down with a pop.";
-            case "puff" -> "A cloud in the colour of what it casts.";
+            case AUTO -> Phrases.tr("The style that suits its type.");
+            case MobSkills.NO_STYLE -> Phrases.tr("Nothing drawn; only its own lines play.");
+            case "burst" -> Phrases.tr("A shockwave ring that throws people back.");
+            case "hop" -> Phrases.tr("A spring off the ground in a puff of dust.");
+            case "inflate" -> Phrases.tr("Swells up with a pop.");
+            case "zoom" -> Phrases.tr("Speed lines and a gust.");
+            case "shrink" -> Phrases.tr("Shrinks down with a pop.");
+            case "puff" -> Phrases.tr("A cloud in the colour of what it casts.");
             default -> null;
         };
     }
@@ -744,21 +755,21 @@ final class MobSkillDescriptor implements EditorDescriptor<MobSkill> {
     /** Wind-up, aim, rotation group, chain and the lines played as it winds up. */
     private CompletionStage<Optional<MobSkill>> timing(Player viewer, MobSkill skill) {
         MobSkill.Cast cast = skill.cast();
-        EditorForm form = EditorForm.of(plugin, viewer, "{primary}&lTIMING & AIM")
-                .field(WINDUP, FormField.duration(WINDUP, "Wind-up").defaultValue(zeroAsBlank(cast.windup())).optional())
-                .hint("It stops, faces its aim and telegraphs this long before it lands. 0 lands at once. 800ms, 1.5s.")
-                .choice(AIM, "Aim", cast.aim().name(), options(MobSkill.Aim.values()))
-                .hint("AUTO is the type's own. GROUND strikes where the target stood as the wind-up began.")
-                .decimal(SPREAD, "Spread", decimal(cast.spread()))
-                .hint("CONE: its angle in degrees, 60 when 0. LINE: its width in blocks, 1.6 when 0.");
+        EditorForm form = EditorForm.of(plugin, viewer, Phrases.tr("{primary}&lTIMING & AIM"))
+                .field(WINDUP, FormField.duration(WINDUP, Phrases.tr("Wind-up")).defaultValue(zeroAsBlank(cast.windup())).optional())
+                .hint(Phrases.tr("It stops, faces its aim and telegraphs this long before it lands. 0 lands at once. 800ms, 1.5s."))
+                .choice(AIM, Phrases.tr("Aim"), cast.aim().name(), options(MobSkill.Aim.values()))
+                .hint(Phrases.tr("AUTO is the type's own. GROUND strikes where the target stood as the wind-up began."))
+                .decimal(SPREAD, Phrases.tr("Spread"), decimal(cast.spread()))
+                .hint(Phrases.tr("CONE: its angle in degrees, 60 when 0. LINE: its width in blocks, 1.6 when 0."));
         if (skill.trigger() == MobSkill.Trigger.INTERVAL) {
-            form.field(GROUP, PluginMobs.optionalText(GROUP, "Rotation group", cast.group()))
-                    .hint("Skills of one group take turns: one per period, picked by weight. NONE rolls on its own.");
+            form.field(GROUP, PluginMobs.optionalText(GROUP, Phrases.tr("Rotation group"), cast.group()))
+                    .hint(Phrases.tr("Skills of one group take turns: one per period, picked by weight. NONE rolls on its own."));
         }
-        form.field(NAME, PluginMobs.optionalText(NAME, "Name", cast.name()))
-                .hint("What another skill's Then calls it by. NONE for none.")
-                .field(THEN, PluginMobs.optionalText(THEN, "Then", cast.then()))
-                .hint("The name of a skill cast right after this one lands. NONE for none.");
+        form.field(NAME, PluginMobs.optionalText(NAME, Phrases.tr("Name"), cast.name()))
+                .hint(Phrases.tr("What another skill's Then calls it by. NONE for none."))
+                .field(THEN, PluginMobs.optionalText(THEN, Phrases.tr("Then"), cast.then()))
+                .hint(Phrases.tr("The name of a skill cast right after this one lands. NONE for none."));
         return form.ask(values -> timing(skill, values));
     }
 
@@ -775,17 +786,17 @@ final class MobSkillDescriptor implements EditorDescriptor<MobSkill> {
     /** Health, range, players nearby and phase. */
     private CompletionStage<Optional<MobSkill>> conditions(Player viewer, MobSkill skill) {
         MobSkill.Gate when = skill.cast().when();
-        return EditorForm.of(plugin, viewer, "{primary}&lCONDITIONS")
-                .decimal(MIN_HEALTH, "From this much health, in percent", decimal(when.minHealth() * 100))
-                .decimal(MAX_HEALTH, "Up to this much health, in percent", decimal(when.maxHealth() * 100))
-                .hint("Hits left in hits mode. 0 and 100 for always.")
-                .decimal(MIN_RANGE, "Target at least this far, in blocks", decimal(when.minRange()))
-                .decimal(MAX_RANGE, "Target at most this far, in blocks", decimal(when.maxRange()))
-                .hint("0 for no limit. With either set, a mob with no target does not cast it.")
-                .decimal(NEARBY, "Needs a player within, in blocks", decimal(when.nearby()))
-                .hint("A survival or adventure player. 0 needs nobody.")
-                .integer(PHASE, "Only in phase", (long) when.phase())
-                .hint("1 is the start; its fight's phases follow. 0 for any.")
+        return EditorForm.of(plugin, viewer, Phrases.tr("{primary}&lCONDITIONS"))
+                .decimal(MIN_HEALTH, Phrases.tr("From this much health, in percent"), decimal(when.minHealth() * 100))
+                .decimal(MAX_HEALTH, Phrases.tr("Up to this much health, in percent"), decimal(when.maxHealth() * 100))
+                .hint(Phrases.tr("Hits left in hits mode. 0 and 100 for always."))
+                .decimal(MIN_RANGE, Phrases.tr("Target at least this far, in blocks"), decimal(when.minRange()))
+                .decimal(MAX_RANGE, Phrases.tr("Target at most this far, in blocks"), decimal(when.maxRange()))
+                .hint(Phrases.tr("0 for no limit. With either set, a mob with no target does not cast it."))
+                .decimal(NEARBY, Phrases.tr("Needs a player within, in blocks"), decimal(when.nearby()))
+                .hint(Phrases.tr("A survival or adventure player. 0 needs nobody."))
+                .integer(PHASE, Phrases.tr("Only in phase"), (long) when.phase())
+                .hint(Phrases.tr("1 is the start; its fight's phases follow. 0 for any."))
                 .ask(values -> conditions(skill, values));
     }
 
@@ -883,16 +894,17 @@ final class MobSkillDescriptor implements EditorDescriptor<MobSkill> {
     }
 
     private static String when(MobSkill skill) {
-        if (skill.grouped()) return "Takes turns in " + skill.cast().group();
+        if (skill.grouped()) return Phrases.tr("Takes turns in {0}", skill.cast().group());
         return switch (skill.trigger()) {
-            case SPAWN -> "On spawn";
-            case INTERVAL -> "Every " + time(skill.period()) + " ⌚";
-            case ATTACK -> "When it hits";
-            case DAMAGED -> "When it is hit";
-            case LOW_HEALTH -> "At " + percent(skill.threshold()) + "% health";
-            case DEATH -> "On death";
-            case PHASE -> skill.cast().when().phase() > 0 ? "Entering phase " + skill.cast().when().phase()
-                    : "Entering each phase";
+            case SPAWN -> Phrases.tr("On spawn");
+            case INTERVAL -> Phrases.tr("Every {0} ⌚", time(skill.period()));
+            case ATTACK -> Phrases.tr("When it hits");
+            case DAMAGED -> Phrases.tr("When it is hit");
+            case LOW_HEALTH -> Phrases.tr("At {0}% health", percent(skill.threshold()));
+            case DEATH -> Phrases.tr("On death");
+            case PHASE -> skill.cast().when().phase() > 0 ? Phrases.tr("Entering phase {0}", skill.cast().when().phase())
+
+                    : Phrases.tr("Entering each phase");
         };
     }
 

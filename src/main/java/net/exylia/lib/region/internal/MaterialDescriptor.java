@@ -1,5 +1,6 @@
 package net.exylia.lib.region.internal;
 
+import net.exylia.lib.text.Phrases;
 import net.exylia.lib.util.editor.EditorDescriptor;
 import net.exylia.lib.util.editor.Editors;
 import org.bukkit.Material;
@@ -37,7 +38,7 @@ final class MaterialDescriptor implements EditorDescriptor<Material> {
 
     @Override
     public @NotNull List<String> lore(@NotNull Material entry) {
-        return List.of("", "{warning}➥ Click to swap", "{error}➥ Right-click to remove", "");
+        return List.of("", Phrases.tr("{warning}➥ Click to swap"), Phrases.tr("{error}➥ Right-click to remove"), "");
     }
 
     @Override

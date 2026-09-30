@@ -3,6 +3,7 @@ package net.exylia.lib.input;
 import net.exylia.lib.input.internal.InputRuntime;
 import net.exylia.lib.input.internal.InputSession;
 import net.exylia.lib.input.internal.TransportKind;
+import net.exylia.lib.text.Phrases;
 import org.bukkit.entity.Player;
 import org.jetbrains.annotations.ApiStatus;
 import org.jetbrains.annotations.NotNull;
@@ -154,33 +155,33 @@ public abstract class InputRequest<T, SELF extends InputRequest<T, SELF>>
      */
     public @NotNull InputParser.Parsed<T> parseRaw(@NotNull String raw) {
         if (raw == null) {
-            return InputParser.Parsed.rejected("A value is required.");
+            return InputParser.Parsed.rejected(Phrases.tr("A value is required."));
         }
         final String transformed;
         try {
             transformed = transform.apply(raw.trim());
         } catch (RuntimeException failure) {
-            return InputParser.Parsed.rejected("That value could not be read.");
+            return InputParser.Parsed.rejected(Phrases.tr("That value could not be read."));
         }
         if (transformed == null) {
-            return InputParser.Parsed.rejected("That value could not be read.");
+            return InputParser.Parsed.rejected(Phrases.tr("That value could not be read."));
         }
         final InputParser.Parsed<T> parsed;
         try {
             parsed = parser.parse(transformed.trim());
         } catch (RuntimeException failure) {
-            return InputParser.Parsed.rejected("That value could not be read.");
+            return InputParser.Parsed.rejected(Phrases.tr("That value could not be read."));
         }
         if (parsed == null || !parsed.ok()) {
             return parsed == null
-                    ? InputParser.Parsed.rejected("That value could not be read.")
+                    ? InputParser.Parsed.rejected(Phrases.tr("That value could not be read."))
                     : parsed;
         }
         Validation verdict;
         try {
             verdict = validate(parsed.value());
         } catch (RuntimeException failure) {
-            return InputParser.Parsed.rejected("That value is not accepted.");
+            return InputParser.Parsed.rejected(Phrases.tr("That value is not accepted."));
         }
         return verdict.valid() ? parsed : InputParser.Parsed.rejected(verdict.messages().getFirst());
     }

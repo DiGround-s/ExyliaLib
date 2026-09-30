@@ -1,5 +1,6 @@
 package net.exylia.lib.util.mob;
 
+import net.exylia.lib.text.Phrases;
 import org.bukkit.Material;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -60,91 +61,161 @@ public final class MobSkills {
      */
     public record Preset(@NotNull String id, @NotNull String label, @NotNull Material icon, @NotNull String blurb,
                          @NotNull MobSkill skill) {
+
+        /** What an editor calls it, in the library's language as the screen opens. */
+        @Override
+        public @NotNull String label() {
+            return switch (id) {
+                case "slam" -> Phrases.tr("GROUND SLAM");
+                case "meteor" -> Phrases.tr("METEOR");
+                case "blades" -> Phrases.tr("BLADE RING");
+                case "charge" -> Phrases.tr("CHARGE");
+                case "chain" -> Phrases.tr("CHAIN LIGHTNING");
+                case "bubble" -> Phrases.tr("SHIELD BUBBLE");
+                case "portal" -> Phrases.tr("SUMMON PORTAL");
+                case "miasma" -> Phrases.tr("MIASMA");
+                case "nova" -> Phrases.tr("FROST NOVA");
+                case "blink" -> Phrases.tr("BLINK");
+                case "renew" -> Phrases.tr("RENEW");
+                case "enrage" -> Phrases.tr("ENRAGE");
+                case "rain" -> Phrases.tr("ARROW RAIN");
+                case "pounce" -> Phrases.tr("POUNCE");
+                case "hook" -> Phrases.tr("HOOK");
+                case "volley" -> Phrases.tr("VOLLEY");
+                case "cleave" -> Phrases.tr("CLEAVE");
+                case "fissure" -> Phrases.tr("EARTHSPLITTER");
+                case "vortex" -> Phrases.tr("GRAVITY WELL");
+                case "dread" -> Phrases.tr("DREAD");
+                case "eruption" -> Phrases.tr("ERUPTION");
+                case "smite" -> Phrases.tr("SMITE");
+                case "judgement" -> Phrases.tr("JUDGEMENT");
+                case "supernova" -> Phrases.tr("SUPERNOVA");
+                case "tempest" -> Phrases.tr("TEMPEST");
+                case "starfall" -> Phrases.tr("STARFALL");
+                case "prism" -> Phrases.tr("PRISM BEAM");
+                default -> label;
+            };
+        }
+
+        /** What it does, in the library's language as the screen opens. */
+        @Override
+        public @NotNull String blurb() {
+            return switch (id) {
+                case "slam" -> Phrases.tr("Leaps and shatters the floor around it.");
+                case "meteor" -> Phrases.tr("Calls a burning rock down where you stand.");
+                case "blades" -> Phrases.tr("Spins a ring of blades around itself.");
+                case "charge" -> Phrases.tr("Lowers its head and runs you down.");
+                case "chain" -> Phrases.tr("Lightning that leaps from player to player.");
+                case "bubble" -> Phrases.tr("Wraps itself in a ward that blunts blows.");
+                case "portal" -> Phrases.tr("Opens portals and calls its minions through.");
+                case "miasma" -> Phrases.tr("Leaves a poison cloud where you stood.");
+                case "nova" -> Phrases.tr("Freezes everyone close in place.");
+                case "blink" -> Phrases.tr("Vanishes and reappears behind you.");
+                case "renew" -> Phrases.tr("Channels a burst of healing.");
+                case "enrage" -> Phrases.tr("Roars and runs faster for a while.");
+                case "rain" -> Phrases.tr("Arrows fall on the spots it marks.");
+                case "pounce" -> Phrases.tr("Crouches, then lands on you hard.");
+                case "hook" -> Phrases.tr("Drags you to it on a chain.");
+                case "volley" -> Phrases.tr("Takes aim, then fires at you.");
+                case "cleave" -> Phrases.tr("Winds back, then sweeps everything ahead.");
+                case "fissure" -> Phrases.tr("Splits the ground in a line at you.");
+                case "vortex" -> Phrases.tr("Drags everyone around it inwards.");
+                case "dread" -> Phrases.tr("A shriek that drowns everyone in darkness.");
+                case "eruption" -> Phrases.tr("The ground under you boils, then bursts.");
+                case "smite" -> Phrases.tr("Marks a spot, then calls a bolt onto it.");
+                case "judgement" -> Phrases.tr("A giant blade falls from the sky onto you.");
+                case "supernova" -> Phrases.tr("Swallows the light, then bursts like a star.");
+                case "tempest" -> Phrases.tr("Spins up a tornado that hurls you away.");
+                case "starfall" -> Phrases.tr("Draws a constellation, then drops its stars.");
+                case "prism" -> Phrases.tr("Focuses a crystal, then fires a searing beam.");
+                default -> blurb;
+            };
+        }
     }
 
     private static final List<Preset> LIBRARY = List.of(
-            preset("slam", "GROUND SLAM", Material.ANVIL, "Leaps and shatters the floor around it.",
+            preset("slam", Material.ANVIL,
                     skill(MobSkill.Type.AREA_DAMAGE, 12, 5, 8, 0, "")
                             .withCast(cast("slam", MobSkill.Aim.SELF, 900).withWhen(MobSkill.Gate.ANY.withRange(0, 6)))),
-            preset("meteor", "METEOR", Material.MAGMA_BLOCK, "Calls a burning rock down where you stand.",
+            preset("meteor", Material.MAGMA_BLOCK,
                     skill(MobSkill.Type.AREA_DAMAGE, 14, 3, 10, 3, "")
                             .withCast(cast("meteor", MobSkill.Aim.GROUND, 1600).withWhen(MobSkill.Gate.ANY.withRange(0, 20)))),
-            preset("blades", "BLADE RING", Material.NETHERITE_SWORD, "Spins a ring of blades around itself.",
+            preset("blades", Material.NETHERITE_SWORD,
                     skill(MobSkill.Type.ZONE, 14, 3, 3, 4, "")
                             .withCast(cast("blades", MobSkill.Aim.SELF, 500).withWhen(MobSkill.Gate.ANY.withNearby(6)))),
-            preset("charge", "CHARGE", Material.IRON_HORSE_ARMOR, "Lowers its head and runs you down.",
+            preset("charge", Material.IRON_HORSE_ARMOR,
                     skill(MobSkill.Type.DASH, 10, 12, 7, 0, "")
                             .withCast(cast("charge", MobSkill.Aim.AUTO, 700).withWhen(MobSkill.Gate.ANY.withRange(4, 16)))),
-            preset("chain", "CHAIN LIGHTNING", Material.LIGHTNING_ROD, "Lightning that leaps from player to player.",
+            preset("chain", Material.LIGHTNING_ROD,
                     skill(MobSkill.Type.CHAIN, 12, 6, 4, 0, "4")
                             .withCast(cast("chain", MobSkill.Aim.AUTO, 500).withWhen(MobSkill.Gate.ANY.withRange(0, 16)))),
-            preset("bubble", "SHIELD BUBBLE", Material.GLASS, "Wraps itself in a ward that blunts blows.",
+            preset("bubble", Material.GLASS,
                     skill(MobSkill.Type.SHIELD, 16, 0, 60, 5, "")
                             .withCast(cast("bubble", MobSkill.Aim.AUTO, 400).withWhen(MobSkill.Gate.ANY.withNearby(12)))),
-            preset("portal", "SUMMON PORTAL", Material.CRYING_OBSIDIAN, "Opens portals and calls its minions through.",
+            preset("portal", Material.CRYING_OBSIDIAN,
                     skill(MobSkill.Type.SUMMON, 20, 3, 2, 0, "")
                             .withCast(cast("portal", MobSkill.Aim.AUTO, 1200).withWhen(MobSkill.Gate.ANY.withNearby(16)))),
-            preset("miasma", "MIASMA", Material.SLIME_BALL, "Leaves a poison cloud where you stood.",
+            preset("miasma", Material.SLIME_BALL,
                     skill(MobSkill.Type.ZONE, 14, 3.5, 1.5, 6, "POISON|2|3")
                             .withCast(cast("miasma", MobSkill.Aim.GROUND, 800).withWhen(MobSkill.Gate.ANY.withRange(0, 16)))),
-            preset("nova", "FROST NOVA", Material.BLUE_ICE, "Freezes everyone close in place.",
+            preset("nova", Material.BLUE_ICE,
                     skill(MobSkill.Type.POTION, 12, 5, 0, 0, "SLOWNESS|6|3")
                             .withCast(cast("nova", MobSkill.Aim.SELF, 600).withWhen(MobSkill.Gate.ANY.withNearby(5)))),
-            preset("blink", "BLINK", Material.ENDER_PEARL, "Vanishes and reappears behind you.",
+            preset("blink", Material.ENDER_PEARL,
                     skill(MobSkill.Type.TELEPORT, 10, 0, 0, 0, "")
                             .withCast(cast("blink", MobSkill.Aim.AUTO, 0).withWhen(MobSkill.Gate.ANY.withRange(3, 20)))),
-            preset("renew", "RENEW", Material.GLISTERING_MELON_SLICE, "Channels a burst of healing.",
+            preset("renew", Material.GLISTERING_MELON_SLICE,
                     skill(MobSkill.Type.HEAL, 20, 0, 20, 0, "")
                             .withCast(cast("renew", MobSkill.Aim.AUTO, 800).withWhen(MobSkill.Gate.ANY.withHealth(0, 0.6)))),
-            preset("enrage", "ENRAGE", Material.BLAZE_POWDER, "Roars and runs faster for a while.",
+            preset("enrage", Material.BLAZE_POWDER,
                     skill(MobSkill.Type.SPEED, 30, 0, 1.6, 8, "")
                             .withCast(cast("enrage", MobSkill.Aim.AUTO, 1200).withWhen(MobSkill.Gate.ANY.withHealth(0, 0.5)))),
-            preset("rain", "ARROW RAIN", Material.ARROW, "Arrows fall on the spots it marks.",
+            preset("rain", Material.ARROW,
                     skill(MobSkill.Type.BARRAGE, 14, 6, 5, 0, "4")
                             .withCast(cast("rain", MobSkill.Aim.AUTO, 600).withWhen(MobSkill.Gate.ANY.withRange(0, 20)))),
-            preset("pounce", "POUNCE", Material.RABBIT_FOOT, "Crouches, then lands on you hard.",
+            preset("pounce", Material.RABBIT_FOOT,
                     skill(MobSkill.Type.LEAP, 8, 2, 1.2, 0, "")
                             .withCast(cast("pounce", MobSkill.Aim.AUTO, 500).withWhen(MobSkill.Gate.ANY.withRange(3, 10)))),
-            preset("hook", "HOOK", Material.CHAIN, "Drags you to it on a chain.",
+            preset("hook", Material.CHAIN,
                     skill(MobSkill.Type.PULL, 10, 0, 1.4, 0, "")
                             .withCast(cast("hook", MobSkill.Aim.AUTO, 300).withWhen(MobSkill.Gate.ANY.withRange(5, 14)))),
-            preset("volley", "VOLLEY", Material.FIRE_CHARGE, "Takes aim, then fires at you.",
+            preset("volley", Material.FIRE_CHARGE,
                     skill(MobSkill.Type.PROJECTILE, 8, 0, 1.5, 0, "FIREBALL")
                             .withCast(cast("volley", MobSkill.Aim.AUTO, 400).withWhen(MobSkill.Gate.ANY.withRange(4, 24)))),
-            preset("cleave", "CLEAVE", Material.NETHERITE_AXE, "Winds back, then sweeps everything ahead.",
+            preset("cleave", Material.NETHERITE_AXE,
                     skill(MobSkill.Type.AREA_DAMAGE, 9, 4.5, 9, 0, "")
                             .withCast(cast("cleave", MobSkill.Aim.CONE, 700).withSpread(120)
                                     .withWhen(MobSkill.Gate.ANY.withRange(0, 4.5)))),
-            preset("fissure", "EARTHSPLITTER", Material.CRACKED_DEEPSLATE_BRICKS, "Splits the ground in a line at you.",
+            preset("fissure", Material.CRACKED_DEEPSLATE_BRICKS,
                     skill(MobSkill.Type.AREA_DAMAGE, 14, 12, 8, 0, "")
                             .withCast(cast("fissure", MobSkill.Aim.LINE, 1000).withSpread(2.4)
                                     .withWhen(MobSkill.Gate.ANY.withRange(3, 12)))),
-            preset("vortex", "GRAVITY WELL", Material.HEAVY_CORE, "Drags everyone around it inwards.",
+            preset("vortex", Material.HEAVY_CORE,
                     skill(MobSkill.Type.PULL, 16, 8, 1.1, 0, "")
                             .withCast(cast("vortex", MobSkill.Aim.ALL, 900).withWhen(MobSkill.Gate.ANY.withRange(4, 8)))),
-            preset("dread", "DREAD", Material.SCULK_SHRIEKER, "A shriek that drowns everyone in darkness.",
+            preset("dread", Material.SCULK_SHRIEKER,
                     skill(MobSkill.Type.POTION, 25, 10, 0, 0, "DARKNESS|1|6")
                             .withCast(cast("dread", MobSkill.Aim.AUTO, 1000).withWhen(MobSkill.Gate.ANY.withNearby(10)))),
-            preset("eruption", "ERUPTION", Material.MAGMA_CREAM, "The ground under you boils, then bursts.",
+            preset("eruption", Material.MAGMA_CREAM,
                     skill(MobSkill.Type.AREA_DAMAGE, 15, 2.5, 9, 4, "")
                             .withCast(cast("eruption", MobSkill.Aim.GROUND, 1300).withWhen(MobSkill.Gate.ANY.withRange(0, 18)))),
-            preset("smite", "SMITE", Material.TRIDENT, "Marks a spot, then calls a bolt onto it.",
+            preset("smite", Material.TRIDENT,
                     skill(MobSkill.Type.LIGHTNING, 12, 0, 7, 0, "")
                             .withCast(cast("smite", MobSkill.Aim.GROUND, 1100).withWhen(MobSkill.Gate.ANY.withRange(0, 20)))),
-            preset("judgement", "JUDGEMENT", Material.GOLDEN_SWORD, "A giant blade falls from the sky onto you.",
+            preset("judgement", Material.GOLDEN_SWORD,
                     skill(MobSkill.Type.AREA_DAMAGE, 22, 4, 12, 0, "")
                             .withCast(cast("judgement", MobSkill.Aim.GROUND, 2200).withWhen(MobSkill.Gate.ANY.withRange(0, 20)))),
-            preset("supernova", "SUPERNOVA", Material.NETHER_STAR, "Swallows the light, then bursts like a star.",
+            preset("supernova", Material.NETHER_STAR,
                     skill(MobSkill.Type.AREA_DAMAGE, 35, 7, 14, 3, "")
                             .withCast(cast("supernova", MobSkill.Aim.SELF, 2600)
                                     .withWhen(MobSkill.Gate.ANY.withHealth(0, 0.5).withNearby(7)))),
-            preset("tempest", "TEMPEST", Material.WIND_CHARGE, "Spins up a tornado that hurls you away.",
+            preset("tempest", Material.WIND_CHARGE,
                     skill(MobSkill.Type.PUSH, 18, 6, 1.8, 0, "")
                             .withCast(cast("tempest", MobSkill.Aim.SELF, 1500).withWhen(MobSkill.Gate.ANY.withNearby(5)))),
-            preset("starfall", "STARFALL", Material.AMETHYST_CLUSTER, "Draws a constellation, then drops its stars.",
+            preset("starfall", Material.AMETHYST_CLUSTER,
                     skill(MobSkill.Type.BARRAGE, 20, 7, 9, 0, "5")
                             .withCast(cast("starfall", MobSkill.Aim.AUTO, 1400).withWhen(MobSkill.Gate.ANY.withRange(0, 20)))),
-            preset("prism", "PRISM BEAM", Material.AMETHYST_SHARD, "Focuses a crystal, then fires a searing beam.",
+            preset("prism", Material.AMETHYST_SHARD,
                     skill(MobSkill.Type.AREA_DAMAGE, 16, 16, 10, 0, "")
                             .withCast(cast("prism", MobSkill.Aim.LINE, 1600).withSpread(1.4)
                                     .withWhen(MobSkill.Gate.ANY.withRange(4, 16)))));
@@ -229,8 +300,9 @@ public final class MobSkills {
         return skill.effect().isBlank() ? autoStyle(skill) : NO_STYLE;
     }
 
-    private static Preset preset(String id, String label, Material icon, String blurb, MobSkill skill) {
-        return new Preset(id, label, icon, blurb, skill);
+    /** A library preset: its label and blurb are the ones {@link Preset#label()} and {@link Preset#blurb()} translate. */
+    private static Preset preset(String id, Material icon, MobSkill skill) {
+        return new Preset(id, "", icon, "", skill);
     }
 
     private static MobSkill skill(MobSkill.Type type, int cooldownSeconds, double radius, double amount,

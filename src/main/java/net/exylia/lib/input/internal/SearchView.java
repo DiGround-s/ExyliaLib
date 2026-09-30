@@ -1,6 +1,7 @@
 package net.exylia.lib.input.internal;
 
 import net.exylia.lib.input.SearchInput;
+import net.exylia.lib.text.Phrases;
 import net.exylia.lib.text.Text;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.TextDecoration;
@@ -299,25 +300,25 @@ final class SearchView<T> implements InventoryHolder {
         }
 
         if (hasPrevious()) {
-            inventory.setItem(PREVIOUS_SLOT, button(Material.ARROW, "{primary}&lPREVIOUS",
-                    "{letters_black}▎ {letters}Page {info}" + page + "{letters_black}/{info}" + pages()));
+            inventory.setItem(PREVIOUS_SLOT, button(Material.ARROW, Phrases.tr("{primary}&lPREVIOUS"),
+                    Phrases.tr("{letters_black}▎ {letters}Page {info}{0}{letters_black}/{info}{1}", page, pages())));
         }
-        inventory.setItem(SEARCH_SLOT, button(Material.NAME_TAG, "{primary}&lSEARCH",
-                "{letters_black}▎ {letters}Type to filter these results.",
+        inventory.setItem(SEARCH_SLOT, button(Material.NAME_TAG, Phrases.tr("{primary}&lSEARCH"),
+                Phrases.tr("{letters_black}▎ {letters}Type to filter these results."),
                 "",
-                "{warning}➥ Click to open the text box"));
+                Phrases.tr("{warning}➥ Click to open the text box")));
         if (!query.isEmpty()) {
-            inventory.setItem(CLEAR_SLOT, button(Material.STRUCTURE_VOID, "{secondary}&lCLEAR",
-                    "{letters_black}▎ {letters}Show every option again.",
+            inventory.setItem(CLEAR_SLOT, button(Material.STRUCTURE_VOID, Phrases.tr("{secondary}&lCLEAR"),
+                    Phrases.tr("{letters_black}▎ {letters}Show every option again."),
                     "",
-                    "{warning}➥ Click to clear the search"));
+                    Phrases.tr("{warning}➥ Click to clear the search")));
         }
         inventory.setItem(INFO_SLOT, info());
-        inventory.setItem(CANCEL_SLOT, button(Material.BARRIER, "{error}&lCANCEL",
-                "{letters_black}▎ {letters}Close without choosing."));
+        inventory.setItem(CANCEL_SLOT, button(Material.BARRIER, Phrases.tr("{error}&lCANCEL"),
+                Phrases.tr("{letters_black}▎ {letters}Close without choosing.")));
         if (hasNext()) {
-            inventory.setItem(NEXT_SLOT, button(Material.ARROW, "{primary}&lNEXT",
-                    "{letters_black}▎ {letters}Page {info}" + (page + 2) + "{letters_black}/{info}" + pages()));
+            inventory.setItem(NEXT_SLOT, button(Material.ARROW, Phrases.tr("{primary}&lNEXT"),
+                    Phrases.tr("{letters_black}▎ {letters}Page {info}{0}{letters_black}/{info}{1}", page + 2, pages())));
         }
     }
 
@@ -417,28 +418,28 @@ final class SearchView<T> implements InventoryHolder {
             base = new ItemStack(material);
         }
         return written(base, Text.of("{primary}&l%label%").with("%label%", label).build(),
-                "{letters_black}▎ {letters}Click to choose this option.");
+                Phrases.tr("{letters_black}▎ {letters}Click to choose this option."));
     }
 
     private ItemStack info() {
-        String state = query.isEmpty() ? "{muted}none" : "{highlight}" + '"' + query + '"';
+        String state = query.isEmpty() ? Phrases.tr("{muted}none") : "{highlight}" + '"' + query + '"';
         if (loading) {
-            return button(Material.CLOCK, "{primary}&lSEARCHING",
-                    "{letters_black}▎ {letters}Query {letters_black}» " + state,
-                    "{letters_black}▎ {letters}Fetching results…");
+            return button(Material.CLOCK, Phrases.tr("{primary}&lSEARCHING"),
+                    Phrases.tr("{letters_black}▎ {letters}Query {letters_black}» {0}", state),
+                    Phrases.tr("{letters_black}▎ {letters}Fetching results…"));
         }
         if (unavailable) {
-            return button(Material.BARRIER, "{error}&lUNAVAILABLE",
-                    "{letters_black}▎ {letters}The catalogue could not be reached.",
+            return button(Material.BARRIER, Phrases.tr("{error}&lUNAVAILABLE"),
+                    Phrases.tr("{letters_black}▎ {letters}The catalogue could not be reached."),
                     "",
-                    "{warning}➥ Search again to retry");
+                    Phrases.tr("{warning}➥ Search again to retry"));
         }
-        return button(Material.PAPER, "{primary}&lSEARCH RESULTS",
-                "{letters_black}▎ {letters}Query {letters_black}» " + state,
-                "{letters_black}▎ {letters}Matches {letters_black}» {info}"
-                        + (paged ? total : matches.size()),
-                "{letters_black}▎ {letters}Page {letters_black}» {info}" + (page + 1)
-                        + "{letters_black}/{info}" + pages());
+        return button(Material.PAPER, Phrases.tr("{primary}&lSEARCH RESULTS"),
+                Phrases.tr("{letters_black}▎ {letters}Query {letters_black}» {0}", state),
+                Phrases.tr("{letters_black}▎ {letters}Matches {letters_black}» {info}{0}",
+                        paged ? total : matches.size()),
+                Phrases.tr("{letters_black}▎ {letters}Page {letters_black}» {info}{0}{letters_black}/{info}{1}",
+                        page + 1, pages()));
     }
 
     private static ItemStack button(Material material, String name, String... lore) {

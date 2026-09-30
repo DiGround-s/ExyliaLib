@@ -1,6 +1,7 @@
 package net.exylia.lib.util.sequence;
 
 import net.exylia.lib.input.FormKey;
+import net.exylia.lib.text.Phrases;
 import net.exylia.lib.input.FormValues;
 import net.exylia.lib.util.editor.EditorButton;
 import net.exylia.lib.util.editor.EditorDescriptor;
@@ -85,30 +86,30 @@ final class EffectDescriptor implements EditorDescriptor<EffectEntry> {
     @Override
     public @NotNull List<String> lore(@NotNull EffectEntry entry) {
         List<String> lore = new ArrayList<>(10);
-        lore.add("{secondary}Plays:");
+        lore.add(Phrases.tr("{secondary}Plays:"));
         if (entry.lines().isEmpty()) {
-            lore.add(" {letters_black}▎ {muted}nothing yet");
+            lore.add(Phrases.tr(" {letters_black}▎ {muted}nothing yet"));
         } else {
             for (int index = 0; index < Math.min(4, entry.lines().size()); index++) {
                 lore.add(" {letters_black}▎ {letters}" + entry.lines().get(index));
             }
             if (entry.lines().size() > 4) {
-                lore.add(" {letters_black}▎ {muted}and " + (entry.lines().size() - 4) + " more");
+                lore.add(Phrases.tr(" {letters_black}▎ {muted}and {0} more", entry.lines().size() - 4));
             }
         }
         lore.add("");
-        lore.add("{secondary}When:");
-        lore.add(" {letters_black}▎ {letters}Chance {letters_black}» " + chance(entry));
-        lore.add(" {letters_black}▎ {letters}Seen by {letters_black}» {info}" + audience(entry));
+        lore.add(Phrases.tr("{secondary}When:"));
+        lore.add(Phrases.tr(" {letters_black}▎ {letters}Chance {letters_black}» {0}", chance(entry)));
+        lore.add(Phrases.tr(" {letters_black}▎ {letters}Seen by {letters_black}» {info}{0}", audience(entry)));
         if (entry.delayTicks() > 0) {
-            lore.add(" {letters_black}▎ {letters}After {letters_black}» {info}"
-                    + entry.delayTicks() / 20.0 + "s ⌚");
+            lore.add(Phrases.tr(" {letters_black}▎ {letters}After {letters_black}» {info}{0}s ⌚",
+                    entry.delayTicks() / 20.0));
         }
         if (entry.condition() != null) {
-            lore.add(" {letters_black}▎ {letters}If {letters_black}» {info}" + entry.condition());
+            lore.add(Phrases.tr(" {letters_black}▎ {letters}If {letters_black}» {info}{0}", entry.condition()));
         }
         if (entry.permission() != null) {
-            lore.add(" {letters_black}▎ {letters}Needs {letters_black}» {info}" + entry.permission());
+            lore.add(Phrases.tr(" {letters_black}▎ {letters}Needs {letters_black}» {info}{0}", entry.permission()));
         }
         return lore;
     }
@@ -193,19 +194,19 @@ final class EffectDescriptor implements EditorDescriptor<EffectEntry> {
     private static String title(EffectEntry entry) {
         String name = entry.name();
         return name == null || name.isBlank()
-                ? "{primary}&lWHAT IT PLAYS"
+                ? Phrases.tr("{primary}&lWHAT IT PLAYS")
                 : "{primary}&l" + name.toUpperCase(Locale.ROOT);
     }
 
     /** The one button on the lines screen: everything an effect is besides them. */
     private EditorButton<SequenceLine> settings(Player viewer, AtomicReference<EffectEntry> gating) {
         return EditorButton.<SequenceLine>of("COMPARATOR")
-                .name("{highlight}&lWHEN IT PLAYS")
-                .lore("{secondary}Information:",
-                        " {letters_black}▎ {letters}Its odds, who sees it, how long",
-                        " {letters_black}▎ {letters}it waits, and what it needs.",
+                .name(Phrases.tr("{highlight}&lWHEN IT PLAYS"))
+                .lore(Phrases.tr("{secondary}Information:"),
+                        Phrases.tr(" {letters_black}▎ {letters}Its odds, who sees it, how long"),
+                        Phrases.tr(" {letters_black}▎ {letters}it waits, and what it needs."),
                         "",
-                        "{warning}➥ Click to change, then save")
+                        Phrases.tr("{warning}➥ Click to change, then save"))
                 .glowing()
                 .onClick(view -> view.ask(() -> form(viewer, gating.get())
                         .thenAccept(edited -> edited.ifPresent(gating::set))))
@@ -214,16 +215,16 @@ final class EffectDescriptor implements EditorDescriptor<EffectEntry> {
 
     /** The gating, as one prefilled dialog. */
     private CompletionStage<Optional<EffectEntry>> form(Player viewer, EffectEntry entry) {
-        return EditorForm.of(plugin, viewer, "{primary}&lWHEN IT PLAYS")
-                .text(NAME, "Name (blank to show the first line)", entry.name(), 2)
-                .decimal(CHANCE, "Chance out of 100", BigDecimal.valueOf(entry.chance()))
-                .text(RADIUS, "Seen by: a radius, 0 for them alone, or world", written(entry))
-                .text(DELAY, "Waits first", net.exylia.lib.effect.Ticks.write(
+        return EditorForm.of(plugin, viewer, Phrases.tr("{primary}&lWHEN IT PLAYS"))
+                .text(NAME, Phrases.tr("Name (blank to show the first line)"), entry.name(), 2)
+                .decimal(CHANCE, Phrases.tr("Chance out of 100"), BigDecimal.valueOf(entry.chance()))
+                .text(RADIUS, Phrases.tr("Seen by: a radius, 0 for them alone, or world"), written(entry))
+                .text(DELAY, Phrases.tr("Waits first"), net.exylia.lib.effect.Ticks.write(
                         entry.delayTicks() * net.exylia.lib.effect.Ticks.MILLIS))
-                .hint("A bare number is ticks. 10t, 1s, 1m30s.")
-                .integer(PRIORITY, "Priority, higher plays first", entry.priority())
-                .text(CONDITION, "Condition (blank for none)", entry.condition(), 2)
-                .text(PERMISSION, "Permission (blank for none)", entry.permission())
+                .hint(Phrases.tr("A bare number is ticks. 10t, 1s, 1m30s."))
+                .integer(PRIORITY, Phrases.tr("Priority, higher plays first"), entry.priority())
+                .text(CONDITION, Phrases.tr("Condition (blank for none)"), entry.condition(), 2)
+                .text(PERMISSION, Phrases.tr("Permission (blank for none)"), entry.permission())
                 .ask(values -> regate(entry, values));
     }
 
@@ -285,17 +286,17 @@ final class EffectDescriptor implements EditorDescriptor<EffectEntry> {
 
     private static String audience(EffectEntry entry) {
         if (entry.isPrivate()) {
-            return "them alone";
+            return Phrases.tr("them alone");
         }
         if (entry.radius() == EffectEntry.WHOLE_WORLD) {
-            return "the whole world";
+            return Phrases.tr("the whole world");
         }
-        return entry.radius() + " blocks";
+        return Phrases.tr("{0} blocks", entry.radius());
     }
 
     private static String chance(EffectEntry entry) {
         return entry.isGuaranteed()
-                ? "{success}always"
+                ? Phrases.tr("{success}always")
                 : "{highlight}" + entry.chance() + "%";
     }
 

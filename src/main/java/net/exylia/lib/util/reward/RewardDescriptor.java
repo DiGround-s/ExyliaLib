@@ -5,6 +5,7 @@ import net.exylia.lib.input.FormValues;
 import net.exylia.lib.input.Inputs;
 import net.exylia.lib.input.internal.InsertWindow;
 import net.exylia.lib.item.Source;
+import net.exylia.lib.text.Phrases;
 import net.exylia.lib.text.Text;
 import net.exylia.lib.util.command.NamedCommands;
 import net.exylia.lib.input.FormField;
@@ -79,12 +80,6 @@ public final class RewardDescriptor implements EditorDescriptor<RewardEntry> {
     /** In the edit-all form, what a text field is written as to clear it on every row. */
     private static final String CLEAR = "-";
 
-    /** Said under the command field, where the wrong guess fails silently. */
-    private static final String COMMAND_HINT = "%player_name% is the player, no leading slash";
-
-    /** Said under the fields the player reads, which take markup as well. */
-    private static final String TEXT_HINT = "%player_name% and colour codes work";
-
     private final Plugin plugin;
 
     RewardDescriptor(Plugin plugin) {
@@ -118,26 +113,28 @@ public final class RewardDescriptor implements EditorDescriptor<RewardEntry> {
     public @NotNull List<String> lore(@NotNull RewardEntry entry,
                                       @NotNull List<RewardEntry> siblings) {
         List<String> lore = new ArrayList<>(9);
-        lore.add("{secondary}Reward:");
-        lore.add(" {letters_black}▎ {letters}Gives {letters_black}» {info}" + readable(entry.type()));
-        lore.add(" {letters_black}▎ {letters}Value {letters_black}» {highlight}" + entry.preview());
+        lore.add(Phrases.tr("{secondary}Reward:"));
+        lore.add(Phrases.tr(" {letters_black}▎ {letters}Gives {letters_black}» {info}{0}", readable(entry.type())));
+        lore.add(Phrases.tr(" {letters_black}▎ {letters}Value {letters_black}» {highlight}{0}", entry.preview()));
         lore.add("");
-        lore.add("{secondary}Odds:");
-        lore.add(" {letters_black}▎ {letters}Chance {letters_black}» " + chance(entry));
-        lore.add(" {letters_black}▎ {letters}Weight 🎲 {letters_black}» {info}" + number(entry.weight()));
+        lore.add(Phrases.tr("{secondary}Odds:"));
+        lore.add(Phrases.tr(" {letters_black}▎ {letters}Chance {letters_black}» {0}", chance(entry)));
+        lore.add(Phrases.tr(" {letters_black}▎ {letters}Weight 🎲 {letters_black}» {info}{0}", number(entry.weight())));
         String share = share(entry.chance(), siblings);
         if (share != null) {
-            lore.add(" {letters_black}▎ {letters}Real {letters_black}» {success}" + share
-                    + "% {muted}of all drops");
+            lore.add(Phrases.tr(" {letters_black}▎ {letters}Real {letters_black}» {success}{0}% {muted}of all drops",
+                    share));
         }
         if (entry.permission() != null || entry.condition() != null) {
             lore.add("");
-            lore.add("{secondary}Only for:");
+            lore.add(Phrases.tr("{secondary}Only for:"));
             if (entry.permission() != null) {
-                lore.add(" {letters_black}▎ {letters}Permission {letters_black}» {info}" + entry.permission());
+                lore.add(Phrases.tr(" {letters_black}▎ {letters}Permission {letters_black}» {info}{0}",
+                        entry.permission()));
             }
             if (entry.condition() != null) {
-                lore.add(" {letters_black}▎ {letters}Condition {letters_black}» {info}" + entry.condition());
+                lore.add(Phrases.tr(" {letters_black}▎ {letters}Condition {letters_black}» {info}{0}",
+                        entry.condition()));
             }
         }
         return lore;
@@ -151,7 +148,7 @@ public final class RewardDescriptor implements EditorDescriptor<RewardEntry> {
     /** Asks what the reward gives, then opens the form that fits the answer. */
     @Override
     public @NotNull CompletionStage<Optional<RewardEntry>> create(@NotNull Player viewer) {
-        return Inputs.of(plugin).choice(viewer, "{primary}&lWHAT DOES IT GIVE?",
+        return Inputs.of(plugin).choice(viewer, Phrases.tr("{primary}&lWHAT DOES IT GIVE?"),
                         List.of(RewardType.values()))
                 .label(type -> "{primary}&l" + readable(type).toUpperCase(Locale.ROOT))
                 .icon(RewardDescriptor::iconOf)
@@ -182,11 +179,11 @@ public final class RewardDescriptor implements EditorDescriptor<RewardEntry> {
                 answers.add(SEVERAL_ITEMS);
             }
         }
-        return Inputs.of(plugin).choice(viewer, "{primary}&lWHAT DOES IT GIVE?", answers)
+        return Inputs.of(plugin).choice(viewer, Phrases.tr("{primary}&lWHAT DOES IT GIVE?"), answers)
                 .label(answer -> switch (answer) {
-                    case SEVERAL_ITEMS -> "{primary}&lSEVERAL ITEMS";
-                    case SEVERAL_COMMANDS -> "{primary}&lSEVERAL COMMANDS";
-                    default -> "{primary}&l" + answer.toUpperCase(Locale.ROOT);
+                    case SEVERAL_ITEMS -> Phrases.tr("{primary}&lSEVERAL ITEMS");
+                    case SEVERAL_COMMANDS -> Phrases.tr("{primary}&lSEVERAL COMMANDS");
+                    default -> "{primary}&l" + readable(RewardType.valueOf(answer)).toUpperCase(Locale.ROOT);
                 })
                 .icon(answer -> switch (answer) {
                     case SEVERAL_ITEMS -> Material.HOPPER;
@@ -200,13 +197,13 @@ public final class RewardDescriptor implements EditorDescriptor<RewardEntry> {
                         return CompletableFuture.completedFuture(List.<RewardEntry>of());
                     }
                     if (result.value().equals(SEVERAL_ITEMS)) {
-                        return InsertWindow.openForItems(plugin, viewer, "{primary}&lINSERT THE ITEMS")
+                        return InsertWindow.openForItems(plugin, viewer, Phrases.tr("{primary}&lINSERT THE ITEMS"))
                                 .thenApply(items -> fromItems(viewer, items));
                     }
                     if (result.value().equals(SEVERAL_COMMANDS)) {
-                        return Inputs.of(plugin).text(viewer, "{primary}&lWHAT DO THEY RUN?")
+                        return Inputs.of(plugin).text(viewer, Phrases.tr("{primary}&lWHAT DO THEY RUN?"))
                                 .lines(6)
-                                .hint(COMMAND_HINT + "; one command per line")
+                                .hint(Phrases.tr("%player_name% is the player, no leading slash; one command per line"))
                                 .open()
                                 .thenApply(typed -> typed.completed()
                                         ? NamedCommands.lines(typed.value()).stream()
@@ -233,9 +230,10 @@ public final class RewardDescriptor implements EditorDescriptor<RewardEntry> {
                     Source.of(item.getType().name()).label(), item.getAmount()));
         }
         if (!items.isEmpty()) {
-            Text.from(plugin, "{success}Added {info}" + entries.size() + " {success}reward"
-                    + (entries.size() == 1 ? "" : "s") + "."
-                    + (skipped == 0 ? "" : " {error}" + skipped + " too big to store were left out."))
+            Text.from(plugin, (entries.size() == 1
+                            ? Phrases.tr("{success}Added {info}{0} {success}reward.", entries.size())
+                            : Phrases.tr("{success}Added {info}{0} {success}rewards.", entries.size()))
+                    + (skipped == 0 ? "" : Phrases.tr(" {error}{0} too big to store were left out.", skipped)))
                     .send(viewer);
         }
         return entries;
@@ -256,17 +254,17 @@ public final class RewardDescriptor implements EditorDescriptor<RewardEntry> {
     @Override
     public @NotNull CompletionStage<Optional<List<RewardEntry>>> editAll(@NotNull Player viewer,
                                                                          @NotNull List<RewardEntry> entries) {
-        String clearHint = "blank keeps each one; " + CLEAR + " removes it from all";
-        return EditorForm.of(plugin, viewer, "{primary}&lEDIT ALL " + entries.size() + " REWARDS")
-                .field(CHANCE, FormField.decimal(CHANCE, "Chance out of 100").optional())
-                .hint("blank keeps each one's own")
-                .field(WEIGHT, FormField.decimal(WEIGHT, "Weight against its siblings").optional())
-                .hint("blank keeps each one's own")
-                .text(PERMISSION, "Permission needed", null)
+        String clearHint = Phrases.tr("blank keeps each one; {0} removes it from all", CLEAR);
+        return EditorForm.of(plugin, viewer, Phrases.tr("{primary}&lEDIT ALL {0} REWARDS", entries.size()))
+                .field(CHANCE, FormField.decimal(CHANCE, Phrases.tr("Chance out of 100")).optional())
+                .hint(Phrases.tr("blank keeps each one's own"))
+                .field(WEIGHT, FormField.decimal(WEIGHT, Phrases.tr("Weight against its siblings")).optional())
+                .hint(Phrases.tr("blank keeps each one's own"))
+                .text(PERMISSION, Phrases.tr("Permission needed"), null)
                 .hint(clearHint)
-                .text(CONDITION, "Condition", null, 2)
+                .text(CONDITION, Phrases.tr("Condition"), null, 2)
                 .hint(clearHint)
-                .text(MESSAGE, "Message when it lands", null, 3)
+                .text(MESSAGE, Phrases.tr("Message when it lands"), null, 3)
                 .hint(clearHint)
                 .ask(values -> entries.stream().map(entry -> {
                     RewardEntry.Builder builder = entry.toBuilder();
@@ -355,7 +353,7 @@ public final class RewardDescriptor implements EditorDescriptor<RewardEntry> {
      */
     private CompletionStage<Optional<RewardEntry>> pickItem(Player viewer, RewardEntry entry, boolean creating) {
         AtomicReference<ItemStack> inserted = new AtomicReference<>();
-        return Inputs.of(plugin).icon(viewer, "{primary}&lWHAT ITEM?")
+        return Inputs.of(plugin).icon(viewer, Phrases.tr("{primary}&lWHAT ITEM?"))
                 .wholeItem()
                 .maxLength(ITEM_MAX_LENGTH)
                 .inserted(inserted::set)
@@ -417,37 +415,37 @@ public final class RewardDescriptor implements EditorDescriptor<RewardEntry> {
 
     private CompletionStage<Optional<RewardEntry>> form(Player viewer, RewardEntry entry) {
         boolean isItem = entry.type() == RewardType.ITEM;
-        EditorForm form = EditorForm.of(plugin, viewer, "{primary}&lEDIT REWARD")
-                .text(NAME, "Display name", entry.name(), 2)
-                .flag(ICON, isItem ? "Change the item" : "Change the icon", false)
+        EditorForm form = EditorForm.of(plugin, viewer, Phrases.tr("{primary}&lEDIT REWARD"))
+                .text(NAME, Phrases.tr("Display name"), entry.name(), 2)
+                .flag(ICON, isItem ? Phrases.tr("Change the item") : Phrases.tr("Change the icon"), false)
                 .hint(iconHint(entry));
 
         boolean potion = entry.type() == RewardType.POTION;
         boolean payload = !isItem && !potion;
         if (potion) {
             // Picked on the effect screen, never typed: several at once, levels as the game shows them.
-            form.flag(EFFECTS, "Change the effects", entry.value() == null || entry.value().isBlank())
-                    .hint("now " + net.exylia.lib.util.Effects.describe(payloadOf(entry))
-                            + "; the effect list opens after submitting");
+            form.flag(EFFECTS, Phrases.tr("Change the effects"), entry.value() == null || entry.value().isBlank())
+                    .hint(Phrases.tr("now {0}; the effect list opens after submitting",
+                            net.exylia.lib.util.Effects.describe(payloadOf(entry))));
         }
         if (payload) {
             form.text(PAYLOAD, payloadLabel(entry.type()), payloadOf(entry), payloadLines(entry.type()))
                     .hint(payloadHint(entry.type()));
         }
         if (entry.type() == RewardType.ECONOMY) {
-            form.currency(CURRENCY, "Currency", entry.currency());
+            form.currency(CURRENCY, Phrases.tr("Currency"), entry.currency());
         }
         boolean counted = entry.type() == RewardType.ITEM || entry.type() == RewardType.EXPERIENCE;
         if (counted) {
-            form.integer(MINIMUM, "Least amount", low(entry))
-                    .integer(MAXIMUM, "Most amount", high(entry));
+            form.integer(MINIMUM, Phrases.tr("Least amount"), low(entry))
+                    .integer(MAXIMUM, Phrases.tr("Most amount"), high(entry));
         }
-        form.decimal(CHANCE, "Chance out of 100", BigDecimal.valueOf(entry.chance()))
-                .decimal(WEIGHT, "Weight against its siblings", BigDecimal.valueOf(entry.weight()))
-                .text(PERMISSION, "Permission needed (blank for none)", entry.permission())
-                .text(CONDITION, "Condition (blank for none)", entry.condition(), 2)
-                .text(MESSAGE, "Message when it lands (blank for none)", entry.deliveryMessage(), 3)
-                .hint(TEXT_HINT);
+        form.decimal(CHANCE, Phrases.tr("Chance out of 100"), BigDecimal.valueOf(entry.chance()))
+                .decimal(WEIGHT, Phrases.tr("Weight against its siblings"), BigDecimal.valueOf(entry.weight()))
+                .text(PERMISSION, Phrases.tr("Permission needed (blank for none)"), entry.permission())
+                .text(CONDITION, Phrases.tr("Condition (blank for none)"), entry.condition(), 2)
+                .text(MESSAGE, Phrases.tr("Message when it lands (blank for none)"), entry.deliveryMessage(), 3)
+                .hint(textHint());
 
         boolean withPayload = payload;
         boolean withAmounts = counted;
@@ -474,7 +472,7 @@ public final class RewardDescriptor implements EditorDescriptor<RewardEntry> {
     /** The potion effects, on the effect screen; backing out keeps what it had. */
     private CompletionStage<RewardEntry> pickEffects(Player viewer, RewardEntry entry) {
         String current = entry.value() == null ? "" : entry.value();
-        return net.exylia.lib.util.Effects.edit(plugin, viewer, "{primary}&lWHAT EFFECTS?", current)
+        return net.exylia.lib.util.Effects.edit(plugin, viewer, Phrases.tr("{primary}&lWHAT EFFECTS?"), current)
                 .thenApply(edited -> edited.map(lines -> entry.toBuilder().value(blankToNull(lines)).build())
                         .orElse(entry));
     }
@@ -493,7 +491,7 @@ public final class RewardDescriptor implements EditorDescriptor<RewardEntry> {
             // reward itself rather than a picture hung in front of it.
             return pickItem(viewer, entry, false).thenApply(picked -> Optional.of(picked.orElse(entry)));
         }
-        return Inputs.of(plugin).icon(viewer, "{primary}&lWHAT ICON?")
+        return Inputs.of(plugin).icon(viewer, Phrases.tr("{primary}&lWHAT ICON?"))
                 .open()
                 .thenApply(result -> Optional.of(result.completed()
                         ? entry.toBuilder().icon(result.value()).build()
@@ -504,9 +502,9 @@ public final class RewardDescriptor implements EditorDescriptor<RewardEntry> {
     private static String iconHint(RewardEntry entry) {
         String icon = entry.resolvedIcon();
         String now = icon.length() > 32
-                ? "a custom item"
+                ? Phrases.tr("a custom item")
                 : icon.toLowerCase(Locale.ROOT).replace('_', ' ');
-        return "now " + now + "; a picker opens after submitting";
+        return Phrases.tr("now {0}; a picker opens after submitting", now);
     }
 
     private static RewardEntry rebuild(RewardEntry entry, FormValues values,
@@ -546,12 +544,12 @@ public final class RewardDescriptor implements EditorDescriptor<RewardEntry> {
 
     private static String payloadLabel(RewardType type) {
         return switch (type) {
-            case COMMAND -> "Command the console runs";
-            case MESSAGE -> "Message to send";
-            case ECONOMY -> "How much money";
-            case EXPERIENCE -> "How much experience";
-            case POTION -> "Effects";
-            case ITEM -> "Item";
+            case COMMAND -> Phrases.tr("Command the console runs");
+            case MESSAGE -> Phrases.tr("Message to send");
+            case ECONOMY -> Phrases.tr("How much money");
+            case EXPERIENCE -> Phrases.tr("How much experience");
+            case POTION -> Phrases.tr("Effects");
+            case ITEM -> Phrases.tr("Item");
         };
     }
 
@@ -562,8 +560,8 @@ public final class RewardDescriptor implements EditorDescriptor<RewardEntry> {
      */
     private static String payloadHint(RewardType type) {
         return switch (type) {
-            case COMMAND -> COMMAND_HINT;
-            case MESSAGE -> TEXT_HINT;
+            case COMMAND -> Phrases.tr("%player_name% is the player, no leading slash");
+            case MESSAGE -> textHint();
             default -> null;
         };
     }
@@ -594,7 +592,7 @@ public final class RewardDescriptor implements EditorDescriptor<RewardEntry> {
 
     private static String chance(RewardEntry entry) {
         return entry.isGuaranteed()
-                ? "{success}always"
+                ? Phrases.tr("{success}always")
                 : "{highlight}" + number(entry.chance()) + "%";
     }
 
@@ -627,7 +625,18 @@ public final class RewardDescriptor implements EditorDescriptor<RewardEntry> {
     }
 
     private static String readable(RewardType type) {
-        return type.name().toLowerCase(Locale.ROOT);
+        return switch (type) {
+            case COMMAND -> Phrases.tr("command");
+            case ITEM -> Phrases.tr("item");
+            case MESSAGE -> Phrases.tr("message");
+            case ECONOMY -> Phrases.tr("economy");
+            case EXPERIENCE -> Phrases.tr("experience");
+            case POTION -> Phrases.tr("potion");
+        };
+    }
+
+    private static String textHint() {
+        return Phrases.tr("%player_name% and colour codes work");
     }
 
     private static Material iconOf(RewardType type) {

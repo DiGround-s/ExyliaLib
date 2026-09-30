@@ -1,5 +1,6 @@
 package net.exylia.lib.util.command;
 
+import net.exylia.lib.text.Phrases;
 import net.exylia.lib.input.FormKey;
 import net.exylia.lib.input.Inputs;
 import net.exylia.lib.util.editor.EditorDescriptor;
@@ -48,9 +49,9 @@ final class NamedCommandDescriptor implements EditorDescriptor<NamedCommand> {
     @Override
     public @NotNull List<String> lore(@NotNull NamedCommand entry) {
         if (!entry.isRunnable()) {
-            return List.of("{secondary}Runs:", " {letters_black}▎ {muted}nothing yet");
+            return List.of(Phrases.tr("{secondary}Runs:"), Phrases.tr(" {letters_black}▎ {muted}nothing yet"));
         }
-        return List.of("{secondary}Runs:",
+        return List.of(Phrases.tr("{secondary}Runs:"),
                 " {letters_black}▎ {letters}/{info}" + entry.command());
     }
 
@@ -68,9 +69,9 @@ final class NamedCommandDescriptor implements EditorDescriptor<NamedCommand> {
      */
     @Override
     public @NotNull CompletionStage<List<NamedCommand>> createAll(@NotNull Player viewer) {
-        return Inputs.of(plugin).text(viewer, "{primary}&lWHAT DOES IT RUN?")
+        return Inputs.of(plugin).text(viewer, Phrases.tr("{primary}&lWHAT DOES IT RUN?"))
                 .lines(6)
-                .hint("One command per line, without the slash")
+                .hint(Phrases.tr("One command per line, without the slash"))
                 .open()
                 .thenApply(result -> result.completed()
                         ? NamedCommands.lines(result.value()).stream()
@@ -100,9 +101,9 @@ final class NamedCommandDescriptor implements EditorDescriptor<NamedCommand> {
         // Three lines for the command itself: a stored command is usually a
         // permission node or a give with an item's whole NBT after it, and a
         // one-line box shows about twenty characters of that.
-        return EditorForm.of(plugin, viewer, "{primary}&lEDIT COMMAND")
-                .text(NAME, "Name (blank to show the command)", entry.name(), 2)
-                .text(COMMAND, "Command, without the slash", entry.command(), 3)
+        return EditorForm.of(plugin, viewer, Phrases.tr("{primary}&lEDIT COMMAND"))
+                .text(NAME, Phrases.tr("Name (blank to show the command)"), entry.name(), 2)
+                .text(COMMAND, Phrases.tr("Command, without the slash"), entry.command(), 3)
                 .ask(values -> new NamedCommand(entry.id(),
                         blankToNull(values.getText(NAME)),
                         blankToNull(values.getText(COMMAND))));

@@ -1,5 +1,6 @@
 package net.exylia.lib.util.mob;
 
+import net.exylia.lib.text.Phrases;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.Locale;
@@ -15,27 +16,27 @@ import java.util.Locale;
 public enum MobFlag {
 
     /** Drawn with the glowing outline. */
-    GLOWING("Glows through walls"),
+    GLOWING,
     /** Spawned as a baby, where the type has one. */
-    BABY("Spawns as a baby"),
+    BABY,
     /** Makes no sound. */
-    SILENT("Makes no sound"),
+    SILENT,
     /** Never catches fire and takes no fire or lava damage. */
-    FIRE_IMMUNE("Immune to fire and lava"),
+    FIRE_IMMUNE,
     /** Drops none of the loot the type drops in vanilla. */
-    NO_VANILLA_DROPS("Drops no vanilla loot"),
+    NO_VANILLA_DROPS,
     /** Drops none of the experience the type drops in vanilla. */
-    NO_VANILLA_EXP("Drops no vanilla experience"),
+    NO_VANILLA_EXP,
     /** Never picks up items from the ground. */
-    NO_ITEM_PICKUP("Never picks up items"),
+    NO_ITEM_PICKUP,
     /** Does not burn in daylight. */
-    NO_SUN_BURN("Does not burn in daylight"),
+    NO_SUN_BURN,
     /**
      * Goes after the nearest player within its follow range, even when the type
      * is neutral. A type with no attack of its own — a cow, a villager — follows
      * but cannot hurt anybody.
      */
-    AGGRESSIVE("Hunts the nearest player"),
+    AGGRESSIVE,
     /**
      * Always on the move: whenever it has no target and no path, it runs to a
      * random spot within its {@link MobBehaviour#roam()}, or ten blocks when it
@@ -43,30 +44,37 @@ public enum MobFlag {
      *
      * @since 1.195.0
      */
-    WANDERS("Always runs around"),
+    WANDERS,
     /**
      * Nobody rides, leashes, feeds, breeds, opens or right-clicks it.
      *
      * @since 1.195.0
      */
-    NO_INTERACT("Cannot be ridden, leashed, fed or opened"),
+    NO_INTERACT,
     /**
      * Never targets anything, so it never attacks or spits. Wins over
      * {@link #AGGRESSIVE}. Its skills still aim at the nearest player.
      *
      * @since 1.195.0
      */
-    PASSIVE("Never targets anything");
-
-    private final String description;
-
-    MobFlag(String description) {
-        this.description = description;
-    }
+    PASSIVE;
 
     /** What the flag does, for an editor row. */
     public @NotNull String description() {
-        return description;
+        return switch (this) {
+            case GLOWING -> Phrases.tr("Glows through walls");
+            case BABY -> Phrases.tr("Spawns as a baby");
+            case SILENT -> Phrases.tr("Makes no sound");
+            case FIRE_IMMUNE -> Phrases.tr("Immune to fire and lava");
+            case NO_VANILLA_DROPS -> Phrases.tr("Drops no vanilla loot");
+            case NO_VANILLA_EXP -> Phrases.tr("Drops no vanilla experience");
+            case NO_ITEM_PICKUP -> Phrases.tr("Never picks up items");
+            case NO_SUN_BURN -> Phrases.tr("Does not burn in daylight");
+            case AGGRESSIVE -> Phrases.tr("Hunts the nearest player");
+            case WANDERS -> Phrases.tr("Always runs around");
+            case NO_INTERACT -> Phrases.tr("Cannot be ridden, leashed, fed or opened");
+            case PASSIVE -> Phrases.tr("Never targets anything");
+        };
     }
 
     /** The flag's name as a person reads it, such as {@code no sun burn}. */

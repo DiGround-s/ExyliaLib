@@ -3,6 +3,7 @@ package net.exylia.lib.util;
 import net.exylia.lib.input.FormKey;
 import net.exylia.lib.input.FormValues;
 import net.exylia.lib.effect.Ticks;
+import net.exylia.lib.text.Phrases;
 import net.exylia.lib.util.Effects.ParsedEffect;
 import net.exylia.lib.util.editor.EditorDescriptor;
 import net.exylia.lib.util.editor.EditorForm;
@@ -87,14 +88,14 @@ final class PotionEffectDescriptor implements EditorDescriptor<ParsedEffect> {
 
     @Override
     public @NotNull List<String> lore(@NotNull ParsedEffect entry) {
-        return List.of("{secondary}Effect:",
-                " {letters_black}▎ {letters}Level {letters_black}» {info}" + (entry.amplifier() + 1),
-                " {letters_black}▎ {letters}Lasts {letters_black}» {info}" + duration(entry) + " ⌚",
+        return List.of(Phrases.tr("{secondary}Effect:"),
+                Phrases.tr(" {letters_black}▎ {letters}Level {letters_black}» {info}{0}", entry.amplifier() + 1),
+                Phrases.tr(" {letters_black}▎ {letters}Lasts {letters_black}» {info}{0} ⌚", duration(entry)),
                 "",
-                "{secondary}On screen:",
-                " {letters_black}▎ {letters}Particles {letters_black}» " + shown(entry.particles())
-                        + (entry.ambient() ? " {letters_black}(faint)" : ""),
-                " {letters_black}▎ {letters}Icon {letters_black}» " + shown(entry.icon()));
+                Phrases.tr("{secondary}On screen:"),
+                Phrases.tr(" {letters_black}▎ {letters}Particles {letters_black}» {0}", shown(entry.particles()))
+                        + (entry.ambient() ? Phrases.tr(" {letters_black}(faint)") : ""),
+                Phrases.tr(" {letters_black}▎ {letters}Icon {letters_black}» {0}", shown(entry.icon())));
     }
 
     @Override
@@ -124,14 +125,14 @@ final class PotionEffectDescriptor implements EditorDescriptor<ParsedEffect> {
     @Override
     public @NotNull CompletionStage<Optional<ParsedEffect>> edit(@NotNull Player viewer,
                                                                  @NotNull ParsedEffect entry) {
-        return EditorForm.of(plugin, viewer, "{primary}&lEDIT EFFECT")
-                .integer(LEVEL, "Level, as a player reads it", entry.amplifier() + 1L)
-                .text(LASTS, "Lasts", lasts(entry))
-                .hint("30s, 1m30s, or forever.")
-                .flag(PARTICLES, "Show the swirling particles", entry.particles())
-                .flag(ICON, "Show the icon in the corner of the screen", entry.icon())
-                .flag(AMBIENT, "Faint particles, the way a beacon gives them", entry.ambient())
-                .hint("Only matters while the particles are shown.")
+        return EditorForm.of(plugin, viewer, Phrases.tr("{primary}&lEDIT EFFECT"))
+                .integer(LEVEL, Phrases.tr("Level, as a player reads it"), entry.amplifier() + 1L)
+                .text(LASTS, Phrases.tr("Lasts"), lasts(entry))
+                .hint(Phrases.tr("30s, 1m30s, or forever."))
+                .flag(PARTICLES, Phrases.tr("Show the swirling particles"), entry.particles())
+                .flag(ICON, Phrases.tr("Show the icon in the corner of the screen"), entry.icon())
+                .flag(AMBIENT, Phrases.tr("Faint particles, the way a beacon gives them"), entry.ambient())
+                .hint(Phrases.tr("Only matters while the particles are shown."))
                 .ask(values -> rebuild(entry, values));
     }
 
@@ -172,7 +173,7 @@ final class PotionEffectDescriptor implements EditorDescriptor<ParsedEffect> {
     }
 
     private static String shown(boolean on) {
-        return on ? "{success}Shown" : "{letters_black}Hidden";
+        return on ? Phrases.tr("{success}Shown") : Phrases.tr("{letters_black}Hidden");
     }
 
     /** The same effect picker every other editor opens, one bottle colour per effect. */
@@ -210,7 +211,7 @@ final class PotionEffectDescriptor implements EditorDescriptor<ParsedEffect> {
 
     private static String duration(ParsedEffect entry) {
         return entry.duration() == Effects.INFINITE
-                ? "forever"
+                ? Phrases.tr("forever")
                 : TimeFormats.render(entry.duration() / (double) TICKS_PER_SECOND);
     }
 

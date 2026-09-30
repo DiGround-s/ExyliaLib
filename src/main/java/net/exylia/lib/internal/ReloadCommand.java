@@ -21,6 +21,7 @@ import net.exylia.lib.scoreboard.internal.BoardManager;
 import net.exylia.lib.internal.ExyliaLibUpdater.UpdateOutcome;
 import net.exylia.lib.internal.ExyliaLibUpdater.UpdateStatus;
 import net.exylia.lib.task.Tasks;
+import net.exylia.lib.text.Phrases;
 import net.exylia.lib.text.Text;
 import net.exylia.lib.ui.Menus;
 import org.bukkit.Bukkit;
@@ -210,26 +211,14 @@ public final class ReloadCommand {
     @CommandPlaceholder
     public void overview(@NotNull CommandSender sender) {
         Text.of(header()
-                + "\n{letters_black}▎ {secondary}Reload {letters_black}» {letters}"
-                + "{muted}/exylialib reload{letters} — refreshes colours, formats, "
-                + "economy detection and input settings."
-                + "\n{letters_black}▎ {secondary}Info {letters_black}» {letters}"
-                + "{muted}/exylialib info{letters} — version, platform and who depends on this library."
-                + "\n{letters_black}▎ {secondary}Stats {letters_black}» {letters}"
-                + "{muted}/exylialib stats{letters} — live counters from every module."
-                + "\n{letters_black}▎ {secondary}Update {letters_black}» {letters}"
-                + "{muted}/exylialib update{letters} — checks GitHub now and stages a newer release."
-                + "\n{letters_black}▎ {secondary}Export {letters_black}» {letters}"
-                + "{muted}/exylialib export <plugin>{letters} — writes that plugin's tables to a dump."
-                + "\n{letters_black}▎ {secondary}Import {letters_black}» {letters}"
-                + "{muted}/exylialib import <plugin> <file> [force]{letters} — reads one back;"
-                + " force MERGES rather than replacing."
-                + "\n{letters_black}▎ {secondary}Wipe {letters_black}» {letters}"
-                + "{muted}/exylialib wipe <plugin> <table|*>{letters} — empties tables, after a"
-                + " typed confirmation and an automatic dump."
-                + "\n{letters_black}▎ {secondary}Updates {letters_black}» {letters}"
-                + "{muted}/exylialib updates{letters} — default changes plugin updates shipped,"
-                + " to apply or keep."
+                + "\n" + Phrases.tr("{letters_black}▎ {secondary}Reload {letters_black}» {letters}{muted}/exylialib reload{letters} — refreshes colours, formats, economy detection and input settings.")
+                + "\n" + Phrases.tr("{letters_black}▎ {secondary}Info {letters_black}» {letters}{muted}/exylialib info{letters} — version, platform and who depends on this library.")
+                + "\n" + Phrases.tr("{letters_black}▎ {secondary}Stats {letters_black}» {letters}{muted}/exylialib stats{letters} — live counters from every module.")
+                + "\n" + Phrases.tr("{letters_black}▎ {secondary}Update {letters_black}» {letters}{muted}/exylialib update{letters} — checks GitHub now and stages a newer release.")
+                + "\n" + Phrases.tr("{letters_black}▎ {secondary}Export {letters_black}» {letters}{muted}/exylialib export <plugin>{letters} — writes that plugin's tables to a dump.")
+                + "\n" + Phrases.tr("{letters_black}▎ {secondary}Import {letters_black}» {letters}{muted}/exylialib import <plugin> <file> [force]{letters} — reads one back; force MERGES rather than replacing.")
+                + "\n" + Phrases.tr("{letters_black}▎ {secondary}Wipe {letters_black}» {letters}{muted}/exylialib wipe <plugin> <table|*>{letters} — empties tables, after a typed confirmation and an automatic dump.")
+                + "\n" + Phrases.tr("{letters_black}▎ {secondary}Updates {letters_black}» {letters}{muted}/exylialib updates{letters} — default changes plugin updates shipped, to apply or keep.")
         ).send(sender);
     }
 
@@ -252,9 +241,8 @@ public final class ReloadCommand {
         long took = System.currentTimeMillis() - started;
 
         Text.of(header()
-                + "\n{letters_black}▎ {success}Reloaded {letters_black}» {letters}"
-                + "colours, formats, economy and input are live everywhere."
-                + "\n{letters_black}▎ {secondary}Took {letters_black}» {info}" + took + "ms"
+                + "\n" + Phrases.tr("{letters_black}▎ {success}Reloaded {letters_black}» {letters}colours, formats, economy and input are live everywhere.")
+                + "\n" + Phrases.tr("{letters_black}▎ {secondary}Took {letters_black}» {info}{0}ms", took)
         ).send(sender);
     }
 
@@ -279,19 +267,21 @@ public final class ReloadCommand {
         List<Dependent> plugins = dependents.get();
 
         StringBuilder text = new StringBuilder(header());
-        text.append("\n{letters_black}▎ {secondary}Platform {letters_black}» {info}")
-                .append(platform.get());
-        text.append("\n{letters_black}▎ {secondary}Auto-update {letters_black}» ")
-                .append(onOff(current.autoUpdate()))
+        text.append("\n").append(Phrases.tr("{letters_black}▎ {secondary}Platform {letters_black}» {info}{0}",
+                platform.get()));
+        text.append("\n").append(Phrases.tr("{letters_black}▎ {secondary}Auto-update {letters_black}» {0}",
+                        onOff(current.autoUpdate())))
                 .append(current.autoUpdate()
-                        ? " {letters}(every {info}" + current.updateCheckMinutes() + "{letters}min)"
+                        ? Phrases.tr(" {letters}(every {info}{0}{letters}min)", current.updateCheckMinutes())
                         : "");
-        text.append("\n{letters_black}▎ {secondary}Debug {letters_black}» ").append(onOff(current.debug()));
-        text.append("\n{letters_black}▎ {secondary}Small text {letters_black}» ").append(onOff(current.smallText()));
+        text.append("\n").append(Phrases.tr("{letters_black}▎ {secondary}Debug {letters_black}» {0}",
+                onOff(current.debug())));
+        text.append("\n").append(Phrases.tr("{letters_black}▎ {secondary}Small text {letters_black}» {0}",
+                onOff(current.smallText())));
 
-        text.append("\n\n{secondary}Depending plugins:");
+        text.append("\n\n").append(Phrases.tr("{secondary}Depending plugins:"));
         if (plugins.isEmpty()) {
-            text.append("\n{letters_black}▎ {muted}none found on this server");
+            text.append("\n").append(Phrases.tr("{letters_black}▎ {muted}none found on this server"));
         } else {
             for (Dependent dependent : plugins) {
                 text.append("\n{letters_black}▎ {letters}").append(dependent.name())
@@ -313,27 +303,26 @@ public final class ReloadCommand {
     public void stats(@NotNull CommandSender sender) {
         StringBuilder text = new StringBuilder(header());
 
-        text.append("\n{letters_black}▎ {secondary}Scoreboards {letters_black}» {info}")
-                .append(BoardManager.activeCount());
-        text.append("\n{letters_black}▎ {secondary}Holograms {letters_black}» ")
-                .append(hologramsLine(HologramRuntime.isSupported(), HologramRuntime.count()));
-        text.append("\n{letters_black}▎ {secondary}Effects {letters_black}» {info}")
-                .append(Effects.active());
-        text.append("\n{letters_black}▎ {secondary}Menus {letters_black}» {info}")
-                .append(Menus.registered()).append(" {letters}plugins");
-        text.append("\n{letters_black}▎ {secondary}Actions {letters_black}» {info}")
-                .append(Actions.registered());
-        text.append("\n{letters_black}▎ {secondary}Regions {letters_black}» {info}")
-                .append(Regions.registered()).append(" {letters}plugins");
-        text.append("\n{letters_black}▎ {secondary}Configs loaded {letters_black}» {info}")
-                .append(Configs.loaded().size());
+        text.append("\n").append(Phrases.tr("{letters_black}▎ {secondary}Scoreboards {letters_black}» {info}{0}",
+                BoardManager.activeCount()));
+        text.append("\n").append(Phrases.tr("{letters_black}▎ {secondary}Holograms {letters_black}» {0}",
+                hologramsLine(HologramRuntime.isSupported(), HologramRuntime.count())));
+        text.append("\n").append(Phrases.tr("{letters_black}▎ {secondary}Effects {letters_black}» {info}{0}",
+                Effects.active()));
+        text.append("\n").append(Phrases.tr("{letters_black}▎ {secondary}Menus {letters_black}» {info}{0} {letters}plugins",
+                Menus.registered()));
+        text.append("\n").append(Phrases.tr("{letters_black}▎ {secondary}Actions {letters_black}» {info}{0}",
+                Actions.registered()));
+        text.append("\n").append(Phrases.tr("{letters_black}▎ {secondary}Regions {letters_black}» {info}{0} {letters}plugins",
+                Regions.registered()));
+        text.append("\n").append(Phrases.tr("{letters_black}▎ {secondary}Configs loaded {letters_black}» {info}{0}",
+                Configs.loaded().size()));
 
-        text.append("\n\n{secondary}Database:");
-        text.append("\n{letters_black}▎ {letters}Engine {letters_black}» {info}")
-                .append(Databases.engine())
-                .append(" {letters_black}(").append(onOff(Databases.isReady())).append("{letters_black})");
-        text.append("\n{letters_black}▎ {letters}Plugins {letters_black}» {info}")
-                .append(Databases.registered());
+        text.append("\n\n").append(Phrases.tr("{secondary}Database:"));
+        text.append("\n").append(Phrases.tr("{letters_black}▎ {letters}Engine {letters_black}» {info}{0} {letters_black}({1}{letters_black})",
+                Databases.engine(), onOff(Databases.isReady())));
+        text.append("\n").append(Phrases.tr("{letters_black}▎ {letters}Plugins {letters_black}» {info}{0}",
+                Databases.registered()));
         // One line per plugin: the aggregate above says "on" while a single
         // plugin's database is unreachable, which is how an outage stays
         // invisible on a server where the other nine are fine.
@@ -347,8 +336,8 @@ public final class ReloadCommand {
                     .append(" {letters_black}» ")
                     .append(state.endsWith("ready") ? "{info}" : "{warning}").append(state);
         }
-        text.append("\n{letters_black}▎ {letters}Redis {letters_black}» ")
-                .append(Redis.isActive() ? "{success}on {letters_black}(" + Redis.stats() + ")" : "{muted}off");
+        text.append("\n").append(Phrases.tr("{letters_black}▎ {letters}Redis {letters_black}» {0}",
+                Redis.isActive() ? Phrases.tr("{success}on {letters_black}({0})", Redis.stats()) : Phrases.tr("{muted}off")));
 
         Text.of(text.toString()).send(sender);
     }
@@ -370,8 +359,7 @@ public final class ReloadCommand {
     @CommandPermission("exylialib.admin")
     public void update(@NotNull CommandSender sender) {
         Text.of(header()
-                + "\n{letters_black}▎ {secondary}Checking {letters_black}» {letters}"
-                + "asking GitHub for the newest release..."
+                + "\n" + Phrases.tr("{letters_black}▎ {secondary}Checking {letters_black}» {letters}asking GitHub for the newest release...")
         ).send(sender);
 
         updateCheck.get().thenAccept(outcome ->
@@ -388,29 +376,25 @@ public final class ReloadCommand {
      * @return the text, palette tokens included
      */
     static String updatePanel(UpdateOutcome outcome) {
-        StringBuilder text = new StringBuilder("{primary}&lEXYLIALIB&r {muted}update");
+        StringBuilder text = new StringBuilder("{primary}&lEXYLIALIB&r ").append(Phrases.tr("{muted}update"));
         switch (outcome.status()) {
             case UP_TO_DATE, DISABLED -> text
-                    .append("\n{letters_black}▎ {success}Up to date {letters_black}» {letters}running {info}")
-                    .append(outcome.version())
-                    .append("{letters}, which is the newest release.");
+                    .append("\n").append(Phrases.tr("{letters_black}▎ {success}Up to date {letters_black}» {letters}running {info}{0}{letters}, which is the newest release.",
+                            outcome.version()));
             case STAGED -> text
-                    .append("\n{letters_black}▎ {success}Staged {letters_black}» {info}")
-                    .append(outcome.version())
-                    .append(" {letters}downloaded and verified.")
-                    .append("\n\n{warning}➥ Restart the server to apply it")
-                    .append("\n{letters_black}▎ {muted}A reload cannot swap a library every plugin is bound to.");
+                    .append("\n").append(Phrases.tr("{letters_black}▎ {success}Staged {letters_black}» {info}{0} {letters}downloaded and verified.",
+                            outcome.version()))
+                    .append("\n\n").append(Phrases.tr("{warning}➥ Restart the server to apply it"))
+                    .append("\n").append(Phrases.tr("{letters_black}▎ {muted}A reload cannot swap a library every plugin is bound to."));
             case ALREADY_STAGED -> text
-                    .append("\n{letters_black}▎ {secondary}Already staged {letters_black}» {info}")
-                    .append(outcome.version())
-                    .append(" {letters}is waiting in the update folder.")
-                    .append("\n\n{warning}➥ Restart the server to apply it");
+                    .append("\n").append(Phrases.tr("{letters_black}▎ {secondary}Already staged {letters_black}» {info}{0} {letters}is waiting in the update folder.",
+                            outcome.version()))
+                    .append("\n\n").append(Phrases.tr("{warning}➥ Restart the server to apply it"));
             case FAILED -> text
-                    .append("\n{letters_black}▎ {error}Failed {letters_black}» {letters}")
-                    .append(outcome.detail() == null ? "the check did not finish" : outcome.detail())
-                    .append("\n{letters_black}▎ {muted}Still running {letters}")
-                    .append(outcome.version())
-                    .append("{muted}. Nothing was changed.");
+                    .append("\n").append(Phrases.tr("{letters_black}▎ {error}Failed {letters_black}» {letters}{0}",
+                            outcome.detail() == null ? Phrases.tr("the check did not finish") : outcome.detail()))
+                    .append("\n").append(Phrases.tr("{letters_black}▎ {muted}Still running {letters}{0}{muted}. Nothing was changed.",
+                            outcome.version()));
         }
         return text.toString();
     }
@@ -440,16 +424,15 @@ public final class ReloadCommand {
         }
         Path folder = dumpFolder.get();
         Text.of(header()
-                + "\n{letters_black}▎ {secondary}Exporting {letters_black}» {info}" + pluginName
-                + " {letters}(" + tables.size() + " tables)"
-                + "\n{letters_black}▎ {secondary}Tables {letters_black}» {letters}"
-                + String.join("{letters_black}, {letters}", tables)
-                + "\n{letters_black}▎ {muted}A table a plugin registers lazily is not listed here"
-                + " and will not be exported."
+                + "\n" + Phrases.tr("{letters_black}▎ {secondary}Exporting {letters_black}» {info}{0} {letters}({1} tables)",
+                        pluginName, tables.size())
+                + "\n" + Phrases.tr("{letters_black}▎ {secondary}Tables {letters_black}» {letters}{0}",
+                        String.join("{letters_black}, {letters}", tables))
+                + "\n" + Phrases.tr("{letters_black}▎ {muted}A table a plugin registers lazily is not listed here and will not be exported.")
         ).send(sender);
 
         transfers.export(pluginName, folder).thenAccept(report ->
-                Text.of(reportPanel("Export", pluginName, report)).send(sender));
+                Text.of(reportPanel(Phrases.tr("Export"), pluginName, report)).send(sender));
     }
 
     /**
@@ -478,10 +461,10 @@ public final class ReloadCommand {
         }
         Path file = dumpFolder.get().resolve(safeName(fileName));
         Text.of(header()
-                + "\n{letters_black}▎ {secondary}Importing {letters_black}» {info}" + pluginName
-                + "\n{letters_black}▎ {secondary}File {letters_black}» {letters}" + file.getFileName()
-                + "\n{letters_black}▎ {secondary}Mode {letters_black}» "
-                + (force ? "{warning}force {letters}(merge)" : "{letters}safe")
+                + "\n" + Phrases.tr("{letters_black}▎ {secondary}Importing {letters_black}» {info}{0}", pluginName)
+                + "\n" + Phrases.tr("{letters_black}▎ {secondary}File {letters_black}» {letters}{0}", file.getFileName())
+                + "\n" + Phrases.tr("{letters_black}▎ {secondary}Mode {letters_black}» {0}",
+                        force ? Phrases.tr("{warning}force {letters}(merge)") : Phrases.tr("{letters}safe"))
         ).send(sender);
 
         transfers.importFrom(pluginName, file, force).thenAccept(report ->
@@ -545,10 +528,13 @@ public final class ReloadCommand {
         pendingWipes.invalidate(who);
 
         Text.of(header()
-                + "\n{letters_black}▎ {secondary}Wiping {letters_black}» {info}" + pluginName
-                + " {letters}(" + (everything ? tables.size() + " tables" : table) + ")"
-                + "\n{letters_black}▎ {secondary}Backup {letters_black}» {letters}writing a dump"
-                + " first, into " + dumpFolder.get().getFileName()
+                + "\n" + (everything
+                        ? Phrases.tr("{letters_black}▎ {secondary}Wiping {letters_black}» {info}{0} {letters}({1} tables)",
+                                pluginName, tables.size())
+                        : Phrases.tr("{letters_black}▎ {secondary}Wiping {letters_black}» {info}{0} {letters}({1})",
+                                pluginName, table))
+                + "\n" + Phrases.tr("{letters_black}▎ {secondary}Backup {letters_black}» {letters}writing a dump first, into {0}",
+                        dumpFolder.get().getFileName())
         ).send(sender);
 
         transfers.export(pluginName, dumpFolder.get()).thenCompose(backup -> {
@@ -593,45 +579,44 @@ public final class ReloadCommand {
      */
     static String wipePreview(String pluginName, @Nullable String table, List<String> tables,
                               String code, Path dumpFolder) {
-        return "{primary}&lWIPE&r {muted}" + pluginName
-                + "\n{letters_black}▎ {error}This deletes rows. There is no undo."
-                + "\n{letters_black}▎ {secondary}Target {letters_black}» {letters}"
-                + (table == null ? "every registered table (" + tables.size() + ")" : table)
-                + "\n{letters_black}▎ {secondary}Tables {letters_black}» {letters}"
-                + String.join("{letters_black}, {letters}", tables)
-                + "\n{letters_black}▎ {secondary}Backup {letters_black}» {letters}a dump is written"
-                + " into " + dumpFolder.getFileName() + " first, and the wipe is cancelled if it fails"
-                + "\n\n{warning}➥ Confirm within " + CONFIRM_SECONDS + "s:"
+        return Phrases.tr("{primary}&lWIPE&r {muted}{0}", pluginName)
+                + "\n" + Phrases.tr("{letters_black}▎ {error}This deletes rows. There is no undo.")
+                + "\n" + Phrases.tr("{letters_black}▎ {secondary}Target {letters_black}» {letters}{0}",
+                        table == null ? Phrases.tr("every registered table ({0})", tables.size()) : table)
+                + "\n" + Phrases.tr("{letters_black}▎ {secondary}Tables {letters_black}» {letters}{0}",
+                        String.join("{letters_black}, {letters}", tables))
+                + "\n" + Phrases.tr("{letters_black}▎ {secondary}Backup {letters_black}» {letters}a dump is written into {0} first, and the wipe is cancelled if it fails",
+                        dumpFolder.getFileName())
+                + "\n\n" + Phrases.tr("{warning}➥ Confirm within {0}s:", CONFIRM_SECONDS)
                 + "\n{letters_black}▎ {muted}/exylialib wipe " + pluginName + " "
                 + (table == null ? ALL_TABLES : table) + " " + code;
     }
 
     /** The refusal when a code is wrong, missing or too late. */
     static String badConfirmation(String pluginName, String table) {
-        return "{primary}&lWIPE&r {muted}" + pluginName
-                + "\n{letters_black}▎ {error}That confirmation is not valid."
-                + "\n{letters_black}▎ {letters}A code is issued for one sender, one plugin and one"
-                + " table, and expires after " + CONFIRM_SECONDS + " seconds."
-                + "\n{letters_black}▎ {muted}Nothing was deleted."
-                + "\n\n{warning}➥ Start again:"
+        return Phrases.tr("{primary}&lWIPE&r {muted}{0}", pluginName)
+                + "\n" + Phrases.tr("{letters_black}▎ {error}That confirmation is not valid.")
+                + "\n" + Phrases.tr("{letters_black}▎ {letters}A code is issued for one sender, one plugin and one table, and expires after {0} seconds.",
+                        CONFIRM_SECONDS)
+                + "\n" + Phrases.tr("{letters_black}▎ {muted}Nothing was deleted.")
+                + "\n\n" + Phrases.tr("{warning}➥ Start again:")
                 + "\n{letters_black}▎ {muted}/exylialib wipe " + pluginName + " " + table;
     }
 
     /** The refusal when a plugin has no table by that name. */
     static String unknownTable(String pluginName, String table, List<String> known) {
-        return "{primary}&lWIPE&r {muted}" + pluginName
-                + "\n{letters_black}▎ {error}" + pluginName + " has no table named " + table + "."
-                + "\n{letters_black}▎ {secondary}Tables {letters_black}» {letters}"
-                + String.join("{letters_black}, {letters}", known)
-                + "\n{letters_black}▎ {muted}Use " + ALL_TABLES + " (or " + ALL_TABLES_WORD
-                + ") to wipe every one of them.";
+        return Phrases.tr("{primary}&lWIPE&r {muted}{0}", pluginName)
+                + "\n" + Phrases.tr("{letters_black}▎ {error}{0} has no table named {1}.", pluginName, table)
+                + "\n" + Phrases.tr("{letters_black}▎ {secondary}Tables {letters_black}» {letters}{0}",
+                        String.join("{letters_black}, {letters}", known))
+                + "\n" + Phrases.tr("{letters_black}▎ {muted}Use {0} (or {1}) to wipe every one of them.",
+                        ALL_TABLES, ALL_TABLES_WORD);
     }
 
     /** What a wipe prints when the dump that would have saved it failed. */
     static String wipeAborted(String pluginName, TransferReport backup) {
-        StringBuilder text = new StringBuilder("{primary}&lWIPE&r {muted}" + pluginName)
-                .append("\n{letters_black}▎ {error}Cancelled {letters_black}» {letters}the backup"
-                        + " export failed, so nothing was deleted.");
+        StringBuilder text = new StringBuilder(Phrases.tr("{primary}&lWIPE&r {muted}{0}", pluginName))
+                .append("\n").append(Phrases.tr("{letters_black}▎ {error}Cancelled {letters_black}» {letters}the backup export failed, so nothing was deleted."));
         for (String problem : backup.problems()) {
             text.append("\n{letters_black}▎ {warning}").append(problem);
         }
@@ -641,20 +626,19 @@ public final class ReloadCommand {
     /** What a finished wipe prints: the dump it took first, then the rows it removed. */
     static String wipePanel(String pluginName, @Nullable String table, TransferReport backup,
                             TransferReport report) {
-        StringBuilder text = new StringBuilder(reportPanel("Wipe", pluginName, report));
+        StringBuilder text = new StringBuilder(reportPanel(Phrases.tr("Wipe"), pluginName, report));
         if (backup.file() != null) {
-            text.append("\n{letters_black}▎ {secondary}Backup {letters_black}» {letters}")
-                    .append(backup.file().getFileName())
-                    .append(" {muted}(").append(backup.rows()).append(" rows)");
+            text.append("\n").append(Phrases.tr("{letters_black}▎ {secondary}Backup {letters_black}» {letters}{0} {muted}({1} rows)",
+                    backup.file().getFileName(), backup.rows()));
         }
         if (report.outcome() != TransferOutcome.FAILED) {
-            text.append("\n\n{warning}➥ Restart the server to apply it.")
-                    .append("\n{letters_black}▎ {letters}").append(pluginName)
-                    .append(" still holds these rows in memory; until the restart, writes to")
-                    .append(table == null ? " its tables" : " " + table)
-                    .append(" are ignored so they cannot come back. Wipe other tables first")
-                    .append(" if you need to.")
-                    .append("\n\n{warning}➥ Restore it with:")
+            text.append("\n\n").append(Phrases.tr("{warning}➥ Restart the server to apply it."))
+                    .append("\n").append(table == null
+                            ? Phrases.tr("{letters_black}▎ {letters}{0} still holds these rows in memory; until the restart, writes to its tables are ignored so they cannot come back. Wipe other tables first if you need to.",
+                                    pluginName)
+                            : Phrases.tr("{letters_black}▎ {letters}{0} still holds these rows in memory; until the restart, writes to {1} are ignored so they cannot come back. Wipe other tables first if you need to.",
+                                    pluginName, table))
+                    .append("\n\n").append(Phrases.tr("{warning}➥ Restore it with:"))
                     .append("\n{letters_black}▎ {muted}/exylialib import ").append(pluginName)
                     .append(' ').append(backup.file() == null ? "<dump>" : backup.file().getFileName())
                     .append(" true");
@@ -732,24 +716,25 @@ public final class ReloadCommand {
     static String reportPanel(String what, String pluginName, TransferReport report) {
         StringBuilder text = new StringBuilder("{primary}&l" + what.toUpperCase(java.util.Locale.ROOT)
                 + "&r {muted}" + pluginName);
-        text.append("\n{letters_black}▎ {secondary}Result {letters_black}» ")
-                .append(outcome(report.outcome()));
-        text.append("\n{letters_black}▎ {secondary}Rows {letters_black}» {info}").append(report.rows());
-        text.append("\n{letters_black}▎ {secondary}Took {letters_black}» {info}")
-                .append(report.took().toMillis()).append("ms");
+        text.append("\n").append(Phrases.tr("{letters_black}▎ {secondary}Result {letters_black}» {0}",
+                outcome(report.outcome())));
+        text.append("\n").append(Phrases.tr("{letters_black}▎ {secondary}Rows {letters_black}» {info}{0}",
+                report.rows()));
+        text.append("\n").append(Phrases.tr("{letters_black}▎ {secondary}Took {letters_black}» {info}{0}ms",
+                report.took().toMillis()));
         if (report.file() != null) {
-            text.append("\n{letters_black}▎ {secondary}File {letters_black}» {letters}")
-                    .append(report.file().getFileName());
+            text.append("\n").append(Phrases.tr("{letters_black}▎ {secondary}File {letters_black}» {letters}{0}",
+                    report.file().getFileName()));
         }
         for (TableTransfer table : report.tables()) {
             text.append("\n{letters_black}▎ {letters}").append(table.table())
                     .append(" {letters_black}» ")
-                    .append(table.skipped() ? "{muted}skipped"
-                            : (table.drifted() ? "{warning}" : "{info}") + table.rows()
-                              + (table.drifted() ? " {letters}(layout drifted)" : ""));
+                    .append(table.skipped() ? Phrases.tr("{muted}skipped")
+                            : table.drifted() ? Phrases.tr("{warning}{0} {letters}(layout drifted)", table.rows())
+                              : "{info}" + table.rows());
         }
         if (!report.problems().isEmpty()) {
-            text.append("\n\n{secondary}Problems:");
+            text.append("\n\n").append(Phrases.tr("{secondary}Problems:"));
             for (String problem : report.problems()) {
                 text.append("\n{letters_black}▎ {warning}").append(problem);
             }
@@ -766,36 +751,33 @@ public final class ReloadCommand {
      * and nothing anywhere reports that.
      */
     static String importPanel(String pluginName, String fileName, TransferReport report) {
-        String panel = reportPanel("Import", pluginName, report);
+        String panel = reportPanel(Phrases.tr("Import"), pluginName, report);
         boolean refused = report.outcome() == TransferOutcome.FAILED
                 && report.problems().stream().anyMatch(line -> line.startsWith("Refused:"));
         if (!refused) {
             return panel;
         }
         return panel
-                + "\n\n{warning}➥ Re-run with force to write anyway:"
+                + "\n\n" + Phrases.tr("{warning}➥ Re-run with force to write anyway:")
                 + "\n{letters_black}▎ {muted}/exylialib import " + pluginName + " " + fileName
                 + " true"
-                + "\n{letters_black}▎ {error}force MERGES, it does not replace{letters}: rows whose"
-                + " key is in the dump are overwritten, rows that are not in the dump stay exactly"
-                + " where they are.";
+                + "\n" + Phrases.tr("{letters_black}▎ {error}force MERGES, it does not replace{letters}: rows whose key is in the dump are overwritten, rows that are not in the dump stay exactly where they are.");
     }
 
     /** The refusal when a name matches no plugin that stores anything. */
     static String unknownPlugin(String pluginName, List<String> known) {
-        return "{primary}&lEXYLIALIB&r {muted}transfer"
-                + "\n{letters_black}▎ {error}" + pluginName + " has no registered tables."
-                + "\n{letters_black}▎ {letters}A plugin appears here once it has asked for its"
-                + " first repository."
-                + "\n{letters_black}▎ {secondary}Available {letters_black}» "
-                + (known.isEmpty() ? "{muted}none" : "{letters}" + String.join("{letters_black}, {letters}", known));
+        return "{primary}&lEXYLIALIB&r " + Phrases.tr("{muted}transfer")
+                + "\n" + Phrases.tr("{letters_black}▎ {error}{0} has no registered tables.", pluginName)
+                + "\n" + Phrases.tr("{letters_black}▎ {letters}A plugin appears here once it has asked for its first repository.")
+                + "\n" + Phrases.tr("{letters_black}▎ {secondary}Available {letters_black}» {0}",
+                        known.isEmpty() ? Phrases.tr("{muted}none") : "{letters}" + String.join("{letters_black}, {letters}", known));
     }
 
     private static String outcome(TransferOutcome outcome) {
         return switch (outcome) {
-            case SUCCESS -> "{success}success";
-            case PARTIAL -> "{warning}partial";
-            case FAILED -> "{error}failed";
+            case SUCCESS -> Phrases.tr("{success}success");
+            case PARTIAL -> Phrases.tr("{warning}partial");
+            case FAILED -> Phrases.tr("{error}failed");
         };
     }
 
@@ -911,9 +893,9 @@ public final class ReloadCommand {
             return null;
         }
         String plugins = String.join(", ", pending.stream().map(DefaultUpdates.Pending::plugin).distinct().toList());
-        return Text.of("{primary}✦ {info}%count% {letters}default " + (pending.size() == 1 ? "change" : "changes")
-                        + " to review {letters_black}» {letters}%plugins% "
-                        + "<click:run_command:'/exylialib updates'>{warning}[Review]</click>")
+        return Text.of(pending.size() == 1
+                        ? Phrases.tr("{primary}✦ {info}%count% {letters}default change to review {letters_black}» {letters}%plugins% <click:run_command:'/exylialib updates'>{warning}[Review]</click>")
+                        : Phrases.tr("{primary}✦ {info}%count% {letters}default changes to review {letters_black}» {letters}%plugins% <click:run_command:'/exylialib updates'>{warning}[Review]</click>"))
                 .with("%count%", pending.size())
                 .with("%plugins%", plugins);
     }
@@ -938,10 +920,9 @@ public final class ReloadCommand {
      * palette tokens is shown as written, not painted.
      */
     static Text updatesPanel(String header, List<DefaultUpdates.Pending> pending) {
-        StringBuilder raw = new StringBuilder(header).append(" {muted}updates");
+        StringBuilder raw = new StringBuilder(header).append(" ").append(Phrases.tr("{muted}updates"));
         if (pending.isEmpty()) {
-            return Text.of(raw.append("\n{letters_black}▎ {success}Nothing to review. {letters}New defaults are added"
-                    + " on their own; changed ones wait here.").toString());
+            return Text.of(raw.append("\n").append(Phrases.tr("{letters_black}▎ {success}Nothing to review. {letters}New defaults are added on their own; changed ones wait here.")).toString());
         }
         Map<String, Object> values = new LinkedHashMap<>();
         String plugin = null;
@@ -952,7 +933,7 @@ public final class ReloadCommand {
                 plugin = entry.plugin();
                 file = null;
                 raw.append("\n{letters_black}▎ {secondary}&l%plugin").append(id).append("%&r ")
-                        .append(updateLinks(plugin, " all"));
+                        .append(updateLinks(plugin, true));
                 values.put("%plugin" + id + "%", plugin);
             }
             if (!entry.file().equals(file)) {
@@ -963,22 +944,22 @@ public final class ReloadCommand {
             net.exylia.lib.config.internal.DefaultsMerge.Kind kind = entry.change().kind();
             raw.append("\n{letters_black}▎  {letters}%key").append(id).append("% {letters_black}» ");
             if (kind == net.exylia.lib.config.internal.DefaultsMerge.Kind.ADDED) {
-                raw.append("{success}new {highlight}%next").append(id).append('%');
+                raw.append(Phrases.tr("{success}new ")).append("{highlight}%next").append(id).append('%');
                 values.put("%next" + id + "%", shown(entry.change().shipped()));
             } else {
                 raw.append("{muted}%now").append(id).append("% {letters_black}→ ");
                 values.put("%now" + id + "%", shown(entry.change().current()));
                 if (kind == net.exylia.lib.config.internal.DefaultsMerge.Kind.REMOVED) {
-                    raw.append("{error}removed");
+                    raw.append(Phrases.tr("{error}removed"));
                 } else {
                     raw.append("{highlight}%next").append(id).append('%');
                     values.put("%next" + id + "%", shown(entry.change().shipped()));
                 }
             }
-            raw.append(' ').append(updateLinks(String.valueOf(id), ""));
+            raw.append(' ').append(updateLinks(String.valueOf(id), false));
             values.put("%key" + id + "%", entry.change().dotted());
         }
-        raw.append("\n{letters_black}▎ ").append(updateLinks(ALL_TABLES_WORD, " all"));
+        raw.append("\n{letters_black}▎ ").append(updateLinks(ALL_TABLES_WORD, true));
 
         Text text = Text.of(raw.toString());
         for (Map.Entry<String, Object> value : values.entrySet()) {
@@ -990,51 +971,55 @@ public final class ReloadCommand {
     /** What a decision did, and what is left. */
     static Text decisionPanel(String header, String target, DefaultUpdates.Decision decision,
                               boolean apply, int remaining) {
-        StringBuilder raw = new StringBuilder(header).append(" {muted}updates");
+        StringBuilder raw = new StringBuilder(header).append(" ").append(Phrases.tr("{muted}updates"));
         int decided = apply ? decision.applied() : decision.kept();
         if (decided == 0 && decision.stale() == 0) {
-            raw.append("\n{letters_black}▎ {warning}Nothing pending matches {letters}%target%{warning}.");
+            raw.append("\n").append(Phrases.tr("{letters_black}▎ {warning}Nothing pending matches {letters}%target%{warning}."));
         } else if (apply) {
-            raw.append("\n{letters_black}▎ {success}Applied {info}").append(decided)
-                    .append(decided == 1 ? " {letters}change." : " {letters}changes.");
+            raw.append("\n").append(decided == 1
+                    ? Phrases.tr("{letters_black}▎ {success}Applied {info}{0} {letters}change.", decided)
+                    : Phrases.tr("{letters_black}▎ {success}Applied {info}{0} {letters}changes.", decided));
         } else {
-            raw.append("\n{letters_black}▎ {secondary}Kept {info}").append(decided)
-                    .append(decided == 1 ? " {letters}value as it was." : " {letters}values as they were.");
+            raw.append("\n").append(decided == 1
+                    ? Phrases.tr("{letters_black}▎ {secondary}Kept {info}{0} {letters}value as it was.", decided)
+                    : Phrases.tr("{letters_black}▎ {secondary}Kept {info}{0} {letters}values as they were.", decided));
         }
         if (decision.stale() > 0) {
-            raw.append("\n{letters_black}▎ {warning}").append(decision.stale())
-                    .append(" {letters}changed on disk since the list was shown, and were left alone.");
+            raw.append("\n").append(Phrases.tr("{letters_black}▎ {warning}{0} {letters}changed on disk since the list was shown, and were left alone.",
+                    decision.stale()));
         }
         if (!decision.reloaded().isEmpty()) {
-            raw.append("\n{letters_black}▎ {secondary}Reloaded {letters_black}» {letters}")
-                    .append(String.join("{letters_black}, {letters}", decision.reloaded()));
+            raw.append("\n").append(Phrases.tr("{letters_black}▎ {secondary}Reloaded {letters_black}» {letters}{0}",
+                    String.join("{letters_black}, {letters}", decision.reloaded())));
         }
         if (!decision.manual().isEmpty()) {
-            raw.append("\n{letters_black}▎ {warning}Reload {letters}").append(String.join(", ", decision.manual()))
-                    .append(" {warning}to see it live.");
+            raw.append("\n").append(Phrases.tr("{letters_black}▎ {warning}Reload {letters}{0} {warning}to see it live.",
+                    String.join(", ", decision.manual())));
         }
         if (remaining > 0) {
-            raw.append("\n{letters_black}▎ {info}").append(remaining).append(" {letters}still to review ")
-                    .append("<click:run_command:'/exylialib updates'>{warning}[Review]</click>");
+            raw.append("\n").append(Phrases.tr("{letters_black}▎ {info}{0} {letters}still to review <click:run_command:'/exylialib updates'>{warning}[Review]</click>",
+                    remaining));
         }
         return Text.of(raw.toString()).with("%target%", target);
     }
 
-    private static String updateLinks(String target, String suffix) {
-        return "<click:run_command:'/exylialib updates apply " + target + "'>{success}[Apply" + suffix + "]</click> "
-                + "<click:run_command:'/exylialib updates keep " + target + "'>{muted}[Keep" + suffix + "]</click>";
+    private static String updateLinks(String target, boolean all) {
+        return "<click:run_command:'/exylialib updates apply " + target + "'>"
+                + (all ? Phrases.tr("{success}[Apply all]") : Phrases.tr("{success}[Apply]")) + "</click> "
+                + "<click:run_command:'/exylialib updates keep " + target + "'>"
+                + (all ? Phrases.tr("{muted}[Keep all]") : Phrases.tr("{muted}[Keep]")) + "</click>";
     }
 
     /** A value short enough for one chat line. */
     static String shown(@Nullable Object value) {
         if (value == null) {
-            return "nothing";
+            return Phrases.tr("nothing");
         }
         if (value instanceof List<?> list) {
-            return list.size() == 1 ? "1 line" : list.size() + " lines";
+            return list.size() == 1 ? Phrases.tr("1 line") : Phrases.tr("{0} lines", list.size());
         }
         if (value instanceof Map<?, ?>) {
-            return "a section";
+            return Phrases.tr("a section");
         }
         String text = String.valueOf(value);
         return text.length() > 40 ? text.substring(0, 39) + "…" : text;
@@ -1045,7 +1030,7 @@ public final class ReloadCommand {
     }
 
     private static String onOff(boolean value) {
-        return value ? "{success}on" : "{error}off";
+        return value ? Phrases.tr("{success}on") : Phrases.tr("{error}off");
     }
 
     /**
@@ -1063,7 +1048,7 @@ public final class ReloadCommand {
      * @return the formatted line, palette tokens included
      */
     static String hologramsLine(boolean supported, int count) {
-        return supported ? "{info}" + count : "{muted}N/A (PacketEvents not present)";
+        return supported ? "{info}" + count : Phrases.tr("{muted}N/A (PacketEvents not present)");
     }
 
     /** One plugin found to depend on ExyliaLib, and the version it reports. */

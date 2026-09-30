@@ -4,6 +4,7 @@ import net.exylia.lib.input.InputOutcome;
 import net.exylia.lib.input.InputParser;
 import net.exylia.lib.input.SearchInput;
 import net.exylia.lib.task.Tasks;
+import net.exylia.lib.text.Phrases;
 import net.exylia.lib.text.Text;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.TextDecoration;
@@ -348,7 +349,7 @@ public final class SearchTransport implements Transport {
                     ? request.parseValue(value)
                     : request.parseRaw(request.keyOf(value));
         } catch (RuntimeException failure) {
-            Text.of("{error}That option could not be read.").send(player);
+            Text.of(Phrases.tr("{error}That option could not be read.")).send(player);
             return;
         }
         if (parsed.ok() && parsed.value() != null) {
@@ -357,7 +358,7 @@ public final class SearchTransport implements Transport {
         }
         Text.of("{error}%error%")
                 .with("%error%", parsed.error() == null
-                        ? "That option is not accepted." : parsed.error())
+                        ? Phrases.tr("That option is not accepted.") : parsed.error())
                 .send(player);
     }
 
@@ -476,13 +477,13 @@ public final class SearchTransport implements Transport {
         AnvilView anvilView;
         try {
             anvilView = MenuType.ANVIL.builder()
-                    .title(Text.of("{primary}Search").build())
+                    .title(Text.of(Phrases.tr("{primary}Search")).build())
                     .checkReachable(false)
                     .build(player);
         } catch (Throwable unsupported) {
             // No anvil menu on this server: stay on the chest rather than
             // stranding the player in a window that never opened.
-            Text.of("{error}The search box is unavailable here.").send(player);
+            Text.of(Phrases.tr("{error}The search box is unavailable here.")).send(player);
             return;
         }
 
@@ -708,7 +709,7 @@ public final class SearchTransport implements Transport {
     /** The disposable stack that makes the rename box usable. */
     private static ItemStack queryItem(String current) {
         return named(Material.PAPER, current.isEmpty()
-                ? Text.of("{letters}Type to search").build()
+                ? Text.of(Phrases.tr("{letters}Type to search")).build()
                 : Text.of("%query%").with("%query%", current).build());
     }
 
@@ -722,14 +723,14 @@ public final class SearchTransport implements Transport {
     private static ItemStack confirmItem(String typed, int matches) {
         if (matches < 0) {
             Component name = typed == null || typed.isBlank()
-                    ? Text.of("{muted}Type to search").build()
-                    : Text.of("{success}&lSEARCH {letters}%query%")
+                    ? Text.of(Phrases.tr("{muted}Type to search")).build()
+                    : Text.of(Phrases.tr("{success}&lSEARCH {letters}%query%"))
                             .with("%query%", typed).build();
             return named(Material.NAME_TAG, name);
         }
         Component name = typed == null || typed.isBlank()
-                ? Text.of("{muted}Type to filter").build()
-                : Text.of("{success}&l%count% {letters}match(es)")
+                ? Text.of(Phrases.tr("{muted}Type to filter")).build()
+                : Text.of(Phrases.tr("{success}&l%count% {letters}match(es)"))
                         .with("%count%", matches).build();
         return named(matches == 0 && typed != null && !typed.isBlank()
                 ? Material.BARRIER : Material.NAME_TAG, name);

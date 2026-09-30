@@ -319,7 +319,7 @@ public record LibraryMessages(
      */
     public static @NotNull LibraryMessages load(@NotNull Plugin plugin) {
         ConfigFile<LibraryMessages> loaded =
-                Configs.define(plugin, "messages", LibraryMessages.class).load();
+                Configs.define(plugin, "messages", LibraryMessages.class).translated().load();
         file = loaded;
         instance = loaded.get();
         loaded.onReload(values -> instance = values);

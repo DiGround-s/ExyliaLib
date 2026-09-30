@@ -1,5 +1,6 @@
 package net.exylia.lib.schedule;
 
+import net.exylia.lib.text.Phrases;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -166,7 +167,7 @@ public record Schedule(
         if (name != null) {
             return name;
         }
-        return isRunnable() ? describeTrigger() : "(not set)";
+        return isRunnable() ? describeTrigger() : Phrases.tr("(not set)");
     }
 
     /** Whether this schedule says when it fires at all. */
@@ -217,10 +218,10 @@ public record Schedule(
             if (from != null || to != null) {
                 window = ", " + TIME.format(windowStart()) + "-" + TIME.format(windowEnd());
             }
-            return "every " + writeDuration(every) + window;
+            return Phrases.tr("every {0}", writeDuration(every)) + window;
         }
         if (times.isEmpty()) {
-            return "never";
+            return Phrases.tr("never");
         }
         List<String> written = new ArrayList<>(times.size());
         for (LocalTime time : times) {
@@ -236,7 +237,7 @@ public record Schedule(
      */
     public @NotNull String describeDays() {
         if (days.isEmpty()) {
-            return "Every day";
+            return Phrases.tr("Every day");
         }
         List<String> written = new ArrayList<>(days.size());
         for (DayOfWeek day : DayOfWeek.values()) {
@@ -256,13 +257,13 @@ public record Schedule(
     public @NotNull List<String> describeGates() {
         List<String> lines = new ArrayList<>();
         if (minPlayers > 0) {
-            lines.add(minPlayers + "+ players online");
+            lines.add(Phrases.tr("{0}+ players online", minPlayers));
         }
         if (maxPlayers > 0) {
-            lines.add("at most " + maxPlayers + " online");
+            lines.add(Phrases.tr("at most {0} online", maxPlayers));
         }
         if (cooldown != null) {
-            lines.add("at least " + writeDuration(cooldown) + " since the last one");
+            lines.add(Phrases.tr("at least {0} since the last one", writeDuration(cooldown)));
         }
         if (condition != null) {
             lines.add(condition);

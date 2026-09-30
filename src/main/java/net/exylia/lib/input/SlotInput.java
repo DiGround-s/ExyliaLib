@@ -1,5 +1,6 @@
 package net.exylia.lib.input;
 
+import net.exylia.lib.text.Phrases;
 import org.bukkit.entity.Player;
 import org.jetbrains.annotations.ApiStatus;
 import org.jetbrains.annotations.NotNull;
@@ -45,8 +46,8 @@ public final class SlotInput extends InputRequest<Integer, SlotInput> {
     private Set<Integer> taken = Set.of();
     private IntFunction<String> describe = slot -> null;
     private boolean auto;
-    private String takenMessage = "That position is already taken.";
-    private String rangeMessage = "Choose a position from the grid.";
+    private String takenMessage = Phrases.tr("That position is already taken.");
+    private String rangeMessage = Phrases.tr("Choose a position from the grid.");
 
     SlotInput(String pluginName, Player player, String prompt, int slots) {
         super(pluginName, player, prompt, SlotInput::number);
@@ -164,11 +165,11 @@ public final class SlotInput extends InputRequest<Integer, SlotInput> {
         InputParser.Parsed<Long> parsed = InputParser.integer().parse(raw);
         if (!parsed.ok()) {
             return InputParser.Parsed.rejected(parsed.error() == null
-                    ? "Choose a position from the grid." : parsed.error());
+                    ? Phrases.tr("Choose a position from the grid.") : parsed.error());
         }
         long value = parsed.value();
         if (value < Integer.MIN_VALUE || value > Integer.MAX_VALUE) {
-            return InputParser.Parsed.rejected("Choose a position from the grid.");
+            return InputParser.Parsed.rejected(Phrases.tr("Choose a position from the grid."));
         }
         return InputParser.Parsed.of((int) value);
     }

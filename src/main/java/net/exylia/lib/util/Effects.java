@@ -333,7 +333,7 @@ public final class Effects {
      */
     public static @NotNull String describe(@NotNull String lines) {
         List<ParsedEffect> effects = parse(lines.lines().toList());
-        if (effects.isEmpty()) return "none";
+        if (effects.isEmpty()) return net.exylia.lib.text.Phrases.tr("none");
         List<String> parts = new ArrayList<>(effects.size());
         for (ParsedEffect effect : effects) {
             String name = effect.name().toLowerCase(java.util.Locale.ROOT).replace('_', ' ');

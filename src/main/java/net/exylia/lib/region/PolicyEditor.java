@@ -2,6 +2,7 @@ package net.exylia.lib.region;
 
 import net.exylia.lib.region.internal.PolicyEditorHolder;
 import net.exylia.lib.region.internal.PolicyLooks;
+import net.exylia.lib.text.Phrases;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
 import org.jetbrains.annotations.NotNull;
@@ -69,7 +70,7 @@ public final class PolicyEditor {
 
     private List<PolicyKey<?>> keys = PolicyLooks.BOOLEANS;
     private PolicySet defaults;
-    private String title = "{primary}&lREGION FLAGS";
+    private String title = Phrases.tr("{primary}&lREGION FLAGS");
     private Consumer<PolicySet> onSave = saved -> { };
     private Runnable onCancel = () -> { };
 

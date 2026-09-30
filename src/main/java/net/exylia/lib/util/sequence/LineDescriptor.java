@@ -1,6 +1,7 @@
 package net.exylia.lib.util.sequence;
 
 import net.exylia.lib.input.FormKey;
+import net.exylia.lib.text.Phrases;
 import net.exylia.lib.input.FormValues;
 import net.exylia.lib.input.Inputs;
 import net.exylia.lib.util.editor.EditorDescriptor;
@@ -60,7 +61,7 @@ final class LineDescriptor implements EditorDescriptor<SequenceLine> {
 
     @Override
     public @NotNull String label(@NotNull SequenceLine line) {
-        String token = line.token().isEmpty() ? "UNKNOWN" : line.token().replace('_', ' ');
+        String token = line.token().isEmpty() ? Phrases.tr("UNKNOWN") : line.token().replace('_', ' ');
         if (line.head().isBlank()) {
             return "{primary}&l" + token;
         }
@@ -78,25 +79,25 @@ final class LineDescriptor implements EditorDescriptor<SequenceLine> {
         SequenceLine.Spec spec = spec(line);
         List<String> lore = new ArrayList<>(8);
         if (spec.isFree()) {
-            lore.add("{secondary}Says:");
+            lore.add(Phrases.tr("{secondary}Says:"));
             lore.add(" {letters_black}▎ {letters}" + (line.rest().isBlank()
-                    ? "{muted}nothing yet" : line.rest()));
+                    ? Phrases.tr("{muted}nothing yet") : line.rest()));
             return lore;
         }
         List<String> settings = settings(line, spec);
         if (settings.isEmpty()) {
-            lore.add("{secondary}Settings:");
-            lore.add(" {letters_black}▎ {muted}all left at their defaults");
+            lore.add(Phrases.tr("{secondary}Settings:"));
+            lore.add(Phrases.tr(" {letters_black}▎ {muted}all left at their defaults"));
             return lore;
         }
-        lore.add("{secondary}Settings:");
+        lore.add(Phrases.tr("{secondary}Settings:"));
         // Four, then a count. A row is a row, not a config file: an admin who
         // needs the sixteenth parameter is already opening the form.
         for (int index = 0; index < Math.min(4, settings.size()); index++) {
             lore.add(settings.get(index));
         }
         if (settings.size() > 4) {
-            lore.add(" {letters_black}▎ {muted}and " + (settings.size() - 4) + " more");
+            lore.add(Phrases.tr(" {letters_black}▎ {muted}and {0} more", settings.size() - 4));
         }
         return lore;
     }
@@ -158,9 +159,9 @@ final class LineDescriptor implements EditorDescriptor<SequenceLine> {
     }
 
     private CompletionStage<Optional<String>> token(Player viewer) {
-        return pickToken(viewer, "{primary}&lWHAT DOES IT PLAY?", SequenceLine.tokens(shapeNames))
+        return pickToken(viewer, Phrases.tr("{primary}&lWHAT DOES IT PLAY?"), SequenceLine.tokens(shapeNames))
                 .thenCompose(token -> token.isPresent() && token.get().equals(SequenceLine.SHAPES)
-                        ? pickToken(viewer, "{primary}&lWHICH SHAPE?", SequenceLine.shapeTokens(shapeNames))
+                        ? pickToken(viewer, Phrases.tr("{primary}&lWHICH SHAPE?"), SequenceLine.shapeTokens(shapeNames))
                         : CompletableFuture.completedFuture(token));
     }
 
@@ -215,7 +216,7 @@ final class LineDescriptor implements EditorDescriptor<SequenceLine> {
                                                                  @NotNull SequenceLine line) {
         SequenceLine.Spec spec = spec(line);
         EditorForm form = EditorForm.of(plugin, viewer,
-                "{primary}&l" + (spec.token().isEmpty() ? "LINE" : spec.token().replace('_', ' ')));
+                "{primary}&l" + (spec.token().isEmpty() ? Phrases.tr("LINE") : spec.token().replace('_', ' ')));
 
         if (spec.isFree()) {
             SequenceLine.Field only = spec.fields().get(0);
@@ -223,7 +224,7 @@ final class LineDescriptor implements EditorDescriptor<SequenceLine> {
             // whole: bracketing what somebody typed by hand would turn a line
             // they can still fix into "[] " and their text.
             boolean untokenised = spec.token().isEmpty();
-            form.text(key(only), untokenised ? "The line, as it is written" : only.label(),
+            form.text(key(only), untokenised ? Phrases.tr("The line, as it is written") : only.label(),
                     untokenised ? line.text() : line.rest(), PROSE_BOX).hint(only.hint());
             return form.ask(values -> SequenceLine.of(untokenised
                     ? text(values, only)
@@ -232,8 +233,8 @@ final class LineDescriptor implements EditorDescriptor<SequenceLine> {
 
         if (spec.head() != SequenceLine.Head.NONE) {
             form.text(HEAD, headLabel(spec.head()), line.head())
-                    .hint("Exactly as it is spelled in game, such as "
-                            + example(spec.head()) + '.');
+                    .hint(Phrases.tr("Exactly as it is spelled in game, such as {0}.",
+                            example(spec.head())));
         }
         for (int index = 0; index < spec.fields().size(); index++) {
             SequenceLine.Field field = spec.fields().get(index);
@@ -335,11 +336,11 @@ final class LineDescriptor implements EditorDescriptor<SequenceLine> {
 
     private static String headLabel(SequenceLine.Head head) {
         return switch (head) {
-            case PARTICLE -> "Which particle";
-            case SOUND -> "Which sound";
-            case POTION -> "Which effect";
-            case MATERIAL -> "Which block";
-            case NONE -> "Which";
+            case PARTICLE -> Phrases.tr("Which particle");
+            case SOUND -> Phrases.tr("Which sound");
+            case POTION -> Phrases.tr("Which effect");
+            case MATERIAL -> Phrases.tr("Which block");
+            case NONE -> Phrases.tr("Which");
         };
     }
 

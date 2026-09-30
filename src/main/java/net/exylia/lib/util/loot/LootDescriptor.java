@@ -1,5 +1,6 @@
 package net.exylia.lib.util.loot;
 
+import net.exylia.lib.text.Phrases;
 import net.exylia.lib.input.FormField;
 import net.exylia.lib.input.FormKey;
 import net.exylia.lib.input.FormValues;
@@ -98,30 +99,30 @@ public final class LootDescriptor implements EditorDescriptor<LootEntry> {
     public @NotNull List<String> lore(@NotNull LootEntry entry,
                                       @NotNull List<LootEntry> siblings) {
         List<String> lore = new ArrayList<>(8);
-        lore.add("{secondary}Gives:");
+        lore.add(Phrases.tr("{secondary}Gives:"));
         if (entry.isCommand()) {
-            lore.add(" {letters_black}▎ {letters}Command {letters_black}» {warning}"
-                    + entry.displayName());
+            lore.add(Phrases.tr(" {letters_black}▎ {letters}Command {letters_black}» {warning}{0}",
+                    entry.displayName()));
         } else if (entry.isEconomy()) {
-            lore.add(" {letters_black}▎ {letters}Money {letters_black}» {success}" + entry.minAmount()
+            lore.add(Phrases.tr(" {letters_black}▎ {letters}Money {letters_black}» {success}{0}", entry.minAmount())
                     + (entry.isRanged() ? " {muted}— {success}" + entry.maxAmount() : ""));
-            lore.add(" {letters_black}▎ {letters}Currency {letters_black}» {info}"
-                    + (entry.currency() == null ? "default" : entry.currency()));
+            lore.add(Phrases.tr(" {letters_black}▎ {letters}Currency {letters_black}» {info}{0}",
+                    entry.currency() == null ? Phrases.tr("default") : entry.currency()));
         } else {
-            lore.add(" {letters_black}▎ {letters}Amount {letters_black}» {info}" + entry.minAmount()
+            lore.add(Phrases.tr(" {letters_black}▎ {letters}Amount {letters_black}» {info}{0}", entry.minAmount())
                     + (entry.isRanged() ? " {muted}— {info}" + entry.maxAmount() : ""));
         }
         lore.add("");
-        lore.add("{secondary}Odds:");
-        lore.add(" {letters_black}▎ {letters}Weight 🎲 {letters_black}» {highlight}"
-                + number(entry.weight()));
+        lore.add(Phrases.tr("{secondary}Odds:"));
+        lore.add(Phrases.tr(" {letters_black}▎ {letters}Weight 🎲 {letters_black}» {highlight}{0}",
+                number(entry.weight())));
         String share = share(entry.weight(), siblings);
         if (share != null) {
-            lore.add(" {letters_black}▎ {letters}Real {letters_black}» {success}" + share
-                    + "% {muted}of all drops");
+            lore.add(Phrases.tr(" {letters_black}▎ {letters}Real {letters_black}» {success}{0}% {muted}of all drops",
+                    share));
         }
         if (entry.tier() != null && !entry.tier().isBlank()) {
-            lore.add(" {letters_black}▎ {letters}Tier {letters_black}» {info}" + entry.tier());
+            lore.add(Phrases.tr(" {letters_black}▎ {letters}Tier {letters_black}» {info}{0}", entry.tier()));
         }
         return lore;
     }
@@ -144,7 +145,7 @@ public final class LootDescriptor implements EditorDescriptor<LootEntry> {
         List<Adding> offered = java.util.Arrays.stream(Adding.values())
                 .filter(adding -> kinds.contains(adding.kind))
                 .toList();
-        return Inputs.of(plugin).choice(viewer, "{primary}&lWHAT DO YOU WANT TO ADD?", offered)
+        return Inputs.of(plugin).choice(viewer, Phrases.tr("{primary}&lWHAT DO YOU WANT TO ADD?"), offered)
                 .label(Adding::label)
                 .icon(Adding::icon)
                 .key(Enum::name)
@@ -157,7 +158,7 @@ public final class LootDescriptor implements EditorDescriptor<LootEntry> {
                         case ITEM -> one(LootType.ITEM);
                         case COMMAND -> one(LootType.COMMAND);
                         case SEVERAL_ITEMS -> InsertWindow.openForItems(plugin, viewer,
-                                        "{primary}&lINSERT THE ITEMS")
+                                        Phrases.tr("{primary}&lINSERT THE ITEMS"))
                                 .thenApply(items -> imported(plugin, viewer, items));
                         case SEVERAL_COMMANDS -> severalCommands(viewer);
                         case MONEY -> one(LootType.ECONOMY);
@@ -184,8 +185,8 @@ public final class LootDescriptor implements EditorDescriptor<LootEntry> {
     private CompletionStage<List<LootEntry>> fromChest(Player viewer) {
         AtomicReference<List<LootEntry>> imported = new AtomicReference<>(List.of());
         return Wizards.of(plugin)
-                .askPoint(viewer, "{primary}&lIMPORT FROM A CHEST",
-                        "{warning}➥ {letters}Left-click the chest you want to copy.",
+                .askPoint(viewer, Phrases.tr("{primary}&lIMPORT FROM A CHEST"),
+                        Phrases.tr("{warning}➥ {letters}Left-click the chest you want to copy."),
                         where -> imported.set(read(plugin, viewer, where)),
                         null)
                 .result()
@@ -194,7 +195,7 @@ public final class LootDescriptor implements EditorDescriptor<LootEntry> {
 
     private static List<LootEntry> read(Plugin plugin, Player viewer, Location where) {
         if (!(where.getBlock().getState() instanceof Container container)) {
-            Text.from(plugin, "{error}That block holds nothing to import.").send(viewer);
+            Text.from(plugin, Phrases.tr("{error}That block holds nothing to import.")).send(viewer);
             return List.of();
         }
         return imported(plugin, viewer, java.util.Arrays.asList(container.getInventory().getContents()));
@@ -202,9 +203,9 @@ public final class LootDescriptor implements EditorDescriptor<LootEntry> {
 
     /** One command line per line typed, at the weight a new line gets. */
     private CompletionStage<List<LootEntry>> severalCommands(Player viewer) {
-        return Inputs.of(plugin).text(viewer, "{primary}&lWHAT DO THEY RUN?")
+        return Inputs.of(plugin).text(viewer, Phrases.tr("{primary}&lWHAT DO THEY RUN?"))
                 .lines(6)
-                .hint("%player_name% is the player; one command per line, no slash")
+                .hint(Phrases.tr("%player_name% is the player; one command per line, no slash"))
                 .open()
                 .thenApply(typed -> typed.completed()
                         ? NamedCommands.lines(typed.value()).stream()
@@ -228,8 +229,9 @@ public final class LootDescriptor implements EditorDescriptor<LootEntry> {
             // The same number ExyliaCommons imported with.
             entries.add(Loot.entryOf(item).amountBetween(1, item.getAmount()).weight(100.0).build());
         }
-        Text.from(plugin, "{success}Imported {info}" + entries.size()
-                + " {success}line" + (entries.size() == 1 ? "" : "s") + ".").send(viewer);
+        Text.from(plugin, entries.size() == 1
+                ? Phrases.tr("{success}Imported {info}{0} {success}line.", entries.size())
+                : Phrases.tr("{success}Imported {info}{0} {success}lines.", entries.size())).send(viewer);
         return entries;
     }
 
@@ -247,11 +249,11 @@ public final class LootDescriptor implements EditorDescriptor<LootEntry> {
     @Override
     public @NotNull CompletionStage<Optional<List<LootEntry>>> editAll(@NotNull Player viewer,
                                                                        @NotNull List<LootEntry> entries) {
-        return EditorForm.of(plugin, viewer, "{primary}&lEDIT ALL " + entries.size() + " LINES")
-                .field(WEIGHT, FormField.decimal(WEIGHT, "Weight").optional())
-                .hint("blank keeps each one's own")
-                .text(TIER, "Tier", null)
-                .hint("blank keeps each one; - removes it from all")
+        return EditorForm.of(plugin, viewer, Phrases.tr("{primary}&lEDIT ALL {0} LINES", entries.size()))
+                .field(WEIGHT, FormField.decimal(WEIGHT, Phrases.tr("Weight")).optional())
+                .hint(Phrases.tr("blank keeps each one's own"))
+                .text(TIER, Phrases.tr("Tier"), null)
+                .hint(Phrases.tr("blank keeps each one; - removes it from all"))
                 .ask(values -> entries.stream().map(entry -> {
                     LootEntry.Builder builder = entry.toBuilder();
                     if (values.has(WEIGHT)) {
@@ -317,7 +319,7 @@ public final class LootDescriptor implements EditorDescriptor<LootEntry> {
      */
     private CompletionStage<Optional<LootEntry>> pick(Player viewer, LootEntry entry, boolean creating) {
         AtomicReference<ItemStack> inserted = new AtomicReference<>();
-        return Inputs.of(plugin).icon(viewer, "{primary}&lWHICH ITEM?")
+        return Inputs.of(plugin).icon(viewer, Phrases.tr("{primary}&lWHICH ITEM?"))
                 .wholeItem()
                 .maxLength(ITEM_MAX_LENGTH)
                 .inserted(inserted::set)
@@ -336,26 +338,26 @@ public final class LootDescriptor implements EditorDescriptor<LootEntry> {
     }
 
     private CompletionStage<Optional<LootEntry>> form(Player viewer, LootEntry entry) {
-        EditorForm form = EditorForm.of(plugin, viewer, "{primary}&lEDIT LOOT");
+        EditorForm form = EditorForm.of(plugin, viewer, Phrases.tr("{primary}&lEDIT LOOT"));
         boolean command = entry.isCommand();
         boolean money = entry.isEconomy();
         if (command) {
-            form.text(COMMAND, "Command the console runs", entry.command(), 3)
-                    .hint("%player_name% is the player, no leading slash");
+            form.text(COMMAND, Phrases.tr("Command the console runs"), entry.command(), 3)
+                    .hint(Phrases.tr("%player_name% is the player, no leading slash"));
         } else if (money) {
-            form.integer(MINIMUM, "Least money", entry.minAmount())
-                    .integer(MAXIMUM, "Most money", entry.maxAmount())
-                    .currency(CURRENCY, "Currency", entry.currency())
-                    .hint("A whole amount between the two, paid each time the line comes up");
+            form.integer(MINIMUM, Phrases.tr("Least money"), entry.minAmount())
+                    .integer(MAXIMUM, Phrases.tr("Most money"), entry.maxAmount())
+                    .currency(CURRENCY, Phrases.tr("Currency"), entry.currency())
+                    .hint(Phrases.tr("A whole amount between the two, paid each time the line comes up"));
         } else {
-            form.integer(MINIMUM, "Least amount", entry.minAmount())
-                    .integer(MAXIMUM, "Most amount", entry.maxAmount());
+            form.integer(MINIMUM, Phrases.tr("Least amount"), entry.minAmount())
+                    .integer(MAXIMUM, Phrases.tr("Most amount"), entry.maxAmount());
         }
-        form.decimal(WEIGHT, "Weight", BigDecimal.valueOf(entry.weight()))
-                .text(TIER, "Tier (blank for none)", entry.tier());
+        form.decimal(WEIGHT, Phrases.tr("Weight"), BigDecimal.valueOf(entry.weight()))
+                .text(TIER, Phrases.tr("Tier (blank for none)"), entry.tier());
         if (entry.isItem()) {
-            form.flag(REPLACE, "Put a different item in", false)
-                    .hint("Leave it off to keep the item this line already gives");
+            form.flag(REPLACE, Phrases.tr("Put a different item in"), false)
+                    .hint(Phrases.tr("Leave it off to keep the item this line already gives"));
         }
 
         return form.ask(values -> new Edited(rebuild(entry, values),
@@ -382,26 +384,32 @@ public final class LootDescriptor implements EditorDescriptor<LootEntry> {
     /** What one press of add can put in a loot table. */
     private enum Adding {
 
-        ITEM("{primary}&lAN ITEM", LootType.ITEM.defaultIcon(), LootType.ITEM),
-        COMMAND("{primary}&lA COMMAND", LootType.COMMAND.defaultIcon(), LootType.COMMAND),
-        MONEY("{primary}&lMONEY", LootType.ECONOMY.defaultIcon(), LootType.ECONOMY),
-        SEVERAL_ITEMS("{primary}&lSEVERAL ITEMS", "HOPPER", LootType.ITEM),
-        SEVERAL_COMMANDS("{primary}&lSEVERAL COMMANDS", "CHAIN_COMMAND_BLOCK", LootType.COMMAND),
-        CHEST("{highlight}&lEVERYTHING IN A CHEST", "CHEST", LootType.ITEM);
+        ITEM(LootType.ITEM.defaultIcon(), LootType.ITEM),
+        COMMAND(LootType.COMMAND.defaultIcon(), LootType.COMMAND),
+        MONEY(LootType.ECONOMY.defaultIcon(), LootType.ECONOMY),
+        SEVERAL_ITEMS("HOPPER", LootType.ITEM),
+        SEVERAL_COMMANDS("CHAIN_COMMAND_BLOCK", LootType.COMMAND),
+        CHEST("CHEST", LootType.ITEM);
 
-        private final String label;
         private final String icon;
         /** What the table has to accept for this to be offered. */
         private final LootType kind;
 
-        Adding(String label, String icon, LootType kind) {
-            this.label = label;
+        Adding(String icon, LootType kind) {
             this.icon = icon;
             this.kind = kind;
         }
 
+        /** Looked up as it is drawn, so a language change reaches it without a restart. */
         String label() {
-            return label;
+            return switch (this) {
+                case ITEM -> Phrases.tr("{primary}&lAN ITEM");
+                case COMMAND -> Phrases.tr("{primary}&lA COMMAND");
+                case MONEY -> Phrases.tr("{primary}&lMONEY");
+                case SEVERAL_ITEMS -> Phrases.tr("{primary}&lSEVERAL ITEMS");
+                case SEVERAL_COMMANDS -> Phrases.tr("{primary}&lSEVERAL COMMANDS");
+                case CHEST -> Phrases.tr("{highlight}&lEVERYTHING IN A CHEST");
+            };
         }
 
         Material icon() {

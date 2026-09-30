@@ -13,6 +13,7 @@ import net.exylia.lib.region.SelectionResult;
 import net.exylia.lib.region.SelectionSession;
 import net.exylia.lib.task.TaskHandle;
 import net.exylia.lib.task.TaskScheduler;
+import net.exylia.lib.text.Phrases;
 import net.exylia.lib.text.Text;
 import net.exylia.lib.util.wizard.Wizard;
 import net.exylia.lib.util.wizard.WizardOutcome;
@@ -553,7 +554,7 @@ final class WizardSession implements WizardRun {
         CompletionStage<InputResult<Boolean>> stage;
         try {
             stage = inputs.confirm(player, step.prompt())
-                    .confirmLabel("Use this item")
+                    .confirmLabel(Phrases.tr("Use this item"))
                     .open();
         } catch (RuntimeException broken) {
             debug.error("Step '" + step.key().name() + "' of wizard '" + wizard.id()
@@ -579,7 +580,7 @@ final class WizardSession implements WizardRun {
             }
             ItemStack held = WizardRuntime.heldBy(player);
             if (held == null || held.getType() == Material.AIR) {
-                Text.of("{warning}You are not holding anything. Take the item and try again.")
+                Text.of(Phrases.tr("{warning}You are not holding anything. Take the item and try again."))
                         .send(player);
                 // Asked again rather than failed: an empty hand is a mistake a
                 // player makes and fixes in a second, and the run timeout still
@@ -801,8 +802,8 @@ final class WizardSession implements WizardRun {
         CompletionStage<InputResult<Boolean>> stage;
         try {
             stage = inputs.confirm(player, summaryText())
-                    .confirmLabel("Confirm")
-                    .denyLabel("Change something")
+                    .confirmLabel(Phrases.tr("Confirm"))
+                    .denyLabel(Phrases.tr("Change something"))
                     .open();
         } catch (RuntimeException broken) {
             debug.error("The summary of wizard '" + wizard.id() + "' could not be shown.", broken);
@@ -839,7 +840,7 @@ final class WizardSession implements WizardRun {
      */
     private void offerRedo() {
         if (redos >= settings.maxRedos()) {
-            Text.of("{warning}That is enough changes for now; nothing was created.")
+            Text.of(Phrases.tr("{warning}That is enough changes for now; nothing was created."))
                     .send(player);
             end(WizardOutcome.CANCELLED);
             return;
@@ -860,7 +861,7 @@ final class WizardSession implements WizardRun {
 
         CompletionStage<InputResult<String>> stage;
         try {
-            stage = inputs.<String>choice(player, "Which one do you want to change?", names)
+            stage = inputs.<String>choice(player, Phrases.tr("Which one do you want to change?"), names)
                     .label(name -> name)
                     .open();
         } catch (RuntimeException broken) {

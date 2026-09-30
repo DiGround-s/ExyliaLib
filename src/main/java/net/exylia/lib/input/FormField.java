@@ -1,5 +1,6 @@
 package net.exylia.lib.input;
 
+import net.exylia.lib.text.Phrases;
 import org.jetbrains.annotations.ApiStatus;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -120,8 +121,8 @@ public final class FormField<T> {
                     return InputParser.Parsed.of(option.key());
                 }
             }
-            return InputParser.Parsed.rejected("Choose one of: "
-                    + String.join(", ", offered.stream().map(Option::key).toList()));
+            return InputParser.Parsed.rejected(Phrases.tr("Choose one of: {0}",
+                    String.join(", ", offered.stream().map(Option::key).toList())));
         }, Kind.CHOICE);
         field.options = offered;
         return field;
@@ -245,16 +246,16 @@ public final class FormField<T> {
      */
     public @NotNull InputParser.Parsed<T> parse(@NotNull String raw) {
         if (raw == null) {
-            return InputParser.Parsed.rejected("A value is required.");
+            return InputParser.Parsed.rejected(Phrases.tr("A value is required."));
         }
         final InputParser.Parsed<T> parsed;
         try {
             parsed = parser.parse(raw.trim());
         } catch (RuntimeException failure) {
-            return InputParser.Parsed.rejected("That value could not be read.");
+            return InputParser.Parsed.rejected(Phrases.tr("That value could not be read."));
         }
         if (parsed == null || !parsed.ok()) {
-            return parsed == null ? InputParser.Parsed.rejected("That value could not be read.") : parsed;
+            return parsed == null ? InputParser.Parsed.rejected(Phrases.tr("That value could not be read.")) : parsed;
         }
         for (Rule<T> rule : validations) {
             try {
@@ -262,7 +263,7 @@ public final class FormField<T> {
                     return InputParser.Parsed.rejected(rule.message());
                 }
             } catch (RuntimeException failure) {
-                return InputParser.Parsed.rejected("That value is not accepted.");
+                return InputParser.Parsed.rejected(Phrases.tr("That value is not accepted."));
             }
         }
         return parsed;

@@ -7,6 +7,7 @@ import net.exylia.lib.action.PluginActions;
 import net.exylia.lib.config.internal.DefaultUpdates;
 import net.exylia.lib.config.internal.DefaultsMerge;
 import net.exylia.lib.text.Lines;
+import net.exylia.lib.text.Phrases;
 import net.exylia.lib.text.Text;
 import net.exylia.lib.ui.Menus;
 import net.exylia.lib.ui.PluginMenus;
@@ -124,9 +125,18 @@ public final class UpdatesMenu {
     }
 
     private static void load(PluginMenus target) {
-        target.load(PLUGINS, yaml(PLUGINS_YAML));
-        target.load(FILES, yaml(FILES_YAML));
-        target.load(CHANGES, yaml(CHANGES_YAML));
+        YamlConfiguration plugins = yaml(PLUGINS_YAML);
+        frame(plugins);
+        pluginsWords(plugins);
+        target.load(PLUGINS, plugins);
+        YamlConfiguration files = yaml(FILES_YAML);
+        frame(files);
+        filesWords(files);
+        target.load(FILES, files);
+        YamlConfiguration changes = yaml(CHANGES_YAML);
+        frame(changes);
+        changesWords(changes);
+        target.load(CHANGES, changes);
     }
 
     private static YamlConfiguration yaml(String text) {
@@ -180,17 +190,19 @@ public final class UpdatesMenu {
     static Text feedback(DefaultUpdates.Decision decision, boolean apply) {
         int decided = apply ? decision.applied() : decision.kept();
         StringBuilder raw = new StringBuilder(apply
-                ? "{success}✔ {letters}Applied {info}" + decided + (decided == 1 ? " {letters}change" : " {letters}changes")
-                : "{secondary}✔ {letters}Kept {info}" + decided + (decided == 1 ? " {letters}value" : " {letters}values"));
+                ? (decided == 1 ? Phrases.tr("{success}✔ {letters}Applied {info}{0} {letters}change", decided)
+                        : Phrases.tr("{success}✔ {letters}Applied {info}{0} {letters}changes", decided))
+                : (decided == 1 ? Phrases.tr("{secondary}✔ {letters}Kept {info}{0} {letters}value", decided)
+                        : Phrases.tr("{secondary}✔ {letters}Kept {info}{0} {letters}values", decided)));
         if (!decision.reloaded().isEmpty()) {
-            raw.append(" {letters_black}» {letters}reloaded ").append(String.join(", ", decision.reloaded()));
+            raw.append(Phrases.tr(" {letters_black}» {letters}reloaded {0}", String.join(", ", decision.reloaded())));
         }
         if (!decision.manual().isEmpty()) {
-            raw.append(" {letters_black}» {warning}reload ").append(String.join(", ", decision.manual()))
-                    .append(" {warning}to see it");
+            raw.append(Phrases.tr(" {letters_black}» {warning}reload {0} {warning}to see it",
+                    String.join(", ", decision.manual())));
         }
         if (decision.stale() > 0) {
-            raw.append(" {letters_black}» {warning}").append(decision.stale()).append(" changed on disk and were left alone");
+            raw.append(Phrases.tr(" {letters_black}» {warning}{0} changed on disk and were left alone", decision.stale()));
         }
         return Text.of(raw.toString());
     }
@@ -261,12 +273,12 @@ public final class UpdatesMenu {
         List<String> out = new ArrayList<>();
         collect(value, "", out);
         if (out.isEmpty()) {
-            out.add("nothing");
+            out.add(Phrases.tr("nothing"));
         }
         if (out.size() > MAX_LINES) {
             int hidden = out.size() - (MAX_LINES - 1);
             out = new ArrayList<>(out.subList(0, MAX_LINES - 1));
-            out.add("… " + hidden + " more");
+            out.add(Phrases.tr("… {0} more", hidden));
         }
         List<String> clipped = new ArrayList<>(out.size());
         for (String line : out) {
@@ -313,11 +325,6 @@ public final class UpdatesMenu {
                 hide_tooltip: true
               pagination:
                 material: LIME_STAINED_GLASS_PANE
-                name: '{success}&lALL CAUGHT UP'
-                lore:
-                  - ''
-                  - ' {letters_black}▎ {letters}No default change waits for a decision.'
-                  - ''
             """;
 
     private static final String NAVIGATION = """
@@ -325,15 +332,12 @@ public final class UpdatesMenu {
                 previous:
                   slot: 45
                   material: ARROW
-                  name: '{error}&l← PREVIOUS PAGE'
                 next:
                   slot: 53
                   material: ARROW
-                  name: '{success}&lNEXT PAGE →'
             """;
 
     static final String PLUGINS_YAML = """
-            title: '{primary}&lUPDATES {muted}%current_page%/%total_pages%'
             size: 54
             open-actions:
               - 'exylialib:updates_fill'
@@ -343,16 +347,6 @@ public final class UpdatesMenu {
               item_template:
                 material: WRITABLE_BOOK
                 name: '{primary}&l%plugin% &8[{warning}%changes%&8]'
-                lore:
-                  - ''
-                  - '{secondary}Information:'
-                  - ' {letters_black}▎ {letters}Files {letters_black}» {info}%files%'
-                  - ' {letters_black}▎ {letters}Changes {letters_black}» {info}%changes%'
-                  - ''
-                  - '{warning}➥ Click to review'
-                  - '{warning}➥ Shift + left click to apply all'
-                  - '{warning}➥ Shift + right click to keep all'
-                  - ''
                 actions:
                   - 'left,right: exylialib:updates_open'
                   - 'shift_left: exylialib:updates_apply'
@@ -362,50 +356,24 @@ public final class UpdatesMenu {
               info:
                 slot: 4
                 material: NETHER_STAR
-                name: '{primary}&lPLUGIN UPDATES'
-                lore:
-                  - ''
-                  - '{secondary}Information:'
-                  - ' {letters_black}▎ {letters}New settings arrive on their own.'
-                  - ' {letters_black}▎ {letters}A {highlight}changed default {letters}waits here:'
-                  - ' {letters_black}▎ {letters}your value may be the one you want.'
-                  - ''
               apply:
                 slot: 48
                 material: LIME_DYE
-                name: '{success}&lAPPLY EVERYTHING'
-                lore:
-                  - ''
-                  - ' {letters_black}▎ {letters}Writes every new default and reloads'
-                  - ' {letters_black}▎ {letters}the plugins they belong to.'
-                  - ''
-                  - '{warning}➥ Click to apply all'
-                  - ''
                 actions:
                   - 'exylialib:updates_apply'
               close:
                 slot: 49
                 material: BARRIER
-                name: '{error}&lCLOSE'
                 actions:
                   - 'close'
               keep:
                 slot: 50
                 material: GRAY_DYE
-                name: '{letters_black}&lKEEP EVERYTHING'
-                lore:
-                  - ''
-                  - ' {letters_black}▎ {letters}Leaves every value as it is and stops'
-                  - ' {letters_black}▎ {letters}listing these changes.'
-                  - ''
-                  - '{warning}➥ Click to keep all'
-                  - ''
                 actions:
                   - 'exylialib:updates_keep'
             """;
 
     static final String FILES_YAML = """
-            title: '{primary}&l%updates_plugin% {muted}%current_page%/%total_pages%'
             size: 54
             parent: 'exylialib:updates'
             open-actions:
@@ -416,15 +384,6 @@ public final class UpdatesMenu {
               item_template:
                 material: PAPER
                 name: '{primary}&l%file% &8[{warning}%changes%&8]'
-                lore:
-                  - ''
-                  - '{secondary}Information:'
-                  - ' {letters_black}▎ {letters}Changes {letters_black}» {info}%changes%'
-                  - ''
-                  - '{warning}➥ Click to review'
-                  - '{warning}➥ Shift + left click to apply all'
-                  - '{warning}➥ Shift + right click to keep all'
-                  - ''
                 actions:
                   - 'left,right: exylialib:updates_open'
                   - 'shift_left: exylialib:updates_apply'
@@ -434,37 +393,21 @@ public final class UpdatesMenu {
               apply:
                 slot: 48
                 material: LIME_DYE
-                name: '{success}&lAPPLY ALL'
-                lore:
-                  - ''
-                  - ' {letters_black}▎ {letters}Every change in this plugin.'
-                  - ''
-                  - '{warning}➥ Click to apply all'
-                  - ''
                 actions:
                   - 'exylialib:updates_apply'
               back:
                 slot: 49
                 material: BARRIER
-                name: '{error}&lBACK'
                 actions:
                   - 'back'
               keep:
                 slot: 50
                 material: GRAY_DYE
-                name: '{letters_black}&lKEEP ALL'
-                lore:
-                  - ''
-                  - ' {letters_black}▎ {letters}Every value in this plugin stays as it is.'
-                  - ''
-                  - '{warning}➥ Click to keep all'
-                  - ''
                 actions:
                   - 'exylialib:updates_keep'
             """;
 
     static final String CHANGES_YAML = """
-            title: '{primary}&l%updates_file% {muted}%current_page%/%total_pages%'
             size: 54
             parent: 'exylialib:updates'
             open-actions:
@@ -475,50 +418,16 @@ public final class UpdatesMenu {
               item_template:
                 material: ORANGE_DYE
                 name: '{primary}&l%key%'
-                lore:
-                  - ''
-                  - '{secondary}Your value:'
-                  - ' {letters_black}▎ {muted}%current%'
-                  - ''
-                  - '{secondary}New default:'
-                  - ' {letters_black}▎ {highlight}%shipped%'
-                  - ''
-                  - '{warning}➥ Left click to apply the new default'
-                  - '{warning}➥ Right click to keep your value'
-                  - ''
                 actions:
                   - 'left,shift_left: exylialib:updates_apply'
                   - 'right,shift_right: exylialib:updates_keep'
               added_template:
                 material: LIME_DYE
-                name: '{primary}&l%key% &8[{success}NEW&8]'
-                lore:
-                  - ''
-                  - '{secondary}New setting:'
-                  - ' {letters_black}▎ {highlight}%shipped%'
-                  - ''
-                  - ' {letters_black}▎ {letters}Not in your file yet. It may be one'
-                  - ' {letters_black}▎ {letters}you removed on purpose.'
-                  - ''
-                  - '{warning}➥ Left click to add it'
-                  - '{warning}➥ Right click to leave it out'
-                  - ''
                 actions:
                   - 'left,shift_left: exylialib:updates_apply'
                   - 'right,shift_right: exylialib:updates_keep'
               removed_template:
                 material: RED_DYE
-                name: '{primary}&l%key% &8[{error}REMOVED&8]'
-                lore:
-                  - ''
-                  - '{secondary}Your value:'
-                  - ' {letters_black}▎ {muted}%current%'
-                  - ''
-                  - ' {letters_black}▎ {letters}The plugin no longer ships it.'
-                  - ''
-                  - '{warning}➥ Left click to remove it'
-                  - '{warning}➥ Right click to keep it'
-                  - ''
                 actions:
                   - 'left,shift_left: exylialib:updates_apply'
                   - 'right,shift_right: exylialib:updates_keep'
@@ -527,32 +436,154 @@ public final class UpdatesMenu {
               apply:
                 slot: 48
                 material: LIME_DYE
-                name: '{success}&lAPPLY ALL'
-                lore:
-                  - ''
-                  - ' {letters_black}▎ {letters}Every change in this file.'
-                  - ''
-                  - '{warning}➥ Click to apply all'
-                  - ''
                 actions:
                   - 'exylialib:updates_apply'
               back:
                 slot: 49
                 material: BARRIER
-                name: '{error}&lBACK'
                 actions:
                   - 'back'
               keep:
                 slot: 50
                 material: GRAY_DYE
-                name: '{letters_black}&lKEEP ALL'
-                lore:
-                  - ''
-                  - ' {letters_black}▎ {letters}Every value in this file stays as it is.'
-                  - ''
-                  - '{warning}➥ Click to keep all'
-                  - ''
                 actions:
                   - 'exylialib:updates_keep'
             """;
+
+    // ------------------------------------------------------------------ words
+
+    // The words are set on the parsed screens rather than written into the YAML
+    // above: they go through the phrase table on every load, so a reload in
+    // another language redraws them, and a translation with a quote in it can
+    // never break the YAML.
+
+    private static void frame(YamlConfiguration yaml) {
+        yaml.set("filler.pagination.name", Phrases.tr("{success}&lALL CAUGHT UP"));
+        yaml.set("filler.pagination.lore", List.of(
+                "",
+                Phrases.tr(" {letters_black}▎ {letters}No default change waits for a decision."),
+                ""));
+        yaml.set("pagination.navigation.previous.name", Phrases.tr("{error}&l← PREVIOUS PAGE"));
+        yaml.set("pagination.navigation.next.name", Phrases.tr("{success}&lNEXT PAGE →"));
+    }
+
+    private static void pluginsWords(YamlConfiguration yaml) {
+        yaml.set("title", Phrases.tr("{primary}&lUPDATES {muted}%current_page%/%total_pages%"));
+        yaml.set("pagination.item_template.lore", List.of(
+                "",
+                Phrases.tr("{secondary}Information:"),
+                Phrases.tr(" {letters_black}▎ {letters}Files {letters_black}» {info}%files%"),
+                Phrases.tr(" {letters_black}▎ {letters}Changes {letters_black}» {info}%changes%"),
+                "",
+                Phrases.tr("{warning}➥ Click to review"),
+                Phrases.tr("{warning}➥ Shift + left click to apply all"),
+                Phrases.tr("{warning}➥ Shift + right click to keep all"),
+                ""));
+        yaml.set("items.info.name", Phrases.tr("{primary}&lPLUGIN UPDATES"));
+        yaml.set("items.info.lore", List.of(
+                "",
+                Phrases.tr("{secondary}Information:"),
+                Phrases.tr(" {letters_black}▎ {letters}New settings arrive on their own."),
+                Phrases.tr(" {letters_black}▎ {letters}A {highlight}changed default {letters}waits here:"),
+                Phrases.tr(" {letters_black}▎ {letters}your value may be the one you want."),
+                ""));
+        yaml.set("items.apply.name", Phrases.tr("{success}&lAPPLY EVERYTHING"));
+        yaml.set("items.apply.lore", List.of(
+                "",
+                Phrases.tr(" {letters_black}▎ {letters}Writes every new default and reloads"),
+                Phrases.tr(" {letters_black}▎ {letters}the plugins they belong to."),
+                "",
+                Phrases.tr("{warning}➥ Click to apply all"),
+                ""));
+        yaml.set("items.close.name", Phrases.tr("{error}&lCLOSE"));
+        yaml.set("items.keep.name", Phrases.tr("{letters_black}&lKEEP EVERYTHING"));
+        yaml.set("items.keep.lore", List.of(
+                "",
+                Phrases.tr(" {letters_black}▎ {letters}Leaves every value as it is and stops"),
+                Phrases.tr(" {letters_black}▎ {letters}listing these changes."),
+                "",
+                Phrases.tr("{warning}➥ Click to keep all"),
+                ""));
+    }
+
+    private static void filesWords(YamlConfiguration yaml) {
+        yaml.set("title", Phrases.tr("{primary}&l%updates_plugin% {muted}%current_page%/%total_pages%"));
+        yaml.set("pagination.item_template.lore", List.of(
+                "",
+                Phrases.tr("{secondary}Information:"),
+                Phrases.tr(" {letters_black}▎ {letters}Changes {letters_black}» {info}%changes%"),
+                "",
+                Phrases.tr("{warning}➥ Click to review"),
+                Phrases.tr("{warning}➥ Shift + left click to apply all"),
+                Phrases.tr("{warning}➥ Shift + right click to keep all"),
+                ""));
+        yaml.set("items.apply.name", Phrases.tr("{success}&lAPPLY ALL"));
+        yaml.set("items.apply.lore", List.of(
+                "",
+                Phrases.tr(" {letters_black}▎ {letters}Every change in this plugin."),
+                "",
+                Phrases.tr("{warning}➥ Click to apply all"),
+                ""));
+        yaml.set("items.back.name", Phrases.tr("{error}&lBACK"));
+        yaml.set("items.keep.name", Phrases.tr("{letters_black}&lKEEP ALL"));
+        yaml.set("items.keep.lore", List.of(
+                "",
+                Phrases.tr(" {letters_black}▎ {letters}Every value in this plugin stays as it is."),
+                "",
+                Phrases.tr("{warning}➥ Click to keep all"),
+                ""));
+    }
+
+    private static void changesWords(YamlConfiguration yaml) {
+        yaml.set("title", Phrases.tr("{primary}&l%updates_file% {muted}%current_page%/%total_pages%"));
+        yaml.set("pagination.item_template.lore", List.of(
+                "",
+                Phrases.tr("{secondary}Your value:"),
+                " {letters_black}▎ {muted}%current%",
+                "",
+                Phrases.tr("{secondary}New default:"),
+                " {letters_black}▎ {highlight}%shipped%",
+                "",
+                Phrases.tr("{warning}➥ Left click to apply the new default"),
+                Phrases.tr("{warning}➥ Right click to keep your value"),
+                ""));
+        yaml.set("pagination.added_template.name", Phrases.tr("{primary}&l%key% &8[{success}NEW&8]"));
+        yaml.set("pagination.added_template.lore", List.of(
+                "",
+                Phrases.tr("{secondary}New setting:"),
+                " {letters_black}▎ {highlight}%shipped%",
+                "",
+                Phrases.tr(" {letters_black}▎ {letters}Not in your file yet. It may be one"),
+                Phrases.tr(" {letters_black}▎ {letters}you removed on purpose."),
+                "",
+                Phrases.tr("{warning}➥ Left click to add it"),
+                Phrases.tr("{warning}➥ Right click to leave it out"),
+                ""));
+        yaml.set("pagination.removed_template.name", Phrases.tr("{primary}&l%key% &8[{error}REMOVED&8]"));
+        yaml.set("pagination.removed_template.lore", List.of(
+                "",
+                Phrases.tr("{secondary}Your value:"),
+                " {letters_black}▎ {muted}%current%",
+                "",
+                Phrases.tr(" {letters_black}▎ {letters}The plugin no longer ships it."),
+                "",
+                Phrases.tr("{warning}➥ Left click to remove it"),
+                Phrases.tr("{warning}➥ Right click to keep it"),
+                ""));
+        yaml.set("items.apply.name", Phrases.tr("{success}&lAPPLY ALL"));
+        yaml.set("items.apply.lore", List.of(
+                "",
+                Phrases.tr(" {letters_black}▎ {letters}Every change in this file."),
+                "",
+                Phrases.tr("{warning}➥ Click to apply all"),
+                ""));
+        yaml.set("items.back.name", Phrases.tr("{error}&lBACK"));
+        yaml.set("items.keep.name", Phrases.tr("{letters_black}&lKEEP ALL"));
+        yaml.set("items.keep.lore", List.of(
+                "",
+                Phrases.tr(" {letters_black}▎ {letters}Every value in this file stays as it is."),
+                "",
+                Phrases.tr("{warning}➥ Click to keep all"),
+                ""));
+    }
 }

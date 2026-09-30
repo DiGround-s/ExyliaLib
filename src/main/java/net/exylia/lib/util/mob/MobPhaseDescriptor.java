@@ -1,5 +1,6 @@
 package net.exylia.lib.util.mob;
 
+import net.exylia.lib.text.Phrases;
 import net.exylia.lib.input.FormKey;
 import net.exylia.lib.input.FormValues;
 import net.exylia.lib.util.editor.EditorDescriptor;
@@ -38,7 +39,7 @@ final class MobPhaseDescriptor implements EditorDescriptor<MobPhase> {
 
     @Override
     public @NotNull String label(@NotNull MobPhase phase) {
-        return "{primary}&lBELOW " + number(phase.below() * 100) + "%";
+        return Phrases.tr("{primary}&lBELOW {0}%", number(phase.below() * 100));
     }
 
     @Override
@@ -49,13 +50,16 @@ final class MobPhaseDescriptor implements EditorDescriptor<MobPhase> {
     @Override
     public @NotNull List<String> lore(@NotNull MobPhase phase) {
         List<String> lore = new ArrayList<>(8);
-        lore.add("{secondary}Phase:");
-        lore.add(line("Starts below", number(phase.below() * 100) + "% health"));
-        if (!phase.suffix().isBlank()) lore.add(" {letters_black}▎ {letters}Name gains {letters_black}» " + phase.suffix());
-        lore.add(line("Style", phase.style().isEmpty() ? "enrage {letters_black}(auto)" : phase.style()));
-        lore.add(line("Speed", "×" + number(phase.speed())));
-        lore.add(line("Damage", "×" + number(phase.damage())));
-        lore.add(line("Resists", "×" + number(phase.resist())));
+        lore.add(Phrases.tr("{secondary}Phase:"));
+        lore.add(line(Phrases.tr("Starts below"), Phrases.tr("{0}% health", number(phase.below() * 100))));
+        if (!phase.suffix().isBlank()) {
+            lore.add(Phrases.tr(" {letters_black}▎ {letters}Name gains {letters_black}» {0}", phase.suffix()));
+        }
+        lore.add(line(Phrases.tr("Style"), phase.style().isEmpty() ? Phrases.tr("enrage {letters_black}(auto)") : phase.style()));
+        lore.add(line(Phrases.tr("Speed"), "×" + number(phase.speed())));
+        lore.add(line(Phrases.tr("Damage"), "×" + number(phase.damage())));
+        lore.add(line(Phrases.tr("Resists"), "×" + number(phase.resist())));
+
         return lore;
     }
 
@@ -82,18 +86,18 @@ final class MobPhaseDescriptor implements EditorDescriptor<MobPhase> {
 
     @Override
     public @NotNull CompletionStage<Optional<MobPhase>> edit(@NotNull Player viewer, @NotNull MobPhase phase) {
-        return EditorForm.of(plugin, viewer, "{primary}&lPHASE")
-                .decimal(BELOW, "Starts below this much health, in percent", MobSkillDescriptor.decimal(phase.below() * 100))
-                .hint("Hits left in hits mode. Between 0 and 100.")
-                .field(SUFFIX, PluginMobs.optionalText(SUFFIX, "Name gains", phase.suffix()))
-                .hint("Added to its name while in this phase, such as &c⚡. NONE for none.")
-                .choice(STYLE, "Style", phase.style().isBlank() ? DEFAULT_STYLE : phase.style().toLowerCase(java.util.Locale.ROOT),
+        return EditorForm.of(plugin, viewer, Phrases.tr("{primary}&lPHASE"))
+                .decimal(BELOW, Phrases.tr("Starts below this much health, in percent"), MobSkillDescriptor.decimal(phase.below() * 100))
+                .hint(Phrases.tr("Hits left in hits mode. Between 0 and 100."))
+                .field(SUFFIX, PluginMobs.optionalText(SUFFIX, Phrases.tr("Name gains"), phase.suffix()))
+                .hint(Phrases.tr("Added to its name while in this phase, such as &c⚡. NONE for none."))
+                .choice(STYLE, Phrases.tr("Style"), phase.style().isBlank() ? DEFAULT_STYLE : phase.style().toLowerCase(java.util.Locale.ROOT),
                         MobSkillDescriptor.options(styles(), phase.style().toLowerCase(java.util.Locale.ROOT)))
-                .hint("How the change looks, the mob held still 1.2s for it. Default is enrage; none also skips the hold.")
-                .decimal(SPEED, "Speed, times its own", MobSkillDescriptor.decimal(phase.speed()))
-                .decimal(DAMAGE, "Damage, times its own", MobSkillDescriptor.decimal(phase.damage()))
-                .decimal(RESIST, "Resistance", MobSkillDescriptor.decimal(phase.resist()))
-                .hint("The damage it takes is divided by this. 1 changes nothing; 0.1 to 10.")
+                .hint(Phrases.tr("How the change looks, the mob held still 1.2s for it. Default is enrage; none also skips the hold."))
+                .decimal(SPEED, Phrases.tr("Speed, times its own"), MobSkillDescriptor.decimal(phase.speed()))
+                .decimal(DAMAGE, Phrases.tr("Damage, times its own"), MobSkillDescriptor.decimal(phase.damage()))
+                .decimal(RESIST, Phrases.tr("Resistance"), MobSkillDescriptor.decimal(phase.resist()))
+                .hint(Phrases.tr("The damage it takes is divided by this. 1 changes nothing; 0.1 to 10."))
                 .ask(values -> rebuild(phase, values));
     }
 

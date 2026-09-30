@@ -1,6 +1,7 @@
 package net.exylia.lib.item;
 
 import net.exylia.lib.skull.SkullSource;
+import net.exylia.lib.text.Phrases;
 import org.bukkit.Material;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
@@ -253,10 +254,10 @@ public sealed interface Source {
         @Override
         public @NotNull String label() {
             return switch (head) {
-                case SkullSource.PlayerName player -> player.name() + "'s Head";
-                case SkullSource.PlayerId ignored -> "Player Head";
-                case SkullSource.Texture ignored -> "Custom Head";
-                case SkullSource.Url ignored -> "Custom Head";
+                case SkullSource.PlayerName player -> Phrases.tr("{0}'s Head", player.name());
+                case SkullSource.PlayerId ignored -> Phrases.tr("Player Head");
+                case SkullSource.Texture ignored -> Phrases.tr("Custom Head");
+                case SkullSource.Url ignored -> Phrases.tr("Custom Head");
             };
         }
     }
@@ -277,7 +278,7 @@ public sealed interface Source {
 
         @Override
         public @NotNull String label() {
-            return kind == Kind.PLAYER ? "Player Head" : "Custom Head";
+            return kind == Kind.PLAYER ? Phrases.tr("Player Head") : Phrases.tr("Custom Head");
         }
     }
 
@@ -303,7 +304,7 @@ public sealed interface Source {
             } catch (RuntimeException unreadable) {
                 // An icon nobody can name is still an icon somebody set. Saying
                 // so beats an exception thrown while drawing a lore line.
-                return "Custom Item";
+                return Phrases.tr("Custom Item");
             }
         }
     }

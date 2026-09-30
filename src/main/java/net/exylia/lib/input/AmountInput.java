@@ -1,5 +1,6 @@
 package net.exylia.lib.input;
 
+import net.exylia.lib.text.Phrases;
 import org.bukkit.entity.Player;
 import org.jetbrains.annotations.NotNull;
 
@@ -27,7 +28,7 @@ public final class AmountInput extends InputRequest<BigDecimal, AmountInput> {
         }
         this.minimum = minimum;
         return validate(value -> value.compareTo(minimum) >= 0,
-                "Enter an amount of at least " + minimum + '.');
+                Phrases.tr("Enter an amount of at least {0}.", minimum));
     }
 
     /** Applies an inclusive maximum amount. */
@@ -38,6 +39,6 @@ public final class AmountInput extends InputRequest<BigDecimal, AmountInput> {
         }
         this.maximum = maximum;
         return validate(value -> value.compareTo(maximum) <= 0,
-                "Enter an amount of at most " + maximum + '.');
+                Phrases.tr("Enter an amount of at most {0}.", maximum));
     }
 }

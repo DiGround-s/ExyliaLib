@@ -1,0 +1,1098 @@
+' {error}{0} too big to store were left out.': ' {error}{0} grandes demais para guardar ficaram de fora.'
+' {letters_black}(auto)': ' {letters_black}(auto)'
+' {letters_black}(faint)': ' {letters_black}(fraco)'
+' {letters_black}» {letters}reloaded {0}': ' {letters_black}» {letters}recarregado {0}'
+' {letters_black}» {warning}reload {0} {warning}to see it': ' {letters_black}» {warning}recarregue {0} {warning}para ver'
+' {letters_black}» {warning}{0} changed on disk and were left alone': ' {letters_black}» {warning}{0} mudaram no disco e ficaram intactos'
+' {letters_black}▎ {letters_black}Nothing is written until you leave.': ' {letters_black}▎ {letters_black}Nada é salvo até você sair.'
+' {letters_black}▎ {letters_black}Nothing is written until you save.': ' {letters_black}▎ {letters_black}Nada é salvo até você salvar.'
+' {letters_black}▎ {letters_black}Replaces whatever is there now.': ' {letters_black}▎ {letters_black}Substitui o que estiver aqui agora.'
+' {letters_black}▎ {letters_black}The rows below are the inventory,': ' {letters_black}▎ {letters_black}As linhas abaixo são o inventário,'
+' {letters_black}▎ {letters_black}the last one being the hotbar.': ' {letters_black}▎ {letters_black}a última sendo a hotbar.'
+' {letters_black}▎ {letters}1 {letters_black}» {letters}Helmet': ' {letters_black}▎ {letters}1 {letters_black}» {letters}Capacete'
+' {letters_black}▎ {letters}2 {letters_black}» {letters}Chestplate': ' {letters_black}▎ {letters}2 {letters_black}» {letters}Peitoral'
+' {letters_black}▎ {letters}3 {letters_black}» {letters}Leggings': ' {letters_black}▎ {letters}3 {letters_black}» {letters}Calças'
+' {letters_black}▎ {letters}4 {letters_black}» {letters}Boots': ' {letters_black}▎ {letters}4 {letters_black}» {letters}Botas'
+' {letters_black}▎ {letters}5 {letters_black}» {letters}Offhand': ' {letters_black}▎ {letters}5 {letters_black}» {letters}Mão secundária'
+' {letters_black}▎ {letters}A {highlight}changed default {letters}waits here:': ' {letters_black}▎ {letters}Uma {highlight}mudança de padrão {letters}aguarda aqui:'
+' {letters_black}▎ {letters}After {letters_black}» {info}{0}s ⌚': ' {letters_black}▎ {letters}Após {letters_black}» {info}{0}s ⌚'
+' {letters_black}▎ {letters}Amount {letters_black}» {info}{0}': ' {letters_black}▎ {letters}Quantidade {letters_black}» {info}{0}'
+' {letters_black}▎ {letters}At {letters_black}» {info}{0}{letters_black}, {info}{1}{letters_black}, {info}{2}': ' {letters_black}▎ {letters}Em {letters_black}» {info}{0}{letters_black}, {info}{1}{letters_black}, {info}{2}'
+' {letters_black}▎ {letters}Chance {letters_black}» {0}': ' {letters_black}▎ {letters}Chance {letters_black}» {0}'
+' {letters_black}▎ {letters}Chance {letters_black}» {info}{0}%': ' {letters_black}▎ {letters}Chance {letters_black}» {info}{0}%'
+' {letters_black}▎ {letters}Changes {letters_black}» {info}%changes%': ' {letters_black}▎ {letters}Mudanças {letters_black}» {info}%changes%'
+' {letters_black}▎ {letters}Command {letters_black}» {warning}{0}': ' {letters_black}▎ {letters}Comando {letters_black}» {warning}{0}'
+' {letters_black}▎ {letters}Condition {letters_black}» {info}{0}': ' {letters_black}▎ {letters}Condição {letters_black}» {info}{0}'
+' {letters_black}▎ {letters}Cooldown {letters_black}» {info}{0} ⌚': ' {letters_black}▎ {letters}Recarga {letters_black}» {info}{0} ⌚'
+' {letters_black}▎ {letters}Currency {letters_black}» {info}{0}': ' {letters_black}▎ {letters}Moeda {letters_black}» {info}{0}'
+' {letters_black}▎ {letters}Days {letters_black}» {info}{0}': ' {letters_black}▎ {letters}Dias {letters_black}» {info}{0}'
+' {letters_black}▎ {letters}Default {letters_black}» {0}': ' {letters_black}▎ {letters}Padrão {letters_black}» {0}'
+' {letters_black}▎ {letters}Discard every change and': ' {letters_black}▎ {letters}Descartar todas as mudanças e'
+' {letters_black}▎ {letters}Empties every slot.': ' {letters_black}▎ {letters}Esvazia todos os slots.'
+' {letters_black}▎ {letters}Every change in this file.': ' {letters_black}▎ {letters}Todas as mudanças deste arquivo.'
+' {letters_black}▎ {letters}Every change in this plugin.': ' {letters_black}▎ {letters}Todas as mudanças deste plugin.'
+' {letters_black}▎ {letters}Every value in this file stays as it is.': ' {letters_black}▎ {letters}Todos os valores deste arquivo ficam como estão.'
+' {letters_black}▎ {letters}Every value in this plugin stays as it is.': ' {letters_black}▎ {letters}Todos os valores deste plugin ficam como estão.'
+' {letters_black}▎ {letters}Files {letters_black}» {info}%files%': ' {letters_black}▎ {letters}Arquivos {letters_black}» {info}%files%'
+' {letters_black}▎ {letters}Flags set here {letters_black}» {info}{0}': ' {letters_black}▎ {letters}Flags definidas aqui {letters_black}» {info}{0}'
+' {letters_black}▎ {letters}Gives {letters_black}» {info}{0}': ' {letters_black}▎ {letters}Dá {letters_black}» {info}{0}'
+' {letters_black}▎ {letters}Height {letters_black}» {info}Full': ' {letters_black}▎ {letters}Altura {letters_black}» {info}Total'
+' {letters_black}▎ {letters}Icon {letters_black}» {0}': ' {letters_black}▎ {letters}Ícone {letters_black}» {0}'
+' {letters_black}▎ {letters}If {letters_black}» {info}{0}': ' {letters_black}▎ {letters}Se {letters_black}» {info}{0}'
+' {letters_black}▎ {letters}Its odds, who sees it, how long': ' {letters_black}▎ {letters}As chances, quem vê, quanto tempo'
+' {letters_black}▎ {letters}Keep every change made here.': ' {letters_black}▎ {letters}Manter todas as mudanças feitas aqui.'
+' {letters_black}▎ {letters}Keeps the layout as it is now.': ' {letters_black}▎ {letters}Mantém o layout como está agora.'
+' {letters_black}▎ {letters}Lasts {letters_black}» {info}{0} ⌚': ' {letters_black}▎ {letters}Dura {letters_black}» {info}{0} ⌚'
+' {letters_black}▎ {letters}Lays your own armour, offhand,': ' {letters_black}▎ {letters}Coloca sua armadura, mão secundária,'
+' {letters_black}▎ {letters}Leaves every value as it is and stops': ' {letters_black}▎ {letters}Deixa todos os valores como estão e para'
+' {letters_black}▎ {letters}Leaves it exactly as it was.': ' {letters_black}▎ {letters}Deixa exatamente como estava.'
+' {letters_black}▎ {letters}Left-click {letters_black}» {success}first corner': ' {letters_black}▎ {letters}Clique esq. {letters_black}» {success}primeiro canto'
+' {letters_black}▎ {letters}Level {letters_black}» {info}{0}': ' {letters_black}▎ {letters}Nível {letters_black}» {info}{0}'
+' {letters_black}▎ {letters}Money {letters_black}» {success}{0}': ' {letters_black}▎ {letters}Dinheiro {letters_black}» {success}{0}'
+' {letters_black}▎ {letters}Name gains {letters_black}» {0}': ' {letters_black}▎ {letters}Nome ganha {letters_black}» {0}'
+' {letters_black}▎ {letters}Needs {letters_black}» {info}{0}': ' {letters_black}▎ {letters}Precisa {letters_black}» {info}{0}'
+' {letters_black}▎ {letters}New settings arrive on their own.': ' {letters_black}▎ {letters}Novas configurações chegam sozinhas.'
+' {letters_black}▎ {letters}No default change waits for a decision.': ' {letters_black}▎ {letters}Nenhuma mudança de padrão aguarda decisão.'
+' {letters_black}▎ {letters}Not in your file yet. It may be one': ' {letters_black}▎ {letters}Ainda não está no seu arquivo. Pode ser um'
+' {letters_black}▎ {letters}Now {letters_black}» {0}': ' {letters_black}▎ {letters}Agora {letters_black}» {0}'
+' {letters_black}▎ {letters}Particles {letters_black}» {0}': ' {letters_black}▎ {letters}Partículas {letters_black}» {0}'
+' {letters_black}▎ {letters}Permission {letters_black}» {info}{0}': ' {letters_black}▎ {letters}Permissão {letters_black}» {info}{0}'
+' {letters_black}▎ {letters}Real {letters_black}» {success}{0}% {muted}of all drops': ' {letters_black}▎ {letters}Real {letters_black}» {success}{0}% {muted}de todos os drops'
+' {letters_black}▎ {letters}Replaces everything here with': ' {letters_black}▎ {letters}Substitui tudo aqui pela'
+' {letters_black}▎ {letters}Right-click {letters_black}» {error}second corner': ' {letters_black}▎ {letters}Clique dir. {letters_black}» {error}segundo canto'
+' {letters_black}▎ {letters}Seen by {letters_black}» {info}{0}': ' {letters_black}▎ {letters}Visto por {letters_black}» {info}{0}'
+' {letters_black}▎ {letters}Server {letters_black}» {info}{0}': ' {letters_black}▎ {letters}Servidor {letters_black}» {info}{0}'
+' {letters_black}▎ {letters}The plugin no longer ships it.': ' {letters_black}▎ {letters}O plugin não o inclui mais.'
+' {letters_black}▎ {letters}The rest follow their {muted}Default{letters}.': ' {letters_black}▎ {letters}O resto segue seu {muted}Padrão{letters}.'
+' {letters_black}▎ {letters}Tier {letters_black}» {info}{0}': ' {letters_black}▎ {letters}Tier {letters_black}» {info}{0}'
+' {letters_black}▎ {letters}Time {letters_black}» {info}{0}': ' {letters_black}▎ {letters}Tempo {letters_black}» {info}{0}'
+' {letters_black}▎ {letters}Value {letters_black}» {highlight}{0}': ' {letters_black}▎ {letters}Valor {letters_black}» {highlight}{0}'
+' {letters_black}▎ {letters}Weight 🎲 {letters_black}» {highlight}{0}': ' {letters_black}▎ {letters}Peso 🎲 {letters_black}» {highlight}{0}'
+' {letters_black}▎ {letters}Weight 🎲 {letters_black}» {info}{0}': ' {letters_black}▎ {letters}Peso 🎲 {letters_black}» {info}{0}'
+' {letters_black}▎ {letters}When {letters_black}» {info}{0}': ' {letters_black}▎ {letters}Quando {letters_black}» {info}{0}'
+' {letters_black}▎ {letters}World {letters_black}» {info}{0}': ' {letters_black}▎ {letters}Mundo {letters_black}» {info}{0}'
+' {letters_black}▎ {letters}Writes every new default and reloads': ' {letters_black}▎ {letters}Grava cada novo padrão e recarrega'
+' {letters_black}▎ {letters}close this screen.': ' {letters_black}▎ {letters}fechar esta tela.'
+' {letters_black}▎ {letters}inventory and hotbar into the grid.': ' {letters_black}▎ {letters}inventário e hotbar na grade.'
+' {letters_black}▎ {letters}it waits, and what it needs.': ' {letters_black}▎ {letters}espera e do que precisa.'
+' {letters_black}▎ {letters}listing these changes.': ' {letters_black}▎ {letters}de listar estas mudanças.'
+' {letters_black}▎ {letters}the plugins they belong to.': ' {letters_black}▎ {letters}os plugins a que pertencem.'
+' {letters_black}▎ {letters}the recommended list.': ' {letters_black}▎ {letters}lista recomendada.'
+' {letters_black}▎ {letters}you removed on purpose.': ' {letters_black}▎ {letters}que você removeu de propósito.'
+' {letters_black}▎ {letters}your value may be the one you want.': ' {letters_black}▎ {letters}seu valor pode ser o que você quer.'
+' {letters_black}▎ {muted}all left at their defaults': ' {letters_black}▎ {muted}tudo nos padrões'
+' {letters_black}▎ {muted}and {0} more': ' {letters_black}▎ {muted}e mais {0}'
+' {letters_black}▎ {muted}nothing yet': ' {letters_black}▎ {muted}nada ainda'
+' {letters}(every {info}{0}{letters}min)': ' {letters}(a cada {info}{0}{letters}min)'
+'%player% is the target, %mob% the template id. No leading slash.': '%player% é o alvo, %mob% o id do modelo. Sem barra inicial.'
+'%player_name% and colour codes work': '%player_name% e códigos de cor funcionam'
+'%player_name% is the player, no leading slash': '%player_name% é o jogador, sem barra inicial'
+'%player_name% is the player, no leading slash; one command per line': '%player_name% é o jogador, sem barra inicial; um comando por linha'
+'%player_name% is the player. No leading slash.': '%player_name% é o jogador. Sem barra inicial.'
+'%player_name% is the player; one command per line, no slash': '%player_name% é o jogador; um comando por linha, sem barra'
+(no command): (sem comando)
+(no item): (sem item)
+(not set): (não definido)
+(nothing yet): (nada ainda)
+0 appears behind the target. Above 0 blinks to a random spot on the ground that far.: 0 aparece atrás do alvo. Acima de 0, teleporta a um ponto aleatório no chão a essa distância.
+0 detonates at once: 0 detona na hora
+0 for no fire. 3s.: 0 para sem fogo. 3s.
+0 for no limit. With either set, a mob with no target does not cast it.: 0 para sem limite. Com qualquer um definido, um mob sem alvo não a usa.
+0 for none, or blocks: 0 para nenhum, ou blocos
+0 gives it to the target alone.: 0 dá só ao alvo.
+0 goes anywhere. Past it, it walks back; 8 blocks further, it is put back.: 0 vai a qualquer lugar. Além disso, ele volta andando; 8 blocos além, é trazido de volta.
+0 is east, 90 is south: 0 é leste, 90 é sul
+0 is level I: 0 é nível I
+0 is only the flash.: 0 é só o clarão.
+0 lets its health decide. Above 0 nothing hurts it; each player's hit counts one.: 0 deixa a vida decidir. Acima de 0 nada o fere; cada golpe de jogador conta um.
+0 only leaps. Above 0, whoever is that close as it lands takes its attack damage.: 0 só salta. Acima de 0, quem estiver tão perto ao pousar leva o dano de ataque dele.
+0 stays put: 0 fica parado
+0 the model itself, 5 head, 7 dropped, 8 item frame: 0 o próprio modelo, 5 cabeça, 7 largado, 8 moldura
+0 to 1: 0 a 1
+0 to 15: 0 a 15
+0, 1 or 2: 0, 1 ou 2
+0, or 0.4: 0, ou 0.4
+0, or 1s: 0, ou 1s
+0, or x,y,z for a tumble: 0, ou x,y,z para um giro
+0.05, or 50ms: 0.05, ou 50ms
+0.1, or 100ms: 0.1, ou 100ms
+0.15, or 150ms: 0.15, ou 150ms
+0.2 is four ticks; 1m30s works too: 0.2 são quatro ticks; 1m30s também funciona
+0.3, or 300ms: 0.3, ou 300ms
+0.32, or 320ms: 0.32, ou 320ms
+0.4, or 400ms: 0.4, ou 400ms
+0.45, or 450ms: 0.45, ou 450ms
+0.5, or 500ms: 0.5, ou 500ms
+0.7, or 700ms: 0.7, ou 700ms
+0.9, or 900ms: 0.9, ou 900ms
+0; vanilla is 32: 0; o vanilla é 32
+1 is the start; its fight's phases follow. 0 for any.: 1 é o início; as fases da luta vêm depois. 0 para qualquer.
+1 line: 1 linha
+1 reaches it: 1 o alcança
+1, from 0.5 to 2: 1, de 0.5 a 2
+1, or 1-1.6: 1, ou 1-1.6
+1, or 1m30s: 1, ou 1m30s
+1, or 1s: 1, ou 1s
+100 blocks every hit. In hits mode no hit counts while it lasts.: 100 bloqueia todo golpe. No modo golpes, nenhum golpe conta enquanto dura.
+12 when 0, 24 at most. It runs the way it faced as it wound up.: 12 quando 0, 24 no máximo. Corre na direção que olhava ao se preparar.
+16 at most, a fifth of a second apart.: 16 no máximo, com um quinto de segundo entre cada.
+1; also how far it carries: 1; também o quão longe leva
+1; dust particles only: 1; só partículas de poeira
+2.2, or 2s200ms: 2.2, ou 2s200ms
+24-hour, comma separated. 20:00, 22:30: 24 horas, separados por vírgula. 20:00, 22:30
+3.5, or 1m: 3.5, ou 1m
+30s at most. Two per mob at once. Aim SELF makes it go with the mob.: 30s no máximo. Dois por mob ao mesmo tempo. Mirar SELF faz ir com o mob.
+30s, 1m30s, or forever.: 30s, 1m30s, ou para sempre.
+5, or 1m30s: 5, ou 1m30s
+5m, 1h. 0 stays until it dies.: 5m, 1h. 0 fica até morrer.
+A bare number is ticks. 10t, 1s, 1m30s.: Um número puro é ticks. 10t, 1s, 1m30s.
+A cloud in the colour of what it casts.: Uma nuvem da cor do que ele lança.
+A comparison, such as %server_tps% >= 18. Blank for none.: Uma comparação, como %server_tps% >= 18. Vazio para nenhuma.
+A giant blade falls from the sky onto you.: Uma lâmina gigante cai do céu sobre você.
+A head: Uma cabeça
+A second pose, so it goes down while you watch: Uma segunda pose, para cair enquanto você assiste
+A shockwave ring that throws people back.: Um anel de onda de choque que empurra todos.
+A shriek that drowns everyone in darkness.: Um grito que afoga todos na escuridão.
+A spring off the ground in a puff of dust.: Um impulso do chão numa nuvem de poeira.
+A survival or adventure player. 0 needs nobody.: Um jogador no sobrevivência ou aventura. 0 não precisa de ninguém.
+A value is required.: Um valor é obrigatório.
+A vanished block goes back to its placer.: Um bloco desaparecido volta a quem o colocou.
+A whole amount between the two, paid each time the line comes up: Uma quantia inteira entre os dois, paga toda vez que a linha sai
+ARROW RAIN: CHUVA DE FLECHAS
+AUTO is the type's own. GROUND strikes where the target stood as the wind-up began.: AUTO é o do próprio tipo. GROUND atinge onde o alvo estava quando a preparação começou.
+Added to its name while in this phase, such as &c⚡. NONE for none.: Adicionado ao nome nesta fase, como &c⚡. NONE para nenhum.
+After any skill but EFFECT and COMMAND, how long before the next. 0 for none.: Após qualquer habilidade exceto EFFECT e COMMAND, quanto tempo até a próxima. 0 para nenhum.
+Aim: Mira
+Alive at once: Vivos ao mesmo tempo
+Always runs around: Sempre corre por aí
+Answer yes or no.: Responda sim ou não.
+Anything but NONE makes it glow.: Qualquer coisa exceto NONE o faz brilhar.
+Appears at, as x,y,z: Aparece em, como x,y,z
+Around its target. 6 when 0.: Ao redor do alvo. 6 quando 0.
+Arrows fall on the spots it marks.: Flechas caem nos pontos que ele marca.
+At {0}% health: Com {0}% de vida
+Aura: Aura
+BALL, BALL_LARGE, STAR, BURST or CREEPER: BALL, BALL_LARGE, STAR, BURST ou CREEPER
+BLADE RING: ANEL DE LÂMINAS
+BLINK: TELEPORTE
+Between two attacks: Entre dois ataques
+Between two hits of one player: Entre dois golpes de um jogador
+Blank keeps the vanilla value.: Vazio mantém o valor vanilla.
+Blank or * for every day. MON, FRI, SAT: Vazio ou * para todo dia. MON, FRI, SAT
+Blinks up to: Teleporta até
+Block it is made of: Bloco de que é feito
+Blocks: Blocos
+Blocks and entities can be used.: Blocos e entidades podem ser usados.
+Browse a head: Procurar uma cabeça
+Burns: Queima
+Burns for: Queima por
+CHAIN LIGHTNING: RAIO EM CADEIA
+CHARGE: INVESTIDA
+CLEAVE: CUTILADA
+'CONE: its angle in degrees, 60 when 0. LINE: its width in blocks, 1.6 when 0.': 'CONE: seu ângulo em graus, 60 quando 0. LINE: sua largura em blocos, 1.6 quando 0.'
+CYCLE changes it every second.: CYCLE muda a cada segundo.
+Calls a burning rock down where you stand.: Faz cair uma rocha em chamas onde você está.
+Cancel: Cancelar
+Cannot be ridden, leashed, fed or opened: Não pode ser montado, preso com laço, alimentado ou aberto
+Carried by whoever set it off: Levado por quem o ativou
+Chains from the wrists to the floor this far out: Correntes dos pulsos até o chão a esta distância
+Chance out of 100: Chance em 100
+Chance, in percent: Chance, em porcentagem
+Change something: Mudar algo
+Change the effects: Mudar os efeitos
+Change the effects on those inside: Mudar os efeitos em quem está dentro
+Change the icon: Mudar o ícone
+Change the item: Mudar o item
+Change what it plays: Mudar o que toca
+Channels a burst of healing.: Canaliza uma explosão de cura.
+Choose a position from the grid.: Escolha uma posição na grade.
+Choose an option: Escolha uma opção
+Choose one of the available options.: Escolha uma das opções disponíveis.
+'Choose one of: {0}': 'Escolha uma de: {0}'
+Colour: Cor
+Colour it fades to: Cor final do desvanecer
+'Comma separated. Available: {0}': 'Separados por vírgula. Disponíveis: {0}'
+Command the console runs: Comando que o console executa
+Command, without the slash: Comando, sem a barra
+Condition: Condição
+Condition (blank for none): Condição (vazio para nenhuma)
+Confirm: Confirmar
+Cooldown: Recarga
+Crouches, then lands on you hard.: Agacha, depois cai com força sobre você.
+Currency: Moeda
+Custom Head: Cabeça personalizada
+Custom Item: Item personalizado
+Custom model data: Custom model data
+DREAD: PAVOR
+Damage: Dano
+Damage a second: Dano por segundo
+Damage each: Dano de cada
+Damage it blocks, in percent: Dano que bloqueia, em porcentagem
+Damage per strike: Dano por impacto
+Damage, times its own: Dano, vezes o próprio
+Dances the frames again when they end; the cycle must close: Dança os quadros de novo ao acabar; o ciclo deve fechar
+Days: Dias
+Degrees further round each beat: Graus a mais a cada batida
+Degrees it turns on the spot: Graus que gira no lugar
+Display name: Nome de exibição
+Does not burn in daylight: Não queima à luz do dia
+Drags everyone around it inwards.: Puxa todos ao redor para dentro.
+Drags you to it on a chain.: Arrasta você até ele com uma corrente.
+Draw it with: Desenhar com
+Draws a constellation, then drops its stars.: Desenha uma constelação, depois derruba suas estrelas.
+Drops no vanilla experience: Não solta experiência vanilla
+Drops no vanilla loot: Não solta saque vanilla
+EARTHSPLITTER: RACHA-TERRA
+ENRAGE: FÚRIA
+ERUPTION: ERUPÇÃO
+Effect: Efeito
+Effects: Efeitos
+Enabled: Ativado
+Ends at, as x,y,z: Termina em, como x,y,z
+Ends up at, as x,y,z: Acaba em, como x,y,z
+Enter a duration of at least {0}.: Digite uma duração de pelo menos {0}.
+Enter a duration of at most {0}.: Digite uma duração de no máximo {0}.
+Enter a duration, such as 30s or 1h30m.: Digite uma duração, como 30s ou 1h30m.
+Enter a number.: Digite um número.
+Enter a value of at least {0}.: Digite um valor de pelo menos {0}.
+Enter a value of at most {0}.: Digite um valor de no máximo {0}.
+Enter a whole number.: Digite um número inteiro.
+Enter an amount of at least {0}.: Digite uma quantia de pelo menos {0}.
+Enter an amount of at most {0}.: Digite uma quantia de no máximo {0}.
+Enter an amount, such as 100 or 10M.: Digite uma quantia, como 100 ou 10M.
+Enter an id.: Digite um id.
+Enter something that can become an id.: Digite algo que possa virar um id.
+Entering each phase: Ao entrar em cada fase
+Entering phase {0}: Ao entrar na fase {0}
+Every: A cada
+Every day: Todo dia
+Every {0} ⌚: A cada {0} ⌚
+Exactly as it is spelled in game, such as {0}.: Exatamente como se escreve no jogo, como {0}.
+Experience levels: Níveis de experiência
+Experience points: Pontos de experiência
+Export: Exportar
+FIXED, VERTICAL, HORIZONTAL or CENTER: FIXED, VERTICAL, HORIZONTAL ou CENTER
+FROST NOVA: NOVA DE GELO
+Fade in: Fade in
+Fade out: Fade out
+Faint particles, the way a beacon gives them: Partículas fracas, como as de um sinalizador
+Falling hurts players.: Cair machuca jogadores.
+Falls at, in blocks per second squared: Cai a, em blocos por segundo ao quadrado
+Fires at this much health, in percent: Dispara com esta vida, em porcentagem
+Fixed light level: Nível de luz fixo
+Fixed roll, in degrees: Rolagem fixa, em graus
+Fixed tilt, in degrees: Inclinação fixa, em graus
+Fixed turn, in degrees: Giro fixo, em graus
+Flight time: Tempo de voo
+Flinches when it is struck: Recua ao ser atingido
+Focuses a crystal, then fires a searing beam.: Foca um cristal, depois dispara um raio abrasador.
+For: Por
+Frames it is drawn over: Quadros em que é desenhado
+Freezes everyone close in place.: Congela no lugar todos que estão perto.
+From this much health, in percent: A partir desta vida, em porcentagem
+GRAVITY WELL: POÇO GRAVITACIONAL
+GROUND SLAM: IMPACTO NO SOLO
+Glows through walls: Brilha através de paredes
+Goes up by: Sobe
+Group {0}, every: Grupo {0}, a cada
+HOOK: GANCHO
+Health: Vida
+Health, range and players it needs.: Vida, alcance e jogadores de que precisa.
+Height above the anchor: Altura acima da âncora
+Hits left in hits mode. 0 and 100 for always.: Golpes restantes no modo golpes. 0 e 100 para sempre.
+Hits left in hits mode. Between 0 and 100.: Golpes restantes no modo golpes. Entre 0 e 100.
+Hits mode only. 500ms, 1s. 0 for none.: Só no modo golpes. 500ms, 1s. 0 para nenhum.
+Hits to break it: Golpes para quebrá-lo
+How an item is held: Como um item é segurado
+How big it is; 1 is player-sized: Tamanho; 1 é o de um jogador
+How far a blow shoves it, in blocks: Quanto um golpe o empurra, em blocos
+How far it leaps from one player to the next. 6 when 0.: Quão longe salta de um jogador ao próximo. 6 quando 0.
+How far off the ground it hangs: Quão alto fica acima do chão
+How far the arms and legs open out: Quanto os braços e pernas se abrem
+How fast it plays, or a range it rolls from each play: Velocidade, ou um intervalo sorteado a cada vez
+How fast the pieces leave, outwards: Velocidade com que as peças saem, para fora
+How fast they leave, upwards: Velocidade com que saem, para cima
+'How finely a body in blocks is drawn, 1 to 5 (5: the design on every face)': 'Detalhe de um corpo em blocos, 1 a 5 (5: o desenho em cada face)'
+'How it is drawn: its warning, its release and its impact.': 'Como é desenhado: aviso, liberação e impacto.'
+How it lies: Como fica deitado
+How long: Quanto tempo
+How long a temporary block lasts.: Quanto dura um bloco temporário.
+How long before any of that happens: Quanto tempo antes de tudo isso
+How long before that second pose: Quanto tempo antes da segunda pose
+How long between beats: Tempo entre batidas
+How long between blows: Tempo entre golpes
+How long between frames: Tempo entre quadros
+How long between tilts: Tempo entre inclinações
+How long from the start until the strings or chains break: Tempo do início até as cordas ou correntes romperem
+How long it hangs there: Quanto tempo fica suspenso
+How long it lasts: Quanto tempo dura
+How long it stands whole first: Quanto tempo fica inteiro antes
+How long it stays: Quanto tempo fica
+How long the lift takes: Quanto dura a subida
+How long the movement takes: Quanto dura o movimento
+How long the pieces last: Quanto duram as peças
+How long to wait: Quanto esperar
+How many: Quantos
+How many tilts: Quantas inclinações
+How many times it is struck: Quantas vezes é atingido
+How many times its size a head reaches: Quantas vezes seu tamanho uma cabeça alcança
+How much experience: Quanta experiência
+How much money: Quanto dinheiro
+How much of it is the entry, played once: Quanto disso é a entrada, tocada uma vez
+How much the loose joints lag and overshoot: Quanto as juntas soltas atrasam e passam do ponto
+How much the pieces differ in size: Quanto as peças variam de tamanho
+How much the pieces differ, 0 to 1: Quanto as peças variam, 0 a 1
+How often it is tried. 1s at least.: Com que frequência é tentado. 1s no mínimo.
+How tall one letter is, in blocks: Altura de uma letra, em blocos
+How the change looks, the mob held still 1.2s for it. Default is enrage; none also skips the hold.: Como a mudança aparece, com o mob parado 1.2s. O padrão é enrage; none também pula a pausa.
+How the movement is spread: Como o movimento é distribuído
+Hunts the nearest player: Caça o jogador mais próximo
+Immune to fire and lava: Imune a fogo e lava
+Import: Importar
+Insert an item: Inserir um item
+It stops, faces its aim and telegraphs this long before it lands. 0 lands at once. 800ms, 1.5s.: Ele para, encara a mira e avisa por este tempo antes de atingir. 0 atinge na hora. 800ms, 1.5s.
+Item: Item
+Its group decides how often. This is the least time between two of its own casts; 0 for none.: O grupo decide a frequência. Este é o menor tempo entre dois usos dela; 0 para nenhum.
+Its style, tint and your own lines.: Seu estilo, tonalidade e suas próprias linhas.
+JUDGEMENT: JULGAMENTO
+Jump range: Alcance do salto
+Jump range, in blocks: Alcance do salto, em blocos
+Jumps: Salta
+LINE: LINE
+Lands hard within: Atinge com força a até
+Lands hard within, in blocks: Atinge com força a até, em blocos
+Lasts: Dura
+Leaps and shatters the floor around it.: Salta e estilhaça o chão ao redor.
+Least amount: Quantia mínima
+Least money: Dinheiro mínimo
+Leave it off to keep the item this line already gives: Deixe desligado para manter o item que esta linha já dá
+Leaves a poison cloud where you stood.: Deixa uma nuvem venenosa onde você estava.
+Leaves a trail: Deixa um rastro
+Leaves after: Sai após
+Level, as a player reads it: Nível, como o jogador lê
+Light level, 0 to 15: Nível de luz, 0 a 15
+Lightning that leaps from player to player.: Um raio que salta de jogador em jogador.
+Looks like: Aparência
+Lowers its head and runs you down.: Abaixa a cabeça e atropela você.
+METEOR: METEORO
+MIASMA: MIASMA
+MONEY: DINHEIRO
+Makes no sound: Não faz som
+Marks a spot, then calls a bolt onto it.: Marca um ponto, depois chama um raio nele.
+Material: Material
+Maximum players online (0 = no limit): Máximo de jogadores online (0 = sem limite)
+Message to send: Mensagem a enviar
+Message when it lands: Mensagem ao atingir
+Message when it lands (blank for none): Mensagem ao atingir (vazio para nenhuma)
+Minimum players online: Mínimo de jogadores online
+Minions never summon.: Lacaios nunca invocam.
+Most amount: Quantia máxima
+Most money: Dinheiro máximo
+Name: Nome
+Name (blank to show the command): Nome (vazio para mostrar o comando)
+Name (blank to show the first line): Nome (vazio para mostrar a primeira linha)
+Name gains: Nome ganha
+Named checks this plugin offers. It offers none.: Verificações nomeadas que este plugin oferece. Ele não oferece nenhuma.
+Needs a player within: Precisa de um jogador a até
+Needs a player within, in blocks: Precisa de um jogador a até, em blocos
+Never picks up items: Nunca pega itens
+Never targets anything: Nunca mira em nada
+'No': Não
+No auras are registered. NONE for none.: Nenhuma aura registrada. NONE para nenhuma.
+Nothing drawn; only its own lines play.: Nada desenhado; só suas próprias linhas tocam.
+Now {0}. The effect list opens after submitting.: Agora {0}. A lista de efeitos abre após enviar.
+Now {0}. The line list opens after submitting.: Agora {0}. A lista de linhas abre após enviar.
+On death: Ao morrer
+On spawn: Ao surgir
+Once to each player it runs through, who is thrown aside.: Uma vez para cada jogador que atravessa, que é jogado para o lado.
+One command per line, without the slash: Um comando por linha, sem a barra
+One line; add another for a second.: Uma linha; adicione outra para uma segunda.
+One skill of the group per period, picked by weight. 1s at least.: Uma habilidade do grupo por período, escolhida por peso. 1s no mínimo.
+Only blocks a player placed can break.: Só blocos colocados por jogadores podem quebrar.
+Only in phase: Só na fase
+Only matters while the particles are shown.: Só importa enquanto as partículas aparecem.
+Only region members can act inside.: Só membros da região podem agir dentro.
+Only the allowed blocks can be placed.: Só os blocos permitidos podem ser colocados.
+Only the breakable blocks can break.: Só os blocos quebráveis podem quebrar.
+Only used when repeating. 10:00-23:00: Só usado ao repetir. 10:00-23:00
+Opens portals and calls its minions through.: Abre portais e chama seus lacaios por eles.
+Outline colour: Cor do contorno
+POUNCE: BOTE
+PRISM BEAM: RAIO PRISMÁTICO
+Particles per point: Partículas por ponto
+Permission (blank for none): Permissão (vazio para nenhuma)
+Permission needed: Permissão necessária
+Permission needed (blank for none): Permissão necessária (vazio para nenhuma)
+Phase: Fase
+Pick what it does and build it from scratch.: Escolha o que faz e monte do zero.
+Pitch: Tom
+Placed blocks vanish on their own.: Blocos colocados somem sozinhos.
+Player Head: Cabeça de jogador
+Players can break blocks.: Jogadores podem quebrar blocos.
+Players can come in, teleports included.: Jogadores podem entrar, teleportes incluídos.
+Players can drop items.: Jogadores podem soltar itens.
+Players can hurt each other.: Jogadores podem ferir uns aos outros.
+Players can leave, teleports included.: Jogadores podem sair, teleportes incluídos.
+Players can pick items up.: Jogadores podem pegar itens.
+Players can place blocks.: Jogadores podem colocar blocos.
+Players it hits in all, the target first. 8 at most.: Jogadores que atinge no total, o alvo primeiro. 8 no máximo.
+Plays: Toca
+Plays the path again when it ends; it must close: Repete o caminho ao terminar; ele deve fechar
+Points away from the centre: Aponta para fora do centro
+Priority, higher plays first: Prioridade, maior toca primeiro
+Projectile: Projétil
+Props tied to its joints, by name from rigs.yml: Adereços presos às juntas, por nome do rigs.yml
+Puppet strings up to this height: Cordas de marionete até esta altura
+Put a different item in: Colocar um item diferente
+RENEW: RENOVAR
+Radius: Raio
+Radius, in blocks: Raio, em blocos
+Reach: Alcance
+Reach, in blocks: Alcance, em blocos
+Reaches: Alcança
+Repeat between: Repetir entre
+Repeat every: Repetir a cada
+Requires: Requer
+Resistance: Resistência
+Resists: Resiste
+Restores: Restaura
+Restores, in percent of max health: Restaura, em % da vida máxima
+Roam, in blocks: Vagar, em blocos
+Roars and runs faster for a while.: Ruge e corre mais rápido por um tempo.
+Rotation group: Grupo de rotação
+Rotation, in degrees: Rotação, em graus
+Runs: Executa
+SHIELD BUBBLE: BOLHA ESCUDO
+SMITE: FULMINAR
+STARFALL: CHUVA DE ESTRELAS
+SUMMON PORTAL: INVOCAR PORTAL
+SUPERNOVA: SUPERNOVA
+Scale: Escala
+Scatter: Dispersão
+Scatter, in blocks: Dispersão, em blocos
+Seconds between beats: Segundos entre batidas
+'Seen by: a radius, 0 for them alone, or world': 'Visto por: um raio, 0 só para eles, ou world'
+Set this to repeat instead of using fixed times. 2h, 90m: Defina para repetir em vez de usar horários fixos. 2h, 90m
+Sets them alight for: Incendeia por
+Shakes players this close, in blocks: Treme jogadores a esta distância, em blocos
+Shape: Forma
+Show the icon in the corner of the screen: Mostrar o ícone no canto da tela
+Show the swirling particles: Mostrar as partículas giratórias
+Shows the icon in the corner of the screen: Mostra o ícone no canto da tela
+Shows the swirling particles: Mostra as partículas giratórias
+Shrinks away at the end: Encolhe até sumir no fim
+Shrinks down with a pop.: Encolhe com um estalo.
+Size: Tamanho
+Size it ends at: Tamanho final
+Size it starts at: Tamanho inicial
+'Skills of one group take turns: one per period, picked by weight. NONE rolls on its own.': 'Habilidades de um grupo se revezam: uma por período, escolhida por peso. NONE sorteia sozinha.'
+Spawns as a baby: Nasce como filhote
+Speed: Velocidade
+Speed kept on landing, 0 to 1: Velocidade mantida ao pousar, 0 a 1
+Speed lines and a gust.: Linhas de velocidade e uma rajada.
+Speed, times its own: Velocidade, vezes a própria
+Spins a ring of blades around itself.: Gira um anel de lâminas ao redor de si.
+Spins up a tornado that hurls you away.: Cria um tornado que arremessa você longe.
+Splits the ground in a line at you.: Racha o chão em linha até você.
+Spread: Dispersão
+Spread, as x,y,z: Dispersão, como x,y,z
+Spread, in blocks: Dispersão, em blocos
+Starts: Começa
+Starts at, as x,y,z: Começa em, como x,y,z
+Starts below: Começa abaixo de
+Starts below this much health, in percent: Começa abaixo desta vida, em porcentagem
+Stays for: Fica por
+Stops turning once it lands: Para de girar ao pousar
+Strength: Força
+Strikes: Golpeia
+Style: Estilo
+Submit: Enviar
+Subtitle: Subtítulo
+Swallows the light, then bursts like a star.: Engole a luz, depois explode como uma estrela.
+Swells up with a pop.: Incha com um estalo.
+TEMPEST: TEMPESTADE
+TYPE A HEX VALUE: DIGITE UM VALOR HEX
+Takes aim, then fires at you.: Mira, depois atira em você.
+Takes turns in {0}: Reveza em {0}
+Target: Alvo
+Target at least this far, in blocks: Alvo a pelo menos esta distância, em blocos
+Target at most this far, in blocks: Alvo a no máximo esta distância, em blocos
+Template: Modelo
+Template id: Id do modelo
+Ten at most.: Dez no máximo.
+That duration is too large.: Essa duração é grande demais.
+That option is not accepted.: Essa opção não é aceita.
+That position is already taken.: Essa posição já está ocupada.
+That value could not be read.: Esse valor não pôde ser lido.
+That value is not accepted.: Esse valor não é aceito.
+The choreography, frame by frame: A coreografia, quadro a quadro
+The colour it is drawn in; the theme's by default.: A cor em que é desenhado; a do tema por padrão.
+The damage it takes is divided by this. 1 changes nothing; 0.1 to 10.: O dano recebido é dividido por isto. 1 não muda nada; 0.1 a 10.
+The fastest a looping body may get: O mais rápido que um corpo em loop pode ficar
+The ground under you boils, then bursts.: O chão sob você ferve, depois explode.
+The id of the thing this starts.: O id do que isto inicia.
+The line above the hotbar: A linha acima da hotbar
+The line, as it is written: A linha, como está escrita
+The message: A mensagem
+The most the gap may be divided by: O máximo pelo qual o intervalo pode ser dividido
+The name of a skill cast right after this one lands. NONE for none.: O nome de uma habilidade lançada logo após esta atingir. NONE para nenhuma.
+The shortest gap between two casts. 5s, 1m.: O menor intervalo entre dois usos. 5s, 1m.
+The shortest gap between two runs of this line.: O menor intervalo entre duas execuções desta linha.
+The style that suits its type.: O estilo que combina com seu tipo.
+The whole line, after the token: A linha inteira, após o token
+Then: Depois
+This field is required.: Este campo é obrigatório.
+Throws: Arremessa
+Tier: Tier
+Tier (blank for none): Tier (vazio para nenhum)
+Times: Vezes
+Times it plays: Vezes que toca
+Tint: Tonalidade
+Title: Título
+To whoever stands within a block and a half as it lands.: Para quem estiver a um bloco e meio quando ele pousar.
+Travels towards the centre: Viaja em direção ao centro
+Turns a second: Giros por segundo
+Turns around: Dá a volta
+Turns it carries round the anchor: Voltas que dá ao redor da âncora
+Turns it makes while it hangs: Giros que dá enquanto fica suspenso
+Turns over its life: Giros ao longo da vida
+Turns to face the player: Vira para encarar o jogador
+Turns to face the viewer: Vira para encarar quem vê
+Turns to face whoever did it: Vira para encarar quem fez isso
+Twinkles: Cintila
+UNKNOWN: DESCONHECIDO
+Up to this much health, in percent: Até esta vida, em porcentagem
+Upward speed. 0.8 is a hop, 1.5 a leap.: Velocidade para cima. 0.8 é um pulinho, 1.5 um salto.
+Use at least {0} characters.: Use pelo menos {0} caracteres.
+Use at most {0} characters.: Use no máximo {0} caracteres.
+Use only letters, numbers, - and _.: Use só letras, números, - e _.
+Use this item: Usar este item
+VOLLEY: SARAIVADA
+Vanishes and reappears behind you.: Some e reaparece atrás de você.
+Variant: Variante
+Volume: Volume
+Wait at least: Esperar pelo menos
+Waits first: Espera antes
+Watch it from a stand-in four blocks ahead.: Assista de um substituto quatro blocos à frente.
+Wears what they died in: Veste o que usava ao morrer
+Weight: Peso
+Weight against its siblings: Peso entre seus irmãos
+Weight in its group: Peso no seu grupo
+What a sign body spells: O que um corpo de placa escreve
+What another skill's Then calls it by. NONE for none.: Como o Depois de outra habilidade a chama. NONE para nenhum.
+What can be placed when the list is on.: O que pode ser colocado quando a lista está ativa.
+What can break when the list is on.: O que pode quebrar quando a lista está ativa.
+What happens to the body: O que acontece ao corpo
+What is left of a flattened piece's height: O que resta da altura de uma peça achatada
+What is worn on the head: O que usa na cabeça
+What it does after the last frame: O que faz após o último quadro
+What the gap is divided by after each beat: Pelo que o intervalo é dividido após cada batida
+What the left hand holds: O que a mão esquerda segura
+What the right hand holds: O que a mão direita segura
+What the speed is multiplied by each cycle: Pelo que a velocidade é multiplicada a cada ciclo
+What this line is called in the list. Blank shows the times.: Como esta linha se chama na lista. Vazio mostra os horários.
+When: Quando
+When it fires and what it does.: Quando dispara e o que faz.
+When it hits: Ao acertar
+When it is hit: Ao ser atingido
+Where the camera goes, frame by frame: Para onde a câmera vai, quadro a quadro
+Which: Qual
+Which block: Qual bloco
+Which effect: Qual efeito
+Which one do you want to change?: Qual você quer mudar?
+Which particle: Qual partícula
+Which sound: Qual som
+Which spectator a {crowd} body wears: Qual espectador um corpo {crowd} veste
+Which way it is thrown or flies, in degrees: Para que lado é arremessado ou voa, em graus
+Whose eyes it takes: De quem são os olhos
+Wind-up: Preparação
+Wind-up, aim, turns and what it chains into.: Preparação, mira, giros e o que encadeia.
+Winds back, then sweeps everything ahead.: Recua, depois varre tudo à frente.
+Wipe: Apagar
+Worn on its back: Usado nas costas
+Wraps itself in a ward that blunts blows.: Envolve-se numa proteção que amortece golpes.
+'Write it as #rrggbb, such as #8a51c4.': 'Escreva como #rrggbb, como #8a51c4.'
+'Yes': Sim
+Your own lines, played as it lands. With any, AUTO draws no style.: Suas próprias linhas, tocadas ao atingir. Com alguma, AUTO não desenha estilo.
+Your own lines, played as the wind-up starts.: Suas próprias linhas, tocadas ao começar a preparação.
+a custom item: um item personalizado
+'a name or #rrggbb': 'um nome ou #rrggbb'
+'a name or #rrggbb; dust particles only': 'um nome ou #rrggbb; só partículas de poeira'
+'a name, #rrggbb or a {palette} token': 'um nome, #rrggbb ou um token {palette}'
+a section: uma seção
+an item: um item
+an item, as in CARVED_PUMPKIN: um item, como CARVED_PUMPKIN
+an item, as in POPPY: um item, como POPPY
+at least {0} since the last one: pelo menos {0} desde o último
+at most {0} online: no máximo {0} online
+auto: auto
+'auto: {0}': 'auto: {0}'
+blank keeps each one's own: vazio mantém o de cada um
+blank keeps each one; - removes it from all: vazio mantém cada um; - remove de todos
+blank keeps each one; {0} removes it from all: vazio mantém cada um; {0} remove de todos
+burst, spread, knocked, vortex, balloon, helicopter, plane, flatten, melt, sign, thrown or animate: burst, spread, knocked, vortex, balloon, helicopter, plane, flatten, melt, sign, thrown ou animate
+command: comando
+custom skull: caveira personalizada
+default: padrão
+economy: economia
+enrage {letters_black}(auto): enrage {letters_black}(auto)
+every registered table ({0}): todas as tabelas registradas ({0})
+every {0}: a cada {0}
+experience: experiência
+for a resource pack model: para um modelo de resource pack
+for block and item particles: para partículas de bloco e item
+forever: para sempre
+hold, burst, collapse, implode, dissolve or spell: hold, burst, collapse, implode, dissolve ou spell
+in {0}: em {0}
+in, out, in_out, back, bounce, elastic or linear: in, out, in_out, back, bounce, elastic ou linear
+item: item
+item, block, head or text: item, block, head ou text
+item, block, head or text; leave empty for particles: item, block, head ou text; deixe vazio para partículas
+just now: agora mesmo
+lying, standing, crawling, sneaking or spinning: lying, standing, crawling, sneaking ou spinning
+message: mensagem
+min|max, such as 0.7|1.8, or one number. 0.1 at least.: min|max, como 0.7|1.8, ou um número. 0.1 no mínimo.
+money: dinheiro
+never: nunca
+none: nenhum
+'none: it has impact lines': 'nenhum: tem linhas de impacto'
+nothing: nada
+now {0}; a picker opens after submitting: agora {0}; um seletor abre após enviar
+now {0}; the effect list opens after submitting: agora {0}; a lista de efeitos abre após enviar
+out, in, in_out or linear: out, in, in_out ou linear
+potion: poção
+s ⌚: s ⌚
+same as size: igual ao tamanho
+shorthand for to:0,n,0: atalho para to:0,n,0
+source, target or both; source by default: source, target ou both; source por padrão
+the check did not finish: a verificação não terminou
+the last frame: o último quadro
+the target: o alvo
+the whole world: o mundo inteiro
+them alone: só eles
+theme: tema
+ticks, or 1s; 1 draws it at once: ticks, ou 1s; 1 desenha na hora
+ticks, or 5s; 100 by default: ticks, ou 5s; 100 por padrão
+tophat, or crown,wand for two: tophat, ou crown,wand para dois
+true, victim or false: true, victim ou false
+unknown: desconhecido
+world's own: o do mundo
+x, y or z: x, y ou z
+'{0} XP': '{0} XP'
+'{0} a second': '{0} por segundo'
+'{0} ago': há {0}
+'{0} blocks': '{0} blocos'
+'{0} coins': '{0} moedas'
+'{0} has no registered tables.': '{0} não tem tabelas registradas.'
+'{0} lines': '{0} linhas'
+'{0} wide': '{0} de largura'
+'{0} {letters_black}» {letters}a whole number, 0 or more': '{0} {letters_black}» {letters}um número inteiro, 0 ou mais'
+'{0}% health': '{0}% de vida'
+'{0}''s Head': Cabeça de {0}
+'{0}+ players online': '{0}+ jogadores online'
+'{0}-{1} blocks': '{0}-{1} blocos'
+'{error}&lBACK': '{error}&lVOLTAR'
+'{error}&lCANCEL': '{error}&lCANCELAR'
+'{error}&lCLEAR THE GRID': '{error}&lLIMPAR A GRADE'
+'{error}&lCLOSE': '{error}&lFECHAR'
+'{error}&lUNAVAILABLE': '{error}&lINDISPONÍVEL'
+'{error}&lUNREADABLE ENTRY': '{error}&lENTRADA ILEGÍVEL'
+'{error}&l← PREVIOUS PAGE': '{error}&l← PÁGINA ANTERIOR'
+'{error}Cancel': '{error}Cancelar'
+'{error}DENY': '{error}NEGAR'
+'{error}Deny': '{error}Negar'
+'{error}Taken': '{error}Ocupado'
+'{error}Taken {letters_black}» {letters}{0}': '{error}Ocupado {letters_black}» {letters}{0}'
+'{error}That block holds nothing to import.': '{error}Esse bloco não tem nada para importar.'
+'{error}That head is too long to store.': '{error}Essa cabeça é longa demais para guardar.'
+'{error}That is not a head.': '{error}Isso não é uma cabeça.'
+'{error}That item is too big to store as an icon. Pick a material or a head instead.': '{error}Esse item é grande demais para guardar como ícone. Escolha um material ou uma cabeça.'
+'{error}That item is too big to store. Shorten its lore, or use a plainer item.': '{error}Esse item é grande demais para guardar. Encurte a lore ou use um item mais simples.'
+'{error}That option could not be read.': '{error}Essa opção não pôde ser lida.'
+'{error}The search box is unavailable here.': '{error}A caixa de busca não está disponível aqui.'
+'{error}failed': '{error}falhou'
+'{error}none': '{error}nenhum'
+'{error}off': '{error}desligado'
+'{error}removed': '{error}removido'
+'{error}● {letters}Right Click {letters_black}» Delete': '{error}● {letters}Clique dir. {letters_black}» Excluir'
+'{error}✘ Turned off': '{error}✘ Desligado'
+'{error}➥ Click to clear': '{error}➥ Clique para limpar'
+'{error}➥ Click to discard': '{error}➥ Clique para descartar'
+'{error}➥ Right-click to remove': '{error}➥ Clique dir. para remover'
+'{highlight}&lEVERYTHING IN A CHEST': '{highlight}&lTUDO NUM BAÚ'
+'{highlight}&lLOAD DEFAULTS': '{highlight}&lCARREGAR PADRÕES'
+'{highlight}&lPASTE': '{highlight}&lCOLAR'
+'{highlight}&lWHEN IT PLAYS': '{highlight}&lQUANDO TOCA'
+'{highlight}● {letters}Shift + Left {letters_black}» Copy': '{highlight}● {letters}Shift + Esq. {letters_black}» Copiar'
+'{info}&lCOPY ALL': '{info}&lCOPIAR TUDO'
+'{info}&lEDIT ALL': '{info}&lEDITAR TUDO'
+'{info}{0} material': '{info}{0} material'
+'{info}{0} materials': '{info}{0} materiais'
+'{letters_black}&lKEEP ALL': '{letters_black}&lMANTER TODOS'
+'{letters_black}&lKEEP EVERYTHING': '{letters_black}&lMANTER TUDO'
+'{letters_black}Hidden': '{letters_black}Oculto'
+'{letters_black}▎ {error}Cancelled {letters_black}» {letters}the backup export failed, so nothing was deleted.': '{letters_black}▎ {error}Cancelado {letters_black}» {letters}a exportação de backup falhou, então nada foi excluído.'
+'{letters_black}▎ {error}Failed {letters_black}» {letters}{0}': '{letters_black}▎ {error}Falhou {letters_black}» {letters}{0}'
+'{letters_black}▎ {error}That confirmation is not valid.': '{letters_black}▎ {error}Essa confirmação não é válida.'
+'{letters_black}▎ {error}This deletes rows. There is no undo.': '{letters_black}▎ {error}Isto exclui registros. Não há como desfazer.'
+? '{letters_black}▎ {error}force MERGES, it does not replace{letters}: rows whose key is in the dump are overwritten, rows that are not in the dump stay exactly where they are.'
+: '{letters_black}▎ {error}force MESCLA, não substitui{letters}: registros cuja chave está no dump são sobrescritos, os que não estão no dump ficam exatamente onde estão.'
+'{letters_black}▎ {error}{0} has no registered tables.': '{letters_black}▎ {error}{0} não tem tabelas registradas.'
+'{letters_black}▎ {error}{0} has no table named {1}.': '{letters_black}▎ {error}{0} não tem tabela chamada {1}.'
+'{letters_black}▎ {info}{0} {letters}still to review <click:run_command:''/exylialib updates''>{warning}[Review]</click>': '{letters_black}▎ {info}{0} {letters}ainda para revisar <click:run_command:''/exylialib updates''>{warning}[Revisar]</click>'
+'{letters_black}▎ {letters}A code is issued for one sender, one plugin and one table, and expires after {0} seconds.': '{letters_black}▎ {letters}Um código é emitido para um remetente, um plugin e uma tabela, e expira após {0} segundos.'
+'{letters_black}▎ {letters}A plugin appears here once it has asked for its first repository.': '{letters_black}▎ {letters}Um plugin aparece aqui quando pede seu primeiro repositório.'
+'{letters_black}▎ {letters}Add {info}{0} {letters}copied entries to': '{letters_black}▎ {letters}Adicionar {info}{0} {letters}entradas copiadas a'
+'{letters_black}▎ {letters}Add {info}{0} {letters}copied entry to': '{letters_black}▎ {letters}Adicionar {info}{0} {letters}entrada copiada a'
+'{letters_black}▎ {letters}Change a value on every': '{letters_black}▎ {letters}Mudar um valor em cada'
+'{letters_black}▎ {letters}Click to choose this option.': '{letters_black}▎ {letters}Clique para escolher esta opção.'
+'{letters_black}▎ {letters}Close without choosing.': '{letters_black}▎ {letters}Fechar sem escolher.'
+'{letters_black}▎ {letters}Copy every entry here {letters_black}({0})': '{letters_black}▎ {letters}Copiar todas as entradas daqui {letters_black}({0})'
+'{letters_black}▎ {letters}Create a new entry and': '{letters_black}▎ {letters}Criar uma nova entrada e'
+'{letters_black}▎ {letters}Discard every change and': '{letters_black}▎ {letters}Descartar todas as mudanças e'
+'{letters_black}▎ {letters}Each item above becomes': '{letters_black}▎ {letters}Cada item acima vira'
+'{letters_black}▎ {letters}Engine {letters_black}» {info}{0} {letters_black}({1}{letters_black})': '{letters_black}▎ {letters}Motor {letters_black}» {info}{0} {letters_black}({1}{letters_black})'
+'{letters_black}▎ {letters}Entries {letters_black}» {info}{0}': '{letters_black}▎ {letters}Entradas {letters_black}» {info}{0}'
+'{letters_black}▎ {letters}Fetching results…': '{letters_black}▎ {letters}Buscando resultados…'
+'{letters_black}▎ {letters}Keep every change made here.': '{letters_black}▎ {letters}Manter todas as mudanças feitas aqui.'
+'{letters_black}▎ {letters}Matches {letters_black}» {info}{0}': '{letters_black}▎ {letters}Resultados {letters_black}» {info}{0}'
+'{letters_black}▎ {letters}Page {info}{0}{letters_black}/{info}{1}': '{letters_black}▎ {letters}Página {info}{0}{letters_black}/{info}{1}'
+'{letters_black}▎ {letters}Page {letters_black}» {info}{0}{letters_black}/{info}{1}': '{letters_black}▎ {letters}Página {letters_black}» {info}{0}{letters_black}/{info}{1}'
+'{letters_black}▎ {letters}Plugins {letters_black}» {info}{0}': '{letters_black}▎ {letters}Plugins {letters_black}» {info}{0}'
+'{letters_black}▎ {letters}Query {letters_black}» {0}': '{letters_black}▎ {letters}Busca {letters_black}» {0}'
+'{letters_black}▎ {letters}Read the item above and use': '{letters_black}▎ {letters}Ler o item acima e usá-lo'
+'{letters_black}▎ {letters}Redis {letters_black}» {0}': '{letters_black}▎ {letters}Redis {letters_black}» {0}'
+'{letters_black}▎ {letters}Show every option again.': '{letters_black}▎ {letters}Mostrar todas as opções de novo.'
+'{letters_black}▎ {letters}The catalogue could not be reached.': '{letters_black}▎ {letters}O catálogo não pôde ser acessado.'
+'{letters_black}▎ {letters}This row could not be described.': '{letters_black}▎ {letters}Este registro não pôde ser descrito.'
+'{letters_black}▎ {letters}Type to filter these results.': '{letters_black}▎ {letters}Digite para filtrar estes resultados.'
+'{letters_black}▎ {letters}You get the item back either way.': '{letters_black}▎ {letters}Você recebe o item de volta de qualquer forma.'
+'{letters_black}▎ {letters}You get the items back either way.': '{letters_black}▎ {letters}Você recebe os itens de volta de qualquer forma.'
+'{letters_black}▎ {letters}close this screen.': '{letters_black}▎ {letters}fechar esta tela.'
+'{letters_black}▎ {letters}configure it right away.': '{letters_black}▎ {letters}configurá-la na hora.'
+'{letters_black}▎ {letters}entry here at once {letters_black}({0})': '{letters_black}▎ {letters}entrada daqui de uma vez {letters_black}({0})'
+'{letters_black}▎ {letters}it as the icon.': '{letters_black}▎ {letters}como ícone.'
+'{letters_black}▎ {letters}its own entry.': '{letters_black}▎ {letters}sua própria entrada.'
+'{letters_black}▎ {letters}ready to paste somewhere else.': '{letters_black}▎ {letters}prontas para colar em outro lugar.'
+'{letters_black}▎ {letters}this list.': '{letters_black}▎ {letters}esta lista.'
+? '{letters_black}▎ {letters}{0} still holds these rows in memory; until the restart, writes to its tables are ignored so they cannot come back. Wipe other tables first if you need to.'
+: '{letters_black}▎ {letters}{0} ainda guarda estes registros na memória; até reiniciar, gravações nas tabelas dele são ignoradas para que não voltem. Apague outras tabelas antes, se precisar.'
+? '{letters_black}▎ {letters}{0} still holds these rows in memory; until the restart, writes to {1} are ignored so they cannot come back. Wipe other tables first if you need to.'
+: '{letters_black}▎ {letters}{0} ainda guarda estes registros na memória; até reiniciar, gravações em {1} são ignoradas para que não voltem. Apague outras tabelas antes, se precisar.'
+'{letters_black}▎ {muted}A reload cannot swap a library every plugin is bound to.': '{letters_black}▎ {muted}Um reload não pode trocar uma biblioteca da qual todo plugin depende.'
+'{letters_black}▎ {muted}A table a plugin registers lazily is not listed here and will not be exported.': '{letters_black}▎ {muted}Uma tabela que um plugin registra tardiamente não é listada aqui e não será exportada.'
+'{letters_black}▎ {muted}Nothing was deleted.': '{letters_black}▎ {muted}Nada foi excluído.'
+'{letters_black}▎ {muted}Still running {letters}{0}{muted}. Nothing was changed.': '{letters_black}▎ {muted}Ainda executando {letters}{0}{muted}. Nada foi alterado.'
+'{letters_black}▎ {muted}Use {0} (or {1}) to wipe every one of them.': '{letters_black}▎ {muted}Use {0} (ou {1}) para apagar todas elas.'
+'{letters_black}▎ {muted}none found on this server': '{letters_black}▎ {muted}nenhum encontrado neste servidor'
+'{letters_black}▎ {secondary}Actions {letters_black}» {info}{0}': '{letters_black}▎ {secondary}Ações {letters_black}» {info}{0}'
+'{letters_black}▎ {secondary}Already staged {letters_black}» {info}{0} {letters}is waiting in the update folder.': '{letters_black}▎ {secondary}Já preparado {letters_black}» {info}{0} {letters}aguarda na pasta de atualização.'
+'{letters_black}▎ {secondary}Auto-update {letters_black}» {0}': '{letters_black}▎ {secondary}Auto-atualização {letters_black}» {0}'
+'{letters_black}▎ {secondary}Available {letters_black}» {0}': '{letters_black}▎ {secondary}Disponível {letters_black}» {0}'
+? '{letters_black}▎ {secondary}Backup {letters_black}» {letters}a dump is written into {0} first, and the wipe is cancelled if it fails'
+: '{letters_black}▎ {secondary}Backup {letters_black}» {letters}um dump é gravado em {0} antes, e a limpeza é cancelada se ele falhar'
+'{letters_black}▎ {secondary}Backup {letters_black}» {letters}writing a dump first, into {0}': '{letters_black}▎ {secondary}Backup {letters_black}» {letters}gravando um dump antes, em {0}'
+'{letters_black}▎ {secondary}Backup {letters_black}» {letters}{0} {muted}({1} rows)': '{letters_black}▎ {secondary}Backup {letters_black}» {letters}{0} {muted}({1} registros)'
+'{letters_black}▎ {secondary}Checking {letters_black}» {letters}asking GitHub for the newest release...': '{letters_black}▎ {secondary}Verificando {letters_black}» {letters}consultando o GitHub pela versão mais recente...'
+'{letters_black}▎ {secondary}Configs loaded {letters_black}» {info}{0}': '{letters_black}▎ {secondary}Configs carregadas {letters_black}» {info}{0}'
+'{letters_black}▎ {secondary}Debug {letters_black}» {0}': '{letters_black}▎ {secondary}Debug {letters_black}» {0}'
+'{letters_black}▎ {secondary}Effects {letters_black}» {info}{0}': '{letters_black}▎ {secondary}Efeitos {letters_black}» {info}{0}'
+? '{letters_black}▎ {secondary}Export {letters_black}» {letters}{muted}/exylialib export <plugin>{letters} — writes that plugin''s tables to a dump.'
+: '{letters_black}▎ {secondary}Exportar {letters_black}» {letters}{muted}/exylialib export <plugin>{letters} — grava as tabelas desse plugin num dump.'
+'{letters_black}▎ {secondary}Exporting {letters_black}» {info}{0} {letters}({1} tables)': '{letters_black}▎ {secondary}Exportando {letters_black}» {info}{0} {letters}({1} tabelas)'
+'{letters_black}▎ {secondary}File {letters_black}» {letters}{0}': '{letters_black}▎ {secondary}Arquivo {letters_black}» {letters}{0}'
+'{letters_black}▎ {secondary}Holograms {letters_black}» {0}': '{letters_black}▎ {secondary}Hologramas {letters_black}» {0}'
+? '{letters_black}▎ {secondary}Import {letters_black}» {letters}{muted}/exylialib import <plugin> <file> [force]{letters} — reads one back; force MERGES rather than replacing.'
+: '{letters_black}▎ {secondary}Importar {letters_black}» {letters}{muted}/exylialib import <plugin> <file> [force]{letters} — lê um de volta; force MESCLA em vez de substituir.'
+'{letters_black}▎ {secondary}Importing {letters_black}» {info}{0}': '{letters_black}▎ {secondary}Importando {letters_black}» {info}{0}'
+? '{letters_black}▎ {secondary}Info {letters_black}» {letters}{muted}/exylialib info{letters} — version, platform and who depends on this library.'
+: '{letters_black}▎ {secondary}Info {letters_black}» {letters}{muted}/exylialib info{letters} — versão, plataforma e quem depende desta biblioteca.'
+'{letters_black}▎ {secondary}Kept {info}{0} {letters}value as it was.': '{letters_black}▎ {secondary}Mantido {info}{0} {letters}valor como estava.'
+'{letters_black}▎ {secondary}Kept {info}{0} {letters}values as they were.': '{letters_black}▎ {secondary}Mantidos {info}{0} {letters}valores como estavam.'
+'{letters_black}▎ {secondary}Menus {letters_black}» {info}{0} {letters}plugins': '{letters_black}▎ {secondary}Menus {letters_black}» {info}{0} {letters}plugins'
+'{letters_black}▎ {secondary}Mode {letters_black}» {0}': '{letters_black}▎ {secondary}Modo {letters_black}» {0}'
+'{letters_black}▎ {secondary}Platform {letters_black}» {info}{0}': '{letters_black}▎ {secondary}Plataforma {letters_black}» {info}{0}'
+'{letters_black}▎ {secondary}Regions {letters_black}» {info}{0} {letters}plugins': '{letters_black}▎ {secondary}Regiões {letters_black}» {info}{0} {letters}plugins'
+? '{letters_black}▎ {secondary}Reload {letters_black}» {letters}{muted}/exylialib reload{letters} — refreshes colours, formats, economy detection and input settings.'
+: '{letters_black}▎ {secondary}Recarregar {letters_black}» {letters}{muted}/exylialib reload{letters} — atualiza cores, formatos, detecção de economia e configurações de entrada.'
+'{letters_black}▎ {secondary}Reloaded {letters_black}» {letters}{0}': '{letters_black}▎ {secondary}Recarregado {letters_black}» {letters}{0}'
+'{letters_black}▎ {secondary}Result {letters_black}» {0}': '{letters_black}▎ {secondary}Resultado {letters_black}» {0}'
+'{letters_black}▎ {secondary}Rows {letters_black}» {info}{0}': '{letters_black}▎ {secondary}Registros {letters_black}» {info}{0}'
+'{letters_black}▎ {secondary}Scoreboards {letters_black}» {info}{0}': '{letters_black}▎ {secondary}Placares {letters_black}» {info}{0}'
+'{letters_black}▎ {secondary}Small text {letters_black}» {0}': '{letters_black}▎ {secondary}Texto pequeno {letters_black}» {0}'
+? '{letters_black}▎ {secondary}Stats {letters_black}» {letters}{muted}/exylialib stats{letters} — live counters from every module.'
+: '{letters_black}▎ {secondary}Estatísticas {letters_black}» {letters}{muted}/exylialib stats{letters} — contadores ao vivo de cada módulo.'
+'{letters_black}▎ {secondary}Tables {letters_black}» {letters}{0}': '{letters_black}▎ {secondary}Tabelas {letters_black}» {letters}{0}'
+'{letters_black}▎ {secondary}Target {letters_black}» {letters}{0}': '{letters_black}▎ {secondary}Alvo {letters_black}» {letters}{0}'
+'{letters_black}▎ {secondary}Took {letters_black}» {info}{0}ms': '{letters_black}▎ {secondary}Levou {letters_black}» {info}{0}ms'
+? '{letters_black}▎ {secondary}Update {letters_black}» {letters}{muted}/exylialib update{letters} — checks GitHub now and stages a newer release.'
+: '{letters_black}▎ {secondary}Atualizar {letters_black}» {letters}{muted}/exylialib update{letters} — consulta o GitHub agora e prepara uma versão mais nova.'
+? '{letters_black}▎ {secondary}Updates {letters_black}» {letters}{muted}/exylialib updates{letters} — default changes plugin updates shipped, to apply or keep.'
+: '{letters_black}▎ {secondary}Atualizações {letters_black}» {letters}{muted}/exylialib updates{letters} — mudanças de padrão trazidas por atualizações de plugins, para aplicar ou manter.'
+? '{letters_black}▎ {secondary}Wipe {letters_black}» {letters}{muted}/exylialib wipe <plugin> <table|*>{letters} — empties tables, after a typed confirmation and an automatic dump.'
+: '{letters_black}▎ {secondary}Limpar {letters_black}» {letters}{muted}/exylialib wipe <plugin> <table|*>{letters} — esvazia tabelas, após uma confirmação digitada e um dump automático.'
+'{letters_black}▎ {secondary}Wiping {letters_black}» {info}{0} {letters}({1} tables)': '{letters_black}▎ {secondary}Limpando {letters_black}» {info}{0} {letters}({1} tabelas)'
+'{letters_black}▎ {secondary}Wiping {letters_black}» {info}{0} {letters}({1})': '{letters_black}▎ {secondary}Limpando {letters_black}» {info}{0} {letters}({1})'
+'{letters_black}▎ {success}Applied {info}{0} {letters}change.': '{letters_black}▎ {success}Aplicada {info}{0} {letters}mudança.'
+'{letters_black}▎ {success}Applied {info}{0} {letters}changes.': '{letters_black}▎ {success}Aplicadas {info}{0} {letters}mudanças.'
+'{letters_black}▎ {success}Nothing to review. {letters}New defaults are added on their own; changed ones wait here.': '{letters_black}▎ {success}Nada para revisar. {letters}Novos padrões são adicionados sozinhos; os alterados esperam aqui.'
+'{letters_black}▎ {success}Reloaded {letters_black}» {letters}colours, formats, economy and input are live everywhere.': '{letters_black}▎ {success}Recarregado {letters_black}» {letters}cores, formatos, economia e entrada estão ativos em todo lugar.'
+'{letters_black}▎ {success}Staged {letters_black}» {info}{0} {letters}downloaded and verified.': '{letters_black}▎ {success}Preparado {letters_black}» {info}{0} {letters}baixado e verificado.'
+'{letters_black}▎ {success}Up to date {letters_black}» {letters}running {info}{0}{letters}, which is the newest release.': '{letters_black}▎ {success}Atualizado {letters_black}» {letters}executando {info}{0}{letters}, que é a versão mais recente.'
+'{letters_black}▎ {warning}Nothing pending matches {letters}%target%{warning}.': '{letters_black}▎ {warning}Nada pendente corresponde a {letters}%target%{warning}.'
+'{letters_black}▎ {warning}Reload {letters}{0} {warning}to see it live.': '{letters_black}▎ {warning}Recarregue {letters}{0} {warning}para ver ao vivo.'
+'{letters_black}▎ {warning}{0} {letters}changed on disk since the list was shown, and were left alone.': '{letters_black}▎ {warning}{0} {letters}mudaram no disco desde que a lista foi mostrada, e ficaram intactos.'
+'{letters}Default {muted}({0})': '{letters}Padrão {muted}({0})'
+'{letters}Type to search': '{letters}Digite para buscar'
+'{letters}safe': '{letters}seguro'
+'{muted}AUTO': '{muted}AUTO'
+'{muted}DEFAULT': '{muted}PADRÃO'
+'{muted}Default': '{muted}Padrão'
+'{muted}N/A (PacketEvents not present)': '{muted}N/D (PacketEvents ausente)'
+'{muted}No materials': '{muted}Sem materiais'
+'{muted}Place it at the next free position': '{muted}Colocar na próxima posição livre'
+'{muted}Set by the plugin': '{muted}Definido pelo plugin'
+'{muted}Type to filter': '{muted}Digite para filtrar'
+'{muted}Type to search': '{muted}Digite para buscar'
+'{muted}Type {highlight}%cancel%{muted} to cancel, or {highlight}%back%{muted} to revisit the previous field.': '{muted}Digite {highlight}%cancel%{muted} para cancelar, ou {highlight}%back%{muted} para voltar ao campo anterior.'
+'{muted}Type {highlight}%cancel%{muted} to cancel.': '{muted}Digite {highlight}%cancel%{muted} para cancelar.'
+'{muted}[Keep all]': '{muted}[Manter todos]'
+'{muted}[Keep]': '{muted}[Manter]'
+'{muted}none': '{muted}nenhum'
+'{muted}nothing yet': '{muted}nada ainda'
+'{muted}off': '{muted}desligado'
+'{muted}skipped': '{muted}pulado'
+'{muted}transfer': '{muted}transferência'
+'{muted}update': '{muted}atualização'
+'{muted}updates': '{muted}atualizações'
+'{primary}&l%key% &8[{error}REMOVED&8]': '{primary}&l%key% &8[{error}REMOVIDO&8]'
+'{primary}&l%key% &8[{success}NEW&8]': '{primary}&l%key% &8[{success}NOVO&8]'
+'{primary}&l%updates_file% {muted}%current_page%/%total_pages%': '{primary}&l%updates_file% {muted}%current_page%/%total_pages%'
+'{primary}&l%updates_plugin% {muted}%current_page%/%total_pages%': '{primary}&l%updates_plugin% {muted}%current_page%/%total_pages%'
+'{primary}&lA COMMAND': '{primary}&lUM COMANDO'
+'{primary}&lADD A SKILL': '{primary}&lADICIONAR HABILIDADE'
+'{primary}&lALLOWED BLOCKS': '{primary}&lBLOCOS PERMITIDOS'
+'{primary}&lALLOWED BLOCKS ONLY': '{primary}&lSÓ BLOCOS PERMITIDOS'
+'{primary}&lAN ITEM': '{primary}&lUM ITEM'
+'{primary}&lAPPEARANCE': '{primary}&lAPARÊNCIA'
+'{primary}&lATTRIBUTES': '{primary}&lATRIBUTOS'
+'{primary}&lAUTO &8[{info}{0}&8]': '{primary}&lAUTO &8[{info}{0}&8]'
+'{primary}&lBEHAVIOUR': '{primary}&lCOMPORTAMENTO'
+'{primary}&lBELOW {0}%': '{primary}&lABAIXO DE {0}%'
+'{primary}&lBLOCK LIFETIME': '{primary}&lDURAÇÃO DOS BLOCOS'
+'{primary}&lBREAK': '{primary}&lQUEBRAR'
+'{primary}&lBREAKABLE BLOCKS': '{primary}&lBLOCOS QUEBRÁVEIS'
+'{primary}&lBREAKABLE BLOCKS ONLY': '{primary}&lSÓ BLOCOS QUEBRÁVEIS'
+'{primary}&lBUILD': '{primary}&lCONSTRUIR'
+'{primary}&lBUTTON': '{primary}&lBOTÃO'
+'{primary}&lCONDITIONS': '{primary}&lCONDIÇÕES'
+'{primary}&lCUSTOM': '{primary}&lPERSONALIZADO'
+'{primary}&lCUSTOM &8[{info}#rrggbb&8]': '{primary}&lPERSONALIZADO &8[{info}#rrggbb&8]'
+'{primary}&lEDIT ALL {0} LINES': '{primary}&lEDITAR AS {0} LINHAS'
+'{primary}&lEDIT ALL {0} REWARDS': '{primary}&lEDITAR AS {0} RECOMPENSAS'
+'{primary}&lEDIT COMMAND': '{primary}&lEDITAR COMANDO'
+'{primary}&lEDIT EFFECT': '{primary}&lEDITAR EFEITO'
+'{primary}&lEDIT LOOT': '{primary}&lEDITAR SAQUE'
+'{primary}&lEDIT REWARD': '{primary}&lEDITAR RECOMPENSA'
+'{primary}&lEDIT SCHEDULE': '{primary}&lEDITAR AGENDAMENTO'
+'{primary}&lEDIT SKILL': '{primary}&lEDITAR HABILIDADE'
+'{primary}&lEDIT {0}': '{primary}&lEDITAR {0}'
+'{primary}&lEDITOR': '{primary}&lEDITOR'
+'{primary}&lEFFECTS': '{primary}&lEFEITOS'
+'{primary}&lENTRY': '{primary}&lENTRADA'
+'{primary}&lEXIT': '{primary}&lSAIR'
+'{primary}&lFALL DAMAGE': '{primary}&lDANO DE QUEDA'
+'{primary}&lFIGHT': '{primary}&lLUTA'
+'{primary}&lFLAGS': '{primary}&lFLAGS'
+'{primary}&lFLAGS &8[{info}{0}&8/{info}{1}&8]': '{primary}&lFLAGS &8[{info}{0}&8/{info}{1}&8]'
+'{primary}&lIMPACT LINES': '{primary}&lLINHAS DE IMPACTO'
+'{primary}&lIMPACT LINES &8[{info}{0}&8]': '{primary}&lLINHAS DE IMPACTO &8[{info}{0}&8]'
+'{primary}&lIMPORT FROM A CHEST': '{primary}&lIMPORTAR DE UM BAÚ'
+'{primary}&lINSERT AN ITEM': '{primary}&lINSERIR UM ITEM'
+'{primary}&lINSERT THE ITEMS': '{primary}&lINSERIR OS ITENS'
+'{primary}&lINTERACT': '{primary}&lINTERAGIR'
+'{primary}&lITEM DROP': '{primary}&lSOLTAR ITENS'
+'{primary}&lITEM PICKUP': '{primary}&lPEGAR ITENS'
+'{primary}&lLIST': '{primary}&lLISTA'
+'{primary}&lLOADOUT': '{primary}&lEQUIPAMENTO'
+'{primary}&lLOOK': '{primary}&lVISUAL'
+'{primary}&lMECHANICS': '{primary}&lMECÂNICAS'
+'{primary}&lMEMBERS ONLY': '{primary}&lSÓ MEMBROS'
+'{primary}&lMONEY': '{primary}&lDINHEIRO'
+'{primary}&lNEXT': '{primary}&lPRÓXIMO'
+'{primary}&lPHASE': '{primary}&lFASE'
+'{primary}&lPHASES': '{primary}&lFASES'
+'{primary}&lPHASES &8[{info}{0}&8]': '{primary}&lFASES &8[{info}{0}&8]'
+'{primary}&lPLAYER BLOCKS ONLY': '{primary}&lSÓ BLOCOS DE JOGADORES'
+'{primary}&lPLUGIN UPDATES': '{primary}&lATUALIZAÇÕES DE PLUGINS'
+'{primary}&lPREVIOUS': '{primary}&lANTERIOR'
+'{primary}&lPVP': '{primary}&lPVP'
+'{primary}&lREACTIONS': '{primary}&lREAÇÕES'
+'{primary}&lREGION FLAGS': '{primary}&lFLAGS DA REGIÃO'
+'{primary}&lREGION SELECTOR': '{primary}&lSELETOR DE REGIÃO'
+'{primary}&lREPLACE THE ITEM': '{primary}&lSUBSTITUIR O ITEM'
+'{primary}&lRETURN BLOCKS': '{primary}&lDEVOLVER BLOCOS'
+'{primary}&lSEARCH': '{primary}&lBUSCAR'
+'{primary}&lSEARCH RESULTS': '{primary}&lRESULTADOS DA BUSCA'
+'{primary}&lSEARCHING': '{primary}&lBUSCANDO'
+'{primary}&lSEVERAL COMMANDS': '{primary}&lVÁRIOS COMANDOS'
+'{primary}&lSEVERAL ITEMS': '{primary}&lVÁRIOS ITENS'
+'{primary}&lSTYLE': '{primary}&lESTILO'
+'{primary}&lSTYLE &8[{info}{0}&8]': '{primary}&lESTILO &8[{info}{0}&8]'
+'{primary}&lTEMPORARY BLOCKS': '{primary}&lBLOCOS TEMPORÁRIOS'
+'{primary}&lTHEME': '{primary}&lTEMA'
+'{primary}&lTIMING': '{primary}&lTEMPO'
+'{primary}&lTIMING & AIM': '{primary}&lTEMPO E MIRA'
+'{primary}&lTINT': '{primary}&lTONALIDADE'
+'{primary}&lTINT &8[{info}{0}&8]': '{primary}&lTONALIDADE &8[{info}{0}&8]'
+'{primary}&lUPDATES {muted}%current_page%/%total_pages%': '{primary}&lATUALIZAÇÕES {muted}%current_page%/%total_pages%'
+'{primary}&lWHAT DO THEY RUN?': '{primary}&lO QUE ELES EXECUTAM?'
+'{primary}&lWHAT DO YOU WANT TO ADD?': '{primary}&lO QUE VOCÊ QUER ADICIONAR?'
+'{primary}&lWHAT DOES IT DO?': '{primary}&lO QUE ELE FAZ?'
+'{primary}&lWHAT DOES IT GIVE?': '{primary}&lO QUE ELE DÁ?'
+'{primary}&lWHAT DOES IT PLAY?': '{primary}&lO QUE ELE TOCA?'
+'{primary}&lWHAT DOES IT RUN?': '{primary}&lO QUE ELE EXECUTA?'
+'{primary}&lWHAT EFFECTS?': '{primary}&lQUAIS EFEITOS?'
+'{primary}&lWHAT ICON?': '{primary}&lQUAL ÍCONE?'
+'{primary}&lWHAT IT PLAYS': '{primary}&lO QUE TOCA'
+'{primary}&lWHAT ITEM?': '{primary}&lQUAL ITEM?'
+'{primary}&lWHEN IT PLAYS': '{primary}&lQUANDO TOCA'
+'{primary}&lWHEN?': '{primary}&lQUANDO?'
+'{primary}&lWHICH COLOUR?': '{primary}&lQUAL COR?'
+'{primary}&lWHICH EFFECT?': '{primary}&lQUAL EFEITO?'
+'{primary}&lWHICH ENCHANTMENT?': '{primary}&lQUAL ENCANTAMENTO?'
+'{primary}&lWHICH ITEM?': '{primary}&lQUAL ITEM?'
+'{primary}&lWHICH MATERIAL?': '{primary}&lQUAL MATERIAL?'
+'{primary}&lWHICH PARTICLE?': '{primary}&lQUAL PARTÍCULA?'
+'{primary}&lWHICH SHAPE?': '{primary}&lQUAL FORMA?'
+'{primary}&lWHICH SOUND?': '{primary}&lQUAL SOM?'
+'{primary}&lWIND-UP LINES': '{primary}&lLINHAS DE PREPARAÇÃO'
+'{primary}&lWIND-UP LINES &8[{info}{0}&8]': '{primary}&lLINHAS DE PREPARAÇÃO &8[{info}{0}&8]'
+'{primary}&lWIPE&r {muted}{0}': '{primary}&lAPAGAR&r {muted}{0}'
+'{primary}&l← ARMOUR & OFFHAND': '{primary}&l← ARMADURA E MÃO SECUNDÁRIA'
+'{primary}&l▶ PREVIEW': '{primary}&l▶ PRÉVIA'
+'{primary}Next': '{primary}Próximo'
+'{primary}Previous': '{primary}Anterior'
+'{primary}Search': '{primary}Buscar'
+'{primary}Type a colour as #rrggbb': '{primary}Digite uma cor como #rrggbb'
+? '{primary}✦ {info}%count% {letters}default change to review {letters_black}» {letters}%plugins% <click:run_command:''/exylialib updates''>{warning}[Review]</click>'
+: '{primary}✦ {info}%count% {letters}mudança de padrão para revisar {letters_black}» {letters}%plugins% <click:run_command:''/exylialib updates''>{warning}[Revisar]</click>'
+? '{primary}✦ {info}%count% {letters}default changes to review {letters_black}» {letters}%plugins% <click:run_command:''/exylialib updates''>{warning}[Review]</click>'
+: '{primary}✦ {info}%count% {letters}mudanças de padrão para revisar {letters_black}» {letters}%plugins% <click:run_command:''/exylialib updates''>{warning}[Revisar]</click>'
+'{secondary}&lCLEAR': '{secondary}&lLIMPAR'
+'{secondary}&lNEXT »': '{secondary}&lPRÓXIMO »'
+'{secondary}&l« PREVIOUS': '{secondary}&l« ANTERIOR'
+'{secondary}Cast:': '{secondary}Lança:'
+'{secondary}Database:': '{secondary}Banco de dados:'
+'{secondary}Depending plugins:': '{secondary}Plugins dependentes:'
+'{secondary}Effect:': '{secondary}Efeito:'
+'{secondary}Gives:': '{secondary}Dá:'
+'{secondary}Information:': '{secondary}Informação:'
+'{secondary}Locked:': '{secondary}Bloqueado:'
+'{secondary}Materials:': '{secondary}Materiais:'
+'{secondary}New default:': '{secondary}Novo padrão:'
+'{secondary}New setting:': '{secondary}Nova configuração:'
+'{secondary}Odds:': '{secondary}Chances:'
+'{secondary}On screen:': '{secondary}Na tela:'
+'{secondary}Only for:': '{secondary}Só para:'
+'{secondary}Only if:': '{secondary}Só se:'
+'{secondary}Phase:': '{secondary}Fase:'
+'{secondary}Place:': '{secondary}Local:'
+'{secondary}Plays:': '{secondary}Toca:'
+'{secondary}Problems:': '{secondary}Problemas:'
+'{secondary}Reward:': '{secondary}Recompensa:'
+'{secondary}Runs:': '{secondary}Executa:'
+'{secondary}Says:': '{secondary}Diz:'
+'{secondary}Selection:': '{secondary}Seleção:'
+'{secondary}Settings:': '{secondary}Configurações:'
+'{secondary}Skill:': '{secondary}Habilidade:'
+'{secondary}Stack:': '{secondary}Pilha:'
+'{secondary}State:': '{secondary}Estado:'
+'{secondary}The five slots to the left:': '{secondary}Os cinco slots à esquerda:'
+'{secondary}When:': '{secondary}Quando:'
+'{secondary}Your value:': '{secondary}Seu valor:'
+'{secondary}✔ {letters}Kept {info}{0} {letters}value': '{secondary}✔ {letters}Mantido {info}{0} {letters}valor'
+'{secondary}✔ {letters}Kept {info}{0} {letters}values': '{secondary}✔ {letters}Mantidos {info}{0} {letters}valores'
+'{success}&l%count% {letters}match(es)': '{success}&l%count% {letters}resultado(s)'
+'{success}&lADD': '{success}&lADICIONAR'
+'{success}&lALL CAUGHT UP': '{success}&lTUDO EM DIA'
+'{success}&lAPPLY ALL': '{success}&lAPLICAR TODOS'
+'{success}&lAPPLY EVERYTHING': '{success}&lAPLICAR TUDO'
+'{success}&lIMPORT MY INVENTORY': '{success}&lIMPORTAR MEU INVENTÁRIO'
+'{success}&lNEXT PAGE →': '{success}&lPRÓXIMA PÁGINA →'
+'{success}&lSAVE': '{success}&lSALVAR'
+'{success}&lSAVE & BACK': '{success}&lSALVAR E VOLTAR'
+'{success}&lSEARCH {letters}%query%': '{success}&lBUSCAR {letters}%query%'
+'{success}&lUSE THESE ITEMS': '{success}&lUSAR ESTES ITENS'
+'{success}&lUSE THIS ITEM': '{success}&lUSAR ESTE ITEM'
+'{success}ALLOW': '{success}PERMITIR'
+'{success}Added {info}{0} {success}reward.': '{success}Adicionada {info}{0} {success}recompensa.'
+'{success}Added {info}{0} {success}rewards.': '{success}Adicionadas {info}{0} {success}recompensas.'
+'{success}Allow': '{success}Permitir'
+'{success}Free': '{success}Livre'
+'{success}Imported {info}{0} {success}line.': '{success}Importada {info}{0} {success}linha.'
+'{success}Imported {info}{0} {success}lines.': '{success}Importadas {info}{0} {success}linhas.'
+'{success}Reloaded {highlight}{0} {success}step in {info}{1}ms': '{success}Recarregada {highlight}{0} {success}etapa em {info}{1}ms'
+'{success}Reloaded {highlight}{0} {success}steps in {info}{1}ms': '{success}Recarregadas {highlight}{0} {success}etapas em {info}{1}ms'
+'{success}Shown': '{success}Visível'
+'{success}[Apply all]': '{success}[Aplicar todos]'
+'{success}[Apply]': '{success}[Aplicar]'
+'{success}always': '{success}sempre'
+'{success}new ': '{success}novo '
+'{success}on': '{success}ligado'
+'{success}on {letters_black}({0})': '{success}ligado {letters_black}({0})'
+'{success}success': '{success}sucesso'
+'{success}● {letters}Left Click {letters_black}» Edit': '{success}● {letters}Clique esq. {letters_black}» Editar'
+'{success}✔ {letters}Applied {info}{0} {letters}change': '{success}✔ {letters}Aplicada {info}{0} {letters}mudança'
+'{success}✔ {letters}Applied {info}{0} {letters}changes': '{success}✔ {letters}Aplicadas {info}{0} {letters}mudanças'
+'{warning}Browse a head': '{warning}Procurar uma cabeça'
+'{warning}Paste a head {muted}(playerhead-Notch, basehead-<base64>, urlhead-<url>)': '{warning}Cole uma cabeça {muted}(playerhead-Notch, basehead-<base64>, urlhead-<url>)'
+'{warning}Reloaded {highlight}{0}/{1} {warning}steps in {info}{2}ms {letters_black}» {error}{3}': '{warning}Recarregadas {highlight}{0}/{1} {warning}etapas em {info}{2}ms {letters_black}» {error}{3}'
+'{warning}Search a material': '{warning}Buscar um material'
+'{warning}That is enough changes for now; nothing was created.': '{warning}Já são mudanças demais por agora; nada foi criado.'
+'{warning}You are already at the first field.': '{warning}Você já está no primeiro campo.'
+'{warning}You are not holding anything. Take the item and try again.': '{warning}Você não está segurando nada. Pegue o item e tente de novo.'
+'{warning}force {letters}(merge)': '{warning}force {letters}(mesclar)'
+'{warning}partial': '{warning}parcial'
+'{warning}{0} {letters}(layout drifted)': '{warning}{0} {letters}(layout alterado)'
+'{warning}⚠ {letters}Not finished yet': '{warning}⚠ {letters}Ainda não terminado'
+'{warning}➥ Click to add': '{warning}➥ Clique para adicionar'
+'{warning}➥ Click to apply all': '{warning}➥ Clique para aplicar tudo'
+'{warning}➥ Click to change, then save': '{warning}➥ Clique para mudar, depois salve'
+'{warning}➥ Click to clear the search': '{warning}➥ Clique para limpar a busca'
+'{warning}➥ Click to confirm': '{warning}➥ Clique para confirmar'
+'{warning}➥ Click to copy': '{warning}➥ Clique para copiar'
+'{warning}➥ Click to cycle': '{warning}➥ Clique para alternar'
+'{warning}➥ Click to discard': '{warning}➥ Clique para descartar'
+'{warning}➥ Click to edit all': '{warning}➥ Clique para editar tudo'
+'{warning}➥ Click to edit the list': '{warning}➥ Clique para editar a lista'
+'{warning}➥ Click to import': '{warning}➥ Clique para importar'
+'{warning}➥ Click to keep all': '{warning}➥ Clique para manter tudo'
+'{warning}➥ Click to load, then save': '{warning}➥ Clique para carregar, depois salve'
+'{warning}➥ Click to open the text box': '{warning}➥ Clique para abrir a caixa de texto'
+'{warning}➥ Click to paste': '{warning}➥ Clique para colar'
+'{warning}➥ Click to review': '{warning}➥ Clique para revisar'
+'{warning}➥ Click to save': '{warning}➥ Clique para salvar'
+'{warning}➥ Click to set': '{warning}➥ Clique para definir'
+'{warning}➥ Click to swap': '{warning}➥ Clique para trocar'
+'{warning}➥ Confirm within {0}s:': '{warning}➥ Confirme em até {0}s:'
+'{warning}➥ Editing moves it to where you stand': '{warning}➥ Editar move para onde você está'
+'{warning}➥ Left click to add it': '{warning}➥ Clique esq. para adicionar'
+'{warning}➥ Left click to apply the new default': '{warning}➥ Clique esq. para aplicar o novo padrão'
+'{warning}➥ Left click to remove it': '{warning}➥ Clique esq. para removê-lo'
+'{warning}➥ Re-run with force to write anyway:': '{warning}➥ Execute de novo com force para gravar assim mesmo:'
+'{warning}➥ Restart the server to apply it': '{warning}➥ Reinicie o servidor para aplicar'
+'{warning}➥ Restart the server to apply it.': '{warning}➥ Reinicie o servidor para aplicar.'
+'{warning}➥ Restore it with:': '{warning}➥ Restaure com:'
+'{warning}➥ Right click to keep it': '{warning}➥ Clique dir. para mantê-lo'
+'{warning}➥ Right click to keep your value': '{warning}➥ Clique dir. para manter seu valor'
+'{warning}➥ Right click to leave it out': '{warning}➥ Clique dir. para deixá-lo de fora'
+'{warning}➥ Right-click for default': '{warning}➥ Clique dir. para o padrão'
+'{warning}➥ Search again to retry': '{warning}➥ Busque de novo para tentar outra vez'
+'{warning}➥ Set a time before it can run': '{warning}➥ Defina um horário antes de poder executar'
+'{warning}➥ Shift + left click to apply all': '{warning}➥ Shift + Clique esq. para aplicar tudo'
+'{warning}➥ Shift + left-click to confirm': '{warning}➥ Shift + Clique esq. para confirmar'
+'{warning}➥ Shift + right click to keep all': '{warning}➥ Shift + Clique dir. para manter tudo'
+'{warning}➥ Start again:': '{warning}➥ Recomece:'
+'{warning}➥ {letters}Left-click the chest you want to copy.': '{warning}➥ {letters}Clique esq. no baú que você quer copiar.'
+… {0} more: … mais {0}

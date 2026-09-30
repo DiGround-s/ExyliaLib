@@ -1,6 +1,7 @@
 package net.exylia.lib.input;
 
 import net.exylia.lib.format.Amounts;
+import net.exylia.lib.text.Phrases;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -195,23 +196,23 @@ public interface InputParser<T> {
             // Told apart so the message is useful: "not a number" and "not a
             // whole number" send a player to two different corrections.
             if (Amounts.parseSigned(raw).isPresent()) {
-                return Parsed.rejected("Enter a whole number.");
+                return Parsed.rejected(Phrases.tr("Enter a whole number."));
             }
-            return Parsed.rejected("Enter a number.");
+            return Parsed.rejected(Phrases.tr("Enter a number."));
         };
 
         static final InputParser<BigDecimal> DECIMAL = raw -> Amounts.parseSigned(raw)
                 .<Parsed<BigDecimal>>map(Parsed::of)
-                .orElseGet(() -> Parsed.rejected("Enter a number."));
+                .orElseGet(() -> Parsed.rejected(Phrases.tr("Enter a number.")));
 
         static final InputParser<BigDecimal> AMOUNT = raw -> Amounts.parse(raw)
                 .<Parsed<BigDecimal>>map(Parsed::of)
-                .orElseGet(() -> Parsed.rejected("Enter an amount, such as 100 or 10M."));
+                .orElseGet(() -> Parsed.rejected(Phrases.tr("Enter an amount, such as 100 or 10M.")));
 
         static final InputParser<Boolean> FLAG = raw -> switch (raw.toLowerCase(Locale.ROOT)) {
-            case "true", "yes", "y", "on", "1", "enable", "enabled", "si", "sí" -> Parsed.of(Boolean.TRUE);
-            case "false", "no", "n", "off", "0", "disable", "disabled" -> Parsed.of(Boolean.FALSE);
-            default -> Parsed.rejected("Answer yes or no.");
+            case "true", "yes", "y", "on", "1", "enable", "enabled", "si", "sí", "sim" -> Parsed.of(Boolean.TRUE);
+            case "false", "no", "n", "off", "0", "disable", "disabled", "não", "nao" -> Parsed.of(Boolean.FALSE);
+            default -> Parsed.rejected(Phrases.tr("Answer yes or no."));
         };
 
         /**
@@ -251,7 +252,7 @@ public interface InputParser<T> {
         static final InputParser<Duration> DURATION = raw -> {
             String text = raw.trim().toLowerCase(Locale.ROOT);
             if (text.isEmpty()) {
-                return Parsed.rejected("Enter a duration, such as 30s or 1h30m.");
+                return Parsed.rejected(Phrases.tr("Enter a duration, such as 30s or 1h30m."));
             }
             // A bare number is seconds: it is what somebody typing 30 into a
             // cooldown box means, and refusing it would be pedantry. A decimal
@@ -260,11 +261,11 @@ public interface InputParser<T> {
                 try {
                     double millis = Double.parseDouble(text) * 1000;
                     if (!Double.isFinite(millis) || millis > Long.MAX_VALUE / 2.0) {
-                        return Parsed.rejected("That duration is too large.");
+                        return Parsed.rejected(Phrases.tr("That duration is too large."));
                     }
                     return Parsed.of(Duration.ofMillis(Math.round(millis)));
                 } catch (NumberFormatException tooLarge) {
-                    return Parsed.rejected("That duration is too large.");
+                    return Parsed.rejected(Phrases.tr("That duration is too large."));
                 }
             }
 
@@ -276,24 +277,24 @@ public interface InputParser<T> {
                 if (matcher.start() != consumed) {
                     // Something between the parts that is not a unit, so the
                     // whole string is rejected rather than half-read.
-                    return Parsed.rejected("Enter a duration, such as 30s or 1h30m.");
+                    return Parsed.rejected(Phrases.tr("Enter a duration, such as 30s or 1h30m."));
                 }
                 consumed = matcher.end();
                 double amount;
                 try {
                     amount = Double.parseDouble(matcher.group(1));
                 } catch (NumberFormatException tooLarge) {
-                    return Parsed.rejected("That duration is too large.");
+                    return Parsed.rejected(Phrases.tr("That duration is too large."));
                 }
                 double millis = amount * unitMillis(matcher.group(2));
                 if (!Double.isFinite(millis) || millis > Long.MAX_VALUE / 2.0) {
-                    return Parsed.rejected("That duration is too large.");
+                    return Parsed.rejected(Phrases.tr("That duration is too large."));
                 }
                 total = total.plusMillis(Math.round(millis));
                 any = true;
             }
             if (!any || consumed != text.length()) {
-                return Parsed.rejected("Enter a duration, such as 30s or 1h30m.");
+                return Parsed.rejected(Phrases.tr("Enter a duration, such as 30s or 1h30m."));
             }
             return Parsed.of(total);
         };
@@ -309,10 +310,10 @@ public interface InputParser<T> {
             String folded = SPACES.matcher(raw.trim().toLowerCase(Locale.ROOT)).replaceAll("_");
             String trimmed = EDGES.matcher(folded).replaceAll("");
             if (trimmed.isEmpty()) {
-                return Parsed.rejected("Enter an id.");
+                return Parsed.rejected(Phrases.tr("Enter an id."));
             }
             if (NOT_ID.matcher(trimmed).find()) {
-                return Parsed.rejected("Use only letters, numbers, - and _.");
+                return Parsed.rejected(Phrases.tr("Use only letters, numbers, - and _."));
             }
             return Parsed.of(trimmed);
         };
@@ -322,7 +323,7 @@ public interface InputParser<T> {
             String cleaned = NOT_ID.matcher(folded).replaceAll("");
             String trimmed = EDGES.matcher(cleaned).replaceAll("");
             return trimmed.isEmpty()
-                    ? Parsed.rejected("Enter something that can become an id.")
+                    ? Parsed.rejected(Phrases.tr("Enter something that can become an id."))
                     : Parsed.of(trimmed);
         };
     }

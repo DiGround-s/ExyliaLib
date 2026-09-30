@@ -3,6 +3,7 @@ package net.exylia.lib.input;
 import net.exylia.lib.input.internal.InputRuntime;
 import net.exylia.lib.input.internal.InputSession;
 import net.exylia.lib.input.internal.TransportKind;
+import net.exylia.lib.text.Phrases;
 import org.bukkit.entity.Player;
 import org.jetbrains.annotations.ApiStatus;
 import org.jetbrains.annotations.NotNull;
@@ -37,7 +38,7 @@ public final class FormInput implements InputSession.Pending {
 
     private Duration timeout = Inputs.defaultTimeout();
     private List<TransportKind> preferredTransports = List.of();
-    private String submitLabel = "Submit";
+    private String submitLabel = Phrases.tr("Submit");
 
     FormInput(String pluginName, Player player, String prompt) {
         this.pluginName = Inputs.requireText(pluginName, "pluginName");
@@ -198,7 +199,7 @@ public final class FormInput implements InputSession.Pending {
             if (field.defaultValue() != null) {
                 parsed.put(field.key().name(), field.defaultValue());
             } else if (field.isRequired()) {
-                errors.put(field.key().name(), "This field is required.");
+                errors.put(field.key().name(), Phrases.tr("This field is required."));
             }
             return;
         }

@@ -1,5 +1,6 @@
 package net.exylia.lib.input;
 
+import net.exylia.lib.text.Phrases;
 import org.bukkit.entity.Player;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -21,7 +22,7 @@ public final class TextInput extends InputRequest<String, TextInput> {
             throw new InputException("maximum length must not be negative");
         }
         return validate(value -> value.codePointCount(0, value.length()) <= maximum,
-                "Use at most " + maximum + " characters.");
+                Phrases.tr("Use at most {0} characters.", maximum));
     }
 
     /**
@@ -80,6 +81,6 @@ public final class TextInput extends InputRequest<String, TextInput> {
             throw new InputException("minimum length must not be negative");
         }
         return validate(value -> value.codePointCount(0, value.length()) >= minimum,
-                "Use at least " + minimum + " characters.");
+                Phrases.tr("Use at least {0} characters.", minimum));
     }
 }

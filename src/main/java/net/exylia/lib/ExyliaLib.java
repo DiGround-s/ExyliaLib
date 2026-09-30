@@ -27,6 +27,7 @@ import net.exylia.lib.display.DisplaySettings;
 import net.exylia.lib.input.InputSettings;
 import net.exylia.lib.util.worldguard.WorldGuardFlags;
 import net.exylia.lib.text.LibraryMessages;
+import net.exylia.lib.text.Phrases;
 import net.exylia.lib.input.Inputs;
 import net.exylia.lib.input.internal.ChatTransport;
 import net.exylia.lib.input.internal.DialogTransport;
@@ -504,6 +505,7 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
      * outlived the golden one the selector hands out.
      */
     private void loadMessages() {
+        Phrases.load(this);
         LibraryMessages.load(this);
     }
 
@@ -541,6 +543,9 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         if (ragdollSkins) {
             net.exylia.lib.ragdoll.internal.SkinCache.rewarm();
         }
+        // Before anything redraws: the menus and panels rebuilt below read
+        // their words from the phrase table.
+        Phrases.load(this);
         palette.reload();
         net.exylia.lib.internal.UpdatesMenu.reload();
         // Both files are the library's own shared configuration, and a server

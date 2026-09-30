@@ -2,6 +2,7 @@ package net.exylia.lib.util.editor.internal;
 
 import net.exylia.lib.debug.Debug;
 import net.exylia.lib.task.Tasks;
+import net.exylia.lib.text.Phrases;
 import net.exylia.lib.ui.ClickPolicy;
 import net.exylia.lib.util.editor.Loadout;
 import org.bukkit.Bukkit;
@@ -108,48 +109,48 @@ public final class LoadoutHolder implements InventoryHolder {
             inventory.setItem(slot, INPUT_SLOTS.contains(slot) ? null : filler);
         }
         inventory.setItem(SLOT_LABEL, Icons.button(Material.ARMOR_STAND,
-                "{primary}&l← ARMOUR & OFFHAND", List.of(
+                Phrases.tr("{primary}&l← ARMOUR & OFFHAND"), List.of(
                         "",
-                        "{secondary}The five slots to the left:",
-                        " {letters_black}▎ {letters}1 {letters_black}» {letters}Helmet",
-                        " {letters_black}▎ {letters}2 {letters_black}» {letters}Chestplate",
-                        " {letters_black}▎ {letters}3 {letters_black}» {letters}Leggings",
-                        " {letters_black}▎ {letters}4 {letters_black}» {letters}Boots",
-                        " {letters_black}▎ {letters}5 {letters_black}» {letters}Offhand",
+                        Phrases.tr("{secondary}The five slots to the left:"),
+                        Phrases.tr(" {letters_black}▎ {letters}1 {letters_black}» {letters}Helmet"),
+                        Phrases.tr(" {letters_black}▎ {letters}2 {letters_black}» {letters}Chestplate"),
+                        Phrases.tr(" {letters_black}▎ {letters}3 {letters_black}» {letters}Leggings"),
+                        Phrases.tr(" {letters_black}▎ {letters}4 {letters_black}» {letters}Boots"),
+                        Phrases.tr(" {letters_black}▎ {letters}5 {letters_black}» {letters}Offhand"),
                         "",
-                        " {letters_black}▎ {letters_black}The rows below are the inventory,",
-                        " {letters_black}▎ {letters_black}the last one being the hotbar.",
+                        Phrases.tr(" {letters_black}▎ {letters_black}The rows below are the inventory,"),
+                        Phrases.tr(" {letters_black}▎ {letters_black}the last one being the hotbar."),
                         "")));
         inventory.setItem(SLOT_SAVE, Icons.button(Material.EMERALD,
-                "{success}&lSAVE & BACK", List.of(
+                Phrases.tr("{success}&lSAVE & BACK"), List.of(
                         "",
-                        " {letters_black}▎ {letters}Keeps the layout as it is now.",
+                        Phrases.tr(" {letters_black}▎ {letters}Keeps the layout as it is now."),
                         "",
-                        "{warning}➥ Click to save",
+                        Phrases.tr("{warning}➥ Click to save"),
                         "")));
         inventory.setItem(SLOT_IMPORT, Icons.button(Material.SHULKER_BOX,
-                "{success}&lIMPORT MY INVENTORY", List.of(
+                Phrases.tr("{success}&lIMPORT MY INVENTORY"), List.of(
                         "",
-                        " {letters_black}▎ {letters}Lays your own armour, offhand,",
-                        " {letters_black}▎ {letters}inventory and hotbar into the grid.",
-                        " {letters_black}▎ {letters_black}Replaces whatever is there now.",
+                        Phrases.tr(" {letters_black}▎ {letters}Lays your own armour, offhand,"),
+                        Phrases.tr(" {letters_black}▎ {letters}inventory and hotbar into the grid."),
+                        Phrases.tr(" {letters_black}▎ {letters_black}Replaces whatever is there now."),
                         "",
-                        "{warning}➥ Click to import",
+                        Phrases.tr("{warning}➥ Click to import"),
                         "")));
         inventory.setItem(SLOT_CANCEL, Icons.row(CANCEL_HEAD,
-                "{error}&lCANCEL", List.of(
+                Phrases.tr("{error}&lCANCEL"), List.of(
                         "",
-                        " {letters_black}▎ {letters}Leaves it exactly as it was.",
+                        Phrases.tr(" {letters_black}▎ {letters}Leaves it exactly as it was."),
                         "",
-                        "{error}➥ Click to discard",
+                        Phrases.tr("{error}➥ Click to discard"),
                         "")));
         inventory.setItem(SLOT_CLEAR, Icons.button(Material.TNT,
-                "{error}&lCLEAR THE GRID", List.of(
+                Phrases.tr("{error}&lCLEAR THE GRID"), List.of(
                         "",
-                        " {letters_black}▎ {letters}Empties every slot.",
-                        " {letters_black}▎ {letters_black}Nothing is written until you leave.",
+                        Phrases.tr(" {letters_black}▎ {letters}Empties every slot."),
+                        Phrases.tr(" {letters_black}▎ {letters_black}Nothing is written until you leave."),
                         "",
-                        "{error}➥ Click to clear",
+                        Phrases.tr("{error}➥ Click to clear"),
                         "")));
         write(items);
     }

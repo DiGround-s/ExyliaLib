@@ -7,6 +7,7 @@ import net.exylia.lib.input.InputParser;
 import net.exylia.lib.input.InputRequest;
 import net.exylia.lib.input.Validation;
 import net.exylia.lib.task.Tasks;
+import net.exylia.lib.text.Phrases;
 import net.exylia.lib.text.Text;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
@@ -163,7 +164,7 @@ public final class ChatTransport implements Transport {
             if (progress.back()) {
                 sendFormField(player, progress);
             } else {
-                Text.of("{warning}You are already at the first field.").send(player);
+                Text.of(Phrases.tr("{warning}You are already at the first field.")).send(player);
             }
             return;
         }
@@ -223,14 +224,13 @@ public final class ChatTransport implements Transport {
 
     private static void sendHint(Player player, boolean form) {
         if (form) {
-            Text.of("{muted}Type {highlight}%cancel%{muted} to cancel, or "
-                            + "{highlight}%back%{muted} to revisit the previous field.")
+            Text.of(Phrases.tr("{muted}Type {highlight}%cancel%{muted} to cancel, or {highlight}%back%{muted} to revisit the previous field."))
                     .with("%cancel%", cancelWord)
                     .with("%back%", BACK_WORD)
                     .send(player);
             return;
         }
-        Text.of("{muted}Type {highlight}%cancel%{muted} to cancel.")
+        Text.of(Phrases.tr("{muted}Type {highlight}%cancel%{muted} to cancel."))
                 .with("%cancel%", cancelWord)
                 .send(player);
     }
@@ -255,7 +255,7 @@ public final class ChatTransport implements Transport {
 
     private static void sendError(Player player, String error) {
         Text.of("{error}%error%")
-                .with("%error%", error == null ? "That value is not accepted." : error)
+                .with("%error%", error == null ? Phrases.tr("That value is not accepted.") : error)
                 .send(player);
     }
 

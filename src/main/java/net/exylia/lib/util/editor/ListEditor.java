@@ -1,5 +1,6 @@
 package net.exylia.lib.util.editor;
 
+import net.exylia.lib.text.Phrases;
 import net.exylia.lib.util.editor.internal.EditorRuntime;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
@@ -47,7 +48,7 @@ public final class ListEditor<T> {
     private final List<T> entries;
 
     private final List<EditorButton<T>> buttons = new ArrayList<>();
-    private String title = "{primary}&lEDITOR";
+    private String title = Phrases.tr("{primary}&lEDITOR");
     private Consumer<List<T>> onSave = edited -> { };
     private Runnable onCancel = () -> { };
 

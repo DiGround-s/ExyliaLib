@@ -2,6 +2,7 @@ package net.exylia.lib.util.editor.internal;
 
 import net.exylia.lib.debug.Debug;
 import net.exylia.lib.task.Tasks;
+import net.exylia.lib.text.Phrases;
 import net.exylia.lib.util.editor.Clipboard;
 import net.exylia.lib.util.editor.EditorButton;
 import net.exylia.lib.util.editor.EditorDescriptor;
@@ -407,9 +408,9 @@ public final class EditorHolder<T> implements InventoryHolder {
             // One unreadable element must not blank the page: the row still
             // draws and stays deletable, which is the only thing an admin can
             // usefully do with it.
-            return Icons.row("BARRIER", "{error}&lUNREADABLE ENTRY",
-                    List.of("{letters_black}▎ {letters}This row could not be described.",
-                            "", "{error}● {letters}Right Click {letters_black}» Delete"));
+            return Icons.row("BARRIER", Phrases.tr("{error}&lUNREADABLE ENTRY"),
+                    List.of(Phrases.tr("{letters_black}▎ {letters}This row could not be described."),
+                            "", Phrases.tr("{error}● {letters}Right Click {letters_black}» Delete")));
         }
 
         List<String> lore = new ArrayList<>(details.size() + 6);
@@ -418,73 +419,74 @@ public final class EditorHolder<T> implements InventoryHolder {
             if (!lore.isEmpty()) {
                 lore.add("");
             }
-            lore.add("{warning}⚠ {letters}Not finished yet");
+            lore.add(Phrases.tr("{warning}⚠ {letters}Not finished yet"));
         }
         lore.add("");
-        lore.add("{success}● {letters}Left Click {letters_black}» Edit");
-        lore.add("{error}● {letters}Right Click {letters_black}» Delete");
-        lore.add("{highlight}● {letters}Shift + Left {letters_black}» Copy");
+        lore.add(Phrases.tr("{success}● {letters}Left Click {letters_black}» Edit"));
+        lore.add(Phrases.tr("{error}● {letters}Right Click {letters_black}» Delete"));
+        lore.add(Phrases.tr("{highlight}● {letters}Shift + Left {letters_black}» Copy"));
         return Icons.row(icon, label, lore);
     }
 
     private void drawControls() {
-        inventory.setItem(SLOT_ADD, Icons.button(Material.EMERALD, "{success}&lADD",
-                List.of("{letters_black}▎ {letters}Create a new entry and",
-                        "{letters_black}▎ {letters}configure it right away.",
+        inventory.setItem(SLOT_ADD, Icons.button(Material.EMERALD, Phrases.tr("{success}&lADD"),
+                List.of(Phrases.tr("{letters_black}▎ {letters}Create a new entry and"),
+                        Phrases.tr("{letters_black}▎ {letters}configure it right away."),
                         "",
-                        "{warning}➥ Click to add")));
+                        Phrases.tr("{warning}➥ Click to add"))));
 
         Player viewer = viewer();
         int pending = viewer == null ? 0 : Clipboard.size(viewer, descriptor.typeKey());
         if (pending > 0) {
             inventory.setItem(SLOT_PASTE, Icons.glowing(Material.WRITABLE_BOOK,
-                    "{highlight}&lPASTE",
-                    List.of("{letters_black}▎ {letters}Add {info}" + pending + " {letters}copied "
-                                    + (pending == 1 ? "entry" : "entries") + " to",
-                            "{letters_black}▎ {letters}this list.",
+                    Phrases.tr("{highlight}&lPASTE"),
+                    List.of(pending == 1
+                                    ? Phrases.tr("{letters_black}▎ {letters}Add {info}{0} {letters}copied entry to", pending)
+                                    : Phrases.tr("{letters_black}▎ {letters}Add {info}{0} {letters}copied entries to", pending),
+                            Phrases.tr("{letters_black}▎ {letters}this list."),
                             "",
-                            "{warning}➥ Click to paste")));
+                            Phrases.tr("{warning}➥ Click to paste"))));
         }
 
         if (!entries.isEmpty()) {
-            inventory.setItem(SLOT_COPY_ALL, Icons.button(Material.BOOKSHELF, "{info}&lCOPY ALL",
-                    List.of("{letters_black}▎ {letters}Copy every entry here {letters_black}(" + entries.size() + ")",
-                            "{letters_black}▎ {letters}ready to paste somewhere else.",
+            inventory.setItem(SLOT_COPY_ALL, Icons.button(Material.BOOKSHELF, Phrases.tr("{info}&lCOPY ALL"),
+                    List.of(Phrases.tr("{letters_black}▎ {letters}Copy every entry here {letters_black}({0})", entries.size()),
+                            Phrases.tr("{letters_black}▎ {letters}ready to paste somewhere else."),
                             "",
-                            "{warning}➥ Click to copy")));
+                            Phrases.tr("{warning}➥ Click to copy"))));
         }
 
         if (descriptor.editsAll() && !entries.isEmpty()) {
-            inventory.setItem(SLOT_EDIT_ALL, Icons.button(Material.ANVIL, "{info}&lEDIT ALL",
-                    List.of("{letters_black}▎ {letters}Change a value on every",
-                            "{letters_black}▎ {letters}entry here at once {letters_black}(" + entries.size() + ")",
+            inventory.setItem(SLOT_EDIT_ALL, Icons.button(Material.ANVIL, Phrases.tr("{info}&lEDIT ALL"),
+                    List.of(Phrases.tr("{letters_black}▎ {letters}Change a value on every"),
+                            Phrases.tr("{letters_black}▎ {letters}entry here at once {letters_black}({0})", entries.size()),
                             "",
-                            "{warning}➥ Click to edit all")));
+                            Phrases.tr("{warning}➥ Click to edit all"))));
         }
 
         if (page > 0) {
             inventory.setItem(SLOT_PREVIOUS, Icons.button(Material.ARROW,
-                    "{secondary}&l« PREVIOUS", List.of()));
+                    Phrases.tr("{secondary}&l« PREVIOUS"), List.of()));
         }
         if (page + 1 < pages()) {
             inventory.setItem(SLOT_NEXT, Icons.button(Material.ARROW,
-                    "{secondary}&lNEXT »", List.of()));
+                    Phrases.tr("{secondary}&lNEXT »"), List.of()));
         }
 
-        inventory.setItem(SLOT_INFO, Icons.button(Material.PAPER, "{primary}&lLIST",
-                List.of("{letters_black}▎ {letters}Entries {letters_black}» {info}" + entries.size(),
-                        "{letters_black}▎ {letters}Page {letters_black}» {info}" + (page + 1)
-                                + "{letters_black}/{info}" + pages())));
+        inventory.setItem(SLOT_INFO, Icons.button(Material.PAPER, Phrases.tr("{primary}&lLIST"),
+                List.of(Phrases.tr("{letters_black}▎ {letters}Entries {letters_black}» {info}{0}", entries.size()),
+                        Phrases.tr("{letters_black}▎ {letters}Page {letters_black}» {info}{0}{letters_black}/{info}{1}",
+                                page + 1, pages()))));
 
-        inventory.setItem(SLOT_SAVE, Icons.glowing(Material.LIME_DYE, "{success}&lSAVE",
-                List.of("{letters_black}▎ {letters}Keep every change made here.",
+        inventory.setItem(SLOT_SAVE, Icons.glowing(Material.LIME_DYE, Phrases.tr("{success}&lSAVE"),
+                List.of(Phrases.tr("{letters_black}▎ {letters}Keep every change made here."),
                         "",
-                        "{warning}➥ Click to save")));
+                        Phrases.tr("{warning}➥ Click to save"))));
 
-        inventory.setItem(SLOT_CANCEL, Icons.button(Material.RED_DYE, "{error}&lCANCEL",
-                List.of("{letters_black}▎ {letters}Discard every change and",
-                        "{letters_black}▎ {letters}close this screen.",
+        inventory.setItem(SLOT_CANCEL, Icons.button(Material.RED_DYE, Phrases.tr("{error}&lCANCEL"),
+                List.of(Phrases.tr("{letters_black}▎ {letters}Discard every change and"),
+                        Phrases.tr("{letters_black}▎ {letters}close this screen."),
                         "",
-                        "{warning}➥ Click to discard")));
+                        Phrases.tr("{warning}➥ Click to discard"))));
     }
 }

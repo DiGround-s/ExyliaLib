@@ -1,5 +1,6 @@
 package net.exylia.lib.util.command;
 
+import net.exylia.lib.text.Phrases;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -65,7 +66,7 @@ public record NamedCommand(@NotNull String id, @Nullable String name, @Nullable 
         if (name != null && !name.isBlank()) {
             return name;
         }
-        return command != null && !command.isBlank() ? command : "(not set)";
+        return command != null && !command.isBlank() ? command : Phrases.tr("(not set)");
     }
 
     /** Whether this row would actually run something. */

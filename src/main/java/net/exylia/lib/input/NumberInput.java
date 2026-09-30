@@ -1,5 +1,6 @@
 package net.exylia.lib.input;
 
+import net.exylia.lib.text.Phrases;
 import org.bukkit.entity.Player;
 import org.jetbrains.annotations.NotNull;
 
@@ -38,7 +39,7 @@ public final class NumberInput<T extends Number & Comparable<T>>
         }
         this.minimum = minimum;
         return validate(value -> value.compareTo(minimum) >= 0,
-                "Enter a value of at least " + minimum + '.');
+                Phrases.tr("Enter a value of at least {0}.", minimum));
     }
 
     /** Applies an inclusive upper bound. */
@@ -49,6 +50,6 @@ public final class NumberInput<T extends Number & Comparable<T>>
         }
         this.maximum = maximum;
         return validate(value -> value.compareTo(maximum) <= 0,
-                "Enter a value of at most " + maximum + '.');
+                Phrases.tr("Enter a value of at most {0}.", maximum));
     }
 }

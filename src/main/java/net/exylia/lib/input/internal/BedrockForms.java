@@ -13,6 +13,7 @@ import net.exylia.lib.input.NumberInput;
 import net.exylia.lib.input.SearchInput;
 import net.exylia.lib.input.Validation;
 import net.exylia.lib.task.Tasks;
+import net.exylia.lib.text.Phrases;
 import net.exylia.lib.text.Text;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
@@ -139,8 +140,8 @@ final class BedrockForms {
             ACCESS.button1.invoke(builder, plain(confirm.confirmLabel()));
             ACCESS.button2.invoke(builder, plain(confirm.denyLabel()));
         } else {
-            ACCESS.button1.invoke(builder, "Yes");
-            ACCESS.button2.invoke(builder, "No");
+            ACCESS.button1.invoke(builder, Phrases.tr("Yes"));
+            ACCESS.button2.invoke(builder, Phrases.tr("No"));
         }
         handlers(builder, state, response -> submitSingle(state, request,
                 Boolean.toString((Boolean) ACCESS.clickedFirst.invoke(response))));

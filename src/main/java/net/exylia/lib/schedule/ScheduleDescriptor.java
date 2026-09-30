@@ -1,5 +1,6 @@
 package net.exylia.lib.schedule;
 
+import net.exylia.lib.text.Phrases;
 import net.exylia.lib.input.FormKey;
 import net.exylia.lib.input.FormValues;
 import net.exylia.lib.util.editor.EditorDescriptor;
@@ -78,14 +79,14 @@ final class ScheduleDescriptor implements EditorDescriptor<Schedule> {
     @Override
     public @NotNull List<String> lore(@NotNull Schedule entry) {
         List<String> lore = new ArrayList<>();
-        lore.add("{secondary}When:");
-        lore.add(" {letters_black}▎ {letters}Time {letters_black}» {info}" + entry.describeTrigger());
-        lore.add(" {letters_black}▎ {letters}Days {letters_black}» {info}" + entry.describeDays());
+        lore.add(Phrases.tr("{secondary}When:"));
+        lore.add(Phrases.tr(" {letters_black}▎ {letters}Time {letters_black}» {info}{0}", entry.describeTrigger()));
+        lore.add(Phrases.tr(" {letters_black}▎ {letters}Days {letters_black}» {info}{0}", entry.describeDays()));
 
         List<String> gates = entry.describeGates();
         if (!gates.isEmpty()) {
             lore.add("");
-            lore.add("{secondary}Only if:");
+            lore.add(Phrases.tr("{secondary}Only if:"));
             for (String gate : gates) {
                 lore.add(" {letters_black}▎ {letters}" + gate);
             }
@@ -93,10 +94,10 @@ final class ScheduleDescriptor implements EditorDescriptor<Schedule> {
 
         if (!entry.enabled()) {
             lore.add("");
-            lore.add("{error}✘ Turned off");
+            lore.add(Phrases.tr("{error}✘ Turned off"));
         } else if (!entry.isRunnable()) {
             lore.add("");
-            lore.add("{warning}➥ Set a time before it can run");
+            lore.add(Phrases.tr("{warning}➥ Set a time before it can run"));
         }
         return List.copyOf(lore);
     }
@@ -124,39 +125,39 @@ final class ScheduleDescriptor implements EditorDescriptor<Schedule> {
     @Override
     public @NotNull CompletionStage<Optional<Schedule>> edit(@NotNull Player viewer,
                                                              @NotNull Schedule entry) {
-        EditorForm form = EditorForm.of(plugin, viewer, "{primary}&lEDIT SCHEDULE")
-                .text(NAME, "Name", entry.name(), 2)
-                .hint("What this line is called in the list. Blank shows the times.");
+        EditorForm form = EditorForm.of(plugin, viewer, Phrases.tr("{primary}&lEDIT SCHEDULE"))
+                .text(NAME, Phrases.tr("Name"), entry.name(), 2)
+                .hint(Phrases.tr("What this line is called in the list. Blank shows the times."));
 
         // Only asked for where the screen does not already know it. A schedules
         // screen opened from one event's setup is about that event, and a field
         // holding its id is a field an admin can only get wrong.
         if (defaultTarget == null) {
-            form.text(TARGET, "Starts", entry.target(), 2)
-                    .hint("The id of the thing this starts.");
+            form.text(TARGET, Phrases.tr("Starts"), entry.target(), 2)
+                    .hint(Phrases.tr("The id of the thing this starts."));
         }
 
-        form.text(TIMES, "Times", writeTimes(entry.times()))
-                .hint("24-hour, comma separated. 20:00, 22:30")
-                .text(DAYS, "Days", writeDays(entry))
-                .hint("Blank or * for every day. MON, FRI, SAT")
-                .field(EVERY, net.exylia.lib.input.FormField.duration(EVERY, "Repeat every")
+        form.text(TIMES, Phrases.tr("Times"), writeTimes(entry.times()))
+                .hint(Phrases.tr("24-hour, comma separated. 20:00, 22:30"))
+                .text(DAYS, Phrases.tr("Days"), writeDays(entry))
+                .hint(Phrases.tr("Blank or * for every day. MON, FRI, SAT"))
+                .field(EVERY, net.exylia.lib.input.FormField.duration(EVERY, Phrases.tr("Repeat every"))
                         .defaultValue(entry.every() == null ? Duration.ZERO : entry.every())
                         .optional())
-                .hint("Set this to repeat instead of using fixed times. 2h, 90m")
-                .text(WINDOW, "Repeat between", writeWindow(entry))
-                .hint("Only used when repeating. 10:00-23:00")
-                .integer(MIN_PLAYERS, "Minimum players online", entry.minPlayers())
-                .integer(MAX_PLAYERS, "Maximum players online (0 = no limit)", entry.maxPlayers())
-                .field(COOLDOWN, net.exylia.lib.input.FormField.duration(COOLDOWN, "Wait at least")
+                .hint(Phrases.tr("Set this to repeat instead of using fixed times. 2h, 90m"))
+                .text(WINDOW, Phrases.tr("Repeat between"), writeWindow(entry))
+                .hint(Phrases.tr("Only used when repeating. 10:00-23:00"))
+                .integer(MIN_PLAYERS, Phrases.tr("Minimum players online"), entry.minPlayers())
+                .integer(MAX_PLAYERS, Phrases.tr("Maximum players online (0 = no limit)"), entry.maxPlayers())
+                .field(COOLDOWN, net.exylia.lib.input.FormField.duration(COOLDOWN, Phrases.tr("Wait at least"))
                         .defaultValue(entry.cooldown() == null ? Duration.ZERO : entry.cooldown())
                         .optional())
-                .hint("The shortest gap between two runs of this line.")
-                .text(CONDITION, "Condition", entry.condition(), 2)
-                .hint("A comparison, such as %server_tps% >= 18. Blank for none.")
-                .text(REQUIRES, "Requires", String.join(", ", entry.requires()), 2)
+                .hint(Phrases.tr("The shortest gap between two runs of this line."))
+                .text(CONDITION, Phrases.tr("Condition"), entry.condition(), 2)
+                .hint(Phrases.tr("A comparison, such as %server_tps% >= 18. Blank for none."))
+                .text(REQUIRES, Phrases.tr("Requires"), String.join(", ", entry.requires()), 2)
                 .hint(describeConditions())
-                .flag(ENABLED, "Enabled", entry.enabled());
+                .flag(ENABLED, Phrases.tr("Enabled"), entry.enabled());
 
         return form.ask(values -> build(entry, values));
     }
@@ -191,9 +192,9 @@ final class ScheduleDescriptor implements EditorDescriptor<Schedule> {
     private String describeConditions() {
         Set<String> names = conditionNames == null ? Set.of() : conditionNames.get();
         if (names.isEmpty()) {
-            return "Named checks this plugin offers. It offers none.";
+            return Phrases.tr("Named checks this plugin offers. It offers none.");
         }
-        return "Comma separated. Available: " + String.join(", ", names.stream().sorted().toList());
+        return Phrases.tr("Comma separated. Available: {0}", String.join(", ", names.stream().sorted().toList()));
     }
 
     private static String writeTimes(List<LocalTime> times) {

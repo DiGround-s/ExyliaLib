@@ -9,6 +9,7 @@ import net.exylia.lib.region.MaterialSet;
 import net.exylia.lib.region.PolicyKey;
 import net.exylia.lib.region.PolicySet;
 import net.exylia.lib.task.Tasks;
+import net.exylia.lib.text.Phrases;
 import net.exylia.lib.text.Text;
 import net.exylia.lib.util.editor.Editors;
 import org.bukkit.Bukkit;
@@ -157,20 +158,20 @@ public final class PolicyEditorHolder implements InventoryHolder {
                     PolicyLooks.name(key, look, draft), PolicyLooks.lore(key, look, draft), false));
         }
         inventory.setItem(infoSlot(), render(viewer, "PAPER",
-                "{primary}&lFLAGS &8[{info}" + draft.declared(keys) + "&8/{info}" + keys.size() + "&8]",
+                Phrases.tr("{primary}&lFLAGS &8[{info}{0}&8/{info}{1}&8]", draft.declared(keys), keys.size()),
                 List.of("",
-                        " {letters_black}▎ {letters}Flags set here {letters_black}» {info}" + draft.declared(keys),
-                        " {letters_black}▎ {letters}The rest follow their {muted}Default{letters}.",
+                        Phrases.tr(" {letters_black}▎ {letters}Flags set here {letters_black}» {info}{0}", draft.declared(keys)),
+                        Phrases.tr(" {letters_black}▎ {letters}The rest follow their {muted}Default{letters}."),
                         "",
-                        " {letters_black}▎ {letters_black}Nothing is written until you save.",
+                        Phrases.tr(" {letters_black}▎ {letters_black}Nothing is written until you save."),
                         ""), false));
-        inventory.setItem(saveSlot(), render(viewer, "LIME_DYE", "{success}&lSAVE",
-                List.of("", " {letters_black}▎ {letters}Keep every change made here.", "",
-                        "{warning}➥ Click to save", ""), true));
-        inventory.setItem(cancelSlot(), render(viewer, "RED_DYE", "{error}&lCANCEL",
-                List.of("", " {letters_black}▎ {letters}Discard every change and",
-                        " {letters_black}▎ {letters}close this screen.", "",
-                        "{warning}➥ Click to discard", ""), false));
+        inventory.setItem(saveSlot(), render(viewer, "LIME_DYE", Phrases.tr("{success}&lSAVE"),
+                List.of("", Phrases.tr(" {letters_black}▎ {letters}Keep every change made here."), "",
+                        Phrases.tr("{warning}➥ Click to save"), ""), true));
+        inventory.setItem(cancelSlot(), render(viewer, "RED_DYE", Phrases.tr("{error}&lCANCEL"),
+                List.of("", Phrases.tr(" {letters_black}▎ {letters}Discard every change and"),
+                        Phrases.tr(" {letters_black}▎ {letters}close this screen."), "",
+                        Phrases.tr("{warning}➥ Click to discard"), ""), false));
     }
 
     private ItemStack render(Player viewer, String icon, String name, List<String> lore, boolean glow) {
@@ -227,8 +228,8 @@ public final class PolicyEditorHolder implements InventoryHolder {
 
     private void askNumber(Player viewer, PolicyKey<Integer> key) {
         stepAside(viewer);
-        Inputs.of(plugin).integer(viewer, looks.get(key).name()
-                        + " {letters_black}» {letters}a whole number, 0 or more")
+        Inputs.of(plugin).integer(viewer,
+                        Phrases.tr("{0} {letters_black}» {letters}a whole number, 0 or more", looks.get(key).name()))
                 .range(0L, (long) Integer.MAX_VALUE)
                 .open()
                 .whenComplete((answer, failure) -> {

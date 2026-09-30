@@ -1,5 +1,6 @@
 package net.exylia.lib.util.editor;
 
+import net.exylia.lib.text.Phrases;
 import net.exylia.lib.util.editor.internal.EditorRuntime;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
@@ -50,7 +51,7 @@ public final class LoadoutEditor {
     private final Plugin plugin;
     private final List<ItemStack> items;
 
-    private String title = "{primary}&lLOADOUT";
+    private String title = Phrases.tr("{primary}&lLOADOUT");
     private Consumer<List<ItemStack>> onSave = saved -> { };
     private Runnable onCancel = () -> { };
 

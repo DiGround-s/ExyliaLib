@@ -1,6 +1,7 @@
 package net.exylia.lib.util.editor;
 
 import net.exylia.lib.input.Inputs;
+import net.exylia.lib.text.Phrases;
 import org.bukkit.Color;
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
@@ -72,7 +73,7 @@ public final class Pickers {
         for (org.bukkit.Particle particle : org.bukkit.Particle.values()) {
             names.add(particle.name());
         }
-        return search(viewer, "{primary}&lWHICH PARTICLE?", names, Material.FIREWORK_ROCKET);
+        return search(viewer, Phrases.tr("{primary}&lWHICH PARTICLE?"), names, Material.FIREWORK_ROCKET);
     }
 
     /**
@@ -91,7 +92,7 @@ public final class Pickers {
                 names.add(keyOf(key));
             }
         }
-        return search(viewer, "{primary}&lWHICH SOUND?", names, Material.NOTE_BLOCK);
+        return search(viewer, Phrases.tr("{primary}&lWHICH SOUND?"), names, Material.NOTE_BLOCK);
     }
 
     /**
@@ -108,7 +109,7 @@ public final class Pickers {
                 names.add(keyOf(key));
             }
         }
-        return search(viewer, "{primary}&lWHICH ENCHANTMENT?", names, Material.ENCHANTED_BOOK);
+        return search(viewer, Phrases.tr("{primary}&lWHICH ENCHANTMENT?"), names, Material.ENCHANTED_BOOK);
     }
 
     /**
@@ -125,7 +126,7 @@ public final class Pickers {
                 types.put(keyOf(key), type);
             }
         }
-        return search(viewer, "{primary}&lWHICH EFFECT?", new ArrayList<>(types.keySet()),
+        return search(viewer, Phrases.tr("{primary}&lWHICH EFFECT?"), new ArrayList<>(types.keySet()),
                 name -> bottle(types.get(name)));
     }
 
@@ -142,7 +143,7 @@ public final class Pickers {
                 names.add(material.name());
             }
         }
-        return search(viewer, "{primary}&lWHICH MATERIAL?", names, Material.CHEST);
+        return search(viewer, Phrases.tr("{primary}&lWHICH MATERIAL?"), names, Material.CHEST);
     }
 
     /**
@@ -160,9 +161,9 @@ public final class Pickers {
         List<String> options = new ArrayList<>(COLOUR_NAMES.size() + 1);
         options.addAll(COLOUR_NAMES);
         options.add(CUSTOM);
-        return Inputs.of(plugin).search(viewer, "{primary}&lWHICH COLOUR?", options)
+        return Inputs.of(plugin).search(viewer, Phrases.tr("{primary}&lWHICH COLOUR?"), options)
                 .label(name -> name.equals(CUSTOM)
-                        ? "TYPE A HEX VALUE"
+                        ? Phrases.tr("TYPE A HEX VALUE")
                         : name.toUpperCase(Locale.ROOT))
                 .key(name -> name)
                 .icon(Pickers::dye)
@@ -178,8 +179,8 @@ public final class Pickers {
     }
 
     private CompletionStage<Optional<String>> hex(Player viewer) {
-        return Inputs.of(plugin).text(viewer, "{primary}Type a colour as #rrggbb")
-                .validate(Pickers::isHex, "Write it as #rrggbb, such as #8a51c4.")
+        return Inputs.of(plugin).text(viewer, Phrases.tr("{primary}Type a colour as #rrggbb"))
+                .validate(Pickers::isHex, Phrases.tr("Write it as #rrggbb, such as #8a51c4."))
                 .open()
                 .thenApply(result -> result.completed()
                         ? Optional.of(result.value().trim().toLowerCase(Locale.ROOT))
