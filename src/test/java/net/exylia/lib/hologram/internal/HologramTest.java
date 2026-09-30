@@ -222,6 +222,21 @@ class HologramTest {
     }
 
     @Test
+    @DisplayName("replacing the lines of a static hologram redraws it")
+    void staticLinesAreRedrawnWhenReplaced() {
+        Hologram hologram = Holograms.show(plugin, "koth", spawn(),
+                text(List.of("{success}&l\u2726 READY")));
+        drive();
+        sink.clear();
+
+        hologram.lines(List.of("{warning}&l\u231a {highlight}8s"));
+        advanceSeconds(1.1);
+        drive();
+
+        assertEquals(List.of("text:Near:1000:\u231a 8s"), sink.calls("text"));
+    }
+
+    @Test
     @DisplayName("new data reaches the placeholders")
     void updateDataIsPickedUp() {
         Placeholders.register(plugin, "koth_arena",
