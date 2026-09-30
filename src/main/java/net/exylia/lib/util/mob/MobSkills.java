@@ -83,10 +83,10 @@ public final class MobSkills {
                     skill(MobSkill.Type.SUMMON, 20, 3, 2, 0, "")
                             .withCast(cast("portal", MobSkill.Aim.AUTO, 1200).withWhen(MobSkill.Gate.ANY.withNearby(16)))),
             preset("miasma", "MIASMA", Material.SLIME_BALL, "Leaves a poison cloud where you stood.",
-                    skill(MobSkill.Type.ZONE, 14, 3.5, 1, 6, "POISON|1|3")
+                    skill(MobSkill.Type.ZONE, 14, 3.5, 1.5, 6, "POISON|2|3")
                             .withCast(cast("miasma", MobSkill.Aim.GROUND, 800).withWhen(MobSkill.Gate.ANY.withRange(0, 16)))),
             preset("nova", "FROST NOVA", Material.BLUE_ICE, "Freezes everyone close in place.",
-                    skill(MobSkill.Type.POTION, 12, 5, 0, 0, "SLOWNESS|3|3")
+                    skill(MobSkill.Type.POTION, 12, 5, 0, 0, "SLOWNESS|6|3")
                             .withCast(cast("nova", MobSkill.Aim.SELF, 600).withWhen(MobSkill.Gate.ANY.withNearby(5)))),
             preset("blink", "BLINK", Material.ENDER_PEARL, "Vanishes and reappears behind you.",
                     skill(MobSkill.Type.TELEPORT, 10, 0, 0, 0, "")
@@ -95,7 +95,7 @@ public final class MobSkills {
                     skill(MobSkill.Type.HEAL, 20, 0, 20, 0, "")
                             .withCast(cast("renew", MobSkill.Aim.AUTO, 800).withWhen(MobSkill.Gate.ANY.withHealth(0, 0.6)))),
             preset("enrage", "ENRAGE", Material.BLAZE_POWDER, "Roars and runs faster for a while.",
-                    skill(MobSkill.Type.SPEED, 30, 0, 1.4, 8, "")
+                    skill(MobSkill.Type.SPEED, 30, 0, 1.6, 8, "")
                             .withCast(cast("enrage", MobSkill.Aim.AUTO, 1200).withWhen(MobSkill.Gate.ANY.withHealth(0, 0.5)))),
             preset("rain", "ARROW RAIN", Material.ARROW, "Arrows fall on the spots it marks.",
                     skill(MobSkill.Type.BARRAGE, 14, 6, 5, 0, "4")

@@ -4,6 +4,7 @@ import net.exylia.lib.input.FormField;
 import net.exylia.lib.input.FormKey;
 import net.exylia.lib.input.FormValues;
 import net.exylia.lib.input.Inputs;
+import net.exylia.lib.util.Effects;
 import net.exylia.lib.util.TimeFormats;
 import net.exylia.lib.util.editor.EditorDescriptor;
 import net.exylia.lib.util.editor.EditorForm;
@@ -74,6 +75,16 @@ final class MobSkillDescriptor implements EditorDescriptor<MobSkill> {
     private static final FormKey<Long> PHASE = FormKey.integer("phase");
     private static final FormKey<Long> JUMPS = FormKey.integer("jumps");
     private static final FormKey<BigDecimal> STRIKE = FormKey.decimal("strike");
+    private static final FormKey<String> POTION_NAME = FormKey.text("potion");
+    private static final FormKey<Long> POTION_LEVEL = FormKey.integer("potion_level");
+    private static final FormKey<Duration> POTION_TIME = FormKey.duration("potion_time");
+
+    /** The effects a potion skill offers: the ones a mob's attack reads as. */
+    private static final List<String> POTIONS = List.of("SLOWNESS", "POISON", "WEAKNESS", "WITHER", "BLINDNESS",
+            "DARKNESS", "NAUSEA", "LEVITATION", "HUNGER", "MINING_FATIGUE", "GLOWING");
+    private static final List<String> PROJECTILES = List.of("FIREBALL", "SMALL_FIREBALL", "WITHER_SKULL", "ARROW",
+            "SNOWBALL");
+    private static final String NONE = "NONE";
 
     /**
      * The parts of a skill a row click offers, each one form.
@@ -401,8 +412,7 @@ final class MobSkillDescriptor implements EditorDescriptor<MobSkill> {
     private CompletionStage<Optional<MobSkill>> mechanics(Player viewer, MobSkill skill) {
         boolean interval = skill.trigger() == MobSkill.Trigger.INTERVAL;
         EditorForm form = EditorForm.of(plugin, viewer, "{primary}&lEDIT SKILL")
-                .text(WHEN, "When", skill.trigger().name())
-                .hint("SPAWN, INTERVAL, ATTACK, DAMAGED, LOW_HEALTH, DEATH or PHASE.")
+                .choice(WHEN, "When", skill.trigger().name(), options(MobSkill.Trigger.values()))
                 .decimal(CHANCE, skill.grouped() ? "Weight in its group" : "Chance, in percent",
                         decimal(skill.chance() * 100))
                 .field(COOLDOWN, FormField.duration(COOLDOWN, interval ? "Every" : "Cooldown")
@@ -419,19 +429,18 @@ final class MobSkillDescriptor implements EditorDescriptor<MobSkill> {
             case PULL -> form.decimal(AMOUNT, "Strength", decimal(skill.amount()));
             case PUSH -> form.decimal(RADIUS, "Radius, in blocks", decimal(skill.radius()))
                     .decimal(AMOUNT, "Strength", decimal(skill.amount()));
-            case POTION -> form.text(TEXT, "Effect", skill.text())
-                    .hint("NAME|LEVEL|SECONDS, such as SLOWNESS|2|5.")
+            case POTION -> potion(form, skill.text(), false)
                     .decimal(RADIUS, "Radius, in blocks", decimal(skill.radius()))
                     .hint("0 gives it to the target alone.");
-            case SUMMON -> form.text(TEXT, "Template id", skill.text())
-                    .hint("A template of this plugin. Minions never summon.")
+            case SUMMON -> template(form, skill.text())
+                    .hint("Minions never summon.")
                     .decimal(AMOUNT, "Alive at once", decimal(skill.amount()))
                     .hint("Ten at most.")
                     .decimal(RADIUS, "Spread, in blocks", decimal(skill.radius()));
             case LIGHTNING -> form.decimal(AMOUNT, "Damage", decimal(skill.amount()))
                     .hint("0 is only the flash.");
-            case PROJECTILE -> form.text(TEXT, "Projectile", skill.text())
-                    .hint("FIREBALL, SMALL_FIREBALL, WITHER_SKULL, ARROW or SNOWBALL.")
+            case PROJECTILE -> form.choice(TEXT, "Projectile", skill.text().trim().toUpperCase(Locale.ROOT),
+                            options(PROJECTILES, skill.text().trim().toUpperCase(Locale.ROOT)))
                     .decimal(AMOUNT, "Speed", decimal(skill.amount()));
             case HEAL -> form.decimal(AMOUNT, "Restores, in percent of max health", decimal(skill.amount()));
             case AREA_DAMAGE -> form.decimal(RADIUS, "Radius, in blocks", decimal(skill.radius()))
@@ -451,12 +460,13 @@ final class MobSkillDescriptor implements EditorDescriptor<MobSkill> {
             case SHIELD -> form.decimal(AMOUNT, "Damage it blocks, in percent", decimal(skill.amount()))
                     .hint("100 blocks every hit. In hits mode no hit counts while it lasts.")
                     .field(DURATION, FormField.duration(DURATION, "For").defaultValue(skill.duration()));
-            case ZONE -> form.decimal(RADIUS, "Radius, in blocks", decimal(skill.radius()))
+            case ZONE -> {
+                form.decimal(RADIUS, "Radius, in blocks", decimal(skill.radius()))
                     .decimal(AMOUNT, "Damage a second", decimal(skill.amount()))
                     .field(DURATION, FormField.duration(DURATION, "Lasts").defaultValue(skill.duration()))
-                    .hint("30s at most. Two per mob at once.")
-                    .field(TEXT, PluginMobs.optionalText(TEXT, "Effect on those inside", skill.text()))
-                    .hint("NAME|LEVEL|SECONDS, such as POISON|1|3. NONE for none. Aim SELF makes it go with the mob.");
+                    .hint("30s at most. Two per mob at once. Aim SELF makes it go with the mob.");
+                potion(form, skill.text(), true);
+            }
             case BARRAGE -> form.decimal(AMOUNT, "Strikes", decimal(skill.amount()))
                     .hint("16 at most, a fifth of a second apart.")
                     .decimal(RADIUS, "Scatter, in blocks", decimal(skill.radius()))
@@ -479,11 +489,69 @@ final class MobSkillDescriptor implements EditorDescriptor<MobSkill> {
                     .field(DURATION, FormField.duration(DURATION, "For").defaultValue(skill.duration()));
             case BABY -> form.field(DURATION, FormField.duration(DURATION, "For").defaultValue(skill.duration()));
         }
-        form.field(EFFECT, PluginMobs.optionalText(EFFECT, "Effect lines", skill.effect()).lines(4))
-                .hint(skill.type() == MobSkill.Type.TELEPORT
-                        ? "Played where it leaves and where it lands. One per line. NONE for none."
-                        : "Played as it goes off. One per line, such as [SOUND] ENTITY_LLAMA_SPIT;1;1. NONE for none.");
+        // Its own lines are edited under LOOK, in the line editor, not typed here.
         return form.ask(values -> rebuild(skill, values));
+    }
+
+    /**
+     * A potion line as three fields a person can fill: which effect, its
+     * level as the game shows it, and for how long.
+     *
+     * @param optional whether the effect may be left out, as a zone's may
+     */
+    private static EditorForm potion(EditorForm form, String line, boolean optional) {
+        Effects.ParsedEffect parsed = Effects.parse(line);
+        String name = parsed == null ? (optional ? "" : "SLOWNESS") : parsed.name();
+        long level = parsed == null ? 2 : parsed.amplifier() + 1L;
+        Duration time = Duration.ofMillis(parsed == null ? 4000 : parsed.duration() * 50L);
+        List<String> names = new ArrayList<>(optional ? List.of(NONE) : List.of());
+        names.addAll(POTIONS);
+        return form.choice(POTION_NAME, optional ? "Effect on those inside" : "Effect",
+                        name.isEmpty() ? NONE : name, options(names, name))
+                .integer(POTION_LEVEL, "Level", level)
+                .hint("As the game shows it: SLOWNESS 6 all but stops them.")
+                .field(POTION_TIME, FormField.duration(POTION_TIME, "Lasts").defaultValue(time))
+                .hint("3s, 1.5s.");
+    }
+
+    /** The potion fields back into a line; a line nobody touched stays as written. */
+    static String potionLine(String current, FormValues values) {
+        if (!values.has(POTION_NAME)) return current;
+        String name = cleared(values.get(POTION_NAME)).toUpperCase(Locale.ROOT).replace(' ', '_');
+        if (name.isEmpty()) return "";
+        long level = Math.clamp(values.getOr(POTION_LEVEL, 1L), 1, 255);
+        double seconds = values.getOr(POTION_TIME, Duration.ofSeconds(3)).toMillis() / 1000.0;
+        // Anything after the seconds (particles, icon, ambient) is kept as written.
+        String[] pieces = current.split("\\|", -1);
+        String tail = pieces.length > 3 ? "|" + String.join("|", java.util.Arrays.copyOfRange(pieces, 3, pieces.length)) : "";
+        return name + "|" + level + "|" + number(Math.max(0.05, seconds)) + tail;
+    }
+
+    /** The plugin's templates to pick from, when it is known and has any; else the id typed. */
+    private EditorForm template(EditorForm form, String current) {
+        if (mobs == null || mobs.templates().isEmpty()) return form.text(TEXT, "Template id", current);
+        List<String> ids = mobs.templates().stream().map(MobTemplate::id).sorted().toList();
+        return form.choice(TEXT, "Template", current, options(ids, current));
+    }
+
+    /** Enum constants as options, read the way a person says them. */
+    private static List<FormField.Option> options(Enum<?>[] values) {
+        List<FormField.Option> options = new ArrayList<>(values.length);
+        for (Enum<?> value : values) options.add(option(value.name()));
+        return options;
+    }
+
+    /** Keys as options, and the current one too when it is not among them, so opening never changes it. */
+    private static List<FormField.Option> options(List<String> keys, String current) {
+        List<FormField.Option> options = new ArrayList<>(keys.size() + 1);
+        keys.forEach(key -> options.add(option(key)));
+        if (!current.isBlank() && keys.stream().noneMatch(current::equalsIgnoreCase)) options.add(option(current));
+        return options;
+    }
+
+    private static FormField.Option option(String key) {
+        String readable = key.toLowerCase(Locale.ROOT).replace('_', ' ');
+        return new FormField.Option(key, "{letters}" + Character.toUpperCase(readable.charAt(0)) + readable.substring(1));
     }
 
     private static int jumpsOf(MobSkill skill) {
@@ -688,9 +756,8 @@ final class MobSkillDescriptor implements EditorDescriptor<MobSkill> {
         EditorForm form = EditorForm.of(plugin, viewer, "{primary}&lTIMING & AIM")
                 .field(WINDUP, FormField.duration(WINDUP, "Wind-up").defaultValue(zeroAsBlank(cast.windup())).optional())
                 .hint("It stops, faces its aim and telegraphs this long before it lands. 0 lands at once. 800ms, 1.5s.")
-                .text(AIM, "Aim", cast.aim().name())
-                .hint("AUTO, TARGET, NEAREST, FARTHEST, RANDOM, ALL, CONE, LINE, SELF or GROUND. "
-                        + "GROUND strikes where the target stood as the wind-up began.")
+                .choice(AIM, "Aim", cast.aim().name(), options(MobSkill.Aim.values()))
+                .hint("AUTO is the type's own. GROUND strikes where the target stood as the wind-up began.")
                 .decimal(SPREAD, "Spread", decimal(cast.spread()))
                 .hint("CONE: its angle in degrees, 60 when 0. LINE: its width in blocks, 1.6 when 0.");
         if (skill.trigger() == MobSkill.Trigger.INTERVAL) {
@@ -700,9 +767,7 @@ final class MobSkillDescriptor implements EditorDescriptor<MobSkill> {
         form.field(NAME, PluginMobs.optionalText(NAME, "Name", cast.name()))
                 .hint("What another skill's Then calls it by. NONE for none.")
                 .field(THEN, PluginMobs.optionalText(THEN, "Then", cast.then()))
-                .hint("The name of a skill cast right after this one lands. NONE for none.")
-                .field(WINDUP_LINES, PluginMobs.optionalText(WINDUP_LINES, "Wind-up lines", cast.windupLines()).lines(4))
-                .hint("Sequence lines played as the wind-up starts. One per line. NONE for none.");
+                .hint("The name of a skill cast right after this one lands. NONE for none.");
         return form.ask(values -> timing(skill, values));
     }
 
@@ -712,7 +777,8 @@ final class MobSkillDescriptor implements EditorDescriptor<MobSkill> {
                 values.getOr(WINDUP, Duration.ZERO), cast.style(), cast.tint(),
                 read(values, SPREAD, cast.spread()), cast.when(),
                 skill.trigger() == MobSkill.Trigger.INTERVAL ? cleared(values.getOr(GROUP, "")) : cast.group(),
-                cleared(values.getOr(THEN, "")), cleared(values.getOr(WINDUP_LINES, ""))));
+                cleared(values.getOr(THEN, "")),
+                values.has(WINDUP_LINES) ? cleared(values.get(WINDUP_LINES)) : cast.windupLines()));
     }
 
     /** Health, range, players nearby and phase. */
@@ -773,7 +839,7 @@ final class MobSkillDescriptor implements EditorDescriptor<MobSkill> {
                 read(values, AMOUNT, skill.amount()),
                 values.getOr(DURATION, skill.duration()),
                 text(skill, values),
-                effectLines(values.getOr(EFFECT, "")),
+                values.has(EFFECT) ? effectLines(values.get(EFFECT)) : skill.effect(),
                 skill.cast());
     }
 
@@ -781,6 +847,7 @@ final class MobSkillDescriptor implements EditorDescriptor<MobSkill> {
     private static String text(MobSkill skill, FormValues values) {
         if (values.has(JUMPS)) return String.valueOf(Math.clamp(values.get(JUMPS), 1, 8));
         if (values.has(STRIKE)) return decimal(Math.max(0, values.get(STRIKE).doubleValue())).toPlainString();
+        if (values.has(POTION_NAME)) return potionLine(skill.text(), values);
         if (skill.type() == MobSkill.Type.ZONE) return values.has(TEXT) ? cleared(values.get(TEXT)) : skill.text();
         return values.has(TEXT) ? values.get(TEXT).trim() : (touchesText(skill.type()) ? "" : skill.text());
     }

@@ -281,7 +281,7 @@ public record MobSkill(@NotNull Trigger trigger, @NotNull Type type, double chan
         return switch (type) {
             case LEAP, PULL -> new MobSkill(trigger, type, 1, cooldown, 0.3, 0, 1, Duration.ZERO, "");
             case PUSH -> new MobSkill(trigger, type, 1, cooldown, 0.3, 4, 1.2, Duration.ZERO, "");
-            case POTION -> new MobSkill(trigger, type, 1, cooldown, 0.3, 0, 0, Duration.ZERO, "SLOWNESS|1|3");
+            case POTION -> new MobSkill(trigger, type, 1, cooldown, 0.3, 0, 0, Duration.ZERO, "SLOWNESS|3|4");
             case SUMMON -> new MobSkill(trigger, type, 1, cooldown, 0.3, 3, 2, Duration.ZERO, "");
             case LIGHTNING -> new MobSkill(trigger, type, 1, cooldown, 0.3, 0, 4, Duration.ZERO, "");
             case PROJECTILE -> new MobSkill(trigger, type, 1, cooldown, 0.3, 0, 1.5, Duration.ZERO, "FIREBALL");

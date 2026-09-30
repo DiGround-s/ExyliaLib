@@ -60,6 +60,21 @@ class MobSkillDescriptorTest {
     }
 
     @Test
+    @DisplayName("the potion fields write a line back, keep its display flags, and leave the lines alone")
+    void potionRoundTrip() throws ReflectiveOperationException {
+        MobSkill skill = MobSkill.of(MobSkill.Type.POTION, MobSkill.Trigger.INTERVAL)
+                .withText("SLOWNESS|1|5|false").withEffect("[SOUND] X;1;1");
+
+        MobSkill edited = MobSkillDescriptor.rebuild(skill, values(Map.of("potion", "slowness",
+                "potion_level", 6L, "potion_time", java.time.Duration.ofMillis(2500))));
+
+        assertEquals("SLOWNESS|6|2.5|false", edited.text());
+        assertEquals("[SOUND] X;1;1", edited.effect(), "the lines are edited under LOOK, not wiped here");
+        assertEquals("", MobSkillDescriptor.potionLine("POISON|1|3", values(Map.of("potion", "none"))));
+        assertEquals("POISON|1|3", MobSkillDescriptor.potionLine("POISON|1|3", values(Map.of())));
+    }
+
+    @Test
     @DisplayName("the timing form reads back into the cast, NONE clears text, and an unreadable aim keeps the old one")
     void timingRoundTrip() throws ReflectiveOperationException {
         MobSkill skill = MobSkill.of(MobSkill.Type.PUSH, MobSkill.Trigger.INTERVAL)
