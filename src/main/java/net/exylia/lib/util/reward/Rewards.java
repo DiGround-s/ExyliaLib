@@ -157,6 +157,71 @@ public final class Rewards {
     // ------------------------------------------------------------------ items
 
     /**
+     * A reward list with its money and experience multiplied, such as a player's
+     * share of a pot: {@code scaled(pot, 0.25)} pays a quarter.
+     *
+     * <p>A fixed amount is multiplied and a ranged one has both ends multiplied;
+     * money keeps two decimals and experience whole points, both rounded down,
+     * and a reward that comes to nothing is left out. Items, commands, messages
+     * and potions are kept as they are.
+     *
+     * @param rewards what is scaled
+     * @param factor  how much of it; 1 answers the same list, 0 or less keeps
+     *                only what is not money or experience
+     * @return the scaled list
+     * @since 1.211.0
+     */
+    public static @NotNull List<RewardEntry> scaled(@NotNull List<RewardEntry> rewards, double factor) {
+        if (factor == 1.0 || rewards.isEmpty()) {
+            return rewards;
+        }
+        double by = Double.isFinite(factor) ? Math.max(0.0, factor) : 0.0;
+        List<RewardEntry> out = new ArrayList<>(rewards.size());
+        for (RewardEntry entry : rewards) {
+            RewardType type = entry.type();
+            if (type != RewardType.ECONOMY && type != RewardType.EXPERIENCE) {
+                out.add(entry);
+                continue;
+            }
+            if (entry.isRanged()) {
+                int min = (int) Math.floor(entry.minAmount() * by);
+                int max = (int) Math.floor(entry.maxAmount() * by);
+                if (max > 0) out.add(entry.toBuilder().amountBetween(Math.max(1, min), max).build());
+                continue;
+            }
+            if (type == RewardType.EXPERIENCE) {
+                int points = (int) Math.floor(integer(entry.value()) * by);
+                if (points > 0) out.add(entry.toBuilder().value(Integer.toString(points)).build());
+                continue;
+            }
+            java.math.BigDecimal amount;
+            try {
+                amount = new java.math.BigDecimal(entry.value().trim())
+                        .multiply(java.math.BigDecimal.valueOf(by))
+                        .setScale(2, java.math.RoundingMode.DOWN);
+            } catch (RuntimeException notAnAmount) {
+                // Not a number: kept as written, and the economy refuses it as it would anyway.
+                out.add(entry);
+                continue;
+            }
+            if (amount.signum() > 0) out.add(entry.toBuilder().value(amount.stripTrailingZeros().toPlainString()).build());
+        }
+        return out;
+    }
+
+    /** A written whole number, or 0 when it is not one. */
+    static int integer(@Nullable String written) {
+        if (written == null) {
+            return 0;
+        }
+        try {
+            return Integer.parseInt(written.trim());
+        } catch (NumberFormatException notANumber) {
+            return 0;
+        }
+    }
+
+    /**
      * Serialises an item the way a reward stores one.
      *
      * <p>What an editor calls when a server owner drops an item into a slot.

@@ -390,6 +390,56 @@ public final class PluginRewards {
     }
 
     /**
+     * Throws rewards out at a spot for whoever grabs them, earned by nobody in
+     * particular: a mob's loot, a burst from a broken crate.
+     *
+     * <p>Items land on the ground and experience comes out as orbs, each rolled
+     * as {@link #give(Player, List)} rolls it. Everything else needs somebody to
+     * receive it and is handed back unrolled, for the caller to give to a
+     * player; so is a reward with a permission or a condition, since there is
+     * nobody to ask.
+     *
+     * <p>Must be called on the thread that owns the spot.
+     *
+     * @param at      where they come out
+     * @param rewards what comes out
+     * @return what could not be thrown out, in the order given
+     * @since 1.211.0
+     */
+    public @NotNull List<RewardEntry> scatter(@NotNull org.bukkit.Location at,
+                                              @NotNull List<RewardEntry> rewards) {
+        List<RewardEntry> personal = new ArrayList<>();
+        for (RewardEntry entry : Rolls.ordered(rewards)) {
+            boolean asks = (entry.permission() != null && !entry.permission().isBlank())
+                    || (entry.condition() != null && !entry.condition().isBlank());
+            RewardType type = entry.type();
+            if (asks || (type != RewardType.ITEM && type != RewardType.EXPERIENCE)) {
+                personal.add(entry);
+                continue;
+            }
+            if (!Rolls.rolled(entry, dice)) {
+                continue;
+            }
+            int amount = Rolls.amount(entry, dice);
+            if (type == RewardType.ITEM) {
+                if (items.dropAt(at, entry.itemSnapshot(), amount)) {
+                    given.incrementAndGet();
+                } else {
+                    failed.incrementAndGet();
+                    debug.warn("Reward \"" + entry.displayName() + "\" names no item; nothing was dropped.");
+                }
+                continue;
+            }
+            int points = entry.isRanged() ? amount : Rewards.integer(entry.value());
+            if (points > 0) {
+                at.getWorld().spawn(at, org.bukkit.entity.ExperienceOrb.class, orb -> orb.setExperience(points));
+                given.incrementAndGet();
+            }
+        }
+        return personal;
+    }
+
+    /**
      * Gives rewards to somebody, here or not.
      *
      * <p>Online on this server: given on their own thread, from any thread.
