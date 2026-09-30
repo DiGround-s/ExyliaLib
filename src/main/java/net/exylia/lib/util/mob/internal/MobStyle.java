@@ -536,7 +536,17 @@ enum MobStyle {
                 Shapes.circle(v, ring * 110L, Particle.DUST, at.clone().add(0, 0.2, 0), radii[ring], points, 0,
                         Shapes.dust(s.main(), 1.2f));
             }
-            v.particle(0, Particle.HEART, at.clone().add(0, s.height + 0.2, 0), s.count(5, 3), 0.4, 0.2, 0.4, 0, null);
+            v.particle(0, Particle.HEART, at.clone().add(0, s.height + 0.2, 0), s.count(5, 3), 0.4, 0.2, 0.4, 0, null)
+                    .particle(0, Particle.TOTEM_OF_UNDYING, at.clone().add(0, s.height * 0.5, 0), s.count(24, 12),
+                            s.width * 0.6, s.height * 0.4, s.width * 0.6, 0.3, null);
+            // A double helix of light climbing round it as the wounds close.
+            DisplayModel light = Shapes.glowing(Shapes.nearestGlass(s.main()), s.main());
+            int motes = s.count(8, 4);
+            double reach = 0.6 + s.width * 0.5;
+            for (int mote = 0; mote < motes; mote++) {
+                double start = Math.PI * (mote % 2) + mote / 2 * 0.5;
+                v.display(mote / 2 * 70L, light, orbit(reach, 0.1, s.height + 0.9, start, 1.5, 750, 0.18, 0.12), at);
+            }
             Shapes.sound(v, 0, "ENTITY_PLAYER_LEVELUP", 0.35f, 1.8f);
             Shapes.sound(v, 0, "BLOCK_AMETHYST_BLOCK_RESONATE", 0.8f, 1.6f);
         }
@@ -606,9 +616,19 @@ enum MobStyle {
                 double x = random.nextDouble(-0.6, 0.6);
                 double z = random.nextDouble(-0.6, 0.6);
                 v.display(loose + piece * 30L, arrow, DisplayMotion.builder().life(500).from(0, 0, 0).to(x, 12, z)
-                        .rotation(Rotation.around(Rotation.Axis.Z, Math.PI / 4)).scale(0.9, 0.9)
+                        .rotation(Shapes.tip(Math.PI / 2)).scale(0.9, 0.9)
                         .ease(DisplayMotion.Easing.IN).build(), hands);
+                v.particle(loose + piece * 30L, Particle.CRIT, hands.clone().add(x * 0.3, 0.6, z * 0.3), 0, x * 0.1,
+                        1, z * 0.1, 0.6, null);
             }
+        }
+
+        @Override
+        void impact(Stage s, Vfx v, Location at) {
+            Location hands = hands(s);
+            v.particle(0, Particle.CLOUD, hands, s.count(6, 3), 0.15, 0.2, 0.15, 0.05, null)
+                    .particle(0, Particle.CRIT, hands.clone().add(0, 0.5, 0), s.count(10, 5), 0.2, 0.4, 0.2, 0.3, null);
+            Shapes.sound(v, 0, "ITEM_CROSSBOW_SHOOT", 1.0f, 0.7f);
         }
     },
 
@@ -623,7 +643,13 @@ enum MobStyle {
                 v.particle(w * scrape / 2, Particle.BLOCK, s.origin().add(0, 0.1, 0), s.count(6, 3), s.width * 0.4,
                         0.05, s.width * 0.4, 0.05, s.ground);
             }
+            Vector ahead = MobAim.facing(s.yaw());
+            Location eyes = s.origin().add(ahead.clone().multiply(s.width * 0.5 + 0.05)).add(0, s.height * 0.85, 0);
+            v.particle(0, Particle.DUST, eyes, 2, s.width * 0.2, 0.02, s.width * 0.2, 0, Shapes.dust(s.main(), 0.8f))
+                    .particle(w / 2, Particle.DUST, eyes, 2, s.width * 0.2, 0.02, s.width * 0.2, 0,
+                            Shapes.dust(s.main(), 0.8f));
             Shapes.sound(v, 0, "ENTITY_RAVAGER_STEP", 0.6f, 1.3f);
+            Shapes.sound(v, Math.max(0, w - 150), "ENTITY_CAT_HISS", 0.8f, 0.6f);
         }
 
         @Override
@@ -632,6 +658,11 @@ enum MobStyle {
                     s.width * 0.4, 0.03, null)
                     .particle(0, Particle.BLOCK, at.clone().add(0, 0.1, 0), s.count(8, 4), s.width * 0.4, 0.05,
                             s.width * 0.4, 0.1, s.ground);
+            Shapes.circle(v, 0, Particle.CLOUD, at.clone().add(0, 0.15, 0), Math.max(0.6, s.width * 0.7),
+                    s.count(10, 6), 0.15, null);
+            for (LivingEntity body : s.reached()) {
+                v.particle(0, Particle.CRIT, chest(body), s.count(10, 5), 0.3, 0.4, 0.3, 0.3, null);
+            }
             Shapes.sound(v, 0, "ENTITY_GOAT_LONG_JUMP", 1.0f, 1.0f);
         }
     },
@@ -640,8 +671,19 @@ enum MobStyle {
         @Override
         void windup(Stage s, Vfx v) {
             long w = s.windup();
-            v.display(0, Shapes.item(Material.CHAIN), DisplayMotion.builder().life(Math.max(50L, w))
-                    .spin(0, 0, 2).scale(0.3, 0.6).build(), hands(s));
+            // A length of chain whirled round over its head, faster as it winds up.
+            DisplayModel link = Shapes.item(Material.CHAIN);
+            Location over = s.origin().add(0, s.height + 0.3, 0);
+            int links = s.count(8, 4);
+            long life = Math.max(50L, w);
+            double turns = Math.max(1, life / 350.0);
+            for (int piece = 0; piece < links; piece++) {
+                double reach = 0.35 + piece * 0.16;
+                v.display(0, link, orbit(reach, 0, 0.05, 0, turns, life, 0.45, 0.45), over);
+            }
+            for (long beat = 0; beat < w; beat += 250) {
+                Shapes.sound(v, beat, "ENTITY_PLAYER_ATTACK_SWEEP", 0.35f, 1.6f);
+            }
             Shapes.sound(v, 0, "ITEM_ARMOR_EQUIP_CHAIN", 1.0f, 0.7f);
             Shapes.sound(v, Math.max(0, w - 50), "ENTITY_FISHING_BOBBER_THROW", 1.0f, 0.6f);
         }
@@ -684,6 +726,29 @@ enum MobStyle {
                 case "SNOWBALL" -> Shapes.sound(v, 0, "ENTITY_SNOW_GOLEM_AMBIENT", 0.8f, 1.2f);
                 default -> Shapes.sound(v, 0, "ENTITY_GHAST_WARN", 0.6f, 1.2f);
             }
+            // What it is about to throw, gathering in its hands.
+            long life = Math.max(50L, w);
+            switch (kind) {
+                case "ARROW" -> v.display(0, Shapes.item(Material.ARROW), DisplayMotion.builder().life(life)
+                        .from(0, 0, 0).to(-MobAim.facing(s.yaw()).getX() * 0.4, 0, -MobAim.facing(s.yaw()).getZ() * 0.4)
+                        .rotation(blade(heading(s))).scale(0.9, 0.9).ease(DisplayMotion.Easing.OUT).build(), hands);
+                case "SNOWBALL" -> v.display(0, Shapes.item(Material.SNOWBALL), DisplayMotion.builder().life(life)
+                        .scale(0.2, 0.6).spin(0, 2, 0).ease(DisplayMotion.Easing.OUT).build(), hands);
+                default -> {
+                    boolean wither = kind.equals("WITHER_SKULL");
+                    int rgb = wither ? s.colour(Role.DANGER) : s.colour(Role.FIRE);
+                    DisplayModel orb = wither ? Shapes.glowing(Material.BLACK_STAINED_GLASS, rgb)
+                            : Shapes.glowing(Material.MAGMA_BLOCK, rgb);
+                    v.display(0, orb, DisplayMotion.builder().life(life).scale(0.05, 0.4).spin(1, 2, 1)
+                            .ease(DisplayMotion.Easing.OUT).build(), hands);
+                    DisplayModel ember = Shapes.glowing(Shapes.nearestGlass(rgb), rgb);
+                    int embers = s.count(5, 3);
+                    for (int piece = 0; piece < embers; piece++) {
+                        v.display(0, ember, orbit(0.45, -0.1, 0.1, Math.PI * 2 * piece / embers, Math.max(1, life / 300.0),
+                                life, 0.08, 0.05), hands);
+                    }
+                }
+            }
         }
 
         @Override
@@ -700,6 +765,18 @@ enum MobStyle {
             }
             v.particle(0, Particle.SMOKE, hands, s.count(8, 4), 0.15, 0.15, 0.15, 0.02, null)
                     .particle(0, Particle.POOF, hands, s.count(4, 2), 0.1, 0.1, 0.1, 0.02, null);
+            // A ring blown out round the shot, square to where it flies.
+            Vector side = towards.clone().crossProduct(new Vector(0, 1, 0));
+            if (side.lengthSquared() < 1.0E-4) side = new Vector(1, 0, 0);
+            side.normalize();
+            Vector up = side.clone().crossProduct(towards).normalize();
+            int points = s.count(12, 6);
+            for (int point = 0; point < points; point++) {
+                double angle = Math.PI * 2 * point / points;
+                Vector out = side.clone().multiply(Math.cos(angle)).add(up.clone().multiply(Math.sin(angle)));
+                v.particle(0, fire ? Particle.FLAME : Particle.CLOUD, hands.clone().add(towards.clone().multiply(0.3)), 0,
+                        out.getX(), out.getY(), out.getZ(), 0.12, null);
+            }
             String kind = s.skill.text().trim().toUpperCase(Locale.ROOT);
             switch (kind) {
                 case "SMALL_FIREBALL" -> Shapes.sound(v, 0, "ENTITY_BLAZE_SHOOT", 1.0f, 1.0f);
@@ -1090,6 +1167,11 @@ enum MobStyle {
     },
 
     JUDGEMENT("judgement", Role.CRIT) {
+        /** Turned to whoever looks at it, so a flat blade is never seen edge-on. */
+        private DisplayModel judgementSword() {
+            return Shapes.item(Material.GOLDEN_SWORD).billboard("VERTICAL");
+        }
+
         @Override
         void windup(Stage s, Vfx v) {
             long w = s.windup();
@@ -1108,14 +1190,27 @@ enum MobStyle {
             long appear = w / 5;
             long drop = Math.min(350L, Math.max(100L, w / 5));
             long hang = Math.max(50L, w - appear - drop);
-            DisplayModel sword = Shapes.item(Material.GOLDEN_SWORD).light(15);
-            Rotation down = Rotation.around(Rotation.Axis.Z, -Math.PI * 3 / 4);
+            DisplayModel sword = judgementSword();
+            Rotation down = Shapes.tip(-Math.PI / 2);
             double size = Math.clamp(r * 1.6, 4, 9);
             v.display(appear, sword, DisplayMotion.chain(
                     DisplayMotion.builder().life(hang).from(0, 24, 0).to(0, 17, 0).rotation(down)
-                            .spin(Rotation.Axis.Y, 0.5).scale(size * 0.3, size).ease(DisplayMotion.Easing.OUT).build(),
+                            .scale(size * 0.3, size).ease(DisplayMotion.Easing.OUT).build(),
                     DisplayMotion.builder().life(drop).from(0, 17, 0).to(0, size * 0.35, 0).rotation(down)
                             .scale(size, size).ease(DisplayMotion.Easing.IN).build()), centre);
+            // A halo of light turning round its guard while it hangs.
+            DisplayModel light = Shapes.glowing(Shapes.nearestGlass(s.main()), s.main());
+            int motes = s.count(8, 4);
+            double guard = size * 0.45;
+            for (int mote = 0; mote < motes; mote++) {
+                v.display(appear, light, orbit(size * 0.35, 24 + guard, 17 + guard, Math.PI * 2 * mote / motes, 2,
+                        hang, 0.1, 0.22), centre);
+            }
+            for (long beat = appear; beat < appear + hang; beat += 100) {
+                double t = (double) (beat - appear) / hang;
+                v.particle(beat, Particle.END_ROD, centre.clone().add(0, 24 - 7 * t + guard, 0), s.count(3, 2),
+                        size * 0.2, 0.3, size * 0.2, 0.01, null);
+            }
             v.beam(appear + hang / 3, centre.clone().add(0, 16, 0), centre.clone().add(0, 0.1, 0),
                     Shapes.glowing(Shapes.nearestGlass(s.main()), s.main()), 0.06, Math.max(50L, hang * 2 / 3 + drop));
             for (long beat = appear; beat < w; beat += 150) {
@@ -1133,9 +1228,9 @@ enum MobStyle {
         void impact(Stage s, Vfx v, Location at) {
             double r = radius(s, 4);
             double size = Math.clamp(r * 1.6, 4, 9);
-            Rotation down = Rotation.around(Rotation.Axis.Z, -Math.PI * 3 / 4);
+            Rotation down = Shapes.tip(-Math.PI / 2);
             // Driven into the ground, it stands a moment and sinks away.
-            v.display(0, Shapes.item(Material.GOLDEN_SWORD).light(15), DisplayMotion.chain(
+            v.display(0, judgementSword(), DisplayMotion.chain(
                     DisplayMotion.builder().life(80).from(0, size * 0.35, 0).to(0, size * 0.22, 0).rotation(down)
                             .scale(size, size).ease(DisplayMotion.Easing.OUT).build(),
                     DisplayMotion.still(1100),
@@ -1718,7 +1813,7 @@ enum MobStyle {
 
     /** A sword turned so its tip points out along {@code angle} and its flat stands upright. */
     static Rotation blade(double angle) {
-        return Rotation.around(Rotation.Axis.Z, -Math.PI / 4)
+        return Shapes.tip(0)
                 .then(Rotation.around(Rotation.Axis.Y, -Math.PI / 2))
                 .then(Shapes.facing(angle));
     }

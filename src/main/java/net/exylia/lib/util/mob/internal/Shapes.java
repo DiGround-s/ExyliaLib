@@ -196,6 +196,20 @@ final class Shapes {
     }
 
     /**
+     * Turns a diagonal item (a sword, an arrow, an axe) in its own plane so its
+     * tip points at {@code angle}: 0 along +X, {@code PI/2} straight up,
+     * {@code -PI/2} straight down.
+     *
+     * <p>An item's texture has its tip at the top right, 45 degrees; but the
+     * client turns every item display half a turn about Y before our rotation
+     * applies, which puts that tip at 135 degrees. Writing the angle from 45
+     * made the Judgement sword lie on its side; every item tip goes through here.
+     */
+    static Rotation tip(double angle) {
+        return Rotation.around(Rotation.Axis.Z, angle - Math.PI * 3 / 4);
+    }
+
+    /**
      * Tilts a model's top away from the middle by {@code tilt} radians, for a
      * piece standing on a ring at {@code angle}: a spike leaning out of a nova.
      */

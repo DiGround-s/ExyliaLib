@@ -254,6 +254,19 @@ class MobStylesTest {
     }
 
     @Test
+    @DisplayName("an item's tip points where it was told, after the half turn the client gives every item display")
+    void itemTips() {
+        net.exylia.lib.display.Rotation client = net.exylia.lib.display.Rotation.around(
+                net.exylia.lib.display.Rotation.Axis.Y, Math.PI);
+        float[] texture = {1f, 1f, 0f};
+        float[] down = client.then(Shapes.tip(-Math.PI / 2)).apply(texture.clone());
+        assertEquals(0, down[0], 1.0E-4, "no sideways lean");
+        assertTrue(down[1] < -1.3f, "the Judgement sword points at the ground: " + down[1]);
+        float[] up = client.then(Shapes.tip(Math.PI / 2)).apply(texture.clone());
+        assertTrue(up[1] > 1.3f, "rain arrows fly up");
+    }
+
+    @Test
     @DisplayName("every sound a style names is a real sound")
     void soundsExist() {
         for (MobStyle style : MobStyle.values()) build(style, false);

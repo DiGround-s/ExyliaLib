@@ -491,7 +491,7 @@ final class MobShows {
         long fall = 380;
         long lands = delay + MobMoves.STRIKE_LEAD_TICKS * 50L;
         DisplayModel arrow = Shapes.item(Material.ARROW).billboard("VERTICAL");
-        Rotation down = Rotation.around(Rotation.Axis.Z, -Math.PI * 3 / 4);
+        Rotation down = Shapes.tip(-Math.PI / 2);
         vfx.display(lands - fall, arrow, DisplayMotion.chain(
                 DisplayMotion.builder().life(fall).from(0, 14, 0).to(0, 0.35, 0).rotation(down).scale(1.1, 1.1)
                         .ease(DisplayMotion.Easing.IN).build(),
