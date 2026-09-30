@@ -390,6 +390,73 @@ public final class PluginRewards {
     }
 
     /**
+     * Gives rewards to somebody, here or not.
+     *
+     * <p>Online on this server: given on their own thread, from any thread.
+     * Dead, quitting, offline or on another server: kept through
+     * {@link #giveLater} and claimed on their next join. A player who leaves
+     * between the check and the delivery is caught on their thread and queued.
+     *
+     * @param player  who gets them
+     * @param rewards what they get
+     * @since 1.207.0
+     */
+    public void deliver(@NotNull UUID player, @NotNull List<RewardEntry> rewards) {
+        if (rewards.isEmpty()) {
+            return;
+        }
+        Player online = org.bukkit.Bukkit.getPlayer(player);
+        if (online == null || !online.isOnline()) {
+            giveLater(player, rewards);
+            return;
+        }
+        tasks.runAtEntity(online, () -> {
+            if (online.isOnline()) {
+                give(online, rewards);
+            } else {
+                giveLater(player, rewards);
+            }
+        }, () -> giveLater(player, rewards));
+    }
+
+    /** How close a player must be for {@link #deliver(UUID, List, org.bukkit.Location)} to drop at the spot. */
+    public static final int DROP_REACH = 32;
+
+    /**
+     * Gives rewards with the items thrown out at a spot when the player is
+     * there to grab them, and through {@link #deliver(UUID, List)} otherwise.
+     *
+     * <p>They drop only when the player is online, they and the spot are owned
+     * by the calling thread,
+     * and they are within {@link #DROP_REACH} blocks of it in its world; far away,
+     * on another thread or gone, nothing is left on the ground for nobody.
+     * Call it on the spot's thread when it may drop.
+     *
+     * @param player  who earned them
+     * @param rewards what they earned
+     * @param dropAt  where items come out; {@code null} always delivers
+     * @since 1.207.0
+     */
+    public void deliver(@NotNull UUID player, @NotNull List<RewardEntry> rewards,
+                        @Nullable org.bukkit.Location dropAt) {
+        if (rewards.isEmpty()) {
+            return;
+        }
+        Player online = dropAt == null ? null : org.bukkit.Bukkit.getPlayer(player);
+        if (online != null && online.isOnline() && tasks.isOwnedBy(online) && tasks.isOwnedBy(dropAt)
+                && near(online, dropAt)) {
+            giveDropping(online, rewards, dropAt);
+        } else {
+            deliver(player, rewards);
+        }
+    }
+
+    private static boolean near(Player player, org.bukkit.Location at) {
+        return player.getWorld().equals(at.getWorld())
+                && player.getLocation().distanceSquared(at) < (double) DROP_REACH * DROP_REACH;
+    }
+
+    /**
      * Hands a player everything they were owed.
      *
      * <p>What a join listener calls. Reading the store is done off the main
