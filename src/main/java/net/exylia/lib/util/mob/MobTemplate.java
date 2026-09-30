@@ -136,14 +136,16 @@ public record MobTemplate(@NotNull String id, @NotNull EntityType type, @NotNull
      * A random but playable template, to show what a mob can be.
      *
      * <p>A hostile-capable type from a curated list (no warden, ravagers are
-     * rare), a {@code {primary}} name with the health bar, armour of one
-     * material tier and a weapon that fits the type where it can wear them,
-     * sometimes enchanted, two to five attributes in sensible ranges, flags
-     * the type can use, up to two potion effects, one to four skills on
-     * triggers that suit them, {@code 5-60} experience and {@code 5-80} money.
-     * Never a {@link MobSkill.Type#COMMAND} skill; a {@link MobSkill.Type#SUMMON}
-     * summons this very template. No rewards: those are the admin's. Never
-     * hits mode, never a look: {@link MobBehaviour#NONE} and {@link MobLook#NONE}.
+     * rare) at one of three ranks: an elite, a champion or, rarely, a boss.
+     * The rank sets its health and damage, its armour tier and enchantments,
+     * how many moves it knows and how fast it rotates them, its phases, its
+     * look and its {@code exp} and {@code money}. Its moves are skill-library
+     * presets that suit how it fights (ranged kinds cast, the rest close in),
+     * taking turns in one rotation group; a champion or boss chains two of them
+     * when they combo. Each phase casts one more preset as it starts, and it
+     * may carry a curse or fire on its hits. Never a {@link MobSkill.Type#COMMAND}
+     * skill; a {@link MobSkill.Type#SUMMON} summons this very template and is
+     * never a boss's. No rewards: those are the admin's. Never hits mode.
      *
      * <p>The same seed gives the same template. Needs a running server for the
      * equipment items.
@@ -151,7 +153,7 @@ public record MobTemplate(@NotNull String id, @NotNull EntityType type, @NotNull
      * @param id     the new template's id
      * @param random where every choice comes from
      * @return the template
-     * @since 1.193.0
+     * @since 1.193.0, ranks and a fight since 1.212.0
      */
     public static @NotNull MobTemplate random(@NotNull String id, @NotNull RandomGenerator random) {
         return RandomTemplate.roll(id, random, RandomTemplate.SERVER_ITEMS);

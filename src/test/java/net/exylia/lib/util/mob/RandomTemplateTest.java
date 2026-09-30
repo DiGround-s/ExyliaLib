@@ -10,7 +10,9 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.SplittableRandom;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -82,14 +84,13 @@ class RandomTemplateTest {
                 assertTrue(List.of("sharpness", "power").contains(piece.enchantment), where);
             }
 
-            assertTrue(template.attributes().size() >= 2 && template.attributes().size() <= 5, where);
             assertTrue(MobTemplate.ATTRIBUTES.containsAll(template.attributes().keySet()), where);
-            Double health = template.attributes().get("max_health");
-            if (health != null) assertTrue(health >= 20 && health <= 150, where);
-            Double damage = template.attributes().get("attack_damage");
-            if (damage != null) assertTrue(damage >= 2 && damage <= 14, where);
+            double health = template.attributes().get("max_health");
+            assertTrue(health >= 40 && health <= 500, where);
+            double damage = template.attributes().get("attack_damage");
+            assertTrue(damage >= 4 && damage <= 14, where);
             Double scale = template.attributes().get("scale");
-            if (scale != null) assertTrue(scale >= 0.7 && scale <= 1.8, where);
+            if (scale != null) assertTrue(scale >= 0.85 && scale <= 1.6, where);
 
             assertTrue(RandomTemplate.allowedFlags(kind).containsAll(template.flags()), where + " " + template.flags());
             if (template.has(MobFlag.BABY)) {
@@ -98,27 +99,45 @@ class RandomTemplateTest {
             if (template.type() == EntityType.WOLF || template.type() == EntityType.IRON_GOLEM) {
                 assertTrue(template.has(MobFlag.AGGRESSIVE), where);
             }
-
-            assertTrue(template.effects().size() <= 2, where);
+            assertTrue(template.effects().size() <= 3, where);
             template.effects().forEach(effect -> assertNotNull(effect, where));
 
-            assertTrue(!template.skills().isEmpty() && template.skills().size() <= 4, where);
+            List<MobSkill> moves = template.skills().stream()
+                    .filter(skill -> skill.cast().group().equals("moves")).toList();
+            assertTrue(moves.size() >= 2 && moves.size() <= 5, where + " " + moves.size() + " moves");
+            Set<String> names = new HashSet<>();
+            for (MobSkill move : moves) {
+                assertEquals(MobSkill.Trigger.INTERVAL, move.trigger(), where);
+                assertFalse(move.cast().windup().isZero() && move.type() != MobSkill.Type.TELEPORT, where);
+                assertTrue(names.add(move.cast().name()), where + " one of each move");
+            }
+            for (MobSkill move : moves) {
+                if (!move.cast().then().isEmpty()) assertTrue(names.contains(move.cast().then()), where);
+            }
+            int phases = template.fight().phases().size();
+            assertTrue(phases >= 1 && phases <= 2, where);
+            assertTrue(template.fight().groups().containsKey("moves"), where);
+            assertFalse(template.fight().globalCooldown().isZero(), where);
+            List<MobSkill> tricks = template.skills().stream()
+                    .filter(skill -> skill.trigger() == MobSkill.Trigger.PHASE).toList();
+            assertEquals(phases, tricks.size(), where + " one trick per phase");
+            for (int phase = 2; phase <= phases + 1; phase++) {
+                int wanted = phase;
+                assertTrue(tricks.stream().anyMatch(trick -> trick.cast().when().phase() == wanted), where);
+            }
             for (MobSkill skill : template.skills()) {
                 assertFalse(skill.type() == MobSkill.Type.COMMAND, where);
-                if (skill.type() == MobSkill.Type.SUMMON) assertEquals(template.id(), skill.text(), where);
-                if (skill.type() == MobSkill.Type.EFFECT) assertFalse(skill.text().isBlank(), where);
+                if (skill.type() == MobSkill.Type.SUMMON) {
+                    assertEquals(template.id(), skill.text(), where);
+                    assertTrue(health <= 220, where + " a boss never summons itself");
+                }
             }
 
-            assertTrue(template.exp() >= 5 && template.exp() <= 60, where);
-            assertTrue(template.money() >= 5 && template.money() <= 80, where);
+            assertTrue(template.exp() >= 15 && template.exp() <= 400, where);
+            assertTrue(template.money() >= 15 && template.money() <= 800, where);
             assertTrue(template.rewards().isEmpty(), where);
             assertEquals(MobBehaviour.NONE, template.behaviour(), where + " never hits mode");
-            assertEquals(MobLook.NONE, template.look(), where);
-            for (MobSkill skill : template.skills()) {
-                assertFalse(List.of(MobSkill.Type.JUMP, MobSkill.Type.SIZE, MobSkill.Type.SPEED, MobSkill.Type.BABY)
-                        .contains(skill.type()), where + " rolled a type added after 1.193.0");
-                assertTrue(skill.effect().isEmpty(), where);
-            }
+            assertEquals(template.look().glow().isEmpty(), template.look().spawn().isEmpty(), where);
 
             List<String> problems = new ArrayList<>();
             assertEquals(template.skills(), MobCodec.decodeSkills(MobCodec.encodeSkills(template.skills()),
@@ -127,24 +146,27 @@ class RandomTemplateTest {
             assertEquals(template.flags(), MobCodec.decodeFlags(MobCodec.encodeFlags(template.flags())), where);
             assertEquals(template.effects(), MobCodec.decodeEffects(MobCodec.encodeEffects(template.effects()),
                     (at, problem) -> problems.add(at + ": " + problem)), where);
+            assertEquals(template.fight(), MobCodec.decodeFight(MobCodec.encodeFight(template.fight()),
+                    (at, problem) -> problems.add(at + ": " + problem)), where);
+            assertEquals(template.look(), MobCodec.decodeLook(MobCodec.encodeLook(template.look()),
+                    (at, problem) -> problems.add(at + ": " + problem)), where);
             assertTrue(problems.isEmpty(), where + " " + problems);
         }
     }
 
     @Test
-    @DisplayName("a seed still rolls the mob it rolled when random templates shipped")
-    void stableAcrossReleases() {
-        StringBuilder all = new StringBuilder();
-        for (long seed = 0; seed < 50; seed++) {
+    @DisplayName("every rank turns up, and bosses are rare")
+    void ranks() {
+        int bosses = 0;
+        int elites = 0;
+        for (long seed = 0; seed < 500; seed++) {
             MobTemplate template = roll(seed);
-            all.append(template.type()).append(template.name()).append(MobCodec.encodeSkills(template.skills()))
-                    .append(MobCodec.encodeFlags(template.flags())).append(template.exp()).append(template.money());
+            if (template.fight().phases().size() == 2) bosses++;
+            if (template.look().equals(MobLook.NONE)) elites++;
         }
-        assertEquals(FINGERPRINT, all.toString().hashCode());
+        assertTrue(bosses > 20 && bosses < 90, bosses + " bosses");
+        assertTrue(elites > 220 && elites < 380, elites + " elites");
     }
-
-    /** Rolled by 1.193.0; a new skill type, flag or look must never change what a seed gives. */
-    private static final int FINGERPRINT = 2057257300;
 
     @Test
     @DisplayName("the same seed gives the same mob")
@@ -158,6 +180,8 @@ class RandomTemplateTest {
             assertEquals(first.flags(), second.flags());
             assertEquals(first.effects(), second.effects());
             assertEquals(first.skills(), second.skills());
+            assertEquals(first.fight(), second.fight());
+            assertEquals(first.look(), second.look());
             assertEquals(first.exp(), second.exp());
             assertEquals(first.money(), second.money());
             for (int index : List.of(0, 1, 2, 3, MobTemplate.MAIN_HAND)) {

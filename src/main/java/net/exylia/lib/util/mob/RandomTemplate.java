@@ -75,35 +75,54 @@ final class RandomTemplate {
     private static final List<String> EFFECTS = List.of("SPEED", "STRENGTH", "RESISTANCE",
             "REGENERATION", "FIRE_RESISTANCE", "JUMP_BOOST");
     private static final List<String> CURSES = List.of("SLOWNESS|2|4", "WEAKNESS|1|5", "POISON|1|4",
-            "BLINDNESS|1|3", "WITHER|1|4", "HUNGER|2|6", "SLOWNESS|1|6");
-    private static final List<String> PROJECTILES = List.of("FIREBALL", "SMALL_FIREBALL",
-            "WITHER_SKULL", "ARROW", "SNOWBALL");
-    private static final List<String> SEQUENCES = List.of(
-            "[PARTICLE] FLAME;count:30;offset:0.6,1,0.6\n[SOUND] ENTITY_BLAZE_SHOOT;1;0.8",
-            "[PARTICLE] END_ROD;count:40;offset:0.6,1,0.6;speed:0.05\n[SOUND] BLOCK_AMETHYST_BLOCK_CHIME;1;1.2",
-            "[PARTICLE] SOUL_FIRE_FLAME;count:25;offset:0.5,1,0.5\n[SOUND] ENTITY_WITHER_SHOOT;0.6;1.4",
-            "[LIGHTNING]");
+            "BLINDNESS|1|3", "WITHER|1|4", "HUNGER|2|6");
 
-    /** The triggers each skill type makes sense on; COMMAND is never rolled. */
-    private static final Map<MobSkill.Type, List<MobSkill.Trigger>> TRIGGERS = new LinkedHashMap<>();
+    /**
+     * How dangerous a rolled mob is, and everything that follows from it.
+     *
+     * @param name     what it is called, in capitals
+     * @param weight   how often it is rolled
+     * @param health   {@code max_health} range, end exclusive
+     * @param damage   {@code attack_damage} range, end exclusive
+     * @param moves    how many rotation moves it knows, end exclusive
+     * @param period   seconds between two rotation moves
+     * @param gear     lowest and highest armour tier
+     * @param phases   health shares it changes phase below
+     * @param exp      experience range, end exclusive
+     * @param money    money range, end exclusive
+     */
+    record Rank(String name, int weight, int[] health, int[] damage, int[] moves, int period, int[] gear,
+                double[] phases, int[] exp, int[] money) { }
 
-    static {
-        MobSkill.Trigger spawn = MobSkill.Trigger.SPAWN, interval = MobSkill.Trigger.INTERVAL,
-                attack = MobSkill.Trigger.ATTACK, damaged = MobSkill.Trigger.DAMAGED,
-                low = MobSkill.Trigger.LOW_HEALTH, death = MobSkill.Trigger.DEATH;
-        TRIGGERS.put(MobSkill.Type.LEAP, List.of(interval, damaged));
-        TRIGGERS.put(MobSkill.Type.PULL, List.of(interval, damaged));
-        TRIGGERS.put(MobSkill.Type.PUSH, List.of(interval, damaged, low));
-        TRIGGERS.put(MobSkill.Type.POTION, List.of(attack, interval, damaged));
-        TRIGGERS.put(MobSkill.Type.SUMMON, List.of(spawn, interval, low, death));
-        TRIGGERS.put(MobSkill.Type.LIGHTNING, List.of(interval, attack, death));
-        TRIGGERS.put(MobSkill.Type.PROJECTILE, List.of(interval));
-        TRIGGERS.put(MobSkill.Type.HEAL, List.of(low, damaged));
-        TRIGGERS.put(MobSkill.Type.TELEPORT, List.of(interval, damaged));
-        TRIGGERS.put(MobSkill.Type.AREA_DAMAGE, List.of(interval, low, death));
-        TRIGGERS.put(MobSkill.Type.IGNITE, List.of(attack, damaged));
-        TRIGGERS.put(MobSkill.Type.EFFECT, List.of(spawn, low, death));
-    }
+    static final List<Rank> RANKS = List.of(
+            new Rank("ELITE", 6, new int[]{40, 91}, new int[]{4, 8}, new int[]{2, 4}, 7,
+                    new int[]{1, 3}, new double[]{0.35}, new int[]{15, 41}, new int[]{15, 61}),
+            new Rank("CHAMPION", 3, new int[]{100, 221}, new int[]{6, 11}, new int[]{3, 5}, 6,
+                    new int[]{2, 4}, new double[]{0.5}, new int[]{40, 121}, new int[]{60, 201}),
+            new Rank("BOSS", 1, new int[]{250, 501}, new int[]{9, 15}, new int[]{4, 6}, 5,
+                    new int[]{4, 5}, new double[]{0.6, 0.3}, new int[]{150, 401}, new int[]{250, 801}));
+
+    /** Kinds that keep their distance: they get ranged and caster moves. */
+    private static final Set<EntityType> RANGED = EnumSet.of(EntityType.SKELETON, EntityType.STRAY,
+            EntityType.PILLAGER, EntityType.EVOKER, EntityType.BLAZE, EntityType.WITCH);
+
+    /** Rotation moves by preset id, for fighters up close and for those at range. */
+    private static final List<String> MELEE_MOVES = List.of("slam", "cleave", "charge", "pounce", "hook",
+            "blades", "fissure", "vortex", "eruption", "chain", "nova", "miasma", "portal");
+    private static final List<String> RANGED_MOVES = List.of("volley", "rain", "chain", "smite", "meteor",
+            "miasma", "eruption", "fissure", "blink", "dread", "nova", "portal");
+
+    /** What a mob casts as it enters a phase, and on low health when it has no phase left. */
+    private static final List<String> PHASE_MOVES = List.of("bubble", "enrage", "renew", "dread", "vortex");
+
+    /** One move straight after another, when the mob knows both: {first, then}. */
+    private static final String[][] COMBOS = {
+            {"hook", "cleave"}, {"hook", "slam"}, {"vortex", "slam"}, {"vortex", "blades"},
+            {"pounce", "slam"}, {"charge", "cleave"}, {"blink", "cleave"}, {"nova", "eruption"},
+            {"dread", "smite"}, {"vortex", "eruption"}};
+
+    /** Phase suffixes, in order. */
+    private static final String[] PHASE_SUFFIX = {"{warning}✦", "{error}☠"};
 
     private RandomTemplate() {
         throw new AssertionError("No instances.");
@@ -119,9 +138,12 @@ final class RandomTemplate {
 
     static @NotNull MobTemplate roll(@NotNull String id, @NotNull RandomGenerator random, @NotNull Items items) {
         Kind kind = kind(random);
-        return new MobTemplate(id, kind.type(), name(kind, random), equipment(kind, random, items),
-                attributes(kind, random), flags(kind, random), effects(random), skills(id, random),
-                List.of(), random.nextInt(5, 61), random.nextInt(5, 81));
+        Rank rank = weighted(RANKS, Rank::weight, random);
+        List<MobSkill> skills = skills(id, kind, rank, random);
+        return new MobTemplate(id, kind.type(), name(kind, rank, random), equipment(kind, rank, random, items),
+                attributes(kind, rank, random), flags(kind, random), effects(rank, random), skills,
+                List.of(), between(rank.exp(), random), between(rank.money(), random), MobBehaviour.NONE,
+                look(rank, random), fight(rank, random));
     }
 
     /** Whether the random generator may pick this type, and what it may give it. */
@@ -131,29 +153,34 @@ final class RandomTemplate {
     }
 
     private static Kind kind(RandomGenerator random) {
-        int total = KINDS.stream().mapToInt(Kind::weight).sum();
-        int roll = random.nextInt(total);
-        for (Kind kind : KINDS) {
-            roll -= kind.weight();
-            if (roll < 0) return kind;
+        return weighted(KINDS, Kind::weight, random);
+    }
+
+    private static <T> T weighted(List<T> list, java.util.function.ToIntFunction<T> weight, RandomGenerator random) {
+        int roll = random.nextInt(list.stream().mapToInt(weight).sum());
+        for (T each : list) {
+            roll -= weight.applyAsInt(each);
+            if (roll < 0) return each;
         }
         throw new AssertionError("weights");
     }
 
-    private static String name(Kind kind, RandomGenerator random) {
+    private static String name(Kind kind, Rank rank, RandomGenerator random) {
         String noun = kind.type().name().replace('_', ' ');
         String name = pick(PREFIXES, random) + " " + noun;
-        if (random.nextInt(3) == 0) name += " " + pick(SUFFIXES, random);
+        // A boss always carries a title; the others sometimes do.
+        if (rank == RANKS.getLast() || random.nextInt(3) == 0) name += " " + pick(SUFFIXES, random);
         return "{primary}&l" + name.toUpperCase(Locale.ROOT) + HEALTH;
     }
 
-    private static List<ItemStack> equipment(Kind kind, RandomGenerator random, Items items) {
+    private static List<ItemStack> equipment(Kind kind, Rank rank, RandomGenerator random, Items items) {
         ItemStack[] loadout = new ItemStack[MobTemplate.MAIN_HAND + 1];
-        int tier = random.nextInt(TIERS.length);
-        boolean enchanted = random.nextInt(4) == 0;
-        int level = random.nextInt(1, 4);
+        int step = RANKS.indexOf(rank);
+        int tier = random.nextInt(rank.gear()[0], rank.gear()[1] + 1);
+        boolean enchanted = random.nextInt(3) < step + 1;
+        int level = random.nextInt(1, 3) + step;
         if (kind.armour()) {
-            int count = random.nextInt(0, 5);
+            int count = step == 2 ? 4 : random.nextInt(1 + step, 5);
             List<Integer> slots = new ArrayList<>(List.of(0, 1, 2, 3));
             for (int i = 0; i < count; i++) {
                 int slot = slots.remove(random.nextInt(slots.size()));
@@ -176,24 +203,19 @@ final class RandomTemplate {
         return Arrays.asList(loadout);
     }
 
-    private static Map<String, Double> attributes(Kind kind, RandomGenerator random) {
-        List<String> keys = new ArrayList<>(MobTemplate.ATTRIBUTES);
-        int count = random.nextInt(2, 6);
+    private static Map<String, Double> attributes(Kind kind, Rank rank, RandomGenerator random) {
+        int step = RANKS.indexOf(rank);
         Map<String, Double> attributes = new LinkedHashMap<>();
-        for (int i = 0; i < count; i++) {
-            String key = keys.remove(random.nextInt(keys.size()));
-            attributes.put(key, switch (key) {
-                case "max_health" -> (double) random.nextInt(20, 151);
-                case "attack_damage" -> (double) random.nextInt(2, 15);
-                case "movement_speed" -> round(random.nextDouble(0.2, 0.4), 100);
-                case "armor" -> (double) random.nextInt(2, 13);
-                case "armor_toughness" -> (double) random.nextInt(1, 7);
-                case "knockback_resistance" -> round(random.nextDouble(0.1, 0.8), 10);
-                case "follow_range" -> (double) random.nextInt(16, 41);
-                case "attack_knockback" -> round(random.nextDouble(0.5, 2), 10);
-                case "scale" -> round(random.nextDouble(0.7, kind.big() ? 1.3 : 1.8), 10);
-                default -> throw new AssertionError(key);
-            });
+        attributes.put("max_health", (double) between(rank.health(), random));
+        attributes.put("attack_damage", (double) between(rank.damage(), random));
+        attributes.put("follow_range", (double) random.nextInt(24, 41));
+        if (step > 0) attributes.put("armor", (double) random.nextInt(4 * step, 8 * step + 1));
+        if (step > 0) attributes.put("knockback_resistance", round(random.nextDouble(0.3 * step, 0.45 * step), 10));
+        if (step == 2) {
+            attributes.put("armor_toughness", (double) random.nextInt(2, 7));
+            attributes.put("scale", round(kind.big() ? random.nextDouble(1, 1.2) : random.nextDouble(1.25, 1.6), 10));
+        } else if (random.nextInt(3) == 0) {
+            attributes.put("scale", round(random.nextDouble(0.85, kind.big() ? 1.1 : 1.3), 10));
         }
         return attributes;
     }
@@ -221,9 +243,9 @@ final class RandomTemplate {
         return flags;
     }
 
-    private static List<ParsedEffect> effects(RandomGenerator random) {
+    private static List<ParsedEffect> effects(Rank rank, RandomGenerator random) {
         List<String> names = new ArrayList<>(EFFECTS);
-        int count = random.nextInt(0, 3);
+        int count = random.nextInt(0, 2 + RANKS.indexOf(rank));
         List<ParsedEffect> effects = new ArrayList<>();
         for (int i = 0; i < count; i++) {
             String name = names.remove(random.nextInt(names.size()));
@@ -232,59 +254,90 @@ final class RandomTemplate {
         return effects;
     }
 
-    private static List<MobSkill> skills(String id, RandomGenerator random) {
-        List<MobSkill.Type> types = new ArrayList<>(TRIGGERS.keySet());
-        int count = random.nextInt(1, 5);
-        List<MobSkill> skills = new ArrayList<>();
-        for (int i = 0; i < count; i++) {
-            MobSkill.Type type = types.remove(random.nextInt(types.size()));
-            skills.add(skill(id, type, pick(TRIGGERS.get(type), random), random));
+    /**
+     * A moveset: library moves taking turns in one rotation, a combo when two
+     * of them chain, a trick on each phase and a sting on its hits.
+     */
+    private static List<MobSkill> skills(String id, Kind kind, Rank rank, RandomGenerator random) {
+        boolean boss = rank == RANKS.getLast();
+        List<String> pool = new ArrayList<>(RANGED.contains(kind.type()) ? RANGED_MOVES : MELEE_MOVES);
+        // Its minions are itself: a boss calling more bosses is not a fight.
+        if (boss) pool.remove("portal");
+        int count = between(rank.moves(), random);
+        List<String> moves = new ArrayList<>();
+        for (int i = 0; i < count && !pool.isEmpty(); i++) moves.add(pool.remove(random.nextInt(pool.size())));
+
+        List<String> tricks = new ArrayList<>(PHASE_MOVES);
+        tricks.removeAll(moves);
+        String[] combo = null;
+        if (!rank.name().equals("ELITE")) {
+            for (String[] each : COMBOS) {
+                if (moves.contains(each[0]) && moves.contains(each[1])) {
+                    combo = each;
+                    break;
+                }
+            }
         }
+
+        List<MobSkill> skills = new ArrayList<>();
+        for (String move : moves) {
+            MobSkill skill = preset(move);
+            MobSkill.Cast cast = skill.cast().withGroup("moves");
+            if (combo != null && combo[0].equals(move)) cast = cast.withThen(combo[1]);
+            skill = skill.withCast(cast);
+            if (skill.type() == MobSkill.Type.SUMMON) skill = skill.withText(id);
+            skills.add(skill);
+        }
+        for (int phase = 2; phase <= rank.phases().length + 1; phase++) {
+            MobSkill trick = preset(tricks.remove(random.nextInt(tricks.size())));
+            skills.add(trick.withTrigger(MobSkill.Trigger.PHASE)
+                    .withCast(trick.cast().withWhen(MobSkill.Gate.ANY.withPhase(phase))));
+        }
+        if (random.nextBoolean() || boss) skills.add(sting(kind, random));
         return skills;
     }
 
-    private static MobSkill skill(String id, MobSkill.Type type, MobSkill.Trigger trigger, RandomGenerator random) {
-        boolean onHit = trigger == MobSkill.Trigger.ATTACK || trigger == MobSkill.Trigger.DAMAGED;
-        double chance = onHit ? round(random.nextDouble(0.15, 0.4), 100) : 1;
-        Duration cooldown = Duration.ofSeconds(trigger == MobSkill.Trigger.INTERVAL
-                ? random.nextInt(6, 16) : random.nextInt(3, 11));
-        double threshold = trigger == MobSkill.Trigger.LOW_HEALTH ? round(random.nextDouble(0.25, 0.5), 100) : 0.3;
-        double radius = 0;
-        double amount = 0;
-        Duration duration = Duration.ZERO;
-        String text = "";
-        switch (type) {
-            case LEAP -> amount = round(random.nextDouble(0.8, 1.6), 10);
-            case PULL -> amount = round(random.nextDouble(0.8, 1.5), 10);
-            case PUSH -> {
-                radius = random.nextInt(3, 7);
-                amount = round(random.nextDouble(0.8, 1.6), 10);
-            }
-            case POTION -> {
-                text = pick(CURSES, random);
-                radius = random.nextBoolean() ? 0 : random.nextInt(3, 6);
-            }
-            case SUMMON -> {
-                // Its own template: the only id a random mob can be sure exists.
-                text = id;
-                amount = random.nextInt(1, 4);
-                radius = 3;
-            }
-            case LIGHTNING -> amount = random.nextInt(2, 7);
-            case PROJECTILE -> {
-                text = pick(PROJECTILES, random);
-                amount = round(random.nextDouble(1, 2), 10);
-            }
-            case HEAL -> amount = random.nextInt(10, 31);
-            case AREA_DAMAGE -> {
-                radius = random.nextInt(3, 6);
-                amount = random.nextInt(2, 7);
-            }
-            case IGNITE -> duration = Duration.ofSeconds(random.nextInt(2, 6));
-            case EFFECT -> text = pick(SEQUENCES, random);
-            case TELEPORT, COMMAND -> { }
+    private static MobSkill preset(String id) {
+        MobSkills.Preset preset = MobSkills.preset(id);
+        if (preset == null) throw new AssertionError("no preset " + id);
+        return preset.skill();
+    }
+
+    /** A chance on each hit it lands: a curse, or fire from a kind that burns. */
+    private static MobSkill sting(Kind kind, RandomGenerator random) {
+        Duration cooldown = Duration.ofSeconds(random.nextInt(5, 9));
+        double chance = round(random.nextDouble(0.2, 0.35), 100);
+        if (kind.fireproof() && random.nextBoolean()) {
+            return new MobSkill(MobSkill.Trigger.ATTACK, MobSkill.Type.IGNITE, chance, cooldown, 0.3, 0, 0,
+                    Duration.ofSeconds(random.nextInt(3, 6)), "");
         }
-        return new MobSkill(trigger, type, chance, cooldown, threshold, radius, amount, duration, text);
+        return new MobSkill(MobSkill.Trigger.ATTACK, MobSkill.Type.POTION, chance, cooldown, 0.3, 0, 0,
+                Duration.ZERO, pick(CURSES, random));
+    }
+
+    /** One rotation, a breath between big moves, and a phase per rank threshold. */
+    private static MobFight fight(Rank rank, RandomGenerator random) {
+        List<MobPhase> phases = new ArrayList<>();
+        for (int i = 0; i < rank.phases().length; i++) {
+            double push = 1 + 0.15 * (i + 1);
+            phases.add(new MobPhase(rank.phases()[i], "", PHASE_SUFFIX[i], round(push, 100),
+                    round(push + 0.1, 100), round(1 + 0.1 * i, 100)));
+        }
+        Duration period = Duration.ofSeconds(rank.period() + random.nextInt(0, 2));
+        return new MobFight(Duration.ofMillis(1500 - 250L * RANKS.indexOf(rank)), Map.of("moves", period), phases);
+    }
+
+    /** Elites look vanilla; champions and bosses glow and make an entrance. */
+    private static MobLook look(Rank rank, RandomGenerator random) {
+        return switch (RANKS.indexOf(rank)) {
+            case 0 -> MobLook.NONE;
+            case 1 -> MobLook.NONE.withGlow(pick(MobLook.GLOWS, random)).withSpawn("portal");
+            default -> MobLook.NONE.withGlow(pick(MobLook.GLOWS, random)).withSpawn("bolt").withLow("frantic");
+        };
+    }
+
+    private static int between(int[] range, RandomGenerator random) {
+        return random.nextInt(range[0], range[1]);
     }
 
     private static <T> T pick(List<T> list, RandomGenerator random) {
