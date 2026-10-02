@@ -10,6 +10,7 @@ import net.exylia.lib.util.reward.RewardEntry;
 import net.exylia.lib.util.reward.RewardOutcome;
 import net.exylia.lib.util.reward.RewardResult;
 import org.bukkit.Bukkit;
+import org.bukkit.command.CommandException;
 import org.bukkit.entity.Player;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -108,7 +109,14 @@ public final class Providers {
         // regionised one, and only hops when it is not.
         String queued = resolved;
         AtomicReference<Boolean> ran = new AtomicReference<>();
-        tasks.execute(() -> ran.set(Bukkit.dispatchCommand(Bukkit.getConsoleSender(), queued)));
+        try {
+            tasks.execute(() -> ran.set(Bukkit.dispatchCommand(Bukkit.getConsoleSender(), queued)));
+        } catch (CommandException failure) {
+            // The command's own plugin threw or is disabled. That is a fault in
+            // the command, not in the library, so it is reported as one line
+            // naming it, without a stack trace that repeats for every player.
+            return RewardResult.failed(entry, "could not run \"" + queued + "\": " + failure.getMessage());
+        }
 
         Boolean answer = ran.get();
         if (answer == null) {

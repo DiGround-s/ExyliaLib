@@ -17,6 +17,7 @@ import java.util.List;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -384,6 +385,23 @@ class RewardDeliveryTest {
     // ------------------------------------------------------------------
     // Isolation
     // ------------------------------------------------------------------
+
+    @Test
+    @DisplayName("a command whose plugin is disabled fails as one result naming the command")
+    void commandOfDisabledPlugin() {
+        FakeServer.consoleThrows(new org.bukkit.command.CommandException(
+                "Cannot execute command 'clanadmin' in plugin InfiniteClans v1.1.0 - plugin is disabled."));
+
+        RewardDelivery delivery = rewards.give(player.player(),
+                List.of(RewardEntry.command("clanadmin give Steve 5").build()));
+
+        assertEquals(0, delivery.given());
+        assertEquals(1, delivery.failed());
+        RewardResult failure = delivery.failures().get(0);
+        assertTrue(failure.detail().contains("clanadmin give Steve 5"));
+        assertTrue(failure.detail().contains("plugin is disabled"));
+        assertNull(failure.failure());
+    }
 
     @Test
     @DisplayName("one broken reward costs only itself")
