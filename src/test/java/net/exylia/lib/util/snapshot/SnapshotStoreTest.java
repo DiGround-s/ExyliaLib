@@ -195,7 +195,11 @@ class SnapshotStoreTest {
                     return arrived;
                 });
 
-        for (int spin = 0; spin < 2000 && emptyWhileMoving.get() == null; spin++) {
+        // Bounded by time, not by spins: the save and the lookup run on the
+        // database pool, and a busy machine can need tens of thousands of
+        // ticks before they come back.
+        long deadline = System.nanoTime() + java.util.concurrent.TimeUnit.SECONDS.toNanos(10);
+        while (emptyWhileMoving.get() == null && System.nanoTime() < deadline) {
             FakeServer.tick(1);
             Thread.onSpinWait();
         }
