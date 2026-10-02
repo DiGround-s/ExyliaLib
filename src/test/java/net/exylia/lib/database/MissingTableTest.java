@@ -14,8 +14,11 @@ import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.CompletionException;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -58,5 +61,19 @@ class MissingTableTest {
         assertEquals(player, storage.find(MODEL, player.id()).join());
         assertEquals(1, warnings.size(), "said once, loudly: " + warnings);
         assertTrue(warnings.get(0).contains("vanishing_players"));
+    }
+
+    @Test
+    @DisplayName("a failure without an SQL state reaches the caller as itself, not as a NullPointerException")
+    void failureWithoutStateIsReported() {
+        SqlSettings settings = SqlSettings.memory("h2", "missing_" + UUID.randomUUID());
+        backend = SqlBackend.open(settings, "MissingTableTest");
+        SqlStorage storage = new SqlStorage(backend, Runnable::run, warning -> { });
+        storage.prepare(MODEL).join();
+        backend.close();
+
+        CompletionException failure = assertThrows(CompletionException.class,
+                () -> storage.find(MODEL, UUID.randomUUID()).join());
+        assertInstanceOf(DatabaseException.class, failure.getCause());
     }
 }

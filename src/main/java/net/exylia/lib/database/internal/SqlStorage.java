@@ -419,7 +419,9 @@ public final class SqlStorage implements Storage {
         try {
             return work.run();
         } catch (SQLException failure) {
-            if (!MISSING_TABLE.contains(failure.getSQLState())) {
+            // Set.of rejects a null lookup, and a pool or driver failure often carries no state.
+            String state = failure.getSQLState();
+            if (state == null || !MISSING_TABLE.contains(state)) {
                 throw failure;
             }
             warnings.accept("The table " + model.table() + " (" + model.type().getSimpleName()
