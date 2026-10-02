@@ -258,7 +258,9 @@ public final class FakeServer {
         CONSOLE_MESSAGES.clear();
         CONSOLE_COMMANDS.clear();
         consoleAcceptsCommands = true;
+        consoleCommandFailure = null;
         primaryThread = true;
+        stopping = false;
         // Effect owners are per-plugin, and the plugins of a finished test do
         // not exist any more: left behind, they make the next test's effects
         // ambiguous.
@@ -360,6 +362,8 @@ public final class FakeServer {
     private static final List<String> CONSOLE_COMMANDS = new java.util.concurrent.CopyOnWriteArrayList<>();
 
     private static volatile boolean consoleAcceptsCommands = true;
+    private static volatile boolean stopping;
+    private static volatile RuntimeException consoleCommandFailure;
 
     private static final org.bukkit.command.ConsoleCommandSender CONSOLE =
             (org.bukkit.command.ConsoleCommandSender) Proxy.newProxyInstance(
@@ -399,6 +403,11 @@ public final class FakeServer {
         consoleAcceptsCommands = false;
     }
 
+    /** Makes console dispatch throw, as a command owned by a disabled plugin does. */
+    public static void consoleThrows(RuntimeException failure) {
+        consoleCommandFailure = failure;
+    }
+
     /**
      * Controls what {@code Bukkit.isPrimaryThread()} reports.
      *
@@ -408,6 +417,11 @@ public final class FakeServer {
      */
     public static void setPrimaryThread(boolean value) {
         primaryThread = value;
+    }
+
+    /** Controls what {@code Bukkit.isStopping()} reports. */
+    public static void setStopping(boolean value) {
+        stopping = value;
     }
 
     private static Server newServer() {
@@ -424,6 +438,7 @@ public final class FakeServer {
                     case "getConsoleSender" -> CONSOLE;
                     case "dispatchCommand" -> {
                         CONSOLE_COMMANDS.add(String.valueOf(args[1]));
+                        if (consoleCommandFailure != null) throw consoleCommandFailure;
                         yield consoleAcceptsCommands;
                     }
                     case "getOnlinePlayers" -> List.copyOf(ONLINE);
@@ -431,6 +446,7 @@ public final class FakeServer {
                     case "getWorld" -> findWorld(args);
                     case "getPlayer" -> findPlayer(args);
                     case "isPrimaryThread" -> primaryThread;
+                    case "isStopping" -> stopping;
                     case "getLogger" -> logger;
                     case "getName" -> "FakeServer";
                     case "getVersion", "getBukkitVersion" -> "1.21.4";
