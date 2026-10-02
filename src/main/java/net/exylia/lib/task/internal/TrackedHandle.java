@@ -23,7 +23,7 @@ public final class TrackedHandle implements TaskHandle {
     private final boolean repeating;
 
     private volatile boolean cancelled;
-    private boolean finished;
+    private volatile boolean finished;
     private Runnable canceller;
 
     TrackedHandle(Set<TrackedHandle> registry, boolean repeating) {
@@ -102,6 +102,11 @@ public final class TrackedHandle implements TaskHandle {
     @Override
     public boolean isCancelled() {
         return cancelled;
+    }
+
+    @Override
+    public boolean isDone() {
+        return cancelled || finished;
     }
 
     @Override

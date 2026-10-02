@@ -30,6 +30,8 @@ import java.util.List;
  */
 public final class SequenceRun {
 
+    private static final long TRAIL_CHECK_TICKS = 10L;
+
     private final List<TaskHandle> scheduled = new ArrayList<>(2);
     private final TaskScheduler scheduler;
     private final Runnable onFinish;
@@ -131,10 +133,15 @@ public final class SequenceRun {
         }
     }
 
-    /** Drops handles that already ran, so a long trail does not accumulate them. */
-    void forget(@NotNull TaskHandle handle) {
+    /**
+     * Drops handles that already ran or were cancelled.
+     *
+     * @return whether nothing this run owns is still to run
+     */
+    private boolean prune() {
         synchronized (scheduled) {
-            scheduled.remove(handle);
+            scheduled.removeIf(TaskHandle::isDone);
+            return scheduled.isEmpty();
         }
     }
 
@@ -164,15 +171,19 @@ public final class SequenceRun {
      */
     @org.jetbrains.annotations.ApiStatus.Internal
     public void finishWhenTrailsEnd() {
-        boolean pending;
-        synchronized (scheduled) {
-            pending = !scheduled.isEmpty();
-        }
-        if (!pending) {
+        if (prune()) {
             markFinished();
+            return;
         }
-        // Otherwise the frames themselves finish the run: each clears its handle
-        // when it completes, and the last one to do so ends it.
+        // Nothing calls back when a frame has run, so look again until every
+        // handle is done. A run that never finished stayed in its plugin's
+        // playing set forever, and with it every player it targeted.
+        scheduler.runTimer(TRAIL_CHECK_TICKS, TRAIL_CHECK_TICKS, check -> {
+            if (finished || prune()) {
+                check.cancel();
+                markFinished();
+            }
+        });
     }
 
     /** Marks this run as over, exactly once. */

@@ -41,6 +41,21 @@ public interface TaskHandle {
     boolean isCancelled();
 
     /**
+     * Returns whether this task will never run again: it was cancelled, or it
+     * was a one-shot task that already ran.
+     *
+     * <p>Unlike {@link #isCancelled()}, this turns {@code true} when a one-shot
+     * task simply finishes. A handle that cannot tell falls back to
+     * {@link #isCancelled()}.
+     *
+     * @return {@code true} once nothing more of this task will run
+     * @since 1.221.0
+     */
+    default boolean isDone() {
+        return isCancelled();
+    }
+
+    /**
      * Returns whether this task repeats.
      *
      * @return {@code true} for timers, {@code false} for one-shot tasks
