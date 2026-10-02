@@ -272,6 +272,8 @@ public final class RegionRuntime {
         RegionIndex index = INDEX.get();
         // A newer publication schedules its own pass, so stale work must not overwrite it.
         if (index.revision() != expectedRevision) return;
+        // The first region starts the poll and the last one stops it.
+        if (index.isEmpty() == POLLS.containsKey(player.getUniqueId())) poll(player);
         Location location = player.getLocation();
         World world = location.getWorld();
         if (world == null) return;
@@ -307,6 +309,9 @@ public final class RegionRuntime {
         UUID playerId = player.getUniqueId();
         TaskHandle previous = POLLS.remove(playerId);
         if (previous != null) previous.cancel();
+        // A server with no region has nothing a missed move could change: no
+        // timer per player at all until one is registered.
+        if (INDEX.get().isEmpty()) return;
         POLLS.put(playerId, Tasks.of(owner).runAtEntityTimer(player, POLL_TICKS, POLL_TICKS, () -> {
             // Being online is what the entity timer already checks before it
             // runs this at all; asking again is a player-list lookup five times

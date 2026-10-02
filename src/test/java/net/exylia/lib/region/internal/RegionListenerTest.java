@@ -140,6 +140,29 @@ class RegionListenerTest {
     }
 
     @Test
+    @DisplayName("the poll runs only while a region exists")
+    void pollOnlyWhileRegionsExist() {
+        regions.unregister("spawn");
+        FakeServer.tick(1);
+        FakePlayer player = playerAt(world, 100, 5, 100);
+        assertEquals(0, FakeServer.liveRepeatingTasks(), "no region, no timer");
+
+        regions.register(regions.region("spawn", WorldIdentity.from(world),
+                Cuboid.blocks(0, 0, 0, 9, 9, 9), 0, PolicySet.empty()));
+        FakeServer.tick(1);
+        assertEquals(1, FakeServer.liveRepeatingTasks(), "the first region starts it");
+
+        player.at(new Location(world, 5, 5, 5));
+        FakeServer.tick(6);
+        assertEquals(RegionChangeCause.SYNC,
+                FakeServer.events(PlayerRegionChangeEvent.class).getFirst().cause());
+
+        regions.unregister("spawn");
+        FakeServer.tick(1);
+        assertEquals(0, FakeServer.liveRepeatingTasks(), "the last region stops it");
+    }
+
+    @Test
     @DisplayName("the poll says nothing while the player stands still")
     void pollIsSilentWhenNothingMoved() {
         playerAt(world, 5, 5, 5);

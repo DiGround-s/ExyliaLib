@@ -65,6 +65,8 @@ public final class RagdollTextures {
      * @param plugin a plugin that shows ragdolls
      */
     public static void register(Plugin plugin) {
+        // Whoever registers draws ragdolls, so skins start being read at join.
+        SkinCache.want();
         String name = plugin.getName();
         if (LIBRARY.equals(name) || STORES.containsKey(name)) {
             return;
@@ -88,6 +90,7 @@ public final class RagdollTextures {
      * @param pluginName the plugin's name
      */
     public static void register(@Nullable String pluginName) {
+        SkinCache.want();
         if (pluginName == null || LIBRARY.equals(pluginName) || STORES.containsKey(pluginName)
                 || Bukkit.getServer() == null) {
             return;

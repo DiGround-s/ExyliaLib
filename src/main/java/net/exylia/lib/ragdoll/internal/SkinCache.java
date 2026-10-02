@@ -95,6 +95,8 @@ public final class SkinCache {
     private static final long KEEP_TICKS = 5 * 60 * 20L;
 
     private static volatile TaskHandle keeper;
+    /** Whether anything on this server draws ragdolls; until then no skin is downloaded. */
+    private static volatile boolean wanted;
     private static volatile SkinCubes.Quality quality = SkinCubes.Quality.NORMAL;
     private static volatile boolean unknownQualityReported;
     private static volatile TaskScheduler scheduler;
@@ -134,6 +136,7 @@ public final class SkinCache {
             keeper.cancel();
             keeper = null;
         }
+        wanted = false;
         MineSkinQueue.stop();
         BY_TEXTURE.invalidateAll();
         PREPARED.invalidateAll();
@@ -198,7 +201,20 @@ public final class SkinCache {
      * <p>Returns at once either way. Called when a player joins.
      */
     public static void warm(Player player) {
-        skinOf(player);
+        if (wanted) {
+            skinOf(player);
+        }
+    }
+
+    /**
+     * Starts reading skins at join, once something on the server can draw a
+     * ragdoll. A server whose plugins never show one downloads no skin at all.
+     */
+    public static void want() {
+        if (!wanted) {
+            wanted = true;
+            rewarm();
+        }
     }
 
     /**

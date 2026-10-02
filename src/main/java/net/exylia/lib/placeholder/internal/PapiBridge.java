@@ -236,6 +236,9 @@ public final class PapiBridge {
 
     /** Resolves what the last renders asked about. Runs on the main thread. */
     static void refreshWanted() {
+        if (WANTED.isEmpty() && VALUES.isEmpty()) {
+            return;
+        }
         for (UUID id : List.copyOf(WANTED.keySet())) {
             Set<String> texts = WANTED.remove(id);
             Player player = Bukkit.getPlayer(id);
