@@ -10,6 +10,7 @@ import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.function.Consumer;
@@ -43,6 +44,14 @@ import java.util.function.Consumer;
  * @since 1.24.0
  */
 public final class SqlStorage implements Storage {
+
+    /**
+     * SQLSTATE for "table not found": {@code 42S02} on MySQL and MariaDB,
+     * {@code 42P01} on Postgres, and H2's {@code 42S02} plus the two variants it
+     * reports when it lists candidates ({@code 42S03}) or has no tables at all
+     * ({@code 42S04}).
+     */
+    private static final Set<String> MISSING_TABLE = Set.of("42S02", "42S03", "42S04", "42P01");
 
     private final SqlBackend backend;
     private final Executor executor;
@@ -366,7 +375,7 @@ public final class SqlStorage implements Storage {
         try {
             executor.execute(() -> {
                 try {
-                    future.complete(work.run());
+                    future.complete(recreatingMissingTable(model, work));
                 } catch (SQLException failure) {
                     future.completeExceptionally(new DatabaseException(
                             "Could not " + operation + " on " + model.table() + " ("
@@ -390,6 +399,36 @@ public final class SqlStorage implements Storage {
                             + " the plugin that asked is being disabled.", rejected));
         }
         return future;
+    }
+
+    /**
+     * Runs the work, and when its table is gone creates it and runs it once more.
+     *
+     * <p>The table is created when the repository is registered, and that
+     * preparation is kept for the rest of the run. A table dropped, or a
+     * database emptied and recreated, under a running server therefore used to
+     * fail every read and write of that record type until a restart — one
+     * error per query, tens of thousands of them, for a table that a single
+     * {@code CREATE TABLE IF NOT EXISTS} would have brought back. Repairing it
+     * here, on the statement that found it missing, is the one place every
+     * operation passes through. A statement against a missing table changed
+     * nothing, so running it again cannot apply anything twice.
+     */
+    private <R> @Nullable R recreatingMissingTable(@NotNull EntityModel<?> model,
+                                                   @NotNull SqlWork<R> work) throws SQLException {
+        try {
+            return work.run();
+        } catch (SQLException failure) {
+            if (!MISSING_TABLE.contains(failure.getSQLState())) {
+                throw failure;
+            }
+            warnings.accept("The table " + model.table() + " (" + model.type().getSimpleName()
+                    + ") disappeared from the database while the server was running"
+                    + " — dropped, or the database was recreated. Creating it again; the rows"
+                    + " it held are gone unless they are restored from a backup.");
+            backend.ensureTable(model);
+            return work.run();
+        }
     }
 
     /** One blocking backend call, allowed to fail the way a driver fails. */
