@@ -751,13 +751,15 @@ public final class PacketRuntime {
             if (positions.isEmpty() || !viewer.isOnline()) {
                 return;
             }
-            Tasks.of(plugin).runAtEntity(viewer, () -> {
-                for (Location at : positions) {
-                    if (at.getWorld().equals(viewer.getWorld())) {
+            // The real block is read on the region that owns it: on Folia a fake
+            // block can sit far from the viewer, outside the viewer's region.
+            for (Location at : positions) {
+                Tasks.of(plugin).runAtLocation(at, () -> {
+                    if (viewer.isOnline() && at.getWorld().equals(viewer.getWorld())) {
                         viewer.sendBlockChange(at, at.getBlock().getBlockData());
                     }
-                }
-            });
+                });
+            }
         }
 
         // ---- Movement ----
