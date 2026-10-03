@@ -124,6 +124,27 @@ public interface ClientLink {
     }
 
     // ------------------------------------------------------------------
+    // Timers
+    // ------------------------------------------------------------------
+
+    /** Returns whether this client draws HUD timers. */
+    default boolean supportsTimers() {
+        return false;
+    }
+
+    /** Draws a timer, replacing one with the same name. */
+    default void showTimer(Player player, net.exylia.lib.client.Timer timer) {
+    }
+
+    /** Removes a timer by name. */
+    default void removeTimer(Player player, String name) {
+    }
+
+    /** Removes every timer this library sent the player. */
+    default void clearTimers(Player player) {
+    }
+
+    // ------------------------------------------------------------------
     // Markers
     // ------------------------------------------------------------------
 

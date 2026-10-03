@@ -201,9 +201,13 @@ final class SurvivalLink implements ClientLink {
         api.cooldowns().clear(player);
     }
 
-    /** A key can only hold {@code [a-z0-9_.-/]}, and a cooldown name is free text. */
     private static Key cooldownKey(String name) {
-        return Key.key(NAMESPACE, "cooldown/"
+        return key("cooldown/", name);
+    }
+
+    /** A key can only hold {@code [a-z0-9_.-/]}, and a name is free text. */
+    private static Key key(String prefix, String name) {
+        return Key.key(NAMESPACE, prefix
                 + name.toLowerCase(Locale.ROOT).replaceAll("[^a-z0-9_.\\-/]", "_"));
     }
 
@@ -214,6 +218,41 @@ final class SurvivalLink implements ClientLink {
     private static Icon icon(Cooldown.Icon icon) {
         Material material = icon.isItem() ? Material.matchMaterial(icon.item()) : null;
         return material != null && material.isItem() ? Icon.item(material) : Icon.none();
+    }
+
+    // ------------------------------------------------------------------
+    // Timers
+    // ------------------------------------------------------------------
+
+    @Override
+    public boolean supportsTimers() {
+        return true;
+    }
+
+    @Override
+    public void showTimer(Player player, net.exylia.lib.client.Timer timer) {
+        Key id = key("timer/", timer.name());
+        // The mod refuses a countdown at zero; one that has run out is a
+        // millisecond from done rather than an exception.
+        Duration value = timer.countdown() && timer.value().isZero() ? Duration.ofMillis(1) : timer.value();
+        online.pablorelojero.survivalcore.api.timer.Timer sent = (timer.countdown()
+                ? online.pablorelojero.survivalcore.api.timer.Timer.countdown(id, timer.label(), value)
+                : online.pablorelojero.survivalcore.api.timer.Timer.stopwatch(id, timer.label()))
+                .withValue(value, timer.paused());
+        if (timer.colour() != null) {
+            sent = sent.withColor(timer.colour());
+        }
+        api.timers().show(player, sent);
+    }
+
+    @Override
+    public void removeTimer(Player player, String name) {
+        api.timers().remove(player, key("timer/", name));
+    }
+
+    @Override
+    public void clearTimers(Player player) {
+        api.timers().clear(player);
     }
 
     // ------------------------------------------------------------------

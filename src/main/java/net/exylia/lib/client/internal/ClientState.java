@@ -61,6 +61,9 @@ public final class ClientState {
     /** Cooldown keys per player, so they can be cleared without guessing. */
     private static final Map<UUID, Collection<Key>> COOLDOWNS = new ConcurrentHashMap<>();
 
+    /** Timer keys per player, kept the same way as cooldowns. */
+    private static final Map<UUID, Collection<Key>> TIMERS = new ConcurrentHashMap<>();
+
     /** Marker groups per player: who each viewer currently sees. */
     private static final Map<UUID, Collection<UUID>> MARKERS = new ConcurrentHashMap<>();
 
@@ -225,15 +228,11 @@ public final class ClientState {
     // ------------------------------------------------------------------
 
     static void rememberCooldown(UUID player, String owner, String name) {
-        COOLDOWNS.computeIfAbsent(player, id -> ConcurrentHashMap.newKeySet())
-                .add(new Key(owner, name));
+        remember(COOLDOWNS, player, owner, name);
     }
 
     static void forgetCooldown(UUID player, String owner, String name) {
-        Collection<Key> names = COOLDOWNS.get(player);
-        if (names != null) {
-            names.remove(new Key(owner, name));
-        }
+        forget(COOLDOWNS, player, owner, name);
     }
 
     static Collection<Key> cooldownsOf(UUID player) {
@@ -243,7 +242,61 @@ public final class ClientState {
 
     /** The cooldowns one plugin drew for a player. */
     static Collection<Key> cooldownsOf(UUID player, String owner) {
-        Collection<Key> names = COOLDOWNS.get(player);
+        return ownedBy(COOLDOWNS, player, owner);
+    }
+
+    /** Every player who has a cooldown from this plugin. */
+    static Collection<UUID> cooldownViewers(String owner) {
+        return viewersOf(COOLDOWNS, owner);
+    }
+
+    static void clearCooldowns(UUID player) {
+        COOLDOWNS.remove(player);
+    }
+
+    // ------------------------------------------------------------------
+    // Timers
+    // ------------------------------------------------------------------
+
+    static void rememberTimer(UUID player, String owner, String name) {
+        remember(TIMERS, player, owner, name);
+    }
+
+    static void forgetTimer(UUID player, String owner, String name) {
+        forget(TIMERS, player, owner, name);
+    }
+
+    /** The timers one plugin drew for a player. */
+    static Collection<Key> timersOf(UUID player, String owner) {
+        return ownedBy(TIMERS, player, owner);
+    }
+
+    /** Every player who has a timer from this plugin. */
+    static Collection<UUID> timerViewers(String owner) {
+        return viewersOf(TIMERS, owner);
+    }
+
+    static void clearTimers(UUID player) {
+        TIMERS.remove(player);
+    }
+
+    // ------------------------------------------------------------------
+    // Keys by owner, shared by cooldowns and timers
+    // ------------------------------------------------------------------
+
+    private static void remember(Map<UUID, Collection<Key>> store, UUID player, String owner, String name) {
+        store.computeIfAbsent(player, id -> ConcurrentHashMap.newKeySet()).add(new Key(owner, name));
+    }
+
+    private static void forget(Map<UUID, Collection<Key>> store, UUID player, String owner, String name) {
+        Collection<Key> names = store.get(player);
+        if (names != null) {
+            names.remove(new Key(owner, name));
+        }
+    }
+
+    private static Collection<Key> ownedBy(Map<UUID, Collection<Key>> store, UUID player, String owner) {
+        Collection<Key> names = store.get(player);
         if (names == null) {
             return List.of();
         }
@@ -256,10 +309,9 @@ public final class ClientState {
         return mine;
     }
 
-    /** Every player who has a cooldown from this plugin. */
-    static Collection<UUID> cooldownViewers(String owner) {
+    private static Collection<UUID> viewersOf(Map<UUID, Collection<Key>> store, String owner) {
         Collection<UUID> viewers = new ArrayList<>();
-        for (Map.Entry<UUID, Collection<Key>> entry : COOLDOWNS.entrySet()) {
+        for (Map.Entry<UUID, Collection<Key>> entry : store.entrySet()) {
             for (Key key : entry.getValue()) {
                 if (owner.equals(key.owner())) {
                     viewers.add(entry.getKey());
@@ -268,10 +320,6 @@ public final class ClientState {
             }
         }
         return viewers;
-    }
-
-    static void clearCooldowns(UUID player) {
-        COOLDOWNS.remove(player);
     }
 
     // ------------------------------------------------------------------
@@ -299,6 +347,7 @@ public final class ClientState {
     public static void forget(UUID player) {
         WAYPOINTS.remove(player);
         COOLDOWNS.remove(player);
+        TIMERS.remove(player);
         MARKERS.remove(player);
         // Somebody else's markers may still point at them; the game that owns
         // those markers updates them on its own schedule, so nothing is sent
@@ -309,6 +358,7 @@ public final class ClientState {
     public static void clear() {
         WAYPOINTS.clear();
         COOLDOWNS.clear();
+        TIMERS.clear();
         MARKERS.clear();
     }
 

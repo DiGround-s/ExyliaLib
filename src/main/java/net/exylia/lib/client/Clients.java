@@ -90,6 +90,16 @@ public final class Clients {
     }
 
     /**
+     * Timers drawn by the client on its HUD.
+     *
+     * @return the timer API
+     * @since 1.232.0
+     */
+    public static @NotNull Timers timers() {
+        return ClientRuntime.TIMERS;
+    }
+
+    /**
      * Teammate markers, drawn on the client's minimap and world.
      *
      * @return the marker API
@@ -273,6 +283,54 @@ public final class Clients {
 
         /**
          * Returns whether the player's client draws cooldowns at all.
+         *
+         * @param player the player
+         * @return {@code true} when they would see one
+         */
+        boolean supported(@NotNull Player player);
+    }
+
+    /**
+     * Timers drawn by a client on its HUD.
+     *
+     * @since 1.232.0
+     */
+    public interface Timers {
+
+        /**
+         * Draws a timer.
+         *
+         * @param player   who sees it
+         * @param timer    what to draw
+         * @return {@code true} when the client took it
+         */
+        boolean show(@NotNull Player player, @NotNull Timer timer);
+
+        /**
+         * Draws a timer for several players at once.
+         *
+         * @param players  who see it
+         * @param timer    what to draw
+         */
+        void show(@NotNull Collection<? extends Player> players, @NotNull Timer timer);
+
+        /**
+         * Removes a timer by name.
+         *
+         * @param player who sees it
+         * @param name   the name it was shown with
+         */
+        void remove(@NotNull Player player, @NotNull String name);
+
+        /**
+         * Removes every timer this library sent a player.
+         *
+         * @param player who sees them
+         */
+        void clear(@NotNull Player player);
+
+        /**
+         * Returns whether the player's client draws timers at all.
          *
          * @param player the player
          * @return {@code true} when they would see one

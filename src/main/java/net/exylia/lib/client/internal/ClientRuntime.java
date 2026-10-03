@@ -38,6 +38,9 @@ public final class ClientRuntime {
     /** The cooldown API handed out by {@link Clients#cooldowns()}. */
     public static final Clients.Cooldowns COOLDOWNS = new CooldownsImpl(null);
 
+    /** The timer API handed out by {@link Clients#timers()}. */
+    public static final Clients.Timers TIMERS = new TimersImpl(null);
+
     /** The marker API handed out by {@link Clients#markers()}. */
     public static final Clients.Markers MARKERS = new MarkersImpl();
 
@@ -77,7 +80,8 @@ public final class ClientRuntime {
     public static net.exylia.lib.client.PluginClients of(Plugin plugin) {
         String owner = plugin.getName();
         return new net.exylia.lib.client.PluginClients(
-                new WaypointsImpl(owner), new CooldownsImpl(owner), teamsOf(plugin));
+                new WaypointsImpl(owner), new CooldownsImpl(owner), teamsOf(plugin),
+                new TimersImpl(owner));
     }
 
     /**
@@ -103,6 +107,12 @@ public final class ClientRuntime {
             Player player = org.bukkit.Bukkit.getPlayer(id);
             if (player != null) {
                 clearCooldownsOf(pluginName, player);
+            }
+        }
+        for (UUID id : ClientState.timerViewers(pluginName)) {
+            Player player = org.bukkit.Bukkit.getPlayer(id);
+            if (player != null) {
+                clearTimersOf(pluginName, player);
             }
         }
     }
@@ -149,6 +159,7 @@ public final class ClientRuntime {
     public static void clearEverything(Player player) {
         WAYPOINTS.clear(player);
         COOLDOWNS.clear(player);
+        TIMERS.clear(player);
         MARKERS.clear(player);
     }
 
@@ -527,6 +538,79 @@ public final class ClientRuntime {
             ClientState.forgetCooldown(id, owner, key.name());
             if (drawn) {
                 safely(() -> link.removeCooldown(player, key.name()));
+            }
+        }
+    }
+
+    // ------------------------------------------------------------------
+    // Timers
+    // ------------------------------------------------------------------
+
+    private static final class TimersImpl implements Clients.Timers {
+
+        /** Whose timers these are, or {@code null} for the unowned static API. */
+        private final String owner;
+
+        TimersImpl(String owner) {
+            this.owner = owner;
+        }
+
+        @Override
+        public boolean show(@NotNull Player player, @NotNull net.exylia.lib.client.Timer timer) {
+            ClientLink link = ClientRegistry.of(player);
+            if (!link.supportsTimers()) {
+                return false;
+            }
+            safely(() -> link.showTimer(player, timer));
+            ClientState.rememberTimer(player.getUniqueId(), owner, timer.name());
+            return true;
+        }
+
+        @Override
+        public void show(@NotNull Collection<? extends Player> players, @NotNull net.exylia.lib.client.Timer timer) {
+            for (Player player : players) {
+                show(player, timer);
+            }
+        }
+
+        @Override
+        public void remove(@NotNull Player player, @NotNull String name) {
+            ClientState.forgetTimer(player.getUniqueId(), owner, name);
+            ClientLink link = ClientRegistry.of(player);
+            if (link.supportsTimers()) {
+                safely(() -> link.removeTimer(player, name));
+            }
+        }
+
+        /** Takes down every timer this view drew, and only those. */
+        @Override
+        public void clear(@NotNull Player player) {
+            if (owner == null) {
+                ClientState.clearTimers(player.getUniqueId());
+                ClientLink link = ClientRegistry.of(player);
+                if (link.supportsTimers()) {
+                    safely(() -> link.clearTimers(player));
+                }
+                return;
+            }
+            clearTimersOf(owner, player);
+        }
+
+        @Override
+        public boolean supported(@NotNull Player player) {
+            return ClientRegistry.of(player).supportsTimers();
+        }
+    }
+
+    /** Takes down one owner's timers on one player. */
+    private static void clearTimersOf(String owner, Player player) {
+        UUID id = player.getUniqueId();
+        ClientLink link = ClientRegistry.of(player);
+        boolean drawn = link.supportsTimers();
+        for (ClientState.Key key : ClientState.timersOf(id, owner)) {
+            ClientState.forgetTimer(id, owner, key.name());
+            if (drawn) {
+                safely(() -> link.removeTimer(player, key.name()));
             }
         }
     }

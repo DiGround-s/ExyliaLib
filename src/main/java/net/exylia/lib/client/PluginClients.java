@@ -36,16 +36,18 @@ import org.jetbrains.annotations.NotNull;
  * @param waypoints this plugin's waypoints
  * @param cooldowns this plugin's cooldowns
  * @param teams     this plugin's teams
+ * @param timers    this plugin's timers, since 1.232.0
  * @since 1.48.0
  */
 public record PluginClients(@NotNull Clients.Waypoints waypoints,
                             @NotNull Clients.Cooldowns cooldowns,
-                            @NotNull PluginTeams teams) {
+                            @NotNull PluginTeams teams,
+                            @NotNull Clients.Timers timers) {
 
     /**
      * Removes everything this plugin put on a player's screen.
      *
-     * <p>Waypoints and cooldowns this plugin sent. Other plugins' are left
+     * <p>Waypoints, cooldowns and timers this plugin sent. Other plugins' are left
      * alone, and so are the player's teams, which belong to whatever game is
      * running rather than to a screen being tidied.
      *
@@ -54,5 +56,6 @@ public record PluginClients(@NotNull Clients.Waypoints waypoints,
     public void clear(@NotNull Player player) {
         waypoints.clear(player);
         cooldowns.clear(player);
+        timers.clear(player);
     }
 }

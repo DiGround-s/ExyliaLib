@@ -162,6 +162,23 @@ final class FakeLink implements ClientLink {
         calls.add("clearcooldowns:" + player.getName());
     }
 
+    @Override
+    public boolean supportsTimers() {
+        return cooldowns;
+    }
+
+    @Override
+    public void showTimer(Player player, net.exylia.lib.client.Timer timer) {
+        fail();
+        calls.add("timer:" + player.getName() + ":" + timer.name() + (timer.paused() ? ":paused" : ""));
+    }
+
+    @Override
+    public void removeTimer(Player player, String name) {
+        fail();
+        calls.add("removetimer:" + player.getName() + ":" + name);
+    }
+
     /** The look the last marker update carried. */
     TeamLook lastLook;
 

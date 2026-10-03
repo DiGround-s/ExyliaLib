@@ -566,4 +566,25 @@ class ClientTest {
         Clients.markers().update(lunar.player(), List.of(vanilla.player()));
         Clients.clear(lunar.player());
     }
+
+    @Test
+    @DisplayName("a timer reaches a client that draws them, and a plugin clears only its own")
+    void timersAreOwned() {
+        net.exylia.lib.client.PluginClients gameView = ClientRuntime.of(game);
+        net.exylia.lib.client.PluginClients lobbyView = ClientRuntime.of(lobby);
+        net.exylia.lib.client.Timer koth = net.exylia.lib.client.Timer.countdown("koth",
+                net.kyori.adventure.text.Component.text("Castle"), java.time.Duration.ofMinutes(5));
+
+        assertTrue(gameView.timers().show(lunar.player(), koth));
+        assertTrue(gameView.timers().show(lunar.player(), koth.paused(true)));
+        assertTrue(lobbyView.timers().show(lunar.player(), net.exylia.lib.client.Timer.stopwatch("queue",
+                net.kyori.adventure.text.Component.empty(), java.time.Duration.ZERO)));
+        assertFalse(gameView.timers().show(feather.player(), koth));
+
+        gameView.clear(lunar.player());
+
+        assertEquals(List.of("timer:Lunar:koth", "timer:Lunar:koth:paused", "timer:Lunar:queue"),
+                lunarLink.calls("timer"));
+        assertEquals(List.of("removetimer:Lunar:koth"), lunarLink.calls("removetimer"));
+    }
 }
