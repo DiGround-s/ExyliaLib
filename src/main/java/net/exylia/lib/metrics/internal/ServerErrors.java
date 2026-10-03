@@ -5,6 +5,7 @@ import com.destroystokyo.paper.exception.ServerCommandException;
 import com.destroystokyo.paper.exception.ServerException;
 import com.destroystokyo.paper.exception.ServerPluginEnableDisableException;
 import com.destroystokyo.paper.exception.ServerPluginException;
+import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import org.bukkit.command.PluginIdentifiableCommand;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
@@ -43,6 +44,12 @@ final class ServerErrors implements Listener {
             // Paper's wrapper only says where it was caught; what went wrong is
             // its cause, which carries any further wrapper and the root cause.
             Throwable error = exception.getCause() != null ? exception.getCause() : exception;
+            // A command line that does not parse (a bad player name handed to
+            // dispatchCommand) is the caller's typo, which Paper raises as a
+            // throw; the plugin never ran.
+            if (error instanceof CommandSyntaxException) {
+                return;
+            }
             MetricsRuntime.error(plugin, phase, error);
         } catch (Throwable ignored) {
             // Metrics must never become the next exception.
