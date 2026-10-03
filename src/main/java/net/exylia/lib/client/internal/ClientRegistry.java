@@ -53,6 +53,8 @@ public final class ClientRegistry {
                 "net.exylia.lib.client.internal.ApolloLink");
         add(found, logger, "net.digitalingot.feather.serverapi.api.FeatherAPI",
                 "net.exylia.lib.client.internal.FeatherLink");
+        add(found, logger, "online.pablorelojero.survivalcore.api.SurvivalCore",
+                "net.exylia.lib.client.internal.SurvivalLink");
 
         links = List.copyOf(found);
         BY_PLAYER.clear();

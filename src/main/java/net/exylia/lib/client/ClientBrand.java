@@ -20,7 +20,14 @@ public enum ClientBrand {
     LUNAR("Lunar"),
 
     /** Feather Client. */
-    FEATHER("Feather");
+    FEATHER("Feather"),
+
+    /**
+     * The SurvivalCore client mod.
+     *
+     * @since 1.226.0
+     */
+    SURVIVALCORE("SurvivalCore");
 
     private final String display;
 

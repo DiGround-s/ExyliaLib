@@ -115,6 +115,9 @@ jobs:
 
       - name: Build and test
         if: steps.release_guard.outputs.release_needed == 'true'
+        env:
+          PABLORELOJERO_USER: ${{ secrets.PABLORELOJERO_USER }}
+          PABLORELOJERO_TOKEN: ${{ secrets.PABLORELOJERO_TOKEN }}
         run: ./gradlew clean build
 
       - name: Create GitHub release

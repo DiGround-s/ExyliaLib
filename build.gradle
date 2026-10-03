@@ -38,6 +38,17 @@ repositories {
         name = 'feather'
         url = 'https://repo.feathermc.net/artifactory/maven-releases'
     }
+    // Private. Credentials come from ~/.gradle/gradle.properties locally and
+    // from repository secrets in CI, never from this file.
+    maven {
+        name = 'pablorelojero'
+        url = 'https://repo.pablorelojero.online/releases'
+        credentials {
+            username = findProperty('pablorelojeroUser') ?: System.getenv('PABLORELOJERO_USER')
+            password = findProperty('pablorelojeroToken') ?: System.getenv('PABLORELOJERO_TOKEN')
+        }
+        content { includeGroup 'online.pablorelojero.survivalcore' }
+    }
     // WorldGuard, through a mirror first. EngineHub's own repo answers 503
     // when it is down, and a 5xx aborts resolution instead of falling through
     // to the next repository the way a 404 does — so the build must not meet
@@ -140,9 +151,10 @@ dependencies {
     // class each, exactly like PacketEvents: a server with neither installed
     // never loads them, and everything the client module offers degrades to
     // doing nothing rather than failing.
-    // Never shaded: Apollo and FeatherServerAPI provide them on the server.
+    // Never shaded: Apollo, FeatherServerAPI and SurvivalCore provide them on the server.
     compileOnly 'com.lunarclient:apollo-api:1.2.9'
     compileOnly 'net.digitalingot.feather-server-api:api:0.0.5'
+    compileOnly 'online.pablorelojero.survivalcore:survivalcore-api:0.1.1'
 
     // Database. Provided at runtime through plugin.yml libraries, exactly like
     // Lamp and Caffeine: the server's library loader fetches them once and every

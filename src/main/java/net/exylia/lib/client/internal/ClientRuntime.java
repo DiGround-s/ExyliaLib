@@ -111,7 +111,7 @@ public final class ClientRuntime {
      * Loads whichever client integrations are installed.
      *
      * <p>Called by ExyliaLib at startup. This library loads at {@code STARTUP}
-     * and Apollo and FeatherServerAPI do not, so the sweep here finds neither
+     * and Apollo, FeatherServerAPI and SurvivalCore do not, so the sweep here finds neither
      * on a normal server: each one is picked up again when it enables.
      *
      * @param plugin the library plugin
@@ -128,7 +128,8 @@ public final class ClientRuntime {
         @EventHandler(priority = EventPriority.MONITOR)
         public void onPluginEnable(PluginEnableEvent event) {
             switch (event.getPlugin().getName()) {
-                case "Apollo", "Apollo-Bukkit", "Apollo-Folia", "FeatherServerAPI", "feather-server-api" ->
+                case "Apollo", "Apollo-Bukkit", "Apollo-Folia", "FeatherServerAPI", "feather-server-api",
+                     "SurvivalCore" ->
                         ClientRegistry.load(library.getLogger());
                 default -> {
                 }
