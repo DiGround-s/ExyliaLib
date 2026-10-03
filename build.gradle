@@ -8,7 +8,7 @@ plugins {
 }
 
 group = 'net.exylia'
-version = '1.225.0'
+version = '1.225.1'
 description = 'Shared high-performance library for Exylia Minecraft plugins.'
 
 def targetJavaVersion = 21
@@ -131,21 +131,19 @@ dependencies {
     // bridges to it when the plugin is present.
     compileOnly 'me.clip:placeholderapi:2.11.5'
     compileOnly 'org.jetbrains:annotations:26.0.2'
-    // Modified-client integrations. Both optional at runtime and confined to one
-    // class each, exactly like PacketEvents: a server with neither installed
-    // never loads them, and everything the client module offers degrades to
-    // doing nothing rather than failing.
     // Optional at runtime, confined to one class the same way: the sidebar
     // most servers already run, asked to stand down while a board of ours is
     // shown so the two do not fight over the slot.
     compileOnly 'com.github.NEZNAMY:TAB-API:5.5.0'
-    compileOnly 'com.lunarclient:apollo-api:1.2.4'
+
+    // Modified-client integrations. Both optional at runtime and confined to one
+    // class each, exactly like PacketEvents: a server with neither installed
+    // never loads them, and everything the client module offers degrades to
+    // doing nothing rather than failing.
+    // Never shaded: Apollo and FeatherServerAPI provide them on the server.
+    compileOnly 'com.lunarclient:apollo-api:1.2.9'
     compileOnly 'net.digitalingot.feather-server-api:api:0.0.5'
 
-    // Client-mod APIs: bridges load only when the backing plugin (Apollo,
-    // FeatherServerAPI) is enabled. Never shaded — the consumer plugin or
-    // server must provide them.
-    compileOnly 'com.lunarclient:apollo-api:1.2.4'
     // Database. Provided at runtime through plugin.yml libraries, exactly like
     // Lamp and Caffeine: the server's library loader fetches them once and every
     // plugin shares the same copy. Never shaded — two connection pools or two

@@ -4,7 +4,12 @@ import net.exylia.lib.client.ClientBrand;
 import net.exylia.lib.client.Clients;
 import net.exylia.lib.client.Cooldown;
 import net.exylia.lib.client.Waypoint;
+import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
+import org.bukkit.event.EventHandler;
+import org.bukkit.event.EventPriority;
+import org.bukkit.event.Listener;
+import org.bukkit.event.server.PluginEnableEvent;
 import org.bukkit.plugin.Plugin;
 import org.jetbrains.annotations.NotNull;
 
@@ -105,7 +110,9 @@ public final class ClientRuntime {
     /**
      * Loads whichever client integrations are installed.
      *
-     * <p>Called by ExyliaLib at startup.
+     * <p>Called by ExyliaLib at startup. This library loads at {@code STARTUP}
+     * and Apollo and FeatherServerAPI do not, so the sweep here finds neither
+     * on a normal server: each one is picked up again when it enables.
      *
      * @param plugin the library plugin
      */
@@ -113,6 +120,20 @@ public final class ClientRuntime {
         library = plugin;
         ClientState.logger(plugin.getLogger());
         ClientRegistry.load(plugin.getLogger());
+        Bukkit.getPluginManager().registerEvents(new LateClientWatcher(), plugin);
+    }
+
+    /** Looks again when a client plugin enables after this library. */
+    private static final class LateClientWatcher implements Listener {
+        @EventHandler(priority = EventPriority.MONITOR)
+        public void onPluginEnable(PluginEnableEvent event) {
+            switch (event.getPlugin().getName()) {
+                case "Apollo", "Apollo-Bukkit", "Apollo-Folia", "FeatherServerAPI", "feather-server-api" ->
+                        ClientRegistry.load(library.getLogger());
+                default -> {
+                }
+            }
+        }
     }
 
     public static boolean isSupported() {

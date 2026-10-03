@@ -24,7 +24,12 @@ import java.util.logging.Logger;
  */
 public final class ClientRegistry {
 
-    private static final List<ClientLink> LINKS = new ArrayList<>();
+    /**
+     * Replaced whole, never edited in place: {@link #load} can run again while
+     * other threads are reading it, when a client plugin enables after this
+     * library.
+     */
+    private static volatile List<ClientLink> links = List.of();
     private static final Map<UUID, ClientLink> BY_PLAYER = new ConcurrentHashMap<>();
 
     /** Stands in for "checked, and this player runs no modified client". */
@@ -43,17 +48,18 @@ public final class ClientRegistry {
      * @param logger where the outcome is reported
      */
     public static void load(Logger logger) {
-        LINKS.clear();
-        BY_PLAYER.clear();
-
-        add(logger, "com.lunarclient.apollo.Apollo",
+        List<ClientLink> found = new ArrayList<>();
+        add(found, logger, "com.lunarclient.apollo.Apollo",
                 "net.exylia.lib.client.internal.ApolloLink");
-        add(logger, "net.digitalingot.feather.serverapi.api.FeatherAPI",
+        add(found, logger, "net.digitalingot.feather.serverapi.api.FeatherAPI",
                 "net.exylia.lib.client.internal.FeatherLink");
 
-        if (!LINKS.isEmpty()) {
-            List<String> names = new ArrayList<>(LINKS.size());
-            for (ClientLink link : LINKS) {
+        links = List.copyOf(found);
+        BY_PLAYER.clear();
+
+        if (!found.isEmpty()) {
+            List<String> names = new ArrayList<>(found.size());
+            for (ClientLink link : found) {
                 names.add(link.brand().display());
             }
             logger.info("Client integrations: " + String.join(", ", names) + ".");
@@ -69,11 +75,12 @@ public final class ClientRegistry {
      * a class, would fail to load this one before the check inside it ever
      * ran. Reflection keeps the decision at runtime, where it belongs.
      *
+     * @param found     where a usable integration is added
      * @param logger    where a broken integration is reported
      * @param apiClass  a class the client's own plugin provides
      * @param linkClass the integration, with a static {@code create()}
      */
-    private static void add(Logger logger, String apiClass, String linkClass) {
+    private static void add(List<ClientLink> found, Logger logger, String apiClass, String linkClass) {
         ClassLoader loader = ClientRegistry.class.getClassLoader();
         try {
             Class.forName(apiClass, false, loader);
@@ -85,7 +92,10 @@ public final class ClientRegistry {
             java.lang.reflect.Method create = Class.forName(linkClass, true, loader)
                     .getDeclaredMethod("create");
             create.setAccessible(true);
-            add((ClientLink) create.invoke(null));
+            ClientLink link = (ClientLink) create.invoke(null);
+            if (link != null && link.available()) {
+                found.add(link);
+            }
         } catch (Throwable broken) {
             // The API is here but not the one this was built against: an
             // upgrade on their side, never a reason to stop the server.
@@ -94,15 +104,9 @@ public final class ClientRegistry {
         }
     }
 
-    private static void add(ClientLink link) {
-        if (link != null && link.available()) {
-            LINKS.add(link);
-        }
-    }
-
     /** Returns whether any integration is installed at all. */
     public static boolean anyAvailable() {
-        return !LINKS.isEmpty();
+        return !links.isEmpty();
     }
 
     /**
@@ -112,14 +116,15 @@ public final class ClientRegistry {
      * so no caller has to check first.
      */
     public static ClientLink of(Player player) {
-        if (LINKS.isEmpty()) {
+        List<ClientLink> current = links;
+        if (current.isEmpty()) {
             return NONE;
         }
-        return BY_PLAYER.computeIfAbsent(player.getUniqueId(), id -> detect(player));
+        return BY_PLAYER.computeIfAbsent(player.getUniqueId(), id -> detect(current, player));
     }
 
-    private static ClientLink detect(Player player) {
-        for (ClientLink link : LINKS) {
+    private static ClientLink detect(List<ClientLink> current, Player player) {
+        for (ClientLink link : current) {
             try {
                 if (link.recognises(player)) {
                     return link;
@@ -151,22 +156,21 @@ public final class ClientRegistry {
      */
     public static void forget(UUID playerId) {
         BY_PLAYER.remove(playerId);
-        for (ClientLink link : LINKS) {
+        for (ClientLink link : links) {
             link.forget(playerId);
         }
     }
 
     /** Drops every integration and every detection. Used on shutdown and by tests. */
     public static void clear() {
-        LINKS.clear();
+        links = List.of();
         BY_PLAYER.clear();
     }
 
     /** Installs links directly. For tests. */
     static void install(List<ClientLink> links) {
-        LINKS.clear();
+        ClientRegistry.links = List.copyOf(links);
         BY_PLAYER.clear();
-        LINKS.addAll(links);
     }
 
     /** A player running nothing this library integrates with. */
