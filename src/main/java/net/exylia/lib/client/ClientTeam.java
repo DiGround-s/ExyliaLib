@@ -172,7 +172,7 @@ public interface ClientTeam {
      *
      * @param group the group, as passed to {@link #describe}
      * @param name  its name
-     * @since 1.231.0
+     * @since 1.231.1
      */
     void nameGroup(@NotNull String group, @NotNull Component name);
 
