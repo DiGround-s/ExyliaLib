@@ -153,6 +153,9 @@ public final class MenuListener implements Listener {
         if (actions.isEmpty() && commands.isEmpty()) {
             return;
         }
+        if (!session.claimPress()) {
+            return;
+        }
 
         long heard = MenuRuntime.soundsHeard(viewer);
 

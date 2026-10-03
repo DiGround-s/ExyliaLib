@@ -209,7 +209,23 @@ final class DialogPackets {
                 } else {
                     return;
                 }
-                receive(packet, event.getUser().getUUID());
+                ResourceLocation id = packet.getId();
+                if (!NAMESPACE.equals(id.getNamespace())) {
+                    return;
+                }
+                // Read here, while the packet is alive; answered on the
+                // player's own thread, where a parser or a validator a plugin
+                // wrote expects to run.
+                NBT payload = packet.getPayload();
+                UUID sender = event.getUser().getUUID();
+                Plugin plugin = owner;
+                Player player = sender == null ? null : Bukkit.getPlayer(sender);
+                if (plugin == null || player == null) {
+                    // Still configuring: no player to hop to yet.
+                    receive(id, payload, sender);
+                    return;
+                }
+                Tasks.of(plugin).runAtEntity(player, () -> receive(id, payload, sender));
             }
         };
         PacketEvents.getAPI().getEventManager().registerListener(packetListener);
@@ -432,15 +448,14 @@ final class DialogPackets {
         if (line == null || line.isBlank()) {
             return;
         }
-        String text = label == null || label.isBlank() ? line : label + " \u00bb " + line;
-        body.add(new PlainMessageDialogBody(new PlainMessage(Text.component(colour + text), BODY_WIDTH)));
+        // The line can echo what the player typed: substituted after the parse,
+        // with only its colours honoured, so it cannot become a button.
+        String template = label == null || label.isBlank() ? colour + "%line%" : colour + label + " \u00bb %line%";
+        body.add(new PlainMessageDialogBody(new PlainMessage(
+                Text.of(template).withColored("%line%", line).build(), BODY_WIDTH)));
     }
 
-    private static void receive(WrapperCommonClientCustomClickAction<?> packet, UUID sender) {
-        ResourceLocation id = packet.getId();
-        if (!NAMESPACE.equals(id.getNamespace())) {
-            return;
-        }
+    private static void receive(ResourceLocation id, @Nullable NBT payload, UUID sender) {
         String action = id.getKey();
         int slash = action.indexOf('/');
         if (slash < 0) {
@@ -469,7 +484,6 @@ final class DialogPackets {
             return;
         }
 
-        NBT payload = packet.getPayload();
         NBTCompound compound = payload instanceof NBTCompound value ? value : new NBTCompound();
         Map<String, String> raw = rawValues(state.session().request(), compound);
         Object request = state.session().request();
@@ -534,7 +548,8 @@ final class DialogPackets {
     private static String raw(NBTCompound compound, String key) {
         String text = compound.getStringTagValueOrNull(key);
         if (text != null) {
-            return text;
+            // Never more than the dialog allowed: the client writes this, not the dialog.
+            return text.length() > TEXT_LIMIT ? text.substring(0, TEXT_LIMIT) : text;
         }
         NBTByte flag = compound.getTagOfTypeOrNull(key, NBTByte.class);
         if (flag != null) {

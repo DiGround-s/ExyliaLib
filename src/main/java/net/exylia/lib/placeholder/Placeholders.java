@@ -356,6 +356,28 @@ public final class Placeholders {
         return compiled.renderFor(new Request(viewer, viewer, List.of(), data), true);
     }
 
+    /**
+     * {@link #renderValuesFirst(Template, Player, Map)}, with every resolved
+     * value passed through a filter before it is written in.
+     *
+     * @param template a template from {@link #compile}
+     * @param viewer   who to resolve for
+     * @param data     the values for this render, which win over a registration
+     * @param filter   what each resolved value goes through
+     * @return the finished text
+     * @since 1.236.0
+     */
+    @org.jetbrains.annotations.ApiStatus.Internal
+    public static @NotNull String renderValuesFirst(@NotNull Template template,
+                                                    @Nullable Player viewer,
+                                                    @NotNull Map<String, Object> data,
+                                                    @NotNull java.util.function.UnaryOperator<String> filter) {
+        if (!(template instanceof CompiledTemplate compiled)) {
+            return template.render(viewer, data);
+        }
+        return compiled.renderFor(new Request(viewer, viewer, List.of(), data), true, filter);
+    }
+
     /** Drops every registration. Called by ExyliaLib on shutdown. */
     public static void releaseAll() {
         PapiBridge.releaseAll();

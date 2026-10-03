@@ -109,7 +109,7 @@ public final class CommandLine {
      * @return the command, without a leading slash
      */
     public @NotNull String render(Player viewer) {
-        return fixed != null ? fixed : template.render(viewer);
+        return render(viewer, Map.of());
     }
 
     /**
@@ -123,7 +123,47 @@ public final class CommandLine {
      * @return the command, without a leading slash
      */
     public @NotNull String render(Player viewer, @NotNull Map<String, Object> data) {
-        return fixed != null ? fixed : Placeholders.renderValuesFirst(template, viewer, data);
+        return fixed != null ? fixed : Placeholders.renderValuesFirst(template, viewer, data,
+                actor.isPlayer() ? CommandLine::asText : CommandLine::asArgument);
+    }
+
+    /**
+     * A value as it may stand in a command the player runs: one line.
+     *
+     * <p>The player runs it with their own permissions, so a space in a value
+     * gives them nothing they could not type; a line break or a control
+     * character is never part of a command.
+     */
+    static String asText(String value) {
+        StringBuilder out = new StringBuilder(value.length());
+        for (int i = 0; i < value.length(); i++) {
+            char character = value.charAt(i);
+            if (!Character.isISOControl(character)) {
+                out.append(character);
+            }
+        }
+        return out.toString();
+    }
+
+    /**
+     * A value as it may stand in a command the console runs: one argument.
+     *
+     * <p>The console runs with every permission, and a value is often a name a
+     * player chose. Whitespace becomes {@code _} so a clan called
+     * {@code x op me} cannot add arguments, control characters are dropped,
+     * and a leading slash goes, since no argument needs one.
+     */
+    static String asArgument(String value) {
+        StringBuilder out = new StringBuilder(value.length());
+        for (int i = 0; i < value.length(); i++) {
+            char character = value.charAt(i);
+            if (Character.isWhitespace(character) || Character.isSpaceChar(character)) {
+                out.append('_');
+            } else if (!Character.isISOControl(character) && !(character == '/' && out.isEmpty())) {
+                out.append(character);
+            }
+        }
+        return out.toString();
     }
 
     @Override

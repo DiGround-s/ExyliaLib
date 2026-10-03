@@ -310,10 +310,15 @@ final class PacketHooks extends PacketListenerAbstract implements PacketSink {
         ItemStack copy = item.copy();
         ItemLore own = copy.getComponentOr(ComponentTypes.LORE, null);
         List<Component> all = new ArrayList<>(own == null ? List.of() : own.getLines());
-        all.addAll(lines);
+        // The client disconnects on a lore past 256 lines, and its own lore
+        // may already be near that: the decoration is what gives way.
+        all.addAll(lines.subList(0, Math.max(0, Math.min(lines.size(), MAX_LORE - all.size()))));
         copy.setComponent(ComponentTypes.LORE, new ItemLore(all));
         return copy;
     }
+
+    /** The most lore lines a client accepts before it disconnects. */
+    private static final int MAX_LORE = 256;
 
     /** Where hotbar slot 0 sits in the player's own inventory window. */
     private static final int HOTBAR_IN_WINDOW = 36;
@@ -560,10 +565,22 @@ final class PacketHooks extends PacketListenerAbstract implements PacketSink {
                 || viewer.getGameMode() == GameMode.CREATIVE) {
             return;
         }
+        // Once per tick per player: -1 makes the server send the whole
+        // container back, and a client spamming clicks would get one per
+        // packet. A click inside the same tick is still corrected by the
+        // coalesced resend PacketRuntime.resyncAfterClick schedules.
+        long now = System.nanoTime();
+        Long last = PacketRuntime.RECONCILED.get(viewer.getUniqueId());
+        if (last != null && now - last < ONE_TICK_NANOS) {
+            return;
+        }
+        PacketRuntime.RECONCILED.put(viewer.getUniqueId(), now);
         WrapperPlayClientClickWindow packet = new WrapperPlayClientClickWindow(event);
         packet.setStateID(Optional.of(-1));
         event.markForReEncode(true);
     }
+
+    private static final long ONE_TICK_NANOS = 50_000_000L;
 
     /**
      * Swallows a drop or a hand swap of an item only the client has.

@@ -114,6 +114,11 @@ final class SurvivalLink implements ClientLink {
         @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
         public void onPing(PlayerPingEvent event) {
             Player player = event.getPlayer();
+            // Every ping reaches the whole team; a flood of them is refused.
+            if (!ClientRuntime.admits(player.getUniqueId(), ClientRuntime.PING, 250_000_000L)) {
+                event.setCancelled(true);
+                return;
+            }
             if (event.recipients().size() == 1 && event.recipients().contains(player)) {
                 event.recipients().addAll(TeamRegistry.teammatesOf(player.getUniqueId()));
                 // A plain location ping takes the team's colour; danger, loot

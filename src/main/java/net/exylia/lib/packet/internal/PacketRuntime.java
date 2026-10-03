@@ -408,6 +408,7 @@ public final class PacketRuntime {
         Mirrors.forget(player);
         ItemDecor.forget(id);
         RESYNCING.remove(id);
+        RECONCILED.remove(id);
         Borders.forget(player);
     }
 
@@ -431,6 +432,9 @@ public final class PacketRuntime {
 
     /** Players with a resend already queued for the next tick, so a burst of clicks sends once. */
     private static final Set<UUID> RESYNCING = ConcurrentHashMap.newKeySet();
+
+    /** When each player's last click was turned into a full resend; see PacketHooks. */
+    static final Map<UUID, Long> RECONCILED = new ConcurrentHashMap<>();
 
     /**
      * Sends the window again a tick after a click, when items carry lines.

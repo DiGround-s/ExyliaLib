@@ -96,7 +96,12 @@ public final class Text {
      * @param formatted whether the value is parsed rather than inserted as it stands
      * @param verbatim  whether that parse leaves the letters alone; see {@link #withVerbatim}
      */
-    private record Substitution(String key, String value, boolean formatted, boolean verbatim) {
+    private record Substitution(String key, String value, boolean formatted, boolean verbatim,
+                                boolean restricted) {
+
+        Substitution(String key, String value, boolean formatted, boolean verbatim) {
+            this(key, value, formatted, verbatim, false);
+        }
 
         // Written out: a live bar compares its values once per redraw, and the
         // generated forms went through method-handle chains the profile caught
@@ -105,13 +110,13 @@ public final class Text {
         public boolean equals(Object other) {
             return this == other || other instanceof Substitution that
                     && formatted == that.formatted && verbatim == that.verbatim
-                    && key.equals(that.key) && value.equals(that.value);
+                    && restricted == that.restricted && key.equals(that.key) && value.equals(that.value);
         }
 
         @Override
         public int hashCode() {
-            return (key.hashCode() * 31 + value.hashCode()) * 4
-                    + (formatted ? 2 : 0) + (verbatim ? 1 : 0);
+            return (key.hashCode() * 31 + value.hashCode()) * 8
+                    + (restricted ? 4 : 0) + (formatted ? 2 : 0) + (verbatim ? 1 : 0);
         }
     }
 
@@ -285,7 +290,9 @@ public final class Text {
         Component component = TextEngine.parse(source);
         Component[] replacements = new Component[values.size()];
         for (int i = 0; i < values.size(); i++) {
-            replacements[i] = TextEngine.parse(values.get(i));
+            // What a placeholder answered: a nickname or a clan tag a player
+            // chose may be in it, so only its colours are honoured.
+            replacements[i] = TextEngine.parseRestricted(values.get(i), false);
         }
         return substituteMarkers(component, replacements);
     }
@@ -342,6 +349,98 @@ public final class Text {
      */
     public @NotNull Text withVerbatim(@NotNull String placeholder, Object value) {
         return substitute(placeholder, value, true, true);
+    }
+
+    /**
+     * Substitutes a value whose colours are honoured and nothing else.
+     *
+     * <p>For a value a player had a hand in that is still meant to be
+     * coloured: a clan tag, a nickname, a prefix. Palette tokens, legacy
+     * codes, colours, gradients and decorations work; click, hover, insertion,
+     * fonts, translations, selectors, NBT, heads and line breaks stay text, so
+     * the value cannot turn into a button somebody else presses.
+     *
+     * @param placeholder the exact text to replace, such as {@code %tag%}
+     * @param value       the value to parse and insert
+     * @return a new prepared text; the original is unchanged
+     * @since 1.236.0
+     */
+    public @NotNull Text withColored(@NotNull String placeholder, Object value) {
+        List<Substitution> updated = new ArrayList<>(substitutions.size() + 1);
+        updated.addAll(substitutions);
+        updated.add(new Substitution(placeholder, value == null ? "" : String.valueOf(value), true, false, true));
+        return new Text(raw, updated, viewer, owner, resolveFormatted, verbatim);
+    }
+
+    /**
+     * Turns text somebody typed into text that reads exactly as typed wherever
+     * the library parses it.
+     *
+     * <p>For a value that has to travel as a string into something that will
+     * be parsed: a line written into a config, a message handed to another
+     * plugin. Tags, legacy codes and palette tokens in it are neutralised, so
+     * {@code <click:run_command:/op me>} reaches the screen as those
+     * characters. When the value can be inserted as a component instead,
+     * {@link #with} or {@code Component.text} need no escaping at all.
+     *
+     * @param typed what the player typed; {@code null} becomes an empty string
+     * @return the same text, safe to parse
+     * @since 1.236.0
+     */
+    public static @NotNull String escape(@Nullable String typed) {
+        if (typed == null || typed.isEmpty()) {
+            return "";
+        }
+        // Nothing that starts formatting: the parser never runs on it, and a
+        // backslash escaped here would then reach the screen doubled.
+        if (typed.indexOf('<') < 0 && typed.indexOf('&') < 0 && typed.indexOf('{') < 0
+                && typed.indexOf('\u00a7') < 0) {
+            return typed;
+        }
+        StringBuilder out = new StringBuilder(typed.length() + 16);
+        for (int i = 0; i < typed.length(); i++) {
+            char character = typed.charAt(i);
+            switch (character) {
+                // MiniMessage's own escape.
+                case '\\', '<' -> out.append('\\').append(character);
+                // A legacy code or a palette token only exists when the next
+                // character follows directly; an empty tag in between breaks it.
+                case '&', '{' -> out.append(character).append("<b></b>");
+                // Nothing a player types legitimately, and the parser refuses it.
+                case '\u00a7' -> { }
+                default -> out.append(character);
+            }
+        }
+        return out.toString();
+    }
+
+    /**
+     * Removes every piece of formatting from text somebody typed, for good.
+     *
+     * <p>{@link #plain()} is one parse: {@code \<click:...>} is an escaped tag,
+     * and one parse turns it into a live {@code <click:...>} for whoever
+     * parses the result next. This parses until nothing changes any more, so
+     * what it returns reads the same parsed or not. For a name, a description
+     * or a message to be stored without its formatting.
+     *
+     * @param typed what the player typed; {@code null} becomes an empty string
+     * @return the text with no formatting left in it
+     * @since 1.236.0
+     */
+    public static @NotNull String strip(@Nullable String typed) {
+        if (typed == null || typed.isEmpty()) {
+            return "";
+        }
+        String current = typed;
+        for (int pass = 0; pass < 8; pass++) {
+            String next = PLAIN.serialize(TextEngine.parseExact(current));
+            if (next.equals(current)) {
+                return current;
+            }
+            current = next;
+        }
+        // Still turning into something else: escapes nested on purpose.
+        return current.replaceAll("[<>&{}\\\\\u00a7]", "");
     }
 
     /**
@@ -490,7 +589,7 @@ public final class Text {
             String marker = String.valueOf((char) (MARKER_BASE + marked.size()));
             source = source.replace(substitution.key(), marker);
             marked.add(new Marked(marker, substitution.value(), substitution.formatted(),
-                    verbatim || substitution.verbatim()));
+                    verbatim || substitution.verbatim(), substitution.restricted()));
         }
 
         // Centring is measured on what the player will read, not on the
@@ -521,6 +620,7 @@ public final class Text {
         for (int i = 0; i < marked.size(); i++) {
             Marked value = marked.get(i);
             replacements[i] = !value.formatted() ? Component.text(value.value())
+                    : value.restricted() ? TextEngine.parseRestricted(value.value(), value.verbatim())
                     : value.verbatim() ? TextEngine.parseExact(value.value())
                     : TextEngine.parseValue(value.value());
             if (clickable) {
@@ -655,7 +755,8 @@ public final class Text {
     }
 
     /** A value and the marker standing in for it while the text is parsed. */
-    private record Marked(String marker, String value, boolean formatted, boolean verbatim) {
+    private record Marked(String marker, String value, boolean formatted, boolean verbatim,
+                          boolean restricted) {
     }
 
     /**
@@ -690,8 +791,10 @@ public final class Text {
         }
         List<Substitution> values = new ArrayList<>(triples.size() / 3 + substitutions.size());
         for (int i = 0; i < triples.size(); i += 3) {
+            // What a placeholder answered is never trusted with more than colours.
+            boolean formattedValue = triples.get(i + 2).equals("formatted");
             values.add(new Substitution(triples.get(i), triples.get(i + 1),
-                    triples.get(i + 2).equals("formatted"), verbatim));
+                    formattedValue, verbatim, formattedValue));
         }
         values.addAll(substitutions);
         return values;
@@ -835,7 +938,7 @@ public final class Text {
     }
 
     /** Parses a trusted value, honouring its formatting. */
-    private static final ValueRenderer FORMATTED_RENDERER = TextEngine::parseValue;
+    private static final ValueRenderer FORMATTED_RENDERER = value -> TextEngine.parseRestricted(value, false);
 
     /**
      * The placeholder tokens this text substitutes itself, so the resolver does
@@ -905,6 +1008,11 @@ public final class Text {
      *
      * <p>For logs, comparisons, and anywhere a console reads the value.
      *
+     * <p><strong>Not a sanitiser.</strong> One parse turns an escaped
+     * {@code \<click:...>} back into a live {@code <click:...>}. Text a player
+     * typed goes through {@link #strip(String)} to lose its formatting, or
+     * {@link #escape(String)} to keep it as written, before it is parsed again.
+     *
      * @return the plain text
      */
     public @NotNull String plain() {
@@ -956,7 +1064,8 @@ public final class Text {
         for (Substitution substitution : substitutions) {
             out.append(WIRE).append(substitution.key())
                     .append(WIRE).append(substitution.value())
-                    .append(WIRE).append(flag(substitution.formatted())).append(flag(substitution.verbatim()));
+                    .append(WIRE).append(flag(substitution.formatted())).append(flag(substitution.verbatim()))
+                    .append(flag(substitution.restricted()));
         }
         return out.toString();
     }
@@ -979,7 +1088,8 @@ public final class Text {
         }
         List<Substitution> values = new ArrayList<>((parts.length - 2) / 3);
         for (int i = 2; i + 2 < parts.length; i += 3) {
-            values.add(new Substitution(parts[i], parts[i + 1], flag(parts[i + 2], 0), flag(parts[i + 2], 1)));
+            values.add(new Substitution(parts[i], parts[i + 1], flag(parts[i + 2], 0), flag(parts[i + 2], 1),
+                    flag(parts[i + 2], 2)));
         }
         return new Text(parts[0], values, null, plugin, flag(parts[1], 0), flag(parts[1], 1));
     }

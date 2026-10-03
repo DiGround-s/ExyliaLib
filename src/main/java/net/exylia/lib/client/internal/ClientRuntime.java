@@ -324,6 +324,53 @@ public final class ClientRuntime {
         // Their teammates still have a marker pointing at them, and unlike the
         // player who left, they are still looking at it.
         TeamRegistry.forget(id);
+        LAST_INPUT.remove(id);
+    }
+
+    // ------------------------------------------------------------------
+    // Flood control
+    // ------------------------------------------------------------------
+
+    static final int CHAT = 0;
+    static final int KEY = 1;
+    static final int PING = 2;
+
+    /** When each player's last chat line, key press and ping got through. */
+    private static final Map<UUID, long[]> LAST_INPUT = new ConcurrentHashMap<>();
+
+    /** The longest clan chat line handed to a plugin: vanilla chat's own limit. */
+    static final int CHAT_LIMIT = 256;
+
+    /**
+     * Whether a player's input of one kind may go through now, claiming it
+     * when it may.
+     *
+     * <p>The mod sends these at whatever rate the client likes, and each one
+     * runs a plugin's handler; a modified client could send thousands a
+     * second. Too soon is dropped without a word.
+     */
+    static boolean admits(UUID player, int kind, long gapNanos) {
+        long[] last = LAST_INPUT.computeIfAbsent(player, id -> new long[3]);
+        long now = System.nanoTime();
+        if (last[kind] != 0 && now - last[kind] < gapNanos) {
+            return false;
+        }
+        last[kind] = now == 0 ? 1 : now;
+        return true;
+    }
+
+    /** When each kind of handler failure was last logged. */
+    private static final Map<String, Long> LAST_WARNING = new ConcurrentHashMap<>();
+
+    /** Logs a handler failure at most once a minute per plugin and kind, so a flood cannot fill the log. */
+    private static void warnRarely(String key, String message) {
+        long now = System.nanoTime();
+        Long last = LAST_WARNING.get(key);
+        if (last != null && now - last < 60_000_000_000L) {
+            return;
+        }
+        LAST_WARNING.put(key, now);
+        ClientState.logger().warning(message + " (repeats are muted for a minute)");
     }
 
     /** Drops every integration and everything remembered. */
@@ -913,10 +960,14 @@ public final class ClientRuntime {
         if (handler == null) {
             return false;
         }
+        if (!admits(sender.getUniqueId(), CHAT, 250_000_000L)) {
+            return true;
+        }
+        String line = message == null ? "" : message.length() > CHAT_LIMIT ? message.substring(0, CHAT_LIMIT) : message;
         try {
-            handler.handle(sender, channel, message);
+            handler.handle(sender, channel, line);
         } catch (RuntimeException failure) {
-            ClientState.logger().warning(owner + " failed to handle a chat message: " + failure);
+            warnRarely(owner + "/chat", owner + " failed to handle a chat message: " + failure);
         }
         return true;
     }
@@ -970,13 +1021,13 @@ public final class ClientRuntime {
     /** Hands a key press to the plugin that registered the key. */
     static void keyPressed(String owner, Player player, String name) {
         java.util.function.BiConsumer<Player, String> handler = KEY_HANDLERS.get(owner);
-        if (handler == null) {
+        if (handler == null || !admits(player.getUniqueId(), KEY, 50_000_000L)) {
             return;
         }
         try {
             handler.accept(player, name);
         } catch (RuntimeException failure) {
-            ClientState.logger().warning(owner + " failed to handle a key press: " + failure);
+            warnRarely(owner + "/key", owner + " failed to handle a key press: " + failure);
         }
     }
 }

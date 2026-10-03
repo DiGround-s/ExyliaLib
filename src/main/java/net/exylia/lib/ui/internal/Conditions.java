@@ -1,6 +1,7 @@
 package net.exylia.lib.ui.internal;
 
 import java.util.Locale;
+import java.util.function.UnaryOperator;
 
 /**
  * Whether a slot is shown.
@@ -46,6 +47,22 @@ public final class Conditions {
      * @return whether the slot is shown
      */
     public static boolean test(String condition) {
+        return test(condition, UnaryOperator.identity());
+    }
+
+    /**
+     * Tests a condition whose placeholders are filled in after it is split.
+     *
+     * <p>The operator is found in the condition as written, and each side is
+     * resolved on its own. Resolving first let a value carry an operator of its
+     * own: a row named {@code x == x} turned {@code %name% == admin} into a
+     * comparison that always held.
+     *
+     * @param condition the condition as written
+     * @param resolve   fills one side's placeholders in
+     * @return whether it holds
+     */
+    public static boolean test(String condition, UnaryOperator<String> resolve) {
         if (condition == null || condition.isBlank()) {
             return true;
         }
@@ -55,11 +72,11 @@ public final class Conditions {
             if (at <= 0) {
                 continue;
             }
-            String left = text.substring(0, at).trim();
-            String right = text.substring(at + operator.length()).trim();
+            String left = resolve.apply(text.substring(0, at).trim()).trim();
+            String right = resolve.apply(text.substring(at + operator.length()).trim()).trim();
             return compare(left, operator.trim(), right);
         }
-        return Boolean.parseBoolean(text);
+        return Boolean.parseBoolean(resolve.apply(text).trim());
     }
 
     private static boolean compare(String left, String operator, String right) {

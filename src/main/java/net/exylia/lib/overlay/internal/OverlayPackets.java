@@ -636,7 +636,15 @@ final class OverlayPackets extends PacketListenerAbstract implements OverlaySink
      * and the overlay is intact again.
      */
     private static void resync(OverlayView view, Player player) {
-        atPlayer(view, player::updateInventory);
+        // One resend per tick, however many packets asked: each one is the
+        // whole inventory, and a client spamming clicks asks every packet.
+        if (!view.claimResync()) {
+            return;
+        }
+        atPlayer(view, () -> {
+            view.resynced();
+            player.updateInventory();
+        });
     }
 
     private static void atPlayer(OverlayView view, Runnable work) {

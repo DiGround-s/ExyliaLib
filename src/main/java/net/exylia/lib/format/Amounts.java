@@ -99,17 +99,41 @@ public final class Amounts {
         }
 
         String digits = withoutSeparators(text);
-        if (digits == null) {
+        // Scientific notation is refused outright: "1e999999999" is eleven
+        // characters that turn into a billion-digit number the first time
+        // anything adds, rounds or prints it, and that hangs the server.
+        if (digits == null || digits.indexOf('e') >= 0 || digits.indexOf('E') >= 0) {
             return Optional.empty();
         }
         try {
             BigDecimal value = new BigDecimal(digits);
-            return Optional.of(multiplier.equals(BigDecimal.ONE)
+            value = multiplier.equals(BigDecimal.ONE)
                     ? value
-                    : value.multiply(multiplier).stripTrailingZeros());
+                    : value.multiply(multiplier).stripTrailingZeros();
+            return bounded(value) ? Optional.of(value) : Optional.empty();
         } catch (NumberFormatException notANumber) {
             return Optional.empty();
         }
+    }
+
+    /** Most whole digits an amount may have: far beyond any real balance. */
+    private static final int MAX_WHOLE_DIGITS = 30;
+    /** Most decimal places an amount may have. */
+    private static final int MAX_DECIMALS = 10;
+
+    /**
+     * Whether a number is small enough to be an amount a player typed.
+     *
+     * <p>At most 30 whole digits and 10 decimal places. Anything past that is
+     * not a price but an attempt to make the arithmetic downstream allocate
+     * gigantic numbers.
+     *
+     * @param value the number
+     * @return {@code true} when it is within those bounds
+     * @since 1.236.0
+     */
+    public static boolean bounded(@NotNull BigDecimal value) {
+        return value.precision() - value.scale() <= MAX_WHOLE_DIGITS && value.scale() <= MAX_DECIMALS;
     }
 
     /**

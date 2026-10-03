@@ -263,22 +263,12 @@ public final class Economy {
      * @since 1.151.0
      */
     public static @Nullable BigDecimal parseAmount(@Nullable String typed) {
-        if (typed == null || typed.isBlank()) return null;
-        String text = typed.trim().toLowerCase(java.util.Locale.ROOT).replace(",", "");
-        BigDecimal scale = BigDecimal.ONE;
-        switch (text.charAt(text.length() - 1)) {
-            case 'k' -> scale = BigDecimal.valueOf(1_000);
-            case 'm' -> scale = BigDecimal.valueOf(1_000_000);
-            case 'b' -> scale = BigDecimal.valueOf(1_000_000_000);
-            default -> { }
-        }
-        if (scale.compareTo(BigDecimal.ONE) != 0) text = text.substring(0, text.length() - 1);
-        try {
-            BigDecimal value = new BigDecimal(text).multiply(scale);
-            return value.signum() > 0 ? value : null;
-        } catch (NumberFormatException notANumber) {
-            return null;
-        }
+        if (typed == null) return null;
+        // Same reading (and the same refusal of 1e999999999) as every other
+        // amount the lib parses; commas are stripped as before.
+        return net.exylia.lib.format.Amounts.parseSigned(typed.replace(",", ""))
+                .filter(value -> value.signum() > 0)
+                .orElse(null);
     }
 
     // --------------------------------------------------------- default

@@ -10,6 +10,7 @@ import net.kyori.adventure.text.minimessage.ParsingException;
 import net.kyori.adventure.text.minimessage.tag.Tag;
 import net.kyori.adventure.text.minimessage.tag.resolver.ArgumentQueue;
 import net.kyori.adventure.text.minimessage.tag.resolver.TagResolver;
+import net.kyori.adventure.text.minimessage.tag.standard.StandardTags;
 
 import java.time.Duration;
 import java.util.HashMap;
@@ -82,6 +83,35 @@ public final class TextEngine {
     private static final MiniMessage MINI_MESSAGE = MiniMessage.builder()
             .editTags(builder -> builder.resolver(new ExtraTags()))
             .build();
+
+    /**
+     * The parser for values nobody on the server wrote: what a placeholder
+     * answers, a nickname, a clan tag.
+     *
+     * <p>Colours and styles only. Click, hover, insertion, fonts, translations,
+     * selectors, NBT, scores, heads and line breaks are all refused, so a
+     * player who names themselves {@code <click:run_command:/op me>} shows up
+     * as that text instead of as a button every viewer can press. Sprites stay:
+     * they draw a fixed icon and do nothing else, and rank prefixes use them.
+     */
+    private static final MiniMessage RESTRICTED = MiniMessage.builder()
+            .tags(restrictedTags())
+            .build();
+
+    private static TagResolver restrictedTags() {
+        TagResolver.Builder tags = TagResolver.builder().resolvers(
+                StandardTags.color(), StandardTags.decorations(), StandardTags.gradient(),
+                StandardTags.rainbow(), StandardTags.transition(), StandardTags.reset());
+        // Newer than some servers' Adventure: added when the server has them.
+        for (String optional : new String[]{"shadowColor", "sprite"}) {
+            try {
+                tags.resolver((TagResolver) StandardTags.class.getMethod(optional).invoke(null));
+            } catch (ReflectiveOperationException | LinkageError absent) {
+                // Not on this server; nothing to allow.
+            }
+        }
+        return tags.build();
+    }
 
     /** Palette tokens mapped to the MiniMessage tag they expand to. */
     private static volatile Map<String, String> tokens = tokensOf(new Palette());
@@ -312,6 +342,39 @@ public final class TextEngine {
     }
 
     /**
+     * Parses a value nobody on the server wrote, honouring only its colours
+     * and styles.
+     *
+     * <p>For whatever a placeholder answers and anything else a player can
+     * influence: palette tokens, legacy codes, colours, gradients and
+     * decorations work; every interactive or structural tag is left as text.
+     *
+     * @param text  the value as written
+     * @param exact whether the letters stay as written whatever
+     *              {@code small-text} says
+     * @return the parsed component
+     */
+    public static Component parseRestricted(String text, boolean exact) {
+        if (text.isEmpty()) {
+            return Component.empty();
+        }
+        boolean small = smallText && !exact;
+        int flags = FormatScanner.scan(text);
+        if (FormatScanner.isPlain(flags)) {
+            return shadowed(Component.text(small ? SmallText.apply(text) : text));
+        }
+        // Shares the values cache under a prefix no real value starts with.
+        String key = (small ? '\u0001' : '\u0002') + text;
+        Component cached = VALUES.getIfPresent(key);
+        if (cached != null) {
+            return cached;
+        }
+        Component parsed = parseUncached(text, flags, small, RESTRICTED);
+        VALUES.put(key, parsed);
+        return parsed;
+    }
+
+    /**
      * Parses text that must read as written, whatever the small-text setting
      * says.
      *
@@ -350,6 +413,10 @@ public final class TextEngine {
     }
 
     private static Component parseUncached(String text, int flags, boolean small) {
+        return parseUncached(text, flags, small, MINI_MESSAGE);
+    }
+
+    private static Component parseUncached(String text, int flags, boolean small, MiniMessage parser) {
         // Before anything expands: a palette token is left alone here, but
         // once it becomes "<#8a51c4>" it is indistinguishable from a tag the
         // author wrote, and the hex digits inside it are letters.
@@ -368,7 +435,7 @@ public final class TextEngine {
         prepared = LegacyTranslator.toMiniMessage(prepared, flags);
 
         try {
-            return shadowed(MINI_MESSAGE.deserialize(prepared));
+            return shadowed(parser.deserialize(prepared));
         } catch (RuntimeException exception) {
             // A malformed tag must not cost the caller its message. Showing the
             // raw text is far more useful than an exception in the log.

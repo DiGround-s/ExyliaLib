@@ -604,20 +604,25 @@ public final class ItemRenderer {
     static List<Component> lore(List<String> written, Player viewer,
                                 Map<String, String> values, Set<String> formatted,
                                 Set<String> verbatim) {
-        List<Component> lines = new ArrayList<>(written.size());
+        List<Component> lines = new ArrayList<>(Math.min(written.size(), MAX_LORE));
         Map<String, String> normalized = normalized(values);
         for (String line : written) {
-            int spans = spans(line, normalized);
-            if (spans == 1) {
-                lines.add(text(line, viewer, normalized, formatted, verbatim));
-                continue;
-            }
-            for (int index = 0; index < spans; index++) {
-                lines.add(text(line, viewer, segment(normalized, index), formatted, verbatim));
+            // A client disconnects on a lore past 256 lines, and a row value
+            // a player wrote can hold as many line breaks as it likes.
+            int spans = Math.min(spans(line, normalized), MAX_VALUE_LINES);
+            for (int index = 0; index < spans && lines.size() < MAX_LORE; index++) {
+                lines.add(text(line, viewer, spans == 1 ? normalized : segment(normalized, index),
+                        formatted, verbatim));
             }
         }
         return lines;
     }
+
+    /** The most lore lines a client accepts before it disconnects. */
+    static final int MAX_LORE = 256;
+
+    /** The most lines one row value may stretch a template line into. */
+    static final int MAX_VALUE_LINES = 32;
 
     /**
      * Row values with every line-break spelling folded to the canonical marker.

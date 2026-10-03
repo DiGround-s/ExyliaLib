@@ -134,6 +134,35 @@ public final class OverlayView {
         return live.get(index);
     }
 
+    /** When the resend on its way to this viewer was asked for, or 0 when none is. */
+    private final java.util.concurrent.atomic.AtomicLong resyncQueued =
+            new java.util.concurrent.atomic.AtomicLong();
+
+    /**
+     * Claims the one resend this viewer gets until it has been sent.
+     *
+     * <p>A claim older than a second is taken over: a task that never ran must
+     * not leave the viewer without resends for good.
+     *
+     * @return whether the caller should schedule it
+     */
+    public boolean claimResync() {
+        long now = System.nanoTime();
+        long queued = resyncQueued.get();
+        return (queued == 0 || now - queued > 1_000_000_000L) && resyncQueued.compareAndSet(queued, now == 0 ? 1 : now);
+    }
+
+    /** Called on the viewer's thread just before the resend goes out. */
+    public void resynced() {
+        resyncQueued.set(0);
+    }
+
+    /** Two ticks: faster than anybody means to press a tool twice. */
+    private static final long PRESS_GAP_NANOS = 100_000_000L;
+
+    /** When a binding last ran, on the viewer's thread. */
+    private long lastPress = System.nanoTime() - PRESS_GAP_NANOS;
+
     /** One tick: the window a client's several packets for one press arrive in. */
     private static final long ONE_PRESS_NANOS = 50_000_000L;
 
@@ -247,7 +276,8 @@ public final class OverlayView {
     private boolean passes(UiItem item) {
         String condition = item.condition();
         return condition == null
-                || Conditions.test(net.exylia.lib.text.Text.of(condition).forPlayer(viewer).plain());
+                || Conditions.test(condition,
+                        side -> net.exylia.lib.text.Text.of(side).forPlayer(viewer).verbatim().plain());
     }
 
     // ------------------------------------------------------------------
@@ -389,6 +419,13 @@ public final class OverlayView {
         if (actions.isEmpty() && commands.isEmpty()) {
             return;
         }
+        // A macro presses far faster than a hand, and every press runs actions
+        // and commands; presses closer than two ticks are dropped.
+        long now = System.nanoTime();
+        if (now - lastPress < PRESS_GAP_NANOS) {
+            return;
+        }
+        lastPress = now;
         play(definition.sounds().click());
         if (!actions.isEmpty()) {
             runActions(index, kind, target, block, actions);

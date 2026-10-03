@@ -9,6 +9,7 @@ import net.kyori.adventure.text.format.TextDecoration;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.entity.Player;
+import org.bukkit.event.inventory.InventoryAction;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.inventory.InventoryDragEvent;
 import org.bukkit.inventory.Inventory;
@@ -192,7 +193,18 @@ public final class InsertWindow implements InventoryHolder {
             event.setCancelled(true);
             return;
         }
+        // A double click gathers every matching stack in the view onto the
+        // cursor, filler panes up here included; nothing here needs it.
+        if (event.getAction() == InventoryAction.COLLECT_TO_CURSOR) {
+            event.setCancelled(true);
+            return;
+        }
         if (event.getClickedInventory() != event.getView().getTopInventory()) {
+            // A shift-moved item that matches the screen would merge into a
+            // filler slot instead of the open one.
+            if (event.getAction() == InventoryAction.MOVE_TO_OTHER_INVENTORY && matchesScreen(event.getCurrentItem())) {
+                event.setCancelled(true);
+            }
             return;
         }
         if (event.getSlot() == confirmSlot()) {
@@ -203,6 +215,20 @@ public final class InsertWindow implements InventoryHolder {
         if (!isInput(event.getSlot())) {
             event.setCancelled(true);
         }
+    }
+
+    /** Whether an item would stack onto one of the screen's own items. */
+    private boolean matchesScreen(ItemStack item) {
+        if (item == null || item.getType() == Material.AIR) {
+            return false;
+        }
+        for (int slot = 0; slot < inventory.getSize(); slot++) {
+            ItemStack screen = isInput(slot) ? null : inventory.getItem(slot);
+            if (screen != null && screen.isSimilar(item)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /**

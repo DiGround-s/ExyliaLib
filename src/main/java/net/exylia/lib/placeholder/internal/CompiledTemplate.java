@@ -103,6 +103,20 @@ public final class CompiledTemplate implements Template {
      * @return the finished text
      */
     public @NotNull String renderFor(@NotNull Request request, boolean valuesFirst) {
+        return renderFor(request, valuesFirst, java.util.function.UnaryOperator.identity());
+    }
+
+    /**
+     * Renders, passing every resolved value through a filter before it is
+     * written in. The template's own text and fallbacks are not filtered.
+     *
+     * @param request     who is asking, about whom, and with what values
+     * @param valuesFirst whether the attached values win over a registration
+     * @param filter      what each resolved value goes through
+     * @return the finished text
+     */
+    public @NotNull String renderFor(@NotNull Request request, boolean valuesFirst,
+                                     @NotNull java.util.function.UnaryOperator<String> filter) {
         if (constant != null) {
             return constant;
         }
@@ -143,7 +157,7 @@ public final class CompiledTemplate implements Template {
                 continue;
             }
 
-            result.append(Formats.apply(value, part.format()));
+            result.append(filter.apply(Formats.apply(value, part.format())));
         }
 
         return result.toString();

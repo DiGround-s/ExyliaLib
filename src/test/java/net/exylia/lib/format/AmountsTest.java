@@ -193,4 +193,16 @@ class AmountsTest {
         assertEquals("1.5K", Numbers.compact(Amounts.parse("1.5k").orElseThrow().longValue()));
         assertEquals("2.5M", Numbers.compact(Amounts.parse("2.5M").orElseThrow().longValue()));
     }
+
+    @Test
+    @DisplayName("an exponent or a gigantic number is refused before it can hang the server")
+    void hugeNumbersAreRefused() {
+        assertFalse(Amounts.parse("1e999999999").isPresent());
+        assertFalse(Amounts.parseSigned("1E-999999999").isPresent());
+        assertFalse(Amounts.parse("1" + "0".repeat(40)).isPresent());
+        assertFalse(Amounts.parse("0." + "0".repeat(20) + "1").isPresent());
+        assertFalse(net.exylia.lib.economy.Economy.parseAmount("1e999999999k") != null);
+        assertTrue(Amounts.parse("999Q").isPresent());
+        assertEquals(0, new BigDecimal("2500").compareTo(net.exylia.lib.economy.Economy.parseAmount("2.5K")));
+    }
 }

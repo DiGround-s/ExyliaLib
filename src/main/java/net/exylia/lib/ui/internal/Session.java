@@ -71,6 +71,12 @@ final class Session implements UiSession {
     /** What to stop when the menu closes. */
     private final List<ActionExecution> pending = new ArrayList<>();
 
+    /** Two ticks: faster than anybody means to press a button twice. */
+    private static final long PRESS_GAP_NANOS = 100_000_000L;
+
+    /** When a button last ran, on the viewer's thread. */
+    private long lastPress = System.nanoTime() - PRESS_GAP_NANOS;
+
     /** The title last sent, so an unchanged one costs no packet. */
     /** Built on first use; the definition it derives from cannot change. */
     private Set<Integer> inputSlots;
@@ -494,6 +500,9 @@ final class Session implements UiSession {
             execution.cancel("menu closed");
             return;
         }
+        // Finished ones go first: a button clicked all evening must not keep
+        // every execution it ever started alive until the menu closes.
+        pending.removeIf(ActionExecution::isDone);
         pending.add(execution);
     }
 
@@ -513,6 +522,23 @@ final class Session implements UiSession {
     }
 
     // ------------------------------------------------------------- internals
+
+    /**
+     * Whether a button may run now, claiming the press when it may.
+     *
+     * <p>Every press runs actions, maybe commands, a sound and a redraw, and a
+     * macro clicks far faster than a hand: a command run this way skips the
+     * game's own chat spam kick. Presses closer together than two ticks are
+     * dropped without a word.
+     */
+    boolean claimPress() {
+        long now = System.nanoTime();
+        if (now - lastPress < PRESS_GAP_NANOS) {
+            return false;
+        }
+        lastPress = now;
+        return true;
+    }
 
     /** The runtime that owns this menu. */
     MenuRuntime runtime() {
@@ -819,19 +845,24 @@ final class Session implements UiSession {
         if (condition == null) {
             return true;
         }
-        return Conditions.test(resolve(condition, values));
+        return Conditions.test(condition, side -> resolve(side, values));
     }
 
-    /** Resolves a string for this viewer, with row values and the menu context. */
+    /**
+     * Resolves a string for this viewer, with row values and the menu context.
+     *
+     * <p>The values go in as literal text after the parse, never into the
+     * string before it: a row value is often something a player typed, and
+     * pasted in first it could carry tags or placeholders of its own.
+     */
     private String resolve(String text, Map<String, String> values) {
-        String filled = text;
-        for (Map.Entry<String, String> value : values.entrySet()) {
-            filled = filled.replace('%' + value.getKey() + '%', value.getValue());
-        }
+        Map<String, String> all = new HashMap<>(context.size() + values.size());
         for (Map.Entry<String, Object> value : context.entrySet()) {
-            filled = filled.replace('%' + value.getKey() + '%', String.valueOf(value.getValue()));
+            all.put(value.getKey(), String.valueOf(value.getValue()));
         }
-        return Text.of(filled).forPlayer(viewer).plain();
+        // The row's own values win over the menu's, as they always have.
+        all.putAll(values);
+        return Text.of(text).withAll(all, Set.of(), Set.of()).forPlayer(viewer).verbatim().plain();
     }
 
     /** Builds a slot's item, with the row's values and the menu's context. */
@@ -944,7 +975,7 @@ final class Session implements UiSession {
             return;
         }
         lastTitle = filled;
-        Titles.retitle(viewer, definition.size(), Text.of(filled).forPlayer(viewer).build());
+        Titles.retitle(viewer, definition.size(), titleText(written, context, page, pages).forPlayer(viewer).build());
     }
 
     /** Returns whether a title asks for a page number at all. */
@@ -980,14 +1011,39 @@ final class Session implements UiSession {
         UiSection only = definition.section();
         Collection<UiEntry> rows = only == null ? null : sections.get(only.id());
         int pages = rows == null ? 1 : only.pagesFor(rows.size());
-        return Text.of(filledTitle(definition.title(), context, 1, pages))
-                .forPlayer(viewer).build();
+        return titleText(definition.title(), context, 1, pages).forPlayer(viewer).build();
     }
 
     /**
-     * A title with its values in, before it is parsed.
+     * The title ready to build: page numbers written in, context values
+     * substituted after the parse with only their colours honoured.
      *
-     * <p>Package-private so it can be exercised without a server, which is
+     * <p>A context value is often a name a player chose. Pasted into the
+     * string before the parse it could carry a click, a hover, or a
+     * placeholder of its own into the window title.
+     */
+    static Text titleText(String written, Map<String, Object> context, int page, int pages) {
+        Text title = Text.of(paged(written, page, pages));
+        for (Map.Entry<String, Object> value : context.entrySet()) {
+            title = title.withColored('%' + value.getKey() + '%', value.getValue());
+        }
+        return title;
+    }
+
+    /** The title with its page numbers written in, which are only ever digits. */
+    private static String paged(String written, int page, int pages) {
+        return written.replace("%current_page%", String.valueOf(page))
+                .replace("%page%", String.valueOf(page))
+                .replace("%total_pages%", String.valueOf(pages))
+                .replace("%pages%", String.valueOf(pages));
+    }
+
+    /**
+     * A title with its values in, as one string.
+     *
+     * <p>Only compared, to tell whether a retitle has anything new to say;
+     * what is drawn is built by {@link #titleText}, which never parses the
+     * values. Package-private so it can be exercised without a server, which is
      * exactly where the bug was: nothing filled the page numbers in, so the
      * player read the placeholder names off the top of the window.
      *
@@ -1000,10 +1056,7 @@ final class Session implements UiSession {
         // The page numbers go in first, because the list is the authority on
         // which page it is showing. A context value of the same name would
         // otherwise outlive the click that moved it.
-        String text = written.replace("%current_page%", String.valueOf(page))
-                .replace("%page%", String.valueOf(page))
-                .replace("%total_pages%", String.valueOf(pages))
-                .replace("%pages%", String.valueOf(pages));
+        String text = paged(written, page, pages);
         for (Map.Entry<String, Object> value : context.entrySet()) {
             text = text.replace('%' + value.getKey() + '%', String.valueOf(value.getValue()));
         }
