@@ -228,6 +228,9 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         getServer().getPluginManager().registerEvents(
                 new net.exylia.lib.block.internal.PlacedBlockTracker(this), this);
         getServer().getPluginManager().registerEvents(new HarmlessFireworks(), this);
+        // Effects plugins keep through a totem: dormant until one registers a rule.
+        getServer().getPluginManager().registerEvents(
+                new net.exylia.lib.util.internal.TotemEffectsListener(), this);
         loadPalette();
         loadFormats();
         loadEconomy();
@@ -678,6 +681,7 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         Chats.releaseAll();
         Cosmetics.releaseAll();
         Watchers.releaseAll();
+        net.exylia.lib.util.Effects.releaseAll();
         // Before the database module, for the same reason a plugin's release is:
         // a pending store is somebody's repository.
         Rewards.releaseAll();
@@ -942,6 +946,7 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         Chats.release(pluginName);
         Cosmetics.release(pluginName);
         Watchers.release(pluginName);
+        net.exylia.lib.util.Effects.release(pluginName);
         net.exylia.lib.metrics.internal.MetricsRuntime.release(pluginName);
         // And so is taking an overlay off: the player is still here, still
         // looking at buttons whose actions come from a classloader that is

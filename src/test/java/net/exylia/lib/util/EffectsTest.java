@@ -407,4 +407,24 @@ class EffectsTest {
         assertEquals("none", Effects.describe(""));
         assertEquals(true, Effects.describe(lines).startsWith("Slowness VI"));
     }
+
+    @Test
+    @DisplayName("a totem gives back only what the player had, at the written level, never for longer")
+    void restoredAfterTotem() {
+        java.util.Map<String, Integer> had = new java.util.HashMap<>();
+        had.put("SPEED", 600);                  // a drunk Speed II over the kit's Speed I
+        had.put("REGENERATION", Effects.INFINITE);
+        had.put("JUMP_BOOST", 40);              // a timed kit effect almost done
+
+        List<Effects.ParsedEffect> restored = Effects.restoredAfterTotem(List.of(
+                "SPEED|1|infinite", "REGENERATION|1|30", "JUMP_BOOST|2|10", "DAMAGE_RESISTANCE|1|infinite"),
+                had::get);
+
+        assertEquals(3, restored.size());
+        assertEquals(0, restored.get(0).amplifier());
+        assertEquals(Effects.INFINITE, restored.get(0).duration());
+        assertEquals(600, restored.get(1).duration());
+        assertEquals(40, restored.get(2).duration());
+        assertEquals(1, restored.get(2).amplifier());
+    }
 }

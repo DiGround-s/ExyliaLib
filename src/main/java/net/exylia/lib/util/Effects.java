@@ -304,6 +304,82 @@ public final class Effects {
     }
 
     /**
+     * Keeps a plugin's effects on a player through a totem.
+     *
+     * <pre>{@code
+     * Effects.keepThroughTotem(this, player -> kits.effectsOf(player)); // empty: none to keep
+     * }</pre>
+     *
+     * <p>A totem clears every effect, which is right for a potion the player
+     * drank and wrong for state a plugin owns, such as a kit buff the other
+     * side still has. The totem still clears everything; the next tick puts
+     * back the lines the rule names, at the level they are written with, so a
+     * stronger potion of the same kind goes with the totem like any other.
+     *
+     * <p>Only effects the player had when the totem fired come back, never for
+     * longer than they had left: milk that took a buff away is not undone, and
+     * a timed effect does not start over.
+     *
+     * <p>One rule per plugin, replacing the previous one, and dropped when that
+     * plugin disables. The rule is asked on the thread that owns the player.
+     *
+     * @param plugin the plugin that owns the effects
+     * @param rule   the lines to keep for a player, in the notation of {@link #apply}
+     * @since 1.234.0
+     */
+    public static void keepThroughTotem(@NotNull org.bukkit.plugin.Plugin plugin,
+                                        @NotNull java.util.function.Function<Player, List<String>> rule) {
+        TOTEM_RULES.put(plugin.getName(), new TotemRule(plugin, rule));
+    }
+
+    /** Drops one plugin's totem rule. Called when the plugin disables. */
+    public static void release(@NotNull String pluginName) {
+        TOTEM_RULES.remove(pluginName);
+    }
+
+    /** Drops every totem rule. Called when the library disables. */
+    public static void releaseAll() {
+        TOTEM_RULES.clear();
+    }
+
+    /** Every plugin's totem rule, for the listener that applies them. */
+    public static @NotNull java.util.Collection<TotemRule> totemRules() {
+        return TOTEM_RULES.values();
+    }
+
+    /**
+     * What comes back after a totem: each line the player still had, at its
+     * written level, for no longer than what was left of it.
+     *
+     * @param lines     the lines a rule names
+     * @param remaining the ticks left on the active effect of that name,
+     *                  {@link #INFINITE} for one without an end, {@code null}
+     *                  when the player did not have it
+     * @return the effects to apply once the totem has cleared everything
+     */
+    public static @NotNull List<ParsedEffect> restoredAfterTotem(
+            @NotNull List<String> lines, @NotNull java.util.function.Function<String, Integer> remaining) {
+        List<ParsedEffect> restored = new ArrayList<>();
+        for (ParsedEffect effect : parse(lines)) {
+            Integer left = remaining.apply(effect.name());
+            if (left == null) continue;
+            int duration = effect.duration() == INFINITE || left == INFINITE
+                    ? effect.duration() : Math.min(left, effect.duration());
+            restored.add(new ParsedEffect(effect.name(), effect.amplifier(), duration,
+                    effect.ambient(), effect.particles(), effect.icon()));
+        }
+        return restored;
+    }
+
+    /** One plugin's totem rule. */
+    public record TotemRule(@NotNull org.bukkit.plugin.Plugin plugin,
+                            @NotNull java.util.function.Function<Player, List<String>> lines) {
+    }
+
+    private static final java.util.Map<String, TotemRule> TOTEM_RULES =
+            new java.util.concurrent.ConcurrentHashMap<>();
+
+    /**
      * A screen for editing a list of potion effects.
      *
      * <pre>{@code
