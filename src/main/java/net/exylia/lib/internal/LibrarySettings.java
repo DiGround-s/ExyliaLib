@@ -70,6 +70,10 @@ import net.exylia.lib.config.Time;
 @Comment("how the Exylia plugins are set up (event counts, region sizes) and the")
 @Comment("errors they throw. No player data and no IP addresses. Set enabled to")
 @Comment("false and nothing is ever sent.")
+@Comment("")
+@Comment("plugin-updates: keeps the other Exylia plugins up to date the same way,")
+@Comment("from the GitHub releases of the repository each one names. Checked with")
+@Comment("the library's own updates, applied on the next restart.")
 public record LibrarySettings(
         @Comment("Language of the whole server: en, es or pt. Every Exylia plugin whose own")
         @Comment("language is 'default' follows it, and so do the library's screens and prompts.")
@@ -117,8 +121,45 @@ public record LibrarySettings(
         @Comment("  low      5 uploads: one head per part, a third of the rows lost (about 20 an hour)")
         String ragdollSkinQuality,
 
-        Metrics metrics
+        Metrics metrics,
+
+        @Key("plugin-updates")
+        PluginUpdates pluginUpdates
 ) {
+
+    /**
+     * The {@code plugin-updates:} block: other Exylia plugins kept up to date from their
+     * GitHub releases, staged for the next restart like the library itself.
+     *
+     * @param enabled whether they are checked at all
+     * @param majors  whether a new major version is installed too, rather than only announced
+     * @param owners  the GitHub accounts whose releases may be installed
+     * @param skip    plugins never updated, by name
+     * @since 1.233.0
+     */
+    public record PluginUpdates(
+            @Comment("Whether Exylia plugins that name their GitHub repository are kept up to date.")
+            @Comment("Updates are downloaded, checked and applied on the next restart.")
+            boolean enabled,
+
+            @Comment("Whether a new major version (2.0.0 after 1.x) is installed too. Majors may change")
+            @Comment("configs or commands, so by default they are only announced.")
+            boolean majors,
+
+            @Comment("The GitHub accounts whose releases may be installed. A plugin naming any other")
+            @Comment("repository is never updated.")
+            java.util.List<String> owners,
+
+            @Comment("Plugins never updated, by name.")
+            java.util.List<String> skip
+    ) {
+
+        /** The default: on, minor and patch releases only, Exylia's own accounts. */
+        public PluginUpdates() {
+            this(true, false, java.util.List.of("Exylia-Plugins", "DiGround-s"), java.util.List.of());
+        }
+    }
+
 
     /**
      * The {@code metrics:} block.
@@ -149,7 +190,8 @@ public record LibrarySettings(
 
     /** Safe defaults used when no config file exists yet. */
     public LibrarySettings() {
-        this(Languages.ENGLISH, true, 30, false, true, "auto:0.4", DEFAULT_FALLBACK_HEAD, "", "", "normal", new Metrics());
+        this(Languages.ENGLISH, true, 30, false, true, "auto:0.4", DEFAULT_FALLBACK_HEAD, "", "", "normal", new Metrics(),
+                new PluginUpdates());
     }
 
     private static volatile LibrarySettings instance;

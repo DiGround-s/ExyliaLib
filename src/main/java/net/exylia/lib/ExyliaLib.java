@@ -358,8 +358,10 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         if (ragdollSkins) {
             net.exylia.lib.ragdoll.internal.SkinCache.rewarm();
         }
+        // The library first: a plugin release that needs a newer library is only staged once the
+        // library that will run after the restart is new enough.
         Thread updateThread = new Thread(
-            () -> ExyliaLibUpdater.checkForUpdate(this),
+            this::checkForUpdates,
             "ExyliaLib-Updater");
         updateThread.setDaemon(true);
         updateThread.start();
@@ -373,10 +375,23 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         // compares against the version now running rather than against the one
         // already staged: the newest release wins and simply overwrites it.
         int minutes = settings.updateCheckMinutes();
-        if (settings.autoUpdate() && minutes > 0) {
+        if ((settings.autoUpdate() || settings.pluginUpdates().enabled()) && minutes > 0) {
             long ticks = minutes * 60L * 20L;
-            Tasks.of(this).runAsyncTimer(
-                    ticks, ticks, () -> ExyliaLibUpdater.checkForUpdate(this));
+            Tasks.of(this).runAsyncTimer(ticks, ticks, this::checkForUpdates);
+        }
+    }
+
+    /** How many plugin updates each admin was last told about, so a join repeats nothing. */
+    private final java.util.Map<java.util.UUID, Integer> pluginUpdatesTold = new java.util.concurrent.ConcurrentHashMap<>();
+
+    /** The library's own update, then every Exylia plugin that names its repository. */
+    private void checkForUpdates() {
+        ExyliaLibUpdater.checkForUpdate(this);
+        try {
+            net.exylia.lib.internal.PluginUpdater.checkAll(this);
+        } catch (RuntimeException failure) {
+            // Never at the cost of the library's own update or a clean shutdown.
+            getLogger().log(java.util.logging.Level.WARNING, "Plugin update check failed", failure);
         }
     }
 
@@ -592,7 +607,7 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         //
         // Before the teardown below, not after: reading the settings goes
         // through Configs, which releaseAll() empties.
-        ExyliaLibUpdater.checkForUpdate(this);
+        checkForUpdates();
 
         EffectRuntime.stopEverything();
         EffectRuntime.releaseAll();
@@ -802,6 +817,14 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         });
         // Once per batch of changes, and after the join messages so the line
         // is not buried under them.
+        // Plugin updates waiting for a restart, once per player and number waiting.
+        int readyPlugins = net.exylia.lib.internal.PluginUpdater.staged();
+        if (readyPlugins > 0 && player.hasPermission("exylialib.admin")
+                && !Integer.valueOf(readyPlugins).equals(pluginUpdatesTold.put(id, readyPlugins))) {
+            Tasks.of(this).runAtEntityLater(player, UPDATES_NOTICE_TICKS, () -> net.exylia.lib.text.Text.of(
+                    net.exylia.lib.text.Phrases.tr("{primary}&lEXYLIALIB&r {letters_black}» {info}{0} {letters}plugin update(s) ready. {warning}Restart to apply them {muted}(/exylialib plugins)",
+                            readyPlugins)).send(player));
+        }
         if (player.hasPermission(net.exylia.lib.config.internal.DefaultUpdates.PERMISSION)
                 && net.exylia.lib.config.internal.DefaultUpdates.shouldNotify(id)) {
             Tasks.of(this).runAtEntityLater(player, UPDATES_NOTICE_TICKS, () -> {

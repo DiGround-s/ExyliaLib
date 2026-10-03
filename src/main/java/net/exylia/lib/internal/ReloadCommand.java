@@ -219,6 +219,7 @@ public final class ReloadCommand {
                 + "\n" + Phrases.tr("{letters_black}▎ {secondary}Import {letters_black}» {letters}{muted}/exylialib import <plugin> <file> [force]{letters} — reads one back; force MERGES rather than replacing.")
                 + "\n" + Phrases.tr("{letters_black}▎ {secondary}Wipe {letters_black}» {letters}{muted}/exylialib wipe <plugin> <table|*>{letters} — empties tables, after a typed confirmation and an automatic dump.")
                 + "\n" + Phrases.tr("{letters_black}▎ {secondary}Updates {letters_black}» {letters}{muted}/exylialib updates{letters} — default changes plugin updates shipped, to apply or keep.")
+                + "\n" + Phrases.tr("{letters_black}▎ {secondary}Plugins {letters_black}» {letters}{muted}/exylialib plugins{letters} — checks every Exylia plugin for a newer release and stages it.")
                 + "\n" + Phrases.tr("{letters_black}▎ {secondary}Pending rewards {letters_black}» {letters}{muted}/exylialib pendingrewards [player]{letters} — rewards waiting to be delivered, to give now or cancel.")
         ).send(sender);
     }
@@ -365,6 +366,62 @@ public final class ReloadCommand {
 
         updateCheck.get().thenAccept(outcome ->
                 Text.of(updatePanel(outcome)).send(sender));
+    }
+
+    /**
+     * Checks every Exylia plugin that names its repository and stages what is newer.
+     *
+     * <p>Runs whatever {@code plugin-updates.enabled} says: an admin asking is the decision.
+     * The owners, skip list and majors setting still apply.
+     *
+     * @param sender who asked
+     */
+    @Subcommand("plugins")
+    @CommandPermission("exylialib.admin")
+    public void plugins(@NotNull CommandSender sender) {
+        org.bukkit.plugin.Plugin library = org.bukkit.Bukkit.getPluginManager().getPlugin("ExyliaLib");
+        if (library == null) return;
+        Text.of(header()
+                + "\n" + Phrases.tr("{letters_black}▎ {secondary}Checking {letters_black}» {letters}asking GitHub for each plugin's newest release...")
+        ).send(sender);
+        LibrarySettings current = settings.get();
+        LibrarySettings.PluginUpdates updates = current == null ? new LibrarySettings.PluginUpdates() : current.pluginUpdates();
+        Tasks.of(library).runAsync(() -> Text.of(pluginsPanel(PluginUpdater.stageAll(library, updates))).send(sender));
+    }
+
+    /**
+     * The panel a finished plugin check prints: one line per plugin.
+     *
+     * @param outcomes what the check found
+     * @return the text, palette tokens included
+     */
+    static String pluginsPanel(List<PluginUpdater.Outcome> outcomes) {
+        StringBuilder text = new StringBuilder("{primary}&lEXYLIALIB&r ").append(Phrases.tr("{muted}plugin updates"));
+        if (outcomes.isEmpty()) {
+            return text.append("\n").append(Phrases.tr("{letters_black}▎ {muted}No installed plugin names a repository to update from."))
+                    .toString();
+        }
+        boolean staged = false;
+        for (PluginUpdater.Outcome outcome : outcomes) {
+            String latest = outcome.latest() == null ? "?" : outcome.latest();
+            text.append("\n").append(switch (outcome.status()) {
+                case UP_TO_DATE -> Phrases.tr("{letters_black}▎ {letters}{0} {letters_black}» {success}up to date {muted}({1})",
+                        outcome.plugin(), outcome.current());
+                case STAGED, ALREADY_STAGED -> Phrases.tr("{letters_black}▎ {letters}{0} {letters_black}» {info}{1} {letters}→ {success}{2} {muted}(ready)",
+                        outcome.plugin(), outcome.current(), latest);
+                case MAJOR_HELD -> Phrases.tr("{letters_black}▎ {letters}{0} {letters_black}» {warning}{1} {letters}is a new major version; install it by hand",
+                        outcome.plugin(), latest);
+                case NEEDS_LIBRARY -> Phrases.tr("{letters_black}▎ {letters}{0} {letters_black}» {warning}{1} {letters}waits for a newer ExyliaLib",
+                        outcome.plugin(), latest);
+                case SKIPPED -> Phrases.tr("{letters_black}▎ {letters}{0} {letters_black}» {muted}skipped: {1}",
+                        outcome.plugin(), String.valueOf(outcome.detail()));
+                case FAILED -> Phrases.tr("{letters_black}▎ {letters}{0} {letters_black}» {error}failed: {1}",
+                        outcome.plugin(), String.valueOf(outcome.detail()));
+            });
+            staged |= outcome.status() == PluginUpdater.Status.STAGED || outcome.status() == PluginUpdater.Status.ALREADY_STAGED;
+        }
+        if (staged) text.append("\n\n").append(Phrases.tr("{warning}➥ Restart the server to apply them"));
+        return text.toString();
     }
 
     /**
