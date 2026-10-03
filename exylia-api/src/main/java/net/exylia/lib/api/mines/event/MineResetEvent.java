@@ -1,4 +1,4 @@
-package net.exylia.lib.api.survival.event;
+package net.exylia.lib.api.mines.event;
 
 import org.bukkit.Bukkit;
 import org.bukkit.event.Event;
@@ -23,10 +23,8 @@ import org.jetbrains.annotations.NotNull;
  * <p>Called on the thread that owns the mine's last refilled block, which on
  * Folia is that region's thread rather than a single main thread.
  *
- * @since 1.3.0
- * @deprecated mines are ExyliaMines now, which uses {@link net.exylia.lib.api.mines.event.MineResetEvent}
+ * @since 1.8.0
  */
-@Deprecated(since = "1.8.0")
 public class MineResetEvent extends Event {
 
     private static final HandlerList HANDLERS = new HandlerList();

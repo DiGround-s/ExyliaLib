@@ -1,4 +1,4 @@
-package net.exylia.lib.api.survival.event;
+package net.exylia.lib.api.mines.event;
 
 import org.bukkit.Bukkit;
 import org.bukkit.block.Block;
@@ -20,7 +20,7 @@ import org.jetbrains.annotations.NotNull;
  * permission and the block is one it manages — and before anything happens to
  * the block, so it still has the type the player was mining. Fired for a
  * player's own swing and for every break another plugin asks for through
- * {@link net.exylia.lib.api.survival.SurvivalService#breakMineBlock(Player, Block)}.
+ * {@link net.exylia.lib.api.mines.MinesService#breakBlock(Player, Block)}.
  * A handler that breaks further blocks that way receives this event again for
  * each of them, and has to tell its own breaks apart.
  *
@@ -30,10 +30,8 @@ import org.jetbrains.annotations.NotNull;
  * <p>Called on the thread that owns the block, which on Folia is its region
  * thread rather than a single main thread.
  *
- * @since 1.2.0
- * @deprecated mines are ExyliaMines now, which uses {@link net.exylia.lib.api.mines.event.MineBlockBreakEvent}
+ * @since 1.8.0
  */
-@Deprecated(since = "1.8.0")
 public class MineBlockBreakEvent extends Event implements Cancellable {
 
     private static final HandlerList HANDLERS = new HandlerList();

@@ -4,10 +4,13 @@ import net.exylia.lib.api.ExyliaAPI;
 import org.bukkit.Location;
 import org.bukkit.block.Block;
 import org.bukkit.entity.Player;
+import org.bukkit.inventory.ItemStack;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 import org.jetbrains.annotations.Unmodifiable;
 
 import java.math.BigDecimal;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -38,9 +41,18 @@ import java.util.UUID;
  * <p>Only the modules a third party can act on are published. The rest —
  * portals, regen zones, loot chests, blocked items and the other world-building
  * modules — are administrator tools whose state is a set of placed objects an
- * integration cannot do anything useful with. Mines publish their break and
- * their reset and nothing else, so a plugin breaking blocks for a player gets
- * the mine's loot and regeneration instead of a hole.
+ * integration cannot do anything useful with. Mines are their own plugin now,
+ * ExyliaMines, behind {@link net.exylia.lib.api.mines.MinesService}.
+ *
+ * <h2>Earnings other plugins hand over</h2>
+ * The survival core multiplies what players earn through its boosters, sells
+ * drops through their auto-sell wands, caps enchantments and blocks items. A
+ * plugin that pays players for something — ExyliaMines for a mined block — runs
+ * what it gives through {@link #boostDrops}, {@link #boostExperience},
+ * {@link #payEarnings} and {@link #autoSell}, and checks the tool with
+ * {@link #toolForBreak} and {@link #isItemBlocked}. Each has a default that does
+ * nothing, so a survival core older than the method answers as if the feature
+ * were off.
  *
  * <h2>Queries are cheap, actions are not</h2>
  * Everything that returns a value reads a cache and is safe to call from a menu
@@ -513,29 +525,114 @@ public interface SurvivalService {
     /**
      * Breaks a block the way a player's own swing inside a mine would.
      *
-     * <p>For plugins that break blocks on a player's behalf — a 3x3 pickaxe, a
-     * vein miner. Inside a mine the server's break event is always cancelled and
-     * the mine removes the block itself, so breaking a block there any other way
-     * skips the mine's permission, loot and regeneration. Hand every block here
-     * first, and break it yourself only on {@link MineBreakResult#UNCLAIMED}.
-     *
-     * <p>The mine checks its permission, fires
-     * {@link net.exylia.lib.api.survival.event.MineBlockBreakEvent}, and breaks
-     * the block with the item in the player's main hand: its enchantments shape
-     * the drops and it takes the durability. The player is told nothing when the
-     * mine refuses — a caller refused on several blocks at once is the one that
-     * knows whether that is worth a message.
-     *
-     * <p>Call it on the thread that owns the block.
+     * <p>Kept for plugins compiled before mines left the survival core: it
+     * forwards to {@link net.exylia.lib.api.mines.MinesService#breakBlock},
+     * whichever plugin provides the service.
      *
      * @param player who is breaking the block
      * @param block  the block
      * @return what the mine made of it, {@link MineBreakResult#UNCLAIMED} when no
-     *         mine owns it or the mines module is off
+     *         mine owns it or ExyliaMines is not installed
      * @since 1.2.0
+     * @deprecated mines are ExyliaMines now; use
+     *             {@link net.exylia.lib.api.mines.MinesService#breakBlock(Player, Block)}
      */
     @NotNull
-    MineBreakResult breakMineBlock(@NotNull Player player, @NotNull Block block);
+    @Deprecated(since = "1.8.0")
+    default MineBreakResult breakMineBlock(@NotNull Player player, @NotNull Block block) {
+        return ExyliaAPI.get(net.exylia.lib.api.mines.MinesService.class)
+                .map(mines -> MineBreakResult.valueOf(mines.breakBlock(player, block).name()))
+                .orElse(MineBreakResult.UNCLAIMED);
+    }
+
+    // ── Earnings ───────────────────────────────────────────────────────────
+
+    /**
+     * Multiplies items a player earned by their drop boosters.
+     *
+     * @param player who earned them
+     * @param source what paid them, as the boosters name it: {@code mines}, {@code crops}...
+     * @param drops  the items, left untouched
+     * @return the items to give, which may be more stacks than came in
+     * @since 1.8.0
+     */
+    @NotNull
+    default List<ItemStack> boostDrops(@NotNull UUID player, @NotNull String source,
+                                       @NotNull Collection<ItemStack> drops) {
+        return List.copyOf(drops);
+    }
+
+    /**
+     * Multiplies experience a player earned by their experience boosters.
+     *
+     * @param player     who earned it
+     * @param source     what paid it
+     * @param experience the points
+     * @return the points to give
+     * @since 1.8.0
+     */
+    default int boostExperience(@NotNull UUID player, @NotNull String source, int experience) {
+        return experience;
+    }
+
+    /**
+     * Pays money a player earned, through their money boosters.
+     *
+     * <p>Only the server's default currency is boosted, so only that one is
+     * paid here; anything else is the caller's to deposit.
+     *
+     * @param player   who earned it
+     * @param source   what paid it
+     * @param currency the currency, {@code null} for the default one
+     * @param amount   what was earned before boosters
+     * @return {@code true} when it was paid; {@code false} leaves the payment to the caller
+     * @since 1.8.0
+     */
+    default boolean payEarnings(@NotNull Player player, @NotNull String source,
+                                @Nullable String currency, @NotNull BigDecimal amount) {
+        return false;
+    }
+
+    /**
+     * Offers a drop to the player's auto-sell.
+     *
+     * @param player who earned it
+     * @param drop   the item
+     * @return {@code true} when it was sold and must not be given as well
+     * @since 1.8.0
+     */
+    default boolean autoSell(@NotNull Player player, @NotNull ItemStack drop) {
+        return false;
+    }
+
+    /**
+     * The tool a break is computed with, after the enchantment limits of the place.
+     *
+     * <p>A copy when a limit caps Fortune or Silk Touch there; durability still
+     * belongs to the real item.
+     *
+     * @param player who is breaking
+     * @param tool   what they hold
+     * @param at     where the block is
+     * @return the tool to compute drops with
+     * @since 1.8.0
+     */
+    @NotNull
+    default ItemStack toolForBreak(@NotNull Player player, @NotNull ItemStack tool, @NotNull Location at) {
+        return tool;
+    }
+
+    /**
+     * Whether a player may not use an item, by the blocked items rules.
+     *
+     * @param player who holds it
+     * @param item   the item
+     * @return {@code true} when its use is denied
+     * @since 1.8.0
+     */
+    default boolean isItemBlocked(@NotNull Player player, @NotNull ItemStack item) {
+        return false;
+    }
 
     // ── Bounties ───────────────────────────────────────────────────────────
 
