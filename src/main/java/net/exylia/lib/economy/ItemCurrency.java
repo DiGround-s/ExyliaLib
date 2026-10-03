@@ -53,6 +53,12 @@ import java.util.concurrent.CompletableFuture;
  */
 public final class ItemCurrency implements CurrencyProvider {
 
+    @Override
+    public @NotNull CurrencyKind kind() {
+        return CurrencyKind.ITEM;
+    }
+
+
     private final PluginRewards rewards;
     private final TaskScheduler tasks;
     private final CurrencyInfo info;

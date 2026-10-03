@@ -114,6 +114,72 @@ public final class Economy {
     }
 
     /**
+     * Every registered currency in the order the owner arranged them, then the rest by id.
+     *
+     * <p>What a wallet, a top or a currency picker should list: {@link #currencies()} answers in
+     * the registry's own order, which is no order at all.
+     *
+     * @return the ids
+     * @since 1.228.0
+     */
+    public static @NotNull java.util.List<String> ordered() {
+        java.util.Map<String, CurrencyProvider> providers = CurrencyRegistry.providers();
+        return currencies().stream()
+                .sorted(java.util.Comparator
+                        .comparingInt((String id) -> providers.containsKey(id) ? providers.get(id).order() : Integer.MAX_VALUE)
+                        .thenComparing(java.util.Comparator.naturalOrder()))
+                .toList();
+    }
+
+    /**
+     * The id a currency is really kept under.
+     *
+     * <p>{@code vault} is a second name for the registered currency that serves Vault, when one
+     * does: a price in {@code vault} and a price in that currency are the same money, and a rule,
+     * a top or a history keyed by one must find the other. Any other id is returned as it is.
+     *
+     * @param id a currency id
+     * @return the id it is kept under
+     * @since 1.228.0
+     */
+    public static @NotNull String canonical(@NotNull String id) {
+        if (!id.equalsIgnoreCase("vault")) return id;
+        CurrencyProvider serving = CurrencyRegistry.servingVault();
+        return serving == null ? id : serving.id();
+    }
+
+    /**
+     * The default currency's id, the way {@link #canonical} names it.
+     *
+     * @since 1.228.0
+     */
+    public static @NotNull String defaultId() {
+        return canonical(info(null).id());
+    }
+
+    /**
+     * Where a currency's balances live; {@link CurrencyKind#UNKNOWN} when nothing is registered
+     * under the id.
+     *
+     * @since 1.228.0
+     */
+    public static @NotNull CurrencyKind kind(@NotNull String id) {
+        CurrencyProvider provider = CurrencyRegistry.providers().get(canonical(id));
+        return provider == null ? CurrencyKind.UNKNOWN : provider.kind();
+    }
+
+    /**
+     * Whether someone may see and use a currency: it names no permission, or they have it.
+     *
+     * @since 1.228.0
+     */
+    public static boolean canUse(@NotNull org.bukkit.permissions.Permissible who, @NotNull String id) {
+        CurrencyProvider provider = CurrencyRegistry.providers().get(canonical(id));
+        String permission = provider == null ? null : provider.permission();
+        return permission == null || permission.isBlank() || who.hasPermission(permission);
+    }
+
+    /**
      * How a currency presents itself, with the owner's overlay applied.
      *
      * <p>For the default currency, pass {@code null} or the empty id. A

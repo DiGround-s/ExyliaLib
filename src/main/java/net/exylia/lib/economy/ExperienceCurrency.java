@@ -40,6 +40,12 @@ import java.util.UUID;
  */
 public final class ExperienceCurrency implements CurrencyProvider {
 
+    @Override
+    public @NotNull CurrencyKind kind() {
+        return CurrencyKind.EXPERIENCE;
+    }
+
+
     /** The id of the levels currency. */
     public static final String LEVELS = "xp_levels";
     /** The id of the points currency. */

@@ -198,6 +198,37 @@ public interface CurrencyProvider {
      * @return whether the {@code vault} currency is this one
      * @since 1.159.0
      */
+    /**
+     * Where this currency's balances live.
+     *
+     * @since 1.228.0
+     */
+    default @NotNull CurrencyKind kind() {
+        return CurrencyKind.EXTERNAL;
+    }
+
+    /**
+     * Where this currency comes in a list of currencies: lower first.
+     *
+     * <p>The registry is a hash map with no order of its own; a plugin that lets the owner arrange
+     * its currencies answers that arrangement here, and {@link Economy#ordered()} lists by it.
+     *
+     * @return the position; currencies with none come last, by id
+     * @since 1.228.0
+     */
+    default int order() {
+        return Integer.MAX_VALUE;
+    }
+
+    /**
+     * The permission a player needs to see and use this currency, or {@code null} for everybody.
+     *
+     * @since 1.228.0
+     */
+    default @Nullable String permission() {
+        return null;
+    }
+
     default boolean servesVault() {
         return false;
     }
