@@ -8,7 +8,7 @@ plugins {
 }
 
 group = 'net.exylia'
-version = '1.233.0'
+version = '1.233.1'
 description = 'Shared high-performance library for Exylia Minecraft plugins.'
 
 def targetJavaVersion = 21
@@ -154,7 +154,7 @@ dependencies {
     // Never shaded: Apollo, FeatherServerAPI and SurvivalCore provide them on the server.
     compileOnly 'com.lunarclient:apollo-api:1.2.9'
     compileOnly 'net.digitalingot.feather-server-api:api:0.0.5'
-    compileOnly 'online.pablorelojero.survivalcore:survivalcore-api:0.1.1'
+    compileOnly 'online.pablorelojero.survivalcore:survivalcore-api:0.1.2'
 
     // Database. Provided at runtime through plugin.yml libraries, exactly like
     // Lamp and Caffeine: the server's library loader fetches them once and every
