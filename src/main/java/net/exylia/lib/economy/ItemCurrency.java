@@ -65,8 +65,10 @@ public final class ItemCurrency implements CurrencyProvider {
     private final ItemStack item;
     private final String snapshot;
     private final PlayerThreadBalances balances;
+    private final int order;
 
-    private ItemCurrency(PluginRewards rewards, CurrencyInfo info, ItemStack item) {
+    private ItemCurrency(PluginRewards rewards, CurrencyInfo info, ItemStack item, int order) {
+        this.order = order;
         this.rewards = rewards;
         this.tasks = Tasks.of(rewards.plugin());
         this.info = info;
@@ -86,8 +88,24 @@ public final class ItemCurrency implements CurrencyProvider {
      */
     public static @NotNull ItemCurrency of(@NotNull PluginRewards rewards, @NotNull CurrencyInfo info,
                                            @NotNull ItemStack item) {
+        return of(rewards, info, item, Integer.MAX_VALUE);
+    }
+
+    /**
+     * An item currency with its place in lists of currencies.
+     *
+     * @param order where it is listed, lower first; see {@link CurrencyProvider#order()}
+     * @since 1.230.0
+     */
+    public static @NotNull ItemCurrency of(@NotNull PluginRewards rewards, @NotNull CurrencyInfo info,
+                                           @NotNull ItemStack item, int order) {
         return new ItemCurrency(Objects.requireNonNull(rewards, "rewards"), Objects.requireNonNull(info, "info"),
-                Objects.requireNonNull(item, "item"));
+                Objects.requireNonNull(item, "item"), order);
+    }
+
+    @Override
+    public int order() {
+        return order;
     }
 
     /** The item this currency is, one of it. */

@@ -57,7 +57,10 @@ public final class ExperienceCurrency implements CurrencyProvider {
     private final TaskScheduler tasks;
     private final PlayerThreadBalances balances;
 
-    private ExperienceCurrency(boolean levels, PluginRewards rewards) {
+    private final int order;
+
+    private ExperienceCurrency(boolean levels, PluginRewards rewards, int order) {
+        this.order = order;
         this.levels = levels;
         this.rewards = rewards;
         this.tasks = Tasks.of(rewards.plugin());
@@ -75,7 +78,17 @@ public final class ExperienceCurrency implements CurrencyProvider {
      * @return the currency, to register
      */
     public static @NotNull ExperienceCurrency levels(@NotNull PluginRewards rewards) {
-        return new ExperienceCurrency(true, rewards);
+        return levels(rewards, Integer.MAX_VALUE);
+    }
+
+    /**
+     * Experience levels with their place in lists of currencies.
+     *
+     * @param order where it is listed, lower first; see {@link CurrencyProvider#order()}
+     * @since 1.230.0
+     */
+    public static @NotNull ExperienceCurrency levels(@NotNull PluginRewards rewards, int order) {
+        return new ExperienceCurrency(true, rewards, order);
     }
 
     /**
@@ -85,7 +98,22 @@ public final class ExperienceCurrency implements CurrencyProvider {
      * @return the currency, to register
      */
     public static @NotNull ExperienceCurrency points(@NotNull PluginRewards rewards) {
-        return new ExperienceCurrency(false, rewards);
+        return points(rewards, Integer.MAX_VALUE);
+    }
+
+    /**
+     * Experience points with their place in lists of currencies.
+     *
+     * @param order where it is listed, lower first; see {@link CurrencyProvider#order()}
+     * @since 1.230.0
+     */
+    public static @NotNull ExperienceCurrency points(@NotNull PluginRewards rewards, int order) {
+        return new ExperienceCurrency(false, rewards, order);
+    }
+
+    @Override
+    public int order() {
+        return order;
     }
 
     @Override
