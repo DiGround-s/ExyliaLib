@@ -232,6 +232,9 @@ public final class RegionCodec {
             case HorizontalCylinder cylinder -> new ShapeEncoding(
                     RegionData.ShapeType.HORIZONTAL_CYLINDER,
                     new double[] {cylinder.centerX(), cylinder.centerZ(), cylinder.radius()});
+            case Cylinder cylinder -> new ShapeEncoding(RegionData.ShapeType.CYLINDER,
+                    new double[] {cylinder.centerX(), cylinder.centerZ(), cylinder.radius(),
+                            cylinder.minY(), cylinder.maxY()});
         };
     }
 
@@ -245,6 +248,8 @@ public final class RegionCodec {
             case SPHERE -> new Sphere(coordinates[0], coordinates[1], coordinates[2], coordinates[3]);
             case HORIZONTAL_CYLINDER -> new HorizontalCylinder(coordinates[0], coordinates[1],
                     coordinates[2]);
+            case CYLINDER -> new Cylinder(coordinates[0], coordinates[1], coordinates[2],
+                    coordinates[3], coordinates[4]);
         };
     }
 

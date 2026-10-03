@@ -84,7 +84,8 @@ public record RegionData(int formatVersion, @NotNull String id, @NotNull String 
         CUBOID(6),
         UNBOUNDED_Y_RECTANGLE(4),
         SPHERE(4),
-        HORIZONTAL_CYLINDER(3);
+        HORIZONTAL_CYLINDER(3),
+        CYLINDER(5);
 
         private final int coordinateCount;
 

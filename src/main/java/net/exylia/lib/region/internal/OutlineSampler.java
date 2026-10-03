@@ -3,6 +3,7 @@ package net.exylia.lib.region.internal;
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import net.exylia.lib.region.Cuboid;
+import net.exylia.lib.region.Cylinder;
 import net.exylia.lib.region.HorizontalCylinder;
 import net.exylia.lib.region.RegionShape;
 import net.exylia.lib.region.Sphere;
@@ -96,6 +97,16 @@ final class OutlineSampler {
                     .circle(cylinder.centerX(), 0.0, cylinder.centerZ(), cylinder.radius(),
                             Plane.HORIZONTAL)
                     .outline(true);
+            // Bounded, so both rims are drawn where they are.
+            case Cylinder cylinder -> {
+                int perRim = circlePoints(cylinder.radius(), key.spacing(), shareOf(MAX_POINTS_PER_FRAME, 2));
+                yield new Points(MAX_POINTS_PER_FRAME)
+                        .circle(cylinder.centerX(), cylinder.minY(), cylinder.centerZ(), cylinder.radius(),
+                                Plane.HORIZONTAL, perRim)
+                        .circle(cylinder.centerX(), cylinder.maxY(), cylinder.centerZ(), cylinder.radius(),
+                                Plane.HORIZONTAL, perRim)
+                        .outline(false);
+            }
         };
     }
 

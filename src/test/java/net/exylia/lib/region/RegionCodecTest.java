@@ -22,7 +22,8 @@ class RegionCodecTest {
                 new Cuboid(-12.5, -64, 3.25, 17, 320, 19),
                 new UnboundedYRectangle(-100, -50, 200, 300),
                 new Sphere(-3, 7, 11, 5.5),
-                new HorizontalCylinder(40, -20, 9.25));
+                new HorizontalCylinder(40, -20, 9.25),
+                new Cylinder(40, -20, 9.25, -10, 32));
 
         for (int index = 0; index < shapes.size(); index++) {
             RegionSnapshot original = new RegionSnapshot(new RegionId("test", "shape-" + index),
