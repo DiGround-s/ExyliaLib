@@ -137,8 +137,12 @@ public interface ClientLink {
      *
      * <p>Sent as a whole set rather than one by one because that is what the
      * clients accept, and because it makes the server's state the only truth.
+     *
+     * @param look the team's name, colours and ranks when the markers come from
+     *             a {@link net.exylia.lib.client.ClientTeam}, {@code null} for a
+     *             bare {@code Clients.markers()} push
      */
-    default void updateMarkers(Player viewer, java.util.Collection<Player> teammates) {
+    default void updateMarkers(Player viewer, java.util.Collection<Player> teammates, TeamLook look) {
     }
 
     /** Removes every marker a player sees. */

@@ -162,14 +162,18 @@ final class FakeLink implements ClientLink {
         calls.add("clearcooldowns:" + player.getName());
     }
 
+    /** The look the last marker update carried. */
+    TeamLook lastLook;
+
     @Override
     public boolean supportsMarkers() {
         return markers;
     }
 
     @Override
-    public void updateMarkers(Player viewer, Collection<Player> teammates) {
+    public void updateMarkers(Player viewer, Collection<Player> teammates, TeamLook look) {
         fail();
+        lastLook = look;
         List<String> names = new ArrayList<>(teammates.size());
         for (Player teammate : teammates) {
             names.add(teammate.getName());

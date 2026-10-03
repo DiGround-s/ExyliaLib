@@ -162,7 +162,7 @@ final class FeatherLink implements ClientLink {
      * no teammates draws a tracker that never points at anything.
      */
     @Override
-    public void updateMarkers(Player player, java.util.Collection<Player> teammates) {
+    public void updateMarkers(Player player, java.util.Collection<Player> teammates, TeamLook look) {
         FeatherPlayer target = feather(player);
         if (target == null) {
             return;

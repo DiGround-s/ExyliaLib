@@ -231,4 +231,42 @@ class ClientTeamTest {
                 "the team is the library's own state and must survive their bug");
         assertEquals(2, team.size());
     }
+
+    @Test
+    @DisplayName("a styled team tells each viewer who is their own and who is an ally")
+    void styledTeamCarriesRanksAndAllies() {
+        ClientTeam team = teams.create();
+        team.style(net.kyori.adventure.text.Component.text("Red"),
+                net.kyori.adventure.text.format.NamedTextColor.GREEN,
+                net.kyori.adventure.text.format.NamedTextColor.AQUA);
+        team.describe(alice.player().getUniqueId(), "red", ClientTeam.Rank.LEADER);
+        team.describe(bob.player().getUniqueId(), "red", ClientTeam.Rank.MEMBER);
+        team.describe(carol.player().getUniqueId(), "blue", ClientTeam.Rank.OFFICER);
+        team.addAll(List.of(alice.player(), bob.player(), carol.player()));
+
+        TeamLook look = link.lastLook;
+        java.util.UUID a = alice.player().getUniqueId();
+        java.util.UUID b = bob.player().getUniqueId();
+        java.util.UUID c = carol.player().getUniqueId();
+        assertTrue(look.styled());
+        assertEquals(ClientTeam.Rank.LEADER, look.rankOf(a));
+        assertFalse(look.ally(a, b));
+        assertTrue(look.ally(a, c));
+        assertTrue(look.ally(c, a));
+        assertEquals(net.kyori.adventure.text.format.NamedTextColor.GREEN, look.colourOf(a, b));
+        assertEquals(net.kyori.adventure.text.format.NamedTextColor.AQUA, look.colourOf(a, c));
+    }
+
+    @Test
+    @DisplayName("an unstyled team is markers only, and everyone is one group")
+    void unstyledTeamHasNoAllies() {
+        ClientTeam team = teams.create(List.of(alice.player(), bob.player()));
+
+        TeamLook look = link.lastLook;
+        assertFalse(look.styled());
+        assertFalse(look.ally(alice.player().getUniqueId(), bob.player().getUniqueId()));
+        assertEquals(ClientTeam.Rank.MEMBER, look.rankOf(bob.player().getUniqueId()));
+        assertEquals(List.of(alice.player(), bob.player()), TeamRegistry.teammatesOf(alice.player().getUniqueId()));
+        assertTrue(TeamRegistry.teammatesOf(carol.player().getUniqueId()).isEmpty());
+    }
 }

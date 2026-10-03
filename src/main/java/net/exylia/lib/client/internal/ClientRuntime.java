@@ -535,22 +535,39 @@ public final class ClientRuntime {
     // Markers
     // ------------------------------------------------------------------
 
+    /**
+     * Draws a team for every member, with how it looks on clients that draw
+     * more than markers.
+     *
+     * @param team the online members
+     * @param look the team's name and ranks, or {@code null} for bare markers
+     */
+    static void drawTeam(Collection<? extends Player> team, TeamLook look) {
+        for (Player member : team) {
+            updateMarkers(member, team, look);
+        }
+    }
+
+    private static void updateMarkers(Player viewer, Collection<? extends Player> teammates, TeamLook look) {
+        ClientLink link = ClientRegistry.of(viewer);
+        if (!link.supportsMarkers()) {
+            return;
+        }
+        List<Player> others = new ArrayList<>(teammates.size());
+        for (Player teammate : teammates) {
+            if (teammate != null && teammate.isOnline() && !teammate.equals(viewer)) {
+                others.add(teammate);
+            }
+        }
+        safely(() -> link.updateMarkers(viewer, others, look));
+        ClientState.rememberMarkers(viewer.getUniqueId(), others);
+    }
+
     private static final class MarkersImpl implements Clients.Markers {
 
         @Override
         public void update(@NotNull Player viewer, @NotNull Collection<? extends Player> teammates) {
-            ClientLink link = ClientRegistry.of(viewer);
-            if (!link.supportsMarkers()) {
-                return;
-            }
-            List<Player> others = new ArrayList<>(teammates.size());
-            for (Player teammate : teammates) {
-                if (teammate != null && teammate.isOnline() && !teammate.equals(viewer)) {
-                    others.add(teammate);
-                }
-            }
-            safely(() -> link.updateMarkers(viewer, others));
-            ClientState.rememberMarkers(viewer.getUniqueId(), others);
+            updateMarkers(viewer, teammates, null);
         }
 
         @Override

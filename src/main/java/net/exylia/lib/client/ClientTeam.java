@@ -1,7 +1,10 @@
 package net.exylia.lib.client;
 
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.format.TextColor;
 import org.bukkit.entity.Player;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.Collection;
 import java.util.UUID;
@@ -125,4 +128,54 @@ public interface ClientTeam {
      * @return {@code false} once deleted
      */
     boolean alive();
+
+    /**
+     * Names and colours the team, for clients that draw a team panel.
+     *
+     * <p>A styled team is shown as a list on the HUD with each member's rank,
+     * colour and health; an unstyled one is markers only. Clients that only
+     * draw markers use the colours and ignore the rest.
+     *
+     * <p>Takes effect at the next draw: style the team before adding members,
+     * or call {@link #refresh()} afterwards.
+     *
+     * @param name       the team's name
+     * @param colour     the colour of the viewer's own group
+     * @param allyColour the colour of every other group in the team
+     * @since 1.231.0
+     */
+    void style(@NotNull Component name, @NotNull TextColor colour, @NotNull TextColor allyColour);
+
+    /**
+     * Says which group a member belongs to and what rank they hold there.
+     *
+     * <p>A team can hold several groups that fight together, such as allied
+     * clans. Each viewer sees their own group in the team colour with its
+     * ranks, and everyone else as an ally. A member never described is a
+     * {@link Rank#MEMBER} of everyone's group.
+     *
+     * <p>Takes effect at the next draw, like {@link #style}.
+     *
+     * @param playerId the member
+     * @param group    their group, such as a clan id; {@code null} for none
+     * @param rank     their rank in it
+     * @since 1.231.0
+     */
+    void describe(@NotNull UUID playerId, @Nullable String group, @NotNull Rank rank);
+
+    /**
+     * A member's standing in their group.
+     *
+     * @since 1.231.0
+     */
+    enum Rank {
+        /** Runs the group. */
+        LEADER,
+        /** Helps run it. */
+        OFFICER,
+        /** A regular member. */
+        MEMBER,
+        /** On trial. */
+        RECRUIT
+    }
 }

@@ -11,7 +11,9 @@ import online.pablorelojero.survivalcore.api.SurvivalCore;
 import online.pablorelojero.survivalcore.api.SurvivalCoreApi;
 import online.pablorelojero.survivalcore.api.common.Icon;
 import online.pablorelojero.survivalcore.api.common.WorldPosition;
+import online.pablorelojero.survivalcore.api.event.PlayerPingEvent;
 import online.pablorelojero.survivalcore.api.event.SurvivalClientReadyEvent;
+import online.pablorelojero.survivalcore.api.ping.PingSettings;
 import online.pablorelojero.survivalcore.api.team.MemberBadge;
 import online.pablorelojero.survivalcore.api.team.TeamMember;
 import online.pablorelojero.survivalcore.api.team.TeamView;
@@ -41,6 +43,9 @@ import java.util.UUID;
  * gets a fresh key every time it is shown and hands it back as its handle,
  * exactly like Feather's UUID, so two plugins using one name never share a
  * slot. A cooldown has no handle, so its key is derived from its name.
+ *
+ * <p>Teams carry their {@link TeamLook} over: name, colours, ranks and allies.
+ * Being in a team switches pings on, and a ping reaches that team.
  */
 final class SurvivalLink implements ClientLink {
 
@@ -66,8 +71,9 @@ final class SurvivalLink implements ClientLink {
         }
         if (!listening) {
             listening = true;
-            Bukkit.getPluginManager().registerEvents(new ReadyListener(),
-                    JavaPlugin.getProvidingPlugin(SurvivalLink.class));
+            JavaPlugin library = JavaPlugin.getProvidingPlugin(SurvivalLink.class);
+            Bukkit.getPluginManager().registerEvents(new ReadyListener(), library);
+            Bukkit.getPluginManager().registerEvents(new PingListener(), library);
         }
         return new SurvivalLink(api);
     }
@@ -82,6 +88,23 @@ final class SurvivalLink implements ClientLink {
             Player player = event.getPlayer();
             ClientRegistry.forget(player.getUniqueId());
             ClientRuntime.resend(player, false);
+        }
+    }
+
+    /**
+     * Sends a ping to the pinger's team.
+     *
+     * <p>The mod leaves the recipients at the pinger alone, so without this a
+     * ping reaches nobody. A plugin that already picked recipients, or
+     * cancelled the ping, runs first and is left alone.
+     */
+    private static final class PingListener implements Listener {
+        @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
+        public void onPing(PlayerPingEvent event) {
+            Player player = event.getPlayer();
+            if (event.recipients().size() == 1 && event.recipients().contains(player)) {
+                event.recipients().addAll(TeamRegistry.teammatesOf(player.getUniqueId()));
+            }
         }
     }
 
@@ -202,27 +225,64 @@ final class SurvivalLink implements ClientLink {
         return true;
     }
 
-    /** The mod tracks positions on the client, so only the membership is sent. */
+    /**
+     * Sends the team, which the mod tracks the positions of itself.
+     *
+     * <p>A bare markers push is markers only. A styled {@link
+     * net.exylia.lib.client.ClientTeam} also gets the HUD panel, with each
+     * member in the viewer's own colour and rank or as an ally.
+     *
+     * <p>Being in a team also switches pings on: a ping is only worth making
+     * when somebody is there to see it, and {@link PingListener} sends it to
+     * exactly this team.
+     */
     @Override
-    public void updateMarkers(Player viewer, Collection<Player> teammates) {
+    public void updateMarkers(Player viewer, Collection<Player> teammates, TeamLook look) {
+        UUID viewerId = viewer.getUniqueId();
         List<TeamMember> members = new ArrayList<>(teammates.size());
         for (Player teammate : teammates) {
-            if (!teammate.equals(viewer) && teammate.isOnline()) {
-                members.add(TeamMember.of(teammate, NamedTextColor.WHITE, MemberBadge.MEMBER));
+            if (teammate.equals(viewer) || !teammate.isOnline()) {
+                continue;
             }
+            if (look == null) {
+                members.add(TeamMember.of(teammate, NamedTextColor.WHITE, MemberBadge.MEMBER));
+                continue;
+            }
+            UUID id = teammate.getUniqueId();
+            members.add(TeamMember.of(teammate, look.colourOf(viewerId, id),
+                    look.ally(viewerId, id) ? MemberBadge.ALLY : badge(look.rankOf(id))));
         }
         if (members.isEmpty()) {
-            api.teams().hide(viewer);
+            clearMarkers(viewer);
             return;
         }
-        api.teams().show(viewer, TeamView.builder(MARKERS)
+        TeamView.Builder view = TeamView.builder(look == null
+                        ? MARKERS
+                        : Key.key(NAMESPACE, "team/" + look.id()))
                 .members(members)
-                .hudList(false)
-                .build());
+                .hudList(look != null && look.styled());
+        if (look != null && look.styled()) {
+            view.name(look.name()).color(look.colour());
+        }
+        api.teams().show(viewer, view.build());
+        // A bare markers push has no team for a ping to reach.
+        if (look != null && api.pings().settings(viewer).isEmpty()) {
+            api.pings().enable(viewer, PingSettings.defaults());
+        }
     }
 
     @Override
     public void clearMarkers(Player viewer) {
         api.teams().hide(viewer);
+        api.pings().disable(viewer);
+    }
+
+    private static MemberBadge badge(net.exylia.lib.client.ClientTeam.Rank rank) {
+        return switch (rank) {
+            case LEADER -> MemberBadge.LEADER;
+            case OFFICER -> MemberBadge.OFFICER;
+            case MEMBER -> MemberBadge.MEMBER;
+            case RECRUIT -> MemberBadge.RECRUIT;
+        };
     }
 }

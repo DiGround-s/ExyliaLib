@@ -196,7 +196,7 @@ final class ApolloLink implements ClientLink {
     }
 
     @Override
-    public void updateMarkers(Player viewer, Collection<Player> teammates) {
+    public void updateMarkers(Player viewer, Collection<Player> teammates, TeamLook look) {
         ApolloPlayer target = apollo(viewer).orElse(null);
         if (target == null) {
             return;
@@ -209,7 +209,8 @@ final class ApolloLink implements ClientLink {
             members.add(TeamMember.builder()
                     .playerUuid(teammate.getUniqueId())
                     .displayName(Component.text(teammate.getName()))
-                    .markerColor(Color.WHITE)
+                    .markerColor(look == null ? Color.WHITE
+                            : new Color(look.colourOf(viewer.getUniqueId(), teammate.getUniqueId()).value()))
                     .location(ApolloLocation.builder()
                             .world(teammate.getWorld().getName())
                             .x(teammate.getLocation().getX())

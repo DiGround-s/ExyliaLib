@@ -3,9 +3,13 @@ package net.exylia.lib.client.internal;
 import net.exylia.lib.client.ClientTeam;
 import net.exylia.lib.client.Clients;
 import net.exylia.lib.client.PluginTeams;
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.format.NamedTextColor;
+import net.kyori.adventure.text.format.TextColor;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -84,6 +88,17 @@ public final class TeamRegistry {
         if (team != null) {
             team.draw();
         }
+    }
+
+    /**
+     * Returns the online members of a player's team, the player included.
+     *
+     * @return the members, empty when the player is in no team
+     */
+    public static List<Player> teammatesOf(UUID playerId) {
+        UUID teamId = PLAYER_TEAM.get(playerId);
+        Team team = teamId == null ? null : TEAMS.get(teamId);
+        return team == null ? List.of() : team.online();
     }
 
     /** Drops everything. Used on shutdown and by tests. */
@@ -178,6 +193,14 @@ public final class TeamRegistry {
 
         private volatile boolean alive = true;
 
+        /** Set by {@link #style}; {@code null} until then. */
+        private volatile Component name;
+        private volatile TextColor colour = NamedTextColor.WHITE;
+        private volatile TextColor allyColour = NamedTextColor.WHITE;
+
+        /** Each described member's group and rank. */
+        private final Map<UUID, TeamLook.Member> described = new ConcurrentHashMap<>();
+
         private Team(String plugin) {
             this.plugin = plugin;
         }
@@ -227,6 +250,7 @@ public final class TeamRegistry {
                 Team previous = TEAMS.get(previousId);
                 if (previous != null) {
                     previous.members.remove(playerId);
+                    previous.described.remove(playerId);
                     previous.draw();
                 }
             }
@@ -240,6 +264,7 @@ public final class TeamRegistry {
             if (!members.remove(playerId)) {
                 return;
             }
+            described.remove(playerId);
             PLAYER_TEAM.remove(playerId, id);
             // The player who left keeps nothing: they are no longer being told
             // about anyone, so what they still see would never be updated.
@@ -291,13 +316,26 @@ public final class TeamRegistry {
             return alive;
         }
 
+        @Override
+        public void style(@NotNull Component name, @NotNull TextColor colour, @NotNull TextColor allyColour) {
+            this.colour = java.util.Objects.requireNonNull(colour, "colour");
+            this.allyColour = java.util.Objects.requireNonNull(allyColour, "allyColour");
+            this.name = java.util.Objects.requireNonNull(name, "name");
+        }
+
+        @Override
+        public void describe(@NotNull UUID playerId, @Nullable String group, @NotNull Rank rank) {
+            described.put(playerId, new TeamLook.Member(group, java.util.Objects.requireNonNull(rank, "rank")));
+        }
+
         /** Draws the current membership for every member who can see it. */
         private void draw() {
             List<Player> present = online();
             if (present.isEmpty()) {
                 return;
             }
-            Clients.markers().updateTeam(present);
+            ClientRuntime.drawTeam(present,
+                    new TeamLook(id, name, colour, allyColour, Map.copyOf(described)));
         }
 
         /**
