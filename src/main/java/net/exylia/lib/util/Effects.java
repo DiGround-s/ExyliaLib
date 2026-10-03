@@ -208,6 +208,55 @@ public final class Effects {
     }
 
     /**
+     * Keeps effects with no end on a player, applying only the ones missing.
+     *
+     * <p>For state that lasts while a player stands somewhere, checked on a
+     * timer: milk, death or a weaker potion of the same kind take an effect
+     * away, and this puts it back, while an effect already there at the same
+     * level or higher is left alone and costs no packet.
+     *
+     * <p>Call from the thread that owns {@code player}; see the class notes on
+     * threads.
+     *
+     * @param player the player
+     * @param lines  the same notation as {@link #apply}; the duration is overridden
+     * @since 1.226.0
+     */
+    public static void ensureInfinite(@NotNull Player player, @NotNull List<String> lines) {
+        for (ParsedEffect e : parse(lines)) {
+            if (e.name().isEmpty()) continue;
+            if (!(resolver.resolve(e.name()) instanceof PotionEffectType type)) continue;
+            PotionEffect active = player.getPotionEffect(type);
+            // As strong already, ours or a potion's: when a potion runs out, the next check applies ours.
+            if (active != null && active.getAmplifier() >= e.amplifier()) continue;
+            applier.apply(player, type, forever(e));
+        }
+    }
+
+    /**
+     * Removes the named effects, but only where they have no end.
+     *
+     * <p>Undoes {@link #applyInfinite} and {@link #ensureInfinite} without
+     * touching a potion the player drank: one with a timer is theirs, not
+     * the caller's.
+     *
+     * <p>Call from the thread that owns {@code player}; see the class notes on
+     * threads.
+     *
+     * @param player the player
+     * @param lines  the same notation as {@link #apply}; only the name is read
+     * @since 1.226.0
+     */
+    public static void removeInfinite(@NotNull Player player, @NotNull List<String> lines) {
+        for (ParsedEffect e : parse(lines)) {
+            if (e.name().isEmpty()) continue;
+            if (!(resolver.resolve(e.name()) instanceof PotionEffectType type)) continue;
+            PotionEffect active = player.getPotionEffect(type);
+            if (active != null && active.getDuration() == INFINITE) remover.remove(player, type);
+        }
+    }
+
+    /**
      * Removes the named effects from a player.
      *
      * <p>Only the effects named are taken away, so a caller undoes exactly

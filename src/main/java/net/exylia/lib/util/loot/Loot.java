@@ -231,6 +231,23 @@ public final class Loot {
     }
 
     /**
+     * {@link #rollEntries(List)}, saying whether an empty result is allowed.
+     *
+     * <p>A table where every line is a chance, such as a rare reward on a
+     * block, means nothing most of the time: forcing a line there would hand
+     * out a five percent reward on every roll.
+     *
+     * @param entries         the table
+     * @param forceOneIfEmpty {@code false} when producing nothing is a real answer
+     * @return the entries that came up, in the order they were written
+     * @since 1.226.0
+     */
+    public static @NotNull List<LootEntry> rollEntries(@NotNull List<LootEntry> entries,
+                                                       boolean forceOneIfEmpty) {
+        return LootRolls.independent(entries, forceOneIfEmpty, LootRolls.RANDOM);
+    }
+
+    /**
      * Picks one line by weight and builds its item.
      *
      * @param entries the table
