@@ -1,6 +1,14 @@
 package net.exylia.lib.client.internal;
 
+import net.exylia.lib.client.Beam;
+import net.exylia.lib.client.ChatChannel;
 import net.exylia.lib.client.ClientBrand;
+import net.exylia.lib.client.ClientElement;
+import net.exylia.lib.client.Keybind;
+import net.exylia.lib.client.ProgressBar;
+import net.exylia.lib.client.Rally;
+import net.exylia.lib.client.Timer;
+import net.exylia.lib.client.ZoneBorder;
 import net.exylia.lib.client.Clients;
 import net.exylia.lib.client.Cooldown;
 import net.exylia.lib.client.Waypoint;
@@ -40,6 +48,28 @@ public final class ClientRuntime {
 
     /** The timer API handed out by {@link Clients#timers()}. */
     public static final Clients.Timers TIMERS = new TimersImpl(null);
+
+    /** The rally API handed out by {@link Clients#rallies()}. */
+    public static final Clients.Elements<Rally> RALLIES = new RalliesImpl(null);
+
+    /** The beam API handed out by {@link Clients#beams()}. */
+    public static final Clients.Elements<Beam> BEAMS = new ElementsImpl<>(Beam.class, null);
+
+    /** The border API handed out by {@link Clients#borders()}. */
+    public static final Clients.Elements<ZoneBorder> BORDERS = new ElementsImpl<>(ZoneBorder.class, null);
+
+    /** The progress bar API handed out by {@link Clients#bars()}. */
+    public static final Clients.Elements<ProgressBar> BARS = new ElementsImpl<>(ProgressBar.class, null);
+
+    /** Each plugin's chat handler, by plugin name. */
+    private static final Map<String, Clients.ChatHandler> CHAT_HANDLERS = new ConcurrentHashMap<>();
+
+    /** Each plugin's keys, by plugin name, then by key name. */
+    private static final Map<String, Map<String, Keybind>> KEYBINDS = new ConcurrentHashMap<>();
+
+    /** Each plugin's key handler, by plugin name. */
+    private static final Map<String, java.util.function.BiConsumer<Player, String>> KEY_HANDLERS =
+            new ConcurrentHashMap<>();
 
     /** The marker API handed out by {@link Clients#markers()}. */
     public static final Clients.Markers MARKERS = new MarkersImpl();
@@ -81,7 +111,9 @@ public final class ClientRuntime {
         String owner = plugin.getName();
         return new net.exylia.lib.client.PluginClients(
                 new WaypointsImpl(owner), new CooldownsImpl(owner), teamsOf(plugin),
-                new TimersImpl(owner));
+                new TimersImpl(owner), new RalliesImpl(owner),
+                new ElementsImpl<>(Beam.class, owner), new ElementsImpl<>(ZoneBorder.class, owner),
+                new ElementsImpl<>(ProgressBar.class, owner), new ChatImpl(owner), new KeybindsImpl(owner));
     }
 
     /**
@@ -109,12 +141,28 @@ public final class ClientRuntime {
                 clearCooldownsOf(pluginName, player);
             }
         }
-        for (UUID id : ClientState.timerViewers(pluginName)) {
+        for (UUID id : ClientState.elementViewers(pluginName)) {
             Player player = org.bukkit.Bukkit.getPlayer(id);
             if (player != null) {
-                clearTimersOf(pluginName, player);
+                for (Class<? extends ClientElement> kind : KINDS) {
+                    clearElementsOf(kind, pluginName, player);
+                }
             }
         }
+        for (UUID id : ClientState.channelViewers(pluginName)) {
+            Player player = org.bukkit.Bukkit.getPlayer(id);
+            if (player != null) {
+                new ChatImpl(pluginName).channels(player, List.of());
+            }
+        }
+        CHAT_HANDLERS.remove(pluginName);
+        Map<String, Keybind> keys = KEYBINDS.remove(pluginName);
+        if (keys != null) {
+            for (String name : keys.keySet()) {
+                unregisterEverywhere(pluginName, name);
+            }
+        }
+        KEY_HANDLERS.remove(pluginName);
     }
 
     /**
@@ -160,6 +208,10 @@ public final class ClientRuntime {
         WAYPOINTS.clear(player);
         COOLDOWNS.clear(player);
         TIMERS.clear(player);
+        RALLIES.clear(player);
+        BEAMS.clear(player);
+        BORDERS.clear(player);
+        BARS.clear(player);
         MARKERS.clear(player);
     }
 
@@ -179,6 +231,9 @@ public final class ClientRuntime {
         TeamRegistry.resend(id);
 
         ClientLink link = ClientRegistry.of(player);
+        if (!worldChange) {
+            resendElements(player, link);
+        }
         if (!link.supportsWaypoints()) {
             return;
         }
@@ -238,6 +293,22 @@ public final class ClientRuntime {
                 showAs(owner, player, waypoint);
             }
         }
+    }
+
+    /**
+     * Looks again at which client a player runs, and sends them what they
+     * should be seeing.
+     *
+     * <p>For the moment a client finishes announcing itself. Unlike {@link
+     * #forget}, nothing the plugins set up is dropped: the player is still
+     * here, still in their team, and everything shown to them while they read
+     * as vanilla is what they should now receive.
+     *
+     * @param player the player
+     */
+    public static void redetect(Player player) {
+        ClientRegistry.forget(player.getUniqueId());
+        resend(player, false);
     }
 
     /**
@@ -543,79 +614,6 @@ public final class ClientRuntime {
     }
 
     // ------------------------------------------------------------------
-    // Timers
-    // ------------------------------------------------------------------
-
-    private static final class TimersImpl implements Clients.Timers {
-
-        /** Whose timers these are, or {@code null} for the unowned static API. */
-        private final String owner;
-
-        TimersImpl(String owner) {
-            this.owner = owner;
-        }
-
-        @Override
-        public boolean show(@NotNull Player player, @NotNull net.exylia.lib.client.Timer timer) {
-            ClientLink link = ClientRegistry.of(player);
-            if (!link.supportsTimers()) {
-                return false;
-            }
-            safely(() -> link.showTimer(player, timer));
-            ClientState.rememberTimer(player.getUniqueId(), owner, timer.name());
-            return true;
-        }
-
-        @Override
-        public void show(@NotNull Collection<? extends Player> players, @NotNull net.exylia.lib.client.Timer timer) {
-            for (Player player : players) {
-                show(player, timer);
-            }
-        }
-
-        @Override
-        public void remove(@NotNull Player player, @NotNull String name) {
-            ClientState.forgetTimer(player.getUniqueId(), owner, name);
-            ClientLink link = ClientRegistry.of(player);
-            if (link.supportsTimers()) {
-                safely(() -> link.removeTimer(player, name));
-            }
-        }
-
-        /** Takes down every timer this view drew, and only those. */
-        @Override
-        public void clear(@NotNull Player player) {
-            if (owner == null) {
-                ClientState.clearTimers(player.getUniqueId());
-                ClientLink link = ClientRegistry.of(player);
-                if (link.supportsTimers()) {
-                    safely(() -> link.clearTimers(player));
-                }
-                return;
-            }
-            clearTimersOf(owner, player);
-        }
-
-        @Override
-        public boolean supported(@NotNull Player player) {
-            return ClientRegistry.of(player).supportsTimers();
-        }
-    }
-
-    /** Takes down one owner's timers on one player. */
-    private static void clearTimersOf(String owner, Player player) {
-        UUID id = player.getUniqueId();
-        ClientLink link = ClientRegistry.of(player);
-        boolean drawn = link.supportsTimers();
-        for (ClientState.Key key : ClientState.timersOf(id, owner)) {
-            ClientState.forgetTimer(id, owner, key.name());
-            if (drawn) {
-                safely(() -> link.removeTimer(player, key.name()));
-            }
-        }
-    }
-
-    // ------------------------------------------------------------------
     // Markers
     // ------------------------------------------------------------------
 
@@ -688,6 +686,297 @@ public final class ClientRuntime {
             action.run();
         } catch (Throwable t) {
             ClientState.logger().warning("A client integration failed: " + t.getMessage());
+        }
+    }
+    // ------------------------------------------------------------------
+    // Elements: timers, rallies, beams, borders, bars
+    // ------------------------------------------------------------------
+
+    /** Every kind of element, for the sweeps that cover them all. */
+    private static final List<Class<? extends ClientElement>> KINDS =
+            List.of(Timer.class, Rally.class, Beam.class, ZoneBorder.class, ProgressBar.class);
+
+    /**
+     * One kind of element, on behalf of one owner.
+     *
+     * <p>What is shown is remembered even when the player's client cannot draw
+     * it yet: a client announces itself a moment after joining, and whatever a
+     * plugin showed in that moment is what the player should get once it has.
+     */
+    private static class ElementsImpl<T extends ClientElement> implements Clients.Elements<T> {
+
+        final Class<T> kind;
+        final String owner;
+
+        ElementsImpl(Class<T> kind, String owner) {
+            this.kind = kind;
+            this.owner = owner;
+        }
+
+        @Override
+        public boolean show(@NotNull Player player, @NotNull T element) {
+            ClientState.rememberElement(player.getUniqueId(), owner, element);
+            ClientLink link = ClientRegistry.of(player);
+            if (!link.supports(kind)) {
+                return false;
+            }
+            safely(() -> link.show(player, element));
+            return true;
+        }
+
+        @Override
+        public void show(@NotNull Collection<? extends Player> players, @NotNull T element) {
+            for (Player player : players) {
+                show(player, element);
+            }
+        }
+
+        @Override
+        public void remove(@NotNull Player player, @NotNull String name) {
+            ClientState.forgetElement(player.getUniqueId(), kind, owner, name);
+            ClientLink link = ClientRegistry.of(player);
+            if (link.supports(kind)) {
+                safely(() -> link.remove(player, kind, name));
+            }
+        }
+
+        @Override
+        public void clear(@NotNull Player player) {
+            if (owner == null) {
+                ClientState.clearElements(player.getUniqueId(), kind);
+                ClientLink link = ClientRegistry.of(player);
+                if (link.supports(kind)) {
+                    safely(() -> link.clear(player, kind));
+                }
+                return;
+            }
+            clearElementsOf(kind, owner, player);
+        }
+
+        @Override
+        public boolean supported(@NotNull Player player) {
+            return ClientRegistry.of(player).supports(kind);
+        }
+    }
+
+    private static final class TimersImpl extends ElementsImpl<Timer> implements Clients.Timers {
+        TimersImpl(String owner) {
+            super(Timer.class, owner);
+        }
+    }
+
+    /**
+     * Rallies, and a waypoint in their place on a client without them.
+     *
+     * <p>The waypoint goes through the waypoint module under the same owner and
+     * name, so it is remembered, expired and re-sent the way every waypoint is.
+     */
+    private static final class RalliesImpl extends ElementsImpl<Rally> {
+
+        RalliesImpl(String owner) {
+            super(Rally.class, owner);
+        }
+
+        @Override
+        public boolean show(@NotNull Player player, @NotNull Rally rally) {
+            if (ClientRegistry.of(player).supports(Rally.class)) {
+                return super.show(player, rally);
+            }
+            ClientState.rememberElement(player.getUniqueId(), owner, rally);
+            return showAs(owner, player, Waypoint.at(rally.name(), rally.where())
+                    .colour(Waypoint.Colour.of(rally.colour().red(), rally.colour().green(), rally.colour().blue()))
+                    .lasting(rally.duration())
+                    .icon(Waypoint.Icon.RALLY));
+        }
+
+        @Override
+        public void remove(@NotNull Player player, @NotNull String name) {
+            super.remove(player, name);
+            removeOne(owner, player, name);
+        }
+
+        @Override
+        public void clear(@NotNull Player player) {
+            for (String name : ClientState.elementsOf(player.getUniqueId(), Rally.class, owner)) {
+                removeOne(owner, player, name);
+            }
+            super.clear(player);
+        }
+    }
+
+    /** Takes down one owner's elements of one kind on one player. */
+    private static void clearElementsOf(Class<? extends ClientElement> kind, String owner, Player player) {
+        UUID id = player.getUniqueId();
+        ClientLink link = ClientRegistry.of(player);
+        boolean drawn = link.supports(kind);
+        for (String name : ClientState.elementsOf(id, kind, owner)) {
+            ClientState.forgetElement(id, kind, owner, name);
+            if (drawn) {
+                safely(() -> link.remove(player, kind, name));
+            }
+        }
+    }
+
+    /**
+     * Sends a player every element, channel and key they should have.
+     *
+     * <p>A timer goes back as it reads now; a rally whose time is up is
+     * dropped instead of sent.
+     */
+    private static void resendElements(Player player, ClientLink link) {
+        UUID id = player.getUniqueId();
+        java.time.Instant now = java.time.Instant.now();
+        for (Map.Entry<ClientState.Key, ClientState.Shown> entry : ClientState.allElementsOf(id)) {
+            ClientElement element = entry.getValue().element();
+            java.time.Duration passed = java.time.Duration.between(entry.getValue().at(), now);
+            if (element instanceof Rally rally) {
+                java.time.Duration left = rally.duration().minus(passed);
+                if (left.isNegative() || left.isZero()) {
+                    ClientState.forgetElement(id, Rally.class, entry.getKey().owner(), rally.name());
+                    continue;
+                }
+                element = rally.lasting(left);
+            } else if (element instanceof Timer timer) {
+                element = timer.after(passed);
+            }
+            if (link.supports(element.getClass())) {
+                ClientElement current = element;
+                safely(() -> link.show(player, current));
+            }
+        }
+        if (link.supportsChat()) {
+            Map<String, List<ChatChannel>> channels = ClientState.channelsOf(id);
+            if (!channels.isEmpty()) {
+                safely(() -> link.setChannels(player, channels));
+            }
+        }
+        if (link.supportsKeybinds()) {
+            for (Map.Entry<String, Map<String, Keybind>> entry : KEYBINDS.entrySet()) {
+                for (Keybind keybind : entry.getValue().values()) {
+                    safely(() -> link.registerKeybind(player, entry.getKey(), keybind));
+                }
+            }
+        }
+    }
+
+    // ------------------------------------------------------------------
+    // Chat
+    // ------------------------------------------------------------------
+
+    private static final class ChatImpl implements Clients.Chat {
+
+        private final String owner;
+
+        ChatImpl(String owner) {
+            this.owner = owner;
+        }
+
+        @Override
+        public void channels(@NotNull Player player, @NotNull List<ChatChannel> channels) {
+            Map<String, List<ChatChannel>> merged = ClientState.setChannels(player.getUniqueId(), owner, channels);
+            ClientLink link = ClientRegistry.of(player);
+            if (link.supportsChat()) {
+                safely(() -> link.setChannels(player, merged));
+            }
+        }
+
+        @Override
+        public void post(@NotNull Collection<? extends Player> viewers, @NotNull String channel, Player sender,
+                         @NotNull net.kyori.adventure.text.Component badge,
+                         @NotNull net.kyori.adventure.text.Component message) {
+            for (Player viewer : viewers) {
+                ClientLink link = ClientRegistry.of(viewer);
+                if (link.supportsChat()) {
+                    safely(() -> link.postChat(viewer, owner, channel, sender, badge, message));
+                }
+            }
+        }
+
+        @Override
+        public void onMessage(@NotNull Clients.ChatHandler handler) {
+            CHAT_HANDLERS.put(owner, Objects.requireNonNull(handler, "handler"));
+        }
+
+        @Override
+        public boolean supported(@NotNull Player player) {
+            return ClientRegistry.of(player).supportsChat();
+        }
+    }
+
+    /**
+     * Hands a message typed into a channel to the plugin that owns it.
+     *
+     * @return whether a plugin took it
+     */
+    static boolean chatTyped(String owner, Player sender, String channel, String message) {
+        Clients.ChatHandler handler = CHAT_HANDLERS.get(owner);
+        if (handler == null) {
+            return false;
+        }
+        try {
+            handler.handle(sender, channel, message);
+        } catch (RuntimeException failure) {
+            ClientState.logger().warning(owner + " failed to handle a chat message: " + failure);
+        }
+        return true;
+    }
+
+    // ------------------------------------------------------------------
+    // Keybinds
+    // ------------------------------------------------------------------
+
+    private static final class KeybindsImpl implements Clients.Keybinds {
+
+        private final String owner;
+
+        KeybindsImpl(String owner) {
+            this.owner = owner;
+        }
+
+        @Override
+        public void register(@NotNull Keybind keybind) {
+            KEYBINDS.computeIfAbsent(owner, o -> new ConcurrentHashMap<>()).put(keybind.name(), keybind);
+            for (Player player : org.bukkit.Bukkit.getOnlinePlayers()) {
+                ClientLink link = ClientRegistry.of(player);
+                if (link.supportsKeybinds()) {
+                    safely(() -> link.registerKeybind(player, owner, keybind));
+                }
+            }
+        }
+
+        @Override
+        public void unregister(@NotNull String name) {
+            Map<String, Keybind> mine = KEYBINDS.get(owner);
+            if (mine != null && mine.remove(name) != null) {
+                unregisterEverywhere(owner, name);
+            }
+        }
+
+        @Override
+        public void onPress(@NotNull java.util.function.BiConsumer<Player, String> handler) {
+            KEY_HANDLERS.put(owner, Objects.requireNonNull(handler, "handler"));
+        }
+    }
+
+    private static void unregisterEverywhere(String owner, String name) {
+        for (Player player : org.bukkit.Bukkit.getOnlinePlayers()) {
+            ClientLink link = ClientRegistry.of(player);
+            if (link.supportsKeybinds()) {
+                safely(() -> link.unregisterKeybind(player, owner, name));
+            }
+        }
+    }
+
+    /** Hands a key press to the plugin that registered the key. */
+    static void keyPressed(String owner, Player player, String name) {
+        java.util.function.BiConsumer<Player, String> handler = KEY_HANDLERS.get(owner);
+        if (handler == null) {
+            return;
+        }
+        try {
+            handler.accept(player, name);
+        } catch (RuntimeException failure) {
+            ClientState.logger().warning(owner + " failed to handle a key press: " + failure);
         }
     }
 }

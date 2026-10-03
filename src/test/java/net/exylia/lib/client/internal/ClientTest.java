@@ -587,4 +587,54 @@ class ClientTest {
                 lunarLink.calls("timer"));
         assertEquals(List.of("removetimer:Lunar:koth"), lunarLink.calls("removetimer"));
     }
+
+    @Test
+    @DisplayName("a rally is a rally where the client has them and a lasting waypoint where it does not")
+    void rallyFallsBackToWaypoint() {
+        net.exylia.lib.client.PluginClients clans = ClientRuntime.of(game);
+        net.exylia.lib.client.Rally rally = net.exylia.lib.client.Rally.at("regroup",
+                lunar.player().getLocation(), net.kyori.adventure.text.Component.text("RALLY"),
+                net.kyori.adventure.text.Component.text("Alice"));
+
+        clans.rallies().show(List.of(lunar.player(), feather.player()), rally);
+        clans.rallies().remove(List.of(lunar.player(), feather.player()), "regroup");
+
+        assertEquals(List.of("rally:Lunar:regroup"), lunarLink.calls("rally"));
+        assertEquals(List.of("removerally:Lunar:regroup"), lunarLink.calls("removerally"));
+        assertEquals(1, featherLink.calls("waypoint").size());
+        assertEquals(1, featherLink.calls("unwaypoint").size());
+    }
+
+    @Test
+    @DisplayName("what was shown while a client read as vanilla arrives once it is recognised")
+    void elementsWaitForTheClient() {
+        net.exylia.lib.client.PluginClients capture = ClientRuntime.of(game);
+        lunarLink.disown(lunar.player());
+        ClientRegistry.forget(lunar.player().getUniqueId());
+
+        assertFalse(capture.bars().show(lunar.player(), new net.exylia.lib.client.ProgressBar("koth",
+                net.kyori.adventure.text.Component.empty(), 0.5f,
+                net.kyori.adventure.text.format.NamedTextColor.GOLD)));
+
+        lunarLink.owning(lunar.player());
+        ClientRuntime.redetect(lunar.player());
+
+        assertEquals(List.of("progressbar:Lunar:koth"), lunarLink.calls("progressbar"));
+    }
+
+    @Test
+    @DisplayName("every plugin's chat channels reach the panel together")
+    void channelsAreMerged() {
+        net.exylia.lib.client.ChatChannel clan = new net.exylia.lib.client.ChatChannel("clan",
+                net.kyori.adventure.text.Component.text("Clan"), net.kyori.adventure.text.format.NamedTextColor.GREEN);
+        net.exylia.lib.client.ChatChannel staff = new net.exylia.lib.client.ChatChannel("staff",
+                net.kyori.adventure.text.Component.text("Staff"), net.kyori.adventure.text.format.NamedTextColor.RED);
+
+        ClientRuntime.of(game).chat().channels(lunar.player(), List.of(clan));
+        ClientRuntime.of(lobby).chat().channels(lunar.player(), List.of(staff));
+        assertEquals(2, lunarLink.lastChannels.size());
+
+        ClientRuntime.of(game).chat().channels(lunar.player(), List.of());
+        assertEquals(java.util.Map.of("ExyliaLobby", List.of(staff)), lunarLink.lastChannels);
+    }
 }

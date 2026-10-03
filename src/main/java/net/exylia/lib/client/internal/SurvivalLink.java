@@ -1,5 +1,6 @@
 package net.exylia.lib.client.internal;
 
+import net.exylia.lib.client.ChatChannel;
 import net.exylia.lib.client.ClientBrand;
 import net.exylia.lib.client.Cooldown;
 import net.exylia.lib.client.Waypoint;
@@ -9,9 +10,19 @@ import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.format.TextColor;
 import online.pablorelojero.survivalcore.api.SurvivalCore;
 import online.pablorelojero.survivalcore.api.SurvivalCoreApi;
+import online.pablorelojero.survivalcore.api.clanchat.ClanChannel;
+import online.pablorelojero.survivalcore.api.clanchat.ClanMessage;
+import online.pablorelojero.survivalcore.api.common.BuiltinIcon;
+import online.pablorelojero.survivalcore.api.common.HudAnchor;
 import online.pablorelojero.survivalcore.api.common.Icon;
+import online.pablorelojero.survivalcore.api.common.SoundCue;
+import online.pablorelojero.survivalcore.api.common.SurvivalSound;
 import online.pablorelojero.survivalcore.api.common.WorldPosition;
+import online.pablorelojero.survivalcore.api.event.ClanChatSendEvent;
+import online.pablorelojero.survivalcore.api.event.PlayerKeybindEvent;
 import online.pablorelojero.survivalcore.api.event.PlayerPingEvent;
+import online.pablorelojero.survivalcore.api.overlay.ProgressOverlay;
+import online.pablorelojero.survivalcore.api.ping.PingKind;
 import online.pablorelojero.survivalcore.api.event.SurvivalClientReadyEvent;
 import online.pablorelojero.survivalcore.api.ping.PingSettings;
 import online.pablorelojero.survivalcore.api.team.MemberBadge;
@@ -31,6 +42,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.UUID;
 
 /**
@@ -74,6 +86,8 @@ final class SurvivalLink implements ClientLink {
             JavaPlugin library = JavaPlugin.getProvidingPlugin(SurvivalLink.class);
             Bukkit.getPluginManager().registerEvents(new ReadyListener(), library);
             Bukkit.getPluginManager().registerEvents(new PingListener(), library);
+            Bukkit.getPluginManager().registerEvents(new ChatListener(), library);
+            Bukkit.getPluginManager().registerEvents(new KeyListener(), library);
         }
         return new SurvivalLink(api);
     }
@@ -85,9 +99,7 @@ final class SurvivalLink implements ClientLink {
     private static final class ReadyListener implements Listener {
         @EventHandler(priority = EventPriority.MONITOR)
         public void onReady(SurvivalClientReadyEvent event) {
-            Player player = event.getPlayer();
-            ClientRegistry.forget(player.getUniqueId());
-            ClientRuntime.resend(player, false);
+            ClientRuntime.redetect(event.getPlayer());
         }
     }
 
@@ -104,6 +116,12 @@ final class SurvivalLink implements ClientLink {
             Player player = event.getPlayer();
             if (event.recipients().size() == 1 && event.recipients().contains(player)) {
                 event.recipients().addAll(TeamRegistry.teammatesOf(player.getUniqueId()));
+                // A plain location ping takes the team's colour; danger, loot
+                // and the rest keep theirs, which is what they mean.
+                TextColor colour = TeamRegistry.colourOf(player.getUniqueId());
+                if (colour != null && event.ping().kind() == PingKind.LOCATION) {
+                    event.ping(event.ping().withColor(colour));
+                }
             }
         }
     }
@@ -160,6 +178,7 @@ final class SurvivalLink implements ClientLink {
                 .name(Component.text(waypoint.name()))
                 .color(TextColor.color(colour.red(), colour.green(), colour.blue()))
                 .ttl(ttl == null || ttl.isZero() || ttl.isNegative() ? null : ttl)
+                .icon(waypoint.icon() == null ? BuiltinIcon.PIN : BuiltinIcon.valueOf(waypoint.icon().name()))
                 .build());
         return id;
     }
@@ -207,8 +226,11 @@ final class SurvivalLink implements ClientLink {
 
     /** A key can only hold {@code [a-z0-9_.-/]}, and a name is free text. */
     private static Key key(String prefix, String name) {
-        return Key.key(NAMESPACE, prefix
-                + name.toLowerCase(Locale.ROOT).replaceAll("[^a-z0-9_.\\-/]", "_"));
+        return Key.key(NAMESPACE, prefix + clean(name));
+    }
+
+    private static String clean(String text) {
+        return text.toLowerCase(Locale.ROOT).replaceAll("[^a-z0-9_.\\-/]", "_");
     }
 
     /**
@@ -221,17 +243,77 @@ final class SurvivalLink implements ClientLink {
     }
 
     // ------------------------------------------------------------------
-    // Timers
+    // Elements: timers, rallies, beams, borders, bars
     // ------------------------------------------------------------------
 
     @Override
-    public boolean supportsTimers() {
+    public boolean supports(Class<? extends net.exylia.lib.client.ClientElement> kind) {
         return true;
     }
 
     @Override
-    public void showTimer(Player player, net.exylia.lib.client.Timer timer) {
-        Key id = key("timer/", timer.name());
+    public void show(Player player, net.exylia.lib.client.ClientElement element) {
+        switch (element) {
+            case net.exylia.lib.client.Timer timer -> api.timers().show(player, timer(timer));
+            case net.exylia.lib.client.Rally rally -> api.rallies().show(player,
+                    online.pablorelojero.survivalcore.api.rally.Rally
+                            .builder(key(element), WorldPosition.of(rally.where()))
+                            .label(rally.label())
+                            .caller(rally.caller())
+                            .color(rally.colour())
+                            .duration(rally.duration())
+                            .sound(SoundCue.of(SurvivalSound.RALLY))
+                            .build());
+            case net.exylia.lib.client.Beam beam -> api.beams().show(player,
+                    online.pablorelojero.survivalcore.api.beam.Beam
+                            .of(key(element), WorldPosition.blockCenter(beam.base()), beam.colour())
+                            .withPulse(beam.pulse()));
+            case net.exylia.lib.client.ZoneBorder border -> api.borders().show(player,
+                    online.pablorelojero.survivalcore.api.border.Border
+                            .of(key(element), border.world(), border.box(), border.colour()));
+            case net.exylia.lib.client.ProgressBar bar -> api.overlays().show(player,
+                    ProgressOverlay.of(key(element), HudAnchor.TOP_CENTER, bar.label(), bar.progress(), bar.colour()));
+        }
+    }
+
+    @Override
+    public void remove(Player player, Class<? extends net.exylia.lib.client.ClientElement> kind, String name) {
+        module(kind).remove(player, key(prefix(kind), name));
+    }
+
+    @Override
+    public void clear(Player player, Class<? extends net.exylia.lib.client.ClientElement> kind) {
+        module(kind).clear(player);
+    }
+
+    private online.pablorelojero.survivalcore.api.ElementModule<?> module(
+            Class<? extends net.exylia.lib.client.ClientElement> kind) {
+        if (kind == net.exylia.lib.client.Timer.class) {
+            return api.timers();
+        }
+        if (kind == net.exylia.lib.client.Rally.class) {
+            return api.rallies();
+        }
+        if (kind == net.exylia.lib.client.Beam.class) {
+            return api.beams();
+        }
+        if (kind == net.exylia.lib.client.ZoneBorder.class) {
+            return api.borders();
+        }
+        return api.overlays();
+    }
+
+    /** Each kind gets its own prefix, so a timer and a bar can share a name. */
+    private static String prefix(Class<? extends net.exylia.lib.client.ClientElement> kind) {
+        return kind.getSimpleName().toLowerCase(Locale.ROOT) + "/";
+    }
+
+    private static Key key(net.exylia.lib.client.ClientElement element) {
+        return key(prefix(element.getClass()), element.name());
+    }
+
+    private static online.pablorelojero.survivalcore.api.timer.Timer timer(net.exylia.lib.client.Timer timer) {
+        Key id = key(timer);
         // The mod refuses a countdown at zero; one that has run out is a
         // millisecond from done rather than an exception.
         Duration value = timer.countdown() && timer.value().isZero() ? Duration.ofMillis(1) : timer.value();
@@ -239,20 +321,121 @@ final class SurvivalLink implements ClientLink {
                 ? online.pablorelojero.survivalcore.api.timer.Timer.countdown(id, timer.label(), value)
                 : online.pablorelojero.survivalcore.api.timer.Timer.stopwatch(id, timer.label()))
                 .withValue(value, timer.paused());
-        if (timer.colour() != null) {
-            sent = sent.withColor(timer.colour());
+        return timer.colour() == null ? sent : sent.withColor(timer.colour());
+    }
+
+    // ------------------------------------------------------------------
+    // Chat
+    // ------------------------------------------------------------------
+
+    @Override
+    public boolean supportsChat() {
+        return true;
+    }
+
+    /** The mod takes one list per player, so every plugin's goes in it. */
+    @Override
+    public void setChannels(Player player, Map<String, List<ChatChannel>> channels) {
+        List<ClanChannel> all = new ArrayList<>();
+        channels.forEach((owner, mine) -> {
+            for (ChatChannel channel : mine) {
+                all.add(ClanChannel.of(scoped("chat/", owner, channel.name()), channel.label(), channel.colour()));
+            }
+        });
+        if (all.isEmpty()) {
+            api.clanChat().clearChannels(player);
+        } else {
+            api.clanChat().setChannels(player, all);
         }
-        api.timers().show(player, sent);
     }
 
     @Override
-    public void removeTimer(Player player, String name) {
-        api.timers().remove(player, key("timer/", name));
+    public void postChat(Player viewer, String owner, String channel, Player sender,
+                         Component badge, Component message) {
+        Key id = scoped("chat/", owner, channel);
+        api.clanChat().post(viewer, sender == null
+                ? ClanMessage.system(id, message)
+                : new ClanMessage(id, sender.getUniqueId(), Component.text(sender.getName()), badge, message,
+                        java.time.Instant.now(), false));
+    }
+
+    /**
+     * Hands what a player typed to the plugin that owns the channel.
+     *
+     * <p>The mod does nothing with the message itself: whoever owns the
+     * channel posts it, to whoever it decides should read it.
+     */
+    private static final class ChatListener implements Listener {
+        @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
+        public void onChat(ClanChatSendEvent event) {
+            String[] owned = unscope("chat/", event.channel());
+            if (owned != null) {
+                ClientRuntime.chatTyped(owned[0], event.getPlayer(), owned[1], event.message());
+            }
+        }
+    }
+
+    // ------------------------------------------------------------------
+    // Keybinds
+    // ------------------------------------------------------------------
+
+    @Override
+    public boolean supportsKeybinds() {
+        return true;
     }
 
     @Override
-    public void clearTimers(Player player) {
-        api.timers().clear(player);
+    public void registerKeybind(Player player, String owner, net.exylia.lib.client.Keybind keybind) {
+        Key id = scoped("key/", owner, keybind.name());
+        api.keybinds().register(player, keybind.defaultKey() == null
+                ? online.pablorelojero.survivalcore.api.keybind.Keybind.unbound(id, keybind.label())
+                : online.pablorelojero.survivalcore.api.keybind.Keybind.of(id, keybind.label(), keybind.defaultKey()));
+    }
+
+    @Override
+    public void unregisterKeybind(Player player, String owner, String name) {
+        api.keybinds().unregister(player, scoped("key/", owner, name));
+    }
+
+    /** A press goes to the plugin that registered the key; a release goes nowhere. */
+    private static final class KeyListener implements Listener {
+        @EventHandler(priority = EventPriority.MONITOR)
+        public void onKey(PlayerKeybindEvent event) {
+            if (!event.pressed()) {
+                return;
+            }
+            String[] owned = unscope("key/", event.keybind());
+            if (owned != null) {
+                ClientRuntime.keyPressed(owned[0], event.getPlayer(), owned[1]);
+            }
+        }
+    }
+
+    /**
+     * Keys that carry which plugin they belong to, so what comes back finds its
+     * way home. Plugin names are case-sensitive and keys are not, so the real
+     * name is remembered on the way out.
+     */
+    private static final Map<String, String> OWNERS = new java.util.concurrent.ConcurrentHashMap<>();
+
+    private static Key scoped(String prefix, String owner, String name) {
+        String safeOwner = owner == null ? "_" : clean(owner);
+        OWNERS.put(safeOwner, owner == null ? "" : owner);
+        return key(prefix + safeOwner + "/", name);
+    }
+
+    /** Returns {@code [owner, name]} for one of this library's keys, else {@code null}. */
+    private static String[] unscope(String prefix, Key key) {
+        if (!key.namespace().equals(NAMESPACE) || !key.value().startsWith(prefix)) {
+            return null;
+        }
+        String rest = key.value().substring(prefix.length());
+        int slash = rest.indexOf('/');
+        if (slash < 0) {
+            return null;
+        }
+        String owner = OWNERS.get(rest.substring(0, slash));
+        return owner == null ? null : new String[] {owner, rest.substring(slash + 1)};
     }
 
     // ------------------------------------------------------------------

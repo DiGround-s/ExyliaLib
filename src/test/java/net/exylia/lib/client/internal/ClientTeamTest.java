@@ -272,4 +272,15 @@ class ClientTeamTest {
         assertEquals(List.of(alice.player(), bob.player()), TeamRegistry.teammatesOf(alice.player().getUniqueId()));
         assertTrue(TeamRegistry.teammatesOf(carol.player().getUniqueId()).isEmpty());
     }
+
+    @Test
+    @DisplayName("the client announcing itself after joining keeps the player in their team")
+    void redetectKeepsTheTeam() {
+        ClientTeam team = teams.create(List.of(alice.player(), bob.player()));
+
+        ClientRuntime.redetect(alice.player());
+
+        assertTrue(team.has(alice.player().getUniqueId()));
+        assertSame(team, teams.of(alice.player()));
+    }
 }

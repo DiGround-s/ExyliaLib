@@ -35,6 +35,8 @@ import java.util.UUID;
  *                      Lunar only, Feather has no such field and ignores it
  * @param hidden        whether it is created already hidden; Lunar only, for
  *                      the same reason
+ * @param icon          the icon on clients that draw one, {@code null} for
+ *                      their default; since 1.233.0
  * @since 1.7.0
  */
 public record Waypoint(
@@ -47,7 +49,8 @@ public record Waypoint(
         @NotNull Colour colour,
         @Nullable Duration duration,
         boolean preventRemoval,
-        boolean hidden) {
+        boolean hidden,
+        @Nullable Icon icon) {
 
     public Waypoint {
         if (name == null || name.isBlank()) {
@@ -62,6 +65,18 @@ public record Waypoint(
     }
 
     /**
+     * The constructor from before waypoints had icons.
+     *
+     * @deprecated pass an icon, or {@code null} for the client's default
+     */
+    @Deprecated(since = "1.233.0")
+    public Waypoint(@NotNull String name, int x, int y, int z, @NotNull String worldName,
+                    @Nullable UUID worldId, @NotNull Colour colour, @Nullable Duration duration,
+                    boolean preventRemoval, boolean hidden) {
+        this(name, x, y, z, worldName, worldId, colour, duration, preventRemoval, hidden, null);
+    }
+
+    /**
      * A waypoint at a location, white and permanent.
      *
      * @param name  what the client labels it with
@@ -73,7 +88,7 @@ public record Waypoint(
                 where.getBlockX(), where.getBlockY(), where.getBlockZ(),
                 where.getWorld() == null ? "world" : where.getWorld().getName(),
                 where.getWorld() == null ? null : where.getWorld().getUID(),
-                Colour.WHITE, null, false, false);
+                Colour.WHITE, null, false, false, null);
     }
 
     /**
@@ -88,7 +103,7 @@ public record Waypoint(
      */
     public static @NotNull Waypoint at(@NotNull String name, int x, int y, int z,
                                        @NotNull String world) {
-        return new Waypoint(name, x, y, z, world, null, Colour.WHITE, null, false, false);
+        return new Waypoint(name, x, y, z, world, null, Colour.WHITE, null, false, false, null);
     }
 
     /**
@@ -109,7 +124,7 @@ public record Waypoint(
      */
     public @NotNull Waypoint colour(@NotNull Colour colour) {
         return new Waypoint(name, x, y, z, worldName, worldId, colour, duration,
-                preventRemoval, hidden);
+                preventRemoval, hidden, icon);
     }
 
     /**
@@ -126,7 +141,7 @@ public record Waypoint(
      */
     public @NotNull Waypoint lasting(@NotNull Duration duration) {
         return new Waypoint(name, x, y, z, worldName, worldId, colour, duration,
-                preventRemoval, hidden);
+                preventRemoval, hidden, icon);
     }
 
     /**
@@ -135,7 +150,7 @@ public record Waypoint(
      * @return a new waypoint
      */
     public @NotNull Waypoint locked() {
-        return new Waypoint(name, x, y, z, worldName, worldId, colour, duration, true, hidden);
+        return new Waypoint(name, x, y, z, worldName, worldId, colour, duration, true, hidden, icon);
     }
 
     /**
@@ -145,7 +160,7 @@ public record Waypoint(
      */
     public @NotNull Waypoint startHidden() {
         return new Waypoint(name, x, y, z, worldName, worldId, colour, duration,
-                preventRemoval, true);
+                preventRemoval, true, icon);
     }
 
     /**
@@ -157,6 +172,30 @@ public record Waypoint(
      * @param alpha 0 to 255
      * @param chroma whether the client cycles the hue itself
      */
+    /**
+     * Returns this waypoint with an icon.
+     *
+     * <p>Only clients that draw icons use it; the rest show their usual marker.
+     *
+     * @param icon the icon, {@code null} for the client's default
+     * @return the waypoint
+     * @since 1.233.0
+     */
+    public @NotNull Waypoint icon(@Nullable Icon icon) {
+        return new Waypoint(name, x, y, z, worldName, worldId, colour, duration,
+                preventRemoval, hidden, icon);
+    }
+
+    /**
+     * What a client that draws icons puts on a waypoint.
+     *
+     * @since 1.233.0
+     */
+    public enum Icon {
+        PIN, FLAG, HOME, STAR, SKULL, SWORD, SHIELD, CHEST, PORTAL, CROWN, CAMP, DIAMOND,
+        DANGER, EYE, HEART, BELL, INFO, CHECK, CLOCK, RALLY, TEAM, CHAT, MEGAPHONE, TROPHY, FIRE
+    }
+
     public record Colour(int red, int green, int blue, int alpha, boolean chroma) {
 
         /** Plain white, the default. */

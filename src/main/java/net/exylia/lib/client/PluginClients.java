@@ -37,17 +37,30 @@ import org.jetbrains.annotations.NotNull;
  * @param cooldowns this plugin's cooldowns
  * @param teams     this plugin's teams
  * @param timers    this plugin's timers, since 1.232.0
+ * @param rallies   this plugin's rallies, since 1.233.0
+ * @param beams     this plugin's beams, since 1.233.0
+ * @param borders   this plugin's zone borders, since 1.233.0
+ * @param bars      this plugin's HUD progress bars, since 1.233.0
+ * @param chat      this plugin's chat channels, since 1.233.0
+ * @param keybinds  this plugin's keys, since 1.233.0
  * @since 1.48.0
  */
 public record PluginClients(@NotNull Clients.Waypoints waypoints,
                             @NotNull Clients.Cooldowns cooldowns,
                             @NotNull PluginTeams teams,
-                            @NotNull Clients.Timers timers) {
+                            @NotNull Clients.Timers timers,
+                            @NotNull Clients.Elements<Rally> rallies,
+                            @NotNull Clients.Elements<Beam> beams,
+                            @NotNull Clients.Elements<ZoneBorder> borders,
+                            @NotNull Clients.Elements<ProgressBar> bars,
+                            @NotNull Clients.Chat chat,
+                            @NotNull Clients.Keybinds keybinds) {
 
     /**
      * Removes everything this plugin put on a player's screen.
      *
-     * <p>Waypoints, cooldowns and timers this plugin sent. Other plugins' are left
+     * <p>Waypoints, cooldowns, timers, rallies, beams, borders and bars this
+     * plugin sent; its chat channels and keys stay. Other plugins' are left
      * alone, and so are the player's teams, which belong to whatever game is
      * running rather than to a screen being tidied.
      *
@@ -57,5 +70,9 @@ public record PluginClients(@NotNull Clients.Waypoints waypoints,
         waypoints.clear(player);
         cooldowns.clear(player);
         timers.clear(player);
+        rallies.clear(player);
+        beams.clear(player);
+        borders.clear(player);
+        bars.clear(player);
     }
 }

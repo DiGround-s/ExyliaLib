@@ -61,9 +61,6 @@ public final class ClientState {
     /** Cooldown keys per player, so they can be cleared without guessing. */
     private static final Map<UUID, Collection<Key>> COOLDOWNS = new ConcurrentHashMap<>();
 
-    /** Timer keys per player, kept the same way as cooldowns. */
-    private static final Map<UUID, Collection<Key>> TIMERS = new ConcurrentHashMap<>();
-
     /** Marker groups per player: who each viewer currently sees. */
     private static final Map<UUID, Collection<UUID>> MARKERS = new ConcurrentHashMap<>();
 
@@ -255,33 +252,125 @@ public final class ClientState {
     }
 
     // ------------------------------------------------------------------
-    // Timers
+    // Elements: timers, rallies, beams, borders, bars
     // ------------------------------------------------------------------
 
-    static void rememberTimer(UUID player, String owner, String name) {
-        remember(TIMERS, player, owner, name);
+    /** An element as it was shown, and when, so it can be sent again as it reads now. */
+    record Shown(net.exylia.lib.client.ClientElement element, java.time.Instant at) {
     }
 
-    static void forgetTimer(UUID player, String owner, String name) {
-        forget(TIMERS, player, owner, name);
+    /** Per kind, per player, what each owner showed. */
+    private static final Map<Class<?>, Map<UUID, Map<Key, Shown>>> ELEMENTS = new ConcurrentHashMap<>();
+
+    private static Map<UUID, Map<Key, Shown>> elements(Class<?> kind) {
+        return ELEMENTS.computeIfAbsent(kind, k -> new ConcurrentHashMap<>());
     }
 
-    /** The timers one plugin drew for a player. */
-    static Collection<Key> timersOf(UUID player, String owner) {
-        return ownedBy(TIMERS, player, owner);
+    static void rememberElement(UUID player, String owner, net.exylia.lib.client.ClientElement element) {
+        elements(element.getClass()).computeIfAbsent(player, id -> new ConcurrentHashMap<>())
+                .put(new Key(owner, element.name()), new Shown(element, java.time.Instant.now()));
     }
 
-    /** Every player who has a timer from this plugin. */
-    static Collection<UUID> timerViewers(String owner) {
-        return viewersOf(TIMERS, owner);
+    static void forgetElement(UUID player, Class<?> kind, String owner, String name) {
+        Map<Key, Shown> shown = elements(kind).get(player);
+        if (shown != null) {
+            shown.remove(new Key(owner, name));
+        }
     }
 
-    static void clearTimers(UUID player) {
-        TIMERS.remove(player);
+    /** The names of what one owner showed a player, of one kind. */
+    static Collection<String> elementsOf(UUID player, Class<?> kind, String owner) {
+        Map<Key, Shown> shown = elements(kind).get(player);
+        if (shown == null) {
+            return List.of();
+        }
+        Collection<String> names = new ArrayList<>();
+        for (Key key : shown.keySet()) {
+            if (java.util.Objects.equals(owner, key.owner())) {
+                names.add(key.name());
+            }
+        }
+        return names;
+    }
+
+    /** Everything a player was shown, of every kind, for sending again. */
+    static Collection<Map.Entry<Key, Shown>> allElementsOf(UUID player) {
+        Collection<Map.Entry<Key, Shown>> all = new ArrayList<>();
+        for (Map<UUID, Map<Key, Shown>> byPlayer : ELEMENTS.values()) {
+            Map<Key, Shown> shown = byPlayer.get(player);
+            if (shown != null) {
+                all.addAll(Map.copyOf(shown).entrySet());
+            }
+        }
+        return all;
+    }
+
+    /** Every player shown something of any kind by this owner. */
+    static Collection<UUID> elementViewers(String owner) {
+        Collection<UUID> viewers = new java.util.HashSet<>();
+        for (Map<UUID, Map<Key, Shown>> byPlayer : ELEMENTS.values()) {
+            for (Map.Entry<UUID, Map<Key, Shown>> entry : byPlayer.entrySet()) {
+                for (Key key : entry.getValue().keySet()) {
+                    if (owner.equals(key.owner())) {
+                        viewers.add(entry.getKey());
+                        break;
+                    }
+                }
+            }
+        }
+        return viewers;
+    }
+
+    static void clearElements(UUID player, Class<?> kind) {
+        elements(kind).remove(player);
     }
 
     // ------------------------------------------------------------------
-    // Keys by owner, shared by cooldowns and timers
+    // Chat channels
+    // ------------------------------------------------------------------
+
+    /** Per player, each owner's channels, in the order owners first set them. */
+    private static final Map<UUID, Map<String, List<net.exylia.lib.client.ChatChannel>>> CHANNELS =
+            new ConcurrentHashMap<>();
+
+    /** Sets one owner's channels and returns every owner's, merged. */
+    static Map<String, List<net.exylia.lib.client.ChatChannel>> setChannels(
+            UUID player, String owner, List<net.exylia.lib.client.ChatChannel> channels) {
+        Map<String, List<net.exylia.lib.client.ChatChannel>> mine = CHANNELS.computeIfAbsent(player,
+                id -> java.util.Collections.synchronizedMap(new java.util.LinkedHashMap<>()));
+        synchronized (mine) {
+            if (channels.isEmpty()) {
+                mine.remove(owner);
+            } else {
+                mine.put(owner, List.copyOf(channels));
+            }
+            return Map.copyOf(mine);
+        }
+    }
+
+    static Map<String, List<net.exylia.lib.client.ChatChannel>> channelsOf(UUID player) {
+        Map<String, List<net.exylia.lib.client.ChatChannel>> mine = CHANNELS.get(player);
+        if (mine == null) {
+            return Map.of();
+        }
+        synchronized (mine) {
+            return Map.copyOf(mine);
+        }
+    }
+
+    /** Every player this owner offers channels to. */
+    static Collection<UUID> channelViewers(String owner) {
+        Collection<UUID> viewers = new ArrayList<>();
+        for (Map.Entry<UUID, Map<String, List<net.exylia.lib.client.ChatChannel>>> entry : CHANNELS.entrySet()) {
+            if (entry.getValue().containsKey(owner)) {
+                viewers.add(entry.getKey());
+            }
+        }
+        return viewers;
+    }
+
+    // ------------------------------------------------------------------
+    // Cooldown keys by owner
     // ------------------------------------------------------------------
 
     private static void remember(Map<UUID, Collection<Key>> store, UUID player, String owner, String name) {
@@ -347,7 +436,10 @@ public final class ClientState {
     public static void forget(UUID player) {
         WAYPOINTS.remove(player);
         COOLDOWNS.remove(player);
-        TIMERS.remove(player);
+        for (Map<UUID, Map<Key, Shown>> byPlayer : ELEMENTS.values()) {
+            byPlayer.remove(player);
+        }
+        CHANNELS.remove(player);
         MARKERS.remove(player);
         // Somebody else's markers may still point at them; the game that owns
         // those markers updates them on its own schedule, so nothing is sent
@@ -358,7 +450,8 @@ public final class ClientState {
     public static void clear() {
         WAYPOINTS.clear();
         COOLDOWNS.clear();
-        TIMERS.clear();
+        ELEMENTS.clear();
+        CHANNELS.clear();
         MARKERS.clear();
     }
 

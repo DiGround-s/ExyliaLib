@@ -101,6 +101,17 @@ public final class TeamRegistry {
         return team == null ? List.of() : team.online();
     }
 
+    /**
+     * Returns the colour of a player's team when it was styled.
+     *
+     * @return the colour, {@code null} for no team or an unstyled one
+     */
+    public static TextColor colourOf(UUID playerId) {
+        UUID teamId = PLAYER_TEAM.get(playerId);
+        Team team = teamId == null ? null : TEAMS.get(teamId);
+        return team == null || team.name == null ? null : team.colour;
+    }
+
     /** Drops everything. Used on shutdown and by tests. */
     public static void clear() {
         TEAMS.clear();

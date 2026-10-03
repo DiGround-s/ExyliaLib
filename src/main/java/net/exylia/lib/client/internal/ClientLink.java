@@ -124,24 +124,59 @@ public interface ClientLink {
     }
 
     // ------------------------------------------------------------------
-    // Timers
+    // Elements: timers, rallies, beams, borders, bars
     // ------------------------------------------------------------------
 
-    /** Returns whether this client draws HUD timers. */
-    default boolean supportsTimers() {
+    /** Returns whether this client draws this kind of element. */
+    default boolean supports(Class<? extends net.exylia.lib.client.ClientElement> kind) {
         return false;
     }
 
-    /** Draws a timer, replacing one with the same name. */
-    default void showTimer(Player player, net.exylia.lib.client.Timer timer) {
+    /** Draws an element, replacing one of its kind with the same name. */
+    default void show(Player player, net.exylia.lib.client.ClientElement element) {
     }
 
-    /** Removes a timer by name. */
-    default void removeTimer(Player player, String name) {
+    /** Removes an element by kind and name. */
+    default void remove(Player player, Class<? extends net.exylia.lib.client.ClientElement> kind, String name) {
     }
 
-    /** Removes every timer this library sent the player. */
-    default void clearTimers(Player player) {
+    /** Removes every element of a kind this library sent the player. */
+    default void clear(Player player, Class<? extends net.exylia.lib.client.ClientElement> kind) {
+    }
+
+    // ------------------------------------------------------------------
+    // Chat
+    // ------------------------------------------------------------------
+
+    /** Returns whether this client has a chat panel with channels. */
+    default boolean supportsChat() {
+        return false;
+    }
+
+    /** Replaces the player's channels with every plugin's, keyed by plugin. */
+    default void setChannels(Player player, java.util.Map<String, java.util.List<net.exylia.lib.client.ChatChannel>> channels) {
+    }
+
+    /** Shows a message in one plugin's channel. */
+    default void postChat(Player viewer, String owner, String channel, Player sender,
+                          net.kyori.adventure.text.Component badge, net.kyori.adventure.text.Component message) {
+    }
+
+    // ------------------------------------------------------------------
+    // Keybinds
+    // ------------------------------------------------------------------
+
+    /** Returns whether this client has a controls screen plugins can add to. */
+    default boolean supportsKeybinds() {
+        return false;
+    }
+
+    /** Adds one plugin's key. */
+    default void registerKeybind(Player player, String owner, net.exylia.lib.client.Keybind keybind) {
+    }
+
+    /** Removes one plugin's key. */
+    default void unregisterKeybind(Player player, String owner, String name) {
     }
 
     // ------------------------------------------------------------------

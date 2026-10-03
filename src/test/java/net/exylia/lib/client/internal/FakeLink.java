@@ -70,6 +70,11 @@ final class FakeLink implements ClientLink {
         return new FakeLink(brand, true, false, false, true, false, true);
     }
 
+    FakeLink disown(Player player) {
+        owned.remove(player.getUniqueId());
+        return this;
+    }
+
     FakeLink owning(Player... players) {
         for (Player player : players) {
             owned.add(player.getUniqueId());
@@ -163,20 +168,37 @@ final class FakeLink implements ClientLink {
     }
 
     @Override
-    public boolean supportsTimers() {
+    public boolean supports(Class<? extends net.exylia.lib.client.ClientElement> kind) {
         return cooldowns;
     }
 
     @Override
-    public void showTimer(Player player, net.exylia.lib.client.Timer timer) {
+    public void show(Player player, net.exylia.lib.client.ClientElement element) {
         fail();
-        calls.add("timer:" + player.getName() + ":" + timer.name() + (timer.paused() ? ":paused" : ""));
+        String kind = element.getClass().getSimpleName().toLowerCase();
+        String extra = element instanceof net.exylia.lib.client.Timer timer && timer.paused() ? ":paused" : "";
+        calls.add(kind + ":" + player.getName() + ":" + element.name() + extra);
     }
 
     @Override
-    public void removeTimer(Player player, String name) {
+    public void remove(Player player, Class<? extends net.exylia.lib.client.ClientElement> kind, String name) {
         fail();
-        calls.add("removetimer:" + player.getName() + ":" + name);
+        calls.add("remove" + kind.getSimpleName().toLowerCase() + ":" + player.getName() + ":" + name);
+    }
+
+    @Override
+    public boolean supportsChat() {
+        return cooldowns;
+    }
+
+    /** The channels the last update carried. */
+    java.util.Map<String, List<net.exylia.lib.client.ChatChannel>> lastChannels;
+
+    @Override
+    public void setChannels(Player player, java.util.Map<String, List<net.exylia.lib.client.ChatChannel>> channels) {
+        fail();
+        lastChannels = channels;
+        calls.add("channels:" + player.getName() + ":" + channels.size());
     }
 
     /** The look the last marker update carried. */

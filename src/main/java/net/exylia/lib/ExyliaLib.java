@@ -798,8 +798,7 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         // An entity timer dies with its entity, so a player who leaves during
         // the wait costs nothing and needs no online check of its own.
         Tasks.of(this).runAtEntityLater(player, CLIENT_HANDSHAKE_TICKS, () -> {
-            ClientRuntime.forget(player);
-            ClientRuntime.resend(player, false);
+            ClientRuntime.redetect(player);
         });
         // Once per batch of changes, and after the join messages so the line
         // is not buried under them.

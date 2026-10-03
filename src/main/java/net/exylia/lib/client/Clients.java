@@ -100,6 +100,46 @@ public final class Clients {
     }
 
     /**
+     * Rallies, falling back to a waypoint on clients without them.
+     *
+     * @return the rally API
+     * @since 1.233.0
+     */
+    public static @NotNull Elements<Rally> rallies() {
+        return ClientRuntime.RALLIES;
+    }
+
+    /**
+     * Beams of light.
+     *
+     * @return the beam API
+     * @since 1.233.0
+     */
+    public static @NotNull Elements<Beam> beams() {
+        return ClientRuntime.BEAMS;
+    }
+
+    /**
+     * Zone borders.
+     *
+     * @return the border API
+     * @since 1.233.0
+     */
+    public static @NotNull Elements<ZoneBorder> borders() {
+        return ClientRuntime.BORDERS;
+    }
+
+    /**
+     * HUD progress bars.
+     *
+     * @return the progress bar API
+     * @since 1.233.0
+     */
+    public static @NotNull Elements<ProgressBar> bars() {
+        return ClientRuntime.BARS;
+    }
+
+    /**
      * Teammate markers, drawn on the client's minimap and world.
      *
      * @return the marker API
@@ -291,31 +331,37 @@ public final class Clients {
     }
 
     /**
-     * Timers drawn by a client on its HUD.
+     * Things a modified client draws and keeps until told otherwise.
      *
-     * @since 1.232.0
+     * <p>What a plugin shows is remembered under that plugin and sent again
+     * when the player's client reconnects, so a plugin never needs its own
+     * re-send listener. A timer comes back as it reads now, not as it read
+     * when it was shown; a rally that has run out does not come back.
+     *
+     * @param <T> the kind of element
+     * @since 1.233.0
      */
-    public interface Timers {
+    public interface Elements<T extends ClientElement> {
 
         /**
-         * Draws a timer.
+         * Draws an element, replacing one with the same name.
          *
-         * @param player   who sees it
-         * @param timer    what to draw
+         * @param player  who sees it
+         * @param element what to draw
          * @return {@code true} when the client took it
          */
-        boolean show(@NotNull Player player, @NotNull Timer timer);
+        boolean show(@NotNull Player player, @NotNull T element);
 
         /**
-         * Draws a timer for several players at once.
+         * Draws an element for several players at once.
          *
-         * @param players  who see it
-         * @param timer    what to draw
+         * @param players who see it
+         * @param element what to draw
          */
-        void show(@NotNull Collection<? extends Player> players, @NotNull Timer timer);
+        void show(@NotNull Collection<? extends Player> players, @NotNull T element);
 
         /**
-         * Removes a timer by name.
+         * Removes an element by name.
          *
          * @param player who sees it
          * @param name   the name it was shown with
@@ -323,19 +369,144 @@ public final class Clients {
         void remove(@NotNull Player player, @NotNull String name);
 
         /**
-         * Removes every timer this library sent a player.
+         * Removes an element by name from several players at once.
+         *
+         * @param players who see it
+         * @param name    the name it was shown with
+         */
+        default void remove(@NotNull Collection<? extends Player> players, @NotNull String name) {
+            for (Player player : players) {
+                remove(player, name);
+            }
+        }
+
+        /**
+         * Removes every element of this kind this view sent a player.
          *
          * @param player who sees them
          */
         void clear(@NotNull Player player);
 
         /**
-         * Returns whether the player's client draws timers at all.
+         * Returns whether the player's client draws this kind of element.
          *
          * @param player the player
          * @return {@code true} when they would see one
          */
         boolean supported(@NotNull Player player);
+    }
+
+    /**
+     * Timers drawn by a client on its HUD.
+     *
+     * @since 1.232.0
+     */
+    public interface Timers extends Elements<Timer> {
+    }
+
+    /**
+     * A plugin's chat channels in a client's own chat panel.
+     *
+     * <p>Each plugin sets its own channels for a player; the panel shows every
+     * plugin's together, so a clan's channels and a staff channel live side by
+     * side. A message typed into a channel is handed to the plugin that owns
+     * it, which decides who reads it and posts it back with {@link #post}.
+     *
+     * @since 1.233.0
+     */
+    public interface Chat {
+
+        /**
+         * Replaces the channels this plugin offers a player.
+         *
+         * @param player   the player
+         * @param channels the channels, empty to take this plugin's away
+         */
+        void channels(@NotNull Player player, @NotNull java.util.List<ChatChannel> channels);
+
+        /**
+         * Shows a message in one of this plugin's channels.
+         *
+         * @param viewers who read it; players without the panel are skipped
+         * @param channel the channel's name
+         * @param sender  who wrote it, {@code null} for a system message
+         * @param badge   shown before the sender's name, such as a rank
+         * @param message the message
+         */
+        void post(@NotNull Collection<? extends Player> viewers, @NotNull String channel,
+                  Player sender, @NotNull net.kyori.adventure.text.Component badge,
+                  @NotNull net.kyori.adventure.text.Component message);
+
+        /**
+         * Says what to do with a message typed into one of this plugin's
+         * channels. Replaces the previous handler.
+         *
+         * <p>Called on whatever thread the client's message arrived on.
+         *
+         * @param handler receives the sender, the channel's name and the text
+         */
+        void onMessage(@NotNull ChatHandler handler);
+
+        /**
+         * Returns whether the player's client has a chat panel.
+         *
+         * @param player the player
+         * @return {@code true} when channels reach them
+         */
+        boolean supported(@NotNull Player player);
+    }
+
+    /**
+     * Receives a message typed into a plugin's chat channel.
+     *
+     * @since 1.233.0
+     */
+    @FunctionalInterface
+    public interface ChatHandler {
+
+        /**
+         * Handles one message.
+         *
+         * @param sender  who typed it
+         * @param channel the channel's name
+         * @param message what they typed
+         */
+        void handle(@NotNull Player sender, @NotNull String channel, @NotNull String message);
+    }
+
+    /**
+     * Keys a plugin adds to the client's controls screen.
+     *
+     * <p>Registered once and offered to every player whose client has a
+     * controls screen, now and whenever one joins.
+     *
+     * @since 1.233.0
+     */
+    public interface Keybinds {
+
+        /**
+         * Adds a key, or replaces the one with the same name.
+         *
+         * @param keybind the key
+         */
+        void register(@NotNull Keybind keybind);
+
+        /**
+         * Removes a key.
+         *
+         * @param name the name it was registered with
+         */
+        void unregister(@NotNull String name);
+
+        /**
+         * Says what to do when a player presses one of this plugin's keys.
+         * Replaces the previous handler.
+         *
+         * <p>Called on whatever thread the client's press arrived on.
+         *
+         * @param handler receives the player and the key's name
+         */
+        void onPress(@NotNull java.util.function.BiConsumer<Player, String> handler);
     }
 
     /**

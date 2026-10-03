@@ -30,7 +30,8 @@ import java.time.Duration;
  * @since 1.232.0
  */
 public record Timer(@NotNull String name, @NotNull Component label, boolean countdown,
-                    @NotNull Duration value, boolean paused, @Nullable TextColor colour) {
+                    @NotNull Duration value, boolean paused, @Nullable TextColor colour)
+        implements ClientElement {
 
     public Timer {
         if (name == null || name.isBlank()) {
@@ -76,6 +77,23 @@ public record Timer(@NotNull String name, @NotNull Component label, boolean coun
      */
     public @NotNull Timer paused(boolean paused) {
         return new Timer(name, label, countdown, value, paused, colour);
+    }
+
+    /**
+     * Returns this timer as it reads after some time has passed.
+     *
+     * <p>For sending it again later: a countdown has less left, a stopwatch
+     * more, and a paused timer has not moved.
+     *
+     * @param passed how long since it was shown
+     * @return the timer
+     */
+    public @NotNull Timer after(@NotNull Duration passed) {
+        if (paused) {
+            return this;
+        }
+        Duration moved = countdown ? value.minus(passed) : value.plus(passed);
+        return new Timer(name, label, countdown, moved.isNegative() ? Duration.ZERO : moved, false, colour);
     }
 
     /**
