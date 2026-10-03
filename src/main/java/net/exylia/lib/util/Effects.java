@@ -329,12 +329,26 @@ public final class Effects {
      */
     public static void keepThroughTotem(@NotNull org.bukkit.plugin.Plugin plugin,
                                         @NotNull java.util.function.Function<Player, List<String>> rule) {
-        TOTEM_RULES.put(plugin.getName(), new TotemRule(plugin, rule));
+        keepThroughTotem(plugin, "", rule);
     }
 
-    /** Drops one plugin's totem rule. Called when the plugin disables. */
+    /**
+     * The same, for a plugin whose modules each keep their own effects: one
+     * rule per {@code id}, so a second module does not replace the first.
+     *
+     * @param plugin the plugin that owns the effects
+     * @param id     which of the plugin's rules this is
+     * @param rule   the lines to keep for a player, in the notation of {@link #apply}
+     * @since 1.235.0
+     */
+    public static void keepThroughTotem(@NotNull org.bukkit.plugin.Plugin plugin, @NotNull String id,
+                                        @NotNull java.util.function.Function<Player, List<String>> rule) {
+        TOTEM_RULES.put(plugin.getName() + '\0' + id, new TotemRule(plugin, rule));
+    }
+
+    /** Drops one plugin's totem rules. Called when the plugin disables. */
     public static void release(@NotNull String pluginName) {
-        TOTEM_RULES.remove(pluginName);
+        TOTEM_RULES.keySet().removeIf(key -> key.startsWith(pluginName + '\0'));
     }
 
     /** Drops every totem rule. Called when the library disables. */
