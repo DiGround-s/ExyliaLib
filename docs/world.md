@@ -93,10 +93,44 @@ it does remember is the detected backend, dropped by
 `WorldsBackendDetector.reset()` — internal, for a reload flow that has to pick up
 a Worlds plugin enabled after the first probe.
 
+## The temporary world
+
+`TemporaryWorld` (1.229.0) is the one throwaway world every plugin pastes its
+arena copies into — PracticeCore's duel clones and Events' brackets and build
+plots share it.
+
+```java
+TemporaryWorld.world(); // from onEnable: create it now, not on the first match
+
+TemporaryWorld.reserve(width, depth).thenAccept(plot -> {
+    if (plot == null) {
+        return; // no world on this server: fall back to the original arena
+    }
+    schematics.paste(name, plot.origin(64));
+});
+```
+
+- **Never kept.** The folder `exylialib_temporary` is deleted when the library
+  enables (load `STARTUP`, before any world loads, so a crash leaves nothing
+  behind) and again when it disables. Created on first use only.
+- **Where a plot lands.** The world is cut into 64-block cells, searched ring by
+  ring from the origin. A plot is chunk aligned and keeps an empty gap to its
+  neighbours wider than the server's view distance, so no copy sees another.
+  A cell is never handed out twice in one run: every plot lands on untouched
+  void, and there is nothing to release or clear.
+- **Rules.** Void, hard, PvP on, frozen at noon; no weather, mobs, fire spread,
+  mob griefing, random ticks, phantoms, advancement or death announcements, or
+  autosave.
+- **Shared.** Other plugins use the same world. A listener that scopes itself
+  to "the temporary world" scopes itself to everybody's arenas; scope to your
+  own plots instead.
+- Creation goes through Worlds on Folia and `WorldCreator` elsewhere.
+
 ## Source and tests
 
-- Public: `util/world/Worlds.java`.
+- Public: `util/world/Worlds.java`, `util/world/TemporaryWorld.java`.
 - Internal: `util/world/internal/` (`WorldsBackend`, `WorldsBackendDetector`,
-  `WorldsReflection`, `Worlds3Backend`, `Worlds4Backend`).
+  `WorldsReflection`, `Worlds3Backend`, `Worlds4Backend`, `PlotGrid`).
 - Tests: `src/test/java/net/exylia/lib/util/world/WorldsTest.java` — the
   degradation contract, which is the path every server without Worlds takes.
+  `PlotGridTest.java` — plots never overlap, keep their gap and stay compact.

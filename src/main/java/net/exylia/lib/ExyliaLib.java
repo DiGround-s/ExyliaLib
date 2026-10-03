@@ -183,6 +183,9 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         // Right after the settings it reads, and before anything whose errors
         // it should count.
         net.exylia.lib.metrics.internal.MetricsRuntime.start(this);
+        // At STARTUP, before any world loads: whatever a crash left in the
+        // temporary world is deleted before anything can load it.
+        net.exylia.lib.util.world.TemporaryWorld.start(this);
 
         getServer().getPluginManager().registerEvents(this, this);
         // One listener for every plugin's menus: an inventory event fires once,
@@ -629,6 +632,8 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         // plus one: releasing the engine drops every loaded clipboard, and
         // those are tens of megabytes each.
         SchematicRuntime.shutdown();
+        // After the schematics, so no paste is still writing into it.
+        net.exylia.lib.util.world.TemporaryWorld.shutdown();
         // Before the task module, because the shared timer is one of its tasks,
         // and because a fire dispatched on the way down would schedule work on
         // a plugin that has already stopped.
