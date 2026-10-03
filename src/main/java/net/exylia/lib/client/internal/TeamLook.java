@@ -19,9 +19,10 @@ import java.util.UUID;
  * @param colour     the colour of the viewer's own group
  * @param allyColour the colour of every other group in the team
  * @param members    the group and rank of each member that was described
+ * @param groupNames names given to single groups
  */
 record TeamLook(UUID id, Component name, TextColor colour, TextColor allyColour,
-                Map<UUID, Member> members) {
+                Map<UUID, Member> members, Map<String, Component> groupNames) {
 
     /** One member's group and rank. A {@code null} group is everyone's group. */
     record Member(String group, ClientTeam.Rank rank) {
@@ -30,6 +31,13 @@ record TeamLook(UUID id, Component name, TextColor colour, TextColor allyColour,
     /** Returns whether the team was styled, so a client should draw its panel. */
     boolean styled() {
         return name != null;
+    }
+
+    /** Returns the name {@code viewer} sees: their group's, else the team's. */
+    Component nameFor(UUID viewer) {
+        Member mine = members.get(viewer);
+        Component own = mine == null || mine.group() == null ? null : groupNames.get(mine.group());
+        return own != null ? own : name;
     }
 
     /** Returns whether {@code other} belongs to a different group than {@code viewer}. */

@@ -164,6 +164,19 @@ public interface ClientTeam {
     void describe(@NotNull UUID playerId, @Nullable String group, @NotNull Rank rank);
 
     /**
+     * Names one group, so its members see their own group's name on the panel
+     * rather than the team's.
+     *
+     * <p>For a team made of several groups, such as a clan and its allies:
+     * each clan sees its own name. Takes effect at the next draw.
+     *
+     * @param group the group, as passed to {@link #describe}
+     * @param name  its name
+     * @since 1.231.0
+     */
+    void nameGroup(@NotNull String group, @NotNull Component name);
+
+    /**
      * A member's standing in their group.
      *
      * @since 1.231.0

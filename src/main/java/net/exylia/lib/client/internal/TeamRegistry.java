@@ -198,6 +198,9 @@ public final class TeamRegistry {
         private volatile TextColor colour = NamedTextColor.WHITE;
         private volatile TextColor allyColour = NamedTextColor.WHITE;
 
+        /** Names given to groups, by group. */
+        private final Map<String, Component> groupNames = new ConcurrentHashMap<>();
+
         /** Each described member's group and rank. */
         private final Map<UUID, TeamLook.Member> described = new ConcurrentHashMap<>();
 
@@ -324,6 +327,12 @@ public final class TeamRegistry {
         }
 
         @Override
+        public void nameGroup(@NotNull String group, @NotNull Component name) {
+            groupNames.put(java.util.Objects.requireNonNull(group, "group"),
+                    java.util.Objects.requireNonNull(name, "name"));
+        }
+
+        @Override
         public void describe(@NotNull UUID playerId, @Nullable String group, @NotNull Rank rank) {
             described.put(playerId, new TeamLook.Member(group, java.util.Objects.requireNonNull(rank, "rank")));
         }
@@ -335,7 +344,8 @@ public final class TeamRegistry {
                 return;
             }
             ClientRuntime.drawTeam(present,
-                    new TeamLook(id, name, colour, allyColour, Map.copyOf(described)));
+                    new TeamLook(id, name, colour, allyColour,
+                            Map.copyOf(described), Map.copyOf(groupNames)));
         }
 
         /**

@@ -239,6 +239,7 @@ class ClientTeamTest {
         team.style(net.kyori.adventure.text.Component.text("Red"),
                 net.kyori.adventure.text.format.NamedTextColor.GREEN,
                 net.kyori.adventure.text.format.NamedTextColor.AQUA);
+        team.nameGroup("blue", net.kyori.adventure.text.Component.text("Blue"));
         team.describe(alice.player().getUniqueId(), "red", ClientTeam.Rank.LEADER);
         team.describe(bob.player().getUniqueId(), "red", ClientTeam.Rank.MEMBER);
         team.describe(carol.player().getUniqueId(), "blue", ClientTeam.Rank.OFFICER);
@@ -253,6 +254,8 @@ class ClientTeamTest {
         assertFalse(look.ally(a, b));
         assertTrue(look.ally(a, c));
         assertTrue(look.ally(c, a));
+        assertEquals(net.kyori.adventure.text.Component.text("Red"), look.nameFor(a));
+        assertEquals(net.kyori.adventure.text.Component.text("Blue"), look.nameFor(c));
         assertEquals(net.kyori.adventure.text.format.NamedTextColor.GREEN, look.colourOf(a, b));
         assertEquals(net.kyori.adventure.text.format.NamedTextColor.AQUA, look.colourOf(a, c));
     }

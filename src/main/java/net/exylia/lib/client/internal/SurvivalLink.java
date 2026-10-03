@@ -262,7 +262,7 @@ final class SurvivalLink implements ClientLink {
                 .members(members)
                 .hudList(look != null && look.styled());
         if (look != null && look.styled()) {
-            view.name(look.name()).color(look.colour());
+            view.name(look.nameFor(viewerId)).color(look.colour());
         }
         api.teams().show(viewer, view.build());
         // A bare markers push has no team for a ping to reach.
