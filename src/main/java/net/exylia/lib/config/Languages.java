@@ -5,6 +5,7 @@ import net.exylia.lib.debug.Debug;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.plugin.Plugin;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 import java.io.File;
 import java.io.IOException;
@@ -14,6 +15,8 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.regex.Pattern;
 
 /**
@@ -90,7 +93,31 @@ public final class Languages {
     private static final String LIBRARY = "ExyliaLib";
     private static final Pattern CODE = Pattern.compile("[a-z0-9_-]{1,32}");
 
+    /** Languages set from code, by plugin name, ahead of any {@code config.yml}. */
+    private static final Map<String, String> CHOSEN = new ConcurrentHashMap<>();
+
     private Languages() {
+    }
+
+    /**
+     * Sets a plugin's language from code, for a plugin that keeps its settings
+     * somewhere other than {@code config.yml}, such as a database.
+     *
+     * <p>Wins over the plugin's {@code config.yml}; {@link #DEFAULT} or
+     * {@code null} goes back to reading it. Reload the plugin's files after
+     * calling this so they are read in the new language.
+     *
+     * @param plugin the plugin
+     * @param code   a language code such as {@code es}, or {@code null}
+     * @since 1.237.0
+     */
+    public static void use(@NotNull Plugin plugin, @Nullable String code) {
+        String clean = code == null ? DEFAULT : code.trim().toLowerCase(Locale.ROOT);
+        if (clean.equals(DEFAULT) || !CODE.matcher(clean).matches()) {
+            CHOSEN.remove(plugin.getName());
+        } else {
+            CHOSEN.put(plugin.getName(), clean);
+        }
     }
 
     /**
@@ -104,6 +131,10 @@ public final class Languages {
      * @return a lower-case code such as {@code en}, {@code es} or {@code custom}
      */
     public static @NotNull String code(@NotNull Plugin plugin) {
+        String chosen = CHOSEN.get(plugin.getName());
+        if (chosen != null) {
+            return chosen;
+        }
         String own = read(plugin, plugin.getDataFolder());
         if (!own.equals(DEFAULT)) {
             return own;
