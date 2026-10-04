@@ -10,6 +10,10 @@ import java.util.Locale;
 /**
  * Cooldowns on items, drawn by the client.
  *
+ * <p>Every client gets the vanilla sweep over the item; Lunar and SurvivalCore
+ * also get the cooldown on their HUD with the item as its icon, through
+ * {@link net.exylia.lib.client.Clients#cooldowns()}.
+ *
  * <p>{@link Cooldowns} with two things added: the vanilla cooldown overlay
  * Minecraft draws over an item stack, and a key derived from the material so
  * two plugins that both cool down ender pearls agree about it.
@@ -106,6 +110,7 @@ public final class ItemCooldowns {
     public static void clear(@NotNull Player player, @NotNull Material material) {
         Cooldowns.clear(player, keyOf(material));
         overlay.show(player, material, 0);
+        net.exylia.lib.client.Clients.cooldowns().remove(player, keyOf(material));
     }
 
     // ------------------------------------------------------------------
@@ -122,6 +127,11 @@ public final class ItemCooldowns {
                              @NotNull Material material, @NotNull Duration duration) {
         Cooldowns.start(player, NAMESPACE + key, duration);
         overlay.show(player, material, ticksOf(duration));
+        // Lunar and SurvivalCore draw it on the HUD with the item's icon, the
+        // way Apollo always did; on every other client this sends nothing.
+        net.exylia.lib.client.Clients.cooldowns().show(player,
+                net.exylia.lib.client.Cooldown.of(NAMESPACE + key, duration)
+                        .icon(net.exylia.lib.client.Cooldown.Icon.item(material.name())));
     }
 
     /** Starts a named item's cooldown and returns whether it was free. */
@@ -160,6 +170,7 @@ public final class ItemCooldowns {
                              @NotNull Material material) {
         Cooldowns.clear(player, NAMESPACE + key);
         overlay.show(player, material, 0);
+        net.exylia.lib.client.Clients.cooldowns().remove(player, NAMESPACE + key);
     }
 
     /**
@@ -174,6 +185,9 @@ public final class ItemCooldowns {
                 .toMillis();
         if (left > 0) {
             overlay.show(player, material, (int) (left / 50L));
+            net.exylia.lib.client.Clients.cooldowns().show(player,
+                    net.exylia.lib.client.Cooldown.of(keyOf(material), Duration.ofMillis(left))
+                            .icon(net.exylia.lib.client.Cooldown.Icon.item(material.name())));
         }
     }
 

@@ -637,4 +637,19 @@ class ClientTest {
         ClientRuntime.of(game).chat().channels(lunar.player(), List.of());
         assertEquals(java.util.Map.of("ExyliaLobby", List.of(staff)), lunarLink.lastChannels);
     }
+
+    @Test
+    @DisplayName("a cooldown started while the client read as vanilla arrives with the time it has left")
+    void cooldownWaitsForTheClient() {
+        lunarLink.disown(lunar.player());
+        ClientRegistry.forget(lunar.player().getUniqueId());
+        assertFalse(Clients.cooldowns().show(lunar.player(), Cooldown.seconds("pearl", 16)));
+
+        lunarLink.owning(lunar.player());
+        ClientRuntime.redetect(lunar.player());
+
+        List<String> sent = lunarLink.calls("cooldown");
+        assertEquals(1, sent.size());
+        assertTrue(sent.get(0).startsWith("cooldown:Lunar:pearl:"));
+    }
 }

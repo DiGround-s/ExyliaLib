@@ -224,12 +224,30 @@ public final class ClientState {
     // Cooldowns
     // ------------------------------------------------------------------
 
-    static void rememberCooldown(UUID player, String owner, String name) {
-        remember(COOLDOWNS, player, owner, name);
+    /** Each cooldown as it was shown, so one still running can be sent again. */
+    record SentCooldown(net.exylia.lib.client.Cooldown cooldown, java.time.Instant at) {
+    }
+
+    private static final Map<UUID, Map<Key, SentCooldown>> SENT_COOLDOWNS = new ConcurrentHashMap<>();
+
+    static void rememberCooldown(UUID player, String owner, net.exylia.lib.client.Cooldown cooldown) {
+        remember(COOLDOWNS, player, owner, cooldown.name());
+        SENT_COOLDOWNS.computeIfAbsent(player, id -> new ConcurrentHashMap<>())
+                .put(new Key(owner, cooldown.name()), new SentCooldown(cooldown, java.time.Instant.now()));
     }
 
     static void forgetCooldown(UUID player, String owner, String name) {
         forget(COOLDOWNS, player, owner, name);
+        Map<Key, SentCooldown> sent = SENT_COOLDOWNS.get(player);
+        if (sent != null) {
+            sent.remove(new Key(owner, name));
+        }
+    }
+
+    /** Every cooldown a player was shown, for sending again. */
+    static Collection<Map.Entry<Key, SentCooldown>> sentCooldownsOf(UUID player) {
+        Map<Key, SentCooldown> sent = SENT_COOLDOWNS.get(player);
+        return sent == null ? List.of() : List.copyOf(sent.entrySet());
     }
 
     static Collection<Key> cooldownsOf(UUID player) {
@@ -249,6 +267,7 @@ public final class ClientState {
 
     static void clearCooldowns(UUID player) {
         COOLDOWNS.remove(player);
+        SENT_COOLDOWNS.remove(player);
     }
 
     // ------------------------------------------------------------------
@@ -436,6 +455,7 @@ public final class ClientState {
     public static void forget(UUID player) {
         WAYPOINTS.remove(player);
         COOLDOWNS.remove(player);
+        SENT_COOLDOWNS.remove(player);
         for (Map<UUID, Map<Key, Shown>> byPlayer : ELEMENTS.values()) {
             byPlayer.remove(player);
         }
@@ -450,6 +470,7 @@ public final class ClientState {
     public static void clear() {
         WAYPOINTS.clear();
         COOLDOWNS.clear();
+        SENT_COOLDOWNS.clear();
         ELEMENTS.clear();
         CHANNELS.clear();
         MARKERS.clear();

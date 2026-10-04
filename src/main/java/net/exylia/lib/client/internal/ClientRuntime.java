@@ -602,12 +602,14 @@ public final class ClientRuntime {
 
         @Override
         public boolean show(@NotNull Player player, @NotNull Cooldown cooldown) {
+            // Remembered even when the client cannot draw it yet, so a client
+            // that announces itself while it is running still gets it.
+            ClientState.rememberCooldown(player.getUniqueId(), owner, cooldown);
             ClientLink link = ClientRegistry.of(player);
             if (!link.supportsCooldowns()) {
                 return false;
             }
             safely(() -> link.showCooldown(player, cooldown));
-            ClientState.rememberCooldown(player.getUniqueId(), owner, cooldown.name());
             return true;
         }
 
@@ -889,6 +891,18 @@ public final class ClientRuntime {
             if (link.supports(element.getClass())) {
                 ClientElement current = element;
                 safely(() -> link.show(player, current));
+            }
+        }
+        for (Map.Entry<ClientState.Key, ClientState.SentCooldown> entry : ClientState.sentCooldownsOf(id)) {
+            Cooldown cooldown = entry.getValue().cooldown();
+            java.time.Duration left = cooldown.duration()
+                    .minus(java.time.Duration.between(entry.getValue().at(), now));
+            if (left.isNegative() || left.isZero()) {
+                ClientState.forgetCooldown(id, entry.getKey().owner(), cooldown.name());
+                continue;
+            }
+            if (link.supportsCooldowns()) {
+                safely(() -> link.showCooldown(player, Cooldown.of(cooldown.name(), left).icon(cooldown.icon())));
             }
         }
         if (link.supportsChat()) {
