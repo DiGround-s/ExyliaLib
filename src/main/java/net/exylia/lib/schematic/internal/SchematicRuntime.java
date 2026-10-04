@@ -24,6 +24,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * The schematic module's working parts.
@@ -256,11 +257,8 @@ public final class SchematicRuntime {
                 return;
             }
             if (options.clearEntities()) {
-                owner.scheduler().runAtLocation(origin, () -> stage(owner, future, name, () -> {
-                    clear(target, box);
-                    owner.scheduler().runAsync(() -> stage(owner, future, name,
-                            () -> pasteBack(owner, future, name, target, box, source, origin, options)));
-                }));
+                clear(owner, target, box, () -> owner.scheduler().runAsync(() -> stage(owner, future, name,
+                        () -> pasteBack(owner, future, name, target, box, source, origin, options))));
                 return;
             }
             pasteBack(owner, future, name, target, box, source, origin, options);
@@ -350,14 +348,34 @@ public final class SchematicRuntime {
      * <p>Players are never touched: a regeneration clears what the last match
      * dropped, not who is watching it.
      */
-    private static void clear(World world, Bounds box) {
-        BoundingBox area = new BoundingBox(box.minX(), box.minY(), box.minZ(),
-                box.maxX() + 1.0, box.maxY() + 1.0, box.maxZ() + 1.0);
-        for (Entity entity : world.getNearbyEntities(area)) {
-            if (entity instanceof Player) {
-                continue;
+    private static void clear(Owner owner, World world, Bounds box, Runnable then) {
+        // One task per chunk, each on the thread that owns it: on Folia a box
+        // can straddle regions, and sweeping all of it from one of them threw
+        // on the first entity of the next and failed the whole regeneration.
+        int minChunkX = box.minX() >> 4;
+        int maxChunkX = box.maxX() >> 4;
+        int minChunkZ = box.minZ() >> 4;
+        int maxChunkZ = box.maxZ() >> 4;
+        AtomicInteger remaining = new AtomicInteger((maxChunkX - minChunkX + 1) * (maxChunkZ - minChunkZ + 1));
+        for (int chunkX = minChunkX; chunkX <= maxChunkX; chunkX++) {
+            for (int chunkZ = minChunkZ; chunkZ <= maxChunkZ; chunkZ++) {
+                BoundingBox area = new BoundingBox(
+                        Math.max(box.minX(), chunkX << 4), box.minY(), Math.max(box.minZ(), chunkZ << 4),
+                        Math.min(box.maxX() + 1.0, (chunkX << 4) + 16.0), box.maxY() + 1.0,
+                        Math.min(box.maxZ() + 1.0, (chunkZ << 4) + 16.0));
+                Location at = new Location(world, (chunkX << 4) + 8, box.minY(), (chunkZ << 4) + 8);
+                owner.scheduler().runAtLocation(at, () -> {
+                    try {
+                        for (Entity entity : world.getNearbyEntities(area)) {
+                            if (!(entity instanceof Player)) entity.remove();
+                        }
+                    } catch (Throwable failure) {
+                        owner.debug.warn("Could not clear the entities of a regenerated chunk: " + failure);
+                    } finally {
+                        if (remaining.decrementAndGet() == 0) then.run();
+                    }
+                });
             }
-            entity.remove();
         }
     }
 
