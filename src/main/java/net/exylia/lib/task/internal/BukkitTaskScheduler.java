@@ -118,7 +118,7 @@ public final class BukkitTaskScheduler extends AbstractTaskScheduler {
     @Override
     public @NotNull TaskHandle runAtEntity(@NotNull Entity entity, @NotNull Runnable task, @Nullable Runnable retired) {
         return run(() -> {
-            if (entity.isValid()) {
+            if (exists(entity)) {
                 task.run();
             } else if (retired != null) {
                 retired.run();
@@ -129,7 +129,7 @@ public final class BukkitTaskScheduler extends AbstractTaskScheduler {
     @Override
     public @NotNull TaskHandle runAtEntityLater(@NotNull Entity entity, long delayTicks, @NotNull Runnable task) {
         return runLater(delayTicks, () -> {
-            if (entity.isValid()) {
+            if (exists(entity)) {
                 task.run();
             }
         });
@@ -144,7 +144,7 @@ public final class BukkitTaskScheduler extends AbstractTaskScheduler {
         // behaviour matches on both platforms.
         TrackedHandle handle = newHandle(true);
         BukkitTask bukkitTask = scheduler.runTaskTimer(plugin, repeating(handle, () -> {
-            if (entity.isValid()) {
+            if (exists(entity)) {
                 task.run();
             } else {
                 handle.cancel();

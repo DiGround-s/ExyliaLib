@@ -63,7 +63,7 @@ correctly costs nothing.
 - Cancellation of everything when the consuming plugin disables.
 - Exception isolation: a task that throws does not kill the scheduler.
 - Tick normalization (delay 0 means "next tick").
-- Entity timers stop on their own when the entity is gone.
+- Entity timers stop on their own when the entity is gone. A player counts as gone only once it disconnects, so its timers survive death and respawn.
 - Scheduling from a plugin that is already disabled, which the server's own
   scheduler answers by throwing. A one-shot (including `runAsync`) runs inline,
   on the thread that asked, so a save or a cleanup issued from `onDisable`

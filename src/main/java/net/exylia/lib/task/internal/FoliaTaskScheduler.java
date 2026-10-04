@@ -139,7 +139,7 @@ public final class FoliaTaskScheduler extends AbstractTaskScheduler {
     @Override
     public @NotNull TaskHandle runAtEntity(@NotNull Entity entity, @NotNull Runnable task, @Nullable Runnable retired) {
         TaskHandle stopped = runIfStopped(() -> {
-            if (entity.isValid()) {
+            if (exists(entity)) {
                 task.run();
             } else if (retired != null) {
                 retired.run();
@@ -170,7 +170,7 @@ public final class FoliaTaskScheduler extends AbstractTaskScheduler {
     @Override
     public @NotNull TaskHandle runAtEntityLater(@NotNull Entity entity, long delayTicks, @NotNull Runnable task) {
         TaskHandle stopped = runIfStopped(() -> {
-            if (entity.isValid()) {
+            if (exists(entity)) {
                 task.run();
             }
         });

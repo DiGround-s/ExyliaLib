@@ -4,6 +4,7 @@ import net.exylia.lib.task.TaskHandle;
 import net.exylia.lib.task.TaskScheduler;
 import org.bukkit.Location;
 import org.bukkit.entity.Entity;
+import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -220,6 +221,21 @@ public abstract class AbstractTaskScheduler implements TaskScheduler {
     @Override
     public final @NotNull TaskHandle runAsyncTimer(long delayTicks, long periodTicks, @NotNull Consumer<TaskHandle> task) {
         return selfCancelling(handle -> runAsyncTimer(delayTicks, periodTicks, handle), task);
+    }
+
+    /**
+     * Whether an entity task should still run for {@code entity}.
+     *
+     * <p>Mirrors Folia's entity scheduler: a player keeps its tasks until it
+     * disconnects, through death and respawn, while any other entity loses
+     * them once it is no longer valid. {@link Entity#isValid()} alone is false
+     * for a dead player and would silently end every per-player timer.
+     *
+     * @param entity the entity the task acts on
+     * @return {@code true} if the task should run
+     */
+    protected static boolean exists(@NotNull Entity entity) {
+        return entity instanceof Player player ? player.isOnline() : entity.isValid();
     }
 
     @Override
