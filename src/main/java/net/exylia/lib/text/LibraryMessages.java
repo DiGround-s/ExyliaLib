@@ -30,6 +30,7 @@ import org.jetbrains.annotations.NotNull;
  * @param wizard    what a guided flow tells a player to do
  * @param selection what the block selector tells them while they pick
  * @param players   what a command says about a player it cannot find
+ * @param purchase  what buying a cosmetic with currency says
  * @since 1.67.0
  */
 @Comment("What ExyliaLib itself says to your players.")
@@ -51,12 +52,20 @@ public record LibraryMessages(
         @NotNull Selection selection,
 
         @Comment("What a command says about a player it cannot find.")
-        @NotNull Players players
+        @NotNull Players players,
+
+        @Comment("What buying a cosmetic with currency says, in every cosmetic plugin.")
+        @NotNull Purchase purchase
 ) {
 
     /** The Exylia defaults. */
     public LibraryMessages() {
-        this(new Wizard(), new Selection(), new Players());
+        this(new Wizard(), new Selection(), new Players(), new Purchase());
+    }
+
+    /** The messages before purchases had any, with the purchase defaults. */
+    public LibraryMessages(Wizard wizard, Selection selection, Players players) {
+        this(wizard, selection, players, null);
     }
 
     public LibraryMessages {
@@ -68,6 +77,9 @@ public record LibraryMessages(
         }
         if (players == null) {
             players = new Players();
+        }
+        if (purchase == null) {
+            purchase = new Purchase();
         }
     }
 
@@ -299,6 +311,123 @@ public record LibraryMessages(
         public Players {
             notFound = orDefault(notFound, DEFAULT_NOT_FOUND);
             notHere = orDefault(notHere, DEFAULT_NOT_HERE);
+        }
+    }
+
+    /**
+     * What buying a cosmetic with currency says.
+     *
+     * <p>One set for every cosmetic plugin, because the flow is the library's:
+     * {@link net.exylia.lib.cosmetic.CosmeticPurchases} charges, grants and
+     * refunds, so it owns the sentences that report it.
+     *
+     * <p>{@code %item%} is the cosmetic's display name, {@code %price%} the price
+     * written the way its currency writes it, {@code %balance%} what the player
+     * holds of that currency.
+     *
+     * @param confirm       the confirmation screen's title
+     * @param confirmButton the confirmation screen's buy button
+     * @param success       bought and granted
+     * @param insufficient  not enough money
+     * @param unavailable   no economy serves the price's currency
+     * @param busy          a purchase of theirs is still in flight
+     * @param alreadyOwned  they own it already
+     * @param failed        charged, not granted, refunded
+     * @param refundFailed  charged, not granted, and the refund was refused
+     * @since 1.239.0
+     */
+    public record Purchase(
+
+            @Comment("The title of the confirmation screen. %item% %price%.")
+            @NotNull String confirm,
+
+            @Key("confirm-button")
+            @Comment("The button that confirms the purchase.")
+            @NotNull String confirmButton,
+
+            @Comment("Sent once the cosmetic is theirs. %item% %price%.")
+            @NotNull String success,
+
+            @Key("insufficient-funds")
+            @Comment("Sent when they cannot afford it. %item% %price% %balance%.")
+            @NotNull String insufficient,
+
+            @Comment("Sent when no economy can take the price right now. %item%.")
+            @NotNull String unavailable,
+
+            @Comment("Sent when a purchase of theirs is still being processed.")
+            @NotNull String busy,
+
+            @Key("already-owned")
+            @Comment("Sent when they already own it. %item%.")
+            @NotNull String alreadyOwned,
+
+            @Comment("Sent when the cosmetic could not be given and the money")
+            @Comment("went back to them. %item% %price%.")
+            @NotNull String failed,
+
+            @Key("refund-failed")
+            @Comment("Sent when the cosmetic could not be given and the refund")
+            @Comment("failed too; the console logs what to give back. %item% %price%.")
+            @NotNull String refundFailed
+    ) {
+
+        /** The confirmation screen's title. */
+        public static final String DEFAULT_CONFIRM =
+                "{letters}Buy {highlight}%item% {letters}for {info}%price%{letters}?";
+
+        /** The confirmation screen's buy button. */
+        public static final String DEFAULT_CONFIRM_BUTTON = "{success}&lBUY";
+
+        /** Bought and granted. */
+        public static final String DEFAULT_SUCCESS =
+                "[sound:ENTITY_PLAYER_LEVELUP|1|1.4]{success}✔ {letters}You unlocked {highlight}%item% "
+                        + "{letters}for {info}%price%{letters}.";
+
+        /** Not enough money. */
+        public static final String DEFAULT_INSUFFICIENT =
+                "[sound:ENTITY_VILLAGER_NO|1|1]{error}✖ {letters}You need {info}%price% {letters}to buy "
+                        + "{highlight}%item% {letters_black}» {letters}you have {info}%balance%{letters}.";
+
+        /** No economy serves the currency. */
+        public static final String DEFAULT_UNAVAILABLE =
+                "[sound:ENTITY_VILLAGER_NO|1|1]{error}✖ {highlight}%item% {letters}cannot be bought right now.";
+
+        /** A purchase is in flight. */
+        public static final String DEFAULT_BUSY =
+                "{warning}➥ {letters}Your previous purchase is still being processed.";
+
+        /** Already theirs. */
+        public static final String DEFAULT_ALREADY_OWNED =
+                "{warning}➥ {letters}You already own {highlight}%item%{letters}.";
+
+        /** Not granted, refunded. */
+        public static final String DEFAULT_FAILED =
+                "[sound:ENTITY_VILLAGER_NO|1|1]{error}✖ {highlight}%item% {letters}could not be unlocked. "
+                        + "{info}%price% {letters}was refunded.";
+
+        /** Not granted, refund refused. */
+        public static final String DEFAULT_REFUND_FAILED =
+                "[sound:ENTITY_VILLAGER_NO|1|1]{error}✖ {highlight}%item% {letters}could not be unlocked "
+                        + "and the refund of {info}%price% {letters}failed. {warning}Please contact staff.";
+
+        /** The Exylia defaults. */
+        public Purchase() {
+            this(DEFAULT_CONFIRM, DEFAULT_CONFIRM_BUTTON, DEFAULT_SUCCESS, DEFAULT_INSUFFICIENT,
+                    DEFAULT_UNAVAILABLE, DEFAULT_BUSY, DEFAULT_ALREADY_OWNED, DEFAULT_FAILED,
+                    DEFAULT_REFUND_FAILED);
+        }
+
+        public Purchase {
+            confirm = orDefault(confirm, DEFAULT_CONFIRM);
+            confirmButton = orDefault(confirmButton, DEFAULT_CONFIRM_BUTTON);
+            success = orDefault(success, DEFAULT_SUCCESS);
+            insufficient = orDefault(insufficient, DEFAULT_INSUFFICIENT);
+            unavailable = orDefault(unavailable, DEFAULT_UNAVAILABLE);
+            busy = orDefault(busy, DEFAULT_BUSY);
+            alreadyOwned = orDefault(alreadyOwned, DEFAULT_ALREADY_OWNED);
+            failed = orDefault(failed, DEFAULT_FAILED);
+            refundFailed = orDefault(refundFailed, DEFAULT_REFUND_FAILED);
         }
     }
 

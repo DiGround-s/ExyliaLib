@@ -17,3 +17,13 @@ selection:
 players:
   not-found: '[sound:ENTITY_VILLAGER_NO|1|1]{error}✖ {letters}No se encontró ningún jugador llamado {highlight}%player%{letters}.'
   not-here: '[sound:ENTITY_VILLAGER_NO|1|1]{error}✖ {highlight}%player% {letters}no está en este servidor.'
+purchase:
+  confirm: '{letters}¿Comprar {highlight}%item% {letters}por {info}%price%{letters}?'
+  confirm-button: '{success}&lCOMPRAR'
+  success: '[sound:ENTITY_PLAYER_LEVELUP|1|1.4]{success}✔ {letters}Desbloqueaste {highlight}%item% {letters}por {info}%price%{letters}.'
+  insufficient-funds: '[sound:ENTITY_VILLAGER_NO|1|1]{error}✖ {letters}Necesitas {info}%price% {letters}para comprar {highlight}%item% {letters_black}» {letters}tienes {info}%balance%{letters}.'
+  unavailable: '[sound:ENTITY_VILLAGER_NO|1|1]{error}✖ {highlight}%item% {letters}no se puede comprar ahora mismo.'
+  busy: '{warning}➥ {letters}Tu compra anterior todavía se está procesando.'
+  already-owned: '{warning}➥ {letters}Ya tienes {highlight}%item%{letters}.'
+  failed: '[sound:ENTITY_VILLAGER_NO|1|1]{error}✖ {letters}No se pudo desbloquear {highlight}%item%{letters}. Se te devolvieron {info}%price%{letters}.'
+  refund-failed: '[sound:ENTITY_VILLAGER_NO|1|1]{error}✖ {letters}No se pudo desbloquear {highlight}%item% {letters}y falló el reembolso de {info}%price%{letters}. {warning}Contacta con el staff.'

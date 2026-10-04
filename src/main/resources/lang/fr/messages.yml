@@ -17,3 +17,13 @@ selection:
 players:
   not-found: '[sound:ENTITY_VILLAGER_NO|1|1]{error}✖ {letters}Aucun joueur nommé {highlight}%player% {letters}n''a été trouvé.'
   not-here: '[sound:ENTITY_VILLAGER_NO|1|1]{error}✖ {highlight}%player% {letters}n''est pas sur ce serveur.'
+purchase:
+  confirm: '{letters}Acheter {highlight}%item% {letters}pour {info}%price%{letters} ?'
+  confirm-button: '{success}&lACHETER'
+  success: '[sound:ENTITY_PLAYER_LEVELUP|1|1.4]{success}✔ {letters}Tu as débloqué {highlight}%item% {letters}pour {info}%price%{letters}.'
+  insufficient-funds: '[sound:ENTITY_VILLAGER_NO|1|1]{error}✖ {letters}Il te faut {info}%price% {letters}pour acheter {highlight}%item% {letters_black}» {letters}tu as {info}%balance%{letters}.'
+  unavailable: '[sound:ENTITY_VILLAGER_NO|1|1]{error}✖ {highlight}%item% {letters}ne peut pas être acheté pour le moment.'
+  busy: '{warning}➥ {letters}Ton achat précédent est encore en cours de traitement.'
+  already-owned: '{warning}➥ {letters}Tu possèdes déjà {highlight}%item%{letters}.'
+  failed: '[sound:ENTITY_VILLAGER_NO|1|1]{error}✖ {letters}Impossible de débloquer {highlight}%item%{letters}. {info}%price% {letters}t''a été remboursé.'
+  refund-failed: '[sound:ENTITY_VILLAGER_NO|1|1]{error}✖ {letters}Impossible de débloquer {highlight}%item% {letters}et le remboursement de {info}%price% {letters}a échoué. {warning}Contacte le staff.'
