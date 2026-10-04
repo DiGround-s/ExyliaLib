@@ -85,6 +85,7 @@ class TapeTest {
     @Test
     @DisplayName("the same stamp a whole tick later is the next tick")
     void aRepeatedStampLaterIsTheNextTick() throws InterruptedException {
+        ReplayClock.useWall(true);
         Tape tape = tape();
         tape.put(5, WORLD, 0, 64, 0, 0f, 0f, MotionTrack.PRESENT, 20f);
         Thread.sleep(40);
@@ -92,5 +93,6 @@ class TapeTest {
         List<Tape.Frame> frames = tape.from(0);
         assertEquals(2, frames.size());
         assertEquals(6, frames.get(1).tick());
+        ReplayClock.useWall(false);
     }
 }

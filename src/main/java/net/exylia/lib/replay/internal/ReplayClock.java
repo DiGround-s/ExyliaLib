@@ -64,6 +64,19 @@ public final class ReplayClock {
         return (int) cached[1];
     }
 
+    /**
+     * Whether the clock is wall time, where one stamp can be read in two
+     * ticks. The server's own tick never repeats, so nothing is moved on there.
+     */
+    static boolean isWall() {
+        return wall;
+    }
+
+    /** For tests: which clock is in use. */
+    static void useWall(boolean useWall) {
+        wall = useWall;
+    }
+
     private static int serverTick() {
         try {
             return Bukkit.getCurrentTick();

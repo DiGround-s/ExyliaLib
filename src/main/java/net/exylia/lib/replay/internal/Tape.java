@@ -70,7 +70,8 @@ final class Tape {
                 // The same stamp a whole tick later: on Folia a region can read
                 // the global counter twice in one of its phases. It is the next
                 // tick, not this one again.
-                if (ticks[last] == tick && now - sampledAt > Sampler.SAME_TICK_NANOS && flags[last] != 0) {
+                if (ReplayClock.isWall() && ticks[last] == tick && now - sampledAt > Sampler.SAME_TICK_NANOS
+                        && flags[last] != 0) {
                     tick = tick + 1;
                 } else {
                     return true;

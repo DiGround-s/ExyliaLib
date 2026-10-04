@@ -379,7 +379,9 @@ public final class Recording implements ReplayRecorder {
             }
             // Dead, on the respawn screen: not here, but coming back. The
             // ticks in between are written as absent once they are back.
-            if (player.isDead()) {
+            // Or in spectator: flying through walls, invisible to everybody who
+            // was fighting. Not part of what happened.
+            if (player.isDead() || player.getGameMode() == org.bukkit.GameMode.SPECTATOR) {
                 follower.away = true;
                 follower.sampledAt = tick;
                 return;
@@ -397,7 +399,8 @@ public final class Recording implements ReplayRecorder {
             return;
         }
         long now = System.nanoTime();
-        if (tick == follower.sampledAt && now - follower.sampledNanos > Sampler.SAME_TICK_NANOS) {
+        if (ReplayClock.isWall() && tick == follower.sampledAt
+                && now - follower.sampledNanos > Sampler.SAME_TICK_NANOS) {
             // Folia: the same stamp read in two of this region's ticks. It is
             // the next one.
             tick++;
