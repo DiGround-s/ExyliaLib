@@ -2,6 +2,7 @@ package net.exylia.lib.replay;
 
 import net.exylia.lib.replay.internal.MotionTrack;
 import net.exylia.lib.replay.internal.ReplayCodec;
+import net.exylia.lib.replay.internal.TerrainSection;
 import org.jetbrains.annotations.ApiStatus;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -49,18 +50,24 @@ public final class Replay {
     private final List<ReplayActor> actors;
     private final List<MotionTrack> tracks;
     private final List<ReplayMark> marks;
+    private final List<ReplayScene> scenes;
+    private final @Nullable List<TerrainSection> terrain;
 
     /** Built by the recorder and by the codec, never by a caller. */
     @ApiStatus.Internal
     public Replay(@NotNull UUID id, long createdAt, int frames,
                   @NotNull List<ReplayActor> actors, @NotNull List<MotionTrack> tracks,
-                  @NotNull List<ReplayMark> marks) {
+                  @NotNull List<ReplayMark> marks, @NotNull List<ReplayScene> scenes,
+                  @Nullable List<TerrainSection> terrain) {
         this.id = id;
         this.createdAt = createdAt;
         this.frames = frames;
         this.actors = List.copyOf(actors);
         this.tracks = List.copyOf(tracks);
         this.marks = List.copyOf(marks);
+        this.scenes = scenes.isEmpty()
+                ? List.of(new ReplayScene(0, null, 0, 0, 0)) : List.copyOf(scenes);
+        this.terrain = terrain == null ? null : List.copyOf(terrain);
     }
 
     /**
@@ -72,7 +79,22 @@ public final class Replay {
      *         was written by a newer version of the library than this one
      */
     public static @NotNull Replay from(byte @NotNull [] bytes) {
-        return ReplayCodec.read(bytes);
+        return ReplayCodec.read(bytes, null);
+    }
+
+    /**
+     * Reads back a recording whose terrain was written to a chunk store by
+     * {@link #toBytes(ReplayChunks)}.
+     *
+     * <p>Reads the store on the calling thread, so call it off the server's.
+     *
+     * @param bytes  the blob
+     * @param chunks where its terrain was put
+     * @return the recording, with as much of its terrain as the store still has
+     * @since 1.241.0
+     */
+    public static @NotNull Replay from(byte @NotNull [] bytes, @NotNull ReplayChunks chunks) {
+        return ReplayCodec.read(bytes, chunks);
     }
 
     /**
@@ -81,7 +103,26 @@ public final class Replay {
      * @return the blob
      */
     public byte @NotNull [] toBytes() {
-        return ReplayCodec.write(this);
+        return ReplayCodec.write(this, null);
+    }
+
+    /**
+     * Writes it out with its terrain kept apart.
+     *
+     * <p>The terrain is most of a black-box recording, and most of it is the
+     * same ground recorded again: a spawn where people die every few minutes.
+     * Each piece of it goes to the store under a key made from its own
+     * content, so a piece already there is not stored a second time, and the
+     * blob carries only the keys.
+     *
+     * <p>Writes to the store on the calling thread, so call it off the server's.
+     *
+     * @param chunks where the terrain goes
+     * @return the blob, without the terrain in it
+     * @since 1.241.0
+     */
+    public byte @NotNull [] toBytes(@NotNull ReplayChunks chunks) {
+        return ReplayCodec.write(this, chunks);
     }
 
     /** Its own id, which is not any player's. */
@@ -107,6 +148,48 @@ public final class Replay {
     /** Everybody who was recorded, in the order they were followed. */
     public @NotNull List<ReplayActor> actors() {
         return actors;
+    }
+
+    /**
+     * The places it happened in, in order. A duel has one; a recording that
+     * followed somebody through a teleport has one for each side of it.
+     *
+     * @since 1.241.0
+     */
+    public @NotNull List<ReplayScene> scenes() {
+        return scenes;
+    }
+
+    /**
+     * Which scene a tick belongs to.
+     *
+     * @param tick the tick
+     * @return its index in {@link #scenes()}
+     * @since 1.241.0
+     */
+    public int sceneAt(int tick) {
+        int found = 0;
+        for (int index = 1; index < scenes.size(); index++) {
+            if (scenes.get(index).fromTick() <= tick) found = index;
+            else break;
+        }
+        return found;
+    }
+
+    /**
+     * Whether it carries the ground it happened on, which is what lets it be
+     * played back somewhere that ground is not.
+     *
+     * @since 1.241.0
+     */
+    public boolean hasTerrain() {
+        return terrain != null && !terrain.isEmpty();
+    }
+
+    /** The ground, by section; {@code null} when it carries none. */
+    @ApiStatus.Internal
+    public @Nullable List<TerrainSection> terrain() {
+        return terrain;
     }
 
     /** Everything that happened, in the order it happened. */
@@ -144,6 +227,31 @@ public final class Replay {
             return ReplayFrame.ABSENT;
         }
         return tracks.get(index).frame(tick);
+    }
+
+    /**
+     * The newest mark of one kind on or before a tick: what somebody's ping
+     * was, how the server was doing, at that moment of the recording.
+     *
+     * @param kind  which kind
+     * @param actor whose, or {@code null} for a mark that belongs to nobody
+     * @param tick  the tick
+     * @return the mark, or {@code null} when there is none yet
+     * @since 1.241.0
+     */
+    public @Nullable ReplayMark last(@NotNull String kind, @Nullable UUID actor, int tick) {
+        int low = 0;
+        int high = marks.size();
+        while (low < high) {
+            int middle = (low + high) >>> 1;
+            if (marks.get(middle).tick() <= tick) low = middle + 1;
+            else high = middle;
+        }
+        for (int index = low - 1; index >= 0; index--) {
+            ReplayMark mark = marks.get(index);
+            if (mark.kind().equals(kind) && java.util.Objects.equals(mark.actor(), actor)) return mark;
+        }
+        return null;
     }
 
     /** The tracks, in the same order as {@link #actors()}. */

@@ -84,6 +84,24 @@ public interface ReplayRecorder {
     void follow(@NotNull Entity entity);
 
     /**
+     * Records everything inside a box around the anchor by itself.
+     *
+     * <p>Whatever is in the box, or walks, flies or is thrown into it, is
+     * followed without being named: players, mobs, dropped items, arrows,
+     * pearls, boats. Every block that changes inside it is written down from
+     * the server's own events &mdash; placed, broken, blown up, burnt, grown,
+     * flowed into &mdash; with what it was before and what it became.
+     *
+     * <p>For a recording of a place rather than of a list of people. A plugin
+     * that already reports its own block changes can keep doing so; a change
+     * written twice is drawn once.
+     *
+     * @param radius how far from the anchor, in blocks, along each axis
+     * @since 1.241.0
+     */
+    void watch(double radius);
+
+    /**
      * Stops recording somebody, leaving what was already recorded of them.
      *
      * <p>Not needed when they quit or die &mdash; a player who is gone is

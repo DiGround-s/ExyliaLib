@@ -78,8 +78,8 @@ class ReplayCodecTest {
     @DisplayName("a position is kept to a thousandth of a block and a yaw to a degree")
     void resolutionIsWorthTheName() {
         MotionTrack.Builder track = new MotionTrack.Builder();
-        track.put(0, 12.3456, 64.9999, -7.0005, 123.4f, -45.6f, 19.5,
-                MotionTrack.flagsOf(NpcPose.STANDING, true, true, false, true));
+        put(track, 0, 12.3456, 64.9999, -7.0005, 123.4f, -45.6f, 19.5,
+                flags(NpcPose.STANDING, true, true, false, true));
         Replay replay = one(track.build());
 
         ReplayFrame frame = Replay.from(replay.toBytes()).at(0, RED);
@@ -95,9 +95,9 @@ class ReplayCodecTest {
     @DisplayName("a tick the server was too busy to sample repeats the one before it")
     void gapsCarryForward() {
         MotionTrack.Builder track = new MotionTrack.Builder();
-        track.put(0, 1.0, 0.0, 0.0, 0f, 0f, 20.0, standing());
+        put(track, 0, 1.0, 0.0, 0.0, 0f, 0f, 20.0, standing());
         // Ticks one to three never arrived.
-        track.put(4, 2.0, 0.0, 0.0, 0f, 0f, 20.0, standing());
+        put(track, 4, 2.0, 0.0, 0.0, 0f, 0f, 20.0, standing());
         Replay replay = Replay.from(one(track.build()).toBytes());
 
         for (int tick = 1; tick <= 3; tick++) {
@@ -113,7 +113,7 @@ class ReplayCodecTest {
     void aShortLifeIsAShortTrack() {
         MotionTrack.Builder arrow = new MotionTrack.Builder();
         for (int tick = 600; tick < 660; tick++) {
-            arrow.put(tick, tick - 600, 64.0, 0.0, 0f, 0f, 0.0, standing());
+            put(arrow, tick, tick - 600, 64.0, 0.0, 0f, 0f, 0.0, standing());
         }
         MotionTrack track = arrow.build();
 
@@ -130,9 +130,9 @@ class ReplayCodecTest {
     void entitiesKeepTheirType() {
         MotionTrack.Builder arrow = new MotionTrack.Builder();
         for (int tick = 40; tick < 70; tick++) {
-            arrow.put(tick, 0.5 * (tick - 40), 64.0, 0.0, 90f, 0f, 0.0, standing());
+            put(arrow, tick, 0.5 * (tick - 40), 64.0, 0.0, 90f, 0f, 0.0, standing());
         }
-        Replay replay = new Replay(UUID.randomUUID(), 1L, 70,
+        Replay replay = replay(UUID.randomUUID(), 1L, 70,
                 List.of(new ReplayActor(ARROW, "ARROW", null, null, "ARROW")),
                 List.of(arrow.build()), List.of());
 
@@ -149,12 +149,12 @@ class ReplayCodecTest {
     @DisplayName("somebody who left is gone, not standing where they left")
     void trailingTicksAreAbsent() {
         MotionTrack.Builder track = new MotionTrack.Builder();
-        track.put(0, 5.0, 64.0, 5.0, 0f, 0f, 20.0, standing());
-        track.put(1, 5.0, 64.0, 5.0, 0f, 0f, 20.0, standing());
+        put(track, 0, 5.0, 64.0, 5.0, 0f, 0f, 20.0, standing());
+        put(track, 1, 5.0, 64.0, 5.0, 0f, 0f, 20.0, standing());
         // They logged out here; the recording ran on for another eight ticks.
         track.absentUntil(10);
         Replay replay = Replay.from(
-                new Replay(UUID.randomUUID(), 1L, 10, List.of(red()), List.of(track.build()),
+                replay(UUID.randomUUID(), 1L, 10, List.of(red()), List.of(track.build()),
                         List.of()).toBytes());
 
         assertTrue(replay.at(1, RED).present());
@@ -168,10 +168,10 @@ class ReplayCodecTest {
     @DisplayName("a gap a player came back from is empty, not carried across")
     void aGapTheyCameBackFromIsEmpty() {
         MotionTrack.Builder track = new MotionTrack.Builder();
-        track.put(0, 1.0, 64.0, 0.0, 0f, 0f, 20.0, standing());
+        put(track, 0, 1.0, 64.0, 0.0, 0f, 0f, 20.0, standing());
         // Out from tick one to four, back on tick five somewhere else.
         track.absentUntil(5);
-        track.put(5, 9.0, 64.0, 0.0, 0f, 0f, 20.0, standing());
+        put(track, 5, 9.0, 64.0, 0.0, 0f, 0f, 20.0, standing());
         Replay replay = Replay.from(one(track.build()).toBytes());
 
         assertTrue(replay.at(0, RED).present());
@@ -270,7 +270,7 @@ class ReplayCodecTest {
             int born = thing * 12 % (frames - 80);
             MotionTrack.Builder debris = new MotionTrack.Builder();
             for (int tick = born; tick < born + 60; tick++) {
-                debris.put(tick, (tick - born) * 0.3, 64.0 + (tick - born) * 0.1,
+                put(debris, tick, (tick - born) * 0.3, 64.0 + (tick - born) * 0.1,
                         thing % 17, 0f, 0f, 0.0, standing());
             }
             actors.add(new ReplayActor(UUID.randomUUID(), "ARROW", null, null, "ARROW"));
@@ -284,7 +284,7 @@ class ReplayCodecTest {
                     WorldMarks.block(anchor, at, null, null)));
         }
 
-        Replay everything = new Replay(UUID.randomUUID(), 1L, frames, actors, tracks, marks);
+        Replay everything = replay(UUID.randomUUID(), 1L, frames, actors, tracks, marks);
         int size = everything.toBytes().length;
 
         // About 59kB: twice a bare duel for three hundred extra things and
@@ -302,14 +302,14 @@ class ReplayCodecTest {
         MotionTrack.Builder blue = new MotionTrack.Builder();
         for (int tick = 0; tick < frames; tick++) {
             double angle = tick * 0.05;
-            byte flags = MotionTrack.flagsOf(NpcPose.STANDING, true, tick % 7 != 0,
+            int flags = flags(NpcPose.STANDING, true, tick % 7 != 0,
                     tick % 23 == 0, true);
-            red.put(tick, Math.cos(angle) * 4, Math.sin(angle * 0.3) * 0.6,
+            put(red, tick, Math.cos(angle) * 4, Math.sin(angle * 0.3) * 0.6,
                     Math.sin(angle) * 4, (float) Math.toDegrees(angle), -10f, 20.0, flags);
-            blue.put(tick, -Math.cos(angle) * 4, Math.sin(angle * 0.4) * 0.6,
+            put(blue, tick, -Math.cos(angle) * 4, Math.sin(angle * 0.4) * 0.6,
                     -Math.sin(angle) * 4, (float) Math.toDegrees(-angle), 5f, 17.5, flags);
         }
-        return new Replay(UUID.randomUUID(), System.currentTimeMillis(), frames,
+        return replay(UUID.randomUUID(), System.currentTimeMillis(), frames,
                 List.of(red(), blue()), List.of(red.build(), blue.build()), List.of());
     }
 
@@ -318,12 +318,12 @@ class ReplayCodecTest {
         MotionTrack.Builder red = new MotionTrack.Builder();
         MotionTrack.Builder blue = new MotionTrack.Builder();
         for (int tick = 0; tick < 6; tick++) {
-            red.put(tick, tick * 0.25, 64.0, -tick * 0.5, tick * 30f, -12.5f, 20.0 - tick,
-                    MotionTrack.flagsOf(NpcPose.STANDING, tick % 2 == 0, true, tick > 3, true));
-            blue.put(tick, -tick * 0.25, 64.0, tick * 0.5, -tick * 30f, 7.5f, 14.0,
-                    MotionTrack.flagsOf(NpcPose.SNEAKING, false, tick != 3, false, true));
+            put(red, tick, tick * 0.25, 64.0, -tick * 0.5, tick * 30f, -12.5f, 20.0 - tick,
+                    flags(NpcPose.STANDING, tick % 2 == 0, true, tick > 3, true));
+            put(blue, tick, -tick * 0.25, 64.0, tick * 0.5, -tick * 30f, 7.5f, 14.0,
+                    flags(NpcPose.SNEAKING, false, tick != 3, false, true));
         }
-        return new Replay(UUID.randomUUID(), 1_700_000_000_000L, 6,
+        return replay(UUID.randomUUID(), 1_700_000_000_000L, 6,
                 List.of(red(), blue()), List.of(red.build(), blue.build()),
                 List.of(new ReplayMark(1, ReplayMark.SWING, RED, null),
                         ReplayMark.of(2, "crit", BLUE, "critical"),
@@ -338,13 +338,120 @@ class ReplayCodecTest {
         return new ReplayActor(BLUE, "Blue", null, null, null);
     }
 
-    private static byte standing() {
-        return MotionTrack.flagsOf(NpcPose.STANDING, false, true, false, true);
+    private static int standing() {
+        return flags(NpcPose.STANDING, false, true, false, true);
+    }
+
+    private static void put(MotionTrack.Builder track, int tick, double x, double y, double z,
+                            float yaw, float pitch, double hearts, int flags) {
+        track.put(tick, x, y, z, yaw, pitch, yaw, hearts, flags);
+    }
+
+    private static int flags(NpcPose pose, boolean sprinting, boolean onGround, boolean using,
+                             boolean present) {
+        String name = switch (pose) {
+            case LYING -> "SLEEPING";
+            case CRAWLING -> "SWIMMING";
+            case SNEAKING -> "CROUCHING";
+            case SPINNING -> "SPIN_ATTACK";
+            default -> "STANDING";
+        };
+        return MotionTrack.flagsOf(MotionTrack.poseIndex(name), sprinting, onGround, using, false,
+                false, false, false, present);
+    }
+
+    private static Replay replay(UUID id, long createdAt, int frames, List<ReplayActor> actors,
+                                 List<MotionTrack> tracks, List<ReplayMark> marks) {
+        return new Replay(id, createdAt, frames, actors, tracks, marks, List.of(), null);
+    }
+
+    @Test
+    @DisplayName("scenes and the ground come back where they were")
+    void scenesAndTerrainRoundTrip() {
+        MotionTrack.Builder track = new MotionTrack.Builder();
+        put(track, 0, 1.0, 2.0, 3.0, 10f, 5f, 20.0, standing());
+        TerrainSection.Builder stone = new TerrainSection.Builder("minecraft:air");
+        stone.set(1, 2, 3, "minecraft:stone");
+        stone.set(15, 15, 15, "minecraft:oak_log[axis=y]");
+        TerrainSection section = stone.build(1, -2, 3, 4);
+        TerrainSection solid = new TerrainSection.Builder("minecraft:dirt").build(0, 0, 0, -4);
+        Replay written = new Replay(UUID.randomUUID(), 1L, 1, List.of(red()), List.of(track.build()),
+                List.of(), List.of(new net.exylia.lib.replay.ReplayScene(0, "world", 10.0, 64.0, -5.0),
+                        new net.exylia.lib.replay.ReplayScene(40, "world_nether", -3.0, 70.0, 8.0)),
+                List.of(section, solid));
+
+        java.util.Map<String, byte[]> store = new java.util.HashMap<>();
+        net.exylia.lib.replay.ReplayChunks chunks = new net.exylia.lib.replay.ReplayChunks() {
+            @Override
+            public void put(String key, byte[] data) {
+                store.putIfAbsent(key, data);
+            }
+
+            @Override
+            public byte[] get(String key) {
+                return store.get(key);
+            }
+        };
+        for (Replay read : List.of(Replay.from(written.toBytes()),
+                Replay.from(written.toBytes(chunks), chunks))) {
+            assertEquals(2, read.scenes().size());
+            assertEquals("world_nether", read.scenes().get(1).world());
+            assertEquals(40, read.scenes().get(1).fromTick());
+            assertEquals(1, read.sceneAt(40));
+            assertEquals(0, read.sceneAt(39));
+            assertTrue(read.hasTerrain());
+            TerrainSection back = read.terrain().getFirst();
+            assertEquals(1, back.scene());
+            assertEquals(-2, back.chunkX());
+            assertEquals(3, back.chunkZ());
+            assertEquals(4, back.sectionY());
+            assertEquals("minecraft:stone", back.at(1, 2, 3));
+            assertEquals("minecraft:oak_log[axis=y]", back.at(15, 15, 15));
+            assertEquals("minecraft:air", back.at(0, 0, 0));
+            assertEquals("minecraft:dirt", read.terrain().get(1).at(7, 7, 7));
+            assertEquals(-4, read.terrain().get(1).sectionY());
+        }
+        assertEquals(2, store.size(), "two different sections, two pieces");
+        written.toBytes(chunks);
+        assertEquals(2, store.size(), "the same ground written twice is stored once");
+    }
+
+    @Test
+    @DisplayName("a piece the store lost is a hole in the ground, not a broken recording")
+    void aMissingPieceIsAHole() {
+        TerrainSection section = new TerrainSection.Builder("minecraft:stone").build(0, 0, 0, 0);
+        Replay written = new Replay(UUID.randomUUID(), 1L, 1, List.of(), List.of(), List.of(),
+                List.of(), List.of(section));
+        net.exylia.lib.replay.ReplayChunks forgetful = new net.exylia.lib.replay.ReplayChunks() {
+            @Override
+            public void put(String key, byte[] data) {
+            }
+
+            @Override
+            public byte[] get(String key) {
+                return null;
+            }
+        };
+        Replay read = Replay.from(written.toBytes(forgetful), forgetful);
+        assertFalse(read.hasTerrain());
+    }
+
+    @Test
+    @DisplayName("format 2's flag byte means the same in format 3")
+    void legacyFlagsTranslate() {
+        int sneaking = ReplayCodec.legacyFlags((byte) (3 | 0x08 | 0x10 | 0x20 | 0x40));
+        assertEquals("CROUCHING", MotionTrack.POSES[sneaking & MotionTrack.POSE_MASK]);
+        assertTrue((sneaking & MotionTrack.SPRINTING) != 0);
+        assertTrue((sneaking & MotionTrack.ON_GROUND) != 0);
+        assertTrue((sneaking & MotionTrack.PRESENT) != 0);
+        assertTrue((sneaking & MotionTrack.USING) != 0);
+        int absent = ReplayCodec.legacyFlags((byte) 0);
+        assertEquals(0, absent & MotionTrack.PRESENT);
     }
 
     /** One player, one track. */
     private static Replay one(MotionTrack track) {
-        return new Replay(UUID.randomUUID(), 1L, track.lastTick(),
+        return replay(UUID.randomUUID(), 1L, track.lastTick(),
                 List.of(red()), List.of(track), List.of());
     }
 }

@@ -1,6 +1,7 @@
 package net.exylia.lib.replay;
 
 import net.exylia.lib.npc.internal.NpcRuntime;
+import net.exylia.lib.replay.internal.Appearance;
 import org.bukkit.entity.Player;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -29,11 +30,21 @@ import java.util.UUID;
  *                   crystal, a primed block of TNT &mdash; named as Bukkit
  *                   names it. {@code null} for a player, which is drawn from
  *                   the name and skin above instead.
+ * @param appearance what a non-player looks like beyond its type: the item a
+ *                   dropped stack or a thrown potion is, the block a falling
+ *                   block is, whether a mob is a baby. Written and read by the
+ *                   module; {@code null} when there is nothing to add.
  * @since 1.175.0
  */
 public record ReplayActor(@NotNull UUID id, @NotNull String name,
                           @Nullable String texture, @Nullable String signature,
-                          @Nullable String entityType) {
+                          @Nullable String entityType, byte @Nullable [] appearance) {
+
+    /** An actor with nothing beyond its type, as recordings before 1.241.0 held. */
+    public ReplayActor(@NotNull UUID id, @NotNull String name, @Nullable String texture,
+                       @Nullable String signature, @Nullable String entityType) {
+        this(id, name, texture, signature, entityType, null);
+    }
 
     /**
      * Reads a player's identity as it is right now.
@@ -47,23 +58,23 @@ public record ReplayActor(@NotNull UUID id, @NotNull String name,
     public static @NotNull ReplayActor of(@NotNull Player player) {
         String[] skin = NpcRuntime.textureOf(player);
         return new ReplayActor(player.getUniqueId(), player.getName(),
-                skin == null ? null : skin[0], skin == null ? null : skin[1], null);
+                skin == null ? null : skin[0], skin == null ? null : skin[1], null, null);
     }
 
     /**
      * Something that is not a player: an arrow in flight, a crystal on the
      * ground, a block of TNT counting down.
      *
-     * <p>Its type and nothing else. What an arrow looks like is the client's
-     * business, and a recording that tried to keep more than the type would be
-     * storing a copy of the game's own model.
+     * <p>Its type, plus the little that changes what it looks like and that the
+     * client cannot guess: the item a dropped stack or a potion is, the block a
+     * falling block is, whether a mob is a baby, its custom name.
      *
      * @param entity what it is
      * @return its identity
      */
     public static @NotNull ReplayActor of(@NotNull org.bukkit.entity.Entity entity) {
         return new ReplayActor(entity.getUniqueId(), entity.getType().name(), null, null,
-                entity.getType().name());
+                entity.getType().name(), Appearance.of(entity));
     }
 
     /** Whether this is a player, rather than something else in the arena. */

@@ -36,18 +36,29 @@ followed, the server's own answer to where they were:
 | | |
 | --- | --- |
 | Position | to a thousandth of a block |
-| Yaw and pitch | to about a degree and a half, which is the protocol's own resolution |
-| Pose | standing, sneaking, crawling, lying, spinning |
+| Yaw, pitch and head | to about a degree and a half, which is the protocol's own resolution |
+| Pose | every pose the protocol has: standing, sneaking, crawling, sleeping, gliding with an elytra, riptide, dying, and the mobs' own |
 | Sprinting, on the ground | as the client reported them, which is what the server used |
-| Health | to the nearest half heart |
-
-Whether a bow is drawn, a shield is up or a gapple is going down rides in the
-same byte as the pose.
+| On fire, invisible, glowing | as the server had them |
+| Which hand is raised | a bow drawn, a shield up, a gapple going down, in either hand |
+| Health | to the nearest half point |
 
 Plus a second track of things that happened once rather than being true for a
-stretch: swings, hits, deaths, respawns, equipment changes, **block changes**
-and **explosions**. Swings and hits are read off the server's own events, so a
-plugin that records a duel gets them without writing a listener.
+stretch: swings, hits, **attacks** (critical, sweep, sprint knockback, full or
+weak swing, taken on a shield), deaths, respawns, totems, teleports, getting on
+and off things, items picked up, blocks being mined, equipment changes, **block
+changes** and **explosions**. All of it is read off the server's own events, so
+a plugin that records a duel gets it without writing a listener.
+
+### Stamped with the server's tick
+
+Every sample and every mark carries the server tick it happened on, never the
+wall clock. Before 1.241.0 a sample was stamped with `nanoTime / 50 ms`, and a
+server tick is not fifty milliseconds: two ticks could land on one stamp (one
+frame lost, the next one doubled) and two players sampled in the same tick
+could be recorded a tick apart. That was the stutter and the hits landing on
+nothing. On Folia the clock is a counter the global region advances, read once
+per region tick.
 
 **That is the state the fight was decided on.** For the question anybody
 actually asks a replay — *did that hit land, was he in range* — the recording
@@ -166,10 +177,25 @@ screens it was given and nowhere else: two players can watch two different
 recordings standing in the same arena, and neither can touch what the other is
 looking at.
 
-What makes it look real is that nothing about it is animated. A body is put
-where it was with the same relative-step packet a real player's movement
-produces, and the client draws its own frames between one step and the next
-exactly as it does for anybody else.
+What makes it look real is that nothing about it is animated. Every body is a
+packet entity driven with exactly what the server sends for a real one: a
+relative step and a head turn each tick, a position sync every few seconds,
+metadata only when the pose or the flags change. The client interpolates between
+steps the way it does for anybody it can see.
+
+- **Slow motion is smooth.** Below real time the driver still sends a step every
+  tick, to a position interpolated between the two frames either side.
+- **Hits are the game's own.** The red flash and the tilt away from the blow are
+  the hurt animation packet with the direction the hit came from (the old
+  animation id the client ignores since 1.19.4 is gone); the critical sparks,
+  the sweep, the knockback, strong and weak swing sounds are what the attacker's
+  hit really was.
+- **Deaths fall over.** A body that dies lies down, turns red and disappears in
+  a puff twenty ticks later, as it does in the game.
+- **Footsteps.** In the sound of whatever is underfoot, read from the region that
+  owns it.
+- **One thread draws.** Every frame, a seek included, is drawn by one driver, and
+  a playback still being drawn is skipped rather than entered twice.
 
 ## It makes its own noise
 
@@ -210,34 +236,35 @@ watching.seek(1200);       // a minute in
 watching.loop(true);
 ```
 
-A seek goes backwards as freely as forwards: what everybody is wearing is
-rebuilt from the marks up to that point, so landing in the middle of a fight
-puts the right sword in the right hand rather than whatever was last drawn.
+A seek goes backwards as freely as forwards. What everybody is wearing, who is
+riding what and who is lying dead are read from lists built once when the
+playback starts, and the arena is rebuilt for that tick; only what differs from
+what is on screen is sent.
+
+```java
+watching.step(1);          // one frame on, held: read a single hit
+watching.follow(red.getUniqueId());   // look out of their eyes
+watching.reveal(true);     // somebody invisible is drawn glowing instead
+```
 
 A playback that reaches the end **pauses on the last frame** rather than
 deleting itself. That moment is the one people want to sit on.
 
 ## First person
 
-There is no first-person mode, because there does not need to be one. A
-playback will tell you where somebody is:
-
-```java
-Location watching = playback.locationOf(red.getUniqueId());
-if (watching != null) {
-    viewer.teleport(watching);
-}
-```
-
-Teleport the viewer there every tick and they are looking out of the recording
-rather than at it. `Replay#at(tick, actor)` is the same thing on a recording
-that is not being played.
+`playback.follow(actor)` puts every viewer's camera on that body: the client is
+told to look out of its eyes, and follows it with its own smoothing rather than
+being teleported every tick. `follow(null)` gives them their own eyes back.
+`playback.locationOf(actor)` and `Replay#at(tick, actor)` still say where
+somebody was, for a plugin that wants its own camera.
 
 ## Marks
 
-`ReplayMark.SWING`, `HURT`, `EQUIP`, `BLOCK` and `EXPLOSION` are drawn by the
-module. `DEATH` and `RESPAWN` are recorded by it but drawn by nobody — what a death should look like
-is the plugin's decision. Everything else is a plugin's own:
+`SWING`, `HURT`, `ATTACK`, `EQUIP`, `BLOCK`, `EXPLOSION`, `MOUNT`, `DISMOUNT`,
+`PICKUP`, `BREAKING` and `SHIELD_DISABLED` are drawn by the module and never
+reach a plugin. `DEATH`, `RESPAWN`, `TOTEM`, `TELEPORT` and `CHAT` are drawn by
+it too and still reach the plugin's `onMark`, so it can put a line on the screen
+for them. Everything else is a plugin's own:
 
 ```java
 recorder.mark("round", null, "2");
@@ -277,10 +304,12 @@ disabled is cancelled.
 
 Worth knowing before designing around it:
 
-- **A thing's appearance beyond its type.** A non-player actor is drawn from its
-  type alone, so an arrow is an arrow and a crystal is a crystal — but a splash
-  potion is the default colour and a dropped item is invisible, because neither
-  carries what it is made of.
+- **A mob's variant.** A non-player keeps its type, its item (a dropped stack,
+  a thrown potion, a firework), its block (a falling block), whether it is a
+  baby and its custom name. A sheep's colour, a cat's breed or a horse's armour
+  are left to the client's defaults.
+- **Block entities.** The ground keeps every block state, not what a sign says,
+  what a chest holds or the pattern on a banner.
 - **Rotating an anchor.** A recording is offset, never turned. An arena played
   back against an anchor facing another way is in the right place and the wrong
   direction.
@@ -291,13 +320,104 @@ Worth knowing before designing around it:
   schematic paste, a direct `setType`, a temporary block expiring. Those need
   `reset()` or a `block()` call from whatever does them, because nothing on the
   server can see them happen.
-- **Pistons and flowing liquids.** A piston moves a column and has two ends;
-  flowing water fires a change per block per tick and would spend a whole
-  recording's budget on a puddle.
+- **Pistons and flowing liquids, in a recorder that is told about blocks.** A
+  plugin's own `block()` calls are what that recorder has. A recorder that
+  `watch`es its zone, and the black box, record pistons (both ends) and liquids
+  (at most 256 flowing blocks a tick) by themselves.
+
+## Watching a place, not a list
+
+```java
+ReplayRecorder recorder = replays.record(arena.spawn());
+recorder.watch(48);   // everything within 48 blocks, by itself
+```
+
+`watch(radius)` follows whatever is in the box or comes into it — players,
+mobs, items, arrows, boats — and writes down every block that changes inside it
+from the server's own events, with what it was and what it became.
+
+## The black box
+
+A recorder has to be started before something happens. The black box is always
+running and keeps only the last stretch, so a recording can be cut out *after*
+the fact:
+
+```java
+ReplayBlackBox box = replays.blackBox(BlackBoxSettings.defaults()
+        .hidden(vanish::isVanished));
+
+// in a death listener
+box.capture(event.getEntity()).thenAccept(replay ->
+        store.save(replay.toBytes(chunks)));
+```
+
+- **It follows the person.** A capture of a player covers everything within the
+  radius of anywhere they were during the window: a chase, a pearl, an elytra
+  flight. Whoever and whatever was near them is in it.
+- **Scenes.** A teleport further than two corridors can bridge, a portal or a
+  change of world cuts the recording into scenes, each with its own anchor, and
+  the playback cuts between them like a broadcast cuts between cameras.
+- **The ground.** With terrain on, every chunk section along the way is kept as
+  it was when the scene started: read now, then walked back through every block
+  change the box saw since. What each change *became* is what the block held
+  just before being walked back, so the log only ever stores what a block was.
+- **Cost.** A frame per player per tick, a frame per other entity only when it
+  moves (and a heartbeat twice a second). Nothing is written anywhere until a
+  capture is asked for. One box serves the server; two plugins that open one
+  share it and it keeps the larger of what each asked for.
+- **Hidden players.** `hidden` is read every sample: staff in vanish are never in
+  a recording.
+
+### After the fact, and a little after it
+
+`box.capture(focus, seconds, afterSeconds)` carries on for a few seconds past
+now: for a death, the fall, the red and the puff are the second after the blow.
+The person it is about is followed only up to now, so a respawn on the other
+side of the map in those seconds is not a scene.
+
+### How the connection and the server were doing
+
+Once a second the black box writes every player's ping (`ReplayMark.PING`) and
+the server's TPS and MSPT (`ReplayMark.SERVER`, `"tps;mspt"`); a recorder writes
+the pings of whoever it follows. A player leaving writes `ReplayMark.QUIT` with
+Paper's reason (`TIMED_OUT`, `KICKED`…). `replay.last(kind, actor, tick)` reads
+the figure in force at any tick, which is what a board shown while watching is
+made of.
+
+### Keeping the ground once
+
+`replay.toBytes(chunks)` hands every terrain section to a `ReplayChunks` store
+under the SHA-1 of its content and writes only the keys into the blob;
+`Replay.from(blob, chunks)` reads them back. The same unchanged spawn recorded a
+hundred times is stored once. A section the store has lost is a hole in the
+ground, not a recording that cannot be played.
+
+## Stages
+
+A recording with terrain can be watched anywhere: `replays.stage(replay)` lays
+each scene's ground down on its own plot of the temporary world, at its real
+height, spread over ticks so no tick places more than twenty thousand blocks.
+The playback runs on it with the arena written for real, so a viewer can walk on
+what was built and the server agrees with every block they see.
+
+```java
+replays.stage(replay).thenAccept(stage -> Tasks.at(viewer, () ->
+        ReplayViewer.open(plugin, viewer, stage, focus).thenAccept(watching -> {
+            watching.hud(status -> bar(status));
+            watching.onLeave(() -> overlay.hide(viewer));
+        })));
+```
+
+`ReplayViewer` is the camera and the controls: adventure mode, flying,
+untouchable, a hotbar the plugin fills; `toggle`, `skip`, `frame`, `faster`,
+`slower`, `next(kinds)`, `cycleFollow`; the line above the hotbar fed every few
+ticks; and the viewer put back exactly as they were when they leave, quit or the
+plugin stops. A player who logs in on the temporary world after a crash is sent
+to the main world's spawn.
 
 ## A note on the format
 
-`Replay.from` reads format 2 and refuses anything else with a clear message,
-including the format 1 written by 1.175.0. That version was never on a live
-server, so no recording exists in the old shape; carrying a reader for it would
-be a branch that could only rot.
+Format 3 (1.241.0) adds scenes, head yaw, the wider flag word, what non-player
+actors look like and the terrain. `Replay.from` still reads format 2 — a duel
+recorded before the upgrade plays back as it did — and refuses anything else
+with a clear message.

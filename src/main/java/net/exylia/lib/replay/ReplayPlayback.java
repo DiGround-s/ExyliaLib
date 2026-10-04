@@ -6,6 +6,7 @@ import org.jetbrains.annotations.Nullable;
 
 import java.util.UUID;
 import java.util.function.Consumer;
+import java.util.function.IntConsumer;
 
 /**
  * A recording that is currently being watched.
@@ -67,11 +68,75 @@ public interface ReplayPlayback {
      */
     void seek(int tick);
 
+    /**
+     * Moves a number of frames and holds there: frame by frame, for reading a
+     * single hit.
+     *
+     * @param ticks how many, negative to go back
+     * @since 1.241.0
+     */
+    void step(int ticks);
+
     /** Which tick it is showing. */
     int tick();
 
     /** How many ticks long the recording is. */
     int frames();
+
+    /**
+     * The recording being shown.
+     *
+     * @since 1.241.0
+     */
+    @NotNull Replay replay();
+
+    /**
+     * Which scene of the recording is on screen.
+     *
+     * @return its index in {@link Replay#scenes()}
+     * @since 1.241.0
+     */
+    int scene();
+
+    /**
+     * Where a scene is being shown.
+     *
+     * @param scene its index in {@link Replay#scenes()}
+     * @return the anchor its positions are measured from, in this playback's world
+     * @since 1.241.0
+     */
+    @NotNull Location anchor(int scene);
+
+    /**
+     * Called when the playback cuts to another scene, with the new one's index.
+     *
+     * @param listener what to call, on the server's main thread
+     * @since 1.241.0
+     */
+    void onScene(@NotNull IntConsumer listener);
+
+    /**
+     * Whether somebody who was invisible is drawn glowing instead.
+     *
+     * <p>Off by default: a viewer sees what the players saw. On, for staff
+     * reviewing what happened, who want to see who was really there.
+     *
+     * @param reveal whether to reveal them
+     * @since 1.241.0
+     */
+    void reveal(boolean reveal);
+
+    /**
+     * Looks out of somebody's eyes: every viewer's camera is put on that body,
+     * and follows it the way spectating a player does.
+     *
+     * @param actor who, or {@code null} to look out of their own eyes again
+     * @since 1.241.0
+     */
+    void follow(@Nullable UUID actor);
+
+    /** Whose eyes the viewers are looking out of, or {@code null}. @since 1.241.0 */
+    @Nullable UUID following();
 
     /**
      * Whether it starts again when it reaches the end.
@@ -112,10 +177,12 @@ public interface ReplayPlayback {
     @Nullable String textOf(@NotNull ReplayMark mark);
 
     /**
-     * Called for every mark the playback passes that it does not draw itself.
+     * Called for every mark the playback passes that a plugin may want to act on.
      *
-     * <p>Swings, hits, deaths and equipment changes are handled by the module
-     * and never arrive here. Everything a plugin wrote does.
+     * <p>Swings, hits, attacks, equipment, blocks and blasts are drawn by the
+     * module and never arrive here. Deaths, respawns, totems, teleports and
+     * chat are drawn by the module too and still arrive, so a plugin can put a
+     * line on the screen for them. Everything a plugin wrote arrives.
      *
      * @param listener what to call, on the server's main thread
      */

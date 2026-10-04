@@ -1,10 +1,10 @@
 package net.exylia.lib.replay.internal;
 
-import net.exylia.lib.npc.NpcPose;
 import net.exylia.lib.replay.Replay;
 import net.exylia.lib.replay.ReplayActor;
 import net.exylia.lib.replay.ReplayMark;
 import net.exylia.lib.replay.ReplayRecorder;
+import net.exylia.lib.replay.ReplayScene;
 import net.exylia.lib.task.TaskHandle;
 import net.exylia.lib.task.TaskScheduler;
 import org.bukkit.Location;
@@ -12,10 +12,8 @@ import org.bukkit.block.data.BlockData;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Player;
-import org.bukkit.entity.Pose;
 import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.inventory.ItemStack;
-import org.bukkit.inventory.PlayerInventory;
 import org.jetbrains.annotations.ApiStatus;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -33,87 +31,56 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.CopyOnWriteArrayList;
 
 /**
- * One recording while it is running.
+ * A recording while it is being made.
  *
- * <h2>A timer each, not one timer</h2>
- * Every followed player and every followed entity is sampled by a task bound to
- * that entity, which is what makes this work on Folia: where something is may
- * only be read from the region that owns it, and one shared timer reading
- * everything would be reading across regions. Each task writes only into its
- * own arrays, so there is nothing to lock either.
+ * <h2>One tick, one stamp</h2>
+ * Every sample and every mark is stamped with the server tick it happened on,
+ * read from {@link ReplayClock}, never with the wall clock. See there for why
+ * that matters to how a playback looks.
  *
- * <h2>The clock is the wall, not the task</h2>
- * Which frame a sample belongs to is worked out from how long the recording has
- * been running, not from how many times the task has fired. A server that skips
- * ticks therefore leaves gaps, and a gap is filled by repeating the frame
- * before it: the recording stays the same length as the fight really was, and
- * plays back showing what everybody watching actually saw, which was somebody
- * standing still for a moment.
+ * <h2>Who samples what</h2>
+ * A player is sampled by a timer bound to that player, which is what makes a
+ * read legal on Folia: where somebody is may only be read from the region that
+ * owns them. Everything else &mdash; arrows, pearls, crystals &mdash; is sampled
+ * together by one timer bound to the anchor, and dropped when it leaves that
+ * region.
  */
 @ApiStatus.Internal
 public final class Recording implements ReplayRecorder {
 
-    /** A tick in milliseconds, which is what turns elapsed time into a frame. */
-    private static final long MILLIS_PER_TICK = 50L;
-
-    /**
-     * How long one may run before it stops itself.
-     *
-     * <p>Half an hour of two players is a few megabytes of arrays. A recorder
-     * that a plugin forgets to stop would otherwise grow until the server ran
-     * out of memory, and the bug that causes it &mdash; an early return on a
-     * path that was meant to call {@code stop()} &mdash; is invisible until
-     * then.
-     */
+    /** Half an hour, which no fight lasts. */
     private static final int MAX_FRAMES = 30 * 60 * 20;
 
-    /**
-     * How many things one recording may follow at once.
-     *
-     * <p>Players are a handful; arrows, crystals and primed TNT are not. A
-     * crystal fight can put one in the arena every tick, and each one followed
-     * is a timer and a growing set of arrays. Past this the newest are not
-     * recorded, which is a replay missing some of its debris rather than a
-     * server running out of memory.
-     */
+    /** Things that are not players, at most. */
     private static final int MAX_ACTORS = 400;
 
-    /**
-     * How many block changes and blasts one recording may hold.
-     *
-     * <p>The ceiling that matters for a match spent digging. Past it the arena
-     * stops being recorded and the fight does not, which is the right half to
-     * keep.
-     */
+    /** Block changes and explosions, at most. */
     private static final int MAX_WORLD_MARKS = 40_000;
 
-    /** The six slots that are watched for changes. */
-    private static final EquipmentSlot[] SLOTS = {
-            EquipmentSlot.HAND, EquipmentSlot.OFF_HAND, EquipmentSlot.HEAD,
-            EquipmentSlot.CHEST, EquipmentSlot.LEGS, EquipmentSlot.FEET};
+    /** How often a mob's equipment is compared, in ticks. A player's is every tick. */
+    private static final int MOB_EQUIPMENT_EVERY = 10;
+
+    /** How often a watched zone is searched for something new, in ticks. */
+    private static final int WATCH_EVERY = 5;
 
     private final String owner;
     private final Location anchor;
     private final TaskScheduler scheduler;
     private final UUID id = UUID.randomUUID();
     private final long createdAt = System.currentTimeMillis();
-    private final long startedAt = System.nanoTime();
-    private final Map<UUID, Follower> followers = new LinkedHashMap<>();
-    private final ConcurrentLinkedQueue<ReplayMark> marks = new ConcurrentLinkedQueue<>();
-
+    private final int startedAt = ReplayClock.now();
     /**
-     * Everything followed that is not a player, walked by one timer.
-     *
-     * <p>A timer each is what this used to be, and a crystal fight launches
-     * hundreds of things: four hundred one-tick timers on the server's own
-     * scheduler, every one of them to read one location. They are all inside
-     * the same arena, so one timer at the anchor reads all of them &mdash; which
-     * is also the region that owns them on Folia, so it is no less correct than
-     * a timer each was.
+     * Everybody followed, in the order they were followed. Synchronized: it is
+     * written under this recording's lock and read from event handlers on any
+     * region.
      */
+    private final Map<UUID, Follower> followers = java.util.Collections.synchronizedMap(new LinkedHashMap<>());
+    private final ConcurrentLinkedQueue<ReplayMark> marks = new ConcurrentLinkedQueue<>();
     private final List<Follower> debris = new CopyOnWriteArrayList<>();
 
     private volatile TaskHandle debrisTask;
+    private volatile TaskHandle watchTask;
+    private volatile double watchRadius;
     private volatile boolean running = true;
     private volatile int worldMarks;
     private Replay finished;
@@ -124,12 +91,10 @@ public final class Recording implements ReplayRecorder {
         this.scheduler = scheduler;
     }
 
-    /** Which plugin's recording this is. */
     String owner() {
         return owner;
     }
 
-    /** What every position in this recording is measured against. */
     public @NotNull Location anchor() {
         return anchor.clone();
     }
@@ -138,10 +103,15 @@ public final class Recording implements ReplayRecorder {
     public synchronized void follow(@NotNull Player player) {
         Follower existing = follower(player.getUniqueId());
         if (existing != null) {
-            if (existing.task != null) return;
+            // A timer that has not sampled for a while is a dead one: Folia
+            // retires an entity's tasks when they log out without telling it.
+            if (existing.task != null && !existing.task.isCancelled()
+                    && tick() - existing.sampledAt <= 2) {
+                return;
+            }
+            existing.stop();
             // Somebody who logged out and came back. The ticks in between are
-            // theirs and empty rather than a body standing where they left it,
-            // and everything before them is still theirs.
+            // theirs and empty rather than a body standing where they left it.
             existing.track.absentUntil(tick());
             start(player, existing);
             return;
@@ -159,9 +129,8 @@ public final class Recording implements ReplayRecorder {
         add(entity.getUniqueId(), ReplayActor.of(entity), false, entity);
     }
 
-    /** Starts following one thing, if there is room for it. */
     private void add(UUID id, ReplayActor actor, boolean player, Entity entity) {
-        if (!running || followers.size() >= MAX_ACTORS) return;
+        if (!running || (!player && followers.size() >= MAX_ACTORS)) return;
         Follower follower = new Follower(actor, player);
         followers.put(id, follower);
         if (player) {
@@ -173,30 +142,15 @@ public final class Recording implements ReplayRecorder {
         startDebris();
     }
 
-    /** Puts one player's sampling timer on. */
     private void start(Entity entity, Follower follower) {
-        // Bound to the player rather than to the server, which is what makes a
-        // sample legal on Folia: where somebody is may only be read from the
-        // region that owns them, and a player leaves the arena's region the
-        // moment they die and are sent to the lobby.
-        follower.task = scheduler.runAtEntityTimer(entity, 1L, 1L,
-                () -> sample(entity, follower));
+        follower.task = scheduler.runAtEntityTimer(entity, 1L, 1L, () -> sample(entity, follower));
     }
 
-    /** Starts the one timer that reads everything else, if it is not running. */
     private void startDebris() {
         if (debrisTask != null) return;
         debrisTask = scheduler.runAtLocationTimer(anchor, 1L, 1L, this::sampleDebris);
     }
 
-    /**
-     * Reads every arrow, pearl and crystal still in the arena.
-     *
-     * <p>One pass, on the region that owns the arena. Anything gone is dropped
-     * from the list and ends where it ended; anything that has wandered into
-     * another region is skipped rather than read illegally, which on Folia is
-     * the difference between a missing frame and a thrown exception.
-     */
     private void sampleDebris() {
         if (!running || debris.isEmpty()) return;
         for (Follower follower : debris) {
@@ -209,12 +163,48 @@ public final class Recording implements ReplayRecorder {
             try {
                 sample(entity, follower);
             } catch (IllegalStateException elsewhere) {
-                // Folia: it is no longer this region's to read. A pearl that has
-                // left the arena is not worth chasing across the server.
+                // Folia: no longer this region's to read. Not worth chasing.
                 debris.remove(follower);
                 follower.entity = null;
             }
         }
+    }
+
+    @Override
+    public void watch(double radius) {
+        if (!running || radius <= 0) return;
+        watchRadius = radius;
+        if (watchTask != null) return;
+        watchTask = scheduler.runAtLocationTimer(anchor, 1L, WATCH_EVERY, this::scanZone);
+    }
+
+    /** Follows whatever has wandered into the watched zone since the last look. */
+    private void scanZone() {
+        double radius = watchRadius;
+        if (!running || radius <= 0 || anchor.getWorld() == null) return;
+        try {
+            for (Entity entity : anchor.getWorld().getNearbyEntities(anchor, radius, radius, radius)) {
+                if (!Tracking.worthRecording(entity)) continue;
+                if (followers.containsKey(entity.getUniqueId())) {
+                    if (entity instanceof Player player) follow(player);
+                    continue;
+                }
+                follow(entity);
+            }
+        } catch (IllegalStateException elsewhere) {
+            // Folia: part of the box belongs to another region this tick.
+        }
+    }
+
+    /** Whether a place is inside the zone this recording watches by itself. */
+    boolean watches(Location at) {
+        double radius = watchRadius;
+        if (radius <= 0 || at.getWorld() == null || !at.getWorld().equals(anchor.getWorld())) {
+            return false;
+        }
+        return Math.abs(at.getX() - anchor.getX()) <= radius
+                && Math.abs(at.getY() - anchor.getY()) <= radius
+                && Math.abs(at.getZ() - anchor.getZ()) <= radius;
     }
 
     @Override
@@ -226,8 +216,7 @@ public final class Recording implements ReplayRecorder {
     @Override
     public void mark(@NotNull String kind, @Nullable Player actor, byte @Nullable [] data) {
         if (running) {
-            marks.add(new ReplayMark(tick(), kind,
-                    actor == null ? null : actor.getUniqueId(), data));
+            marks.add(new ReplayMark(tick(), kind, actor == null ? null : actor.getUniqueId(), data));
         }
     }
 
@@ -236,13 +225,32 @@ public final class Recording implements ReplayRecorder {
         mark(kind, actor, text.getBytes(StandardCharsets.UTF_8));
     }
 
+    /** A mark the module writes against any actor, player or not. */
+    void markActor(String kind, UUID actor, byte @Nullable [] data) {
+        if (running) marks.add(new ReplayMark(tick(), kind, actor, data));
+    }
+
     @Override
-    public void block(@NotNull Location at, @Nullable BlockData became,
-                      @Nullable BlockData was) {
+    public void block(@NotNull Location at, @Nullable BlockData became, @Nullable BlockData was) {
         if (!running || worldMarks >= MAX_WORLD_MARKS) return;
         worldMarks++;
         marks.add(new ReplayMark(tick(), ReplayMark.BLOCK, null,
                 WorldMarks.block(anchor, at, became, was)));
+    }
+
+    /** A block change seen by the module's own listener, inside a watched zone. */
+    void blockSeen(Location at, BlockData was) {
+        if (!running || worldMarks >= MAX_WORLD_MARKS) return;
+        int when = tick();
+        // What it became is only there once the event is over, so it is read a
+        // tick later from the region that owns it, and stamped with the tick
+        // the change actually happened on.
+        scheduler.runAtLocationLater(at, 1L, () -> {
+            if (!running || worldMarks >= MAX_WORLD_MARKS) return;
+            worldMarks++;
+            marks.add(new ReplayMark(when, ReplayMark.BLOCK, null,
+                    WorldMarks.block(anchor, at, at.getBlock().getBlockData(), was)));
+        });
     }
 
     @Override
@@ -263,15 +271,12 @@ public final class Recording implements ReplayRecorder {
     @Override
     public void reset() {
         if (!running) return;
-        // Not counted against the block budget: it is the one mark that makes
-        // the budget go further, by making everything before it irrelevant.
         marks.add(new ReplayMark(tick(), ReplayMark.RESET, null, null));
     }
 
     @Override
     public int tick() {
-        return (int) Math.min(MAX_FRAMES,
-                (System.nanoTime() - startedAt) / 1_000_000L / MILLIS_PER_TICK);
+        return Math.clamp(ReplayClock.now() - startedAt, 0, MAX_FRAMES);
     }
 
     @Override
@@ -283,32 +288,43 @@ public final class Recording implements ReplayRecorder {
     public synchronized @NotNull Replay stop() {
         if (finished != null) return finished;
         running = false;
-        stopDebris();
-        int frames = 0;
-        for (Follower follower : followers.values()) {
-            follower.stop();
-            frames = Math.max(frames, follower.track.lastTick());
+        stopTimers();
+        List<Follower> everybody;
+        synchronized (followers) {
+            everybody = new ArrayList<>(followers.values());
         }
-        List<ReplayActor> actors = new ArrayList<>(followers.size());
-        List<MotionTrack> tracks = new ArrayList<>(followers.size());
-        for (Follower follower : followers.values()) {
-            // Something that appeared and vanished without ever being sampled —
-            // an arrow that hit the wall it was fired at — is not in the
-            // recording at all rather than in it as an empty track.
-            if (follower.track.isEmpty()) continue;
-            actors.add(follower.actor);
-            tracks.add(follower.track.build());
+        // As long as it ran, not only as long as somebody was followed: a
+        // recording kept going for a few seconds after the end of a fight is
+        // the fall of the last body, even once everybody has left the arena.
+        int frames = tick();
+        for (Follower follower : everybody) {
+            follower.stop();
+            synchronized (follower) {
+                frames = Math.max(frames, follower.track.lastTick());
+            }
+        }
+        List<ReplayActor> actors = new ArrayList<>(everybody.size());
+        List<MotionTrack> tracks = new ArrayList<>(everybody.size());
+        for (Follower follower : everybody) {
+            // A sample still running on another region finishes its frame
+            // before the track is copied, rather than tearing it.
+            synchronized (follower) {
+                // Something that appeared and vanished without ever being
+                // sampled is not in the recording rather than an empty track.
+                if (follower.track.isEmpty()) continue;
+                actors.add(follower.actor);
+                tracks.add(follower.track.build());
+            }
         }
         List<ReplayMark> ordered = new ArrayList<>(marks);
         // Stable by tick: two things on the same tick keep the order they
-        // happened in, which is what makes a hit that killed somebody come
-        // before the death rather than after it, and the blast that took a wall
-        // out come before the wall going.
+        // happened in, so a killing hit comes before the death.
         ordered.sort(Comparator.comparingInt(ReplayMark::tick));
         int last = Math.max(0, frames - 1);
         ordered.replaceAll(mark -> mark.tick() <= last ? mark
                 : new ReplayMark(last, mark.kind(), mark.actor(), mark.data()));
-        finished = new Replay(id, createdAt, frames, actors, tracks, ordered);
+        finished = new Replay(id, createdAt, frames, actors, tracks, ordered,
+                List.of(ReplayScene.of(anchor)), null);
         ReplayRuntime.forget(this);
         return finished;
     }
@@ -316,119 +332,122 @@ public final class Recording implements ReplayRecorder {
     @Override
     public synchronized void cancel() {
         running = false;
-        stopDebris();
-        followers.values().forEach(Follower::stop);
-        followers.clear();
+        stopTimers();
+        synchronized (followers) {
+            followers.values().forEach(Follower::stop);
+            followers.clear();
+        }
         marks.clear();
         ReplayRuntime.forget(this);
     }
 
-    /** Ends the one timer the arena's debris is read by. */
-    private void stopDebris() {
+    private void stopTimers() {
         TaskHandle task = debrisTask;
         debrisTask = null;
         debris.clear();
         if (task != null) task.cancel();
+        TaskHandle watching = watchTask;
+        watchTask = null;
+        if (watching != null) watching.cancel();
     }
 
-    /** Whether this recording is following somebody, for the shared listener. */
-    boolean follows(UUID player) {
-        Follower follower = followers.get(player);
-        return follower != null && follower.player;
+    /** Whether this recording follows somebody, player or not. */
+    boolean follows(UUID actor) {
+        Follower follower = followers.get(actor);
+        return follower != null;
     }
 
     private Follower follower(UUID id) {
         return followers.get(id);
     }
 
-    /**
-     * Writes one tick of one thing.
-     *
-     * <p>Whether a player is on the ground is the flag the client reported,
-     * which Bukkit deprecates for being exactly that. For a recording it is the
-     * right one and the only one: it is what the server itself used, so a replay
-     * that recomputed it would disagree with the fight it is showing.
-     */
-    @SuppressWarnings("deprecation")
     private void sample(Entity entity, Follower follower) {
         if (!running || (follower.player && follower.task == null)) return;
         int tick = tick();
         if (tick >= MAX_FRAMES) {
             // Stopped rather than truncated: a recorder nobody ended is a bug,
-            // and one that silently kept running while dropping everything
-            // would hide it.
+            // and one that silently kept going while dropping everything would
+            // hide it.
             ReplayRuntime.overran(owner);
             stop();
             return;
         }
-        if (!entity.isValid()) {
-            // A player who logged out. Nothing tells an entity timer that its
-            // player is gone: on Folia it is simply never run again, and on
-            // Bukkit it would keep sampling a connection that no longer exists.
+        if (entity instanceof Player player) {
+            if (!player.isOnline()) {
+                follower.stop();
+                return;
+            }
+            // Dead, on the respawn screen: not here, but coming back. The
+            // ticks in between are written as absent once they are back.
+            if (player.isDead()) {
+                follower.away = true;
+                follower.sampledAt = tick;
+                return;
+            }
+        } else if (!entity.isValid()) {
             follower.stop();
             return;
         }
-        Location at = entity.getLocation();
-        if (!(entity instanceof Player player)) {
-            follower.track.put(tick, at.getX() - anchor.getX(), at.getY() - anchor.getY(),
-                    at.getZ() - anchor.getZ(), at.getYaw(), at.getPitch(), 0.0,
-                    MotionTrack.flagsOf(NpcPose.STANDING, false, false, false, true));
+        // Somewhere else entirely: sent to the lobby, through a portal. Their
+        // position measured against this anchor would be a body flying off
+        // across the arena, so they are away until they come back.
+        if (anchor.getWorld() != null && entity.getWorld() != anchor.getWorld()) {
+            follower.away = true;
+            follower.sampledAt = tick;
             return;
         }
-        follower.track.put(tick, at.getX() - anchor.getX(), at.getY() - anchor.getY(),
-                at.getZ() - anchor.getZ(), at.getYaw(), at.getPitch(), player.getHealth(),
-                MotionTrack.flagsOf(poseOf(player), player.isSprinting(),
-                        player.isOnGround(), isUsing(player), true));
-        sampleEquipment(player, follower, tick);
-    }
-
-    /** Whether a bow is being drawn, a shield is up or a gapple is going down. */
-    private static boolean isUsing(LivingEntity entity) {
-        try {
-            return entity.isHandRaised();
-        } catch (NoSuchMethodError older) {
-            // A server whose API predates the accessor. One flag short of a
-            // perfect replay is not a reason to record nothing.
-            return false;
+        long now = System.nanoTime();
+        if (tick == follower.sampledAt && now - follower.sampledNanos > Sampler.SAME_TICK_NANOS) {
+            // Folia: the same stamp read in two of this region's ticks. It is
+            // the next one.
+            tick++;
+        }
+        follower.sampledNanos = now;
+        Location at = entity.getLocation();
+        synchronized (follower) {
+            if (follower.away) {
+                follower.track.absentUntil(tick);
+                follower.away = false;
+            }
+            follower.track.put(tick, at.getX() - anchor.getX(), at.getY() - anchor.getY(),
+                    at.getZ() - anchor.getZ(), at.getYaw(), at.getPitch(), at.getYaw(),
+                    Sampler.healthOf(entity), Sampler.flagsOf(entity));
+        }
+        follower.sampledAt = tick;
+        if (entity instanceof Player player && tick % 20 == 0) {
+            marks.add(ReplayMark.of(tick, ReplayMark.PING, player.getUniqueId(),
+                    String.valueOf(player.getPing())));
+        }
+        if (entity instanceof LivingEntity living
+                && (follower.player || tick % MOB_EQUIPMENT_EVERY == 0)) {
+            sampleEquipment(living, follower, tick);
         }
     }
 
-    /** Writes a mark for each slot that is holding something new. */
-    private void sampleEquipment(Player player, Follower follower, int tick) {
-        PlayerInventory inventory = player.getInventory();
-        for (int slot = 0; slot < SLOTS.length; slot++) {
-            ItemStack worn = inventory.getItem(SLOTS[slot]);
-            if (worn != null && worn.getType().isAir()) worn = null;
+    /** Writes a mark for every slot that changed since the last look. */
+    private void sampleEquipment(LivingEntity living, Follower follower, int tick) {
+        for (int slot = 0; slot < Sampler.SLOTS.length; slot++) {
+            ItemStack worn = Sampler.worn(living, Sampler.SLOTS[slot]);
             if (Objects.equals(worn, follower.equipment[slot])) continue;
             follower.equipment[slot] = worn == null ? null : worn.clone();
             marks.add(new ReplayMark(tick, ReplayMark.EQUIP, follower.actor.id(),
-                    Equipment.write(SLOTS[slot], worn)));
+                    Equipment.write(Sampler.SLOTS[slot], worn)));
         }
     }
 
-    /** How the client is drawing them, in the vocabulary an NPC understands. */
-    private static NpcPose poseOf(Player player) {
-        Pose pose = player.getPose();
-        return switch (pose) {
-            case SLEEPING -> NpcPose.LYING;
-            case SWIMMING -> NpcPose.CRAWLING;
-            case SNEAKING -> NpcPose.SNEAKING;
-            case SPIN_ATTACK -> NpcPose.SPINNING;
-            default -> NpcPose.STANDING;
-        };
-    }
-
-    /** One thing being recorded. */
+    /** One actor and everything recorded of them. */
     private static final class Follower {
 
         private final ReplayActor actor;
         private final boolean player;
         private final MotionTrack.Builder track = new MotionTrack.Builder();
-        private final ItemStack[] equipment = new ItemStack[SLOTS.length];
+        private final ItemStack[] equipment = new ItemStack[Sampler.SLOTS.length];
 
-        /** What this follows, for the ones the shared timer reads. */
         private volatile Entity entity;
         private volatile TaskHandle task;
+        private volatile int sampledAt = Integer.MIN_VALUE / 2;
+        private volatile long sampledNanos;
+        private volatile boolean away;
 
         Follower(ReplayActor actor, boolean player) {
             this.actor = actor;
@@ -443,19 +462,14 @@ public final class Recording implements ReplayRecorder {
     }
 
     /**
-     * What an {@link ReplayMark#EQUIP} mark carries.
-     *
-     * <p>The slot is written by name rather than by its position in the enum:
-     * Bukkit has added slots in the middle of that enum before, and a recording
-     * kept from before one of those would come back with a sword on a horse's
-     * saddle.
+     * How an equipment mark's data is laid out: the slot's name, then the item
+     * in Paper's own byte form.
      */
     public static final class Equipment {
 
         private Equipment() {
         }
 
-        /** Packs a slot and what is in it. */
         static byte[] write(EquipmentSlot slot, ItemStack item) {
             byte[] name = slot.name().getBytes(StandardCharsets.UTF_8);
             byte[] stack = item == null ? new byte[0] : item.serializeAsBytes();
@@ -466,20 +480,15 @@ public final class Recording implements ReplayRecorder {
             return out.toByteArray();
         }
 
-        /** Which slot a mark is about, or {@code null} when it cannot be read. */
         public static @Nullable EquipmentSlot slotOf(byte[] data) {
             if (data == null || data.length == 0 || data.length < 1 + data[0]) return null;
             try {
-                return EquipmentSlot.valueOf(
-                        new String(data, 1, data[0], StandardCharsets.UTF_8));
+                return EquipmentSlot.valueOf(new String(data, 1, data[0], StandardCharsets.UTF_8));
             } catch (IllegalArgumentException gone) {
-                // A slot this server no longer has. The rest of the recording
-                // is still worth watching.
                 return null;
             }
         }
 
-        /** What goes in it, or {@code null} when the slot was emptied. */
         public static @Nullable ItemStack itemOf(byte[] data) {
             if (data == null || data.length <= 1 + data[0]) return null;
             byte[] stack = new byte[data.length - 1 - data[0]];

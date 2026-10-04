@@ -79,12 +79,14 @@ public final class Replays {
      */
     public static void release(@NotNull String pluginName) {
         BY_PLUGIN.remove(pluginName);
+        ReplayViewer.release(pluginName);
         ReplayRuntime.release(pluginName);
     }
 
     /** Ends every plugin's recordings and playbacks, on shutdown. */
     public static void releaseAll() {
         BY_PLUGIN.clear();
+        ReplayViewer.leaveAll();
         ReplayRuntime.releaseAll();
     }
 

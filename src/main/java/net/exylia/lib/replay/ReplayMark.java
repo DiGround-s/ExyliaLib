@@ -104,6 +104,103 @@ public record ReplayMark(int tick, @NotNull String kind, @Nullable UUID actor,
     public static final String RESET = "reset";
 
     /**
+     * One player hit something.
+     *
+     * <p>Written by the module from the server's own damage event, against the
+     * attacker. It carries who was hit and how &mdash; a critical, a sweep, a
+     * sprint knockback, a full or a weak swing, a hit taken on a shield &mdash;
+     * which is what the playback turns into the same sounds and particles the
+     * game itself makes for that hit.
+     *
+     * @since 1.241.0
+     */
+    public static final String ATTACK = "attack";
+
+    /**
+     * A totem of undying went off. Drawn by the module as the game draws it.
+     *
+     * @since 1.241.0
+     */
+    public static final String TOTEM = "totem";
+
+    /**
+     * Somebody was teleported rather than walking there: a pearl, a command, a
+     * portal. Its text is the cause, as Bukkit names it.
+     *
+     * @since 1.241.0
+     */
+    public static final String TELEPORT = "teleport";
+
+    /**
+     * Somebody said something in chat. Its text is the message, as plain text.
+     *
+     * <p>Recorded only by the black box; handed to the plugin, which decides
+     * whether and how a viewer reads it.
+     *
+     * @since 1.241.0
+     */
+    public static final String CHAT = "chat";
+
+    /**
+     * Somebody got on something: a horse, a boat, a minecart, another player.
+     * Drawn by the module.
+     *
+     * @since 1.241.0
+     */
+    public static final String MOUNT = "mount";
+
+    /** Somebody got off. Drawn by the module. @since 1.241.0 */
+    public static final String DISMOUNT = "dismount";
+
+    /**
+     * Somebody picked an item up off the ground. Drawn by the module as the item
+     * flying into them.
+     *
+     * @since 1.241.0
+     */
+    public static final String PICKUP = "pickup";
+
+    /**
+     * A block is being mined: the cracks on it. Drawn by the module.
+     *
+     * @since 1.241.0
+     */
+    public static final String BREAKING = "breaking";
+
+    /**
+     * Somebody's shield was knocked out by an axe. Drawn by the module.
+     *
+     * @since 1.241.0
+     */
+    public static final String SHIELD_DISABLED = "shield_disabled";
+
+    /**
+     * Somebody's ping, in milliseconds, as text. Written once a second by the
+     * black box and by a recorder, for every player they follow, so a replay
+     * can say whether the person who died was lagging.
+     *
+     * @since 1.241.0
+     */
+    public static final String PING = "ping";
+
+    /**
+     * How the server was doing: {@code "tps;mspt"} as text, written once a
+     * second by the black box. Belongs to nobody.
+     *
+     * @since 1.241.0
+     */
+    public static final String SERVER = "server";
+
+    /**
+     * Somebody left the server. Its text is why, as Paper names it:
+     * {@code DISCONNECTED}, {@code KICKED}, {@code TIMED_OUT},
+     * {@code ERRONEOUS_STATE}.
+     *
+     * @since 1.241.0
+     */
+    public static final String QUIT = "quit";
+
+    /**
      * One with a line of text behind it, for a plugin's own kinds.
      *
      * @param tick  which frame
@@ -124,5 +221,20 @@ public record ReplayMark(int tick, @NotNull String kind, @Nullable UUID actor,
      */
     public @Nullable String text() {
         return data == null ? null : new String(data, StandardCharsets.UTF_8);
+    }
+
+    /**
+     * The other actor a module mark names: who an {@link #ATTACK} hit, what a
+     * {@link #MOUNT} got on, which item a {@link #PICKUP} took.
+     *
+     * @return their id, or {@code null} for any other kind
+     * @since 1.241.0
+     */
+    public @Nullable UUID other() {
+        return switch (kind) {
+            case ATTACK -> net.exylia.lib.replay.internal.MarkData.attackVictim(data);
+            case MOUNT, PICKUP -> net.exylia.lib.replay.internal.MarkData.other(data);
+            default -> null;
+        };
     }
 }

@@ -1,16 +1,18 @@
 package net.exylia.lib.replay.internal;
 
 import com.github.retrooper.packetevents.protocol.entity.type.EntityType;
-import net.exylia.lib.npc.NpcHandle;
-import net.exylia.lib.npc.NpcModel;
-import net.exylia.lib.npc.NpcPose;
-import net.exylia.lib.npc.internal.NpcRuntime;
+import com.github.retrooper.packetevents.protocol.entity.type.EntityTypes;
+import com.github.retrooper.packetevents.protocol.particle.type.ParticleTypes;
+import com.github.retrooper.packetevents.protocol.sound.SoundCategory;
 import net.exylia.lib.replay.Replay;
 import net.exylia.lib.replay.ReplayActor;
 import net.exylia.lib.replay.ReplayMark;
 import net.exylia.lib.replay.ReplayPlayback;
+import net.exylia.lib.replay.ReplayScene;
 import net.exylia.lib.task.TaskScheduler;
 import org.bukkit.Location;
+import org.bukkit.Material;
+import org.bukkit.SoundGroup;
 import org.bukkit.block.data.BlockData;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.EquipmentSlot;
@@ -20,198 +22,246 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
-import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
+import java.util.function.IntConsumer;
 
 /**
  * One recording while somebody is watching it.
  *
  * <h2>It is the client that makes it look real</h2>
- * A body is put where it was with a relative step, and the client draws its own
- * frames between one step and the next exactly as it does for a real player.
- * Nothing about a playback is smoothed or animated here; what makes it
- * indistinguishable from spectating is that it is the same packets a real
- * player's movement produces.
+ * Every body is a packet entity driven with exactly the packets a real one
+ * produces: a relative step each tick, a head turn, a periodic position sync,
+ * metadata when the pose or the flags change. The client interpolates between
+ * steps the way it does for anybody it can see, which is why a replayed player
+ * walks like a player.
  *
- * <h2>The arena is never actually touched</h2>
- * Blocks that changed during the match are shown to the viewer as fake blocks,
- * which is a packet and not a placement. So a crater from a match an hour ago
- * appears in an arena that is pristine underneath it, and two people can watch
- * two different fights in two clones of it without either seeing the other's
- * rubble.
+ * <h2>Between frames</h2>
+ * A recording has a frame per server tick. Played slower than real time, the
+ * driver still sends a step every tick, to a position interpolated between the
+ * two frames either side, so a quarter-speed replay is a smooth slow motion
+ * rather than a body that moves, stops and moves again.
  *
- * <h2>Only what changed</h2>
- * A frame is applied when the tick it belongs to changes, not every time the
- * driver runs: at a quarter speed that is one set of packets every four ticks
- * rather than four copies of the same one.
+ * <h2>One thread draws</h2>
+ * Every frame, a seek included, is drawn by the runtime's driver, and a playback
+ * the driver is still drawing is skipped rather than entered twice. Two threads
+ * computing a relative step from a position the other one is changing is how a
+ * body ends up somewhere neither of them meant.
+ *
+ * <h2>The arena</h2>
+ * Blocks that changed are drawn for the viewer alone by default, or written
+ * into a world the caller owns. A seek rebuilds what the arena looked like on
+ * that tick and sends only the difference from what is on screen.
  */
 @ApiStatus.Internal
 public final class Playback implements ReplayPlayback {
 
-    /** Slow enough to read a hit, fast enough to skip to the end. */
     private static final double MIN_SPEED = 1.0 / 16.0;
     private static final double MAX_SPEED = 8.0;
-
-    /** No entity drawn yet. */
-    private static final int NONE = 0;
-
-    /** No seek waiting; a real tick is never this. */
     private static final int NO_SEEK = Integer.MIN_VALUE;
+
+    /** 4096ths of a block, which is what a relative step is written in. */
+    private static final double STEP_UNIT = 4096.0;
+
+    /** Past this a body did not walk there and is put there outright. */
+    private static final double MAX_STEP = 7.5;
+
+    /** How often a moving body is told where it is outright, as the server does. */
+    private static final int SYNC_EVERY = 60;
+
+    /** How far apart two frames can be and still be interpolated between. */
+    private static final double MAX_LERP = 4.0;
+
+    /** How long a body lies there after dying before it is taken away. */
+    private static final int DEATH_TICKS = 20;
+
+    /** Distance walked per footstep, as the game measures it. */
+    private static final double STEP_DISTANCE = 1.0 / 0.6;
+
+    /** Sounds a single tick may make, so a fast-forward is not a wall of noise. */
+    private static final int SOUNDS_PER_TICK = 8;
 
     private final String owner;
     private final Replay replay;
-    private final Location anchor;
+    private final Location[] anchors;
     private final List<Player> viewers;
     private final TaskScheduler scheduler;
+    private final List<ReplayMark> marks;
 
-    /** Players, drawn by the NPC module. */
-    private final NpcHandle[] bodies;
-    private final NpcPose[] poses;
-
-    /** Whether each body is currently drawn with its arm up. */
-    private final boolean[] using;
-
-    /** Everything that is not a player, drawn as a bare packet entity. */
-    private final int[] entities;
+    private final Body[] bodies;
     private final EntityType[] types;
+    private final Appearance[] looks;
+    private final boolean[] living;
+    private final boolean[] carriesItem;
+    private final List<Worn>[] wardrobe;
+    private final List<Riding>[] rides;
+    private final int[][] deaths;
 
-    /**
-     * Every equipment mark, already turned back into an item.
-     *
-     * <p>Decoded here rather than when it is passed, because the driver runs on
-     * a packet thread and reading an {@link ItemStack} out of bytes is not
-     * something to do off the server's own. It is a few dozen items for a whole
-     * duel, done once, on the thread that asked for the playback.
-     */
-    private final Dressed[] dressed;
-
-    /**
-     * Every position this recording ever changes, and what was there before the
-     * first change to it.
-     *
-     * <p>Both halves are needed to go backwards. Seeking to a tick before a wall
-     * was blown up has to put that wall back, and the only place the wall still
-     * exists is the {@code before} side of the mark that took it away.
-     */
+    /** What was at every position the recording changes, before the first change. */
     private final Map<Location, BlockData> originals;
 
-    /** What has actually been drawn, so only that is taken away again. */
-    private final Set<Location> drawn = ConcurrentHashMap.newKeySet();
+    /** What is on screen at every position this playback has drawn. */
+    private final Map<Location, BlockData> shown = new HashMap<>();
 
-    /**
-     * Whether the arena is really changed rather than drawn over.
-     *
-     * <p>Off by default, because a library that writes to somebody's world owes
-     * them a cleanup it cannot guarantee. On, when the caller owns the arena and
-     * says so &mdash; and then it is the better answer by a distance: a client
-     * predicts its own movement against its own copy of the world, so a viewer
-     * walking into a block the server does not have is corrected back out of it,
-     * tick after tick. That is the rubber-banding a packet-only replay has, and
-     * the one thing that cannot be fixed without agreeing with the server.
-     */
+    private final AtomicBoolean busy = new AtomicBoolean();
+
+    /** The thread drawing a frame right now, if any. */
+    private volatile Thread drawing;
+
+    /** A stop asked for from inside a frame, carried out when the frame ends. */
+    private volatile boolean cleanupOwed;
+
     private volatile boolean solid;
-
     private volatile double position;
     private volatile double speed = 1.0;
     private volatile int rendered = -1;
     private volatile boolean paused;
     private volatile boolean looping;
     private volatile boolean audible = true;
+    private volatile boolean revealing;
     private volatile boolean stopped;
-
-    /**
-     * A seek somebody asked for, waiting for the driver to carry it out.
-     *
-     * <p>Seeking used to draw the new frame on whatever thread asked for it — a
-     * hotbar click, a command — while the driver was drawing the old one on its
-     * own. Two threads inside the same bodies, each computing a relative step
-     * from a position the other was in the middle of changing: the steps came
-     * out wrong and the bodies ended up somewhere neither side agreed on. Every
-     * frame is drawn by the driver now, and a seek is a number left for it.
-     */
+    private volatile boolean carryViewers;
     private volatile int pendingSeek = NO_SEEK;
-
-    /**
-     * Whether this frame is the landing of a seek rather than the next tick.
-     *
-     * <p>A body put one frame further on is stepped, because that is what makes
-     * walking look like walking. A body put a minute further back did not walk
-     * there, and stepping it produces a long smooth glide across the arena to
-     * the new place. Only the driver ever sets this, and only around one call.
-     */
-    private boolean snapping;
     private volatile Consumer<ReplayMark> onMark;
     private volatile Runnable onEnd;
+    private volatile IntConsumer onScene;
 
-    Playback(String owner, Replay replay, Location anchor, List<Player> viewers,
+    private int scene = -1;
+    private int redrawIn;
+
+    /** Whose eyes the viewers are looking out of, or -1. */
+    private volatile int pov = -1;
+    private int povSent = -1;
+    private int povAge;
+    private int soundsThisTick;
+
+    @SuppressWarnings("unchecked")
+    Playback(String owner, Replay replay, List<Location> anchors, List<Player> viewers,
              TaskScheduler scheduler) {
         this.owner = owner;
         this.replay = replay;
-        this.anchor = anchor.clone();
+        this.anchors = new Location[replay.scenes().size()];
+        for (int index = 0; index < this.anchors.length; index++) {
+            Location given = index < anchors.size() ? anchors.get(index) : null;
+            this.anchors[index] = given != null ? given.clone() : derived(replay, anchors, index);
+        }
         this.viewers = viewers;
         this.scheduler = scheduler;
+        this.marks = replay.marks();
         int actors = replay.actors().size();
-        this.bodies = new NpcHandle[actors];
-        this.poses = new NpcPose[actors];
-        this.using = new boolean[actors];
-        this.entities = new int[actors];
+        this.bodies = new Body[actors];
         this.types = new EntityType[actors];
+        this.looks = new Appearance[actors];
+        this.living = new boolean[actors];
+        this.carriesItem = new boolean[actors];
+        this.wardrobe = new List[actors];
+        this.rides = new List[actors];
+        this.deaths = new int[actors][];
         for (int index = 0; index < actors; index++) {
             ReplayActor actor = replay.actors().get(index);
-            if (!actor.isPlayer()) types[index] = ReplayEntities.typeOf(actor.entityType());
+            EntityType type = ReplayPackets.typeOf(actor.entityType());
+            types[index] = type;
+            looks[index] = Appearance.read(actor.appearance());
+            living[index] = type != null && type.isInstanceOf(EntityTypes.LIVINGENTITY);
+            carriesItem[index] = type != null && carriesItem(type);
+            wardrobe[index] = new ArrayList<>(2);
+            rides[index] = new ArrayList<>(0);
         }
-        this.dressed = dress(replay);
-        this.originals = originals(replay, this.anchor);
+        index();
+        this.originals = originals();
+    }
+
+    /**
+     * An anchor nobody gave: the first one, moved by however far apart the two
+     * scenes were where they were recorded, when they were in the same world.
+     */
+    private static Location derived(Replay replay, List<Location> anchors, int index) {
+        Location first = anchors.getFirst().clone();
+        ReplayScene from = replay.scenes().getFirst();
+        ReplayScene to = replay.scenes().get(index);
+        if (Objects.equals(from.world(), to.world())) {
+            first.add(to.x() - from.x(), to.y() - from.y(), to.z() - from.z());
+        }
+        return first;
+    }
+
+    private static boolean carriesItem(EntityType type) {
+        return type == EntityTypes.ITEM || type == EntityTypes.SNOWBALL || type == EntityTypes.EGG
+                || type == EntityTypes.ENDER_PEARL || type == EntityTypes.EXPERIENCE_BOTTLE
+                || type == EntityTypes.POTION || type == EntityTypes.SPLASH_POTION
+                || type == EntityTypes.LINGERING_POTION || type == EntityTypes.FIREWORK_ROCKET
+                || type == EntityTypes.EYE_OF_ENDER;
+    }
+
+    /**
+     * Reads every mark that changes how somebody is drawn into per-actor lists,
+     * once, so a seek is a lookup rather than a walk through the whole match.
+     */
+    private void index() {
+        List<List<Integer>> died = new ArrayList<>();
+        for (int index = 0; index < bodies.length; index++) died.add(new ArrayList<>());
+        for (ReplayMark mark : marks) {
+            int actor = mark.actor() == null ? -1 : indexOf(mark.actor());
+            if (actor < 0) continue;
+            switch (mark.kind()) {
+                case ReplayMark.EQUIP -> {
+                    EquipmentSlot slot = Recording.Equipment.slotOf(mark.data());
+                    int at = slotIndex(slot);
+                    if (at >= 0) {
+                        wardrobe[actor].add(new Worn(mark.tick(), at,
+                                Recording.Equipment.itemOf(mark.data())));
+                    }
+                }
+                case ReplayMark.MOUNT -> {
+                    UUID vehicle = MarkData.other(mark.data());
+                    int on = vehicle == null ? -1 : indexOf(vehicle);
+                    rides[actor].add(new Riding(mark.tick(), on));
+                }
+                case ReplayMark.DISMOUNT -> rides[actor].add(new Riding(mark.tick(), -1));
+                case ReplayMark.DEATH -> died.get(actor).add(mark.tick());
+                case ReplayMark.RESPAWN -> died.get(actor).add(-mark.tick() - 1);
+                default -> {
+                }
+            }
+        }
+        for (int index = 0; index < bodies.length; index++) {
+            deaths[index] = died.get(index).stream().mapToInt(Integer::intValue).toArray();
+        }
     }
 
     /** What was at each changed position before the recording touched it. */
-    private static Map<Location, BlockData> originals(Replay replay, Location anchor) {
+    private Map<Location, BlockData> originals() {
         Map<Location, BlockData> first = new LinkedHashMap<>();
-        for (ReplayMark mark : replay.marks()) {
+        for (ReplayMark mark : marks) {
             if (!ReplayMark.BLOCK.equals(mark.kind())) continue;
-            Location at = WorldMarks.blockAt(anchor, mark.data());
-            // The first word on a position is the one that remembers what the
-            // arena looked like; every later one is already the replay's doing.
+            Location at = WorldMarks.blockAt(anchorAt(mark.tick()), mark.data());
             if (at != null) first.putIfAbsent(at, WorldMarks.blockBefore(mark.data()));
         }
         return first;
     }
 
-    /** Whether the arena is really changed rather than drawn over for one viewer. */
     void solid(boolean solid) {
         this.solid = solid;
     }
 
-    /** Reads every equipment mark back into a slot and an item, once. */
-    private static Dressed[] dress(Replay replay) {
-        List<ReplayMark> marks = replay.marks();
-        Dressed[] items = new Dressed[marks.size()];
-        for (int index = 0; index < marks.size(); index++) {
-            ReplayMark mark = marks.get(index);
-            if (!ReplayMark.EQUIP.equals(mark.kind())) continue;
-            EquipmentSlot slot = Recording.Equipment.slotOf(mark.data());
-            if (slot != null) {
-                items[index] = new Dressed(slot, Recording.Equipment.itemOf(mark.data()));
-            }
-        }
-        return items;
+    /** Whether viewers are moved along with a cut to another scene. */
+    void carryViewers(boolean carry) {
+        this.carryViewers = carry;
     }
 
-    /** One slot and what went in it, read out of a mark in advance. */
-    private record Dressed(EquipmentSlot slot, ItemStack item) {
-    }
-
-    /** Which plugin's playback this is. */
     String owner() {
         return owner;
     }
 
-    /** Whether this playback is being shown to anybody who is still here. */
     boolean hasViewers() {
         for (Player viewer : viewers) {
             if (viewer != null && viewer.isOnline()) return true;
@@ -219,42 +269,833 @@ public final class Playback implements ReplayPlayback {
         return false;
     }
 
-    /**
-     * Advances it by one tick of real time.
-     *
-     * <p>Called by the runtime's single driver, on a packet-sending thread.
-     */
+    // ----------------------------------------------------------------- driver
+
+    /** Advances it by one server tick. Called by the runtime's driver. */
     void step() {
-        if (stopped) return;
-        int wanted = pendingSeek;
-        if (wanted != NO_SEEK) {
-            pendingSeek = NO_SEEK;
-            jumpTo(wanted);
-            return;
-        }
-        if (!paused) {
-            int target = (int) Math.min(position, replay.frames() - 1);
-            if (target != rendered) {
-                marks(rendered + 1, target);
-                render(target);
-                rendered = target;
+        if (stopped || !busy.compareAndSet(false, true)) return;
+        drawing = Thread.currentThread();
+        try {
+            // Stopped between the check and taking the lock: drawing now would
+            // put bodies back on screens that were just cleaned.
+            if (stopped) return;
+            soundsThisTick = 0;
+            int wanted = pendingSeek;
+            if (wanted != NO_SEEK) {
+                pendingSeek = NO_SEEK;
+                jumpTo(wanted);
+                return;
             }
-            position += speed;
+            if (redrawIn > 0 && --redrawIn == 0) {
+                redraw();
+                return;
+            }
+            if (paused) {
+                camera();
+                return;
+            }
+            int last = Math.max(0, replay.frames() - 1);
+            double next = Math.min(position + speed, last);
+            int from = rendered;
+            int to = (int) Math.floor(next);
+            position = next;
+            draw(next, false);
+            if (to > from) {
+                marks(from + 1, to);
+                rendered = to;
+            }
+            if (next < last) return;
+            if (looping) {
+                jumpTo(0);
+                return;
+            }
+            // Held on the last frame rather than taken away: the end of a fight
+            // is the moment somebody watching wants to sit on.
+            paused = true;
+            Runnable end = onEnd;
+            onEnd = null;
+            if (end != null) scheduler.run(end);
+        } finally {
+            drawing = null;
+            if (stopped && cleanupOwed) clean();
+            busy.set(false);
         }
-        if (position < replay.frames()) return;
-        if (looping) {
-            jumpTo(0);
+    }
+
+    /** Carries out a seek: everything put where it was on that tick, at once. */
+    private void jumpTo(int target) {
+        int from = rendered;
+        position = target;
+        rendered = target;
+        rebuildWorld(target);
+        draw(target, true);
+        // Stepping a frame or two on is still watching: the swing and the hit
+        // on that frame are drawn.
+        if (target > from && target - from <= 2) marks(from + 1, target);
+    }
+
+    /** Takes every body off the screen and draws it again, after a cut. */
+    private void redraw() {
+        for (int index = 0; index < bodies.length; index++) remove(index);
+        draw(position, true);
+    }
+
+    // ---------------------------------------------------------------- drawing
+
+    /**
+     * Puts every actor where it was at this point of the recording.
+     *
+     * @param at   the position, in ticks, fractional between two frames
+     * @param snap whether this is a jump rather than the next step
+     */
+    private void draw(double at, boolean snap) {
+        int tick = (int) Math.floor(at);
+        double fraction = at - tick;
+        int now = replay.sceneAt(tick);
+        if (now != scene) {
+            int was = scene;
+            scene = now;
+            if (was >= 0) {
+                cut(was, now);
+                snap = true;
+            }
+        }
+        for (int index = 0; index < bodies.length; index++) {
+            drawActor(index, tick, fraction, snap);
+        }
+        mountRiders(tick);
+        camera();
+    }
+
+    /**
+     * Keeps the viewers' camera on the body they are following.
+     *
+     * <p>The client is told to look out of the body's eyes, which follows it
+     * with the client's own smoothing: nothing is teleported every tick. The
+     * viewer's real position is brought along now and then, because the client
+     * only has the chunks around where it really is.
+     */
+    private void camera() {
+        int wanted = pov;
+        Body body = wanted < 0 ? null : bodies[wanted];
+        int id = body == null ? -1 : body.id;
+        if (id != povSent) {
+            povSent = id;
+            for (Player viewer : viewers) {
+                if (viewer != null && viewer.isOnline()) {
+                    ReplayPackets.camera(viewer, id < 0 ? viewer.getEntityId() : id);
+                }
+            }
+        }
+        if (body == null || ++povAge % 20 != 0) return;
+        Location near = new Location(anchors[Math.max(0, scene)].getWorld(), body.x, body.y + 1.5, body.z);
+        for (Player viewer : viewers) {
+            if (viewer == null || !viewer.isOnline()) continue;
+            scheduler.runAtEntity(viewer, () -> {
+                Location here = viewer.getLocation();
+                if (here.getWorld() != near.getWorld() || here.distanceSquared(near) > 16 * 16) {
+                    Location to = near.clone();
+                    to.setYaw(here.getYaw());
+                    to.setPitch(here.getPitch());
+                    viewer.teleportAsync(to);
+                }
+            });
+        }
+    }
+
+    private void drawActor(int index, int tick, double fraction, boolean snap) {
+        MotionTrack track = replay.tracks().get(index);
+        int died = diedAt(index, tick);
+        Body body = bodies[index];
+        if (died >= 0) {
+            // The sample of the tick they died on is usually already of a dead
+            // player, which is not sampled: the frame before it is where they fell.
+            int fell = track.present(died) ? died : died - 1;
+            // Lying where they fell, until the game itself would have taken
+            // the body away.
+            if (tick - died >= DEATH_TICKS || !track.present(fell)) {
+                if (body != null) {
+                    if (!snap) ReplayPackets.particle(viewers, ParticleTypes.POOF,
+                            body.x, body.y + 0.6, body.z, 0.3f, 0.02f, 12);
+                    remove(index);
+                }
+                return;
+            }
+            if (body == null || body.deadSent < 0) {
+                if (body == null) body = spawn(index, fell);
+                if (body == null) return;
+                if (snap) place(body, track, fell, 0, true);
+                ReplayPackets.dying(viewers, body.id);
+                body.deadSent = died;
+            }
             return;
         }
-        // Held on the last frame rather than taken away: the end of a duel is
-        // the one moment somebody watching wants to sit on, and a playback that
-        // deleted both bodies the instant it finished took it away from them.
-        position = replay.frames() - 1;
-        paused = true;
-        Runnable end = onEnd;
-        onEnd = null;
-        if (end != null) scheduler.run(end);
+        if (!track.present(tick)) {
+            if (body != null) {
+                if (!snap) disappeared(index, body);
+                remove(index);
+            }
+            return;
+        }
+        if (body == null) {
+            body = spawn(index, tick);
+            if (body == null) return;
+            if (!snap && tick == track.firstTick()) appeared(index, body);
+            return;
+        }
+        if (body.deadSent >= 0) {
+            // Back from the dead: a fresh body rather than one lying down.
+            remove(index);
+            spawn(index, tick);
+            return;
+        }
+        place(body, track, tick, fraction, snap);
+        state(index, body, track, tick);
+        // A seek skips the equipment marks in between: what they wore on the
+        // tick landed on is read again.
+        if (snap && living[index]) dress(index, body, tick);
     }
+
+    /** Draws one body for the first time, as it was on this tick. */
+    private Body spawn(int index, int tick) {
+        EntityType type = types[index];
+        if (type == null) return null;
+        MotionTrack track = replay.tracks().get(index);
+        if (!track.present(tick)) return null;
+        ReplayActor actor = replay.actors().get(index);
+        Location at = place(track, tick);
+        Body body = new Body(ReplayPackets.newEntityId());
+        boolean player = actor.isPlayer();
+        if (player) {
+            // Its own identity, never the recorded player's: announcing a second
+            // entry under a real player's id takes that player's skin off their
+            // own body until they relog.
+            body.profile = UUID.randomUUID();
+            ReplayPackets.announce(viewers, body.profile, actor.name(), actor.texture(),
+                    actor.signature());
+        }
+        ReplayPackets.spawn(viewers, body.id, player ? body.profile : UUID.randomUUID(), type,
+                at.getX(), at.getY(), at.getZ(), at.getYaw(), at.getPitch(), track.headYaw(tick),
+                ReplayPackets.spawnData(type, looks[index]));
+        if (player) ReplayPackets.skinLayers(viewers, body.id);
+        else ReplayPackets.appearance(viewers, body.id, looks[index], carriesItem[index]);
+        body.x = at.getX();
+        body.y = at.getY();
+        body.z = at.getZ();
+        body.yaw = MotionTrack.angle(at.getYaw());
+        body.pitch = MotionTrack.angle(at.getPitch());
+        body.head = MotionTrack.angle(track.headYaw(tick));
+        bodies[index] = body;
+        // A vehicle drawn again is a new entity id: whoever rides it is put
+        // back on by the next pass rather than believed to be there already.
+        for (Body other : bodies) {
+            if (other != null && other.vehicle == index) other.vehicle = -1;
+        }
+        state(index, body, track, tick);
+        if (living[index]) dress(index, body, tick);
+        return body;
+    }
+
+    /** Moves a body to where it is now, the way the server moves an entity. */
+    private void place(Body body, MotionTrack track, int tick, double fraction, boolean snap) {
+        Location at = place(track, tick);
+        double x = at.getX();
+        double y = at.getY();
+        double z = at.getZ();
+        float yaw = at.getYaw();
+        float pitch = at.getPitch();
+        float head = track.headYaw(tick);
+        if (fraction > 0 && track.present(tick + 1) && replay.sceneAt(tick + 1) == replay.sceneAt(tick)) {
+            Location next = place(track, tick + 1);
+            if (next.distanceSquared(at) <= MAX_LERP * MAX_LERP) {
+                x += (next.getX() - x) * fraction;
+                y += (next.getY() - y) * fraction;
+                z += (next.getZ() - z) * fraction;
+                yaw = lerpAngle(yaw, next.getYaw(), fraction);
+                pitch += (float) ((next.getPitch() - pitch) * fraction);
+                head = lerpAngle(head, track.headYaw(tick + 1), fraction);
+            }
+        }
+        boolean onGround = track.onGround(tick);
+        byte yawByte = MotionTrack.angle(yaw);
+        byte pitchByte = MotionTrack.angle(pitch);
+        byte headByte = MotionTrack.angle(head);
+        double dx = x - body.x;
+        double dy = y - body.y;
+        double dz = z - body.z;
+        if (snap) {
+            ReplayPackets.teleport(viewers, body.id, x, y, z, yaw, pitch, onGround);
+            body.moveTo(x, y, z);
+        } else if (Math.abs(dx) > MAX_STEP || Math.abs(dy) > MAX_STEP || Math.abs(dz) > MAX_STEP) {
+            // Nobody walks eight blocks in a tick: a pearl, a teleport.
+            ReplayPackets.teleport(viewers, body.id, x, y, z, yaw, pitch, onGround);
+            body.moveTo(x, y, z);
+        } else if (++body.steps >= SYNC_EVERY) {
+            ReplayPackets.sync(viewers, body.id, x, y, z, yaw, pitch, onGround);
+            body.moveTo(x, y, z);
+        } else {
+            // Rounded to what the packet can carry and then believed to be
+            // exactly that. Remembering the step wanted instead of the step
+            // sent is how a body drifts into the floor over a minute.
+            double qx = Math.round(dx * STEP_UNIT) / STEP_UNIT;
+            double qy = Math.round(dy * STEP_UNIT) / STEP_UNIT;
+            double qz = Math.round(dz * STEP_UNIT) / STEP_UNIT;
+            if (qx != 0 || qy != 0 || qz != 0 || yawByte != body.yaw || pitchByte != body.pitch
+                    || onGround != body.onGround) {
+                ReplayPackets.step(viewers, body.id, qx, qy, qz, yaw, pitch, onGround);
+                body.x += qx;
+                body.y += qy;
+                body.z += qz;
+            }
+            footsteps(body, track, tick, qx, qz, onGround);
+        }
+        body.yaw = yawByte;
+        body.pitch = pitchByte;
+        body.onGround = onGround;
+        if (headByte != body.head || snap) {
+            ReplayPackets.head(viewers, body.id, head);
+            body.head = headByte;
+        }
+    }
+
+    /** Sends the flags, the pose and the raised hand when any of them changed. */
+    private void state(int index, Body body, MotionTrack track, int tick) {
+        int flags = track.flags(tick);
+        String pose = track.poseName(tick);
+        byte base = 0;
+        if ((flags & MotionTrack.ON_FIRE) != 0) base |= ReplayPackets.FLAG_ON_FIRE;
+        if (pose.equals("CROUCHING")) base |= ReplayPackets.FLAG_CROUCHING;
+        if ((flags & MotionTrack.SPRINTING) != 0) base |= ReplayPackets.FLAG_SPRINTING;
+        if ((flags & MotionTrack.INVISIBLE) != 0) {
+            // Staff reviewing a fight want to see who was there; anybody else
+            // sees what the players saw.
+            base |= revealing ? ReplayPackets.FLAG_GLOWING : ReplayPackets.FLAG_INVISIBLE;
+        }
+        if ((flags & MotionTrack.GLOWING) != 0) base |= ReplayPackets.FLAG_GLOWING;
+        if (pose.equals("FALL_FLYING")) base |= ReplayPackets.FLAG_GLIDING;
+        int hands = 0;
+        if ((flags & MotionTrack.USING) != 0) hands = 0x01;
+        if ((flags & MotionTrack.USING_OFF_HAND) != 0) hands = 0x03;
+        int key = (base & 0xFF) | (flags & MotionTrack.POSE_MASK) << 8 | hands << 16;
+        if (key == body.state) return;
+        body.state = key;
+        ReplayPackets.state(viewers, body.id, base, pose, living[index], hands);
+    }
+
+    /** Puts on everything somebody was wearing on this tick. */
+    private void dress(int index, Body body, int tick) {
+        ItemStack[] wanted = new ItemStack[Sampler.SLOTS.length];
+        for (Worn worn : wardrobe[index]) {
+            if (worn.tick > tick) break;
+            wanted[worn.slot] = worn.item;
+        }
+        for (int slot = 0; slot < wanted.length; slot++) {
+            if (body.drawn && Objects.equals(wanted[slot], body.worn[slot])) continue;
+            if (!body.drawn && wanted[slot] == null) continue;
+            body.worn[slot] = wanted[slot];
+            ReplayPackets.equip(viewers, body.id, Sampler.SLOTS[slot], wanted[slot]);
+        }
+        body.drawn = true;
+    }
+
+    /** Who is riding what on this tick, sent only when it changed. */
+    private void mountRiders(int tick) {
+        Set<Integer> changed = null;
+        for (int rider = 0; rider < bodies.length; rider++) {
+            if (rides[rider].isEmpty()) continue;
+            int vehicle = -1;
+            for (Riding riding : rides[rider]) {
+                if (riding.tick > tick) break;
+                vehicle = riding.vehicle;
+            }
+            Body body = bodies[rider];
+            if (body == null || vehicle < 0 || bodies[vehicle] == null) vehicle = -1;
+            int shownOn = body == null ? -1 : body.vehicle;
+            if (shownOn == vehicle) continue;
+            if (changed == null) changed = new HashSet<>();
+            if (shownOn >= 0) changed.add(shownOn);
+            if (vehicle >= 0) changed.add(vehicle);
+            if (body != null) body.vehicle = vehicle;
+        }
+        if (changed == null) return;
+        for (int vehicle : changed) {
+            Body carrier = bodies[vehicle];
+            if (carrier == null) continue;
+            List<Integer> riders = new ArrayList<>(1);
+            for (int rider = 0; rider < bodies.length; rider++) {
+                if (bodies[rider] != null && bodies[rider].vehicle == vehicle) {
+                    riders.add(bodies[rider].id);
+                }
+            }
+            ReplayPackets.passengers(viewers, carrier.id,
+                    riders.stream().mapToInt(Integer::intValue).toArray());
+        }
+    }
+
+    /** Takes one actor away, if it is there. */
+    private void remove(int index) {
+        Body body = bodies[index];
+        bodies[index] = null;
+        if (body == null) return;
+        ReplayPackets.destroy(viewers, body.id, body.profile);
+    }
+
+    /** The tick somebody died on, if they are dead on this one; otherwise -1. */
+    private int diedAt(int index, int tick) {
+        int died = -1;
+        for (int event : deaths[index]) {
+            if (event >= 0) {
+                if (event > tick) break;
+                died = event;
+            } else {
+                int respawned = -event - 1;
+                if (respawned > tick) break;
+                died = -1;
+            }
+        }
+        return died;
+    }
+
+    private Location place(MotionTrack track, int tick) {
+        Location at = anchorAt(tick).clone();
+        at.add(track.x(tick), track.y(tick), track.z(tick));
+        at.setYaw(track.yaw(tick));
+        at.setPitch(track.pitch(tick));
+        return at;
+    }
+
+    private Location anchorAt(int tick) {
+        return anchors[replay.sceneAt(tick)];
+    }
+
+    private static float lerpAngle(float from, float to, double fraction) {
+        float delta = ((to - from) % 360f + 540f) % 360f - 180f;
+        return (float) (from + delta * fraction);
+    }
+
+    // ------------------------------------------------------------ scene cuts
+
+    private void cut(int from, int to) {
+        IntConsumer listener = onScene;
+        if (listener != null) scheduler.run(() -> listener.accept(to));
+        if (!carryViewers) return;
+        Location before = anchors[from];
+        Location after = anchors[to];
+        for (Player viewer : viewers) {
+            if (viewer == null || !viewer.isOnline()) continue;
+            scheduler.runAtEntity(viewer, () -> {
+                Location here = viewer.getLocation();
+                Location there = after.clone().add(here.getX() - before.getX(),
+                        here.getY() - before.getY(), here.getZ() - before.getZ());
+                there.setYaw(here.getYaw());
+                there.setPitch(here.getPitch());
+                viewer.teleportAsync(there);
+            });
+        }
+        // The client forgets nothing on a teleport inside one world, but it does
+        // not draw entities in chunks it has not loaded yet: drawn again once the
+        // viewer has arrived.
+        redrawIn = 10;
+    }
+
+    // ------------------------------------------------------------------ marks
+
+    /** Walks the marks of the ticks just passed, drawing the module's own. */
+    private void marks(int from, int to) {
+        if (from > to) return;
+        Consumer<ReplayMark> listener = onMark;
+        List<ReplayMark> passed = null;
+        Map<Location, BlockData> changed = null;
+        List<Location> places = null;
+        List<BlockData> became = null;
+        List<BlockData> were = null;
+        for (int index = firstMark(from); index < marks.size(); index++) {
+            ReplayMark mark = marks.get(index);
+            if (mark.tick() > to) break;
+            if (ReplayMark.BLOCK.equals(mark.kind())) {
+                Location at = WorldMarks.blockAt(anchorAt(mark.tick()), mark.data());
+                if (at != null) {
+                    if (changed == null) {
+                        changed = new LinkedHashMap<>();
+                        places = new ArrayList<>();
+                        became = new ArrayList<>();
+                        were = new ArrayList<>();
+                    }
+                    BlockData now = WorldMarks.blockData(mark.data());
+                    changed.put(at, now);
+                    places.add(at);
+                    became.add(now);
+                    were.add(WorldMarks.blockBefore(mark.data()));
+                }
+                continue;
+            }
+            boolean drawn = draw(mark);
+            if (listener != null && (!drawn || handedOn(mark.kind()))) {
+                if (passed == null) passed = new ArrayList<>(2);
+                passed.add(mark);
+            }
+        }
+        if (changed != null) {
+            showBlocks(changed);
+            if (audible) blockEffects(places, became, were);
+        }
+        if (passed == null) return;
+        // On the server's thread: whatever a plugin does with one of these is
+        // almost always something Bukkit will not let it do from here.
+        List<ReplayMark> batch = passed;
+        scheduler.run(() -> batch.forEach(listener));
+    }
+
+    /** Marks the module draws and still tells the plugin about. */
+    private static boolean handedOn(String kind) {
+        return switch (kind) {
+            case ReplayMark.DEATH, ReplayMark.RESPAWN, ReplayMark.TOTEM, ReplayMark.TELEPORT,
+                 ReplayMark.CHAT, ReplayMark.QUIT -> true;
+            default -> false;
+        };
+    }
+
+    /** The first mark on or after a tick. */
+    private int firstMark(int tick) {
+        int low = 0;
+        int high = marks.size();
+        while (low < high) {
+            int middle = (low + high) >>> 1;
+            if (marks.get(middle).tick() < tick) low = middle + 1;
+            else high = middle;
+        }
+        return low;
+    }
+
+    /**
+     * Draws one mark, if it is one the module knows.
+     *
+     * @return whether it was drawn here
+     */
+    private boolean draw(ReplayMark mark) {
+        int actor = mark.actor() == null ? -1 : indexOf(mark.actor());
+        Body body = actor < 0 ? null : bodies[actor];
+        switch (mark.kind()) {
+            case ReplayMark.SWING -> {
+                if (body != null) {
+                    ReplayPackets.swing(viewers, body.id,
+                            mark.data() != null && mark.data().length > 0 && mark.data()[0] == 1);
+                }
+                return true;
+            }
+            case ReplayMark.HURT -> {
+                if (body != null) {
+                    ReplayPackets.hurt(viewers, body.id, MarkData.hurtDirection(mark.data()));
+                    if (audible(1)) {
+                        ReplayPackets.entitySound(viewers, hurtSound(actor), category(actor),
+                                body.id, 1f, pitch());
+                    }
+                }
+                return true;
+            }
+            case ReplayMark.ATTACK -> {
+                attack(body, mark);
+                return true;
+            }
+            case ReplayMark.EQUIP -> {
+                if (body != null && actor >= 0 && living[actor]) dress(actor, body, mark.tick());
+                return true;
+            }
+            case ReplayMark.EXPLOSION -> {
+                Location at = WorldMarks.explosionAt(anchorAt(mark.tick()), mark.data());
+                if (at != null && audible(1)) {
+                    float power = WorldMarks.explosionPower(mark.data());
+                    ReplayPackets.particle(viewers, power >= 2f ? ParticleTypes.EXPLOSION_EMITTER
+                            : ParticleTypes.EXPLOSION, at.getX(), at.getY(), at.getZ(), 0f, 0f, 1);
+                    ReplayPackets.sound(viewers, "minecraft:entity.generic.explode", SoundCategory.BLOCK,
+                            at.getX(), at.getY(), at.getZ(), 4f, 0.7f + (float) Math.random() * 0.2f);
+                }
+                return true;
+            }
+            case ReplayMark.RESET -> {
+                rebuildWorld(mark.tick());
+                return true;
+            }
+            case ReplayMark.DEATH -> {
+                // Drawn by the body itself, which knows when it died; the
+                // client plays the death sound from the same entity event.
+                return true;
+            }
+            case ReplayMark.TOTEM -> {
+                if (body != null) ReplayPackets.status(viewers, body.id, ReplayPackets.STATUS_TOTEM);
+                return true;
+            }
+            case ReplayMark.SHIELD_DISABLED -> {
+                if (body != null) ReplayPackets.status(viewers, body.id, ReplayPackets.STATUS_SHIELD_BREAK);
+                return true;
+            }
+            case ReplayMark.PICKUP -> {
+                UUID item = MarkData.other(mark.data());
+                int taken = item == null ? -1 : indexOf(item);
+                if (body != null && taken >= 0 && bodies[taken] != null) {
+                    ReplayPackets.collect(viewers, bodies[taken].id, body.id, MarkData.amount(mark.data()));
+                    // The client takes the item away itself as it flies in.
+                    bodies[taken] = null;
+                }
+                return true;
+            }
+            case ReplayMark.BREAKING -> {
+                Location at = WorldMarks.placeAt(anchorAt(mark.tick()), mark.data());
+                String stage = WorldMarks.placeText(mark.data());
+                if (at != null && stage != null) {
+                    int id = body != null ? body.id : (mark.actor() == null ? 0 : mark.actor().hashCode());
+                    ReplayPackets.cracks(viewers, id, at.getBlockX(), at.getBlockY(), at.getBlockZ(),
+                            parse(stage));
+                }
+                return true;
+            }
+            case ReplayMark.MOUNT, ReplayMark.DISMOUNT, ReplayMark.RESPAWN, ReplayMark.QUIT,
+                 ReplayMark.PING, ReplayMark.SERVER -> {
+                // Drawn from the per-actor lists as the frames pass.
+                return true;
+            }
+            default -> {
+                return false;
+            }
+        }
+    }
+
+    /** The sounds and particles of one hit, as the game makes them. */
+    private void attack(@Nullable Body attacker, ReplayMark mark) {
+        int how = MarkData.attackHow(mark.data());
+        UUID victimId = MarkData.attackVictim(mark.data());
+        int victim = victimId == null ? -1 : indexOf(victimId);
+        Body target = victim < 0 ? null : bodies[victim];
+        if ((how & MarkData.CRIT) != 0 && target != null) {
+            ReplayPackets.critical(viewers, target.id, false);
+        }
+        if ((how & MarkData.BLOCKED) != 0 && target != null) {
+            ReplayPackets.status(viewers, target.id, ReplayPackets.STATUS_SHIELD_BLOCK);
+        }
+        if (attacker == null || !audible(1)) return;
+        String sound;
+        if ((how & MarkData.NO_DAMAGE) != 0) sound = "minecraft:entity.player.attack.nodamage";
+        else if ((how & MarkData.CRIT) != 0) sound = "minecraft:entity.player.attack.crit";
+        else if ((how & MarkData.SWEEP) != 0) sound = "minecraft:entity.player.attack.sweep";
+        else if ((how & MarkData.KNOCKBACK) != 0) sound = "minecraft:entity.player.attack.knockback";
+        else if ((how & MarkData.STRONG) != 0) sound = "minecraft:entity.player.attack.strong";
+        else sound = "minecraft:entity.player.attack.weak";
+        ReplayPackets.sound(viewers, sound, SoundCategory.PLAYER, attacker.x, attacker.y, attacker.z, 1f, 1f);
+        if ((how & MarkData.SWEEP) != 0) {
+            double yaw = Math.toRadians(attacker.yaw * 360f / 256f);
+            ReplayPackets.particle(viewers, ParticleTypes.SWEEP_ATTACK,
+                    attacker.x - Math.sin(yaw), attacker.y + 0.9, attacker.z + Math.cos(yaw), 0f, 0f, 1);
+        }
+    }
+
+    private String hurtSound(int actor) {
+        String type = replay.actors().get(actor).entityType();
+        return type == null ? "minecraft:entity.player.hurt"
+                : "minecraft:entity." + type.toLowerCase(Locale.ROOT) + ".hurt";
+    }
+
+    private SoundCategory category(int actor) {
+        return replay.actors().get(actor).isPlayer() ? SoundCategory.PLAYER : SoundCategory.NEUTRAL;
+    }
+
+    private static float pitch() {
+        return (float) ((Math.random() - Math.random()) * 0.2 + 1.0);
+    }
+
+    private static int parse(String stage) {
+        try {
+            return Integer.parseInt(stage);
+        } catch (NumberFormatException broken) {
+            return -1;
+        }
+    }
+
+    // ---------------------------------------------------------------- effects
+
+    /** Whether there is room for this many more sounds this tick. */
+    private boolean audible(int sounds) {
+        if (!audible || soundsThisTick + sounds > SOUNDS_PER_TICK) return false;
+        soundsThisTick += sounds;
+        return true;
+    }
+
+    /** A projectile leaving a bow, a pearl leaving a hand, a fuse being lit. */
+    private void appeared(int index, Body body) {
+        String sound = switch (String.valueOf(replay.actors().get(index).entityType())) {
+            case "ARROW", "SPECTRAL_ARROW" -> "minecraft:entity.arrow.shoot";
+            case "ENDER_PEARL" -> "minecraft:entity.ender_pearl.throw";
+            case "SPLASH_POTION", "LINGERING_POTION", "POTION" -> "minecraft:entity.splash_potion.throw";
+            case "SNOWBALL" -> "minecraft:entity.snowball.throw";
+            case "EGG" -> "minecraft:entity.egg.throw";
+            case "TRIDENT" -> "minecraft:item.trident.throw";
+            case "FIREBALL", "SMALL_FIREBALL" -> "minecraft:entity.blaze.shoot";
+            case "TNT" -> "minecraft:entity.tnt.primed";
+            case "FIREWORK_ROCKET" -> "minecraft:entity.firework_rocket.launch";
+            case "WIND_CHARGE" -> "minecraft:entity.wind_charge.throw";
+            default -> null;
+        };
+        if (sound != null && audible(1)) {
+            ReplayPackets.sound(viewers, sound, SoundCategory.NEUTRAL, body.x, body.y, body.z, 0.8f, pitch());
+        }
+    }
+
+    /** An arrow landing; everything else leaves quietly. */
+    private void disappeared(int index, Body body) {
+        String type = replay.actors().get(index).entityType();
+        if (("ARROW".equals(type) || "SPECTRAL_ARROW".equals(type)) && audible(1)) {
+            ReplayPackets.sound(viewers, "minecraft:entity.arrow.hit", SoundCategory.NEUTRAL,
+                    body.x, body.y, body.z, 0.6f, pitch());
+        }
+    }
+
+    /**
+     * A footstep every step's worth of distance, in the sound of whatever is
+     * underfoot.
+     *
+     * <p>The game makes these on the server for real players, so a replay
+     * without them is a fight in socks. The block underfoot is read on the
+     * region that owns it, which is the only place it may be read.
+     */
+    private void footsteps(Body body, MotionTrack track, int tick, double dx, double dz, boolean onGround) {
+        if (!audible || !onGround || speed > 2.0) {
+            body.walked = 0;
+            return;
+        }
+        String pose = track.poseName(tick);
+        if (pose.equals("SWIMMING") || pose.equals("FALL_FLYING")) return;
+        body.walked += Math.sqrt(dx * dx + dz * dz);
+        if (body.walked < STEP_DISTANCE) return;
+        body.walked = 0;
+        if (!audible(1)) return;
+        Location feet = new Location(anchorAt(tick).getWorld(), body.x, body.y - 0.2, body.z);
+        if (feet.getWorld() == null) return;
+        // Sneaking makes no sound, which is the point of it.
+        if (pose.equals("CROUCHING")) return;
+        scheduler.runAtLocation(feet, () -> {
+            BlockData under = feet.getBlock().getBlockData();
+            if (under.getMaterial() == Material.AIR) return;
+            SoundGroup group = under.getSoundGroup();
+            ReplayPackets.sound(viewers, keyOf(group.getStepSound()), SoundCategory.PLAYER,
+                    feet.getX(), feet.getY(), feet.getZ(), group.getVolume() * 0.15f, group.getPitch());
+        });
+    }
+
+    @SuppressWarnings({"deprecation", "removal"})
+    private static String keyOf(org.bukkit.Sound sound) {
+        return sound.getKey().toString();
+    }
+
+    /** The sound and the pieces of a batch of block changes, a few of them. */
+    private void blockEffects(List<Location> places, List<BlockData> now, List<BlockData> before) {
+        for (int index = 0; index < places.size(); index++) {
+            if (!audible(1)) return;
+            BlockData became = now.get(index);
+            BlockData was = before.get(index);
+            Location at = places.get(index);
+            boolean broken = became == null || became.getMaterial().isAir();
+            if (broken) {
+                if (was != null && !was.getMaterial().isAir()) {
+                    ReplayPackets.broken(viewers, at.getBlockX(), at.getBlockY(), at.getBlockZ(), was);
+                }
+            } else {
+                SoundGroup group = became.getSoundGroup();
+                ReplayPackets.sound(viewers, keyOf(group.getPlaceSound()), SoundCategory.BLOCK,
+                        at.getX() + 0.5, at.getY() + 0.5, at.getZ() + 0.5,
+                        (group.getVolume() + 1f) / 2f, group.getPitch() * 0.8f);
+            }
+        }
+    }
+
+    // ------------------------------------------------------------------ world
+
+    /**
+     * Puts a batch of blocks in front of everybody watching: into the world
+     * when the caller owns it, as packets otherwise. Only what differs from
+     * what is already on screen.
+     */
+    private void showBlocks(Map<Location, BlockData> blocks) {
+        Map<Location, BlockData> differ = new LinkedHashMap<>();
+        for (Map.Entry<Location, BlockData> entry : blocks.entrySet()) {
+            if (Objects.equals(shown.get(entry.getKey()), entry.getValue())) continue;
+            shown.put(entry.getKey(), entry.getValue());
+            differ.put(entry.getKey(), entry.getValue());
+        }
+        if (differ.isEmpty()) return;
+        if (solid) {
+            write(differ);
+            return;
+        }
+        scheduler.run(() -> {
+            for (Player viewer : viewers) {
+                if (viewer != null && viewer.isOnline()) ReplayRuntime.fakeBlocks().show(viewer, differ);
+            }
+        });
+    }
+
+    /**
+     * Writes blocks into the world, each chunk on the region that owns it, and
+     * without physics: a replay is a picture of what happened, and letting the
+     * world work out consequences would have sand fall all over again.
+     */
+    private void write(Map<Location, BlockData> blocks) {
+        Map<Long, Map<Location, BlockData>> byChunk = new HashMap<>();
+        blocks.forEach((at, data) -> byChunk.computeIfAbsent(
+                ((long) (at.getBlockX() >> 4) << 32) ^ (at.getBlockZ() >> 4 & 0xFFFFFFFFL),
+                key -> new LinkedHashMap<>()).put(at, data));
+        for (Map<Location, BlockData> chunk : byChunk.values()) {
+            Location where = chunk.keySet().iterator().next();
+            scheduler.runAtLocation(where, () -> chunk.forEach((at, data) -> {
+                if (at.getWorld() != null) at.getBlock().setBlockData(data, false);
+            }));
+        }
+    }
+
+    /**
+     * Puts the arena back the way it was on this tick: every position the
+     * recording touches, at its last change up to here, or as it was to begin
+     * with. Starting from the originals is what puts a blown-up wall back on a
+     * seek backwards.
+     */
+    private void rebuildWorld(int tick) {
+        if (originals.isEmpty()) return;
+        Map<Location, BlockData> state = new LinkedHashMap<>(originals);
+        for (ReplayMark mark : marks) {
+            if (mark.tick() > tick) break;
+            if (ReplayMark.RESET.equals(mark.kind())) {
+                state = new LinkedHashMap<>(originals);
+                continue;
+            }
+            if (!ReplayMark.BLOCK.equals(mark.kind())) continue;
+            Location at = WorldMarks.blockAt(anchorAt(mark.tick()), mark.data());
+            if (at != null) state.put(at, WorldMarks.blockData(mark.data()));
+        }
+        showBlocks(state);
+    }
+
+    /** Puts back what this playback drew, and only that. */
+    private void clearWorld() {
+        if (shown.isEmpty()) return;
+        List<Location> touched = new ArrayList<>(shown.keySet());
+        shown.clear();
+        if (solid) {
+            Map<Location, BlockData> back = new LinkedHashMap<>();
+            for (Location at : touched) {
+                BlockData was = originals.get(at);
+                if (was != null) back.put(at, was);
+            }
+            write(back);
+            return;
+        }
+        // Not the module's clear(viewer), which takes away every fake block any
+        // plugin has shown that player: somebody else's outline would go too.
+        scheduler.run(() -> {
+            for (Player viewer : viewers) {
+                if (viewer != null && viewer.isOnline()) ReplayRuntime.fakeBlocks().clear(viewer, touched);
+            }
+        });
+    }
+
+    // -------------------------------------------------------------------- api
 
     @Override
     public void pause() {
@@ -284,40 +1125,47 @@ public final class Playback implements ReplayPlayback {
     @Override
     public void seek(int tick) {
         if (stopped) return;
-        // Left for the driver rather than done here. See pendingSeek.
         pendingSeek = Math.clamp(tick, 0, Math.max(0, replay.frames() - 1));
     }
 
-    /**
-     * Carries out a seek. Only ever on the driver's thread.
-     *
-     * <p>The one place a playback cannot carry on from what it last drew,
-     * because what it last drew may be an hour later in the fight — and going
-     * backwards, a wall that was blown up is a wall that has to come back.
-     */
-    private void jumpTo(int target) {
-        position = target;
-        rendered = target;
-        rebuildWorld(target);
-        for (int actor = 0; actor < bodies.length; actor++) {
-            restore(actor, target);
-        }
-        snapping = true;
-        try {
-            render(target);
-        } finally {
-            snapping = false;
-        }
+    @Override
+    public void step(int ticks) {
+        if (stopped) return;
+        paused = true;
+        seek(tick() + ticks);
     }
 
     @Override
     public int tick() {
-        return Math.max(0, rendered);
+        // A seek asked for and not drawn yet is where it is about to be, so two
+        // skips in a row add up instead of both starting from the same frame.
+        int wanted = pendingSeek;
+        return wanted != NO_SEEK ? wanted : Math.max(0, rendered);
     }
 
     @Override
     public int frames() {
         return replay.frames();
+    }
+
+    @Override
+    public @NotNull Replay replay() {
+        return replay;
+    }
+
+    @Override
+    public int scene() {
+        return replay.sceneAt(tick());
+    }
+
+    @Override
+    public @NotNull Location anchor(int scene) {
+        return anchors[Math.clamp(scene, 0, anchors.length - 1)].clone();
+    }
+
+    @Override
+    public void onScene(@NotNull IntConsumer listener) {
+        this.onScene = listener;
     }
 
     @Override
@@ -336,17 +1184,37 @@ public final class Playback implements ReplayPlayback {
     }
 
     @Override
+    public void reveal(boolean reveal) {
+        this.revealing = reveal;
+        // Every body's state is sent again on the next frame.
+        for (Body body : bodies) {
+            if (body != null) body.state = -1;
+        }
+    }
+
+    @Override
+    public void follow(@Nullable UUID actor) {
+        pov = actor == null ? -1 : indexOf(actor);
+    }
+
+    @Override
+    public @Nullable UUID following() {
+        int index = pov;
+        return index < 0 ? null : replay.actors().get(index).id();
+    }
+
+    @Override
     public @Nullable Location locationOf(@NotNull UUID actor) {
         int index = indexOf(actor);
         if (index < 0 || stopped) return null;
         MotionTrack track = replay.tracks().get(index);
         int at = tick();
-        return track.present(at) ? placed(track, at) : null;
+        return track.present(at) ? place(track, at) : null;
     }
 
     @Override
     public @Nullable Location placeOf(@NotNull ReplayMark mark) {
-        return mark.data() == null ? null : WorldMarks.placeAt(anchor, mark.data());
+        return mark.data() == null ? null : WorldMarks.placeAt(anchorAt(mark.tick()), mark.data());
     }
 
     @Override
@@ -368,8 +1236,30 @@ public final class Playback implements ReplayPlayback {
     public void stop() {
         if (stopped) return;
         stopped = true;
-        for (int index = 0; index < bodies.length; index++) {
-            remove(index);
+        if (Thread.currentThread() == drawing) {
+            // Asked from inside a frame, by a listener run inline: the frame
+            // cleans up as it ends rather than this waiting for itself.
+            cleanupOwed = true;
+            return;
+        }
+        // Waits for a frame being drawn rather than racing it: the bodies it is
+        // about to move are the ones being taken away.
+        while (!busy.compareAndSet(false, true)) Thread.onSpinWait();
+        try {
+            clean();
+        } finally {
+            busy.set(false);
+        }
+    }
+
+    /** Takes everything this playback drew away again. Holds the frame lock. */
+    private void clean() {
+        cleanupOwed = false;
+        for (int index = 0; index < bodies.length; index++) remove(index);
+        if (povSent >= 0) {
+            for (Player viewer : viewers) {
+                if (viewer != null && viewer.isOnline()) ReplayPackets.camera(viewer, viewer.getEntityId());
+            }
         }
         clearWorld();
         ReplayRuntime.forget(this);
@@ -380,343 +1270,59 @@ public final class Playback implements ReplayPlayback {
         return !stopped;
     }
 
-    /** Puts every actor where it was on this tick. */
-    private void render(int tick) {
-        for (int index = 0; index < bodies.length; index++) {
-            MotionTrack track = replay.tracks().get(index);
-            if (!track.present(tick)) {
-                remove(index);
-                continue;
-            }
-            if (replay.actors().get(index).isPlayer()) {
-                renderPlayer(index, track, tick);
-            } else {
-                renderEntity(index, track, tick);
-            }
-        }
-    }
-
-    /** A person: a packet body that walks, poses and holds things. */
-    private void renderPlayer(int index, MotionTrack track, int tick) {
-        NpcHandle body = bodies[index];
-        if (body == null) {
-            body = spawn(index, track, tick);
-            if (body == null) return;
-        }
-        if (snapping) {
-            body.teleportTo(placed(track, tick));
-        } else {
-            body.moveTo(placed(track, tick), track.onGround(tick));
-        }
-        NpcPose pose = track.pose(tick);
-        if (poses[index] != pose) {
-            poses[index] = pose;
-            body.pose(pose);
-        }
-        // Only on the tick it changes: a bow held drawn for two seconds is one
-        // packet, not forty.
-        boolean raised = track.using(tick);
-        if (using[index] != raised) {
-            using[index] = raised;
-            body.using(raised);
-        }
-    }
-
-    /** Anything else: a type at a place, teleported rather than stepped. */
-    private void renderEntity(int index, MotionTrack track, int tick) {
-        EntityType type = types[index];
-        if (type == null || !ReplayEntities.isKnown(type)) return;
-        Location at = placed(track, tick);
-        if (entities[index] == NONE) {
-            entities[index] = ReplayEntities.newEntityId();
-            ReplayEntities.spawn(viewers, entities[index], type, at);
-            if (audible) {
-                String kind = replay.actors().get(index).entityType();
-                scheduler.run(() -> Ambience.appeared(viewers, kind, at));
-            }
-            return;
-        }
-        ReplayEntities.teleport(viewers, entities[index], at);
-    }
-
-    /** Draws one body for the first time, dressed as it was on this tick. */
-    private NpcHandle spawn(int index, MotionTrack track, int tick) {
-        ReplayActor actor = replay.actors().get(index);
-        NpcModel model = actor.texture() == null
-                ? NpcModel.of(actor.name())
-                : NpcModel.of(actor.name(), actor.texture(), actor.signature());
-        NpcHandle body = NpcRuntime.showOwned(owner, model.pose(track.pose(tick)),
-                placed(track, tick), viewers);
-        bodies[index] = body;
-        poses[index] = track.pose(tick);
-        using[index] = false;
-        if (body != null) restore(index, tick);
-        return body;
-    }
-
-    /** Takes one actor away, if it is there. */
-    private void remove(int index) {
-        NpcHandle body = bodies[index];
-        bodies[index] = null;
-        poses[index] = null;
-        using[index] = false;
-        if (body != null) body.remove();
-        if (entities[index] != NONE) {
-            ReplayEntities.destroy(viewers, entities[index]);
-            entities[index] = NONE;
-            if (audible) {
-                ReplayActor actor = replay.actors().get(index);
-                MotionTrack track = replay.tracks().get(index);
-                int last = Math.max(track.firstTick(), track.lastTick() - 1);
-                if (track.present(last)) {
-                    Location at = placed(track, last);
-                    scheduler.run(() -> Ambience.gone(viewers, actor.entityType(), at));
-                }
-            }
-        }
-    }
-
-    /** Where a frame sits in the world this playback is being shown in. */
-    private Location placed(MotionTrack track, int tick) {
-        Location at = anchor.clone();
-        at.add(track.x(tick), track.y(tick), track.z(tick));
-        at.setYaw(track.yaw(tick));
-        at.setPitch(track.pitch(tick));
-        return at;
-    }
-
-    /**
-     * Walks the marks between two ticks, drawing the ones this module owns and
-     * handing the rest over.
-     */
-    private void marks(int from, int to) {
-        if (from > to) return;
-        Consumer<ReplayMark> listener = onMark;
-        List<ReplayMark> passed = null;
-        Map<Location, BlockData> changed = null;
-        List<Location> heard = null;
-        List<BlockData> became = null;
-        List<BlockData> were = null;
-        List<ReplayMark> all = replay.marks();
-        for (int index = 0; index < all.size(); index++) {
-            ReplayMark mark = all.get(index);
-            if (mark.tick() < from) continue;
-            if (mark.tick() > to) break;
-            if (ReplayMark.BLOCK.equals(mark.kind())) {
-                // Collected rather than sent one at a time: a blast is dozens of
-                // blocks on the same tick, and each one on its own is a packet
-                // per block per viewer where one map is a packet per section.
-                Location at = WorldMarks.blockAt(anchor, mark.data());
-                if (at != null) {
-                    if (changed == null) {
-                        changed = new LinkedHashMap<>();
-                        heard = new ArrayList<>();
-                        became = new ArrayList<>();
-                        were = new ArrayList<>();
-                    }
-                    BlockData now = WorldMarks.blockData(mark.data());
-                    changed.put(at, now);
-                    heard.add(at);
-                    became.add(now);
-                    were.add(WorldMarks.blockBefore(mark.data()));
-                }
-                continue;
-            }
-            if (draw(index, mark)) continue;
-            if (listener != null) {
-                if (passed == null) passed = new ArrayList<>(2);
-                passed.add(mark);
-            }
-        }
-        if (changed != null) {
-            showBlocks(changed);
-            if (audible) {
-                List<Location> places = heard;
-                List<BlockData> now = became;
-                List<BlockData> before = were;
-                scheduler.run(() -> Ambience.blocks(viewers, places, now, before));
-            }
-        }
-        if (passed == null) return;
-        // Handed over on the main thread, because whatever a plugin does with
-        // one of these is almost always something Bukkit will not let it do
-        // from here.
-        List<ReplayMark> batch = passed;
-        scheduler.run(() -> batch.forEach(listener));
-    }
-
-    /**
-     * Draws one mark, if it is one this module knows.
-     *
-     * @return whether it was drawn here and should not be handed on
-     */
-    private boolean draw(int index, ReplayMark mark) {
-        int actor = mark.actor() == null ? -1 : indexOf(mark.actor());
-        NpcHandle body = actor < 0 ? null : bodies[actor];
-        switch (mark.kind()) {
-            case ReplayMark.SWING -> {
-                if (body != null) body.swing();
-                heard(actor, Ambience::swing);
-                return true;
-            }
-            case ReplayMark.HURT -> {
-                if (body != null) body.hurt();
-                heard(actor, Ambience::hurt);
-                return true;
-            }
-            case ReplayMark.EQUIP -> {
-                apply(body, index);
-                return true;
-            }
-            case ReplayMark.EXPLOSION -> {
-                blast(mark);
-                return true;
-            }
-            case ReplayMark.RESET -> {
-                // Everything drawn goes back, and the arena underneath is the
-                // one the next round was fought in.
-                clearWorld();
-                return true;
-            }
-            default -> {
-                return false;
-            }
-        }
-    }
-
-    /** The flash and the bang, for the people watching and nobody else. */
-    private void blast(ReplayMark mark) {
-        Location at = WorldMarks.explosionAt(anchor, mark.data());
-        if (at == null || !audible) return;
-        float power = WorldMarks.explosionPower(mark.data());
-        // On the server's own thread: a particle and a sound are Bukkit calls,
-        // and this is a packet thread.
-        scheduler.run(() -> Ambience.explosion(viewers, at, power));
-    }
-
-    /** Plays something where one actor is standing right now. */
-    private void heard(int actor, java.util.function.BiConsumer<List<Player>, Location> what) {
-        if (!audible || actor < 0) return;
-        MotionTrack track = replay.tracks().get(actor);
-        int at = tick();
-        if (!track.present(at)) return;
-        Location where = placed(track, at);
-        scheduler.run(() -> what.accept(viewers, where));
-    }
-
-    /**
-     * Puts a batch of changed blocks in front of everybody watching.
-     *
-     * <p>Really, when the caller owns the arena; as packets otherwise.
-     */
-    private void showBlocks(Map<Location, BlockData> blocks) {
-        if (blocks.isEmpty()) return;
-        drawn.addAll(blocks.keySet());
-        if (solid) {
-            Location where = blocks.keySet().iterator().next();
-            scheduler.runAtLocation(where, () -> blocks.forEach((at, data) -> {
-                // Without physics: a replay is a picture of what happened, and
-                // letting the world work out consequences would have sand fall
-                // and water spread all over again on top of the recording.
-                if (at.getWorld() != null) at.getBlock().setBlockData(data, false);
-            }));
-            return;
-        }
-        scheduler.run(() -> {
-            for (Player viewer : viewers) {
-                if (viewer != null && viewer.isOnline()) {
-                    ReplayRuntime.fakeBlocks().show(viewer, blocks);
-                }
-            }
-        });
-    }
-
-    /**
-     * Puts the arena back the way it was on this tick.
-     *
-     * <p>Every block change up to here, replayed in order into one map so the
-     * last word on each position wins. Cleared first, because a seek backwards
-     * has to take away a crater that has not happened yet &mdash; and a block
-     * nothing ever touched needs nothing done to it, since the arena underneath
-     * is the one the match was fought in.
-     */
-    private void rebuildWorld(int tick) {
-        if (originals.isEmpty()) return;
-        // Every position the recording ever touches, set to what it was on this
-        // tick — its last change up to here, or what was there to begin with.
-        // Starting from the originals rather than from nothing is what makes a
-        // seek backwards put a blown-up wall back instead of leaving the hole.
-        Map<Location, BlockData> state = new LinkedHashMap<>(originals);
-        for (ReplayMark mark : replay.marks()) {
-            if (mark.tick() > tick) break;
-            if (ReplayMark.RESET.equals(mark.kind())) {
-                // The arena was pasted fresh here, so nothing before it is
-                // still standing. Starting over from the originals is what
-                // stops a seek past a round reset stacking two rounds of
-                // rubble on top of each other.
-                state = new LinkedHashMap<>(originals);
-                continue;
-            }
-            if (!ReplayMark.BLOCK.equals(mark.kind())) continue;
-            Location at = WorldMarks.blockAt(anchor, mark.data());
-            if (at != null) state.put(at, WorldMarks.blockData(mark.data()));
-        }
-        showBlocks(state);
-    }
-
-    /**
-     * Puts the arena back the way it was found.
-     *
-     * <p>Only the positions this playback actually drew. The module's own
-     * {@code clear(viewer)} takes away every fake block <em>any</em> plugin has
-     * ever shown that player &mdash; the registry is keyed by viewer and nothing
-     * else &mdash; so a replay ending would have wiped somebody else's cage,
-     * outline or preview off the same screen.
-     */
-    private void clearWorld() {
-        if (drawn.isEmpty()) return;
-        List<Location> touched = new ArrayList<>(drawn);
-        drawn.clear();
-        if (solid) {
-            scheduler.runAtLocation(touched.getFirst(), () -> touched.forEach(at -> {
-                BlockData was = originals.get(at);
-                if (was != null && at.getWorld() != null) at.getBlock().setBlockData(was, false);
-            }));
-            return;
-        }
-        scheduler.run(() -> {
-            for (Player viewer : viewers) {
-                if (viewer != null && viewer.isOnline()) {
-                    ReplayRuntime.fakeBlocks().clear(viewer, touched);
-                }
-            }
-        });
-    }
-
-    /** Puts everything one actor was wearing at this tick back on their body. */
-    private void restore(int index, int tick) {
-        NpcHandle body = bodies[index];
-        if (body == null) return;
-        UUID actor = replay.actors().get(index).id();
-        List<ReplayMark> all = replay.marks();
-        for (int mark = 0; mark < all.size(); mark++) {
-            if (all.get(mark).tick() > tick) break;
-            if (dressed[mark] != null && actor.equals(all.get(mark).actor())) {
-                apply(body, mark);
-            }
-        }
-    }
-
-    private void apply(NpcHandle body, int mark) {
-        Dressed worn = dressed[mark];
-        if (body != null && worn != null) body.equip(worn.slot(), worn.item());
-    }
-
     private int indexOf(UUID actor) {
         List<ReplayActor> actors = replay.actors();
         for (int index = 0; index < actors.size(); index++) {
             if (actors.get(index).id().equals(actor)) return index;
         }
         return -1;
+    }
+
+    private static int slotIndex(@Nullable EquipmentSlot slot) {
+        if (slot == null) return -1;
+        for (int index = 0; index < Sampler.SLOTS.length; index++) {
+            if (Sampler.SLOTS[index] == slot) return index;
+        }
+        return -1;
+    }
+
+    /** One equipment change, already read back into an item. */
+    private record Worn(int tick, int slot, ItemStack item) {
+    }
+
+    /** Getting on something, or off it when the vehicle is -1. */
+    private record Riding(int tick, int vehicle) {
+    }
+
+    /** What one body is on the viewers' screens right now. */
+    private static final class Body {
+
+        final int id;
+        UUID profile;
+        double x;
+        double y;
+        double z;
+        byte yaw;
+        byte pitch;
+        byte head;
+        boolean onGround;
+        int steps;
+        int state = -1;
+        int vehicle = -1;
+        int deadSent = -1;
+        boolean drawn;
+        double walked;
+        final ItemStack[] worn = new ItemStack[Sampler.SLOTS.length];
+
+        Body(int id) {
+            this.id = id;
+        }
+
+        void moveTo(double x, double y, double z) {
+            this.x = x;
+            this.y = y;
+            this.z = z;
+            this.steps = 0;
+        }
     }
 }

@@ -7,6 +7,7 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 
 /**
  * One plugin's view of the replay module.
@@ -89,6 +90,57 @@ public final class PluginReplays {
                                          @NotNull List<Player> viewers,
                                          @NotNull ReplayWorld world) {
         return ReplayRuntime.play(pluginName, replay, at, viewers, world);
+    }
+
+    /**
+     * Plays a recording with one anchor per scene, for a recording that moved
+     * from one place to another.
+     *
+     * <p>A scene with no anchor of its own is put where it was relative to the
+     * first one, when both were recorded in the same world, and on top of the
+     * first one otherwise. {@code List.of(replay.scenes().get(0).origin())} and
+     * so on plays it back in the very places it happened.
+     *
+     * @param replay  what to show
+     * @param anchors one per scene, in order; at least the first
+     * @param viewers who sees it
+     * @param world   how the block changes are put back
+     * @return the handle, or {@code null}
+     * @since 1.241.0
+     */
+    public @Nullable ReplayPlayback play(@NotNull Replay replay, @NotNull List<Location> anchors,
+                                         @NotNull List<Player> viewers, @NotNull ReplayWorld world) {
+        return ReplayRuntime.play(pluginName, replay, anchors, viewers, world, false);
+    }
+
+    /**
+     * Rebuilds the ground a recording happened on, on the temporary world, so
+     * it can be watched anywhere.
+     *
+     * <p>Only for a recording that carries its terrain, which is what a black
+     * box capture does. The future completes once every block is down.
+     *
+     * @param replay what to stage
+     * @return the stage
+     * @since 1.241.0
+     */
+    public @NotNull CompletableFuture<ReplayStage> stage(@NotNull Replay replay) {
+        return ReplayRuntime.stage(pluginName, replay);
+    }
+
+    /**
+     * Starts this plugin's use of the black box: the last stretch of everything
+     * around every player, cut out after the fact.
+     *
+     * <p>One box serves the whole server. A second plugin asking for one shares
+     * it, and it keeps the larger of what everybody asked for.
+     *
+     * @param settings how much to keep
+     * @return this plugin's handle to it
+     * @since 1.241.0
+     */
+    public @NotNull ReplayBlackBox blackBox(@NotNull BlackBoxSettings settings) {
+        return ReplayRuntime.openBox(pluginName, settings);
     }
 
     /** Ends everything this plugin is recording and showing. */
