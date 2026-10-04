@@ -1,0 +1,19 @@
+wizard:
+  stand: '{warning}➥ {letters}Place-toi là où tu le veux et {highlight}accroupis-toi + clic{letters}.'
+  point: '{warning}➥ {letters}Fais un clic gauche sur le bloc voulu.'
+  region: '{warning}➥ {letters}Clic gauche sur un coin et clic droit sur l''autre, puis {highlight}Shift + clic gauche {letters}pour confirmer.'
+  item: '{warning}➥ {letters}Tiens l''objet voulu dans ta main, puis confirme.'
+selection:
+  first-corner: '{success}● {letters}Premier coin {letters_black}» {info}%x%, %y%, %z%'
+  second-corner: '{error}● {letters}Second coin {letters_black}» {info}%x%, %y%, %z%'
+  volume: '{secondary}Sélection : {info}%blocks% {letters}blocs'
+  confirmed: '{success}● {letters}Sélection confirmée'
+  guide-corners: '{letters}Marque deux coins avec clic gauche et clic droit en utilisant le {highlight}%selector%'
+  guide-first: '{letters}Clic droit sur le {error}second coin'
+  guide-second: '{letters}Clic gauche sur le {success}premier coin'
+  guide-confirm: '{warning}➥ {letters}Shift + clic gauche pour confirmer {letters_black}» {info}%blocks% {letters}blocs'
+  area: '{secondary}Sélection : {info}%blocks% {letters}colonnes {letters_black}» {info}hauteur complète'
+  guide-confirm-area: '{warning}➥ {letters}Shift + clic gauche pour confirmer {letters_black}» {info}%blocks% {letters}colonnes'
+players:
+  not-found: '[sound:ENTITY_VILLAGER_NO|1|1]{error}✖ {letters}Aucun joueur nommé {highlight}%player% {letters}n''a été trouvé.'
+  not-here: '[sound:ENTITY_VILLAGER_NO|1|1]{error}✖ {highlight}%player% {letters}n''est pas sur ce serveur.'

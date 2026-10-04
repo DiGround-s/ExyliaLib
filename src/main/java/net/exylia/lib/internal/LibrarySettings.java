@@ -75,7 +75,7 @@ import net.exylia.lib.config.Time;
 @Comment("from the GitHub releases of the repository each one names. Checked with")
 @Comment("the library's own updates, applied on the next restart.")
 public record LibrarySettings(
-        @Comment("Language of the whole server: en, es or pt. Every Exylia plugin whose own")
+        @Comment("Language of the whole server: en, es, pt or fr. Every Exylia plugin whose own")
         @Comment("language is 'default' follows it, and so do the library's screens and prompts.")
         @Comment("Each one is a folder under lang/. 'custom' holds the messages this server had")
         @Comment("before languages existed; any other name starts as English.")
