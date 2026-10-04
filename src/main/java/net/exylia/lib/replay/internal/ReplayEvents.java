@@ -248,6 +248,25 @@ final class ReplayEvents implements Listener {
     @EventHandler(priority = EventPriority.MONITOR)
     public void onRespawn(PlayerRespawnEvent event) {
         actor(ReplayMark.RESPAWN, event.getPlayer(), null);
+        resume(event.getPlayer());
+    }
+
+    @EventHandler(priority = EventPriority.MONITOR)
+    public void onWorld(org.bukkit.event.player.PlayerChangedWorldEvent event) {
+        resume(event.getPlayer());
+    }
+
+    /**
+     * Picks somebody up again after the server may have dropped the timers
+     * bound to them: Folia retires an entity's tasks across a respawn or a
+     * change of world.
+     */
+    private static void resume(Player player) {
+        ReplayRuntime.scheduler().runAtEntityLater(player, 2L, () -> {
+            BlackBox box = ReplayRuntime.box();
+            if (box != null) box.ensure(player);
+            ReplayRuntime.following(player.getUniqueId(), recording -> recording.resume(player));
+        });
     }
 
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)

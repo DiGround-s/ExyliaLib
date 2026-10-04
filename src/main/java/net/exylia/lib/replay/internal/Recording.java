@@ -103,6 +103,7 @@ public final class Recording implements ReplayRecorder {
     public synchronized void follow(@NotNull Player player) {
         Follower existing = follower(player.getUniqueId());
         if (existing != null) {
+            existing.forgotten = false;
             // A timer that has not sampled for a while is a dead one: Folia
             // retires an entity's tasks when they log out without telling it.
             if (existing.task != null && !existing.task.isCancelled()
@@ -118,6 +119,7 @@ public final class Recording implements ReplayRecorder {
         }
         add(player.getUniqueId(), ReplayActor.of(player), true, player);
     }
+
 
     @Override
     public synchronized void follow(@NotNull Entity entity) {
@@ -210,7 +212,18 @@ public final class Recording implements ReplayRecorder {
     @Override
     public synchronized void forget(@NotNull Player player) {
         Follower follower = followers.get(player.getUniqueId());
-        if (follower != null) follower.stop();
+        if (follower == null) return;
+        follower.forgotten = true;
+        follower.stop();
+    }
+
+    /**
+     * Picks somebody up again after the server dropped the timer bound to them,
+     * unless the plugin let them go on purpose.
+     */
+    synchronized void resume(Player player) {
+        Follower follower = followers.get(player.getUniqueId());
+        if (follower != null && !follower.forgotten && running) follow(player);
     }
 
     @Override
@@ -451,6 +464,7 @@ public final class Recording implements ReplayRecorder {
         private volatile int sampledAt = Integer.MIN_VALUE / 2;
         private volatile long sampledNanos;
         private volatile boolean away;
+        private volatile boolean forgotten;
 
         Follower(ReplayActor actor, boolean player) {
             this.actor = actor;

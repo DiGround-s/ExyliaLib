@@ -136,8 +136,36 @@ public final class BlackBox {
     void watch(Player player) {
         if (!running) return;
         Watcher watcher = new Watcher(player);
+        watcher.sampledAt = ReplayClock.now();
         if (watchers.putIfAbsent(player.getUniqueId(), watcher) != null) return;
         watcher.task = scheduler.runAtEntityTimer(player, 1L, 1L, () -> sample(watcher));
+    }
+
+    /**
+     * Makes sure somebody is being sampled by a live timer.
+     *
+     * <p>Folia retires an entity's tasks when the entity is replaced: a death
+     * and respawn, a change of world. Nothing tells the timer, it simply never
+     * runs again, and everything after that moment would be missing from every
+     * recording. A timer that has not sampled for a second is replaced.
+     */
+    void ensure(Player player) {
+        if (!running || !player.isOnline()) return;
+        Watcher current = watchers.get(player.getUniqueId());
+        int now = ReplayClock.now();
+        TaskHandle running = current == null ? null : current.task;
+        if (current != null && current.player == player && (running == null || !running.isCancelled())
+                && now - current.sampledAt <= 20) {
+            return;
+        }
+        Watcher fresh = new Watcher(player);
+        fresh.sampledAt = now;
+        boolean replaced = current == null
+                ? watchers.putIfAbsent(player.getUniqueId(), fresh) == null
+                : watchers.replace(player.getUniqueId(), current, fresh);
+        if (!replaced) return;
+        if (running != null) running.cancel();
+        fresh.task = scheduler.runAtEntityTimer(player, 1L, 1L, () -> sample(fresh));
     }
 
     /** Stops it, when they leave. What was recorded of them stays until it ages out. */
@@ -170,6 +198,7 @@ public final class BlackBox {
         if (!running || !player.isOnline()) return;
         BlackBoxSettings current = settings;
         int tick = ReplayClock.now();
+        watcher.sampledAt = tick;
         Location here = player.getLocation();
         watcher.last = here;
         boolean hidden = current.hidden().test(player);
@@ -292,6 +321,7 @@ public final class BlackBox {
     /** Drops everything older than the window. */
     private void trim() {
         server();
+        for (Player player : Bukkit.getOnlinePlayers()) ensure(player);
         int oldest = ReplayClock.now() - settings.seconds() * 20 - SLACK;
         for (Iterator<Tape> it = tapes.values().iterator(); it.hasNext(); ) {
             Tape tape = it.next();
@@ -763,7 +793,8 @@ public final class BlackBox {
         final Set<Entity> noticed = ConcurrentHashMap.newKeySet();
         volatile List<Entity> nearby = List.of();
         volatile Location last;
-        TaskHandle task;
+        volatile int sampledAt;
+        volatile TaskHandle task;
         int age;
 
         Watcher(Player player) {

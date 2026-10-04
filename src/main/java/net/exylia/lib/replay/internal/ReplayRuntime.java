@@ -128,6 +128,10 @@ public final class ReplayRuntime {
         return Staging.build(owner, replay, schedulerOrFail(owner));
     }
 
+    static TaskScheduler scheduler() {
+        return scheduler;
+    }
+
     static FakeBlocks fakeBlocks() {
         return fakeBlocks;
     }
