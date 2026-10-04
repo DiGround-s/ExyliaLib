@@ -4,60 +4,72 @@ import net.exylia.lib.platform.Platform;
 import org.bukkit.Bukkit;
 import org.jetbrains.annotations.ApiStatus;
 
-import java.util.concurrent.atomic.AtomicInteger;
-
 /**
  * The tick every sample and every mark is stamped with.
  *
- * <h2>Server ticks, not wall-clock time</h2>
- * Recordings used to stamp a sample with {@code nanoTime / 50 ms}. A server tick
- * is not fifty milliseconds: one runs at 48, the next at 53, a slow one at 90.
- * Two consecutive ticks then landed on the same stamp (the second overwrote the
- * first and the gap was filled with a copy), and two players sampled in the
- * same tick could straddle a boundary and be recorded a tick apart. Played back,
- * that is a body that freezes for a frame and then jumps, and a hit that lands
- * on somebody a step away from where they were.
+ * <h2>Paper: the server's own tick</h2>
+ * Every sample taken in one server tick reads the same number, so two players
+ * sampled together are never recorded a tick apart, and a slow tick is one
+ * frame rather than a gap or a doubled frame.
  *
- * <p>Paper has one tick counter for the whole server, and every sample taken in
- * one tick reads the same number from it.
+ * <h2>Folia, and anything that stops counting</h2>
+ * Folia has no server-wide tick. The clock there is wall time in fifty
+ * millisecond steps, and a thread keeps the value it read for the rest of its
+ * own tick, so everything one region samples in one of its ticks carries one
+ * stamp. A stamp read twice in two ticks is moved on by the tape itself.
  *
- * <h2>Folia</h2>
- * Folia ticks every region on its own. The clock there is a counter advanced by
- * the global region, and a region thread caches what it read for the rest of
- * its own tick, so everything one region samples in one tick carries one
- * stamp. Two regions are never close enough for a one-tick disagreement between
- * them to show.
+ * <p>A clock that does not move is the worst failure a recorder can have:
+ * every frame lands on one tick and a minute of recording is one frame. The
+ * server's counter is therefore watched, and when it stops moving while time
+ * passes the clock goes over to wall time for good.
  */
 @ApiStatus.Internal
 public final class ReplayClock {
 
-    /** How long a region thread keeps the value it read, in nanoseconds. */
+    /** How long a thread keeps the value it read, in nanoseconds. */
     private static final long SAME_TICK_NANOS = 20_000_000L;
 
-    private static final AtomicInteger GLOBAL = new AtomicInteger();
+    /** How long the server's counter may stand still before it is not believed. */
+    private static final long STUCK_NANOS = 3_000_000_000L;
+
+    private static final long NANOS_PER_TICK = 50_000_000L;
+    private static final long EPOCH = System.nanoTime();
     private static final ThreadLocal<long[]> CACHED = ThreadLocal.withInitial(() -> new long[] {Long.MIN_VALUE, 0});
     private static final boolean FOLIA = Platform.isFolia();
+
+    private static volatile boolean wall = FOLIA;
+    private static volatile int lastSeen = Integer.MIN_VALUE;
+    private static volatile long lastChange = System.nanoTime();
 
     private ReplayClock() {
     }
 
-    /** Advances the Folia counter; called once a tick by the global region. */
-    static void advance() {
-        GLOBAL.incrementAndGet();
-    }
-
     /** The current tick. Only differences between two readings mean anything. */
     public static int now() {
-        if (!FOLIA) {
-            return Bukkit.getCurrentTick();
+        long nanos = System.nanoTime();
+        if (!wall) {
+            int tick = serverTick();
+            if (tick != lastSeen) {
+                lastSeen = tick;
+                lastChange = nanos;
+                return tick;
+            }
+            if (nanos - lastChange < STUCK_NANOS) return tick;
+            wall = true;
         }
         long[] cached = CACHED.get();
-        long nanos = System.nanoTime();
-        if (nanos - cached[0] < SAME_TICK_NANOS) {
-            return (int) cached[1];
-        }
+        if (nanos - cached[0] < SAME_TICK_NANOS) return (int) cached[1];
         cached[0] = nanos;
-        cached[1] = GLOBAL.get();
+        cached[1] = (nanos - EPOCH) / NANOS_PER_TICK;
         return (int) cached[1];
+    }
+
+    private static int serverTick() {
+        try {
+            return Bukkit.getCurrentTick();
+        } catch (RuntimeException unsupported) {
+            wall = true;
+            return lastSeen;
+        }
     }
 }

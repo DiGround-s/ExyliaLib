@@ -2,7 +2,6 @@ package net.exylia.lib.replay.internal;
 
 import net.exylia.lib.packet.FakeBlocks;
 import net.exylia.lib.packet.Packets;
-import net.exylia.lib.platform.Platform;
 import net.exylia.lib.replay.BlackBoxSettings;
 import net.exylia.lib.replay.Replay;
 import net.exylia.lib.replay.ReplayBlackBox;
@@ -52,7 +51,6 @@ public final class ReplayRuntime {
     private static FakeBlocks fakeBlocks;
     private static Logger logger = Logger.getLogger("ExyliaLib");
     private static TaskHandle driver;
-    private static TaskHandle clock;
     private static volatile BlackBox box;
     private static boolean warned;
 
@@ -64,10 +62,8 @@ public final class ReplayRuntime {
             scheduler = Tasks.of(plugin);
             logger = plugin.getLogger();
             if (driver != null) driver.cancel();
-            if (clock != null) clock.cancel();
             fakeBlocks = Packets.of(plugin).fakeBlocks();
             driver = scheduler.runAsyncTimer(1L, 1L, ReplayRuntime::tick);
-            if (Platform.isFolia()) clock = scheduler.runTimer(1L, 1L, ReplayClock::advance);
         }
         ReplayEvents.register(plugin);
     }
@@ -234,10 +230,6 @@ public final class ReplayRuntime {
             if (driver != null) {
                 driver.cancel();
                 driver = null;
-            }
-            if (clock != null) {
-                clock.cancel();
-                clock = null;
             }
             BOX_USERS.clear();
             if (box != null) box.stop();
