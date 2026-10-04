@@ -634,6 +634,35 @@ public interface SurvivalService {
         return false;
     }
 
+    // ── Shared counters and settings ───────────────────────────────────────
+
+    /**
+     * Adds to one of a player's statistics counters, the ones missions,
+     * leaderboards and seasons read.
+     *
+     * @param player who did it
+     * @param name   their name, kept beside the counter
+     * @param key    the counter, such as {@code protections.created}
+     * @param delta  how much to add
+     * @since 1.9.0
+     */
+    default void countStatistic(@NotNull UUID player, @NotNull String name, @NotNull String key, long delta) {
+    }
+
+    /**
+     * Whether a player keeps one of their settings on, such as the
+     * announcements they may mute.
+     *
+     * @param player the player
+     * @param key    the setting, such as {@code raid-announcements}
+     * @return {@code true} unless they turned it off; a setting the survival
+     *         core does not know is on
+     * @since 1.9.0
+     */
+    default boolean isSettingEnabled(@NotNull UUID player, @NotNull String key) {
+        return true;
+    }
+
     // ── Bounties ───────────────────────────────────────────────────────────
 
     /**
