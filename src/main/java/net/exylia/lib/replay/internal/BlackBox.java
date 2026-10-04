@@ -86,6 +86,10 @@ public final class BlackBox {
     private final AtomicInteger changeCount = new AtomicInteger();
     private final AtomicInteger nonPlayers = new AtomicInteger();
     private volatile TaskHandle trimmer;
+
+    /** Whether the server's figures are per region (Folia) rather than global. */
+    private volatile boolean regional;
+    private volatile java.lang.reflect.Method regionTps;
     private volatile boolean running;
 
     BlackBox(TaskScheduler scheduler, BlackBoxSettings settings) {
@@ -175,6 +179,7 @@ public final class BlackBox {
                 happenings.add(new Happening(tick, ReplayMark.PING, player.getUniqueId(),
                         String.valueOf(player.getPing()).getBytes(java.nio.charset.StandardCharsets.UTF_8),
                         null, 0, 0, 0, null, 0f));
+                if (regional) regionStats(here);
             }
         }
         double radius = current.radius();
@@ -316,15 +321,39 @@ public final class BlackBox {
      * API gives, and it is written when it can be read.
      */
     private void server() {
+        if (regional) return;
         try {
             double tps = Math.min(20.0, Bukkit.getTPS()[0]);
             double mspt = Bukkit.getAverageTickTime();
-            String text = String.format(java.util.Locale.ROOT, "%.2f;%.2f", tps, mspt);
-            happenings.add(new Happening(ReplayClock.now(), ReplayMark.SERVER, null,
-                    text.getBytes(java.nio.charset.StandardCharsets.UTF_8), null, 0, 0, 0, null, 0f));
+            stats(String.format(java.util.Locale.ROOT, "%.2f;%.2f", tps, mspt));
         } catch (RuntimeException | NoSuchMethodError unsupported) {
-            // A platform without the figures: the replay simply does not have them.
+            // Folia has no server-wide figure: each player's timer writes the
+            // one of the region they are in instead.
+            regional = true;
         }
+    }
+
+    /**
+     * Folia: the TPS of the region a player is in, read on that region.
+     * Through reflection, because the method is Folia's own API.
+     */
+    private void regionStats(Location at) {
+        try {
+            if (regionTps == null) {
+                regionTps = Bukkit.getServer().getClass().getMethod("getRegionTPS", Location.class);
+            }
+            double[] tps = (double[]) regionTps.invoke(Bukkit.getServer(), at);
+            if (tps != null && tps.length > 0) {
+                stats(String.format(java.util.Locale.ROOT, "%.2f;?", Math.min(20.0, tps[0])));
+            }
+        } catch (ReflectiveOperationException | RuntimeException unsupported) {
+            regional = false;
+        }
+    }
+
+    private void stats(String text) {
+        happenings.add(new Happening(ReplayClock.now(), ReplayMark.SERVER, null,
+                text.getBytes(java.nio.charset.StandardCharsets.UTF_8), null, 0, 0, 0, null, 0f));
     }
 
     // --------------------------------------------------------------- captures
@@ -400,6 +429,10 @@ public final class BlackBox {
                     if (frame.tick() <= event) path.add(frame);
                 }
             }
+            // A tape whose newest frame is from before the window is somebody
+            // who was not being recorded then: in vanish, in spectator, gone.
+            // Their last frame is not a minute of them.
+            if (!path.isEmpty() && path.getLast().tick() < start - Tape.HEARTBEAT) path.clear();
             if (path.isEmpty()) {
                 throw new IllegalStateException("The black box has nothing of " + focus
                         + " in the last " + (end - start) / 20 + " seconds");
