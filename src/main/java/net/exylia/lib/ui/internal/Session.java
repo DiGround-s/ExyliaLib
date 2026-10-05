@@ -339,8 +339,13 @@ final class Session implements UiSession {
             }
         }
         for (UiSection list : definition.sections().values()) {
+            List<UiEntry> rows = entries(list.id());
+            if (rows.stream().anyMatch(UiEntry::isLive)) {
+                tickRows(list);
+                continue;
+            }
             UiItem template = list.template(null);
-            if ((template != null && template.isDynamic()) || !entries(list.id()).isEmpty()) {
+            if ((template != null && template.isDynamic()) || !rows.isEmpty()) {
                 drawSection(list);
             }
         }
@@ -717,9 +722,12 @@ final class Session implements UiSession {
 
     /** Draws one list at its current page. */
     private void drawSection(UiSection list) {
-        List<UiEntry> rows = entries.getOrDefault(list.id(), List.of());
-        int page = Pages.clamp(page(list.id()), rows.size(), list.perPage());
+        int page = Pages.clamp(page(list.id()), entries(list.id()).size(), list.perPage());
         pages.put(list.id(), page);
+        // A page somebody turns to shows its countdowns as they are now, not
+        // as they were when the menu opened.
+        freshen(list);
+        List<UiEntry> rows = entries(list.id());
 
         int first = Pages.indexOf(page, list.perPage(), 0);
         List<Integer> where = list.slots();
@@ -730,25 +738,84 @@ final class Session implements UiSession {
                 drawSectionFiller(list, slot);
                 continue;
             }
-            UiEntry entry = rows.get(entryIndex);
-            UiItem template = list.template(entry.template());
-
-            // A row that brought its own item. There is no template to render
-            // and none to take a condition or click bindings from, so the item
-            // is drawn as given and the row's value is what a click reads.
-            if (entry.hasItem()) {
-                put(slot, entry.item());
-                slots.put(slot, Rendered.of(template, entry, list.id()));
-                continue;
-            }
-            if (template == null || !passes(template, entry.values())) {
-                drawSectionFiller(list, slot);
-                continue;
-            }
-            put(slot, render(template, entry.values(), entry.formatted(), entry.verbatim()));
-            slots.put(slot, Rendered.of(template, entry, list.id()));
+            drawRow(list, slot, rows.get(entryIndex));
         }
         drawNavigation(list, rows.size());
+    }
+
+    /** Draws one row of a list into its slot. */
+    private void drawRow(UiSection list, int slot, UiEntry entry) {
+        UiItem template = list.template(entry.template());
+
+        // A row that brought its own item. There is no template to render
+        // and none to take a condition or click bindings from, so the item
+        // is drawn as given and the row's value is what a click reads.
+        if (entry.hasItem()) {
+            put(slot, entry.item());
+            slots.put(slot, Rendered.of(template, entry, list.id()));
+            return;
+        }
+        if (template == null || !passes(template, entry.values())) {
+            drawSectionFiller(list, slot);
+            return;
+        }
+        put(slot, render(template, entry.values(), entry.formatted(), entry.verbatim()));
+        slots.put(slot, Rendered.of(template, entry, list.id()));
+    }
+
+    /**
+     * Reads the live values of the rows on the page a list shows again.
+     *
+     * <p>Only that page: a row nobody can see is read when it comes into view.
+     * The rows that moved replace the old ones, so a click reads what is on
+     * screen.
+     *
+     * @return the indexes of the rows whose values moved
+     */
+    private java.util.BitSet freshen(UiSection list) {
+        java.util.BitSet moved = new java.util.BitSet();
+        List<UiEntry> rows = entries(list.id());
+        int first = Pages.indexOf(page(list.id()), list.perPage(), 0);
+        int last = Math.min(rows.size(), first + list.slots().size());
+        List<UiEntry> now = null;
+        for (int index = first; index < last; index++) {
+            UiEntry row = rows.get(index);
+            UiEntry fresh = row.refreshed();
+            if (fresh == row) {
+                continue;
+            }
+            if (now == null) {
+                now = new ArrayList<>(rows);
+            }
+            now.set(index, fresh);
+            moved.set(index);
+        }
+        if (now != null) {
+            entries.put(list.id(), List.copyOf(now));
+        }
+        return moved;
+    }
+
+    /**
+     * Redraws the rows of a list whose live values moved.
+     *
+     * <p>A live row that reads the same is left alone: the item would come out
+     * identical, and rendering it is the expensive part of a redraw. A row
+     * with nothing live is redrawn as it always was, for the placeholders in
+     * its template that only a redraw resolves again.
+     */
+    private void tickRows(UiSection list) {
+        java.util.BitSet moved = freshen(list);
+        List<UiEntry> rows = entries(list.id());
+        int first = Pages.indexOf(page(list.id()), list.perPage(), 0);
+        List<Integer> where = list.slots();
+        for (int index = 0; index < where.size() && first + index < rows.size(); index++) {
+            UiEntry row = rows.get(first + index);
+            if (row.isLive() && !moved.get(first + index)) {
+                continue;
+            }
+            drawRow(list, where.get(index), row);
+        }
     }
 
     /**

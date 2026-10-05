@@ -35,6 +35,7 @@ import java.util.Map;
  * @param verbatim  which of the formatted ones keep their own letters
  * @param template  which template to draw it with, or {@code null} for the default
  * @param item      an item to draw as-is, instead of a template
+ * @param live      values read again on every timed redraw, by placeholder name
  * @since 1.22.0
  */
 public record UiEntry(
@@ -43,7 +44,8 @@ public record UiEntry(
         @NotNull java.util.Set<String> formatted,
         @NotNull java.util.Set<String> verbatim,
         @Nullable String template,
-        @Nullable org.bukkit.inventory.ItemStack item) {
+        @Nullable org.bukkit.inventory.ItemStack item,
+        @NotNull Map<String, java.util.function.Supplier<?>> live) {
 
     public UiEntry {
         // Ordered rather than Map.copyOf: substitution walks these in turn, so
@@ -56,6 +58,25 @@ public record UiEntry(
         // theirs: a kit room handing out its own stored stacks must not have
         // them renamed by whoever drew the row.
         item = item == null ? null : item.clone();
+        live = java.util.Collections.unmodifiableMap(new java.util.LinkedHashMap<>(live));
+    }
+
+    /**
+     * A row with nothing read again on a redraw.
+     *
+     * <p>Kept so code written before {@link Builder#live} still compiles.
+     *
+     * @param value     what the row is about
+     * @param values    what fills the template's placeholders
+     * @param formatted which of those carry their own formatting
+     * @param verbatim  which of the formatted ones keep their own letters
+     * @param template  which template to draw it with
+     * @param item      an item to draw as-is
+     */
+    public UiEntry(@Nullable Object value, @NotNull Map<String, String> values,
+                   @NotNull java.util.Set<String> formatted, @NotNull java.util.Set<String> verbatim,
+                   @Nullable String template, @Nullable org.bukkit.inventory.ItemStack item) {
+        this(value, values, formatted, verbatim, template, item, Map.of());
     }
 
     /**
@@ -104,6 +125,35 @@ public record UiEntry(
         return item != null;
     }
 
+    /** Returns whether this row has values that a timed redraw reads again. */
+    public boolean isLive() {
+        return !live.isEmpty();
+    }
+
+    /**
+     * This row with its live values read again.
+     *
+     * <p>Returns this very row when none of them moved, which is how a timed
+     * redraw knows to leave the slot alone: a countdown on one row of forty
+     * re-renders one item, not forty.
+     *
+     * @return the row as it is now
+     */
+    public @NotNull UiEntry refreshed() {
+        Map<String, String> now = null;
+        for (Map.Entry<String, java.util.function.Supplier<?>> source : live.entrySet()) {
+            String read = Builder.text(source.getValue().get());
+            if (read.equals(values.get(source.getKey()))) {
+                continue;
+            }
+            if (now == null) {
+                now = new java.util.LinkedHashMap<>(values);
+            }
+            now.put(source.getKey(), read);
+        }
+        return now == null ? this : new UiEntry(value, now, formatted, verbatim, template, item, live);
+    }
+
     /**
      * Starts a row about something.
      *
@@ -131,6 +181,7 @@ public record UiEntry(
         private final java.util.Set<String> verbatim = new java.util.LinkedHashSet<>();
         private String template;
         private org.bukkit.inventory.ItemStack item;
+        private final java.util.Map<String, java.util.function.Supplier<?>> live = new java.util.LinkedHashMap<>();
 
         private Builder(Object value) {
             this.value = value;
@@ -152,9 +203,10 @@ public record UiEntry(
          */
         public @NotNull Builder with(@NotNull String name, @Nullable Object value) {
             String key = strip(name);
-            values.put(key, value == null ? "" : String.valueOf(value));
+            values.put(key, text(value));
             formatted.remove(key);
             verbatim.remove(key);
+            live.remove(key);
             return this;
         }
 
@@ -176,9 +228,10 @@ public record UiEntry(
          */
         public @NotNull Builder withFormatted(@NotNull String name, @Nullable Object value) {
             String key = strip(name);
-            values.put(key, value == null ? "" : String.valueOf(value));
+            values.put(key, text(value));
             formatted.add(key);
             verbatim.remove(key);
+            live.remove(key);
             return this;
         }
 
@@ -198,9 +251,51 @@ public record UiEntry(
          */
         public @NotNull Builder withVerbatim(@NotNull String name, @Nullable Object value) {
             String key = strip(name);
-            values.put(key, value == null ? "" : String.valueOf(value));
+            values.put(key, text(value));
             formatted.add(key);
             verbatim.add(key);
+            live.remove(key);
+            return this;
+        }
+
+        /**
+         * Sets a value that is read again on every timed redraw.
+         *
+         * <p>For what moves while the menu is open — a countdown, a stock, a
+         * player count. The menu needs a timed {@code refresh} for it to
+         * move: {@code mode: SMART} redraws only the rows whose live values
+         * came out different, so a quiet row costs one call to the supplier.
+         *
+         * <p>Inserted as literal text, like {@link #with}. Called on the
+         * viewer's thread, so it has to be cheap and must not block.
+         *
+         * <pre>{@code
+         * UiEntry.of(mine).live("next_reset", () -> resets.timeLeft(mine))
+         * }</pre>
+         *
+         * @param name  the placeholder name
+         * @param value reads what it resolves to; {@code null} becomes empty
+         * @return this builder
+         * @since 1.242.0
+         */
+        public @NotNull Builder live(@NotNull String name, @NotNull java.util.function.Supplier<?> value) {
+            with(name, value.get());
+            live.put(strip(name), value);
+            return this;
+        }
+
+        /**
+         * {@link #live} for a value that carries its own formatting, as
+         * {@link #withFormatted} is to {@link #with}.
+         *
+         * @param name  the placeholder name
+         * @param value reads what it resolves to; {@code null} becomes empty
+         * @return this builder
+         * @since 1.242.0
+         */
+        public @NotNull Builder liveFormatted(@NotNull String name, @NotNull java.util.function.Supplier<?> value) {
+            withFormatted(name, value.get());
+            live.put(strip(name), value);
             return this;
         }
 
@@ -231,7 +326,11 @@ public record UiEntry(
         }
 
         public @NotNull UiEntry build() {
-            return new UiEntry(value, values, formatted, verbatim, template, item);
+            return new UiEntry(value, values, formatted, verbatim, template, item, live);
+        }
+
+        private static String text(Object value) {
+            return value == null ? "" : String.valueOf(value);
         }
 
         /** Accepts a name written either way, since both spellings are natural. */

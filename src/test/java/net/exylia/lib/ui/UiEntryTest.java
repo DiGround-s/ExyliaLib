@@ -160,4 +160,36 @@ class UiEntryTest {
         assertEquals(java.util.List.of("first", "second", "third"),
                 java.util.List.copyOf(entry.values().keySet()));
     }
+
+    @Test
+    @DisplayName("a live value is read again, and an unchanged row comes back as itself")
+    void liveValuesAreReadAgain() {
+        java.util.concurrent.atomic.AtomicInteger seconds = new java.util.concurrent.atomic.AtomicInteger(30);
+        UiEntry entry = UiEntry.of(new Kit("boxing"))
+                .with("kit_name", "Boxing")
+                .liveFormatted("next_reset", () -> seconds.get() + "s")
+                .build();
+
+        assertTrue(entry.isLive());
+        assertEquals("30s", entry.values().get("next_reset"));
+        assertTrue(entry.formatted().contains("next_reset"));
+        assertTrue(entry == entry.refreshed(), "nothing moved, so nothing is redrawn");
+
+        seconds.set(29);
+        UiEntry fresh = entry.refreshed();
+
+        assertEquals("29s", fresh.values().get("next_reset"));
+        assertEquals("Boxing", fresh.values().get("kit_name"));
+        assertEquals(entry.value(), fresh.value());
+        assertTrue(fresh.isLive());
+    }
+
+    @Test
+    @DisplayName("a fixed value written over a live one stops it being read again")
+    void fixedValueReplacesLiveOne() {
+        UiEntry entry = UiEntry.row().live("count", () -> 1).with("count", 2).build();
+
+        assertFalse(entry.isLive());
+        assertEquals("2", entry.values().get("count"));
+    }
 }
