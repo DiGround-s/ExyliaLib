@@ -29,6 +29,7 @@ import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.Action;
 import org.bukkit.event.block.BlockBreakEvent;
+import org.bukkit.event.block.FluidLevelChangeEvent;
 import org.bukkit.event.block.BlockBurnEvent;
 import org.bukkit.event.block.BlockExplodeEvent;
 import org.bukkit.event.block.BlockFadeEvent;
@@ -396,6 +397,18 @@ final class ReplayEvents implements Listener {
         if (flowTick.getAndSet(now) != now) flows.set(0);
         if (flows.incrementAndGet() > FLOWS_PER_TICK) return;
         block(event.getToBlock());
+    }
+
+    /**
+     * A liquid's level changing or drying up, which is not a flow: without it
+     * water that ran and then went back is never seen running.
+     */
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    public void onFluidLevel(FluidLevelChangeEvent event) {
+        int now = ReplayClock.now();
+        if (flowTick.getAndSet(now) != now) flows.set(0);
+        if (flows.incrementAndGet() > FLOWS_PER_TICK) return;
+        block(event.getBlock());
     }
 
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)

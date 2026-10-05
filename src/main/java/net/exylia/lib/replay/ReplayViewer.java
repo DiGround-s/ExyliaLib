@@ -251,11 +251,7 @@ public final class ReplayViewer {
      * @return who is being followed now, or {@code null} for nobody
      */
     public @Nullable ReplayActor cycleFollow() {
-        List<ReplayActor> players = new ArrayList<>();
-        int tick = playback.tick();
-        for (ReplayActor actor : playback.replay().actors()) {
-            if (actor.isPlayer() && playback.replay().at(tick, actor.id()).present()) players.add(actor);
-        }
+        List<ReplayActor> players = present();
         UUID current = playback.following();
         int at = -1;
         for (int index = 0; index < players.size(); index++) {
@@ -264,6 +260,31 @@ public final class ReplayViewer {
         ReplayActor next = at + 1 < players.size() ? players.get(at + 1) : null;
         playback.follow(next == null ? null : next.id());
         return next;
+    }
+
+    /**
+     * The players on screen on the frame being shown, in the order they are
+     * in the recording: who {@link #goTo} and {@link #follow} can be pointed at.
+     *
+     * @since 1.244.0
+     */
+    public @NotNull List<ReplayActor> present() {
+        List<ReplayActor> players = new ArrayList<>();
+        int tick = playback.tick();
+        for (ReplayActor actor : playback.replay().actors()) {
+            if (actor.isPlayer() && playback.replay().at(tick, actor.id()).present()) players.add(actor);
+        }
+        return players;
+    }
+
+    /**
+     * Looks out of one player's eyes.
+     *
+     * @param actor who, or {@code null} for the viewer's own
+     * @since 1.244.0
+     */
+    public void follow(@Nullable UUID actor) {
+        playback.follow(actor);
     }
 
     /** Stops following anybody. */

@@ -69,6 +69,9 @@ public final class Playback implements ReplayPlayback {
     private static final double MAX_SPEED = 8.0;
     private static final int NO_SEEK = Integer.MIN_VALUE;
 
+    /** The off hand, in the player inventory's own numbering. */
+    private static final int OFF_HAND_SLOT = 40;
+
     /** 4096ths of a block, which is what a relative step is written in. */
     private static final double STEP_UNIT = 4096.0;
 
@@ -148,6 +151,13 @@ public final class Playback implements ReplayPlayback {
     /** Whose eyes the viewers are looking out of, or -1. */
     private volatile int pov = -1;
     private int povSent = -1;
+
+    /** Whose hand and hearts the viewers' own screens show, or -1. */
+    private int handOf = -1;
+    private final Map<UUID, Integer> heldShown = new HashMap<>();
+    private ItemStack mainShown;
+    private ItemStack offShown;
+    private float healthShown = -1f;
     private int povAge;
     private int soundsThisTick;
 
@@ -344,6 +354,13 @@ public final class Playback implements ReplayPlayback {
         position = target;
         rendered = target;
         rebuildWorld(target);
+        // A real jump draws everybody afresh rather than moving them: a body
+        // moved by teleport and then by steps drifts off on some clients
+        // until the next sync puts it back, and several skips in a row pile
+        // that up.
+        if (Math.abs(target - from) > 2) {
+            for (int index = 0; index < bodies.length; index++) remove(index);
+        }
         draw(target, true);
         // Stepping a frame or two on is still watching: the swing and the hit
         // on that frame are drawn.
@@ -403,7 +420,12 @@ public final class Playback implements ReplayPlayback {
                 }
             }
         }
-        if (body == null || ++povAge % 20 != 0) return;
+        if (body == null) {
+            if (handOf >= 0) giveBack();
+            return;
+        }
+        firstPerson(wanted, body);
+        if (++povAge % 20 != 0) return;
         Location near = new Location(anchors[Math.max(0, scene)].getWorld(), body.x, body.y + 1.5, body.z);
         for (Player viewer : viewers) {
             if (viewer == null || !viewer.isOnline()) continue;
@@ -416,6 +438,64 @@ public final class Playback implements ReplayPlayback {
                     viewer.teleportAsync(to);
                 }
             });
+        }
+    }
+
+    /**
+     * Their eyes are not enough to be them: the viewer's own screen shows the
+     * hand they held, the hearts they had, their swing, their hits taken and
+     * their totem going off, as the game shows a player all of it. Painted
+     * on the viewer's screen only; the hotbar under it is untouched.
+     */
+    private void firstPerson(int actor, Body body) {
+        if (handOf != actor) {
+            handOf = actor;
+            heldShown.clear();
+            mainShown = null;
+            offShown = null;
+            healthShown = -1f;
+        }
+        ItemStack main = body.worn[0];
+        ItemStack off = body.worn[1];
+        boolean mainChanged = !Objects.equals(main, mainShown);
+        boolean offChanged = !Objects.equals(off, offShown) || heldShown.isEmpty();
+        mainShown = main;
+        offShown = off;
+        for (Player viewer : viewers) {
+            if (viewer == null || !viewer.isOnline()) continue;
+            int held = viewer.getInventory().getHeldItemSlot();
+            Integer was = heldShown.put(viewer.getUniqueId(), held);
+            if (mainChanged || was == null || was != held) ReplayPackets.hand(viewer, held, main);
+            if (offChanged) ReplayPackets.hand(viewer, OFF_HAND_SLOT, off);
+        }
+        MotionTrack track = replay.tracks().get(actor);
+        int tick = Math.max(0, rendered);
+        if (!track.present(tick)) return;
+        float health = (float) Math.max(0.5, track.health(tick));
+        if (health != healthShown) {
+            healthShown = health;
+            ReplayPackets.health(viewers, health);
+        }
+    }
+
+    /** Puts the viewers' own hand, hotbar and hearts back. */
+    private void giveBack() {
+        handOf = -1;
+        heldShown.clear();
+        for (Player viewer : viewers) {
+            if (viewer == null || !viewer.isOnline()) continue;
+            scheduler.runAtEntity(viewer, () -> {
+                viewer.updateInventory();
+                viewer.sendHealthUpdate();
+            });
+        }
+    }
+
+    /** One of the followed body's own moments, played on the viewers' screens as theirs. */
+    private void asViewer(int actor, java.util.function.BiConsumer<List<Player>, Integer> send) {
+        if (actor < 0 || actor != handOf) return;
+        for (Player viewer : viewers) {
+            if (viewer != null && viewer.isOnline()) send.accept(List.of(viewer), viewer.getEntityId());
         }
     }
 
@@ -794,13 +874,13 @@ public final class Playback implements ReplayPlayback {
         Body body = actor < 0 ? null : bodies[actor];
         switch (mark.kind()) {
             case ReplayMark.SWING -> {
-                if (body != null) {
-                    ReplayPackets.swing(viewers, body.id,
-                            mark.data() != null && mark.data().length > 0 && mark.data()[0] == 1);
-                }
+                boolean off = mark.data() != null && mark.data().length > 0 && mark.data()[0] == 1;
+                if (body != null) ReplayPackets.swing(viewers, body.id, off);
+                asViewer(actor, (to, id) -> ReplayPackets.swing(to, id, off));
                 return true;
             }
             case ReplayMark.HURT -> {
+                asViewer(actor, (to, id) -> ReplayPackets.hurt(to, id, MarkData.hurtDirection(mark.data())));
                 if (body != null) {
                     ReplayPackets.hurt(viewers, body.id, MarkData.hurtDirection(mark.data()));
                     if (audible(1)) {
@@ -864,6 +944,7 @@ public final class Playback implements ReplayPlayback {
             }
             case ReplayMark.TOTEM -> {
                 if (body != null) ReplayPackets.status(viewers, body.id, ReplayPackets.STATUS_TOTEM);
+                asViewer(actor, (to, id) -> ReplayPackets.status(to, id, ReplayPackets.STATUS_TOTEM));
                 return true;
             }
             case ReplayMark.SHIELD_DISABLED -> {
@@ -1326,6 +1407,7 @@ public final class Playback implements ReplayPlayback {
                 if (viewer != null && viewer.isOnline()) ReplayPackets.camera(viewer, viewer.getEntityId());
             }
         }
+        if (handOf >= 0) giveBack();
         clearWorld();
         ReplayRuntime.forget(this);
     }

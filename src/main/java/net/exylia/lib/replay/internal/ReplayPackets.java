@@ -43,6 +43,8 @@ import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerPa
 import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerPlayerInfoRemove;
 import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerPlayerInfoUpdate;
 import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerSetPassengers;
+import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerSetSlot;
+import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerUpdateHealth;
 import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerSoundEffect;
 import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerSpawnEntity;
 import io.github.retrooper.packetevents.util.SpigotConversionUtil;
@@ -199,6 +201,12 @@ final class ReplayPackets {
                          float yaw, float pitch, boolean onGround) {
         send(viewers, new WrapperPlayServerEntityTeleport(entityId, new Vector3d(x, y, z),
                 yaw, pitch, onGround));
+        // The steps that follow are counted from the last sync, not from a
+        // teleport, on the clients that have both.
+        if (atLeast(ServerVersion.V_1_21_2)) {
+            send(viewers, new WrapperPlayServerEntityPositionSync(entityId,
+                    new EntityPositionData(new Vector3d(x, y, z), Vector3d.zero(), yaw, pitch), onGround));
+        }
     }
 
     static void equip(List<Player> viewers, int entityId, org.bukkit.inventory.EquipmentSlot slot,
@@ -310,6 +318,22 @@ final class ReplayPackets {
 
     static void status(List<Player> viewers, int entityId, byte status) {
         send(viewers, new WrapperPlayServerEntityStatus(entityId, status));
+    }
+
+    /**
+     * Paints one slot of the viewer's own inventory, on their screen only: the
+     * hand they see in first person. Window -2 is the player's inventory, which
+     * the hotbar overlay leaves alone.
+     */
+    static void hand(Player viewer, int slot, @Nullable ItemStack item) {
+        send(List.of(viewer), new WrapperPlayServerSetSlot(-2, 0, slot,
+                item == null ? com.github.retrooper.packetevents.protocol.item.ItemStack.EMPTY
+                        : SpigotConversionUtil.fromBukkitItemStack(item)));
+    }
+
+    /** The hearts on the viewer's screen, with a full food bar. */
+    static void health(List<Player> viewers, float health) {
+        send(viewers, new WrapperPlayServerUpdateHealth(health, 20, 5f));
     }
 
     static void passengers(List<Player> viewers, int vehicleId, int[] riders) {
