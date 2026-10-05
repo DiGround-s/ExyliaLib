@@ -109,6 +109,15 @@ final class ParticlePaint implements Paint {
         if (type == org.bukkit.inventory.ItemStack.class) {
             return new org.bukkit.inventory.ItemStack(material != null ? material : Material.SNOWBALL);
         }
+        // Newer servers add data classes this API predates, such as Particle.Spell
+        // (Color, float) for EFFECT and INSTANT_EFFECT since 1.21.9.
+        if (type != null && type != Void.class) {
+            try {
+                return type.getConstructor(Color.class, float.class).newInstance(used, size);
+            } catch (ReflectiveOperationException ignored) {
+                // No colour-and-size constructor: nothing sensible to build.
+            }
+        }
         return null;
     }
 
