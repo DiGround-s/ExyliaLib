@@ -186,10 +186,18 @@ public final class BlackBox {
         if (entity instanceof Player player && settings.hidden().test(player)) return;
         double radius = settings.radius();
         Location at = entity.getLocation();
+        boolean written = false;
         for (Watcher watcher : watchers.values()) {
             Location there = watcher.last;
             if (there == null || there.getWorld() != at.getWorld()) continue;
-            if (there.distanceSquared(at) <= radius * radius) watcher.noticed.add(entity);
+            if (there.distanceSquared(at) > radius * radius) continue;
+            watcher.noticed.add(entity);
+            // Its first frame now: a crystal is often placed and blown up
+            // before the next sample, and was never there at all.
+            if (!written) {
+                written = true;
+                write(entity, ReplayClock.now());
+            }
         }
     }
 

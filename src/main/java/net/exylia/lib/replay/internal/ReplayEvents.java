@@ -18,6 +18,7 @@ import org.bukkit.block.data.type.Comparator;
 import org.bukkit.block.data.type.DaylightDetector;
 import org.bukkit.block.data.type.NoteBlock;
 import org.bukkit.block.data.type.Repeater;
+import org.bukkit.block.data.type.RespawnAnchor;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.HumanEntity;
 import org.bukkit.entity.LivingEntity;
@@ -339,6 +340,10 @@ final class ReplayEvents implements Listener {
 
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onBlockExplode(BlockExplodeEvent event) {
+        // A respawn anchor or a bed is gone before the event: what it was is
+        // kept beside it, and without it the anchor never stood there at all.
+        BlockState exploded = event.getExplodedBlockState();
+        if (exploded != null) block(event.getBlock(), exploded.getBlockData());
         explosion(event.getBlock().getLocation().add(0.5, 0.5, 0.5), event.blockList(), null);
     }
 
@@ -455,8 +460,8 @@ final class ReplayEvents implements Listener {
     }
 
     /**
-     * A door opened, a lever pulled, a note block tuned: changes the game makes
-     * without a block event of their own.
+     * A door opened, a lever pulled, a note block tuned, an anchor charged:
+     * changes the game makes without a block event of their own.
      */
     @EventHandler(priority = EventPriority.MONITOR)
     public void onUse(PlayerInteractEvent event) {
@@ -468,7 +473,8 @@ final class ReplayEvents implements Listener {
         BlockData data = block.getBlockData();
         if (data instanceof Openable || data instanceof Powerable || data instanceof NoteBlock
                 || data instanceof Repeater || data instanceof Comparator
-                || data instanceof DaylightDetector || data instanceof Cake) {
+                || data instanceof DaylightDetector || data instanceof Cake
+                || data instanceof RespawnAnchor) {
             block(block, data);
             // A door is two blocks and both change.
             if (data instanceof org.bukkit.block.data.Bisected half && data instanceof Openable) {

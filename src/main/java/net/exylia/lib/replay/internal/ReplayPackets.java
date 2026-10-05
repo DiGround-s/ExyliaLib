@@ -37,6 +37,7 @@ import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerEn
 import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerEntitySoundEffect;
 import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerEntityStatus;
 import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerEntityTeleport;
+import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerExplosion;
 import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerHurtAnimation;
 import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerParticle;
 import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerPlayerInfoRemove;
@@ -92,7 +93,9 @@ final class ReplayPackets {
 
     private static final int CUSTOM_NAME = 2;
     private static final int NAME_VISIBLE = 3;
+    private static final int NO_GRAVITY = 5;
     private static final int POSE = 6;
+    private static final int CRYSTAL_BOTTOM = 9;
     private static final int ITEM = 8;
     private static final int HAND_STATES = 8;
     private static final int HEALTH = 9;
@@ -244,6 +247,21 @@ final class ReplayPackets {
         if (!data.isEmpty()) metadata(viewers, entityId, data);
     }
 
+    /**
+     * Keeps the client's own physics off a body that is not alive.
+     *
+     * <p>The client moves a pearl, an arrow or a dropped item by itself between
+     * packets, gravity included; with no velocity ever sent, that gravity only
+     * piles up and the body twitches down and back every tick. A crystal a
+     * player placed has no bedrock under it.
+     */
+    static void still(List<Player> viewers, int entityId, EntityType type) {
+        List<EntityData<?>> data = new ArrayList<>(2);
+        data.add(new EntityData<>(NO_GRAVITY, EntityDataTypes.BOOLEAN, true));
+        if (type == EntityTypes.END_CRYSTAL) data.add(new EntityData<>(CRYSTAL_BOTTOM, EntityDataTypes.BOOLEAN, false));
+        metadata(viewers, entityId, data);
+    }
+
     /** Health to nothing: the client lays the body down and turns it red. */
     static void dying(List<Player> viewers, int entityId) {
         metadata(viewers, entityId, List.of(new EntityData<>(HEALTH, EntityDataTypes.FLOAT, 0f)));
@@ -317,6 +335,14 @@ final class ReplayPackets {
                       double x, double y, double z, float volume, float pitch) {
         send(viewers, new WrapperPlayServerSoundEffect(Sounds.getByNameOrCreate(key), category,
                 new Vector3d(x, y, z), volume, pitch));
+    }
+
+    /** An explosion as the client draws it, its particle and its sound, and no push. */
+    static void blast(List<Player> viewers, double x, double y, double z, String particle, String sound) {
+        ParticleType<?> type = ParticleTypes.getByName(particle);
+        if (type == null) type = ParticleTypes.EXPLOSION;
+        send(viewers, new WrapperPlayServerExplosion(new Vector3d(x, y, z), new Vector3d(0, 0, 0),
+                new Particle<>(type), Sounds.getByNameOrCreate(sound)));
     }
 
     static void entitySound(List<Player> viewers, String key, SoundCategory category,

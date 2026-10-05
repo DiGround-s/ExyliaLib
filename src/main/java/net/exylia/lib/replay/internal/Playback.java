@@ -88,7 +88,7 @@ public final class Playback implements ReplayPlayback {
     private static final double STEP_DISTANCE = 1.0 / 0.6;
 
     /** Sounds a single tick may make, so a fast-forward is not a wall of noise. */
-    private static final int SOUNDS_PER_TICK = 8;
+    private static final int SOUNDS_PER_TICK = 16;
 
     private final String owner;
     private final Replay replay;
@@ -105,6 +105,13 @@ public final class Playback implements ReplayPlayback {
     private final List<Worn>[] wardrobe;
     private final List<Riding>[] rides;
     private final int[][] deaths;
+    private final int[][] jumps;
+
+    /**
+     * Whether the recording kept the sounds the server sent. When it did, those
+     * are played and nothing is guessed: guessing on top would play each twice.
+     */
+    private final boolean heard;
 
     /** What was at every position the recording changes, before the first change. */
     private final Map<Location, BlockData> originals;
@@ -166,6 +173,7 @@ public final class Playback implements ReplayPlayback {
         this.wardrobe = new List[actors];
         this.rides = new List[actors];
         this.deaths = new int[actors][];
+        this.jumps = new int[actors][];
         for (int index = 0; index < actors; index++) {
             ReplayActor actor = replay.actors().get(index);
             EntityType type = ReplayPackets.typeOf(actor.entityType());
@@ -177,6 +185,8 @@ public final class Playback implements ReplayPlayback {
             rides[index] = new ArrayList<>(0);
         }
         index();
+        this.heard = marks.stream().anyMatch(mark -> ReplayMark.SOUND.equals(mark.kind())
+                || ReplayMark.BLAST.equals(mark.kind()));
         this.originals = originals();
     }
 
@@ -208,7 +218,11 @@ public final class Playback implements ReplayPlayback {
      */
     private void index() {
         List<List<Integer>> died = new ArrayList<>();
-        for (int index = 0; index < bodies.length; index++) died.add(new ArrayList<>());
+        List<List<Integer>> jumped = new ArrayList<>();
+        for (int index = 0; index < bodies.length; index++) {
+            died.add(new ArrayList<>());
+            jumped.add(new ArrayList<>());
+        }
         for (ReplayMark mark : marks) {
             int actor = mark.actor() == null ? -1 : indexOf(mark.actor());
             if (actor < 0) continue;
@@ -229,12 +243,14 @@ public final class Playback implements ReplayPlayback {
                 case ReplayMark.DISMOUNT -> rides[actor].add(new Riding(mark.tick(), -1));
                 case ReplayMark.DEATH -> died.get(actor).add(mark.tick());
                 case ReplayMark.RESPAWN -> died.get(actor).add(-mark.tick() - 1);
+                case ReplayMark.TELEPORT -> jumped.get(actor).add(mark.tick());
                 default -> {
                 }
             }
         }
         for (int index = 0; index < bodies.length; index++) {
             deaths[index] = died.get(index).stream().mapToInt(Integer::intValue).toArray();
+            jumps[index] = jumped.get(index).stream().mapToInt(Integer::intValue).toArray();
         }
     }
 
@@ -449,7 +465,7 @@ public final class Playback implements ReplayPlayback {
             spawn(index, tick);
             return;
         }
-        place(body, track, tick, fraction, snap);
+        place(body, track, tick, fraction, snap || jumped(index, tick));
         state(index, body, track, tick);
         // A seek skips the equipment marks in between: what they wore on the
         // tick landed on is read again.
@@ -479,6 +495,7 @@ public final class Playback implements ReplayPlayback {
                 ReplayPackets.spawnData(type, looks[index]));
         if (player) ReplayPackets.skinLayers(viewers, body.id);
         else ReplayPackets.appearance(viewers, body.id, looks[index], carriesItem[index]);
+        if (!living[index]) ReplayPackets.still(viewers, body.id, type);
         body.x = at.getX();
         body.y = at.getY();
         body.z = at.getZ();
@@ -795,15 +812,39 @@ public final class Playback implements ReplayPlayback {
             }
             case ReplayMark.ATTACK -> {
                 attack(body, mark);
+                sweep(body, mark);
                 return true;
             }
             case ReplayMark.EQUIP -> {
                 if (body != null && actor >= 0 && living[actor]) dress(actor, body, mark.tick());
                 return true;
             }
+            case ReplayMark.SOUND -> {
+                Location at = WorldMarks.placeAt(anchorAt(mark.tick()), mark.data());
+                String[] parts = text(mark, 4);
+                if (at != null && parts != null && audible(1)) {
+                    try {
+                        ReplayPackets.sound(viewers, parts[0], SoundCategory.valueOf(parts[1]),
+                                at.getX(), at.getY(), at.getZ(), Float.parseFloat(parts[2]),
+                                Float.parseFloat(parts[3]));
+                    } catch (IllegalArgumentException unreadable) {
+                        // A category or a number from a version that wrote them differently.
+                    }
+                }
+                return true;
+            }
+            case ReplayMark.BLAST -> {
+                Location at = WorldMarks.placeAt(anchorAt(mark.tick()), mark.data());
+                String[] parts = text(mark, 2);
+                if (at != null && parts != null && audible(1)) {
+                    ReplayPackets.blast(viewers, at.getX(), at.getY(), at.getZ(), parts[0], parts[1]);
+                }
+                return true;
+            }
             case ReplayMark.EXPLOSION -> {
                 Location at = WorldMarks.explosionAt(anchorAt(mark.tick()), mark.data());
-                if (at != null && audible(1)) {
+                // Recorded as the server sent it: drawn from its BLAST instead.
+                if (at != null && !heard && audible(1)) {
                     float power = WorldMarks.explosionPower(mark.data());
                     ReplayPackets.particle(viewers, power >= 2f ? ParticleTypes.EXPLOSION_EMITTER
                             : ParticleTypes.EXPLOSION, at.getX(), at.getY(), at.getZ(), 0f, 0f, 1);
@@ -872,7 +913,7 @@ public final class Playback implements ReplayPlayback {
         if ((how & MarkData.BLOCKED) != 0 && target != null) {
             ReplayPackets.status(viewers, target.id, ReplayPackets.STATUS_SHIELD_BLOCK);
         }
-        if (attacker == null || !audible(1)) return;
+        if (attacker == null || heard || !audible(1)) return;
         String sound;
         if ((how & MarkData.NO_DAMAGE) != 0) sound = "minecraft:entity.player.attack.nodamage";
         else if ((how & MarkData.CRIT) != 0) sound = "minecraft:entity.player.attack.crit";
@@ -881,11 +922,35 @@ public final class Playback implements ReplayPlayback {
         else if ((how & MarkData.STRONG) != 0) sound = "minecraft:entity.player.attack.strong";
         else sound = "minecraft:entity.player.attack.weak";
         ReplayPackets.sound(viewers, sound, SoundCategory.PLAYER, attacker.x, attacker.y, attacker.z, 1f, 1f);
-        if ((how & MarkData.SWEEP) != 0) {
+    }
+
+    /** The sweep the server shows as a particle, which is not one of the sounds kept. */
+    private void sweep(@Nullable Body attacker, ReplayMark mark) {
+        if (attacker != null && (MarkData.attackHow(mark.data()) & MarkData.SWEEP) != 0) {
             double yaw = Math.toRadians(attacker.yaw * 360f / 256f);
             ReplayPackets.particle(viewers, ParticleTypes.SWEEP_ATTACK,
                     attacker.x - Math.sin(yaw), attacker.y + 0.9, attacker.z + Math.cos(yaw), 0f, 0f, 1);
         }
+    }
+
+    /** The {@code |}-separated line beside a place mark, if it has this many parts. */
+    private static String @Nullable [] text(ReplayMark mark, int parts) {
+        String line = WorldMarks.placeText(mark.data());
+        if (line == null) return null;
+        String[] split = line.split("\\|", parts);
+        return split.length == parts ? split : null;
+    }
+
+    /**
+     * Whether somebody was teleported going into or out of this tick: a pearl
+     * landing is a jump, not a slide across the arena.
+     */
+    private boolean jumped(int index, int tick) {
+        for (int at : jumps[index]) {
+            if (at > tick + 1) break;
+            if (at >= tick - 1) return true;
+        }
+        return false;
     }
 
     private String hurtSound(int actor) {
@@ -934,7 +999,7 @@ public final class Playback implements ReplayPlayback {
             case "WIND_CHARGE" -> "minecraft:entity.wind_charge.throw";
             default -> null;
         };
-        if (sound != null && audible(1)) {
+        if (sound != null && !heard && audible(1)) {
             ReplayPackets.sound(viewers, sound, SoundCategory.NEUTRAL, body.x, body.y, body.z, 0.8f, pitch());
         }
     }
@@ -942,7 +1007,7 @@ public final class Playback implements ReplayPlayback {
     /** An arrow landing; everything else leaves quietly. */
     private void disappeared(int index, Body body) {
         String type = replay.actors().get(index).entityType();
-        if (("ARROW".equals(type) || "SPECTRAL_ARROW".equals(type)) && audible(1)) {
+        if (("ARROW".equals(type) || "SPECTRAL_ARROW".equals(type)) && !heard && audible(1)) {
             ReplayPackets.sound(viewers, "minecraft:entity.arrow.hit", SoundCategory.NEUTRAL,
                     body.x, body.y, body.z, 0.6f, pitch());
         }
@@ -957,7 +1022,7 @@ public final class Playback implements ReplayPlayback {
      * region that owns it, which is the only place it may be read.
      */
     private void footsteps(Body body, MotionTrack track, int tick, double dx, double dz, boolean onGround) {
-        if (!audible || !onGround || speed > 2.0) {
+        if (!audible || heard || !onGround || speed > 2.0) {
             body.walked = 0;
             return;
         }
@@ -997,7 +1062,7 @@ public final class Playback implements ReplayPlayback {
                 if (was != null && !was.getMaterial().isAir()) {
                     ReplayPackets.broken(viewers, at.getBlockX(), at.getBlockY(), at.getBlockZ(), was);
                 }
-            } else {
+            } else if (!heard) {
                 SoundGroup group = became.getSoundGroup();
                 ReplayPackets.sound(viewers, keyOf(group.getPlaceSound()), SoundCategory.BLOCK,
                         at.getX() + 0.5, at.getY() + 0.5, at.getZ() + 0.5,

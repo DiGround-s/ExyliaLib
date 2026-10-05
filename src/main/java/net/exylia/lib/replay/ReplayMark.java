@@ -201,6 +201,26 @@ public record ReplayMark(int tick, @NotNull String kind, @Nullable UUID actor,
     public static final String QUIT = "quit";
 
     /**
+     * A sound the server played there, exactly as it sent it.
+     *
+     * <p>Written by the library from the server's own sound packets, so a pearl
+     * sounds like a pearl and a wind charge like a wind charge. A place, with
+     * {@code key|category|volume|pitch} beside it.
+     *
+     * @since 1.243.0
+     */
+    public static final String SOUND = "sound";
+
+    /**
+     * An explosion as the server sent it: its own particle and its own sound.
+     * A place, with {@code particle|sound} beside it. A recording that has
+     * these draws them instead of guessing from {@link #EXPLOSION}.
+     *
+     * @since 1.243.0
+     */
+    public static final String BLAST = "blast";
+
+    /**
      * One with a line of text behind it, for a plugin's own kinds.
      *
      * @param tick  which frame

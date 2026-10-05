@@ -67,6 +67,7 @@ public final class ReplayRuntime {
             driver = scheduler.runAsyncTimer(1L, 1L, ReplayRuntime::tick);
         }
         ReplayEvents.register(plugin);
+        if (isSupported()) ReplayCapture.register();
     }
 
     public static boolean isSupported() {
@@ -143,6 +144,18 @@ public final class ReplayRuntime {
 
     static void forget(Playback playback) {
         PLAYBACKS.remove(playback);
+    }
+
+    /** Whether anything is being recorded, so a packet is worth reading. */
+    static boolean capturing() {
+        return box != null || !RECORDINGS.isEmpty();
+    }
+
+    /** A sound or an explosion the server sent, to whoever keeps that place. */
+    static void effect(String kind, Location at, String text) {
+        BlackBox running = box;
+        if (running != null) running.markAt(kind, null, at, text, 0f);
+        watching(at, recording -> recording.markAt(kind, at, text));
     }
 
     // -------------------------------------------------------------- black box
