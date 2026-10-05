@@ -125,7 +125,7 @@ final class Tape {
 
     /** Writes a slot that changed since the last look. */
     synchronized void wear(int tick, int slot, ItemStack item) {
-        if (Objects.equals(item, wearing[slot])) return;
+        if (Sampler.sameLook(item, wearing[slot], tick)) return;
         wearing[slot] = item == null ? null : item.clone();
         worn.add(new Worn(tick, slot, wearing[slot]));
     }

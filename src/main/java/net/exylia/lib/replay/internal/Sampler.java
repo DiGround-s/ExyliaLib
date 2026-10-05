@@ -57,6 +57,32 @@ final class Sampler {
     }
 
     /** What is in one slot now, or {@code null} for nothing. */
+    /** Ticks between full looks at an item, past its material and count. */
+    static final int FULL_LOOK_EVERY = 20;
+
+    /** Ticks between reads of the armour slots; hands are read every tick. */
+    static final int ARMOUR_EVERY = 5;
+
+    /** Whether a slot is read on this tick: armour changes rarely, hands do not. */
+    static boolean due(int slot, int tick) {
+        return slot < 2 || tick % ARMOUR_EVERY == 0;
+    }
+
+    /**
+     * Whether an item still looks like the one recorded.
+     *
+     * <p>A full comparison every tick was the most expensive thing the
+     * recorder did, and almost all it ever found was durability going down a
+     * point a hit. Material and count are checked every tick; everything
+     * else, enchantments and trims included, once a second.
+     */
+    static boolean sameLook(ItemStack now, ItemStack recorded, int tick) {
+        if (now == recorded) return true;
+        if (now == null || recorded == null) return false;
+        if (now.getType() != recorded.getType() || now.getAmount() != recorded.getAmount()) return false;
+        return tick % FULL_LOOK_EVERY != 0 || now.equals(recorded);
+    }
+
     static ItemStack worn(LivingEntity living, EquipmentSlot slot) {
         if (living.getEquipment() == null) return null;
         ItemStack item = living.getEquipment().getItem(slot);

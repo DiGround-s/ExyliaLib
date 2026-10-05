@@ -295,6 +295,7 @@ public final class BlackBox {
         if (already || !(entity instanceof LivingEntity living)) return;
         if (!player && tick % MOB_EQUIPMENT_EVERY != 0) return;
         for (int slot = 0; slot < Sampler.SLOTS.length; slot++) {
+            if (player && !Sampler.due(slot, tick)) continue;
             tape.wear(tick, slot, Sampler.worn(living, Sampler.SLOTS[slot]));
         }
     }

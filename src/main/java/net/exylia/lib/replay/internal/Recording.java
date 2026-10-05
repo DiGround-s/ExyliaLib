@@ -443,8 +443,9 @@ public final class Recording implements ReplayRecorder {
     /** Writes a mark for every slot that changed since the last look. */
     private void sampleEquipment(LivingEntity living, Follower follower, int tick) {
         for (int slot = 0; slot < Sampler.SLOTS.length; slot++) {
+            if (!Sampler.due(slot, tick)) continue;
             ItemStack worn = Sampler.worn(living, Sampler.SLOTS[slot]);
-            if (Objects.equals(worn, follower.equipment[slot])) continue;
+            if (Sampler.sameLook(worn, follower.equipment[slot], tick)) continue;
             follower.equipment[slot] = worn == null ? null : worn.clone();
             marks.add(new ReplayMark(tick, ReplayMark.EQUIP, follower.actor.id(),
                     Equipment.write(Sampler.SLOTS[slot], worn)));
