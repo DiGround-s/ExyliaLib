@@ -256,23 +256,19 @@ public final class BlackBox {
         } catch (IllegalStateException elsewhere) {
             return;
         }
-        List<Entity> players = new ArrayList<>();
+        // Players are left to their own timers: every one of them is sampled
+        // by itself already, and reading each of them again for everybody
+        // around is three hundred players read ninety thousand times a tick.
         List<Entity> others = new ArrayList<>();
         for (Entity entity : around) {
-            if (!Tracking.worthRecording(entity)) continue;
-            if (entity instanceof Player other) {
-                if (!current.hidden().test(other)) players.add(entity);
-            } else {
-                others.add(entity);
-            }
+            if (!(entity instanceof Player) && Tracking.worthRecording(entity)) others.add(entity);
         }
         if (others.size() > NEARBY_PER_PLAYER) {
             others.sort(Comparator.comparingDouble(entity -> entity.getLocation().distanceSquared(here)));
             others = others.subList(0, NEARBY_PER_PLAYER);
         }
-        players.addAll(others);
-        watcher.nearby = players;
-        watcher.noticed.removeIf(players::contains);
+        watcher.nearby = others;
+        watcher.noticed.removeIf(others::contains);
     }
 
     /** Writes one entity's frame for this tick, once however many timers see it. */
@@ -280,6 +276,10 @@ public final class BlackBox {
         UUID id = entity.getUniqueId();
         Tape tape = tapes.get(id);
         boolean player = entity instanceof Player;
+        // Seen by somebody else's timer this tick already: an arrow between
+        // twenty players is read once, not twenty times. Players have one
+        // timer each, and on Folia their own stamp can repeat a tick later.
+        if (!player && tape != null && tape.seen == tick) return;
         if (tape == null) {
             if (!player && nonPlayers.get() >= settings.maxEntities()) return;
             tape = new Tape(id, player ? ReplayActor.of((Player) entity) : ReplayActor.of(entity),
@@ -288,6 +288,7 @@ public final class BlackBox {
             if (raced != null) tape = raced;
             else if (!player) nonPlayers.incrementAndGet();
         }
+        tape.seen = tick;
         Location at = entity.getLocation();
         boolean already = tape.put(tick, entity.getWorld().getUID(), at.getX(), at.getY(), at.getZ(),
                 at.getYaw(), at.getPitch(), Sampler.flagsOf(entity), (float) Sampler.healthOf(entity));

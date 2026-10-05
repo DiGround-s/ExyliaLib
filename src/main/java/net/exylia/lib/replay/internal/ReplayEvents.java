@@ -135,12 +135,15 @@ final class ReplayEvents implements Listener {
 
     /** A block about to change: what it is now. */
     static void block(Block block, BlockData was) {
+        if (!ReplayRuntime.capturing()) return;
         BlackBox box = ReplayRuntime.box();
         if (box != null) box.changed(block.getWorld(), block.getX(), block.getY(), block.getZ(), was);
         ReplayRuntime.watching(block.getLocation(), recording -> recording.blockSeen(block.getLocation(), was));
     }
 
     private static void block(Block block) {
+        // A server where nothing records pays nothing for its block events.
+        if (!ReplayRuntime.capturing()) return;
         block(block, block.getBlockData());
     }
 

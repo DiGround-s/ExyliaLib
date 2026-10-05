@@ -33,6 +33,9 @@ final class Tape {
     final boolean player;
     final boolean living;
 
+    /** The last tick anybody sampled it on, written or not: a frame is read once a tick. */
+    volatile int seen = Integer.MIN_VALUE;
+
     private int[] ticks = new int[32];
     private UUID[] worlds = new UUID[32];
     private double[] x = new double[32];
