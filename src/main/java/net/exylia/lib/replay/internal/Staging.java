@@ -37,13 +37,14 @@ import java.util.concurrent.atomic.AtomicInteger;
  * <h2>Spread over ticks</h2>
  * Placing blocks is the one expensive thing here, and it is done on the server's
  * own thread (the plot's region, on Folia). It is spread so no tick places more
- * than {@link #BLOCKS_PER_TICK}: a typical capture is ready in under a second,
- * a long chase in a few.
+ * than {@link #BLOCKS_PER_TICK} blocks that are not air, and every chunk is
+ * loaded off the thread before anything is placed in it: a chunk loaded by the
+ * first block set into it is a whole chunk generated inside one tick.
  */
 @ApiStatus.Internal
 final class Staging implements ReplayStage {
 
-    private static final int BLOCKS_PER_TICK = 20_000;
+    private static final int BLOCKS_PER_TICK = 8_000;
 
     private final String owner;
     private final Replay replay;
@@ -131,18 +132,20 @@ final class Staging implements ReplayStage {
             TerrainSection first = column.getFirst();
             int chunkX = plotChunkX + first.chunkX() - fromX;
             int chunkZ = plotChunkZ + first.chunkZ() - fromZ;
-            int blocks = column.size() * TerrainSection.VOLUME;
+            int blocks = 0;
+            for (TerrainSection section : column) blocks += section.solid();
             long wait = delay.getAndAdd(blocks) / BLOCKS_PER_TICK;
             CompletableFuture<Void> placed = new CompletableFuture<>();
             Location corner = new Location(world, chunkX << 4, 0, chunkZ << 4);
-            scheduler.runAtLocationLater(corner, Math.max(1L, wait + 1), () -> {
-                try {
-                    place(world, chunkX, chunkZ, column);
-                    placed.complete(null);
-                } catch (RuntimeException failure) {
-                    placed.completeExceptionally(failure);
-                }
-            });
+            world.getChunkAtAsync(chunkX, chunkZ, true).whenComplete((loaded, loadFailure) ->
+                    scheduler.runAtLocationLater(corner, Math.max(1L, wait + 1), () -> {
+                        try {
+                            place(world, chunkX, chunkZ, column);
+                            placed.complete(null);
+                        } catch (RuntimeException failure) {
+                            placed.completeExceptionally(failure);
+                        }
+                    }));
             chunks.add(placed);
         }
         return CompletableFuture.allOf(chunks.toArray(CompletableFuture[]::new));

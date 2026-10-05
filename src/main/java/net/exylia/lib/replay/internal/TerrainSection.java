@@ -49,6 +49,16 @@ public record TerrainSection(int scene, int chunkX, int chunkZ, int sectionY,
         return indices == null && palette[0].equals("minecraft:air");
     }
 
+    /** How many of its blocks are not air: what laying it down costs. */
+    int solid() {
+        if (indices == null) return palette[0].equals("minecraft:air") ? 0 : VOLUME;
+        boolean[] air = new boolean[palette.length];
+        for (int index = 0; index < palette.length; index++) air[index] = palette[index].equals("minecraft:air");
+        int count = 0;
+        for (short index : indices) if (!air[index]) count++;
+        return count;
+    }
+
     /** The content alone, without where it is: what the key is made from. */
     byte[] encode() {
         ByteArrayOutputStream raw = new ByteArrayOutputStream(indices == null ? 32 : VOLUME + 256);

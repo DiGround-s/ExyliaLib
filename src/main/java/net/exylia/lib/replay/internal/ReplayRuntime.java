@@ -27,6 +27,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.function.Consumer;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 
 /**
@@ -268,12 +269,18 @@ public final class ReplayRuntime {
                     continue;
                 }
                 playback.step();
-            } catch (RuntimeException failure) {
+            } catch (Throwable failure) {
                 // One that throws must not freeze the ones behind it, and must
-                // not leave its own bodies standing either.
+                // not leave its own bodies standing either. Errors too: the
+                // scheduler cancels a timer that lets anything out, and this one
+                // driver is every playback on the server until it restarts.
                 playbacks.remove();
-                playback.stop();
-                logger.warning("A replay stopped because it failed: " + failure);
+                try {
+                    playback.stop();
+                } catch (Throwable ignored) {
+                    // Already broken; the driver matters more than its cleanup.
+                }
+                logger.log(Level.WARNING, "A replay stopped because it failed", failure);
             }
         }
     }
