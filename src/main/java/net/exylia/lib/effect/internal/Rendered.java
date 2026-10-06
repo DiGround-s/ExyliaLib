@@ -22,6 +22,11 @@ import org.bukkit.entity.Player;
  * under, and it still means the same thing: a server carrying a config from
  * before the move does not have to edit it to get its countdowns back.
  *
+ * <p>{@code %time_precise%} is the same value written with its unit, whatever
+ * the style: {@code "0.4s"}, {@code "1m 30s"}. A text that appends its own
+ * {@code s} to {@code %time%} reads {@code "1:35s"} once the style turns to a
+ * clock; this one cannot.
+ *
  * <p>Second, {@code %time%} is handled here rather than being registered as a
  * global placeholder. A timer belongs to one effect, so a global registration
  * would have no way of knowing which one is being asked about, and two
@@ -49,7 +54,7 @@ final class Rendered {
      * Which time placeholders this text actually uses.
      *
      * <p>Worked out once, because every substitution walks the whole component
-     * tree: doing all four when the text only says {@code %time%} costs three
+     * tree: doing all of them when the text only says {@code %time%} costs three
      * walks per player per tick for nothing.
      */
     private final boolean hasTime;
@@ -58,6 +63,7 @@ final class Rendered {
     private final boolean hasTotal;
     private final boolean hasElapsed;
     private final boolean hasRemaining;
+    private final boolean hasPrecise;
 
     /** Held when nothing in the text can change, so it is built once. */
     private Component constant;
@@ -94,6 +100,7 @@ final class Rendered {
         this.hasTotal = anyTime && raw.contains("%time_total%");
         this.hasElapsed = anyTime && raw.contains("%time_elapsed%");
         this.hasRemaining = anyTime && raw.contains("%time_remaining%");
+        this.hasPrecise = anyTime && raw.contains("%time_precise%");
         // Asked without the timer's own tokens in the text: to the registry
         // %time% looks like any other placeholder, and the point is to know
         // whether anything *else* can change.
@@ -107,6 +114,7 @@ final class Rendered {
                 .replace("%time_total%", "")
                 .replace("%time_elapsed%", "")
                 .replace("%time_remaining%", "")
+                .replace("%time_precise%", "")
                 .replace("%time%", "");
     }
 
@@ -139,6 +147,7 @@ final class Rendered {
         String total = null;
         String elapsed = null;
         String remaining = null;
+        String precise = null;
         String timeKey = null;
         if (timer != null) {
             if (hasTime || hasFormatted) {
@@ -153,8 +162,11 @@ final class Rendered {
             if (hasRemaining) {
                 remaining = TimeFormats.render(timer.remaining(), timeStyle);
             }
+            if (hasPrecise) {
+                precise = TimeFormats.render(timer.displayed(), TimeFormats.Style.PRECISE);
+            }
             if (timerOnly) {
-                timeKey = time + '|' + total + '|' + elapsed + '|' + remaining;
+                timeKey = time + '|' + total + '|' + elapsed + '|' + remaining + '|' + precise;
                 // And the palette is the one it was built with: a reload
                 // recolours a live countdown on its next tick, no invalidation.
                 if (timeKey.equals(lastTime) && lastBuilt != null
@@ -182,6 +194,9 @@ final class Rendered {
         }
         if (remaining != null) {
             text = text.with("%time_remaining%", remaining);
+        }
+        if (precise != null) {
+            text = text.with("%time_precise%", precise);
         }
         Component built = text.build();
         if (timeKey != null) {

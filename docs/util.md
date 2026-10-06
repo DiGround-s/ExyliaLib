@@ -172,6 +172,7 @@ TimeFormats.render(3.34);                            // AUTO → "3.3"
 TimeFormats.render(3665, Style.FULL);                // "1h 1m 5s"
 TimeFormats.render(432000, Style.FULL);              // "5d"
 TimeFormats.render(9000, Style.COMPACT);             // "2h 30m"
+TimeFormats.render(0.4, Style.PRECISE);              // "0.4s"
 ```
 
 | Style | Output | Notes |
@@ -183,6 +184,7 @@ TimeFormats.render(9000, Style.COMPACT);             // "2h 30m"
 | `CLOCK` | `1:35`, `1:05:03` past an hour | padded |
 | `FULL` | `1h 5m 3s`, `2d 3h 4m 5s` | every part, days downwards; for durations read once |
 | `COMPACT` | `3d`, `2h 30m`, `59m 50s` | two largest whole units, up to years, floored; for a duration inside a sentence |
+| `PRECISE` | `0.4s`, `3.3s`, `45s`, `1m 30s` | tenths with the unit under 10s, `COMPACT` above; carries its unit, so the text must not append one. For cooldowns that can be under a second (1.247.0) |
 
 API: `render(double, Style)`, `render(Duration, Style)`, `render(double)` —
 AUTO, `render(double, String)` — style named the way a config names it

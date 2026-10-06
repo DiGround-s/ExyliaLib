@@ -140,6 +140,15 @@ class DisplayTest {
         assertEquals(1, seen.size(), "an unchanged reading is not re-sent: " + seen);
     }
 
+    @Test
+    @DisplayName("%time_precise% carries its unit whatever the style")
+    void preciseCarriesItsUnit() {
+        Effects.actionBar("%time_precise% %time%s").countdown(95).timeStyle("clock").show(viewer.player());
+        FakeServer.tick(1);
+
+        assertEquals("1m 35s 1:35s", viewer.actionBars().get(0));
+    }
+
     /**
      * ExyliaCommons wrote the same number into %time_formatted%, and a server
      * carrying that config over must not have to edit it to get its countdowns

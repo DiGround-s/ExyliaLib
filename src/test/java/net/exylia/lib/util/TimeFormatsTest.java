@@ -165,6 +165,18 @@ class TimeFormatsTest {
     }
 
     @Test
+    @DisplayName("precise keeps tenths with the unit under ten seconds and reads like compact above")
+    void precise() {
+        assertEquals("0.4s", TimeFormats.render(0.4, TimeFormats.Style.PRECISE));
+        assertEquals("3.3s", TimeFormats.render(3.34, TimeFormats.Style.PRECISE));
+        assertEquals("0.0s", TimeFormats.render(-1, TimeFormats.Style.PRECISE));
+        assertEquals("10s", TimeFormats.render(9.97, TimeFormats.Style.PRECISE));
+        assertEquals("45s", TimeFormats.render(45.6, TimeFormats.Style.PRECISE));
+        assertEquals("1m 30s", TimeFormats.render(90, TimeFormats.Style.PRECISE));
+        assertEquals(TimeFormats.Style.PRECISE, TimeFormats.styleOf("precise"));
+    }
+
+    @Test
     @DisplayName("a style can be named the way a config would name it")
     void namedStyles() {
         assertEquals(TimeFormats.Style.TENTHS, TimeFormats.styleOf("tenths"));

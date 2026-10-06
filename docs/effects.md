@@ -53,7 +53,14 @@ and `%time%` displays it as `3.3`. In the file, every one of those keys also
 reads a duration written out: `stay: 1m30s` is the same as `stay: 90`
 (1.171.0). `%time%` belongs to the effect, never to
 the global registry: two countdowns on screen must not show the same number.
-`timeStyle` is a `TimeFormats` style name (`auto`, `tenths`, `clock`, ...).
+`timeStyle` is a `TimeFormats` style name (`auto`, `tenths`, `clock`,
+`precise`, ...).
+
+`%time%` is a bare number, so a text that wants a unit used to write
+`%time%s` — and read `1:35s` once the countdown passed a minute.
+`%time_precise%` (1.247.0) is the same value with its unit, whatever
+`time-style` says: `0.4s`, `9.9s`, `45s`, `1m 30s`. Ship defaults with it; a
+config that still says `%time%s` keeps rendering exactly as before.
 
 Programmatic builders also exist: `Effects.title(text)`, `.actionBar(text)`
 (also `.actionBar(Text)` for values substituted before showing),

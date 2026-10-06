@@ -16,6 +16,8 @@ import java.util.Locale;
  * TimeFormats.render(95.0, TimeFormats.Style.CLOCK);   // "1:35"
  * TimeFormats.render(3.34, TimeFormats.Style.AUTO);    // "3.3"
  * TimeFormats.render(3665, TimeFormats.Style.FULL);    // "1h 1m 5s"
+ * TimeFormats.render(0.4, TimeFormats.Style.PRECISE);  // "0.4s"
+ * TimeFormats.render(90, TimeFormats.Style.PRECISE);   // "1m 30s"
  * TimeFormats.render(432000, TimeFormats.Style.FULL);  // "5d"
  * }</pre>
  *
@@ -103,7 +105,20 @@ public final class TimeFormats {
          *
          * @since 1.25.0
          */
-        COMPACT
+        COMPACT,
+
+        /**
+         * {@link #COMPACT} with a tenth under ten seconds, units included:
+         * {@code "0.4s"}, {@code "3.3s"}, {@code "45s"}, {@code "1m 30s"}.
+         *
+         * <p>For a cooldown or countdown that can be shorter than a second.
+         * {@code COMPACT} floors half a second to {@code "0s"}, which reads as
+         * ready when it is not; the unitless styles leave the unit to the
+         * text, which then reads {@code "1:35s"} past a minute.
+         *
+         * @since 1.247.0
+         */
+        PRECISE
     }
 
     /**
@@ -160,6 +175,7 @@ public final class TimeFormats {
             case CLOCK -> clock(safe);
             case FULL -> full(safe);
             case COMPACT -> compact(safe);
+            case PRECISE -> precise(safe);
         };
     }
 
@@ -206,6 +222,7 @@ public final class TimeFormats {
             case "clock" -> Style.CLOCK;
             case "full" -> Style.FULL;
             case "compact" -> Style.COMPACT;
+            case "precise" -> Style.PRECISE;
             default -> Style.AUTO;
         };
     }
@@ -293,6 +310,19 @@ public final class TimeFormats {
             }
         }
         return "0s";
+    }
+
+    /**
+     * Tenths with their unit under ten seconds, {@link Style#COMPACT} above.
+     *
+     * <p>The cut sits where the tenths would round to ten, so the text never
+     * reads {@code "10.0s"} and then {@code "9s"}.
+     */
+    private static String precise(double seconds) {
+        if (seconds < 9.95) {
+            return ONE_DECIMAL.get().format(seconds) + 's';
+        }
+        return compact(Math.max(seconds, 10));
     }
 
     private static String pad(long value) {

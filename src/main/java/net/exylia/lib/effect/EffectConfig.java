@@ -50,6 +50,7 @@ import java.util.List;
  * builds the display itself, {@code Effects.title(text).countdown(seconds)},
  * with the seconds it knows. What the owner keeps is how it looks: the text,
  * the fades, and {@code time-style} for how {@code %time%} is written.
+ * {@code %time_precise%} carries its own unit and ignores the style.
  *
  * @param title     the title to show, or {@code null}
  * @param actionBar the action bar to show, or {@code null}
@@ -114,7 +115,7 @@ public record EffectConfig(
 
             @Time double fadeOut,
 
-            @Comment("auto, seconds, tenths, hundredths, clock or full.")
+            @Comment("auto, seconds, tenths, hundredths, clock, full, compact or precise.")
             String timeStyle) implements Sparse {
 
         /** An empty title, which shows nothing. */
@@ -160,7 +161,7 @@ public record EffectConfig(
             @Comment("Reads a written duration too: 30s, 1m30s.")
             @Time double duration,
 
-            @Comment("auto, seconds, tenths, hundredths, clock or full.")
+            @Comment("auto, seconds, tenths, hundredths, clock, full, compact or precise.")
             String timeStyle) implements Sparse {
 
         /** An empty action bar, which shows nothing. */
@@ -211,7 +212,7 @@ public record EffectConfig(
             @Comment("Fill from 0.0 to 1.0, used when the bar is not counting.")
             double progress,
 
-            @Comment("auto, seconds, tenths, hundredths, clock or full.")
+            @Comment("auto, seconds, tenths, hundredths, clock, full, compact or precise.")
             String timeStyle) implements Sparse {
 
         /** An empty boss bar, which shows nothing. */
