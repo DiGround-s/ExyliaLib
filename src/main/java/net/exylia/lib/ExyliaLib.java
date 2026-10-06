@@ -199,6 +199,9 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         // reads the answer before the cancel reaches it.
         net.exylia.lib.chat.ChatIntercept.register(this, org.bukkit.event.EventPriority.HIGHEST, false,
                 InputListener::onChat);
+        // A secret answer (a webhook URL) is taken before any other plugin reads chat.
+        net.exylia.lib.chat.ChatIntercept.register(this, org.bukkit.event.EventPriority.LOWEST, false,
+                InputListener::onSensitiveChat);
         // And one for every plugin's list editors and icon pickers. Separate
         // from the menu listener because an editor window is not a menu window:
         // it carries its own holder, and a click in it is a row or a control
@@ -273,6 +276,7 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         ClanRuntime.init(this);
         CombatRuntime.init(this);
         SkullRuntime.init(this);
+        net.exylia.lib.discord.internal.WebhookRuntime.init(this);
         // Binds FastAsyncWorldEdit if the server has it, and says so once here
         // rather than once per refused call: whether an engine exists is a fact
         // about the server, not about any one request.
@@ -646,6 +650,9 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         CombatRuntime.shutdown();
         // Writes the texture cache before tasks go away: the save is inline.
         SkullRuntime.shutdown();
+        // A short inline flush of the webhook messages still queued: the async
+        // scheduler that would have sent them is about to go.
+        net.exylia.lib.discord.Webhooks.releaseAll();
         // Before the task module, for the same reason a plugin's release is,
         // plus one: releasing the engine drops every loaded clipboard, and
         // those are tens of megabytes each.
@@ -1060,6 +1067,8 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         // and a reward handed to a player whose plugin is going away must not be
         // marked as claimed by a repository that is about to close.
         Rewards.release(plugin);
+        // Here rather than at disable: a message sent from onDisable still goes.
+        net.exylia.lib.discord.Webhooks.release(plugin);
         // Before the database module for the same reason, and for no other: a
         // snapshot this plugin took is already a row, so nothing has to be
         // written on the way out. Forgetting the repository is the whole job.

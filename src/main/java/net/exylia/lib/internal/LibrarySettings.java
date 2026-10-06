@@ -124,8 +124,16 @@ public record LibrarySettings(
         Metrics metrics,
 
         @Key("plugin-updates")
-        PluginUpdates pluginUpdates
+        PluginUpdates pluginUpdates,
+
+        @Key("webhook-head")
+        @Comment("The image a player's head is drawn from in Discord webhook messages; %uuid% is the player's id.")
+        @Comment("Any public head service works, such as https://crafatar.com/avatars/%uuid%?size=64&overlay")
+        String webhookHead
 ) {
+
+    /** The head service a webhook message draws a player's head from by default. */
+    public static final String DEFAULT_WEBHOOK_HEAD = "https://mc-heads.net/avatar/%uuid%/64";
 
     /**
      * The {@code plugin-updates:} block: other Exylia plugins kept up to date from their
@@ -191,7 +199,7 @@ public record LibrarySettings(
     /** Safe defaults used when no config file exists yet. */
     public LibrarySettings() {
         this(Languages.ENGLISH, true, 30, false, true, "auto:0.4", DEFAULT_FALLBACK_HEAD, "", "", "normal", new Metrics(),
-                new PluginUpdates());
+                new PluginUpdates(), DEFAULT_WEBHOOK_HEAD);
     }
 
     private static volatile LibrarySettings instance;

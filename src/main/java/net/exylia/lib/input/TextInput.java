@@ -12,6 +12,8 @@ import org.jetbrains.annotations.Nullable;
  */
 public final class TextInput extends InputRequest<String, TextInput> {
 
+    private volatile boolean sensitive;
+
     TextInput(String pluginName, Player player, String prompt, InputParser<String> parser) {
         super(pluginName, player, prompt, parser);
     }
@@ -73,6 +75,39 @@ public final class TextInput extends InputRequest<String, TextInput> {
     public @NotNull TextInput hint(@Nullable String hint) {
         setHint(hint);
         return this;
+    }
+
+    /**
+     * Marks the answer as a secret, such as a webhook URL or a token.
+     *
+     * <p>Answered in chat, the line is taken at {@code LOWEST} priority instead
+     * of {@code HIGHEST}, so no other plugin's chat listener — a filter, a log,
+     * a Discord bridge — reads it before it is cancelled. A dialog or a Bedrock
+     * form never puts the answer in chat to begin with. The library never
+     * repeats the answer back in any transport.
+     *
+     * <pre>{@code
+     * inputs.text(player, "{primary}Paste the webhook URL")
+     *       .sensitive()
+     *       .open(url -> save(url));
+     * }</pre>
+     *
+     * @return this request
+     * @since 1.245.0
+     */
+    public @NotNull TextInput sensitive() {
+        this.sensitive = true;
+        return this;
+    }
+
+    /**
+     * Returns whether the answer is a secret.
+     *
+     * @return whether {@link #sensitive()} was called
+     * @since 1.245.0
+     */
+    public boolean isSensitive() {
+        return sensitive;
     }
 
     /** Rejects text shorter than the given number of Unicode code points. */

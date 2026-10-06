@@ -175,11 +175,28 @@ Where it is drawn belongs to the transport: a Bedrock input has a real
 placeholder and uses it, a dialog draws the hint muted under the label, chat
 sends it as its own line, and a transport with nowhere to put it drops it.
 
+### Answers that are secrets
+
+Since 1.245.0. `TextInput.sensitive()` marks the answer as a secret — a webhook
+URL, a token.
+
+```java
+inputs.text(player, "{primary}Paste the webhook URL")
+      .sensitive()
+      .open(url -> save(url));
+```
+
+A dialog or a Bedrock form never puts the answer in chat. In chat, an ordinary
+answer is taken at `HIGHEST`, after other chat plugins have run; a sensitive one
+is taken at `LOWEST`, so no filter, chat log or Discord bridge reads it before
+it is cancelled. No transport repeats the answer back. `PluginWebhooks.ask` (see
+[discord.md](discord.md)) uses it.
+
 ### Modifiers particular types add
 
 | Type | Method | |
 | --- | --- | --- |
-| `TextInput` | `maxLength(int)`, `minLength(int)`, `lines(int)`, `hint(String)` | lengths counted in Unicode code points, not chars; `lines` asks a transport for a taller box; `hint` says what a valid answer looks like |
+| `TextInput` | `maxLength(int)`, `minLength(int)`, `lines(int)`, `hint(String)`, `sensitive()` | lengths counted in Unicode code points, not chars; `lines` asks a transport for a taller box; `hint` says what a valid answer looks like; `sensitive` keeps a secret answer away from other chat listeners |
 | `NumberInput<T>` | `range(min, max)`, `min(T)`, `max(T)` | inclusive; an inverted range throws |
 | `AmountInput` | `minimum(BigDecimal)`, `maximum(BigDecimal)` | inclusive |
 | `DurationInput` | `atLeast(Duration)`, `atMost(Duration)` | inclusive; a negative bound throws |

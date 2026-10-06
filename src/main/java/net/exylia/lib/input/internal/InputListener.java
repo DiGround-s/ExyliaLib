@@ -42,8 +42,32 @@ public final class InputListener implements Listener {
         if (transport == null || session.transportKind() != TransportKind.CHAT) {
             return false;
         }
+        // Already taken at LOWEST: kept cancelled, never accepted twice.
+        if (!sensitive(session)) {
+            transport.accept(session, player, message);
+        }
+        return true;
+    }
+
+    /**
+     * Takes a secret answer out of chat before any other listener reads it.
+     *
+     * <p>Registered at {@code LOWEST}. Only a {@link net.exylia.lib.input.TextInput#sensitive()}
+     * request is taken here; everything else waits for {@link #onChat}, so
+     * ordinary chat policy still runs first for ordinary answers.
+     */
+    public static boolean onSensitiveChat(Player player, String message) {
+        InputSession session = InputRuntime.active(player.getUniqueId());
+        ChatTransport transport = transport(session, ChatTransport.class);
+        if (transport == null || session.transportKind() != TransportKind.CHAT || !sensitive(session)) {
+            return false;
+        }
         transport.accept(session, player, message);
         return true;
+    }
+
+    private static boolean sensitive(InputSession session) {
+        return session.request() instanceof net.exylia.lib.input.TextInput text && text.isSensitive();
     }
 
     /** Routes clicks; both transports cancel first and fail closed. */
