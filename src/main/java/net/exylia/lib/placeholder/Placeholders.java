@@ -399,6 +399,7 @@ public final class Placeholders {
         private final String prefix;
         private final Map<String, Registry.Entry> pending = new java.util.LinkedHashMap<>();
         private boolean async;
+        private boolean verbatim;
         private String description = "";
 
         Group(Plugin plugin, String prefix) {
@@ -418,6 +419,24 @@ public final class Placeholders {
          */
         public @NotNull Group async() {
             this.async = true;
+            return this;
+        }
+
+        /**
+         * Hands the placeholders added after this call everything written after
+         * their name as one argument, exactly as written.
+         *
+         * <p>For names whose argument is an id that may contain {@code _},
+         * {@code :} or {@code |}: {@code %shields_unlocked_pattern:globe%}
+         * reaches {@code unlocked} with {@code ["pattern:globe"]} instead of
+         * {@code ["pattern"]} formatted as {@code globe}. No format, no fallback
+         * and no splitting on underscores apply to these names.
+         *
+         * @return this builder
+         * @since 1.249.0
+         */
+        public @NotNull Group verbatim() {
+            this.verbatim = true;
             return this;
         }
 
@@ -444,7 +463,7 @@ public final class Placeholders {
          */
         public @NotNull Group add(@NotNull String name, @NotNull Resolver resolver) {
             String full = name.isEmpty() ? prefix : prefix + "_" + name.toLowerCase(Locale.ROOT);
-            pending.put(full, new Registry.Entry(resolver, plugin.getName(), async, description));
+            pending.put(full, new Registry.Entry(resolver, plugin.getName(), async, description, verbatim));
             return this;
         }
 

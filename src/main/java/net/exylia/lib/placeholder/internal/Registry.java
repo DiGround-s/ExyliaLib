@@ -81,8 +81,14 @@ public final class Registry {
      * @param owner      the plugin that registered it, for cleanup
      * @param async      whether it is safe to call off the main thread
      * @param description what it does, shown in diagnostics
+     * @param verbatim   whether everything after the name is one argument, as written
      */
-    public record Entry(Resolver resolver, String owner, boolean async, String description) {
+    public record Entry(Resolver resolver, String owner, boolean async, String description,
+                        boolean verbatim) {
+
+        public Entry(Resolver resolver, String owner, boolean async, String description) {
+            this(resolver, owner, async, description, false);
+        }
     }
 
     /**
@@ -278,6 +284,12 @@ public final class Registry {
             }
         });
         return aliases;
+    }
+
+    /** Returns whether a name, bare or qualified, takes the rest of its text as written. */
+    public static boolean verbatim(String name) {
+        Entry entry = entry(name);
+        return entry != null && entry.verbatim();
     }
 
     /** Returns the entry for a name, or {@code null}. */

@@ -59,7 +59,7 @@ public final class TemplateCache {
      * @return a fresh compiled template
      */
     public static CompiledTemplate compile(String text, Logger logger) {
-        return new CompiledTemplate(text, TemplateCompiler.compile(text, Registry::known), logger);
+        return new CompiledTemplate(text, TemplateCompiler.compile(text, Registry::known, Registry::verbatim), logger);
     }
 
     /**

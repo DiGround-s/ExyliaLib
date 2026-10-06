@@ -20,8 +20,37 @@ group (`%clan_name%`). The whole group unregisters itself when the plugin
 disables.
 
 `Group` builder: `.async()` (a promise the resolver never touches the Bukkit
-API — marking it wrong crashes the server later and elsewhere), `.describe(text)`,
-`.add(name, resolver)`, `.register()`.
+API — marking it wrong crashes the server later and elsewhere), `.verbatim()`
+(since 1.249.0, see below), `.describe(text)`, `.add(name, resolver)`,
+`.register()`.
+
+### Prefixed-only names
+
+A group whose prefix is the plugin's own name in lower case registers nothing
+short: `Placeholders.group(plugin, "exyliashields").add("keys", ...)` holds the
+bare name `exyliashields_keys`, so it never clashes with another plugin's
+`keys`, and PlaceholderAPI still answers `%exyliashields_keys%` (the
+expansion strips its identifier and finds the prefixed registration). This is
+how a plugin migrating a hand-written expansion keeps short names private.
+
+### Verbatim arguments
+
+`.verbatim()` marks the names added after it: everything written after the
+name reaches the resolver as **one** argument, exactly as written — no
+splitting on `_`, no `:format`, no `|fallback`. For ids that may contain those
+characters:
+
+```java
+Placeholders.group(plugin, "exyliashields")
+        .verbatim()
+        .add("unlocked", r -> r.argCount() == 0 ? total(r) : owns(r, r.arg(0, "")))
+        .register();
+```
+
+`%exyliashields_unlocked_pattern:globe%` arrives with `["pattern:globe"]`,
+`%exyliashields_unlocked%` with no argument, `%exyliashields_unlocked_%` with
+`[""]`. The longest registered name wins as usual; when it is verbatim it takes
+the whole rest, so do not register another name that starts with it.
 
 ## Syntax in configs
 
@@ -85,8 +114,10 @@ Placeholders.apply(raw, player, Map.of("class", "Warrior", "time", "3"));
 - **A placeholder nothing resolves is left as written and reported once** to the
   console, naming the placeholder and how to supply it. Before this it failed in
   silence, and the first anyone knew was a player seeing `%class%` in chat.
-- **Return `null` to say "no value", never `""`.** The module applies the
+- **Return `null` to say "no value".** The module applies the
   fallback (`%x|default%`) or leaves the placeholder visible so a typo shows.
+  Return `""` only when empty is the real answer (an item without uses): it is
+  written as empty, in Exylia text and through PlaceholderAPI alike.
 - A resolver that throws is reported once and treated as no-value. Nothing
   else dies.
 - **A name means one thing bare, and one thing per plugin.** Registrations are

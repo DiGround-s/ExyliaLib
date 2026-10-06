@@ -43,6 +43,20 @@ public final class TemplateCompiler {
      * @return the parts, in order
      */
     public static List<Part> compile(String text, java.util.function.Predicate<String> resolved) {
+        return compile(text, resolved, name -> false);
+    }
+
+    /**
+     * Compiles text into parts, handing the names {@code verbatim} accepts the
+     * rest of their text as one argument, as written.
+     *
+     * @param text     the raw text
+     * @param resolved decides whether a name is registered
+     * @param verbatim decides whether a registered name takes its argument as written
+     * @return the parts, in order
+     */
+    public static List<Part> compile(String text, java.util.function.Predicate<String> resolved,
+                                     java.util.function.Predicate<String> verbatim) {
         int first = text.indexOf('%');
         if (first < 0) {
             // No placeholder anywhere: one literal, no scanning.
@@ -77,7 +91,7 @@ public final class TemplateCompiler {
             }
 
             String body = text.substring(cursor + 1, close);
-            Part placeholder = parse(body, text.substring(cursor, close + 1), resolved);
+            Part placeholder = parse(body, text.substring(cursor, close + 1), resolved, verbatim);
             if (placeholder == null) {
                 // Not a usable placeholder; treat the opening % as plain text
                 // and keep looking from the next character.
@@ -106,9 +120,15 @@ public final class TemplateCompiler {
      * @return the part, or {@code null} when the text between the percent signs
      *         cannot be a placeholder at all
      */
-    private static Part parse(String body, String original, java.util.function.Predicate<String> resolved) {
+    private static Part parse(String body, String original, java.util.function.Predicate<String> resolved,
+                              java.util.function.Predicate<String> verbatim) {
         if (body.isEmpty()) {
             return null;
+        }
+
+        Part whole = verbatim(body, original, resolved, verbatim);
+        if (whole != null) {
+            return whole;
         }
 
         String remaining = body;
@@ -180,6 +200,31 @@ public final class TemplateCompiler {
         }
 
         return new Part(null, name, args, format, fallback, original);
+    }
+
+    /**
+     * Matches the longest registered name at an underscore boundary of the whole
+     * body, before any format or fallback is taken off it.
+     *
+     * @return the part when that name takes its argument verbatim, {@code null}
+     *         when no name matches or the one that does parses normally
+     */
+    private static Part verbatim(String body, String original, java.util.function.Predicate<String> resolved,
+                                 java.util.function.Predicate<String> verbatim) {
+        String lower = body.toLowerCase(java.util.Locale.ROOT);
+        int split = lower.length();
+        while (split > 0) {
+            String candidate = lower.substring(0, split);
+            if (resolved.test(candidate)) {
+                if (!verbatim.test(candidate)) {
+                    return null;
+                }
+                List<String> args = split == body.length() ? List.of() : List.of(body.substring(split + 1));
+                return new Part(null, candidate, args, null, null, original);
+            }
+            split = lower.lastIndexOf('_', split - 1);
+        }
+        return null;
     }
 
     /**

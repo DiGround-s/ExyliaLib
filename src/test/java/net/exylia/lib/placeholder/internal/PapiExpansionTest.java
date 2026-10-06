@@ -124,6 +124,28 @@ class PapiExpansionTest {
         assertEquals("red", new PapiExpansion(plugin).onRequest(null, "exyliaffa_team_color"));
     }
 
+    @Test
+    void handsAVerbatimNameTheRestAsWritten() {
+        Placeholders.group(plugin, "exyliaffa")
+                .add("keys", request -> 3)
+                .verbatim()
+                .add("unlocked", request -> request.argCount() == 0 ? "all" : request.arg(0, ""))
+                .register();
+        PapiExpansion expansion = new PapiExpansion(plugin);
+
+        assertEquals("3", expansion.onRequest(null, "keys"));
+        assertEquals("all", expansion.onRequest(null, "unlocked"));
+        assertEquals("pattern:Globe_Big|x", expansion.onRequest(null, "unlocked_pattern:Globe_Big|x"));
+        assertEquals("", expansion.onRequest(null, "unlocked_"));
+    }
+
+    @Test
+    void anEmptyValueIsAnEmptyAnswer() {
+        Placeholders.group(plugin, "exyliaffa").add("item", request -> "").register();
+
+        assertEquals("", new PapiExpansion(plugin).onRequest(null, "item"));
+    }
+
     /**
      * An alias answers with the same registrations, and the plugin's own
      * identifier keeps answering next to it.

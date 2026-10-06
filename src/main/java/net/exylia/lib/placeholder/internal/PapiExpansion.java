@@ -214,7 +214,7 @@ final class PapiExpansion extends PlaceholderExpansion implements Relational {
         // "stats_top_kills", not another plugin's "stats_top".
         List<Part> parts = compiled.getIfPresent(params);
         if (parts == null) {
-            parts = TemplateCompiler.compile(text, this::owns);
+            parts = TemplateCompiler.compile(text, this::owns, this::ownsVerbatim);
             compiled.put(params, parts);
         }
         StringBuilder answer = new StringBuilder(text.length() + 16);
@@ -249,6 +249,11 @@ final class PapiExpansion extends PlaceholderExpansion implements Relational {
     /** Whether this expansion's plugin is one of the plugins that registered a name. */
     private boolean owns(String name) {
         return Registry.get(owner, name) != null;
+    }
+
+    private boolean ownsVerbatim(String name) {
+        Registry.Entry entry = Registry.get(owner, name);
+        return entry != null && entry.verbatim();
     }
 
 }

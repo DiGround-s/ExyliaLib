@@ -55,6 +55,21 @@ class PlaceholderModuleTest {
     // ------------------------------------------------------------------
 
     @Test
+    @DisplayName("a verbatim name takes the rest of its text as one argument")
+    void verbatimNamesTakeTheRestAsWritten() {
+        Placeholders.group(plugin, "shield")
+                .add("top", request -> String.join("/", request.args()))
+                .verbatim()
+                .add("owns", request -> "[" + request.arg(0, "") + "]")
+                .register();
+
+        assertEquals("[pattern:Globe_Big]", Placeholders.apply("%shield_owns_pattern:Globe_Big%"));
+        assertEquals("[]", Placeholders.apply("%shield_owns%"));
+        assertEquals("1/kills", Placeholders.apply("%shield_top_1_kills%"));
+        assertEquals("none", Placeholders.apply("%shield_missing|none%"));
+    }
+
+    @Test
     @DisplayName("an argument keeps the capitals it was written with")
     void argumentsAreNotFolded() {
         // The name is a registry key and is matched folded. An argument is a
