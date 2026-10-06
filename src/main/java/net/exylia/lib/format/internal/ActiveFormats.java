@@ -286,6 +286,19 @@ public final class ActiveFormats {
         return percentPlus && positive ? "+" + rendered + "%" : rendered + "%";
     }
 
+    /**
+     * How far along something is, rounded down to the configured decimals.
+     *
+     * @param ratio the fraction done, from 0 to 1; clamped
+     * @return the text, never {@code "100%"} before the ratio is one
+     */
+    public @NotNull String progress(double ratio) {
+        double safe = Double.isFinite(ratio) ? Math.min(Math.max(ratio, 0), 1) : 0;
+        BigDecimal floored = BigDecimal.valueOf(safe).movePointRight(2)
+                .setScale(percentDecimals, RoundingMode.DOWN);
+        return Numbers.trimmed(floored.doubleValue(), percentDecimals) + "%";
+    }
+
     // -------------------------------------------------------------- date
 
     /**

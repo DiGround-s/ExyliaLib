@@ -160,6 +160,15 @@ Settings are published as one immutable object behind a volatile field. A render
 sees every old value or every new one, never the new symbol beside the old
 decimal count.
 
+### Progress rounds down
+
+`Formats.progress(ratio)` (1.248.0) takes a fraction from 0 to 1 and writes it
+with the configured percent decimals, **rounded down** and clamped:
+`progress(0.9996)` is `"99.9%"`, `progress(1)` is `"100%"`. `percent` rounds
+half-up, which is right for a statistic and wrong for a progress bar: a project
+at 99.96% must not read `100%` while it is still not complete. No plus sign,
+whatever `show-plus` says.
+
 ### Cost
 
 Measured by `FormatsBenchmark`, in the repo:

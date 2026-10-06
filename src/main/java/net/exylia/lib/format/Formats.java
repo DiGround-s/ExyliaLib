@@ -212,6 +212,21 @@ public final class Formats {
         return active.percent(part / whole * 100.0);
     }
 
+    /**
+     * How far along something is, from a ratio.
+     *
+     * <p>Rounded down, unlike {@link #percent(double)}: a project at
+     * {@code 0.9996} reads {@code "99.9%"}, never {@code "100%"} while it is
+     * still not done. Uses the configured percent decimals, never a plus sign.
+     *
+     * @param ratio the fraction done, where {@code 0.75} means three quarters; clamped to 0..1
+     * @return the text, such as {@code "75%"}
+     * @since 1.248.0
+     */
+    public static @NotNull String progress(double ratio) {
+        return active.progress(ratio);
+    }
+
     // -------------------------------------------------------------- date
 
     /**

@@ -91,6 +91,17 @@ class FormatsTest {
         }
 
         @Test
+        @DisplayName("progress rounds down, so it never reads 100% before it is done")
+        void progress() {
+            assertEquals("99.9%", Formats.progress(0.9996));
+            assertEquals("100%", Formats.progress(1));
+            assertEquals("29%", Formats.progress(0.29));
+            assertEquals("100%", Formats.progress(1.5));
+            assertEquals("0%", Formats.progress(-1));
+            assertEquals("0%", Formats.progress(Double.NaN));
+        }
+
+        @Test
         @DisplayName("a percentage from a part and a whole")
         void percentOf() {
             assertEquals("75%", Formats.percentOf(3, 4));
