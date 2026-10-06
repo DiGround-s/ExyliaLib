@@ -179,7 +179,7 @@ same keys with `WebhookTemplate.read(section)`.
 started:
   # Whether this message is sent at all.
   enabled: true
-  # Plain message above the embed, and the only part that can ping.
+  # Plain message above the card, and the only part that can ping.
   message: '<@&123456789012345678> A capture just started!'
   # The name and avatar it is posted under. Empty keeps the webhook's own.
   username: ''
@@ -198,17 +198,33 @@ started:
   fields:
     - 'Duration|%duration% ⌚|inline'
     - 'Players|%players%'
+  # Link buttons: 'label|url' or 'label|url|emoji'. Up to 20, five to a row.
+  buttons:
+    - 'Live map|https://map.example.com|🗺️'
+    - 'Store|https://store.example.com|<:coin:123456789012345678>'
   footer: '%server%'
   timestamp: true
   # Messages from this template within this window merge into one.
   coalesce: 0s
 ```
 
-- **Embed or not.** An embed is sent when any of `title`, `description`,
-  `fields`, `author.name`, `thumbnail`, `image` or `footer` has something in
-  it; a colour and a timestamp alone are not an embed. A template with only a
+- **Layout.** Messages are sent as Discord's Components V2 layout. The
+  `message` is a text block of its own above everything else. The rest is one
+  card, with `color` as its accent bar, in this order:
+  - `author.name` as a small line, then `title` as a heading (linked to `url`).
+    Next to them sits `thumbnail` or, when it is empty, `author.icon`.
+  - `description`, then `fields`, then `image` at full width.
+  - `buttons`, then a divider and a small line with `footer` and, with
+    `timestamp`, the time it was sent in each reader's own timezone.
+- **Card or not.** A card is sent when any of `title`, `description`,
+  `fields`, `author.name`, `image`, `buttons` or `footer` has something in it;
+  a colour and a timestamp alone are not a card. A template with only a
   `message` sends that message. A template with neither is skipped (`SKIPPED`)
   and reported once.
+- **Buttons.** Link buttons only, since a webhook cannot receive clicks.
+  `label|url` or `label|url|emoji`, where the emoji is a unicode emoji or a
+  server one written `<:name:id>`. A button whose URL is not a valid `http(s)`
+  URL is left out.
 - **Formatting.** Template text keeps its Discord markdown. `&l` becomes bold
   up to the next colour code, `&r` or the end of the line. Every other legacy
   code, palette token and MiniMessage tag is removed. Discord's own syntax
@@ -217,18 +233,21 @@ started:
   a `colors.yml` change applies right away. An unknown token or a colour name
   means no colour.
 - **Fields.** `name|value` or `name|value|inline`. The template is split, not
-  the filled text, so a `|` in a value stays inside its column. An empty name
-  or value is drawn blank, since Discord refuses an empty one.
-- **Limits.** Anything too long is cut with `…` rather than refused: content
-  2000, username 80, title 256, description 4096, field name 256, field value
-  1024, 25 fields, footer 2048, author 256. Past the 6000-character embed total,
-  the description is cut first, then the last fields are dropped.
+  the filled text, so a `|` in a value stays inside its column. A field of its
+  own shows its name in bold over its value. A card cannot put fields side by
+  side, so a run of inline fields becomes one compact line each,
+  `**name:** value`.
+- **Limits.** Anything too long is cut with `…` rather than refused: message
+  2000, username 80, title 256, field name 256, field value 1024, 25 fields,
+  footer 2048, author 256, button label 80, 20 buttons. Past Discord's
+  4000-character total for all the text in a message, the description is cut
+  first, then the fields, the footer and the heading.
 - **Username.** Discord refuses names containing `discord` or `clyde`; such a
   username is left out and the webhook's own name is used.
 - **Coalescing.** With `coalesce: 3s`, a message waits up to three seconds.
   Later messages from the same template, the same plugin and to the same
   webhook are merged into it, one description line each (the plain message
-  when there is no embed), up to the limits. Every one of their stages
+  when there is no card), up to the limits. Every one of their stages
   completes with the merged message's result. A clan log at twenty joins a
   second then becomes a few messages instead of twenty.
 
@@ -245,7 +264,8 @@ read **before** any value is substituted:
 | `@everyone`, `@here` | everyone, in `Webhooks.of(plugin)` only |
 
 Up to 100 roles and 100 users. Past that, the rest do not ping and it is
-reported once. Mentions in an embed never notify anyone, in Discord or here.
+reported once. A mention written in the card notifies only when the `message`
+names it too, since nothing else is in `allowed_mentions`.
 
 ## Delivery
 

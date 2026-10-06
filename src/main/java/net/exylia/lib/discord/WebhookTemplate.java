@@ -11,7 +11,7 @@ import java.util.List;
 
 /**
  * A Discord message written in configuration: an optional plain message and an
- * optional embed.
+ * optional card, sent as Discord's Components V2 layout.
  *
  * <p>Nest it in a config record like any other section, or read it from a
  * hand-written file with {@link #read(ConfigurationSection)}. The keys are the
@@ -34,6 +34,8 @@ import java.util.List;
  *   image: ''
  *   fields:
  *     - 'Duration|%duration% ⌚|inline'
+ *   buttons:
+ *     - 'Open map|https://map.example.com|🗺️'
  *   footer: '%server%'
  *   timestamp: true
  *   coalesce: 0s
@@ -49,16 +51,17 @@ import java.util.List;
  * @param message     the plain message above the embed; the only part that can ping
  * @param username    the name the message is posted under; empty keeps the webhook's
  * @param avatarUrl   the avatar it is posted with; empty keeps the webhook's
- * @param color       the embed's side colour: a palette token such as {@code {primary}}, or {@code #rrggbb}
- * @param title       the embed title
+ * @param color       the card's accent colour: a palette token such as {@code {primary}}, or {@code #rrggbb}
+ * @param title       the card title
  * @param url         the link on the title
- * @param description the embed body
+ * @param description the card body
  * @param author      the line above the title
- * @param thumbnail   the small image at the top right
+ * @param thumbnail   the small image beside the title; empty falls back to the author icon
  * @param image       the large image at the bottom
  * @param fields      {@code name|value} or {@code name|value|inline}, one per entry
+ * @param buttons     link buttons, {@code label|url} or {@code label|url|emoji}, one per entry
  * @param footer      the small line at the bottom
- * @param timestamp   whether the embed shows when it was sent
+ * @param timestamp   whether the card shows when it was sent
  * @param coalesce    messages from this template to the same webhook within this
  *                    window are merged into one; zero sends each on its own
  * @since 1.245.0
@@ -67,7 +70,7 @@ public record WebhookTemplate(
         @Comment("Whether this message is sent at all.")
         boolean enabled,
 
-        @Comment("Plain message above the embed, and the only part that can ping.")
+        @Comment("Plain message above the card, and the only part that can ping.")
         @Comment("<@&role-id>, <@user-id>, @everyone and @here written here notify.")
         String message,
 
@@ -77,7 +80,7 @@ public record WebhookTemplate(
         @Comment("The avatar it is posted with, as an https:// image URL. Empty keeps the webhook's own.")
         String avatarUrl,
 
-        @Comment("Side colour of the embed: a palette token such as {primary}, or #rrggbb.")
+        @Comment("Accent colour of the card: a palette token such as {primary}, or #rrggbb.")
         String color,
 
         String title,
@@ -90,7 +93,7 @@ public record WebhookTemplate(
         @Comment("The line above the title: name, icon (image URL) and url.")
         Author author,
 
-        @Comment("Small image at the top right, as an https:// URL.")
+        @Comment("Small image beside the title, as an https:// URL. Empty uses the author icon.")
         String thumbnail,
 
         @Comment("Large image at the bottom, as an https:// URL.")
@@ -99,9 +102,12 @@ public record WebhookTemplate(
         @Comment("One per entry: 'name|value', or 'name|value|inline' to sit side by side.")
         List<String> fields,
 
+        @Comment("Link buttons, one per entry: 'label|url', or 'label|url|emoji'. Up to 20.")
+        List<String> buttons,
+
         String footer,
 
-        @Comment("Whether the embed shows the time it was sent.")
+        @Comment("Whether the card shows the time it was sent.")
         boolean timestamp,
 
         @Comment("Messages from this template sent within this window are merged into one,")
@@ -122,8 +128,21 @@ public record WebhookTemplate(
         thumbnail = orEmpty(thumbnail);
         image = orEmpty(image);
         fields = fields == null ? List.of() : List.copyOf(fields);
+        buttons = buttons == null ? List.of() : List.copyOf(buttons);
         footer = orEmpty(footer);
         coalesce = coalesce == null || coalesce.isNegative() ? Duration.ZERO : coalesce;
+    }
+
+    /**
+     * A template without link buttons, the shape every template had before
+     * buttons existed.
+     */
+    public WebhookTemplate(boolean enabled, String message, String username, String avatarUrl, String color,
+                           String title, String url, String description, Author author, String thumbnail,
+                           String image, List<String> fields, String footer, boolean timestamp,
+                           Duration coalesce) {
+        this(enabled, message, username, avatarUrl, color, title, url, description, author, thumbnail, image,
+                fields, List.of(), footer, timestamp, coalesce);
     }
 
     /** The default: enabled, empty, in the primary colour, with a timestamp. */
@@ -132,17 +151,17 @@ public record WebhookTemplate(
     }
 
     /**
-     * An embed with a title and a description, everything else at its default.
+     * A card with a title and a description, everything else at its default.
      *
      * <p>The shape a plugin's shipped defaults usually take:
      * {@code new WebhookTemplate("CAPTURE STARTED", "Zone **%zone%** is now open.")}.
      *
-     * @param title       the embed title
-     * @param description the embed body
+     * @param title       the card title
+     * @param description the card body
      */
     public WebhookTemplate(@NotNull String title, @NotNull String description) {
         this(true, "", "", "", "{primary}", title, "", description, new Author(), "", "",
-                List.of(), "", true, Duration.ZERO);
+                List.of(), List.of(), "", true, Duration.ZERO);
     }
 
     /**
@@ -153,7 +172,7 @@ public record WebhookTemplate(
      */
     public @NotNull WebhookTemplate withMessage(@NotNull String message) {
         return new WebhookTemplate(enabled, message, username, avatarUrl, color, title, url,
-                description, author, thumbnail, image, fields, footer, timestamp, coalesce);
+                description, author, thumbnail, image, fields, buttons, footer, timestamp, coalesce);
     }
 
     /**
@@ -164,7 +183,19 @@ public record WebhookTemplate(
      */
     public @NotNull WebhookTemplate withFields(@NotNull List<String> fields) {
         return new WebhookTemplate(enabled, message, username, avatarUrl, color, title, url,
-                description, author, thumbnail, image, fields, footer, timestamp, coalesce);
+                description, author, thumbnail, image, fields, buttons, footer, timestamp, coalesce);
+    }
+
+    /**
+     * Returns a copy with different link buttons.
+     *
+     * @param buttons {@code label|url} or {@code label|url|emoji}, one per entry
+     * @return the copy
+     * @since 1.246.0
+     */
+    public @NotNull WebhookTemplate withButtons(@NotNull List<String> buttons) {
+        return new WebhookTemplate(enabled, message, username, avatarUrl, color, title, url,
+                description, author, thumbnail, image, fields, buttons, footer, timestamp, coalesce);
     }
 
     /**
@@ -200,6 +231,7 @@ public record WebhookTemplate(
                 section.getString("thumbnail", ""),
                 section.getString("image", ""),
                 section.getStringList("fields"),
+                section.getStringList("buttons"),
                 section.getString("footer", ""),
                 section.getBoolean("timestamp", true),
                 window);
@@ -210,7 +242,7 @@ public record WebhookTemplate(
     }
 
     /**
-     * The line above the embed title. Left out of the file while empty.
+     * The line above the card title. Left out of the file while empty.
      *
      * @param name the text; the line is only drawn when it is set
      * @param icon the small round image beside it, as an https:// URL

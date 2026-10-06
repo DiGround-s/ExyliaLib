@@ -44,7 +44,8 @@ class WebhookDeliveryTest {
     void setUp() {
         AtomicInteger counter = new AtomicInteger();
         runtime = WebhookRuntime.installForTests((method, uri, json) -> {
-            assertEquals(URI.create(WebhookTargetTest.URL), uri, "always the rebuilt URL");
+            assertEquals(URI.create(WebhookTargetTest.URL + (method.equals("POST") ? "?with_components=true" : "")),
+                    uri, "always the rebuilt URL");
             requests.add(method + " " + json);
             return discord.apply(counter.incrementAndGet());
         }, (millis, task) -> executor.schedule(task, millis, TimeUnit.MILLISECONDS), warnings::add);

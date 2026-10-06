@@ -260,7 +260,7 @@ public final class WebhookRuntime {
         pending.attempts++;
         Reply reply;
         try {
-            reply = http.exchange("POST", uri(lane.target), pending.payload.toString());
+            reply = http.exchange("POST", postUri(lane.target), pending.payload.toString());
         } catch (InterruptedException interrupted) {
             Thread.currentThread().interrupt();
             pending.complete(WebhookResult.FAILED);
@@ -536,6 +536,11 @@ public final class WebhookRuntime {
     private static URI uri(WebhookTarget target) {
         // Rebuilt from the parsed parts every time: never the text somebody typed.
         return URI.create(target.secret());
+    }
+
+    /** Where a message is posted: a webhook no application owns takes components only when asked to. */
+    static URI postUri(WebhookTarget target) {
+        return URI.create(target.secret() + "?with_components=true");
     }
 
     private static String discordMessage(String body) {

@@ -42,15 +42,37 @@ public final class Payloads {
 
     public static final int CONTENT = 2000;
     public static final int TITLE = 256;
-    public static final int DESCRIPTION = 4096;
     public static final int FIELD_NAME = 256;
     public static final int FIELD_VALUE = 1024;
     public static final int FIELDS = 25;
     public static final int FOOTER = 2048;
     public static final int AUTHOR = 256;
     public static final int USERNAME = 80;
-    public static final int EMBED_TOTAL = 6000;
+    /** Discord's cap on the text of every text display in one message, together. */
+    public static final int TEXT_TOTAL = 4000;
+    public static final int BUTTON_LABEL = 80;
+    /** Four rows of five: with the card's own parts, safely under Discord's 40 components. */
+    public static final int BUTTONS = 20;
     public static final int MENTIONS = 100;
+
+    /** {@code IS_COMPONENTS_V2}: the message is laid out by its components, with no content or embeds. */
+    public static final int FLAG_COMPONENTS = 1 << 15;
+    static final int ACTION_ROW = 1;
+    static final int BUTTON = 2;
+    static final int SECTION = 9;
+    static final int TEXT = 10;
+    static final int THUMBNAIL = 11;
+    static final int GALLERY = 12;
+    static final int SEPARATOR = 14;
+    static final int CONTAINER = 17;
+    private static final int LINK = 5;
+    private static final int PER_ROW = 5;
+    /**
+     * Ids a merge finds its text by. Discord numbers components without one from 1
+     * up, and a message holds at most 40, so these never collide.
+     */
+    static final int MESSAGE_ID = 100;
+    static final int DESCRIPTION_ID = 101;
 
     private static final char BOLD = '';
     private static final char TOKEN_BASE = '';
@@ -63,6 +85,7 @@ public final class Payloads {
     private static final Pattern USER = Pattern.compile("<@!?(\\d{17,20})>");
     private static final Pattern HEX = Pattern.compile("<?#([0-9A-Fa-f]{6})>?");
     private static final Pattern TOKEN_NAME = Pattern.compile("\\{([a-z_A-Z]+)}");
+    private static final Pattern CUSTOM_EMOJI = Pattern.compile("<(a?):(\\w{2,32}):(\\d{17,20})>");
 
     /** Converted template text, by raw text. Nothing in it depends on the palette. */
     private static final Cache<String, String> CONVERTED = Caffeine.newBuilder().maximumSize(1024).build();
@@ -72,16 +95,17 @@ public final class Payloads {
 
     /** How a part is read by Discord, which decides how a value is made safe. */
     enum Kind {
-        /** Rendered as markdown: content, title, description, fields. */
+        /** Rendered as markdown: every text display. */
         MARKDOWN,
-        /** Shown as typed: footer, author, username. Escapes would show. */
+        /** Shown as typed: username, button labels. Escapes would show. */
         PLAIN,
         /** A link or an image. */
         URL
     }
 
     /**
-     * Builds the webhook payload.
+     * Builds the webhook payload: the plain message as a text display of its
+     * own, where it can ping, and the rest as one container.
      *
      * @param template the message
      * @param values   bare-named values; a {@link Webhooks.Trusted} is inserted as written
@@ -92,10 +116,6 @@ public final class Payloads {
     public static @Nullable JsonObject build(@NotNull WebhookTemplate template, @NotNull Map<String, ?> values,
                                              boolean everyone, @NotNull Consumer<String> warn) {
         JsonObject payload = new JsonObject();
-        String content = truncate(fill(template.message(), values, Kind.MARKDOWN), CONTENT);
-        if (!content.isBlank()) {
-            payload.addProperty("content", content);
-        }
         String username = truncate(fill(template.username(), values, Kind.PLAIN).trim(), USERNAME);
         // Discord refuses the whole message over a name it reserves.
         String lower = username.toLowerCase(Locale.ROOT);
@@ -106,15 +126,20 @@ public final class Payloads {
         if (avatar != null) {
             payload.addProperty("avatar_url", avatar);
         }
-        JsonObject embed = embed(template, values);
-        if (embed != null) {
-            JsonArray embeds = new JsonArray();
-            embeds.add(embed);
-            payload.add("embeds", embeds);
+        JsonArray components = new JsonArray();
+        String content = truncate(fill(template.message(), values, Kind.MARKDOWN), CONTENT);
+        if (!content.isBlank()) {
+            components.add(text(content, MESSAGE_ID));
         }
-        if (!payload.has("content") && embed == null) {
+        JsonObject card = card(template, values, TEXT_TOTAL - (content.isBlank() ? 0 : content.length()));
+        if (card != null) {
+            components.add(card);
+        }
+        if (components.isEmpty()) {
             return null;
         }
+        payload.addProperty("flags", FLAG_COMPONENTS);
+        payload.add("components", components);
         payload.add("allowed_mentions", allowedMentions(template.message(), everyone, warn));
         return payload;
     }
@@ -156,105 +181,221 @@ public final class Payloads {
         return ids;
     }
 
-    private static @Nullable JsonObject embed(WebhookTemplate template, Map<String, ?> values) {
-        JsonObject embed = new JsonObject();
+    /**
+     * The card: a heading, the body, the fields, the image, the buttons and a
+     * small footer line, inside a container with the accent colour.
+     *
+     * @param budget the text the card may hold; over it, the body gives way first
+     */
+    private static @Nullable JsonObject card(WebhookTemplate template, Map<String, ?> values, int budget) {
+        StringBuilder heading = new StringBuilder();
+        String author = truncate(fill(template.author().name(), values, Kind.MARKDOWN), AUTHOR);
+        if (!author.isBlank()) {
+            String url = link(template.author().url(), values);
+            heading.append("-# ").append(url == null ? author : "[" + author + "](" + url + ")");
+        }
         String title = truncate(fill(template.title(), values, Kind.MARKDOWN), TITLE);
-        String description = truncate(fill(template.description(), values, Kind.MARKDOWN), DESCRIPTION);
-        String footer = truncate(fill(template.footer(), values, Kind.PLAIN), FOOTER);
-        String author = truncate(fill(template.author().name(), values, Kind.PLAIN), AUTHOR);
-        JsonArray fields = new JsonArray();
-        for (String line : template.fields()) {
-            if (fields.size() == FIELDS) {
+        if (!title.isBlank()) {
+            String url = link(template.url(), values);
+            heading.append(heading.isEmpty() ? "" : "\n").append("## ")
+                    .append(url == null ? title : "[" + title + "](" + url + ")");
+        }
+        String footerText = truncate(fill(template.footer(), values, Kind.MARKDOWN), FOOTER).replace('\n', ' ').strip();
+        String[] texts = {fill(template.description(), values, Kind.MARKDOWN), fields(template.fields(), values),
+                footer(footerText, template.timestamp()), heading.toString()};
+        // Over the budget, the body gives way first, then the fields, the footer and the heading.
+        int excess = -budget;
+        for (String text : texts) {
+            excess += text.length();
+        }
+        for (int i = 0; i < texts.length && excess > 0; i++) {
+            int cut = Math.min(excess, texts[i].length());
+            texts[i] = truncate(texts[i], texts[i].length() - cut);
+            excess -= cut;
+        }
+        String description = texts[0];
+        String fields = texts[1];
+        String footer = texts[2];
+        String headingText = texts[3];
+
+        String thumbnail = link(template.thumbnail(), values);
+        if (thumbnail == null) {
+            thumbnail = link(template.author().icon(), values);
+        }
+        String image = link(template.image(), values);
+        List<JsonObject> rows = buttons(template.buttons(), values);
+        // A colour and a time are not a card on their own.
+        if (headingText.isBlank() && description.isBlank() && fields.isBlank() && footerText.isEmpty()
+                && image == null && rows.isEmpty()) {
+            return null;
+        }
+
+        JsonArray parts = new JsonArray();
+        JsonArray top = new JsonArray();
+        if (!headingText.isBlank()) {
+            top.add(text(headingText, null));
+        }
+        if (!description.isBlank()) {
+            top.add(text(description, DESCRIPTION_ID));
+        }
+        if (thumbnail != null && !top.isEmpty()) {
+            // A thumbnail only fits beside text: a section holds both.
+            JsonObject section = component(SECTION);
+            section.add("components", top);
+            JsonObject accessory = component(THUMBNAIL);
+            accessory.add("media", url(thumbnail));
+            section.add("accessory", accessory);
+            parts.add(section);
+        } else {
+            parts.addAll(top);
+        }
+        if (!fields.isBlank()) {
+            parts.add(text(fields, null));
+        }
+        if (image != null) {
+            JsonObject item = new JsonObject();
+            item.add("media", url(image));
+            JsonArray items = new JsonArray();
+            items.add(item);
+            JsonObject gallery = component(GALLERY);
+            gallery.add("items", items);
+            parts.add(gallery);
+        }
+        rows.forEach(parts::add);
+        if (!footer.isBlank()) {
+            JsonObject separator = component(SEPARATOR);
+            separator.addProperty("divider", true);
+            separator.addProperty("spacing", 1);
+            parts.add(separator);
+            parts.add(text(footer, null));
+        }
+        JsonObject container = component(CONTAINER);
+        Integer color = color(template.color());
+        if (color != null) {
+            container.addProperty("accent_color", color);
+        }
+        container.add("components", parts);
+        return container;
+    }
+
+    /**
+     * Fields as text: a field of its own is its name over its value; inline
+     * fields, which a card cannot set side by side, sit one per line as
+     * {@code **name:** value}.
+     */
+    private static String fields(List<String> lines, Map<String, ?> values) {
+        StringBuilder out = new StringBuilder();
+        boolean lastInline = false;
+        int count = 0;
+        for (String line : lines) {
+            if (count == FIELDS) {
                 break;
             }
             // Split the template, never the filled text: a '|' in a value is not a column.
             String[] parts = line.split("\\|", 3);
-            String name = truncate(fill(parts[0], values, Kind.MARKDOWN), FIELD_NAME);
-            String value = parts.length > 1 ? truncate(fill(parts[1], values, Kind.MARKDOWN), FIELD_VALUE) : "";
+            String name = truncate(fill(parts[0], values, Kind.MARKDOWN), FIELD_NAME).strip();
+            String value = parts.length > 1 ? truncate(fill(parts[1], values, Kind.MARKDOWN), FIELD_VALUE).strip() : "";
             if (name.isBlank() && value.isBlank()) {
                 continue;
             }
-            JsonObject field = new JsonObject();
-            // Discord refuses an empty name or value; a zero-width space is how one is drawn blank.
-            field.addProperty("name", name.isBlank() ? ZWSP : name);
-            field.addProperty("value", value.isBlank() ? ZWSP : value);
-            field.addProperty("inline", parts.length > 2
-                    && (parts[2].trim().equalsIgnoreCase("inline") || parts[2].trim().equalsIgnoreCase("true")));
-            fields.add(field);
-        }
-        String thumbnail = link(template.thumbnail(), values);
-        String image = link(template.image(), values);
-        boolean drawn = !title.isBlank() || !description.isBlank() || !footer.isBlank()
-                || !author.isBlank() || !fields.isEmpty() || thumbnail != null || image != null;
-        if (!drawn) {
-            return null;
-        }
-        // Over the total, the description gives way first and then the last fields.
-        int excess = title.length() + description.length() + footer.length() + author.length()
-                + fieldsLength(fields) - EMBED_TOTAL;
-        if (excess > 0) {
-            description = truncate(description, Math.max(1, description.length() - excess));
-            excess = title.length() + description.length() + footer.length() + author.length()
-                    + fieldsLength(fields) - EMBED_TOTAL;
-            while (excess > 0 && !fields.isEmpty()) {
-                JsonObject last = fields.remove(fields.size() - 1).getAsJsonObject();
-                excess -= last.get("name").getAsString().length() + last.get("value").getAsString().length();
+            boolean inline = parts.length > 2
+                    && (parts[2].trim().equalsIgnoreCase("inline") || parts[2].trim().equalsIgnoreCase("true"));
+            if (!out.isEmpty()) {
+                out.append(inline && lastInline ? "\n" : "\n\n");
             }
-        }
-        if (!title.isBlank()) {
-            embed.addProperty("title", title);
-            String url = link(template.url(), values);
-            if (url != null) {
-                embed.addProperty("url", url);
+            String label = name.endsWith(":") ? name.substring(0, name.length() - 1) : name;
+            if (name.isBlank()) {
+                out.append(value);
+            } else if (value.isBlank()) {
+                out.append("**").append(label).append("**");
+            } else if (inline) {
+                out.append("**").append(label).append(":** ").append(value);
+            } else {
+                out.append("**").append(label).append("**\n").append(value);
             }
+            lastInline = inline;
+            count++;
         }
-        if (!description.isBlank()) {
-            embed.addProperty("description", description);
-        }
-        Integer color = color(template.color());
-        if (color != null) {
-            embed.addProperty("color", color);
-        }
-        if (!author.isBlank()) {
-            JsonObject line = new JsonObject();
-            line.addProperty("name", author);
-            String icon = link(template.author().icon(), values);
-            if (icon != null) {
-                line.addProperty("icon_url", icon);
-            }
-            String url = link(template.author().url(), values);
-            if (url != null) {
-                line.addProperty("url", url);
-            }
-            embed.add("author", line);
-        }
-        if (!fields.isEmpty()) {
-            embed.add("fields", fields);
-        }
-        if (thumbnail != null) {
-            embed.add("thumbnail", url(thumbnail));
-        }
-        if (image != null) {
-            embed.add("image", url(image));
-        }
-        if (!footer.isBlank()) {
-            JsonObject line = new JsonObject();
-            line.addProperty("text", footer);
-            embed.add("footer", line);
-        }
-        if (template.timestamp()) {
-            embed.addProperty("timestamp", Instant.now().toString());
-        }
-        return embed;
+        return out.toString();
     }
 
-    private static int fieldsLength(JsonArray fields) {
-        int length = 0;
-        for (JsonElement element : fields) {
-            JsonObject field = element.getAsJsonObject();
-            length += field.get("name").getAsString().length() + field.get("value").getAsString().length();
+    /** The small closing line: the footer and, when asked for, when it was sent. */
+    private static String footer(String footer, boolean timestamp) {
+        String time = timestamp ? "<t:" + Instant.now().getEpochSecond() + ":f>" : "";
+        if (footer.isEmpty() && time.isEmpty()) {
+            return "";
         }
-        return length;
+        return "-# " + footer + (footer.isEmpty() || time.isEmpty() ? "" : " · ") + time;
+    }
+
+    /** Link buttons, five to a row. An entry without a usable label or URL is left out. */
+    private static List<JsonObject> buttons(List<String> lines, Map<String, ?> values) {
+        List<JsonObject> buttons = new ArrayList<>();
+        for (String line : lines) {
+            if (buttons.size() == BUTTONS) {
+                break;
+            }
+            String[] parts = line.split("\\|", 3);
+            String label = parts.length > 0 ? truncate(fill(parts[0], values, Kind.PLAIN).strip(), BUTTON_LABEL) : "";
+            String url = parts.length > 1 ? link(parts[1], values) : null;
+            JsonObject emoji = parts.length > 2 ? emoji(parts[2].strip()) : null;
+            if (url == null || label.isEmpty() && emoji == null) {
+                continue;
+            }
+            JsonObject button = component(BUTTON);
+            button.addProperty("style", LINK);
+            if (!label.isEmpty()) {
+                button.addProperty("label", label);
+            }
+            button.addProperty("url", url);
+            if (emoji != null) {
+                button.add("emoji", emoji);
+            }
+            buttons.add(button);
+        }
+        List<JsonObject> rows = new ArrayList<>();
+        for (int from = 0; from < buttons.size(); from += PER_ROW) {
+            JsonArray row = new JsonArray();
+            buttons.subList(from, Math.min(from + PER_ROW, buttons.size())).forEach(row::add);
+            JsonObject actionRow = component(ACTION_ROW);
+            actionRow.add("components", row);
+            rows.add(actionRow);
+        }
+        return rows;
+    }
+
+    /** A unicode emoji as written, or a server one as {@code <:name:id>}; {@code null} for none. */
+    private static @Nullable JsonObject emoji(String raw) {
+        if (raw.isEmpty()) {
+            return null;
+        }
+        JsonObject emoji = new JsonObject();
+        Matcher custom = CUSTOM_EMOJI.matcher(raw);
+        if (custom.matches()) {
+            emoji.addProperty("name", custom.group(2));
+            emoji.addProperty("id", custom.group(3));
+            emoji.addProperty("animated", !custom.group(1).isEmpty());
+        } else if (raw.length() <= 16 && raw.codePoints().noneMatch(Character::isLetterOrDigit)) {
+            emoji.addProperty("name", raw);
+        } else {
+            return null;
+        }
+        return emoji;
+    }
+
+    private static JsonObject text(String content, @Nullable Integer id) {
+        JsonObject text = component(TEXT);
+        if (id != null) {
+            text.addProperty("id", id);
+        }
+        text.addProperty("content", content);
+        return text;
+    }
+
+    private static JsonObject component(int type) {
+        JsonObject component = new JsonObject();
+        component.addProperty("type", type);
+        return component;
     }
 
     private static JsonObject url(String url) {
@@ -266,57 +407,70 @@ public final class Payloads {
     /**
      * Merges a later message from the same template into an earlier one.
      *
-     * <p>The descriptions are joined a line each; without an embed, the plain
-     * messages are. Nothing is merged past a limit: the later message is then
-     * sent on its own.
+     * <p>The bodies are joined a line each; without a card, the plain messages
+     * are. Nothing is merged past Discord's text limit: the later message is
+     * then sent on its own.
      *
      * @return whether {@code later} now lives inside {@code into}
      */
     public static boolean merge(@NotNull JsonObject into, @NotNull JsonObject later) {
-        JsonObject first = firstEmbed(into);
-        JsonObject next = firstEmbed(later);
-        if (first != null && next != null) {
-            if (!first.has("description") || !next.has("description")) {
-                return false;
-            }
-            String joined = first.get("description").getAsString() + "\n" + next.get("description").getAsString();
-            int total = embedLength(first) - first.get("description").getAsString().length() + joined.length();
-            if (joined.length() > DESCRIPTION || total > EMBED_TOTAL) {
-                return false;
-            }
-            first.addProperty("description", joined);
-            return true;
+        boolean cards = card(into) != null;
+        if (cards != (card(later) != null)) {
+            return false;
         }
-        if (first == null && next == null && into.has("content") && later.has("content")) {
-            String joined = into.get("content").getAsString() + "\n" + later.get("content").getAsString();
-            if (joined.length() > CONTENT) {
-                return false;
-            }
-            into.addProperty("content", joined);
-            return true;
+        int id = cards ? DESCRIPTION_ID : MESSAGE_ID;
+        JsonObject first = find(into.getAsJsonArray("components"), id);
+        JsonObject next = find(later.getAsJsonArray("components"), id);
+        if (first == null || next == null) {
+            return false;
         }
-        return false;
+        String extra = "\n" + next.get("content").getAsString();
+        if (textLength(into.getAsJsonArray("components")) + extra.length() > TEXT_TOTAL) {
+            return false;
+        }
+        first.addProperty("content", first.get("content").getAsString() + extra);
+        return true;
     }
 
-    private static @Nullable JsonObject firstEmbed(JsonObject payload) {
-        return payload.has("embeds") ? payload.getAsJsonArray("embeds").get(0).getAsJsonObject() : null;
+    private static @Nullable JsonObject card(JsonObject payload) {
+        for (JsonElement element : payload.getAsJsonArray("components")) {
+            if (element.getAsJsonObject().get("type").getAsInt() == CONTAINER) {
+                return element.getAsJsonObject();
+            }
+        }
+        return null;
     }
 
-    private static int embedLength(JsonObject embed) {
+    /** The component with an id, searched through every container and section. */
+    static @Nullable JsonObject find(@Nullable JsonArray components, int id) {
+        if (components == null) {
+            return null;
+        }
+        for (JsonElement element : components) {
+            JsonObject component = element.getAsJsonObject();
+            if (component.has("id") && component.get("id").getAsInt() == id) {
+                return component;
+            }
+            JsonObject inside = find(component.getAsJsonArray("components"), id);
+            if (inside != null) {
+                return inside;
+            }
+        }
+        return null;
+    }
+
+    /** The text of every text display, together: what Discord holds to {@link #TEXT_TOTAL}. */
+    static int textLength(@Nullable JsonArray components) {
+        if (components == null) {
+            return 0;
+        }
         int length = 0;
-        for (String key : new String[]{"title", "description"}) {
-            if (embed.has(key)) {
-                length += embed.get(key).getAsString().length();
+        for (JsonElement element : components) {
+            JsonObject component = element.getAsJsonObject();
+            if (component.get("type").getAsInt() == TEXT) {
+                length += component.get("content").getAsString().length();
             }
-        }
-        if (embed.has("footer")) {
-            length += embed.getAsJsonObject("footer").get("text").getAsString().length();
-        }
-        if (embed.has("author")) {
-            length += embed.getAsJsonObject("author").get("name").getAsString().length();
-        }
-        if (embed.has("fields")) {
-            length += fieldsLength(embed.getAsJsonArray("fields"));
+            length += textLength(component.getAsJsonArray("components"));
         }
         return length;
     }
@@ -502,6 +656,9 @@ public final class Payloads {
     static String truncate(String text, int limit) {
         if (text.length() <= limit) {
             return text;
+        }
+        if (limit <= 0) {
+            return "";
         }
         int end = limit - 1;
         if (end > 0 && Character.isHighSurrogate(text.charAt(end - 1))) {
