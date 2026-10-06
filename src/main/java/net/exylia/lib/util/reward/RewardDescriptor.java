@@ -424,9 +424,9 @@ public final class RewardDescriptor implements EditorDescriptor<RewardEntry> {
         boolean payload = !isItem && !potion;
         if (potion) {
             // Picked on the effect screen, never typed: several at once, levels as the game shows them.
-            form.flag(EFFECTS, Phrases.tr("Change the effects"), entry.value() == null || entry.value().isBlank())
+            form.flag(EFFECTS, Phrases.tr("Change the effects"), effectsOf(entry).isBlank())
                     .hint(Phrases.tr("now {0}; the effect list opens after submitting",
-                            net.exylia.lib.util.Effects.describe(payloadOf(entry))));
+                            net.exylia.lib.util.Effects.describe(effectsOf(entry))));
         }
         if (payload) {
             form.text(PAYLOAD, payloadLabel(entry.type()), payloadOf(entry), payloadLines(entry.type()))
@@ -471,8 +471,7 @@ public final class RewardDescriptor implements EditorDescriptor<RewardEntry> {
 
     /** The potion effects, on the effect screen; backing out keeps what it had. */
     private CompletionStage<RewardEntry> pickEffects(Player viewer, RewardEntry entry) {
-        String current = entry.value() == null ? "" : entry.value();
-        return net.exylia.lib.util.Effects.edit(plugin, viewer, Phrases.tr("{primary}&lWHAT EFFECTS?"), current)
+        return net.exylia.lib.util.Effects.edit(plugin, viewer, Phrases.tr("{primary}&lWHAT EFFECTS?"), effectsOf(entry))
                 .thenApply(edited -> edited.map(lines -> entry.toBuilder().value(blankToNull(lines)).build())
                         .orElse(entry));
     }
@@ -580,6 +579,11 @@ public final class RewardDescriptor implements EditorDescriptor<RewardEntry> {
             case MESSAGE -> entry.message();
             default -> entry.value();
         };
+    }
+
+    /** A potion reward's effect lines; one being created has none yet, so its value is still null. */
+    private static String effectsOf(RewardEntry entry) {
+        return entry.value() == null ? "" : entry.value();
     }
 
     private static long low(RewardEntry entry) {
