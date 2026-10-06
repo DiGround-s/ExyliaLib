@@ -268,8 +268,10 @@ final class Shapes {
         for (int point = 0; point <= segments; point++) {
             double t = (double) point / segments;
             Location at = from.clone().add(to.clone().subtract(from).toVector().multiply(t));
-            if (point > 0 && point < segments) {
-                double sway = swing * Math.sin(Math.PI * t);
+            double sway = point > 0 && point < segments ? swing * Math.sin(Math.PI * t) : 0;
+            // No swing at all when the two points meet: a jump onto where the mob
+            // already stands, and nextDouble refuses an empty range.
+            if (sway > 0) {
                 at.add(random.nextDouble(-sway, sway), random.nextDouble(-sway, sway) * 0.6,
                         random.nextDouble(-sway, sway));
             }
