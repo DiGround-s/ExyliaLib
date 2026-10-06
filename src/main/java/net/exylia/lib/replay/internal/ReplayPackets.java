@@ -355,10 +355,15 @@ final class ReplayPackets {
         send(viewers, new WrapperPlayServerEffect(BLOCK_BROKEN, new Vector3i(x, y, z), state, false));
     }
 
+    /**
+     * Through the eighths-of-a-block constructor: the only position form every
+     * packetevents release we meet has (2.12 lacks the {@code Vector3d} one), and
+     * the precision the packet carries anyway.
+     */
     static void sound(List<Player> viewers, String key, SoundCategory category,
                       double x, double y, double z, float volume, float pitch) {
         send(viewers, new WrapperPlayServerSoundEffect(Sounds.getByNameOrCreate(key), category,
-                new Vector3d(x, y, z), volume, pitch));
+                new Vector3i((int) (x * 8), (int) (y * 8), (int) (z * 8)), volume, pitch));
     }
 
     /** An explosion as the client draws it, its particle and its sound, and no push. */

@@ -9,6 +9,7 @@ import com.github.retrooper.packetevents.protocol.particle.Particle;
 import com.github.retrooper.packetevents.protocol.sound.Sound;
 import com.github.retrooper.packetevents.protocol.sound.SoundCategory;
 import com.github.retrooper.packetevents.util.Vector3d;
+import com.github.retrooper.packetevents.util.Vector3i;
 import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerExplosion;
 import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerSoundEffect;
 import net.exylia.lib.replay.ReplayMark;
@@ -80,9 +81,10 @@ final class ReplayCapture extends PacketListenerAbstract {
         Sound played = packet.getSound();
         if (played == null || played.getSoundId() == null) return;
         String key = played.getSoundId().toString();
-        Vector3d at = packet.getPosition();
+        // Eighths of a block: getPosition() only exists from packetevents 2.13.
+        Vector3i at = packet.getEffectPosition();
         if (!first(Objects.hash(key, at.getX(), at.getY(), at.getZ(), packet.getSeed()))) return;
-        ReplayRuntime.effect(ReplayMark.SOUND, new Location(world, at.getX(), at.getY(), at.getZ()),
+        ReplayRuntime.effect(ReplayMark.SOUND, new Location(world, at.getX() / 8.0, at.getY() / 8.0, at.getZ() / 8.0),
                 key + '|' + category.name() + '|' + packet.getVolume() + '|' + packet.getPitch());
     }
 
