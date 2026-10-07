@@ -19,7 +19,7 @@ High-performance shared library for the Exylia plugins.
   documentation are product, not internal notes.
 
 Repository: <https://github.com/DiGround-s/ExyliaLib>
-Coordinate: `com.github.DiGround-s:ExyliaLib`
+Coordinate: `net.exylia:ExyliaLib` (consumers resolve `latest.release` from `mavenLocal()`)
 
 ### Guiding goal
 
@@ -1459,8 +1459,8 @@ is a public contract: breaking it forces a major version bump.
 
 User documentation lives in `docs/`, **one file per module**, with an index in
 `docs/README.md`. It is product (the library is open): it is written in English,
-like the README and the Javadoc. This AGENTS file and internal communication are
-in Spanish.
+like the README and the Javadoc. So is this AGENTS file; only chat with the
+owner is in Spanish.
 
 ### Documentation rules (anti-hallucination)
 
@@ -1655,8 +1655,9 @@ that" instead of blaming the lib.
 5. Contributors and agents must not manually create GitHub tags or releases,
    edit or publish `lib-manifest.json` for a release, or run release commands.
    Commit and push only the files belonging to their own completed change.
-6. Changing `version` in `build.gradle` is intentional release input. Coordinate
-   before changing it: a push to `main` with a new strict `X.Y.Z` version signals
+6. Changing `version` in `build.gradle` is release input, and every published
+   change bumps it: other sessions push here too, so take the next free number
+   above `origin/main` right before pushing. A push to `main` with a new strict `X.Y.Z` version signals
    `.github/workflows/release.yml` to build and test, create the `v<version>`
    GitHub release with the JAR, update `lib-manifest.json`, and push the manifest
    with the bot account. The workflow rejects duplicate, downgrade, and existing
@@ -1664,9 +1665,10 @@ that" instead of blaming the lib.
 7. Keep local release-readiness checks separate from GitHub publication. Verify
    the generated JAR and, when relevant, its POM and downloaded release checksum
    only after the workflow has completed.
-8. In consumer plugins: update `compileOnly("net.exylia:ExyliaLib:1.x.y")`, adapt
-   code for API changes, run `./gradlew build`, commit, and **deploy the plugin
-   JAR manually** — consumer plugins have no auto-updater. If a plugin uses a new
+8. In consumer plugins: most resolve `latest.release` from `mavenLocal()`, so
+   `publishToMavenLocal` and run `/root/Java/Exylia/check-consumers.sh`; adapt
+   every consumer a change breaks in the same task (a few pin `exyliaLibVersion`
+   in `gradle.properties`; raise the pin only when they need the new API). If a plugin uses a new
    API, the library JAR must reach the server **before or together with**
    the plugin JAR (`NoSuchMethodError` otherwise).
 
@@ -1749,15 +1751,15 @@ appear in the published POM** — nobody should be resolving a relocated copy.
 
 ### Versioning is immutable
 
-A tag published on JitPack is cached forever. A change to an already published
+A published release tag is never moved or reused. A change to an already published
 version demands a new version; moving the tag doesn't work.
 
 ---
 
 ## Style
 
-- Code, names and Javadoc **in English**. This document and team communication,
-  in Spanish.
+- Code, names, Javadoc and this document **in English**. Only chat with the
+  owner is in Spanish.
 - Comments that explain **why**, never what. If the what isn't clear, the problem
   is the name or the structure, not the missing comment.
 - No new dependencies without a demonstrated need. Every one of them gets
