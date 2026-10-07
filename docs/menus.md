@@ -368,6 +368,30 @@ session.invalidateSlot(13);    // one slot
 session.refresh();             // everything — rarely the right answer
 ```
 
+### Redrawing a menu from new values
+
+`refresh()` redraws the snapshot the menu was opened with. When the values
+behind it changed — a field was edited, a row was added — `update` writes the
+new snapshot into the open session and redraws it:
+
+```java
+Map<String, Object> context = Map.of("mine_id", mine.id());
+if (!menus.update(player, "mine_levels", context, rows)) {
+    menus.openNow(player, definition, context, Map.of(UiSection.MAIN, rows));
+}
+menus.update(player, "mine_detail", context);   // a menu with no list
+```
+
+Opening the menu again would re-send every slot, replay the open sound and drop
+a reader on page two back onto page one. `update` keeps the page, clamped to
+what still exists, and writes only the context keys it is given; the rest stay.
+`rows` replaces the main list, and `null` leaves it as it is.
+
+It answers `false` and touches nothing when the player's open menu is not that
+one — after a prompt closed it, for instance — which is the cue to open it. The
+id is matched exactly, as it was loaded, never by suffix. Call it on the
+player's thread. Since 1.253.0.
+
 A slot declares what it is derived from:
 
 ```yaml

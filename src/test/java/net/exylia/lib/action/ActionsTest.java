@@ -55,6 +55,32 @@ class ActionsTest {
         assertEquals(List.of("menu", "boxing"), received);
     }
 
+    @Test @DisplayName("a permission-gated action skips its handler for a player without it")
+    void gatedWithoutPermission() throws Exception {
+        AtomicInteger runs = new AtomicInteger();
+        actions.registerSync("wipe", "practice.admin", (ctx, args) -> {
+            runs.incrementAndGet();
+            return ActionResult.denied("ran");
+        });
+
+        ActionResult result = actions.compile("wipe").execute(context).toCompletableFuture().get();
+
+        assertEquals(0, runs.get(), "the handler must not run for a player lacking the permission");
+        assertTrue(result.isSuccess(), "a hidden button is a no-op, not a failure");
+    }
+
+    @Test @DisplayName("a permission-gated action runs its handler for a player holding it")
+    void gatedWithPermission() throws Exception {
+        ActionResult own = ActionResult.denied("ran");
+        actions.registerSync("wipe", "practice.admin", (ctx, args) -> own);
+        ActionContext admin = ActionContext.forPlayer(
+                new FakePlayer("Alex").grant("practice.admin").player()).origin("menu").build();
+
+        ActionResult result = actions.compile("wipe").execute(admin).toCompletableFuture().get();
+
+        assertEquals(own, result, "the handler's own result is what comes back");
+    }
+
     @Test @DisplayName("simple ids resolve only inside the compiling plugin namespace")
     void localIdsAreLocal() {
         actions.registerSync("open", (ctx, args) -> ActionResult.success());

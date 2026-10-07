@@ -42,6 +42,23 @@ actions.registerSync("open_settings", (context, args) -> {
 });
 ```
 
+A handler behind a button the menu hides from whoever lacks a permission can
+take the permission at registration, instead of repeating the check as its
+first line:
+
+```java
+actions.registerSync("delete_mine", "mines.admin", (context, args) -> {
+    mines.delete(args.string(0));
+    return ActionResult.success();
+});
+```
+
+Without the permission the handler does not run and the action answers
+`ActionResult.success()`, so the sequence carries on as if the button were a
+decoration rather than reporting a failure for something the player was never
+shown. Every context is built for a player, so the check is always against
+`context.player()`. Since 1.253.0.
+
 Public YAML should always use the full id:
 
 ```yaml

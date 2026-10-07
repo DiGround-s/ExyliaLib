@@ -42,6 +42,40 @@ public final class PluginActions {
     }
 
     /**
+     * Registers an immediate handler that only runs for players holding a
+     * permission.
+     *
+     * <p>For the button a menu already hides from whoever lacks the permission:
+     * this is the check behind it, for the click that reaches the server anyway.
+     * Without the permission the handler does not run and the action answers
+     * {@link ActionResult#success()}, so the rest of the sequence carries on as
+     * if the button had been a decoration; denying would print a failure for
+     * something the player was never shown.
+     *
+     * <p>Every {@link ActionContext} is built for a player, so there is no
+     * console case: the check is always against {@link ActionContext#player()}.
+     *
+     * <pre>{@code
+     * actions.registerSync("delete_mine", "mines.admin", (context, args) -> {
+     *     mines.delete(args.string(0));
+     *     return ActionResult.success();
+     * });
+     * }</pre>
+     *
+     * @param id         the action id, without the namespace
+     * @param permission what the player must hold for the handler to run
+     * @param handler    what to run when they hold it
+     * @return this
+     * @since 1.253.0
+     */
+    public @NotNull PluginActions registerSync(@NotNull String id, @NotNull String permission,
+                                               @NotNull ActionHandler.Sync handler) {
+        return registerSync(id, (context, arguments) -> context.player().hasPermission(permission)
+                ? handler.execute(context, arguments)
+                : ActionResult.success());
+    }
+
+    /**
      * Registers blocking work such as HTTP, database or file I/O.
      *
      * <p>The handler is moved through ExyliaLib Tasks; no private executor is

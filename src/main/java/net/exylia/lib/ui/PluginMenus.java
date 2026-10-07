@@ -317,6 +317,69 @@ public final class PluginMenus {
     }
 
     /**
+     * Redraws a menu the player already has open from new values, instead of
+     * opening it again.
+     *
+     * <p>A screen is drawn from a snapshot: its context and rows are decided
+     * when it opens, so {@link UiSession#refresh()} alone redraws the old one.
+     * Opening it again re-sends every slot, replays the open sound and drops a
+     * reader on page two back onto page one. This writes the new snapshot into
+     * the open session and redraws it, keeping the page, clamped to what still
+     * exists.
+     *
+     * <pre>{@code
+     * Map<String, Object> context = Map.of("mine_id", mine.id());
+     * if (!menus.update(player, "mine_levels", context, rows)) {
+     *     menus.openNow(player, definition, context, Map.of(UiSection.MAIN, rows));
+     * }
+     * }</pre>
+     *
+     * <p>Must be called on the thread that owns the player, since it touches
+     * the window that is on screen.
+     *
+     * @param viewer  who is looking
+     * @param id      the menu, as it was loaded
+     * @param context values to write into the session; the ones not named are kept
+     * @param rows    the main list's new rows, or {@code null} to keep the ones it has
+     * @return {@code false} when that menu is not the one open, and nothing was
+     *         touched: the caller's cue to open it
+     * @since 1.253.0
+     */
+    public boolean update(@NotNull Player viewer, @NotNull String id,
+                          @NotNull Map<String, ?> context, @Nullable Collection<UiEntry> rows) {
+        return update(session(viewer).orElse(null), qualify(id), context, rows);
+    }
+
+    /**
+     * Redraws an open menu with no list from new values.
+     *
+     * @param viewer  who is looking
+     * @param id      the menu, as it was loaded
+     * @param context values to write into the session
+     * @return {@code false} when that menu is not the one open
+     * @see #update(Player, String, Map, Collection)
+     * @since 1.253.0
+     */
+    public boolean update(@NotNull Player viewer, @NotNull String id, @NotNull Map<String, ?> context) {
+        return update(viewer, id, context, null);
+    }
+
+    /** The decision behind {@link #update(Player, String, Map, Collection)}, against any session. */
+    static boolean update(@Nullable UiSession session, String menuId,
+                          Map<String, ?> context, @Nullable Collection<UiEntry> rows) {
+        // Equal, not a suffix: "mines:levels" must not answer for "mines:mine_levels".
+        if (session == null || !session.menuId().equals(menuId)) {
+            return false;
+        }
+        context.forEach(session::context);
+        if (rows != null) {
+            session.entries(rows);
+        }
+        session.refresh();
+        return true;
+    }
+
+    /**
      * Every menu of this plugin that somebody has open right now.
      *
      * <p>What a timer that redraws open screens should walk. Asking every player
