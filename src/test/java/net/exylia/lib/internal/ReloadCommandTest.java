@@ -116,8 +116,7 @@ class ReloadCommandTest {
         String text = sent.get(0);
         assertTrue(text.contains("1.14.0"), "got: " + text);
         assertTrue(text.contains("/exylialib reload"), "got: " + text);
-        assertTrue(text.contains("/exylialib info"), "got: " + text);
-        assertTrue(text.contains("/exylialib stats"), "got: " + text);
+        assertTrue(text.contains("/exylialib status"), "got: " + text);
     }
 
     @Test
@@ -128,36 +127,39 @@ class ReloadCommandTest {
         assertEquals(0, reloads.get());
     }
 
-    // ------------------------------------------------------------------ info
+    // ---------------------------------------------------------------- status
 
     @Test
-    @DisplayName("info shows the version and platform")
-    void infoShowsVersionAndPlatform() {
-        command.info(sender);
+    @DisplayName("status sends one panel with version, platform and every section")
+    void statusShowsEverySection() {
+        command.status(sender);
 
         assertEquals(1, sent.size());
         String text = sent.get(0);
         assertTrue(text.contains("1.14.0"), "got: " + text);
         assertTrue(text.contains("BUKKIT"), "got: " + text);
+        assertTrue(text.contains("Network"), "got: " + text);
+        assertTrue(text.contains("Scoreboards"), "got: " + text);
+        assertTrue(text.contains("Holograms"), "got: " + text);
+        assertTrue(text.contains("Database"), "got: " + text);
     }
 
     @Test
-    @DisplayName("info shows an explicit empty state with no dependents")
-    void infoShowsEmptyStateForNoDependents() {
-        command.info(sender);
+    @DisplayName("status shows an explicit empty state with no dependents")
+    void statusShowsEmptyStateForNoDependents() {
+        command.status(sender);
 
-        String text = sent.get(0);
-        assertTrue(text.contains("none found"), "got: " + text);
+        assertTrue(sent.get(0).contains("none found"), "got: " + sent.get(0));
     }
 
     @Test
-    @DisplayName("info lists a dependent plugin with its own version")
-    void infoListsDependents() {
+    @DisplayName("status lists a dependent plugin with its own version")
+    void statusListsDependents() {
         ReloadCommand withDependent = new ReloadCommand(reloads::incrementAndGet, () -> "1.14.0",
                 () -> Platform.PAPER, LibrarySettings::new,
                 () -> List.of(new ReloadCommand.Dependent("ExyliaFFA", "3.2.1")));
 
-        withDependent.info(sender);
+        withDependent.status(sender);
 
         String text = sent.get(0);
         assertTrue(text.contains("ExyliaFFA"), "got: " + text);
@@ -165,34 +167,44 @@ class ReloadCommandTest {
     }
 
     @Test
-    @DisplayName("info does not reload anything")
-    void infoDoesNotReload() {
-        command.info(sender);
+    @DisplayName("status shows Redis and the bridge as off when Redis was never configured")
+    void statusShowsNetworkOffWithoutCrashing() {
+        command.status(sender);
+
+        String text = sent.get(0);
+        assertTrue(text.contains("Redis"), "got: " + text);
+        assertTrue(text.contains("Proxy bridge"), "got: " + text);
+        assertTrue(text.contains("no plugin turns Redis on"), "got: " + text);
+    }
+
+    @Test
+    @DisplayName("status does not reload anything")
+    void statusDoesNotReload() {
+        command.status(sender);
 
         assertEquals(0, reloads.get());
     }
 
-    // ----------------------------------------------------------------- stats
-
     @Test
-    @DisplayName("stats does not crash with every module empty")
-    void statsHandlesEmptyModules() {
-        command.stats(sender);
+    @DisplayName("a bridge that answered shows who it is, the round trip and the network's players")
+    void networkSectionAnswered() {
+        String text = ReloadCommand.networkSection(new net.exylia.lib.proxy.ProxyReply(
+                net.exylia.lib.proxy.ProxyReply.Status.OK, "ExyliaProxyUtils 2.0.0 on Velocity"), 12, "lobby-1", 84);
 
-        assertEquals(1, sent.size());
-        String text = sent.get(0);
-        assertTrue(text.contains("Scoreboards"), "got: " + text);
-        assertTrue(text.contains("Holograms"), "got: " + text);
-        assertTrue(text.contains("Effects"), "got: " + text);
+        assertTrue(text.contains("ExyliaProxyUtils 2.0.0 on Velocity"), "got: " + text);
+        assertTrue(text.contains("12ms"), "got: " + text);
+        assertTrue(text.contains("lobby-1"), "got: " + text);
+        assertTrue(text.contains("84"), "got: " + text);
     }
 
     @Test
-    @DisplayName("stats mentions holograms, whatever this JVM's PacketEvents support happens to be")
-    void statsMentionsHolograms() {
-        command.stats(sender);
+    @DisplayName("a silent proxy says so and hides the player count it does not have")
+    void networkSectionTimedOut() {
+        String text = ReloadCommand.networkSection(new net.exylia.lib.proxy.ProxyReply(
+                net.exylia.lib.proxy.ProxyReply.Status.TIMEOUT, "late"), 5000, "lobby-1", 0);
 
-        String text = sent.get(0);
-        assertTrue(text.contains("Holograms"), "got: " + text);
+        assertTrue(text.contains("no answer"), "got: " + text);
+        assertFalse(text.contains("Network players"), "got: " + text);
     }
 
     @Test
@@ -210,24 +222,6 @@ class ReloadCommandTest {
 
         assertTrue(line.contains("7"), "got: " + line);
         assertFalse(line.contains("N/A"), "got: " + line);
-    }
-
-    @Test
-    @DisplayName("stats shows Redis as off rather than failing when it was never configured")
-    void statsShowsRedisOffWithoutCrashing() {
-        command.stats(sender);
-
-        String text = sent.get(0);
-        assertTrue(text.toLowerCase(java.util.Locale.ROOT).contains("redis"), "got: " + text);
-        assertTrue(text.contains("off"), "got: " + text);
-    }
-
-    @Test
-    @DisplayName("stats does not reload anything")
-    void statsDoesNotReload() {
-        command.stats(sender);
-
-        assertEquals(0, reloads.get());
     }
 
     // -------------------------------------------------- dependency discovery

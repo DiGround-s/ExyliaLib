@@ -15,6 +15,9 @@ import net.exylia.lib.debug.Debug;
 import net.exylia.lib.effect.Effects;
 import net.exylia.lib.hologram.internal.HologramRuntime;
 import net.exylia.lib.platform.Platform;
+import net.exylia.lib.proxy.Proxy;
+import net.exylia.lib.proxy.ProxyReply;
+import net.exylia.lib.proxy.internal.ProxyRuntime;
 import net.exylia.lib.redis.Redis;
 import net.exylia.lib.region.Regions;
 import net.exylia.lib.scoreboard.internal.BoardManager;
@@ -64,14 +67,13 @@ import java.util.function.Supplier;
  * configuration: a plugin reloads itself through its own command, exactly as
  * {@code docs/reload.md} describes.
  *
- * <h2>What {@code info} and {@code stats} show</h2>
- * Both are read-only diagnostics built entirely from data the library
- * already exposes through public static entry points ({@link Effects},
- * {@link Menus}, {@link Actions}, {@link Regions}, {@link Databases},
- * {@link Redis}, {@link Configs}) or that Bukkit itself exposes
- * ({@link org.bukkit.plugin.PluginManager#getPlugins()}). Neither adds new
- * counters or tracking to the library; they only surface what is already
- * there.
+ * <h2>What {@code status} shows</h2>
+ * A read-only diagnostic built from data the library already exposes
+ * through public static entry points ({@link Effects}, {@link Menus},
+ * {@link Actions}, {@link Regions}, {@link Databases}, {@link Redis},
+ * {@link Configs}, {@link Proxy}) or that Bukkit itself exposes
+ * ({@link org.bukkit.plugin.PluginManager#getPlugins()}), plus one ping to
+ * the proxy bridge. {@code info} and {@code stats} are aliases of it.
  *
  * <h2>Permission</h2>
  * Every subcommand — including the read-only ones — sits behind
@@ -212,8 +214,7 @@ public final class ReloadCommand {
     public void overview(@NotNull CommandSender sender) {
         Text.of(header()
                 + "\n" + Phrases.tr("{letters_black}▎ {secondary}Reload {letters_black}» {letters}{muted}/exylialib reload{letters} — refreshes colours, formats, economy detection and input settings.")
-                + "\n" + Phrases.tr("{letters_black}▎ {secondary}Info {letters_black}» {letters}{muted}/exylialib info{letters} — version, platform and who depends on this library.")
-                + "\n" + Phrases.tr("{letters_black}▎ {secondary}Stats {letters_black}» {letters}{muted}/exylialib stats{letters} — live counters from every module.")
+                + "\n" + Phrases.tr("{letters_black}▎ {secondary}Status {letters_black}» {letters}{muted}/exylialib status{letters} — settings, proxy bridge, modules, databases and dependents.")
                 + "\n" + Phrases.tr("{letters_black}▎ {secondary}Update {letters_black}» {letters}{muted}/exylialib update{letters} — checks GitHub now and stages a newer release.")
                 + "\n" + Phrases.tr("{letters_black}▎ {secondary}Export {letters_black}» {letters}{muted}/exylialib export <plugin>{letters} — writes that plugin's tables to a dump.")
                 + "\n" + Phrases.tr("{letters_black}▎ {secondary}Import {letters_black}» {letters}{muted}/exylialib import <plugin> <file> [force]{letters} — reads one back; force MERGES rather than replacing.")
@@ -249,25 +250,44 @@ public final class ReloadCommand {
     }
 
     /**
-     * Shows static identity information: version, platform, the switches from
-     * {@code config.yml}, and which plugins on this server depend on the
-     * library.
+     * Shows everything about the library on this server in one panel: what it
+     * is, how it reaches the network, what its modules hold, its databases and
+     * who depends on it.
+     *
+     * <p>{@code info} and {@code stats} used to split this in two, and neither
+     * said whether the proxy bridge worked — the one thing a cross-server
+     * problem needs answered first. The bridge line is not the cached
+     * {@link Proxy#isAvailable()} flag but a ping sent now and timed, so a
+     * proxy that went away since the last tick reads as gone. The panel is
+     * sent once that ping ends: at once when there is no Redis, at most five
+     * seconds later when the proxy is silent.
      *
      * <p>The dependent list is the union of two signals — see
      * {@link #dependentsOf(Plugin)} for why neither is enough alone: a
      * {@code plugin.yml} {@code depend}/{@code softdepend} declaration, and
      * every plugin {@link Debug#registeredPlugins()} has seen call
-     * {@code Debug.of(this)}. Neither is a registry the library added for
-     * this — both already existed for their own reasons.
+     * {@code Debug.of(this)}.
      *
      * @param sender who asked
      */
-    @Subcommand("info")
+    @Subcommand({"status", "info", "stats"})
     @CommandPermission("exylialib.admin")
-    public void info(@NotNull CommandSender sender) {
-        LibrarySettings current = settings.get();
-        List<Dependent> plugins = dependents.get();
+    public void status(@NotNull CommandSender sender) {
+        // Read here, on the main thread: the ping completes on the Redis
+        // subscriber thread, where module counters are not safe to walk.
+        String library = librarySection();
+        String rest = modulesSection() + databaseSection() + dependentsSection();
+        String serverId = ProxyRuntime.networkServerId().orElse(null);
+        long started = System.nanoTime();
+        Proxy.request("ping", "").thenAccept(reply -> {
+            long millis = (System.nanoTime() - started) / 1_000_000L;
+            Text.of(library + networkSection(reply, millis, serverId, Proxy.players().size()) + rest)
+                    .send(sender);
+        });
+    }
 
+    private String librarySection() {
+        LibrarySettings current = settings.get();
         StringBuilder text = new StringBuilder(header());
         text.append("\n").append(Phrases.tr("{letters_black}▎ {secondary}Platform {letters_black}» {info}{0}",
                 platform.get()));
@@ -280,68 +300,81 @@ public final class ReloadCommand {
                 onOff(current.debug())));
         text.append("\n").append(Phrases.tr("{letters_black}▎ {secondary}Small text {letters_black}» {0}",
                 onOff(current.smallText())));
-
-        text.append("\n\n").append(Phrases.tr("{secondary}Depending plugins:"));
-        if (plugins.isEmpty()) {
-            text.append("\n").append(Phrases.tr("{letters_black}▎ {muted}none found on this server"));
-        } else {
-            for (Dependent dependent : plugins) {
-                text.append("\n{letters_black}▎ {letters}").append(dependent.name())
-                        .append(" {letters_black}» {info}v").append(dependent.version());
-            }
-        }
-
-        Text.of(text.toString()).send(sender);
+        return text.toString();
     }
 
     /**
-     * Shows live runtime counters from every module, all read from public
-     * entry points that already exist — nothing here is a new counter.
+     * The network block: Redis, this server's name on it, and what the proxy
+     * answered to a ping just now.
      *
-     * @param sender who asked
+     * @param reply    the ping's answer
+     * @param millis   how long it took
+     * @param serverId this server's {@code server-id}, or {@code null} without Redis
+     * @param players  names on the network as of the last refresh
      */
-    @Subcommand("stats")
-    @CommandPermission("exylialib.admin")
-    public void stats(@NotNull CommandSender sender) {
-        StringBuilder text = new StringBuilder(header());
+    static String networkSection(ProxyReply reply, long millis, @Nullable String serverId, int players) {
+        StringBuilder text = new StringBuilder("\n\n").append(Phrases.tr("{secondary}Network:"));
+        text.append("\n").append(Phrases.tr("{letters_black}▎ {letters}Redis {letters_black}» {0}",
+                Redis.isActive() ? Phrases.tr("{success}on {letters_black}({0})", Redis.stats()) : Phrases.tr("{muted}off")));
+        if (serverId != null) {
+            text.append("\n").append(Phrases.tr("{letters_black}▎ {letters}Server id {letters_black}» {info}{0}", serverId));
+        }
+        text.append("\n").append(Phrases.tr("{letters_black}▎ {letters}Proxy bridge {letters_black}» {0}", switch (reply.status()) {
+            case OK -> Phrases.tr("{success}{0} {letters_black}({info}{1}ms{letters_black})", reply.detail(), millis);
+            case NO_BRIDGE -> Phrases.tr("{muted}off {letters_black}— {letters}no plugin turns Redis on");
+            case TIMEOUT -> Phrases.tr("{error}no answer {letters_black}— {letters}is ExyliaProxyUtils on the proxy, on the same Redis and key-prefix?");
+            case UNKNOWN_MODULE -> Phrases.tr("{warning}answered, but too old to know ping {letters_black}— {letters}update ExyliaProxyUtils");
+            default -> Phrases.tr("{error}{0}", reply.detail());
+        }));
+        if (reply.isOk()) {
+            text.append("\n").append(Phrases.tr("{letters_black}▎ {letters}Network players {letters_black}» {info}{0}", players));
+        }
+        return text.toString();
+    }
 
-        text.append("\n").append(Phrases.tr("{letters_black}▎ {secondary}Scoreboards {letters_black}» {info}{0}",
-                BoardManager.activeCount()));
-        text.append("\n").append(Phrases.tr("{letters_black}▎ {secondary}Holograms {letters_black}» {0}",
-                hologramsLine(HologramRuntime.isSupported(), HologramRuntime.count())));
-        text.append("\n").append(Phrases.tr("{letters_black}▎ {secondary}Effects {letters_black}» {info}{0}",
-                Effects.active()));
-        text.append("\n").append(Phrases.tr("{letters_black}▎ {secondary}Menus {letters_black}» {info}{0} {letters}plugins",
-                Menus.registered()));
-        text.append("\n").append(Phrases.tr("{letters_black}▎ {secondary}Actions {letters_black}» {info}{0}",
-                Actions.registered()));
-        text.append("\n").append(Phrases.tr("{letters_black}▎ {secondary}Regions {letters_black}» {info}{0} {letters}plugins",
-                Regions.registered()));
-        text.append("\n").append(Phrases.tr("{letters_black}▎ {secondary}Configs loaded {letters_black}» {info}{0}",
-                Configs.loaded().size()));
+    private static String modulesSection() {
+        return "\n\n" + Phrases.tr("{secondary}Modules:")
+                + "\n" + Phrases.tr("{letters_black}▎ {letters}Scoreboards {letters_black}» {info}{0}", BoardManager.activeCount())
+                + "\n" + Phrases.tr("{letters_black}▎ {letters}Holograms {letters_black}» {0}",
+                hologramsLine(HologramRuntime.isSupported(), HologramRuntime.count()))
+                + "\n" + Phrases.tr("{letters_black}▎ {letters}Effects {letters_black}» {info}{0}", Effects.active())
+                + "\n" + Phrases.tr("{letters_black}▎ {letters}Menus {letters_black}» {info}{0} {letters}plugins", Menus.registered())
+                + "\n" + Phrases.tr("{letters_black}▎ {letters}Actions {letters_black}» {info}{0}", Actions.registered())
+                + "\n" + Phrases.tr("{letters_black}▎ {letters}Regions {letters_black}» {info}{0} {letters}plugins", Regions.registered())
+                + "\n" + Phrases.tr("{letters_black}▎ {letters}Configs loaded {letters_black}» {info}{0}", Configs.loaded().size());
+    }
 
-        text.append("\n\n").append(Phrases.tr("{secondary}Database:"));
+    private static String databaseSection() {
+        StringBuilder text = new StringBuilder("\n\n").append(Phrases.tr("{secondary}Database:"));
         text.append("\n").append(Phrases.tr("{letters_black}▎ {letters}Engine {letters_black}» {info}{0} {letters_black}({1}{letters_black})",
                 Databases.engine(), onOff(Databases.isReady())));
-        text.append("\n").append(Phrases.tr("{letters_black}▎ {letters}Plugins {letters_black}» {info}{0}",
-                Databases.registered()));
-        // One line per plugin: the aggregate above says "on" while a single
-        // plugin's database is unreachable, which is how an outage stays
-        // invisible on a server where the other nine are fine.
+        // One line per plugin: an aggregate says "on" while a single plugin's
+        // database is unreachable, which is how an outage stays invisible on a
+        // server where the other nine are fine.
         for (String name : Databases.registeredPlugins()) {
-            net.exylia.lib.database.PluginDatabase view = Databases.find(name);
+            PluginDatabase view = Databases.find(name);
             if (view == null) {
                 continue;
             }
             String state = view.status();
-            text.append("\n{letters_black}▎ ▎ {letters}").append(name)
+            text.append("\n{letters_black}▎ {letters}").append(name)
                     .append(" {letters_black}» ")
                     .append(state.endsWith("ready") ? "{info}" : "{warning}").append(state);
         }
-        text.append("\n").append(Phrases.tr("{letters_black}▎ {letters}Redis {letters_black}» {0}",
-                Redis.isActive() ? Phrases.tr("{success}on {letters_black}({0})", Redis.stats()) : Phrases.tr("{muted}off")));
+        return text.toString();
+    }
 
-        Text.of(text.toString()).send(sender);
+    private String dependentsSection() {
+        List<Dependent> plugins = dependents.get();
+        StringBuilder text = new StringBuilder("\n\n").append(Phrases.tr("{secondary}Depending plugins:"));
+        if (plugins.isEmpty()) {
+            text.append("\n").append(Phrases.tr("{letters_black}▎ {muted}none found on this server"));
+        }
+        for (Dependent dependent : plugins) {
+            text.append("\n{letters_black}▎ {letters}").append(dependent.name())
+                    .append(" {letters_black}» {info}v").append(dependent.version());
+        }
+        return text.toString();
     }
 
     // ---------------------------------------------------------------- update

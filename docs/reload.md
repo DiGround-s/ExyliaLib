@@ -18,8 +18,7 @@ that one.
 | --- | --- |
 | `/exylialib` | Overview: what the command does |
 | `/exylialib reload` | Reloads the library's own runtime settings |
-| `/exylialib info` (since 1.35.0) | Version, platform, `config.yml` switches, and which plugins depend on the library |
-| `/exylialib stats` (since 1.35.0) | Live counters from every module |
+| `/exylialib status` (since 1.252.0; `info` and `stats` are aliases) | Settings, a live ping of the proxy bridge, module counters, databases and dependent plugins |
 | `/exylialib update` (since 1.65.0) | Checks GitHub now and stages a newer release |
 | `/exylialib export <plugin>` (since 1.36.0) | Writes that plugin's tables to a dump |
 | `/exylialib import <plugin> <file> [force]` (since 1.36.0) | Reads one back; `force` **merges**, it does not replace |
@@ -54,23 +53,30 @@ The chain, verified in code:
   → input.reload()                             input.yml
 ```
 
-### `/exylialib info` and `/exylialib stats`
+### `/exylialib status` (since 1.252.0)
 
-Both are read-only diagnostics. Neither adds tracking to the library: `info`
-reads `Platform.current()`, `LibrarySettings.get()`, and its dependent list is
-the union of two signals Bukkit and the library already expose —
-`Bukkit.getPluginManager().getPlugins()` (checking each enabled plugin's
-`plugin.yml` for `ExyliaLib` under `depend` or `softdepend`) plus
-`Debug.registeredPlugins()` (every plugin that has ever called `Debug.of(this)`,
-which is nearly every consumer sooner or later, regardless of what it declared).
-A plugin only needs one of the two to be listed, so calling
-`Databases.of(this)` or `Menus.of(this)` without ever naming the library in
-`plugin.yml` is still caught. `stats` reads the counters every module already
-exposes for diagnostics —
-`BoardManager.activeCount()`, `HologramRuntime.count()`, `Effects.active()`,
-`Menus.registered()`, `Actions.registered()`, `Regions.registered()`,
-`Databases.registered()`/`isReady()`/`engine()`, `Redis.isActive()`/`stats()`
-and `Configs.loaded()`.
+One read-only panel that replaced `info` and `stats`, which still work as
+aliases. Sections, top to bottom:
+
+- **Library**: `Platform.current()`, and the `config.yml` switches from
+  `LibrarySettings.get()`.
+- **Network**: `Redis.isActive()`/`stats()`, this server's `server-id`, and the
+  proxy bridge. The bridge line is a `ping` sent to ExyliaProxyUtils when the
+  command runs and timed, not the cached `Proxy.isAvailable()` flag: it shows
+  the bridge's name and version with the round trip, "off" when no plugin turns
+  Redis on, "no answer" after five seconds of silence, or a warning for a proxy
+  too old to know `ping`. With an answer it also shows `Proxy.players()`.
+- **Modules**: `BoardManager.activeCount()`, `HologramRuntime.count()`,
+  `Effects.active()`, `Menus.registered()`, `Actions.registered()`,
+  `Regions.registered()` and `Configs.loaded()`.
+- **Database**: `Databases.engine()`/`isReady()`, then one line per plugin with
+  its own status, so one unreachable database is not hidden by the others.
+- **Depending plugins**: the union of `plugin.yml` `depend`/`softdepend` on
+  `ExyliaLib` and `Debug.registeredPlugins()` (every plugin that called
+  `Debug.of(this)`), so a plugin that never names the library is still listed.
+
+The panel is sent once the ping ends: immediately without Redis, at most five
+seconds later when the proxy is silent.
 
 ### `/exylialib export` and `/exylialib import` (since 1.36.0)
 
