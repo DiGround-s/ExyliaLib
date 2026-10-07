@@ -280,6 +280,31 @@ public final class MenuRuntime {
     }
 
     /**
+     * Opens a menu whose lists are filled from lambdas, asked again on every
+     * timed redraw.
+     *
+     * <p>Each lambda is asked once here, so the window opens with its rows,
+     * and then followed.
+     *
+     * @param viewer     who to show it to
+     * @param definition what to show
+     * @param context    values the menu is about
+     * @param sources    reads the rows of each list, by section id
+     * @return the session
+     */
+    public Session openFollowing(Player viewer, UiDefinition definition, Map<String, Object> context,
+                                 Map<String, ? extends java.util.function.Supplier<? extends Collection<UiEntry>>> sources) {
+        Map<String, Collection<UiEntry>> sections = new java.util.LinkedHashMap<>();
+        sources.forEach((section, rows) -> {
+            Collection<UiEntry> read = rows.get();
+            sections.put(section, read == null ? List.of() : read);
+        });
+        Session session = open(viewer, definition, context, sections);
+        sources.forEach(session::follow);
+        return session;
+    }
+
+    /**
      * Runs a menu's {@code open-actions}, if it has any.
      *
      * <p>After the window is on screen, not before: an action that closes the
@@ -293,7 +318,7 @@ public final class MenuRuntime {
         List<ActionStep> steps = new ArrayList<>(definition.openActions().size());
         for (String line : definition.openActions()) {
             steps.add(new ActionStep(
-                    compiler.template(line).resolveOrNoop(viewer, session.context()), 0));
+                    compiler.template(line).resolveOrNoop(viewer, session.contextValues()), 0));
         }
         ActionContext context = ActionContext.forPlayer(viewer)
                 .origin("menu")

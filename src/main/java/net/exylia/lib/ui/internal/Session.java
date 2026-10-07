@@ -28,6 +28,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.function.Supplier;
 
 /**
  * One open menu.
@@ -65,8 +66,34 @@ final class Session implements UiSession {
     /** Values the menu is about, also filled into everything it draws. */
     private final Map<String, Object> context = new LinkedHashMap<>();
 
-    /** Context keys whose letters reach the screen as written. */
-    private final Set<String> verbatimContext = new LinkedHashSet<>();
+    /**
+     * Context keys whose letters reach the screen as written.
+     *
+     * <p>Replaced rather than added to, because what a slot was drawn with is
+     * remembered by reference: a set that changed under it would make the
+     * next redraw think nothing had.
+     */
+    private Set<String> verbatimContext = Set.of();
+
+    /**
+     * The context as text, read once per redraw rather than once per slot.
+     *
+     * <p>{@code null} when it has to be read again: the context changed, or a
+     * redraw started and some of it is live.
+     */
+    private Map<String, String> contextText;
+
+    /** Whether any context value is a lambda, read again on every redraw. */
+    private boolean liveContext;
+
+    /** Lists whose rows are asked for again on every timed redraw, by section id. */
+    private final Map<String, Supplier<? extends Collection<UiEntry>>> sources = new LinkedHashMap<>();
+
+    /** What each slot was last drawn from, so a redraw that changes nothing draws nothing. */
+    private final DrawnSlots drawn = new DrawnSlots();
+
+    /** A timed redraw that runs every second, for a menu whose file asked for none. */
+    private static final UiRefresh LIVE = new UiRefresh(UiRefresh.Mode.SMART, 20, 0);
 
     /** What to stop when the menu closes. */
     private final List<ActionExecution> pending = new ArrayList<>();
@@ -91,6 +118,9 @@ final class Session implements UiSession {
     /** The redraw timer, when the menu asked for one. */
     private net.exylia.lib.task.TaskHandle refresher;
 
+    /** Set once the menu is on screen, from when a timer may be started. */
+    private boolean refreshing;
+
     Session(MenuRuntime runtime, Player viewer, UiDefinition definition, PluginItems items,
             Inventory inventory, int generation, Map<String, Object> context) {
         this.runtime = runtime;
@@ -100,6 +130,7 @@ final class Session implements UiSession {
         this.inventory = inventory;
         this.generation = generation;
         this.context.putAll(context);
+        this.liveContext = anyLive(this.context);
         for (String id : definition.sections().keySet()) {
             entries.put(id, List.of());
             pages.put(id, 1);
@@ -152,6 +183,7 @@ final class Session implements UiSession {
             return false;
         }
         pages.put(section, wanted);
+        reread();
         drawSection(list);
         retitle();
         return true;
@@ -193,15 +225,19 @@ final class Session implements UiSession {
         if (list == null) {
             return;
         }
+        // Rows handed over replace a list that was being asked for its rows.
+        sources.remove(section);
         entries.put(section, List.copyOf(rows));
         // Keep the reader where they were, as far as there is still a page
         // there. A leaderboard refreshing under somebody on page three leaves
         // them on page three.
         pages.put(section, Pages.clamp(page(section), rows.size(), list.perPage()));
+        reread();
         drawSection(list);
         // The count is part of the title, and it just changed: a menu filled
         // after it opened would otherwise say "1/1" over five pages of rows.
         retitle();
+        ensureRefreshing();
     }
 
     @Override
@@ -209,6 +245,37 @@ final class Session implements UiSession {
         UiSection only = definition.section();
         if (only != null) {
             entries(only.id(), rows);
+        }
+    }
+
+    @Override
+    public void entries(@NotNull String section, @NotNull Supplier<? extends Collection<UiEntry>> rows) {
+        if (definition.section(section) == null) {
+            return;
+        }
+        Collection<UiEntry> read = rows.get();
+        entries(section, read == null ? List.of() : read);
+        follow(section, rows);
+    }
+
+    @Override
+    public void entries(@NotNull Supplier<? extends Collection<UiEntry>> rows) {
+        UiSection only = definition.section();
+        if (only != null) {
+            entries(only.id(), rows);
+        }
+    }
+
+    /**
+     * Asks a list for its rows again on every timed redraw, from now on.
+     *
+     * <p>Without drawing: for a menu that was just opened with the rows this
+     * returned a moment ago.
+     */
+    void follow(String section, Supplier<? extends Collection<UiEntry>> rows) {
+        if (definition.section(section) != null) {
+            sources.put(section, rows);
+            ensureRefreshing();
         }
     }
 
@@ -258,9 +325,13 @@ final class Session implements UiSession {
             return 0;
         }
         Set<String> changed = Set.of(dependencies);
+        reread();
         int redrawn = 0;
         for (Map.Entry<Integer, UiItem> fixed : definition.items().entrySet()) {
             if (dependsOnAny(fixed.getValue(), changed)) {
+                // Asked for by name, so drawn whatever the cache thinks: the
+                // plugin knows something changed that no value shows.
+                drawn.forget(fixed.getKey());
                 drawFixed(fixed.getKey(), fixed.getValue());
                 redrawn++;
             }
@@ -268,6 +339,7 @@ final class Session implements UiSession {
         for (UiSection list : definition.sections().values()) {
             UiItem template = list.template(null);
             if (template != null && dependsOnAny(template, changed)) {
+                list.slots().forEach(drawn::forget);
                 drawSection(list);
                 redrawn += list.slots().size();
             }
@@ -291,6 +363,8 @@ final class Session implements UiSession {
 
     @Override
     public boolean invalidateSlot(int slot) {
+        reread();
+        drawn.forget(slot);
         UiItem fixed = definition.items().get(slot);
         if (fixed != null) {
             drawFixed(slot, fixed);
@@ -311,6 +385,8 @@ final class Session implements UiSession {
 
     @Override
     public void refreshFixed() {
+        reread();
+        drawn.clear();
         drawFillers();
         for (Map.Entry<Integer, UiItem> fixed : definition.items().entrySet()) {
             drawFixed(fixed.getKey(), fixed.getValue());
@@ -324,13 +400,22 @@ final class Session implements UiSession {
      * that can actually differ from what is already on screen — a menu of
      * decorations on a twenty-tick timer should cost nothing, and redrawing a
      * static slot every second is packets for an identical item.
+     *
+     * <p>Either way, a slot whose definition and values came out exactly as
+     * last time is not rendered again; see {@link DrawnSlots}. That is what
+     * makes a list of forty rows with one countdown cost one render a second.
      */
     private void tickRefresh() {
         if (!isOpen()) {
             return;
         }
-        if (definition.refresh().mode() == UiRefresh.Mode.FULL) {
+        reread();
+        boolean pulled = pull();
+        if (refreshPolicy().mode() == UiRefresh.Mode.FULL) {
             draw();
+            if (pulled) {
+                retitle();
+            }
             return;
         }
         for (Map.Entry<Integer, UiItem> fixed : definition.items().entrySet()) {
@@ -339,16 +424,71 @@ final class Session implements UiSession {
             }
         }
         for (UiSection list : definition.sections().values()) {
-            List<UiEntry> rows = entries(list.id());
-            if (rows.stream().anyMatch(UiEntry::isLive)) {
-                tickRows(list);
-                continue;
-            }
             UiItem template = list.template(null);
-            if ((template != null && template.isDynamic()) || !rows.isEmpty()) {
-                drawSection(list);
+            if ((template != null && template.isDynamic()) || !entries(list.id()).isEmpty()
+                    || sources.containsKey(list.id())) {
+                // A followed list was just built, live values and all.
+                drawSection(list, !sources.containsKey(list.id()));
             }
         }
+        if (pulled) {
+            retitle();
+        }
+    }
+
+    /**
+     * Asks every followed list for its rows again.
+     *
+     * @return whether there was any to ask
+     */
+    private boolean pull() {
+        if (sources.isEmpty()) {
+            return false;
+        }
+        for (Map.Entry<String, Supplier<? extends Collection<UiEntry>>> source : sources.entrySet()) {
+            UiSection list = definition.section(source.getKey());
+            Collection<UiEntry> rows = source.getValue().get();
+            List<UiEntry> now = rows == null ? List.of() : List.copyOf(rows);
+            entries.put(source.getKey(), now);
+            // A reader on page three stays there while it exists; a list that
+            // shrank under them lands them on its last page.
+            pages.put(source.getKey(), Pages.clamp(page(source.getKey()), now.size(), list.perPage()));
+        }
+        return true;
+    }
+
+    /**
+     * When this menu redraws.
+     *
+     * <p>What the file says, except that a menu whose file says nothing and
+     * which holds something live redraws every second. A plugin that hands
+     * over a countdown means for it to count; it should not also have to
+     * find every server's copy of the file and add a {@code refresh} to it.
+     * A file that writes {@code mode: DISABLED} is obeyed.
+     */
+    UiRefresh refreshPolicy() {
+        UiRefresh written = definition.refresh();
+        // Identity on purpose: NEVER is what a file without the block reads
+        // as, and an explicit DISABLED is a different instance.
+        if (written != UiRefresh.NEVER || !hasLive()) {
+            return written;
+        }
+        return LIVE;
+    }
+
+    /** Returns whether anything in this menu is read again on a redraw. */
+    private boolean hasLive() {
+        if (liveContext || !sources.isEmpty()) {
+            return true;
+        }
+        for (List<UiEntry> rows : entries.values()) {
+            for (UiEntry row : rows) {
+                if (row.isLive()) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 
     /**
@@ -359,10 +499,25 @@ final class Session implements UiSession {
      * would wake up every second to decide it had nothing to do.
      */
     void startRefreshing() {
-        if (!definition.refresh().isTimed() || !definition.isDynamic()) {
+        refreshing = true;
+        ensureRefreshing();
+    }
+
+    /**
+     * Starts the timer if the menu now needs one and has none.
+     *
+     * <p>Asked again whenever something live arrives after the menu opened —
+     * rows handed over later, a lambda put into the context.
+     */
+    private void ensureRefreshing() {
+        if (!refreshing || refresher != null || !open) {
             return;
         }
-        refresher = runtime.tick(viewer, definition.refresh().interval(), handle -> {
+        UiRefresh policy = refreshPolicy();
+        if (!policy.isTimed() || !(definition.isDynamic() || hasLive())) {
+            return;
+        }
+        refresher = runtime.tick(viewer, policy.interval(), handle -> {
             if (!isOpen()) {
                 handle.cancel();
                 refresher = null;
@@ -392,10 +547,11 @@ final class Session implements UiSession {
      * @param slot which slot was clicked
      */
     void refreshAfterClick(int slot) {
-        if (!definition.refresh().isOnClick()) {
+        UiRefresh policy = refreshPolicy();
+        if (!policy.isOnClick()) {
             return;
         }
-        int delay = definition.refresh().clickDelay();
+        int delay = policy.clickDelay();
         if (delay <= 0) {
             redrawChangeable(slot);
             return;
@@ -414,8 +570,12 @@ final class Session implements UiSession {
      * literal text still has to come back after a condition stopped passing.
      */
     private void redrawChangeable(int clicked) {
+        reread();
         for (Map.Entry<Integer, UiItem> fixed : definition.items().entrySet()) {
             if (fixed.getValue().isDynamic() || fixed.getKey() == clicked) {
+                if (fixed.getKey() == clicked) {
+                    drawn.forget(clicked);
+                }
                 drawFixed(fixed.getKey(), fixed.getValue());
             }
         }
@@ -434,13 +594,68 @@ final class Session implements UiSession {
     @Override
     public <T> @NotNull Optional<T> context(@NotNull String key, @NotNull Class<T> type) {
         Object value = context.get(key);
+        // A live value is asked for as what it reads, unless the caller wants
+        // the lambda itself.
+        if (!type.isInstance(value) && value instanceof Supplier<?> reader) {
+            value = reader.get();
+        }
         return type.isInstance(value) ? Optional.of(type.cast(value)) : Optional.empty();
     }
 
     @Override
     public @NotNull UiSession context(@NotNull String key, @NotNull Object value) {
         context.put(key, value);
+        liveContext = anyLive(context);
+        contextText = null;
+        ensureRefreshing();
         return this;
+    }
+
+    /**
+     * The context with its live values read, for an action or a command.
+     *
+     * <p>Everything else is handed over as it was put: a handler may read a
+     * value back as the object it is.
+     */
+    Map<String, Object> contextValues() {
+        if (!liveContext) {
+            return context();
+        }
+        Map<String, Object> read = new HashMap<>(context.size());
+        context.forEach((key, value) -> read.put(key, value instanceof Supplier<?> reader
+                ? text(reader) : value));
+        return read;
+    }
+
+    private static boolean anyLive(Map<String, Object> context) {
+        for (Object value : context.values()) {
+            if (value instanceof Supplier<?>) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * The context as text, with its live values read.
+     *
+     * <p>Read once per redraw however many slots it fills: a lambda behind a
+     * countdown shown on six buttons is called once, not six times.
+     */
+    private Map<String, String> contextText() {
+        Map<String, String> text = contextText;
+        if (text == null) {
+            text = context.isEmpty() ? Map.of() : merged(context, Map.of());
+            contextText = text;
+        }
+        return text;
+    }
+
+    /** Marks the start of a redraw: live context values are read again. */
+    private void reread() {
+        if (liveContext) {
+            contextText = null;
+        }
     }
 
     // ----------------------------------------------------------------- input
@@ -557,7 +772,9 @@ final class Session implements UiSession {
 
     @Override
     public void verbatim(@NotNull String... keys) {
-        verbatimContext.addAll(Set.of(keys));
+        Set<String> all = new LinkedHashSet<>(verbatimContext);
+        all.addAll(Set.of(keys));
+        verbatimContext = Set.copyOf(all);
     }
 
     /**
@@ -625,6 +842,8 @@ final class Session implements UiSession {
     /** Draws the whole menu. */
     void draw() {
         slots.clear();
+        drawn.clear();
+        reread();
         inventory.clear();
         drawFillers();
         for (Map.Entry<Integer, UiItem> fixed : definition.items().entrySet()) {
@@ -635,9 +854,58 @@ final class Session implements UiSession {
         }
     }
 
-    /** Writes one slot. Every drawing path goes through here. */
+    /** Writes one slot something other than a definition decided. */
     private void put(int slot, ItemStack item) {
         inventory.setItem(slot, item);
+        drawn.forget(slot);
+    }
+
+    /** Draws a definition into a slot with nothing but the menu's context. */
+    private void paint(int slot, UiItem item) {
+        paint(slot, item, Map.of(), Set.of(), Set.of());
+    }
+
+    /**
+     * Draws a definition into a slot, unless it would come out as what is
+     * already there.
+     *
+     * <p>Every drawing path that renders goes through here, which is what
+     * lets a redraw that changes nothing render nothing.
+     *
+     * <p>Context values are parsed; row values are literal unless the caller
+     * asked otherwise. The two are not the same kind of thing. A row value is
+     * one entry in a list, and lists are full of names players chose, so
+     * inserting them as text is what stops somebody called {@code <rainbow>}
+     * from repainting the menu. A context value describes the whole screen and
+     * is written by whoever wrote the menu — the same person who wrote the
+     * template it lands in, and in the same file.
+     */
+    private void paint(int slot, UiItem item, Map<String, String> values, Set<String> formatted,
+                       Set<String> verbatim) {
+        paint(slot, item, values, formatted, verbatim, null);
+    }
+
+    /**
+     * The same, reusing an item already rendered from the same definition and
+     * values: a background painted into forty slots is rendered once.
+     *
+     * @param shared what this definition rendered to a moment ago, or {@code null}
+     * @return what the slot now holds when it was rendered or reused here,
+     *         {@code shared} when the slot was left as it was
+     */
+    private ItemStack paint(int slot, UiItem item, Map<String, String> values, Set<String> formatted,
+                            Set<String> verbatim, @Nullable ItemStack shared) {
+        Map<String, String> context = contextText();
+        Map<String, String> all = context.isEmpty() ? values : merged(context, values);
+        Set<String> parsed = context.isEmpty() ? formatted : parsed(context, values, formatted);
+        Set<String> kept = verbatim(verbatim);
+        if (drawn.unchanged(slot, item.item(), all, parsed, kept)) {
+            return shared;
+        }
+        ItemStack rendered = shared != null ? shared : items.renderIcon(item.item(), viewer, all, parsed, kept);
+        inventory.setItem(slot, rendered);
+        drawn.record(slot, item.item(), all, parsed, kept);
+        return rendered;
     }
 
     /**
@@ -667,12 +935,12 @@ final class Session implements UiSession {
         // Named panels first, so the background does not paint over them, and
         // in file order so the first to claim a slot keeps it.
         for (UiFillers.Panel panel : fillers.custom()) {
-            ItemStack drawn = render(panel.item(), Map.of());
+            ItemStack shared = null;
             for (int slot : panel.slots()) {
                 if (slot < 0 || slot >= definition.size() || reserved.contains(slot)) {
                     continue;
                 }
-                put(slot, drawn);
+                shared = paint(slot, panel.item(), Map.of(), Set.of(), Set.of(), shared);
                 slots.put(slot, Rendered.FILLER);
                 reserved.add(slot);
             }
@@ -681,12 +949,12 @@ final class Session implements UiSession {
         if (fillers.global() == null) {
             return;
         }
-        ItemStack background = render(fillers.global(), Map.of());
+        ItemStack background = null;
         for (int slot = 0; slot < definition.size(); slot++) {
             if (reserved.contains(slot)) {
                 continue;
             }
-            put(slot, background);
+            background = paint(slot, fillers.global(), Map.of(), Set.of(), Set.of(), background);
             slots.put(slot, Rendered.FILLER);
         }
     }
@@ -711,22 +979,33 @@ final class Session implements UiSession {
                 put(slot, null);
                 slots.remove(slot);
             } else {
-                put(slot, render(background, Map.of()));
+                paint(slot, background);
                 slots.put(slot, Rendered.FILLER);
             }
             return;
         }
-        put(slot, render(visible, Map.of()));
+        paint(slot, visible);
         slots.put(slot, Rendered.of(visible));
     }
 
     /** Draws one list at its current page. */
     private void drawSection(UiSection list) {
+        drawSection(list, true);
+    }
+
+    /**
+     * Draws one list at its current page.
+     *
+     * @param freshen whether to read the live values of the rows on it again
+     */
+    private void drawSection(UiSection list, boolean freshen) {
         int page = Pages.clamp(page(list.id()), entries(list.id()).size(), list.perPage());
         pages.put(list.id(), page);
         // A page somebody turns to shows its countdowns as they are now, not
         // as they were when the menu opened.
-        freshen(list);
+        if (freshen) {
+            freshen(list);
+        }
         List<UiEntry> rows = entries(list.id());
 
         int first = Pages.indexOf(page, list.perPage(), 0);
@@ -759,7 +1038,7 @@ final class Session implements UiSession {
             drawSectionFiller(list, slot);
             return;
         }
-        put(slot, render(template, entry.values(), entry.formatted(), entry.verbatim()));
+        paint(slot, template, entry.values(), entry.formatted(), entry.verbatim());
         slots.put(slot, Rendered.of(template, entry, list.id()));
     }
 
@@ -769,11 +1048,8 @@ final class Session implements UiSession {
      * <p>Only that page: a row nobody can see is read when it comes into view.
      * The rows that moved replace the old ones, so a click reads what is on
      * screen.
-     *
-     * @return the indexes of the rows whose values moved
      */
-    private java.util.BitSet freshen(UiSection list) {
-        java.util.BitSet moved = new java.util.BitSet();
+    private void freshen(UiSection list) {
         List<UiEntry> rows = entries(list.id());
         int first = Pages.indexOf(page(list.id()), list.perPage(), 0);
         int last = Math.min(rows.size(), first + list.slots().size());
@@ -788,33 +1064,9 @@ final class Session implements UiSession {
                 now = new ArrayList<>(rows);
             }
             now.set(index, fresh);
-            moved.set(index);
         }
         if (now != null) {
             entries.put(list.id(), List.copyOf(now));
-        }
-        return moved;
-    }
-
-    /**
-     * Redraws the rows of a list whose live values moved.
-     *
-     * <p>A live row that reads the same is left alone: the item would come out
-     * identical, and rendering it is the expensive part of a redraw. A row
-     * with nothing live is redrawn as it always was, for the placeholders in
-     * its template that only a redraw resolves again.
-     */
-    private void tickRows(UiSection list) {
-        java.util.BitSet moved = freshen(list);
-        List<UiEntry> rows = entries(list.id());
-        int first = Pages.indexOf(page(list.id()), list.perPage(), 0);
-        List<Integer> where = list.slots();
-        for (int index = 0; index < where.size() && first + index < rows.size(); index++) {
-            UiEntry row = rows.get(first + index);
-            if (row.isLive() && !moved.get(first + index)) {
-                continue;
-            }
-            drawRow(list, where.get(index), row);
         }
     }
 
@@ -835,7 +1087,7 @@ final class Session implements UiSession {
             slots.remove(slot);
             return;
         }
-        put(slot, render(filler, Map.of()));
+        paint(slot, filler);
         slots.put(slot, Rendered.FILLER);
     }
 
@@ -878,7 +1130,7 @@ final class Session implements UiSession {
             drawBackground(placed.slot());
             return;
         }
-        put(placed.slot(), render(placed.item(), values));
+        paint(placed.slot(), placed.item(), values, Set.of(), Set.of());
         slots.put(placed.slot(), Rendered.of(placed.item()));
     }
 
@@ -902,7 +1154,7 @@ final class Session implements UiSession {
             drawFixed(slot, beneath);
             return;
         }
-        put(slot, render(beneath, Map.of()));
+        paint(slot, beneath);
         slots.put(slot, Rendered.FILLER);
     }
 
@@ -923,18 +1175,12 @@ final class Session implements UiSession {
      * pasted in first it could carry tags or placeholders of its own.
      */
     private String resolve(String text, Map<String, String> values) {
+        Map<String, String> context = contextText();
         Map<String, String> all = new HashMap<>(context.size() + values.size());
-        for (Map.Entry<String, Object> value : context.entrySet()) {
-            all.put(value.getKey(), String.valueOf(value.getValue()));
-        }
+        all.putAll(context);
         // The row's own values win over the menu's, as they always have.
         all.putAll(values);
         return Text.of(text).withAll(all, Set.of(), Set.of()).forPlayer(viewer).verbatim().plain();
-    }
-
-    /** Builds a slot's item, with the row's values and the menu's context. */
-    private ItemStack render(UiItem item, Map<String, String> values) {
-        return render(item, values, Set.of(), Set.of());
     }
 
     /** The row's own verbatim values, plus the context keys the menu named. */
@@ -951,43 +1197,28 @@ final class Session implements UiSession {
     }
 
     /**
-     * Builds a slot's item, honouring the row values that carry formatting.
-     *
-     * <p>Context values are parsed; row values are literal unless the caller
-     * asked otherwise. The two are not the same kind of thing. A row value is
-     * one entry in a list, and lists are full of names players chose, so
-     * inserting them as text is what stops somebody called {@code <rainbow>}
-     * from repainting the menu. A context value describes the whole screen and
-     * is written by whoever wrote the menu — the same person who wrote the
-     * template it lands in, and in the same file.
-     *
-     * <p>Everything else already agreed: the title and slot conditions
-     * substitute into the string before parsing, so a colour in a context value
-     * worked there. Only the items disagreed, which meant a menu whose title
-     * came out right had buttons spelling {@code {success}&l} at the player.
-     */
-    private ItemStack render(UiItem item, Map<String, String> values, Set<String> formatted,
-                             Set<String> verbatim) {
-        if (context.isEmpty()) {
-            return items.renderIcon(item.item(), viewer, values, formatted, verbatim);
-        }
-        return items.renderIcon(item.item(), viewer,
-                merged(context, values), parsed(context, values, formatted), verbatim(verbatim));
-    }
-
-    /**
      * Row values on top of the menu's context.
      *
      * <p>The row wins: a leaderboard's context names the kit, and each row names
      * its own player.
      */
-    static Map<String, String> merged(Map<String, Object> context, Map<String, String> values) {
+    static Map<String, String> merged(Map<String, ?> context, Map<String, String> values) {
         Map<String, String> all = new LinkedHashMap<>();
-        for (Map.Entry<String, Object> value : context.entrySet()) {
-            all.put(value.getKey(), String.valueOf(value.getValue()));
+        for (Map.Entry<String, ?> value : context.entrySet()) {
+            all.put(value.getKey(), text(value.getValue()));
         }
         all.putAll(values);
         return all;
+    }
+
+    /**
+     * A context value as text, read first when it is live.
+     *
+     * <p>Nothing is an empty value, as it is in a row and in a title.
+     */
+    static String text(Object value) {
+        Object read = value instanceof Supplier<?> reader ? reader.get() : value;
+        return read == null ? "" : String.valueOf(read);
     }
 
     /**
@@ -1000,7 +1231,7 @@ final class Session implements UiSession {
      * <p>A row naming the same key as the context keeps whichever the caller
      * chose for it, because at that point it is the row's value being drawn.
      */
-    static Set<String> parsed(Map<String, Object> context, Map<String, String> values,
+    static Set<String> parsed(Map<String, ?> context, Map<String, String> values,
                               Set<String> formatted) {
         // A fixed slot carries no row values, and most rows ask for no formatting.
         // The answer is then exactly the context's keys, so the copy would be a
@@ -1092,7 +1323,7 @@ final class Session implements UiSession {
     static Text titleText(String written, Map<String, Object> context, int page, int pages) {
         Text title = Text.of(paged(written, page, pages));
         for (Map.Entry<String, Object> value : context.entrySet()) {
-            title = title.withColored('%' + value.getKey() + '%', value.getValue());
+            title = title.withColored('%' + value.getKey() + '%', text(value.getValue()));
         }
         return title;
     }
@@ -1125,7 +1356,7 @@ final class Session implements UiSession {
         // otherwise outlive the click that moved it.
         String text = paged(written, page, pages);
         for (Map.Entry<String, Object> value : context.entrySet()) {
-            text = text.replace('%' + value.getKey() + '%', String.valueOf(value.getValue()));
+            text = text.replace('%' + value.getKey() + '%', text(value.getValue()));
         }
         return text;
     }

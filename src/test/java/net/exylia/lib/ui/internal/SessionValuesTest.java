@@ -139,4 +139,26 @@ class SessionValuesTest {
 
         assertEquals("2/5", title);
     }
+
+    @Test
+    @DisplayName("a live context value is drawn as what it reads, not as a lambda")
+    void liveContextIsRead() {
+        int[] left = {30};
+        Map<String, Object> context = new LinkedHashMap<>();
+        context.put("left", (java.util.function.Supplier<String>) () -> left[0] + "s");
+
+        assertEquals("30s", Session.merged(context, Map.of()).get("left"));
+        left[0] = 29;
+        assertEquals("29s", Session.merged(context, Map.of()).get("left"), "read again each time");
+        assertEquals("Reset in 29s", Session.filledTitle("Reset in %left%", context, 1, 1));
+    }
+
+    @Test
+    @DisplayName("a lambda that reads nothing is an empty value")
+    void liveNullIsEmpty() {
+        Map<String, Object> context = new LinkedHashMap<>();
+        context.put("x", (java.util.function.Supplier<String>) () -> null);
+
+        assertEquals("", Session.merged(context, Map.of()).get("x"));
+    }
 }

@@ -23,6 +23,18 @@ import java.util.Map;
  * session.entries("kits", rows);
  * }</pre>
  *
+ * <p>A value handed over as a lambda is live: a timed redraw reads it again
+ * and redraws the row only when it came out different. Anything that moves
+ * while the menu is open — a countdown, a stock, a player count — should be
+ * written that way, so the menu shows it as it is rather than as it was when
+ * it opened:
+ *
+ * <pre>{@code
+ * UiEntry.of(mine)
+ *         .with("mine_name", mine.name())                  // read once
+ *         .withFormatted("next_reset", () -> resets.left(mine)) // read on every redraw
+ * }</pre>
+ *
  * <p>That last part is the one ExyliaCommons lacked. A handler that needed to
  * know which kit was clicked had to work it back out from the item it was drawn
  * as, which is why menus kept static maps keyed by player — and why two menus
@@ -202,6 +214,11 @@ public record UiEntry(
          * @return this builder
          */
         public @NotNull Builder with(@NotNull String name, @Nullable Object value) {
+            if (value instanceof java.util.function.Supplier<?> reader) {
+                // A lambda that reached here typed as an object is still a
+                // lambda: written out it would read "Lambda$12@3f2a".
+                return with(name, reader);
+            }
             String key = strip(name);
             values.put(key, text(value));
             formatted.remove(key);
@@ -227,6 +244,11 @@ public record UiEntry(
          * @since 1.28.0
          */
         public @NotNull Builder withFormatted(@NotNull String name, @Nullable Object value) {
+            if (value instanceof java.util.function.Supplier<?> reader) {
+                // A lambda that reached here typed as an object is still a
+                // lambda: written out it would read "Lambda$12@3f2a".
+                return withFormatted(name, reader);
+            }
             String key = strip(name);
             values.put(key, text(value));
             formatted.add(key);
@@ -250,6 +272,11 @@ public record UiEntry(
          * @return this builder
          */
         public @NotNull Builder withVerbatim(@NotNull String name, @Nullable Object value) {
+            if (value instanceof java.util.function.Supplier<?> reader) {
+                // A lambda that reached here typed as an object is still a
+                // lambda: written out it would read "Lambda$12@3f2a".
+                return withVerbatim(name, reader);
+            }
             String key = strip(name);
             values.put(key, text(value));
             formatted.add(key);
@@ -261,42 +288,99 @@ public record UiEntry(
         /**
          * Sets a value that is read again on every timed redraw.
          *
-         * <p>For what moves while the menu is open — a countdown, a stock, a
-         * player count. The menu needs a timed {@code refresh} for it to
-         * move: {@code mode: SMART} redraws only the rows whose live values
-         * came out different, so a quiet row costs one call to the supplier.
+         * <p>{@link #with(String, Object)} for what moves while the menu is
+         * open — a countdown, a stock, a player count. A row whose live values
+         * read the same is not redrawn, so a quiet row costs one call to the
+         * lambda per redraw and nothing else. A menu holding a live value
+         * redraws every second on its own unless its file says otherwise.
          *
-         * <p>Inserted as literal text, like {@link #with}. Called on the
-         * viewer's thread, so it has to be cheap and must not block.
+         * <p>Inserted as literal text, like {@link #with(String, Object)}.
+         * Called on the viewer's thread, so it has to be cheap and must not
+         * block: read what is already in memory, never a database.
          *
          * <pre>{@code
-         * UiEntry.of(mine).live("next_reset", () -> resets.timeLeft(mine))
+         * UiEntry.of(mine).with("next_reset", () -> resets.timeLeft(mine))
          * }</pre>
          *
          * @param name  the placeholder name
-         * @param value reads what it resolves to; {@code null} becomes empty
+         * @param value reads what it resolves to; {@code null} sets an empty value
          * @return this builder
-         * @since 1.242.0
+         * @since 1.254.0
          */
-        public @NotNull Builder live(@NotNull String name, @NotNull java.util.function.Supplier<?> value) {
+        public @NotNull Builder with(@NotNull String name, @Nullable java.util.function.Supplier<?> value) {
+            // A null here is somebody's with(name, null), which the overload
+            // caught: it meant an empty value, as it always has.
+            if (value == null) {
+                return with(name, (Object) null);
+            }
             with(name, value.get());
             live.put(strip(name), value);
             return this;
         }
 
         /**
-         * {@link #live} for a value that carries its own formatting, as
-         * {@link #withFormatted} is to {@link #with}.
+         * {@link #with(String, java.util.function.Supplier)} for a value that
+         * carries its own formatting, as {@link #withFormatted(String, Object)}
+         * is to {@link #with(String, Object)}.
          *
          * @param name  the placeholder name
-         * @param value reads what it resolves to; {@code null} becomes empty
+         * @param value reads what it resolves to; {@code null} sets an empty value
+         * @return this builder
+         * @since 1.254.0
+         */
+        public @NotNull Builder withFormatted(@NotNull String name,
+                                              @Nullable java.util.function.Supplier<?> value) {
+            if (value == null) {
+                return withFormatted(name, (Object) null);
+            }
+            withFormatted(name, value.get());
+            live.put(strip(name), value);
+            return this;
+        }
+
+        /**
+         * {@link #with(String, java.util.function.Supplier)} for a formatted
+         * value that keeps its own letters, as
+         * {@link #withVerbatim(String, Object)} is to
+         * {@link #withFormatted(String, Object)}.
+         *
+         * @param name  the placeholder name
+         * @param value reads what it resolves to; {@code null} sets an empty value
+         * @return this builder
+         * @since 1.254.0
+         */
+        public @NotNull Builder withVerbatim(@NotNull String name,
+                                             @Nullable java.util.function.Supplier<?> value) {
+            if (value == null) {
+                return withVerbatim(name, (Object) null);
+            }
+            withVerbatim(name, value.get());
+            live.put(strip(name), value);
+            return this;
+        }
+
+        /**
+         * The same as {@link #with(String, java.util.function.Supplier)}.
+         *
+         * @param name  the placeholder name
+         * @param value reads what it resolves to
+         * @return this builder
+         * @since 1.242.0
+         */
+        public @NotNull Builder live(@NotNull String name, @NotNull java.util.function.Supplier<?> value) {
+            return with(name, value);
+        }
+
+        /**
+         * The same as {@link #withFormatted(String, java.util.function.Supplier)}.
+         *
+         * @param name  the placeholder name
+         * @param value reads what it resolves to
          * @return this builder
          * @since 1.242.0
          */
         public @NotNull Builder liveFormatted(@NotNull String name, @NotNull java.util.function.Supplier<?> value) {
-            withFormatted(name, value.get());
-            live.put(strip(name), value);
-            return this;
+            return withFormatted(name, value);
         }
 
         /**

@@ -278,7 +278,7 @@ public final class MenuListener implements Listener {
      * to the kit of the row that was clicked, rather than to nothing.
      */
     private static Map<String, Object> dataFor(Session session, Rendered rendered) {
-        Map<String, Object> data = new HashMap<>(session.context());
+        Map<String, Object> data = new HashMap<>(session.contextValues());
         UiEntry entry = rendered.entry();
         if (entry != null) {
             data.putAll(entry.values());

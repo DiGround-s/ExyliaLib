@@ -539,6 +539,16 @@ whatever they have open.
 - **`refresh: SMART` redraws only what can change.** A timer repainting static
   decoration is packets for an identical item. The timer only starts if there is
   something that can change, and it dies with the player.
+- **What moves while a menu is open is a lambda, never a value.** A countdown, a
+  stock or a list whose members change is handed over as a `Supplier`: the
+  `with`/`withFormatted`/`withVerbatim` lambda overloads on a row, a `Supplier`
+  in the context, or rows from `open(player, id, context, () -> rows)` /
+  `session.entries(section, () -> rows)`. A plain value is frozen when the menu
+  opens, which is how a "next reset" sat still in the Mines admin list. A menu
+  holding a lambda redraws every second with no `refresh` block, and each slot
+  remembers what it was drawn from (`DrawnSlots`), so an unchanged slot costs a
+  map comparison, not a render. The lambda runs on the viewer's thread every
+  second: it reads memory, never a database. Ids, types and names stay plain.
 - **The three fillers are three different things.** `global` is background;
   `pagination` is what someone with an empty list sees and **usually says why**;
   `custom` are panels with their own slots. Treating the second as background

@@ -124,6 +124,42 @@ public interface UiSession {
     void entries(@NotNull Collection<UiEntry> entries);
 
     /**
+     * Fills a list from a lambda that is asked again on every timed redraw.
+     *
+     * <p>For a list whose members change while somebody reads it — a mine
+     * created, a player joining a queue. Only the rows that came out different
+     * are drawn again, and the page is kept, clamped to what still exists. A
+     * menu following a list redraws every second unless its file says
+     * otherwise.
+     *
+     * <p>Called on the viewer's thread once a redraw: build the rows from what
+     * is already in memory, never from a database. Handing the list plain rows
+     * with {@link #entries(String, Collection)} stops following it.
+     *
+     * <pre>{@code
+     * session.entries("mines", () -> mines.all().stream().map(MineRows::row).toList());
+     * }</pre>
+     *
+     * @param section which list
+     * @param entries reads the rows as they are now
+     * @since 1.254.0
+     */
+    default void entries(@NotNull String section, @NotNull java.util.function.Supplier<? extends Collection<UiEntry>> entries) {
+        entries(section, entries.get());
+    }
+
+    /**
+     * {@link #entries(String, java.util.function.Supplier)} for the only list,
+     * for menus that have one.
+     *
+     * @param entries reads the rows as they are now
+     * @since 1.254.0
+     */
+    default void entries(@NotNull java.util.function.Supplier<? extends Collection<UiEntry>> entries) {
+        entries(entries.get());
+    }
+
+    /**
      * The row drawn in a slot, if any.
      *
      * @param slot the slot
@@ -169,6 +205,13 @@ public interface UiSession {
      *
      * <p>Also filled into the placeholders of everything the menu draws, so a
      * title reading {@code %kit_name%} needs no resolver of its own.
+     *
+     * <p>A value that is a lambda ({@link java.util.function.Supplier}) is
+     * live: it is read once per redraw and the slots that show it are redrawn
+     * when it reads differently, which is how a hub's header counts down. A
+     * menu holding one redraws every second unless its file says otherwise.
+     * The title reads it when it is sent, and is not re-sent for it. Returned
+     * here as the lambda; {@link #context(String, Class)} reads it.
      */
     @NotNull Map<String, Object> context();
 

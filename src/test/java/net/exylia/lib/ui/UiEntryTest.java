@@ -6,6 +6,7 @@ import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -191,5 +192,66 @@ class UiEntryTest {
 
         assertFalse(entry.isLive());
         assertEquals("2", entry.values().get("count"));
+    }
+
+    @Test
+    @DisplayName("a value handed over as a lambda is read again on refresh")
+    void lambdaIsLive() {
+        int[] left = {30};
+        UiEntry entry = UiEntry.of(new Kit("boxing"))
+                .with("kit_name", "Boxing")
+                .withFormatted("left", () -> "{info}" + left[0] + "s")
+                .build();
+
+        assertTrue(entry.isLive());
+        assertSame(entry, entry.refreshed(), "nothing moved, so the same row");
+
+        left[0] = 29;
+        UiEntry later = entry.refreshed();
+        assertEquals("{info}29s", later.values().get("left"));
+        assertTrue(later.formatted().contains("left"), "stays formatted");
+        assertEquals("Boxing", later.values().get("kit_name"));
+    }
+
+    @Test
+    @DisplayName("a verbatim lambda keeps its letters across refreshes")
+    void verbatimLambda() {
+        String[] line = {"hi"};
+        UiEntry entry = UiEntry.row().withVerbatim("line", () -> line[0]).build();
+        line[0] = "bye";
+
+        UiEntry later = entry.refreshed();
+        assertEquals("bye", later.values().get("line"));
+        assertTrue(later.verbatim().contains("line"));
+    }
+
+    @Test
+    @DisplayName("with(name, null) still means an empty value, not a live one")
+    void nullIsEmpty() {
+        UiEntry entry = UiEntry.row().with("name", null).build();
+
+        assertEquals("", entry.values().get("name"));
+        assertFalse(entry.isLive());
+    }
+
+    @Test
+    @DisplayName("a lambda typed as an object is still live, never its toString")
+    void lambdaAsObject() {
+        java.util.function.Supplier<String> reader = () -> "now";
+        Object value = reader;
+
+        UiEntry entry = UiEntry.row().with("when", value).build();
+
+        assertEquals("now", entry.values().get("when"));
+        assertTrue(entry.isLive());
+    }
+
+    @Test
+    @DisplayName("a plain value set over a live one stops it being live")
+    void plainReplacesLive() {
+        UiEntry entry = UiEntry.row().with("x", () -> "a").with("x", "b").build();
+
+        assertEquals("b", entry.values().get("x"));
+        assertFalse(entry.isLive());
     }
 }

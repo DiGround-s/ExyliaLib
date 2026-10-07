@@ -417,7 +417,7 @@ refresh:
 
 | Mode | When |
 | --- | --- |
-| `DISABLED` | only when a plugin asks — the default |
+| `DISABLED` | only when a plugin asks — the default, except for a menu holding something live (below), which redraws every second as `SMART` unless the file writes `mode: DISABLED` |
 | `FULL` | everything, on the interval |
 | `SMART` | on the interval, but only slots that can actually differ, and after a click |
 | `ON_CLICK` | after a click, once `click_delay` has passed |
@@ -425,6 +425,56 @@ refresh:
 `SMART` is the one to reach for: a timer that redraws static decorations is
 packets for an identical item. The timer only starts if the menu has something
 that could change, and it dies with the player.
+
+### Values that move while the menu is open
+
+Anything that changes while somebody is looking — a countdown, a stock, a
+player count, the members of a list — is handed over as a lambda instead of a
+value. The menu reads it again on every timed redraw and redraws only the slots
+whose text came out different. A value is otherwise decided once, when the menu
+opens, and stays frozen on screen.
+
+```java
+// A row: the lambda overloads of with / withFormatted / withVerbatim.
+UiEntry.of(mine)
+        .with("mine_name", mine.name())                              // read once
+        .withFormatted("next_reset", () -> MineStatus.nextReset(mine)) // read every redraw
+
+// The context: a Supplier value is live; a hub's header counts down.
+menus.open(player, "mine_hub", Map.of(
+        "mine_id", mine.id(),
+        "next_reset", (Supplier<String>) () -> MineStatus.nextReset(mine)));
+
+// A whole list: rows built again every redraw, so a mine created or deleted
+// shows up without reopening. The reader keeps their page.
+menus.open(player, "mine_list", Map.of(),
+        () -> mines.all().stream().map(MineListMenu::row).toList());
+// Or on a session: session.entries("mines", () -> rows());
+```
+
+The rules that keep it cheap:
+
+- **The file needs nothing.** A menu holding a live value, a live context value
+  or a followed list redraws every second as `SMART` when its file has no
+  `refresh` block. A file that writes `mode: DISABLED` is obeyed.
+- **A slot that would come out identical is not rendered.** Each slot remembers
+  the definition, values and formatting it was drawn with; the same ones again
+  skip the render. A list of forty rows with one countdown renders one item a
+  second. A slot showing a placeholder nobody handed over (PlaceholderAPI, a
+  ping) cannot be judged that way and is redrawn on every tick, as before.
+- **A context lambda is read once per redraw**, however many slots show it.
+  Live row values are read only for the page on screen.
+- **Lambdas run on the viewer's thread every second.** Read what is already in
+  memory — a map, a cached field — never a database or a file. Something
+  expensive belongs in a cache the plugin keeps warm, and the lambda reads the
+  cache.
+- **Only what moves is live.** An id, a type or a name stays a plain value: a
+  lambda for it is a call every second that never changes anything.
+- **Titles are not re-sent for a live value.** A title reads it when it is
+  sent (opening, turning a page); re-sending a title every second costs a packet
+  and makes the client re-request the window.
+- `live` / `liveFormatted` are the older spellings of the lambda overloads and
+  keep working.
 
 Deciding a slot's values costs nothing when the slot carries no row values,
 which is what a fixed slot — a decoration, a button, a title bar — always is.

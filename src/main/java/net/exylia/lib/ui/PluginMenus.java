@@ -303,6 +303,64 @@ public final class PluginMenus {
         return runtime.open(viewer, definition, new LinkedHashMap<>(context), sections);
     }
 
+    /**
+     * Opens a registered menu whose only list is filled from a lambda, asked
+     * again on every timed redraw.
+     *
+     * <p>For a list whose members change while somebody reads it: a mine
+     * created or deleted shows up without reopening the menu. Only the rows
+     * that came out different are drawn again, and the reader keeps their
+     * page. The menu redraws every second unless its file says otherwise.
+     *
+     * <p>The lambda runs on the viewer's thread once a redraw, so it builds the
+     * rows from what is in memory. Safe from any thread.
+     *
+     * <pre>{@code
+     * menus.open(player, "mine_list", Map.of(),
+     *         () -> mines.all().stream().map(MineListMenu::row).toList());
+     * }</pre>
+     *
+     * @param viewer  who to show it to
+     * @param id      which menu
+     * @param context what it is about
+     * @param rows    reads the list's rows as they are now
+     * @return whether there is a menu by that name
+     * @since 1.254.0
+     */
+    public boolean open(@NotNull Player viewer, @NotNull String id, @NotNull Map<String, Object> context,
+                        @NotNull java.util.function.Supplier<? extends Collection<UiEntry>> rows) {
+        UiDefinition definition = runtime.definition(qualify(id));
+        if (definition == null) {
+            debug.warn("Something asked to open the menu \"" + id + "\", which is not loaded.");
+            return false;
+        }
+        Map<String, Object> copy = new LinkedHashMap<>(context);
+        Tasks.of(plugin).runAtEntity(viewer, () -> openNow(viewer, definition, copy, rows));
+        return true;
+    }
+
+    /**
+     * Opens a menu whose only list is filled from a lambda, and hands back the
+     * session. Must be called on the thread that owns the player.
+     *
+     * @param viewer     who to show it to
+     * @param definition what to show
+     * @param context    what it is about
+     * @param rows       reads the list's rows as they are now
+     * @return the session
+     * @see #open(Player, String, Map, java.util.function.Supplier)
+     * @since 1.254.0
+     */
+    public @NotNull UiSession openNow(@NotNull Player viewer, @NotNull UiDefinition definition,
+                                      @NotNull Map<String, Object> context,
+                                      @NotNull java.util.function.Supplier<? extends Collection<UiEntry>> rows) {
+        UiSection only = definition.section();
+        if (only == null) {
+            return openNow(viewer, definition, context);
+        }
+        return runtime.openFollowing(viewer, definition, new LinkedHashMap<>(context), Map.of(only.id(), rows));
+    }
+
     // ------------------------------------------------------------------ open ones
 
     /**
