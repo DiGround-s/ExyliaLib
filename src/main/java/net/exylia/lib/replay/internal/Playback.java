@@ -737,8 +737,21 @@ public final class Playback implements ReplayPlayback {
         ReplayPackets.destroy(viewers, body.id, body.profile);
     }
 
-    /** The tick somebody died on, if they are dead on this one; otherwise -1. */
+    /**
+     * The tick somebody died on, if they are dead on this one; otherwise -1.
+     *
+     * <p>A dead player is never sampled, so a body still being sampled once
+     * the death has played out is alive again, respawn mark or not: a death a
+     * plugin cancelled, or a respawn that was never marked, must not leave
+     * them invisible for the rest of the recording.
+     */
     private int diedAt(int index, int tick) {
+        int died = markedDeath(index, tick);
+        if (died >= 0 && tick - died >= DEATH_TICKS && replay.tracks().get(index).present(tick)) return -1;
+        return died;
+    }
+
+    private int markedDeath(int index, int tick) {
         int died = -1;
         for (int event : deaths[index]) {
             if (event >= 0) {

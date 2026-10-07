@@ -269,7 +269,8 @@ final class ReplayEvents implements Listener {
     private static void resume(Player player) {
         ReplayRuntime.scheduler().runAtEntityLater(player, 2L, () -> {
             BlackBox box = ReplayRuntime.box();
-            if (box != null) box.ensure(player);
+            // Two ticks on, a live timer sampled on this tick or the last.
+            if (box != null) box.ensure(player, 1);
             ReplayRuntime.following(player.getUniqueId(), recording -> recording.resume(player));
         });
     }

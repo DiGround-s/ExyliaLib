@@ -150,12 +150,22 @@ public final class BlackBox {
      * recording. A timer that has not sampled for a second is replaced.
      */
     void ensure(Player player) {
+        ensure(player, 20);
+    }
+
+    /**
+     * Same, with a timer counted as dead once it has not sampled for this many
+     * ticks. Right after a respawn the old timer sampled moments ago, while the
+     * player lay dead, and may already be retired: a short wait catches it
+     * there instead of a second of nobody on the tape.
+     */
+    void ensure(Player player, int staleAfter) {
         if (!running || !player.isOnline()) return;
         Watcher current = watchers.get(player.getUniqueId());
         int now = ReplayClock.now();
         TaskHandle running = current == null ? null : current.task;
         if (current != null && current.player == player && (running == null || !running.isCancelled())
-                && now - current.sampledAt <= 20) {
+                && now - current.sampledAt <= staleAfter) {
             return;
         }
         Watcher fresh = new Watcher(player);
