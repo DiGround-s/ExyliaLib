@@ -138,6 +138,7 @@ public final class Playback implements ReplayPlayback {
     private volatile boolean looping;
     private volatile boolean audible = true;
     private volatile boolean revealing;
+    private volatile int highlighted = -1;
     private volatile boolean stopped;
     private volatile boolean carryViewers;
     private volatile int pendingSeek = NO_SEEK;
@@ -668,7 +669,7 @@ public final class Playback implements ReplayPlayback {
             // sees what the players saw.
             base |= revealing ? ReplayPackets.FLAG_GLOWING : ReplayPackets.FLAG_INVISIBLE;
         }
-        if ((flags & MotionTrack.GLOWING) != 0) base |= ReplayPackets.FLAG_GLOWING;
+        if ((flags & MotionTrack.GLOWING) != 0 || index == highlighted) base |= ReplayPackets.FLAG_GLOWING;
         if (pose.equals("FALL_FLYING")) base |= ReplayPackets.FLAG_GLIDING;
         int hands = 0;
         if ((flags & MotionTrack.USING) != 0) hands = 0x01;
@@ -1346,6 +1347,14 @@ public final class Playback implements ReplayPlayback {
     public void reveal(boolean reveal) {
         this.revealing = reveal;
         // Every body's state is sent again on the next frame.
+        for (Body body : bodies) {
+            if (body != null) body.state = -1;
+        }
+    }
+
+    @Override
+    public void highlight(@Nullable UUID actor) {
+        highlighted = actor == null ? -1 : indexOf(actor);
         for (Body body : bodies) {
             if (body != null) body.state = -1;
         }

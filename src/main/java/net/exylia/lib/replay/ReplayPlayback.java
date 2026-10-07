@@ -127,6 +127,15 @@ public interface ReplayPlayback {
     void reveal(boolean reveal);
 
     /**
+     * Draws one body glowing, whatever it was doing: the person a replay is
+     * about stands out from everybody around them.
+     *
+     * @param actor who, or {@code null} for nobody
+     * @since 1.256.0
+     */
+    void highlight(@Nullable UUID actor);
+
+    /**
      * Looks out of somebody's eyes: every viewer's camera is put on that body,
      * and follows it the way spectating a player does.
      *
