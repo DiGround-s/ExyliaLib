@@ -73,6 +73,30 @@ public final class SkullRuntime {
     private static final Map<String, CompletableFuture<String>> IN_FLIGHT =
             new ConcurrentHashMap<>();
 
+    /**
+     * Lookups handed to the server's async pool at once.
+     *
+     * <p>Each lookup blocks on Mojang, and the server's async pool has no
+     * thread ceiling: one task per distinct head made a 200-head menu 200
+     * threads and a burst Mojang answers with 429. So lookups wait in
+     * {@link #LOOKUPS} and at most this many tasks drain it, the way the
+     * database module rations its own work. Still {@code runAsync}, not a pool
+     * of our own: the server's tasks are what disable cancels.
+     */
+    static final int MAX_LOOKUPS = 2;
+
+    /**
+     * The waiting lookups and how many drains are on them. Replaced whole on
+     * shutdown, so a drain still finishing its HTTP call counts down the
+     * generation it counted up, never the next one's.
+     */
+    private static final class Lookups {
+        final java.util.Queue<Runnable> queued = new java.util.concurrent.ConcurrentLinkedQueue<>();
+        final java.util.concurrent.atomic.AtomicInteger running = new java.util.concurrent.atomic.AtomicInteger();
+    }
+
+    private static volatile Lookups LOOKUPS = new Lookups();
+
     private static volatile Plugin owner;
     private static volatile TaskScheduler scheduler;
     private static volatile Lookup mojang;
@@ -154,7 +178,11 @@ public final class SkullRuntime {
         }
         TEXTURES.invalidateAll();
         UNKNOWN.invalidateAll();
+        // Whoever is waiting on a head gets "none" now rather than never: the
+        // queued lookups are dropped with their generation.
+        IN_FLIGHT.values().forEach(waiting -> waiting.complete(null));
         IN_FLIGHT.clear();
+        LOOKUPS = new Lookups();
     }
 
     /** The scheduler heads hop back onto. */
@@ -242,7 +270,8 @@ public final class SkullRuntime {
             future.complete(null);
             return future;
         }
-        tasks.runAsync(() -> {
+        Lookups lookups = LOOKUPS;
+        Runnable lookup = () -> {
             String texture = null;
             try {
                 texture = fetch(source);
@@ -258,11 +287,58 @@ public final class SkullRuntime {
                     // rate-limited lookup is not evidence the player is fake.
                     UNKNOWN.put(key, Boolean.TRUE);
                 }
-                IN_FLIGHT.remove(key);
+                IN_FLIGHT.remove(key, future);
                 future.complete(texture);
             }
-        });
+        };
+        lookups.queued.add(lookup);
+        try {
+            startDrain(tasks, lookups);
+        } catch (RuntimeException rejected) {
+            // Thrown out of computeIfAbsent, so no caller holds this future:
+            // the lookup must not stay queued and run for nobody.
+            lookups.queued.remove(lookup);
+            throw rejected;
+        }
         return future;
+    }
+
+    /** Hands one more drain to the server, unless {@link #MAX_LOOKUPS} are already at it. */
+    private static void startDrain(TaskScheduler tasks, Lookups lookups) {
+        java.util.concurrent.atomic.AtomicInteger running = lookups.running;
+        int current;
+        do {
+            current = running.get();
+            if (current >= MAX_LOOKUPS) {
+                // A running drain will reach it.
+                return;
+            }
+        } while (!running.compareAndSet(current, current + 1));
+        try {
+            tasks.runAsync(() -> drain(tasks, lookups));
+        } catch (RuntimeException rejected) {
+            running.decrementAndGet();
+            throw rejected;
+        }
+    }
+
+    private static void drain(TaskScheduler tasks, Lookups lookups) {
+        try {
+            Runnable next;
+            while ((next = lookups.queued.poll()) != null) {
+                try {
+                    next.run();
+                } catch (RuntimeException broken) {
+                    logger.log(Level.WARNING, "Skulls: a head lookup failed", broken);
+                }
+            }
+        } finally {
+            lookups.running.decrementAndGet();
+            // Queued after the last poll but before the decrement: nobody else will see it.
+            if (!lookups.queued.isEmpty()) {
+                startDrain(tasks, lookups);
+            }
+        }
     }
 
     /** The network part, always off the main thread. */
@@ -320,10 +396,13 @@ public final class SkullRuntime {
      */
     private static UUID offlineId(String name) {
         try {
-            @SuppressWarnings("deprecation")
-            OfflinePlayer offline = Bukkit.getOfflinePlayer(name);
-            return offline.hasPlayedBefore() ? offline.getUniqueId() : null;
-        } catch (Exception noServer) {
+            // The cached overload, never getOfflinePlayer(name): that one goes to
+            // Mojang itself on a miss, a second uncounted request per head.
+            OfflinePlayer offline = Bukkit.getOfflinePlayerIfCached(name);
+            return offline != null && offline.hasPlayedBefore() ? offline.getUniqueId() : null;
+        } catch (Exception | LinkageError unsupported) {
+            // No server, or Spigot, which has no user cache accessor: the
+            // Mojang lookup after this covers it.
             return null;
         }
     }
@@ -386,6 +465,7 @@ public final class SkullRuntime {
         TEXTURES.invalidateAll();
         UNKNOWN.invalidateAll();
         IN_FLIGHT.clear();
+        LOOKUPS = new Lookups();
         fallback = net.exylia.lib.internal.LibrarySettings.DEFAULT_FALLBACK_HEAD;
         invalidFallbackReported = false;
     }

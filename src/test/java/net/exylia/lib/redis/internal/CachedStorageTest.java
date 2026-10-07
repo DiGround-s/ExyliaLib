@@ -97,6 +97,37 @@ class CachedStorageTest {
         assertEquals(7, found.get().level());
     }
 
+    @Test
+    @DisplayName("\"a refused executor skips the cache step instead of running it on the caller\"")
+    void aRefusedStepIsSkipped() throws Exception {
+        WatchedClient client = new WatchedClient();
+        CachedStorage storage = new CachedStorage(finishedDatabase(), cacheOn(client), task -> {
+            throw new java.util.concurrent.RejectedExecutionException("queue full");
+        });
+        UUID player = UUID.randomUUID();
+
+        storage.save(MODEL, new Effect(player, "flame", 1)).get(5, TimeUnit.SECONDS);
+        assertNull(storage.find(MODEL, player).get(5, TimeUnit.SECONDS));
+
+        assertTrue(client.threads.isEmpty(), "Redis must not be asked on the calling thread: " + client.threads);
+    }
+
+    @Test
+    @DisplayName("\"a cache that turns up later is used from then on\"")
+    void aLateCacheIsPickedUp() throws Exception {
+        WatchedClient client = new WatchedClient();
+        RowCache cache = cacheOn(client);
+        java.util.concurrent.atomic.AtomicReference<RowCache> current = new java.util.concurrent.atomic.AtomicReference<>();
+        CachedStorage storage = new CachedStorage(finishedDatabase(), current::get, background);
+
+        storage.save(MODEL, new Effect(UUID.randomUUID(), "flame", 1)).get(5, TimeUnit.SECONDS);
+        assertTrue(client.threads.isEmpty(), "there was no cache to write to yet");
+
+        current.set(cache);
+        storage.save(MODEL, new Effect(UUID.randomUUID(), "flame", 2)).get(5, TimeUnit.SECONDS);
+        assertTrue(client.threads.contains(BACKGROUND), "the late cache should have been written");
+    }
+
     private static RowCache cacheOn(RedisClient client) {
         RedisSettings settings = new RedisSettings(true, "localhost", 6379, "", 0, 8,
                 1800, 300, 10_000, "exylia", "lobby-1");

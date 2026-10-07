@@ -25,9 +25,22 @@ public interface OverlaySink {
      *
      * @param viewer the player
      * @param index  the inventory index, as {@code OverlaySlots} numbers it
-     * @param item   what to draw, or {@code null} to draw nothing
+     * @param wire   what to draw, as {@link #wire} returned it, or
+     *               {@code null} to draw nothing
      */
-    void slot(Player viewer, int index, @Nullable ItemStack item);
+    void slot(Player viewer, int index, @Nullable Object wire);
+
+    /**
+     * Converts an item into the form this sink sends.
+     *
+     * <p>Called once per draw, on the viewer's thread. The result is kept
+     * beside the item so the packets that repeat it, on a Netty thread, send
+     * it as it is instead of converting it again.
+     *
+     * @param item the item to draw
+     * @return the sink's own form of it, opaque to everything else
+     */
+    Object wire(ItemStack item);
 
     /**
      * Restates what everyone else sees this player holding and wearing.

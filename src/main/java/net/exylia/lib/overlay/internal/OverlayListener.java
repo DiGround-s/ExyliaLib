@@ -9,7 +9,9 @@ import org.bukkit.event.entity.EntityPickupItemEvent;
 import org.bukkit.event.inventory.InventoryCloseEvent;
 import org.bukkit.event.inventory.InventoryOpenEvent;
 import org.bukkit.event.player.PlayerAttemptPickupItemEvent;
+import org.bukkit.event.player.PlayerItemHeldEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
+import org.bukkit.event.player.PlayerToggleSneakEvent;
 
 /**
  * The server-side half of an overlay.
@@ -88,6 +90,31 @@ public final class OverlayListener implements Listener {
             if (view != null) {
                 view.resume();
             }
+        }
+    }
+
+    /**
+     * Keeps the held slot the packet listener reads current.
+     *
+     * <p>It decides which slot a press or a hand belongs to on a Netty
+     * thread, where the player's inventory must not be asked. A slot the
+     * server sets itself fires no event; the listener reads that one from the
+     * packet that tells the client.
+     */
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    public void onHeld(PlayerItemHeldEvent event) {
+        OverlayView view = OverlayRuntime.viewOf(event.getPlayer().getUniqueId());
+        if (view != null) {
+            view.held(event.getNewSlot());
+        }
+    }
+
+    /** Keeps the sneak state a press is read with current, for the same reason. */
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    public void onSneak(PlayerToggleSneakEvent event) {
+        OverlayView view = OverlayRuntime.viewOf(event.getPlayer().getUniqueId());
+        if (view != null) {
+            view.sneaking(event.isSneaking());
         }
     }
 

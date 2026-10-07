@@ -255,7 +255,21 @@ class CooldownsTest {
         Cooldowns.isActive(player.player(), "pearl");
 
         assertEquals(0, Cooldowns.trackedOwners(),
-                "nothing sweeps this map, so reading is the only chance to notice");
+                "reading notices expiry before the periodic sweep does");
+    }
+
+    @Test
+    @DisplayName("the sweep drops expired owners nobody reads again, and keeps live ones")
+    void sweepDropsUnreadOwners() {
+        Cooldowns.start(CooldownScope.of("block", "world:1:64:1"), "use", Duration.ofSeconds(5));
+        Cooldowns.start(CooldownScope.group("arena-7"), "reset", Duration.ofMinutes(10));
+        assertEquals(2, Cooldowns.trackedOwners());
+
+        advance(Duration.ofSeconds(6));
+        Cooldowns.sweepExpired();
+
+        assertEquals(1, Cooldowns.trackedOwners(), "the block owner is gone, the arena is still cooling down");
+        assertTrue(Cooldowns.isActive(CooldownScope.group("arena-7"), "reset"));
     }
 
     @Test

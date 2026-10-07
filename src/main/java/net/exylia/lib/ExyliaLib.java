@@ -319,7 +319,10 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         // a server that dies without a clean shutdown loses minutes rather
         // than everything.
         Tasks.of(this).runAsyncTimer(
-                COOLDOWN_FLUSH_TICKS, COOLDOWN_FLUSH_TICKS, Cooldowns::flushAll);
+                COOLDOWN_FLUSH_TICKS, COOLDOWN_FLUSH_TICKS, () -> {
+                    Cooldowns.sweepExpired();
+                    Cooldowns.flushAll();
+                });
         // Subscriptions that could not be opened because Redis was down are
         // retried here. Publishing heals itself on the next message; a server
         // that only listens has nothing that would ever ask again.
@@ -951,6 +954,9 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         // A rule belongs to a classloader that is going away, and chat keeps
         // flowing: drop it before it can be asked again.
         Chats.release(pluginName);
+        // Same reason: a combat bridge is asked on every damage event, and one
+        // from a dying classloader would keep answering for a plugin that is gone.
+        net.exylia.lib.util.combat.internal.CombatRuntime.release(event.getPlugin());
         Cosmetics.release(pluginName);
         Watchers.release(pluginName);
         net.exylia.lib.util.Effects.release(pluginName);

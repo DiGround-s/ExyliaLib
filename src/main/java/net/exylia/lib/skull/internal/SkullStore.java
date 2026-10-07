@@ -1,6 +1,7 @@
 package net.exylia.lib.skull.internal;
 
 import com.github.benmanes.caffeine.cache.Cache;
+import com.github.benmanes.caffeine.cache.Caffeine;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -10,7 +11,6 @@ import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -44,7 +44,10 @@ public final class SkullStore {
     private final Logger logger;
 
     /** What is known to be on disk, plus what has been learned since. */
-    private final Map<String, Entry> entries = new ConcurrentHashMap<>();
+    // Bounded like the file it mirrors: without the cap a long uptime keeps every
+    // head ever drawn, although only MAX_ENTRIES of them would ever be saved.
+    private final Map<String, Entry> entries =
+            Caffeine.newBuilder().maximumSize(MAX_ENTRIES).<String, Entry>build().asMap();
 
     private volatile boolean dirty;
 

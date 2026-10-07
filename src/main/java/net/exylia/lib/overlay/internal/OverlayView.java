@@ -61,7 +61,43 @@ public final class OverlayView {
      * slot not being ours: the first draws air over the player's real item,
      * the second leaves the real item alone.
      */
-    private final Map<Integer, ItemStack> drawn = new ConcurrentHashMap<>();
+    private final Map<Integer, Drawn> drawn = new ConcurrentHashMap<>();
+
+    /**
+     * A drawn item, and the same item already in the form the sink sends.
+     *
+     * <p>Converted once, here, rather than by the packet listener: every
+     * inventory and equipment packet that touches an owned slot would
+     * otherwise convert the same item again on a Netty thread. Held as one
+     * value so a packet never pairs one draw's item with another's wire form.
+     */
+    private record Drawn(ItemStack item, @Nullable Object wire) {
+    }
+
+    /**
+     * The hotbar slot the player is holding, as Bukkit last reported it.
+     *
+     * <p>Kept here because the packet listener needs it on a Netty thread,
+     * where asking the player's inventory is not safe.
+     */
+    private volatile int held;
+
+    /** Whether the player is sneaking, kept for the same reason as {@link #held}. */
+    private volatile boolean sneaking;
+
+    /**
+     * Which owned slots have a real item under the overlay, one bit per
+     * inventory index.
+     *
+     * <p>Learnt from what the server says about those slots on its way out,
+     * before the overlay's item is written over it, so a press never has to
+     * read the real inventory from a Netty thread. Starts full: until the
+     * server's first restatement arrives, an owned slot is assumed to hide
+     * something, and a press that would reach it is refused rather than let
+     * through to an item nobody can see.
+     */
+    private final java.util.concurrent.atomic.AtomicLong realFilled =
+            new java.util.concurrent.atomic.AtomicLong(-1L);
 
     /** What each drawn slot is, so a press knows what it pressed. */
     private final Map<Integer, UiItem> live = new ConcurrentHashMap<>();
@@ -84,6 +120,10 @@ public final class OverlayView {
         this.viewer = viewer;
         this.id = viewer.getUniqueId();
         this.definition = definition;
+        // Created on the thread that shows the overlay; from here on the
+        // listener keeps both current.
+        this.held = viewer.getInventory().getHeldItemSlot();
+        this.sneaking = viewer.isSneaking();
     }
 
     public Plugin plugin() {
@@ -126,7 +166,61 @@ public final class OverlayView {
      * @return the item, or {@code null} when the slot is ours and empty
      */
     public @Nullable ItemStack itemAt(int index) {
-        return drawn.get(index);
+        Drawn slot = drawn.get(index);
+        return slot == null ? null : slot.item();
+    }
+
+    /**
+     * The item in a slot we own, already converted by the sink that drew it.
+     *
+     * @param index the inventory index
+     * @return what {@link OverlaySink#wire} made of it, or {@code null} when
+     *         the slot is ours and empty or nothing converted it
+     */
+    @Nullable Object wireAt(int index) {
+        Drawn slot = drawn.get(index);
+        return slot == null ? null : slot.wire();
+    }
+
+    /** The hotbar slot the player is holding. Safe on any thread. */
+    int heldSlot() {
+        return held;
+    }
+
+    void held(int slot) {
+        held = slot;
+    }
+
+    /** Whether the player is sneaking. Safe on any thread. */
+    boolean isSneaking() {
+        return sneaking;
+    }
+
+    void sneaking(boolean value) {
+        sneaking = value;
+    }
+
+    /**
+     * Whether the server last said this slot is empty underneath the overlay.
+     *
+     * @param index the inventory index
+     */
+    boolean isRealEmpty(int index) {
+        return index < 0 || index >= Long.SIZE || (realFilled.get() & (1L << index)) == 0;
+    }
+
+    /**
+     * Records what the server says is really in a slot, as it says it.
+     *
+     * @param index the inventory index
+     * @param empty whether the real item is air
+     */
+    void realItem(int index, boolean empty) {
+        if (index < 0 || index >= Long.SIZE) {
+            return;
+        }
+        long bit = 1L << index;
+        realFilled.getAndUpdate(bits -> empty ? bits & ~bit : bits | bit);
     }
 
     /** The slot definition behind a press, or {@code null} when there is none. */
@@ -254,18 +348,18 @@ public final class OverlayView {
         } else {
             live.put(index, item);
         }
-        ItemStack previous = drawn.get(index);
-        if (Objects.equals(previous, rendered)) {
+        if (Objects.equals(itemAt(index), rendered)) {
             return;
         }
+        OverlaySink sink = OverlayRuntime.sink();
+        Object wire = rendered == null || sink == null ? null : sink.wire(rendered);
         if (rendered == null) {
             drawn.remove(index);
         } else {
-            drawn.put(index, rendered);
+            drawn.put(index, new Drawn(rendered, wire));
         }
-        OverlaySink sink = OverlayRuntime.sink();
         if (sink != null) {
-            sink.slot(viewer, index, rendered);
+            sink.slot(viewer, index, wire);
         }
     }
 

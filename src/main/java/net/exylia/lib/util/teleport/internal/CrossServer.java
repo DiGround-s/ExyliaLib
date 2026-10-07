@@ -17,6 +17,7 @@ import net.exylia.lib.util.teleport.TeleportCause;
 import net.exylia.lib.util.teleport.TeleportResult;
 import net.exylia.lib.util.teleport.TeleportSettings;
 import net.exylia.lib.task.TaskHandle;
+import com.github.benmanes.caffeine.cache.Caffeine;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.entity.Player;
@@ -31,10 +32,10 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Sending a player to a place that is not on this server.
@@ -114,8 +115,13 @@ public final class CrossServer {
      * ticks before {@code PlayerJoinEvent}. Held by player until then, and
      * dropped after a minute for a player who never came.
      */
-    private static final Map<UUID, PendingMemo> MEMOS = new ConcurrentHashMap<>();
     private static final long MEMO_TTL_MILLIS = 60_000L;
+    // Expires on its own: a player whose transfer failed, or who went elsewhere,
+    // never joins here to claim it.
+    private static final Map<UUID, PendingMemo> MEMOS = Caffeine.newBuilder()
+            .expireAfterWrite(MEMO_TTL_MILLIS, TimeUnit.MILLISECONDS)
+            .<UUID, PendingMemo>build()
+            .asMap();
 
     private record PendingMemo(String stored, long at) {
     }
@@ -188,7 +194,10 @@ public final class CrossServer {
      * @return whether a handover would be attempted
      */
     public static boolean isAvailable(@NotNull Plugin plugin) {
-        return Proxy.isAvailable() || client(plugin) != null;
+        // Configured counts, connected or not: right after boot or after an
+        // outage the connection may still be opening, and the handover itself
+        // waits for it off the server thread and says so if it never comes.
+        return Proxy.isAvailable() || settings(plugin).enabled();
     }
 
     /**
@@ -241,17 +250,44 @@ public final class CrossServer {
             // nothing to configure, and the answer says whether they went.
             return handViaProxy(plan);
         }
-        RedisClient redis = client(plugin);
-        if (redis == null) {
-            debug.warn("A teleport was aimed at " + (destination == null
-                    ? "a player on another server" : "server \"" + destination.server() + "\"")
-                    + ", but this server has no Redis configured, so it cannot hand anybody"
-                    + " over. Turn on database.redis in database.yml on every server of the"
-                    + " network.");
+        String aim = destination == null
+                ? "a player on another server" : "server \"" + destination.server() + "\"";
+        if (!settings(plugin).enabled()) {
+            debug.warn("A teleport was aimed at " + aim + ", but this server has no Redis"
+                    + " configured, so it cannot hand anybody over. Turn on database.redis in"
+                    + " database.yml on every server of the network.");
             result.complete(TeleportResult.CROSS_SERVER_UNAVAILABLE);
             return result;
         }
+        RedisClient open = client(plugin);
+        if (open != null) {
+            handWith(plan, open, result);
+            return result;
+        }
+        // Configured but not connected yet — the first teleport after boot,
+        // or one during an outage. The connect is waited for off the server
+        // thread rather than failing a teleport that would have worked.
+        plan.tasks().runAsync(() -> {
+            RedisClient late = client(plugin);
+            if (late == null) {
+                debug.warn("A teleport was aimed at " + aim + ", but Redis could not be"
+                        + " reached, so " + player.getName() + " was not handed over.");
+                result.complete(TeleportResult.CROSS_SERVER_UNAVAILABLE);
+                return;
+            }
+            handWith(plan, late, result);
+        });
+        return result;
+    }
 
+    /** The Redis handover once a connection is in hand. */
+    private static void handWith(TeleportPlan plan, RedisClient redis,
+                                 CompletableFuture<TeleportResult> result) {
+        ExyliaLocation destination = plan.crossServer();
+        UUID follow = plan.follow();
+        Plugin plugin = plan.plugin();
+        Debug debug = plan.debug();
+        Player player = plan.player();
         RedisSettings redisSettings = settings(plugin);
         String key = keyOf(redisSettings, player.getUniqueId().toString());
 
@@ -288,10 +324,9 @@ public final class CrossServer {
                 }
                 queueThenConnect(plan, redis, key, FOLLOW_PREFIX + follow, server, result);
             });
-            return result;
+            return;
         }
         queueThenConnect(plan, redis, key, destination.toString(), destination.server(), result);
-        return result;
     }
 
     /**
@@ -413,21 +448,29 @@ public final class CrossServer {
                     fromBridge(reply, targetName, "this one", debug,
                             TeleportResult.PLAYER_LEFT, TeleportResult.TARGET_NOT_FOUND));
         }
-        RedisClient redis = client(plugin);
-        if (redis == null) {
+        RedisSettings redisSettings = settings(plugin);
+        if (!redisSettings.enabled()) {
             debug.warn("A teleport tried to pull " + targetName + " from another server, but"
                     + " this server has no Redis configured. Turn on database.redis in"
                     + " database.yml on every server of the network.");
             result.complete(TeleportResult.CROSS_SERVER_UNAVAILABLE);
             return result;
         }
-        RedisSettings redisSettings = settings(plugin);
         String here = redisSettings.serverId();
         String key = keyOf(redisSettings, target.toString());
         String value = ExyliaLocation.of(here, to.getLocation()).toString();
         TaskScheduler tasks = Tasks.of(plugin);
 
         tasks.runAsync(() -> {
+            // Looked up here, off the puller's thread, so a connection still
+            // opening is waited for instead of failing the pull.
+            RedisClient redis = client(plugin);
+            if (redis == null) {
+                debug.warn("A teleport tried to pull " + targetName + " from another server, but"
+                        + " Redis could not be reached.");
+                result.complete(TeleportResult.CROSS_SERVER_UNAVAILABLE);
+                return;
+            }
             try {
                 if (redis.get(presenceKeyOf(redisSettings, target)) == null) {
                     result.complete(TeleportResult.TARGET_NOT_FOUND);
@@ -470,13 +513,17 @@ public final class CrossServer {
             return Proxy.find(player.toString()).thenApply(found ->
                     found.filter(ProxyPlayer::isOnAServer).map(ProxyPlayer::server));
         }
-        RedisClient redis = client(plugin);
-        if (redis == null) {
+        RedisSettings redisSettings = settings(plugin);
+        if (!redisSettings.enabled()) {
             return CompletableFuture.completedFuture(Optional.empty());
         }
-        RedisSettings redisSettings = settings(plugin);
         CompletableFuture<Optional<String>> result = new CompletableFuture<>();
         Tasks.of(plugin).runAsync(() -> {
+            RedisClient redis = client(plugin);
+            if (redis == null) {
+                result.complete(Optional.empty());
+                return;
+            }
             try {
                 result.complete(Optional.ofNullable(redis.get(presenceKeyOf(redisSettings, player))));
             } catch (RuntimeException unreachable) {
@@ -494,21 +541,24 @@ public final class CrossServer {
      * to, so a server that never configures one never runs a timer for it.
      */
     public static void announce(@NotNull Plugin library, @NotNull Player player) {
-        RedisClient redis = client(library);
-        if (redis == null) {
-            return;
-        }
-        RedisSettings redisSettings = settings(library);
         UUID id = player.getUniqueId();
-        Tasks.of(library).runAsync(() -> write(library, redis, redisSettings, List.of(id)));
-        if (heartbeat == null) {
-            synchronized (CrossServer.class) {
-                if (heartbeat == null) {
-                    heartbeat = Tasks.of(library).runTimer(HEARTBEAT_TICKS, HEARTBEAT_TICKS,
-                            () -> renew(library));
+        // The connection is looked up in the background too: this runs on the
+        // join, and a first lookup may have to open it.
+        Tasks.of(library).runAsync(() -> {
+            RedisClient redis = client(library);
+            if (redis == null) {
+                return;
+            }
+            write(library, redis, settings(library), List.of(id));
+            if (heartbeat == null) {
+                synchronized (CrossServer.class) {
+                    if (heartbeat == null) {
+                        heartbeat = Tasks.of(library).runTimer(HEARTBEAT_TICKS, HEARTBEAT_TICKS,
+                                () -> renew(library));
+                    }
                 }
             }
-        }
+        });
     }
 
     /**
@@ -520,13 +570,14 @@ public final class CrossServer {
      * the window is one round trip on a server the player just left.
      */
     public static void withdraw(@NotNull Plugin library, @NotNull Player player) {
-        RedisClient redis = client(library);
-        if (redis == null) {
-            return;
-        }
-        RedisSettings redisSettings = settings(library);
-        String key = presenceKeyOf(redisSettings, player.getUniqueId());
+        UUID id = player.getUniqueId();
         Tasks.of(library).runAsync(() -> {
+            RedisClient redis = client(library);
+            if (redis == null) {
+                return;
+            }
+            RedisSettings redisSettings = settings(library);
+            String key = presenceKeyOf(redisSettings, id);
             try {
                 if (redisSettings.serverId().equalsIgnoreCase(redis.get(key))) {
                     redis.delete(List.of(key));
@@ -551,10 +602,6 @@ public final class CrossServer {
 
     /** Renews every online player's entry; the snapshot is taken on the global thread. */
     private static void renew(Plugin library) {
-        RedisClient redis = client(library);
-        if (redis == null) {
-            return;
-        }
         List<UUID> online = new ArrayList<>();
         for (Player player : Bukkit.getOnlinePlayers()) {
             online.add(player.getUniqueId());
@@ -562,8 +609,12 @@ public final class CrossServer {
         if (online.isEmpty()) {
             return;
         }
-        RedisSettings redisSettings = settings(library);
-        Tasks.of(library).runAsync(() -> write(library, redis, redisSettings, online));
+        Tasks.of(library).runAsync(() -> {
+            RedisClient redis = client(library);
+            if (redis != null) {
+                write(library, redis, settings(library), online);
+            }
+        });
     }
 
     private static void write(Plugin library, RedisClient redis, RedisSettings settings,
@@ -593,15 +644,18 @@ public final class CrossServer {
      */
     public static void claim(@NotNull Plugin library, @NotNull Player player,
                              @NotNull TeleportSettings settings) {
-        RedisClient redis = client(library);
-        if (redis == null) {
-            return;
-        }
-        RedisSettings redisSettings = settings(library);
         Debug debug = Debug.of(library);
-        String key = keyOf(redisSettings, player.getUniqueId().toString());
+        UUID id = player.getUniqueId();
 
+        // Looked up in the background: on the join, a first lookup may have
+        // to open the connection, and from the server thread it would come
+        // back empty instead — dropping the handover this join is for.
         Tasks.of(library).runAsync(() -> {
+            RedisClient redis = client(library);
+            if (redis == null) {
+                return;
+            }
+            String key = keyOf(settings(library), id.toString());
             String stored;
             try {
                 stored = redis.get(key);
@@ -634,7 +688,7 @@ public final class CrossServer {
      * the client to settle, on the player's thread.
      *
      * @param library  the library plugin, which owns the listeners
-     * @param player   who joined
+     * @param id       who arrived, online here or about to join
      * @param stored   where to put them, as the other server wrote it
      * @param settings how long to let the client settle
      */

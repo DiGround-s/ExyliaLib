@@ -24,7 +24,10 @@ public final class PlotGrid {
     public static final int CELL = 64;
 
     private final int gap;
+    // ponytail: one key per cell ever used, a few thousand for a busy run; the
+    // cells inside firstOpenRing could be dropped and implied if that ever matters.
     private final Set<Long> taken = new HashSet<>();
+    private int firstOpenRing;
 
     /**
      * @param gap the minimum empty space between two plots, in blocks
@@ -40,27 +43,57 @@ public final class PlotGrid {
      * @param sizeZ the plot's size along Z, in blocks
      * @return the plot's minimum corner, as {@code {x, z}} in blocks
      */
-    // ponytail: linear ring scan from the origin, O(cells in use) per call; keep a
-    // free-ring cursor if a single run ever holds tens of thousands of plots.
     public synchronized int[] reserve(int sizeX, int sizeZ) {
         if (sizeX < 1 || sizeZ < 1) {
             throw new IllegalArgumentException("A plot needs a positive size, got " + sizeX + "x" + sizeZ);
         }
         int cellsX = cells(sizeX);
         int cellsZ = cells(sizeZ);
-        for (int ring = 0; ; ring++) {
+        // Starts at the first ring with a free cell: every ring inside it is full,
+        // and since no cell is ever handed back, it stays full. Scanning from the
+        // origin made each reserve cost every cell ever used.
+        for (int ring = firstOpenRing; ; ring++) {
+            // Only the ring's perimeter, in the order the full-square scan visited it.
             for (int cx = -ring; cx <= ring; cx++) {
-                for (int cz = -ring; cz <= ring; cz++) {
-                    if (Math.max(Math.abs(cx), Math.abs(cz)) != ring) {
-                        continue;
-                    }
+                boolean edge = Math.abs(cx) == ring;
+                for (int cz = -ring; cz <= ring; cz += edge ? 1 : 2 * ring) {
                     if (isFree(cx, cz, cellsX, cellsZ)) {
                         take(cx, cz, cellsX, cellsZ);
+                        advance();
                         return new int[]{cx * CELL, cz * CELL};
                     }
                 }
             }
         }
+    }
+
+    /**
+     * The first ring that still has a free cell. Exposed for tests: it is what
+     * keeps a reserve from rescanning every ring already used.
+     *
+     * @return the ring index, 0 being the origin cell
+     */
+    public synchronized int firstOpenRing() {
+        return firstOpenRing;
+    }
+
+    /** Moves the cursor past every ring that is now full. */
+    private void advance() {
+        while (ringFull(firstOpenRing)) {
+            firstOpenRing++;
+        }
+    }
+
+    private boolean ringFull(int ring) {
+        for (int cx = -ring; cx <= ring; cx++) {
+            boolean edge = Math.abs(cx) == ring;
+            for (int cz = -ring; cz <= ring; cz += edge ? 1 : 2 * ring) {
+                if (!taken.contains(key(cx, cz))) {
+                    return false;
+                }
+            }
+        }
+        return true;
     }
 
     private int cells(int size) {

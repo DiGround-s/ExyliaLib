@@ -139,10 +139,14 @@ final class ItemDecor {
      * <p>A provider that throws writes nothing and is reported once; the
      * others still write theirs.
      *
-     * <p>Every provider receives an independent copy with the real stack
-     * amount. Amount-dependent lines are corrected after clicks by the packet
-     * listener; one provider cannot change the amount seen by another.
+     * <p>Every provider receives the real stack amount, and none sees what an
+     * earlier one changed. Amount-dependent lines are corrected after clicks by
+     * the packet listener.
      *
+     * @param item handed over: the last provider receives it as it is, since
+     *             nobody reads it after that one, so with a single provider —
+     *             the usual case — nothing is copied per slot. The caller
+     *             passes a stack of its own and does not use it afterwards.
      * @return the lines, upright unless they say otherwise; empty for none
      */
     static @NotNull List<Component> lines(@NotNull Player viewer, @NotNull ItemStack item, @NotNull ItemPlace place) {
@@ -153,7 +157,8 @@ final class ItemDecor {
             List<Component> mine;
             try {
                 // Each provider gets an item nobody before it could have changed.
-                mine = registered.provider().lines(viewer, item.clone(), place);
+                ItemStack own = i == providers.size() - 1 ? item : item.clone();
+                mine = registered.provider().lines(viewer, own, place);
             } catch (Throwable failure) {
                 if (FAILED.add(registered.owner().getName())) {
                     Debug.of(registered.owner()).warn("Item lines could not be written: " + failure);

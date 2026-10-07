@@ -129,6 +129,31 @@ class CrossServerTest {
     }
 
     @Test
+    @DisplayName("\"a Redis that was down when the repository was built is used once it answers\"")
+    void aRedisDownAtStartupIsPickedUpLater() {
+        RedisRuntime.installForTests((settings, name) -> {
+            throw new IllegalStateException("connection refused");
+        });
+        DatabaseRuntime.installRedisForTests(redisSettings("lobby-1"));
+        Repository<Effect> onLobby = Databases.of(lobby).repository(Effect.class);
+
+        await(onLobby.save(new Effect(UUID.randomUUID(), "ash", 1)));
+        assertEquals(0, redis.size(), "nothing can reach a Redis that is down");
+
+        // It comes back. Reinstalling also forgets the failure, as the retry
+        // window running out would.
+        RedisRuntime.installForTests((settings, name) -> new MemoryClient(redis));
+        // The first write after it returns starts the connect in the
+        // background rather than waiting for it, so a later one is cached.
+        long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(TIMEOUT_SECONDS);
+        while (redis.size() == 0 && System.nanoTime() < deadline) {
+            await(onLobby.save(new Effect(UUID.randomUUID(), "ash", 2)));
+        }
+        assertTrue(redis.size() > 0,
+                "a repository built during the outage should start caching once Redis is back");
+    }
+
+    @Test
     @DisplayName("\"the second server reads the new value without waiting for a message\"")
     void theHandoffDoesNotWaitForPubSub() {
         // The case that breaks on a proxy: quit and join land in the same tick,

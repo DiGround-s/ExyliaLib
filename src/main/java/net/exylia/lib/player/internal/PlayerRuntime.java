@@ -555,8 +555,9 @@ public final class PlayerRuntime {
     private static @Nullable OfflinePlayer userCache(String name) {
         try {
             return Bukkit.getOfflinePlayerIfCached(name);
-        } catch (Exception unsupported) {
-            // Spigot has no user cache accessor. The tier is skipped rather
+        } catch (Exception | LinkageError unsupported) {
+            // Spigot has no user cache accessor: the missing method surfaces as
+            // NoSuchMethodError, which is not an Exception. The tier is skipped rather
             // than replaced by the name overload, which would go to Mojang on
             // whatever thread asked.
             return null;

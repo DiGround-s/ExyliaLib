@@ -1,5 +1,7 @@
 package net.exylia.lib.ragdoll.internal;
 
+import com.github.benmanes.caffeine.cache.Cache;
+import com.github.benmanes.caffeine.cache.Caffeine;
 import org.bukkit.Material;
 import org.bukkit.block.data.BlockData;
 import org.jetbrains.annotations.ApiStatus;
@@ -167,8 +169,11 @@ public final class BlockPalette {
         COLOURS.forEach((material, rgb) -> LABS.put(material, lab(rgb)));
     }
 
-    /** What each colour a skin has asked for came out as, so no colour is matched twice. */
-    private static final Map<Integer, Material> MATCHED = new ConcurrentHashMap<>();
+    /**
+     * What each colour a skin has asked for came out as, so no colour is matched twice.
+     * Bounded: every new skin brings its own colours, and there are 16.7 million of them.
+     */
+    private static final Cache<Integer, Material> MATCHED = Caffeine.newBuilder().maximumSize(65_536).build();
 
     /** One block state per material, built the first time it is drawn. */
     private static final Map<Material, BlockData> BLOCKS = new ConcurrentHashMap<>();
@@ -248,7 +253,7 @@ public final class BlockPalette {
 
     /** The palette material a colour is drawn in, remembered. */
     static Material material(int rgb) {
-        return MATCHED.computeIfAbsent(rgb & 0xFFFFFF, BlockPalette::match);
+        return MATCHED.get(rgb & 0xFFFFFF, BlockPalette::match);
     }
 
     /**

@@ -223,4 +223,36 @@ class WebhookDeliveryTest {
         assertTrue(requests.get(0).contains("\"parse\":[]"), requests.get(0));
         assertTrue(requests.get(1).contains("\"parse\":[\"everyone\"]"), requests.get(1));
     }
+
+    @Test
+    void shutdownBoundsEachRequestByWhatIsLeftOfTheWindow() throws Exception {
+        List<Duration> timeouts = Collections.synchronizedList(new ArrayList<>());
+        WebhookRuntime stopping = WebhookRuntime.installForTests(new WebhookRuntime.Http() {
+            @Override
+            public WebhookRuntime.Reply exchange(String method, URI uri, String json) {
+                throw new AssertionError("shutdown must pass its own timeout");
+            }
+
+            @Override
+            public WebhookRuntime.Reply exchange(String method, URI uri, String json, Duration timeout)
+                    throws java.io.IOException, InterruptedException {
+                timeouts.add(timeout);
+                // A Discord that never answers: the call lasts exactly as long as it is allowed to.
+                Thread.sleep(timeout.toMillis());
+                throw new java.net.http.HttpTimeoutException("hung");
+            }
+        }, (millis, task) -> { }, warnings::add);
+        List<CompletableFuture<WebhookResult>> sent = new ArrayList<>();
+        for (int i = 0; i < 3; i++) {
+            sent.add(webhooks.send(TARGET, new WebhookTemplate("T", "message " + i)).toCompletableFuture());
+        }
+        long start = System.currentTimeMillis();
+        stopping.shutdown();
+        long took = System.currentTimeMillis() - start;
+        assertTrue(took < 4000, "one hung request held the disable for " + took + " ms");
+        assertEquals(1, timeouts.size(), "the first request used the whole window, the rest are dropped");
+        assertTrue(timeouts.get(0).toMillis() <= 3000, "bounded by the flush window, got " + timeouts.get(0));
+        assertEquals(WebhookResult.FAILED, sent.get(0).getNow(null));
+        assertEquals(WebhookResult.DROPPED, sent.get(2).getNow(null));
+    }
 }

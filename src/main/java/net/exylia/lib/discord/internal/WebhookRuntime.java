@@ -64,6 +64,16 @@ public final class WebhookRuntime {
     public interface Http {
         @NotNull Reply exchange(@NotNull String method, @NotNull URI uri, @Nullable String json)
                 throws IOException, InterruptedException;
+
+        /**
+         * The same request, given up after {@code timeout}. Shutdown passes what is
+         * left of its flush window, so one hung request cannot hold the disable for
+         * the full request plus connect timeout.
+         */
+        default @NotNull Reply exchange(@NotNull String method, @NotNull URI uri, @Nullable String json,
+                                        @NotNull Duration timeout) throws IOException, InterruptedException {
+            return exchange(method, uri, json);
+        }
     }
 
     /** Runs a task off the main thread after a delay; zero means as soon as possible. */
@@ -114,24 +124,49 @@ public final class WebhookRuntime {
                 .followRedirects(HttpClient.Redirect.NEVER)
                 .build();
         String agent = "ExyliaLib/" + lib.version();
-        Http http = (method, uri, json) -> {
-            HttpRequest.Builder request = HttpRequest.newBuilder(uri)
-                    .timeout(TIMEOUT)
-                    .header("User-Agent", agent);
-            if (json == null) {
-                request.GET();
-            } else {
-                request.header("Content-Type", "application/json")
-                        .POST(HttpRequest.BodyPublishers.ofString(json));
+        Http http = new Http() {
+            @Override
+            public @NotNull Reply exchange(@NotNull String method, @NotNull URI uri, @Nullable String json)
+                    throws IOException, InterruptedException {
+                return exchange(method, uri, json, TIMEOUT);
             }
-            HttpResponse<String> response = client.send(request.build(), HttpResponse.BodyHandlers.ofString());
-            Map<String, String> headers = new java.util.HashMap<>();
-            response.headers().map().forEach((name, value) -> {
-                if (!value.isEmpty()) {
-                    headers.put(name.toLowerCase(Locale.ROOT), value.getFirst());
+
+            @Override
+            public @NotNull Reply exchange(@NotNull String method, @NotNull URI uri, @Nullable String json,
+                                           @NotNull Duration timeout) throws IOException, InterruptedException {
+                HttpRequest.Builder request = HttpRequest.newBuilder(uri)
+                        .timeout(timeout)
+                        .header("User-Agent", agent);
+                if (json == null) {
+                    request.GET();
+                } else {
+                    request.header("Content-Type", "application/json")
+                            .POST(HttpRequest.BodyPublishers.ofString(json));
                 }
-            });
-            return new Reply(response.statusCode(), headers, response.body() == null ? "" : response.body());
+                // Waited on with the same bound: the request timeout alone does not
+                // cover name resolution or the connect, which have their own 5 s.
+                CompletableFuture<HttpResponse<String>> call =
+                        client.sendAsync(request.build(), HttpResponse.BodyHandlers.ofString());
+                HttpResponse<String> response;
+                try {
+                    response = call.get(timeout.toMillis(), TimeUnit.MILLISECONDS);
+                } catch (InterruptedException stopped) {
+                    call.cancel(true);
+                    throw stopped;
+                } catch (java.util.concurrent.TimeoutException late) {
+                    call.cancel(true);
+                    throw new java.net.http.HttpTimeoutException("no answer within " + timeout.toMillis() + " ms");
+                } catch (java.util.concurrent.ExecutionException failed) {
+                    throw failed.getCause() instanceof IOException io ? io : new IOException(failed.getCause());
+                }
+                Map<String, String> headers = new java.util.HashMap<>();
+                response.headers().map().forEach((name, value) -> {
+                    if (!value.isEmpty()) {
+                        headers.put(name.toLowerCase(Locale.ROOT), value.getFirst());
+                    }
+                });
+                return new Reply(response.statusCode(), headers, response.body() == null ? "" : response.body());
+            }
         };
         Scheduler scheduler = (millis, task) -> {
             if (millis <= 0) {
@@ -251,16 +286,16 @@ public final class WebhookRuntime {
                 pending.complete(WebhookResult.INVALIDATED);
                 continue;
             }
-            deliver(lane, pending, true);
+            deliver(lane, pending, true, TIMEOUT);
         }
     }
 
     /** One attempt. With {@code retry}, a failure that may pass goes back to the head of the queue. */
-    private void deliver(Lane lane, Pending pending, boolean retry) {
+    private void deliver(Lane lane, Pending pending, boolean retry, Duration timeout) {
         pending.attempts++;
         Reply reply;
         try {
-            reply = http.exchange("POST", postUri(lane.target), pending.payload.toString());
+            reply = http.exchange("POST", postUri(lane.target), pending.payload.toString(), timeout);
         } catch (InterruptedException interrupted) {
             Thread.currentThread().interrupt();
             pending.complete(WebhookResult.FAILED);
@@ -275,9 +310,11 @@ public final class WebhookRuntime {
         if (status >= 200 && status < 300) {
             pending.complete(WebhookResult.SENT);
         } else if (status == 404 || status == 401) {
-            pending.complete(WebhookResult.INVALIDATED);
+            // Listeners first: a caller that sees INVALIDATED may rely on its
+            // onInvalidated cleanup having already run.
             invalidate(lane, status == 404 ? WebhookCheck.Status.NOT_FOUND : WebhookCheck.Status.UNAUTHORIZED,
                     pending.owner);
+            pending.complete(WebhookResult.INVALIDATED);
         } else if (status == 429) {
             long wait = retryAfter(lane, reply);
             again(lane, pending, retry, wait, WebhookResult.RATE_LIMITED, null);
@@ -486,9 +523,12 @@ public final class WebhookRuntime {
                 queued.addAndGet(-left.size());
             }
             for (Pending pending : left) {
-                if (System.currentTimeMillis() < deadline && lane.openAt <= System.currentTimeMillis()
-                        && globalOpenAt <= System.currentTimeMillis() && !isDead(lane.target)) {
-                    deliver(lane, pending, false);
+                long now = System.currentTimeMillis();
+                if (now < deadline && lane.openAt <= now && globalOpenAt <= now && !isDead(lane.target)) {
+                    // Bounded by what is left of the window, not by the 10 s of a normal
+                    // send: checking the deadline only between requests let one hung
+                    // POST stall the disable for up to 15 s.
+                    deliver(lane, pending, false, Duration.ofMillis(deadline - now));
                 } else {
                     pending.complete(WebhookResult.DROPPED);
                 }

@@ -53,25 +53,14 @@ public final class CooldownScope {
     }
 
     /**
-     * Player scopes, kept rather than rebuilt.
+     * A cooldown belonging to one player.
      *
-     * <p>Every call of the hot path needs one, and they are immutable, so
-     * there is no reason to allocate a fresh one each time. Bounded by the
-     * number of players the server has seen since boot.
+     * <p>Built fresh rather than interned: equality is by value, the object is
+     * tiny, and an intern table keyed by any UUID callers pass (offline players,
+     * mobs) only ever grew.
      */
-    private static final java.util.concurrent.ConcurrentHashMap<UUID, CooldownScope> PLAYERS
-            = new java.util.concurrent.ConcurrentHashMap<>();
-
-    /** A cooldown belonging to one player. */
     public static @NotNull CooldownScope player(@NotNull UUID player) {
-        CooldownScope existing = PLAYERS.get(player);
-        return existing != null ? existing
-                : PLAYERS.computeIfAbsent(player, id -> new CooldownScope("player", "", id));
-    }
-
-    /** Drops a player's cached scope. Called when they leave. */
-    static void forgetPlayer(@NotNull UUID player) {
-        PLAYERS.remove(player);
+        return new CooldownScope("player", "", player);
     }
 
     /** A cooldown belonging to one player. */

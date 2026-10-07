@@ -194,6 +194,32 @@ class CombatTest {
     }
 
     @Test
+    @DisplayName("a disabled plugin's bridge is dropped, and another plugin's stays")
+    void releaseDropsOnlyThatPluginsBridge() throws Exception {
+        Combat.registerBridge(new CombatBridge() {
+            @Override
+            public @NotNull String name() {
+                return "Dying";
+            }
+
+            @Override
+            public boolean isTagged(@NotNull Player player) {
+                return true;
+            }
+        }, 10);
+        try (java.net.URLClassLoader other = new java.net.URLClassLoader(new java.net.URL[0])) {
+            CombatRuntime.release(other);
+            assertEquals("Dying", Combat.providerName(), "another plugin's disable leaves it alone");
+        }
+
+        CombatRuntime.release(getClass().getClassLoader());
+
+        assertEquals("", Combat.providerName(),
+                "a bridge from a dead classloader must not stay the active provider");
+        assertFalse(Combat.isTagged(defender.player()));
+    }
+
+    @Test
     @DisplayName("a player who never died is not infinitely good")
     void ratioHandlesZeroDeaths() {
         assertEquals(10.0, new CombatStats(10, 0, 0, 0, 0, 0).ratio());

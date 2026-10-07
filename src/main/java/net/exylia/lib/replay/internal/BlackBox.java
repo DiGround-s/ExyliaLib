@@ -35,6 +35,7 @@ import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedDeque;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
@@ -77,9 +78,19 @@ public final class BlackBox {
      */
     private static final int SLACK = 300;
 
+    /**
+     * Chunk snapshots a capture asks for per tick. Each one is taken on the
+     * chunk's own thread; four hundred at once is a tick of tens of
+     * milliseconds, while this many is a fraction of one.
+     */
+    static final int SNAPSHOTS_PER_TICK = 24;
+
+    /** How long one chunk read may take before the capture goes on without it. */
+    private static final long READ_TIMEOUT_SECONDS = 60;
+
     private final TaskScheduler scheduler;
     private volatile BlackBoxSettings settings;
-    private final Map<UUID, Tape> tapes = new ConcurrentHashMap<>();
+    final Map<UUID, Tape> tapes = new ConcurrentHashMap<>();
     private final Map<UUID, Watcher> watchers = new ConcurrentHashMap<>();
     private final ConcurrentLinkedDeque<Happening> happenings = new ConcurrentLinkedDeque<>();
     private final ConcurrentLinkedDeque<Change> changes = new ConcurrentLinkedDeque<>();
@@ -245,7 +256,15 @@ public final class BlackBox {
         }
     }
 
-    private void sampleNear(Entity entity, Location here, double reach, int tick) {
+    void sampleNear(Entity entity, Location here, double reach, int tick) {
+        // Already written by somebody else's timer this tick: everything below
+        // would be read only for write() to throw it away. The id is final, so
+        // asking for it is safe whichever region the entity is in now. Players
+        // are not skipped, the same as in write().
+        if (!(entity instanceof Player)) {
+            Tape tape = tapes.get(entity.getUniqueId());
+            if (tape != null && tape.seen == tick) return;
+        }
         try {
             if (!entity.isValid() || entity.getWorld() != here.getWorld()) return;
             // Folia: something that has crossed into another region is that
@@ -453,7 +472,7 @@ public final class BlackBox {
         scheduler.runAsync(() -> {
             try {
                 Plan plan = plan(focus, centerWorld, cx, cy, cz, start, end, event, current);
-                snapshots(plan).whenComplete((shots, failure) -> scheduler.runAsync(() -> {
+                snapshots(plan, current).whenComplete((shots, failure) -> scheduler.runAsync(() -> {
                     try {
                         if (failure != null) throw failure;
                         result.complete(assemble(plan, shots, current));
@@ -545,29 +564,88 @@ public final class BlackBox {
         return new Plan(focus, start, end, drafts);
     }
 
-    /** Reads every chunk the plan covers as it is now, each on its own region. */
-    private CompletableFuture<Map<Long, ChunkSnapshot>[]> snapshots(Plan plan) {
+    /**
+     * Reads every chunk the plan needs as it is now, each on its own region,
+     * {@link #SNAPSHOTS_PER_TICK} a tick.
+     *
+     * <p>Without terrain only the chunks a block changed in are read: the
+     * ground is then wanted for nothing but what each change turned a block
+     * into.
+     */
+    private CompletableFuture<Map<Long, ChunkSnapshot>[]> snapshots(Plan plan, BlackBoxSettings current) {
         @SuppressWarnings("unchecked")
         Map<Long, ChunkSnapshot>[] shots = new Map[plan.scenes.size()];
-        List<CompletableFuture<?>> loading = new ArrayList<>();
+        List<Runnable> reads = new ArrayList<>();
+        List<CompletableFuture<Void>> loading = new ArrayList<>();
         for (int index = 0; index < plan.scenes.size(); index++) {
             Draft draft = plan.scenes.get(index);
             Map<Long, ChunkSnapshot> mine = new ConcurrentHashMap<>();
             shots[index] = mine;
             World world = Bukkit.getWorld(draft.world);
             if (world == null) continue;
+            Set<Long> changed = current.terrain() ? null
+                    : changedChunks(changes, draft.world, draft.from, draft.minSection, draft.maxSection);
             for (long chunk : draft.chunks) {
+                if (changed != null && !changed.contains(chunk)) continue;
                 int x = (int) (chunk >> 32);
                 int z = (int) chunk;
-                CompletableFuture<Void> read = world.getChunkAtAsync(x, z, false)
-                        .thenAccept((Chunk loaded) -> {
-                            if (loaded != null) mine.put(chunk, loaded.getChunkSnapshot(false, false, false));
-                        })
-                        .exceptionally(failure -> null);
+                // A read nobody answers, a chunk stuck loading or a batch whose
+                // task never ran, is a chunk without ground, not a capture that
+                // never finishes.
+                CompletableFuture<Void> read = new CompletableFuture<Void>()
+                        .completeOnTimeout(null, READ_TIMEOUT_SECONDS, TimeUnit.SECONDS);
                 loading.add(read);
+                reads.add(() -> {
+                    try {
+                        world.getChunkAtAsync(x, z, false)
+                                .thenAccept((Chunk loaded) -> {
+                                    if (loaded != null) mine.put(chunk, loaded.getChunkSnapshot(false, false, false));
+                                })
+                                .whenComplete((done, failure) -> read.complete(null));
+                    } catch (RuntimeException unloaded) {
+                        // The world went away in the meantime: that chunk has no ground.
+                        read.complete(null);
+                    }
+                });
             }
         }
+        inBatches(reads, loading, scheduler);
         return CompletableFuture.allOf(loading.toArray(CompletableFuture[]::new)).thenApply(done -> shots);
+    }
+
+    /**
+     * Runs the reads {@link #SNAPSHOTS_PER_TICK} a tick: asking is free, and
+     * the snapshot is taken on the chunk's thread when it answers, so spacing
+     * out the asking spaces out the work there. A batch the scheduler refuses,
+     * because the plugin is going away, completes its reads empty.
+     */
+    static void inBatches(List<Runnable> reads, List<CompletableFuture<Void>> loading, TaskScheduler scheduler) {
+        for (int from = 0; from < reads.size(); from += SNAPSHOTS_PER_TICK) {
+            int to = Math.min(reads.size(), from + SNAPSHOTS_PER_TICK);
+            List<Runnable> batch = reads.subList(from, to);
+            long delay = from / SNAPSHOTS_PER_TICK;
+            if (delay == 0) {
+                batch.forEach(Runnable::run);
+                continue;
+            }
+            try {
+                scheduler.runAsyncLater(delay, () -> batch.forEach(Runnable::run));
+            } catch (RuntimeException refused) {
+                loading.subList(from, to).forEach(read -> read.complete(null));
+            }
+        }
+    }
+
+    /** The chunks a block changed in, in one world since a tick and between two sections. */
+    static Set<Long> changedChunks(Iterable<Change> log, UUID world, int from, int minSection, int maxSection) {
+        Set<Long> chunks = new HashSet<>();
+        for (Change change : log) {
+            if (change.tick < from || !change.world.equals(world)) continue;
+            int section = change.y >> 4;
+            if (section < minSection || section > maxSection) continue;
+            chunks.add(key(change.x >> 4, change.z >> 4));
+        }
+        return chunks;
     }
 
     /** Puts the recording together from the plan, the tapes and the ground. */
@@ -710,19 +788,27 @@ public final class BlackBox {
             Map<Long, Map<Integer, TerrainSection.Builder>> sections = new HashMap<>();
             for (Map.Entry<Long, ChunkSnapshot> entry : shot.entrySet()) {
                 Map<Integer, TerrainSection.Builder> column = new HashMap<>();
-                ChunkSnapshot snapshot = entry.getValue();
-                for (int section = draft.minSection; section <= draft.maxSection; section++) {
-                    column.put(section, read(snapshot, section, names));
+                // Without terrain a section is read only once a change needs it.
+                if (terrain != null) {
+                    for (int section = draft.minSection; section <= draft.maxSection; section++) {
+                        column.put(section, read(entry.getValue(), section, names));
+                    }
                 }
                 sections.put(entry.getKey(), column);
             }
             for (int at = log.size() - 1; at >= 0; at--) {
                 Change change = log.get(at);
                 if (change.tick < draft.from || !change.world.equals(draft.world)) continue;
-                Map<Integer, TerrainSection.Builder> column = sections.get(key(change.x >> 4, change.z >> 4));
+                long chunk = key(change.x >> 4, change.z >> 4);
+                Map<Integer, TerrainSection.Builder> column = sections.get(chunk);
                 if (column == null) continue;
-                TerrainSection.Builder section = column.get(change.y >> 4);
-                if (section == null) continue;
+                int y = change.y >> 4;
+                TerrainSection.Builder section = column.get(y);
+                if (section == null) {
+                    if (terrain != null || y < draft.minSection || y > draft.maxSection) continue;
+                    section = read(shot.get(chunk), y, names);
+                    column.put(y, section);
+                }
                 int lx = change.x & 15;
                 int ly = change.y & 15;
                 int lz = change.z & 15;
@@ -829,7 +915,7 @@ public final class BlackBox {
     }
 
     /** One block change: where, when, and what the block was before it. */
-    private record Change(int tick, UUID world, int x, int y, int z, BlockData was) {
+    record Change(int tick, UUID world, int x, int y, int z, BlockData was) {
     }
 
     /** One scene being worked out. */

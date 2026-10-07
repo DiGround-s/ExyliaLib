@@ -7,8 +7,10 @@ import net.exylia.lib.database.internal.SqlSettings;
 import net.exylia.lib.database.internal.Storage;
 import net.exylia.lib.debug.Debug;
 import net.exylia.lib.redis.Channel;
+import net.exylia.lib.redis.RedisSettings;
 import net.exylia.lib.redis.internal.RedisRuntime;
 import net.exylia.lib.redis.internal.RowCache;
+import net.exylia.lib.task.Tasks;
 import org.bukkit.plugin.Plugin;
 import org.jetbrains.annotations.ApiStatus;
 import org.jetbrains.annotations.NotNull;
@@ -19,6 +21,8 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 
 /**
@@ -72,6 +76,9 @@ public final class PluginDatabase {
     /** How long a failed preparation is kept before it is tried again. */
     private static final long RETRY_AFTER_MILLIS = 30_000L;
 
+    /** How often a listener waiting for Redis checks again: five seconds. */
+    private static final long LISTEN_RETRY_TICKS = 100L;
+
     private final Plugin plugin;
     private final SqlSettings settings;
 
@@ -87,14 +94,16 @@ public final class PluginDatabase {
     private boolean released;
 
     /**
-     * The shared cache, resolved lazily and at most once.
+     * The shared cache once one was found; {@code null} until then.
      *
-     * <p>The flag rather than a null check: a plugin that configured no Redis
-     * resolves to null, and without it every repository would try to open a
-     * connection again.
+     * <p>Only a found cache is kept. Keeping "there is none" too used to turn a
+     * Redis that was briefly unreachable at startup into a run without a
+     * cache or cross-server invalidation until the next restart. Asking again
+     * costs nothing when Redis is off — the settings say so before any
+     * connection is looked up — and the Redis module rate-limits the retries
+     * when it is down.
      */
-    private RowCache cache;
-    private boolean cacheResolved;
+    private volatile RowCache cache;
 
     /** How to stop each listener this plugin registered, so a reload does not hear twice. */
     private final List<Runnable> listeners = new CopyOnWriteArrayList<>();
@@ -259,11 +268,57 @@ public final class PluginDatabase {
                                                         @NotNull Consumer<RowChange> listener) {
         Repository<?> repository = repository(recordType);
         RowCache shared = cache();
-        if (shared == null) {
+        if (shared != null) {
+            return attach(shared, repository.model(), listener);
+        }
+        if (!DatabaseRuntime.redis(plugin).enabled()) {
             return () -> { };
         }
-        Runnable stop = shared.listen(repository.model(), listener);
-        listeners.add(stop);
+        // Configured but not connected yet: at enable, or during an outage.
+        // Checked again in the background until the cache is there, however
+        // long that takes, so the listener is attached late rather than lost
+        // while the repositories themselves heal. The timer dies with the
+        // plugin.
+        AtomicBoolean closed = new AtomicBoolean();
+        AtomicReference<Channel.Subscription> attached = new AtomicReference<>();
+        Tasks.of(plugin).runAsyncTimer(1L, LISTEN_RETRY_TICKS, handle -> {
+            if (closed.get()) {
+                handle.cancel();
+                return;
+            }
+            RowCache later = cache();
+            if (later == null) {
+                return;
+            }
+            handle.cancel();
+            attached.set(attach(later, repository.model(), listener));
+            if (closed.get()) {
+                // Closed while attaching: whichever side takes it closes it.
+                Channel.Subscription late = attached.getAndSet(null);
+                if (late != null) {
+                    late.close();
+                }
+            }
+        });
+        return () -> {
+            closed.set(true);
+            Channel.Subscription live = attached.getAndSet(null);
+            if (live != null) {
+                live.close();
+            }
+        };
+    }
+
+    private Channel.Subscription attach(RowCache shared, EntityModel<?> model,
+                                        Consumer<RowChange> listener) {
+        Runnable stop = shared.listen(model, listener);
+        synchronized (this) {
+            if (released) {
+                stop.run();
+                return () -> { };
+            }
+            listeners.add(stop);
+        }
         return () -> {
             stop.run();
             listeners.remove(stop);
@@ -296,18 +351,47 @@ public final class PluginDatabase {
     }
 
     /**
-     * The shared cache for this plugin, or {@code null} when it configured none.
+     * The shared cache for this plugin, or {@code null} when it configured none
+     * or Redis is not reachable right now.
      *
-     * <p>Resolved once, on the first repository, so a plugin with no Redis pays
-     * nothing and one with Redis opens a single connection however many record
-     * types it registers.
+     * <p>Kept once found, so the common case is a field read. Until then every
+     * call asks again, which is what lets a cache that comes up late be used:
+     * one connection however many record types ask, because the Redis module
+     * shares it.
      */
-    private synchronized @Nullable RowCache cache() {
-        if (!cacheResolved) {
-            cacheResolved = true;
-            cache = RedisRuntime.cache(plugin, DatabaseRuntime.redis(plugin));
+    private @Nullable RowCache cache() {
+        RowCache found = cache;
+        if (found == null) {
+            // Never waits for a connect: this runs on every operation, and
+            // during an outage a wait here would hold every database thread
+            // for the connect timeout once per retry window.
+            found = RedisRuntime.cacheIfOpen(plugin, DatabaseRuntime.redis(plugin));
+            if (found != null) {
+                cache = found;
+            }
         }
-        return cache;
+        return found;
+    }
+
+    /**
+     * Puts the cache in front of a storage, when this plugin configured one.
+     *
+     * <p>The one place that may wait for Redis to connect: it runs once per
+     * table, in the background, while the repository is being prepared, so a
+     * plugin whose Redis is up starts cached from its first operation.
+     */
+    private Storage wrap(Storage opened) {
+        RedisSettings settings = DatabaseRuntime.redis(plugin);
+        if (!settings.enabled()) {
+            return opened;
+        }
+        if (cache == null) {
+            RowCache found = RedisRuntime.cache(plugin, settings);
+            if (found != null) {
+                cache = found;
+            }
+        }
+        return RedisRuntime.wrap(opened, this::cache, DatabaseRuntime.executor());
     }
 
     /**
@@ -358,7 +442,9 @@ public final class PluginDatabase {
                 // registers the table for invalidation: a peer's message names
                 // a table, and this is the one place that knows this server
                 // reads it.
-                RedisRuntime.wrap(opened, cache(), DatabaseRuntime.executor())).thenCompose(storage ->
+                // A supplier, not the cache: a Redis that is down while this
+                // runs must not leave the repository uncached for the run.
+                wrap(opened)).thenCompose(storage ->
                 storage.prepare(model).thenApply(report -> {
                     // Only the start where something changed is worth a line. On
                     // a server that has been running for months nothing changes

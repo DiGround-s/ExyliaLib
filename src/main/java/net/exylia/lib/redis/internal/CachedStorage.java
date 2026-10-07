@@ -11,8 +11,11 @@ import java.math.BigDecimal;
 import java.util.Collection;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.Executor;
+import java.util.function.BiConsumer;
 import java.util.function.Consumer;
+import java.util.function.Supplier;
 
 /**
  * A {@link Storage} that answers key lookups from Redis before asking the
@@ -63,7 +66,19 @@ import java.util.function.Consumer;
 public final class CachedStorage implements Storage {
 
     private final Storage delegate;
-    private final RowCache cache;
+
+    /**
+     * Asked on every operation rather than captured once: a repository built
+     * while Redis was still down starts using the cache the moment it is up,
+     * instead of running uncached for the rest of the run.
+     */
+    private final Supplier<@Nullable RowCache> caches;
+
+    /** Tables this storage prepared, registered with whichever cache turns up. */
+    private final List<EntityModel<?>> prepared = new CopyOnWriteArrayList<>();
+
+    /** The cache {@link #prepared} was last registered with. */
+    private volatile @Nullable RowCache registered;
 
     /**
      * Where every Redis call runs: the database's own background executor.
@@ -75,10 +90,13 @@ public final class CachedStorage implements Storage {
      * a callback attached to a database future that had already completed runs
      * on the thread attaching it.
      *
-     * <p>Inline only when the executor refuses the work, which means the
-     * library is shutting down: a write the database already accepted must
-     * still reach the cache rather than fail its caller over a scheduler that
-     * is gone.
+     * <p>When the executor refuses the work — the library is shutting down,
+     * or the database queue is full — the cache step is skipped, never run
+     * inline: inline is the caller's thread, usually the server's, and a
+     * Redis round trip there is the stall this executor exists to prevent. A
+     * skipped read is a cache miss; a skipped write leaves the database row,
+     * which is what the caller was promised, and peers' copies expire on their
+     * own.
      */
     private final Executor background;
 
@@ -91,15 +109,54 @@ public final class CachedStorage implements Storage {
      */
     public CachedStorage(@NotNull Storage delegate, @NotNull RowCache cache,
                          @NotNull Executor executor) {
+        this(delegate, () -> cache, executor);
+    }
+
+    /**
+     * Wraps a storage with a cache that may not exist yet.
+     *
+     * @param delegate what actually stores rows
+     * @param caches   the cache, or {@code null} while Redis is unavailable
+     * @param executor where Redis is talked to, never the caller's thread
+     */
+    public CachedStorage(@NotNull Storage delegate, @NotNull Supplier<@Nullable RowCache> caches,
+                         @NotNull Executor executor) {
         this.delegate = delegate;
-        this.cache = cache;
-        this.background = task -> {
-            try {
-                executor.execute(task);
-            } catch (RuntimeException refused) {
-                task.run();
+        this.caches = caches;
+        this.background = executor;
+    }
+
+    /** The cache right now, with this storage's tables registered on it. */
+    private @Nullable RowCache cache() {
+        RowCache cache = caches.get();
+        if (cache != null && cache != registered) {
+            prepared.forEach(cache::register);
+            registered = cache;
+        }
+        return cache;
+    }
+
+    /**
+     * Runs a cache step after a database result, in the background.
+     *
+     * <p>A refused step is dropped and the database result passes through
+     * untouched; see {@link #background}.
+     */
+    private <R> CompletableFuture<R> after(CompletableFuture<R> stored, BiConsumer<RowCache, R> step) {
+        return stored.thenCompose(result -> {
+            RowCache cache = cache();
+            if (cache == null) {
+                return CompletableFuture.completedFuture(result);
             }
-        };
+            try {
+                return CompletableFuture.supplyAsync(() -> {
+                    step.accept(cache, result);
+                    return result;
+                }, background);
+            } catch (RuntimeException refused) {
+                return CompletableFuture.completedFuture(result);
+            }
+        });
     }
 
     // ------------------------------------------------------------------ read
@@ -110,24 +167,33 @@ public final class CachedStorage implements Storage {
         // Memory answers on the spot. Redis never does: a miss here moves to
         // the background before asking Redis, and only a second miss goes on
         // to the database.
+        RowCache cache = cache();
+        if (cache == null) {
+            return delegate.find(model, id);
+        }
         T hit = cache.local(model, id);
         if (hit != null) {
             return CompletableFuture.completedFuture(hit);
         }
-        return CompletableFuture.supplyAsync(() -> cache.get(model, id), background)
-                .thenCompose(shared -> shared != null
-                        ? CompletableFuture.completedFuture(shared)
-                        : delegate.find(model, id).thenApplyAsync(found -> {
-                            if (found != null) {
-                                // Only a row that exists. Caching "there is no such row" would
-                                // need the same invalidation on insert that a row needs on
-                                // update, and a first join writes exactly that row moments
-                                // later — so the absence is the one thing guaranteed to be
-                                // wrong almost immediately.
-                                cache.put(model, id, found);
-                            }
-                            return found;
-                        }, background));
+        CompletableFuture<T> shared;
+        try {
+            shared = CompletableFuture.supplyAsync(() -> cache.get(model, id), background);
+        } catch (RuntimeException refused) {
+            // No thread to ask Redis on: a miss, straight to the database.
+            return delegate.find(model, id);
+        }
+        return shared.thenCompose(found -> found != null
+                ? CompletableFuture.completedFuture(found)
+                : after(delegate.find(model, id), (current, row) -> {
+                    if (row != null) {
+                        // Only a row that exists. Caching "there is no such row" would
+                        // need the same invalidation on insert that a row needs on
+                        // update, and a first join writes exactly that row moments
+                        // later — so the absence is the one thing guaranteed to be
+                        // wrong almost immediately.
+                        current.put(model, id, row);
+                    }
+                }));
     }
 
     @Override
@@ -136,7 +202,8 @@ public final class CachedStorage implements Storage {
         // A cached row is proof of existence and costs nothing to check. A miss
         // is not proof of absence, so it asks the database — and does not cache
         // the answer, because this method never sees the row it would store.
-        return cache.has(model, id)
+        RowCache cache = cache();
+        return cache != null && cache.has(model, id)
                 ? CompletableFuture.completedFuture(Boolean.TRUE)
                 : delegate.exists(model, id);
     }
@@ -174,10 +241,8 @@ public final class CachedStorage implements Storage {
         // After the database, not before. The cache must never hold a value the
         // database rejected: a constraint violation would otherwise leave every
         // server in the network reading a row that does not exist.
-        return delegate.save(model, record).thenApplyAsync(ignored -> {
-            cache.put(model, model.id().decode(model.idOf(record)), record);
-            return null;
-        }, background);
+        return after(delegate.save(model, record),
+                (cache, ignored) -> cache.put(model, model.id().decode(model.idOf(record)), record));
     }
 
     @Override
@@ -186,10 +251,8 @@ public final class CachedStorage implements Storage {
         // The same order as save, for the same reason: a peer told to re-read
         // before the row is written would cache exactly the value it was told
         // to drop.
-        return delegate.update(model, record).thenApplyAsync(ignored -> {
-            cache.put(model, model.id().decode(model.idOf(record)), record);
-            return null;
-        }, background);
+        return after(delegate.update(model, record),
+                (cache, ignored) -> cache.put(model, model.id().decode(model.idOf(record)), record));
     }
 
     @Override
@@ -197,10 +260,8 @@ public final class CachedStorage implements Storage {
                                                           @NotNull ColumnModel column) {
         // Dropped, not put: the database computed the new value and this side
         // never saw it.
-        return delegate.increment(model, record, column).thenApplyAsync(ignored -> {
-            cache.drop(model, model.id().decode(model.idOf(record)));
-            return null;
-        }, background);
+        return after(delegate.increment(model, record, column),
+                (cache, ignored) -> cache.drop(model, model.id().decode(model.idOf(record))));
     }
 
     @Override
@@ -209,15 +270,14 @@ public final class CachedStorage implements Storage {
                                                             @Nullable Object expected) {
         // A loser most likely compared against a stale cached row, so its copy
         // goes too and the next read reaches the database.
-        return delegate.updateIf(model, record, column, expected).thenApplyAsync(won -> {
+        return after(delegate.updateIf(model, record, column, expected), (cache, won) -> {
             Object id = model.id().decode(model.idOf(record));
             if (won) {
                 cache.put(model, id, record);
             } else {
                 cache.drop(model, id);
             }
-            return won;
-        }, background);
+        });
     }
 
     @Override
@@ -227,26 +287,24 @@ public final class CachedStorage implements Storage {
         // insert completed. Nothing else can hold this row yet — no other server
         // can have read a key that did not exist a moment ago — so there is
         // nothing to invalidate, only something to publish.
-        return delegate.insert(model, record).thenApplyAsync(key -> {
+        return after(delegate.insert(model, record), (cache, key) -> {
             T stored = model.withId(record, key);
             // Keyed exactly as save() keys it, off the stored record rather than
             // off the raw number: an int key and a long one must not produce two
             // different cache keys for the same row.
             cache.put(model, model.id().decode(model.idOf(stored)), stored);
-            return key;
-        }, background);
+        });
     }
 
     @Override
     public <T> @NotNull CompletableFuture<Void> saveAll(@NotNull EntityModel<T> model,
                                                         @NotNull Collection<T> records) {
         List<T> copy = List.copyOf(records);
-        return delegate.saveAll(model, copy).thenApplyAsync(ignored -> {
+        return after(delegate.saveAll(model, copy), (cache, ignored) -> {
             for (T record : copy) {
                 cache.put(model, model.id().decode(model.idOf(record)), record);
             }
-            return null;
-        }, background);
+        });
     }
 
     // ------------------------------------------------------------- row level
@@ -300,13 +358,12 @@ public final class CachedStorage implements Storage {
     @Override
     public @NotNull CompletableFuture<Boolean> delete(@NotNull EntityModel<?> model,
                                                       @NotNull Object id) {
-        return delegate.delete(model, id).thenApplyAsync(removed -> {
+        return after(delegate.delete(model, id), (cache, removed) -> {
             // Dropped whether or not a row was there. A delete that reports
             // "nothing to remove" against a cache that still holds the row is
             // the one case where the two disagree and the cache is wrong.
             cache.drop(model, id);
-            return removed;
-        }, background);
+        });
     }
 
     @Override
@@ -314,27 +371,25 @@ public final class CachedStorage implements Storage {
                                                            @NotNull List<String> whereColumns,
                                                            @NotNull List<Object> whereValues,
                                                            int limit) {
-        return delegate.deleteWhere(model, whereColumns, whereValues, limit).thenApplyAsync(removed -> {
+        return after(delegate.deleteWhere(model, whereColumns, whereValues, limit), (cache, removed) -> {
             if (removed > 0) {
                 // The keys are unknown — a filter deleted them — so the whole
                 // table goes. Rare by design: this is the only path that does
                 // it, and a plugin calls it on a wipe, not on a player quit.
                 cache.dropTable(model);
             }
-            return removed;
-        }, background);
+        });
     }
 
     @Override
     public @NotNull CompletableFuture<Long> deleteAll(@NotNull EntityModel<?> model) {
-        return delegate.deleteAll(model).thenApplyAsync(removed -> {
+        return after(delegate.deleteAll(model), (cache, removed) -> {
             // Dropped whether or not anything was there, unlike the filtered
             // delete above. A wipe of a table this server has cached and
             // another server has already emptied still has to clear what is
             // held here, and that is exactly the case where the count is zero.
             cache.dropTable(model);
-            return removed;
-        }, background);
+        });
     }
 
     // ------------------------------------------------------------- lifecycle
@@ -345,7 +400,9 @@ public final class CachedStorage implements Storage {
         // Nothing to cache about a CREATE TABLE, and this is also where the
         // table registers for invalidation: a peer's message names a table, and
         // only a table something here reads is worth dropping anything for.
-        cache.register(model);
+        prepared.add(model);
+        registered = null;
+        cache();
         return delegate.prepare(model);
     }
 

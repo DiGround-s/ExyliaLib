@@ -115,8 +115,24 @@ class ItemDecorTest {
         assertEquals(List.of("skin", "total 740"), lines.stream().map(ItemDecorTest::plain).toList());
         assertEquals(37, original.getAmount());
         assertFalse(original == seen[0]);
-        assertFalse(original == seen[1]);
+        // The last provider is handed the caller's stack: nobody reads it after.
+        assertSame(original, seen[1]);
         assertFalse(seen[0] == seen[1]);
+    }
+
+    @Test
+    @DisplayName("a single provider is handed the stack itself, with nothing copied")
+    void singleProviderNoCopy() {
+        Stack original = new Stack();
+        Object[] seen = new Object[1];
+        Packets.of(shop).itemLines().provider((v, item, place) -> {
+            seen[0] = item;
+            return List.of(Component.text("worth"));
+        });
+
+        ItemDecor.lines(viewer, original, ItemPlace.OWN);
+
+        assertSame(original, seen[0]);
     }
 
     @Test

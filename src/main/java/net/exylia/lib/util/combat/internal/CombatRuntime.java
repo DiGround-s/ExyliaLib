@@ -106,6 +106,28 @@ public final class CombatRuntime {
         }
     }
 
+    /**
+     * Drops the bridges a disabled plugin registered, and chooses again.
+     *
+     * <p>A bridge is that plugin's code: kept, it pins the dead classloader and
+     * stays the active provider, answering from a plugin that is gone.
+     *
+     * @param plugin the plugin being disabled
+     */
+    public static void release(Plugin plugin) {
+        release(plugin.getClass().getClassLoader());
+    }
+
+    /** Matched by classloader: a bridge has no owner field, but its class does. */
+    static void release(ClassLoader loader) {
+        synchronized (LOCK) {
+            if (BRIDGES.keySet().removeIf(bridge -> bridge.getClass().getClassLoader() == loader)) {
+                detect();
+                invalidate();
+            }
+        }
+    }
+
     public static void shutdown() {
         synchronized (LOCK) {
             active = null;

@@ -115,6 +115,54 @@ class DisplayTest {
     }
 
     @Test
+    @DisplayName("a countdown title resends only when its text changes, not every tick")
+    void titleSkipsUnchangedRedraws() {
+        Effects.title("%time%").subtitle("Get ready").countdown(3.0).timeStyle("seconds")
+                .show(viewer.player());
+        FakeServer.tick(1);
+        viewer.clear();
+        // Two whole seconds: the number changes twice, and the default 70-tick
+        // stay never needs a keepalive in between.
+        FakeServer.tick(40);
+
+        List<String> titles = viewer.titleParts().stream()
+                .filter(part -> part.startsWith("TitlePart.TITLE=")).toList();
+        // The two changes plus a half-second refresh, not forty.
+        assertTrue(titles.size() >= 4 && titles.size() <= 6,
+                "an unchanged title is two packets per viewer per tick for nothing: " + titles);
+        assertTrue(titles.contains("TitlePart.TITLE=2") && titles.contains("TitlePart.TITLE=1"), titles.toString());
+    }
+
+    @Test
+    @DisplayName("a title wiped by something else comes back within half a second")
+    void wipedTitleReturnsQuickly() {
+        Effects.title("%time%").countdown(30.0).timeStyle("seconds").show(viewer.player());
+        FakeServer.tick(1);
+        viewer.clear();
+        // Within one displayed second, so the text never changes: only the
+        // refresh can bring a cleared title back.
+        FakeServer.tick(12);
+
+        assertTrue(viewer.titleParts().stream().anyMatch(part -> part.startsWith("TitlePart.TITLE=")),
+                "a 30 s countdown must not wait for its fade-out to redraw: " + viewer.titleParts());
+    }
+
+    @Test
+    @DisplayName("an unchanged title is resent before its stay runs out")
+    void unchangedTitleIsKeptAlive() {
+        Effects.title("%time%").countdown(60.0).times(0, 0.25, 0).timeStyle("seconds")
+                .show(viewer.player());
+        FakeServer.tick(1);
+        viewer.clear();
+        FakeServer.tick(40);
+
+        long sent = viewer.titleParts().stream().filter(part -> part.startsWith("TitlePart.TITLE=")).count();
+        // A five-tick stay: resent every four ticks or so, never left to expire,
+        // and still far from once a tick.
+        assertTrue(sent >= 8 && sent <= 15, "a short stay hides the title unless it is resent: " + sent);
+    }
+
+    @Test
     @DisplayName("an action bar reaches the player")
     void actionBarIsShown() {
         Effects.actionBar("{success}Saved").show(viewer.player());

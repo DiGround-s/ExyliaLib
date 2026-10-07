@@ -119,7 +119,37 @@ public final class PacketRuntime {
     private static final Map<UUID, Overlay> OVERLAYS = new ConcurrentHashMap<>();
 
     /** One drawn item, the hotbar slot it is drawn in, and what a drop of it means. */
-    record Overlay(int slot, ItemStack item, @Nullable Runnable onDrop) {
+    static final class Overlay {
+        private final int slot;
+        private final ItemStack item;
+        private final @Nullable Runnable onDrop;
+        /**
+         * The item as PacketEvents writes it, converted on its first draw.
+         *
+         * <p>Converting goes through the server's own item serialization, and
+         * the overlay is drawn into every inventory packet the player gets.
+         * Typed {@code Object} so this class never names PacketEvents; two
+         * threads converting at once both arrive at the same stack.
+         */
+        volatile Object encoded;
+
+        Overlay(int slot, ItemStack item, @Nullable Runnable onDrop) {
+            this.slot = slot;
+            this.item = item;
+            this.onDrop = onDrop;
+        }
+
+        int slot() {
+            return slot;
+        }
+
+        ItemStack item() {
+            return item;
+        }
+
+        @Nullable Runnable onDrop() {
+            return onDrop;
+        }
     }
 
     /**

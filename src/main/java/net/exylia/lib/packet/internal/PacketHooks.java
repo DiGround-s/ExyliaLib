@@ -6,6 +6,7 @@ import com.github.retrooper.packetevents.event.PacketListenerAbstract;
 import com.github.retrooper.packetevents.event.PacketListenerPriority;
 import com.github.retrooper.packetevents.event.PacketReceiveEvent;
 import com.github.retrooper.packetevents.event.PacketSendEvent;
+import com.github.retrooper.packetevents.netty.buffer.ByteBufHelper;
 import com.github.retrooper.packetevents.protocol.packettype.PacketType;
 import com.github.retrooper.packetevents.protocol.packettype.PacketTypeCommon;
 import com.github.retrooper.packetevents.protocol.entity.data.EntityData;
@@ -303,6 +304,7 @@ final class PacketHooks extends PacketListenerAbstract implements PacketSink {
         if (item == null || item.isEmpty()) {
             return null;
         }
+        // A fresh stack nobody else holds: handed over, so a lone provider gets it uncopied.
         List<Component> lines = ItemDecor.lines(viewer, SpigotConversionUtil.toBukkitItemStack(item), place);
         if (lines.isEmpty()) {
             return null;
@@ -336,7 +338,7 @@ final class PacketHooks extends PacketListenerAbstract implements PacketSink {
         if (type == PacketType.Play.Server.SET_SLOT) {
             WrapperPlayServerSetSlot packet = new WrapperPlayServerSetSlot(event);
             if (packet.getWindowId() == PLAYER_WINDOW && packet.getSlot() == HOTBAR_IN_WINDOW + overlay.slot()) {
-                packet.setItem(SpigotConversionUtil.fromBukkitItemStack(overlay.item()));
+                packet.setItem(overlayItem(overlay));
                 event.markForReEncode(true);
             }
         } else if (type == PacketType.Play.Server.WINDOW_ITEMS) {
@@ -344,17 +346,32 @@ final class PacketHooks extends PacketListenerAbstract implements PacketSink {
             int index = HOTBAR_IN_WINDOW + overlay.slot();
             if (packet.getWindowId() == PLAYER_WINDOW && index < packet.getItems().size()) {
                 List<ItemStack> drawn = new ArrayList<>(packet.getItems());
-                drawn.set(index, SpigotConversionUtil.fromBukkitItemStack(overlay.item()));
+                drawn.set(index, overlayItem(overlay));
                 packet.setItems(drawn);
                 event.markForReEncode(true);
             }
         } else if (type == PacketType.Play.Server.SET_PLAYER_INVENTORY) {
             WrapperPlayServerSetPlayerInventory packet = new WrapperPlayServerSetPlayerInventory(event);
             if (packet.getSlot() == overlay.slot()) {
-                packet.setStack(SpigotConversionUtil.fromBukkitItemStack(overlay.item()));
+                packet.setStack(overlayItem(overlay));
                 event.markForReEncode(true);
             }
         }
+    }
+
+    /**
+     * The overlaid item as a packet carries it, converted once per overlay.
+     *
+     * <p>Handed out as a copy: a listener after this one may edit the stack in
+     * the packet in place, and that must not reach the next packet.
+     */
+    private static ItemStack overlayItem(PacketRuntime.Overlay overlay) {
+        if (overlay.encoded instanceof ItemStack encoded) {
+            return encoded.copy();
+        }
+        ItemStack encoded = SpigotConversionUtil.fromBukkitItemStack(overlay.item());
+        overlay.encoded = encoded;
+        return encoded.copy();
     }
 
     /**
@@ -407,12 +424,35 @@ final class PacketHooks extends PacketListenerAbstract implements PacketSink {
         }
         String text;
         try {
-            text = PlainTextComponentSerializer.plainText()
-                    .serialize(new WrapperPlayServerSystemChatMessage(event).getMessage());
+            text = flatten(new WrapperPlayServerSystemChatMessage(event).getMessage());
         } catch (Throwable unreadable) {
             return true;
         }
         return PacketRuntime.canRead(receiver, text);
+    }
+
+    /** One line and what it reads as; replaced whole, so a reader never sees half of one. */
+    private record Flattened(Component message, String text) {
+    }
+
+    private static volatile Flattened lastFlattened;
+
+    /**
+     * A line as plain text, remembering the last one.
+     *
+     * <p>A broadcast goes out once per receiver, each decoded on its own, so
+     * fifty players meant fifty serializations of equal components. Comparing
+     * against the last one is far cheaper than walking it again; a line that
+     * differs simply replaces it.
+     */
+    static String flatten(Component message) {
+        Flattened last = lastFlattened;
+        if (last != null && last.message().equals(message)) {
+            return last.text();
+        }
+        String text = PlainTextComponentSerializer.plainText().serialize(message);
+        lastFlattened = new Flattened(message, text);
+        return text;
     }
 
     private static boolean isWorldBorder(PacketTypeCommon type) {
@@ -425,8 +465,23 @@ final class PacketHooks extends PacketListenerAbstract implements PacketSink {
                 || type == PacketType.Play.Server.WORLD_BORDER;
     }
 
-    /** The entity a packet is about, or {@code -1} when it has none. */
+    /**
+     * The entity a packet is about, or {@code -1} when it has none.
+     *
+     * <p>With one player vanished this runs for every entity packet to every
+     * viewer, on the Netty threads. A wrapper decodes the whole packet — every
+     * metadata entry, every equipment item — to hand back the first field, so
+     * the packets that lead with the entity id as a VarInt have it peeked
+     * straight off the buffer instead.
+     */
     private static int subjectOf(PacketSendEvent event, PacketTypeCommon type) {
+        // A wrapper an earlier listener decoded is what a new wrapper copies,
+        // edits included, and its edits are not in the buffer until the end:
+        // then only the wrapper gives the same answer.
+        if (leadsWithEntityId(type) && event.getLastUsedWrapper() == null
+                && event.getServerVersion().isNewerThanOrEquals(ServerVersion.V_1_8)) {
+            return peekVarInt(event.getByteBuf());
+        }
         if (type == PacketType.Play.Server.SPAWN_ENTITY) {
             return new WrapperPlayServerSpawnEntity(event).getEntityId();
         }
@@ -478,6 +533,43 @@ final class PacketHooks extends PacketListenerAbstract implements PacketSink {
         // SOUND_EFFECT and PARTICLE carry a position, not an entity: nothing
         // to attribute them to, so they pass.
         return -1;
+    }
+
+    /**
+     * Whether a packet's first field is the entity id as a VarInt, from 1.8 on.
+     *
+     * <p>Checked against each wrapper's {@code read()} in PacketEvents 2.13.
+     * Left out on purpose: the entity status, which leads with a plain int,
+     * the entity sound, which leads with the sound, and the spawn, which is
+     * rare enough not to be worth the risk.
+     */
+    static boolean leadsWithEntityId(PacketTypeCommon type) {
+        return type == PacketType.Play.Server.ENTITY_METADATA
+                || type == PacketType.Play.Server.ENTITY_RELATIVE_MOVE
+                || type == PacketType.Play.Server.ENTITY_RELATIVE_MOVE_AND_ROTATION
+                || type == PacketType.Play.Server.ENTITY_ROTATION
+                || type == PacketType.Play.Server.ENTITY_HEAD_LOOK
+                || type == PacketType.Play.Server.ENTITY_TELEPORT
+                || type == PacketType.Play.Server.ENTITY_POSITION_SYNC
+                || type == PacketType.Play.Server.ENTITY_VELOCITY
+                || type == PacketType.Play.Server.ENTITY_ANIMATION
+                || type == PacketType.Play.Server.ENTITY_EQUIPMENT
+                || type == PacketType.Play.Server.ENTITY_EFFECT
+                || type == PacketType.Play.Server.DAMAGE_EVENT
+                || type == PacketType.Play.Server.HURT_ANIMATION;
+    }
+
+    /**
+     * Reads the VarInt at the buffer's reader index and leaves the index where
+     * it was, so every listener after this one reads the packet untouched.
+     */
+    static int peekVarInt(Object buffer) {
+        int at = ByteBufHelper.readerIndex(buffer);
+        try {
+            return ByteBufHelper.readVarInt(buffer);
+        } finally {
+            ByteBufHelper.readerIndex(buffer, at);
+        }
     }
 
     /** Drops the hidden players' rows from a tab-list update, keeping the rest. */

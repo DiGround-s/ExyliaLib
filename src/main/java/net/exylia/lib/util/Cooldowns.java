@@ -139,8 +139,14 @@ public final class Cooldowns {
             clear(scope, key);
             return;
         }
-        COOLDOWNS.computeIfAbsent(scope, s -> new ConcurrentHashMap<>())
-                .put(key, clock.getAsLong() + millis);
+        long expiry = clock.getAsLong() + millis;
+        // compute, not computeIfAbsent + put: the sweep may drop an empty map in
+        // between, and the cooldown would land in a map nobody holds any more.
+        COOLDOWNS.compute(scope, (s, owned) -> {
+            Map<String, Long> map = owned != null ? owned : new ConcurrentHashMap<>();
+            map.put(key, expiry);
+            return map;
+        });
 
         if (millis >= PERSIST_THRESHOLD.toMillis()) {
             markDirty(scope);
@@ -393,7 +399,6 @@ public final class Cooldowns {
         CooldownScope scope = CooldownScope.player(player);
         flush(scope);
         COOLDOWNS.remove(scope);
-        CooldownScope.forgetPlayer(player);
     }
 
     /** Forgets everybody, writing whatever is pending first. */
@@ -422,11 +427,13 @@ public final class Cooldowns {
         if (saved.isEmpty()) {
             return;
         }
-        Map<String, Long> owned = COOLDOWNS.computeIfAbsent(
-                scope, s -> new ConcurrentHashMap<>());
         // putIfAbsent, not put: anything started since the server came up is
         // newer than the file and must win.
-        saved.forEach(owned::putIfAbsent);
+        COOLDOWNS.compute(scope, (s, owned) -> {
+            Map<String, Long> map = owned != null ? owned : new ConcurrentHashMap<>();
+            saved.forEach(map::putIfAbsent);
+            return map;
+        });
     }
 
     /** Loads a player's saved cooldowns back into memory. */
@@ -445,6 +452,26 @@ public final class Cooldowns {
         }
         Map<String, Long> snapshot = persistentOf(scope);
         writer.accept(() -> current.save(scope.storageId(), snapshot));
+    }
+
+    /**
+     * Drops every cooldown that has run out.
+     *
+     * <p>An expired key is otherwise only dropped when something reads that
+     * exact owner and key again. Player owners go on quit, but a group, block or
+     * arena owner nobody asks about again would keep its map for the whole
+     * uptime. Runs on the same asynchronous timer as {@link #flushAll()}; it does
+     * not mark anything dirty, because expired keys are skipped when a file is
+     * loaded.
+     */
+    public static void sweepExpired() {
+        long now = clock.getAsLong();
+        for (CooldownScope scope : COOLDOWNS.keySet()) {
+            COOLDOWNS.computeIfPresent(scope, (s, owned) -> {
+                owned.values().removeIf(expiry -> expiry <= now);
+                return owned.isEmpty() ? null : owned;
+            });
+        }
     }
 
     /** Writes every owner whose long cooldowns changed. */
@@ -509,9 +536,7 @@ public final class Cooldowns {
     /** Removes a key and tidies up after it. */
     private static void drop(CooldownScope scope, Map<String, Long> owned, String key) {
         owned.remove(key);
-        if (owned.isEmpty()) {
-            COOLDOWNS.remove(scope, owned);
-        }
+        COOLDOWNS.computeIfPresent(scope, (s, map) -> map.isEmpty() ? null : map);
         // The file may hold this key, so it needs rewriting even though what
         // changed was a removal.
         markDirty(scope);

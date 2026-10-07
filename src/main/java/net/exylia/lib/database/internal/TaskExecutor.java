@@ -1,5 +1,6 @@
 package net.exylia.lib.database.internal;
 
+import net.exylia.lib.debug.Debug;
 import net.exylia.lib.task.Tasks;
 import org.bukkit.Bukkit;
 import org.bukkit.plugin.Plugin;
@@ -8,6 +9,8 @@ import org.jetbrains.annotations.NotNull;
 import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.Executor;
+import java.util.concurrent.RejectedExecutionException;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
@@ -54,9 +57,23 @@ public final class TaskExecutor implements Executor {
     // stall the queue. Size it from the open pools if that ever happens.
     private static final int MAX_RUNNING = 32;
 
+    /**
+     * Operations allowed to wait at once.
+     *
+     * <p>With the database down every write waits, and a server keeps writing:
+     * an unbounded queue was a slow walk to an out-of-memory crash that took the
+     * server down with the database. Past this, work is refused and its future
+     * fails, which a caller can see and log instead of a heap that just grows.
+     */
+    static final int MAX_WAITING = 10_000;
+
     private final Plugin plugin;
     private final Queue<Runnable> waiting = new ConcurrentLinkedQueue<>();
+    private final AtomicInteger queued = new AtomicInteger();
     private final AtomicInteger running = new AtomicInteger();
+
+    /** Whether the current overflow was already reported, so an outage is one line. */
+    private final AtomicBoolean overflowing = new AtomicBoolean();
 
     /**
      * An executor backed by one plugin's scheduler.
@@ -78,6 +95,16 @@ public final class TaskExecutor implements Executor {
             command.run();
             return;
         }
+        if (queued.incrementAndGet() > MAX_WAITING) {
+            queued.decrementAndGet();
+            if (overflowing.compareAndSet(false, true)) {
+                Debug.of(plugin).warn("The database is not keeping up: " + MAX_WAITING
+                        + " operations are already waiting, so new ones are refused until"
+                        + " the queue drains. Is the database reachable?");
+            }
+            throw new RejectedExecutionException("The database queue is full (" + MAX_WAITING
+                    + " operations waiting).");
+        }
         waiting.add(command);
         if (!claimSlot()) {
             // A running drain will reach it.
@@ -90,6 +117,7 @@ public final class TaskExecutor implements Executor {
             // Still queued means nobody will run it, so the caller must hear
             // about it; gone means another drain already took it.
             if (waiting.remove(command)) {
+                queued.decrementAndGet();
                 throw rejected;
             }
         }
@@ -99,6 +127,11 @@ public final class TaskExecutor implements Executor {
         try {
             Runnable next;
             while ((next = waiting.poll()) != null) {
+                if (queued.decrementAndGet() < MAX_WAITING / 2) {
+                    // Half empty again: the next overflow is a new outage,
+                    // and worth its own line.
+                    overflowing.set(false);
+                }
                 next.run();
             }
         } finally {

@@ -27,10 +27,17 @@ final class Displays {
      */
     static final class TitleDisplay extends ActiveDisplay {
 
+        /** Longest an unchanged title goes without being resent. */
+        private static final long RESEND_TICKS = 10;
+
         private final Rendered subtitle;
         private final int fadeIn;
         private final int stay;
         private final int fadeOut;
+        private final long period;
+        private Component lastTitle;
+        private Component lastSubtitle;
+        private long ticksSinceSent;
 
         TitleDisplay(Player viewer, Rendered title, Rendered subtitle, Timer timer,
                      long period, int fadeIn, int stay, int fadeOut, String owner) {
@@ -39,17 +46,40 @@ final class Displays {
             this.fadeIn = fadeIn;
             this.stay = stay;
             this.fadeOut = fadeOut;
+            this.period = Math.max(1, period);
         }
 
         @Override
         void draw(Player viewer, Rendered rendered, Timer timer) {
-            Bars.title(viewer, rendered.build(viewer, timer), subtitle.build(viewer, timer),
-                    fadeIn, stay, fadeOut);
+            Component title = rendered.build(viewer, timer);
+            Component sub = subtitle.build(viewer, timer);
+            Bars.title(viewer, title, sub, fadeIn, stay, fadeOut);
+            sent(title, sub);
         }
 
         @Override
         void redraw(Player viewer, Rendered rendered, Timer timer) {
-            Bars.titleText(viewer, rendered.build(viewer, timer), subtitle.build(viewer, timer));
+            // A countdown ticks every tick, but most ticks both lines read exactly
+            // as they did and the same components come back: resending them was
+            // two packets per viewer per tick for nothing. Unchanged lines are
+            // still resent every RESEND_TICKS, so a title wiped by someone else
+            // (another title, a respawn, a world change) comes back within half a
+            // second, and always before the fade-out would start.
+            Component title = rendered.build(viewer, timer);
+            Component sub = subtitle.build(viewer, timer);
+            ticksSinceSent += period;
+            if (title == lastTitle && sub == lastSubtitle && ticksSinceSent < RESEND_TICKS
+                    && ticksSinceSent + period < fadeIn + stay) {
+                return;
+            }
+            Bars.titleText(viewer, title, sub);
+            sent(title, sub);
+        }
+
+        private void sent(Component title, Component sub) {
+            lastTitle = title;
+            lastSubtitle = sub;
+            ticksSinceSent = 0;
         }
 
         @Override

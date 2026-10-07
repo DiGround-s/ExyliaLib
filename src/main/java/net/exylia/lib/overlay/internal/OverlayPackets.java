@@ -5,6 +5,7 @@ import com.github.retrooper.packetevents.event.PacketListenerAbstract;
 import com.github.retrooper.packetevents.event.PacketListenerPriority;
 import com.github.retrooper.packetevents.event.PacketReceiveEvent;
 import com.github.retrooper.packetevents.event.PacketSendEvent;
+import com.github.retrooper.packetevents.netty.buffer.ByteBufHelper;
 import com.github.retrooper.packetevents.protocol.packettype.PacketType;
 import com.github.retrooper.packetevents.protocol.packettype.PacketTypeCommon;
 import com.github.retrooper.packetevents.protocol.player.DiggingAction;
@@ -22,8 +23,9 @@ import com.github.retrooper.packetevents.wrapper.play.client.WrapperPlayClientPl
 import com.github.retrooper.packetevents.wrapper.play.client.WrapperPlayClientPlayerDigging;
 import com.github.retrooper.packetevents.wrapper.play.client.WrapperPlayClientUseItem;
 import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerEntityEquipment;
-import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerSetSlot;
 import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerSpawnEntity;
+import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerHeldItemChange;
+import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerSetSlot;
 import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerWindowItems;
 import io.github.retrooper.packetevents.util.SpigotConversionUtil;
 import net.exylia.lib.overlay.OverlayLock;
@@ -36,6 +38,7 @@ import org.bukkit.entity.Player;
 import org.bukkit.inventory.PlayerInventory;
 import org.jetbrains.annotations.Nullable;
 
+import java.util.function.ToIntFunction;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -72,6 +75,11 @@ final class OverlayPackets extends PacketListenerAbstract implements OverlaySink
 
     /** How many of a container window's slots belong to the player below it. */
     private static final int PLAYER_REGION = 36;
+
+    /** The equipment slots another player can see, in the order they are restated. */
+    private static final EquipmentSlot[] WORN = {
+            EquipmentSlot.MAIN_HAND, EquipmentSlot.OFF_HAND, EquipmentSlot.HELMET,
+            EquipmentSlot.CHEST_PLATE, EquipmentSlot.LEGGINGS, EquipmentSlot.BOOTS};
 
     /** How far to look for the entity a click named. Wider than any reach. */
     private static final double REACH = 8;
@@ -128,8 +136,13 @@ final class OverlayPackets extends PacketListenerAbstract implements OverlaySink
     // ------------------------------------------------------------------
 
     @Override
-    public void slot(Player viewer, int index, @Nullable org.bukkit.inventory.ItemStack item) {
-        send(viewer, new WrapperPlayServerSetSlot(PLAYER_INVENTORY, 0, index, convert(item)));
+    public void slot(Player viewer, int index, @Nullable Object wire) {
+        send(viewer, new WrapperPlayServerSetSlot(PLAYER_INVENTORY, 0, index, asItem(wire)));
+    }
+
+    @Override
+    public Object wire(org.bukkit.inventory.ItemStack item) {
+        return convert(item);
     }
 
     @Override
@@ -159,7 +172,26 @@ final class OverlayPackets extends PacketListenerAbstract implements OverlaySink
     /** What a slot should look like from outside: the overlay's item where it owns one. */
     private static com.github.retrooper.packetevents.protocol.item.ItemStack shown(
             @Nullable OverlayView view, int index, @Nullable org.bukkit.inventory.ItemStack real) {
-        return convert(view != null && !view.isSuspended() && view.owns(index) ? view.itemAt(index) : real);
+        return view != null && !view.isSuspended() && view.owns(index) ? wire(view, index) : convert(real);
+    }
+
+    /**
+     * What the overlay draws in a slot it owns, in the form a packet carries.
+     *
+     * <p>Converted when it was drawn. The fallback only covers an item drawn
+     * before a sink existed, which never happens on a running server.
+     */
+    private static com.github.retrooper.packetevents.protocol.item.ItemStack wire(OverlayView view, int index) {
+        Object wire = view.wireAt(index);
+        return wire instanceof com.github.retrooper.packetevents.protocol.item.ItemStack item
+                ? item
+                : convert(view.itemAt(index));
+    }
+
+    private static com.github.retrooper.packetevents.protocol.item.ItemStack asItem(@Nullable Object wire) {
+        return wire instanceof com.github.retrooper.packetevents.protocol.item.ItemStack item
+                ? item
+                : com.github.retrooper.packetevents.protocol.item.ItemStack.EMPTY;
     }
 
     private static void send(Player viewer, PacketWrapper<?> packet) {
@@ -201,6 +233,15 @@ final class OverlayPackets extends PacketListenerAbstract implements OverlaySink
             dress(event);
             return;
         }
+        if (type == PacketType.Play.Server.HELD_ITEM_CHANGE) {
+            // A slot the server picks itself — a plugin calling
+            // setHeldItemSlot — fires no event, so it is learnt here.
+            OverlayView view = OverlayRuntime.viewOf(uuidOf(event.getUser()));
+            if (view != null) {
+                view.held(new WrapperPlayServerHeldItemChange(event).getSlot());
+            }
+            return;
+        }
         boolean slot = type == PacketType.Play.Server.SET_SLOT;
         boolean contents = type == PacketType.Play.Server.WINDOW_ITEMS;
         if (!slot && !contents) {
@@ -230,7 +271,8 @@ final class OverlayPackets extends PacketListenerAbstract implements OverlaySink
         if (index < 0 || !view.owns(index)) {
             return;
         }
-        packet.setItem(convert(view.itemAt(index)));
+        view.realItem(index, packet.getItem().isEmpty());
+        packet.setItem(wire(view, index));
         event.markForReEncode(true);
     }
 
@@ -265,7 +307,8 @@ final class OverlayPackets extends PacketListenerAbstract implements OverlaySink
             if (index < 0 || !view.owns(index)) {
                 continue;
             }
-            contents.set(slot, convert(view.itemAt(index)));
+            view.realItem(index, contents.get(slot).isEmpty());
+            contents.set(slot, wire(view, index));
             changed = true;
         }
         if (changed) {
@@ -283,20 +326,65 @@ final class OverlayPackets extends PacketListenerAbstract implements OverlaySink
      * drawn — {@link #equipment(Player)} reaches only the viewers who were
      * already there. Sent after the spawn rather than instead of it: equipment
      * for an entity the client does not have yet is dropped.
+     *
+     * <p>Only the slots the overlay owns are stated. Every other one is the
+     * real item, which the server states itself when there is one, so nothing
+     * here has to read the owner's inventory from a Netty thread.
      */
     private void dress(PacketSendEvent event) {
-        OverlayView view = OverlayRuntime.viewOfEntity(new WrapperPlayServerSpawnEntity(event).getEntityId());
-        if (view == null || view.isSuspended()) {
+        // Every entity that comes into view passes here; almost none of them
+        // wear an overlay, so the id is read without decoding the packet.
+        int entityId = leadingVarInt(event, e -> new WrapperPlayServerSpawnEntity(e).getEntityId());
+        OverlayView view = OverlayRuntime.viewOfEntity(entityId);
+        if (view == null || view.isSuspended() || view.isClosed()) {
             return;
         }
-        Player owner = view.viewer();
         User user = event.getUser();
-        if (user == null || !owner.isOnline()) {
+        if (user == null) {
             return;
         }
-        List<Equipment> worn = worn(owner, view);
-        int entityId = owner.getEntityId();
+        List<Equipment> worn = drawnEquipment(view);
+        if (worn.isEmpty()) {
+            return;
+        }
         event.getTasksAfterSend().add(() -> user.sendPacket(new WrapperPlayServerEntityEquipment(entityId, worn)));
+    }
+
+    /** The equipment slots an overlay owns, with what it draws in each. */
+    static List<Equipment> drawnEquipment(OverlayView view) {
+        List<Equipment> worn = new ArrayList<>(WORN.length);
+        for (EquipmentSlot slot : WORN) {
+            int index = indexOf(view, slot);
+            if (view.owns(index)) {
+                worn.add(new Equipment(slot, wire(view, index)));
+            }
+        }
+        return worn;
+    }
+
+    /**
+     * Reads the entity id a packet starts with, without decoding the rest.
+     *
+     * <p>Both packets this is used on open with the entity id as a VarInt.
+     * PacketEvents hands each listener the buffer positioned just after the
+     * packet id and puts the reader index back after every listener, so
+     * peeking and restoring leaves the packet exactly as the next reader
+     * expects it. An earlier listener's re-encoded edit is not in the buffer
+     * yet; none edits an entity id.
+     */
+    private static int leadingVarInt(PacketSendEvent event, ToIntFunction<PacketSendEvent> decoded) {
+        // A listener before us may already have decoded and edited the packet;
+        // its edits are only re-encoded later, so the buffer would be stale.
+        if (event.getLastUsedWrapper() != null) {
+            return decoded.applyAsInt(event);
+        }
+        Object buffer = event.getByteBuf();
+        int start = ByteBufHelper.readerIndex(buffer);
+        try {
+            return ByteBufHelper.readVarInt(buffer);
+        } finally {
+            ByteBufHelper.readerIndex(buffer, start);
+        }
     }
 
     /**
@@ -309,11 +397,15 @@ final class OverlayPackets extends PacketListenerAbstract implements OverlaySink
      * everybody else.
      */
     private void rewriteEquipment(PacketSendEvent event) {
-        WrapperPlayServerEntityEquipment packet = new WrapperPlayServerEntityEquipment(event);
-        OverlayView view = OverlayRuntime.viewOfEntity(packet.getEntityId());
+        // Checked before the wrapper is built: decoding means decoding every
+        // item's components, for packets that are nearly all about somebody
+        // wearing no overlay at all.
+        OverlayView view = OverlayRuntime.viewOfEntity(
+                leadingVarInt(event, e -> new WrapperPlayServerEntityEquipment(e).getEntityId()));
         if (view == null || view.isSuspended()) {
             return;
         }
+        WrapperPlayServerEntityEquipment packet = new WrapperPlayServerEntityEquipment(event);
         List<Equipment> worn = new ArrayList<>(packet.getEquipment());
         boolean changed = false;
         for (int position = 0; position < worn.size(); position++) {
@@ -322,7 +414,7 @@ final class OverlayPackets extends PacketListenerAbstract implements OverlaySink
             if (index < 0 || !view.owns(index)) {
                 continue;
             }
-            worn.set(position, new Equipment(piece.getSlot(), convert(view.itemAt(index))));
+            worn.set(position, new Equipment(piece.getSlot(), wire(view, index)));
             changed = true;
         }
         if (changed) {
@@ -335,11 +427,11 @@ final class OverlayPackets extends PacketListenerAbstract implements OverlaySink
      * The inventory index an equipment slot stands for.
      *
      * <p>The main hand is whichever hotbar slot the player is on, which is why
-     * this is asked of the player rather than answered from a table.
+     * this is asked of the view rather than answered from a table.
      */
-    private static int indexOf(OverlayView view, EquipmentSlot slot) {
+    static int indexOf(OverlayView view, EquipmentSlot slot) {
         return switch (slot) {
-            case MAIN_HAND -> view.viewer().getInventory().getHeldItemSlot();
+            case MAIN_HAND -> view.heldSlot();
             case OFF_HAND -> OverlaySlots.OFFHAND;
             case HELMET -> OverlaySlots.HELMET;
             case CHEST_PLATE -> OverlaySlots.CHESTPLATE;
@@ -446,7 +538,7 @@ final class OverlayPackets extends PacketListenerAbstract implements OverlaySink
     private void digging(PacketReceiveEvent event, OverlayView view, Player player) {
         WrapperPlayClientPlayerDigging packet = new WrapperPlayClientPlayerDigging(event);
         DiggingAction action = packet.getAction();
-        int held = player.getInventory().getHeldItemSlot();
+        int held = view.heldSlot();
 
         if (action == DiggingAction.DROP_ITEM || action == DiggingAction.DROP_ITEM_STACK
                 || action == DiggingAction.SWAP_ITEM_WITH_OFFHAND) {
@@ -475,8 +567,8 @@ final class OverlayPackets extends PacketListenerAbstract implements OverlaySink
         if (action != DiggingAction.START_DIGGING) {
             return;
         }
-        ClickKind kind = player.isSneaking() ? ClickKind.SHIFT_LEFT : ClickKind.LEFT;
-        OverlayClicks.WorldPress press = worldPress(view, player, held, kind);
+        ClickKind kind = view.isSneaking() ? ClickKind.SHIFT_LEFT : ClickKind.LEFT;
+        OverlayClicks.WorldPress press = worldPress(view, held, kind);
         if (press == OverlayClicks.WorldPress.PASS) {
             return;
         }
@@ -491,21 +583,16 @@ final class OverlayPackets extends PacketListenerAbstract implements OverlaySink
     /**
      * What a press in the world does, for the slot the player is holding it in.
      *
-     * <p>The real item is read here rather than in {@link OverlayClicks} so
-     * that the decision itself stays a function of three booleans and can be
-     * tested without a server.
+     * <p>Whether the real item is there is what the server last said about
+     * the slot, recorded by the outbound half: this runs on a Netty thread
+     * for every swing, where reading the inventory is neither safe nor free.
      */
-    private static OverlayClicks.WorldPress worldPress(OverlayView view, Player player,
-                                                       int slot, ClickKind kind) {
+    private static OverlayClicks.WorldPress worldPress(OverlayView view, int slot, ClickKind kind) {
         return OverlayClicks.worldPress(
                 view.pressedAt(slot) != null,
                 view.owns(slot),
-                isEmpty(player.getInventory().getItem(slot)),
+                view.isRealEmpty(slot),
                 view.definition().emptyHand().bound(kind));
-    }
-
-    private static boolean isEmpty(@Nullable org.bukkit.inventory.ItemStack stack) {
-        return stack == null || stack.getType().isAir();
     }
 
     /** Right-clicking, in the air or on a block. */
@@ -513,9 +600,9 @@ final class OverlayPackets extends PacketListenerAbstract implements OverlaySink
                      InteractionHand hand, @Nullable Vector3i at) {
         int slot = hand == InteractionHand.OFF_HAND
                 ? OverlaySlots.OFFHAND
-                : player.getInventory().getHeldItemSlot();
-        ClickKind kind = player.isSneaking() ? ClickKind.SHIFT_RIGHT : ClickKind.RIGHT;
-        OverlayClicks.WorldPress press = worldPress(view, player, slot, kind);
+                : view.heldSlot();
+        ClickKind kind = view.isSneaking() ? ClickKind.SHIFT_RIGHT : ClickKind.RIGHT;
+        OverlayClicks.WorldPress press = worldPress(view, slot, kind);
         if (press == OverlayClicks.WorldPress.PASS) {
             return;
         }
@@ -545,14 +632,14 @@ final class OverlayPackets extends PacketListenerAbstract implements OverlaySink
                 == WrapperPlayClientInteractEntity.InteractAction.INTERACT_AT;
         int slot = packet.getHand() == InteractionHand.OFF_HAND
                 ? OverlaySlots.OFFHAND
-                : player.getInventory().getHeldItemSlot();
+                : view.heldSlot();
         boolean attack = packet.getAction()
                 == WrapperPlayClientInteractEntity.InteractAction.ATTACK;
-        boolean sneaking = player.isSneaking();
+        boolean sneaking = view.isSneaking();
         ClickKind kind = attack
                 ? (sneaking ? ClickKind.SHIFT_LEFT : ClickKind.LEFT)
                 : (sneaking ? ClickKind.SHIFT_RIGHT : ClickKind.RIGHT);
-        OverlayClicks.WorldPress press = worldPress(view, player, slot, kind);
+        OverlayClicks.WorldPress press = worldPress(view, slot, kind);
         if (press == OverlayClicks.WorldPress.PASS) {
             return;
         }
@@ -591,9 +678,9 @@ final class OverlayPackets extends PacketListenerAbstract implements OverlaySink
         if (new WrapperPlayClientAnimation(event).getHand() != InteractionHand.MAIN_HAND) {
             return;
         }
-        int held = player.getInventory().getHeldItemSlot();
-        ClickKind kind = player.isSneaking() ? ClickKind.SHIFT_LEFT : ClickKind.LEFT;
-        OverlayClicks.WorldPress press = worldPress(view, player, held, kind);
+        int held = view.heldSlot();
+        ClickKind kind = view.isSneaking() ? ClickKind.SHIFT_LEFT : ClickKind.LEFT;
+        OverlayClicks.WorldPress press = worldPress(view, held, kind);
         if (press == OverlayClicks.WorldPress.PASS) {
             return;
         }

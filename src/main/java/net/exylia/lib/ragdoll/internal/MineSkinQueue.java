@@ -1,5 +1,6 @@
 package net.exylia.lib.ragdoll.internal;
 
+import com.github.benmanes.caffeine.cache.Caffeine;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
@@ -21,6 +22,7 @@ import java.time.Instant;
 import java.time.LocalTime;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
+import java.util.Collections;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
@@ -85,8 +87,16 @@ public final class MineSkinQueue {
     /** Hashes waiting or being uploaded, so twenty deaths in one skin queue each piece once. */
     private static final Set<String> QUEUED = ConcurrentHashMap.newKeySet();
 
-    /** Hashes MineSkin refused this run; asking again would be refused again. */
-    private static final Set<String> FAILED = ConcurrentHashMap.newKeySet();
+    /**
+     * Hashes MineSkin refused recently; asking again at once would be refused again.
+     * They expire, so an outage does not keep every piece it saw for the whole uptime
+     * and the pieces get another chance once MineSkin is back.
+     */
+    private static final Set<String> FAILED = Collections.newSetFromMap(Caffeine.newBuilder()
+            .maximumSize(10_000)
+            .expireAfterWrite(Duration.ofHours(1))
+            .<String, Boolean>build()
+            .asMap());
 
     // ponytail: one global queue worked strictly in order at the free plan's
     // pace, so a burst of brand-new skins takes as many hours as it takes. A

@@ -73,7 +73,20 @@ class SkullCacheTest {
             return answer;
         }
 
+        /** Lookups running at this moment, and the most there ever were at once. */
+        final AtomicInteger inside = new AtomicInteger();
+        final AtomicInteger peak = new AtomicInteger();
+
         private void waitForGate() {
+            peak.accumulateAndGet(inside.incrementAndGet(), Math::max);
+            try {
+                holdAtGate();
+            } finally {
+                inside.decrementAndGet();
+            }
+        }
+
+        private void holdAtGate() {
             CountDownLatch current = gate;
             if (current != null) {
                 try {
@@ -171,6 +184,43 @@ class SkullCacheTest {
         }
         assertEquals(1, lookup.textureCalls.get(),
                 "one texture request for forty callers");
+    }
+
+    @Test
+    @DisplayName("a menu of many different heads asks Mojang a couple at a time, not all at once")
+    void distinctLookupsAreRationed() throws Exception {
+        lookup.gate = new CountDownLatch(1);
+        List<CompletableFuture<String>> all = java.util.stream.IntStream.range(0, 20)
+                .mapToObj(i -> Skulls.texture(SkullSource.player("Player" + i)))
+                .toList();
+        // Long enough for an unbounded fan-out to have every lookup parked at the gate.
+        Thread.sleep(300);
+        lookup.gate.countDown();
+
+        for (CompletableFuture<String> future : all) {
+            assertEquals(STEVE, future.get(10, TimeUnit.SECONDS));
+        }
+        assertEquals(20, lookup.textureCalls.get());
+        assertTrue(lookup.peak.get() <= 2,
+                "each lookup blocks a server thread on HTTP; " + lookup.peak.get() + " ran at once");
+    }
+
+    @Test
+    @DisplayName("shutting down answers everybody still waiting on a head")
+    void shutdownCompletesWaiters() throws Exception {
+        lookup.gate = new CountDownLatch(1);
+        // Three distinct heads: two held at the gate, one still queued behind them.
+        List<CompletableFuture<String>> all = java.util.stream.IntStream.range(0, 3)
+                .mapToObj(i -> Skulls.texture(SkullSource.player("Waiting" + i)))
+                .toList();
+        try {
+            SkullRuntime.shutdown();
+            for (CompletableFuture<String> future : all) {
+                assertNull(future.get(1, TimeUnit.SECONDS), "a disable must not leave a caller waiting forever");
+            }
+        } finally {
+            lookup.gate.countDown();
+        }
     }
 
     @Test
