@@ -139,7 +139,6 @@
 1; also how far it carries: 1; también hasta dónde llega
 1; dust particles only: 1; solo partículas de polvo
 2.2, or 2s200ms: 2.2, o 2s200ms
-24-hour, comma separated. 20:00, 22:30: Formato 24 h, separado por comas. 20:00, 22:30
 3.5, or 1m: 3.5, o 1m
 30s at most. Two per mob at once. Aim SELF makes it go with the mob.: 30s como máximo. Dos por mob a la vez. Apuntar a SELF hace que vaya con el mob.
 30s, 1m30s, or forever.: 30s, 1m30s, o para siempre.
@@ -147,7 +146,6 @@
 5m, 1h. 0 stays until it dies.: 5m, 1h. 0 se queda hasta que muere.
 A bare number is ticks. 10t, 1s, 1m30s.: Un número solo son ticks. 10t, 1s, 1m30s.
 A cloud in the colour of what it casts.: Una nube del color de lo que lanza.
-A comparison, such as %server_tps% >= 18. Blank for none.: Una comparación, como %server_tps% >= 18. Vacío para ninguna.
 A giant blade falls from the sky onto you.: Una espada gigante cae del cielo sobre ti.
 A head: Una cabeza
 A second pose, so it goes down while you watch: Una segunda pose, para que caiga mientras miras
@@ -178,7 +176,6 @@ BLINK: PARPADEO
 Between two attacks: Entre dos ataques
 Between two hits of one player: Entre dos golpes a un jugador
 Blank keeps the vanilla value.: Vacío mantiene el valor vanilla.
-Blank or * for every day. MON, FRI, SAT: Vacío o * para todos los días. MON, FRI, SAT
 Blinks up to: Parpadea hasta
 Block it is made of: Bloque del que está hecho
 Blocks: Bloques
@@ -211,7 +208,6 @@ Choose one of the available options.: Elige una de las opciones disponibles.
 'Choose one of: {0}': 'Elige una de: {0}'
 Colour: Color
 Colour it fades to: Color al que se desvanece
-'Comma separated. Available: {0}': 'Separado por comas. Disponibles: {0}'
 Command the console runs: Comando que ejecuta la consola
 Command, without the slash: Comando, sin la barra
 Condition: Condición
@@ -231,7 +227,6 @@ Damage it blocks, in percent: Daño que bloquea, en porcentaje
 Damage per strike: Daño por impacto
 Damage, times its own: Daño, multiplicado por el suyo
 Dances the frames again when they end; the cycle must close: Repite los fotogramas al terminar; el ciclo debe cerrarse
-Days: Días
 Degrees further round each beat: Grados más de giro por pulso
 Degrees it turns on the spot: Grados que gira en el sitio
 Display name: Nombre visible
@@ -380,7 +375,6 @@ MONEY: DINERO
 Makes no sound: No hace ruido
 Marks a spot, then calls a bolt onto it.: Marca un punto y luego invoca un rayo sobre él.
 Material: Material
-Maximum players online (0 = no limit): Máximo de jugadores en línea (0 = sin límite)
 Message to send: Mensaje a enviar
 Message when it lands: Mensaje al aterrizar
 Message when it lands (blank for none): Mensaje al aterrizar (vacío para ninguno)
@@ -392,7 +386,6 @@ Name: Nombre
 Name (blank to show the command): Nombre (vacío para mostrar el comando)
 Name (blank to show the first line): Nombre (vacío para mostrar la primera línea)
 Name gains: El nombre suma
-Named checks this plugin offers. It offers none.: Comprobaciones con nombre que ofrece este plugin. No ofrece ninguna.
 Needs a player within: Requiere un jugador a menos de
 Needs a player within, in blocks: Requiere un jugador a menos de, en bloques
 Never picks up items: Nunca recoge ítems
@@ -414,7 +407,6 @@ Only matters while the particles are shown.: Solo importa mientras se muestran l
 Only region members can act inside.: Solo los miembros de la región pueden actuar dentro.
 Only the allowed blocks can be placed.: Solo se pueden colocar los bloques permitidos.
 Only the breakable blocks can break.: Solo se rompen los bloques rompibles.
-Only used when repeating. 10:00-23:00: Solo se usa al repetir. 10:00-23:00
 Opens portals and calls its minions through.: Abre portales e invoca a sus esbirros.
 Outline colour: Color del contorno
 POUNCE: ABALANZARSE
@@ -450,9 +442,6 @@ Radius, in blocks: Radio, en bloques
 Reach: Alcance
 Reach, in blocks: Alcance, en bloques
 Reaches: Alcanza
-Repeat between: Repetir entre
-Repeat every: Repetir cada
-Requires: Requiere
 Resistance: Resistencia
 Resists: Resiste
 Restores: Restaura
@@ -472,7 +461,6 @@ Scatter: Dispersión
 Scatter, in blocks: Dispersión, en bloques
 Seconds between beats: Segundos entre pulsos
 'Seen by: a radius, 0 for them alone, or world': 'Lo ven: un radio, 0 solo para ellos, o world'
-Set this to repeat instead of using fixed times. 2h, 90m: Defínelo para repetir en vez de usar horas fijas. 2h, 90m
 Sets them alight for: Los prende fuego durante
 Shakes players this close, in blocks: Sacude a los jugadores así de cerca, en bloques
 Shape: Forma
@@ -497,7 +485,6 @@ Splits the ground in a line at you.: Parte el suelo en línea hacia ti.
 Spread: Dispersión
 Spread, as x,y,z: Dispersión, como x,y,z
 Spread, in blocks: Dispersión, en bloques
-Starts: Empieza
 Starts at, as x,y,z: Empieza en, como x,y,z
 Starts below: Empieza bajo
 Starts below this much health, in percent: Empieza bajo esta vida, en porcentaje
@@ -530,14 +517,12 @@ The colour it is drawn in; the theme's by default.: El color con el que se dibuj
 The damage it takes is divided by this. 1 changes nothing; 0.1 to 10.: El daño que recibe se divide por esto. 1 no cambia nada; 0.1 a 10.
 The fastest a looping body may get: Lo más rápido que puede ir un cuerpo en bucle
 The ground under you boils, then bursts.: El suelo bajo ti hierve y luego estalla.
-The id of the thing this starts.: El id de lo que esto inicia.
 The line above the hotbar: La línea sobre la barra rápida
 The line, as it is written: La línea, tal como está escrita
 The message: El mensaje
 The most the gap may be divided by: Lo máximo por lo que se puede dividir el intervalo
 The name of a skill cast right after this one lands. NONE for none.: El nombre de una habilidad lanzada justo tras impactar esta. NONE para ninguna.
 The shortest gap between two casts. 5s, 1m.: El intervalo mínimo entre dos lanzamientos. 5s, 1m.
-The shortest gap between two runs of this line.: El intervalo mínimo entre dos ejecuciones de esta línea.
 The style that suits its type.: El estilo que va con su tipo.
 The whole line, after the token: La línea completa, tras el token
 Then: Luego
@@ -545,7 +530,6 @@ This field is required.: Este campo es obligatorio.
 Throws: Lanza
 Tier: Nivel
 Tier (blank for none): Nivel (vacío para ninguno)
-Times: Veces
 Times it plays: Veces que se reproduce
 Tint: Tinte
 Title: Título
@@ -571,7 +555,6 @@ VOLLEY: ANDANADA
 Vanishes and reappears behind you.: Desaparece y reaparece detrás de ti.
 Variant: Variante
 Volume: Volumen
-Wait at least: Esperar al menos
 Waits first: Espera primero
 Watch it from a stand-in four blocks ahead.: Míralo desde un doble cuatro bloques por delante.
 Wears what they died in: Viste lo que llevaba al morir
@@ -590,7 +573,6 @@ What the gap is divided by after each beat: Por cuánto se divide el intervalo t
 What the left hand holds: Lo que sostiene la mano izquierda
 What the right hand holds: Lo que sostiene la mano derecha
 What the speed is multiplied by each cycle: Por cuánto se multiplica la velocidad en cada ciclo
-What this line is called in the list. Blank shows the times.: Cómo se llama esta línea en la lista. Vacío muestra las horas.
 When: Cuándo
 When it fires and what it does.: Cuándo se activa y qué hace.
 When it hits: Al golpear
@@ -1156,3 +1138,25 @@ x, y or z: x, y o z
 'Paste the URL exactly as Discord gives it, with nothing added.': 'Pega la URL tal como la da Discord, sin añadir nada.'
 'That is not a webhook URL. Copy it from Integrations » Webhooks.': 'Esa no es una URL de webhook. Cópiala desde Integraciones » Webhooks.'
 'The webhook URL is incomplete. Copy it again.': 'La URL del webhook está incompleta. Cópiala de nuevo.'
+'Name {muted}(optional)': 'Nombre {muted}(opcional)'
+'Starts {muted}(id)': 'Inicia {muted}(id)'
+'When it runs': 'Cuándo se ejecuta'
+'At set times': 'A horas fijas'
+'On a repeating timer': 'Repetir cada cierto tiempo'
+'Every {muted}(e.g. 2h, 90m)': 'Cada {muted}(ej. 2h, 90m)'
+'From {muted}(blank = 00:00)': 'Desde {muted}(vacío = 00:00)'
+'Until {muted}(blank = 23:59)': 'Hasta {muted}(vacío = 23:59)'
+'Times {muted}(24h, e.g. 20:00, 22:30)': 'Horas {muted}(24h, ej. 20:00, 22:30)'
+'Monday': 'Lunes'
+'Tuesday': 'Martes'
+'Wednesday': 'Miércoles'
+'Thursday': 'Jueves'
+'Friday': 'Viernes'
+'Saturday': 'Sábado'
+'Sunday': 'Domingo'
+'Edit conditions next {muted}(players, cooldown, checks)': 'Editar condiciones después {muted}(jugadores, cooldown, comprobaciones)'
+'{primary}&lSCHEDULE CONDITIONS': '{primary}&lCONDICIONES DEL HORARIO'
+'Maximum players online {muted}(0 = no limit)': 'Máximo de jugadores en línea {muted}(0 = sin límite)'
+'Wait between runs {muted}(e.g. 1h)': 'Espera entre ejecuciones {muted}(ej. 1h)'
+'Only if {0}': 'Solo si {0}'
+'Custom condition {muted}(e.g. %server_tps% >= 18)': 'Condición personalizada {muted}(ej. %server_tps% >= 18)'
