@@ -23,6 +23,7 @@ import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
+import org.jetbrains.annotations.ApiStatus;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -939,6 +940,30 @@ public final class Text {
 
     /** Parses a trusted value, honouring its formatting. */
     private static final ValueRenderer FORMATTED_RENDERER = value -> TextEngine.parseRestricted(value, false);
+
+    /**
+     * Whether a template has a placeholder that none of this text's own values
+     * fills, so something else may read differently on the next build.
+     *
+     * <p>For the effect module. A bar written with every value through
+     * {@link #with} reads the same until the plugin hands over new values, and
+     * is built once rather than once a tick, which also kept it re-sent every
+     * tick because each build was a new component.
+     *
+     * @param template the text to look at, usually this one's {@link #raw()}
+     * @return {@code true} when a placeholder is left for the resolver
+     */
+    @ApiStatus.Internal
+    public boolean leavesPlaceholders(@NotNull String template) {
+        Template compiled = TemplateCache.get(template, Loggers.get());
+        if (!compiled.isDynamic()) return false;
+        if (!(compiled instanceof CompiledTemplate known)) return true;
+        Set<String> own = handledNames();
+        for (String written : known.originals()) {
+            if (!own.contains(written)) return true;
+        }
+        return false;
+    }
 
     /**
      * The placeholder tokens this text substitutes itself, so the resolver does

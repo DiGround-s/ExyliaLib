@@ -394,7 +394,7 @@ public final class Recording implements ReplayRecorder {
             // ticks in between are written as absent once they are back.
             // Or in spectator: flying through walls, invisible to everybody who
             // was fighting. Not part of what happened.
-            if (player.isDead() || player.getGameMode() == org.bukkit.GameMode.SPECTATOR) {
+            if (player.isDead() || ReplayEvents.spectating(player)) {
                 follower.away = true;
                 follower.sampledAt = tick;
                 return;
@@ -411,7 +411,7 @@ public final class Recording implements ReplayRecorder {
             follower.sampledAt = tick;
             return;
         }
-        long now = System.nanoTime();
+        long now = ReplayClock.isWall() ? System.nanoTime() : 0L;
         if (ReplayClock.isWall() && tick == follower.sampledAt
                 && now - follower.sampledNanos > Sampler.SAME_TICK_NANOS) {
             // Folia: the same stamp read in two of this region's ticks. It is
@@ -446,9 +446,9 @@ public final class Recording implements ReplayRecorder {
             if (!Sampler.due(slot, tick)) continue;
             ItemStack worn = Sampler.worn(living, Sampler.SLOTS[slot]);
             if (Sampler.sameLook(worn, follower.equipment[slot], tick)) continue;
-            follower.equipment[slot] = worn == null ? null : worn.clone();
-            marks.add(new ReplayMark(tick, ReplayMark.EQUIP, follower.actor.id(),
-                    Equipment.write(Sampler.SLOTS[slot], worn)));
+            ItemStack copy = worn == null ? null : worn.clone();
+            follower.equipment[slot] = copy;
+            marks.add(new ReplayMark(tick, ReplayMark.EQUIP, follower.actor.id(), follower.write(slot, copy)));
         }
     }
 
@@ -460,6 +460,16 @@ public final class Recording implements ReplayRecorder {
         private final MotionTrack.Builder track = new MotionTrack.Builder();
         private final ItemStack[] equipment = new ItemStack[Sampler.SLOTS.length];
 
+        /**
+         * The last few items written out, by slot. Going back to the sword
+         * after a pearl is the same bytes as the first time, and writing them
+         * is a compressed serialisation on the main thread.
+         */
+        private final ItemStack[] writtenItems = new ItemStack[8];
+        private final int[] writtenSlots = new int[8];
+        private final byte[][] writtenData = new byte[8][];
+        private int nextWritten;
+
         private volatile Entity entity;
         private volatile TaskHandle task;
         private volatile int sampledAt = Integer.MIN_VALUE / 2;
@@ -470,6 +480,24 @@ public final class Recording implements ReplayRecorder {
         Follower(ReplayActor actor, boolean player) {
             this.actor = actor;
             this.player = player;
+        }
+
+        /** An equipment mark's data, written again only for an item not seen in that slot lately. */
+        byte[] write(int slot, @Nullable ItemStack item) {
+            if (item == null) return Equipment.write(Sampler.SLOTS[slot], null);
+            for (int at = 0; at < writtenItems.length; at++) {
+                ItemStack seen = writtenItems[at];
+                if (seen != null && writtenSlots[at] == slot && seen.getType() == item.getType()
+                        && Sampler.looksAlike(seen, item)) {
+                    return writtenData[at];
+                }
+            }
+            byte[] data = Equipment.write(Sampler.SLOTS[slot], item);
+            int at = nextWritten++ & (writtenItems.length - 1);
+            writtenItems[at] = item;
+            writtenSlots[at] = slot;
+            writtenData[at] = data;
+            return data;
         }
 
         void stop() {

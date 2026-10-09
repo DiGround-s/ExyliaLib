@@ -75,6 +75,7 @@ import org.jetbrains.annotations.Nullable;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -100,10 +101,25 @@ final class ReplayEvents implements Listener {
     private final AtomicInteger flowTick = new AtomicInteger();
     private final AtomicInteger flows = new AtomicInteger();
 
+    /**
+     * Who is in spectator mode, kept by event. Both recorders leave spectators
+     * out, and asking each player for their game mode every tick cost a fifth
+     * of a millisecond a tick on a hundred players.
+     */
+    private static final Set<UUID> SPECTATING = ConcurrentHashMap.newKeySet();
+
     private ReplayEvents() {
     }
 
+    /** Whether somebody is in spectator mode, without asking the server. */
+    static boolean spectating(Player player) {
+        return SPECTATING.contains(player.getUniqueId());
+    }
+
     static void register(Plugin plugin) {
+        for (Player player : Bukkit.getOnlinePlayers()) {
+            if (player.getGameMode() == org.bukkit.GameMode.SPECTATOR) SPECTATING.add(player.getUniqueId());
+        }
         Bukkit.getPluginManager().registerEvents(new ReplayEvents(), plugin);
         try {
             Bukkit.getPluginManager().registerEvents(new Recent(), plugin);
@@ -163,6 +179,7 @@ final class ReplayEvents implements Listener {
     @EventHandler(priority = EventPriority.MONITOR)
     public void onJoin(PlayerJoinEvent event) {
         Player player = event.getPlayer();
+        if (player.getGameMode() == org.bukkit.GameMode.SPECTATOR) SPECTATING.add(player.getUniqueId());
         BlackBox box = ReplayRuntime.box();
         if (box != null) box.watch(player);
         // Somebody who was watching a replay when the server went down comes
@@ -178,11 +195,19 @@ final class ReplayEvents implements Listener {
         actor(ReplayMark.QUIT, event.getPlayer(),
                 event.getReason().name().getBytes(StandardCharsets.UTF_8));
         swungAt.remove(event.getPlayer().getUniqueId());
+        SPECTATING.remove(event.getPlayer().getUniqueId());
         BlackBox box = ReplayRuntime.box();
         if (box != null) {
             box.unwatch(event.getPlayer().getUniqueId());
             box.gone(event.getPlayer().getUniqueId());
         }
+    }
+
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    public void onGameMode(org.bukkit.event.player.PlayerGameModeChangeEvent event) {
+        UUID id = event.getPlayer().getUniqueId();
+        if (event.getNewGameMode() == org.bukkit.GameMode.SPECTATOR) SPECTATING.add(id);
+        else SPECTATING.remove(id);
     }
 
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)

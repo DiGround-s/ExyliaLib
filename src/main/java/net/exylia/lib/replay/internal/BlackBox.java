@@ -10,7 +10,6 @@ import net.exylia.lib.task.TaskScheduler;
 import org.bukkit.Bukkit;
 import org.bukkit.Chunk;
 import org.bukkit.ChunkSnapshot;
-import org.bukkit.GameMode;
 import org.bukkit.Location;
 import org.bukkit.World;
 import org.bukkit.block.data.BlockData;
@@ -237,7 +236,7 @@ public final class BlackBox {
         Location here = player.getLocation();
         watcher.last = here;
         boolean hidden = current.hidden().test(player);
-        if (!hidden && player.isValid() && player.getGameMode() != GameMode.SPECTATOR) {
+        if (!hidden && player.isValid() && !ReplayEvents.spectating(player)) {
             write(player, tick);
             if (watcher.age % 20 == 0) {
                 happenings.add(new Happening(tick, ReplayMark.PING, player.getUniqueId(),

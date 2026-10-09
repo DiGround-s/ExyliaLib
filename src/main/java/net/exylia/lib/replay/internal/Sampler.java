@@ -80,14 +80,47 @@ final class Sampler {
      *
      * <p>A full comparison every tick was the most expensive thing the
      * recorder did, and almost all it ever found was durability going down a
-     * point a hit. Material and count are checked every tick; everything
-     * else, enchantments and trims included, once a second.
+     * point a hit. The material is checked every tick; everything else,
+     * enchantments and trims included, once a second.
      */
     static boolean sameLook(ItemStack now, ItemStack recorded, int tick) {
         if (now == recorded) return true;
         if (now == null || recorded == null) return false;
-        if (now.getType() != recorded.getType() || now.getAmount() != recorded.getAmount()) return false;
-        return tick % FULL_LOOK_EVERY != 0 || now.equals(recorded);
+        if (now.getType() != recorded.getType()) return false;
+        return tick % FULL_LOOK_EVERY != 0 || now.equals(recorded) || looksAlike(now, recorded);
+    }
+
+    /** Whether data components can be compared one by one; false on a server older than them. */
+    private static volatile boolean components = true;
+
+    /**
+     * Whether two items of the same material look the same in somebody's hand.
+     *
+     * <p>Durability and count never show on a body, so a change to either is
+     * not a change of look: otherwise every hit taken, every block placed and
+     * every pearl thrown was a new item copied, and in a recording written out
+     * in Paper's compressed byte form on the main thread.
+     */
+    static boolean looksAlike(ItemStack a, ItemStack b) {
+        if (components) {
+            try {
+                return Unseen.alike(a, b);
+            } catch (LinkageError older) {
+                components = false;
+            }
+        }
+        return a.isSimilar(b);
+    }
+
+    /** Kept out of line: naming a data component type needs a server that has them. */
+    private static final class Unseen {
+
+        private static final java.util.Set<io.papermc.paper.datacomponent.DataComponentType> TYPES =
+                java.util.Set.of(io.papermc.paper.datacomponent.DataComponentTypes.DAMAGE);
+
+        static boolean alike(ItemStack a, ItemStack b) {
+            return a.matchesWithoutData(b, TYPES, true);
+        }
     }
 
     static ItemStack worn(LivingEntity living, EquipmentSlot slot) {

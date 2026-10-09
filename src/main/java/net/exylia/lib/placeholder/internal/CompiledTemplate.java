@@ -234,6 +234,15 @@ public final class CompiledTemplate implements Template {
         return names;
     }
 
+    /** Every placeholder exactly as written, in order: {@code %name%}, arguments and all. */
+    public @NotNull List<String> originals() {
+        List<String> written = new ArrayList<>(names.size());
+        for (Part part : parts) {
+            if (!part.isLiteral()) written.add(part.original());
+        }
+        return written;
+    }
+
     @Override
     public boolean isDynamic() {
         return dynamic;

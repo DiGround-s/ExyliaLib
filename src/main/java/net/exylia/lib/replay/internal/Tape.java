@@ -66,7 +66,8 @@ final class Tape {
      */
     synchronized boolean put(int tick, UUID world, double px, double py, double pz,
                              float aYaw, float aPitch, int aFlags, float hp) {
-        long now = System.nanoTime();
+        // Only Folia's wall clock needs it, and it is a system call per entity per tick.
+        long now = ReplayClock.isWall() ? System.nanoTime() : 0L;
         if (size > 0) {
             int last = index(size - 1);
             if (ticks[last] >= tick) {
@@ -133,7 +134,7 @@ final class Tape {
     /** Drops everything older than the window, keeping one frame before it. */
     synchronized void prune(int oldest) {
         while (size > 1 && ticks[index(1)] <= oldest) {
-            head = (head + 1) % ticks.length;
+            head = (head + 1) & (ticks.length - 1);
             size--;
         }
         // Equipment: the newest change per slot before the window is what they
@@ -177,8 +178,9 @@ final class Tape {
         return new ArrayList<>(worn);
     }
 
+    /** The capacity is always a power of two: a mask rather than a division, several times a frame. */
     private int index(int offset) {
-        return (head + offset) % ticks.length;
+        return (head + offset) & (ticks.length - 1);
     }
 
     private void grow() {

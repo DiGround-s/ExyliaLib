@@ -104,7 +104,10 @@ final class Rendered {
         // Asked without the timer's own tokens in the text: to the registry
         // %time% looks like any other placeholder, and the point is to know
         // whether anything *else* can change.
-        boolean placeholders = Placeholders.isDynamic(anyTime ? withoutTimeTokens(raw) : raw);
+        // A text handed over with its values only changes when it is replaced:
+        // its own tokens are not the registry's to resolve.
+        String scanned = anyTime ? withoutTimeTokens(raw) : raw;
+        boolean placeholders = base == null ? Placeholders.isDynamic(scanned) : base.leavesPlaceholders(scanned);
         this.dynamic = anyTime || placeholders;
         this.timerOnly = anyTime && !placeholders;
     }

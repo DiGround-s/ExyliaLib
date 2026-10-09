@@ -15,6 +15,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -131,6 +132,15 @@ class DisplayTextTest {
         bar.text(Text.of("{primary}Health: %hp%").with("%hp%", 19));
         FakeServer.tick(1);
         assertEquals("Health: 19", viewer.actionBars().get(viewer.actionBars().size() - 1));
+    }
+
+    @Test
+    @DisplayName("a Text whose every token is its own value is built once, not every tick")
+    void filledTextIsNotDynamic() {
+        Text filled = Text.of("{primary}Health: %hp% Ping: %ping%").with("%hp%", 20).with("%ping%", 30);
+        assertFalse(new Rendered(filled, "auto").isDynamic());
+        assertTrue(new Rendered(Text.of("{primary}Health: %hp% Ping: %ping%").with("%hp%", 20), "auto")
+                .isDynamic(), "a token left for the resolver can still change");
     }
 
     @Test
