@@ -111,6 +111,7 @@ doubles the height of the block without making it easier to read.
 | `onReload(Consumer<T>)` | run after each successful reload |
 | `save()` | write the current snapshot to disk |
 | `update(UnaryOperator<T>)` | change and persist in one step |
+| `set(String key, Object value)` | write one dotted key (or remove it with `null`) and reload, for in-game editors; returns the reload's issues (since 1.257.0) |
 | `issues()` | problems found on the last load |
 | `name()` | the file's name |
 | `schema()` → `Schema` | a read-only description of the record type; never `null`. Since 1.50.0 |

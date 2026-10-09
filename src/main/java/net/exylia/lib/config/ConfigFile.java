@@ -114,6 +114,29 @@ public interface ConfigFile<T> {
     void update(@NotNull java.util.function.UnaryOperator<T> change);
 
     /**
+     * Writes one value by its dotted key, then reloads the file so the change is
+     * bound, coerced and validated like anything the owner typed.
+     *
+     * <p>For in-game editors that change one setting at a time without knowing
+     * the record that holds it:
+     *
+     * <pre>{@code
+     * config.set("settings.min-distance", 12);
+     * config.set("forced-flags.pvp", "DENY");
+     * config.set("forced-flags.pvp", null);   // removes the key
+     * }</pre>
+     *
+     * <p>Comments and keys the plugin does not own are preserved, and reload
+     * listeners run as after {@link #reload()}.
+     *
+     * @param key   the dotted key, as written in the file
+     * @param value the new value, or {@code null} to remove the key
+     * @return the problems the reload found, empty when the value was accepted
+     * @since 1.257.0
+     */
+    @NotNull List<ConfigIssue> set(@NotNull String key, @org.jetbrains.annotations.Nullable Object value);
+
+    /**
      * Returns the problems found the last time this file was loaded.
      *
      * <p>Already logged when they were found; this is for showing them again,

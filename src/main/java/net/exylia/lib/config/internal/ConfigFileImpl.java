@@ -11,6 +11,7 @@ import org.bukkit.configuration.InvalidConfigurationException;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.plugin.Plugin;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 import java.io.File;
 import java.io.IOException;
@@ -158,6 +159,22 @@ public final class ConfigFileImpl<T> implements ConfigFile<T> {
             values = change.apply(values);
             save();
         }
+    }
+
+    @Override
+    public @NotNull List<ConfigIssue> set(@NotNull String key, @Nullable Object value) {
+        synchronized (this) {
+            YamlConfiguration yaml = readFile(new ArrayList<>());
+            if (yaml == null) {
+                plugin.getLogger().warning("Not setting " + key + " in " + name + ".yml: it could not be read, "
+                        + "and overwriting it would discard whatever is in there.");
+                return List.of();
+            }
+            render(yaml, values);
+            yaml.set(key, value);
+            writeFile(yaml);
+        }
+        return reload();
     }
 
     @Override
