@@ -18,6 +18,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -50,10 +51,15 @@ class BlackBoxTest {
         AtomicInteger reads = new AtomicInteger();
         Entity arrow = counting(id, reads);
 
-        box.sampleNear(arrow, new Location(null, 0, 64, 0), 1600, 100);
+        assertSame(tape, box.sampleNear(arrow, null, new Location(null, 0, 64, 0), 1600, 100));
         assertEquals(0, reads.get(), "seen this tick: nothing is read");
 
-        box.sampleNear(arrow, new Location(null, 0, 64, 0), 1600, 101);
+        box.tapes.clear();
+        assertSame(tape, box.sampleNear(arrow, tape, new Location(null, 0, 64, 0), 1600, 100),
+                "a remembered tape is used without looking it up");
+        assertEquals(0, reads.get());
+
+        box.sampleNear(arrow, tape, new Location(null, 0, 64, 0), 1600, 101);
         assertEquals(1, reads.get(), "a new tick: it is read");
     }
 

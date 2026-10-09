@@ -60,8 +60,14 @@ import java.util.concurrent.atomic.AtomicInteger;
 @ApiStatus.Internal
 public final class BlackBox {
 
-    /** How often each player's timer looks around again, in ticks. */
-    private static final int LOOK_EVERY = 5;
+    /**
+     * How often each player's timer looks around again, in ticks. Spawns are
+     * picked up at once through notice(); the look only finds what walked in.
+     */
+    private static final int LOOK_EVERY = 10;
+
+    /** Moving this far since the last look looks again at once: a teleport or a pearl. */
+    private static final double LOOK_AFTER_MOVING = 8.0;
 
     /** The nearest this many non-players around one player, at most. */
     private static final int NEARBY_PER_PLAYER = 96;
@@ -241,9 +247,18 @@ public final class BlackBox {
             }
         }
         double radius = current.radius();
-        if (++watcher.age % LOOK_EVERY == 1) look(watcher, here, radius, current);
+        Location lookedAt = watcher.lookedAt;
+        if (++watcher.age % LOOK_EVERY == 1 || lookedAt == null || lookedAt.getWorld() != here.getWorld()
+                || lookedAt.distanceSquared(here) > LOOK_AFTER_MOVING * LOOK_AFTER_MOVING) {
+            look(watcher, here, radius, current);
+        }
         double reach = (radius + 8) * (radius + 8);
-        for (Entity entity : watcher.nearby) sampleNear(entity, here, reach, tick);
+        List<Entity> nearby = watcher.nearby;
+        Tape[] known = watcher.nearbyTapes;
+        for (int i = 0; i < nearby.size(); i++) {
+            Tape tape = sampleNear(nearby.get(i), known[i], here, reach, tick);
+            if (tape != null) known[i] = tape;
+        }
         if (!watcher.noticed.isEmpty()) {
             for (Iterator<Entity> it = watcher.noticed.iterator(); it.hasNext(); ) {
                 Entity entity = it.next();
@@ -251,29 +266,37 @@ public final class BlackBox {
                     it.remove();
                     continue;
                 }
-                sampleNear(entity, here, reach, tick);
+                sampleNear(entity, null, here, reach, tick);
             }
         }
     }
 
-    void sampleNear(Entity entity, Location here, double reach, int tick) {
+    /**
+     * Samples one entity near somebody.
+     *
+     * @param known its tape when the caller remembers it from an earlier tick,
+     *              which saves looking it up; a look forgets it again, so a
+     *              tape trimmed away is never written to for long
+     * @return its tape, when it has one
+     */
+    @Nullable Tape sampleNear(Entity entity, @Nullable Tape known, Location here, double reach, int tick) {
         // Already written by somebody else's timer this tick: everything below
         // would be read only for write() to throw it away. The id is final, so
         // asking for it is safe whichever region the entity is in now. Players
         // are not skipped, the same as in write().
-        if (!(entity instanceof Player)) {
-            Tape tape = tapes.get(entity.getUniqueId());
-            if (tape != null && tape.seen == tick) return;
-        }
+        Tape tape = known != null ? known : tapes.get(entity.getUniqueId());
+        if (tape != null && tape.seen == tick && !(entity instanceof Player)) return tape;
         try {
-            if (!entity.isValid() || entity.getWorld() != here.getWorld()) return;
+            if (!entity.isValid() || entity.getWorld() != here.getWorld()) return tape;
             // Folia: something that has crossed into another region is that
             // region's to read now, and its getters do not say so by throwing.
-            if (!Bukkit.isOwnedByCurrentRegion(entity)) return;
-            if (entity.getLocation().distanceSquared(here) > reach) return;
-            write(entity, tick);
+            if (!Bukkit.isOwnedByCurrentRegion(entity)) return tape;
+            Location at = entity.getLocation();
+            if (at.distanceSquared(here) > reach) return tape;
+            return write(entity, tape, at, tick);
         } catch (IllegalStateException elsewhere) {
             // Folia: it has crossed into another region since the last look.
+            return tape;
         }
     }
 
@@ -296,21 +319,27 @@ public final class BlackBox {
             others.sort(Comparator.comparingDouble(entity -> entity.getLocation().distanceSquared(here)));
             others = others.subList(0, NEARBY_PER_PLAYER);
         }
+        watcher.nearbyTapes = new Tape[others.size()];
         watcher.nearby = others;
+        watcher.lookedAt = here;
         watcher.noticed.removeIf(others::contains);
     }
 
     /** Writes one entity's frame for this tick, once however many timers see it. */
     private void write(Entity entity, int tick) {
+        write(entity, tapes.get(entity.getUniqueId()), entity.getLocation(), tick);
+    }
+
+    /** Same, with its tape already looked up, or {@code null} for none yet, and where it is now. */
+    private @Nullable Tape write(Entity entity, @Nullable Tape tape, Location at, int tick) {
         UUID id = entity.getUniqueId();
-        Tape tape = tapes.get(id);
         boolean player = entity instanceof Player;
         // Seen by somebody else's timer this tick already: an arrow between
         // twenty players is read once, not twenty times. Players have one
         // timer each, and on Folia their own stamp can repeat a tick later.
-        if (!player && tape != null && tape.seen == tick) return;
+        if (!player && tape != null && tape.seen == tick) return tape;
         if (tape == null) {
-            if (!player && nonPlayers.get() >= settings.maxEntities()) return;
+            if (!player && nonPlayers.get() >= settings.maxEntities()) return null;
             tape = new Tape(id, player ? ReplayActor.of((Player) entity) : ReplayActor.of(entity),
                     player, entity instanceof LivingEntity);
             Tape raced = tapes.putIfAbsent(id, tape);
@@ -318,15 +347,15 @@ public final class BlackBox {
             else if (!player) nonPlayers.incrementAndGet();
         }
         tape.seen = tick;
-        Location at = entity.getLocation();
         boolean already = tape.put(tick, entity.getWorld().getUID(), at.getX(), at.getY(), at.getZ(),
                 at.getYaw(), at.getPitch(), Sampler.flagsOf(entity), (float) Sampler.healthOf(entity));
-        if (already || !(entity instanceof LivingEntity living)) return;
-        if (!player && tick % MOB_EQUIPMENT_EVERY != 0) return;
+        if (already || !(entity instanceof LivingEntity living)) return tape;
+        if (!player && tick % MOB_EQUIPMENT_EVERY != 0) return tape;
         for (int slot = 0; slot < Sampler.SLOTS.length; slot++) {
             if (player && !Sampler.due(slot, tick)) continue;
             tape.wear(tick, slot, Sampler.worn(living, Sampler.SLOTS[slot]));
         }
+        return tape;
     }
 
     // ------------------------------------------------------------------ marks
@@ -898,6 +927,9 @@ public final class BlackBox {
         final Player player;
         final Set<Entity> noticed = ConcurrentHashMap.newKeySet();
         volatile List<Entity> nearby = List.of();
+        /** The tapes of {@link #nearby}, by index, filled as they are found; forgotten on every look. */
+        Tape[] nearbyTapes = new Tape[0];
+        Location lookedAt;
         volatile Location last;
         volatile int sampledAt;
         volatile TaskHandle task;

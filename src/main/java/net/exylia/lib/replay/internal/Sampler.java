@@ -24,12 +24,16 @@ final class Sampler {
     /** Two samples this close together belong to the same server tick. */
     static final long SAME_TICK_NANOS = 30_000_000L;
 
+    /** {@link MotionTrack#poseIndex} by pose, worked out once rather than by name every tick. */
+    private static final int[] POSES = java.util.Arrays.stream(org.bukkit.entity.Pose.values())
+            .mapToInt(pose -> MotionTrack.poseIndex(pose.name())).toArray();
+
     private Sampler() {
     }
 
     /** The flag word for this tick; see {@link MotionTrack}. */
     static int flagsOf(Entity entity) {
-        int pose = MotionTrack.poseIndex(entity.getPose().name());
+        int pose = POSES[entity.getPose().ordinal()];
         boolean onGround = entity.isOnGround();
         boolean fire = entity.getFireTicks() > 0 || entity.isVisualFire();
         boolean glowing = entity.isGlowing();
@@ -60,12 +64,15 @@ final class Sampler {
     /** Ticks between full looks at an item, past its material and count. */
     static final int FULL_LOOK_EVERY = 20;
 
-    /** Ticks between reads of the armour slots; hands are read every tick. */
+    /** Ticks between reads of the armour slots. */
     static final int ARMOUR_EVERY = 5;
 
-    /** Whether a slot is read on this tick: armour changes rarely, hands do not. */
+    /** Ticks between reads of the hands. */
+    static final int HANDS_EVERY = 2;
+
+    /** Whether a slot is read on this tick: armour changes rarely, hands often. */
     static boolean due(int slot, int tick) {
-        return slot < 2 || tick % ARMOUR_EVERY == 0;
+        return tick % (slot < 2 ? HANDS_EVERY : ARMOUR_EVERY) == 0;
     }
 
     /**
@@ -84,8 +91,9 @@ final class Sampler {
     }
 
     static ItemStack worn(LivingEntity living, EquipmentSlot slot) {
-        if (living.getEquipment() == null) return null;
-        ItemStack item = living.getEquipment().getItem(slot);
+        org.bukkit.inventory.EntityEquipment equipment = living.getEquipment();
+        if (equipment == null) return null;
+        ItemStack item = equipment.getItem(slot);
         return item == null || item.getType().isAir() ? null : item;
     }
 }
