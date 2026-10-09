@@ -8,6 +8,7 @@ import net.exylia.lib.ragdoll.RagdollMotion;
 import net.exylia.lib.ragdoll.RagdollPart;
 import net.exylia.lib.ragdoll.RagdollPose;
 import org.jetbrains.annotations.ApiStatus;
+import org.jetbrains.annotations.Nullable;
 
 import java.time.Duration;
 import java.util.ArrayList;
@@ -136,7 +137,18 @@ public final class RagdollFlight {
      * moment a pose is sent.
      */
     public record Flight(long[] times, double[] x, double[] y, double[] z,
-                         Rotation[] rotations, double[][] scales) {
+                         Rotation[] rotations, double[][] scales, Rotation @Nullable [] bends) {
+
+        /** A flight whose part never bends. */
+        public Flight(long[] times, double[] x, double[] y, double[] z,
+                      Rotation[] rotations, double[][] scales) {
+            this(times, x, y, z, rotations, scales, null);
+        }
+
+        /** The turn of the half beyond the part's hinge at one pose, in the part's own axes. */
+        public Rotation bend(int index) {
+            return bends == null ? Rotation.NONE : bends[index];
+        }
     }
 
     /** A piece at its own size, which is what most poses leave it at. */
@@ -207,13 +219,14 @@ public final class RagdollFlight {
         long[] times = posed.times();
         double[][] poses = posed.poses();
         int[] frame = {0};
+        boolean vanilla = motion.animation().vanilla();
         return sample(times, motion.intactMillis(), elapsed -> {
             // Read and never written: every part of every body shares these.
             double[] pose = poses[Math.min(frame[0]++, poses.length - 1)];
-            RagdollRig.Placed placed = RagdollRig.place(part, pose, scale, facing, elapsed);
+            RagdollRig.Placed placed = RagdollRig.place(part, pose, scale, facing, elapsed, vanilla);
             double grown = placed.size() / scale;
             return new Step(new double[]{placed.x(), placed.y(), placed.z()},
-                    placed.rotation(), new double[]{grown, grown, grown});
+                    placed.rotation(), new double[]{grown, grown, grown}, placed.bend());
         });
     }
 
@@ -222,7 +235,8 @@ public final class RagdollFlight {
     }
 
     /** What makes two bodies dance the same dance. */
-    private record Choreography(RagdollAnimation animation, long intact, long end, double follow) {
+    private record Choreography(RagdollAnimation animation, long intact, long end, double follow,
+                                double breathe, long cycleFrom) {
     }
 
     /**
@@ -241,7 +255,8 @@ public final class RagdollFlight {
     /** The poses this motion dances, solved now or read back from the last body. */
     private static Posed posed(RagdollMotion motion) {
         return POSED.get(new Choreography(motion.animation(), motion.intactMillis(),
-                Math.min(motion.lifeMillis(), motion.finishAt()), motion.follow()),
+                Math.min(motion.lifeMillis(), motion.finishAt()), motion.follow(), motion.breathe(),
+                motion.loop() ? motion.intactMillis() + motion.loopFromMillis() : -1L),
                 RagdollFlight::solve);
     }
 
@@ -251,16 +266,18 @@ public final class RagdollFlight {
         // walks them: the springs depend on everything before, so they cannot
         // be asked about one moment on its own.
         double[][] follow = dance.follow() > 0
-                ? RagdollFollow.solve(dance.animation(), times, dance.intact(), dance.follow())
+                ? RagdollFollow.solve(dance.animation(), times, dance.intact(), dance.follow(), dance.cycleFrom())
                 : null;
+        boolean vanilla = dance.animation().vanilla();
         double[][] poses = new double[times.length][];
         for (int frame = 0; frame < times.length; frame++) {
             double[] pose = dance.animation().at(Math.max(0, times[frame] - dance.intact()));
             if (follow != null) {
-                double[] lag = follow[frame];
-                for (int channel = 0; channel < pose.length; channel++) {
-                    pose[channel] += lag[channel];
-                }
+                RagdollFollow.add(pose, follow[frame], vanilla);
+            }
+            if (dance.breathe() > 0) {
+                RagdollFollow.breathe(pose, times[frame], dance.breathe(),
+                        dance.cycleFrom(), dance.end(), vanilla);
             }
             poses[frame] = pose;
         }
@@ -1018,10 +1035,14 @@ public final class RagdollFlight {
     // ------------------------------------------------------------- the plumbing
 
     /** One moment of a flight, as a solver hands it back. */
-    private record Step(double[] position, Rotation rotation, double[] scale) {
+    private record Step(double[] position, Rotation rotation, double[] scale, Rotation bend) {
 
         Step(double[] position, Rotation rotation) {
             this(position, rotation, SAME);
+        }
+
+        Step(double[] position, Rotation rotation, double[] scale) {
+            this(position, rotation, scale, Rotation.NONE);
         }
     }
 
@@ -1040,6 +1061,8 @@ public final class RagdollFlight {
         double[] z = new double[poses];
         Rotation[] rotations = new Rotation[poses];
         double[][] scales = new double[poses][];
+        Rotation[] bends = new Rotation[poses];
+        boolean bent = false;
         for (int index = 0; index < poses; index++) {
             long at = times[index];
             Step step = path.at(Math.max(0, at - from) / 1000.0);
@@ -1048,8 +1071,10 @@ public final class RagdollFlight {
             z[index] = step.position()[2];
             rotations[index] = step.rotation();
             scales[index] = step.scale();
+            bends[index] = step.bend();
+            bent |= !step.bend().isNone();
         }
-        return new Flight(times, x, y, z, rotations, scales);
+        return new Flight(times, x, y, z, rotations, scales, bent ? bends : null);
     }
 
     /**

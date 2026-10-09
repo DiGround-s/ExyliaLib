@@ -35,6 +35,22 @@ public final class RagdollHandle {
         }
     }
 
+    /**
+     * Stands the body back up, smoothly, and then removes it.
+     *
+     * <p>What a dance cut short wants instead of {@link #remove()}: every piece
+     * goes back to where it was when the body appeared, which for a
+     * choreographed body is standing, in the time given. Safe from any thread.
+     *
+     * @param millis how long standing back up takes
+     * @since 1.262.0
+     */
+    public void settle(long millis) {
+        for (DisplayHandle piece : pieces) {
+            piece.settle(millis);
+        }
+    }
+
     /** Whether any of it is still on somebody's screen. */
     public boolean isShowing() {
         for (DisplayHandle piece : pieces) {

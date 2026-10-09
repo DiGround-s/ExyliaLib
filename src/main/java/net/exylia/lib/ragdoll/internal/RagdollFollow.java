@@ -70,36 +70,130 @@ final class RagdollFollow {
      * @return per pose, a full set of channels to add
      */
     static double[][] solve(RagdollAnimation animation, long[] times, long intact, double strength) {
+        return solve(animation, times, intact, strength, -1L);
+    }
+
+    /**
+     * The same, for a body whose frames loop.
+     *
+     * <p>A loop replays the poses of one cycle forever, so the springs have to
+     * end that cycle exactly as they began it or the body twitches at every
+     * wrap. The cycle is therefore played twice: the second time round starts
+     * from wherever the first left the springs, and that settled pass is the
+     * one kept.
+     *
+     * @param cycleFrom when the cycle starts, counted like {@code times}, or
+     *                  {@code -1} when the frames play once
+     */
+    static double[][] solve(RagdollAnimation animation, long[] times, long intact, double strength,
+                            long cycleFrom) {
         double[][] offsets = new double[times.length][RagdollRig.COUNT];
         double[] angle = new double[JOINTS];
         double[] speed = new double[JOINTS];
-        double clock = 0;
-        for (int frame = 0; frame < times.length; frame++) {
-            double until = Math.max(0, times[frame] - intact) / 1000.0;
-            while (clock < until - 1e-9) {
-                double step = Math.min(STEP, until - clock);
-                double[] drive = drive(animation, clock);
-                for (int joint = 0; joint < JOINTS; joint++) {
-                    double pull = OMEGA * OMEGA * (strength * drive[joint] - angle[joint])
-                            - 2 * DAMPING * OMEGA * speed[joint];
-                    speed[joint] += pull * step;
-                    angle[joint] = clamp(joint, angle[joint] + speed[joint] * step);
-                }
-                clock += step;
+        boolean vanilla = animation.vanilla();
+        int first = 0;
+        if (cycleFrom >= 0) {
+            while (first < times.length && times[first] < cycleFrom) {
+                first++;
             }
-            double[] lag = offsets[frame];
-            lag[RagdollRig.of(RagdollRig.ARM_RIGHT, RagdollRig.ROLL)] = angle[ARM_RIGHT_ROLL];
-            lag[RagdollRig.of(RagdollRig.ARM_LEFT, RagdollRig.ROLL)] = angle[ARM_LEFT_ROLL];
-            lag[RagdollRig.of(RagdollRig.ARM_RIGHT, RagdollRig.PITCH)] = angle[ARM_PITCH];
-            lag[RagdollRig.of(RagdollRig.ARM_LEFT, RagdollRig.PITCH)] = angle[ARM_PITCH];
-            lag[RagdollRig.of(RagdollRig.HEAD, RagdollRig.PITCH)] = angle[HEAD_PITCH];
-            lag[RagdollRig.of(RagdollRig.HEAD, RagdollRig.ROLL)] = angle[HEAD_ROLL];
-            lag[RagdollRig.of(RagdollRig.LEG_RIGHT, RagdollRig.ROLL)] = angle[LEG_ROLL];
-            lag[RagdollRig.of(RagdollRig.LEG_LEFT, RagdollRig.ROLL)] = angle[LEG_ROLL];
-            lag[RagdollRig.of(RagdollRig.LEG_RIGHT, RagdollRig.PITCH)] = angle[LEG_PITCH];
-            lag[RagdollRig.of(RagdollRig.LEG_LEFT, RagdollRig.PITCH)] = angle[LEG_PITCH];
+        }
+        int passes = cycleFrom >= 0 && first < times.length ? 2 : 1;
+        for (int pass = 0; pass < passes; pass++) {
+            double clock = pass == 0 ? 0 : Math.max(0, cycleFrom - intact) / 1000.0;
+            for (int frame = pass == 0 ? 0 : first; frame < times.length; frame++) {
+                double until = Math.max(0, times[frame] - intact) / 1000.0;
+                while (clock < until - 1e-9) {
+                    double step = Math.min(STEP, until - clock);
+                    double[] drive = drive(animation, clock, vanilla);
+                    for (int joint = 0; joint < JOINTS; joint++) {
+                        double pull = OMEGA * OMEGA * (strength * drive[joint] - angle[joint])
+                                - 2 * DAMPING * OMEGA * speed[joint];
+                        speed[joint] += pull * step;
+                        angle[joint] = clamp(joint, angle[joint] + speed[joint] * step);
+                    }
+                    clock += step;
+                }
+                double[] lag = offsets[frame];
+                java.util.Arrays.fill(lag, 0);
+                lag[RagdollRig.of(RagdollRig.ARM_RIGHT, RagdollRig.ROLL)] = angle[ARM_RIGHT_ROLL];
+                lag[RagdollRig.of(RagdollRig.ARM_LEFT, RagdollRig.ROLL)] = angle[ARM_LEFT_ROLL];
+                lag[RagdollRig.of(RagdollRig.ARM_RIGHT, RagdollRig.PITCH)] = angle[ARM_PITCH];
+                lag[RagdollRig.of(RagdollRig.ARM_LEFT, RagdollRig.PITCH)] = angle[ARM_PITCH];
+                lag[RagdollRig.of(RagdollRig.HEAD, RagdollRig.PITCH)] = angle[HEAD_PITCH];
+                lag[RagdollRig.of(RagdollRig.HEAD, RagdollRig.ROLL)] = angle[HEAD_ROLL];
+                lag[RagdollRig.of(RagdollRig.LEG_RIGHT, RagdollRig.ROLL)] = angle[LEG_ROLL];
+                lag[RagdollRig.of(RagdollRig.LEG_LEFT, RagdollRig.ROLL)] = angle[LEG_ROLL];
+                lag[RagdollRig.of(RagdollRig.LEG_RIGHT, RagdollRig.PITCH)] = angle[LEG_PITCH];
+                lag[RagdollRig.of(RagdollRig.LEG_LEFT, RagdollRig.PITCH)] = angle[LEG_PITCH];
+            }
         }
         return offsets;
+    }
+
+    /**
+     * Adds what the springs say to a pose, in whichever terms the pose is
+     * written.
+     *
+     * <p>The springs think in this rig's own terms: a positive roll lifts an
+     * arm away from the body on either side. A vanilla pose writes the same
+     * lift as a positive turn on the right and a negative one on the left, and
+     * a forward swing as a negative one; the numbers are moved across here
+     * rather than the springs taught a second language.
+     */
+    static void add(double[] pose, double[] lag, boolean vanilla) {
+        for (int channel = 0; channel < lag.length; channel++) {
+            if (lag[channel] != 0) {
+                pose[channel] += vanilla ? lag[channel] * towardsVanilla(channel) : lag[channel];
+            }
+        }
+    }
+
+    /** What one of this rig's own degrees is worth on the same channel of a vanilla pose. */
+    private static double towardsVanilla(int channel) {
+        for (int joint = RagdollRig.HEAD; joint <= RagdollRig.LEG_LEFT; joint++) {
+            boolean left = joint == RagdollRig.ARM_LEFT || joint == RagdollRig.LEG_LEFT;
+            boolean limb = joint >= RagdollRig.ARM_RIGHT;
+            if (channel == RagdollRig.of(joint, RagdollRig.PITCH)) {
+                return limb ? -1 : 1;
+            }
+            if (channel == RagdollRig.of(joint, RagdollRig.ROLL)) {
+                return limb ? (left ? -1 : 1) : -1;
+            }
+        }
+        return 1;
+    }
+
+    /** How long one breath takes, in milliseconds, before a loop fits it to its cycle. */
+    private static final double BREATH_MS = 3400;
+
+    /**
+     * A breath, added on top of whatever the frames say.
+     *
+     * <p>A body holding a pose without it is a statue of one. The chest lifts,
+     * the shoulders open and the chin rises a little, slowly enough to be felt
+     * rather than seen. A loop is given a whole number of breaths per cycle, so
+     * the breath comes round with the dance instead of catching at the wrap.
+     *
+     * @param pose      the pose to add it to
+     * @param millis    when, counted from the sequence start
+     * @param depth     how deep; 1 is a calm breath
+     * @param cycleFrom when a loop's cycle starts, or {@code -1}
+     * @param end       when the frames end
+     * @param vanilla   whether the pose is written the vanilla way
+     */
+    static void breathe(double[] pose, long millis, double depth, long cycleFrom, long end, boolean vanilla) {
+        double period = BREATH_MS;
+        if (cycleFrom >= 0 && end > cycleFrom) {
+            double cycle = end - cycleFrom;
+            period = cycle / Math.max(1, Math.round(cycle / BREATH_MS));
+        }
+        double in = Math.sin(2 * Math.PI * millis / period);
+        double[] own = new double[RagdollRig.COUNT];
+        own[RagdollRig.of(RagdollRig.BODY, RagdollRig.BEND)] = -1.8 * depth * in;
+        own[RagdollRig.of(RagdollRig.ARM_RIGHT, RagdollRig.ROLL)] = 1.4 * depth * in;
+        own[RagdollRig.of(RagdollRig.ARM_LEFT, RagdollRig.ROLL)] = 1.4 * depth * in;
+        own[RagdollRig.of(RagdollRig.HEAD, RagdollRig.PITCH)] = -0.9 * depth * in;
+        add(pose, own, vanilla);
     }
 
     /**
@@ -110,7 +204,7 @@ final class RagdollFollow {
      * the head back, hips accelerating to the body's left swing everything to
      * its right. A spin flings arms and legs outwards.
      */
-    private static double[] drive(RagdollAnimation animation, double seconds) {
+    private static double[] drive(RagdollAnimation animation, double seconds, boolean vanilla) {
         double[] before = animation.at(Math.round((seconds - SPAN) * 1000));
         double[] now = animation.at(Math.round(seconds * 1000));
         double[] after = animation.at(Math.round((seconds + SPAN) * 1000));
@@ -120,7 +214,11 @@ final class RagdollFollow {
                 (float) (-(after[RagdollRig.RIGHT] - 2 * now[RagdollRig.RIGHT] + before[RagdollRig.RIGHT]) / squared),
                 (float) ((after[RagdollRig.UP] - 2 * now[RagdollRig.UP] + before[RagdollRig.UP]) / squared),
                 (float) ((after[RagdollRig.FORWARD] - 2 * now[RagdollRig.FORWARD] + before[RagdollRig.FORWARD]) / squared)};
-        Rotation hips = RagdollRig.centred(now[RagdollRig.FLIP], now[RagdollRig.TURN], now[RagdollRig.LEAN]);
+        Rotation hips = vanilla
+                ? Rotation.around(Rotation.Axis.X, Math.toRadians(now[RagdollRig.FLIP]))
+                        .then(Rotation.around(Rotation.Axis.Y, Math.toRadians(now[RagdollRig.TURN])))
+                        .then(Rotation.around(Rotation.Axis.Z, Math.toRadians(now[RagdollRig.LEAN])))
+                : RagdollRig.centred(now[RagdollRig.FLIP], now[RagdollRig.TURN], now[RagdollRig.LEAN]);
         float[] body = new Rotation(-hips.x(), -hips.y(), -hips.z(), hips.w()).apply(felt);
         double left = Math.clamp(body[0], -MAX_ACCELERATION, MAX_ACCELERATION);
         double up = Math.clamp(body[1], -MAX_ACCELERATION, MAX_ACCELERATION);

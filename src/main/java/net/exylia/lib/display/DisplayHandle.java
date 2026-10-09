@@ -21,4 +21,19 @@ public interface DisplayHandle {
 
     /** Whether it is still on somebody's screen. */
     boolean isShowing();
+
+    /**
+     * Takes it back to where it started, smoothly, and then removes it.
+     *
+     * <p>For something cut off in the middle of its motion that should not
+     * simply vanish: a body stopped halfway through a dance stands back up in
+     * the time given, and is then gone. Safe from any thread; a display that
+     * cannot do it is removed at once.
+     *
+     * @param millis how long the way back takes
+     * @since 1.262.0
+     */
+    default void settle(long millis) {
+        remove();
+    }
 }

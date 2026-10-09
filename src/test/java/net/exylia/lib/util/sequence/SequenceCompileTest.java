@@ -251,4 +251,24 @@ class SequenceCompileTest {
         assertTrue(sequence.isInstant());
         assertEquals(0L, sequence.durationMillis());
     }
+    @Test
+    @DisplayName("a body can play an animation from the plugin's folder, looping where the file says")
+    void aBodyPlaysAnImportedAnimation() {
+        net.exylia.lib.ragdoll.RagdollAnimations.register("ExyliaLib", "sway",
+                net.exylia.lib.ragdoll.RagdollAnimations.read("""
+                        {"name": "Sway", "emote": {"endTick": 19, "isLoop": true, "returnTick": 5,
+                          "moves": [{"tick": 0, "head": {"roll": 0}}, {"tick": 10, "head": {"roll": 0.3}}]}}""",
+                        "sway.json", problem -> { }).get("sway"));
+        List<String> found = new java.util.ArrayList<>();
+        var compiler = SequenceAccess.compiler(SequenceAccess.builtInShapes(),
+                (line, problem) -> found.add(problem));
+        Sequence sequence = SequenceAccess.sequence(compiler.compile(
+                List.of("[RAGDOLL] {victim};intact:0;anim:sway;breathe:1;follow:1")));
+        assertTrue(found.isEmpty(), "the line should compile: " + found);
+        assertTrue(sequence.isEndless(), "the file loops, so the body does");
+
+        compiler.compile(List.of("[RAGDOLL] {victim};anim:nothing"));
+        assertTrue(found.stream().anyMatch(problem -> problem.contains("nothing")),
+                "a name with nothing behind it is said: " + found);
+    }
 }

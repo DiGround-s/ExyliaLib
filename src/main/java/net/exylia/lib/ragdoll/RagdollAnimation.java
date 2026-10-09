@@ -49,6 +49,18 @@ import java.util.function.Consumer;
  *   <tr><td>{@code size=} {@code <joint>_size=}</td><td>how big the body, or one
  *       part of it, is</td></tr>
  *   <tr><td>{@code shake=}</td><td>how hard the whole body trembles, in blocks</td></tr>
+ *   <tr><td>{@code elbow_r=} {@code elbow_l=} {@code elbows=}</td><td>{@code angle,direction}:
+ *       bends the forearm forward at the elbow; a direction of 90 bends it
+ *       outwards instead, -90 across the body</td></tr>
+ *   <tr><td>{@code knee_r=} {@code knee_l=} {@code knees=}</td><td>{@code angle,direction}:
+ *       bends the shin backwards at the knee; 90 outwards</td></tr>
+ *   <tr><td>{@code spine=}</td><td>{@code angle,direction}: bends the chest
+ *       forward at the middle of the back, carrying the head and arms; 90
+ *       bends it to the body's right</td></tr>
+ *   <tr><td>{@code plant=}</td><td>0 to 1: how firmly the feet stay where the
+ *       body stood. At 1 the legs are solved to reach the floor wherever the
+ *       hips go, so a body that sinks bends its knees instead of sinking its
+ *       feet through the floor</td></tr>
  *   <tr><td>{@code ease=}</td><td>how this frame is reached; see below</td></tr>
  * </table>
  *
@@ -83,17 +95,104 @@ public final class RagdollAnimation {
     /** The fastest a joint may be asked to turn between two frames the client draws. */
     private static final double MAX_DEGREES_PER_TICK = 160;
 
-    private static final RagdollAnimation NONE = new RagdollAnimation(
-            new long[]{0L}, new double[][]{RagdollRig.standing()}, new Ease[]{Ease.LINEAR});
+    private static final RagdollAnimation NONE = dense(
+            new long[]{0L}, new double[][]{RagdollRig.standing()}, new Ease[]{Ease.LINEAR}, 0);
 
-    private final long[] times;
-    private final double[][] keys;
-    private final Ease[] eases;
+    /**
+     * One timeline per channel.
+     *
+     * <p>A frame written in a file keys every channel at once, so the frames of
+     * a {@code keys:} line are as many keys on every timeline. An animation made
+     * in Blockbench or Emotecraft keys each channel on its own beat, and is
+     * kept that way: the elbow that lands after the shoulder is the whole
+     * point of drawing it in a tool that lets you.
+     */
+    private final Track[] tracks;
+    private final long duration;
+    private final int frames;
+    private final boolean vanilla;
+    private final boolean bends;
+    private final long loopFrom;
 
-    private RagdollAnimation(long[] times, double[][] keys, Ease[] eases) {
-        this.times = times;
-        this.keys = keys;
-        this.eases = eases;
+    /**
+     * One channel's keys.
+     *
+     * @param times  when each key is reached, ascending; two keys may share a
+     *               moment, which is a jump: the first is arrived at and the
+     *               second left from
+     * @param values the value at each key
+     * @param eases  how each key is arrived at
+     * @param args   each curve's argument, {@code NaN} for the usual
+     */
+    private record Track(long[] times, double[] values, Ease[] eases, double[] args) {
+    }
+
+    private RagdollAnimation(Track[] tracks, long duration, int frames, boolean vanilla, long loopFrom) {
+        this.tracks = tracks;
+        this.duration = duration;
+        this.frames = frames;
+        this.vanilla = vanilla;
+        this.loopFrom = loopFrom;
+        boolean bent = false;
+        for (int joint = RagdollRig.HEAD; joint <= RagdollRig.LEG_LEFT && !bent; joint++) {
+            for (double value : tracks[RagdollRig.of(joint, RagdollRig.BEND)].values()) {
+                if (value != 0) {
+                    bent = true;
+                    break;
+                }
+            }
+        }
+        this.bends = bent;
+    }
+
+    /** Whole poses, each one keying every channel. */
+    private static RagdollAnimation dense(long[] times, double[][] keys, Ease[] eases, int frames) {
+        Track[] tracks = new Track[RagdollRig.COUNT];
+        double[] usual = new double[times.length];
+        java.util.Arrays.fill(usual, Double.NaN);
+        for (int channel = 0; channel < RagdollRig.COUNT; channel++) {
+            double[] values = new double[times.length];
+            for (int key = 0; key < times.length; key++) {
+                values[key] = keys[key][channel];
+            }
+            tracks[channel] = new Track(times, values, eases, usual);
+        }
+        return new RagdollAnimation(tracks, times[times.length - 1], frames, false, -1);
+    }
+
+    /**
+     * An animation keyed channel by channel, as an importer builds one.
+     *
+     * @param times    per channel, when each key is reached
+     * @param values   per channel, the value at each key
+     * @param eases    per channel, how each key is arrived at
+     * @param args     per channel, each curve's argument
+     * @param duration how long it lasts, which may run past its last key
+     * @param vanilla  whether the channels are written the way the vanilla
+     *                 player model is posed rather than the way a {@code keys:}
+     *                 line is
+     * @param loopFrom where its cycle starts when it loops, or {@code -1} when
+     *                 it does not
+     * @return the animation
+     * @since 1.262.0
+     */
+    @ApiStatus.Internal
+    public static @NotNull RagdollAnimation keyed(long[][] times, double[][] values, Ease[][] eases,
+                                                  double[][] args, long duration, boolean vanilla,
+                                                  long loopFrom) {
+        Track[] tracks = new Track[RagdollRig.COUNT];
+        int most = 0;
+        double[] standing = RagdollRig.standing();
+        for (int channel = 0; channel < RagdollRig.COUNT; channel++) {
+            if (times[channel] == null || times[channel].length == 0) {
+                tracks[channel] = new Track(new long[]{0L}, new double[]{standing[channel]},
+                        new Ease[]{Ease.LINEAR}, new double[]{Double.NaN});
+                continue;
+            }
+            tracks[channel] = new Track(times[channel], values[channel], eases[channel], args[channel]);
+            most = Math.max(most, times[channel].length);
+        }
+        return new RagdollAnimation(tracks, duration, most, vanilla, loopFrom);
     }
 
     /** A body that stands where it died and does nothing. */
@@ -194,22 +293,60 @@ public final class RagdollAnimation {
         for (int index = 0; index < packed.length; index++) {
             packed[index] = times.get(index);
         }
-        return new RagdollAnimation(packed, keys.toArray(double[][]::new), eases.toArray(Ease[]::new));
+        return dense(packed, keys.toArray(double[][]::new), eases.toArray(Ease[]::new), keys.size() - 1);
     }
 
     /** How long the whole choreography takes, in milliseconds. */
     public long durationMillis() {
-        return times[times.length - 1];
+        return duration;
     }
 
     /** Whether it has no frames at all. */
     public boolean isEmpty() {
-        return keys.length <= 1;
+        return frames == 0;
     }
 
-    /** How many frames were read. */
+    /** How many frames were read; for an imported animation, the most keys any channel has. */
     public int frames() {
-        return keys.length - 1;
+        return frames;
+    }
+
+    /**
+     * Whether its channels are posed the way the vanilla player model is.
+     *
+     * <p>True for what was made in Blockbench or Emotecraft: there the head and
+     * arms hang off the model rather than off the chest, and every turn is
+     * written in the model's own order. The rig places such a body the same
+     * way, so it moves exactly as it did where it was made.
+     *
+     * @since 1.262.0
+     */
+    @ApiStatus.Internal
+    public boolean vanilla() {
+        return vanilla;
+    }
+
+    /**
+     * Whether any elbow, knee or the spine ever bends.
+     *
+     * <p>A body that bends needs its limbs cut in two even at the lowest
+     * detail; one that never does is drawn exactly as it always was.
+     *
+     * @since 1.262.0
+     */
+    @ApiStatus.Internal
+    public boolean bends() {
+        return bends;
+    }
+
+    /**
+     * Where the file it came from says its cycle starts, in milliseconds, or
+     * {@code -1} when it says nothing about looping.
+     *
+     * @since 1.262.0
+     */
+    public long loopFromMillis() {
+        return loopFrom;
     }
 
     /**
@@ -220,19 +357,29 @@ public final class RagdollAnimation {
      */
     @ApiStatus.Internal
     public double @NotNull [] at(long millis) {
+        double[] pose = new double[RagdollRig.COUNT];
+        // Frames of no length are where the body starts: a clone that stands
+        // across the room is there from the first tick.
+        long at = Math.max(0L, millis);
+        for (int channel = 0; channel < pose.length; channel++) {
+            pose[channel] = value(tracks[channel], at);
+        }
+        return pose;
+    }
+
+    /** One channel at one moment. */
+    private static double value(Track track, long millis) {
+        long[] times = track.times();
+        double[] values = track.values();
         int last = times.length - 1;
-        if (millis <= 0 || last == 0) {
-            // Frames of no length are where the body starts: a clone that
-            // stands across the room is there from the first tick.
-            int start = 0;
-            while (start < last && times[start + 1] <= 0) {
-                start++;
-            }
-            return keys[start].clone();
-        }
         if (millis >= times[last]) {
-            return keys[last].clone();
+            return values[last];
         }
+        if (millis < times[0]) {
+            return values[0];
+        }
+        // The first key after now, so that of several keys sharing a moment the
+        // one left from is the last of them.
         int to = 1;
         while (times[to] <= millis) {
             to++;
@@ -240,8 +387,7 @@ public final class RagdollAnimation {
         int from = to - 1;
         double span = times[to] - times[from];
         double progress = (millis - times[from]) / span;
-        Ease ease = eases[to];
-        double[] pose = new double[RagdollRig.COUNT];
+        Ease ease = track.eases()[to];
         if (ease == Ease.SMOOTH) {
             double squared = progress * progress;
             double cubed = squared * progress;
@@ -249,36 +395,31 @@ public final class RagdollAnimation {
             double h10 = cubed - 2 * squared + progress;
             double h01 = -2 * cubed + 3 * squared;
             double h11 = cubed - squared;
-            for (int channel = 0; channel < pose.length; channel++) {
-                pose[channel] = h00 * keys[from][channel]
-                        + h10 * span * slope(from, channel)
-                        + h01 * keys[to][channel]
-                        + h11 * span * slope(to, channel);
-            }
-            return pose;
+            return h00 * values[from]
+                    + h10 * span * slope(track, from)
+                    + h01 * values[to]
+                    + h11 * span * slope(track, to);
         }
-        double eased = ease.at(progress);
-        for (int channel = 0; channel < pose.length; channel++) {
-            pose[channel] = keys[from][channel] + (keys[to][channel] - keys[from][channel]) * eased;
-        }
-        return pose;
+        return values[from] + (values[to] - values[from]) * ease.at(progress, track.args()[to]);
     }
 
     /**
-     * How fast a channel is moving through a frame, per millisecond.
+     * How fast a channel is moving through a key, per millisecond.
      *
-     * <p>Only a frame that is flowed through has a speed. One reached with any
+     * <p>Only a key that is flowed through has a speed. One reached with any
      * other ease is arrived at, which is a stop, and a curve that sails past it
      * would be a body that never reaches the pose the file wrote. A linear
      * neighbour lends its own speed, so a spin that eases into a sway does not
      * hitch where the two meet.
      */
-    private double slope(int key, int channel) {
+    private static double slope(Track track, int key) {
+        long[] times = track.times();
+        double[] values = track.values();
         if (key <= 0 || key >= times.length - 1) {
             return 0;
         }
-        Ease into = eases[key];
-        Ease out = eases[key + 1];
+        Ease into = track.eases()[key];
+        Ease out = track.eases()[key + 1];
         boolean flowsIn = into == Ease.SMOOTH || into == Ease.LINEAR;
         boolean flowsOut = out == Ease.SMOOTH || out == Ease.LINEAR;
         if (!flowsIn || !flowsOut) {
@@ -287,13 +428,13 @@ public final class RagdollAnimation {
         long before = times[key] - times[key - 1];
         long after = times[key + 1] - times[key];
         if (into == Ease.LINEAR) {
-            return before <= 0 ? 0 : (keys[key][channel] - keys[key - 1][channel]) / before;
+            return before <= 0 ? 0 : (values[key] - values[key - 1]) / before;
         }
         if (out == Ease.LINEAR) {
-            return after <= 0 ? 0 : (keys[key + 1][channel] - keys[key][channel]) / after;
+            return after <= 0 ? 0 : (values[key + 1] - values[key]) / after;
         }
         long across = times[key + 1] - times[key - 1];
-        return across <= 0 ? 0 : (keys[key + 1][channel] - keys[key - 1][channel]) / across;
+        return across <= 0 ? 0 : (values[key + 1] - values[key - 1]) / across;
     }
 
     // ---------------------------------------------------------------- reading
@@ -323,6 +464,18 @@ public final class RagdollAnimation {
         joint("leg_l", RagdollRig.LEG_LEFT);
         joint("arms", RagdollRig.ARM_RIGHT, RagdollRig.ARM_LEFT);
         joint("legs", RagdollRig.LEG_RIGHT, RagdollRig.LEG_LEFT);
+        root("plant", 1, RagdollRig.PLANT);
+        bend("elbow_r", RagdollRig.ARM_RIGHT);
+        bend("elbow_l", RagdollRig.ARM_LEFT);
+        bend("elbows", RagdollRig.ARM_RIGHT, RagdollRig.ARM_LEFT);
+        bend("knee_r", RagdollRig.LEG_RIGHT);
+        bend("knee_l", RagdollRig.LEG_LEFT);
+        bend("knees", RagdollRig.LEG_RIGHT, RagdollRig.LEG_LEFT);
+        bend("spine", RagdollRig.BODY);
+    }
+
+    private static void bend(String name, int... joints) {
+        CHANNELS.put(name, new Target(rows(joints, RagdollRig.BEND, RagdollRig.BEND_AXIS), 1, 2));
     }
 
     private static void root(String name, int least, int... channels) {
@@ -411,6 +564,8 @@ public final class RagdollAnimation {
                 int channel = RagdollRig.of(joint, field);
                 pose[channel] = wholeTurn(pose[channel]);
             }
+            pose[RagdollRig.of(joint, RagdollRig.BEND)] = 0;
+            pose[RagdollRig.of(joint, RagdollRig.BEND_AXIS)] = 0;
         }
     }
 

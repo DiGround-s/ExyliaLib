@@ -34,7 +34,13 @@ final class LiveDisplay implements DisplayHandle {
     private final DisplayModel model;
     private final List<DisplayKeyframe> poses;
     private final List<Player> viewers;
-    private final long endsAt;
+    private long endsAt;
+
+    /** How long the way back to the first pose should take, once asked; {@code -1} until then. */
+    private volatile long settleMillis = -1L;
+
+    /** Whether it is on its way back to the first pose. */
+    private boolean settling;
 
     /**
      * How long one cycle lasts, or {@code 0} when the poses play once.
@@ -142,6 +148,15 @@ final class LiveDisplay implements DisplayHandle {
             destroy(sink);
             return true;
         }
+        long settle = settleMillis;
+        if (settle >= 0L && !settling) {
+            settling = true;
+            sink.pose(viewers, entityId, model, poses.get(0), (int) Math.max(1L, settle / TICK_MS));
+            endsAt = Math.min(endsAt, now + settle + TICK_MS);
+        }
+        if (settling) {
+            return false;
+        }
         long elapsed = sendDue(sink, now);
         if (cycleMillis > 0L && elapsed >= cycleMillis) {
             wrap(now, elapsed);
@@ -215,5 +230,14 @@ final class LiveDisplay implements DisplayHandle {
     @Override
     public boolean isShowing() {
         return !gone;
+    }
+
+    @Override
+    public void settle(long millis) {
+        if (millis <= 0L) {
+            remove();
+            return;
+        }
+        settleMillis = millis;
     }
 }

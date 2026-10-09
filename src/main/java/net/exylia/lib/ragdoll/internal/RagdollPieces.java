@@ -224,7 +224,7 @@ public final class RagdollPieces {
         int pieces = 0;
         for (RagdollPart part : parts) {
             if (part != RagdollPart.HEAD) {
-                pieces += part.columns(detail) * part.rows(detail);
+                pieces += part.columns(detail) * rows(part, detail, motion);
             }
         }
         if (placing) {
@@ -255,7 +255,7 @@ public final class RagdollPieces {
                     float[] local = {piece.centre()[0] * pixel, piece.centre()[1] * pixel, piece.centre()[2] * pixel};
                     float[] size = {piece.size()[0] * pixel, piece.size()[1] * pixel, piece.size()[2] * pixel};
                     int index = running++;
-                    List<DisplayKeyframe> centres = carried(flight, local, size);
+                    List<DisplayKeyframe> centres = carried(flight, local, size, part, scale);
                     if (finishing) {
                         RagdollFinishes.extend(centres, motion, scale, middle, false, random,
                                 new RagdollFinishes.Spelling(index, pieces, facing));
@@ -270,7 +270,7 @@ public final class RagdollPieces {
             float height = part.blockHeight() * (float) scale;
             float depth = part.blockDepth() * (float) scale;
             int columns = part.columns(detail);
-            int rows = part.rows(detail);
+            int rows = rows(part, detail, motion);
             float[] size = {width / columns, height / rows, depth};
             for (int cellY = 0; cellY < rows; cellY++) {
                 for (int cellX = 0; cellX < columns; cellX++) {
@@ -298,7 +298,7 @@ public final class RagdollPieces {
                         path = RagdollFlight.signCell(motion, scale, facing, start, to, size);
                         local = NOWHERE;
                     }
-                    List<DisplayKeyframe> centres = carried(path, local, size);
+                    List<DisplayKeyframe> centres = carried(path, local, size, part, scale);
                     if (finishing) {
                         RagdollFinishes.extend(centres, motion, scale, middle, false, random,
                                 new RagdollFinishes.Spelling(index, pieces, facing));
@@ -323,7 +323,7 @@ public final class RagdollPieces {
                         (float) ((rig.at()[2] + block.z()) * scale)};
                 float side = (float) (block.size() * scale);
                 List<DisplayKeyframe> centres =
-                        carried(carrier, local, new float[]{side, side, side});
+                        carried(carrier, local, new float[]{side, side, side}, joint.part(), scale);
                 if (finishing) {
                     RagdollFinishes.extend(centres, motion, scale, middle, false, random,
                             new RagdollFinishes.Spelling(-1, pieces, facing));
@@ -381,7 +381,8 @@ public final class RagdollPieces {
                 break;
             }
             float grown = (float) (scale * flight.scales()[index][1]);
-            float[] end = flight.rotations()[index].apply(new float[]{0f, -6 * RagdollPart.PIXEL * grown, 0f});
+            float[] end = flight.rotations()[index].apply(
+                    flight.bend(index).apply(new float[]{0f, -6 * RagdollPart.PIXEL * grown, 0f}));
             float dx = (float) flight.x()[index] + end[0] - floor[0];
             float dy = (float) flight.y()[index] + end[1];
             float dz = (float) flight.z()[index] + end[2] - floor[2];
@@ -439,7 +440,8 @@ public final class RagdollPieces {
             }
             float grown = (float) (scale * flight.scales()[index][1]);
             float reach = part == RagdollPart.HEAD ? 4 * RagdollPart.PIXEL * grown : -6 * RagdollPart.PIXEL * grown;
-            float[] end = flight.rotations()[index].apply(new float[]{0f, reach, 0f});
+            float[] end = flight.rotations()[index].apply(
+                    flight.bend(index).apply(new float[]{0f, reach, 0f}));
             float x = (float) flight.x()[index] + end[0];
             float y = (float) flight.y()[index] + end[1];
             float z = (float) flight.z()[index] + end[2];
@@ -483,7 +485,7 @@ public final class RagdollPieces {
                 // hand is round its handle and not its middle.
                 : new float[]{0f, -7 * RagdollPart.PIXEL * (float) scale, GRIP * size};
         List<DisplayKeyframe> centres = carried(flights[part.ordinal()], local,
-                new float[]{size, size, size});
+                new float[]{size, size, size}, part, scale);
         if (finishing) {
             RagdollFinishes.extend(centres, motion, scale, middle, false, random,
                     new RagdollFinishes.Spelling(-1, pieces, facing));
@@ -500,25 +502,89 @@ public final class RagdollPieces {
      * cells drifting apart from each other.
      */
     private static List<DisplayKeyframe> carried(RagdollFlight.Flight flight, float[] local, float[] size) {
+        return carried(flight, local, size, RagdollPart.HEAD, 1);
+    }
+
+    /**
+     * The same, for a piece of a part that may bend.
+     *
+     * <p>A piece beyond the part's hinge &mdash; the forearm's half of an arm,
+     * the shin's half of a leg, the chest's half of the torso &mdash; turns
+     * with the hinge as well as with the part. A piece whose middle sits on
+     * the hinge itself, as the middle cell of a limb cut in three does, turns
+     * half as far, which is what makes three cells of an arm read as one arm
+     * bending rather than two planks meeting.
+     *
+     * @param part  the part it belongs to, which says which half bends
+     * @param scale how big the body is, so the hinge can be told from a piece
+     *              merely near it
+     */
+    private static List<DisplayKeyframe> carried(RagdollFlight.Flight flight, float[] local, float[] size,
+                                                 RagdollPart part, double scale) {
         int count = flight.times().length;
         List<DisplayKeyframe> poses = new ArrayList<>(count + 48);
+        double share = bending(part, local[1], scale);
         for (int index = 0; index < count; index++) {
             Rotation rotation = flight.rotations()[index];
+            Rotation bend = share == 0 ? Rotation.NONE : flight.bend(index);
+            if (share < 1 && !bend.isNone()) {
+                bend = RagdollRig.slerp(Rotation.NONE, bend, share);
+            }
             double[] grown = flight.scales()[index];
-            float[] offset = rotation.apply(new float[]{
+            float[] offset = rotation.apply(bend.apply(new float[]{
                     (float) (local[0] * grown[0]),
                     (float) (local[1] * grown[1]),
-                    (float) (local[2] * grown[2])});
+                    (float) (local[2] * grown[2])}));
+            Rotation turned = bend.isNone() ? rotation : bend.then(rotation);
             poses.add(new DisplayKeyframe(flight.times()[index],
                     (float) flight.x()[index] + offset[0],
                     (float) flight.y()[index] + offset[1],
                     (float) flight.z()[index] + offset[2],
-                    rotation,
+                    turned,
                     (float) (size[0] * grown[0]),
                     (float) (size[1] * grown[1]),
                     (float) (size[2] * grown[2])));
         }
         return poses;
+    }
+
+    /**
+     * How much of its part's bend a piece takes: all of it beyond the hinge,
+     * half on it, none before it.
+     *
+     * @param up how far above the part's middle the piece sits, in blocks
+     */
+    static double bending(RagdollPart part, float up, double scale) {
+        if (part == RagdollPart.HEAD) {
+            return 0;
+        }
+        double hinge = RagdollPart.PIXEL * scale * 1.01;
+        // The chest bends above the middle of the torso; a limb, below its own.
+        double beyond = part == RagdollPart.TORSO ? up : -up;
+        if (beyond > hinge) {
+            return 1;
+        }
+        return beyond >= -hinge ? 0.5 : 0;
+    }
+
+    /**
+     * How many rows a part is cut into.
+     *
+     * <p>A body whose elbows, knees or back bend is never cut coarser than an
+     * upper and a lower half, because a limb that is one block cannot bend.
+     *
+     * @param part   the part
+     * @param detail the level of detail
+     * @param motion what the body does
+     * @return the rows
+     */
+    public static int rows(RagdollPart part, int detail, RagdollMotion motion) {
+        int rows = part.rows(detail);
+        if (rows == 1 && part != RagdollPart.HEAD && motion.pose() == RagdollPose.ANIMATE
+                && motion.animation().bends()) {
+            return 2;
+        }
+        return rows;
     }
 
     /**

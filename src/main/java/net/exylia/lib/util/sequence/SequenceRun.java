@@ -67,6 +67,41 @@ public final class SequenceRun {
      * further is sent.
      */
     public void cancel() {
+        stop(-1L);
+    }
+
+    /**
+     * Stops this sequence where it is, letting whatever can ease back do so.
+     *
+     * <p>The same as {@link #cancel()}, except that a body in the middle of a
+     * choreography stands back up over {@code millis} before it is gone rather
+     * than vanishing mid-gesture. Anything else the run owns is cancelled at
+     * once. Safe from any thread and safe to call twice.
+     *
+     * @param millis how long a body takes to stand back up
+     * @since 1.262.0
+     */
+    public void settle(long millis) {
+        stop(millis);
+    }
+
+    /**
+     * Something a run owns that can ease back to where it started instead of
+     * being cut off.
+     *
+     * @since 1.262.0
+     */
+    public interface Settling {
+
+        /**
+         * Eases back over {@code millis} and is then gone.
+         *
+         * @param millis how long it takes
+         */
+        void settle(long millis);
+    }
+
+    private void stop(long settle) {
         if (cancelled) {
             return;
         }
@@ -77,7 +112,11 @@ public final class SequenceRun {
             scheduled.clear();
         }
         for (TaskHandle handle : copy) {
-            handle.cancel();
+            if (settle >= 0L && handle instanceof Settling settling) {
+                settling.settle(settle);
+            } else {
+                handle.cancel();
+            }
         }
         markFinished();
     }

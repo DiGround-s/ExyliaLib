@@ -500,6 +500,33 @@ final class Steps {
      * <p>Whose body it is is decided when the sequence plays, because the
      * answer is whoever just died.
      */
+    /**
+     * A body as its run owns it: cancelled, it is gone; settled, it stands back
+     * up first.
+     */
+    private record Body(RagdollHandle handle) implements TaskHandle, SequenceRun.Settling {
+
+        @Override
+        public void cancel() {
+            handle.remove();
+        }
+
+        @Override
+        public boolean isCancelled() {
+            return !handle.isShowing();
+        }
+
+        @Override
+        public boolean isRepeating() {
+            return false;
+        }
+
+        @Override
+        public void settle(long millis) {
+            handle.settle(millis);
+        }
+    }
+
     record Ragdoll(String owner, Corpse.Face face, RagdollMotion burst,
                    java.util.List<net.exylia.lib.ragdoll.RagdollProp> rigs, int detail, double scale,
                    int glowArgb, int brightness, double yShift, boolean facesSource,
@@ -564,22 +591,7 @@ final class Steps {
                     RagdollBuilder.show(owner, model, burst, where, observers, run.tempo()));
             // Owned by the run as well as by the display module, so a preview
             // the player closed does not leave an arm spinning in the arena.
-            run.owns(new TaskHandle() {
-                @Override
-                public void cancel() {
-                    handle.remove();
-                }
-
-                @Override
-                public boolean isCancelled() {
-                    return !handle.isShowing();
-                }
-
-                @Override
-                public boolean isRepeating() {
-                    return false;
-                }
-            });
+            run.owns(new Body(handle));
         }
 
         @Override

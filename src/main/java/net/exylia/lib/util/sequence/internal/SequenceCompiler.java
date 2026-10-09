@@ -617,7 +617,7 @@ public final class SequenceCompiler {
                 "y", "face", "rise", "open", "lift", "hang", "turns", "hits", "every", "force",
                 "swell", "squash", "sign", "letters", "dir", "keys", "then", "follow",
                 "hold", "offhand", "hat", "hold_size", "hat_size", "hat_y", "strings", "chains", "snip", "seat",
-                "rig", "loop", "loop_from", "accel", "max_speed", "tempo");
+                "rig", "loop", "loop_from", "accel", "max_speed", "tempo", "anim", "breathe");
         // A spectator: whoever is watching fills the seat, so a crowd is the
         // real crowd.
         boolean crowd = args.head().trim().equalsIgnoreCase("{crowd}");
@@ -628,6 +628,26 @@ public final class SequenceCompiler {
                 ? net.exylia.lib.ragdoll.RagdollAnimation.parse(args.text("keys", ""),
                         problem -> onArg.found("keys", problem))
                 : net.exylia.lib.ragdoll.RagdollAnimation.none();
+        // An animation made in Blockbench or Emotecraft, from the plugin's own
+        // animations folder, in place of frames written on the line.
+        boolean imported = false;
+        if (args.has("anim")) {
+            if (args.has("keys")) {
+                onArg.found("anim", "a body plays either its keys or an animation, not both; the keys win");
+            } else {
+                String name = args.text("anim", "").trim();
+                net.exylia.lib.ragdoll.RagdollAnimation found =
+                        net.exylia.lib.ragdoll.RagdollAnimations.find(owner, name);
+                if (found == null) {
+                    onArg.found("anim", "there is no animation called \"" + name + "\" in plugins/"
+                            + owner + "/animations");
+                } else {
+                    animation = found;
+                    imported = true;
+                }
+            }
+        }
+        boolean choreographed = args.has("keys") || imported;
         net.exylia.lib.ragdoll.RagdollFinish finish =
                 net.exylia.lib.ragdoll.RagdollFinish.of(args.text("then", "hold"));
         double intact = args.seconds("intact", 0.3, onArg);
@@ -640,12 +660,16 @@ public final class SequenceCompiler {
             case BURST, COLLAPSE, DISSOLVE -> 1.8;
             case SPELL -> 2.6;
         };
-        boolean loop = args.flag("loop", false);
-        if (loop && !args.has("keys")) {
+        // An animation that loops where it was made loops here, from where its
+        // file says, unless the line says otherwise.
+        boolean loopsItself = imported && animation.loopFromMillis() >= 0;
+        boolean loop = args.flag("loop", loopsItself);
+        if (loop && !choreographed) {
             onArg.found("loop", "only a body with keys can loop: there is nothing to play again");
             loop = false;
         }
-        double loopFrom = loop ? args.seconds("loop_from", 0.0, onArg) : 0.0;
+        double loopFrom = loop ? args.seconds("loop_from",
+                loopsItself ? animation.loopFromMillis() / 1000.0 : 0.0, onArg) : 0.0;
         if (loop) {
             unclosed(animation, (long) (loopFrom * 1000), onArg);
         }
@@ -654,7 +678,7 @@ public final class SequenceCompiler {
         // and this is only what happens if nobody ever does.
         double life = args.has("life") ? args.seconds("life", 2.2, onArg)
                 : loop ? LOOP_LIFE_SECONDS
-                : args.has("keys") ? intact + animation.durationMillis() / 1000.0 + finishing
+                : choreographed ? intact + animation.durationMillis() / 1000.0 + finishing
                 : 2.2;
         // tempo:1.4 plays it half again as fast; tempo:1-1.6 rolls that once
         // per play, so the same dance is never quite the dance it was last
@@ -678,7 +702,7 @@ public final class SequenceCompiler {
         net.exylia.lib.ragdoll.RagdollMotion.Builder body =
                 net.exylia.lib.ragdoll.RagdollMotion.builder()
                 .pose(net.exylia.lib.ragdoll.RagdollPose.of(
-                        args.text("pose", args.has("keys") ? "animate" : "burst")))
+                        args.text("pose", choreographed ? "animate" : "burst")))
                 .animation(animation)
                 .finish(finish)
                 .loop(loop)
@@ -686,6 +710,7 @@ public final class SequenceCompiler {
                 .winding(args.number("accel", 1.0, onArg), args.number("max_speed", 1.0, onArg))
                 .tempo(tempoFrom, tempoTo)
                 .follow(args.number("follow", 0.0, onArg))
+                .breathe(args.number("breathe", 0.0, onArg))
                 .holdSize(args.number("hold_size", 0.7, onArg))
                 .hatSize(args.number("hat_size", 0.6, onArg))
                 .hatRaise(args.number("hat_y", 0.0, onArg))

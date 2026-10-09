@@ -286,4 +286,19 @@ class LiveDisplayTest {
         assertTrue(live.advance(sink, 450L));
         assertEquals(List.of("destroy"), sent);
     }
+    @Test
+    @DisplayName("a display asked to settle goes back to its first pose in that time and is then gone")
+    void settlesBackToTheStart() {
+        LiveDisplay live = display(5000, 0, 100, 200, 300, 400);
+        assertFalse(live.advance(sink, 0L));
+        assertFalse(live.advance(sink, 150L));
+        sent.clear();
+        live.settle(250L);
+        assertFalse(live.advance(sink, 160L));
+        assertEquals(List.of("pose@0 over 5"), sent, "the way back is one pose, over the time given");
+        assertFalse(live.advance(sink, 300L), "nothing more of the old motion is sent");
+        assertEquals(1, sent.size());
+        assertTrue(live.advance(sink, 470L), "and once it is back it is gone");
+        assertEquals("destroy", sent.get(sent.size() - 1));
+    }
 }

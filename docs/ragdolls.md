@@ -148,6 +148,10 @@ whatever they were looking at.
 | `<joint>_at=out,up,forward` | pulls a part off its joint, in blocks: a head popping off, arms stretched out of their sleeves |
 | `size=` `<joint>_size=` | how big the whole body, or one part, is |
 | `shake=` | how hard the whole body trembles, in blocks |
+| `elbow_r=` `elbow_l=` `elbows=` | `angle,direction`: bends the forearm forward at the elbow; a direction of `90` bends it outwards, `-90` across the body. Since 1.262.0 |
+| `knee_r=` `knee_l=` `knees=` | `angle,direction`: bends the shin backwards at the knee; `90` outwards. Since 1.262.0 |
+| `spine=` | `angle,direction`: bends the chest forward at the middle of the back, carrying the head and both arms; `90` bends it to the body's right. Since 1.262.0 |
+| `plant=` | `0` to `1`: how firmly the feet stay where the body stood. See *Bends and planted feet*. Since 1.262.0 |
 | `ease=` | how the frame is reached |
 
 A rotation given one number sets its pitch, two set pitch and yaw. A number
@@ -180,9 +184,102 @@ backflips does not spin the body backwards through both of them.
 | `bounce` | lands twice |
 | `snap` | cuts straight to the pose |
 | `smooth` | runs a curve *through* its neighbours instead of stopping at every frame — a sway, a walk, a path |
+| `hold` | stays where it was until the frame is reached, then jumps — a stepped keyframe. Since 1.262.0 |
+
+Since 1.262.0 the whole easings.net family is there as well, each as `_in`,
+`_out` and `_in_out`: `sine`, `quad`, `cubic`, `quart`, `quint`, `expo`,
+`circ`, `back`, `elastic` and `bounce` — `ease=sine_in_out`, `ease=back_out`.
+They also answer to the names Blockbench and Emotecraft write
+(`easeInOutSine`, `EASEINOUTSINE`), and `sine_in_out` is the one to reach for
+first: the gentlest curve there is, and the one a body actually moves on.
 
 A frame that turns a joint faster than the client can follow the right way
 round is reported when the file is read, with the frame number.
+
+### Bends and planted feet
+
+Since 1.262.0 a body bends: the forearm at the elbow, the shin at the knee and
+the chest at the middle of the back. A bend is a hinge at the middle of the
+part — the half beyond it turns, the half before it stays — and a bent back
+carries the head and both arms with it, so a bow is a body folding and not a
+plank tipping over.
+
+```yaml
+# A flex: both forearms come up, the back arches, the knees give a little.
+- '[RAGDOLL] {victim};intact:0;keys:0.3 plant=1 arms=0,0,80 elbows=110,-90 spine=-12 up=-0.05 ease=sine_in_out | 0.4 elbows=140,-90 ease=back_out'
+```
+
+A body that bends anywhere is cut into an upper and a lower half even at
+`detail:1`, because a limb drawn as one block cannot bend; one that never
+bends is drawn exactly as it always was. With a MineSkin key the default
+`normal` quality is already an upper and a lower box per part, and the elbow
+lands where they meet. At `high` and at `detail:2` and up, the cell that sits
+on the hinge itself turns half as far, which reads as a limb bending rather
+than two planks meeting.
+
+`plant=` keeps the feet where the body stood. At `1` the legs are solved every
+frame to reach the floor under the hips' resting place, the knees pushed
+forwards the way the pelvis faces, so a body that drops its hips squats
+instead of sinking its feet through the floor, and a body that sways keeps its
+feet still. Hips too high to reach leave the floor, which is what a jump does.
+Write `plant=1` in the first frame and leave it there; a frame that moves the
+hips while `plant=` is still rising sinks the feet part of the way.
+
+### Breathing
+
+`breathe:` adds a breath on top of whatever the frames say: the chest lifts,
+the shoulders open and the chin rises a little, every few seconds. `1` is a
+calm breath, `0` (the default) a statue. A held pose is where a body without
+it looks dead. A looping body takes a whole number of breaths per cycle, so
+the breath never catches where the cycle wraps. Since 1.262.0.
+
+### Animations made in Blockbench or Emotecraft
+
+`anim:` plays an animation from the plugin's own `animations` folder instead of
+frames written on the line. Since 1.262.0.
+
+```yaml
+- '[RAGDOLL] {victim};intact:0;anim:wave;follow:1;breathe:1'
+```
+
+Every `.json` file in `plugins/<Plugin>/animations/` is read the first time a
+line asks for one, and again whenever a file there changes. Two formats:
+
+- **Blockbench**, exported as a Bedrock or GeckoLib animation. This is the
+  format Emotecraft's player animation library reads, so its Blockbench
+  template works unchanged: bones `head`, `torso`, `body` (the whole body),
+  `right_arm`, `left_arm`, `right_leg`, `left_leg`, and a `_bend` bone beside
+  any of them but the head, whose `x` is the bend and whose `y` turns the
+  hinge round the limb.
+- **Emotecraft's own JSON**, the `emote` object with `moves` keyed by tick.
+
+Each is played the way the tool that made it plays it: every turn is the
+vanilla model's turn in the model's order, the head and arms hang off the
+model rather than off the chest, and a bend is the same bend. Where Blockbench
+and Emotecraft disagree about a Blockbench file, Blockbench wins, because that
+is what its author was looking at: the curve on a keyframe is how that
+keyframe is arrived at, a channel holds its first value until its first
+keyframe, and `catmullrom` is a real spline. Molang expressions are reported
+and that keyframe is left out.
+
+A file of one animation is called by its file name without `.animation.json`
+or `.json`; a Blockbench file of several by each animation's name, in full
+(`animation.player.wave`) or by its last part (`wave`). An animation that loops
+in its file loops here, from where the file says, unless the line says
+`loop:false`; `follow:`, `breathe:`, `tempo:` and `then:` work as they do on
+written frames.
+
+Emotecraft animations are their authors' work and each carries its own
+licence. Check it before shipping one.
+
+### Letting go of a dance
+
+`SequenceRun.settle(millis)` stops a run the way `cancel()` does, except that a
+body in the middle of its choreography stands back up over `millis` before it
+is gone, instead of vanishing mid-gesture. An emote cut short by its player
+uses it, so the swap back to the real player happens on a body standing still.
+`RagdollHandle.settle(millis)` and `DisplayHandle.settle(millis)` do the same
+for a body or a display held directly. Since 1.262.0.
 
 ### What happens after the last frame
 
@@ -402,6 +499,8 @@ effects:
 | `keys` | the choreography of an `animate` body | none |
 | `then` | what an `animate` body does after its last frame: `hold` `burst` `collapse` `implode` `dissolve` `spell` | `hold` |
 | `follow` | how much loose joints lag and overshoot | `0` |
+| `breathe` | how deeply a choreographed body breathes | `0` |
+| `anim` | an animation from the plugin's `animations` folder, in place of `keys` | none |
 | `hold` `offhand` `hat` | items carried in a hand or on the head | none |
 | `life` | seconds the pieces last | `2.2` |
 | `intact` | seconds the body stands whole first | `0.3` |

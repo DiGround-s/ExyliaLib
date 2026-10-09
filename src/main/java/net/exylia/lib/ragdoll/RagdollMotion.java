@@ -88,6 +88,7 @@ public final class RagdollMotion {
     private final double tempoFrom;
     private final double tempoTo;
     private final double follow;
+    private final double breathe;
     private final double holdSize;
     private final double hatSize;
     private final double hatRaise;
@@ -130,6 +131,7 @@ public final class RagdollMotion {
         this.tempoTo = builder.tempoTo;
         this.finish = builder.finish;
         this.follow = builder.follow;
+        this.breathe = builder.breathe;
         this.holdSize = builder.holdSize;
         this.hatSize = builder.hatSize;
         this.hatRaise = builder.hatRaise;
@@ -409,6 +411,15 @@ public final class RagdollMotion {
         return follow;
     }
 
+    /**
+     * How deeply a choreographed body breathes; 0 is not at all.
+     *
+     * @since 1.262.0
+     */
+    public double breathe() {
+        return breathe;
+    }
+
     /** How big an item held in a hand is, in blocks for a player-sized body. */
     public double holdSize() {
         return holdSize;
@@ -461,6 +472,7 @@ public final class RagdollMotion {
         private double tempoFrom = 1.0;
         private double tempoTo = 1.0;
         private double follow;
+        private double breathe;
         private double holdSize = 0.7;
         private double hatSize = 0.6;
         private double hatRaise;
@@ -524,6 +536,22 @@ public final class RagdollMotion {
          */
         public @NotNull Builder follow(double amount) {
             this.follow = Math.clamp(amount, 0.0, 3.0);
+            return this;
+        }
+
+        /**
+         * How deeply a choreographed body breathes.
+         *
+         * <p>Zero is a body that holds a pose like a statue. One is a calm
+         * breath: the chest lifting, the shoulders opening and the chin rising
+         * a little, every few seconds, on top of whatever the frames say. A
+         * looping body takes a whole number of breaths per cycle, so the breath
+         * never catches at the wrap.
+         *
+         * @since 1.262.0
+         */
+        public @NotNull Builder breathe(double depth) {
+            this.breathe = Math.clamp(depth, 0.0, 3.0);
             return this;
         }
 

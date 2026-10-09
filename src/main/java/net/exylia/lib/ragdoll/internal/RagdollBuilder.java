@@ -138,7 +138,7 @@ public final class RagdollBuilder {
         }
         for (RagdollPieces.Piece piece : RagdollPieces.solve(motion, detail, model.scaleFactor(),
                 facing, ThreadLocalRandom.current(), props, placed, model.rigs())) {
-            DisplayModel drawn = drawn(model, piece, detail);
+            DisplayModel drawn = drawn(model, piece, detail, motion);
             // A looping body's poses cover one cycle, and the cycle is the
             // choreography rather than the last pose any one piece happens to
             // have kept: thinning leaves each piece a different last pose, and
@@ -191,7 +191,8 @@ public final class RagdollBuilder {
     }
 
     /** What one piece is drawn with: a face, a carried item, a head of real skin, or a block. */
-    private static DisplayModel drawn(RagdollModel model, RagdollPieces.Piece piece, int detail) {
+    private static DisplayModel drawn(RagdollModel model, RagdollPieces.Piece piece, int detail,
+                                      RagdollMotion motion) {
         if (piece.prop() == RagdollPieces.Prop.RIG) {
             // A prop block brings its own material, which is the whole point of
             // one: a hat is not one item, it is eighty blocks of three colours.
@@ -236,7 +237,7 @@ public final class RagdollBuilder {
         return DisplayModel
                 .block(BlockPalette.block(BlockPalette.dominant(model.skin().cell(
                         piece.part(), piece.cellX(), piece.cellY(),
-                        piece.part().columns(detail), piece.part().rows(detail)))))
+                        piece.part().columns(detail), RagdollPieces.rows(piece.part(), detail, motion)))))
                 .glow(model.glowArgb())
                 .light(model.brightness());
     }
