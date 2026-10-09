@@ -1,5 +1,6 @@
 package net.exylia.lib.util.teleport.internal;
 
+import net.exylia.lib.effect.Display;
 import net.exylia.lib.effect.EffectConfig;
 import net.exylia.lib.effect.Effects;
 import net.exylia.lib.effect.Ticks;
@@ -52,6 +53,8 @@ final class RunningTeleport implements TeleportHandle {
 
     private volatile long remainingTicks;
     private volatile TaskHandle timer;
+    /** What the countdown shows, cleared the moment the teleport ends however it ends. */
+    private volatile Display countdown;
 
     RunningTeleport(@NotNull TeleportPlan plan, @NotNull Runnable onFinished) {
         this.plan = plan;
@@ -109,7 +112,7 @@ final class RunningTeleport implements TeleportHandle {
         // The warmup's own length, because the effect is the warmup being
         // shown: a file that could set the number itself could only ever
         // disagree with the teleport it is counting.
-        play(plan.onStart(), remainingWarmupSeconds());
+        countdown = play(plan.onStart(), remainingWarmupSeconds());
         // Reported once immediately: a countdown whose first frame only appears
         // a quarter of a second in reads as a delay before the delay.
         report();
@@ -280,6 +283,12 @@ final class RunningTeleport implements TeleportHandle {
         if (running != null) {
             running.cancel();
         }
+        // A boss bar or title counting a cancelled warmup would otherwise keep
+        // counting down to a teleport that is not going to happen.
+        Display shown = countdown;
+        if (shown != null) {
+            shown.stop();
+        }
         if (result.isSuccess()) {
             play(plan.onArrive());
         } else {
@@ -343,20 +352,22 @@ final class RunningTeleport implements TeleportHandle {
         play(effect, 0);
     }
 
-    private void play(@Nullable EffectConfig effect, double seconds) {
+    /** @return what stays on screen, or {@code null} */
+    private @Nullable Display play(@Nullable EffectConfig effect, double seconds) {
         if (effect == null) {
-            return;
+            return null;
         }
         try {
             // Owner-scoped rather than static: the static form works the owner
             // out from the calling class, and the caller here is the library
             // itself, which under a shading or loader classloader resolves to
             // nothing at all.
-            Effects.of(plan.plugin()).play(effect, plan.player(), seconds);
+            return Effects.of(plan.plugin()).play(effect, plan.player(), seconds);
         } catch (RuntimeException failed) {
             // A misconfigured sound name should not stop a teleport: the point
             // of the module is the move, and the effect is decoration on it.
             plan.debug().error("Could not play a teleport effect", failed);
+            return null;
         }
     }
 }
