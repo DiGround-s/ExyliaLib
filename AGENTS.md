@@ -13,8 +13,9 @@ High-performance shared library for the Exylia plugins.
 
 - **It is not shaded.** It lives on the server exactly once, as a plugin, and
   plugins consume it with `compileOnly`. One copy, one class, one cache.
-- **It is not a feature plugin.** It adds no commands, items or game mechanics.
-  It gives infrastructure to other plugins.
+- **It is not a feature plugin.** It adds no items or game mechanics, and no
+  player commands unless the server enables them in its config (`/settings`,
+  off by default). It gives infrastructure to other plugins.
 - **It is open source.** Third parties read it. The public API and its
   documentation are product, not internal notes.
 
@@ -1612,6 +1613,7 @@ Code root: `src/main/java/net/exylia/lib/`. Test root:
 | network cooldowns (database-backed, relog and hop proof, unknown refuses) | `util/NetworkCooldowns` | `util/internal/NetworkCooldownRow` (`exylia_network_cooldowns`); `joined`/`left` in `ExyliaLib` join/quit, `release` in `releaseAfterDisable` | [docs/cooldowns.md](docs/cooldowns.md) | 1.184.0 |
 | alt accounts: same address (keyed hash, never the IP) and first seen, network-wide | `player/Accounts` | `player/internal/` (`AccountRow`, `AddressRow`, `AccountKeyRow`: `exylia_accounts`, `exylia_account_addresses`, `exylia_account_keys`); `joined` in `ExyliaLib.onPlayerJoin` | [docs/players.md](docs/players.md) | 1.184.0 |
 | a change through `vault` served by a registered currency fires once, under that currency | — | `economy/Economy.changed`, `economy/internal/CurrencyRegistry.servingVault` | [docs/economy.md](docs/economy.md) | 1.184.0 |
+| player settings and mutable broadcast channels, one `/settings` screen | `settings/Settings`, `Setting`, `Broadcasts` | `settings/internal/` (`StoredSetting`: `exylia_player_settings` in each plugin's database; `SettingsRuntime` `joined`/`left` in `ExyliaLib` join/quit, `release` in `releaseAfterDisable`; `SettingsMenu` in the `exylialib` menus); `internal/SettingsCommand` only when `settings.command.enabled` | [docs/settings.md](docs/settings.md) | 1.261.0 |
 
 Root classes that are not a module: `ExyliaLib.java` (lifecycle and cleanup),
 `platform/Platform.java`, `internal/LibrarySettings`, `internal/ExyliaLibUpdater`.

@@ -28,5 +28,13 @@ public final class LibCommands {
                 .suggestionProviders(providers -> providers.addProviderFactory(Suggestions.filtering()))
                 .build();
         lamp.register(new ReloadCommand(plugin));
+        LibrarySettings.PlayerSettings.Command settings = LibrarySettings.get().settings().command();
+        if (settings.enabled() && settings.name() != null && !settings.name().isBlank()) {
+            java.util.List<String> names = new java.util.ArrayList<>();
+            names.add(settings.name());
+            if (settings.aliases() != null) names.addAll(settings.aliases());
+            lamp.register(revxrsal.commands.orphan.Orphans.path(names.toArray(String[]::new))
+                    .handler(new SettingsCommand()));
+        }
     }
 }

@@ -11,6 +11,9 @@ permissions:
   exylialib.updates:
     description: Review default changes shipped by plugin updates, and be told about them on join.
     default: op
+  exylialib.settings:
+    description: Open /settings, when the server enables the library's command.
+    default: true
   exylialib.pendingrewards:
     description: Review the rewards players are still owed, and give or cancel them.
     default: op

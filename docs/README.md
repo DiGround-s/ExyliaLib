@@ -57,6 +57,7 @@ against the source — rules and routes are in `AGENTS.md` under
 | [Mobs](mobs.md) | Custom mobs from a template — name, equipment, attributes, flags, effects and skills — spawned anywhere, with who hurt them reported on death; hits mode, lifetime, roam, looks and auras since 1.195.0; staged casts, aims, conditions, rotation groups, chains and fight phases since 1.198.0; reactions since 1.199.0; the skill library, styles and five more skill types since 1.200.0; storage and payouts stay with the plugin | 1.192.0 |
 | [Loot](loot.md) | What comes out of a chest, a spawner or a broken block — the ExyliaCommons tables, read and written unchanged; importing a chest (1.77.0); money lines (1.204.0) | 1.56.0 |
 | [Editors](editors.md) | Screens for editing the lists a plugin configures: rewards, loot, commands, effects, items, places — one engine, batteries included; an inventory-shaped loadout editor since 1.110.0; a region policy editor since 1.202.0 | 1.56.0 |
+| [Settings](settings.md) | Player preferences every plugin registers into, announcement channels players can mute, and the one `/settings` screen (off unless the server enables the command) | 1.261.0 |
 | [Schedules](schedules.md) | Timetables: what starts by itself, at what times, on what days, and under what conditions — one asynchronous timer for the whole server | 1.70.0 |
 | [Chat](chat.md) | Who reads whose chat messages: an event, an arena or a match whose chat is its own | 1.89.0 |
 | [Cleanup](cleanup.md) | The folders the server fills and never empties — old logs deleted on a timer | 1.90.0 |

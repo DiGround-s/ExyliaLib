@@ -74,6 +74,11 @@ import net.exylia.lib.config.Time;
 @Comment("plugin-updates: keeps the other Exylia plugins up to date the same way,")
 @Comment("from the GitHub releases of the repository each one names. Checked with")
 @Comment("the library's own updates, applied on the next restart.")
+@Comment("")
+@Comment("settings: the /settings screen every Exylia plugin registers its player")
+@Comment("preferences and announcement channels into. The library adds no player")
+@Comment("command unless it is enabled here; a plugin can still open the screen from")
+@Comment("its own command. Changing the command needs a restart.")
 public record LibrarySettings(
         @Comment("Language of the whole server: en, es, pt or fr. Every Exylia plugin whose own")
         @Comment("language is 'default' follows it, and so do the library's screens and prompts.")
@@ -129,7 +134,9 @@ public record LibrarySettings(
         @Key("webhook-head")
         @Comment("The image a player's head is drawn from in Discord webhook messages; %uuid% is the player's id.")
         @Comment("Any public head service works, such as https://crafatar.com/avatars/%uuid%?size=64&overlay")
-        String webhookHead
+        String webhookHead,
+
+        PlayerSettings settings
 ) {
 
     /** The head service a webhook message draws a player's head from by default. */
@@ -170,6 +177,45 @@ public record LibrarySettings(
 
 
     /**
+     * The {@code settings:} block.
+     *
+     * @param command the {@code /settings} command
+     * @since 1.261.0
+     */
+    public record PlayerSettings(Command command) {
+
+        /** The default: no command. */
+        public PlayerSettings() {
+            this(new Command());
+        }
+
+        /**
+         * The {@code settings.command:} block.
+         *
+         * @param enabled whether the library registers the command
+         * @param name    its name
+         * @param aliases its other names
+         */
+        public record Command(
+                @Comment("Whether the library registers the command. Off by default: a plugin that has")
+                @Comment("its own settings command opens the same screen.")
+                boolean enabled,
+
+                @Comment("The command's name.")
+                String name,
+
+                @Comment("Its other names.")
+                java.util.List<String> aliases
+        ) {
+
+            /** The default: off, as /settings, /preferences and /options. */
+            public Command() {
+                this(false, "settings", java.util.List.of("preferences", "options"));
+            }
+        }
+    }
+
+    /**
      * The {@code metrics:} block.
      *
      * @param enabled whether anything is sent to stats.exylia.net
@@ -199,7 +245,7 @@ public record LibrarySettings(
     /** Safe defaults used when no config file exists yet. */
     public LibrarySettings() {
         this(Languages.ENGLISH, true, 30, false, true, "auto:0.4", DEFAULT_FALLBACK_HEAD, "", "", "normal", new Metrics(),
-                new PluginUpdates(), DEFAULT_WEBHOOK_HEAD);
+                new PluginUpdates(), DEFAULT_WEBHOOK_HEAD, new PlayerSettings());
     }
 
     private static volatile LibrarySettings instance;
