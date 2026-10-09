@@ -17,7 +17,7 @@ against the source — rules and routes are in `AGENTS.md` under
 | [Client](client.md) | Lunar/Feather waypoints, client cooldowns, teammate markers and teams; owned per plugin since 1.48.0 | 1.7.0 |
 | [Clan](clan.md) | One API over eight clan plugins and external bridges | 1.8.0 |
 | [Cooldowns](cooldowns.md) | The base every cooldown in the ecosystem sits on; `NetworkCooldowns` that survive relogs and server hops since 1.184.0 | 1.10.0 |
-| [Utilities](util.md) | `util.Effects` (potions from strings), `TimeFormats` and `Expressions` | 1.9.0 |
+| [Utilities](util.md) | `util.Effects` (potions from strings), `TimeFormats`, `Expressions` and `Weighted` | 1.9.0 |
 | [Debug](debug.md) | Coloured console output: log, success, warn, error, debug — and the banner; server-wide switch since 1.27.0, gradient name and type labels since 1.35.0 | 1.13.0 |
 | [Reloading](reload.md) | `Reloads` steps, library-reload listeners, and `/exylialib` (`reload`, `info`, `stats`) | 1.14.0 |
 | [Skulls](skulls.md) | Player heads from base64, a URL or a name — cached, shared and never blocking | 1.19.0 |

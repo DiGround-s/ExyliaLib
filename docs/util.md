@@ -252,10 +252,27 @@ Contracts:
   is only as thread safe as the resolvers involved, which for PlaceholderAPI
   means the main thread; pass a `null` player from elsewhere.
 
+## Weighted — one entry, rolled by weight
+
+Since 1.258.0.
+
+```java
+Material block = Weighted.pick(blocks, BlockEntry::weight).material();
+```
+
+| Call | Contract |
+| --- | --- |
+| `pick(entries, weight)` | `null` only for an empty list |
+| `pick(entries, weight, random)` | the same with a given `RandomGenerator`, for tests |
+
+- **Zero or negative weights are never rolled.**
+- **All-zero weights pick evenly** rather than nothing: a list an admin filled
+  with zeros still works.
+
 ## Source and tests
 
 - Public: `util/Effects.java`, `util/TimeFormats.java`,
-  `util/Expressions.java` (plus the cooldown classes on their own page).
+  `util/Expressions.java`, `util/Weighted.java` (plus the cooldown classes on their own page).
 - Internal: `util/internal/CooldownStore.java`.
 - Tests: `src/test/java/net/exylia/lib/util/EffectsTest.java`,
-  `TimeFormatsTest.java`, `ExpressionsTest.java`.
+  `TimeFormatsTest.java`, `ExpressionsTest.java`, `WeightedTest.java`.
