@@ -102,8 +102,19 @@ with a single choice is skipped, and BACK skips it the same way.
 Every list sits on the suite grid: up to seven cards centred on one row of a hub
 (45 slots, subject at 4, back at 40) or sub-page (36, back at 31), more on a
 paged list (54, arrows at 48/50, back at 49). States are drawn from lambdas, so
-a click, or a change from another server, shows without reopening. The words are
-the library's phrase table (`lang/<code>/phrases.yml`).
+a click, or a change from another server, shows without reopening.
+
+The screens are the server's to restyle. Since 1.265.0 they are files in the
+library's language folder, `plugins/ExyliaLib/lang/<code>/menus/settings/`:
+`settings.yml` (root), `settings_hub.yml`, `settings_page.yml` and
+`settings_list.yml`. They are written on first start and read from disk on every
+start and `/exylialib reload`. An update only adds keys the file is missing; a
+changed default waits in `/exylialib updates` and an owner's value is never
+overwritten (`Languages.refresh`, the same as any plugin's player menus). The
+hub and page files leave `pagination.slots` to the library, which centres the
+cards on their row. A file that does not parse is reported and the packaged
+English one is shown until it is fixed. The rows' own text (names, states, click
+prompts) is the library's phrase table (`lang/<code>/phrases.yml`).
 
 `Settings.open(player)` and `Settings.openAnnouncements(player)` open it from a
 plugin's own command.
@@ -132,8 +143,8 @@ Everything a plugin registered is forgotten one tick after it is disabled
 from `onEnable`; registering a key again replaces it, so a reload may register
 everything again with new text. Players are read on join and forgotten on quit
 by the library. Nothing here is derived from the palette beyond a single render,
-so palette reload needs nothing (the screens are recompiled with the library's
-other menus on `/exylialib reload`).
+so palette reload needs nothing (the screens are read again and recompiled with
+the library's other menus on `/exylialib reload`).
 
 ## Threads and platforms
 
@@ -145,7 +156,8 @@ sends in place on Bukkit when already there.
 
 - `settings/Settings`, `Setting`, `Broadcasts` — public API.
 - `settings/internal/SettingsRuntime` — registry, per-player cache, join/quit,
-  remote changes; `StoredSetting` — the row; `SettingsMenu` — the screens.
+  remote changes; `StoredSetting` — the row; `SettingsMenu` — the screens, whose files are
+  `src/main/resources/lang/<code>/menus/settings/`.
 - `internal/SettingsCommand`, `internal/LibCommands` — the optional command;
   `internal/LibrarySettings.PlayerSettings` — its config.
 - Tests: `src/test/java/net/exylia/lib/settings/internal/SettingsTest`.

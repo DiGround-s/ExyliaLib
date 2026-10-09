@@ -123,4 +123,15 @@ class ModifiersTest {
         assertEquals(8, out.get(4).itemAmount());
         assertSame(command, out.get(5));
     }
+
+    @Test
+    @DisplayName("reward lists inside a scope: the provider sees it, and no scope means null")
+    void rewardsScope() {
+        Modifiers.register(boosters, (id, type, source, scope) ->
+                Modifiers.MONEY.equals(type) && "event:koth".equals(scope) ? 2.0 : 1.0);
+        List<RewardEntry> list = List.of(RewardEntry.economy("10").build());
+        assertEquals("20.00", Modifiers.rewards(player, "events", "event:koth", list).get(0).value());
+        assertSame(list, Modifiers.rewards(player, "events", "event:ctf", list));
+        assertSame(list, Modifiers.rewards(player, "events", list));
+    }
 }

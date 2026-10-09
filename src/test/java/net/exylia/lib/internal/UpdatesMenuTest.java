@@ -31,6 +31,8 @@ class UpdatesMenuTest {
     void setUp() {
         FakeServer.install();
         FakeServer.reset();
+        FakeServer.packageMainResources("lang");
+        net.exylia.lib.settings.internal.SettingsMenu.anchor(FakeServer.class);
         plugin = FakeServer.newPlugin("ExyliaLib", folder.toFile());
     }
 

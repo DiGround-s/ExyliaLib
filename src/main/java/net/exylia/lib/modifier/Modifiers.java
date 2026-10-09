@@ -195,11 +195,12 @@ public final class Modifiers {
      * @param currency the currency id; {@code null} or blank is the default
      */
     public static double moneyFactor(@NotNull UUID player, @NotNull String source, @Nullable String currency) {
-        if (currency != null && !currency.isBlank()
-                && !Economy.canonical(currency).equalsIgnoreCase(Economy.defaultId())) {
-            return 1.0;
-        }
-        return factor(player, MONEY, source);
+        return defaultCurrency(currency) ? factor(player, MONEY, source) : 1.0;
+    }
+
+    private static boolean defaultCurrency(@Nullable String currency) {
+        return currency == null || currency.isBlank()
+                || Economy.canonical(currency).equalsIgnoreCase(Economy.defaultId());
     }
 
     // ------------------------------------------------------------------ money
@@ -304,15 +305,32 @@ public final class Modifiers {
      */
     public static @NotNull List<RewardEntry> rewards(@NotNull UUID player, @NotNull String source,
                                                      @NotNull List<RewardEntry> rewards) {
+        return rewards(player, source, null, rewards);
+    }
+
+    /**
+     * {@link #rewards(UUID, String, List)} inside a scope, so a provider can
+     * boost one event or one place and leave the rest of the source alone.
+     *
+     * <pre>{@code
+     * Modifiers.rewards(id, "events", "event:koth", prizes);
+     * }</pre>
+     *
+     * @param scope where inside the source, such as {@code event:koth}; {@code null} for none
+     * @return the same list when nothing applies
+     * @since 1.265.0
+     */
+    public static @NotNull List<RewardEntry> rewards(@NotNull UUID player, @NotNull String source,
+                                                     @Nullable String scope, @NotNull List<RewardEntry> rewards) {
         if (rewards.isEmpty()) return rewards;
-        double money = factor(player, MONEY, source);
-        double xp = factor(player, XP, source);
-        double drops = factor(player, DROPS, source);
+        double money = factor(player, MONEY, source, scope);
+        double xp = factor(player, XP, source, scope);
+        double drops = factor(player, DROPS, source, scope);
         if (money == 1.0 && xp == 1.0 && drops == 1.0) return rewards;
         List<RewardEntry> out = new ArrayList<>(rewards.size());
         for (RewardEntry entry : rewards) {
             out.add(switch (entry.type()) {
-                case ECONOMY -> money == 1.0 ? entry : boostMoney(entry, player, source);
+                case ECONOMY -> defaultCurrency(entry.currency()) ? boostMoney(entry, money) : entry;
                 case EXPERIENCE -> scaled(entry, xp);
                 case ITEM -> scaled(entry, drops);
                 default -> entry;
@@ -341,8 +359,7 @@ public final class Modifiers {
         return entry.toBuilder().fixedAmount(Multipliers.scale(Math.max(1, entry.itemAmount()), factor)).build();
     }
 
-    private static RewardEntry boostMoney(RewardEntry entry, UUID player, String source) {
-        double factor = moneyFactor(player, source, entry.currency());
+    private static RewardEntry boostMoney(RewardEntry entry, double factor) {
         if (factor == 1.0) return entry;
         if (entry.isRanged()) {
             return entry.toBuilder().amountBetween((int) Math.floor(entry.minAmount() * factor),

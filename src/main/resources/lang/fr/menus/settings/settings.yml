@@ -1,0 +1,42 @@
+title: '{primary}&lRÉGLAGES'
+size: 27
+type: SIMPLE
+open_sounds:
+  - "minecraft:block.ender_chest.open|1.0|1.4"
+click_sounds:
+  - "minecraft:block.note_block.hat|1.0|1.0"
+close_sounds:
+  - "minecraft:block.barrel.close|1.0|0.7"
+filler:
+  global:
+    material: GRAY_STAINED_GLASS_PANE
+    hide_tooltip: true
+items:
+  settings:
+    slot: 12
+    material: COMPARATOR
+    name: '{primary}&lRÉGLAGES'
+    lore:
+      - ''
+      - '{secondary}Informations :'
+      - ' {letters_black}▎ {letters}Comment les autres joueurs vous joignent'
+      - ' {letters_black}▎ {letters}et comment chaque fonction vous traite.'
+      - ''
+      - '{warning}➥ Cliquez pour ouvrir'
+      - ''
+    actions:
+      - 'exylialib:settings_open settings'
+  announcements:
+    slot: 14
+    material: BELL
+    name: '{primary}&lANNONCES'
+    lore:
+      - ''
+      - '{secondary}Informations :'
+      - ' {letters_black}▎ {letters}Quels messages du serveur'
+      - ' {letters_black}▎ {letters}arrivent dans votre {highlight}chat{letters}.'
+      - ''
+      - '{warning}➥ Cliquez pour ouvrir'
+      - ''
+    actions:
+      - 'exylialib:settings_open announcements'

@@ -36,6 +36,9 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  */
 class SettingsTest {
 
+    @org.junit.jupiter.api.io.TempDir
+    java.nio.file.Path folder;
+
     private static final AtomicInteger DATABASE = new AtomicInteger();
 
     private Plugin plugin;
@@ -44,6 +47,8 @@ class SettingsTest {
     @BeforeAll
     static void install() {
         FakeServer.install();
+        FakeServer.packageMainResources("lang");
+        net.exylia.lib.settings.internal.SettingsMenu.anchor(FakeServer.class);
     }
 
     @BeforeEach
@@ -262,7 +267,7 @@ class SettingsTest {
     void screensCompile() {
         List<String> messages = net.exylia.lib.debug.DebugCapture.start();
         try {
-            Plugin library = FakeServer.newPlugin("ExyliaLib");
+            Plugin library = FakeServer.newPlugin("ExyliaLib", folder.resolve("lib").toFile());
             SettingsMenu.init(library, "exylialib");
             var menus = net.exylia.lib.ui.Menus.of(library, "exylialib");
             SettingsMenu.load(menus);
@@ -280,17 +285,48 @@ class SettingsTest {
     }
 
     @Test
+    @DisplayName("the screens land in the library's folder, and a reload keeps the owner's edits")
+    void screensAreFiles() throws Exception {
+        Plugin library = FakeServer.newPlugin("ExyliaLib", folder.resolve("lib").toFile());
+        try {
+            SettingsMenu.init(library, "exylialib");
+            var menus = net.exylia.lib.ui.Menus.of(library, "exylialib");
+            SettingsMenu.load(menus);
+            java.io.File root = new java.io.File(library.getDataFolder(), "lang/en/menus/settings/settings.yml");
+            assertTrue(root.isFile());
+
+            YamlConfiguration edited = YamlConfiguration.loadConfiguration(root);
+            edited.set("items.settings.name", "{accent}&lMINE");
+            edited.set("items.announcements", null);
+            edited.save(root);
+            menus.unload();
+            SettingsMenu.load(menus);
+
+            YamlConfiguration after = YamlConfiguration.loadConfiguration(root);
+            assertEquals("{accent}&lMINE", after.getString("items.settings.name"), "an edit survives");
+            assertEquals(27, SettingsMenu.read(library, SettingsMenu.ROOT).getInt("size"));
+        } finally {
+            SettingsMenu.release();
+            net.exylia.lib.ui.Menus.releaseAll();
+            net.exylia.lib.action.Actions.releaseAll();
+        }
+    }
+
+    @Test
     @DisplayName("every screen compiles, and cards are centred on the suite's grid")
     void screens() {
-        assertEquals(27, SettingsMenu.root().getInt("size"));
-        assertEquals("0-35", SettingsMenu.list().getString("pagination.slots"));
+        Plugin library = FakeServer.newPlugin("ExyliaLib", folder.resolve("lib").toFile());
+        YamlConfiguration hubFile = SettingsMenu.read(library, "settings_hub");
+        YamlConfiguration pageFile = SettingsMenu.read(library, "settings_page");
+        assertEquals("0-35", SettingsMenu.read(library, SettingsMenu.LIST).getString("pagination.slots"));
         for (int count = 1; count <= SettingsMenu.ROW; count++) {
-            YamlConfiguration hub = SettingsMenu.centred(45, 18, count, 40, true);
+            YamlConfiguration hub = SettingsMenu.centred(hubFile, 18, count);
             assertEquals(count, hub.getString("pagination.slots").split(",").length);
             assertEquals(4, hub.getInt("items.header.slot"));
+            assertEquals(45, hub.getInt("size"));
         }
-        assertEquals("11,13,15", SettingsMenu.centred(36, 9, 3, 31, false).getString("pagination.slots"));
-        assertEquals("10,12,14,16", SettingsMenu.centred(36, 9, 4, 31, false).getString("pagination.slots"));
+        assertEquals("11,13,15", SettingsMenu.centred(pageFile, 9, 3).getString("pagination.slots"));
+        assertEquals("10,12,14,16", SettingsMenu.centred(pageFile, 9, 4).getString("pagination.slots"));
         assertEquals(SettingsMenu.LIST, SettingsMenu.layout(SettingsMenu.PAGE, 8));
         assertEquals(SettingsMenu.LIST, SettingsMenu.layout(SettingsMenu.PAGE, 0));
         assertEquals(List.of(4), SettingsMenu.columns(1));

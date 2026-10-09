@@ -1,0 +1,42 @@
+title: '{primary}&lAJUSTES'
+size: 27
+type: SIMPLE
+open_sounds:
+  - "minecraft:block.ender_chest.open|1.0|1.4"
+click_sounds:
+  - "minecraft:block.note_block.hat|1.0|1.0"
+close_sounds:
+  - "minecraft:block.barrel.close|1.0|0.7"
+filler:
+  global:
+    material: GRAY_STAINED_GLASS_PANE
+    hide_tooltip: true
+items:
+  settings:
+    slot: 12
+    material: COMPARATOR
+    name: '{primary}&lAJUSTES'
+    lore:
+      - ''
+      - '{secondary}Información:'
+      - ' {letters_black}▎ {letters}Cómo te contactan otros jugadores'
+      - ' {letters_black}▎ {letters}y cómo te trata cada función.'
+      - ''
+      - '{warning}➥ Clic para abrir'
+      - ''
+    actions:
+      - 'exylialib:settings_open settings'
+  announcements:
+    slot: 14
+    material: BELL
+    name: '{primary}&lANUNCIOS'
+    lore:
+      - ''
+      - '{secondary}Información:'
+      - ' {letters_black}▎ {letters}Qué mensajes de todo el servidor'
+      - ' {letters_black}▎ {letters}llegan a tu {highlight}chat{letters}.'
+      - ''
+      - '{warning}➥ Clic para abrir'
+      - ''
+    actions:
+      - 'exylialib:settings_open announcements'

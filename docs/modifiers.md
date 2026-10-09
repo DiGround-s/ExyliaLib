@@ -88,7 +88,7 @@ player online on this server has permission modifiers.
 | `pay(player, source, amount)`, `pay(uuid, source, scope, amount)` | deposits the boosted amount in the default currency; answers what was paid, zero when nothing was |
 | `xp(uuid, source[, scope], points)` | points, boosted, fraction rolled (`Multipliers.scale`) |
 | `drops(uuid, source, items[, scope])` | items, boosted, fraction rolled, cut to stack size; never changes the input |
-| `rewards(uuid, source, entries)` | a `RewardEntry` list: `ECONOMY` lines in the default currency by money, `EXPERIENCE` by xp, `ITEM` by drops, ranged amounts on both ends; commands and the rest untouched |
+| `rewards(uuid, source[, scope], entries)` | a `RewardEntry` list: `ECONOMY` lines in the default currency by money, `EXPERIENCE` by xp, `ITEM` by drops, ranged amounts on both ends; commands and the rest untouched. The scope (1.265.0+, such as `event:koth`) reaches providers like every other call's |
 
 ## What is boosted, and when
 

@@ -1,0 +1,42 @@
+title: '{primary}&lCONFIGURAÇÕES'
+size: 27
+type: SIMPLE
+open_sounds:
+  - "minecraft:block.ender_chest.open|1.0|1.4"
+click_sounds:
+  - "minecraft:block.note_block.hat|1.0|1.0"
+close_sounds:
+  - "minecraft:block.barrel.close|1.0|0.7"
+filler:
+  global:
+    material: GRAY_STAINED_GLASS_PANE
+    hide_tooltip: true
+items:
+  settings:
+    slot: 12
+    material: COMPARATOR
+    name: '{primary}&lCONFIGURAÇÕES'
+    lore:
+      - ''
+      - '{secondary}Informação:'
+      - ' {letters_black}▎ {letters}Como outros jogadores te alcançam'
+      - ' {letters_black}▎ {letters}e como cada recurso te trata.'
+      - ''
+      - '{warning}➥ Clique para abrir'
+      - ''
+    actions:
+      - 'exylialib:settings_open settings'
+  announcements:
+    slot: 14
+    material: BELL
+    name: '{primary}&lANÚNCIOS'
+    lore:
+      - ''
+      - '{secondary}Informação:'
+      - ' {letters_black}▎ {letters}Quais mensagens do servidor'
+      - ' {letters_black}▎ {letters}chegam ao seu {highlight}chat{letters}.'
+      - ''
+      - '{warning}➥ Clique para abrir'
+      - ''
+    actions:
+      - 'exylialib:settings_open announcements'

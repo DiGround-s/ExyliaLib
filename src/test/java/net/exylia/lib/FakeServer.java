@@ -619,6 +619,34 @@ public final class FakeServer {
                 });
     }
 
+    /**
+     * Copies a directory of the library's main resources next to the test
+     * classes, so {@code BundledFiles} anchored on {@code FakeServer} finds it.
+     *
+     * <p>In a jar classes and resources share one root, which is where
+     * {@code BundledFiles} looks; Gradle builds them into separate directories.
+     *
+     * @param directory the resource directory, such as {@code lang}
+     */
+    public static void packageMainResources(String directory) {
+        try {
+            java.nio.file.Path classes = java.nio.file.Path.of(FakeServer.class
+                    .getProtectionDomain().getCodeSource().getLocation().toURI());
+            java.nio.file.Path source = java.nio.file.Path.of(java.util.Objects.requireNonNull(
+                    FakeServer.class.getClassLoader().getResource("plugin.yml")).toURI()).getParent().resolve(directory);
+            if (source.equals(classes.resolve(directory))) return;
+            try (var files = java.nio.file.Files.walk(source)) {
+                for (java.nio.file.Path file : files.filter(java.nio.file.Files::isRegularFile).toList()) {
+                    java.nio.file.Path target = classes.resolve(directory).resolve(source.relativize(file));
+                    java.nio.file.Files.createDirectories(target.getParent());
+                    java.nio.file.Files.copy(file, target, java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+                }
+            }
+        } catch (Exception failure) {
+            throw new IllegalStateException(failure);
+        }
+    }
+
     /** A plugin proxy whose logger swallows nothing, so failures stay visible. */
     public static Plugin newPlugin(String name) {
         return newPlugin(name, null);

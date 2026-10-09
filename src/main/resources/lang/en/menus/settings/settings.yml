@@ -1,0 +1,45 @@
+# The settings screens of every plugin, shown by /settings.
+# Restyle them freely: the library only adds keys missing from this file.
+# The root screen: Settings and Announcements.
+title: '{primary}&lSETTINGS'
+size: 27
+type: SIMPLE
+open_sounds:
+  - "minecraft:block.ender_chest.open|1.0|1.4"
+click_sounds:
+  - "minecraft:block.note_block.hat|1.0|1.0"
+close_sounds:
+  - "minecraft:block.barrel.close|1.0|0.7"
+filler:
+  global:
+    material: GRAY_STAINED_GLASS_PANE
+    hide_tooltip: true
+items:
+  settings:
+    slot: 12
+    material: COMPARATOR
+    name: '{primary}&lSETTINGS'
+    lore:
+      - ''
+      - '{secondary}Information:'
+      - ' {letters_black}▎ {letters}How other players reach you'
+      - ' {letters_black}▎ {letters}and how each feature treats you.'
+      - ''
+      - '{warning}➥ Click to open'
+      - ''
+    actions:
+      - 'exylialib:settings_open settings'
+  announcements:
+    slot: 14
+    material: BELL
+    name: '{primary}&lANNOUNCEMENTS'
+    lore:
+      - ''
+      - '{secondary}Information:'
+      - ' {letters_black}▎ {letters}Which server-wide messages'
+      - ' {letters_black}▎ {letters}reach your {highlight}chat{letters}.'
+      - ''
+      - '{warning}➥ Click to open'
+      - ''
+    actions:
+      - 'exylialib:settings_open announcements'

@@ -4,6 +4,8 @@ import net.exylia.lib.action.ActionContext;
 import net.exylia.lib.action.ActionResult;
 import net.exylia.lib.action.Actions;
 import net.exylia.lib.action.PluginActions;
+import net.exylia.lib.config.Languages;
+import net.exylia.lib.debug.Debug;
 import net.exylia.lib.settings.Setting;
 import net.exylia.lib.settings.Settings;
 import net.exylia.lib.settings.internal.SettingsRuntime.Category;
@@ -45,7 +47,10 @@ import java.util.stream.IntStream;
  * another server, shows without reopening.
  *
  * <p>Compiled into the library's one {@link PluginMenus}, beside the updates
- * screens: its menus are unloaded together.
+ * screens: its menus are unloaded together. Unlike those, the screens are
+ * files the server owner may restyle ({@link #FOLDER} in the library's
+ * language folder), installed by {@link Languages#refresh} so an update only
+ * adds keys and never overwrites the owner's.
  */
 public final class SettingsMenu {
 
@@ -65,11 +70,10 @@ public final class SettingsMenu {
     private static final String PLUGIN_KEY = "settings_plugin";
     private static final String CATEGORY_KEY = "settings_category";
 
-    private static final String BACK_HEAD = "basehead-eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5l"
-            + "Y3JhZnQubmV0L3RleHR1cmUvMjIzZmI2NzQyOTcxNmIyMWJjNmU4ZTdkNjY5Y2VkZGY2NWIxM2UwNzkwYTVjZTU1YjJlMDc3YjgyZDE5"
-            + "ZTEyNCJ9fX0=";
-
     private static volatile PluginMenus menus;
+
+    /** The class the packaged screens are found beside; a test points it at its own output. */
+    private static volatile Class<?> anchor = SettingsMenu.class;
 
     /** A plugin on the plugins screen. */
     record PluginRow(String plugin, String mode) {
@@ -116,15 +120,29 @@ public final class SettingsMenu {
         });
     }
 
-    /** Compiles the screens into the library's menus. */
+    /**
+     * Compiles the screens into the library's menus, from
+     * {@code plugins/ExyliaLib/lang/<code>/menus/settings/}.
+     */
     public static void load(@NotNull PluginMenus target) {
-        target.load(ROOT, root());
-        target.load(LIST, list());
+        Map<String, YamlConfiguration> files = files(target.plugin());
+        target.load(ROOT, files.get(ROOT));
+        target.load(LIST, files.get(LIST));
         for (int count = 1; count <= ROW; count++) {
-            target.load(HUB + count, centred(45, 18, count, 40, true));
-            target.load(PAGE + count, centred(36, 9, count, 31, false));
+            target.load(HUB + count, centred(files.get("settings_hub"), 18, count));
+            target.load(PAGE + count, centred(files.get("settings_page"), 9, count));
         }
         menus = target;
+    }
+
+    /**
+     * Where the packaged screens are read from. For tests, whose classes and
+     * resources sit in different directories.
+     *
+     * @param packaged a class whose artifact holds {@code lang/<code>/menus/settings/}
+     */
+    public static void anchor(@NotNull Class<?> packaged) {
+        anchor = packaged;
     }
 
     /** Forgets the screens, when the library disables. */
@@ -380,156 +398,56 @@ public final class SettingsMenu {
 
     // ------------------------------------------------------------------ screens
 
-    private static final String SOUNDS = """
-            open_sounds:
-              - "minecraft:block.ender_chest.open|1.0|1.4"
-            click_sounds:
-              - "minecraft:block.note_block.hat|1.0|1.0"
-            close_sounds:
-              - "minecraft:block.barrel.close|1.0|0.7"
-            filler:
-              global:
-                material: GRAY_STAINED_GLASS_PANE
-                hide_tooltip: true
-            """;
+    /** Where the screens live, inside the library's language folder. */
+    static final String FOLDER = "menus/settings";
 
-    private static final String ROW_TEMPLATE = """
-            pagination:
-              slots: '$SLOTS'
-              item_template:
-                material: '%icon%'
-                name: '%name%'
-                glow: '%glow%'
-                lore:
-                  - '%lore%'
-                actions:
-                  - 'left,shift_left: exylialib:settings_click 1'
-                  - 'right,shift_right: exylialib:settings_click -1'
-              inert_template:
-                material: '%icon%'
-                name: '%name%'
-                lore:
-                  - '%lore%'
-            """;
-
-    private static final String BACK = """
-            items:
-              back:
-                slot: $BACK
-                sound: "minecraft:item.bundle.remove_one|1.0|0.5"
-                material: '$HEAD'
-                actions:
-                  - 'exylialib:settings_back'
-            """;
-
-    static YamlConfiguration root() {
-        YamlConfiguration yaml = yaml("""
-                size: 27
-                type: SIMPLE
-                """ + SOUNDS + """
-                items:
-                  settings:
-                    slot: 12
-                    material: COMPARATOR
-                    actions:
-                      - 'exylialib:settings_open settings'
-                  announcements:
-                    slot: 14
-                    material: BELL
-                    actions:
-                      - 'exylialib:settings_open announcements'
-                """);
-        yaml.set("title", Phrases.tr("{primary}&lSETTINGS"));
-        yaml.set("items.settings.name", Phrases.tr("{primary}&lSETTINGS"));
-        yaml.set("items.settings.lore", List.of(
-                "",
-                Phrases.tr("{secondary}Information:"),
-                Phrases.tr(" {letters_black}▎ {letters}How other players reach you"),
-                Phrases.tr(" {letters_black}▎ {letters}and how each feature treats you."),
-                "",
-                Phrases.tr("{warning}➥ Click to open"),
-                ""));
-        yaml.set("items.announcements.name", Phrases.tr("{primary}&lANNOUNCEMENTS"));
-        yaml.set("items.announcements.lore", List.of(
-                "",
-                Phrases.tr("{secondary}Information:"),
-                Phrases.tr(" {letters_black}▎ {letters}Which server-wide messages"),
-                Phrases.tr(" {letters_black}▎ {letters}reach your {highlight}chat{letters}."),
-                "",
-                Phrases.tr("{warning}➥ Click to open"),
-                ""));
-        return yaml;
-    }
-
-    /** Up to seven cards centred on one row; a hub also shows its subject at slot 4. */
-    static YamlConfiguration centred(int size, int rowStart, int count, int back, boolean header) {
-        String slots = columns(count).stream().map(column -> String.valueOf(rowStart + column))
-                .collect(Collectors.joining(","));
-        YamlConfiguration yaml = yaml("size: " + size + "\ntype: PAGINATION\n" + SOUNDS
-                + ROW_TEMPLATE.replace("$SLOTS", slots)
-                + BACK.replace("$BACK", String.valueOf(back)).replace("$HEAD", BACK_HEAD));
-        yaml.set("title", Phrases.tr("{primary}&l%settings_section% {letters_black}» {highlight}%settings_title%"));
-        if (header) {
-            yaml.set("items.header.slot", 4);
-            yaml.set("items.header.material", "COMPARATOR");
-            yaml.set("items.header.name", Phrases.tr("{primary}&l%settings_title%"));
-            yaml.set("items.header.lore", List.of(
-                    "",
-                    Phrases.tr("{secondary}Information:"),
-                    Phrases.tr(" {letters_black}▎ {letters}Every setting this plugin offers,"),
-                    Phrases.tr(" {letters_black}▎ {letters}grouped by what it is about."),
-                    ""));
+    /**
+     * Installs the screens in the library's data folder, then reads them from
+     * there: the server's to restyle, gaining only what a new version adds.
+     */
+    private static Map<String, YamlConfiguration> files(Plugin library) {
+        Languages.refresh(library, anchor, FOLDER);
+        Map<String, YamlConfiguration> files = new HashMap<>();
+        for (String name : List.of(ROOT, LIST, "settings_hub", "settings_page")) {
+            files.put(name, read(library, name));
         }
-        backWords(yaml);
-        return yaml;
+        return files;
     }
 
-    /** The paged list, for more than one row of cards. */
-    static YamlConfiguration list() {
-        YamlConfiguration yaml = yaml("size: 54\ntype: PAGINATION\n" + SOUNDS
-                + ROW_TEMPLATE.replace("$SLOTS", "0-35")
-                + """
-                  navigation:
-                    previous:
-                      slot: 48
-                      sound: "minecraft:item.book.page_turn|1.0|1.0"
-                      material: 'basehead-eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvZGExZDU1YjNmOTg5NDEwYTM0NzUyNjUwZTI0OGM5YjZjMTc4M2E3ZWMyYWEzZmQ3Nzg3YmRjNGQwZTYzN2QzOSJ9fX0='
-                      actions:
-                        - 'previous_page'
-                    next:
-                      slot: 50
-                      sound: "minecraft:item.book.page_turn|1.0|1.0"
-                      material: 'basehead-eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvZmE4N2UzZDk2ZTFjZmViOWNjZmIzYmE1M2EyMTdmYWY1MjQ5ZTI4NTUzM2IyNzFhMmZiMjg0YzMwZGJkOTgyOSJ9fX0='
-                      actions:
-                        - 'next_page'
-                """
-                + BACK.replace("$BACK", "49").replace("$HEAD", BACK_HEAD));
-        yaml.set("title", Phrases.tr(
-                "{primary}&l%settings_section% {letters_black}» {highlight}%settings_title% {muted}%current_page%/%total_pages%"));
-        yaml.set("filler.pagination.material", "LIGHT_GRAY_STAINED_GLASS_PANE");
-        yaml.set("filler.pagination.hide_tooltip", false);
-        yaml.set("filler.pagination.name", Phrases.tr("{muted}Nothing more here"));
-        yaml.set("filler.pagination.lore", List.of(
-                "",
-                Phrases.tr(" {letters_black}▎ {letters}Plugins on this server add theirs here."),
-                ""));
-        List<String> page = List.of("", Phrases.tr(" {letters_black}▎ {letters}Page {info}%current_page%{letters_black}/{info}%total_pages%"), "");
-        yaml.set("pagination.navigation.previous.name", Phrases.tr("{error}&l← PREVIOUS PAGE"));
-        yaml.set("pagination.navigation.previous.lore", page);
-        yaml.set("pagination.navigation.next.name", Phrases.tr("{success}&lNEXT PAGE →"));
-        yaml.set("pagination.navigation.next.lore", page);
-        backWords(yaml);
-        return yaml;
+    /** One screen from disk, or the packaged one when the owner's copy does not parse. */
+    static YamlConfiguration read(Plugin library, String name) {
+        String resource = FOLDER + "/" + name + ".yml";
+        java.io.File file = Languages.file(library, resource);
+        YamlConfiguration yaml = new YamlConfiguration();
+        try {
+            yaml.load(file);
+            if (yaml.contains("size")) return yaml;
+            Debug.of(library).warn(file + " is not a menu; showing the packaged one.");
+        } catch (java.io.IOException | InvalidConfigurationException broken) {
+            Debug.of(library).warn("Could not read " + file + " (" + broken.getMessage()
+                    + "); showing the packaged one.");
+        }
+        try (var stream = SettingsMenu.class.getClassLoader().getResourceAsStream("lang/en/" + resource)) {
+            YamlConfiguration packaged = new YamlConfiguration();
+            packaged.loadFromString(new String(java.util.Objects.requireNonNull(stream).readAllBytes(),
+                    java.nio.charset.StandardCharsets.UTF_8));
+            return packaged;
+        } catch (java.io.IOException | InvalidConfigurationException | NullPointerException broken) {
+            throw new IllegalStateException("The library's own " + resource + " is missing from the jar", broken);
+        }
     }
 
-    private static void backWords(YamlConfiguration yaml) {
-        yaml.set("items.back.name", Phrases.tr("{error}&lBACK"));
-        yaml.set("items.back.lore", List.of(
-                "",
-                Phrases.tr(" {letters_black}▎ {letters}Returns to %settings_parent%."),
-                "",
-                Phrases.tr("{warning}➥ Click to go back"),
-                ""));
+    /** A hub or page with its cards centred on one row: a copy of the file with the slots filled in. */
+    static YamlConfiguration centred(YamlConfiguration file, int rowStart, int count) {
+        YamlConfiguration yaml = new YamlConfiguration();
+        try {
+            yaml.loadFromString(file.saveToString());
+        } catch (InvalidConfigurationException impossible) {
+            throw new IllegalStateException(impossible);
+        }
+        yaml.set("pagination.slots", columns(count).stream().map(column -> String.valueOf(rowStart + column))
+                .collect(Collectors.joining(",")));
+        return yaml;
     }
 
     /** The suite's centred columns for a row of this many cards. */
@@ -543,15 +461,5 @@ public final class SettingsMenu {
             case 6 -> List.of(1, 2, 3, 5, 6, 7);
             default -> IntStream.rangeClosed(1, 7).boxed().toList();
         };
-    }
-
-    private static YamlConfiguration yaml(String text) {
-        YamlConfiguration yaml = new YamlConfiguration();
-        try {
-            yaml.loadFromString(text);
-        } catch (InvalidConfigurationException broken) {
-            throw new IllegalStateException("The library's own settings menu does not parse", broken);
-        }
-        return yaml;
     }
 }
