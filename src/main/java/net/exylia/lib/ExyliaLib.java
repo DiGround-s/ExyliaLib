@@ -966,6 +966,8 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         Chats.release(pluginName);
         // Same reason: a modifier provider is asked on every payout.
         net.exylia.lib.modifier.internal.ModifierRuntime.release(pluginName);
+        // And a price provider is asked for every block an autosell breaks.
+        net.exylia.lib.price.internal.PriceRuntime.release(pluginName);
         // Same reason: a combat bridge is asked on every damage event, and one
         // from a dying classloader would keep answering for a plugin that is gone.
         net.exylia.lib.util.combat.internal.CombatRuntime.release(event.getPlugin());

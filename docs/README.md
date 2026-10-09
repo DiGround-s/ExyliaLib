@@ -59,6 +59,7 @@ against the source — rules and routes are in `AGENTS.md` under
 | [Editors](editors.md) | Screens for editing the lists a plugin configures: rewards, loot, commands, effects, items, places — one engine, batteries included; an inventory-shaped loadout editor since 1.110.0; a region policy editor since 1.202.0 | 1.56.0 |
 | [Settings](settings.md) | Player preferences every plugin registers into, announcement channels players can mute, and the one `/settings` screen (off unless the server enables the command) | 1.261.0 |
 | [Modifiers](modifiers.md) | One multiplier pipeline for what players earn — money, experience, drops and a plugin's own types — fed by booster plugins, ranks by permission and per-place boosts | 1.263.0 |
+| [Prices](prices.md) | What an item sells for, whoever buys it back — shops and worth lists answer by priority, any plugin asks; boosting stays with the payer | 1.264.0 |
 | [Schedules](schedules.md) | Timetables: what starts by itself, at what times, on what days, and under what conditions — one asynchronous timer for the whole server | 1.70.0 |
 | [Chat](chat.md) | Who reads whose chat messages: an event, an arena or a match whose chat is its own | 1.89.0 |
 | [Cleanup](cleanup.md) | The folders the server fills and never empties — old logs deleted on a timer | 1.90.0 |
