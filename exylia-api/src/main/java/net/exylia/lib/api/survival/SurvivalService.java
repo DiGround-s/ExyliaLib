@@ -48,8 +48,10 @@ import java.util.UUID;
  * The survival core multiplies what players earn through its boosters, sells
  * drops through their auto-sell wands, caps enchantments and blocks items. A
  * plugin that pays players for something — ExyliaMines for a mined block — runs
- * what it gives through {@link #boostDrops}, {@link #boostExperience},
- * {@link #payEarnings} and {@link #autoSell}, and checks the tool with
+ * what it gives through ExyliaLib's {@code net.exylia.lib.modifier.Modifiers}
+ * (the deprecated {@link #boostDrops}, {@link #boostExperience} and
+ * {@link #payEarnings} forward there in the survival core) and through
+ * {@link #autoSell}, and checks the tool with
  * {@link #toolForBreak} and {@link #isItemBlocked}. Each has a default that does
  * nothing, so a survival core older than the method answers as if the feature
  * were off.
@@ -555,8 +557,12 @@ public interface SurvivalService {
      * @param drops  the items, left untouched
      * @return the items to give, which may be more stacks than came in
      * @since 1.8.0
+     * @deprecated since ExyliaLib 1.263.0 earnings are boosted by its modifier
+     *             pipeline, which every booster plugin feeds; use
+     *             {@code net.exylia.lib.modifier.Modifiers.drops(player, source, drops)}
      */
     @NotNull
+    @Deprecated
     default List<ItemStack> boostDrops(@NotNull UUID player, @NotNull String source,
                                        @NotNull Collection<ItemStack> drops) {
         return List.copyOf(drops);
@@ -570,7 +576,10 @@ public interface SurvivalService {
      * @param experience the points
      * @return the points to give
      * @since 1.8.0
+     * @deprecated since ExyliaLib 1.263.0; use
+     *             {@code net.exylia.lib.modifier.Modifiers.xp(player, source, experience)}
      */
+    @Deprecated
     default int boostExperience(@NotNull UUID player, @NotNull String source, int experience) {
         return experience;
     }
@@ -587,7 +596,12 @@ public interface SurvivalService {
      * @param amount   what was earned before boosters
      * @return {@code true} when it was paid; {@code false} leaves the payment to the caller
      * @since 1.8.0
+     * @deprecated since ExyliaLib 1.263.0; use
+     *             {@code net.exylia.lib.modifier.Modifiers.pay(player, source, amount)},
+     *             which pays the default currency boosted; any other currency is
+     *             deposited by the caller as it is
      */
+    @Deprecated
     default boolean payEarnings(@NotNull Player player, @NotNull String source,
                                 @Nullable String currency, @NotNull BigDecimal amount) {
         return false;

@@ -587,6 +587,9 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         // should not need a restart.
         CleanupRuntime.reload();
         LibraryMessages.reload();
+        // A rank edited in the permissions plugin is honoured now rather than
+        // when the cached permission modifiers expire.
+        net.exylia.lib.modifier.internal.ModifierRuntime.reload();
     }
 
     /**
@@ -754,6 +757,7 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         Cooldowns.forget(event.getPlayer().getUniqueId());
         net.exylia.lib.util.NetworkCooldowns.left(event.getPlayer().getUniqueId());
         net.exylia.lib.settings.internal.SettingsRuntime.left(event.getPlayer().getUniqueId());
+        net.exylia.lib.modifier.internal.ModifierRuntime.forget(event.getPlayer().getUniqueId());
         // Before the menu module: an editor is a window, and a player who left
         // is not coming back to a working copy nobody can see. Their clipboard
         // goes with them.
@@ -826,6 +830,9 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         // this thread, and a network cooldown refuses until it has.
         net.exylia.lib.util.NetworkCooldowns.joined(id);
         net.exylia.lib.settings.internal.SettingsRuntime.joined(id);
+        // Permissions are settled by the time a player joins; whatever was
+        // read before (an offline payout) knew none of them.
+        net.exylia.lib.modifier.internal.ModifierRuntime.forget(id);
         net.exylia.lib.player.Accounts.joined(player);
         // An entity timer dies with its entity, so a player who leaves during
         // the wait costs nothing and needs no online check of its own.
@@ -957,6 +964,8 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         // A rule belongs to a classloader that is going away, and chat keeps
         // flowing: drop it before it can be asked again.
         Chats.release(pluginName);
+        // Same reason: a modifier provider is asked on every payout.
+        net.exylia.lib.modifier.internal.ModifierRuntime.release(pluginName);
         // Same reason: a combat bridge is asked on every damage event, and one
         // from a dying classloader would keep answering for a plugin that is gone.
         net.exylia.lib.util.combat.internal.CombatRuntime.release(event.getPlugin());

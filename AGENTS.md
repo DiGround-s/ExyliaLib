@@ -1614,6 +1614,7 @@ Code root: `src/main/java/net/exylia/lib/`. Test root:
 | alt accounts: same address (keyed hash, never the IP) and first seen, network-wide | `player/Accounts` | `player/internal/` (`AccountRow`, `AddressRow`, `AccountKeyRow`: `exylia_accounts`, `exylia_account_addresses`, `exylia_account_keys`); `joined` in `ExyliaLib.onPlayerJoin` | [docs/players.md](docs/players.md) | 1.184.0 |
 | a change through `vault` served by a registered currency fires once, under that currency | — | `economy/Economy.changed`, `economy/internal/CurrencyRegistry.servingVault` | [docs/economy.md](docs/economy.md) | 1.184.0 |
 | player settings and mutable broadcast channels, one `/settings` screen | `settings/Settings`, `Setting`, `Broadcasts` | `settings/internal/` (`StoredSetting`: `exylia_player_settings` in each plugin's database; `SettingsRuntime` `joined`/`left` in `ExyliaLib` join/quit, `release` in `releaseAfterDisable`; `SettingsMenu` in the `exylialib` menus); `internal/SettingsCommand` only when `settings.command.enabled` | [docs/settings.md](docs/settings.md) | 1.261.0 |
+| modifier pipeline (money/xp/drops/custom types, providers multiplied, `exylia.modifier.<type>.<source>.<factor>` permissions) | `modifier/Modifiers`, `ModifierProvider`, `ModifierSource` | `modifier/internal/` (`ModifierRuntime`: `forget` in `ExyliaLib` join/quit, `release` in `onPluginDisable`, `reload` in `reloadPalette`; `PermissionModifiers`: 10 s Caffeine cache) | [docs/modifiers.md](docs/modifiers.md) | 1.263.0 |
 
 Root classes that are not a module: `ExyliaLib.java` (lifecycle and cleanup),
 `platform/Platform.java`, `internal/LibrarySettings`, `internal/ExyliaLibUpdater`.
@@ -1627,6 +1628,7 @@ They are package-private on purpose; the tests live in the same package:
 | `util/Cooldowns` | `setClock/resetClock` (the clock), `installStore/removeStore` (persistence), `trackedOwners/dirtyCount` (observation) |
 | `util/ItemCooldowns` | `setOverlay/resetOverlay` (Bukkit's `setCooldown`) |
 | `util/Effects` | `setResolver/setApplier`, `resetCache` |
+| `modifier/internal/PermissionModifiers` | `setReader/resetReader` (a player's permission nodes: `FakePlayer` has no effective permissions) |
 | `util/EffectSnapshot` | `setReader/setRestorer` (the player's active effects and putting one back) |
 | `debug/Debug` | `setSink/resetSink` (where the lines go) |
 | `reload/Reloads` | `listenerCount()` (leak observation) |
