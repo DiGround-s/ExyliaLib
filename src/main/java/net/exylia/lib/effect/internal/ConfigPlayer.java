@@ -45,17 +45,13 @@ final class ConfigPlayer {
         EffectConfig.Title title = effect.title();
         if (title != null && !title.isEmpty()) {
             Display shown = own(counting(title(title), seconds), owner).show(viewer);
-            if (handle == null) {
-                handle = shown;
-            }
+            handle = handle == null ? shown : new Both(handle, shown);
         }
 
         EffectConfig.ActionBar actionBar = effect.actionBar();
         if (actionBar != null && !actionBar.isEmpty()) {
             Display shown = own(counting(actionBar(actionBar), seconds), owner).show(viewer);
-            if (handle == null) {
-                handle = shown;
-            }
+            handle = handle == null ? shown : new Both(handle, shown);
         }
 
         EffectConfig.Sound sound = effect.sound();
@@ -161,5 +157,59 @@ final class ConfigPlayer {
             builder.progress((float) config.progress());
         }
         return builder;
+    }
+
+    /**
+     * Two displays one effect put up, as one: the first answers for both, and
+     * stopping it clears the second too, so nothing of a stopped effect stays on screen.
+     */
+    private record Both(Display first, Display second) implements Display {
+
+        @Override
+        public void stop() {
+            first.stop();
+            second.stop();
+        }
+
+        @Override
+        public boolean isShowing() {
+            return first.isShowing() || second.isShowing();
+        }
+
+        @Override
+        public net.exylia.lib.effect.Timer timer() {
+            return first.timer();
+        }
+
+        @Override
+        public Display text(String text) {
+            first.text(text);
+            return this;
+        }
+
+        @Override
+        public Display text(net.exylia.lib.text.Text text) {
+            first.text(text);
+            return this;
+        }
+
+        @Override
+        public Display addTime(double seconds) {
+            first.addTime(seconds);
+            second.addTime(seconds);
+            return this;
+        }
+
+        @Override
+        public Display onEnd(Runnable action) {
+            first.onEnd(action);
+            return this;
+        }
+
+        @Override
+        public Display progress(float progress) {
+            first.progress(progress);
+            return this;
+        }
     }
 }
