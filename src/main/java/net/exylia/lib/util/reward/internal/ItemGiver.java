@@ -137,11 +137,13 @@ public interface ItemGiver {
     static @Nullable ItemStack build(@NotNull String snapshot) {
         Source source = Source.of(snapshot);
         if (source instanceof Source.OfSnapshot bytes) {
-            try {
-                return ItemStack.deserializeBytes(Base64.getDecoder().decode(bytes.base64()));
-            } catch (RuntimeException unreadable) {
-                return null;
-            }
+            return Snapshots.read(bytes.base64(), base64 -> {
+                try {
+                    return ItemStack.deserializeBytes(Base64.getDecoder().decode(base64));
+                } catch (RuntimeException unreadable) {
+                    return null;
+                }
+            });
         }
         if (source instanceof Source.OfMaterial material) {
             Material type = Material.matchMaterial(material.raw());
@@ -167,10 +169,12 @@ public interface ItemGiver {
         if (item == null || item.getType().isAir()) {
             return "AIR";
         }
-        try {
-            return "bytes:" + Base64.getEncoder().encodeToString(item.serializeAsBytes());
-        } catch (RuntimeException unwritable) {
-            return item.getType().name();
-        }
+        return Snapshots.write(item, written -> {
+            try {
+                return "bytes:" + Base64.getEncoder().encodeToString(written.serializeAsBytes());
+            } catch (RuntimeException unwritable) {
+                return written.getType().name();
+            }
+        });
     }
 }

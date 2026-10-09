@@ -528,8 +528,7 @@ final class RegionIndex {
         }
 
         private WorldIndex freeze() {
-            @SuppressWarnings("unchecked")
-            Map<Long, RegionSnapshot[]>[] frozen = (Map<Long, RegionSnapshot[]>[]) new Map<?, ?>[LEVEL_COUNT];
+            CellTable[] frozen = new CellTable[LEVEL_COUNT];
             int bucketCount = 0;
             long referenceCount = 0L;
             int maxBucketCandidates = 0;
@@ -553,7 +552,7 @@ final class RegionIndex {
                     referenceCount += bucket.length;
                     maxBucketCandidates = Math.max(maxBucketCandidates, bucket.length);
                 }
-                frozen[level] = Map.copyOf(immutableLevel);
+                frozen[level] = new CellTable(immutableLevel);
             }
             return new WorldIndex(frozen, java.util.Arrays.copyOf(active, activeCount),
                 bucketCount, referenceCount, maxBucketCandidates);
@@ -616,17 +615,59 @@ final class RegionIndex {
         }
     }
 
+    /**
+     * One frozen level: cell key to candidates, keyed by the bare long.
+     *
+     * <p>Read for every block a player steps onto. A {@code Map<Long, ...>}
+     * boxed the key and compared it through {@code equals} on each of those
+     * reads; this compares two longs.
+     */
+    private static final class CellTable {
+
+        private final long[] keys;
+        private final RegionSnapshot[][] values;
+        private final int mask;
+
+        private CellTable(Map<Long, RegionSnapshot[]> cells) {
+            int capacity = Integer.highestOneBit(Math.max(1, cells.size()) * 2 - 1) << 1;
+            keys = new long[capacity];
+            values = new RegionSnapshot[capacity][];
+            mask = capacity - 1;
+            for (Map.Entry<Long, RegionSnapshot[]> cell : cells.entrySet()) {
+                int at = slot(cell.getKey());
+                while (values[at] != null) at = (at + 1) & mask;
+                keys[at] = cell.getKey();
+                values[at] = cell.getValue();
+            }
+        }
+
+        RegionSnapshot[] get(long key) {
+            int at = slot(key);
+            RegionSnapshot[] value;
+            while ((value = values[at]) != null) {
+                if (keys[at] == key) return value;
+                at = (at + 1) & mask;
+            }
+            return null;
+        }
+
+        private int slot(long key) {
+            long mixed = key * 0x9E3779B97F4A7C15L;
+            return (int) (mixed ^ (mixed >>> 32)) & mask;
+        }
+    }
+
     /** Read-only sparse levels for one UUID-addressed world. */
     private static final class WorldIndex {
 
-        private final Map<Long, RegionSnapshot[]>[] levels;
+        private final CellTable[] levels;
         /** Ascending, and exactly the levels of {@link #levels} that are not null. */
         private final int[] activeLevels;
         private final int bucketCount;
         private final long referenceCount;
         private final int maxBucketCandidates;
 
-        private WorldIndex(Map<Long, RegionSnapshot[]>[] levels,
+        private WorldIndex(CellTable[] levels,
                            int[] activeLevels,
                            int bucketCount,
                            long referenceCount,

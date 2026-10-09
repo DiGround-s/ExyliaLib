@@ -75,10 +75,24 @@ public record RegionId(@NotNull String namespace, @NotNull String value)
     private static String normalize(String input, String part) {
         Objects.requireNonNull(input, part);
         String normalized = input.trim().toLowerCase(Locale.ROOT);
-        if (normalized.isEmpty() || !normalized.matches("[a-z0-9_.-]+")) {
+        if (normalized.isEmpty() || !acceptable(normalized)) {
             throw new IllegalArgumentException("Invalid region " + part + ": " + input);
         }
         return normalized;
+    }
+
+    /**
+     * {@code [a-z0-9_.-]+}, by hand: {@code String.matches} compiled the
+     * pattern again for every id, and plugins build ids on every hit.
+     */
+    private static boolean acceptable(String text) {
+        for (int index = 0; index < text.length(); index++) {
+            char c = text.charAt(index);
+            if (!(c >= 'a' && c <= 'z' || c >= '0' && c <= '9' || c == '_' || c == '.' || c == '-')) {
+                return false;
+            }
+        }
+        return true;
     }
 
     /** Orders identifiers lexicographically by their complete stable representation. */
