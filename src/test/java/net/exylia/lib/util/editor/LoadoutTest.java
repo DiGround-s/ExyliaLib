@@ -74,4 +74,62 @@ class LoadoutTest {
         assertNull(Loadout.at(null, 0));
         assertNull(Loadout.at(List.of(), -1));
     }
+
+    @Test
+    @DisplayName("a kit moved around and split into stacks is still the kit")
+    void rearrangementIgnoresPositionsAndStacks() {
+        ItemStack[] kit = {new Stub("totem", 2), null, new Stub("crystal", 64)};
+        ItemStack[] layout = {new Stub("crystal", 32), new Stub("totem", 1), null,
+                new Stub("crystal", 32), new Stub("totem", 1)};
+        assertTrue(Loadout.isRearrangement(layout, kit));
+        assertEquals(List.of(), Loadout.differences(layout, kit));
+    }
+
+    @Test
+    @DisplayName("a missing or extra item is named with how many")
+    void differencesNameWhatIsOff() {
+        ItemStack[] kit = {new Stub("totem", 2), new Stub("crystal", 64)};
+        ItemStack[] layout = {new Stub("totem", 1), new Stub("crystal", 64), new Stub("dirt", 3)};
+        assertEquals(List.of("-1 totem", "+3 dirt"), Loadout.differences(layout, kit));
+    }
+
+    /**
+     * An item compared by name. Subclassed because {@code new ItemStack(...)}
+     * needs a running server.
+     */
+    private static final class Stub extends ItemStack {
+
+        private final String kind;
+        private final int amount;
+
+        Stub(String kind, int amount) {
+            this.kind = kind;
+            this.amount = amount;
+        }
+
+        @Override
+        public boolean isEmpty() {
+            return false;
+        }
+
+        @Override
+        public int getAmount() {
+            return amount;
+        }
+
+        @Override
+        public boolean isSimilar(ItemStack other) {
+            return other instanceof Stub stub && stub.kind.equals(kind);
+        }
+
+        @Override
+        public @org.jetbrains.annotations.NotNull ItemStack asOne() {
+            return new Stub(kind, 1);
+        }
+
+        @Override
+        public String toString() {
+            return kind;
+        }
+    }
 }

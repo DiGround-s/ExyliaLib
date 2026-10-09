@@ -203,6 +203,63 @@ public final class Loadout {
         return trimmed;
     }
 
+    /**
+     * What keeps a layout from being a rearrangement of a kit.
+     *
+     * <p>Positions and stack splits do not count: only how many of each kind
+     * of item there are. Kinds are matched with {@link ItemStack#isSimilar}
+     * rather than by hash, because an item read from storage and the same item
+     * taken from an inventory need not hash alike.
+     *
+     * @param layout    the items the player arranged, in any order
+     * @param reference the kit's own items, in any order
+     * @return one line per kind whose total differs, as {@code +n item} for
+     *         extra and {@code -n item} for missing; empty when they match
+     * @since 1.259.0
+     */
+    public static @NotNull List<String> differences(@Nullable ItemStack[] layout,
+                                                    @Nullable ItemStack[] reference) {
+        List<ItemStack> kinds = new ArrayList<>();
+        List<Integer> balance = new ArrayList<>();
+        tally(reference, -1, kinds, balance);
+        tally(layout, 1, kinds, balance);
+        List<String> differences = new ArrayList<>();
+        for (int index = 0; index < kinds.size(); index++) {
+            int amount = balance.get(index);
+            if (amount == 0) continue;
+            differences.add((amount > 0 ? "+" : "") + amount + " " + kinds.get(index).asOne());
+        }
+        return differences;
+    }
+
+    /**
+     * Whether a layout holds exactly a kit's items, however they are moved or
+     * split into stacks.
+     *
+     * @param layout    the items the player arranged
+     * @param reference the kit's own items
+     * @return whether {@link #differences} finds nothing
+     * @since 1.259.0
+     */
+    public static boolean isRearrangement(@Nullable ItemStack[] layout, @Nullable ItemStack[] reference) {
+        return differences(layout, reference).isEmpty();
+    }
+
+    private static void tally(@Nullable ItemStack[] items, int sign,
+                              List<ItemStack> kinds, List<Integer> balance) {
+        if (items == null) return;
+        for (ItemStack item : items) {
+            if (item == null || item.isEmpty()) continue;
+            int index = 0;
+            while (index < kinds.size() && !kinds.get(index).isSimilar(item)) index++;
+            if (index == kinds.size()) {
+                kinds.add(item);
+                balance.add(0);
+            }
+            balance.set(index, balance.get(index) + sign * item.getAmount());
+        }
+    }
+
     private static @Nullable ItemStack clone(@Nullable ItemStack item) {
         return item == null || item.getType().isAir() ? null : item.clone();
     }
