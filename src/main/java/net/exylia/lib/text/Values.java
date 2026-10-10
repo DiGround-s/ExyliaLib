@@ -3,8 +3,10 @@ package net.exylia.lib.text;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * What a message, a menu or an effect is about: a named bag of placeholder values.
@@ -118,21 +120,24 @@ public final class Values {
     }
 
     /**
-     * These values substituted into a prepared text: server-written ones with
-     * {@link Text#withFormatted}, typed ones with {@link Text#with}.
+     * These values substituted into a prepared text in one {@link Text#withAll}:
+     * server-written ones formatted, typed ones as plain text.
      *
      * @param text the prepared text
      * @return a new prepared text; the original is unchanged
      */
     public @NotNull Text applyTo(@NotNull Text text) {
-        Text filled = text;
+        Map<String, String> plain = new LinkedHashMap<>(values.size());
+        Set<String> formatted = new HashSet<>();
         for (Map.Entry<String, Object> value : values.entrySet()) {
-            String placeholder = "%" + value.getKey() + "%";
-            filled = value.getValue() instanceof Literal literal
-                    ? filled.with(placeholder, literal.text())
-                    : filled.withFormatted(placeholder, value.getValue());
+            if (value.getValue() instanceof Literal literal) {
+                plain.put(value.getKey(), literal.text());
+            } else {
+                plain.put(value.getKey(), String.valueOf(value.getValue()));
+                formatted.add(value.getKey());
+            }
         }
-        return filled;
+        return text.withAll(plain, formatted, Set.of());
     }
 
     /**
