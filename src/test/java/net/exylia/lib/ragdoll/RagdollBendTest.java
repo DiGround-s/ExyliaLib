@@ -146,6 +146,28 @@ class RagdollBendTest {
     }
 
     @Test
+    @DisplayName("planted feet stand where the body was when it planted, not where the effect began")
+    void plantedFeetStandWhereTheBodyPlanted() {
+        List<String> problems = new ArrayList<>();
+        // Planted across the room, then swaying and squatting there.
+        RagdollAnimation across = RagdollAnimation.parse(
+                "0 at=1,0,2 plant=1 | 0.5 right=1.2 up=-0.3", problems::add);
+        // Walked over unplanted, then planted on arrival.
+        RagdollAnimation walked = RagdollAnimation.parse(
+                "1 forward=2 | 0.3 plant=1 | 0.3 up=-0.2", problems::add);
+        assertEquals(List.of(), problems);
+        for (RagdollPart leg : List.of(RagdollPart.LEG_LEFT, RagdollPart.LEG_RIGHT)) {
+            double side = leg == RagdollPart.LEG_LEFT ? 1 : -1;
+            near(new double[]{-1 + side * 2 * PX, 0, 2}, point(leg, across.at(500), -6 * PX, false),
+                    1e-3, leg + "'s foot, planted across the room");
+            near(new double[]{-1 + side * 2 * PX, 0, 2}, point(leg, across.at(0), -6 * PX, false),
+                    1e-3, leg + "'s foot, on the first tick");
+            near(new double[]{side * 2 * PX, 0, 2}, point(leg, walked.at(1600), -6 * PX, false),
+                    1e-3, leg + "'s foot, planted on arrival");
+        }
+    }
+
+    @Test
     @DisplayName("a named pose straightens every bend")
     void namedPosesStraighten() {
         List<String> problems = new ArrayList<>();

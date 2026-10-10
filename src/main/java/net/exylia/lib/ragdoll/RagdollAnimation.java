@@ -357,14 +357,39 @@ public final class RagdollAnimation {
      */
     @ApiStatus.Internal
     public double @NotNull [] at(long millis) {
-        double[] pose = new double[RagdollRig.COUNT];
+        double[] pose = new double[RagdollRig.POSE];
         // Frames of no length are where the body starts: a clone that stands
         // across the room is there from the first tick.
         long at = Math.max(0L, millis);
-        for (int channel = 0; channel < pose.length; channel++) {
+        for (int channel = 0; channel < RagdollRig.COUNT; channel++) {
             pose[channel] = value(tracks[channel], at);
         }
+        feet(pose, at);
         return pose;
+    }
+
+    /**
+     * Where planted feet stand: under the hips as they are at the key where
+     * the plant last rose from nothing, so a body that walks over and plants
+     * its feet keeps them where it arrived rather than where the effect began.
+     */
+    private void feet(double[] pose, long millis) {
+        Track plant = tracks[RagdollRig.PLANT];
+        long[] times = plant.times();
+        double[] values = plant.values();
+        // The key being moved towards: past every key already reached,
+        // including the ones of no length the body starts on.
+        int key = 0;
+        while (key < times.length - 1 && times[key] <= millis) {
+            key++;
+        }
+        for (; key >= 0; key--) {
+            if (values[key] > 0 && (key == 0 || values[key - 1] <= 0)) {
+                pose[RagdollRig.FEET_RIGHT] = value(tracks[RagdollRig.RIGHT], times[key]);
+                pose[RagdollRig.FEET_FORWARD] = value(tracks[RagdollRig.FORWARD], times[key]);
+                return;
+            }
+        }
     }
 
     /** One channel at one moment. */

@@ -225,6 +225,12 @@ feet still. Hips too high to reach leave the floor, which is what a jump does.
 Write `plant=1` in the first frame and leave it there; a frame that moves the
 hips while `plant=` is still rising sinks the feet part of the way.
 
+The feet stand under the hips as they are at the frame where `plant=` rises
+from `0`, so a body planted across the room (`keys:0 at=0,0,2 plant=1`) keeps
+its feet there, and one that walks over with `plant=0` and then writes
+`plant=1` plants them where it arrived. Before 1.267.0 they always stood where
+the effect is drawn.
+
 ### Breathing
 
 `breathe:` adds a breath on top of whatever the frames say: the chest lifts,

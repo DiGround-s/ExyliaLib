@@ -97,6 +97,17 @@ public final class RagdollRig {
     /** How many channels a pose has. */
     public static final int COUNT = FIRST_JOINT + 6 * PER_JOINT;
 
+    /**
+     * Where planted feet stand, kept after the channels of an animated pose:
+     * the hips' right and forward once the plant began, so a body planted
+     * away from where the effect is drawn keeps its feet under itself.
+     */
+    public static final int FEET_RIGHT = COUNT;
+    public static final int FEET_FORWARD = COUNT + 1;
+
+    /** How long an animated pose is: every channel, then where the feet stand. */
+    public static final int POSE = COUNT + 2;
+
     private static final float P = RagdollPart.PIXEL;
 
     private RagdollRig() {
@@ -198,6 +209,10 @@ public final class RagdollRig {
                 // round, rather than twisting its legs about feet nailed down.
                 double[] rest = turn(Rotation.around(Rotation.Axis.Y, Math.toRadians(pose[TURN])),
                         new double[]{side * 2 * P * size * grown, 0, 0});
+                if (pose.length > FEET_FORWARD) {
+                    rest[0] -= pose[FEET_RIGHT];
+                    rest[2] += pose[FEET_FORWARD];
+                }
                 Rotation[] reached = planted(hip, hips, rest, 6 * P * size * grown);
                 turned = slerp(turned, reached[0], plant);
                 bend = slerp(bend, reached[1], plant);
