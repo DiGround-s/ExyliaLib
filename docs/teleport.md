@@ -121,6 +121,14 @@ teleports.to(player, warp.location())
 `warmup`, `cancelOnMove` and `cancelOnDamage` start from what the server owner
 configured; the request overrides them only if it says so.
 
+### A tick sound (since 1.266.0)
+
+`request.tickSound("BLOCK_NOTE_BLOCK_HAT|1|1.5")` plays once for every whole
+second of the warmup (`3, 2, 1`). `onTick` reports four times a second, so a
+sound played from it plays four times a second. Both can be set; blank plays
+nothing.
+
+
 ### The cooldown key is not namespaced for you
 
 `cooldown(key, seconds)` goes through

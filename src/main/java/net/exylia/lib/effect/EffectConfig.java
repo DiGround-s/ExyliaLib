@@ -3,6 +3,9 @@ package net.exylia.lib.effect;
 import net.exylia.lib.config.Comment;
 import net.exylia.lib.config.Sparse;
 import net.exylia.lib.config.Time;
+import net.exylia.lib.text.Values;
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.List;
 
@@ -88,6 +91,78 @@ public record EffectConfig(
      */
     public EffectConfig() {
         this(new Title(), new ActionBar(), new BossBar(), new Sound(), new Particle(), new Firework());
+    }
+
+    /**
+     * An effect that is only this title.
+     *
+     * <p>For a title a plugin keeps as its own config block — a reset warning,
+     * an arrival — and plays through {@link PluginEffects#play}, which already
+     * knows what a stay of zero and a countdown mean.
+     *
+     * <pre>{@code
+     * effects.play(EffectConfig.of(config.resetTitle()).filled(values), player, seconds);
+     * }</pre>
+     *
+     * @param title the title; {@code null} plays nothing
+     * @return the effect
+     * @since 1.266.0
+     */
+    public static @NotNull EffectConfig of(@Nullable Title title) {
+        return new EffectConfig(title == null ? new Title() : title, new ActionBar(), new BossBar(),
+                new Sound(), new Particle(), new Firework());
+    }
+
+    /**
+     * An effect that is only this action bar.
+     *
+     * @param actionBar the action bar; {@code null} plays nothing
+     * @return the effect
+     * @since 1.266.0
+     */
+    public static @NotNull EffectConfig of(@Nullable ActionBar actionBar) {
+        return new EffectConfig(new Title(), actionBar == null ? new ActionBar() : actionBar, new BossBar(),
+                new Sound(), new Particle(), new Firework());
+    }
+
+    /**
+     * An effect that is only this boss bar.
+     *
+     * @param bossBar the boss bar; {@code null} plays nothing
+     * @return the effect
+     * @since 1.266.0
+     */
+    public static @NotNull EffectConfig of(@Nullable BossBar bossBar) {
+        return new EffectConfig(new Title(), new ActionBar(), bossBar == null ? new BossBar() : bossBar,
+                new Sound(), new Particle(), new Firework());
+    }
+
+    /**
+     * The same effect with these values written into its title, subtitle,
+     * action bar and boss bar text.
+     *
+     * <p>Substituted into the raw lines, before they are parsed, so the
+     * {@code %time%} a countdown writes and every {@code %papi%} placeholder
+     * still resolve when the effect plays. A typed value goes in inert (see
+     * {@link Values#putText}). Sound, particle and firework are kept as they are.
+     *
+     * @param values what the text is about; {@code null} or empty returns this effect
+     * @return the filled effect
+     * @since 1.266.0
+     */
+    public @NotNull EffectConfig filled(@Nullable Values values) {
+        if (values == null || values.isEmpty()) {
+            return this;
+        }
+        Title t = title == null ? new Title() : title;
+        ActionBar a = actionBar == null ? new ActionBar() : actionBar;
+        BossBar b = bossBar == null ? new BossBar() : bossBar;
+        return new EffectConfig(
+                new Title(values.apply(t.text()), values.apply(t.subtitle()),
+                        t.fadeIn(), t.stay(), t.fadeOut(), t.timeStyle()),
+                new ActionBar(values.apply(a.text()), a.duration(), a.timeStyle()),
+                new BossBar(values.apply(b.text()), b.colour(), b.overlay(), b.countUp(), b.progress(), b.timeStyle()),
+                sound, particle, firework);
     }
 
     /**

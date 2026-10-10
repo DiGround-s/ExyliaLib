@@ -60,11 +60,35 @@ public final class CommandLine {
      * @throws IllegalArgumentException if there is no command left to run
      */
     public static @NotNull CommandLine compile(@NotNull String line) {
+        return compile(line, CommandActor.PLAYER);
+    }
+
+    /**
+     * Parses a configured line whose bare form runs as someone else.
+     *
+     * <p>A bare line in a menu is a button a player pressed, so {@link #compile(String)}
+     * runs it as the player. A bare line in a loot table or a reward list is a
+     * payment written as {@code eco give %player% 100}: run as the player it
+     * fails on permissions and pays nothing. Those lists compile with
+     * {@link CommandActor#CONSOLE} here; a line that names its actor still gets
+     * the one it names.
+     *
+     * <pre>{@code
+     * CommandLine line = CommandLine.compile("eco give %player% 100", CommandActor.CONSOLE);
+     * }</pre>
+     *
+     * @param line the line as written, with or without a prefix
+     * @param bare who runs a line that names nobody
+     * @return the compiled command
+     * @throws IllegalArgumentException if there is no command left to run
+     * @since 1.266.0
+     */
+    public static @NotNull CommandLine compile(@NotNull String line, @NotNull CommandActor bare) {
         String trimmed = line.trim();
         if (trimmed.isEmpty()) {
             throw new IllegalArgumentException("Command line is empty");
         }
-        CommandActor actor = CommandActor.PLAYER;
+        CommandActor actor = bare;
         String command = trimmed;
 
         int colon = trimmed.indexOf(':');

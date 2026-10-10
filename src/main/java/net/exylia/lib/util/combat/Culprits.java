@@ -1,4 +1,4 @@
-package net.exylia.lib.region.internal;
+package net.exylia.lib.util.combat;
 
 import org.bukkit.Bukkit;
 import org.bukkit.entity.AnimalTamer;
@@ -21,8 +21,15 @@ import org.jetbrains.annotations.Nullable;
  *
  * <p>Bukkit API only ({@code Tameable.getOwner} rather than Paper's owner UUID), so
  * it loads on plain Spigot.
+ *
+ * <pre>{@code
+ * Player attacker = Culprits.playerBehind(event);   // an EntityDamageEvent
+ * if (attacker != null && !allowed(attacker)) event.setCancelled(true);
+ * }</pre>
+ *
+ * @since 1.266.0 (public; the region module used it internally before)
  */
-final class Culprits {
+public final class Culprits {
 
     /** Enough for TNT lit by a flaming arrow; a chain never loops, this only bounds it. */
     private static final int MAX_HOPS = 4;
@@ -35,7 +42,7 @@ final class Culprits {
      * Whoever caused this damage: the damage source first, the only thing that
      * remembers who set off an end crystal, then the entity that dealt it.
      */
-    static @Nullable Player playerBehind(EntityDamageEvent event) {
+    public static @Nullable Player playerBehind(EntityDamageEvent event) {
         Player causing = playerBehind(event.getDamageSource().getCausingEntity());
         if (causing != null) return causing;
         return event instanceof EntityDamageByEntityEvent byEntity ? playerBehind(byEntity.getDamager()) : null;
@@ -46,7 +53,7 @@ final class Culprits {
      * shooter, whoever lit the TNT, whoever threw the potion that left the cloud,
      * a tamed animal's owner while they are online.
      */
-    static @Nullable Player playerBehind(@Nullable Entity entity) {
+    public static @Nullable Player playerBehind(@Nullable Entity entity) {
         for (int hop = 0; entity != null && hop < MAX_HOPS; hop++) {
             if (entity instanceof Player player) return player;
             if (entity instanceof Projectile projectile) {

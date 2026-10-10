@@ -1,5 +1,6 @@
 package net.exylia.lib.region.internal;
 
+import net.exylia.lib.util.combat.Culprits;
 import net.exylia.lib.region.internal.RegionEnforcement.Check;
 import org.bukkit.Location;
 import org.bukkit.Material;

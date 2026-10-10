@@ -479,6 +479,63 @@ public final class PluginRewards {
         }, () -> giveLater(player, rewards));
     }
 
+    /**
+     * Gives an item to somebody, here or not: {@link #deliver(UUID, List)} for
+     * one stack, its own amount.
+     *
+     * @param player who gets it
+     * @param item   what they get
+     * @since 1.266.0
+     */
+    public void deliver(@NotNull UUID player, @NotNull ItemStack item) {
+        deliver(player, item, item.getAmount());
+    }
+
+    /**
+     * Gives {@code amount} copies of an item to somebody, here or not, split
+     * into the stacks the item allows.
+     *
+     * <p>Split here rather than handed over as one oversized reward: whatever
+     * does not fit is dropped or queued per stack, and a single entity or row
+     * holding a thousand of something is not a stack the game knows how to
+     * hand back.
+     *
+     * <pre>{@code
+     * rewards.deliver(owner, coreItem);           // the stack as it is
+     * rewards.deliver(buyer, template, 640);      // ten stacks of 64
+     * }</pre>
+     *
+     * @param player   who gets them
+     * @param template what they get; its own amount is ignored
+     * @param amount   how many; zero or less gives nothing
+     * @since 1.266.0
+     */
+    public void deliver(@NotNull UUID player, @NotNull ItemStack template, int amount) {
+        deliver(player, stacks(template, amount));
+    }
+
+    /** One fixed-amount item reward per full stack, then the remainder. */
+    private static @NotNull List<RewardEntry> stacks(@NotNull ItemStack template, int amount) {
+        List<RewardEntry> entries = new ArrayList<>();
+        for (int size : stackSizes(template.getMaxStackSize(), amount)) {
+            ItemStack stack = template.clone();
+            stack.setAmount(size);
+            entries.add(RewardEntry.item(Rewards.snapshot(stack)).fixedAmount(size).build());
+        }
+        return entries;
+    }
+
+    /** {@code amount} split into stacks of at most {@code max}; a max below one counts as one. */
+    static int @NotNull [] stackSizes(int max, int amount) {
+        int stack = Math.max(1, max);
+        int count = amount <= 0 ? 0 : (amount + stack - 1) / stack;
+        int[] sizes = new int[count];
+        for (int i = 0; i < count; i++) {
+            sizes[i] = Math.min(stack, amount - i * stack);
+        }
+        return sizes;
+    }
+
     /** How close a player must be for {@link #deliver(UUID, List, org.bukkit.Location)} to drop at the spot. */
     public static final int DROP_REACH = 32;
 

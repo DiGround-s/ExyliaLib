@@ -121,6 +121,24 @@ same `Text` again is a no-op too),
 `addTime(seconds)`, `onEnd(Runnable)` (runs **exactly once**, however it
 ends), `progress(float)`.
 
+## One part, with values (since 1.266.0)
+
+A plugin that keeps a single title or boss bar as its own config block plays
+it through the same path as a whole effect:
+
+```java
+Display bar = effects.play(EffectConfig.of(config.resetBar()).filled(values), player, seconds);
+effects.play(EffectConfig.of(config.arrivalTitle()).filled(values), player);
+```
+
+`EffectConfig.of(Title | ActionBar | BossBar)` is an effect holding only that
+part; `filled(Values)` substitutes `%name%` into the text before it is parsed,
+so `%time%` and PlaceholderAPI still resolve. To rewrite a bar already on
+screen, keep its `Display` and call `display.text(values.apply(bar.text()))`
+and `progress(fill)`. A blank sound line (`Effects.soundFrom("")`) plays
+nothing.
+
+
 ## Contracts
 
 - **Only boss bars go out as packets.** Sounds and particles always take the

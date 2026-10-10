@@ -140,6 +140,14 @@ Note that a query result is immutable in contract but is not a
 and copies. Storing one defensively is silent work on this path; it is kept as
 handed over.
 
+## The box in a Bukkit world: `Boxes` (since 1.266.0)
+
+`Boxes.min/max(region)` are the inclusive block corners (a shape's maxima are
+exclusive), `world`, `contains(region, location)`, `volume`, `loaded` (every
+chunk of the box loaded, asked without loading any) and `playersInside`. A
+shape with no height limit takes the world's build height.
+
+
 ## Registering
 
 ```java

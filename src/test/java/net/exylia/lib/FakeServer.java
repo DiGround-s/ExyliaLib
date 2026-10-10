@@ -274,11 +274,11 @@ public final class FakeServer {
     }
 
     private static Object findWorld(Object[] args) {
-        if (args == null || args.length != 1 || !(args[0] instanceof String name)) {
+        if (args == null || args.length != 1) {
             return null;
         }
         for (org.bukkit.World world : WORLDS) {
-            if (world.getName().equals(name)) {
+            if (args[0] instanceof String name ? world.getName().equals(name) : world.getUID().equals(args[0])) {
                 return world;
             }
         }

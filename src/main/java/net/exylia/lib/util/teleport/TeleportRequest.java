@@ -2,6 +2,7 @@ package net.exylia.lib.util.teleport;
 
 import net.exylia.lib.debug.Debug;
 import net.exylia.lib.effect.EffectConfig;
+import net.exylia.lib.effect.Effects;
 import net.exylia.lib.effect.Ticks;
 import net.exylia.lib.task.TaskScheduler;
 import net.exylia.lib.util.Cooldowns;
@@ -103,6 +104,7 @@ public final class TeleportRequest {
     private @Nullable EffectConfig onArrive;
     private @Nullable EffectConfig onCancel;
     private @Nullable DoubleConsumer onTick;
+    private @Nullable String tickSound;
     private @Nullable Consumer<TeleportResult> then;
 
     TeleportRequest(@NotNull Plugin plugin, @NotNull TaskScheduler tasks, @NotNull Debug debug,
@@ -306,6 +308,26 @@ public final class TeleportRequest {
     }
 
     /**
+     * Plays a sound once for every whole second the countdown passes.
+     *
+     * <p>{@link #onTick} reports four times a second, so a sound played from it
+     * plays four times a second. This plays when the seconds left, rounded up,
+     * change: {@code 3, 2, 1}. It runs alongside {@link #onTick}, not instead.
+     *
+     * <pre>{@code
+     * request.warmup(3).tickSound(config.tickSound());  // "BLOCK_NOTE_BLOCK_HAT|1|1.5"
+     * }</pre>
+     *
+     * @param line the sound as {@code NAME|volume|pitch}; {@code null} or blank plays nothing
+     * @return this
+     * @since 1.266.0
+     */
+    public @NotNull TeleportRequest tickSound(@Nullable String line) {
+        this.tickSound = line == null || line.isBlank() ? null : line;
+        return this;
+    }
+
+    /**
      * Told how the teleport ended, however it ended.
      *
      * <p>Runs on whichever thread ended it. It is called exactly once, and it
@@ -354,8 +376,31 @@ public final class TeleportRequest {
                 Ticks.fromSeconds(warmupSeconds), cancelOnMove, cancelOnDamage, safe,
                 settings.safeSearchRadius(), settings.safeMaxAttempts(),
                 cooldownSeconds > 0 ? cooldownKey : null,
-                onStart, onArrive, onCancel, onTick, bookkeeping, then);
+                onStart, onArrive, onCancel, ticks(), bookkeeping, then);
         return TeleportRuntime.start(plan);
+    }
+
+    /** {@link #onTick} with {@link #tickSound} played alongside it. */
+    private @Nullable DoubleConsumer ticks() {
+        if (tickSound == null) {
+            return onTick;
+        }
+        String sound = tickSound;
+        DoubleConsumer everySecond = everySecond(() -> Effects.soundFrom(sound).show(player));
+        return onTick == null ? everySecond : everySecond.andThen(onTick);
+    }
+
+    /** Runs {@code action} whenever the seconds left, rounded up, change. */
+    static @NotNull DoubleConsumer everySecond(@NotNull Runnable action) {
+        int[] last = {Integer.MIN_VALUE};
+        return remaining -> {
+            int second = (int) Math.ceil(remaining);
+            if (second == last[0]) {
+                return;
+            }
+            last[0] = second;
+            action.run();
+        };
     }
 
     /** Seconds with decimals as a Duration, without losing the decimals. */

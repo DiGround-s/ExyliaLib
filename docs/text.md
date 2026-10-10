@@ -75,6 +75,33 @@ Contracts:
 - The prefix is substituted **before** parsing and **before** centring: it
   carries its own colours, and its width counts towards a centred line.
 
+## A plugin's own lines: `PluginMessages` and `Values` (since 1.266.0)
+
+A plugin that reads its lines from a messages file holds one `PluginMessages`
+and builds a `Values` bag per message:
+
+```java
+messages = PluginMessages.of(this);                       // onEnable
+
+messages.send(player, config.created(), Values.of("mine", mine.id()));
+messages.send(player, config.renamed(), Values.of("old", old).putText("new", typedName));
+menus.open(player, "mine_list", values.map());            // the same bag as a menu context
+inputs.confirm(player, values.apply(config.deletePrompt())); // spliced into a raw string
+```
+
+- A blank line (or a `null` receiver) sends nothing: emptying a message in the
+  file is how an owner turns it off. `Text#send` still sends an empty line.
+- `put` is a server-written value and is parsed (`withFormatted`); `putText` is
+  something a player typed and stays literal (`with`). In `apply` and `map()` a
+  typed value is spliced in through `Values.inert`, which is `Text.escape` plus
+  a broken `%`, so a typed `%player_ip%` is never resolved.
+- `text(line, values)`, `item(line, values)` (not italic) and
+  `plain(line, values)` give the same line as a `Text`, an item `Component` or
+  plain text.
+- `EffectConfig#filled(values)` writes a bag into a configured title, action
+  bar and boss bar before they are parsed.
+
+
 ## Effects inside a message
 
 A message can ask for a sound, particles or a firework, in the notation

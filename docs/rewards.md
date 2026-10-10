@@ -236,6 +236,18 @@ reward failed: `given()`, `skipped()`, `failed()`, `isClean()`, `failures()`.
 
 ---
 
+### An item to somebody, here or not (since 1.266.0)
+
+```java
+rewards.deliver(owner, coreItem);        // the stack, its own amount
+rewards.deliver(buyer, template, 640);   // split into stacks of the item's max size
+```
+
+The same path as `deliver(UUID, List)`, built from an `ItemStack`: one
+fixed-amount item reward per full stack, so the overflow policy drops or
+queues real stacks and never a single entity of a thousand items.
+
+
 ## Overflow — nothing is destroyed
 
 ExyliaCommons discarded the leftovers `Inventory.addItem` hands back, so an item

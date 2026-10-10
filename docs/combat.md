@@ -34,6 +34,14 @@ returned `true` from `canAttack` unconditionally, with a `TODO` above it.
 | `canAttack(attacker, defender)` | whether the hit is allowed |
 | `statsOf(player)` | kills, deaths, streaks, points — when anybody counts them |
 
+## Who is behind a hit: `Culprits` (since 1.266.0)
+
+`Culprits.playerBehind(EntityDamageEvent)` and `playerBehind(Entity)` follow
+projectiles to their shooter, primed TNT to whoever lit it, a lingering cloud
+to its thrower and a tamed animal to its online owner, at most four hops. The
+region module's PvP enforcement uses the same class.
+
+
 ## What is cached, and what is not
 
 Only the tag, and only for half a second.

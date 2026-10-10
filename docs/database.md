@@ -67,6 +67,16 @@ component. It is never a column that quietly stores `toString()`.
 Databases.codec(MyThing.class, Codec.of(MyThing::pack, MyThing::unpack));
 ```
 
+### A JSON array of objects in a text column: `Beans` (since 1.266.0)
+
+A list column holds a JSON array of encoded strings. Rows written by
+ExyliaCommons-era plugins hold an array of *objects* instead (mine blocks and
+levels, power-up zones). `Beans.encode(list)` writes that shape (`null` for an
+empty list) and `Beans.decode(stored, Type.class)` reads it back, empty on
+anything unreadable. Nested `LootEntry` and `EffectEntry` values go through
+their own codecs.
+
+
 ## Everything is a future
 
 There is no synchronous form of anything, on purpose. A database call takes as

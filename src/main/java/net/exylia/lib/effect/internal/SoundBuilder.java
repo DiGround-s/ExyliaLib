@@ -85,9 +85,13 @@ public final class SoundBuilder {
      * Plays the sound for one player.
      *
      * @param viewer who hears it
-     * @return whether the sound name was recognised
+     * @return whether the sound name was recognised; {@code false} for a blank
+     *         name, which plays nothing (how a config turns a sound off)
      */
     public boolean show(@NotNull Player viewer) {
+        if (name == null || name.isBlank()) {
+            return false;
+        }
         Location where = location != null ? location : viewer.getLocation();
 
         // Through the server's own encoder, never as a raw packet: a sound
