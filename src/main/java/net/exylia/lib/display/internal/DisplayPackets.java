@@ -11,6 +11,7 @@ import com.github.retrooper.packetevents.util.Vector3f;
 import com.github.retrooper.packetevents.wrapper.PacketWrapper;
 import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerDestroyEntities;
 import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerEntityMetadata;
+import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerEntityStatus;
 import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerSetPassengers;
 import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerSpawnEntity;
 import io.github.retrooper.packetevents.util.SpigotConversionUtil;
@@ -59,6 +60,11 @@ final class DisplayPackets implements DisplaySink {
     private static final int LEFT_ROTATION = 13;
     private static final int BILLBOARD = 15;
     private static final int BRIGHTNESS = 16;
+    private static final int VIEW_RANGE = 17;
+    private static final int SHADOW_RADIUS = 18;
+    private static final int SHADOW_STRENGTH = 19;
+    private static final int CULL_WIDTH = 20;
+    private static final int CULL_HEIGHT = 21;
     private static final int GLOW_COLOR = 22;
 
     /** Kind-specific metadata, all sharing index 23. */
@@ -66,10 +72,22 @@ final class DisplayPackets implements DisplaySink {
     private static final int ITEM_TRANSFORM = 24;
     private static final int BLOCK_STATE = 23;
     private static final int TEXT = 23;
+    private static final int LINE_WIDTH = 24;
+    private static final int BACKGROUND = 25;
+    private static final int TEXT_OPACITY = 26;
     private static final int TEXT_FLAGS = 27;
 
-    /** See-through and no background: text in an effect is a label, not a sign. */
-    private static final byte TEXT_SEE_THROUGH_NO_BACKGROUND = 0x02 | 0x04;
+    /** A firework rocket's item, which carries its explosions. */
+    private static final int FIREWORK_ITEM = 8;
+
+    /** The entity event that makes a rocket burst on the client. */
+    private static final byte FIREWORK_EXPLODES = 17;
+
+    private static final byte FLAG_SHADOW = 0x01;
+    private static final byte FLAG_SEE_THROUGH = 0x02;
+    private static final byte FLAG_DEFAULT_BACKGROUND = 0x04;
+    private static final byte ALIGN_LEFT = 0x08;
+    private static final byte ALIGN_RIGHT = 0x10;
 
     private DisplayPackets() {
     }
@@ -97,10 +115,46 @@ final class DisplayPackets implements DisplaySink {
                 typeOf(model.kind()),
                 new Vector3d(at.getX(), at.getY(), at.getZ()),
                 0f, 0f, 0f, 0, Optional.empty());
-        WrapperPlayServerEntityMetadata state =
-                new WrapperPlayServerEntityMetadata(entityId, fullState(model, pose));
         send(viewers, spawn);
-        send(viewers, state);
+        if (!model.isPerViewer()) {
+            send(viewers, new WrapperPlayServerEntityMetadata(entityId, fullState(model, pose, null)));
+            return;
+        }
+        for (Player viewer : viewers) {
+            Broadcast.send(viewer, new WrapperPlayServerEntityMetadata(entityId,
+                    fullState(model, pose, viewer)));
+        }
+    }
+
+    @Override
+    public void firework(List<Player> viewers, int entityId, Location at,
+                         List<org.bukkit.FireworkEffect> effects) {
+        org.bukkit.inventory.ItemStack rocket =
+                new org.bukkit.inventory.ItemStack(org.bukkit.Material.FIREWORK_ROCKET);
+        if (rocket.getItemMeta() instanceof org.bukkit.inventory.meta.FireworkMeta meta) {
+            meta.addEffects(effects);
+            rocket.setItemMeta(meta);
+        }
+        send(viewers, new WrapperPlayServerSpawnEntity(entityId, Optional.of(UUID.randomUUID()),
+                EntityTypes.FIREWORK_ROCKET, new Vector3d(at.getX(), at.getY(), at.getZ()),
+                0f, 0f, 0f, 0, Optional.empty()));
+        send(viewers, new WrapperPlayServerEntityMetadata(entityId, List.of(
+                new EntityData<>(FIREWORK_ITEM, EntityDataTypes.ITEMSTACK,
+                        SpigotConversionUtil.fromBukkitItemStack(rocket)))));
+        send(viewers, new WrapperPlayServerEntityStatus(entityId, FIREWORK_EXPLODES));
+        send(viewers, new WrapperPlayServerDestroyEntities(entityId));
+    }
+
+    @Override
+    public void restyle(List<Player> viewers, int entityId, DisplayModel model) {
+        if (!model.isPerViewer()) {
+            send(viewers, new WrapperPlayServerEntityMetadata(entityId, style(model, null, true)));
+            return;
+        }
+        for (Player viewer : viewers) {
+            Broadcast.send(viewer, new WrapperPlayServerEntityMetadata(entityId,
+                    style(model, viewer, true)));
+        }
     }
 
     @Override
@@ -135,22 +189,44 @@ final class DisplayPackets implements DisplaySink {
      * interpolate from, and a duration here would make every effect fade in
      * from the middle of the world.
      */
-    private static List<EntityData<?>> fullState(DisplayModel model, DisplayKeyframe pose) {
-        List<EntityData<?>> data = new ArrayList<>(10);
+    private static List<EntityData<?>> fullState(DisplayModel model, DisplayKeyframe pose,
+                                                 Player viewer) {
+        List<EntityData<?>> data = style(model, viewer, false);
+        data.add(new EntityData<>(BILLBOARD, EntityDataTypes.BYTE, model.billboard()));
+        addTransform(data, pose, model.kind());
+        return data;
+    }
 
+    /**
+     * What a display looks like, apart from where it is.
+     *
+     * <p>{@code explicit} is a restyle: a field the model no longer sets has to
+     * be sent back to its default, because the client still holds the old
+     * value. A spawn leaves defaults out, since the client starts on them.
+     */
+    private static List<EntityData<?>> style(DisplayModel model, Player viewer, boolean explicit) {
+        List<EntityData<?>> data = new ArrayList<>(12);
         if (model.glowArgb() >= 0) {
             // The colour override is ignored unless the entity is glowing, so
             // the flag and the colour always travel together.
             data.add(new EntityData<>(ENTITY_FLAGS, EntityDataTypes.BYTE, FLAG_GLOWING));
             data.add(new EntityData<>(GLOW_COLOR, EntityDataTypes.INT, model.glowArgb()));
+        } else if (explicit) {
+            data.add(new EntityData<>(ENTITY_FLAGS, EntityDataTypes.BYTE, (byte) 0));
+            data.add(new EntityData<>(GLOW_COLOR, EntityDataTypes.INT, -1));
         }
-        data.add(new EntityData<>(BILLBOARD, EntityDataTypes.BYTE, model.billboard()));
         if (model.brightness() >= 0) {
             int level = Math.clamp(model.brightness(), 0, 15);
             // Block light in the low bits, sky light in the high ones.
             data.add(new EntityData<>(BRIGHTNESS, EntityDataTypes.INT, (level << 4) | (level << 20)));
+        } else if (explicit) {
+            data.add(new EntityData<>(BRIGHTNESS, EntityDataTypes.INT, -1));
         }
-        addTransform(data, pose, model.kind());
+        addFloat(data, VIEW_RANGE, model.viewRange(), 1f, explicit);
+        addFloat(data, SHADOW_RADIUS, model.shadowRadius(), 0f, explicit);
+        addFloat(data, SHADOW_STRENGTH, model.shadowStrength(), 1f, explicit);
+        addFloat(data, CULL_WIDTH, model.cullWidth(), 0f, explicit);
+        addFloat(data, CULL_HEIGHT, model.cullHeight(), 0f, explicit);
 
         switch (model.kind()) {
             case ITEM -> {
@@ -162,12 +238,53 @@ final class DisplayPackets implements DisplaySink {
             case BLOCK -> data.add(new EntityData<>(BLOCK_STATE, EntityDataTypes.BLOCK_STATE,
                     SpigotConversionUtil.fromBukkitBlockData(model.block()).getGlobalId()));
             case TEXT -> {
-                data.add(new EntityData<>(TEXT, EntityDataTypes.ADV_COMPONENT, model.text()));
-                data.add(new EntityData<>(TEXT_FLAGS, EntityDataTypes.BYTE,
-                        TEXT_SEE_THROUGH_NO_BACKGROUND));
+                data.add(new EntityData<>(TEXT, EntityDataTypes.ADV_COMPONENT, model.textFor(viewer)));
+                if (model.lineWidth() >= 0 || explicit) {
+                    data.add(new EntityData<>(LINE_WIDTH, EntityDataTypes.INT,
+                            model.lineWidth() >= 0 ? model.lineWidth() : 200));
+                }
+                Integer background = model.background();
+                if (background != null || explicit) {
+                    data.add(new EntityData<>(BACKGROUND, EntityDataTypes.INT,
+                            background != null ? background : 0x40000000));
+                }
+                if (model.opacity() >= 0 || explicit) {
+                    data.add(new EntityData<>(TEXT_OPACITY, EntityDataTypes.BYTE,
+                            (byte) (model.opacity() >= 0 ? model.opacity() : -1)));
+                }
+                data.add(new EntityData<>(TEXT_FLAGS, EntityDataTypes.BYTE, textFlags(model)));
             }
         }
         return data;
+    }
+
+    /** The text flags byte; the defaults are see-through on the client's own panel. */
+    static byte textFlags(DisplayModel model) {
+        int flags = 0;
+        if (model.textShadow()) {
+            flags |= FLAG_SHADOW;
+        }
+        if (model.seeThrough()) {
+            flags |= FLAG_SEE_THROUGH;
+        }
+        if (model.background() == null) {
+            flags |= FLAG_DEFAULT_BACKGROUND;
+        }
+        flags |= switch (model.align()) {
+            case LEFT -> ALIGN_LEFT;
+            case RIGHT -> ALIGN_RIGHT;
+            case CENTER -> 0;
+        };
+        return (byte) flags;
+    }
+
+    private static void addFloat(List<EntityData<?>> data, int index, float value, float fallback,
+                                 boolean explicit) {
+        if (value >= 0f) {
+            data.add(new EntityData<>(index, EntityDataTypes.FLOAT, value));
+        } else if (explicit) {
+            data.add(new EntityData<>(index, EntityDataTypes.FLOAT, fallback));
+        }
     }
 
     /**

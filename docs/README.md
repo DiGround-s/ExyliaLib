@@ -33,7 +33,7 @@ against the source — rules and routes are in `AGENTS.md` under
 | [Ragdolls](ragdolls.md) | Bodies that come apart into their own pieces, each one solved in advance and drawn by the client | 1.120.0 |
 | [Replays](replays.md) | Recording what happened and watching it again — the server's own state, sampled every tick, played back as packet bodies on the screens that asked for it, arena and debris included | 1.175.0 |
 | [Cameras](cameras.md) | Showing a player themselves from outside — a shot solved in advance, drawn by the client, and always given back | 1.172.0 |
-| [Displays](displays.md) | Item, block and text displays that move, spin and fall by themselves — packet-only, animated by the client | 1.85.0 |
+| [Displays](displays.md) | Item, block and text displays that move, spin and fall by themselves — packet-only, animated by the client; restyled, retargeted from their pose on screen and shown to a tracked audience while they play since 1.272.0 | 1.85.0 |
 | [VFX](vfx.md) | Effects built in Java and played as one: a timeline of displays, sounds, particles and screen shake, ground telegraphs, floating damage numbers, chained motions and flat ragdoll skins | 1.197.0 |
 | [Sequences](sequences.md) | Choreographed effects from configuration: shapes, sounds, delays — the ExyliaCommons syntax, compiled once; effects with odds, conditions and an audience since 1.57.0 | 1.30.0 |
 | [Previews](previews.md) | Showing one player an effect on a configured stage, and putting them back | 1.30.0 |
@@ -48,7 +48,7 @@ against the source — rules and routes are in `AGENTS.md` under
 | [WorldGuard](worldguard.md) | Region lookups and Exylia's own region flags — `kill-effects`, `hit-effects`, `arrows-effects` | 1.74.0 |
 | [Wizards](wizard.md) | Walking a player through several questions — branches, a review they can go back from, and nothing applied until they confirm | 1.34.0 |
 | [Nametags](nametags.md) | Name colour, glow and collision as one player sees another — vanilla clients included | 1.36.0 |
-| [Packets](packets.md) | Vanish, drawing invisible players, fake blocks, freezing, a fake spectator, silent chest viewing, per-player world borders and lines under items — packets to one client, nothing on the server | 1.75.0 (`WorldBorders` 1.162.0, `ItemLines` 1.203.0) |
+| [Packets](packets.md) | Vanish, drawing invisible players, fake blocks, freezing, a fake spectator, silent chest viewing, per-player world borders, lines under items and chest lids — packets to one client, nothing on the server | 1.75.0 (`WorldBorders` 1.162.0, `ItemLines` 1.203.0, `ChestLids` 1.272.0) |
 | [Overlays](overlays.md) | Items in a player's own inventory that the server does not have — a staff hotbar a crash cannot leave behind | 1.79.0 |
 | [Combat](combat.md) | Whether a player is in combat, over DeluxeCombat, PvPManager or a bridge you write | 1.36.0 |
 | [World](world.md) | Creating and deleting worlds through the Worlds plugin, from any thread — and doing nothing loudly when it is absent | 1.36.0 |

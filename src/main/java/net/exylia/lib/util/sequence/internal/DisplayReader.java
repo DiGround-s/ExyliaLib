@@ -35,7 +35,9 @@ final class DisplayReader {
     static final String[] PARAMETERS = {
             "as", "size", "size_to", "life", "from", "to", "rise", "spin", "axis",
             "tilt", "roll", "turn", "face_out", "gravity", "glow", "light", "model",
-            "billboard", "hold", "pull", "ease", "orbit", "vary", "follow"
+            "billboard", "hold", "pull", "ease", "orbit", "vary", "follow",
+            "background", "opacity", "see_through", "text_shadow", "align", "line_width",
+            "background_alpha", "view_range", "cull"
     };
 
     private DisplayReader() {
@@ -61,8 +63,20 @@ final class DisplayReader {
         DisplayPaint.Face face = DisplayPaint.Face.FIXED;
         DisplayModel model;
 
+        String itemName = null;
+        String textTemplate = null;
         switch (kind) {
             case "item" -> {
+                String head = args.head().trim();
+                if (head.length() > 7 && head.toLowerCase(Locale.ROOT).startsWith("{item:")
+                        && head.endsWith("}")) {
+                    // Decided when the sequence plays: the reward that was
+                    // rolled, the face the orb lands on. The stone is only
+                    // there so the model has an item until then.
+                    itemName = head.substring(6, head.length() - 1).trim();
+                    model = DisplayModel.item(new ItemStack(Material.STONE));
+                    break;
+                }
                 Material material = material(args.head(), problems);
                 if (material == null) {
                     return null;
@@ -88,7 +102,12 @@ final class DisplayReader {
                         : Heads.blank();
                 model = DisplayModel.item(withModelData(head, args, problems));
             }
-            case "text" -> model = DisplayModel.text(Text.of(args.head()).build());
+            case "text" -> {
+                model = DisplayModel.text(Text.of(args.head()).build());
+                if (args.head().indexOf('%') >= 0) {
+                    textTemplate = args.head();
+                }
+            }
             default -> {
                 problems.found("as", "\"" + kind + "\" is not item, block, head or text");
                 return null;
@@ -108,6 +127,7 @@ final class DisplayReader {
         if (args.has("hold")) {
             model = model.held(args.count("hold", 0, problems));
         }
+        model = looks(model, args, problems);
 
         return new DisplayPaint(owner, model, motion(args, problems), face,
                 args.flag("face_out", false),
@@ -115,7 +135,61 @@ final class DisplayReader {
                 args.number("pull", 0.0, problems),
                 args.number("orbit", 0.0, problems),
                 args.number("vary", 0.0, problems),
-                follow(args));
+                follow(args),
+                new DisplayPaint.Late(itemName, textTemplate, args.deferred("glow")));
+    }
+
+    /**
+     * The panel, the reach and the box: what a text line or a wide piece of an
+     * effect needs and a sword never does.
+     */
+    private static DisplayModel looks(DisplayModel model, Args args, Args.Problems problems) {
+        if (args.has("background")) {
+            String raw = args.text("background", "");
+            if (raw.equalsIgnoreCase("none")) {
+                model = model.background(0);
+            } else {
+                Color panel = args.colour("background", null, problems);
+                if (panel != null) {
+                    int alpha = Math.clamp(args.count("background_alpha", 64, problems), 0, 255);
+                    model = model.background((alpha << 24) | panel.asRGB());
+                }
+            }
+        }
+        if (args.has("opacity")) {
+            model = model.opacity(args.count("opacity", 255, problems));
+        }
+        if (args.has("see_through")) {
+            model = model.seeThrough(args.flag("see_through", true));
+        }
+        if (args.has("text_shadow")) {
+            model = model.textShadow(args.flag("text_shadow", false));
+        }
+        if (args.has("align")) {
+            model = model.align(switch (args.text("align", "center").toLowerCase(Locale.ROOT)) {
+                case "left" -> DisplayModel.Align.LEFT;
+                case "right" -> DisplayModel.Align.RIGHT;
+                default -> DisplayModel.Align.CENTER;
+            });
+        }
+        if (args.has("line_width")) {
+            model = model.lineWidth(args.count("line_width", 200, problems));
+        }
+        if (args.has("view_range")) {
+            model = model.viewRange((float) args.number("view_range", 1.0, problems));
+        }
+        if (args.has("cull")) {
+            // One number is a square box; two are width and height.
+            String[] parts = args.text("cull", "").split(",");
+            try {
+                float width = Float.parseFloat(parts[0].trim());
+                float height = parts.length > 1 ? Float.parseFloat(parts[1].trim()) : width;
+                model = model.culling(width, height);
+            } catch (NumberFormatException malformed) {
+                problems.found("cull", "needs one number or two, as in cull:4,3");
+            }
+        }
+        return model;
     }
 
     /**

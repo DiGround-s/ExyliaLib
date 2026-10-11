@@ -85,7 +85,12 @@ point, for a single object.
 | `item` | an item name, `NETHERITE_SWORD` |
 | `block` | a block name, or a full block state like `oak_stairs[facing=east]` |
 | `head` | a base64 texture, or `{killer}` or `{victim}` for a face |
-| `text` | the line itself, in the usual formatting |
+| `text` | the line itself, in the usual formatting; `%name%` values of the play are filled in when it plays (since 1.272.0) |
+
+Since 1.272.0 an `as:item` head can be `{item:reward}`: the item is whatever
+the play supplied under that name with `SequenceTarget.item("reward", stack)`
+(the reward a crate rolled, the face an orb lands on). A play that supplied no
+such item draws nothing for that line.
 
 `{killer}` and `{victim}` are resolved from players who are on the server, so
 they cost no lookup and never wait on anything. A player who has already gone
@@ -100,7 +105,7 @@ leaves a plain head rather than delaying the effect.
 | `to:x,y,z` | where it ends | `0,0,0` |
 | `rise:` | shorthand for `to:0,n,0` | |
 | `gravity:` | falls at this many blocks per second squared, on top of the line | `0`; vanilla is about `32` |
-| `ease:` | how the movement is spread over its life: `in`, `out`, `in_out`; since 1.197.0 also `back` (overshoots and settles), `bounce` and `elastic` | `linear` |
+| `ease:` | how the movement is spread over its life: `in`, `out`, `in_out`; since 1.197.0 also `back` (overshoots and settles), `bounce` and `elastic`; since 1.272.0 every curve `DisplayMotion.Easing` names (`anticipate`, `snap`, `hold`, `quart_out`, `easeInOutSine`, ...) | `linear` |
 | `spin:` | turns over its whole life; `x,y,z` for a tumble on three axes at once | `0` |
 | `axis:` | which axis a single-number spin turns around: `x`, `y` or `z` | `y` |
 | `orbit:` | turns each point carries round the anchor over its life | `0` |
@@ -110,11 +115,15 @@ leaves a plain head rather than delaying the effect.
 | `tilt:` `roll:` `turn:` | a fixed rotation, in degrees | `0` |
 | `face_out:` | each point faces away from the centre | `false` |
 | `pull:` | how far towards the centre each point travels: `1` reaches it, a negative number throws it outwards | `0` |
-| `glow:` | outline colour: a name, `#rrggbb` or a `{palette}` token | none |
+| `glow:` | outline colour: a name, `#rrggbb` or a `{palette}` token; since 1.272.0 also a value of the play, `glow:%tier_color%` | none |
 | `light:` | fixed light level, `0` to `15` | the light where it stands |
 | `model:` | custom model data, for a resource pack model | none |
 | `billboard:` | `FIXED`, `VERTICAL`, `HORIZONTAL` or `CENTER` | `FIXED`, `CENTER` for text |
 | `hold:` | item display context: `0` the model itself, `5` head, `7` dropped, `8` item frame | `0` |
+| `view_range:` | how far away it is drawn, as a multiple of the client's entity distance (since 1.272.0) | `1` |
+| `cull:` | the box tested against the screen edge, `w` or `w,h` in blocks; give a wide piece one or it vanishes when its centre leaves the screen (since 1.272.0) | none |
+| `background:` | text only: panel colour (name, `#rrggbb`, `{palette}`) or `none`; `background_alpha:` 0-255 (64) (since 1.272.0) | the client's panel |
+| `opacity:` `see_through:` `text_shadow:` `align:` `line_width:` | text only: text alpha 0-255, drawn through walls (`true`), drop shadow (`false`), `left`/`center`/`right`, wrap width in pixels (200) (since 1.272.0) | |
 
 `gravity:` is added to the straight line rather than replacing it, so "throw it
 four blocks east and let it drop" is two independent numbers instead of one
@@ -239,6 +248,106 @@ Worth knowing before writing rotations, because it is not guessable:
 black at night and black in a cave, and an effect that disappears after sunset is
 an effect players report as broken.
 
+## Animations that change while they play (since 1.272.0)
+
+What a lottery reveal needs: something that keeps moving while the server
+decides, and then lands where the server decided.
+
+### Changing what it draws
+
+A `DisplayHandle` changes its look without a respawn. Each call is one metadata
+packet per viewer, and the client keeps interpolating whatever pose it was
+drawing towards.
+
+```java
+orb.showing(nextFace);                       // an item display's item
+label.text(Text.of("{success}%reward%").build());
+label.text(viewer -> viewer.equals(opener) ? youWon : theyWon);
+orb.glow(0xFFD700);  orb.glow(-1);           // outline on, off
+orb.light(15);                               // fixed light, -1 gives it back
+orb.restyle(orb.model().glow(0x59A4FF).viewRange(2f)); // anything else
+```
+
+`restyle` refuses a model of another kind (an item display cannot become a
+block). Per-viewer text (`DisplayModel.text(Function<Player, Component>)`) is
+asked once per viewer at spawn, on every restyle and when a tracked viewer walks
+up, on whatever thread sends the packets: it reads memory only.
+
+### Changing where it goes
+
+`pose()` is where the display is on screen now: the last pose sent, part of the
+way from the one before it, exactly as the client interpolates it (offsets and
+sizes in a line, the rotation by the shorter arc). `then(motion)` throws away
+what is left of the motion and plays another from that pose: its first pose is
+replaced by `pose()`, its clock, loop and life start now. `moveTo(pose, millis,
+easing)` glides to one pose and keeps the life that was left.
+
+```java
+// A reel spinning freely, looped, while the reward is rolled...
+DisplayHandle reel = displays.show(strip, DisplayMotion.builder().life(500)
+        .spin(Rotation.Axis.X, 1).build().looping(500, 1.0, 1.0), at, 24);
+// ...and decelerating onto the face the server chose.
+DisplayKeyframe here = reel.pose();
+reel.then(DisplayMotion.builder().life(4000)
+        .from(here.x(), here.y(), here.z()).to(here.x(), here.y(), here.z())
+        .rotation(here.rotation()).spin(Rotation.Axis.X, turnsToStop)
+        .ease(DisplayMotion.Easing.QUART_OUT)
+        .build());
+```
+
+`turnsToStop` is the caller's: it knows the angle each face sits at and the
+angle the reel has reached (a loop of one turn per cycle is at
+`(now - started) / cycle` turns). `moveTo` takes the shorter arc, so use `then`
+with a spin whenever the display must turn more than half a turn to land.
+
+### Who sees it, while it plays
+
+`PluginDisplays.show(model, motion, at, radius[, who])` re-reads who is within
+`radius` of the display every half second, on the thread that owns the place. A
+player who walks up mid-animation is spawned it in the pose everyone else sees
+and sent the pose it is heading for over the time left; a player who walks away
+is sent the destroy. Nobody being near at the start is not a reason to draw
+nothing. `who` narrows it (a "show effects: off" setting) and is asked per nearby
+player per re-read. Seated displays (`rideOn`) keep the viewers they were given.
+`Vfx.track(radius[, who])` does the same for a whole timeline; see
+[vfx.md](vfx.md).
+
+### Curves
+
+`DisplayMotion.Easing` names every curve the library has: the original seven,
+`ANTICIPATE`, `SNAP` (jumps in the first tick), `HOLD` (jumps in the last),
+`SMOOTH`, and the easings.net families `SINE_`, `QUAD_`, `CUBIC_`, `QUART_`,
+`QUINT_`, `EXPO_`, `CIRC_`, `BACK_`, `ELASTIC_`, `BOUNCE_` × `IN`, `OUT`,
+`IN_OUT`. `Easing.of` reads any spelling (`quart_out`, `easeOutQuart`).
+`ease(...)` sets the curve of the offsets, the turn and the size together;
+`easePosition`, `easeRotation` and `easeScale` set one each, so a card can fly
+in with `BACK_OUT` while it flips at a steady rate. `turnTo(rotation)` turns
+from `rotation(...)` to another by the shorter arc, with any spin on top.
+`DisplayMotion.between(from, to, millis, easing)` is that glide as a motion.
+
+`DisplayMotion.spline(keys, life)` runs a Catmull-Rom curve through every
+keyframe instead of stopping at each one (offsets and sizes; the rotation turns
+between neighbouring keyframes), cut into a pose about every 100 ms.
+
+### How many poses
+
+`DisplayMotion.maxPoses(life)` is the ceiling: 48 up to about two and a half
+seconds, as it always was, then one a tick up to 256. A motion that fits is
+sampled evenly as before; a long eased spin that does not (a wheel decelerating
+over ten turns) gets its poses where the turn needs them, a sixth of a turn
+apart while it is fast and few once it crawls. Past even that, the poses are
+thinned evenly and the fastest stretch may turn the wrong way: keep spins under
+about `maxPoses / 6` turns.
+
+### Looks
+
+`DisplayModel` also takes `viewRange(multiplier)`, `shadow(radius, strength)`
+and `culling(width, height)`: a wheel or a carousel wider than a block needs a
+culling box as wide as itself, or the client drops it the moment its anchor
+leaves the screen. Text displays take `background(argb)` (`0` for no panel),
+`opacity(alpha)`, `seeThrough(boolean)`, `textShadow(boolean)`, `align(Align)`
+and `lineWidth(pixels)`. Left unset, every field is what it was before 1.272.0.
+
 ## Contracts
 
 - **Compiled once.** The item, the quaternions and the poses are all worked out
@@ -266,7 +375,10 @@ an effect players report as broken.
 - The driver walks the live queue once a tick. For a display with nothing due
   that is a comparison of two longs.
 - A file asking for two hundred turns is capped at forty-eight poses rather than
-  sending two hundred packets.
+  sending two hundred packets; a longer life raises the cap to one pose a tick,
+  up to 256 (`DisplayMotion.maxPoses`).
+- A restyle is one metadata packet per viewer; a tracked display re-reads its
+  audience every half second, one walk over the world's players per display.
 - **There is a ceiling, and it counts viewers.** `plugins/ExyliaLib/displays.yml`
   holds two numbers. `max-viewer-displays` is the budget for the whole server,
   counted as displays multiplied by the players each is sent to — one display
@@ -291,4 +403,8 @@ an effect players report as broken.
   that a spin is cut finely enough never to run backwards; `LiveDisplayTest`
   asserts when each pose is sent and that a display is always destroyed, once;
   `DisplayMotionChainTest` asserts chained segments and the overshooting
-  curves.
+  curves; `MotionCurvesTest` asserts every curve by name, separate channel
+  curves, the adaptive cut of a long eased spin and the spline through its
+  keyframes; `RetargetAndTrackTest` asserts the pose mid-flight, a new motion
+  starting from it, restyles, and viewers joining and leaving a tracked
+  display within the budget.

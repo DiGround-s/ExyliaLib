@@ -59,6 +59,27 @@ final class DisplayPaint implements Paint {
         VICTIM
     }
 
+    /**
+     * What the line leaves to be decided when it plays.
+     *
+     * @param item  the name of an item the play supplies, from {@code {item:name}}
+     * @param text  a text line holding {@code %name%} values
+     * @param glow  a glow colour holding {@code %name%} values
+     */
+    record Late(@Nullable String item, @Nullable String text, @Nullable String glow) {
+
+        static final Late NONE = new Late(null, null, null);
+
+        boolean isEmpty() {
+            return item == null && text == null && glow == null;
+        }
+    }
+
+    /** Draws nothing, for a line whose item this play did not supply. */
+    private static final Paint NOTHING = (observers, anchor, x, y, z) -> {
+    };
+
+    private final Late late;
     private final String owner;
     private final DisplayModel model;
     private final DisplayMotion motion;
@@ -74,13 +95,20 @@ final class DisplayPaint implements Paint {
     DisplayPaint(@NotNull String owner, @NotNull DisplayModel model, @NotNull DisplayMotion motion,
                  @NotNull Face face, boolean faceOut, double turnRadians, double pull,
                  double orbit, double vary, @NotNull Follow follow) {
-        this(owner, model, motion, face, faceOut, turnRadians, pull, orbit, vary, follow, null);
+        this(owner, model, motion, face, faceOut, turnRadians, pull, orbit, vary, follow, Late.NONE);
+    }
+
+    DisplayPaint(@NotNull String owner, @NotNull DisplayModel model, @NotNull DisplayMotion motion,
+                 @NotNull Face face, boolean faceOut, double turnRadians, double pull,
+                 double orbit, double vary, @NotNull Follow follow, @NotNull Late late) {
+        this(owner, model, motion, face, faceOut, turnRadians, pull, orbit, vary, follow, null, late);
     }
 
     private DisplayPaint(@NotNull String owner, @NotNull DisplayModel model, @NotNull DisplayMotion motion,
                  @NotNull Face face, boolean faceOut, double turnRadians, double pull,
                  double orbit, double vary, @NotNull Follow follow,
-                 @Nullable org.bukkit.entity.Entity carrier) {
+                 @Nullable org.bukkit.entity.Entity carrier, @NotNull Late late) {
+        this.late = late;
         this.follow = follow;
         this.carrier = carrier;
         this.owner = owner;
@@ -105,6 +133,22 @@ final class DisplayPaint implements Paint {
     @Override
     public @NotNull Paint forPlay(@NotNull SequenceTarget target) {
         DisplayModel drawn = model;
+        if (!late.isEmpty()) {
+            if (late.item() != null) {
+                org.bukkit.inventory.ItemStack supplied = target.item(late.item());
+                if (supplied == null) {
+                    return NOTHING;
+                }
+                drawn = drawn.showing(supplied);
+            }
+            if (late.text() != null) {
+                drawn = drawn.withText(net.exylia.lib.text.Text.of(target.fill(late.text())).build());
+            }
+            if (late.glow() != null) {
+                org.bukkit.Color glow = Args.colourFor(target, late.glow(), null);
+                drawn = drawn.glow(glow != null ? glow.asRGB() : -1);
+            }
+        }
         if (face != Face.FIXED) {
             Player wearer = face == Face.KILLER ? target.source() : asPlayer(target.target());
             if (wearer != null) {
@@ -123,7 +167,7 @@ final class DisplayPaint implements Paint {
             return this;
         }
         return new DisplayPaint(owner, drawn, motion, Face.FIXED, faceOut, turnRadians,
-                pull, orbit, vary, follow, mount);
+                pull, orbit, vary, follow, mount, Late.NONE);
     }
 
     @Override

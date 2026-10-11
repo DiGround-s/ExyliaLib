@@ -81,6 +81,8 @@ public final class Vfx {
 
     private final Location origin;
     private List<Player> viewers = List.of();
+    private double trackRadius = -1.0;
+    private @Nullable java.util.function.Predicate<Player> trackFilter;
     private @Nullable Boolean lod;
     private final List<Step> steps = new ArrayList<>();
     private final List<Shown> shown = new ArrayList<>();
@@ -116,6 +118,41 @@ public final class Vfx {
     public @NotNull Vfx viewers(@NotNull Collection<? extends Player> players) {
         this.viewers = List.copyOf(players);
         return this;
+    }
+
+    /**
+     * Everyone within {@code radius} blocks of the origin sees it, re-read
+     * while it plays.
+     *
+     * <p>{@link #nearby} decides once, when the effect is built; a crate
+     * animation lasts long enough for somebody to walk up halfway through.
+     * Tracked, every display is shown to whoever comes within range of where it
+     * stands &mdash; in the pose everyone else is seeing &mdash; and taken off
+     * whoever leaves, and every sound, particle and firework goes to whoever is
+     * in range at the moment it plays. Displays seated on an entity keep the
+     * audience they spawned with.
+     *
+     * @param radius how far, in blocks
+     * @param who    who may see it, or {@code null} for anybody in range; asked
+     *               often, so it reads memory only
+     * @return this effect
+     * @since 1.272.0
+     */
+    public @NotNull Vfx track(double radius, @Nullable java.util.function.Predicate<Player> who) {
+        this.trackRadius = Math.max(0.0, radius);
+        this.trackFilter = who;
+        return this;
+    }
+
+    /**
+     * The same, for anybody in range.
+     *
+     * @param radius how far, in blocks
+     * @return this effect
+     * @since 1.272.0
+     */
+    public @NotNull Vfx track(double radius) {
+        return track(radius, null);
     }
 
     /**
@@ -287,6 +324,66 @@ public final class Vfx {
     }
 
     /**
+     * A sound by its key, at the origin; see
+     * {@link #sound(long, Location, String, float, float)}.
+     *
+     * @param atMillis when, from the start of the effect
+     * @param key      the sound's namespaced key
+     * @param volume   how loud
+     * @param pitch    0.5 to 2
+     * @return this effect
+     * @since 1.272.0
+     */
+    public @NotNull Vfx sound(long atMillis, @NotNull String key, float volume, float pitch) {
+        return sound(atMillis, origin, key, volume, pitch);
+    }
+
+    /**
+     * A sound by its key, somewhere else.
+     *
+     * <p>The key is what the client receives, so a resource pack's own sound
+     * plays as well as a vanilla one: {@code block.chest.open},
+     * {@code minecraft:entity.player.levelup}, {@code myserver:crate.spin}.
+     *
+     * @param atMillis when, from the start of the effect
+     * @param where    where it comes from; copied
+     * @param key      the sound's namespaced key
+     * @param volume   how loud; also how far it carries
+     * @param pitch    0.5 to 2
+     * @return this effect
+     * @since 1.272.0
+     */
+    public @NotNull Vfx sound(long atMillis, @NotNull Location where, @NotNull String key,
+                              float volume, float pitch) {
+        Location at = where.clone();
+        return step(atMillis, 0L, run -> {
+            for (Player viewer : run.sameWorld(at)) {
+                viewer.playSound(at, key, volume, pitch);
+            }
+        });
+    }
+
+    /**
+     * A firework that bursts at once, for this effect's viewers only.
+     *
+     * <p>Packets, so nobody else sees or hears it and nothing is spawned on the
+     * server. Without PacketEvents it is left out: a real rocket would go off
+     * for everyone, which is the thing a viewer list exists to prevent.
+     *
+     * @param atMillis when, from the start of the effect
+     * @param where    where it bursts; copied
+     * @param effects  the explosions, as a firework star describes them
+     * @return this effect
+     * @since 1.272.0
+     */
+    public @NotNull Vfx firework(long atMillis, @NotNull Location where,
+                                 @NotNull org.bukkit.FireworkEffect @NotNull ... effects) {
+        Location at = where.clone();
+        List<org.bukkit.FireworkEffect> bursts = List.of(effects);
+        return step(atMillis, 0L, run -> DisplayRuntime.firework(run.sameWorld(at), at, bursts));
+    }
+
+    /**
      * A sound somewhere else.
      *
      * @param atMillis when, from the start of the effect
@@ -450,9 +547,11 @@ public final class Vfx {
      * @return the run, for cancelling
      */
     public @NotNull VfxRun play(@NotNull Plugin plugin) {
-        boolean idle = viewers.isEmpty() || steps.isEmpty();
+        DisplayRuntime.Audience audience = trackRadius >= 0.0
+                ? new DisplayRuntime.Audience(trackRadius, trackFilter) : null;
+        boolean idle = (audience == null && viewers.isEmpty()) || steps.isEmpty();
         VfxRun run = new VfxRun(plugin, viewers,
-                System.currentTimeMillis() + (idle ? 0L : length));
+                System.currentTimeMillis() + (idle ? 0L : length), audience, origin);
         if (idle) {
             return run;
         }

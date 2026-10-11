@@ -122,8 +122,9 @@ public final class SequenceCompiler {
             case "POTION" -> potion(args, line, onArg);
             case "BLOCK_BREAK" -> blockBreak(args, line, onArg);
             case "TITLE" -> title(args, rest, onArg);
-            case "ACTION_BAR" -> rest.isEmpty() ? null : new Steps.ActionBarStep(rest);
-            case "MESSAGE" -> rest.isEmpty() ? null : new Steps.Message(rest);
+            case "ACTION_BAR" -> text(rest, onArg, Steps.ActionBarStep::new);
+            case "MESSAGE" -> text(rest, onArg, Steps.Message::new);
+            case "LID" -> lid(args, line, onArg);
             case "NPC" -> npc(args, line, onArg);
             case "RAGDOLL" -> ragdoll(args, line, onArg);
             // Headless, like the other tokens whose first segment is a
@@ -236,18 +237,16 @@ public final class SequenceCompiler {
             return ShapeStep.of(paint, points, ticks, (long) (interval * 1000), yaw, faceSource);
         }
 
-        args.reportUnknown(onArg, merge(Shapes.parametersOf(token), SHARED));
+        args.reportUnknown(onArg, merge(merge(Shapes.parametersOf(token), SHARED), "fade"));
 
         // Read only once the line is known to draw particles: on a display line
         // size: is a scale of three numbers, and reading it as one here warned
         // about every well-formed "size:3,0.2,3" in the ecosystem.
-        Color colour = args.colour("color", null, onArg);
         float size = (float) args.number("size", 1.0, onArg);
         int count = args.count("count", 1, onArg);
 
-        Object data = ParticlePaint.dataFor(particle, colour, size, null);
-        return ShapeStep.of(ParticlePaint.point(particle, data, count), points, ticks,
-                (long) (interval * 1000), yaw, faceSource);
+        return ShapeStep.of(ParticlePaint.of(particle, count, 0, 0, 0, 0, tint(args, size, null, onArg)),
+                points, ticks, (long) (interval * 1000), yaw, faceSource);
     }
 
     /**
@@ -304,7 +303,6 @@ public final class SequenceCompiler {
         int count = args.count("count", 1, onArg);
         double speed = args.number("speed", 0, onArg);
         double yShift = args.number("y", 0, onArg);
-        Color colour = args.colour("color", null, onArg);
         float size = (float) args.number("size", 1.0, onArg);
 
         double x = 0;
@@ -327,10 +325,20 @@ public final class SequenceCompiler {
             }
         }
         Material material = material(args, onArg);
-        args.reportUnknown(onArg, "count", "speed", "y", "color", "size", "offset", "block");
+        args.reportUnknown(onArg, "count", "speed", "y", "color", "fade", "size", "offset", "block");
 
-        Object data = ParticlePaint.dataFor(particle, colour, size, material);
-        return new Steps.Particles(new ParticlePaint(particle, data, count, x, y, z, speed), yShift);
+        return new Steps.Particles(ParticlePaint.of(particle, count, x, y, z, speed,
+                tint(args, size, material, onArg)), yShift);
+    }
+
+    /**
+     * A particle line's colours: {@code color:}, and {@code fade:} for the
+     * colour a transition fades to. Either may name a value of the play.
+     */
+    private static ParticlePaint.Tint tint(Args args, float size, @Nullable Material material,
+                                           Args.Problems onArg) {
+        return new ParticlePaint.Tint(args.colour("color", null, onArg), args.colour("fade", null, onArg),
+                size, material, args.deferred("color"), args.deferred("fade"));
     }
 
     private @Nullable SequenceStep sound(Args args, String line, Args.Problems onArg) {
@@ -397,7 +405,8 @@ public final class SequenceCompiler {
         boolean flicker = args.flag("flicker", false);
         int power = args.count("power", 0, onArg);
         args.reportUnknown(onArg, "color", "fade", "type", "trail", "flicker", "power");
-        return new Steps.Fireworks(colour, fade, type, trail, flicker, power);
+        return new Steps.Fireworks(colour, fade, args.deferred("color"), args.deferred("fade"),
+                type, trail, flicker, power);
     }
 
     private @Nullable SequenceStep potion(Args args, String line, Args.Problems onArg) {
@@ -832,7 +841,61 @@ public final class SequenceCompiler {
         return out;
     }
 
+    /**
+     * Takes a trailing {@code ;who:} off a line of text.
+     *
+     * <p>Looked for as the last segment only, so a {@code ;} inside the text
+     * itself is still text. A {@code who:} nobody understands is reported and
+     * left to mean the source, which is what the line meant before it had one.
+     *
+     * @return the text, and who reads it
+     */
+    private static Addressed readers(String rest, Args.Problems onArg) {
+        int cut = rest.lastIndexOf(';');
+        String last = cut < 0 ? "" : rest.substring(cut + 1).trim();
+        if (!last.toLowerCase(Locale.ROOT).startsWith("who:")) {
+            return new Addressed(rest, Steps.Readers.SOURCE);
+        }
+        String name = last.substring(4);
+        Steps.Readers who = Steps.Readers.of(name);
+        if (who == null) {
+            onArg.found("who", "\"" + name.trim() + "\" is not source, target, both, nearby or all");
+            who = Steps.Readers.SOURCE;
+        }
+        return new Addressed(rest.substring(0, cut).trim(), who);
+    }
+
+    /** A line of text and who reads it. */
+    private record Addressed(String text, Steps.Readers who) {
+    }
+
+    private static @Nullable SequenceStep text(String rest, Args.Problems onArg,
+                                               java.util.function.BiFunction<String, Steps.Readers,
+                                                       SequenceStep> step) {
+        Addressed read = readers(rest, onArg);
+        return read.text().isEmpty() ? null : step.apply(read.text(), read.who());
+    }
+
+    /** {@code [LID] open} or {@code [LID] close}, at the anchor's block. */
+    private @Nullable SequenceStep lid(Args args, String line, Args.Problems onArg) {
+        String state = args.headless() ? "open" : args.head().trim().toLowerCase(Locale.ROOT);
+        boolean open;
+        switch (state) {
+            case "open", "true" -> open = true;
+            case "close", "closed", "shut", "false" -> open = false;
+            default -> {
+                problems.found(line, "\"" + state + "\" is not open or close");
+                return null;
+            }
+        }
+        double yShift = args.number("y", 0.0, onArg);
+        args.reportUnknown(onArg, "y");
+        return new Steps.Lid(open, yShift);
+    }
+
     private @Nullable SequenceStep title(Args args, String rest, Args.Problems onArg) {
+        Addressed read = readers(rest, onArg);
+        rest = read.text();
         if (rest.isEmpty()) {
             return null;
         }
@@ -844,7 +907,7 @@ public final class SequenceCompiler {
         long fadeIn = millis(parts, 2, 0.5);
         long stay = millis(parts, 3, 3.5);
         long fadeOut = millis(parts, 4, 1.0);
-        return new Steps.TitleStep(title, subtitle, fadeIn, stay, fadeOut);
+        return new Steps.TitleStep(title, subtitle, fadeIn, stay, fadeOut, read.who());
     }
 
     // ------------------------------------------------------------------ helpers

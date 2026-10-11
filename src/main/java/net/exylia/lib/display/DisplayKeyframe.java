@@ -64,4 +64,40 @@ public record DisplayKeyframe(long atMillis, float x, float y, float z,
         return new DisplayKeyframe(atMillis, (float) (x + dx), (float) (y + dy), (float) (z + dz),
                 rotation, scaleX, scaleY, scaleZ);
     }
+
+    /**
+     * The pose a fraction of the way from this one to another.
+     *
+     * <p>What the client draws between two poses: offsets and sizes in a
+     * straight line, the rotation by the shorter arc. Used to know where a
+     * display is mid-flight, so a new movement can start exactly there.
+     *
+     * @param to       the pose it is heading for
+     * @param fraction 0 is this pose, 1 is {@code to}; clamped
+     * @return the pose in between, timed in between too
+     * @since 1.272.0
+     */
+    public @NotNull DisplayKeyframe towards(@NotNull DisplayKeyframe to, double fraction) {
+        double f = Math.clamp(fraction, 0.0, 1.0);
+        return new DisplayKeyframe(
+                atMillis + Math.round((to.atMillis - atMillis) * f),
+                (float) (x + (to.x - x) * f),
+                (float) (y + (to.y - y) * f),
+                (float) (z + (to.z - z) * f),
+                rotation.slerp(to.rotation, f),
+                (float) (scaleX + (to.scaleX - scaleX) * f),
+                (float) (scaleY + (to.scaleY - scaleY) * f),
+                (float) (scaleZ + (to.scaleZ - scaleZ) * f));
+    }
+
+    /**
+     * The same pose, reached at another moment.
+     *
+     * @param millis when it is reached
+     * @return the retimed pose
+     * @since 1.272.0
+     */
+    public @NotNull DisplayKeyframe at(long millis) {
+        return new DisplayKeyframe(millis, x, y, z, rotation, scaleX, scaleY, scaleZ);
+    }
 }

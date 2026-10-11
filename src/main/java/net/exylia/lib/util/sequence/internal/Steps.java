@@ -176,7 +176,7 @@ final class Steps {
             Location where = yShift == 0.0
                     ? target.location()
                     : target.location().clone().add(0, yShift, 0);
-            paint.draw(observers, where);
+            paint.forPlay(target).draw(observers, where);
         }
     }
 
@@ -243,24 +243,34 @@ final class Steps {
     }
 
     /** A firework that goes off where it is told, with nothing left behind. */
-    record Fireworks(Color colour, Color fade, FireworkEffect.Type type,
-                     boolean trail, boolean flicker, int power) implements SequenceStep {
+    record Fireworks(Color colour, Color fade, @Nullable String colourRaw, @Nullable String fadeRaw,
+                     FireworkEffect.Type type, boolean trail, boolean flicker, int power)
+            implements SequenceStep {
         @Override
         public void play(@NotNull SequenceTarget target, @NotNull SequenceRun run) {
             Location at = target.location();
             if (at.getWorld() == null) {
                 return;
             }
-            Firework firework = at.getWorld().spawn(at, Firework.class);
-            HarmlessFireworks.tag(firework);
-            FireworkMeta meta = firework.getFireworkMeta();
-            meta.addEffect(FireworkEffect.builder()
-                    .withColor(colour)
-                    .withFade(fade)
+            FireworkEffect effect = FireworkEffect.builder()
+                    .withColor(Args.colourFor(target, colourRaw, colour))
+                    .withFade(Args.colourFor(target, fadeRaw, fade))
                     .with(type)
                     .trail(trail)
                     .flicker(flicker)
-                    .build());
+                    .build();
+            if (net.exylia.lib.display.internal.DisplayRuntime.isSupported()) {
+                // A packet, so it goes off only for whoever the sequence is
+                // for: a player who turned effects off, or who is outside the
+                // radius, sees and hears nothing.
+                net.exylia.lib.display.internal.DisplayRuntime.firework(target.observers(), at,
+                        List.of(effect));
+                return;
+            }
+            Firework firework = at.getWorld().spawn(at, Firework.class);
+            HarmlessFireworks.tag(firework);
+            FireworkMeta meta = firework.getFireworkMeta();
+            meta.addEffect(effect);
             meta.setPower(power);
             firework.setFireworkMeta(meta);
             // Detonating in the same tick, rather than a task 50ms later: the
@@ -301,55 +311,112 @@ final class Steps {
         }
     }
 
-    /** A title, on whoever caused this. */
-    record TitleStep(String title, String subtitle, long fadeIn, long stay, long fadeOut)
-            implements SequenceStep {
-        @Override
-        public void play(@NotNull SequenceTarget target, @NotNull SequenceRun run) {
-            Player source = target.source();
-            if (source == null) {
-                return;
-            }
-            // Through Text, so a title in a sequence follows the palette and
-            // resolves placeholders like every other message. Commons used the
-            // legacy serialiser here, so {primary} arrived on screen literally.
-            source.showTitle(net.kyori.adventure.title.Title.title(
-                    Text.of(title).forPlayer(source).build(),
-                    Text.of(subtitle).forPlayer(source).build(),
-                    net.kyori.adventure.title.Title.Times.times(
-                            java.time.Duration.ofMillis(fadeIn),
-                            java.time.Duration.ofMillis(stay),
-                            java.time.Duration.ofMillis(fadeOut))));
+    /**
+     * Who a line of text reaches.
+     *
+     * <p>{@code source} unless the line says otherwise, which is what every file
+     * before 1.272.0 got. {@code nearby} is the sequence's own audience &mdash;
+     * the observers within its radius, narrowed by its visibility rule &mdash;
+     * and {@code all} is every player online, for an announcement a reveal
+     * makes to the whole server.
+     */
+    enum Readers {
+        SOURCE, TARGET, BOTH, NEARBY, ALL;
+
+        static @Nullable Readers of(@NotNull String name) {
+            return switch (name.trim().toLowerCase(java.util.Locale.ROOT)) {
+                case "source", "{source}", "killer", "{killer}", "player", "self" -> SOURCE;
+                case "target", "{target}", "victim", "{victim}" -> TARGET;
+                case "both", "{both}" -> BOTH;
+                case "nearby", "observers", "audience", "viewers" -> NEARBY;
+                case "all", "everyone", "server" -> ALL;
+                default -> null;
+            };
+        }
+
+        List<Player> of(SequenceTarget target) {
+            return switch (this) {
+                case NEARBY -> target.observers();
+                case ALL -> List.copyOf(Bukkit.getOnlinePlayers());
+                default -> {
+                    List<Player> readers = new java.util.ArrayList<>(2);
+                    if (this != TARGET && target.source() != null) {
+                        readers.add(target.source());
+                    }
+                    if (this != SOURCE && target.target() instanceof Player subject
+                            && !readers.contains(subject)) {
+                        readers.add(subject);
+                    }
+                    yield readers;
+                }
+            };
         }
     }
 
-    /** An action bar, on whoever caused this. */
-    record ActionBarStep(String text) implements SequenceStep {
+    /** A title, on whoever the line says; the source unless it says otherwise. */
+    record TitleStep(String title, String subtitle, long fadeIn, long stay, long fadeOut,
+                     Readers who) implements SequenceStep {
+
+        TitleStep(String title, String subtitle, long fadeIn, long stay, long fadeOut) {
+            this(title, subtitle, fadeIn, stay, fadeOut, Readers.SOURCE);
+        }
+
         @Override
         public void play(@NotNull SequenceTarget target, @NotNull SequenceRun run) {
-            Player source = target.source();
-            if (source == null) {
-                return;
+            String top = target.fill(title);
+            String bottom = target.fill(subtitle);
+            net.kyori.adventure.title.Title.Times times = net.kyori.adventure.title.Title.Times.times(
+                    java.time.Duration.ofMillis(fadeIn),
+                    java.time.Duration.ofMillis(stay),
+                    java.time.Duration.ofMillis(fadeOut));
+            for (Player reader : who.of(target)) {
+                // Through Text, so a title in a sequence follows the palette and
+                // resolves placeholders like every other message. Commons used
+                // the legacy serialiser here, so {primary} arrived on screen
+                // literally.
+                reader.showTitle(net.kyori.adventure.title.Title.title(
+                        Text.of(top).forPlayer(reader).build(),
+                        Text.of(bottom).forPlayer(reader).build(), times));
             }
-            source.sendActionBar(Text.of(text).forPlayer(source).build());
+        }
+    }
+
+    /** An action bar, on whoever the line says; the source unless it says otherwise. */
+    record ActionBarStep(String text, Readers who) implements SequenceStep {
+
+        ActionBarStep(String text) {
+            this(text, Readers.SOURCE);
+        }
+
+        @Override
+        public void play(@NotNull SequenceTarget target, @NotNull SequenceRun run) {
+            String line = target.fill(text);
+            for (Player reader : who.of(target)) {
+                reader.sendActionBar(Text.of(line).forPlayer(reader).build());
+            }
         }
     }
 
     /**
-     * A line of chat, to whoever the sequence is for.
+     * A line of chat, to whoever the line says; the source unless it says
+     * otherwise.
      *
      * <p>The one thing ExyliaCommons' effect entries could do that a sequence
      * could not. Centring is {@code Text}'s, through the same {@code <center>}
      * tag every other message in the ecosystem uses, so there is no flag here.
      */
-    record Message(String text) implements SequenceStep {
+    record Message(String text, Readers who) implements SequenceStep {
+
+        Message(String text) {
+            this(text, Readers.SOURCE);
+        }
+
         @Override
         public void play(@NotNull SequenceTarget target, @NotNull SequenceRun run) {
-            Player source = target.source();
-            if (source == null) {
-                return;
+            String line = target.fill(text);
+            for (Player reader : who.of(target)) {
+                reader.sendMessage(Text.of(line).forPlayer(reader).build());
             }
-            source.sendMessage(Text.of(text).forPlayer(source).build());
         }
     }
 
@@ -607,6 +674,22 @@ final class Steps {
         @Override
         public double tempoTo() {
             return burst.tempoTo();
+        }
+    }
+
+    /**
+     * A container's lid swung open or shut for the sequence's audience.
+     *
+     * <p>Packets only: the chest is not opened on the server, so nothing about
+     * its contents or its redstone changes.
+     */
+    record Lid(boolean open, double yShift) implements SequenceStep {
+        @Override
+        public void play(@NotNull SequenceTarget target, @NotNull SequenceRun run) {
+            Location at = yShift == 0.0
+                    ? target.location()
+                    : target.location().clone().add(0, yShift, 0);
+            net.exylia.lib.packet.ChestLids.set(target.observers(), at, open);
         }
     }
 

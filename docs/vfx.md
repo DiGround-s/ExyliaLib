@@ -36,11 +36,13 @@ run.cancel();
 | --- | --- |
 | `Vfx.at(origin)` | an empty effect anchored at a place |
 | `.viewers(players)` / `.nearby(radius)` | who sees it, decided now |
+| `.track(radius[, who])` | who sees it, re-read while it plays (since 1.272.0) |
 | `.lod(boolean)` / `.lod()` | forces, or reads, the lower level of detail |
 | `.display(ms, model, motion[, where])` | one display, at the origin or elsewhere |
 | `.ride(ms, model, motion, entity)` | a display seated on an entity |
 | `.beam(ms, from, to, model, thickness, lifeMs)` | a segment: one stretched block, or items repeated along it |
-| `.sound(ms, [where,] sound, volume, pitch)` | a sound to the viewers |
+| `.sound(ms, [where,] sound, volume, pitch)` | a sound to the viewers; `sound` is a `Sound` or, since 1.272.0, a key string such as `block.chest.open` or a resource pack's `myserver:crate.spin` |
+| `.firework(ms, where, effects...)` | a firework burst as packets, to the viewers only; skipped without PacketEvents (since 1.272.0) |
 | `.particle(ms, particle, where, count[, dx, dy, dz, speed, data])` | particles to the viewers |
 | `.lines(ms, sequence, target)` | a compiled sequence, started at an offset |
 | `.shake(ms, radius[, times, everyMs])` | the camera tilt of a hit, no hit |
@@ -63,10 +65,18 @@ clock) and `viewers()`.
   (the far end of a beam) is still correct. `ride` reads the entity's position
   when it is added, which is the caster's thread; a mount that is gone by the
   time its piece is due is skipped.
-- **Viewers resolved once.** Every piece goes to the list the effect was built
-  with. A player who walks up mid-effect does not see the second half of
-  something whose first half they missed. Players who left, or who are in
-  another world, are skipped.
+- **Viewers resolved once**, unless tracked. Every piece goes to the list the
+  effect was built with. A player who walks up mid-effect does not see the
+  second half of something whose first half they missed. Players who left, or
+  who are in another world, are skipped.
+- **Tracked** (`track(radius)`, since 1.272.0): each sound, particle, firework
+  and shake goes to whoever is within `radius` of where it plays at that moment,
+  and each standing display is a tracked display (see
+  [displays.md](displays.md#who-sees-it-while-it-plays)): shown in its current
+  pose to whoever walks up, taken off whoever leaves. A tracked effect plays
+  even when nobody is near at the start. `VfxRun.viewers()` answers who is in
+  range of the origin now. Displays from `ride` keep the audience they spawned
+  with.
 - **Nobody watching, nothing built.** With no viewers, `play` schedules nothing
   and the run is already done. That includes `call` pieces: this module is for
   visuals, and gameplay must never wait on one.
@@ -179,7 +189,9 @@ in neutral grey. Build one per kind of body and keep it.
 - Public: `display/Vfx`, `VfxRun`, `Telegraphs`, `Indicators`;
   `DisplayMotion.chain` and the new `Easing` values; `ragdoll/RagdollSkin.flat`.
 - Internal: `packet/internal/ScreenShake`; `Steps.Shake` and the `[SHAKE]` case
-  in `util/sequence/internal/SequenceCompiler`.
+  in `util/sequence/internal/SequenceCompiler`; the packet firework is
+  `DisplaySink.firework` in `display/internal/DisplayPackets` (a rocket spawned,
+  burst with entity event 17 and destroyed in one go).
 - Tests:
   - `VfxTimelineTest` drives the fake scheduler and a counting sink. It covers
     tick grouping, cancel destroying every display once, the per-effect cut,

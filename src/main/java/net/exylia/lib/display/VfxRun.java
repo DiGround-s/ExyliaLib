@@ -8,6 +8,7 @@ import org.bukkit.World;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -32,10 +33,21 @@ public final class VfxRun {
     private final List<Object> owned = new ArrayList<>();
     private volatile boolean cancelled;
 
+    /** Who it is for when that is re-read while it plays; {@code null} for a fixed list. */
+    private final DisplayRuntime.@Nullable Audience audience;
+    private final Location origin;
+
     VfxRun(@NotNull Plugin plugin, @NotNull List<Player> viewers, long endsAt) {
+        this(plugin, viewers, endsAt, null, null);
+    }
+
+    VfxRun(@NotNull Plugin plugin, @NotNull List<Player> viewers, long endsAt,
+           DisplayRuntime.@Nullable Audience audience, @Nullable Location origin) {
         this.plugin = plugin;
         this.viewers = viewers;
         this.endsAt = endsAt;
+        this.audience = audience;
+        this.origin = origin;
     }
 
     /**
@@ -78,8 +90,14 @@ public final class VfxRun {
         return endsAt;
     }
 
-    /** Who it was played to, decided when it was built. */
+    /**
+     * Who it was played to, decided when it was built; for a
+     * {@linkplain Vfx#track tracked} effect, who is in range of its origin now.
+     */
     public @NotNull List<Player> viewers() {
+        if (audience != null && origin != null) {
+            return audience.at(origin);
+        }
         return viewers;
     }
 
@@ -114,8 +132,11 @@ public final class VfxRun {
             }
             vehicle = piece.mount().getEntityId();
         }
-        DisplayHandle handle = DisplayRuntime.show(plugin.getName(), piece.model(), piece.motion(),
-                piece.where(), viewers, vehicle);
+        DisplayHandle handle = audience != null && vehicle == 0
+                ? DisplayRuntime.showTracked(plugin.getName(), piece.model(), piece.motion(),
+                        piece.where(), audience)
+                : DisplayRuntime.show(plugin.getName(), piece.model(), piece.motion(),
+                        piece.where(), audience != null ? audience.at(piece.where()) : viewers, vehicle);
         if (handle != null) {
             owns(handle);
         }
@@ -123,6 +144,9 @@ public final class VfxRun {
 
     /** The viewers standing in the same world as a place, and still online. */
     List<Player> sameWorld(Location at) {
+        if (audience != null) {
+            return audience.at(at);
+        }
         World world = at.getWorld();
         List<Player> here = new ArrayList<>(viewers.size());
         for (Player viewer : viewers) {

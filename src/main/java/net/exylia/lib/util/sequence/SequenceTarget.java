@@ -7,8 +7,14 @@ import org.bukkit.entity.Player;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+import net.exylia.lib.text.Values;
+import org.bukkit.inventory.ItemStack;
+
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
+import java.util.Map;
 import java.util.function.BiPredicate;
 
 /**
@@ -50,6 +56,12 @@ public final class SequenceTarget {
     private final BiPredicate<Player, Player> visibility;
     private final double radius;
 
+    /** What {@code %name%} stands for in this play; never {@code null}. */
+    private final Map<String, String> values;
+
+    /** The items {@code {item:name}} stands for in this play; never {@code null}. */
+    private final Map<String, ItemStack> items;
+
     /**
      * The last answer {@link #observers()} gave, and when.
      *
@@ -72,11 +84,19 @@ public final class SequenceTarget {
 
     private SequenceTarget(Location location, Player source, Entity target,
                            BiPredicate<Player, Player> visibility, double radius) {
+        this(location, source, target, visibility, radius, Map.of(), Map.of());
+    }
+
+    private SequenceTarget(Location location, Player source, Entity target,
+                           BiPredicate<Player, Player> visibility, double radius,
+                           Map<String, String> values, Map<String, ItemStack> items) {
         this.location = location;
         this.source = source;
         this.target = target;
         this.visibility = visibility;
         this.radius = radius;
+        this.values = values;
+        this.items = items;
     }
 
     /**
@@ -112,7 +132,7 @@ public final class SequenceTarget {
      * @return a new target
      */
     public @NotNull SequenceTarget by(@Nullable Player player) {
-        return new SequenceTarget(location, player, target, visibility, radius);
+        return new SequenceTarget(location, player, target, visibility, radius, values, items);
     }
 
     /**
@@ -124,7 +144,7 @@ public final class SequenceTarget {
      * @return a new target
      */
     public @NotNull SequenceTarget on(@Nullable Entity entity) {
-        return new SequenceTarget(location, source, entity, visibility, radius);
+        return new SequenceTarget(location, source, entity, visibility, radius, values, items);
     }
 
     /**
@@ -139,7 +159,7 @@ public final class SequenceTarget {
      * @return a new target
      */
     public @NotNull SequenceTarget visibleTo(@Nullable BiPredicate<Player, Player> predicate) {
-        return new SequenceTarget(location, source, target, predicate, radius);
+        return new SequenceTarget(location, source, target, predicate, radius, values, items);
     }
 
     /**
@@ -162,7 +182,7 @@ public final class SequenceTarget {
      * @return a new target
      */
     public @NotNull SequenceTarget within(double blocks) {
-        return new SequenceTarget(location, source, target, visibility, Math.max(0.0, blocks));
+        return new SequenceTarget(location, source, target, visibility, Math.max(0.0, blocks), values, items);
     }
 
     /**
@@ -175,7 +195,98 @@ public final class SequenceTarget {
      * @return a new target
      */
     public @NotNull SequenceTarget movedTo(@NotNull Location destination) {
-        return new SequenceTarget(destination.clone(), source, target, visibility, radius);
+        return new SequenceTarget(destination.clone(), source, target, visibility, radius, values, items);
+    }
+
+    /**
+     * The values {@code %name%} stands for in this play.
+     *
+     * <pre>{@code
+     * sequences.play(reveal, SequenceTarget.at(crate.getLocation())
+     *         .by(opener)
+     *         .values(Values.of("tier", tier.name()).putText("player", opener.getName()))
+     *         .item("reward", prize));
+     * }</pre>
+     *
+     * <p>Substituted before the line is parsed, so colours and
+     * {@code %papi%} placeholders in the value still resolve, in the text of
+     * {@code [TITLE]}, {@code [ACTION_BAR]}, {@code [MESSAGE]} and
+     * {@code [DISPLAY] ...;as:text}, and in {@code color:}, {@code fade:} and
+     * {@code glow:}. A value somebody typed goes in with
+     * {@link Values#putText}, which keeps it inert. The values are copied, so
+     * the bag can be reused.
+     *
+     * @param values the values; merged over any given before
+     * @return a new target
+     * @since 1.272.0
+     */
+    public @NotNull SequenceTarget values(@NotNull Values values) {
+        Map<String, String> merged = new LinkedHashMap<>(this.values);
+        for (Map.Entry<String, Object> value : values.map().entrySet()) {
+            merged.put(value.getKey(), String.valueOf(value.getValue()));
+        }
+        return new SequenceTarget(location, source, target, visibility, radius,
+                Map.copyOf(merged), items);
+    }
+
+    /**
+     * An item a line can draw by name, decided when the sequence plays.
+     *
+     * <p>{@code [DISPLAY] {item:reward}} shows it; a line naming an item this
+     * play was not given draws nothing rather than a placeholder.
+     *
+     * @param name the name the line uses, without braces
+     * @param item the item; kept as given, so do not change it afterwards
+     * @return a new target
+     * @since 1.272.0
+     */
+    public @NotNull SequenceTarget item(@NotNull String name, @NotNull ItemStack item) {
+        Map<String, ItemStack> merged = new LinkedHashMap<>(items);
+        merged.put(name.toLowerCase(Locale.ROOT), item);
+        return new SequenceTarget(location, source, target, visibility, radius, values,
+                Map.copyOf(merged));
+    }
+
+    /**
+     * The values of this play, as {@link #values(Values)} gave them.
+     *
+     * @return the values by name, without percent signs; never {@code null}
+     * @since 1.272.0
+     */
+    public @NotNull Map<String, String> values() {
+        return values;
+    }
+
+    /**
+     * The item a line names, or {@code null} when this play has none by that name.
+     *
+     * @param name the name, without braces
+     * @return the item
+     * @since 1.272.0
+     */
+    public @Nullable ItemStack item(@NotNull String name) {
+        return items.get(name.toLowerCase(Locale.ROOT));
+    }
+
+    /**
+     * A line with this play's values in it.
+     *
+     * @param line the line as written; {@code null} becomes empty
+     * @return the line with every {@code %name%} this play knows replaced
+     * @since 1.272.0
+     */
+    public @NotNull String fill(@Nullable String line) {
+        if (line == null) {
+            return "";
+        }
+        if (values.isEmpty() || line.indexOf('%') < 0) {
+            return line;
+        }
+        String filled = line;
+        for (Map.Entry<String, String> value : values.entrySet()) {
+            filled = filled.replace("%" + value.getKey() + "%", value.getValue());
+        }
+        return filled;
     }
 
     /** Where this happens. */

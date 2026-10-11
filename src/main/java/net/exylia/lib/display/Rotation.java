@@ -127,6 +127,51 @@ public record Rotation(float x, float y, float z, float w) {
                 vector[2] + 2 * (w * cz + ccz)};
     }
 
+    /**
+     * The rotation a fraction of the way from this one to another, by the
+     * shorter arc.
+     *
+     * <p>The same curve the client draws between two poses, so a pose worked
+     * out with it is where a display really is on screen.
+     *
+     * @param to       where it ends
+     * @param fraction 0 is this, 1 is {@code to}
+     * @return the rotation in between
+     * @since 1.272.0
+     */
+    public @NotNull Rotation slerp(@NotNull Rotation to, double fraction) {
+        double dot = x * to.x + y * to.y + z * to.z + w * to.w;
+        double sign = 1.0;
+        if (dot < 0.0) {
+            dot = -dot;
+            sign = -1.0;
+        }
+        double from;
+        double towards;
+        if (dot > 0.9995) {
+            // Nearly the same rotation: the sine below is close to zero, and a
+            // straight line between them is indistinguishable and stable.
+            from = 1.0 - fraction;
+            towards = fraction;
+        } else {
+            double angle = Math.acos(dot);
+            double sin = Math.sin(angle);
+            from = Math.sin((1.0 - fraction) * angle) / sin;
+            towards = Math.sin(fraction * angle) / sin;
+        }
+        towards *= sign;
+        double rx = from * x + towards * to.x;
+        double ry = from * y + towards * to.y;
+        double rz = from * z + towards * to.z;
+        double rw = from * w + towards * to.w;
+        double length = Math.sqrt(rx * rx + ry * ry + rz * rz + rw * rw);
+        if (length < 1.0E-9) {
+            return this;
+        }
+        return new Rotation((float) (rx / length), (float) (ry / length), (float) (rz / length),
+                (float) (rw / length));
+    }
+
     /** Whether this turns the model at all, so a packet can leave it out. */
     public boolean isNone() {
         return x == 0f && y == 0f && z == 0f && w == 1f;

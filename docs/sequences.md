@@ -210,22 +210,59 @@ arguments — so a migrating plugin edits no configuration files.
 | Token | Arguments |
 | --- | --- |
 | `[DELAY] 0.15` | seconds, or written out: `1m30s` |
-| `[PARTICLE] FLAME` | `count:` `offset:x,y,z` `speed:` `y:` `color:` `size:` `block:` |
+| `[PARTICLE] FLAME` | `count:` `offset:x,y,z` `speed:` `y:` `color:` `fade:` `size:` `block:` — `fade:` is the colour a `DUST_COLOR_TRANSITION` fades to, white when absent (since 1.272.0; shape lines take it too) |
 | `[SOUND] NAME;volume;pitch` | also `volume:` `pitch:` |
 | `[LIGHTNING]` | `volume:` `pitch:` — flash, sparks and thunder; no strike, no fire, no damage |
 | `[EXPLOSION]` | `count:` `y:` |
-| `[FIREWORK]` | `color:` `fade:` `type:` `trail:` `flicker:` `power:` |
+| `[FIREWORK]` | `color:` `fade:` `type:` `trail:` `flicker:` `power:` — since 1.272.0 a packet burst seen only by the observers when PacketEvents is installed (a real, harmless rocket otherwise) |
 | `[BLOCK_BREAK] STONE` | `count:` `offset:` `y:` |
 | `[POTION] speed;100;1` | also `duration:` `amplifier:` `particles:` `icon:` `ambient:` — the duration is **ticks**, or written out: `5s` |
-| `[TITLE] title;subtitle;in;stay;out` | times in **seconds**, or written out: `1m30s` |
-| `[ACTION_BAR] text` | |
+| `[TITLE] title;subtitle;in;stay;out` | times in **seconds**, or written out: `1m30s`; a last segment `;who:` picks the readers (below) |
+| `[ACTION_BAR] text` | `;who:` as a last segment |
 | `[COMMAND] give {player} ...` | `{player}` `{world}` `{x}` `{y}` `{z}` |
-| `[MESSAGE] text` | a chat line, since 1.57.0; centre it with `<center>` like any other message |
+| `[MESSAGE] text` | a chat line, since 1.57.0; centre it with `<center>` like any other message; `;who:` as a last segment |
+| `[LID] open` / `[LID] close` | swings the lid of the chest, ender chest or shulker box at the anchor (a barrel is drawn open) for the observers only, as packets; `y:` shifts the block. Since 1.272.0; see `ChestLids` in [packets.md](packets.md) |
 | `[DISPLAY] NETHERITE_SWORD` | one display entity, since 1.85.0 — see [displays.md](displays.md) |
 | `[NPC] {victim}` | a body where it happened, since 1.88.2 — see [npcs.md](npcs.md) |
 | `[RAGDOLL] {victim}` | a body that comes apart into its own pieces, since 1.120.0 — see [ragdolls.md](ragdolls.md) |
 | `[SHAKE] radius:10;times:2;every:0.08` | tilts the camera of the observers within `radius` blocks (10), as a hit does: no damage, no sound. `times:` tilts (1), `every:` apart (0.1 s). How far it tilts is each viewer's own damage-tilt setting. Since 1.197.0; see [vfx.md](vfx.md) |
 | `[CAMERA] keys:0 close \| 2 yaw=~360` | shows the subject themselves from outside, since 1.172.0 — `who:` is `source`, `target` or `both`, never the audience; see [cameras.md](cameras.md) |
+
+`who:` on `[TITLE]`, `[ACTION_BAR]` and `[MESSAGE]` (since 1.272.0) is
+`source` (the default, and all a line could do before), `target`, `both`,
+`nearby` (the sequence's own observers: its radius and visibility rule) or `all`
+(every player online). It is read only as the **last** `;` segment, so a
+semicolon inside the text stays text: `[TITLE] {primary}JACKPOT;%reward%;0.2;3;0.5;who:nearby`.
+
+### Values of the play (since 1.272.0)
+
+What a crate rolled is not known when the file is read, so the target carries it:
+
+```java
+sequences.play(reveal, SequenceTarget.at(crate.getLocation())
+        .by(opener)
+        .values(Values.of("reward", reward.displayName()).put("tier_color", "{highlight}")
+                .putText("player", opener.getName()))
+        .item("reward", reward.icon()));
+```
+
+```yaml
+- '[TITLE] {primary}&lYOU WON;%reward%;0.2;3;0.5'
+- '[MESSAGE] <center>{letters}%player% {letters_black}won %reward%;who:all'
+- '[DISPLAY] {item:reward};from:0,0.5,0;to:0,1.6,0;life:3;ease:back_out;glow:%tier_color%'
+- '[DISPLAY] %reward%;as:text;from:0,2.2,0;life:3;background:none;text_shadow:true'
+- '[FIREWORK] color:%tier_color%;fade:#ffffff;type:star'
+```
+
+`%name%` is filled in, before the line is parsed, in the text of `[TITLE]`,
+`[ACTION_BAR]`, `[MESSAGE]` and `as:text` lines, and in `color:`, `fade:` and
+`glow:` (on particle, shape, firework and display lines). A colour that names a
+value is read when the line plays; one that does not resolve to a colour falls
+back to the line's default quietly. `{item:name}` as the head of an `as:item`
+line (or `[DISPLAY]`) shows the item the play supplied with `item(name, stack)`;
+a play without it draws nothing for that line. Values set with `putText` (what a
+player typed) go in inert. `SequenceTarget.values()`, `item(name)` and
+`fill(line)` read them back. Everything else in a line is still compiled once.
 
 ### Shapes
 

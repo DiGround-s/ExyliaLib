@@ -7,7 +7,10 @@ import net.exylia.lib.display.DisplayMotion;
 import org.bukkit.Location;
 import org.bukkit.entity.Player;
 
+import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 /**
  * One display that is currently on somebody's screen.
@@ -31,10 +34,16 @@ final class LiveDisplay implements DisplayHandle {
 
     private final String owner;
     private final int entityId;
-    private final DisplayModel model;
-    private final List<DisplayKeyframe> poses;
-    private final List<Player> viewers;
+    private volatile DisplayModel model;
+    private List<DisplayKeyframe> poses;
+    private volatile List<Player> viewers;
     private long endsAt;
+
+    /** Where it was spawned, so a player who walks up later is shown it there. */
+    private Location at;
+
+    /** Who it is meant for when that is re-read as players move; {@code null} for a fixed list. */
+    private volatile DisplayRuntime.Audience audience;
 
     /** How long the way back to the first pose should take, once asked; {@code -1} until then. */
     private volatile long settleMillis = -1L;
@@ -50,12 +59,12 @@ final class LiveDisplay implements DisplayHandle {
      * one body has to come round again on the same beat or the body tears
      * itself apart over a few dozen cycles.
      */
-    private final long cycleMillis;
+    private long cycleMillis;
 
     /** Where a cycle goes back to: the end of the entry, which plays once. */
-    private final long loopFromMillis;
-    private final double accel;
-    private final double maxSpeed;
+    private long loopFromMillis;
+    private double accel;
+    private double maxSpeed;
 
     /** When the cycle being played began, which moves on at every wrap. */
     private long cycleStartedAt;
@@ -124,8 +133,140 @@ final class LiveDisplay implements DisplayHandle {
     }
 
     /** Sends the first pose along with the spawn. */
-    void spawn(DisplaySink sink, Location at) {
+    synchronized void spawn(DisplaySink sink, Location at) {
+        this.at = at;
         sink.spawn(viewers, entityId, model, at, poses.get(0));
+    }
+
+    /** Who it is meant for, or {@code null} when its viewers were fixed at spawn. */
+    DisplayRuntime.Audience audience() {
+        return audience;
+    }
+
+    void audience(DisplayRuntime.Audience tracked) {
+        this.audience = tracked;
+    }
+
+    /** Who it is on screen for right now. */
+    List<Player> viewers() {
+        return viewers;
+    }
+
+    /** Where it was spawned. */
+    synchronized Location location() {
+        return at;
+    }
+
+    /**
+     * Brings who sees it in line with who should.
+     *
+     * <p>A player who has walked into range is spawned it in the pose it is in
+     * now and sent the pose it is heading for over the time left, so they see
+     * the same frame as everyone else rather than the start of the effect. A
+     * player who has walked out is sent the destroy.
+     *
+     * @param present who should see it now
+     * @param room    how many more viewers the budget allows
+     * @return how many viewers it gained, negative when it lost them
+     */
+    synchronized int track(DisplaySink sink, long now, List<Player> present, int room) {
+        if (gone) {
+            return 0;
+        }
+        List<Player> before = viewers;
+        Set<Player> kept = new HashSet<>(present);
+        List<Player> left = new ArrayList<>();
+        List<Player> after = new ArrayList<>(present.size());
+        for (Player viewer : before) {
+            if (kept.remove(viewer)) {
+                after.add(viewer);
+            } else {
+                left.add(viewer);
+            }
+        }
+        List<Player> joined = new ArrayList<>(kept.size());
+        for (Player viewer : present) {
+            if (kept.contains(viewer) && joined.size() < room) {
+                joined.add(viewer);
+            }
+        }
+        if (!left.isEmpty()) {
+            sink.destroy(left, entityId);
+        }
+        if (!joined.isEmpty()) {
+            sink.spawn(joined, entityId, model, at, poseAt(now));
+            if (!settling && nextPose > 1) {
+                DisplayKeyframe heading = poses.get(nextPose - 1);
+                long remaining = (long) ((heading.atMillis() - elapsed(now)) / speed);
+                if (remaining > 0L) {
+                    sink.pose(joined, entityId, model, heading, (int) Math.max(1L, remaining / TICK_MS));
+                }
+            }
+            after.addAll(joined);
+        }
+        viewers = List.copyOf(after);
+        return joined.size() - left.size();
+    }
+
+    /** Draws something else from now on, sent as metadata only. */
+    synchronized void restyle(DisplaySink sink, DisplayModel next) {
+        if (gone || next.kind() != model.kind()) {
+            return;
+        }
+        model = next;
+        sink.restyle(viewers, entityId, next);
+    }
+
+    /** How far through its motion the clock is, in the motion's own time. */
+    private long elapsed(long now) {
+        return (long) ((now - cycleStartedAt) * speed);
+    }
+
+    /**
+     * Where the client is drawing it at this moment.
+     *
+     * <p>The last pose sent is being drawn towards, from the one before it,
+     * starting when that one was reached: a straight line for offsets and
+     * sizes, the shorter arc for the rotation, as the client does it.
+     */
+    synchronized DisplayKeyframe poseAt(long now) {
+        if (settling || nextPose <= 1) {
+            return poses.get(0).at(0L);
+        }
+        DisplayKeyframe heading = poses.get(nextPose - 1);
+        DisplayKeyframe from = poses.get(nextPose - 2);
+        long span = heading.atMillis() - from.atMillis();
+        double fraction = span <= 0L ? 1.0 : (double) (elapsed(now) - from.atMillis()) / span;
+        return from.towards(heading, fraction).at(Math.max(0L, now - cycleStartedAt));
+    }
+
+    /**
+     * Plays another motion from wherever it is now.
+     *
+     * <p>The motion's first pose is replaced by the pose on screen, so the
+     * client glides from exactly where it was into the rest of it. Its clock,
+     * its loop and its life start now.
+     *
+     * @param keepLife whether the life left is kept when it outlasts the motion
+     */
+    synchronized void retarget(DisplaySink sink, long now, DisplayMotion next, boolean keepLife) {
+        if (gone || settling) {
+            return;
+        }
+        DisplayKeyframe here = poseAt(now);
+        List<DisplayKeyframe> joined = new ArrayList<>(next.poses());
+        joined.set(0, here.at(joined.get(0).atMillis()));
+        poses = joined;
+        cycleMillis = next.cycleMillis();
+        loopFromMillis = next.loopFromMillis();
+        accel = next.accel();
+        maxSpeed = next.maxSpeed();
+        speed = next.startSpeed();
+        cycleStartedAt = now - (long) (joined.get(0).atMillis() / speed);
+        nextPose = 1;
+        long life = now + Math.min(MAX_LIFE_MS, Math.max(0L, next.lifeMillis())) + TICK_MS;
+        endsAt = keepLife ? Math.max(endsAt, life) : life;
+        sendDue(sink, now);
     }
 
     /**
@@ -140,7 +281,7 @@ final class LiveDisplay implements DisplayHandle {
      * @param now  the current time
      * @return whether it has been destroyed and should be forgotten
      */
-    boolean advance(DisplaySink sink, long now) {
+    synchronized boolean advance(DisplaySink sink, long now) {
         if (gone) {
             return true;
         }
@@ -169,7 +310,7 @@ final class LiveDisplay implements DisplayHandle {
 
     /** Sends every pose the clock has reached, and answers where the clock is. */
     private long sendDue(DisplaySink sink, long now) {
-        long elapsed = (long) ((now - cycleStartedAt) * speed);
+        long elapsed = elapsed(now);
         while (nextPose < poses.size() && elapsed >= poses.get(nextPose - 1).atMillis()) {
             DisplayKeyframe target = poses.get(nextPose);
             long span = (long) ((target.atMillis() - poses.get(nextPose - 1).atMillis()) / speed);
@@ -214,7 +355,7 @@ final class LiveDisplay implements DisplayHandle {
     }
 
     /** Removes it from every client, once. */
-    void destroy(DisplaySink sink) {
+    synchronized void destroy(DisplaySink sink) {
         if (gone) {
             return;
         }
@@ -230,6 +371,35 @@ final class LiveDisplay implements DisplayHandle {
     @Override
     public boolean isShowing() {
         return !gone;
+    }
+
+    @Override
+    public DisplayModel model() {
+        return model;
+    }
+
+    @Override
+    public void restyle(DisplayModel next) {
+        DisplayRuntime.restyle(this, next);
+    }
+
+    @Override
+    public DisplayKeyframe pose() {
+        return gone ? null : DisplayRuntime.poseOf(this);
+    }
+
+    @Override
+    public void then(DisplayMotion next) {
+        DisplayRuntime.retarget(this, next, false);
+    }
+
+    @Override
+    public void moveTo(DisplayKeyframe target, long millis, DisplayMotion.Easing easing) {
+        DisplayKeyframe here = pose();
+        if (here == null) {
+            return;
+        }
+        DisplayRuntime.retarget(this, DisplayMotion.between(here, target, millis, easing), true);
     }
 
     @Override

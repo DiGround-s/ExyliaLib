@@ -46,6 +46,27 @@ public interface DisplaySink {
      */
     void mount(List<Player> viewers, int vehicleId, int[] passengers);
 
+    /**
+     * Sends what a display looks like again, without moving or respawning it.
+     *
+     * <p>An item that changes face, a label that changes line, a glow that
+     * comes on: metadata only, so the client keeps interpolating whatever pose
+     * it is drawing towards.
+     */
+    default void restyle(List<Player> viewers, int entityId, DisplayModel model) {
+    }
+
+    /**
+     * A firework that goes off at once, for these viewers only.
+     *
+     * <p>A rocket that is spawned, told to explode and destroyed in the same
+     * breath: the client draws the burst and plays its sound itself, and no
+     * entity ever exists on the server.
+     */
+    default void firework(List<Player> viewers, int entityId, Location at,
+                          List<org.bukkit.FireworkEffect> effects) {
+    }
+
     /** Removes a display from every client that was shown it. */
     void destroy(List<Player> viewers, int entityId);
 }

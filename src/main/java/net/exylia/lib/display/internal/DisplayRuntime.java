@@ -1,6 +1,7 @@
 package net.exylia.lib.display.internal;
 
 import net.exylia.lib.display.DisplayHandle;
+import net.exylia.lib.display.DisplayKeyframe;
 import net.exylia.lib.display.DisplayModel;
 import net.exylia.lib.display.DisplayMotion;
 import net.exylia.lib.display.DisplaySettings;
@@ -49,6 +50,55 @@ public final class DisplayRuntime {
 
     /** Poses land on ticks, so the driver runs on ticks. */
     private static final long DRIVER_PERIOD_TICKS = 1L;
+
+    /**
+     * How often a tracked display re-reads who is near it, in driver ticks.
+     *
+     * <p>Half a second: a player walking at sprint speed covers under three
+     * blocks in that time, which is well inside any radius worth tracking, and
+     * the scan is a walk over the world's players.
+     */
+    private static final int TRACK_EVERY_TICKS = 10;
+
+    private static int trackCountdown;
+
+    /**
+     * Who a tracked display is for: everyone within a radius of where it
+     * stands, narrowed by a test, re-read as players move.
+     *
+     * @param radius how far away it can be seen, in blocks
+     * @param filter who may see it, or {@code null} for anybody in range
+     */
+    public record Audience(double radius, java.util.function.Predicate<Player> filter) {
+
+        /**
+         * Who should see a display at that place, right now.
+         *
+         * @param where the place
+         * @return the players in range who pass the filter
+         */
+        public List<Player> at(Location where) {
+            org.bukkit.World world = where.getWorld();
+            if (world == null) {
+                return List.of();
+            }
+            double limit = radius * radius;
+            List<Player> present = new ArrayList<>();
+            for (Player online : world.getPlayers()) {
+                // The world first: distanceSquared throws across worlds, and the
+                // list can hold a player who has just changed world.
+                if (!online.isOnline() || !world.equals(online.getWorld())
+                        || online.getLocation().distanceSquared(where) > limit) {
+                    continue;
+                }
+                if (filter != null && !filter.test(online)) {
+                    continue;
+                }
+                present.add(online);
+            }
+            return present;
+        }
+    }
 
     private static final Object LOCK = new Object();
 
@@ -218,6 +268,116 @@ public final class DisplayRuntime {
             seated(vehicleId, display, viewers);
         }
         return display;
+    }
+
+    /**
+     * Shows one display to whoever is near it, re-read as players move.
+     *
+     * <p>Unlike a fixed list, nobody being in range now is not a reason to
+     * draw nothing: the display keeps its clock and is shown, in the pose it
+     * has reached, to whoever walks up.
+     */
+    public static DisplayHandle showTracked(String owner, DisplayModel model, DisplayMotion motion,
+                                            Location at, Audience audience) {
+        if (!available) {
+            warnOnce(owner);
+            return null;
+        }
+        if (ids == null) {
+            return null;
+        }
+        List<Player> viewers = audience.at(at);
+        int cost = viewers.size();
+        int max = limits.maxViewerDisplays();
+        if (max > 0 && VIEWER_LOAD.get() + cost > max) {
+            reportDrop();
+            return null;
+        }
+        VIEWER_LOAD.addAndGet(cost);
+        LiveDisplay display = new LiveDisplay(owner, ids.next(), model, motion,
+                List.copyOf(viewers), clock.getAsLong(), 0);
+        display.audience(audience);
+        display.spawn(sink, at);
+        LIVE.add(display);
+        return display;
+    }
+
+    /** Re-reads who should see one tracked display and tells the clients that changed. */
+    static void retrack(LiveDisplay display, List<Player> present) {
+        int max = limits.maxViewerDisplays();
+        int room = max > 0 ? Math.max(0, max - VIEWER_LOAD.get()) : Integer.MAX_VALUE;
+        int delta = display.track(sink, clock.getAsLong(), present, room);
+        if (delta != 0) {
+            VIEWER_LOAD.addAndGet(delta);
+        }
+    }
+
+    /** Asks every tracked display's place who is near it, on the thread that owns that place. */
+    private static void scanAudiences() {
+        for (LiveDisplay display : LIVE) {
+            Audience audience = display.audience();
+            if (audience == null || !display.isShowing()) {
+                continue;
+            }
+            Location where = display.location();
+            if (where == null) {
+                continue;
+            }
+            Runnable scan = () -> {
+                try {
+                    retrack(display, audience.at(where));
+                } catch (RuntimeException ignored) {
+                    // A world unloading under the scan: the next one is half a
+                    // second away and the display's own life still ends it.
+                }
+            };
+            TaskScheduler tasks = scheduler;
+            if (tasks == null) {
+                scan.run();
+            } else {
+                tasks.runAtLocation(where, scan);
+            }
+        }
+    }
+
+    /**
+     * Sets off a firework for these viewers only, as packets.
+     *
+     * <p>Not part of the budget: nothing stays on any client past this call.
+     *
+     * @return whether it was sent; {@code false} without PacketEvents
+     */
+    public static boolean firework(java.util.List<Player> viewers, Location at,
+                                   java.util.List<org.bukkit.FireworkEffect> effects) {
+        DisplaySink target = sink;
+        if (!available || target == null || ids == null) {
+            return false;
+        }
+        if (!viewers.isEmpty() && !effects.isEmpty()) {
+            target.firework(viewers, ids.next(), at, effects);
+        }
+        return true;
+    }
+
+    /** Draws another model on a display that is already up. */
+    static void restyle(LiveDisplay display, DisplayModel model) {
+        DisplaySink target = sink;
+        if (target != null && model != null) {
+            display.restyle(target, model);
+        }
+    }
+
+    /** Where a display is on screen right now. */
+    static DisplayKeyframe poseOf(LiveDisplay display) {
+        return display.poseAt(clock.getAsLong());
+    }
+
+    /** Plays another motion on a display from where it is now. */
+    static void retarget(LiveDisplay display, DisplayMotion motion, boolean keepLife) {
+        DisplaySink target = sink;
+        if (target != null && motion != null) {
+            display.retarget(target, clock.getAsLong(), motion, keepLife);
+        }
     }
 
     /** Gives a finished display's share of the budget back. */
@@ -428,6 +588,10 @@ public final class DisplayRuntime {
             }
         }
         flushSeats(target);
+        if (++trackCountdown >= TRACK_EVERY_TICKS) {
+            trackCountdown = 0;
+            scanAudiences();
+        }
         if (broken != null) {
             for (LiveDisplay display : broken) {
                 try {

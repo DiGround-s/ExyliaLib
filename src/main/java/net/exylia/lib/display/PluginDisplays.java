@@ -7,6 +7,7 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.List;
+import java.util.function.Predicate;
 
 /**
  * One plugin's view of the display module.
@@ -47,6 +48,57 @@ public final class PluginDisplays {
     public @Nullable DisplayHandle show(@NotNull DisplayModel model, @NotNull DisplayMotion motion,
                                         @NotNull Location at, @NotNull List<Player> viewers) {
         return DisplayRuntime.show(pluginName, model, motion, at, viewers);
+    }
+
+    /**
+     * Shows one display to whoever is within a radius of it, for as long as it
+     * lasts.
+     *
+     * <pre>{@code
+     * DisplayHandle wheel = displays.show(wheelModel, spinning, crate.above(2), 24);
+     * }</pre>
+     *
+     * <p>Who is near is read again every half second: a player who walks up
+     * mid-animation is shown it in the pose everyone else sees, and a player who
+     * walks away is sent the destroy. Nobody being near when it starts is not a
+     * reason to draw nothing, so the handle is only {@code null} when the
+     * server cannot show displays or its budget is full.
+     *
+     * <p>For displays that stand somewhere. One seated on a player goes where
+     * that player goes and keeps the viewers it was given; see {@link #rideOn}.
+     *
+     * @param model  what it draws
+     * @param motion how it moves
+     * @param at     where it stands, before the motion's offsets
+     * @param radius how far away it can be seen, in blocks
+     * @return the handle, or {@code null} when the server cannot show it
+     * @since 1.272.0
+     */
+    public @Nullable DisplayHandle show(@NotNull DisplayModel model, @NotNull DisplayMotion motion,
+                                        @NotNull Location at, double radius) {
+        return show(model, motion, at, radius, null);
+    }
+
+    /**
+     * The same, narrowed by a test on each viewer.
+     *
+     * <p>The test is where a "show effects: off" setting plugs in. It is asked
+     * per nearby player on every re-read, on the thread that owns the place, so
+     * it must be cheap and must read memory only.
+     *
+     * @param model  what it draws
+     * @param motion how it moves
+     * @param at     where it stands, before the motion's offsets
+     * @param radius how far away it can be seen, in blocks
+     * @param who    who may see it, or {@code null} for anybody in range
+     * @return the handle, or {@code null} when the server cannot show it
+     * @since 1.272.0
+     */
+    public @Nullable DisplayHandle show(@NotNull DisplayModel model, @NotNull DisplayMotion motion,
+                                        @NotNull Location at, double radius,
+                                        @Nullable Predicate<Player> who) {
+        return DisplayRuntime.showTracked(pluginName, model, motion, at.clone(),
+                new DisplayRuntime.Audience(Math.max(0.0, radius), who));
     }
 
     /**

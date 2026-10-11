@@ -241,9 +241,59 @@ public final class Args {
     public @Nullable Color colour(@NotNull String key, @Nullable Color fallback,
                                   @NotNull Problems problems) {
         String value = values.get(key);
-        if (value == null || value.isEmpty()) {
+        if (value == null || value.isEmpty() || isDeferred(value)) {
             return fallback;
         }
+        return colourOf(value, key, fallback, problems);
+    }
+
+    /**
+     * A parameter that names a value of the play, such as {@code color:%tier_color%}.
+     *
+     * <p>Kept as written and read when the sequence plays, once the
+     * {@code %name%} has been filled in; see {@code SequenceTarget.values}.
+     *
+     * @return the raw value, or {@code null} when it can be read now
+     */
+    public @Nullable String deferred(@NotNull String key) {
+        String value = values.get(key);
+        return value != null && isDeferred(value) ? value : null;
+    }
+
+    /**
+     * A deferred colour read with one play's values, or {@code fallback}.
+     *
+     * <p>Silent when the filled value is not a colour: the file was already
+     * accepted, and a value of the play is the plugin's to get right.
+     */
+    static @Nullable Color colourFor(@NotNull net.exylia.lib.util.sequence.SequenceTarget target,
+                                     @Nullable String raw, @Nullable Color fallback) {
+        if (raw == null) {
+            return fallback;
+        }
+        String filled = target.fill(raw).trim();
+        if (filled.isEmpty() || isDeferred(filled)) {
+            return fallback;
+        }
+        return colourOf(filled, "color", fallback, (where, problem) -> { });
+    }
+
+    private static boolean isDeferred(String value) {
+        int first = value.indexOf('%');
+        return first >= 0 && value.indexOf('%', first + 1) > first;
+    }
+
+    /**
+     * Reads a colour written the way {@link #colour} reads it.
+     *
+     * @param value    the colour as written
+     * @param key      the parameter's name, for the report
+     * @param fallback what to answer when it cannot be read
+     * @param problems where a bad value is reported
+     * @return the colour, or {@code fallback}
+     */
+    static @Nullable Color colourOf(@NotNull String value, @NotNull String key,
+                                    @Nullable Color fallback, @NotNull Problems problems) {
         if (value.startsWith("{") && value.endsWith("}")) {
             String token = value.substring(1, value.length() - 1);
             net.kyori.adventure.text.format.TextColor palette = Colors.get(token, null);

@@ -270,6 +270,26 @@ the server, which would store the lines. Inventory is resent when entering
 or leaving creative. A provider's changed answer appears when its slots are
 sent again; call `refresh` or `refreshAll` when prices change independently.
 
+## ChestLids
+
+Since 1.272.0. Swings a container's lid for some players without opening it on
+the server: the lid a crate lifts while its reward rises out.
+
+```java
+ChestLids.open(watchers, crate.getLocation());
+// ... the reveal plays ...
+ChestLids.close(watchers, crate.getLocation());
+```
+
+Chests, trapped chests, ender chests and shulker boxes swing through a block
+event (PacketEvents); a barrel has no lid and is drawn open with a block change
+(plain Bukkit). Each method answers whether the block had a lid it could move.
+Nothing changes on the server — nobody is looking inside, comparators read a
+closed chest — and no sound is played: pair it with `block.chest.open`. Reads
+the block, so call it on the thread that owns the location. A client that
+reloads the chunk sees the real state. In a sequence: `[LID] open` /
+`[LID] close` (see [sequences.md](sequences.md)).
+
 ## Lifecycle
 
 What a plugin hid, froze, faked, opened or wrote under items is undone when that plugin is

@@ -42,8 +42,26 @@ final class ParticlePaint implements Paint {
     private final double spreadZ;
     private final double speed;
 
+    /** What the data is rebuilt from when a colour names a value of the play; {@code null} otherwise. */
+    private final @Nullable Tint tint;
+
+    /**
+     * A colour that is only known when the sequence plays.
+     *
+     * <p>{@code color:%tier_color%}: the rest of the data was resolved when the
+     * file was read and is kept to rebuild it once per play.
+     */
+    record Tint(@Nullable Color colour, @Nullable Color fade, float size, @Nullable Material material,
+                @Nullable String colourRaw, @Nullable String fadeRaw) {
+    }
+
     ParticlePaint(Particle particle, @Nullable Object data, int count,
                   double spreadX, double spreadY, double spreadZ, double speed) {
+        this(particle, data, count, spreadX, spreadY, spreadZ, speed, null);
+    }
+
+    ParticlePaint(Particle particle, @Nullable Object data, int count,
+                  double spreadX, double spreadY, double spreadZ, double speed, @Nullable Tint tint) {
         this.particle = particle;
         this.data = data;
         this.count = count;
@@ -51,6 +69,32 @@ final class ParticlePaint implements Paint {
         this.spreadY = spreadY;
         this.spreadZ = spreadZ;
         this.speed = speed;
+        this.tint = tint;
+    }
+
+    /**
+     * A paint whose colour may name a value of the play.
+     *
+     * @return the paint, deferred only when one of the colours is
+     */
+    static ParticlePaint of(Particle particle, int count, double spreadX, double spreadY,
+                            double spreadZ, double speed, Tint tint) {
+        Object data = dataFor(particle, tint.colour(), tint.fade(), tint.size(), tint.material());
+        boolean deferred = tint.colourRaw() != null || tint.fadeRaw() != null;
+        return new ParticlePaint(particle, data, count, spreadX, spreadY, spreadZ, speed,
+                deferred ? tint : null);
+    }
+
+    @Override
+    public @NotNull ParticlePaint forPlay(@NotNull net.exylia.lib.util.sequence.SequenceTarget target) {
+        if (tint == null) {
+            return this;
+        }
+        Object filled = dataFor(particle,
+                Args.colourFor(target, tint.colourRaw(), tint.colour()),
+                Args.colourFor(target, tint.fadeRaw(), tint.fade()),
+                tint.size(), tint.material());
+        return new ParticlePaint(particle, filled, count, spreadX, spreadY, spreadZ, speed);
     }
 
     /**
@@ -86,13 +130,22 @@ final class ParticlePaint implements Paint {
      */
     static @Nullable Object dataFor(@NotNull Particle particle, @Nullable Color colour, float size,
                                     @Nullable Material material) {
+        return dataFor(particle, colour, null, size, material);
+    }
+
+    /**
+     * The same, with the colour a {@code DUST_COLOR_TRANSITION} fades to;
+     * white when {@code fade} is {@code null}, as it always was.
+     */
+    static @Nullable Object dataFor(@NotNull Particle particle, @Nullable Color colour,
+                                    @Nullable Color fade, float size, @Nullable Material material) {
         Class<?> type = particle.getDataType();
         Color used = colour != null ? colour : Color.WHITE;
         if (type == Particle.DustOptions.class) {
             return new Particle.DustOptions(used, size);
         }
         if (type == Particle.DustTransition.class) {
-            return new Particle.DustTransition(used, Color.WHITE, size);
+            return new Particle.DustTransition(used, fade != null ? fade : Color.WHITE, size);
         }
         if (type == Color.class) {
             return used;

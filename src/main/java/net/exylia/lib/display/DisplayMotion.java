@@ -43,8 +43,34 @@ public final class DisplayMotion {
     /** Poses used for a fall, which needs enough to look like a curve and not a corner. */
     private static final int POSES_PER_FALL = 8;
 
-    /** A ceiling, so a file asking for forty turns does not send forty packets a viewer. */
+    /**
+     * The ceiling on a short motion's poses, so a file asking for forty turns
+     * does not send forty packets a viewer.
+     */
     private static final int MAX_POSES = 48;
+
+    /** The ceiling on any motion, however long: one packet a tick for twelve seconds. */
+    private static final int MAX_POSES_LONG = 256;
+
+    /** One tick, which is as close together as two poses can usefully be sent. */
+    private static final long TICK_MS = 50L;
+
+    /**
+     * How many poses a motion of that life may have.
+     *
+     * <p>Forty-eight for anything up to about two seconds, as it always was;
+     * beyond that one a tick, up to {@value #MAX_POSES_LONG}. Poses closer than a
+     * tick are sent on the same tick anyway, so a longer cap would buy nothing
+     * on screen and a shorter one starves a ten-second wheel of the poses its
+     * deceleration needs.
+     *
+     * @param lifeMillis the motion's life
+     * @return the most poses it may be cut into
+     * @since 1.272.0
+     */
+    public static int maxPoses(long lifeMillis) {
+        return Math.max(MAX_POSES, (int) Math.min(MAX_POSES_LONG, lifeMillis / TICK_MS + 1));
+    }
 
     /**
      * How a movement is spread across its own life.
@@ -92,7 +118,98 @@ public final class DisplayMotion {
          *
          * @since 1.197.0
          */
-        ELASTIC(Ease.ELASTIC, 24);
+        ELASTIC(Ease.ELASTIC, 24),
+
+        /**
+         * Pulls back before it goes. A card drawn back before it is thrown.
+         *
+         * @since 1.272.0
+         */
+        ANTICIPATE(Ease.ANTICIPATE, 16),
+
+        /**
+         * Jumps to the end within the first tick and stays there.
+         *
+         * @since 1.272.0
+         */
+        SNAP(Ease.SNAP, 2),
+
+        /**
+         * Stays where it starts and jumps to the end within the last tick.
+         *
+         * @since 1.272.0
+         */
+        HOLD(Ease.HOLD, 2),
+
+        /**
+         * A straight rate on one movement; through keyframes, a curve that runs
+         * through every one of them rather than stopping at each. See
+         * {@link DisplayMotion#spline}.
+         *
+         * @since 1.272.0
+         */
+        SMOOTH(Ease.SMOOTH, 2),
+
+        /** @since 1.272.0 */
+        SINE_IN(Ease.SINE_IN, 12),
+        /** @since 1.272.0 */
+        SINE_OUT(Ease.SINE_OUT, 12),
+        /** @since 1.272.0 */
+        SINE_IN_OUT(Ease.SINE_IN_OUT, 12),
+        /** @since 1.272.0 */
+        QUAD_IN(Ease.QUAD_IN, 12),
+        /** @since 1.272.0 */
+        QUAD_OUT(Ease.QUAD_OUT, 12),
+        /** @since 1.272.0 */
+        QUAD_IN_OUT(Ease.QUAD_IN_OUT, 12),
+        /** @since 1.272.0 */
+        CUBIC_IN(Ease.CUBIC_IN, 12),
+        /** @since 1.272.0 */
+        CUBIC_OUT(Ease.CUBIC_OUT, 12),
+        /** @since 1.272.0 */
+        CUBIC_IN_OUT(Ease.CUBIC_IN_OUT, 12),
+        /** @since 1.272.0 */
+        QUART_IN(Ease.QUART_IN, 16),
+        /** @since 1.272.0 */
+        QUART_OUT(Ease.QUART_OUT, 16),
+        /** @since 1.272.0 */
+        QUART_IN_OUT(Ease.QUART_IN_OUT, 16),
+        /** @since 1.272.0 */
+        QUINT_IN(Ease.QUINT_IN, 16),
+        /** @since 1.272.0 */
+        QUINT_OUT(Ease.QUINT_OUT, 16),
+        /** @since 1.272.0 */
+        QUINT_IN_OUT(Ease.QUINT_IN_OUT, 16),
+        /** @since 1.272.0 */
+        EXPO_IN(Ease.EXPO_IN, 16),
+        /** @since 1.272.0 */
+        EXPO_OUT(Ease.EXPO_OUT, 16),
+        /** @since 1.272.0 */
+        EXPO_IN_OUT(Ease.EXPO_IN_OUT, 16),
+        /** @since 1.272.0 */
+        CIRC_IN(Ease.CIRC_IN, 16),
+        /** @since 1.272.0 */
+        CIRC_OUT(Ease.CIRC_OUT, 16),
+        /** @since 1.272.0 */
+        CIRC_IN_OUT(Ease.CIRC_IN_OUT, 16),
+        /** @since 1.272.0 */
+        BACK_IN(Ease.BACK_IN, 16),
+        /** @since 1.272.0 */
+        BACK_OUT(Ease.BACK_OUT, 16),
+        /** @since 1.272.0 */
+        BACK_IN_OUT(Ease.BACK_IN_OUT, 16),
+        /** @since 1.272.0 */
+        ELASTIC_IN(Ease.ELASTIC_IN, 24),
+        /** @since 1.272.0 */
+        ELASTIC_OUT(Ease.ELASTIC_OUT, 24),
+        /** @since 1.272.0 */
+        ELASTIC_IN_OUT(Ease.ELASTIC_IN_OUT, 24),
+        /** @since 1.272.0 */
+        BOUNCE_IN(Ease.BOUNCE_IN, 24),
+        /** @since 1.272.0 */
+        BOUNCE_OUT(Ease.BOUNCE_OUT, 24),
+        /** @since 1.272.0 */
+        BOUNCE_IN_OUT(Ease.BOUNCE_IN_OUT, 24);
 
         private final Ease curve;
 
@@ -111,18 +228,37 @@ public final class DisplayMotion {
          * Reads an easing from configuration, defaulting to {@link #LINEAR}.
          *
          * <p>{@code back}/{@code overshoot}, {@code bounce} and
-         * {@code elastic}/{@code spring} since 1.197.0.
+         * {@code elastic}/{@code spring} since 1.197.0. Since 1.272.0 every
+         * curve above by name, in any of the spellings Blockbench and the
+         * easings.net family use: {@code quart_out}, {@code easeOutQuart},
+         * {@code outquart}.
          */
         public static @NotNull Easing of(@NotNull String name) {
-            return switch (name.trim().toUpperCase(java.util.Locale.ROOT)) {
-                case "IN", "ACCELERATE" -> IN;
-                case "OUT", "DECELERATE" -> OUT;
-                case "IN_OUT", "BOTH" -> IN_OUT;
-                case "BACK", "OVERSHOOT" -> BACK;
-                case "BOUNCE" -> BOUNCE;
-                case "ELASTIC", "SPRING" -> ELASTIC;
-                default -> LINEAR;
-            };
+            switch (name.trim().toUpperCase(java.util.Locale.ROOT)) {
+                case "ACCELERATE" -> {
+                    return IN;
+                }
+                case "DECELERATE" -> {
+                    return OUT;
+                }
+                default -> {
+                }
+            }
+            Ease curve = Ease.of(name);
+            return curve == null ? LINEAR : valueOf(curve.name());
+        }
+
+        /**
+         * Where the movement has got to, at a given fraction of its life.
+         *
+         * <p>May leave 0..1 on the overshooting curves; that is the overshoot.
+         *
+         * @param progress 0 at the start, 1 at the end
+         * @return the eased progress
+         * @since 1.272.0
+         */
+        public double apply(double progress) {
+            return curve.at(progress);
         }
 
         /**
@@ -242,6 +378,114 @@ public final class DisplayMotion {
             offset += Math.max(0L, segments[index].lifeMillis);
         }
         return new DisplayMotion(joined, offset);
+    }
+
+    /**
+     * A glide from one pose to another.
+     *
+     * <p>What {@link DisplayHandle#moveTo} plays: offsets and sizes along the
+     * curve, the rotation by the shorter arc. The poses' own times are ignored.
+     *
+     * @param from   where it starts
+     * @param to     where it ends
+     * @param millis how long it takes
+     * @param easing how it is spread over that time
+     * @return the motion, lasting {@code millis}
+     * @since 1.272.0
+     */
+    public static @NotNull DisplayMotion between(@NotNull DisplayKeyframe from,
+                                                 @NotNull DisplayKeyframe to, long millis,
+                                                 @NotNull Easing easing) {
+        return builder().life(millis)
+                .from(from.x(), from.y(), from.z())
+                .to(to.x(), to.y(), to.z())
+                .scale(new double[]{from.scaleX(), from.scaleY(), from.scaleZ()},
+                        new double[]{to.scaleX(), to.scaleY(), to.scaleZ()})
+                .rotation(from.rotation())
+                .turnTo(to.rotation())
+                .ease(easing)
+                .build();
+    }
+
+    /**
+     * A path that runs through every keyframe instead of stopping at each.
+     *
+     * <pre>{@code
+     * DisplayMotion swoop = DisplayMotion.spline(List.of(
+     *         new DisplayKeyframe(0, 0, 0, 0, Rotation.NONE, 1, 1, 1),
+     *         new DisplayKeyframe(600, 1.5f, 1, 0, Rotation.NONE, 1, 1, 1),
+     *         new DisplayKeyframe(1200, 0, 2, 1.5f, Rotation.NONE, 1.4f, 1.4f, 1.4f),
+     *         new DisplayKeyframe(1800, 0, 1, 0, Rotation.NONE, 1, 1, 1)), 2000);
+     * }</pre>
+     *
+     * <p>Offsets and sizes follow a Catmull-Rom curve, which passes exactly
+     * through every keyframe with no corner at any of them; the rotation turns
+     * between neighbouring keyframes by the shorter arc. The curve is cut into
+     * one pose about every 100 ms, so a path through four keyframes over two
+     * seconds is about twenty packets a viewer, within {@link #maxPoses}.
+     *
+     * @param keys       the keyframes, in time order; the first should be at zero
+     * @param lifeMillis how long the display lasts
+     * @return the motion; the keyframes themselves when there are fewer than three
+     * @since 1.272.0
+     */
+    public static @NotNull DisplayMotion spline(@NotNull List<DisplayKeyframe> keys, long lifeMillis) {
+        if (keys.size() < 3) {
+            return of(keys, lifeMillis);
+        }
+        int segments = keys.size() - 1;
+        int[] cuts = new int[segments];
+        int total = 1;
+        for (int index = 0; index < segments; index++) {
+            long span = keys.get(index + 1).atMillis() - keys.get(index).atMillis();
+            cuts[index] = (int) Math.clamp((span + SPLINE_STEP_MS - 1) / SPLINE_STEP_MS, 1L, 8L);
+            total += cuts[index];
+        }
+        int cap = maxPoses(lifeMillis);
+        if (total > cap) {
+            // Fewer cuts on every segment alike, so no stretch of the path is
+            // starved to keep another one smooth.
+            double keep = (double) (cap - 1) / (total - 1);
+            for (int index = 0; index < segments; index++) {
+                cuts[index] = Math.max(1, (int) Math.floor(cuts[index] * keep));
+            }
+        }
+        List<DisplayKeyframe> poses = new ArrayList<>();
+        poses.add(keys.get(0));
+        for (int index = 0; index < segments; index++) {
+            DisplayKeyframe before = keys.get(Math.max(0, index - 1));
+            DisplayKeyframe from = keys.get(index);
+            DisplayKeyframe to = keys.get(index + 1);
+            DisplayKeyframe after = keys.get(Math.min(keys.size() - 1, index + 2));
+            for (int cut = 1; cut <= cuts[index]; cut++) {
+                double t = (double) cut / cuts[index];
+                poses.add(cut == cuts[index] ? to : new DisplayKeyframe(
+                        from.atMillis() + Math.round((to.atMillis() - from.atMillis()) * t),
+                        (float) catmullRom(before.x(), from.x(), to.x(), after.x(), t),
+                        (float) catmullRom(before.y(), from.y(), to.y(), after.y(), t),
+                        (float) catmullRom(before.z(), from.z(), to.z(), after.z(), t),
+                        from.rotation().slerp(to.rotation(), t),
+                        (float) catmullRom(before.scaleX(), from.scaleX(), to.scaleX(), after.scaleX(), t),
+                        (float) catmullRom(before.scaleY(), from.scaleY(), to.scaleY(), after.scaleY(), t),
+                        (float) catmullRom(before.scaleZ(), from.scaleZ(), to.scaleZ(), after.scaleZ(), t)));
+            }
+        }
+        return new DisplayMotion(poses, lifeMillis);
+    }
+
+    /** How far apart in time the poses of a spline are cut. */
+    private static final long SPLINE_STEP_MS = 100L;
+
+    /**
+     * A uniform Catmull-Rom curve between {@code p1} and {@code p2}, steered by
+     * their neighbours: {@code p1} at 0, {@code p2} at 1.
+     */
+    static double catmullRom(double p0, double p1, double p2, double p3, double t) {
+        double t2 = t * t;
+        double t3 = t2 * t;
+        return 0.5 * ((2 * p1) + (-p0 + p2) * t
+                + (2 * p0 - 5 * p1 + 4 * p2 - p3) * t2
+                + (-p0 + 3 * p1 - 3 * p2 + p3) * t3);
     }
 
     /** A builder for the movements configuration can describe. */
@@ -531,7 +775,10 @@ public final class DisplayMotion {
         private double spinY;
         private double spinZ;
         private double gravity;
-        private Easing easing = Easing.LINEAR;
+        private Easing positionEase = Easing.LINEAR;
+        private Easing rotationEase = Easing.LINEAR;
+        private Easing scaleEase = Easing.LINEAR;
+        private Rotation turnTo;
 
         private Builder() {
         }
@@ -633,25 +880,81 @@ public final class DisplayMotion {
          * How the movement is spread across its life.
          *
          * <p>A straight line at a constant rate is a thing sliding. The same
-         * line eased in is the same thing arriving.
+         * line eased in is the same thing arriving. Sets the curve of the
+         * offsets, the turn and the size together.
          */
         public @NotNull Builder ease(@NotNull Easing easing) {
-            this.easing = easing;
+            this.positionEase = easing;
+            this.rotationEase = easing;
+            this.scaleEase = easing;
+            return this;
+        }
+
+        /**
+         * The curve of the offsets alone.
+         *
+         * <p>A card that flies in with {@code BACK_OUT} while it flips at a
+         * steady rate, or a reel that slides into place while still turning.
+         *
+         * @param easing how the offsets are spread across the life
+         * @return this builder
+         * @since 1.272.0
+         */
+        public @NotNull Builder easePosition(@NotNull Easing easing) {
+            this.positionEase = easing;
+            return this;
+        }
+
+        /**
+         * The curve of the turn alone: the spin and {@link #turnTo}.
+         *
+         * @param easing how the turning is spread across the life
+         * @return this builder
+         * @since 1.272.0
+         */
+        public @NotNull Builder easeRotation(@NotNull Easing easing) {
+            this.rotationEase = easing;
+            return this;
+        }
+
+        /**
+         * The curve of the size alone.
+         *
+         * @param easing how the growth is spread across the life
+         * @return this builder
+         * @since 1.272.0
+         */
+        public @NotNull Builder easeScale(@NotNull Easing easing) {
+            this.scaleEase = easing;
+            return this;
+        }
+
+        /**
+         * Turns from {@link #rotation} to this one over the life, by the shorter
+         * arc, with any spin on top.
+         *
+         * @param end the rotation it ends in, before the spin
+         * @return this builder
+         * @since 1.272.0
+         */
+        public @NotNull Builder turnTo(@NotNull Rotation end) {
+            this.turnTo = end;
             return this;
         }
 
         /** Works out the poses. */
         public @NotNull DisplayMotion build() {
-            int poseCount = poseCount();
-            List<DisplayKeyframe> poses = new ArrayList<>(poseCount);
+            double[] fractions = fractions();
+            List<DisplayKeyframe> poses = new ArrayList<>(fractions.length);
             double seconds = lifeMillis / 1000.0;
-            for (int index = 0; index < poseCount; index++) {
-                double elapsedFraction = poseCount == 1 ? 0.0 : (double) index / (poseCount - 1);
-                // The poses are evenly spaced in time and unevenly spaced along
-                // the movement. That is what easing is: the client still draws
-                // a straight line between two poses, and the poses are where
-                // the acceleration lives.
-                double progress = easing.at(elapsedFraction);
+            for (double elapsedFraction : fractions) {
+                // The poses are spaced in time and unevenly spaced along the
+                // movement. That is what easing is: the client still draws a
+                // straight line between two poses, and the poses are where the
+                // acceleration lives.
+                double moved = positionEase.at(elapsedFraction);
+                double turned = rotationEase.at(elapsedFraction);
+                double grown = scaleEase.at(elapsedFraction);
                 double elapsed = elapsedFraction * seconds;
                 // The fall is added to the straight line rather than replacing
                 // it, so "throw it four blocks east and let it drop" is two
@@ -659,13 +962,13 @@ public final class DisplayMotion {
                 double drop = gravity == 0.0 ? 0.0 : 0.5 * gravity * elapsed * elapsed;
                 poses.add(new DisplayKeyframe(
                         (long) (elapsedFraction * lifeMillis),
-                        (float) (fromX + (toX - fromX) * progress),
-                        (float) (fromY + (toY - fromY) * progress - drop),
-                        (float) (fromZ + (toZ - fromZ) * progress),
-                        spinning(base, progress),
-                        (float) (startScale[0] + (endScale[0] - startScale[0]) * progress),
-                        (float) (startScale[1] + (endScale[1] - startScale[1]) * progress),
-                        (float) (startScale[2] + (endScale[2] - startScale[2]) * progress)));
+                        (float) (fromX + (toX - fromX) * moved),
+                        (float) (fromY + (toY - fromY) * moved - drop),
+                        (float) (fromZ + (toZ - fromZ) * moved),
+                        spinning(turnTo == null ? base : base.slerp(turnTo, turned), turned),
+                        (float) (startScale[0] + (endScale[0] - startScale[0]) * grown),
+                        (float) (startScale[1] + (endScale[1] - startScale[1]) * grown),
+                        (float) (startScale[2] + (endScale[2] - startScale[2]) * grown)));
             }
             return new DisplayMotion(poses, lifeMillis);
         }
@@ -688,28 +991,142 @@ public final class DisplayMotion {
             return turned;
         }
 
+        /** The three curves, so the most demanding one decides. */
+        private Easing[] curves() {
+            return new Easing[]{positionEase, rotationEase, scaleEase};
+        }
+
         /**
-         * How many poses this movement needs.
+         * When, as fractions of the life, a pose is struck.
+         *
+         * <p>Evenly spaced while that fits under the cap, which is every motion
+         * that ever fitted. A long, fast, eased spin does not: a wheel that
+         * decelerates over ten turns needs its poses close together while it is
+         * fast and hardly any once it crawls, so past the cap the poses are
+         * placed where the turn needs them rather than every so often.
+         */
+        double[] fractions() {
+            int needed = poseCount();
+            int cap = maxPoses(lifeMillis);
+            double[] even = null;
+            if (needed <= cap) {
+                even = new double[needed];
+                for (int index = 0; index < needed; index++) {
+                    even[index] = needed == 1 ? 0.0 : (double) index / (needed - 1);
+                }
+            }
+            double[] placed = even != null ? even : adaptive(cap);
+            return withSteps(placed);
+        }
+
+        /**
+         * Poses placed one per sixth of a turn of the eased spin, plus enough
+         * evenly spaced for the curves of the offsets and the size.
+         */
+        private double[] adaptive(int cap) {
+            double turns = Math.abs(spinX) + Math.abs(spinY) + Math.abs(spinZ);
+            int shape = 2;
+            for (Easing curve : curves()) {
+                shape = Math.max(shape, curve.poses);
+            }
+            if (gravity != 0.0) {
+                shape = Math.max(shape, POSES_PER_FALL);
+            }
+            double evenStep = 1.0 / (Math.min(shape, cap) - 1);
+            double turnStep = turns == 0.0 ? Double.MAX_VALUE : 1.0 / (turns * POSES_PER_TURN);
+            int grid = (int) Math.max(400, Math.min(20_000, lifeMillis / 2));
+            List<Double> out = new ArrayList<>();
+            out.add(0.0);
+            double lastAt = 0.0;
+            double lastTurn = rotationEase.at(0.0);
+            for (int index = 1; index < grid; index++) {
+                double at = (double) index / grid;
+                double turn = rotationEase.at(at);
+                if (at - lastAt >= evenStep - 1e-9 || Math.abs(turn - lastTurn) >= turnStep) {
+                    out.add(at);
+                    lastAt = at;
+                    lastTurn = turn;
+                }
+            }
+            out.add(1.0);
+            if (out.size() > cap) {
+                // Over the cap even placed where needed: keep an even selection
+                // of them, ends included. A spin this fast for this long turns
+                // more than a sixth of a turn between poses somewhere, which
+                // the file asked for and the cap refuses to pay for.
+                List<Double> thinned = new ArrayList<>(cap);
+                for (int index = 0; index < cap; index++) {
+                    thinned.add(out.get((int) Math.round((double) index * (out.size() - 1) / (cap - 1))));
+                }
+                out = thinned;
+            }
+            double[] fractions = new double[out.size()];
+            for (int index = 0; index < fractions.length; index++) {
+                fractions[index] = out.get(index);
+            }
+            return fractions;
+        }
+
+        /**
+         * Adds the instants a stepped curve jumps at.
+         *
+         * <p>{@code SNAP} and {@code HOLD} change all at once, and sampled
+         * evenly they would be drawn as a slow slide across the gap between two
+         * poses. A pose a tick after the start, or a tick before the end, is
+         * where the jump really is.
+         */
+        private double[] withSteps(double[] fractions) {
+            double tick = Math.min(0.5, (double) TICK_MS / lifeMillis);
+            List<Double> extra = new ArrayList<>(2);
+            for (Easing curve : curves()) {
+                if (curve == Easing.SNAP) {
+                    extra.add(tick);
+                } else if (curve == Easing.HOLD) {
+                    extra.add(1.0 - tick);
+                }
+            }
+            if (extra.isEmpty() || fractions.length < 2) {
+                return fractions;
+            }
+            java.util.TreeSet<Double> all = new java.util.TreeSet<>();
+            for (double fraction : fractions) {
+                all.add(fraction);
+            }
+            all.addAll(extra);
+            double[] merged = new double[all.size()];
+            int index = 0;
+            for (double fraction : all) {
+                merged[index++] = fraction;
+            }
+            return merged;
+        }
+
+        /**
+         * How many evenly spaced poses this movement needs.
          *
          * <p>A straight line needs two. A spin needs enough that the client
          * never has to guess which way round; a fall needs enough to look like
          * a curve. The most demanding of the three wins.
          */
         private int poseCount() {
-            double peak = easing.peak();
             int needed = 2;
             double turns = Math.abs(spinX) + Math.abs(spinY) + Math.abs(spinZ);
             if (turns != 0.0) {
                 // The sum, not the largest: two axes turning at once can put
                 // more angle between two poses than either does alone.
                 needed = Math.max(needed,
-                        (int) Math.ceil(turns * POSES_PER_TURN * peak) + 1);
+                        (int) Math.ceil(turns * POSES_PER_TURN * rotationEase.peak()) + 1);
+            }
+            if (turnTo != null) {
+                needed = Math.max(needed, rotationEase.poses);
             }
             if (gravity != 0.0) {
                 needed = Math.max(needed, POSES_PER_FALL);
             }
-            needed = Math.max(needed, easing.poses);
-            return Math.min(needed, MAX_POSES);
+            for (Easing curve : curves()) {
+                needed = Math.max(needed, curve.poses);
+            }
+            return needed;
         }
     }
 }
