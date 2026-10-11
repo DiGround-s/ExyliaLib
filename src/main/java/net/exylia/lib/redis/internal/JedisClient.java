@@ -9,12 +9,23 @@ import redis.clients.jedis.Jedis;
 import redis.clients.jedis.JedisPool;
 import redis.clients.jedis.JedisPoolConfig;
 import redis.clients.jedis.JedisPubSub;
+import redis.clients.jedis.StreamEntryID;
+import redis.clients.jedis.exceptions.JedisDataException;
 import redis.clients.jedis.params.ScanParams;
+import redis.clients.jedis.params.XAddParams;
+import redis.clients.jedis.params.XClaimParams;
+import redis.clients.jedis.params.XPendingParams;
+import redis.clients.jedis.params.XReadGroupParams;
+import redis.clients.jedis.resps.StreamEntry;
 import redis.clients.jedis.params.SetParams;
 import redis.clients.jedis.resps.ScanResult;
 
 import java.time.Duration;
+import java.util.AbstractMap;
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.List;
+import java.util.Map;
 import java.util.function.Consumer;
 
 /**
@@ -147,6 +158,104 @@ final class JedisClient implements RedisClient {
                 cursor = page.getCursor();
             } while (!ScanParams.SCAN_POINTER_START.equals(cursor));
         }
+    }
+
+    @Override
+    public void setUntil(@NotNull String key, @NotNull String value, long expireAtMillis) {
+        try (Jedis jedis = pool.getResource()) {
+            if (expireAtMillis > 0) {
+                jedis.set(key, value, SetParams.setParams().pxAt(expireAtMillis));
+            } else {
+                jedis.set(key, value);
+            }
+        }
+    }
+
+    @Override
+    public boolean setIfAbsent(@NotNull String key, @NotNull String value, long ttlMillis) {
+        try (Jedis jedis = pool.getResource()) {
+            return "OK".equals(jedis.set(key, value, SetParams.setParams().nx().px(ttlMillis)));
+        }
+    }
+
+    @Override
+    public @NotNull String streamAdd(@NotNull String stream, @NotNull Map<String, String> fields, long maxLength) {
+        try (Jedis jedis = pool.getResource()) {
+            return jedis.xadd(stream, XAddParams.xAddParams().maxLen(maxLength).approximateTrimming(), fields)
+                    .toString();
+        }
+    }
+
+    @Override
+    public void streamGroup(@NotNull String stream, @NotNull String group) {
+        try (Jedis jedis = pool.getResource()) {
+            jedis.xgroupCreate(stream, group, new StreamEntryID(), true);
+        } catch (JedisDataException exists) {
+            if (exists.getMessage() == null || !exists.getMessage().startsWith("BUSYGROUP")) {
+                throw exists;
+            }
+        }
+    }
+
+    @Override
+    public @NotNull List<Map.Entry<String, Map<String, String>>> streamRead(@NotNull String stream,
+                                                                          @NotNull String group,
+                                                                          @NotNull String consumer, int count) {
+        try (Jedis jedis = pool.getResource()) {
+            var read = jedis.xreadGroup(group, consumer, XReadGroupParams.xReadGroupParams().count(count),
+                    Map.of(stream, StreamEntryID.UNRECEIVED_ENTRY));
+            List<Map.Entry<String, Map<String, String>>> entries = new ArrayList<>();
+            if (read != null) {
+                read.forEach(perStream -> perStream.getValue().forEach(entry -> entries.add(pair(entry))));
+            }
+            return entries;
+        }
+    }
+
+    @Override
+    public @NotNull List<Map.Entry<String, Long>> streamPending(@NotNull String stream, @NotNull String group,
+                                                                long minIdleMillis, int count) {
+        try (Jedis jedis = pool.getResource()) {
+            List<Map.Entry<String, Long>> pending = new ArrayList<>();
+            jedis.xpending(stream, group, XPendingParams.xPendingParams(StreamEntryID.MINIMUM_ID,
+                            StreamEntryID.MAXIMUM_ID, count).idle(minIdleMillis))
+                    .forEach(entry -> pending.add(new AbstractMap.SimpleImmutableEntry<>(entry.getID().toString(),
+                            entry.getDeliveredTimes())));
+            return pending;
+        }
+    }
+
+    @Override
+    public @NotNull List<Map.Entry<String, Map<String, String>>> streamClaim(@NotNull String stream,
+                                                                           @NotNull String group,
+                                                                           @NotNull String consumer,
+                                                                           long minIdleMillis,
+                                                                           @NotNull Collection<String> ids) {
+        if (ids.isEmpty()) {
+            return List.of();
+        }
+        try (Jedis jedis = pool.getResource()) {
+            List<Map.Entry<String, Map<String, String>>> entries = new ArrayList<>();
+            jedis.xclaim(stream, group, consumer, minIdleMillis, XClaimParams.xClaimParams(),
+                            ids.stream().map(StreamEntryID::new).toArray(StreamEntryID[]::new))
+                    .forEach(entry -> entries.add(pair(entry)));
+            return entries;
+        }
+    }
+
+    @Override
+    public void streamAck(@NotNull String stream, @NotNull String group, @NotNull Collection<String> ids) {
+        if (ids.isEmpty()) {
+            return;
+        }
+        try (Jedis jedis = pool.getResource()) {
+            jedis.xack(stream, group, ids.stream().map(StreamEntryID::new).toArray(StreamEntryID[]::new));
+        }
+    }
+
+    private static Map.Entry<String, Map<String, String>> pair(StreamEntry entry) {
+        Map<String, String> fields = entry.getFields() == null ? Map.of() : entry.getFields();
+        return new AbstractMap.SimpleImmutableEntry<>(entry.getID().toString(), fields);
     }
 
     @Override

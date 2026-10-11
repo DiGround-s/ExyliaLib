@@ -175,6 +175,37 @@ Contracts:
   shutdown.
 - `Channel.isNetworked()` and `Redis.serverId(plugin)` are diagnostics.
 
+## Keys and streams
+
+Plain keys and Redis Streams on the same connection, since 1.271.0, for data
+another program reads by name: a proxy plugin checking a key at login, a
+producer on another platform appending to a stream a backend consumes. Rows
+still belong in a repository.
+
+```java
+RedisKeys keys = RedisKeys.of(plugin);
+tasks.runAsync(() -> {
+    if (!keys.available()) return;
+    String stream = keys.prefix() + ":punish:external";
+    keys.streamGroup(stream, "exyliastaff");                 // XGROUP CREATE ... 0 MKSTREAM
+    for (RedisKeys.StreamEntry entry : keys.streamRead(stream, "exyliastaff", serverId, 50)) {
+        handle(entry.fields());
+        keys.streamAck(stream, "exyliastaff", List.of(entry.id()));
+    }
+});
+```
+
+- **Blocking, off the main thread.** Every call is one round trip; none blocks
+  on the server (`streamRead` never uses `BLOCK`), so poll it from a timer.
+- **Throws when Redis is not there.** `available()` answers first; a call
+  without a connection throws `IllegalStateException`.
+- **Full keys.** Build them from `prefix()` (the network's `key-prefix`).
+- `set(key, value, expireAtMillis)` with `0` keeps the key until deleted;
+  `setIfAbsent` is a short lock across servers.
+- `streamPending` + `streamClaim` take over entries another consumer left
+  idle; each claim counts as a delivery, which is how a caller parks an entry
+  that keeps failing.
+
 ## Differences from ExyliaCommons
 
 The design is the same one, with four defects fixed:
@@ -207,7 +238,7 @@ is nothing buffered to flush.
 
 | | |
 | --- | --- |
-| Public API | `redis/Redis`, `redis/RedisSettings`, `redis/Channels`, `PluginChannels`, `Channel`, `Message` |
+| Public API | `redis/Redis`, `redis/RedisSettings`, `redis/RedisKeys`, `redis/Channels`, `PluginChannels`, `Channel`, `Message` |
 | Internal | `redis/internal/RedisRuntime`, `RowCache`, `CachedStorage`, `RowCodec`, `CacheKeys`, `Invalidation`, `RedisClient`, `JedisClient`, `MemoryClient` |
 | Wiring | `database/PluginDatabase` wraps each repository's storage; `database/DatabaseSettings` carries the block |
 | Lifecycle | `ExyliaLib` closes every connection after the datasources, so a last write still reaches the network |

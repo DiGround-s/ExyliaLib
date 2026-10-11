@@ -81,6 +81,95 @@ public interface RedisClient {
      */
     @NotNull Subscription subscribe(@NotNull String channel, @NotNull Consumer<String> handler);
 
+    /**
+     * Writes a value that lives until a moment, or forever.
+     *
+     * @param key            the full key
+     * @param value          the value
+     * @param expireAtMillis epoch millis it expires at, {@code 0} for never
+     * @since 1.271.0
+     */
+    default void setUntil(@NotNull String key, @NotNull String value, long expireAtMillis) {
+        throw new UnsupportedOperationException("setUntil");
+    }
+
+    /**
+     * Writes a value only when the key is absent.
+     *
+     * @param key        the full key
+     * @param value      the value
+     * @param ttlMillis  how long it may live, always positive
+     * @return whether it was written
+     * @since 1.271.0
+     */
+    default boolean setIfAbsent(@NotNull String key, @NotNull String value, long ttlMillis) {
+        throw new UnsupportedOperationException("setIfAbsent");
+    }
+
+    /**
+     * Appends to a stream, trimming it to about {@code maxLength} entries.
+     *
+     * @return the new entry's id
+     * @since 1.271.0
+     */
+    default @NotNull String streamAdd(@NotNull String stream, @NotNull java.util.Map<String, String> fields,
+                                      long maxLength) {
+        throw new UnsupportedOperationException("streamAdd");
+    }
+
+    /**
+     * Creates a consumer group reading from the start, creating the stream too;
+     * a group that already exists is left alone.
+     *
+     * @since 1.271.0
+     */
+    default void streamGroup(@NotNull String stream, @NotNull String group) {
+        throw new UnsupportedOperationException("streamGroup");
+    }
+
+    /**
+     * Entries never delivered to the group, without blocking.
+     *
+     * @return {@code {id, fields}} pairs, oldest first
+     * @since 1.271.0
+     */
+    default @NotNull java.util.List<java.util.Map.Entry<String, java.util.Map<String, String>>> streamRead(
+            @NotNull String stream, @NotNull String group, @NotNull String consumer, int count) {
+        throw new UnsupportedOperationException("streamRead");
+    }
+
+    /**
+     * Pending entries idle for at least {@code minIdleMillis}.
+     *
+     * @return {@code {id, deliveries}} pairs
+     * @since 1.271.0
+     */
+    default @NotNull java.util.List<java.util.Map.Entry<String, Long>> streamPending(
+            @NotNull String stream, @NotNull String group, long minIdleMillis, int count) {
+        throw new UnsupportedOperationException("streamPending");
+    }
+
+    /**
+     * Takes pending entries over for {@code consumer}.
+     *
+     * @return the entries still idle long enough, as {@code {id, fields}}
+     * @since 1.271.0
+     */
+    default @NotNull java.util.List<java.util.Map.Entry<String, java.util.Map<String, String>>> streamClaim(
+            @NotNull String stream, @NotNull String group, @NotNull String consumer, long minIdleMillis,
+            @NotNull Collection<String> ids) {
+        throw new UnsupportedOperationException("streamClaim");
+    }
+
+    /**
+     * Acknowledges entries.
+     *
+     * @since 1.271.0
+     */
+    default void streamAck(@NotNull String stream, @NotNull String group, @NotNull Collection<String> ids) {
+        throw new UnsupportedOperationException("streamAck");
+    }
+
     /** Closes the connections this client owns. */
     void close();
 
