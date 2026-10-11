@@ -140,6 +140,7 @@ such as `BetEvent` and `PracticeEvent`.
 | `api.capture` | `CaptureService` | ExyliaCapture | 3 |
 | `api.chatcosmetics` | `CosmeticsService`, `ChatService` | ExyliaChatCosmetics | 10 |
 | `api.clans` | `ClansService` | ExyliaClans | 8 |
+| `api.crates` | `CratesService` | ExyliaCrates | 1 |
 | `api.classes` | `ClassesService` | ExyliaClasses | 3 |
 | `api.events` | `EventsService` | ExyliaEvents | 6 |
 | `api.ffa` | `FfaService` | ExyliaFFA | 4 |

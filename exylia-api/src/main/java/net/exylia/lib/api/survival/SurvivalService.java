@@ -359,7 +359,11 @@ public interface SurvivalService {
      * @return the keys in their balance, {@code 0} when they have none, are
      *         offline, the crate does not exist or the module is off
      * @since 1.3.0
+     * @deprecated crates left ExyliaSurvivalCore for ExyliaCrates, which answers
+     *             {@link net.exylia.lib.api.crates.CratesService#keys(UUID, String)};
+     *             a survival core without its crates module answers {@code 0}
      */
+    @Deprecated(since = "1.10.0")
     int crateKeys(@NotNull UUID player, @NotNull String crateId);
 
     /**
@@ -379,7 +383,11 @@ public interface SurvivalService {
      *         {@code false} for an unknown crate, a non-positive amount or the
      *         module being off
      * @since 1.3.0
+     * @deprecated crates left ExyliaSurvivalCore for ExyliaCrates, which pays
+     *             {@link net.exylia.lib.api.crates.CratesService#giveKeys(UUID, String, int)};
+     *             a survival core without its crates module answers {@code false}
      */
+    @Deprecated(since = "1.10.0")
     boolean giveCrateKeys(@NotNull UUID player, @NotNull String crateId, int amount);
 
     // ── Statistics ─────────────────────────────────────────────────────────
