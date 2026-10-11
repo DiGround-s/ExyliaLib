@@ -369,6 +369,59 @@ public final class PluginRewards {
     }
 
     /**
+     * Whether a player may be handed a reward at all: its permission, then its
+     * condition.
+     *
+     * <p>The half of {@link #give(Player, RewardEntry)} that does not depend on
+     * chance, asked ahead of a draw so a reward the player could never receive
+     * is never drawn for them. Call it on the player's thread: a condition reads
+     * placeholders.
+     *
+     * @param player who would receive it
+     * @param reward what they would receive
+     * @return whether nothing but its chance stands between them
+     * @since 1.273.0
+     */
+    public boolean eligible(@NotNull Player player, @NotNull RewardEntry reward) {
+        String permission = reward.permission();
+        if (permission != null && !permission.isBlank() && !player.hasPermission(permission)) {
+            return false;
+        }
+        String condition = reward.condition();
+        return condition == null || condition.isBlank()
+                || Conditions.holds(condition, player, (subject, problem) -> report(reward, subject, problem));
+    }
+
+    /**
+     * Rolls a reward's chance and amount now, and answers it decided.
+     *
+     * <p>For something shown before it is handed over &mdash; a crate that
+     * spins, a card that turns &mdash; where what was shown must be what
+     * arrives. The answer has a chance of 100, its amount pinned to the one
+     * rolled and no permission or condition, so a later {@link #give} or
+     * {@link #deliver(UUID, List)} hands it over exactly so, whenever and
+     * wherever that happens. Ask {@link #eligible} first: nothing is asked
+     * again. Safe from any thread.
+     *
+     * @param reward the reward as configured
+     * @return the decided reward, or {@code null} when its chance missed
+     * @since 1.273.0
+     */
+    public @Nullable RewardEntry settle(@NotNull RewardEntry reward) {
+        if (!Rolls.rolled(reward, dice)) {
+            return null;
+        }
+        int amount = Rolls.amount(reward, dice);
+        RewardEntry.Builder decided = reward.toBuilder()
+                .chance(RewardEntry.ALWAYS)
+                .permission(null)
+                .condition(null);
+        // A range of one keeps the reward ranged, which is what tells an
+        // experience or money reward to pay the rolled amount and not its value.
+        return (reward.isRanged() ? decided.amountBetween(amount, amount) : decided).build();
+    }
+
+    /**
      * Keeps rewards for a player who is not here.
      *
      * <p>They are handed over by {@link #claim} the next time the player is

@@ -236,6 +236,23 @@ reward failed: `given()`, `skipped()`, `failed()`, `isClean()`, `failures()`.
 
 ---
 
+### Decided now, handed over later (since 1.273.0)
+
+```java
+List<RewardEntry> pool = crate.rewards().stream().filter(r -> rewards.eligible(player, r)).toList();
+RewardEntry won = rewards.settle(rewards.pick(pool));   // null when its chance missed
+// ... the animation shows `won` ...
+rewards.deliver(player.getUniqueId(), List.of(won));     // exactly that, here or not
+```
+
+For anything that shows a prize before it hands it over. `eligible(player,
+reward)` asks the permission and the condition (on the player's thread);
+`settle(reward)` rolls the chance and the amount now and answers a reward with
+chance 100, the amount pinned and no permission or condition, so the later
+`give`/`deliver` neither re-rolls nor re-asks and what was animated is what
+arrives. Without it `give` decides again at hand-over, and a reward that won
+the spin can still miss.
+
 ### An item to somebody, here or not (since 1.266.0)
 
 ```java

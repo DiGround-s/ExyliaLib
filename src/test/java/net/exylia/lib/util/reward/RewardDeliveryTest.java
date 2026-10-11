@@ -789,6 +789,43 @@ class RewardDeliveryTest {
         }
     }
 
+    // ------------------------------------------------------------------
+    // Decided ahead of the delivery
+    // ------------------------------------------------------------------
+
+    @Test
+    @DisplayName("a settled reward is given as rolled, with nothing asked again")
+    void settledIsGivenAsRolled() {
+        RewardEntry rare = RewardEntry.item("DIAMOND").amountBetween(3, 9).chance(5.0)
+                .permission("event.vip").condition("1 == 2").build();
+
+        RewardEntry decided = rewards.settle(rare);
+
+        assertNotNull(decided);
+        assertEquals(RewardEntry.ALWAYS, decided.chance());
+        assertEquals(3, decided.minAmount());
+        assertEquals(3, decided.maxAmount());
+        assertNull(decided.permission());
+        assertNull(decided.condition());
+        Rewards.dice(rewards, NEVER);
+        assertEquals(1, rewards.give(player.player(), List.of(decided)).given());
+        assertEquals(List.of("DIAMOND x3"), bag.given);
+    }
+
+    @Test
+    @DisplayName("a settled reward whose chance missed is nothing")
+    void settleMisses() {
+        Rewards.dice(rewards, NEVER);
+        assertNull(rewards.settle(RewardEntry.item("DIAMOND").chance(50.0).build()));
+    }
+
+    @Test
+    @DisplayName("eligibility asks the permission and the condition, never the chance")
+    void eligibility() {
+        assertFalse(rewards.eligible(player.player(), RewardEntry.item("DIAMOND").permission("event.vip").build()));
+        assertTrue(rewards.eligible(player.player(), RewardEntry.item("DIAMOND").chance(0.0).build()));
+    }
+
     /** A pending store that keeps everything in a list. */
     private static final class RecordingStore implements PendingRewards {
 
