@@ -349,6 +349,11 @@ final class ReplayPackets {
                 new Vector3i(x, y, z), (byte) stage));
     }
 
+    /** One of the game's world events, drawn by the client: a potion breaking. */
+    static void worldEvent(List<Player> viewers, int type, int x, int y, int z, int data) {
+        send(viewers, new WrapperPlayServerEffect(type, new Vector3i(x, y, z), data, false));
+    }
+
     /** A block broken: the game's own effect, its sound and its pieces both. */
     static void broken(List<Player> viewers, int x, int y, int z, BlockData was) {
         int state = SpigotConversionUtil.fromBukkitBlockData(was).getGlobalId();

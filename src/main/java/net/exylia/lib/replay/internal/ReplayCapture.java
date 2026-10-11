@@ -10,6 +10,7 @@ import com.github.retrooper.packetevents.protocol.sound.Sound;
 import com.github.retrooper.packetevents.protocol.sound.SoundCategory;
 import com.github.retrooper.packetevents.util.Vector3d;
 import com.github.retrooper.packetevents.util.Vector3i;
+import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerEffect;
 import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerExplosion;
 import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerSoundEffect;
 import net.exylia.lib.replay.ReplayMark;
@@ -49,6 +50,10 @@ final class ReplayCapture extends PacketListenerAbstract {
     /** The tick of the last sweep of {@link #SEEN}. */
     private static final AtomicInteger lastSweep = new AtomicInteger(Integer.MIN_VALUE);
 
+    /** The game's world events for a potion breaking: an ordinary one and an instant one. */
+    private static final int SPLASH_POTION = 2002;
+    private static final int INSTANT_SPLASH_POTION = 2007;
+
     private ReplayCapture() {
         super(PacketListenerPriority.MONITOR);
     }
@@ -64,11 +69,13 @@ final class ReplayCapture extends PacketListenerAbstract {
     @Override
     public void onPacketSend(PacketSendEvent event) {
         boolean sound = event.getPacketType() == PacketType.Play.Server.SOUND_EFFECT;
-        if (!sound && event.getPacketType() != PacketType.Play.Server.EXPLOSION) return;
+        boolean world = event.getPacketType() == PacketType.Play.Server.EFFECT;
+        if (!sound && !world && event.getPacketType() != PacketType.Play.Server.EXPLOSION) return;
         if (!ReplayRuntime.capturing()) return;
         if (!(event.getPlayer() instanceof Player player)) return;
         try {
             if (sound) sound(player, new WrapperPlayServerSoundEffect(event));
+            else if (world) worldEvent(player, new WrapperPlayServerEffect(event));
             else blast(player, new WrapperPlayServerExplosion(event));
         } catch (RuntimeException unreadable) {
             // A layout this version of PacketEvents cannot read: that one is guessed.
@@ -96,6 +103,24 @@ final class ReplayCapture extends PacketListenerAbstract {
         String key = played.getSoundId().toString();
         ReplayRuntime.effect(ReplayMark.SOUND, new Location(world, at.getX() / 8.0, at.getY() / 8.0, at.getZ() / 8.0),
                 key + '|' + category.name() + '|' + packet.getVolume() + '|' + packet.getPitch());
+    }
+
+    /**
+     * A potion breaking. Its glass, its sound and its cloud are one world
+     * event the client draws by itself, so without it a thrown potion flies
+     * and silently disappears.
+     */
+    private static void worldEvent(Player player, WrapperPlayServerEffect packet) {
+        int type = packet.getType();
+        if (type != SPLASH_POTION && type != INSTANT_SPLASH_POTION) return;
+        Vector3i at = packet.getPosition();
+        int dedup = soundKey(type, at.getX(), at.getY(), at.getZ(), packet.getData());
+        int claimed = claim(dedup);
+        if (claimed == MISSED) return;
+        World world = worldOf(player, dedup, claimed);
+        if (world == null) return;
+        ReplayRuntime.effect(ReplayMark.WORLD_EVENT, new Location(world, at.getX(), at.getY(), at.getZ()),
+                type + "|" + packet.getData());
     }
 
     private static void blast(Player player, WrapperPlayServerExplosion packet) {

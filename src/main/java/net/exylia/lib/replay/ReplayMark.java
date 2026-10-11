@@ -221,6 +221,15 @@ public record ReplayMark(int tick, @NotNull String kind, @Nullable UUID actor,
     public static final String BLAST = "blast";
 
     /**
+     * A splash or lingering potion breaking, as the server sent it: the glass,
+     * the sound and the cloud in the potion's colour. A place, with
+     * {@code type|data} beside it, the game's own world event and its value.
+     *
+     * @since 1.274.0
+     */
+    public static final String WORLD_EVENT = "world_event";
+
+    /**
      * One with a line of text behind it, for a plugin's own kinds.
      *
      * @param tick  which frame

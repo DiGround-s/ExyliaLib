@@ -18,6 +18,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -61,6 +62,24 @@ class BlackBoxTest {
 
         box.sampleNear(arrow, tape, new Location(null, 0, 64, 0), 1600, 101);
         assertEquals(1, reads.get(), "a new tick: it is read");
+    }
+
+    @Test
+    @DisplayName("each chunk keeps the height people moved at above it, not the whole scene's")
+    void heightIsPerChunk() {
+        BlackBox.Draft draft = new BlackBox.Draft(0, WORLD, 0, 64, 0);
+        draft.margin = 6;
+        draft.bottom = -4;
+        draft.top = 19;
+        draft.minSection = 3;  // the focus stood at 64
+        draft.maxSection = 4;
+        draft.chunks.put(BlackBox.key(0, 0), new int[] {64, 64});
+        draft.chunks.put(BlackBox.key(1, 0), new int[] {64, 120}); // somebody climbed there
+        assertTrue(draft.keeps(BlackBox.key(0, 0), 4));
+        assertFalse(draft.keeps(BlackBox.key(0, 0), 7), "nobody went that high here");
+        assertTrue(draft.keeps(BlackBox.key(1, 0), 7), "the climber's chunk keeps their height");
+        assertFalse(draft.keeps(BlackBox.key(1, 0), 1), "nor the caves under anybody");
+        assertFalse(draft.keeps(BlackBox.key(9, 9), 7));
     }
 
     @Test

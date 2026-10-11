@@ -3,6 +3,7 @@ package net.exylia.lib.schematic.internal;
 import net.exylia.lib.debug.Debug;
 import net.exylia.lib.region.Cuboid;
 import net.exylia.lib.region.WorldIdentity;
+import net.exylia.lib.replay.internal.ReplayRuntime;
 import net.exylia.lib.schematic.RegenerateOptions;
 import net.exylia.lib.schematic.SchematicResult;
 import net.exylia.lib.task.TaskScheduler;
@@ -332,7 +333,13 @@ public final class SchematicRuntime {
     private static void pasteBack(Owner owner, CompletableFuture<SchematicResult> future,
                                   String name, World target, Bounds box, File source,
                                   Location origin, RegenerateOptions options) throws Exception {
-        engine().paste(target, box.minX(), box.minY(), box.minZ(), source, false);
+        // Through the replays: a regeneration fires no block event, and a
+        // replay of the fight before it would otherwise lose every block of it.
+        ReplayRuntime.rewriting(target, box.minX(), box.minY(), box.minZ(), box.maxX(), box.maxY(), box.maxZ(),
+                () -> {
+                    engine().paste(target, box.minX(), box.minY(), box.minZ(), source, false);
+                    return null;
+                });
         if (options.moveTrappedPlayers()) {
             owner.scheduler().runAtLocation(origin, () -> rescue(owner, target, box));
         }

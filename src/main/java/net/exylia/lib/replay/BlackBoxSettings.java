@@ -17,7 +17,9 @@ import java.util.function.Predicate;
  *                       which is what lets it be watched on another server or
  *                       after the place has changed
  * @param verticalMargin how far above and below where people went the ground
- *                       is kept, in blocks
+ *                       is kept, in blocks; worked out chunk by chunk, so a
+ *                       fight on a floor keeps that floor and not the caves
+ *                       under it; between 4 and 128
  * @param maxChunks      the most chunks one capture keeps the ground of; past
  *                       this the oldest part of a long chase is left out
  * @param hidden         players who must never appear in a recording, such as
@@ -32,7 +34,7 @@ public record BlackBoxSettings(int seconds, double radius, int maxEntities, bool
         seconds = Math.clamp(seconds, 10, 300);
         radius = Math.clamp(radius, 8.0, 96.0);
         maxEntities = Math.clamp(maxEntities, 0, 20_000);
-        verticalMargin = Math.clamp(verticalMargin, 8, 128);
+        verticalMargin = Math.clamp(verticalMargin, 4, 128);
         maxChunks = Math.clamp(maxChunks, 1, 4096);
     }
 
@@ -41,7 +43,7 @@ public record BlackBoxSettings(int seconds, double radius, int maxEntities, bool
      * staff team needs to decide what happened before somebody died.
      */
     public static @NotNull BlackBoxSettings defaults() {
-        return new BlackBoxSettings(60, 32, 1500, true, 24, 400, player -> false);
+        return new BlackBoxSettings(60, 32, 1500, true, 6, 400, player -> false);
     }
 
     public @NotNull BlackBoxSettings seconds(int seconds) {

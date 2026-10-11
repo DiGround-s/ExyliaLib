@@ -935,6 +935,19 @@ public final class Playback implements ReplayPlayback {
                 }
                 return true;
             }
+            case ReplayMark.WORLD_EVENT -> {
+                Location at = WorldMarks.placeAt(anchorAt(mark.tick()), mark.data());
+                String[] parts = text(mark, 2);
+                if (at != null && parts != null && audible(1)) {
+                    try {
+                        ReplayPackets.worldEvent(viewers, Integer.parseInt(parts[0]),
+                                at.getBlockX(), at.getBlockY(), at.getBlockZ(), Integer.parseInt(parts[1]));
+                    } catch (NumberFormatException unreadable) {
+                        // Written by a version that wrote it differently.
+                    }
+                }
+                return true;
+            }
             case ReplayMark.EXPLOSION -> {
                 Location at = WorldMarks.explosionAt(anchorAt(mark.tick()), mark.data());
                 // Recorded as the server sent it: drawn from its BLAST instead.

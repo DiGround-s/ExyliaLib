@@ -3,6 +3,7 @@ package net.exylia.lib.region.internal;
 import net.exylia.lib.region.CommonRegionPolicies;
 import net.exylia.lib.region.RegionId;
 import net.exylia.lib.region.RegionSnapshot;
+import net.exylia.lib.replay.internal.ReplayRuntime;
 import net.exylia.lib.task.TaskHandle;
 import net.exylia.lib.task.Tasks;
 import org.bukkit.Bukkit;
@@ -305,6 +306,7 @@ public final class PlacedBlockRuntime {
             if (!untrack(regionId, x, y, z)) return;
             Block block = world.getBlockAt(x, y, z);
             if (block.getType() != entry.material()) return;
+            ReplayRuntime.changing(block);
             block.setType(Material.AIR, false);
             told(new Location(world, x, y, z), entry.material());
             reGive(owner, entry);

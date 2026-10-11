@@ -12,20 +12,26 @@ import net.exylia.lib.replay.ReplayWorld;
 import net.exylia.lib.task.TaskHandle;
 import net.exylia.lib.task.TaskScheduler;
 import net.exylia.lib.task.Tasks;
+import org.bukkit.ChunkSnapshot;
 import org.bukkit.Location;
+import org.bukkit.World;
+import org.bukkit.block.data.BlockData;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
 import org.jetbrains.annotations.ApiStatus;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -156,6 +162,101 @@ public final class ReplayRuntime {
         BlackBox running = box;
         if (running != null) running.markAt(kind, null, at, text, 0f);
         watching(at, recording -> recording.markAt(kind, at, text));
+    }
+
+    /**
+     * A block a plugin is about to change by writing the world directly, which
+     * no event reports: the recorders keep what it still is.
+     */
+    public static void changing(org.bukkit.block.Block block) {
+        ReplayEvents.block(block, block.getBlockData());
+    }
+
+    /**
+     * Runs a write that goes straight to the world, such as a schematic paste,
+     * and tells the recorders every block it changed.
+     *
+     * <p>Such a write fires no block event. An arena regenerated after a fight
+     * then takes the fight with it: a capture rewinds from ground that is
+     * already back, so every block placed or broken in it is gone from the
+     * replay. The box is read before and after, and what differs is logged as
+     * if an event had reported it.
+     *
+     * <p>Blocks the calling thread while the chunks are read, so it must never
+     * be one of the server's own. Nothing is read when nothing records.
+     */
+    public static void rewriting(World world, int minX, int minY, int minZ, int maxX, int maxY, int maxZ,
+                                 Callable<?> write) throws Exception {
+        if (!capturing() || scheduler == null) {
+            write.call();
+            return;
+        }
+        Map<Long, ChunkSnapshot> before = snapshot(world, minX >> 4, minZ >> 4, maxX >> 4, maxZ >> 4);
+        write.call();
+        Map<Long, ChunkSnapshot> after = snapshot(world, minX >> 4, minZ >> 4, maxX >> 4, maxZ >> 4);
+        int lowest = world.getMinHeight() >> 4;
+        BlackBox running = box;
+        for (Map.Entry<Long, ChunkSnapshot> entry : before.entrySet()) {
+            ChunkSnapshot was = entry.getValue();
+            ChunkSnapshot now = after.get(entry.getKey());
+            if (now == null) continue;
+            int baseX = was.getX() << 4;
+            int baseZ = was.getZ() << 4;
+            for (int section = minY >> 4; section <= maxY >> 4; section++) {
+                try {
+                    if (was.isSectionEmpty(section - lowest) && now.isSectionEmpty(section - lowest)) continue;
+                } catch (RuntimeException outside) {
+                    continue;
+                }
+                int fromY = Math.max(minY, section << 4);
+                int toY = Math.min(maxY, (section << 4) + 15);
+                for (int y = fromY; y <= toY; y++) {
+                    for (int z = Math.max(minZ, baseZ); z <= Math.min(maxZ, baseZ + 15); z++) {
+                        for (int x = Math.max(minX, baseX); x <= Math.min(maxX, baseX + 15); x++) {
+                            BlockData old = was.getBlockData(x & 15, y, z & 15);
+                            BlockData became = now.getBlockData(x & 15, y, z & 15);
+                            if (old.equals(became)) continue;
+                            if (running != null) running.changed(world, x, y, z, old);
+                            if (!RECORDINGS.isEmpty()) {
+                                Location at = new Location(world, x, y, z);
+                                watching(at, recording -> recording.block(at, became, old));
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    /** Every chunk of a rectangle as it is now, read on its own region; waits for them. */
+    private static Map<Long, ChunkSnapshot> snapshot(World world, int fromX, int fromZ, int toX, int toZ) {
+        Map<Long, ChunkSnapshot> shots = new ConcurrentHashMap<>();
+        List<Runnable> reads = new ArrayList<>();
+        List<CompletableFuture<Void>> loading = new ArrayList<>();
+        for (int x = fromX; x <= toX; x++) {
+            for (int z = fromZ; z <= toZ; z++) {
+                int chunkX = x;
+                int chunkZ = z;
+                CompletableFuture<Void> read = new CompletableFuture<Void>().completeOnTimeout(null, 30, TimeUnit.SECONDS);
+                loading.add(read);
+                reads.add(() -> {
+                    try {
+                        world.getChunkAtAsync(chunkX, chunkZ, false)
+                                .thenAccept(chunk -> {
+                                    if (chunk != null) {
+                                        shots.put(BlackBox.key(chunkX, chunkZ), chunk.getChunkSnapshot(false, false, false));
+                                    }
+                                })
+                                .whenComplete((done, failure) -> read.complete(null));
+                    } catch (RuntimeException unloaded) {
+                        read.complete(null);
+                    }
+                });
+            }
+        }
+        BlackBox.inBatches(reads, loading, scheduler);
+        CompletableFuture.allOf(loading.toArray(CompletableFuture[]::new)).join();
+        return shots;
     }
 
     // -------------------------------------------------------------- black box

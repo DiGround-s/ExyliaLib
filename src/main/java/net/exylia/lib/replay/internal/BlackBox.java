@@ -26,7 +26,7 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
-import java.util.LinkedHashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -572,22 +572,33 @@ public final class BlackBox {
             int maxY = Integer.MIN_VALUE;
             for (int step = draft.path.size() - 1; step >= 0; step--) {
                 Tape.Frame frame = draft.path.get(step);
-                minY = Math.min(minY, (int) Math.floor(frame.y()));
-                maxY = Math.max(maxY, (int) Math.floor(frame.y()));
+                int frameY = (int) Math.floor(frame.y());
+                minY = Math.min(minY, frameY);
+                maxY = Math.max(maxY, frameY);
                 int chunkX = (int) Math.floor(frame.x()) >> 4;
                 int chunkZ = (int) Math.floor(frame.z()) >> 4;
-                for (int dx = -reach; dx <= reach && budget > 0; dx++) {
-                    for (int dz = -reach; dz <= reach && budget > 0; dz++) {
+                for (int dx = -reach; dx <= reach; dx++) {
+                    for (int dz = -reach; dz <= reach; dz++) {
                         if (dx * dx + dz * dz > (reach + 0.5) * (reach + 0.5)) continue;
-                        if (draft.chunks.add(key(chunkX + dx, chunkZ + dz))) budget--;
+                        long chunk = key(chunkX + dx, chunkZ + dz);
+                        int[] band = draft.chunks.get(chunk);
+                        if (band != null) {
+                            widen(band, frameY);
+                        } else if (budget > 0) {
+                            draft.chunks.put(chunk, new int[] {frameY, frameY});
+                            budget--;
+                        }
                     }
                 }
             }
             int margin = current.verticalMargin();
+            draft.margin = margin;
             int bottom = loaded == null ? -64 : loaded.getMinHeight();
             int top = loaded == null ? 320 : loaded.getMaxHeight() - 1;
             draft.minSection = Math.max(bottom, minY - margin) >> 4;
             draft.maxSection = Math.min(top, maxY + margin) >> 4;
+            draft.bottom = bottom >> 4;
+            draft.top = top >> 4;
         }
         return new Plan(focus, start, end, drafts);
     }
@@ -613,7 +624,7 @@ public final class BlackBox {
             if (world == null) continue;
             Set<Long> changed = current.terrain() ? null
                     : changedChunks(changes, draft.world, draft.from, draft.minSection, draft.maxSection);
-            for (long chunk : draft.chunks) {
+            for (long chunk : draft.chunks.keySet()) {
                 if (changed != null && !changed.contains(chunk)) continue;
                 int x = (int) (chunk >> 32);
                 int z = (int) chunk;
@@ -741,7 +752,7 @@ public final class BlackBox {
             int scene = sceneOf(scenes, happening.tick);
             Draft draft = scenes.get(scene);
             if (!draft.world.equals(happening.world)
-                    || !draft.chunks.contains(key((int) Math.floor(happening.x) >> 4,
+                    || !draft.chunks.containsKey(key((int) Math.floor(happening.x) >> 4,
                     (int) Math.floor(happening.z) >> 4))) {
                 continue;
             }
@@ -782,9 +793,10 @@ public final class BlackBox {
             if ((frame.flags() & MotionTrack.PRESENT) == 0) continue;
             Draft scene = scenes.get(sceneOf(scenes, tick));
             if (!scene.world.equals(frame.world())) continue;
-            if (!scene.chunks.contains(key((int) Math.floor(frame.x()) >> 4, (int) Math.floor(frame.z()) >> 4))) {
-                continue;
-            }
+            int[] band = scene.chunks.get(key((int) Math.floor(frame.x()) >> 4, (int) Math.floor(frame.z()) >> 4));
+            if (band == null) continue;
+            // The ground under everybody in it, not only under the focus.
+            widen(band, (int) Math.floor(frame.y()));
             int relative = tick - start;
             if (any && lastPut != tick - 1) builder.absentUntil(relative);
             builder.put(relative, frame.x() - scene.x, frame.y() - scene.y, frame.z() - scene.z,
@@ -817,8 +829,13 @@ public final class BlackBox {
             for (Map.Entry<Long, ChunkSnapshot> entry : shot.entrySet()) {
                 Map<Integer, TerrainSection.Builder> column = new HashMap<>();
                 // Without terrain a section is read only once a change needs it.
-                if (terrain != null) {
-                    for (int section = draft.minSection; section <= draft.maxSection; section++) {
+                // Only the height people moved at above that chunk: a fight on
+                // a floor keeps that floor, not the caves under it.
+                int[] band = draft.chunks.get(entry.getKey());
+                if (terrain != null && band != null) {
+                    int from = Math.max(draft.bottom, (band[0] - draft.margin) >> 4);
+                    int to = Math.min(draft.top, (band[1] + draft.margin) >> 4);
+                    for (int section = from; section <= to; section++) {
                         column.put(section, read(entry.getValue(), section, names));
                     }
                 }
@@ -833,7 +850,8 @@ public final class BlackBox {
                 int y = change.y >> 4;
                 TerrainSection.Builder section = column.get(y);
                 if (section == null) {
-                    if (terrain != null || y < draft.minSection || y > draft.maxSection) continue;
+                    // A change outside the band brings its section in with it.
+                    if (!draft.keeps(chunk, y)) continue;
                     section = read(shot.get(chunk), y, names);
                     column.put(y, section);
                 }
@@ -914,6 +932,11 @@ public final class BlackBox {
         return Math.sqrt(dx * dx + dy * dy + dz * dz);
     }
 
+    private static void widen(int[] band, int y) {
+        if (y < band[0]) band[0] = y;
+        if (y > band[1]) band[1] = y;
+    }
+
     static long key(int chunkX, int chunkZ) {
         return ((long) chunkX << 32) | (chunkZ & 0xFFFFFFFFL);
     }
@@ -950,7 +973,7 @@ public final class BlackBox {
     }
 
     /** One scene being worked out. */
-    private static final class Draft {
+    static final class Draft {
 
         final int from;
         int to;
@@ -959,9 +982,13 @@ public final class BlackBox {
         final double y;
         final double z;
         final List<Tape.Frame> path = new ArrayList<>();
-        final Set<Long> chunks = new LinkedHashSet<>();
+        /** The chunks it covers, each with the lowest and highest Y anybody stood at in it. */
+        final Map<Long, int[]> chunks = new LinkedHashMap<>();
         int minSection;
         int maxSection;
+        int margin;
+        int bottom;
+        int top;
 
         Draft(int from, UUID world, double x, double y, double z) {
             this.from = from;
@@ -969,6 +996,14 @@ public final class BlackBox {
             this.x = x;
             this.y = y;
             this.z = z;
+        }
+
+        /** Whether a section of a chunk is within the height kept there. */
+        boolean keeps(long chunk, int section) {
+            if (section >= minSection && section <= maxSection) return true;
+            int[] band = chunks.get(chunk);
+            return band != null && section >= (band[0] - margin) >> 4 && section <= (band[1] + margin) >> 4
+                    && section >= bottom && section <= top;
         }
     }
 
