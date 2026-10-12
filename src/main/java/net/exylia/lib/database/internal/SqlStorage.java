@@ -57,6 +57,10 @@ public final class SqlStorage implements Storage {
     private final Executor executor;
     private final Consumer<String> warnings;
 
+    /** Whether the embedded file was already reported damaged; the next thousand failures say nothing new. */
+    private final java.util.concurrent.atomic.AtomicBoolean damageReported =
+            new java.util.concurrent.atomic.AtomicBoolean();
+
     /**
      * Wraps an open backend.
      *
@@ -377,6 +381,7 @@ public final class SqlStorage implements Storage {
                 try {
                     future.complete(recreatingMissingTable(model, work));
                 } catch (SQLException failure) {
+                    reportDamage(failure);
                     future.completeExceptionally(new DatabaseException(
                             "Could not " + operation + " on " + model.table() + " ("
                                     + model.type().getSimpleName() + "): " + failure.getMessage(),
@@ -399,6 +404,23 @@ public final class SqlStorage implements Storage {
                             + " the plugin that asked is being disabled.", rejected));
         }
         return future;
+    }
+
+    /**
+     * Says once that an embedded file broke under a running server.
+     *
+     * <p>H2 closes the whole database at the first damaged page it reads, and
+     * every query after that fails with "The database has been closed". That
+     * is one cause, so it is one line, not one per query.
+     */
+    private void reportDamage(@NotNull SQLException failure) {
+        if (backend.dialect().id().equals("h2") && H2Guard.isDamage(failure)
+                && damageReported.compareAndSet(false, true)) {
+            warnings.accept("DATABASE DAMAGED: the embedded H2 database stopped working ("
+                    + failure.getMessage() + "). Every read and write of this plugin fails until"
+                    + " the server restarts. On the next start ExyliaLib checks the file and repairs it"
+                    + " automatically, from the last complete write or the newest backup.");
+        }
     }
 
     /**

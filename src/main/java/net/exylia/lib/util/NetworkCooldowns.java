@@ -4,6 +4,7 @@ import net.exylia.lib.database.Databases;
 import net.exylia.lib.database.Repository;
 import net.exylia.lib.task.Tasks;
 import net.exylia.lib.util.internal.NetworkCooldownRow;
+import net.exylia.lib.util.internal.RetryBackoff;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
@@ -72,8 +73,6 @@ import java.util.logging.Logger;
  */
 public final class NetworkCooldowns {
 
-    /** How long a failed read waits before it is tried again. */
-    private static final long RETRY_TICKS = 100L;
 
     /** By plugin name; the load that owns each is compared by identity, see {@link #release}. */
     private static final Map<String, NetworkCooldowns> OPEN = new ConcurrentHashMap<>();
@@ -91,6 +90,8 @@ public final class NetworkCooldowns {
     private final Repository<NetworkCooldownRow> rows;
     private final Map<UUID, Session> sessions = new ConcurrentHashMap<>();
     private final Logger logger;
+    /** Paces the retries of failed reads, and their warnings, across every player. */
+    private final RetryBackoff retries = new RetryBackoff();
     private volatile LongSupplier clock = System::currentTimeMillis;
 
     private NetworkCooldowns(Plugin plugin) {
@@ -248,21 +249,22 @@ public final class NetworkCooldowns {
     void open(UUID player) {
         Session session = new Session();
         sessions.put(player, session);
-        load(player, session);
+        load(player, session, 0);
     }
 
-    private void load(UUID player, Session session) {
+    private void load(UUID player, Session session, int failures) {
         rows.where("player", player).where("namespace", namespace).find().whenComplete((found, failure) -> {
             if (sessions.get(player) != session) {
                 return;
             }
             if (failure != null) {
-                logger.warning("Network cooldowns: could not read those of " + player
-                        + ", trying again: " + failure.getMessage());
+                long delay = RetryBackoff.delayTicks(failures + 1);
+                retries.failed("Network cooldowns: could not read those of " + player
+                        + ", trying again in " + delay / 20L + "s: " + failure.getMessage(), logger::warning);
                 try {
-                    Tasks.of(plugin).runAsyncLater(RETRY_TICKS, () -> {
+                    Tasks.of(plugin).runAsyncLater(delay, () -> {
                         if (sessions.get(player) == session) {
-                            load(player, session);
+                            load(player, session, failures + 1);
                         }
                     });
                 } catch (RuntimeException stopped) {
@@ -270,6 +272,7 @@ public final class NetworkCooldowns {
                 }
                 return;
             }
+            retries.succeeded();
             long now = clock.getAsLong();
             for (NetworkCooldownRow row : found) {
                 if (row.expiresAt() <= now) {

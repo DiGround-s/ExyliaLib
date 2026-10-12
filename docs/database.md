@@ -504,6 +504,45 @@ or delete it.
 Nothing opens that file, so it is harmless until somebody wonders where the
 missing history went — or moves the server and copies the file along with it.
 
+### A damaged embedded file repairs itself (since 1.286.0)
+
+A crash in the middle of a write (out of memory, a killed process) can leave the
+newest chunk of an `h2.mv.db` torn. H2 opens such a file and even answers
+`SELECT COUNT(*)`; the first read of a torn page fails and closes the database
+for the rest of the run. So before an embedded file is handed out, ExyliaLib
+reads every row of every table on a read-only connection. When that read finds
+corruption (H2 `90030`, or an `MVStoreException` "File corrupted" / missing
+chunk; never an ordinary SQL error, a lock or a newer format):
+
+1. A copy of the damaged file goes to `database/corrupted/<UTC time>/`. It is
+   never deleted.
+2. **Rollback.** On a copy, the newest chunk is zeroed (up to the 3 newest), so
+   H2 falls back to the previous complete version. The survivor is dumped with
+   `SCRIPT` and loaded into a fresh file, which replaces the damaged one.
+3. **Backup.** If the rollback fails, or lost rows against the counts the
+   damaged file still reports, the newest readable backup is tried and the one
+   with more rows wins.
+4. **Nothing.** Neither worked: the damaged file stays where it is and the
+   database stays unavailable, with one error naming the damaged copy and the
+   backups folder. An empty database is never created in its place, because the
+   plugin would seed new rows (start keys, defaults) over the lost ones.
+
+Every repair is logged as an error saying which path was taken and, table by
+table, what was lost. Corruption found while the server runs is one error
+("DATABASE DAMAGED"), not one per query; it is repaired on the next start.
+
+`H2Guard` (internal) holds all of it. A failed read leaves H2's database
+registered in the JVM with the old file still open, so the check shuts it down
+(`SHUTDOWN IMMEDIATELY`) before anything else connects to that path.
+
+### Automatic backups of the embedded file (since 1.286.0)
+
+Once the file passes that check, an online `BACKUP TO` writes
+`database/backups/h2-<UTC time>.zip`, at startup and every `interval`, on the
+database executor. The newest `keep` are kept. Every periodic backup first reads
+the whole live database again, and is skipped (one error, until one succeeds)
+when that fails: a damaged database is never backed up over a good backup.
+
 ### An engine that does not exist
 
 A `type:` nothing recognises still falls back to the embedded database, because
@@ -628,6 +667,11 @@ database:
 
   h2:
     file: database/h2       # relative to this plugin folder
+    auto-server: false
+    backups:                # since 1.286.0; absent keys use these defaults
+      enabled: true
+      interval: 6h
+      keep: 5
 
   mysql:                    # and mariadb, and postgresql
     host: localhost
@@ -663,6 +707,6 @@ in the block its `type` names, not in `mysql` regardless.
 | | |
 | --- | --- |
 | Public API | `database/Databases`, `PluginDatabase`, `Repository`, `RowLocks`, `Query`, `Table`, `Column`, `Id`, `Indexed`, `Index`, `Codec`, `DatabaseException`, `DatabaseSettings` |
-| Internal | `database/internal/EntityModel`, `LockRow`, `ColumnModel`, `IndexModel`, `IndexCoverage`, `CodecRegistry`, `Codecs`, `Coercions`, `Storage`, `SqlStorage`, `MongoStorage`, `GatedStorage`, `SqlBackend`, `SqlSchema`, `SqlSettings`, `SchemaReport`, `Dialect`, `AnsiDialect`, `H2Dialect`, `MySQLDialect`, `MariaDBDialect`, `PostgresDialect`, `MongoBackend`, `MongoDocuments`, `DatabaseRuntime`, `TaskExecutor` |
+| Internal | `database/internal/EntityModel`, `LockRow`, `ColumnModel`, `IndexModel`, `IndexCoverage`, `CodecRegistry`, `Codecs`, `Coercions`, `Storage`, `SqlStorage`, `MongoStorage`, `GatedStorage`, `SqlBackend`, `SqlSchema`, `SqlSettings`, `SchemaReport`, `Dialect`, `AnsiDialect`, `H2Dialect`, `MySQLDialect`, `MariaDBDialect`, `PostgresDialect`, `MongoBackend`, `MongoDocuments`, `DatabaseRuntime`, `TaskExecutor`, `H2Guard` |
 | Moving a database | `database/transfer/` — see [transfer.md](transfer.md) |
 | Lifecycle | `ExyliaLib` starts target management; each consumer loads `database.yml` on view creation and leases a target lazily |

@@ -4,6 +4,7 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.nio.file.Path;
+import java.time.Duration;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
@@ -36,6 +37,21 @@ public final class SqlSettings {
     private final Path file;
     private final int poolSize;
     private final Map<String, String> properties;
+    private final Backups backups;
+
+    /**
+     * Automatic backups of an embedded file.
+     *
+     * @param enabled  whether they are taken at all
+     * @param interval how long between two of them; one is also taken at startup
+     * @param keep     how many are kept, newest first
+     * @since 1.286.0
+     */
+    public record Backups(boolean enabled, @NotNull Duration interval, int keep) {
+
+        /** On, every six hours, five kept. */
+        public static final Backups DEFAULT = new Backups(true, Duration.ofHours(6), 5);
+    }
 
     private SqlSettings(String engine,
                         @Nullable String host,
@@ -45,7 +61,8 @@ public final class SqlSettings {
                         @Nullable String password,
                         @Nullable Path file,
                         int poolSize,
-                        Map<String, String> properties) {
+                        Map<String, String> properties,
+                        Backups backups) {
         this.engine = engine;
         this.host = host;
         this.port = port;
@@ -55,6 +72,7 @@ public final class SqlSettings {
         this.file = file;
         this.poolSize = poolSize;
         this.properties = Map.copyOf(properties);
+        this.backups = backups;
     }
 
     /**
@@ -74,7 +92,7 @@ public final class SqlSettings {
                                               @NotNull String database,
                                               @NotNull String user,
                                               @NotNull String password) {
-        return new SqlSettings(engine, host, port, database, user, password, null, 0, Map.of());
+        return new SqlSettings(engine, host, port, database, user, password, null, 0, Map.of(), Backups.DEFAULT);
     }
 
     /**
@@ -85,7 +103,7 @@ public final class SqlSettings {
      * @return the settings
      */
     public static @NotNull SqlSettings file(@NotNull String engine, @NotNull Path file) {
-        return new SqlSettings(engine, null, 0, null, "sa", "", file, 0, Map.of());
+        return new SqlSettings(engine, null, 0, null, "sa", "", file, 0, Map.of(), Backups.DEFAULT);
     }
 
     /**
@@ -99,7 +117,7 @@ public final class SqlSettings {
      * @return the settings
      */
     public static @NotNull SqlSettings memory(@NotNull String engine, @NotNull String name) {
-        return new SqlSettings(engine, null, 0, name, "sa", "", null, 0, Map.of());
+        return new SqlSettings(engine, null, 0, name, "sa", "", null, 0, Map.of(), Backups.DEFAULT);
     }
 
     /**
@@ -110,7 +128,7 @@ public final class SqlSettings {
      */
     public @NotNull SqlSettings poolSize(int maximumPoolSize) {
         return new SqlSettings(engine, host, port, database, user, password, file,
-                maximumPoolSize, properties);
+                maximumPoolSize, properties, backups);
     }
 
     /**
@@ -128,7 +146,23 @@ public final class SqlSettings {
     public @NotNull SqlSettings property(@NotNull String key, @NotNull String value) {
         Map<String, String> merged = new LinkedHashMap<>(properties);
         merged.put(key, value);
-        return new SqlSettings(engine, host, port, database, user, password, file, poolSize, merged);
+        return new SqlSettings(engine, host, port, database, user, password, file, poolSize, merged, backups);
+    }
+
+    /**
+     * The same settings with different backups of the embedded file.
+     *
+     * @param backups the backups to take; ignored by every engine but a file-backed h2
+     * @return a new instance
+     * @since 1.286.0
+     */
+    public @NotNull SqlSettings backups(@NotNull Backups backups) {
+        return new SqlSettings(engine, host, port, database, user, password, file, poolSize, properties, backups);
+    }
+
+    /** The backups an embedded file gets. */
+    public @NotNull Backups backups() {
+        return backups;
     }
 
     /** The engine name, as {@link Dialect#of(String)} takes it. */

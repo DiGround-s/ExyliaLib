@@ -118,6 +118,7 @@ public record DatabaseSettings(Database database) {
      *
      * @param file       where the file lives, relative to the consumer plugin folder
      * @param autoServer whether a second process may open the same file
+     * @param backups    the automatic backups of that file (since 1.286.0)
      */
     @Comment("The embedded engine. Used when type is h2.")
     public record H2(
@@ -137,12 +138,52 @@ public record DatabaseSettings(Database database) {
             @Comment("Every process has to reach the first one over TCP, so this")
             @Comment("is for servers on one machine. For anything else, run a")
             @Comment("real database and set type to mysql or postgresql.")
-            boolean autoServer
+            boolean autoServer,
+
+            H2Backups backups
     ) {
 
         /** The defaults: a file under the plugin's own folder, opened by this server alone. */
         public H2() {
             this("database/h2", false);
+        }
+
+        /** A file with the default backups, as this record was before backups existed. */
+        public H2(String file, boolean autoServer) {
+            this(file, autoServer, new H2Backups());
+        }
+    }
+
+    /**
+     * Automatic backups of the embedded file.
+     *
+     * <p>Taken online, without stopping anything, into {@code backups/} next to
+     * the file, and only after the whole database has been read back without
+     * an error: a damaged database is never backed up over a good backup. When
+     * the file is found damaged at startup, ExyliaLib repairs it by itself and
+     * falls back to the newest of these if it has to.
+     *
+     * @param enabled  whether backups are taken at all
+     * @param interval time between two backups; one is also taken at startup
+     * @param keep     how many backups are kept, newest first
+     * @since 1.286.0
+     */
+    @Comment("Automatic backups of the database file, into a backups folder next to it.")
+    @Comment("Used by ExyliaLib to restore the file by itself if it is ever found damaged.")
+    public record H2Backups(
+
+            boolean enabled,
+
+            @Comment("Time between two backups, such as 6h or 30m. One is also taken at startup.")
+            java.time.Duration interval,
+
+            @Comment("How many backups to keep. The oldest are deleted first.")
+            int keep
+    ) {
+
+        /** On, every six hours, five kept. */
+        public H2Backups() {
+            this(true, java.time.Duration.ofHours(6), 5);
         }
     }
 
@@ -279,7 +320,11 @@ public record DatabaseSettings(Database database) {
         if (embedded()) {
             H2 h2 = block.h2() == null ? new H2() : block.h2();
             String file = h2.file() == null || h2.file().isBlank() ? "database/h2" : h2.file();
-            SqlSettings settings = SqlSettings.file("h2", dataFolder.resolve(file));
+            H2Backups backups = h2.backups() == null ? new H2Backups() : h2.backups();
+            java.time.Duration interval = backups.interval() == null || backups.interval().isNegative()
+                    || backups.interval().isZero() ? java.time.Duration.ofHours(6) : backups.interval();
+            SqlSettings settings = SqlSettings.file("h2", dataFolder.resolve(file))
+                    .backups(new SqlSettings.Backups(backups.enabled(), interval, Math.max(1, backups.keep())));
             // Carried as a URL parameter, which is the only place H2 accepts it:
             // the mode is decided when the connection is opened, not afterwards.
             return h2.autoServer() ? settings.property("AUTO_SERVER", "TRUE") : settings;

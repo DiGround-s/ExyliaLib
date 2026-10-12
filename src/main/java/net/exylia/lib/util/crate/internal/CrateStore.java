@@ -5,6 +5,7 @@ import net.exylia.lib.database.Repository;
 import net.exylia.lib.debug.Debug;
 import net.exylia.lib.task.Tasks;
 import net.exylia.lib.util.crate.CrateImport;
+import net.exylia.lib.util.internal.RetryBackoff;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
@@ -38,8 +39,8 @@ import java.util.function.UnaryOperator;
  */
 public final class CrateStore implements Listener {
 
-    /** How long a failed read waits before it is tried again. */
-    private static final long RETRY_TICKS = 100L;
+    /** Paces the retries of failed reads, and their warnings, across every player. */
+    private final RetryBackoff retries = new RetryBackoff();
 
     /** One online player's row on this server. */
     private static final class Session {
@@ -108,7 +109,7 @@ public final class CrateStore implements Listener {
     public @NotNull CompletableFuture<Void> open(@NotNull UUID uuid) {
         Session created = new Session();
         Session session = sessions.computeIfAbsent(uuid, ignored -> created);
-        if (session == created) load(uuid, session);
+        if (session == created) load(uuid, session, 0);
         return session.ready;
     }
 
@@ -124,7 +125,7 @@ public final class CrateStore implements Listener {
         for (UUID uuid : Map.copyOf(sessions).keySet()) close(uuid);
     }
 
-    private void load(UUID uuid, Session session) {
+    private void load(UUID uuid, Session session, int failures) {
         rows.find(CrateRow.key(owner, uuid))
                 .thenCompose(found -> {
                     if (found.isPresent()) return CompletableFuture.completedFuture(found.get());
@@ -139,17 +140,19 @@ public final class CrateStore implements Listener {
                 .whenComplete((row, failure) -> {
                     if (sessions.get(uuid) != session) return;
                     if (failure != null) {
-                        Debug.of(plugin).warn("Crate: could not read the keys of " + uuid
-                                + ", trying again: " + failure.getMessage());
+                        long delay = RetryBackoff.delayTicks(failures + 1);
+                        retries.failed("Crate: could not read the keys of " + uuid + ", trying again in "
+                                + delay / 20L + "s: " + failure.getMessage(), Debug.of(plugin)::warn);
                         try {
-                            Tasks.of(plugin).runAsyncLater(RETRY_TICKS, () -> {
-                                if (sessions.get(uuid) == session) load(uuid, session);
+                            Tasks.of(plugin).runAsyncLater(delay, () -> {
+                                if (sessions.get(uuid) == session) load(uuid, session, failures + 1);
                             });
                         } catch (RuntimeException stopped) {
                             // The plugin is going away; nobody needs the row any more.
                         }
                         return;
                     }
+                    retries.succeeded();
                     session.row = row;
                     session.ready.complete(null);
                     changed.accept(uuid);

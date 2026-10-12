@@ -1324,6 +1324,22 @@ know about it.
   keys it was given, and whoever inserted a hundred rows without learning their
   ids has stored a hundred rows nobody can reference.
 
+- **An embedded H2 file is checked, repaired and backed up by the lib**
+  (`H2Guard`, since 1.286.0). Before the pool opens, every row of every table is
+  read on a read-only connection (`COUNT(*)` does not detect a torn chunk). On
+  corruption: copy to `corrupted/<time>/`, roll back the newest chunk(s) on a
+  copy and rebuild via `SCRIPT`/`RUNSCRIPT`, else the newest readable backup,
+  else leave the file in place and stay unavailable. **Never create an empty
+  database over a damaged one**: plugins would seed rows over the lost data.
+  Backups (`database.h2.backups`: `enabled`, `interval` 6h, `keep` 5) are only
+  taken after a full read succeeds. A failed H2 read leaves the database
+  registered in the JVM with the old file open: `SHUTDOWN IMMEDIATELY` it before
+  anything reconnects to that path.
+- **Per-player read retries back off** (`util/internal/RetryBackoff`: 5 s
+  doubling to 5 min, one warning per quiet period with a skipped count). A
+  fixed-delay retry per online player turns one dead database into thousands
+  of identical lines.
+
 ### Redis — shared cache, never storage
 
 Everything that depends on Redis goes through `net.exylia.lib.redis`. No plugin

@@ -1118,6 +1118,11 @@ public final class SqlBackend implements AutoCloseable {
         pool.close();
     }
 
+    /** A pooled connection, for the embedded engine's own maintenance (backups). Closed by the caller. */
+    @NotNull Connection connection() throws SQLException {
+        return pool.getConnection();
+    }
+
     /** Whether the pool is still usable. */
     public boolean isOpen() {
         return pool.isRunning();

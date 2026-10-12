@@ -5,6 +5,7 @@ import net.exylia.lib.database.DatabaseException;
 import net.exylia.lib.database.DatabaseSettings;
 import net.exylia.lib.debug.Debug;
 import net.exylia.lib.redis.RedisSettings;
+import net.exylia.lib.task.Tasks;
 import org.bukkit.plugin.Plugin;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -503,12 +504,35 @@ public final class DatabaseRuntime {
             where.execute(() -> {
                 try {
                     Debug debug = Debug.of(plugin);
-                    Storage opened = isMongo(settings)
-                            ? new MongoStorage(MongoBackend.open(settings, name), executor(), debug::warn)
-                            : new SqlStorage(SqlBackend.open(settings, name), executor(), debug::warn);
+                    Storage opened;
+                    if (isMongo(settings)) {
+                        opened = new MongoStorage(MongoBackend.open(settings, name), executor(), debug::warn);
+                    } else {
+                        boolean guarded = H2Guard.applies(settings);
+                        if (guarded) {
+                            // Before the pool: a damaged file is found, and repaired, before anything writes to it.
+                            H2Guard.prepare(settings, (level, message) -> {
+                                if (level == java.util.logging.Level.SEVERE) {
+                                    debug.error(message);
+                                } else {
+                                    debug.warn(message);
+                                }
+                            });
+                        }
+                        SqlBackend backend = SqlBackend.open(settings, name);
+                        opened = new SqlStorage(backend, executor(), debug::warn);
+                        if (guarded && settings.backups().enabled()) {
+                            scheduleBackups(backend, settings, debug);
+                        }
+                    }
                     debug.log("Database ready: " + settings + ".");
                     future.complete(opened);
                 } catch (Throwable failure) {
+                    if (H2Guard.repeated(failure)) {
+                        // Already said in full; a retry every few seconds adds nothing.
+                        future.completeExceptionally(failure);
+                        return;
+                    }
                     Debug.of(plugin).error("The database target could not be opened: "
                             + failure.getMessage(), failure);
                     future.completeExceptionally(failure);
@@ -520,6 +544,55 @@ public final class DatabaseRuntime {
                             + " which normally means ExyliaLib is being disabled.", rejected));
         }
         return future;
+    }
+
+    /**
+     * Backs an embedded file up now and then every interval, on the database
+     * executor. The timer belongs to ExyliaLib and stops itself once the pool
+     * is closed. A failed backup is reported once until one succeeds again.
+     */
+    private static void scheduleBackups(@NotNull SqlBackend backend, @NotNull SqlSettings settings,
+                                        @NotNull Debug debug) {
+        java.util.concurrent.atomic.AtomicBoolean failing = new java.util.concurrent.atomic.AtomicBoolean();
+        Runnable backup = () -> {
+            if (!backend.isOpen()) {
+                return;
+            }
+            try {
+                Path written = H2Guard.backup(backend, settings);
+                failing.set(false);
+                debug.debug("Database backup written: " + written + ".");
+            } catch (Exception failure) {
+                if (!backend.isOpen() || !failing.compareAndSet(false, true)) {
+                    return;
+                }
+                if (H2Guard.isDamage(failure)) {
+                    debug.error("The database " + settings.file() + " could not be backed up because it"
+                            + " is damaged (" + failure.getMessage() + "). No backup was taken and the"
+                            + " existing ones are kept. It is repaired automatically on the next restart.");
+                } else {
+                    debug.warn("The database " + settings.file() + " could not be backed up: "
+                            + failure.getMessage());
+                }
+            }
+        };
+        executor().execute(backup);
+        long ticks = Math.max(20L, settings.backups().interval().toMillis() / 50L);
+        Plugin owner = library;
+        if (owner == null) {
+            return;
+        }
+        Tasks.of(owner).runAsyncTimer(ticks, ticks, handle -> {
+            if (!backend.isOpen()) {
+                handle.cancel();
+                return;
+            }
+            try {
+                executor().execute(backup);
+            } catch (RuntimeException stopping) {
+                handle.cancel();
+            }
+        });
     }
 
     /**
