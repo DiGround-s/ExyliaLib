@@ -480,11 +480,20 @@ Two static helpers that read only the item, so both are safe on any thread:
 A display name is a player's words: insert it with `Values.putText`, never as
 parsed text.
 
+## Which shelf an item goes on (1.281.0)
+
+`ItemGroup.of(material)` answers one of `BLOCKS`, `TOOLS`, `ARMOUR`, `FOOD`,
+`REDSTONE`, `ENCHANTED_BOOKS`, `POTIONS` or `MISC`, so a market's category tabs
+and a price list's filter agree on where a diamond pickaxe lives. `id()` is the
+config spelling (`enchanted-books`), `byId` reads it back (`armor` too). A
+plugin that wants another answer for a material keeps its own overrides in
+front of it.
+
 ## Where the code is
 
 | | |
 | --- | --- |
-| Public API | `item/Items`, `PluginItems`, `ItemValues`, `Item`, `Source`, `Appearance`, `Traits`, `Potion`, `Trim`, `Banner`, `Consumable`, `Modifier`, `Problems` |
+| Public API | `item/Items`, `PluginItems`, `ItemValues`, `Item`, `Source`, `Appearance`, `Traits`, `Potion`, `Trim`, `Banner`, `Consumable`, `Modifier`, `Problems`, `ItemGroup` |
 | Internal | `item/internal/ItemReader`, `ItemRenderer`, `TraitApplier`, `Registries`, `BannerCodec`, `ItemCache` |
 | Tests | `src/test/java/net/exylia/lib/item/` |
 
