@@ -46,6 +46,8 @@ final class HologramImpl implements Hologram {
     /** One display per line for text, a single one for items and blocks. */
     private volatile DisplayState[] displays;
     private volatile Template[] templates;
+    /** How each text line is drawn, from the tags at its start. */
+    private volatile LineStyle[] styles;
 
     /** What each display currently shows, for the diff. */
     private volatile String[] lastText;
@@ -71,8 +73,9 @@ final class HologramImpl implements Hologram {
         this.config = config;
         this.location = location.clone().add(config.offsetX(), config.offsetY(), config.offsetZ());
         this.intervalMs = Math.max(TICK_MS, config.config().updateInterval() * TICK_MS);
+        this.styles = styles(config.lines());
         this.templates = compile(config.lines());
-        this.displays = build(config, templates.length);
+        this.displays = build(config, styles);
         this.lastText = new String[displays.length];
         this.dynamic = config.config().autoUpdate() && isDynamic(templates);
         this.lastRender = -intervalMs;
@@ -81,9 +84,17 @@ final class HologramImpl implements Hologram {
     private static Template[] compile(List<String> lines) {
         Template[] templates = new Template[lines.size()];
         for (int i = 0; i < lines.size(); i++) {
-            templates[i] = Placeholders.compile(lines.get(i) == null ? "" : lines.get(i));
+            templates[i] = Placeholders.compile(LineStyle.parse(lines.get(i)).body());
         }
         return templates;
+    }
+
+    private static LineStyle[] styles(List<String> lines) {
+        LineStyle[] styles = new LineStyle[lines.size()];
+        for (int i = 0; i < lines.size(); i++) {
+            styles[i] = LineStyle.parse(lines.get(i)).style();
+        }
+        return styles;
     }
 
     private static boolean isDynamic(Template[] templates) {
@@ -100,19 +111,25 @@ final class HologramImpl implements Hologram {
      *
      * <p>Text holograms get one display per line, which is what allows a line
      * to change without touching the others. Item and block holograms are a
-     * single display.
+     * single display. A text line tagged {@code <item:...>} is an item display
+     * standing in the stack.
      */
-    private static DisplayState[] build(HologramConfig config, int lineCount) {
+    private static DisplayState[] build(HologramConfig config, LineStyle[] styles) {
         if (config.type() != HologramConfig.Kind.TEXT) {
             Material material = material(config);
             return new DisplayState[]{
                     new DisplayState(HologramRuntime.newEntityId(), config.type(),
                             config.properties(), material)};
         }
-        DisplayState[] displays = new DisplayState[lineCount];
-        for (int i = 0; i < lineCount; i++) {
-            displays[i] = new DisplayState(HologramRuntime.newEntityId(),
-                    HologramConfig.Kind.TEXT, config.properties());
+        DisplayState[] displays = new DisplayState[styles.length];
+        for (int i = 0; i < styles.length; i++) {
+            LineStyle style = styles[i];
+            HologramConfig.Properties properties = style.apply(config.properties());
+            displays[i] = style.isItem()
+                    ? new DisplayState(HologramRuntime.newEntityId(), HologramConfig.Kind.ITEM,
+                            properties, material(style.item()))
+                    : new DisplayState(HologramRuntime.newEntityId(), HologramConfig.Kind.TEXT,
+                            properties);
         }
         return displays;
     }
@@ -124,7 +141,10 @@ final class HologramImpl implements Hologram {
      * draw anything: it is reported once and stone is used instead.
      */
     private static Material material(HologramConfig config) {
-        String name = config.type() == HologramConfig.Kind.ITEM ? config.item() : config.block();
+        return material(config.type() == HologramConfig.Kind.ITEM ? config.item() : config.block());
+    }
+
+    private static Material material(String name) {
         Material material = Material.matchMaterial(name);
         if (material == null) {
             HologramRuntime.logger().warning("Unknown material '" + name
@@ -163,11 +183,13 @@ final class HologramImpl implements Hologram {
     @Override
     public void lines(@NotNull List<String> lines) {
         Template[] compiled = compile(lines);
-        // A different number of lines means different displays, so viewers have
-        // to be given the new ones rather than an update for entities that no
-        // longer exist.
-        boolean sameShape = compiled.length == templates.length
+        LineStyle[] restyled = styles(lines);
+        // A different number of lines, or lines drawn differently, means
+        // different displays, so viewers have to be given the new ones rather
+        // than an update for entities that no longer look that way.
+        boolean sameShape = java.util.Arrays.equals(restyled, styles)
                 && config.type() == HologramConfig.Kind.TEXT;
+        this.styles = restyled;
         this.templates = compiled;
         // Lines are replaced, so what they resolve from is decided again: text
         // that had a placeholder may no longer have one, and the other way
@@ -177,7 +199,7 @@ final class HologramImpl implements Hologram {
             refresh();
             return;
         }
-        HologramRuntime.rebuild(this, compiled.length);
+        HologramRuntime.rebuild(this);
     }
 
     @Override
@@ -295,6 +317,9 @@ final class HologramImpl implements Hologram {
         String[] previous = lastText;
 
         for (int i = 0; i < current.length && i < lines.length; i++) {
+            if (current[i].kind() != HologramConfig.Kind.TEXT) {
+                continue;
+            }
             String text = lines[i].render(null, data);
             if (text.equals(previous[i])) {
                 continue;
@@ -317,6 +342,9 @@ final class HologramImpl implements Hologram {
         DisplayState[] current = displays;
         Template[] lines = templates;
         for (int i = 0; i < current.length && i < lines.length; i++) {
+            if (current[i].kind() != HologramConfig.Kind.TEXT) {
+                continue;
+            }
             String text = lines[i].render(viewer, data);
             current[i].text(componentFor(lines[i], text, viewer));
             if (send) {
@@ -357,9 +385,9 @@ final class HologramImpl implements Hologram {
             renderFor(viewer, false);
         }
         Location at = location;
-        double spacing = config.properties().lineSpacing();
+        double[] heights = heights(current.length);
         for (int i = 0; i < current.length; i++) {
-            HologramRuntime.sink().spawn(viewer, current[i], lineLocation(at, i, spacing, current.length));
+            HologramRuntime.sink().spawn(viewer, current[i], lineLocation(at, i, heights, current[i]));
         }
         Entity vehicle = mount;
         if (vehicle != null) {
@@ -379,11 +407,11 @@ final class HologramImpl implements Hologram {
     void teleportFor(List<Player> currentViewers) {
         DisplayState[] current = displays;
         Location at = location;
-        double spacing = config.properties().lineSpacing();
+        double[] heights = heights(current.length);
         for (Player viewer : currentViewers) {
             for (int i = 0; i < current.length; i++) {
                 HologramRuntime.sink().teleport(viewer, current[i],
-                        lineLocation(at, i, spacing, current.length));
+                        lineLocation(at, i, heights, current[i]));
             }
         }
     }
@@ -393,10 +421,34 @@ final class HologramImpl implements Hologram {
      *
      * <p>Lines are stacked downwards from the anchor, so the first line is at
      * the top and adding one grows the hologram down rather than moving what
-     * was already there.
+     * was already there. Each line takes the room its size gives it, so a
+     * bigger line pushes the ones above it up instead of overlapping them.
+     * A text display grows up from its position and an item one around it,
+     * so an item stands half its height higher.
      */
-    private static Location lineLocation(Location anchor, int index, double spacing, int count) {
-        return anchor.clone().add(0, (count - 1 - index) * spacing, 0);
+    private static Location lineLocation(Location anchor, int index, double[] heights,
+                                         DisplayState display) {
+        double y = 0;
+        for (int i = index + 1; i < heights.length; i++) {
+            y += heights[i];
+        }
+        if (display.kind() == HologramConfig.Kind.ITEM) {
+            y += heights[index] / 2;
+        }
+        return anchor.clone().add(0, y, 0);
+    }
+
+    /** The room each display takes, bottom-up stacking reads this. */
+    private double[] heights(int count) {
+        double[] heights = new double[count];
+        LineStyle[] current = styles;
+        HologramConfig.Properties base = config.properties();
+        for (int i = 0; i < count; i++) {
+            LineStyle style = config.type() == HologramConfig.Kind.TEXT && i < current.length
+                    ? current[i] : LineStyle.PLAIN;
+            heights[i] = style.height(base);
+        }
+        return heights;
     }
 
     int[] entityIds() {
@@ -409,8 +461,8 @@ final class HologramImpl implements Hologram {
     }
 
     /** Replaces the displays, for a hologram whose line count changed. */
-    void rebuildDisplays(int lineCount) {
-        this.displays = build(config, lineCount);
+    void rebuildDisplays() {
+        this.displays = build(config, styles);
         this.lastText = new String[displays.length];
         refresh();
     }

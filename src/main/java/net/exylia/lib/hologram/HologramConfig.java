@@ -78,6 +78,8 @@ public record HologramConfig(
 
         @Comment("The lines, top first. Supports colours like {primary} and placeholders.")
         @Comment("Only used by TEXT holograms.")
+        @Comment("Start a line with tags to style it alone: <size:2> (bigger, and the lines above make room),")
+        @Comment("<opacity:160>, <background:#66000000>, <shadow:false>, or <item:DIAMOND> for an item in the stack.")
         List<String> lines,
 
         @Comment("The item to show, such as DIAMOND_SWORD. Only used by ITEM holograms.")

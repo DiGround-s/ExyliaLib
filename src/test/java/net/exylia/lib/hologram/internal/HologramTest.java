@@ -270,6 +270,43 @@ class HologramTest {
     }
 
     @Test
+    @DisplayName("a sized line takes room in proportion, pushing the lines above it up")
+    void sizedLinesMakeRoom() {
+        Holograms.show(plugin, "koth", spawn(), text(List.of("top", "<size:2>BIG", "bottom")));
+        drive();
+
+        // bottom 0.25, BIG 0.5, so top stands 0.75 above the anchor.
+        assertEquals(List.of("spawn:Near:1000:64.75", "spawn:Near:1001:64.25",
+                "spawn:Near:1002:64.0"), sink.calls("spawn"));
+        assertTrue(sink.calls("text").isEmpty());
+    }
+
+    @Test
+    @DisplayName("an item line stands in the stack and is never sent text")
+    void itemLinesAreItems() {
+        Holograms.show(plugin, "koth", spawn(), text(List.of("<item:DIAMOND>", "%koth_capturer%")));
+        drive();
+        advanceSeconds(2);
+        capturer.set("Steve");
+        drive();
+
+        // The item is half a block tall and centred, above the 0.25 text line.
+        assertEquals(List.of("spawn:Near:1000:64.5", "spawn:Near:1001:64.0"), sink.calls("spawn"));
+        assertTrue(sink.calls("text").contains("text:Near:1001:Steve"));
+        assertTrue(sink.calls("text").stream().noneMatch(call -> call.startsWith("text:Near:1000:")));
+    }
+
+    @Test
+    @DisplayName("line tags are stripped, unknown or broken ones stay in the text")
+    void lineTagsParse() {
+        LineStyle.Parsed parsed = LineStyle.parse("<size:1.5><opacity:120><shadow:false><bold>Hi");
+        assertEquals(new LineStyle(null, 1.5, 120, null, false), parsed.style());
+        assertEquals("<bold>Hi", parsed.body());
+        assertEquals("<size:big>Hi", LineStyle.parse("<size:big>Hi").body());
+        assertEquals("<gradient:#fff:#000>Hi", LineStyle.parse("<gradient:#fff:#000>Hi").body());
+    }
+
+    @Test
     @DisplayName("moving teleports the displays instead of respawning them")
     void movingTeleports() {
         Hologram hologram = Holograms.show(plugin, "koth", spawn(), text(List.of("Line")));

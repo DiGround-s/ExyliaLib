@@ -695,6 +695,11 @@ Bukkit entity, never an ArmorStand, never a hand-spawned `TextDisplay`.
   player per hologram; packets are only sent when the boundary is crossed.
 - **Only what changed is sent.** A line with no placeholders never refreshes. One
   that has them is diffed and only it is resent, not the whole hologram.
+- **Per-line styling is tags at the start of the line**, never new YAML keys:
+  `<size:N>`, `<opacity:N>`, `<background:#AARRGGBB>`, `<shadow:false>`,
+  `<item:MATERIAL>` (`LineStyle`). A sized line takes room in proportion, so
+  the stack re-lays itself out; anything else at the start is left for the
+  text parser.
 - **Moving is a teleport, not a respawn.** That way a hologram following a player
   doesn't flicker. And mounting it on an entity (`attachTo`) doesn't even send
   packets while it moves: the client moves it along with the vehicle.

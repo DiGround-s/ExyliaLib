@@ -30,6 +30,32 @@ is packets, not a file). The interval is in ticks, like the scoreboard (and,
 like it, also reads `1s`):
 another scoped deviation so commons files keep working.
 
+## Line tags
+
+Tags at the very start of a text line style that line alone (since 1.285.0):
+
+| Tag | Effect |
+| --- | --- |
+| `<size:2.2>` | scales the line on top of `properties.scale-*`; the lines above it move up to make room, so a title never overlaps |
+| `<opacity:160>` | the line's text opacity, 0 to 255 |
+| `<background:#66000000>` | the line's own background (`#AARRGGBB`), e.g. a pill behind a call to action |
+| `<shadow:false>` | turns the shadow off (or `<shadow>` on) for this line |
+| `<item:DIAMOND>` | the line is a floating item instead of text, centred in the stack and facing the player |
+
+```yaml
+lines:
+  - '<size:0.8>{highlight}⚓ — FULLPVP — ⚓'
+  - '<size:2.2>{primary}&lMINERALS'
+  - '<opacity:170>{letters}+%trades% trades available'
+  - '<size:0.5> '
+  - '<background:#55000000>{warning}▸ Click to trade ◂'
+```
+
+Only these tags are read, and only at the start of the line: `<gradient:…>`
+and every other text tag is left for the text parser. A tag whose value does
+not parse (`<size:big>`) stays in the text, so the typo shows on screen. A
+blank `<size:0.5> ` line is a half-height gap.
+
 ## API
 
 `Holograms`:

@@ -298,11 +298,11 @@ public final class HologramRuntime {
         }
     }
 
-    static void rebuild(HologramImpl hologram, int lineCount) {
+    static void rebuild(HologramImpl hologram) {
         for (Player viewer : viewersOf(hologram)) {
             hologram.despawnFor(viewer);
         }
-        hologram.rebuildDisplays(lineCount);
+        hologram.rebuildDisplays();
     }
 
     private static void respawn(HologramImpl hologram) {
