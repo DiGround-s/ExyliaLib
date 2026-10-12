@@ -30,6 +30,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.BiConsumer;
 import java.util.function.Function;
 import java.util.function.LongSupplier;
 
@@ -122,6 +123,7 @@ public final class Notices {
     private final Map<String, NoticeSummary> summaries = new ConcurrentHashMap<>();
     private final Map<String, String> clicks = new ConcurrentHashMap<>();
     private final Map<String, Broadcasts.Channel> mutes = new ConcurrentHashMap<>();
+    private final Map<String, BiConsumer<Player, Notice>> lives = new ConcurrentHashMap<>();
     private volatile @Nullable Function<UUID, List<String>> footer;
     private volatile @Nullable Channel wire;
     private volatile LongSupplier clock = System::currentTimeMillis;
@@ -213,6 +215,26 @@ public final class Notices {
      */
     public @NotNull Notices channel(@NotNull String category, @NotNull Broadcasts.Channel channel) {
         mutes.put(category, channel);
+        return this;
+    }
+
+    /**
+     * Runs alongside every notice of a category shown live — the moment it
+     * reaches a player who is online, on this server or another — for what a
+     * line of chat cannot carry: a sound, a toast, a title. Not run for the
+     * join summary, where ten toasts at once would be noise.
+     *
+     * <p>Runs on the player's thread, after the message; skipped for a muted
+     * category. A hook that throws is reported and the notice still counts as
+     * shown.
+     *
+     * @param category the category
+     * @param then     what to do, given the player and the notice
+     * @return this
+     * @since 1.279.0
+     */
+    public @NotNull Notices live(@NotNull String category, @NotNull BiConsumer<Player, Notice> then) {
+        lives.put(category, then);
         return this;
     }
 
@@ -451,6 +473,14 @@ public final class Notices {
         for (Notice notice : notices) {
             if (heard(player, notice.category())) {
                 say(player, notice.category(), notice.text(plugin));
+                BiConsumer<Player, Notice> then = lives.get(notice.category());
+                if (then != null) {
+                    try {
+                        then.accept(player, notice);
+                    } catch (RuntimeException failed) {
+                        debug.error("The live hook of notices \"" + notice.category() + "\" failed.", failed);
+                    }
+                }
             }
         }
     }

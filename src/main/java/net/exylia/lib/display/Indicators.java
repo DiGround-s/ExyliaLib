@@ -166,6 +166,23 @@ public final class Indicators {
         number(entity, Kind.TEXT, 0, false, text);
     }
 
+    /**
+     * A line floating up from a spot rather than an entity: a block, a chest, a
+     * sign. Nothing is merged, since a spot has no stack to merge into.
+     *
+     * <p>Call from the spot's own thread; its viewers are read there.
+     *
+     * @param at   where it floats out of; the label starts there
+     * @param text what it says, already coloured
+     * @since 1.279.0
+     */
+    public void text(@NotNull Location at, @NotNull Component text) {
+        List<Player> viewers = SequenceTarget.at(at).within(range).observers();
+        if (!viewers.isEmpty()) {
+            shower.show(text, at.clone(), viewers);
+        }
+    }
+
     private void number(Entity entity, Kind kind, double amount, boolean crit,
                         @Nullable Component label) {
         Location base = entity.getLocation();

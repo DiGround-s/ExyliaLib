@@ -32,6 +32,7 @@ notices.send(seller, "sold", "%prefix% {letters}Sold {highlight}%item% {letters}
 | `summary(category, NoticeSummary)` | collapses a category's waiting notices into a few lines on join |
 | `click(category, command)` | every join line of the category runs the command when clicked (hover: *Click to open*) |
 | `channel(category, Broadcasts.Channel)` | a player who muted the channel in `/settings` is not shown that category, live or on join |
+| `live(category, BiConsumer<Player, Notice>)` | runs on the player's thread after each notice of the category shown live (not on join): a sound, a toast. *Since 1.279.0* |
 | `footer(Function<UUID, List<String>>)` | lines after the join summary, or alone, computed off the main thread — "you have 3 items to claim" |
 
 `Notice` is what a summary reads: `category()`, `message()`, `values()`,

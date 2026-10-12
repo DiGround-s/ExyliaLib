@@ -133,6 +133,7 @@ indicators.damage(mob, 7.5, false); // "7.5" in {error}
 indicators.damage(mob, 12, true);   // "✦ 12", bold, in {warning}
 indicators.heal(mob, 4);            // "+4 ❤" in {success}
 indicators.text(mob, component);    // any line
+indicators.text(chest.getLocation().add(0.5, 1.2, 0.5), component); // from a spot, never merged (1.279.0)
 ```
 
 - Two numbers of the same kind within **300 ms** are one: the old one is taken
