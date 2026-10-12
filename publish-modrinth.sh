@@ -16,12 +16,25 @@ changelog_file="${3:-}"
 : "${MODRINTH_TOKEN:?MODRINTH_TOKEN is not set}"
 : "${MODRINTH_PROJECT:?MODRINTH_PROJECT is not set}"
 
-# Everything the build runs on. Widen as new Minecraft versions ship. Assigned
-# before the expansion below because a default written inline would have its
-# quotes eaten by the surrounding ones, and reach jq as invalid JSON.
-default_game_versions='["1.21.4","1.21.5","1.21.6","1.21.7","1.21.8","1.21.9","1.21.10","1.21.11","26.1","26.1.1","26.1.2","26.2"]'
+# Every Minecraft release from the oldest the build runs on to the newest one
+# Modrinth knows, read at publish time so a new Minecraft version is listed
+# without editing this file. Modrinth returns its tags newest first. The fixed
+# list is the fallback when that listing cannot be read. Assigned before the
+# expansion below because a default written inline would have its quotes eaten
+# by the surrounding ones, and reach jq as invalid JSON.
+oldest_game_version='1.21.4'
+default_game_versions='["1.21.4","1.21.5","1.21.6","1.21.7","1.21.8","1.21.9","1.21.10","1.21.11","26.1","26.1.1","26.1.2","26.2","26.3"]'
 default_loaders='["folia","paper","purpur"]'
+if [[ -z "${GAME_VERSIONS:-}" ]]; then
+  GAME_VERSIONS="$(curl -sS -f -H "User-Agent: DiGround-s/ExyliaLib (release workflow)" \
+    "https://api.modrinth.com/v2/tag/game_version" \
+    | jq -c --arg oldest "$oldest_game_version" \
+      '[.[] | select(.version_type == "release") | .version] as $all
+       | ($all | index($oldest)) as $end
+       | if $end == null then empty else $all[0:$end + 1] | reverse end' 2>/dev/null || true)"
+fi
 game_versions="${GAME_VERSIONS:-$default_game_versions}"
+echo "Minecraft versions: ${game_versions}"
 loaders="${LOADERS:-$default_loaders}"
 
 jq -e . >/dev/null <<< "$game_versions"
