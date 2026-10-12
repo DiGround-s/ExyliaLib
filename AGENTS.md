@@ -505,6 +505,10 @@ whatever they have open.
   whose condition fails isn't blank: it **isn't there**.
 - **The session is found through the window's holder**, never through a player →
   menu map. A player who opens a chest on top of a menu isn't ours.
+- **A row of conditional cards is a `group`, not fixed slots.** Items with
+  `group: <id>` instead of `slot` are laid out centred in the `groups.<id>.slots`
+  on every render, visible ones in file order (`spacing: auto|<n>`), so a hidden
+  card leaves no hole. `UiGroup.layout` is the maths; see `docs/menus.md`.
 - **An unreadable condition hides the slot.** Failing the other way gives a
   button to someone who shouldn't have it; this way it is merely invisible.
 - **Nothing outlives its screen.** An `ActionExecution` with delayed steps is

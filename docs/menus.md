@@ -534,6 +534,40 @@ drawn; when none passes the slot is background, exactly as a single hidden
 button would be. Writing them without conditions is a mistake the file made —
 the first one wins and the rest are never seen.
 
+### A row that closes ranks (`groups`, 1.282.0+)
+
+Cards that hide themselves (a feature switched off) leave holes when each has a
+fixed `slot`. Give them a `group` instead, and the visible ones are laid out
+centred in the group's slots on every render:
+
+```yaml
+groups:
+  sections:
+    slots: "19-25"     # any slot expression; order is the layout order
+    spacing: auto      # optional: auto (default) or a fixed gap such as 0 or 1
+items:
+  land:
+    group: sections    # instead of slot:
+    condition: "%land_enabled% == true"
+  people:
+    group: sections
+```
+
+- Members whose condition passes are placed **in file order**. With `auto`, they
+  keep one empty slot between them while `2n - 1` fits the row, and sit side by
+  side otherwise (7 slots: 1 → 22; 2 → 21,23; 3 → 20,22,24; 4 → 19,21,23,25;
+  5 → 20-24; 6 → 19-24). A fixed `spacing` that does not fit falls back to 0.
+  An odd leftover leans left.
+- Group slots left over are background, exactly like a hidden button.
+- More visible members than slots: the extras are not drawn (reported at load
+  when the group has more members than slots).
+- An item takes `slot`/`slots` **or** `group`, never both (an error). A `group`
+  naming an undefined group is reported and the item skipped.
+- Redraws, `refresh`, `PluginMenus.update` and click-redraws lay the group out
+  again; a click resolves to the member actually drawn in that slot.
+- Code that rebuilds a `UiDefinition` with the 13-argument constructor drops its
+  groups; pass `definition.groups()` to the full constructor to keep them.
+
 ## Built-in actions
 
 Registered for every plugin that asks for menus, because turning a page is

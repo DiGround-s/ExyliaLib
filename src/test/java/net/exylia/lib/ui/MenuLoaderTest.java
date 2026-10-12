@@ -1030,4 +1030,55 @@ class MenuLoaderTest {
                 "the first state whose condition passes is the one drawn");
         assertTrue(item.visible(state -> false).isEmpty(), "no state passing hides the slot");
     }
+
+    @Test
+    @DisplayName("items naming a group are collected into it in file order, not into slots")
+    void groups() {
+        List<String> problems = new ArrayList<>();
+        YamlConfiguration config = new YamlConfiguration();
+        try {
+            config.loadFromString("""
+                    size: 36
+                    groups:
+                      sections:
+                        slots: "19-21"
+                        spacing: 0
+                    items:
+                      land:
+                        group: sections
+                        material: STONE
+                        condition: "%land% == true"
+                      people:
+                        group: sections
+                        material: DIRT
+                      stray:
+                        group: missing
+                        material: DIRT
+                      flags:
+                        group: sections
+                        material: DIRT
+                      extra:
+                        group: sections
+                        material: DIRT
+                      back:
+                        slot: 31
+                        material: ARROW
+                    """);
+        } catch (Exception invalid) {
+            throw new IllegalStateException(invalid);
+        }
+        UiDefinition menu = MenuLoader.load("practice:test", config, actions::template,
+                UiSounds.DEFAULTS, (where, problem) -> problems.add(where + ": " + problem));
+
+        UiGroup group = menu.groups().get("sections");
+        assertNotNull(group);
+        assertEquals(List.of(19, 20, 21), group.slots());
+        assertEquals(0, group.spacing());
+        assertEquals(4, group.items().size(), "the undefined group's item is skipped");
+        assertEquals("%land% == true", group.items().getFirst().condition());
+        assertEquals(java.util.Set.of(31), menu.items().keySet(), "group members claim no fixed slot");
+        assertEquals(group, menu.groupAt(20));
+        assertTrue(menu.isDynamic());
+        assertEquals(2, problems.size(), "undefined group and overflow are reported: " + problems);
+    }
 }

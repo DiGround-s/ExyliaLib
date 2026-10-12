@@ -15,6 +15,9 @@ import java.util.Map;
  * than item stacks. That is what makes opening a menu cheap — the expensive
  * part happened when the file was read.
  *
+ * <p>{@code groups} are rows of items that pack themselves centred, see
+ * {@link UiGroup}; a group's slots are not in {@code items}.
+ *
  * @since 1.22.0
  */
 public record UiDefinition(
@@ -30,14 +33,43 @@ public record UiDefinition(
         @NotNull UiRefresh refresh,
         @NotNull List<String> openActions,
         @NotNull List<String> closeActions,
-        @Nullable String parent) {
+        @Nullable String parent,
+        @NotNull Map<String, UiGroup> groups) {
 
     public UiDefinition {
         items = Map.copyOf(items);
+        groups = Map.copyOf(groups);
         sections = Map.copyOf(sections);
         inputSlots = List.copyOf(inputSlots);
         openActions = List.copyOf(openActions);
         closeActions = List.copyOf(closeActions);
+    }
+
+    /** A menu with no groups, as every menu was before 1.282.0. */
+    public UiDefinition(@NotNull String id, @NotNull String title, @NotNull UiKind kind, int size,
+                        @NotNull Map<Integer, UiItem> items, @NotNull UiFillers fillers,
+                        @NotNull Map<String, UiSection> sections, @NotNull List<Integer> inputSlots,
+                        @NotNull UiSounds sounds, @NotNull UiRefresh refresh,
+                        @NotNull List<String> openActions, @NotNull List<String> closeActions,
+                        @Nullable String parent) {
+        this(id, title, kind, size, items, fillers, sections, inputSlots, sounds, refresh,
+                openActions, closeActions, parent, Map.of());
+    }
+
+    /**
+     * The group drawing in a slot, if any.
+     *
+     * @param slot the slot
+     * @return the group owning it, or {@code null}
+     * @since 1.282.0
+     */
+    public @Nullable UiGroup groupAt(int slot) {
+        for (UiGroup group : groups.values()) {
+            if (group.slots().contains(slot)) {
+                return group;
+            }
+        }
+        return null;
     }
 
     /**
@@ -240,7 +272,7 @@ public record UiDefinition(
 
     /** Returns whether anything in this menu can change while it is open. */
     public boolean isDynamic() {
-        if (isPaginated() || title.indexOf('%') >= 0) {
+        if (isPaginated() || !groups.isEmpty() || title.indexOf('%') >= 0) {
             return true;
         }
         for (UiItem item : items.values()) {

@@ -5,6 +5,7 @@ import net.exylia.lib.item.PluginItems;
 import net.exylia.lib.text.Text;
 import net.exylia.lib.ui.UiDefinition;
 import net.exylia.lib.ui.UiEntry;
+import net.exylia.lib.ui.UiGroup;
 import net.exylia.lib.ui.UiItem;
 import net.exylia.lib.ui.Pages;
 import net.exylia.lib.ui.UiFillers;
@@ -344,6 +345,13 @@ final class Session implements UiSession {
                 redrawn += list.slots().size();
             }
         }
+        for (UiGroup group : definition.groups().values()) {
+            if (group.items().stream().anyMatch(item -> dependsOnAny(item, changed))) {
+                group.slots().forEach(drawn::forget);
+                drawGroup(group);
+                redrawn += group.slots().size();
+            }
+        }
         return redrawn;
     }
 
@@ -370,6 +378,11 @@ final class Session implements UiSession {
             drawFixed(slot, fixed);
             return true;
         }
+        UiGroup group = definition.groupAt(slot);
+        if (group != null) {
+            drawGroup(group);
+            return true;
+        }
         UiSection list = definition.sectionAt(slot);
         if (list == null) {
             return false;
@@ -391,6 +404,7 @@ final class Session implements UiSession {
         for (Map.Entry<Integer, UiItem> fixed : definition.items().entrySet()) {
             drawFixed(fixed.getKey(), fixed.getValue());
         }
+        drawGroups();
     }
 
     /**
@@ -423,6 +437,7 @@ final class Session implements UiSession {
                 drawFixed(fixed.getKey(), fixed.getValue());
             }
         }
+        drawGroups();
         for (UiSection list : definition.sections().values()) {
             UiItem template = list.template(null);
             if ((template != null && template.isDynamic()) || !entries(list.id()).isEmpty()
@@ -579,6 +594,10 @@ final class Session implements UiSession {
                 drawFixed(fixed.getKey(), fixed.getValue());
             }
         }
+        if (definition.groupAt(clicked) != null) {
+            drawn.forget(clicked);
+        }
+        drawGroups();
         for (UiSection list : definition.sections().values()) {
             drawSection(list);
         }
@@ -849,6 +868,7 @@ final class Session implements UiSession {
         for (Map.Entry<Integer, UiItem> fixed : definition.items().entrySet()) {
             drawFixed(fixed.getKey(), fixed.getValue());
         }
+        drawGroups();
         for (UiSection list : definition.sections().values()) {
             drawSection(list);
         }
@@ -922,6 +942,9 @@ final class Session implements UiSession {
         }
         Set<Integer> reserved = new LinkedHashSet<>(definition.items().keySet());
         reserved.addAll(definition.inputSlots());
+        for (UiGroup group : definition.groups().values()) {
+            reserved.addAll(group.slots());
+        }
         for (UiSection list : definition.sections().values()) {
             reserved.addAll(list.slots());
             // A page arrow's slot is the list's too, drawn or not: the list
@@ -974,18 +997,51 @@ final class Session implements UiSession {
     private void drawFixed(int slot, UiItem item) {
         UiItem visible = item.visible(state -> passes(state, Map.of())).orElse(null);
         if (visible == null) {
-            UiItem background = definition.fillers().backgroundAt(slot);
-            if (background == null) {
-                put(slot, null);
-                slots.remove(slot);
-            } else {
-                paint(slot, background);
-                slots.put(slot, Rendered.FILLER);
-            }
+            drawHidden(slot);
             return;
         }
         paint(slot, visible);
         slots.put(slot, Rendered.of(visible));
+    }
+
+    /** Puts the background where a hidden button would have been. */
+    private void drawHidden(int slot) {
+        UiItem background = definition.fillers().backgroundAt(slot);
+        if (background == null) {
+            put(slot, null);
+            slots.remove(slot);
+        } else {
+            paint(slot, background);
+            slots.put(slot, Rendered.FILLER);
+        }
+    }
+
+    private void drawGroups() {
+        for (UiGroup group : definition.groups().values()) {
+            drawGroup(group);
+        }
+    }
+
+    /**
+     * Lays a group out again: its members whose condition passes, centred in
+     * its slots, and the background in the rest. A click finds whichever
+     * member landed in the slot, because that is what is recorded.
+     */
+    private void drawGroup(UiGroup group) {
+        List<UiItem> shown = new ArrayList<>(group.items().size());
+        for (UiItem member : group.items()) {
+            member.visible(state -> passes(state, Map.of())).ifPresent(shown::add);
+        }
+        Map<Integer, UiItem> placed = group.place(shown);
+        for (int slot : group.slots()) {
+            UiItem item = placed.get(slot);
+            if (item == null) {
+                drawHidden(slot);
+                continue;
+            }
+            paint(slot, item);
+            slots.put(slot, Rendered.of(item));
+        }
     }
 
     /** Draws one list at its current page. */

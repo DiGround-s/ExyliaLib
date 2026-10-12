@@ -5,6 +5,7 @@ import net.exylia.lib.item.Items;
 import net.exylia.lib.ui.ClickBindings;
 import net.exylia.lib.ui.Slots;
 import net.exylia.lib.ui.UiDefinition;
+import net.exylia.lib.ui.UiGroup;
 import net.exylia.lib.ui.UiItem;
 import net.exylia.lib.ui.UiFillers;
 import net.exylia.lib.ui.UiRefresh;
@@ -144,7 +145,12 @@ public final class MenuLoader {
         int size = size(config, kind);
 
         Map<Integer, UiItem> items = new LinkedHashMap<>();
-        readItems(config.getConfigurationSection("items"), binder, size, items);
+        Map<String, List<Integer>> groupSlots = readGroupSlots(
+                config.getConfigurationSection("groups"), binder, size);
+        Map<String, List<UiItem>> members = new LinkedHashMap<>();
+        readItems(config.getConfigurationSection("items"), binder, size, items, groupSlots, members);
+        Map<String, UiGroup> groups = groups(config.getConfigurationSection("groups"),
+                groupSlots, members, binder);
 
         UiFillers fillers = readFillers(config.getConfigurationSection("filler"), binder);
         Map<String, UiSection> sections = readSections(config, binder, size);
@@ -165,7 +171,7 @@ public final class MenuLoader {
                 sounds, refresh,
                 config.getStringList("open-actions"),
                 config.getStringList("close-actions"),
-                config.getString("parent"));
+                config.getString("parent"), groups);
     }
 
     /**
@@ -221,13 +227,30 @@ public final class MenuLoader {
      */
     private static void readItems(ConfigurationSection section,
                                   Binder binder,
-                                  int size, Map<Integer, UiItem> into) {
+                                  int size, Map<Integer, UiItem> into,
+                                  Map<String, List<Integer>> groupSlots,
+                                  Map<String, List<UiItem>> members) {
         if (section == null) {
             return;
         }
         for (String key : section.getKeys(false)) {
             ConfigurationSection itemSection = section.getConfigurationSection(key);
             if (itemSection == null) {
+                continue;
+            }
+            if (itemSection.contains("group")) {
+                if (itemSection.contains("slot") || itemSection.contains("slots")) {
+                    throw new IllegalArgumentException(
+                            "Item \"" + key + "\" declares both group and slot; pick one");
+                }
+                String group = itemSection.getString("group", "");
+                if (!groupSlots.containsKey(group)) {
+                    binder.problems().found("item \"" + key + "\"",
+                            "names group \"" + group + "\", which is not defined; skipped");
+                    continue;
+                }
+                members.computeIfAbsent(group, ignored -> new ArrayList<>())
+                        .add(readItem(itemSection, binder));
                 continue;
             }
             UiItem item = readItem(itemSection, binder);
@@ -238,6 +261,72 @@ public final class MenuLoader {
                 into.merge(slot, item, UiItem::withAlternate);
             }
         }
+    }
+
+    /** Reads where each group may draw, keeping only slots inside the menu. */
+    private static Map<String, List<Integer>> readGroupSlots(ConfigurationSection section,
+                                                             Binder binder, int size) {
+        Map<String, List<Integer>> groups = new LinkedHashMap<>();
+        if (section == null) {
+            return groups;
+        }
+        for (String id : section.getKeys(false)) {
+            ConfigurationSection group = section.getConfigurationSection(id);
+            if (group == null) {
+                continue;
+            }
+            List<Integer> where = new ArrayList<>(slots(group, "slots"));
+            where.removeIf(slot -> !fits(binder, "group \"" + id + "\"", slot, size));
+            if (where.isEmpty()) {
+                binder.problems().found("group \"" + id + "\"", "has no slots; skipped");
+                continue;
+            }
+            groups.put(id, List.copyOf(where));
+        }
+        return groups;
+    }
+
+    /**
+     * Builds the groups once their members are known.
+     *
+     * <p>A group with more members than slots still loads: only as many as fit
+     * are drawn, which is enough when some are usually hidden. Said once here
+     * so the owner knows a card may go missing.
+     */
+    private static Map<String, UiGroup> groups(ConfigurationSection section,
+                                               Map<String, List<Integer>> slots,
+                                               Map<String, List<UiItem>> members,
+                                               Binder binder) {
+        Map<String, UiGroup> groups = new LinkedHashMap<>();
+        slots.forEach((id, where) -> {
+            List<UiItem> items = members.getOrDefault(id, List.of());
+            if (items.size() > where.size()) {
+                binder.problems().found("group \"" + id + "\"", items.size()
+                        + " items for " + where.size() + " slots; the extras are not drawn when all are visible");
+            }
+            groups.put(id, new UiGroup(id, where, items,
+                    spacing(section.getConfigurationSection(id), id, binder)));
+        });
+        return groups;
+    }
+
+    /** {@code auto} (or absent) is {@link UiGroup#AUTO}; otherwise a gap of zero or more. */
+    private static int spacing(ConfigurationSection group, String id, Binder binder) {
+        String raw = group.getString("spacing", "auto").trim();
+        if (raw.equalsIgnoreCase("auto")) {
+            return UiGroup.AUTO;
+        }
+        try {
+            int gap = Integer.parseInt(raw);
+            if (gap >= 0) {
+                return gap;
+            }
+        } catch (NumberFormatException ignored) {
+            // reported below
+        }
+        binder.problems().found("group \"" + id + "\" spacing \"" + raw + "\"",
+                "not auto or a number of zero or more; using auto");
+        return UiGroup.AUTO;
     }
 
     private static List<Integer> itemSlots(ConfigurationSection section, String key) {
