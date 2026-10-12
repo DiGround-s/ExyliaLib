@@ -29,7 +29,7 @@ import java.util.List;
  *     }
  *     protected void onEnable() { manager = new MarketManager(); }
  *     protected void onDisable() { if (manager != null) manager.shutdown(); }
- *     protected void commands(Lamp<BukkitCommandActor> lamp) { lamp.register(new MarketCommand()); }
+ *     protected List<Object> commandHandlers() { return List.of(new MarketCommand()); }
  *     protected void timers() { timer(1200L, 1200L, () -> manager.sweep()); }
  * }
  * }</pre>
@@ -47,7 +47,7 @@ import java.util.List;
  *       {@link #onDisable()} and leaves it off, so {@code onDisable} must
  *       tolerate managers that were never built.</li>
  *   <li>{@link #actions(PluginActions)}, then {@link #menus()}, then
- *       {@link #commands(Lamp)} run once, at plugin start, after every module
+ *       {@link #commandHandlers()} run once, at plugin start, after every module
  *       is enabled and only for the ones that are. Actions come before menus
  *       because compiling a menu resolves the actions its buttons name.</li>
  *   <li>{@link #loadOnlinePlayers(Collection)} runs once, at plugin start, for
@@ -227,7 +227,32 @@ public abstract class PluginModule {
         return List.of();
     }
 
-    /** Registers this module's commands. */
+    /**
+     * This module's command handlers, the objects the plugin hands to its own
+     * {@code Lamp#register}.
+     *
+     * <p>Handed back as plain objects so no Lamp type crosses between this
+     * library and the plugin: each plugin gets its own copy of Lamp from its
+     * own library loader, and a plugin class that overrides or calls a library
+     * method naming {@code Lamp} ties the two copies together, which the JVM
+     * refuses with a {@link LinkageError} the moment they differ.
+     *
+     * @return the handlers, possibly none
+     * @since 1.280.0
+     */
+    protected @NotNull List<Object> commandHandlers() {
+        return List.of();
+    }
+
+    /**
+     * Registers this module's commands.
+     *
+     * @deprecated overriding it names Lamp across the library boundary, which
+     * fails to link when the plugin's Lamp is not the library's (any plugin
+     * started through a loader). Return the handlers from
+     * {@link #commandHandlers()} instead.
+     */
+    @Deprecated
     protected void commands(@NotNull Lamp<BukkitCommandActor> lamp) {
     }
 

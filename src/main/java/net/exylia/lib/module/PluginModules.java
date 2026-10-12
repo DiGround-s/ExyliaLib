@@ -34,7 +34,7 @@ import java.util.function.Function;
  * modules.register(new AuctionsModule());   // requiredModules() = ["market"]
  * modules.registerActions(actions);
  * menus.load(modules.menuIds());
- * modules.registerCommands(lamp);
+ * modules.commandHandlers().forEach(lamp::register);
  * modules.loadOnlinePlayers(Bukkit.getOnlinePlayers());
  * modules.startTimers();
  * // on reload:  modules.reloadConfigs();
@@ -174,7 +174,26 @@ public final class PluginModules {
         return ids;
     }
 
-    /** Every running module's commands. */
+    /**
+     * Every running module's command handlers, for the plugin to register with
+     * its own Lamp: {@code lamp.register(modules.commandHandlers().toArray())}.
+     *
+     * @return the handlers, in module order
+     * @since 1.280.0
+     */
+    public @NotNull List<Object> commandHandlers() {
+        List<Object> handlers = new ArrayList<>();
+        eachRunning("commands", module -> handlers.addAll(module.commandHandlers()));
+        return handlers;
+    }
+
+    /**
+     * Every running module's commands.
+     *
+     * @deprecated names Lamp across the library boundary; see
+     * {@link PluginModule#commandHandlers()}. Use {@link #commandHandlers()}.
+     */
+    @Deprecated
     public void registerCommands(@NotNull Lamp<BukkitCommandActor> lamp) {
         eachRunning("commands", module -> module.commands(lamp));
     }
