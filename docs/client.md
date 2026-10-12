@@ -31,6 +31,7 @@ Clients.markers().update(viewer, teammates);
 | `waypoints()` / `cooldowns()` / `markers()` | the three feature groups, unowned |
 | `teams(plugin)` | teams whose members see each other's markers |
 | `brandOf(player)` | `ClientBrand.VANILLA`, `LUNAR` or `FEATHER` |
+| `isBedrock(player)` / `isBedrock(uuid)` | whether the player joined through Geyser/Floodgate (1.277.0) |
 | `isSupported()` | whether any integration is live here |
 | `clear(player)` | forget everything sent to that player, by anyone |
 

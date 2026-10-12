@@ -1,10 +1,12 @@
 package net.exylia.lib.client;
 
 import net.exylia.lib.client.internal.ClientRuntime;
+import net.exylia.lib.input.internal.Bedrocks;
 import org.bukkit.entity.Player;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.Collection;
+import java.util.UUID;
 
 /**
  * Entry point of the client module.
@@ -173,6 +175,36 @@ public final class Clients {
      */
     public static @NotNull ClientBrand brandOf(@NotNull Player player) {
         return ClientRuntime.brandOf(player);
+    }
+
+    /**
+     * Returns whether a player is connected through a Bedrock bridge.
+     *
+     * <p>Floodgate answers when it is installed, since only it knows a linked
+     * player; otherwise the UUID does, the way Geyser recommends. Rarely
+     * needed: for what a Bedrock client cannot draw (display entities, for
+     * instance) or for keeping Bedrock and Java results apart.
+     *
+     * @param player the player
+     * @return {@code true} when the player is on Bedrock
+     * @since 1.277.0
+     */
+    public static boolean isBedrock(@NotNull Player player) {
+        return isBedrock(player.getUniqueId());
+    }
+
+    /**
+     * Returns whether a UUID belongs to a Bedrock player.
+     *
+     * <p>A linked player who is offline cannot be told apart from their Java
+     * account and answers {@code false}.
+     *
+     * @param playerId the player's UUID
+     * @return {@code true} when the UUID is a Bedrock player's
+     * @since 1.277.0
+     */
+    public static boolean isBedrock(@NotNull UUID playerId) {
+        return Bedrocks.isBedrock(playerId);
     }
 
     /**
