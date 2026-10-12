@@ -162,6 +162,27 @@ public final class PluginModules {
         }
     }
 
+    /**
+     * Reloads one running module's files and runs its {@code onReload}, as
+     * {@link #reloadConfigs()} does for every module. For an in-game editor that
+     * changed one module's settings and wants them live without touching the rest.
+     *
+     * @return {@code false} when no module with this id is running
+     * @throws RuntimeException whatever the module's reload threw, after it is logged
+     * @since 1.284.0
+     */
+    public boolean reload(@NotNull String id) {
+        PluginModule module = getModule(id).orElse(null);
+        if (module == null) return false;
+        try {
+            module.reloadConfig();
+        } catch (RuntimeException | LinkageError failure) {
+            debug().error("Module " + id + " failed to reload", failure);
+            throw failure;
+        }
+        return true;
+    }
+
     /** Every running module's actions; before the menus are compiled. */
     public void registerActions(@NotNull PluginActions actions) {
         eachRunning("actions", module -> module.actions(actions));

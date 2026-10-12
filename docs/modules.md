@@ -59,8 +59,10 @@ public final class AuctionsModule extends PluginModule {
 - **Lookups.** `getModule(id[, type])` and `isEnabled(id)` answer only for
   running modules, from any thread.
 - **Reload.** `reloadConfigs` reloads each module on its own and throws, naming
-  the ones that failed, after the rest reloaded. `pendingRestart()` lists the
-  modules whose switch changed since start.
+  the ones that failed, after the rest reloaded. `reload(id)` (1.284.0) does
+  the same for one running module, for an in-game editor that changed only its
+  settings; it answers `false` when that module is not running.
+  `pendingRestart()` lists the modules whose switch changed since start.
 - **Lifecycle.** Driven from the main thread; nothing outlives `disableAll()`.
   Palette-derived state: none kept here.
 
