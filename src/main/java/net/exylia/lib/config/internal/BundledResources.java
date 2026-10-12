@@ -250,6 +250,10 @@ public final class BundledResources {
      * Lays one YAML file over another: the upper wins, and a key only the lower
      * has is added, so a button new in English reaches a translation that does
      * not have it yet. An upper file with nothing to add is copied byte for byte.
+     *
+     * <p>A partial upper, such as a translation that only carries the text of a
+     * file, is written in the lower file's order and keeps its comments, so it
+     * still reads like the file it translates.
      */
     private static void layer(Path upper, Path lower) throws IOException {
         YamlConfiguration top = new YamlConfiguration();
@@ -264,16 +268,59 @@ public final class BundledResources {
         boolean added = false;
         for (String key : base.getKeys(true)) {
             if (!base.isConfigurationSection(key) && !top.contains(key)) {
-                top.set(key, base.get(key));
                 added = true;
+                break;
             }
         }
         if (!added) {
             Files.copy(upper, lower, StandardCopyOption.REPLACE_EXISTING);
             return;
         }
-        top.options().width(Integer.MAX_VALUE);
-        Files.writeString(lower, top.saveToString(), StandardCharsets.UTF_8);
+        Files.writeString(lower, laid(top, base).saveToString(), StandardCharsets.UTF_8);
+    }
+
+    private static YamlConfiguration laid(YamlConfiguration top, YamlConfiguration base) {
+        YamlConfiguration merged = new YamlConfiguration();
+        merged.options().width(Integer.MAX_VALUE);
+        merged.options().setHeader(either(top.options().getHeader(), base.options().getHeader()));
+        merged.options().setFooter(either(top.options().getFooter(), base.options().getFooter()));
+        String replaced = null;
+        for (String key : base.getKeys(true)) {
+            if (replaced != null && key.startsWith(replaced)) {
+                continue;
+            }
+            if (top.contains(key) && !top.isConfigurationSection(key)) {
+                merged.set(key, top.get(key));
+                replaced = key + '.';
+            } else if (base.isConfigurationSection(key)) {
+                merged.createSection(key);
+            } else {
+                merged.set(key, base.get(key));
+            }
+            comment(merged, key, top, base);
+        }
+        for (String key : top.getKeys(true)) {
+            if (merged.contains(key)) {
+                continue;
+            }
+            if (top.isConfigurationSection(key)) {
+                merged.createSection(key);
+            } else {
+                merged.set(key, top.get(key));
+            }
+            comment(merged, key, top, base);
+        }
+        return merged;
+    }
+
+    private static void comment(YamlConfiguration merged, String key, YamlConfiguration top,
+                                YamlConfiguration base) {
+        merged.setComments(key, either(top.getComments(key), base.getComments(key)));
+        merged.setInlineComments(key, either(top.getInlineComments(key), base.getInlineComments(key)));
+    }
+
+    private static List<String> either(List<String> preferred, List<String> fallback) {
+        return preferred.isEmpty() ? fallback : preferred;
     }
 
     private static boolean isYaml(Path file) {

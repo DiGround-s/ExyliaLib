@@ -145,6 +145,22 @@ class LanguagesTest {
     }
 
     @Test
+    void aPartialTranslationKeepsTheEnglishOrderAndComments() throws Exception {
+        pack("lang-order/main.yml", "# The item\nitem:\n  material: STONE\n  name: Stone\n"
+                + "  lore:\n  - Plain\n# How it works\nfeatures:\n- type: ability\n");
+        pack("lang/es/lang-order/main.yml", "item:\n  name: Piedra\n  lore:\n  - Simple\n");
+        onDisk("config.yml", "language: es\n");
+
+        assertTrue(Languages.refresh(plugin, LanguagesTest.class, "lang-order"));
+
+        String text = read("lang/es/lang-order/main.yml");
+        assertTrue(text.contains("# The item") && text.contains("# How it works"), text);
+        assertTrue(text.indexOf("material") < text.indexOf("Piedra")
+                && text.indexOf("Simple") < text.indexOf("features"), text);
+        assertFalse(text.contains("Stone") || text.contains("Plain"), text);
+    }
+
+    @Test
     void englishFilesMayStillSitAtTheRootOfTheJar() throws Exception {
         pack("lang-root/main.yml", "title: Root\n");
         pack("lang/es/lang-root/main.yml", "title: Raiz\n");
