@@ -79,6 +79,12 @@ import net.exylia.lib.config.Time;
 @Comment("preferences and announcement channels into. The library adds no player")
 @Comment("command unless it is enabled here; a plugin can still open the screen from")
 @Comment("its own command. Changing the command needs a restart.")
+@Comment("")
+@Comment("toasts: the advancement popups plugins show. Without PacketEvents they")
+@Comment("cannot be drawn, and fallback says what is shown instead.")
+@Comment("")
+@Comment("notices: messages a plugin left for a player who was away, shown when")
+@Comment("they next join. keep-days is how long one waits before it is deleted.")
 public record LibrarySettings(
         @Comment("Language of the whole server: en, es, pt or fr. Every Exylia plugin whose own")
         @Comment("language is 'default' follows it, and so do the library's screens and prompts.")
@@ -136,8 +142,47 @@ public record LibrarySettings(
         @Comment("Any public head service works, such as https://crafatar.com/avatars/%uuid%?size=64&overlay")
         String webhookHead,
 
-        PlayerSettings settings
+        PlayerSettings settings,
+
+        Toasts toasts,
+
+        Notices notices
 ) {
+
+    /**
+     * The {@code toasts:} block.
+     *
+     * @param fallback what a toast becomes without PacketEvents
+     * @since 1.278.0
+     */
+    public record Toasts(
+            @Comment("What a toast becomes without PacketEvents: action-bar, title, chat or none.")
+            String fallback
+    ) {
+
+        /** The default: the action bar. */
+        public Toasts() {
+            this("action-bar");
+        }
+    }
+
+    /**
+     * The {@code notices:} block.
+     *
+     * @param keepDays how long an undelivered notice waits
+     * @since 1.278.0
+     */
+    public record Notices(
+            @Key("keep-days")
+            @Comment("Days an undelivered notice is kept before it is deleted unread. At least 1.")
+            int keepDays
+    ) {
+
+        /** The default: thirty days. */
+        public Notices() {
+            this(30);
+        }
+    }
 
     /** The head service a webhook message draws a player's head from by default. */
     public static final String DEFAULT_WEBHOOK_HEAD = "https://mc-heads.net/avatar/%uuid%/64";
@@ -245,7 +290,7 @@ public record LibrarySettings(
     /** Safe defaults used when no config file exists yet. */
     public LibrarySettings() {
         this(Languages.ENGLISH, true, 30, false, true, "auto:0.4", DEFAULT_FALLBACK_HEAD, "", "", "normal", new Metrics(),
-                new PluginUpdates(), DEFAULT_WEBHOOK_HEAD, new PlayerSettings());
+                new PluginUpdates(), DEFAULT_WEBHOOK_HEAD, new PlayerSettings(), new Toasts(), new Notices());
     }
 
     private static volatile LibrarySettings instance;

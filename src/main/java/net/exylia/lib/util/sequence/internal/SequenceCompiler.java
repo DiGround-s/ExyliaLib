@@ -123,6 +123,7 @@ public final class SequenceCompiler {
             case "BLOCK_BREAK" -> blockBreak(args, line, onArg);
             case "TITLE" -> title(args, rest, onArg);
             case "ACTION_BAR" -> text(rest, onArg, Steps.ActionBarStep::new);
+            case "TOAST" -> toast(rest, line, onArg);
             case "MESSAGE" -> text(rest, onArg, Steps.Message::new);
             case "LID" -> lid(args, line, onArg);
             case "NPC" -> npc(args, line, onArg);
@@ -908,6 +909,26 @@ public final class SequenceCompiler {
         long stay = millis(parts, 3, 3.5);
         long fadeOut = millis(parts, 4, 1.0);
         return new Steps.TitleStep(title, subtitle, fadeIn, stay, fadeOut, read.who());
+    }
+
+    /** {@code [TOAST] icon;frame;text}; the text keeps any further semicolons. */
+    private @Nullable SequenceStep toast(String rest, String line, Args.Problems onArg) {
+        Addressed read = readers(rest, onArg);
+        String[] parts = read.text().split(";", 3);
+        if (parts.length < 3 || parts[2].isBlank()) {
+            problems.found(line, "needs an icon, a frame and a text, as in [TOAST] EMERALD;GOAL;{success}Sold!");
+            return null;
+        }
+        org.bukkit.Material icon = org.bukkit.Material.matchMaterial(parts[0].trim());
+        if (icon == null) {
+            problems.found(line, "there is no item called \"" + parts[0].trim() + "\"");
+            return null;
+        }
+        String frame = parts[1].trim().toUpperCase(Locale.ROOT);
+        if (!frame.isEmpty() && !frame.equals("TASK") && !frame.equals("GOAL") && !frame.equals("CHALLENGE")) {
+            onArg.found("frame", "\"" + parts[1].trim() + "\" is not task, goal or challenge");
+        }
+        return new Steps.Toast(icon, net.exylia.lib.toast.Toasts.Frame.of(frame), parts[2].trim(), read.who());
     }
 
     // ------------------------------------------------------------------ helpers

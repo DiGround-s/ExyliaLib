@@ -192,6 +192,7 @@ final class SequenceLine {
             case "FIREWORK" -> "FIREWORK_STAR";
             case "TITLE" -> "OAK_SIGN";
             case "ACTION_BAR" -> "PAPER";
+            case "TOAST" -> "KNOWLEDGE_BOOK";
             case "MESSAGE" -> "WRITTEN_BOOK";
             case "COMMAND" -> "COMMAND_BLOCK";
             case "LIGHTNING" -> "LIGHTNING_ROD";
@@ -327,6 +328,7 @@ final class SequenceLine {
         tokens.add("BLOCK_BREAK");
         tokens.add("TITLE");
         tokens.add("ACTION_BAR");
+        tokens.add("TOAST");
         tokens.add("MESSAGE");
         tokens.add("COMMAND");
         tokens.add("NPC");
@@ -403,6 +405,10 @@ final class SequenceLine {
                     new Field("fade_in", Phrases.tr("Fade in"), Phrases.tr("0.5, or 500ms")),
                     new Field("stay", Phrases.tr("Stays for"), Phrases.tr("3.5, or 1m")),
                     new Field("fade_out", Phrases.tr("Fade out"), Phrases.tr("1, or 1s"))));
+            case "TOAST" -> new Spec(token, Head.NONE, Form.POSITIONAL, List.of(
+                    new Field("icon", Phrases.tr("Icon"), Phrases.tr("an item, such as EMERALD")),
+                    new Field("frame", Phrases.tr("Frame"), Phrases.tr("TASK, GOAL or CHALLENGE")),
+                    new Field("text", Phrases.tr("Text"), null)));
             case "NPC" -> new Spec(token, Head.NONE, Form.NAMED, List.of(
                     new Field("pose", Phrases.tr("How it lies"),
                             Phrases.tr("lying, standing, crawling, sneaking or spinning")),

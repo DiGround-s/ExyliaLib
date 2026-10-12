@@ -148,6 +148,20 @@ public interface PendingRewards {
     }
 
     /**
+     * How many batches a player is owed, leaving them where they are.
+     *
+     * <p>For a "you have 3 rewards to claim" line, such as a
+     * {@code Notices.footer}. Called off the main thread.
+     *
+     * @param player whose rewards
+     * @return batches owed; {@code 0} for a store that is not {@link #browsable()}
+     * @since 1.278.0
+     */
+    default int count(@NotNull UUID player) {
+        return browsable() ? peek(player).size() : 0;
+    }
+
+    /**
      * Takes one batch, leaving the rest.
      *
      * <p>The same promise as {@link #claim}: whatever comes back has already

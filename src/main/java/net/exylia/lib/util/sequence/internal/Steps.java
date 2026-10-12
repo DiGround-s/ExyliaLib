@@ -397,6 +397,19 @@ final class Steps {
         }
     }
 
+    /** An advancement toast, to whoever the line says; the source unless it says otherwise. */
+    record Toast(org.bukkit.Material icon, net.exylia.lib.toast.Toasts.Frame frame, String text, Readers who)
+            implements SequenceStep {
+
+        @Override
+        public void play(@NotNull SequenceTarget target, @NotNull SequenceRun run) {
+            String line = target.fill(text);
+            for (Player reader : who.of(target)) {
+                net.exylia.lib.toast.Toasts.send(reader, icon, line, frame);
+            }
+        }
+    }
+
     /**
      * A line of chat, to whoever the line says; the source unless it says
      * otherwise.

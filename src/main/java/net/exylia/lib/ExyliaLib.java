@@ -702,6 +702,7 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         // moment it was taken, so a shutdown has nothing left to write.
         Snapshots.releaseAll();
         net.exylia.lib.util.NetworkCooldowns.releaseAll();
+        net.exylia.lib.notice.Notices.releaseAll();
         net.exylia.lib.settings.internal.SettingsRuntime.releaseAll();
         net.exylia.lib.player.Accounts.releaseAll();
         // Before the datasources and the Redis client it shares: a subscriber
@@ -829,6 +830,8 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         // Both only start a database call and return: the answer lands off
         // this thread, and a network cooldown refuses until it has.
         net.exylia.lib.util.NetworkCooldowns.joined(id);
+        // Schedules its read for a few seconds on; nothing waits for it here.
+        net.exylia.lib.notice.Notices.joined(player);
         net.exylia.lib.settings.internal.SettingsRuntime.joined(id);
         // Permissions are settled by the time a player joins; whatever was
         // read before (an offline payout) knew none of them.
@@ -1096,6 +1099,7 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         // Before the database module for the same reason: they hold the
         // plugin's repositories, and a join must not write through a closed one.
         net.exylia.lib.util.NetworkCooldowns.release(plugin);
+        net.exylia.lib.notice.Notices.release(plugin);
         net.exylia.lib.settings.internal.SettingsRuntime.release(plugin);
         net.exylia.lib.player.Accounts.release(plugin);
         // Here rather than in the event, so a plugin can still announce its

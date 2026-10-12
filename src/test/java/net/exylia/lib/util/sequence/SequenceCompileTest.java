@@ -65,6 +65,22 @@ class SequenceCompileTest {
         assertTrue(problems.isEmpty(), "the line should compile: " + problems);
     }
 
+    @Test
+    @DisplayName("a toast compiles with its icon, frame and text, and refuses an unknown icon")
+    void toastCompiles() {
+        List<String> found = new java.util.ArrayList<>();
+        var compiler = SequenceAccess.compiler(SequenceAccess.builtInShapes(),
+                (line, problem) -> found.add(line + ": " + problem));
+        Sequence toast = SequenceAccess.sequence(compiler.compile(
+                List.of("[TOAST] EMERALD;GOAL;{success}Sold; for a lot;who:all")));
+        assertEquals(1, toast.steps().size());
+        assertTrue(found.isEmpty(), "the line should compile: " + found);
+
+        Sequence broken = SequenceAccess.sequence(compiler.compile(List.of("[TOAST] NOT_AN_ITEM;GOAL;Hi")));
+        assertEquals(0, broken.steps().size());
+        assertEquals(1, found.size());
+    }
+
     // ------------------------------------------------------------------ shake
 
     @Test

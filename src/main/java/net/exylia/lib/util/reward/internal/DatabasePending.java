@@ -134,6 +134,12 @@ public final class DatabasePending implements PendingRewards {
         return owed;
     }
 
+    /** {@inheritDoc} One count query; no payload is read. */
+    @Override
+    public int count(@NotNull UUID player) {
+        return rows.all().where("plugin", name).where("owner", player.toString()).count().join().intValue();
+    }
+
     @Override
     public @NotNull List<PendingBatch> peek(@NotNull UUID player) {
         return held(player).stream()

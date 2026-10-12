@@ -327,6 +327,20 @@ The two are not alike, and getting this wrong costs TPS:
 to be given. Clear the rows before delivery rather than after — a duplicated
 reward is an exploit, a lost one is a support ticket.
 
+`count(player)` (since 1.278.0) says how many batches a player is owed without
+taking them — for a "you have 3 rewards to claim" line on join, such as a
+[`Notices.footer`](notices.md). Off the main thread. The library's own store
+(`PendingRewards.database`) answers it with one count query; any other browsable
+store counts `peek`, and one that is not browsable answers `0`.
+
+```java
+PendingRewards pending = PendingRewards.database(this);
+notices.footer(player -> {
+    int owed = pending.count(player);
+    return owed == 0 ? List.of() : List.of("%prefix% {letters}You have {highlight}" + owed + " {letters}rewards to claim.");
+});
+```
+
 ---
 
 ## Configuration
