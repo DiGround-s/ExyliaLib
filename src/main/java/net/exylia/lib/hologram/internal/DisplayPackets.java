@@ -71,19 +71,21 @@ final class DisplayPackets implements DisplaySink {
      * zero-sized invisible nothing: sending them apart is a visible flicker.
      */
     @Override
-    public void spawn(Player viewer, DisplayState display, Location at, Component text) {
+    public void spawn(Player viewer, DisplayState display, Location at, Component text,
+                      DisplayState.Transform transform) {
         send(viewer, new WrapperPlayServerSpawnEntity(
                 display.entityId(),
                 Optional.of(UUID.randomUUID()),
                 typeOf(display.kind()),
                 new Vector3d(at.getX(), at.getY(), at.getZ()),
                 0f, 0f, 0f, 0, Optional.empty()));
-        send(viewer, new WrapperPlayServerEntityMetadata(display.entityId(), fullState(display, text)));
+        send(viewer, new WrapperPlayServerEntityMetadata(display.entityId(),
+                fullState(display, text, transform)));
     }
 
     @Override
-    public void transform(Player viewer, DisplayState display, int ticks) {
-        DisplayState.Transform transform = display.transform();
+    public void transform(Player viewer, DisplayState display, DisplayState.Transform transform,
+                          int ticks) {
         // A delay of zero is what restarts the interpolation: without it the
         // client snaps to the new frame instead of gliding there.
         send(viewer, new WrapperPlayServerEntityMetadata(display.entityId(), List.of(
@@ -190,9 +192,9 @@ final class DisplayPackets implements DisplaySink {
      * entries, the smaller the packet, and this one is sent once per viewer per
      * hologram.
      */
-    private static List<EntityData<?>> fullState(DisplayState display, Component text) {
+    private static List<EntityData<?>> fullState(DisplayState display, Component text,
+                                                DisplayState.Transform transform) {
         HologramConfig.Properties properties = display.properties();
-        DisplayState.Transform transform = display.transform();
         List<EntityData<?>> data = new ArrayList<>(12);
 
         data.add(new EntityData<>(DisplayState.BILLBOARD, EntityDataTypes.BYTE, display.billboard()));

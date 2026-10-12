@@ -16,7 +16,8 @@ import org.bukkit.entity.Player;
 public interface DisplaySink {
 
     /** Spawns a display and sends its full state, showing {@code text} if it is text. */
-    void spawn(Player viewer, DisplayState display, Location at, Component text);
+    void spawn(Player viewer, DisplayState display, Location at, Component text,
+               DisplayState.Transform transform);
 
     /** Sends only the text of a display whose line changed. */
     void text(Player viewer, DisplayState display, Component text);
@@ -25,7 +26,7 @@ public interface DisplaySink {
     void teleport(Player viewer, int entityId, Location to);
 
     /** Sends a new transformation, which the client glides to over {@code ticks}. */
-    void transform(Player viewer, DisplayState display, int ticks);
+    void transform(Player viewer, DisplayState display, DisplayState.Transform transform, int ticks);
 
     /** Spawns the invisible box a click on the hologram lands on, its base at {@code at}. */
     void hitbox(Player viewer, int entityId, Location at, float width, float height);

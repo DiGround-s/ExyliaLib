@@ -83,6 +83,7 @@ public record HologramConfig(
         @Comment("  look: <size:2> <opacity:160> <background:#66000000> <shadow:false>")
         @Comment("  models: <item:DIAMOND> <block:BEACON> <glow> <glow:#8a51c4>")
         @Comment("  motion: <spin> <spin:180> <bob> <pulse> <typewriter> <typewriter:40>")
+        @Comment("  colour: <shine> <shine:highlight> <flow> <flow:8>")
         @Comment("  who sees it: <range:8> <perm:shop.vip> <perm:!shop.vip> <if:\"%player_level% >= 10\">")
         List<String> lines,
 
@@ -296,7 +297,10 @@ public record HologramConfig(
      *                 runs as the player
      * @param width    how wide the box is, in blocks; it is as tall as the
      *                 lines
-     * @param cooldown milliseconds before the same player's next click counts
+     * @param cooldown   milliseconds before the same player's next click counts
+     * @param hoverScale how much bigger the hologram grows for a player looking
+     *                   at it, so they know it can be clicked; 1 turns it off.
+     *                   Since 1.288.0
      * @since 1.287.0
      */
     public record Click(
@@ -308,11 +312,25 @@ public record HologramConfig(
             double width,
 
             @Comment("How long before the same player's next click counts. Reads 500ms, 1s.")
-            @Time(Time.Unit.MILLIS) long cooldown) {
+            @Time(Time.Unit.MILLIS) long cooldown,
+
+            @Comment("How much bigger it grows while a player looks at it. 1 turns it off.")
+            double hoverScale) {
 
         /** Not clickable. */
         public Click() {
-            this(List.of(), 1.5, 500);
+            this(List.of(), 1.5, 500, 1.08);
+        }
+
+        /**
+         * A click section as written before {@code hover-scale} existed.
+         *
+         * @param commands what runs
+         * @param width    how wide the box is
+         * @param cooldown milliseconds between two clicks of the same player
+         */
+        public Click(List<String> commands, double width, long cooldown) {
+            this(commands, width, cooldown, 1.08);
         }
 
         public Click {
@@ -321,6 +339,9 @@ public record HologramConfig(
                 width = 1.5;
             }
             cooldown = Math.max(0, cooldown);
+            if (hoverScale <= 0) {
+                hoverScale = 1;
+            }
         }
     }
 

@@ -47,7 +47,9 @@ public interface Hologram {
      * Makes the hologram ride an entity, keeping the configured offset.
      *
      * <p>The cheapest way to have a hologram follow something: the client moves
-     * it along with its mount, so nothing has to be sent while it moves.
+     * it along with its mount, so nothing has to be sent while it moves. The
+     * lines keep their stack and the offset is measured from where the vehicle
+     * carries its passengers.
      *
      * @param entity what to ride, or {@code null} to detach and stay put
      */

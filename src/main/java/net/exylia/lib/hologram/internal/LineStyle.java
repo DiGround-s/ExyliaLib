@@ -15,6 +15,7 @@ import java.util.Locale;
  *   - '&lt;block:BEACON&gt;&lt;spin&gt;&lt;bob&gt;'
  *   - '&lt;range:8&gt;&lt;background:#66000000&gt;{warning}▸ Click to trade ◂'
  *   - '&lt;perm:shop.vip&gt;{highlight}✦ VIP discount active'
+ *   - '&lt;shine&gt;{primary}&amp;lSEASON II'
  * </pre>
  *
  * <p>Only these tags, and only at the start of a line, are read: anything else,
@@ -43,13 +44,17 @@ import java.util.Locale;
  *                   require not having it, or {@code null}
  * @param range      the furthest a viewer still sees the line, 0 for the
  *                   hologram's own view distance
+ * @param shine      the colour of a band of light that sweeps over the line,
+ *                   as a palette name or {@code #RRGGBB}, or {@code null}
+ * @param flow       characters a second the line's own colours flow along it
  */
 record LineStyle(String model, boolean block, double size, Integer opacity, String background,
                  Boolean shadow, String glow, double spin, double bob, double pulse,
-                 double typewriter, String condition, String permission, double range) {
+                 double typewriter, String condition, String permission, double range,
+                 String shine, double flow) {
 
     static final LineStyle PLAIN = new LineStyle(null, false, 1.0, null, null, null, null,
-            0, 0, 0, 0, null, null, 0);
+            0, 0, 0, 0, null, null, 0, null, 0);
 
     /** An item or block at size 1 is half a block, a little taller than a text line. */
     static final double MODEL_HEIGHT = 0.5;
@@ -111,6 +116,11 @@ record LineStyle(String model, boolean block, double size, Integer opacity, Stri
         return spin != 0 || bob != 0 || pulse != 0;
     }
 
+    /** Whether the line's colours move. */
+    boolean shimmers() {
+        return shine != null || flow != 0;
+    }
+
     /** Whether some viewers in range may still not be shown this line. */
     boolean conditional() {
         return condition != null || permission != null || range > 0;
@@ -153,6 +163,8 @@ record LineStyle(String model, boolean block, double size, Integer opacity, Stri
         private String condition;
         private String permission;
         private double range;
+        private String shine;
+        private double flow;
 
         /** Takes one tag, or answers {@code false} when it is not one of ours. */
         boolean accept(String key, String value) {
@@ -177,6 +189,8 @@ record LineStyle(String model, boolean block, double size, Integer opacity, Stri
                     case "if" -> condition = value.isEmpty() ? null : value;
                     case "perm" -> permission = value.isEmpty() ? null : value;
                     case "range" -> range = Math.max(0, Double.parseDouble(value));
+                    case "shine" -> shine = value.isEmpty() ? "letters" : value;
+                    case "flow" -> flow = Math.clamp(number(value, 4), -40, 40);
                     default -> {
                         return false;
                     }
@@ -193,7 +207,7 @@ record LineStyle(String model, boolean block, double size, Integer opacity, Stri
 
         LineStyle build() {
             return new LineStyle(model, block, size, opacity, background, shadow, glow,
-                    spin, bob, pulse, typewriter, condition, permission, range);
+                    spin, bob, pulse, typewriter, condition, permission, range, shine, flow);
         }
     }
 }

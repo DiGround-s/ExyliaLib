@@ -72,6 +72,16 @@ public final class DisplayState {
         boolean hasRotation() {
             return qy != 0 || qw != 1;
         }
+
+        /**
+         * This transformation as one viewer is shown it: grown by
+         * {@code grow} and moved by the rest.
+         */
+        Transform view(double grow, double x, double y, double z) {
+            return new Transform((float) (tx * grow + x), (float) (ty * grow + y),
+                    (float) (tz * grow + z), (float) (sx * grow), (float) (sy * grow),
+                    (float) (sz * grow), qy, qw);
+        }
     }
 
     /** Bit flags packed into {@link #TEXT_FLAGS}, from the vanilla protocol. */

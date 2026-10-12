@@ -22,17 +22,25 @@ final class FakeSink implements DisplaySink {
     private final List<String> calls = new CopyOnWriteArrayList<>();
     /** The text each spawn carried, in order. */
     final List<String> spawnedText = new CopyOnWriteArrayList<>();
+    /** The vertical translation each spawn carried, in order. */
+    final List<Float> spawnedLift = new CopyOnWriteArrayList<>();
+    /** The vertical scale each transformation carried, in order. */
+    final List<Float> lastScale = new CopyOnWriteArrayList<>();
 
     @Override
-    public void spawn(Player viewer, DisplayState display, Location at, Component text) {
+    public void spawn(Player viewer, DisplayState display, Location at, Component text,
+                      DisplayState.Transform transform) {
+        spawnedLift.add(transform.ty());
         calls.add("spawn:" + name(viewer) + ":" + display.entityId()
                 + ":" + format(at.getY()));
         spawnedText.add(PlainTextComponentSerializer.plainText().serialize(text));
     }
 
     @Override
-    public void transform(Player viewer, DisplayState display, int ticks) {
+    public void transform(Player viewer, DisplayState display, DisplayState.Transform transform,
+                          int ticks) {
         calls.add("transform:" + name(viewer) + ":" + display.entityId() + ":" + ticks);
+        lastScale.add(transform.sy());
     }
 
     @Override
@@ -86,5 +94,7 @@ final class FakeSink implements DisplaySink {
     void clear() {
         calls.clear();
         spawnedText.clear();
+        spawnedLift.clear();
+        lastScale.clear();
     }
 }

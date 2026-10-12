@@ -23,7 +23,7 @@ Holograms.show(this, "trophy", location, config.trophy());
 | `offsetX/Y/Z` | position adjustment |
 | `kind` | `TEXT`, `ITEM` or `BLOCK` |
 | `properties` | `billboard`, `alignment`, `scaleX/Y/Z`, and more display properties |
-| `click` | `commands`, `width`, `cooldown`: what clicking it does (since 1.287.0) |
+| `click` | `commands`, `width`, `cooldown`, `hover-scale`: what clicking it does (since 1.287.0; `hover-scale` since 1.288.0) |
 
 The YML keys match what ExyliaCommons' `HologramTemplateSerializer` wrote,
 minus the ones that mean nothing here (chunks, disk persistence — a hologram
@@ -49,6 +49,8 @@ since 1.285.0; models with blocks, glow, motion, visibility and clicks since
 | `<spin>` / `<spin:180>` | turns the line, in degrees a second (default 90, negative turns the other way) |
 | `<bob>` / `<bob:0.15>` | floats the line up and down, in blocks (default 0.08) |
 | `<pulse>` / `<pulse:0.1>` | the line breathes, growing and shrinking by that fraction (default 0.06) |
+| `<shine>` / `<shine:highlight>` / `<shine:#ffd700>` | a band of light sweeps over the line every few seconds (default colour: the palette's `letters`) |
+| `<flow>` / `<flow:8>` | the line's own colours flow along it, in characters a second (default 4); a gradient flows without a seam, a one-colour line gets a soft wave of its lighter shade |
 | `<typewriter>` / `<typewriter:40>` | types the line in, in characters a second (default 24), when a player first sees it or when it appears for them |
 | `<range:8>` | the line only shows within 8 blocks; walking up reveals it, and the stack re-lays itself out for that player |
 | `<perm:shop.vip>` / `<perm:!shop.vip>` | only shown to players with (or without) the permission |
@@ -57,7 +59,7 @@ since 1.285.0; models with blocks, glow, motion, visibility and clicks since
 ```yaml
 lines:
   - '<size:0.8>{highlight}⚓ — FULLPVP — ⚓'
-  - '<size:2.2><pulse>{primary}&lMINERALS'
+  - '<size:2.2><pulse><shine>{primary}&lMINERALS'
   - '<typewriter><opacity:170>{letters}+%trades% trades available'
   - '<block:DIAMOND_ORE><spin><bob><glow:#59a4ff>'
   - '<perm:shop.vip>{highlight}✦ VIP discount active'
@@ -86,6 +88,12 @@ lines changes, the lines they lost are destroyed, new ones spawn, and the ones
 that stay are moved, so nothing flickers. Placeholders in conditions run off
 the main thread, like every placeholder in a hologram line.
 
+**Shine and flow** recolour the parsed line one character at a time, keeping
+every other style, so they work over gradients, palette colours and
+placeholder values alike. A flowing line is re-sent four times a second; a
+shining one only while its band crosses it (about a second and a half every
+four), plus once to restore the plain line.
+
 **Typewriter** sends the growing text to one player only while it is typing
 for them. Changes to that line wait until it is fully typed, and colours and
 styles are never cut.
@@ -95,7 +103,10 @@ styles are never cut.
 `click.commands` (the `net.exylia.lib.command` syntax: `console:`,
 `player:`, a bare line runs as the player) give the hologram an invisible
 interaction box as tall as the lines the viewer sees and `click.width` wide.
-Left or right click both count, once per `click.cooldown`. In code:
+Left or right click both count, once per `click.cooldown`. While a player
+looks at the box, within about six blocks, the hologram grows by
+`click.hover-scale` (default 1.08, 1 turns it off) and glides back when they
+look away, so it reads as something to click. In code:
 
 ```java
 hologram.onClick(player -> shops.open(player, "minerals")); // on the player's thread
@@ -103,6 +114,15 @@ hologram.onClick(player -> shops.open(player, "minerals")); // on the player's t
 
 A handler makes the hologram clickable even with no commands. Without either
 it has no box at all.
+
+## Riding an entity
+
+`attachTo(entity)` makes every display a passenger. The client draws all the
+passengers of one vehicle at the same point, so a ridden hologram is stacked
+with each display's translation instead of its position. `offset-x/y/z` still
+applies, measured from where the vehicle carries its passengers. The click box
+rides along and reaches up over the offset. Hover does not apply while
+riding. Since 1.288.0; before, the lines of a ridden hologram overlapped.
 
 ## API
 
@@ -139,5 +159,6 @@ packets while moving), `lines(List)`, `refresh()`, `updateData(Map)`,
 - Public: `hologram/Holograms.java`, `Hologram.java`, `HologramConfig.java`.
 - Internal: `hologram/internal/` (`HologramImpl`, `HologramRuntime`,
   `DisplayPackets`, `DisplaySink`, `DisplayState`, `LineStyle`, `Typewriter`,
+  `Shimmer`,
   `NoopHologram`).
 - Tests: `src/test/java/net/exylia/lib/hologram/`.

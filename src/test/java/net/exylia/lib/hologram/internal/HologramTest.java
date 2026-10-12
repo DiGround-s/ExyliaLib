@@ -301,7 +301,7 @@ class HologramTest {
     void lineTagsParse() {
         LineStyle.Parsed parsed = LineStyle.parse("<size:1.5><opacity:120><shadow:false><bold>Hi");
         assertEquals(new LineStyle(null, false, 1.5, 120, null, false, null, 0, 0, 0, 0,
-                null, null, 0), parsed.style());
+                null, null, 0, null, 0), parsed.style());
         assertEquals("<bold>Hi", parsed.body());
         assertEquals("<size:big>Hi", LineStyle.parse("<size:big>Hi").body());
         assertEquals("<gradient:#fff:#000>Hi", LineStyle.parse("<gradient:#fff:#000>Hi").body());
@@ -445,6 +445,73 @@ class HologramTest {
 
         hologram.remove();
         assertFalse(HologramRuntime.isHitbox(1002));
+    }
+
+    @Test
+    @DisplayName("a shine sweeps a band of light over the line, then rests")
+    void shineSweepsAndRests() {
+        net.kyori.adventure.text.Component line = net.kyori.adventure.text.Component.text("ABCDEFGH",
+                net.kyori.adventure.text.format.NamedTextColor.DARK_PURPLE);
+        net.kyori.adventure.text.format.TextColor light =
+                net.kyori.adventure.text.format.TextColor.color(0xFFFFFF);
+
+        // 8 characters and a band 3 either side: the sweep lasts 1.4 s.
+        List<net.kyori.adventure.text.format.TextColor> lit = colours(Shimmer.shine(line, light, 0.6));
+        assertTrue(lit.contains(light), lit.toString());
+        assertTrue(lit.contains(net.kyori.adventure.text.format.NamedTextColor.DARK_PURPLE),
+                "the band is narrower than the line: " + lit);
+        assertEquals(null, Shimmer.shine(line, light, 2.0));
+        assertTrue(Shimmer.resting(line, 2.0));
+        assertEquals("ABCDEFGH", net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer
+                .plainText().serialize(Shimmer.shine(line, light, 0.6)));
+    }
+
+    private static List<net.kyori.adventure.text.format.TextColor> colours(
+            net.kyori.adventure.text.Component component) {
+        return component.children().stream().map(net.kyori.adventure.text.Component::color).toList();
+    }
+
+    @Test
+    @DisplayName("flow moves colours along the line, even a line in one colour")
+    void flowMoves() {
+        net.kyori.adventure.text.Component line = net.kyori.adventure.text.Component.text("ABCDEF",
+                net.kyori.adventure.text.format.NamedTextColor.DARK_PURPLE);
+        assertFalse(colours(Shimmer.flow(line, 4, 0)).equals(colours(Shimmer.flow(line, 4, 0.25))));
+    }
+
+    @Test
+    @DisplayName("riding an entity, lines are stacked by translation, offset included")
+    void mountedLinesStackByTranslation() {
+        HologramConfig config = new HologramConfig(true, HologramConfig.Kind.TEXT,
+                List.of("Top", "Bottom"), "", "", false, 32.0, 0, 0.5, 0,
+                new HologramConfig.Properties(), new HologramConfig.Refresh());
+        Hologram hologram = Holograms.show(plugin, "koth", spawn(), config);
+        hologram.attachTo(far.player());
+        drive();
+
+        assertEquals(List.of(0.75f, 0.5f), sink.spawnedLift);
+        assertEquals(1, sink.count("mount"));
+    }
+
+    @Test
+    @DisplayName("looking at a clickable hologram grows it, looking away shrinks it back")
+    void hoverGrows() {
+        Hologram hologram = Holograms.show(plugin, "koth", new Location(world, 0, 65.5, 0),
+                text(List.of("A", "B")));
+        hologram.onClick(player -> { });
+        near.at(new Location(world, 0, 64, -3, 0, 0));
+        drive();
+        assertEquals(0, sink.count("transform"), "the first pass only spawns it");
+
+        drive();
+        assertEquals(2, sink.count("transform"));
+        assertEquals(1.08f, sink.lastScale.get(0), 1e-4);
+
+        sink.clear();
+        near.at(new Location(world, 0, 64, -3, 180, 0));
+        drive();
+        assertEquals(2, sink.count("transform"));
+        assertEquals(1.0f, sink.lastScale.get(0), 1e-4);
     }
 
     @Test

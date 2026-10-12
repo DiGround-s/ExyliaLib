@@ -447,6 +447,7 @@ public final class HologramRuntime {
                 hologram.despawnFor(player);
             } else if (should) {
                 hologram.revalidate(player);
+                hologram.hover(player);
             }
             if (should) {
                 viewers.add(player);

@@ -10,7 +10,9 @@ import net.exylia.lib.placeholder.Template;
 import net.exylia.lib.task.Tasks;
 import net.exylia.lib.text.Text;
 import net.exylia.lib.util.internal.Conditions;
+import net.exylia.lib.text.Colors;
 import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.format.TextColor;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.entity.Entity;
@@ -58,6 +60,13 @@ final class HologramImpl implements Hologram {
     static final long STEP_MS = 500L;
     private static final int STEP_TICKS = (int) (STEP_MS / TICK_MS);
 
+    /** Ticks a hover grows or shrinks over. */
+    private static final int HOVER_TICKS = 3;
+    /** How far away a look still counts as hovering, about where a click reaches. */
+    private static final double HOVER_REACH = 6.0;
+    /** Eye height of a standing player; ponytail: sneaking reads a little high. */
+    private static final double EYE_HEIGHT = 1.62;
+
     /** Shortest gap between two clicks, which also swallows a double-fired press. */
     private static final long MIN_CLICK_GAP_MS = 200L;
 
@@ -78,6 +87,11 @@ final class HologramImpl implements Hologram {
     private volatile boolean animated;
     private volatile boolean typed;
     private volatile boolean conditional;
+    private volatile boolean shimmering;
+    /** Per line, whether the plain text went out after the shine came to rest. */
+    private volatile boolean[] restSent = new boolean[0];
+    /** The viewers looking at a clickable hologram right now. */
+    private final Set<UUID> hovering = ConcurrentHashMap.newKeySet();
 
     /** Which lines each viewer is shown, for holograms with conditional lines. */
     private final Map<UUID, boolean[]> masks = new ConcurrentHashMap<>();
@@ -140,6 +154,8 @@ final class HologramImpl implements Hologram {
         this.animated = text && Arrays.stream(styles).anyMatch(LineStyle::animated);
         this.typed = text && Arrays.stream(styles).anyMatch(style -> style.typewriter() > 0);
         this.conditional = text && Arrays.stream(styles).anyMatch(LineStyle::conditional);
+        this.shimmering = text && Arrays.stream(styles).anyMatch(LineStyle::shimmers);
+        this.restSent = new boolean[styles.length];
     }
 
     private static LineStyle[] styles(List<String> lines) {
@@ -481,7 +497,7 @@ final class HologramImpl implements Hologram {
         spawnHitbox(viewer, mask);
         Entity vehicle = mount;
         if (vehicle != null) {
-            HologramRuntime.sink().mount(viewer, vehicle.getEntityId(), entityIds());
+            HologramRuntime.sink().mount(viewer, vehicle.getEntityId(), entityIdsWithHitbox());
         }
         viewers.add(uuid);
     }
@@ -586,11 +602,18 @@ final class HologramImpl implements Hologram {
             Location where = lineLocation(at, i, heights, after, current[i]);
             if (before != null && shown(before, i)) {
                 HologramRuntime.sink().teleport(viewer, current[i].entityId(), where);
+                if (mount != null || hovering.contains(uuid)) {
+                    // Riding, a line's place is its translation; hovered, it
+                    // is spread by it. Either way the new stack moves it.
+                    HologramRuntime.sink().transform(viewer, current[i],
+                            viewOf(current[i], i, uuid, heights, after), HOVER_TICKS);
+                }
                 continue;
             }
             current[i].transform(current[i].transformAt(now));
             Component text = receivesText(uuid, i) ? current[i].text() : Component.empty();
-            HologramRuntime.sink().spawn(viewer, current[i], where, text);
+            HologramRuntime.sink().spawn(viewer, current[i], where, text,
+                    viewOf(current[i], i, uuid, heights, after));
         }
     }
 
@@ -631,6 +654,9 @@ final class HologramImpl implements Hologram {
         if (!typing.isEmpty()) {
             type(currentViewers, now);
         }
+        if (shimmering) {
+            shimmer(currentViewers, now);
+        }
         if (!animated) {
             return;
         }
@@ -641,17 +667,162 @@ final class HologramImpl implements Hologram {
         lastFrame = frame;
         long target = (frame + 1) * STEP_MS;
         DisplayState[] current = displays;
+        double[] heights = heights(current.length);
         for (int i = 0; i < current.length; i++) {
             if (!current[i].style().animated()) {
                 continue;
             }
             current[i].transform(current[i].transformAt(target));
             for (Player viewer : currentViewers) {
-                if (shown(masks.get(viewer.getUniqueId()), i)) {
-                    HologramRuntime.sink().transform(viewer, current[i], STEP_TICKS);
+                UUID uuid = viewer.getUniqueId();
+                boolean[] mask = masks.get(uuid);
+                if (shown(mask, i)) {
+                    HologramRuntime.sink().transform(viewer, current[i],
+                            viewOf(current[i], i, uuid, heights, mask), STEP_TICKS);
                 }
             }
         }
+    }
+
+    /**
+     * Moves the colour of shining and flowing lines on.
+     *
+     * <p>A flowing line is re-sent every pass; a shining one only while its
+     * band crosses it, plus once to put the plain line back. A shared
+     * hologram works the frame out once for everybody.
+     */
+    private void shimmer(List<Player> currentViewers, long now) {
+        DisplayState[] current = displays;
+        LineStyle[] lineStyles = styles;
+        boolean[] rested = restSent;
+        double seconds = now / 1000.0;
+        for (int i = 0; i < current.length && i < lineStyles.length && i < rested.length; i++) {
+            LineStyle style = lineStyles[i];
+            if (!style.shimmers() || current[i].kind() != HologramConfig.Kind.TEXT) {
+                continue;
+            }
+            boolean resting = style.flow() == 0
+                    && Shimmer.resting(current[i].text(), seconds);
+            if (resting && rested[i]) {
+                continue;
+            }
+            rested[i] = resting;
+            Component shared = config.perPlayer() ? null : lit(style, current[i].text(), seconds);
+            for (Player viewer : currentViewers) {
+                if (!receivesText(viewer.getUniqueId(), i)) {
+                    continue;
+                }
+                Component frame = shared != null ? shared : lit(style, textFor(viewer, i), seconds);
+                HologramRuntime.sink().text(viewer, current[i], frame);
+            }
+        }
+    }
+
+    /** A line with its moving colour where it stands at {@code seconds}. */
+    private static Component lit(LineStyle style, Component line, double seconds) {
+        Component frame = style.flow() != 0 ? Shimmer.flow(line, style.flow(), seconds) : line;
+        if (style.shine() != null) {
+            Component shone = Shimmer.shine(frame, colour(style.shine()), seconds);
+            if (shone != null) {
+                frame = shone;
+            }
+        }
+        return frame;
+    }
+
+    /** A palette name such as {@code highlight} or {@code {highlight}}, or a hex colour. */
+    private static TextColor colour(String value) {
+        String token = value.replace("{", "").replace("}", "").trim();
+        TextColor parsed = token.startsWith("#") ? TextColor.fromHexString(token) : Colors.get(token);
+        return parsed == null ? TextColor.color(0xFFFFFF) : parsed;
+    }
+
+    /**
+     * How one viewer is shown a display's transformation.
+     *
+     * <p>Riding an entity, every passenger is drawn at the same point of the
+     * vehicle, so the stack and the configured offset can only be built from
+     * the translation. Hovered, the whole hologram grows, and the lines are
+     * spread by as much so they do not overlap.
+     */
+    private DisplayState.Transform viewOf(DisplayState display, int line, UUID viewer,
+                                          double[] heights, boolean[] mask) {
+        double grow = hovering.contains(viewer) ? config.click().hoverScale() : 1;
+        double y = lineY(line, heights, mask, display);
+        if (mount != null) {
+            return display.transform().view(grow, config.offsetX(),
+                    config.offsetY() + y * grow, config.offsetZ());
+        }
+        return display.transform().view(grow, 0, y * (grow - 1), 0);
+    }
+
+    /**
+     * Grows or shrinks the hologram for a viewer who started or stopped
+     * looking at it, so a clickable hologram shows it can be clicked.
+     */
+    void hover(Player viewer) {
+        if (!clickable() || config.click().hoverScale() == 1 || mount != null) {
+            return;
+        }
+        UUID uuid = viewer.getUniqueId();
+        boolean[] mask = masks.get(uuid);
+        DisplayState[] current = displays;
+        double[] heights = heights(current.length);
+        boolean looking = looksAt(viewer, total(heights, mask));
+        if (looking == hovering.contains(uuid)) {
+            return;
+        }
+        if (looking) {
+            hovering.add(uuid);
+        } else {
+            hovering.remove(uuid);
+        }
+        for (int i = 0; i < current.length; i++) {
+            if (shown(mask, i)) {
+                HologramRuntime.sink().transform(viewer, current[i],
+                        viewOf(current[i], i, uuid, heights, mask), HOVER_TICKS);
+            }
+        }
+    }
+
+    /** Whether the viewer's line of sight crosses the click box, within reach. */
+    private boolean looksAt(Player viewer, double height) {
+        Location eye = viewer.getLocation();
+        org.bukkit.util.Vector direction = eye.getDirection();
+        double[] origin = {eye.getX(), eye.getY() + EYE_HEIGHT, eye.getZ()};
+        double[] dir = {direction.getX(), direction.getY(), direction.getZ()};
+        double half = config.click().width() / 2;
+        Location at = location;
+        double[] min = {at.getX() - half, at.getY(), at.getZ() - half};
+        double[] max = {at.getX() + half, at.getY() + height, at.getZ() + half};
+        double near = 0;
+        double far = HOVER_REACH;
+        for (int axis = 0; axis < 3; axis++) {
+            if (Math.abs(dir[axis]) < 1e-9) {
+                if (origin[axis] < min[axis] || origin[axis] > max[axis]) {
+                    return false;
+                }
+                continue;
+            }
+            double a = (min[axis] - origin[axis]) / dir[axis];
+            double b = (max[axis] - origin[axis]) / dir[axis];
+            near = Math.max(near, Math.min(a, b));
+            far = Math.min(far, Math.max(a, b));
+            if (near > far) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private static double total(double[] heights, boolean[] mask) {
+        double total = 0;
+        for (int i = 0; i < heights.length; i++) {
+            if (shown(mask, i)) {
+                total += heights[i];
+            }
+        }
+        return total;
     }
 
     private void type(List<Player> currentViewers, long now) {
@@ -701,12 +872,11 @@ final class HologramImpl implements Hologram {
         if (!clickable()) {
             return;
         }
-        double[] heights = heights(displays.length);
-        double total = 0;
-        for (int i = 0; i < heights.length; i++) {
-            if (shown(mask, i)) {
-                total += heights[i];
-            }
+        double total = total(heights(displays.length), mask);
+        // Riding, the box sits where the vehicle carries its passengers, so it
+        // also has to reach up over the offset to cover the lines.
+        if (mount != null) {
+            total += Math.max(0, config.offsetY());
         }
         HologramRuntime.sink().hitbox(viewer, hitboxId, location,
                 (float) config.click().width(), (float) Math.max(total, 0.25));
@@ -748,13 +918,9 @@ final class HologramImpl implements Hologram {
         masks.remove(uuid);
         typing.remove(uuid);
         lastClick.remove(uuid);
+        hovering.remove(uuid);
         if (viewers.remove(uuid)) {
-            int[] ids = entityIds();
-            if (clickable()) {
-                ids = Arrays.copyOf(ids, ids.length + 1);
-                ids[ids.length - 1] = hitboxId;
-            }
-            HologramRuntime.sink().destroy(viewer, ids);
+            HologramRuntime.sink().destroy(viewer, entityIdsWithHitbox());
         }
     }
 
@@ -764,6 +930,7 @@ final class HologramImpl implements Hologram {
         masks.remove(viewer);
         typing.remove(viewer);
         lastClick.remove(viewer);
+        hovering.remove(viewer);
     }
 
     /** Moves every display for everybody who can see it. */
@@ -798,16 +965,32 @@ final class HologramImpl implements Hologram {
      */
     private static Location lineLocation(Location anchor, int index, double[] heights,
                                          boolean[] mask, DisplayState display) {
+        return anchor.clone().add(0, lineY(index, heights, mask, display), 0);
+    }
+
+    /** How high above the anchor a line stands. */
+    private static double lineY(int index, double[] heights, boolean[] mask, DisplayState display) {
         double y = 0;
         for (int i = index + 1; i < heights.length; i++) {
             if (shown(mask, i)) {
                 y += heights[i];
             }
         }
-        if (display.kind() == HologramConfig.Kind.ITEM) {
+        if (display.kind() == HologramConfig.Kind.ITEM && index < heights.length) {
             y += heights[index] / 2;
         }
-        return anchor.clone().add(0, y, 0);
+        return y;
+    }
+
+    /** Every entity a viewer may have been sent, click box included when there is one. */
+    private int[] entityIdsWithHitbox() {
+        int[] ids = entityIds();
+        if (!clickable()) {
+            return ids;
+        }
+        int[] all = Arrays.copyOf(ids, ids.length + 1);
+        all[ids.length] = hitboxId;
+        return all;
     }
 
     /** The room each display takes; the bottom-up stacking reads this. */

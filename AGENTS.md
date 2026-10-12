@@ -697,7 +697,8 @@ Bukkit entity, never an ArmorStand, never a hand-spawned `TextDisplay`.
   that has them is diffed and only it is resent, not the whole hologram.
 - **Per-line styling is tags at the start of the line**, never new YAML keys
   (`LineStyle`): look (`size`, `opacity`, `background`, `shadow`), models
-  (`item`, `block`, `glow`), motion (`spin`, `bob`, `pulse`, `typewriter`) and
+  (`item`, `block`, `glow`), motion (`spin`, `bob`, `pulse`, `typewriter`),
+  colour (`shine`, `flow`) and
   who sees it (`range`, `perm`, `if`). A sized line takes room in proportion,
   so the stack re-lays itself out; anything else at the start is left for the
   text parser. A new per-line feature is a new tag in `LineStyle`, not a key.
@@ -708,6 +709,9 @@ Bukkit entity, never an ArmorStand, never a hand-spawned `TextDisplay`.
   spawned or teleported, never respawned whole.
 - **Clicks are an interaction entity** spawned only when `click.commands` or
   `onClick` exist; the packet is cancelled before the server sees the id.
+  Looking at it grows the hologram by `click.hover-scale`.
+- **A ridden hologram is laid out by translation** (`viewOf`): passengers all
+  sit at the vehicle's seat, so position-based stacking does not apply there.
 - **Moving is a teleport, not a respawn.** That way a hologram following a player
   doesn't flicker. And mounting it on an entity (`attachTo`) doesn't even send
   packets while it moves: the client moves it along with the vehicle.
