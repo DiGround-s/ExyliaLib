@@ -2,6 +2,7 @@ package net.exylia.lib.util.editor;
 
 import org.bukkit.entity.Player;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.List;
 import java.util.Optional;
@@ -92,6 +93,34 @@ public interface EditorDescriptor<T> {
      */
     default @NotNull List<String> lore(@NotNull T entry, @NotNull List<T> siblings) {
         return lore(entry);
+    }
+
+    /**
+     * The name of the value shift-clicking a row raises and lowers, such as a
+     * weight, so the number an admin balances is one click away rather than a
+     * form away.
+     *
+     * <p>While this is {@code null}, the default, shift + left copies a row as it
+     * always has. Once it is not, shift + left and shift + right go to
+     * {@link #step} and copying moves to the drop key.
+     *
+     * @return the stepped value's name in Exylia text notation, or {@code null}
+     * @since 1.275.0
+     */
+    default @Nullable String stepped() {
+        return null;
+    }
+
+    /**
+     * The entry with its {@linkplain #stepped() stepped value} one step up or down.
+     *
+     * @param entry the row's element
+     * @param up    whether to raise it
+     * @return the changed element; the same one when it cannot move further
+     * @since 1.275.0
+     */
+    default @NotNull T step(@NotNull T entry, boolean up) {
+        return entry;
     }
 
     /**

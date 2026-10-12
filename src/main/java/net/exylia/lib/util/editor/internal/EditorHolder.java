@@ -424,7 +424,14 @@ public final class EditorHolder<T> implements InventoryHolder {
         lore.add("");
         lore.add(Phrases.tr("{success}● {letters}Left Click {letters_black}» Edit"));
         lore.add(Phrases.tr("{error}● {letters}Right Click {letters_black}» Delete"));
-        lore.add(Phrases.tr("{highlight}● {letters}Shift + Left {letters_black}» Copy"));
+        String stepped = descriptor.stepped();
+        if (stepped == null) {
+            lore.add(Phrases.tr("{highlight}● {letters}Shift + Left {letters_black}» Copy"));
+        } else {
+            lore.add(Phrases.tr("{info}▲ {letters}Shift + Left {letters_black}» Raise {0}", stepped));
+            lore.add(Phrases.tr("{info}▼ {letters}Shift + Right {letters_black}» Lower {0}", stepped));
+            lore.add(Phrases.tr("{highlight}● {letters}Q {letters_black}» Copy"));
+        }
         return Icons.row(icon, label, lore);
     }
 

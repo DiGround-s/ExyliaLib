@@ -134,12 +134,19 @@ public final class EditorListener implements Listener {
         if (entry == null) {
             return;
         }
+        boolean steps = holder.descriptor().stepped() != null;
+        if (steps && (click == ClickType.SHIFT_LEFT || click == ClickType.SHIFT_RIGHT)) {
+            // Redrawn whole, not just this row: a weight moves every sibling's share.
+            holder.replace(entry, holder.descriptor().step(entry, click == ClickType.SHIFT_LEFT));
+            holder.draw();
+            return;
+        }
         if (click == ClickType.RIGHT || click == ClickType.SHIFT_RIGHT) {
             holder.remove(entry);
             holder.draw();
             return;
         }
-        if (click == ClickType.SHIFT_LEFT) {
+        if (click == ClickType.SHIFT_LEFT || click == ClickType.DROP) {
             Clipboard.copy(viewer, holder.descriptor().typeKey(), List.of(entry));
             holder.draw();
             return;

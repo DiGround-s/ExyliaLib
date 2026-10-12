@@ -223,6 +223,42 @@ public final class PluginRewards {
         return Editors.of(plugin()).list(new RewardDescriptor(plugin()), RewardEntry.class, rewards);
     }
 
+    /**
+     * The same, for a list drawn by weight ({@link #roll}, {@link #pick}, a
+     * crate) rather than one where every reward rolls on its own.
+     *
+     * <p>Each row's real share counts its weight, shift + left and shift + right
+     * raise and lower the weight in place with every share redrawn, and a sort
+     * button orders the list by weight.
+     *
+     * @param rewards what is being edited; copied, never held
+     * @return the editor, ready to open
+     * @since 1.275.0
+     */
+    public @NotNull ListEditor<RewardEntry> weightedEditor(@NotNull List<RewardEntry> rewards) {
+        return weightedEditor(rewards, entry -> List.of());
+    }
+
+    /**
+     * The same, with lines of the plugin's own under each row.
+     *
+     * <pre>{@code
+     * rewards.weightedEditor(crate.rewards(), reward -> List.of(" {letters_black}▎ {letters}Rarity "
+     *         + "{letters_black}» " + tiers.of(reward).display()))
+     * }</pre>
+     *
+     * @param rewards   what is being edited; copied, never held
+     * @param extraLore asked again on every redraw, so a line that follows the
+     *                  weight, like a rarity, moves with it
+     * @return the editor, ready to open
+     * @since 1.275.0
+     */
+    public @NotNull ListEditor<RewardEntry> weightedEditor(@NotNull List<RewardEntry> rewards,
+                                                           @NotNull java.util.function.Function<RewardEntry, List<String>> extraLore) {
+        return Editors.of(plugin()).list(new RewardDescriptor(plugin(), true, extraLore), RewardEntry.class, rewards)
+                .button(RewardDescriptor.sortByWeight());
+    }
+
     public @NotNull RewardDelivery give(@NotNull Player player,
                                         @NotNull List<RewardEntry> rewards) {
         if (rewards.isEmpty()) {

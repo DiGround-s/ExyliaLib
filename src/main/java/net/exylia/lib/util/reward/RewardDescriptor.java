@@ -9,6 +9,7 @@ import net.exylia.lib.text.Phrases;
 import net.exylia.lib.text.Text;
 import net.exylia.lib.util.command.NamedCommands;
 import net.exylia.lib.input.FormField;
+import net.exylia.lib.util.editor.EditorButton;
 import net.exylia.lib.util.editor.EditorDescriptor;
 import net.exylia.lib.util.editor.EditorForm;
 import net.kyori.adventure.text.Component;
@@ -24,6 +25,7 @@ import org.jetbrains.annotations.Nullable;
 
 import java.math.BigDecimal;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
@@ -31,6 +33,7 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Function;
 
 /**
  * How a reward draws and edits itself on screen.
@@ -82,8 +85,73 @@ public final class RewardDescriptor implements EditorDescriptor<RewardEntry> {
 
     private final Plugin plugin;
 
+    /** Whether the list is a draw by weight rather than every reward rolling on its own. */
+    private final boolean weighted;
+
+    /** The owning plugin's own lines under each row, drawn fresh every redraw. */
+    private final Function<RewardEntry, List<String>> extraLore;
+
     RewardDescriptor(Plugin plugin) {
+        this(plugin, false, entry -> List.of());
+    }
+
+    RewardDescriptor(Plugin plugin, boolean weighted, Function<RewardEntry, List<String>> extraLore) {
         this.plugin = Objects.requireNonNull(plugin, "plugin");
+        this.weighted = weighted;
+        this.extraLore = Objects.requireNonNull(extraLore, "extraLore");
+    }
+
+    @Override
+    public @Nullable String stepped() {
+        return weighted ? Phrases.tr("weight") : null;
+    }
+
+    @Override
+    public @NotNull RewardEntry step(@NotNull RewardEntry entry, boolean up) {
+        return entry.toBuilder().weight(stepWeight(entry.weight(), up)).build();
+    }
+
+    /**
+     * Orders a weighted list by weight, most common first; pressed again on a
+     * list already in that order, rarest first. A button rather than a standing
+     * order, so a row never jumps out from under the cursor mid-adjustment.
+     */
+    static EditorButton<RewardEntry> sortByWeight() {
+        return EditorButton.<RewardEntry>of("HOPPER")
+                .name(Phrases.tr("{info}&lSORT BY WEIGHT"))
+                .lore(Phrases.tr("{secondary}Information:"),
+                        Phrases.tr(" {letters_black}▎ {letters}Most common first; press again"),
+                        Phrases.tr(" {letters_black}▎ {letters}for the rarest first."),
+                        "",
+                        Phrases.tr("{warning}➥ Click to sort"))
+                .onClick(view -> view.replaceAll(sorted(view.entries())))
+                .build();
+    }
+
+    static List<RewardEntry> sorted(List<RewardEntry> entries) {
+        Comparator<RewardEntry> heaviest = Comparator.comparingDouble(RewardEntry::weight).reversed();
+        List<RewardEntry> sorted = new ArrayList<>(entries);
+        sorted.sort(heaviest);
+        if (sorted.equals(entries)) {
+            sorted.sort(heaviest.reversed());
+        }
+        return sorted;
+    }
+
+    /**
+     * One click's worth of weight: tenths below 1, then ones, fives and tens, so
+     * a legendary at 0.5 and a filler at 300 are both a few clicks from anywhere
+     * near them. Never below 0.1, where a reward would stop being drawn at all.
+     */
+    static double stepWeight(double weight, boolean up) {
+        double unit;
+        if (up) {
+            unit = weight < 1 ? 0.1 : weight < 10 ? 1 : weight < 100 ? 5 : 10;
+        } else {
+            unit = weight <= 1 ? 0.1 : weight <= 10 ? 1 : weight <= 100 ? 5 : 10;
+        }
+        double next = Math.round((weight + (up ? unit : -unit)) * 10.0) / 10.0;
+        return Math.max(0.1, next);
     }
 
     @Override
@@ -120,7 +188,7 @@ public final class RewardDescriptor implements EditorDescriptor<RewardEntry> {
         lore.add(Phrases.tr("{secondary}Odds:"));
         lore.add(Phrases.tr(" {letters_black}▎ {letters}Chance {letters_black}» {0}", chance(entry)));
         lore.add(Phrases.tr(" {letters_black}▎ {letters}Weight 🎲 {letters_black}» {info}{0}", number(entry.weight())));
-        String share = share(entry.chance(), siblings);
+        String share = share(entry, siblings, weighted);
         if (share != null) {
             lore.add(Phrases.tr(" {letters_black}▎ {letters}Real {letters_black}» {success}{0}% {muted}of all drops",
                     share));
@@ -136,6 +204,11 @@ public final class RewardDescriptor implements EditorDescriptor<RewardEntry> {
                 lore.add(Phrases.tr(" {letters_black}▎ {letters}Condition {letters_black}» {info}{0}",
                         entry.condition()));
             }
+        }
+        List<String> extra = extraLore.apply(entry);
+        if (!extra.isEmpty()) {
+            lore.add("");
+            lore.addAll(extra);
         }
         return lore;
     }
@@ -608,20 +681,28 @@ public final class RewardDescriptor implements EditorDescriptor<RewardEntry> {
      * one &mdash; the answer is always a hundred percent &mdash; nor for a list
      * nothing can ever drop out of.
      *
+     * <p>In a weighted draw a reward is first picked by its weight and then
+     * passes its chance, so what it is worth is weight times chance.
+     *
      * @return the share, or {@code null} when there is no useful one
      */
-    private static String share(double chance, List<RewardEntry> siblings) {
+    static String share(RewardEntry entry, List<RewardEntry> siblings, boolean weighted) {
         if (siblings.size() < 2) {
             return null;
         }
         double total = 0.0;
         for (RewardEntry sibling : siblings) {
-            total += Math.max(0.0, sibling.chance());
+            total += worth(sibling, weighted);
         }
         if (total <= 0.0) {
             return null;
         }
-        return number(Math.round(Math.max(0.0, chance) * 1000.0 / total) / 10.0);
+        return number(Math.round(worth(entry, weighted) * 1000.0 / total) / 10.0);
+    }
+
+    private static double worth(RewardEntry entry, boolean weighted) {
+        double chance = Math.max(0.0, entry.chance());
+        return weighted ? chance * Math.max(0.0, entry.weight()) : chance;
     }
 
     private static String number(double value) {
