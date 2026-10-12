@@ -15,6 +15,9 @@ import org.bukkit.plugin.Plugin;
 import org.bukkit.plugin.RegisteredListener;
 import org.jetbrains.annotations.NotNull;
 
+import java.util.Map;
+import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.BiPredicate;
 
 /**
@@ -54,9 +57,18 @@ import java.util.function.BiPredicate;
  * The interception is called on the chat thread, off the main thread. Hop with
  * {@link net.exylia.lib.task.Tasks} before touching the world.
  *
+ * <h2>One line, one interception</h2>
+ * Some chat plugins fire the chat event a second time for the same line. The
+ * second copy of a line this took, from the same player within
+ * {@value #REPEAT_WINDOW_MILLIS} ms, is cancelled without reaching the
+ * interception, so a staff channel never says it twice.
+ *
  * @since 1.185.0
  */
 public final class ChatIntercept implements Listener {
+
+    /** How long a taken line is remembered, to recognise a re-fired event. */
+    static final long REPEAT_WINDOW_MILLIS = 250;
 
     private static final PlainTextComponentSerializer PLAIN = PlainTextComponentSerializer.plainText();
 
@@ -65,6 +77,11 @@ public final class ChatIntercept implements Listener {
     private final boolean ignoreCancelled;
     private final BiPredicate<Player, String> intercept;
     private volatile boolean closed;
+    // ponytail: one entry per player who ever had a line taken; tiny, never pruned on quit.
+    private final Map<UUID, Taken> lastTaken = new ConcurrentHashMap<>();
+
+    private record Taken(String message, long at) {
+    }
 
     private ChatIntercept(Plugin plugin, EventPriority priority, boolean ignoreCancelled,
                           BiPredicate<Player, String> intercept) {
@@ -117,7 +134,7 @@ public final class ChatIntercept implements Listener {
         if (legacyInUse()) {
             listen(AsyncPlayerChatEvent.class, (listener, event) -> {
                 AsyncPlayerChatEvent chat = (AsyncPlayerChatEvent) event;
-                if (intercept.test(chat.getPlayer(), chat.getMessage())) {
+                if (take(chat.getPlayer(), chat.getMessage(), System.currentTimeMillis())) {
                     chat.setCancelled(true);
                 }
             });
@@ -125,10 +142,24 @@ public final class ChatIntercept implements Listener {
         }
         listen(AsyncChatEvent.class, (listener, event) -> {
             AsyncChatEvent chat = (AsyncChatEvent) event;
-            if (intercept.test(chat.getPlayer(), PLAIN.serialize(chat.message()))) {
+            if (take(chat.getPlayer(), PLAIN.serialize(chat.message()), System.currentTimeMillis())) {
                 chat.setCancelled(true);
             }
         });
+    }
+
+    /** Whether the line is taken: a repeat of the last one taken is, without asking again. */
+    boolean take(Player player, String message, long now) {
+        UUID id = player.getUniqueId();
+        Taken last = lastTaken.get(id);
+        if (last != null && now - last.at() < REPEAT_WINDOW_MILLIS && last.message().equals(message)) {
+            return true;
+        }
+        if (!intercept.test(player, message)) {
+            return false;
+        }
+        lastTaken.put(id, new Taken(message, now));
+        return true;
     }
 
     private void listen(Class<? extends Event> type, EventExecutor executor) {
