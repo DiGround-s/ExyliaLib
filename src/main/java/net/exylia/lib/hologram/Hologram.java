@@ -79,6 +79,19 @@ public interface Hologram {
     void updateData(@NotNull Map<String, Object> data);
 
     /**
+     * Runs code when a player clicks the hologram, on that player's thread.
+     *
+     * <p>Setting a handler makes the hologram clickable even when its config
+     * lists no commands; both run when it has both. The config's
+     * {@code click.cooldown} applies.
+     *
+     * @param handler told who clicked, or {@code null} to stop listening
+     * @since 1.287.0
+     */
+    default void onClick(@Nullable java.util.function.Consumer<Player> handler) {
+    }
+
+    /**
      * Limits who can see it.
      *
      * <p>Applied on top of the view distance: a player who fails this never

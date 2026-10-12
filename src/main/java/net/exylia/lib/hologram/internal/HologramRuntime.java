@@ -42,6 +42,9 @@ public final class HologramRuntime {
     /** Keyed by owning plugin, then by hologram id, so ids never clash between plugins. */
     private static final Map<String, Map<String, HologramImpl>> BY_OWNER = new ConcurrentHashMap<>();
 
+    /** Every hologram by the id of its click box, which is how a click finds it. */
+    private static final Map<Integer, HologramImpl> BY_HITBOX = new ConcurrentHashMap<>();
+
     private static TaskScheduler scheduler;
     private static Logger logger = Logger.getLogger("ExyliaLib");
     private static TaskHandle driver;
@@ -49,6 +52,8 @@ public final class HologramRuntime {
     private static EntityIds ids;
     private static DisplaySink sink;
     private static boolean available;
+    /** The PacketEvents listener clicks arrive through, while one is registered. */
+    private static Object clicks;
 
     /** Where entity ids come from, so tests do not need a server. */
     @FunctionalInterface
@@ -73,6 +78,9 @@ public final class HologramRuntime {
             ids = DisplayPackets::newEntityId;
             sink = DisplayPackets.INSTANCE;
             available = DisplayPackets.ready();
+            if (available && clicks == null) {
+                clicks = DisplayPackets.listen(HologramRuntime::clicked);
+            }
         }
     }
 
@@ -100,6 +108,19 @@ public final class HologramRuntime {
 
     static long now() {
         return clock.getAsLong();
+    }
+
+    /** Whether an entity id is a hologram's click box. */
+    static boolean isHitbox(int entityId) {
+        return BY_HITBOX.containsKey(entityId);
+    }
+
+    /** A player clicked an entity id that is a hologram's click box. */
+    static void clicked(Player player, int entityId) {
+        HologramImpl hologram = BY_HITBOX.get(entityId);
+        if (hologram != null) {
+            hologram.clicked(player);
+        }
     }
 
     static int newEntityId() {
@@ -151,7 +172,7 @@ public final class HologramRuntime {
             return new NoopHologram(id, location);
         }
 
-        HologramImpl hologram = new HologramImpl(id, plugin.getName(), config, location);
+        HologramImpl hologram = new HologramImpl(id, plugin, config, location);
         if (data != null && !data.isEmpty()) {
             hologram.updateData(data);
         }
@@ -165,8 +186,9 @@ public final class HologramRuntime {
             HologramImpl previous = owned.put(id, hologram);
             if (previous != null) {
                 despawnEverywhere(previous);
-                previous.markRemoved();
+                retire(previous);
             }
+            BY_HITBOX.put(hologram.hitboxId(), hologram);
             ensureDriver();
         }
         return hologram;
@@ -196,7 +218,7 @@ public final class HologramRuntime {
             if (hologram.removed()) {
                 return;
             }
-            hologram.markRemoved();
+            retire(hologram);
             despawnEverywhere(hologram);
             for (Map<String, HologramImpl> owned : BY_OWNER.values()) {
                 owned.values().remove(hologram);
@@ -218,7 +240,7 @@ public final class HologramRuntime {
                 return 0;
             }
             for (HologramImpl hologram : owned.values()) {
-                hologram.markRemoved();
+                retire(hologram);
                 despawnEverywhere(hologram);
             }
             stopDriverIfIdle();
@@ -233,7 +255,7 @@ public final class HologramRuntime {
             for (HologramImpl hologram : owned.values()) {
                 // No packets: the client is gone. This only stops the runtime
                 // from believing a player who left still has it on screen.
-                hologram.viewerIds().remove(id);
+                hologram.forget(id);
             }
         }
     }
@@ -243,12 +265,17 @@ public final class HologramRuntime {
         synchronized (LOCK) {
             for (Map<String, HologramImpl> owned : BY_OWNER.values()) {
                 for (HologramImpl hologram : owned.values()) {
-                    hologram.markRemoved();
+                    retire(hologram);
                     despawnEverywhere(hologram);
                 }
             }
             BY_OWNER.clear();
+            BY_HITBOX.clear();
             stopDriverLocked();
+            if (clicks != null) {
+                DisplayPackets.stopListening(clicks);
+                clicks = null;
+            }
         }
     }
 
@@ -303,6 +330,16 @@ public final class HologramRuntime {
             hologram.despawnFor(viewer);
         }
         hologram.rebuildDisplays();
+    }
+
+    /** Gives viewers the hologram again, for a change only a spawn carries. */
+    static void reshow(HologramImpl hologram) {
+        respawn(hologram);
+    }
+
+    private static void retire(HologramImpl hologram) {
+        hologram.markRemoved();
+        BY_HITBOX.remove(hologram.hitboxId());
     }
 
     private static void respawn(HologramImpl hologram) {
@@ -389,6 +426,7 @@ public final class HologramRuntime {
                 if (hologram.refreshes() && hologram.due(now) && !viewers.isEmpty()) {
                     hologram.render(viewers);
                 }
+                hologram.animate(viewers, now);
             } catch (Throwable t) {
                 logger.warning("Could not update the hologram '" + hologram.id() + "': "
                         + t.getMessage());
@@ -407,6 +445,8 @@ public final class HologramRuntime {
                 hologram.spawnFor(player);
             } else if (!should && sees) {
                 hologram.despawnFor(player);
+            } else if (should) {
+                hologram.revalidate(player);
             }
             if (should) {
                 viewers.add(player);

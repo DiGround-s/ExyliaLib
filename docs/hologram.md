@@ -23,6 +23,7 @@ Holograms.show(this, "trophy", location, config.trophy());
 | `offsetX/Y/Z` | position adjustment |
 | `kind` | `TEXT`, `ITEM` or `BLOCK` |
 | `properties` | `billboard`, `alignment`, `scaleX/Y/Z`, and more display properties |
+| `click` | `commands`, `width`, `cooldown`: what clicking it does (since 1.287.0) |
 
 The YML keys match what ExyliaCommons' `HologramTemplateSerializer` wrote,
 minus the ones that mean nothing here (chunks, disk persistence — a hologram
@@ -32,7 +33,9 @@ another scoped deviation so commons files keep working.
 
 ## Line tags
 
-Tags at the very start of a text line style that line alone (since 1.285.0):
+Tags at the very start of a text line style that line alone. Look and models
+since 1.285.0; models with blocks, glow, motion, visibility and clicks since
+1.287.0.
 
 | Tag | Effect |
 | --- | --- |
@@ -40,21 +43,66 @@ Tags at the very start of a text line style that line alone (since 1.285.0):
 | `<opacity:160>` | the line's text opacity, 0 to 255 |
 | `<background:#66000000>` | the line's own background (`#AARRGGBB`), e.g. a pill behind a call to action |
 | `<shadow:false>` | turns the shadow off (or `<shadow>` on) for this line |
-| `<item:DIAMOND>` | the line is a floating item instead of text, centred in the stack and facing the player |
+| `<item:DIAMOND>` | the line is a floating item, centred in the stack and facing the player |
+| `<block:BEACON>` | the line is a floating block, turning around its own centre when it spins |
+| `<glow>` / `<glow:#8a51c4>` | glow outline on an item or block line, in the team colour or the one given |
+| `<spin>` / `<spin:180>` | turns the line, in degrees a second (default 90, negative turns the other way) |
+| `<bob>` / `<bob:0.15>` | floats the line up and down, in blocks (default 0.08) |
+| `<pulse>` / `<pulse:0.1>` | the line breathes, growing and shrinking by that fraction (default 0.06) |
+| `<typewriter>` / `<typewriter:40>` | types the line in, in characters a second (default 24), when a player first sees it or when it appears for them |
+| `<range:8>` | the line only shows within 8 blocks; walking up reveals it, and the stack re-lays itself out for that player |
+| `<perm:shop.vip>` / `<perm:!shop.vip>` | only shown to players with (or without) the permission |
+| `<if:"%player_level% >= 10">` | only shown while the condition holds (`==`, `!=`, `>`, `<`, `>=`, `<=`, placeholders resolved per viewer) |
 
 ```yaml
 lines:
   - '<size:0.8>{highlight}⚓ — FULLPVP — ⚓'
-  - '<size:2.2>{primary}&lMINERALS'
-  - '<opacity:170>{letters}+%trades% trades available'
-  - '<size:0.5> '
-  - '<background:#55000000>{warning}▸ Click to trade ◂'
+  - '<size:2.2><pulse>{primary}&lMINERALS'
+  - '<typewriter><opacity:170>{letters}+%trades% trades available'
+  - '<block:DIAMOND_ORE><spin><bob><glow:#59a4ff>'
+  - '<perm:shop.vip>{highlight}✦ VIP discount active'
+  - '<range:6><background:#55000000>{warning}▸ Click to trade ◂'
+click:
+  commands:
+    - 'shop open minerals'
+  width: 1.5
+  cooldown: 500ms
 ```
 
-Only these tags are read, and only at the start of the line: `<gradient:…>`
-and every other text tag is left for the text parser. A tag whose value does
-not parse (`<size:big>`) stays in the text, so the typo shows on screen. A
-blank `<size:0.5> ` line is a half-height gap.
+- Only these tags are read, and only at the start of the line:
+  `<gradient:…>` and every other text tag is left for the text parser.
+- A tag whose value does not parse (`<size:big>`) stays in the text, so the
+  typo shows on screen.
+- A value that holds `>` goes in double quotes.
+- A blank `<size:0.5> ` line is a half-height gap.
+
+**Motion costs almost nothing.** An animated line is sent one transformation
+every 500 ms aimed at the next keyframe, and the client glides there on its
+own. Every viewer sees the same frame, because frames come from the clock.
+
+**Visibility per line** (`range`, `perm`, `if`) is checked on the visibility
+pass (four times a second) for the viewers in range. When a viewer's set of
+lines changes, the lines they lost are destroyed, new ones spawn, and the ones
+that stay are moved, so nothing flickers. Placeholders in conditions run off
+the main thread, like every placeholder in a hologram line.
+
+**Typewriter** sends the growing text to one player only while it is typing
+for them. Changes to that line wait until it is fully typed, and colours and
+styles are never cut.
+
+## Clicks
+
+`click.commands` (the `net.exylia.lib.command` syntax: `console:`,
+`player:`, a bare line runs as the player) give the hologram an invisible
+interaction box as tall as the lines the viewer sees and `click.width` wide.
+Left or right click both count, once per `click.cooldown`. In code:
+
+```java
+hologram.onClick(player -> shops.open(player, "minerals")); // on the player's thread
+```
+
+A handler makes the hologram clickable even with no commands. Without either
+it has no box at all.
 
 ## API
 
@@ -72,7 +120,7 @@ blank `<size:0.5> ` line is a half-height gap.
 `Hologram`: `id()`, `location()`, `moveTo(location)` (teleport, not respawn —
 no flicker), `attachTo(entity)` (rides the entity; the client moves it, zero
 packets while moving), `lines(List)`, `refresh()`, `updateData(Map)`,
-`visibleIf(Predicate<Player>)`, `isViewing(player)`, `viewerCount()`,
+`onClick(Consumer<Player>)` (since 1.287.0), `visibleIf(Predicate<Player>)`, `isViewing(player)`, `viewerCount()`,
 `remove()`, `removed()`.
 
 ## Behavior
@@ -90,5 +138,6 @@ packets while moving), `lines(List)`, `refresh()`, `updateData(Map)`,
 
 - Public: `hologram/Holograms.java`, `Hologram.java`, `HologramConfig.java`.
 - Internal: `hologram/internal/` (`HologramImpl`, `HologramRuntime`,
-  `DisplayPackets`, `DisplaySink`, `DisplayState`, `NoopHologram`).
+  `DisplayPackets`, `DisplaySink`, `DisplayState`, `LineStyle`, `Typewriter`,
+  `NoopHologram`).
 - Tests: `src/test/java/net/exylia/lib/hologram/`.

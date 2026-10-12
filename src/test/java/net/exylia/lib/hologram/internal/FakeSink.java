@@ -20,11 +20,24 @@ import java.util.concurrent.CopyOnWriteArrayList;
 final class FakeSink implements DisplaySink {
 
     private final List<String> calls = new CopyOnWriteArrayList<>();
+    /** The text each spawn carried, in order. */
+    final List<String> spawnedText = new CopyOnWriteArrayList<>();
 
     @Override
-    public void spawn(Player viewer, DisplayState display, Location at) {
+    public void spawn(Player viewer, DisplayState display, Location at, Component text) {
         calls.add("spawn:" + name(viewer) + ":" + display.entityId()
                 + ":" + format(at.getY()));
+        spawnedText.add(PlainTextComponentSerializer.plainText().serialize(text));
+    }
+
+    @Override
+    public void transform(Player viewer, DisplayState display, int ticks) {
+        calls.add("transform:" + name(viewer) + ":" + display.entityId() + ":" + ticks);
+    }
+
+    @Override
+    public void hitbox(Player viewer, int entityId, Location at, float width, float height) {
+        calls.add("hitbox:" + name(viewer) + ":" + entityId + ":" + format(height));
     }
 
     @Override
@@ -34,8 +47,8 @@ final class FakeSink implements DisplaySink {
     }
 
     @Override
-    public void teleport(Player viewer, DisplayState display, Location to) {
-        calls.add("teleport:" + name(viewer) + ":" + display.entityId()
+    public void teleport(Player viewer, int entityId, Location to) {
+        calls.add("teleport:" + name(viewer) + ":" + entityId
                 + ":" + format(to.getY()));
     }
 
@@ -72,5 +85,6 @@ final class FakeSink implements DisplaySink {
 
     void clear() {
         calls.clear();
+        spawnedText.clear();
     }
 }

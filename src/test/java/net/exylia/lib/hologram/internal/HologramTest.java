@@ -300,10 +300,151 @@ class HologramTest {
     @DisplayName("line tags are stripped, unknown or broken ones stay in the text")
     void lineTagsParse() {
         LineStyle.Parsed parsed = LineStyle.parse("<size:1.5><opacity:120><shadow:false><bold>Hi");
-        assertEquals(new LineStyle(null, 1.5, 120, null, false), parsed.style());
+        assertEquals(new LineStyle(null, false, 1.5, 120, null, false, null, 0, 0, 0, 0,
+                null, null, 0), parsed.style());
         assertEquals("<bold>Hi", parsed.body());
         assertEquals("<size:big>Hi", LineStyle.parse("<size:big>Hi").body());
         assertEquals("<gradient:#fff:#000>Hi", LineStyle.parse("<gradient:#fff:#000>Hi").body());
+    }
+
+    @Test
+    @DisplayName("motion, model and visibility tags parse, and a quoted value may hold '>'")
+    void newTagsParse() {
+        LineStyle.Parsed parsed = LineStyle.parse(
+                "<block:beacon><spin><bob:0.2><glow:#8a51c4><if:\"%koth_capturer% > 3\"><range:8>Hi");
+        LineStyle style = parsed.style();
+        assertEquals("Hi", parsed.body());
+        assertEquals("BEACON", style.model());
+        assertTrue(style.block());
+        assertEquals(90, style.spin());
+        assertEquals(0.2, style.bob());
+        assertEquals("#8a51c4", style.glow());
+        assertEquals("%koth_capturer% > 3", style.condition());
+        assertEquals(8, style.range());
+        assertTrue(style.animated());
+        assertTrue(style.conditional());
+        assertEquals(24, LineStyle.parse("<typewriter>x").style().typewriter());
+        assertEquals("<block>x", LineStyle.parse("<block>x").body());
+    }
+
+    @Test
+    @DisplayName("a block turns around its own centre")
+    void blocksSpinAroundTheirCentre() {
+        LineStyle style = LineStyle.parse("<block:STONE><spin:90>").style();
+        DisplayState block = new DisplayState(1, HologramConfig.Kind.BLOCK,
+                style.apply(new HologramConfig.Properties()), org.bukkit.Material.STONE, style);
+
+        DisplayState.Transform still = block.transformAt(0);
+        assertEquals(-0.25, still.tx(), 1e-6);
+        assertEquals(-0.25, still.tz(), 1e-6);
+        // Half a turn later the corner offset has turned with it.
+        DisplayState.Transform half = block.transformAt(2000);
+        assertEquals(0.25, half.tx(), 1e-6);
+        assertEquals(0.25, half.tz(), 1e-6);
+        assertEquals(1.0, half.qy(), 1e-6);
+    }
+
+    @Test
+    @DisplayName("only animated lines are sent transformations, once a keyframe")
+    void animatedLinesGlide() {
+        Holograms.show(plugin, "koth", spawn(), text(List.of("<spin>Spinning", "Still")));
+        drive();
+        long first = sink.count("transform");
+        drive();
+
+        assertTrue(first >= 1);
+        assertTrue(sink.calls("transform").stream().allMatch(call -> call.startsWith("transform:Near:1000:")),
+                "only the animated line moves: " + sink.calls("transform"));
+        // The clock has not moved, so no new keyframe is due.
+        assertEquals(first, sink.count("transform"));
+        advanceSeconds(0.5);
+        drive();
+        assertEquals(first + 1, sink.count("transform"));
+    }
+
+    @Test
+    @DisplayName("a typewriter line spawns empty and is typed in, then left alone")
+    void typewriterTypesIn() {
+        Holograms.show(plugin, "koth", spawn(), text(List.of("<typewriter:10>Hello")));
+        drive();
+        assertEquals(List.of(""), sink.spawnedText);
+
+        advanceSeconds(0.3);
+        drive();
+        advanceSeconds(1);
+        drive();
+        sink.clear();
+        advanceSeconds(1);
+        drive();
+
+        List<String> text = sink.calls("text");
+        assertTrue(text.isEmpty(), "a finished line is not re-sent: " + text);
+    }
+
+    @Test
+    @DisplayName("typing sends the growing text")
+    void typewriterGrows() {
+        Holograms.show(plugin, "koth", spawn(), text(List.of("<typewriter:10>Hello")));
+        drive();
+        advanceSeconds(0.3);
+        drive();
+        advanceSeconds(1);
+        drive();
+
+        List<String> text = sink.calls("text");
+        assertEquals("text:Near:1000:Hel", text.get(0));
+        assertEquals("text:Near:1000:Hello", text.get(text.size() - 1));
+    }
+
+    @Test
+    @DisplayName("a ranged line appears as the viewer walks up, and the stack makes room")
+    void rangedLinesAppearUpClose() {
+        near.at(new Location(world, 10, 64, 0));
+        Holograms.show(plugin, "koth", spawn(), text(List.of("Title", "<range:5>Details")));
+        drive();
+        assertEquals(List.of("spawn:Near:1000:64.0"), sink.calls("spawn"));
+
+        sink.clear();
+        near.at(new Location(world, 2, 64, 0));
+        drive();
+        assertEquals(List.of("spawn:Near:1001:64.0"), sink.calls("spawn"));
+        assertEquals(List.of("teleport:Near:1000:64.25"), sink.calls("teleport"));
+
+        sink.clear();
+        near.at(new Location(world, 10, 64, 0));
+        drive();
+        assertEquals(List.of("destroy:Near:1"), sink.calls("destroy"));
+        assertEquals(List.of("teleport:Near:1000:64.0"), sink.calls("teleport"));
+    }
+
+    @Test
+    @DisplayName("permission lines are shown only to who has, or lacks, the permission")
+    void permissionLines() {
+        far.at(new Location(world, 1, 64, 0));
+        near.grant("koth.vip");
+        Holograms.show(plugin, "koth", spawn(), text(List.of("<perm:koth.vip>VIP", "<perm:!koth.vip>Buy VIP")));
+        drive();
+
+        assertEquals(List.of("spawn:Near:1000:64.0", "spawn:Far:1001:64.0"), sink.calls("spawn"));
+    }
+
+    @Test
+    @DisplayName("a clickable hologram spawns its box and runs the handler, once per cooldown")
+    void clicksRunTheHandler() {
+        Hologram hologram = Holograms.show(plugin, "koth", spawn(), text(List.of("A", "<size:2>B")));
+        AtomicInteger clicks = new AtomicInteger();
+        hologram.onClick(player -> clicks.incrementAndGet());
+        drive();
+        assertEquals(List.of("hitbox:Near:1002:0.75"), sink.calls("hitbox"));
+
+        HologramRuntime.clicked(near.player(), 1002);
+        HologramRuntime.clicked(near.player(), 1002);
+        FakeServer.tick(1);
+        assertEquals(1, clicks.get(), "a double-fired press counts once");
+        assertTrue(HologramRuntime.isHitbox(1002));
+
+        hologram.remove();
+        assertFalse(HologramRuntime.isHitbox(1002));
     }
 
     @Test

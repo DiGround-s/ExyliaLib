@@ -67,6 +67,7 @@ import net.exylia.lib.config.Time;
  * @param offsetZ      shift from the location it is shown at
  * @param properties   how it is drawn
  * @param config       how it refreshes
+ * @param click        what clicking it does; since 1.287.0
  * @since 1.6.0
  */
 public record HologramConfig(
@@ -78,8 +79,11 @@ public record HologramConfig(
 
         @Comment("The lines, top first. Supports colours like {primary} and placeholders.")
         @Comment("Only used by TEXT holograms.")
-        @Comment("Start a line with tags to style it alone: <size:2> (bigger, and the lines above make room),")
-        @Comment("<opacity:160>, <background:#66000000>, <shadow:false>, or <item:DIAMOND> for an item in the stack.")
+        @Comment("Start a line with tags to style it alone:")
+        @Comment("  look: <size:2> <opacity:160> <background:#66000000> <shadow:false>")
+        @Comment("  models: <item:DIAMOND> <block:BEACON> <glow> <glow:#8a51c4>")
+        @Comment("  motion: <spin> <spin:180> <bob> <pulse> <typewriter> <typewriter:40>")
+        @Comment("  who sees it: <range:8> <perm:shop.vip> <perm:!shop.vip> <if:\"%player_level% >= 10\">")
         List<String> lines,
 
         @Comment("The item to show, such as DIAMOND_SWORD. Only used by ITEM holograms.")
@@ -108,7 +112,10 @@ public record HologramConfig(
         Properties properties,
 
         @Comment("How the hologram refreshes.")
-        Refresh config) {
+        Refresh config,
+
+        @Comment("What clicking the hologram does. Without commands it cannot be clicked.")
+        Click click) {
 
     /** What a hologram is made of. */
     public enum Kind {
@@ -128,7 +135,30 @@ public record HologramConfig(
      */
     public HologramConfig() {
         this(false, Kind.TEXT, List.of(), "", "", false, 48.0, 0, 0, 0,
-                new Properties(), new Refresh());
+                new Properties(), new Refresh(), new Click());
+    }
+
+    /**
+     * A hologram nobody can click, as written before {@code click} existed.
+     *
+     * @param enabled      whether the hologram shows at all
+     * @param type         {@code TEXT}, {@code ITEM} or {@code BLOCK}
+     * @param lines        the text lines, top first
+     * @param item         the item to show, for {@code ITEM}
+     * @param block        the block to show, for {@code BLOCK}
+     * @param perPlayer    whether every viewer gets their own copy
+     * @param viewDistance how far away a player still sees it
+     * @param offsetX      shift from the location it is shown at
+     * @param offsetY      shift from the location it is shown at
+     * @param offsetZ      shift from the location it is shown at
+     * @param properties   how it is drawn
+     * @param config       how it refreshes
+     */
+    public HologramConfig(boolean enabled, Kind type, List<String> lines, String item, String block,
+                          boolean perPlayer, double viewDistance, double offsetX, double offsetY,
+                          double offsetZ, Properties properties, Refresh config) {
+        this(enabled, type, lines, item, block, perPlayer, viewDistance, offsetX, offsetY, offsetZ,
+                properties, config, new Click());
     }
 
     public HologramConfig {
@@ -147,6 +177,9 @@ public record HologramConfig(
         }
         if (config == null) {
             config = new Refresh();
+        }
+        if (click == null) {
+            click = new Click();
         }
         if (viewDistance <= 0) {
             viewDistance = 48.0;
@@ -239,6 +272,55 @@ public record HologramConfig(
             if (lineWidth < 1) {
                 lineWidth = 200;
             }
+        }
+    }
+
+    /**
+     * What clicking a hologram does, as written in config.
+     *
+     * <p>A hologram with commands gets an invisible box over its lines; a left
+     * or right click on it runs them as the player who clicked, in order. A
+     * plugin can react in code too, with {@link Hologram#onClick}.
+     *
+     * <pre>
+     * click:
+     *   commands:
+     *     - 'shop open minerals'
+     *     - 'console: playsound ui.button.click master %player_name%'
+     *   width: 1.5
+     *   cooldown: 500ms
+     * </pre>
+     *
+     * @param commands what runs, in the {@code net.exylia.lib.command} syntax:
+     *                 {@code console:} or {@code player:} first, a bare line
+     *                 runs as the player
+     * @param width    how wide the box is, in blocks; it is as tall as the
+     *                 lines
+     * @param cooldown milliseconds before the same player's next click counts
+     * @since 1.287.0
+     */
+    public record Click(
+            @Comment("Commands run when a player clicks it. 'console: ...' runs from the console,")
+            @Comment("a bare line runs as the player. Leave empty for a hologram nobody can click.")
+            List<String> commands,
+
+            @Comment("How wide the clickable box is, in blocks. It is as tall as the lines.")
+            double width,
+
+            @Comment("How long before the same player's next click counts. Reads 500ms, 1s.")
+            @Time(Time.Unit.MILLIS) long cooldown) {
+
+        /** Not clickable. */
+        public Click() {
+            this(List.of(), 1.5, 500);
+        }
+
+        public Click {
+            commands = commands == null ? List.of() : List.copyOf(commands);
+            if (width <= 0) {
+                width = 1.5;
+            }
+            cooldown = Math.max(0, cooldown);
         }
     }
 

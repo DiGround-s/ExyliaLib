@@ -1,6 +1,13 @@
 package net.exylia.lib.hologram.internal;
 
 import com.github.retrooper.packetevents.PacketEvents;
+import com.github.retrooper.packetevents.event.PacketListenerAbstract;
+import com.github.retrooper.packetevents.event.PacketListenerPriority;
+import com.github.retrooper.packetevents.event.PacketReceiveEvent;
+import com.github.retrooper.packetevents.protocol.packettype.PacketType;
+import com.github.retrooper.packetevents.protocol.player.InteractionHand;
+import com.github.retrooper.packetevents.util.Quaternion4f;
+import com.github.retrooper.packetevents.wrapper.play.client.WrapperPlayClientInteractEntity;
 import com.github.retrooper.packetevents.protocol.entity.data.EntityData;
 import com.github.retrooper.packetevents.protocol.entity.data.EntityDataTypes;
 import com.github.retrooper.packetevents.protocol.entity.type.EntityType;
@@ -64,14 +71,89 @@ final class DisplayPackets implements DisplaySink {
      * zero-sized invisible nothing: sending them apart is a visible flicker.
      */
     @Override
-    public void spawn(Player viewer, DisplayState display, Location at) {
+    public void spawn(Player viewer, DisplayState display, Location at, Component text) {
         send(viewer, new WrapperPlayServerSpawnEntity(
                 display.entityId(),
                 Optional.of(UUID.randomUUID()),
                 typeOf(display.kind()),
                 new Vector3d(at.getX(), at.getY(), at.getZ()),
                 0f, 0f, 0f, 0, Optional.empty()));
-        send(viewer, new WrapperPlayServerEntityMetadata(display.entityId(), fullState(display)));
+        send(viewer, new WrapperPlayServerEntityMetadata(display.entityId(), fullState(display, text)));
+    }
+
+    @Override
+    public void transform(Player viewer, DisplayState display, int ticks) {
+        DisplayState.Transform transform = display.transform();
+        // A delay of zero is what restarts the interpolation: without it the
+        // client snaps to the new frame instead of gliding there.
+        send(viewer, new WrapperPlayServerEntityMetadata(display.entityId(), List.of(
+                new EntityData<>(DisplayState.INTERPOLATION_DELAY, EntityDataTypes.INT, 0),
+                new EntityData<>(DisplayState.TRANSFORMATION_INTERPOLATION_DURATION,
+                        EntityDataTypes.INT, ticks),
+                new EntityData<>(DisplayState.TRANSLATION, EntityDataTypes.VECTOR3F,
+                        new Vector3f(transform.tx(), transform.ty(), transform.tz())),
+                new EntityData<>(DisplayState.SCALE, EntityDataTypes.VECTOR3F,
+                        new Vector3f(transform.sx(), transform.sy(), transform.sz())),
+                new EntityData<>(DisplayState.ROTATION_LEFT, EntityDataTypes.QUATERNION,
+                        new Quaternion4f(0, transform.qy(), 0, transform.qw())))));
+    }
+
+    @Override
+    public void hitbox(Player viewer, int entityId, Location at, float width, float height) {
+        send(viewer, new WrapperPlayServerSpawnEntity(entityId, Optional.of(UUID.randomUUID()),
+                EntityTypes.INTERACTION, new Vector3d(at.getX(), at.getY(), at.getZ()),
+                0f, 0f, 0f, 0, Optional.empty()));
+        send(viewer, new WrapperPlayServerEntityMetadata(entityId, List.of(
+                new EntityData<>(DisplayState.INTERACTION_WIDTH, EntityDataTypes.FLOAT, width),
+                new EntityData<>(DisplayState.INTERACTION_HEIGHT, EntityDataTypes.FLOAT, height),
+                new EntityData<>(DisplayState.INTERACTION_RESPONSIVE, EntityDataTypes.BOOLEAN, true))));
+    }
+
+    /**
+     * Starts telling {@code clicked} about clicks on a hologram's hitbox.
+     *
+     * <p>Every packet aimed at a hitbox is kept from the server, which has never
+     * heard of that id.
+     *
+     * @return what to hand to {@link #stopListening}
+     */
+    static Object listen(java.util.function.BiConsumer<Player, Integer> clicked) {
+        PacketListenerAbstract listener = new PacketListenerAbstract(PacketListenerPriority.NORMAL) {
+            @Override
+            public void onPacketReceive(PacketReceiveEvent event) {
+                if (event.getPacketType() != PacketType.Play.Client.INTERACT_ENTITY
+                        || !(event.getPlayer() instanceof Player player)) {
+                    return;
+                }
+                WrapperPlayClientInteractEntity packet = new WrapperPlayClientInteractEntity(event);
+                int target = packet.getEntityId();
+                if (!HologramRuntime.isHitbox(target)) {
+                    return;
+                }
+                event.setCancelled(true);
+                // One press arrives as INTERACT and INTERACT_AT, and again for
+                // the off hand: only the main-hand INTERACT, or an attack, counts.
+                boolean counts = switch (packet.getAction()) {
+                    case ATTACK -> true;
+                    case INTERACT -> packet.getHand() == InteractionHand.MAIN_HAND;
+                    default -> false;
+                };
+                if (counts) {
+                    clicked.accept(player, target);
+                }
+            }
+        };
+        PacketEvents.getAPI().getEventManager().registerListener(listener);
+        return listener;
+    }
+
+    static void stopListening(Object listener) {
+        try {
+            PacketEvents.getAPI().getEventManager()
+                    .unregisterListener((PacketListenerAbstract) listener);
+        } catch (Throwable ignored) {
+            // Shutting down after PacketEvents already did is not a failure.
+        }
     }
 
     /** Sends only the text, for a line whose value changed. */
@@ -84,8 +166,8 @@ final class DisplayPackets implements DisplaySink {
 
     /** Moves a display without respawning it. */
     @Override
-    public void teleport(Player viewer, DisplayState display, Location to) {
-        send(viewer, new WrapperPlayServerEntityTeleport(display.entityId(),
+    public void teleport(Player viewer, int entityId, Location to) {
+        send(viewer, new WrapperPlayServerEntityTeleport(entityId,
                 new Vector3d(to.getX(), to.getY(), to.getZ()), 0f, 0f, false));
     }
 
@@ -108,14 +190,28 @@ final class DisplayPackets implements DisplaySink {
      * entries, the smaller the packet, and this one is sent once per viewer per
      * hologram.
      */
-    private static List<EntityData<?>> fullState(DisplayState display) {
+    private static List<EntityData<?>> fullState(DisplayState display, Component text) {
         HologramConfig.Properties properties = display.properties();
-        List<EntityData<?>> data = new ArrayList<>(10);
+        DisplayState.Transform transform = display.transform();
+        List<EntityData<?>> data = new ArrayList<>(12);
 
         data.add(new EntityData<>(DisplayState.BILLBOARD, EntityDataTypes.BYTE, display.billboard()));
         data.add(new EntityData<>(DisplayState.SCALE, EntityDataTypes.VECTOR3F,
-                new Vector3f((float) properties.scaleX(), (float) properties.scaleY(),
-                        (float) properties.scaleZ())));
+                new Vector3f(transform.sx(), transform.sy(), transform.sz())));
+        if (transform.hasTranslation()) {
+            data.add(new EntityData<>(DisplayState.TRANSLATION, EntityDataTypes.VECTOR3F,
+                    new Vector3f(transform.tx(), transform.ty(), transform.tz())));
+        }
+        if (transform.hasRotation()) {
+            data.add(new EntityData<>(DisplayState.ROTATION_LEFT, EntityDataTypes.QUATERNION,
+                    new Quaternion4f(0, transform.qy(), 0, transform.qw())));
+        }
+        Integer glow = display.glowRgb();
+        if (glow != null) {
+            data.add(new EntityData<>(DisplayState.ENTITY_FLAGS, EntityDataTypes.BYTE,
+                    DisplayState.FLAG_GLOWING));
+            data.add(new EntityData<>(DisplayState.GLOW_COLOR, EntityDataTypes.INT, glow));
+        }
 
         int brightness = display.packedBrightness();
         if (brightness >= 0) {
@@ -124,7 +220,7 @@ final class DisplayPackets implements DisplaySink {
 
         switch (display.kind()) {
             case TEXT -> {
-                data.add(new EntityData<>(DisplayState.TEXT, EntityDataTypes.ADV_COMPONENT, display.text()));
+                data.add(new EntityData<>(DisplayState.TEXT, EntityDataTypes.ADV_COMPONENT, text));
                 data.add(new EntityData<>(DisplayState.LINE_WIDTH, EntityDataTypes.INT, properties.lineWidth()));
                 data.add(new EntityData<>(DisplayState.BACKGROUND_COLOR, EntityDataTypes.INT,
                         display.backgroundArgb()));

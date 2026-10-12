@@ -193,6 +193,42 @@ class ConfigModuleTest {
         return Files.readString(file(name), StandardCharsets.UTF_8);
     }
 
+    record Trophy(net.exylia.lib.hologram.HologramConfig trophy) {
+        Trophy() {
+            this(new net.exylia.lib.hologram.HologramConfig());
+        }
+    }
+
+    @Test
+    @DisplayName("a hologram written before click existed keeps working and gains it")
+    void hologramClickIsReadAndAdded() throws IOException {
+        Files.writeString(file("trophy"), """
+                trophy:
+                  enabled: true
+                  lines:
+                    - '<size:2>Hi'
+                """);
+        assertTrue(Configs.define(plugin, "trophy", Trophy.class).load().get()
+                .trophy().click().commands().isEmpty());
+        assertTrue(contents("trophy").contains("click:"), contents("trophy"));
+
+        Configs.releaseAll();
+        plugin = FakeServer.newPlugin("ConfigTestPlugin", folder.toFile());
+        Files.writeString(file("trophy"), """
+                trophy:
+                  enabled: true
+                  click:
+                    commands:
+                      - 'console: say hi'
+                    cooldown: 2s
+                """);
+        net.exylia.lib.hologram.HologramConfig.Click click =
+                Configs.define(plugin, "trophy", Trophy.class).load().get().trophy().click();
+        assertEquals(List.of("console: say hi"), click.commands());
+        assertEquals(2000, click.cooldown());
+        assertEquals(1.5, click.width());
+    }
+
     // ------------------------------------------------------------------
     // Lengths of time
     // ------------------------------------------------------------------

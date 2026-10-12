@@ -25,6 +25,7 @@ public final class DisplayState {
     static final int POS_ROT_INTERPOLATION_DURATION = 10;
     static final int TRANSLATION = 11;
     static final int SCALE = 12;
+    static final int ROTATION_LEFT = 13;
     static final int BILLBOARD = 15;
     static final int BRIGHTNESS = 16;
     static final int VIEW_RANGE = 17;
@@ -44,6 +45,35 @@ public final class DisplayState {
     /** Block display only. */
     static final int BLOCK_STATE = 23;
 
+    /** Every entity: the flags byte, and the bit that draws the glow outline. */
+    static final int ENTITY_FLAGS = 0;
+    static final byte FLAG_GLOWING = 0x40;
+
+    /** Interaction entity, the invisible box a click lands on. */
+    static final int INTERACTION_WIDTH = 8;
+    static final int INTERACTION_HEIGHT = 9;
+    static final int INTERACTION_RESPONSIVE = 10;
+
+    /** Seconds one bob and one pulse take, up and back. */
+    private static final double BOB_PERIOD = 3.0;
+    private static final double PULSE_PERIOD = 2.0;
+
+    /**
+     * Where the model sits relative to the entity, how big it is, and how it is
+     * turned: the display's transformation, as the protocol splits it.
+     */
+    record Transform(float tx, float ty, float tz, float sx, float sy, float sz,
+                     float qy, float qw) {
+
+        boolean hasTranslation() {
+            return tx != 0 || ty != 0 || tz != 0;
+        }
+
+        boolean hasRotation() {
+            return qy != 0 || qw != 1;
+        }
+    }
+
     /** Bit flags packed into {@link #TEXT_FLAGS}, from the vanilla protocol. */
     static final byte FLAG_SHADOW = 0x01;
     static final byte FLAG_SEE_THROUGH = 0x02;
@@ -55,6 +85,10 @@ public final class DisplayState {
     private final int entityId;
     private final HologramConfig.Kind kind;
     private final HologramConfig.Properties properties;
+    private final LineStyle style;
+
+    /** The transformation viewers were last given. */
+    private volatile Transform transform;
 
     /** The line this display draws, already parsed. Text displays only. */
     private Component text;
@@ -68,11 +102,76 @@ public final class DisplayState {
 
     DisplayState(int entityId, HologramConfig.Kind kind, HologramConfig.Properties properties,
                  org.bukkit.Material material) {
+        this(entityId, kind, properties, material, LineStyle.PLAIN);
+    }
+
+    DisplayState(int entityId, HologramConfig.Kind kind, HologramConfig.Properties properties,
+                 org.bukkit.Material material, LineStyle style) {
         this.entityId = entityId;
         this.kind = kind;
         this.properties = properties;
         this.material = material;
+        this.style = style;
         this.text = Component.empty();
+        this.transform = transformAt(0);
+    }
+
+    LineStyle style() {
+        return style;
+    }
+
+    Transform transform() {
+        return transform;
+    }
+
+    void transform(Transform transform) {
+        this.transform = transform;
+    }
+
+    /**
+     * The transformation at a moment.
+     *
+     * <p>Worked out from the clock alone, so every viewer is shown the same
+     * frame and a player who walks up mid-spin joins it in step. A block is
+     * shifted by half its size so it turns around its own centre instead of
+     * its corner; that shift turns along with it.
+     */
+    Transform transformAt(long millis) {
+        double seconds = millis / 1000.0;
+        double grow = 1 + style.pulse() * Math.sin(seconds * 2 * Math.PI / PULSE_PERIOD);
+        double sx = properties.scaleX() * grow;
+        double sy = properties.scaleY() * grow;
+        double sz = properties.scaleZ() * grow;
+        double angle = Math.toRadians((style.spin() * seconds) % 360);
+        double ty = style.bob() * Math.sin(seconds * 2 * Math.PI / BOB_PERIOD);
+        double tx = 0;
+        double tz = 0;
+        if (kind == HologramConfig.Kind.BLOCK && style.block()) {
+            double x = -sx / 2;
+            double z = -sz / 2;
+            tx = x * Math.cos(angle) + z * Math.sin(angle);
+            tz = -x * Math.sin(angle) + z * Math.cos(angle);
+        }
+        return new Transform((float) tx, (float) ty, (float) tz,
+                (float) sx, (float) sy, (float) sz,
+                (float) Math.sin(angle / 2), (float) Math.cos(angle / 2));
+    }
+
+    /** The glow outline colour as RGB, -1 for the team colour, or null for no glow. */
+    Integer glowRgb() {
+        String glow = style.glow();
+        if (glow == null || kind == HologramConfig.Kind.TEXT) {
+            return null;
+        }
+        String value = glow.trim();
+        if (value.startsWith("#")) {
+            value = value.substring(1);
+        }
+        try {
+            return value.isEmpty() ? -1 : Integer.parseInt(value, 16) & 0xFFFFFF;
+        } catch (NumberFormatException ignored) {
+            return -1;
+        }
     }
 
     int entityId() {
