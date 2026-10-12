@@ -622,9 +622,15 @@ public interface SurvivalService {
      * @param drop   the item
      * @return {@code true} when it was sold and must not be given as well
      * @since 1.8.0
+     * @deprecated since 1.11.0: autosell is ExyliaMarket's now; use
+     *             {@link net.exylia.lib.api.market.MarketService#autoSell(Player, ItemStack)}.
+     *             This asks it, so it keeps working while ExyliaMarket is installed.
      */
+    @Deprecated(since = "1.11.0")
     default boolean autoSell(@NotNull Player player, @NotNull ItemStack drop) {
-        return false;
+        return ExyliaAPI.get(net.exylia.lib.api.market.MarketService.class)
+                .map(market -> market.autoSell(player, drop))
+                .orElse(false);
     }
 
     /**

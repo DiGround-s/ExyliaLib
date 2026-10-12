@@ -146,6 +146,7 @@ such as `BetEvent` and `PracticeEvent`.
 | `api.ffa` | `FfaService` | ExyliaFFA | 4 |
 | `api.hiteffect` | `HitEffectService` | ExyliaHitEffect | 1 |
 | `api.killeffect` | `KillEffectService` | ExyliaKillEffect | 1 |
+| `api.market` | `MarketService` (`isModuleEnabled`, `autoSell`); events `MarketDealEvent`, `MarketLogEvent`, `TradeRequestEvent`, `SellWandUseEvent` | ExyliaMarket | 2 |
 | `api.pearls` | `PearlsService` | ExyliaPearls | 1 |
 | `api.practice` | `PracticeService` | ExyliaPracticeCore | 8 |
 | `api.practicebot` | `PracticeBotService` | ExyliaPracticeBotV3 | 2 |

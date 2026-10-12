@@ -464,6 +464,22 @@ Health I. `HEALING` with `upgraded: true` is now `STRONG_HEALING`.
 **`display-name` was treated as a fallback for `name`.** A plugin quoting an
 item back to a player quoted its bold, gradient-filled tooltip name.
 
+## Items inside items, and items as words (1.276.0)
+
+Two static helpers that read only the item, so both are safe on any thread:
+
+- `item/Containers` — `isContainer`, `contentsOf` (positions kept, `null` for an
+  empty slot), `isFilled`, `count`, path navigation (`resolve(items, "6.13")`,
+  `parentOf`, `child`, `depth`), `nameOf`, and `isBlocked(stack, names)`: whether a
+  stack or anything it carries, at any depth, is on a list of material names
+  (a shulker box or bundle is no way around a block list).
+- `item/ItemTexts` — `describe` (display name as plain text, or `Diamond sword`),
+  `nameOf`, `enchantments` (a book's stored ones included), `enchantmentName`, and
+  `summary` for an audit line: `1x "Loot" Shulker Box{3x Diamond}`.
+
+A display name is a player's words: insert it with `Values.putText`, never as
+parsed text.
+
 ## Where the code is
 
 | | |
