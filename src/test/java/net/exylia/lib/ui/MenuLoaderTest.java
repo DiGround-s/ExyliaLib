@@ -1081,4 +1081,42 @@ class MenuLoaderTest {
         assertTrue(menu.isDynamic());
         assertEquals(2, problems.size(), "undefined group and overflow are reported: " + problems);
     }
+
+    @Test
+    @DisplayName("states of one card outnumbering a group's slots are not reported")
+    void groupStates() {
+        List<String> problems = new ArrayList<>();
+        YamlConfiguration config = new YamlConfiguration();
+        try {
+            config.loadFromString("""
+                    size: 9
+                    groups:
+                      row:
+                        slots: "3-4"
+                    items:
+                      land:
+                        group: row
+                        material: STONE
+                      logs:
+                        group: row
+                        material: BOOK
+                        condition: "%view% == logs"
+                      raid:
+                        group: row
+                        material: SHIELD
+                        condition: "%view% == raid"
+                      section:
+                        group: row
+                        material: CHEST
+                        condition: "%view% == section"
+                    """);
+        } catch (Exception invalid) {
+            throw new IllegalStateException(invalid);
+        }
+        UiDefinition menu = MenuLoader.load("practice:test", config, actions::template,
+                UiSounds.DEFAULTS, (where, problem) -> problems.add(where + ": " + problem));
+
+        assertEquals(4, menu.groups().get("row").items().size());
+        assertTrue(problems.isEmpty(), "one always-shown card plus one state fit two slots: " + problems);
+    }
 }

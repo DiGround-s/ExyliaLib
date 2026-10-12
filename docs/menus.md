@@ -560,7 +560,9 @@ items:
   An odd leftover leans left.
 - Group slots left over are background, exactly like a hidden button.
 - More visible members than slots: the extras are not drawn (reported at load
-  when the group has more members than slots).
+  when the members with no `condition`, plus one conditional, outnumber the
+  slots). Several conditional members whose conditions exclude each other, such
+  as one card per state of a feature, are expected to outnumber the slots.
 - An item takes `slot`/`slots` **or** `group`, never both (an error). A `group`
   naming an undefined group is reported and the item skipped.
 - Redraws, `refresh`, `PluginMenus.update` and click-redraws lay the group out

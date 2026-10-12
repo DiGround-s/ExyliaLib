@@ -300,7 +300,7 @@ public final class MenuLoader {
         Map<String, UiGroup> groups = new LinkedHashMap<>();
         slots.forEach((id, where) -> {
             List<UiItem> items = members.getOrDefault(id, List.of());
-            if (items.size() > where.size()) {
+            if (overflows(items, where.size())) {
                 binder.problems().found("group \"" + id + "\"", items.size()
                         + " items for " + where.size() + " slots; the extras are not drawn when all are visible");
             }
@@ -308,6 +308,16 @@ public final class MenuLoader {
                     spacing(section.getConfigurationSection(id), id, binder)));
         });
         return groups;
+    }
+
+    /**
+     * Whether the members can ever be more than the slots: the ones with no condition
+     * are always drawn, and any conditional one may join them. Conditional members
+     * past that are states of the same card (only one passes at a time), not overflow.
+     */
+    private static boolean overflows(List<UiItem> items, int slots) {
+        long always = items.stream().filter(item -> item.condition() == null).count();
+        return always + (always < items.size() ? 1 : 0) > slots;
     }
 
     /** {@code auto} (or absent) is {@link UiGroup#AUTO}; otherwise a gap of zero or more. */
