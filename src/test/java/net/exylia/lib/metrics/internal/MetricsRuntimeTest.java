@@ -65,6 +65,25 @@ class MetricsRuntimeTest {
     }
 
     @Test
+    void theServersEnvironmentIsNotAnError() {
+        ErrorGroups groups = new ErrorGroups();
+        // H2: 90097 read only, 90030 file corrupted.
+        groups.add("ExyliaCore", "1.0.0", "runtime", new CompletionException(
+                new SQLException("The database is read only", "90097", 90097)));
+        groups.add("ExyliaCore", "1.0.0", "runtime", new SQLException("File corrupted", "90030", 90030));
+        groups.add("ExyliaCore", "1.0.0", "runtime", new IllegalStateException("Could not open a mariadb pool",
+                new SQLException("Access denied for user 'u'@'%' to database 'd'", "42000", 1044)));
+        groups.add("ExyliaCore", "1.0.0", "runtime", new SQLException("Access denied for user 'u'@'%'", "28000", 1045));
+        groups.add("ExyliaCore", "1.0.0", "runtime", new IllegalStateException(
+                "The paper plugin classloader for Glaze.voicechat has thrown a zip file error.",
+                new IllegalStateException("zip file closed")));
+        assertTrue(groups.isEmpty());
+
+        groups.add("ExyliaCore", "1.0.0", "runtime", new IllegalStateException("closed"));
+        assertFalse(groups.isEmpty(), "any other state error is still the plugin's bug");
+    }
+
+    @Test
     void devAndLocalJarsAreNotProduction() {
         ClassLoader loader = getClass().getClassLoader();
         assertEquals("dev", MetricsRuntime.branch(loader, "Spigot"));

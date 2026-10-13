@@ -5,6 +5,7 @@ import com.google.gson.JsonObject;
 
 import java.io.PrintWriter;
 import java.io.StringWriter;
+import java.sql.SQLException;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -29,9 +30,7 @@ final class ErrorGroups {
     private final Map<List<String>, JsonObject> groups = new LinkedHashMap<>();
 
     synchronized void add(String plugin, String version, String phase, Throwable error) {
-        // A database that stopped answering is not a bug in the plugin, and one
-        // outage would otherwise arrive as a "bug" per table being written.
-        if (net.exylia.lib.database.internal.Outages.is(error)) {
+        if (foreign(error)) {
             return;
         }
         String type = error.getClass().getName();
@@ -76,6 +75,36 @@ final class ErrorGroups {
             it.remove();
         }
         return drained;
+    }
+
+    /**
+     * Whether a failure is the server's environment rather than plugin code.
+     * The operator already gets a console line for each; the stack trace fixes
+     * nothing, and one cause would otherwise arrive as a "bug" per table or
+     * call site that happened to hit it.
+     */
+    static boolean foreign(Throwable error) {
+        // A database that stopped answering.
+        if (net.exylia.lib.database.internal.Outages.is(error)
+                // An embedded H2 file that is damaged, read-only or closed: a full
+                // disk, folder permissions or corruption, said once by the storage.
+                || net.exylia.lib.database.internal.H2Guard.isDamage(error)) {
+            return true;
+        }
+        for (Throwable cause = error; cause != null && cause.getCause() != cause; cause = cause.getCause()) {
+            // Wrong credentials or missing grants in the plugin's database settings
+            // (MySQL/MariaDB 1044 and 1045, SQLSTATE class 28).
+            if (cause instanceof SQLException sql && (sql.getErrorCode() == 1044 || sql.getErrorCode() == 1045
+                    || (sql.getSQLState() != null && sql.getSQLState().startsWith("28")))) {
+                return true;
+            }
+            // A jar replaced or unloaded under the running server: its class loader
+            // can no longer read its own file, whichever plugin happened to call it.
+            if (cause instanceof IllegalStateException && "zip file closed".equals(cause.getMessage())) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private static String stackOf(Throwable error) {

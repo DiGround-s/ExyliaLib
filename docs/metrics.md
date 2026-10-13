@@ -73,6 +73,11 @@ large their regions are — never for players.
   inner plugin fails to start (the loader catches it, so Paper never sees it).
   A task scheduled through `Tasks` is caught by the library before Paper sees
   it, so it is counted once.
+- **The server's environment is not an error.** A database that is not
+  answering, an embedded H2 file that is damaged, read-only or closed, database
+  credentials or grants that are refused, and a jar replaced under the running
+  server ("zip file closed") are not counted: the operator gets a console line
+  for each, and the stack trace fixes nothing on the plugin's side.
 - **Identical errors are one entry.** Same plugin, type and stack trace between
   two reports add to a count. At most 50 different errors wait for a report;
   new ones past that are dropped while the ones held keep counting.
