@@ -111,6 +111,9 @@ final class HologramImpl implements Hologram {
 
     private final Set<UUID> viewers = ConcurrentHashMap.newKeySet();
 
+    /** The players the last visibility check found, for the frames drawn between checks. */
+    private volatile List<Player> lastViewers = List.of();
+
     private volatile Location location;
     private volatile Entity mount;
     private volatile Map<String, Object> data = Map.of();
@@ -1021,6 +1024,16 @@ final class HologramImpl implements Hologram {
         this.displays = build(config, styles);
         this.lastText = new String[displays.length];
         refresh();
+    }
+
+    void lastViewers(List<Player> found) {
+        lastViewers = found;
+    }
+
+    /** The last visibility check's players still being shown it: one may have quit or been hidden since. */
+    List<Player> lastViewers() {
+        List<Player> found = lastViewers;
+        return found.stream().filter(player -> viewers.contains(player.getUniqueId())).toList();
     }
 
     Set<UUID> viewerIds() {

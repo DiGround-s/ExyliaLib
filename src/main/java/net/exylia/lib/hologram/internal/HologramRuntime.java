@@ -37,6 +37,12 @@ public final class HologramRuntime {
     /** How often visibility is re-checked. Four times a second is past what a walking player notices. */
     private static final long VISIBILITY_PERIOD_TICKS = 5L;
 
+    /** Drawing runs every tick, so a 1-tick refresh, a typewriter and moving colours run at 20 fps. */
+    private static final long FRAME_PERIOD_TICKS = 1L;
+
+    /** Driver runs since start; every {@link #VISIBILITY_PERIOD_TICKS}th one also checks visibility. */
+    private static long passes;
+
     private static final Object LOCK = new Object();
 
     /** Keyed by owning plugin, then by hologram id, so ids never clash between plugins. */
@@ -385,8 +391,9 @@ public final class HologramRuntime {
 
     private static void ensureDriver() {
         if (driver == null && scheduler != null) {
-            driver = scheduler.runAsyncTimer(VISIBILITY_PERIOD_TICKS, VISIBILITY_PERIOD_TICKS,
-                    HologramRuntime::tick);
+            passes = 0;
+            driver = scheduler.runAsyncTimer(VISIBILITY_PERIOD_TICKS, FRAME_PERIOD_TICKS,
+                    HologramRuntime::pass);
         }
     }
 
@@ -401,6 +408,34 @@ public final class HologramRuntime {
             driver.cancel();
             driver = null;
         }
+    }
+
+    private static void pass() {
+        if (passes++ % VISIBILITY_PERIOD_TICKS == 0) {
+            tick();
+        } else {
+            frame();
+        }
+    }
+
+    /** Redraws what is due for the viewers the last visibility check found, without re-checking them. */
+    static void frame() {
+        if (BY_OWNER.isEmpty()) {
+            return;
+        }
+        long now = now();
+        forEach(hologram -> {
+            try {
+                List<Player> viewers = hologram.lastViewers();
+                if (hologram.refreshes() && hologram.due(now) && !viewers.isEmpty()) {
+                    hologram.render(viewers);
+                }
+                hologram.animate(viewers, now);
+            } catch (Throwable t) {
+                logger.warning("Could not update the hologram '" + hologram.id() + "': "
+                        + t.getMessage());
+            }
+        });
     }
 
     /**
@@ -428,6 +463,7 @@ public final class HologramRuntime {
         for (HologramImpl hologram : holograms) {
             try {
                 List<Player> viewers = updateVisibility(hologram, online);
+                hologram.lastViewers(viewers);
                 if (hologram.refreshes() && hologram.due(now) && !viewers.isEmpty()) {
                     hologram.render(viewers);
                 }

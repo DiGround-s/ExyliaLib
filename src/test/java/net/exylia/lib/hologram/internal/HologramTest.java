@@ -196,6 +196,24 @@ class HologramTest {
     }
 
     @Test
+    @DisplayName("a 1-tick refresh redraws every tick, not only when visibility is checked")
+    void oneTickRefreshRunsEveryTick() {
+        Holograms.show(plugin, "koth", spawn(), new HologramConfig(true, HologramConfig.Kind.TEXT,
+                List.of("Capturing: %koth_capturer%"), "", "", false, 32.0, 0, 0, 0,
+                new HologramConfig.Properties(), new HologramConfig.Refresh(1, true)));
+        drive();
+        sink.clear();
+
+        for (int tick = 0; tick < 5; tick++) {
+            capturer.set("Steve" + tick);
+            advanceSeconds(0.05);
+            FakeServer.tick(1);
+        }
+
+        assertEquals(5, sink.count("text"));
+    }
+
+    @Test
     @DisplayName("a hologram with no placeholders never refreshes")
     void staticHologramsNeverRefresh() {
         Holograms.show(plugin, "koth", spawn(), text(List.of("Spawn", "Welcome")));
