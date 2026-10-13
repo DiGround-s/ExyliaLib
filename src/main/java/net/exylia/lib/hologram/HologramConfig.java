@@ -84,7 +84,7 @@ public record HologramConfig(
         @Comment("  models: <item:DIAMOND> <block:BEACON> <glow> <glow:#8a51c4>")
         @Comment("  motion: <spin> <spin:180> <bob> <pulse> <typewriter> <typewriter:40>")
         @Comment("  colour: <shine> <shine:highlight> <flow> <flow:8>")
-        @Comment("  who sees it: <range:8> <perm:shop.vip> <perm:!shop.vip> <if:\"%player_level% >= 10\">")
+        @Comment("  who sees it: <range:8> <perm:vip.rank> <perm:!vip.rank> <if:\"%player_level% >= 10\">")
         List<String> lines,
 
         @Comment("The item to show, such as DIAMOND_SWORD. Only used by ITEM holograms.")
@@ -286,7 +286,7 @@ public record HologramConfig(
      * <pre>
      * click:
      *   commands:
-     *     - 'shop open minerals'
+     *     - 'arena join'
      *     - 'console: playsound ui.button.click master %player_name%'
      *   width: 1.5
      *   cooldown: 500ms

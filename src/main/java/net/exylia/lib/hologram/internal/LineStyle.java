@@ -9,13 +9,12 @@ import net.exylia.lib.hologram.HologramLine;
  *
  * <pre>
  * lines:
- *   - '&lt;size:0.8&gt;{highlight}⚓ — FULLPVP — ⚓'
- *   - '&lt;size:2.2&gt;&lt;pulse&gt;{primary}&amp;lMINERALES'
- *   - '&lt;typewriter&gt;{letters}+14 trades available'
- *   - '&lt;block:BEACON&gt;&lt;spin&gt;&lt;bob&gt;'
- *   - '&lt;range:8&gt;&lt;background:#66000000&gt;{warning}▸ Click to trade ◂'
- *   - '&lt;perm:shop.vip&gt;{highlight}✦ VIP discount active'
- *   - '&lt;shine&gt;{primary}&amp;lSEASON II'
+ *   - '&lt;block:NETHERITE_BLOCK&gt;&lt;spin:45&gt;&lt;glow:#ff6b9d&gt;'
+ *   - '&lt;size:2.4&gt;&lt;shine&gt;{accent}&amp;lTHE ARENA'
+ *   - '&lt;flow&gt;{secondary}Season II · open now'
+ *   - '&lt;if:"%player_level% &gt;= 10"&gt;{success}You qualify'
+ *   - '&lt;perm:!arena.ranked&gt;&lt;opacity:180&gt;{letters_black}Ranked unlocks at level 10'
+ *   - '&lt;range:5&gt;&lt;typewriter&gt;&lt;background:#55000000&gt;{letters}Right-click to queue'
  * </pre>
  *
  * <p>Only these tags, and only at the start of a line, are read: anything else,

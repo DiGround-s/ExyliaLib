@@ -53,22 +53,36 @@ since 1.285.0; models with blocks, glow, motion, visibility and clicks since
 | `<flow>` / `<flow:8>` | the line's own colours flow along it, in characters a second (default 4); a gradient flows without a seam, a one-colour line gets a soft wave of its lighter shade |
 | `<typewriter>` / `<typewriter:40>` | types the line in, in characters a second (default 24), when a player first sees it or when it appears for them |
 | `<range:8>` | the line only shows within 8 blocks; walking up reveals it, and the stack re-lays itself out for that player |
-| `<perm:shop.vip>` / `<perm:!shop.vip>` | only shown to players with (or without) the permission |
+| `<perm:observatory.key>` / `<perm:!observatory.key>` | only shown to players with (or without) the permission |
 | `<if:"%player_level% >= 10">` | only shown while the condition holds (`==`, `!=`, `>`, `<`, `>=`, `<=`, placeholders resolved per viewer) |
+
+An arena entrance: a block turning above a shining title, a line each viewer
+reads for themselves, and a hint that types itself in only up close.
 
 ```yaml
 lines:
-  - '<size:0.8>{highlight}⚓ — FULLPVP — ⚓'
-  - '<size:2.2><pulse><shine>{primary}&lMINERALS'
-  - '<typewriter><opacity:170>{letters}+%trades% trades available'
-  - '<block:DIAMOND_ORE><spin><bob><glow:#59a4ff>'
-  - '<perm:shop.vip>{highlight}✦ VIP discount active'
-  - '<range:6><background:#55000000>{warning}▸ Click to trade ◂'
+  - '<block:NETHERITE_BLOCK><spin:45><glow:#ff6b9d>'
+  - '<size:2.4><shine>{accent}&lTHE ARENA'
+  - '<flow>{secondary}Season II · open now'
+  - '<size:0.5> '
+  - '<if:"%player_level% >= 10">{success}✔ You qualify'
+  - '<if:"%player_level% < 10">{error}Reach level 10 to enter'
+  - '<range:5><typewriter><background:#55000000>{letters}Right-click to join the queue'
 click:
   commands:
-    - 'shop open minerals'
+    - 'arena join'
   width: 1.5
   cooldown: 500ms
+```
+
+A members' door, one line for each side of a permission:
+
+```yaml
+lines:
+  - '<item:AMETHYST_SHARD><bob><glow:#b48fd9>'
+  - '<size:1.6><pulse:0.04>{secondary}&lTHE OBSERVATORY'
+  - '<perm:observatory.key>{success}Welcome in'
+  - '<perm:!observatory.key><opacity:180>{letters_black}Find the key in the library'
 ```
 
 - Only these tags are read, and only at the start of the line:
@@ -124,7 +138,7 @@ looks at the box, within about six blocks, the hologram grows by
 look away, so it reads as something to click. In code:
 
 ```java
-hologram.onClick(player -> shops.open(player, "minerals")); // on the player's thread
+hologram.onClick(player -> arenas.queue(player)); // on the player's thread
 ```
 
 A handler makes the hologram clickable even with no commands. Without either
