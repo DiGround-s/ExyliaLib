@@ -119,7 +119,7 @@ final class DisplayPackets implements DisplaySink {
      *
      * @return what to hand to {@link #stopListening}
      */
-    static Object listen(java.util.function.BiConsumer<Player, Integer> clicked) {
+    static Object listen(HitboxClicks clicked) {
         PacketListenerAbstract listener = new PacketListenerAbstract(PacketListenerPriority.NORMAL) {
             @Override
             public void onPacketReceive(PacketReceiveEvent event) {
@@ -141,12 +141,21 @@ final class DisplayPackets implements DisplaySink {
                     default -> false;
                 };
                 if (counts) {
-                    clicked.accept(player, target);
+                    boolean sneaking = packet.isSneaking().orElseGet(player::isSneaking);
+                    clicked.clicked(player, target, net.exylia.lib.interaction.Click.of(
+                            packet.getAction() == WrapperPlayClientInteractEntity.InteractAction.ATTACK,
+                            sneaking));
                 }
             }
         };
         PacketEvents.getAPI().getEventManager().registerListener(listener);
         return listener;
+    }
+
+    /** Told about a click on a hologram's hitbox. */
+    @FunctionalInterface
+    interface HitboxClicks {
+        void clicked(Player player, int entityId, net.exylia.lib.interaction.Click click);
     }
 
     static void stopListening(Object listener) {

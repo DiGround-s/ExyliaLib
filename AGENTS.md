@@ -709,7 +709,28 @@ Bukkit entity, never an ArmorStand, never a hand-spawned `TextDisplay`.
   spawned or teleported, never respawned whole.
 - **Clicks are an interaction entity** spawned only when `click.commands` or
   `onClick` exist; the packet is cancelled before the server sees the id.
-  Looking at it grows the hologram by `click.hover-scale`.
+  Looking at it grows the hologram by `click.hover-scale`. `click.commands`
+  are interaction lines (`net.exylia.lib.interaction`, 1.291.0): the packet's
+  attack/use and sneaking become a `Click`, and the lines filter on it.
+
+### Interactions — one answer to "what does clicking it do"
+
+Holograms, NPCs and anything else a player clicks in the world run
+`Interactions.compile(plugin, lines)` → `Interaction.run(player, click, data)`.
+Never a per-module click parser.
+
+- **It delegates, it does not re-implement.** Commands are `CommandLine`,
+  `[MESSAGE]`/`[SOUND]`/`[TITLE]`... are one-line sequences played for the
+  clicker, `[SERVER]` is `PluginTeleports.toServer`, `[TELEPORT]` is
+  `PluginTeleports.to`, `[ACTION]` is `Actions.compile` (resolved when it runs,
+  so late registrations count). Only `[DELAY]` and the click filter are its own.
+- **A module's own verb is a token**, `Interactions.token(plugin, "SAY", handler)`,
+  registered before the lines compile and released with the plugin. `DELAY`,
+  `SERVER`, `TELEPORT` and `ACTION` cannot be taken.
+- **Compile never throws.** A bad line is reported once and skipped.
+- **Order is the contract.** One line at a time, each on its own thread; a
+  refused command or an action that does not succeed stops the rest, as a
+  command list always has.
 - **A ridden hologram is laid out by translation** (`viewOf`): passengers all
   sit at the vehicle's seat, so position-based stacking does not apply there.
 - **Moving is a teleport, not a respawn.** That way a hologram following a player
@@ -1573,6 +1594,7 @@ Code root: `src/main/java/net/exylia/lib/`. Test root:
 | effect | `effect/Effects`, `Timer`, `Ticks`, `Display`, `EffectConfig` | `effect/internal/` | [docs/effects.md](docs/effects.md) | 1.4.0 |
 | scoreboard | `scoreboard/Scoreboards`, `Board`, `SidebarConfig` | `scoreboard/internal/` | [docs/scoreboard.md](docs/scoreboard.md) | 1.5.0 |
 | hologram | `hologram/Holograms`, `Hologram`, `HologramConfig` | `hologram/internal/` | [docs/hologram.md](docs/hologram.md) | 1.6.0 |
+| interaction | `interaction/Interactions`, `Interaction`, `InteractionToken`, `Click` | — | [docs/interactions.md](docs/interactions.md) | 1.291.0 |
 | client | `client/Clients`, `PluginClients`, `Waypoint`, `Cooldown`, `ClientBrand`, `ClientTeam`, `PluginTeams` | `client/internal/` (+ `TeamRegistry`) | [docs/client.md](docs/client.md) | 1.7.0 (teams 1.36.0, ownership 1.48.0) |
 | clan | `clan/Clans`, `Clan`, `ClanBridge` | `clan/internal/` | [docs/clan.md](docs/clan.md) | 1.8.0 |
 | util (potions) | `util/Effects`, `util/EffectSnapshot` (1.140.0) | — | [docs/util.md](docs/util.md) | 1.9.0 |

@@ -1,9 +1,10 @@
 package net.exylia.lib.hologram.internal;
 
-import net.exylia.lib.command.CommandLine;
-import net.exylia.lib.command.Commands;
 import net.exylia.lib.hologram.Hologram;
 import net.exylia.lib.hologram.HologramConfig;
+import net.exylia.lib.interaction.Click;
+import net.exylia.lib.interaction.Interaction;
+import net.exylia.lib.interaction.Interactions;
 import net.exylia.lib.placeholder.Placeholders;
 import net.exylia.lib.placeholder.Request;
 import net.exylia.lib.placeholder.Template;
@@ -28,7 +29,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.function.Consumer;
+import java.util.function.BiConsumer;
 import java.util.function.Predicate;
 
 /**
@@ -101,8 +102,8 @@ final class HologramImpl implements Hologram {
 
     /** The invisible box clicks land on; only spawned when it is clickable. */
     private final int hitboxId;
-    private final List<CommandLine> clickCommands;
-    private volatile Consumer<Player> clickHandler;
+    private final Interaction clickLines;
+    private volatile BiConsumer<Player, Click> clickHandler;
     private final Map<UUID, Long> lastClick = new ConcurrentHashMap<>();
 
     /** What each display currently shows, for the diff. */
@@ -130,7 +131,7 @@ final class HologramImpl implements Hologram {
         this.config = config;
         this.location = location.clone().add(config.offsetX(), config.offsetY(), config.offsetZ());
         this.intervalMs = Math.max(TICK_MS, config.config().updateInterval() * TICK_MS);
-        this.clickCommands = Commands.compileAll(config.click().commands());
+        this.clickLines = Interactions.compile(owner, config.click().commands(), "hologram \"" + id + "\"");
         restyle(styles(config.lines()));
         this.templates = compile(config.lines());
         this.displays = build(config, styles);
@@ -277,9 +278,9 @@ final class HologramImpl implements Hologram {
     }
 
     @Override
-    public void onClick(@Nullable Consumer<Player> handler) {
+    public void onClick(@Nullable BiConsumer<Player, Click> handler) {
         boolean was = clickable();
-        boolean will = !clickCommands.isEmpty() || handler != null;
+        boolean will = !clickLines.isEmpty() || handler != null;
         if (was != will) {
             // The box is spawned with the hologram, so viewers are given it
             // anew; taken down first, while it still counts as there.
@@ -861,7 +862,7 @@ final class HologramImpl implements Hologram {
     // ------------------------------------------------------------------
 
     boolean clickable() {
-        return !clickCommands.isEmpty() || clickHandler != null;
+        return !clickLines.isEmpty() || clickHandler != null;
     }
 
     int hitboxId() {
@@ -885,10 +886,10 @@ final class HologramImpl implements Hologram {
     /**
      * A player clicked the box.
      *
-     * <p>Arrives on the network thread. The commands find their own thread,
-     * and the plugin's handler is handed to the player's.
+     * <p>Arrives on the network thread. The lines find their own thread, and
+     * the plugin's handler is handed to the player's.
      */
-    void clicked(Player player) {
+    void clicked(Player player, Click click) {
         UUID uuid = player.getUniqueId();
         if (removed || !clickable() || !viewers.contains(uuid)) {
             return;
@@ -899,12 +900,12 @@ final class HologramImpl implements Hologram {
             return;
         }
         lastClick.put(uuid, now);
-        if (!clickCommands.isEmpty()) {
-            Commands.of(owner).run(clickCommands, player, data);
+        if (clickLines.handles(click)) {
+            clickLines.run(player, click, data);
         }
-        Consumer<Player> handler = clickHandler;
+        BiConsumer<Player, Click> handler = clickHandler;
         if (handler != null) {
-            Tasks.of(owner).runAtEntity(player, () -> handler.accept(player));
+            Tasks.of(owner).runAtEntity(player, () -> handler.accept(player, click));
         }
     }
 

@@ -91,6 +91,29 @@ public interface Hologram {
      * @since 1.287.0
      */
     default void onClick(@Nullable java.util.function.Consumer<Player> handler) {
+        onClick(handler == null ? null
+                : (java.util.function.BiConsumer<Player, net.exylia.lib.interaction.Click>)
+                        (player, click) -> handler.accept(player));
+    }
+
+    /**
+     * Runs code when a player clicks the hologram, told which button and
+     * whether they were sneaking, on that player's thread.
+     *
+     * <p>Replaces a handler set with either {@code onClick}. Setting one makes
+     * the hologram clickable even when its config lists no click lines; both
+     * run when it has both. The config's {@code click.cooldown} applies.
+     *
+     * <pre>{@code
+     * hologram.onClick((player, click) -> {
+     *     if (click.isShift()) editor.open(player);
+     * });
+     * }</pre>
+     *
+     * @param handler told who clicked and how, or {@code null} to stop listening
+     * @since 1.291.0
+     */
+    default void onClick(@Nullable java.util.function.BiConsumer<Player, net.exylia.lib.interaction.Click> handler) {
     }
 
     /**

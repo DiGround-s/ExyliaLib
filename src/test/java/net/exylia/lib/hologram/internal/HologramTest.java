@@ -448,6 +448,31 @@ class HologramTest {
     }
 
     @Test
+    @DisplayName("click lines and the handler know left from right and sneaking")
+    void clickKindsRunTheirLines() {
+        HologramConfig config = new HologramConfig(true, HologramConfig.Kind.TEXT, List.of("A"),
+                "", "", false, 32.0, 0, 0, 0, new HologramConfig.Properties(),
+                new HologramConfig.Refresh(), new HologramConfig.Click(
+                        List.of("left: hit", "right: use", "shift: edit", "always", "[NOPE] skipped"),
+                        1.5, 500));
+        Hologram hologram = Holograms.show(plugin, "koth", spawn(), config);
+        List<String> seen = new java.util.concurrent.CopyOnWriteArrayList<>();
+        hologram.onClick((player, click) -> seen.add(click.name()));
+        drive();
+        int box = Integer.parseInt(sink.calls("hitbox").get(0).split(":")[2]);
+
+        HologramRuntime.clicked(near.player(), box, net.exylia.lib.interaction.Click.LEFT);
+        advanceSeconds(1);
+        HologramRuntime.clicked(near.player(), box, net.exylia.lib.interaction.Click.SHIFT_RIGHT);
+        HologramRuntime.clicked(near.player(), box, net.exylia.lib.interaction.Click.RIGHT);
+        FakeServer.tick(1);
+
+        assertEquals(List.of("hit", "always", "edit", "always"), near.commands(),
+                "the second right click is inside the cooldown");
+        assertEquals(List.of("LEFT", "SHIFT_RIGHT"), seen);
+    }
+
+    @Test
     @DisplayName("a shine sweeps a band of light over the line, then rests")
     void shineSweepsAndRests() {
         net.kyori.adventure.text.Component line = net.kyori.adventure.text.Component.text("ABCDEFGH",

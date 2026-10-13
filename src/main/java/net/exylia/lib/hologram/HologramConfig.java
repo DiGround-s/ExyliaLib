@@ -279,22 +279,27 @@ public record HologramConfig(
     /**
      * What clicking a hologram does, as written in config.
      *
-     * <p>A hologram with commands gets an invisible box over its lines; a left
-     * or right click on it runs them as the player who clicked, in order. A
-     * plugin can react in code too, with {@link Hologram#onClick}.
+     * <p>A hologram with click lines gets an invisible box over its lines; a
+     * left or right click on it runs the lines that answer that click, in
+     * order, for the player who clicked. A plugin can react in code too, with
+     * {@link Hologram#onClick}.
      *
      * <pre>
      * click:
      *   commands:
      *     - 'arena join'
      *     - 'console: playsound ui.button.click master %player_name%'
+     *     - 'shift_right: [SERVER] lobby'
      *   width: 1.5
      *   cooldown: 500ms
      * </pre>
      *
-     * @param commands what runs, in the {@code net.exylia.lib.command} syntax:
-     *                 {@code console:} or {@code player:} first, a bare line
-     *                 runs as the player
+     * @param commands what runs, as interaction lines (since 1.291.0): every
+     *                 command line keeps its meaning ({@code console:},
+     *                 {@code player:}, a bare line runs as the player), and a
+     *                 line may also start with a click filter such as
+     *                 {@code left:} or be a token such as {@code [MESSAGE]};
+     *                 see {@link net.exylia.lib.interaction.Interactions}
      * @param width    how wide the box is, in blocks; it is as tall as the
      *                 lines
      * @param cooldown   milliseconds before the same player's next click counts
@@ -304,8 +309,11 @@ public record HologramConfig(
      * @since 1.287.0
      */
     public record Click(
-            @Comment("Commands run when a player clicks it. 'console: ...' runs from the console,")
-            @Comment("a bare line runs as the player. Leave empty for a hologram nobody can click.")
+            @Comment("What clicking it does, one line each, in order. Leave empty for a hologram nobody can click.")
+            @Comment("Commands: 'console: ...' runs from the console, a bare line runs as the player.")
+            @Comment("Tokens: [MESSAGE] [SOUND] [TITLE] [ACTION_BAR] [SERVER] lobby, [TELEPORT] world;x;y;z,")
+            @Comment("  [ACTION] namespace:id, [DELAY] 1s and every other effect token.")
+            @Comment("Start a line with left:, right:, shift_left:, shift_right: or shift: to limit it to that click.")
             List<String> commands,
 
             @Comment("How wide the clickable box is, in blocks. It is as tall as the lines.")

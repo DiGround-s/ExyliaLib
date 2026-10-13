@@ -516,6 +516,20 @@ A `to(player, elsewhere)` whose `ExyliaLocation` names a different server
 becomes a handover automatically, carrying `TeleportCause.CROSS_SERVER`. A
 destination naming *this* server is a local teleport, not a handover to itself.
 
+### Sending a player to a server (since 1.291.0)
+
+```java
+teleports.toServer(player, "survival").thenAccept(result -> ...);
+```
+
+What a server selector does: no place, the other server decides where they
+land. It needs **no Redis**: with ExyliaProxyUtils answering, it goes through the
+bridge's `connect` and the result says whether the proxy moved them; otherwise
+a plain `Connect` goes on the `BungeeCord` channel, which BungeeCord and Velocity
+both obey and which never answers (so `SUCCESS` then means "sent"). Naming this
+server completes `SUCCESS` without sending anything. The interaction token
+`[SERVER] name` is this call.
+
 ### Writing a place down
 
 A `Location` is a pointer into a loaded world and means nothing on another

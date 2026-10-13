@@ -382,6 +382,49 @@ public final class CrossServer {
         return result;
     }
 
+    /**
+     * Sends a player to another server, to wherever that server puts them.
+     *
+     * <p>No destination is queued, so no Redis is involved: through the bridge
+     * when it has answered (the answer says whether the proxy moved them),
+     * otherwise a plain {@code Connect} on the {@code BungeeCord} channel, which
+     * every BungeeCord and Velocity proxy understands and which never answers.
+     *
+     * @param plugin the plugin asking, for this server's own name
+     * @param tasks  its scheduler; the message goes from the player's thread
+     * @param debug  where a refusal is reported
+     * @param player who to send
+     * @param server the proxy's name for the server
+     * @return how it ended; {@link TeleportResult#SUCCESS} for a plain
+     *         {@code Connect} means it was sent, not that the proxy obeyed
+     */
+    public static @NotNull CompletableFuture<TeleportResult> connect(@NotNull Plugin plugin,
+                                                                     @NotNull TaskScheduler tasks,
+                                                                     @NotNull Debug debug,
+                                                                     @NotNull Player player,
+                                                                     @NotNull String server) {
+        String target = server.trim();
+        if (target.isEmpty()) {
+            debug.warn("No server was named to send " + player.getName() + " to.");
+            return CompletableFuture.completedFuture(TeleportResult.CROSS_SERVER_UNAVAILABLE);
+        }
+        if (target.equalsIgnoreCase(serverId(plugin))) {
+            // Already there: the proxy would refuse, and there is nothing to do.
+            return CompletableFuture.completedFuture(TeleportResult.SUCCESS);
+        }
+        CompletableFuture<TeleportResult> result = new CompletableFuture<>();
+        tasks.runAtEntity(player, () -> {
+            if (Proxy.isAvailable()) {
+                Proxy.request(player, CONNECT, target).thenAccept(reply -> result.complete(
+                        fromBridge(reply, player.getName(), target, debug,
+                                TeleportResult.SUCCESS, TeleportResult.CROSS_SERVER_UNAVAILABLE)));
+                return;
+            }
+            result.complete(legacyConnect(player, target, debug));
+        }, () -> result.complete(TeleportResult.PLAYER_LEFT));
+        return result;
+    }
+
     /** Store, then announce: the write that fails sends nothing. */
     private static void queueThenConnect(TeleportPlan plan, RedisClient redis, String key,
                                          String value, @Nullable String target,

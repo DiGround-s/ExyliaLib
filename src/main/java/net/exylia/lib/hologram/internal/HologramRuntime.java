@@ -116,11 +116,16 @@ public final class HologramRuntime {
     }
 
     /** A player clicked an entity id that is a hologram's click box. */
-    static void clicked(Player player, int entityId) {
+    static void clicked(Player player, int entityId, net.exylia.lib.interaction.Click click) {
         HologramImpl hologram = BY_HITBOX.get(entityId);
         if (hologram != null) {
-            hologram.clicked(player);
+            hologram.clicked(player, click);
         }
+    }
+
+    /** A right click, for callers that do not know which button it was. */
+    static void clicked(Player player, int entityId) {
+        clicked(player, entityId, net.exylia.lib.interaction.Click.RIGHT);
     }
 
     static int newEntityId() {

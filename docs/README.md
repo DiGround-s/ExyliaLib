@@ -21,6 +21,7 @@ against the source — rules and routes are in `AGENTS.md` under
 | [Debug](debug.md) | Coloured console output: log, success, warn, error, debug — and the banner; server-wide switch since 1.27.0, gradient name and type labels since 1.35.0 | 1.13.0 |
 | [Reloading](reload.md) | `Reloads` steps, library-reload listeners, and `/exylialib` (`reload`, `info`, `stats`) | 1.14.0 |
 | [Skulls](skulls.md) | Player heads from base64, a URL or a name — cached, shared and never blocking | 1.19.0 |
+| [Interactions](interactions.md) | What clicking something in the world does: lines with click filters, commands, effect tokens, `[SERVER]`, `[TELEPORT]`, `[ACTION]`, `[DELAY]` and tokens a plugin registers | 1.291.0 |
 | [Actions](actions.md) | Compiled, namespaced actions shared by menus, items and other event boundaries | 1.20.0 |
 | [Items](items.md) | Items described in configuration — menu icons, special items, kits, shields — read once and drawn per player; values stored on live items since 1.63.0 | 1.22.0 |
 | [Menus](menus.md) | Menus written in configuration: paginated lists, reactive redrawing, clicks bound to actions | 1.22.0 |

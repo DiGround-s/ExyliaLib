@@ -129,20 +129,37 @@ clamps them when it draws.
 
 ## Clicks
 
-`click.commands` (the `net.exylia.lib.command` syntax: `console:`,
-`player:`, a bare line runs as the player) give the hologram an invisible
-interaction box as tall as the lines the viewer sees and `click.width` wide.
-Left or right click both count, once per `click.cooldown`. While a player
-looks at the box, within about six blocks, the hologram grows by
-`click.hover-scale` (default 1.08, 1 turns it off) and glides back when they
-look away, so it reads as something to click. In code:
+`click.commands` takes [interaction lines](interactions.md) (since 1.291.0; a
+superset of the command syntax it took before, so every existing line keeps its
+meaning) and gives the hologram an invisible interaction box as tall as the
+lines the viewer sees and `click.width` wide. A line may start with a click
+filter, so left and right (and either while sneaking) can do different things:
 
-```java
-hologram.onClick(player -> arenas.queue(player)); // on the player's thread
+```yaml
+click:
+  commands:
+    - '[SOUND] UI_BUTTON_CLICK;1;1.2'
+    - 'left: [MESSAGE] {letters}Right-click to join.'
+    - 'right: arena join'
+    - 'shift_right: [SERVER] lobby'
+  cooldown: 500ms
 ```
 
-A handler makes the hologram clickable even with no commands. Without either
-it has no box at all.
+A click counts once per `click.cooldown`, whichever button it was. While a
+player looks at the box, within about six blocks, the hologram grows by
+`click.hover-scale` (default 1.08, 1 turns it off) and glides back when they
+look away, so it reads as something to click. A line that cannot be read is
+reported once when the hologram is shown and skipped. In code:
+
+```java
+hologram.onClick((player, click) -> {            // on the player's thread
+    if (click.isShift()) editor.open(player); else arenas.queue(player);
+});
+hologram.onClick(player -> arenas.queue(player)); // any click, since 1.287.0
+```
+
+A handler makes the hologram clickable even with no lines. Without either it
+has no box at all.
 
 ## Riding an entity
 
@@ -169,7 +186,7 @@ riding. Since 1.288.0; before, the lines of a ridden hologram overlapped.
 `Hologram`: `id()`, `location()`, `moveTo(location)` (teleport, not respawn —
 no flicker), `attachTo(entity)` (rides the entity; the client moves it, zero
 packets while moving), `lines(List)`, `refresh()`, `updateData(Map)`,
-`onClick(Consumer<Player>)` (since 1.287.0), `visibleIf(Predicate<Player>)`, `isViewing(player)`, `viewerCount()`,
+`onClick(Consumer<Player>)` (since 1.287.0), `onClick(BiConsumer<Player, Click>)` (since 1.291.0), `visibleIf(Predicate<Player>)`, `isViewing(player)`, `viewerCount()`,
 `remove()`, `removed()`.
 
 ## Behavior

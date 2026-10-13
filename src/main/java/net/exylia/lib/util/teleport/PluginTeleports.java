@@ -604,6 +604,33 @@ public final class PluginTeleports {
         return CrossServer.isAvailable(plugin);
     }
 
+    /**
+     * Sends a player to another server of the network, as a server selector does.
+     *
+     * <pre>{@code
+     * teleports.toServer(player, "survival").thenAccept(result -> ...);
+     * }</pre>
+     *
+     * <p>Needs no Redis: with ExyliaProxyUtils on the proxy the move is
+     * confirmed, otherwise a plain {@code Connect} goes on the
+     * {@code BungeeCord} channel, which BungeeCord and Velocity both obey.
+     * Where they land is up to the other server; to land on a place there, use
+     * {@link #to(Player, ExyliaLocation)} with a place naming that server.
+     *
+     * <p><b>Threading:</b> safe from anywhere.
+     *
+     * @param player who to send
+     * @param server the proxy's name for the server
+     * @return {@link TeleportResult#SUCCESS} once handed to the proxy (without
+     *         ExyliaProxyUtils, once the message is sent), or
+     *         {@link TeleportResult#CROSS_SERVER_UNAVAILABLE}
+     * @since 1.291.0
+     */
+    public @NotNull CompletableFuture<TeleportResult> toServer(@NotNull Player player,
+                                                              @NotNull String server) {
+        return CrossServer.connect(plugin, tasks, debug, player, server);
+    }
+
     // -------------------------------------------------------------- lifecycle
 
     /**
