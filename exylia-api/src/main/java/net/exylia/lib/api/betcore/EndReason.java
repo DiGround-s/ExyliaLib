@@ -3,48 +3,21 @@ package net.exylia.lib.api.betcore;
 /**
  * Why a match ended.
  *
- * <p>What separates these is not the message they produce but what happens to
- * the money: {@link #WIN}, {@link #SURRENDER}, {@link #TIMEOUT} and
- * {@link #DISCONNECT} pay a winner; {@link #DRAW} and {@link #CANCELLED} hand
- * both stakes back.
- *
- * @since 1.0.0
+ * @since exylia-api 2.0.0
  */
 public enum EndReason {
 
-    /** Somebody won the series on the board. */
+    /** The rules gave somebody the match; the pot was paid to them. */
     WIN,
-
-    /** Nobody could win it. Both stakes go back. */
+    /** Nobody could win; every stake was refunded. */
     DRAW,
-
-    /** A player gave up. */
-    SURRENDER,
-
-    /** A player ran out of time. */
-    TIMEOUT,
-
-    /** A player left and did not come back. */
-    DISCONNECT,
-
-    /** It never really started, or an admin stopped it. Both stakes go back. */
+    /** A player left mid-match; the pot was paid to whoever stayed. */
+    FORFEIT,
+    /** Called off before anybody won (an admin, a reload, no free arena); every stake was refunded. */
     CANCELLED;
 
-    /**
-     * Whether this outcome hands both stakes back rather than paying a winner.
-     *
-     * @return {@code true} when both players get their stake back
-     */
+    /** Whether every stake went back to whoever paid it. */
     public boolean isRefund() {
         return this == DRAW || this == CANCELLED;
-    }
-
-    /**
-     * Whether this outcome counts towards a player's record.
-     *
-     * @return {@code true} when the match is written to the statistics
-     */
-    public boolean isRecorded() {
-        return this != CANCELLED;
     }
 }

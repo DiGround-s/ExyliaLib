@@ -7,12 +7,12 @@ import org.bukkit.event.HandlerList;
 import org.jetbrains.annotations.NotNull;
 
 /**
- * Somebody is taking a bet.
+ * A player is about to take a seat in a match, before their stake is taken.
  *
- * <p>Fired before either stake is charged, so cancelling costs nobody
- * anything.
+ * <p>Cancelling it keeps the seat free with nothing charged; the plugin that cancels tells the
+ * player why.
  *
- * @since 1.0.0
+ * @since exylia-api 2.0.0
  */
 public class BetMatchJoinEvent extends BetEvent implements Cancellable {
 
@@ -41,8 +41,8 @@ public class BetMatchJoinEvent extends BetEvent implements Cancellable {
     }
 
     @Override
-    public void setCancelled(boolean cancelled) {
-        this.cancelled = cancelled;
+    public void setCancelled(boolean cancel) {
+        this.cancelled = cancel;
     }
 
     @Override
@@ -50,7 +50,7 @@ public class BetMatchJoinEvent extends BetEvent implements Cancellable {
         return HANDLERS;
     }
 
-    public static HandlerList getHandlerList() {
+    public static @NotNull HandlerList getHandlerList() {
         return HANDLERS;
     }
 }

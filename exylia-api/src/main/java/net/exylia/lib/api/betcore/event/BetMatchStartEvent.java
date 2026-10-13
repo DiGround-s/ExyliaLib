@@ -5,13 +5,9 @@ import org.bukkit.event.HandlerList;
 import org.jetbrains.annotations.NotNull;
 
 /**
- * Both stakes are held and the match is about to be played.
+ * Every player of a match is in the arena and the first turn is being played.
  *
- * <p>Deliberately not cancellable. The money is already out of both balances,
- * and a listener that could stop a match here would leave a pot with nobody to
- * pay it to.
- *
- * @since 1.0.0
+ * @since exylia-api 2.0.0
  */
 public class BetMatchStartEvent extends BetEvent {
 
@@ -32,7 +28,7 @@ public class BetMatchStartEvent extends BetEvent {
         return HANDLERS;
     }
 
-    public static HandlerList getHandlerList() {
+    public static @NotNull HandlerList getHandlerList() {
         return HANDLERS;
     }
 }

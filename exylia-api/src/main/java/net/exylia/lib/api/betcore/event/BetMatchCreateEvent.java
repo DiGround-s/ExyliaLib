@@ -1,75 +1,60 @@
 package net.exylia.lib.api.betcore.event;
 
-import net.exylia.lib.api.betcore.BetGame;
-import net.exylia.lib.api.betcore.GameMode;
+import net.exylia.lib.api.betcore.BetGameInfo;
 import org.bukkit.entity.Player;
 import org.bukkit.event.Cancellable;
 import org.bukkit.event.HandlerList;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 import java.math.BigDecimal;
 
 /**
- * Somebody is offering a bet.
+ * A player is about to list an offer or send a duel, before their stake is taken.
  *
- * <p>Fired before anything is charged and before the match exists, so a plugin
- * may refuse it outright or change what it costs. The stake is writable for the
- * discount case: a rank that bets at half price is a plugin listening here, not
- * a config key in this one.
+ * <p>Cancelling it stops the bet with nothing charged; the plugin that cancels tells the player why.
  *
- * @since 1.0.0
+ * @since exylia-api 2.0.0
  */
 public class BetMatchCreateEvent extends BetEvent implements Cancellable {
 
     private static final HandlerList HANDLERS = new HandlerList();
 
     private final Player host;
-    private final BetGame<?> game;
-    private final GameMode mode;
+    private final Player invitee;
+    private final BetGameInfo game;
     private final String currency;
-    private final int rounds;
-
-    private BigDecimal wager;
+    private final BigDecimal stake;
     private boolean cancelled;
 
-    public BetMatchCreateEvent(@NotNull Player host, @NotNull BetGame<?> game,
-                               @NotNull GameMode mode, @NotNull String currency,
-                               @NotNull BigDecimal wager, int rounds) {
+    public BetMatchCreateEvent(@NotNull Player host, @Nullable Player invitee, @NotNull BetGameInfo game,
+                               @NotNull String currency, @NotNull BigDecimal stake) {
         this.host = host;
+        this.invitee = invitee;
         this.game = game;
-        this.mode = mode;
         this.currency = currency;
-        this.wager = wager;
-        this.rounds = rounds;
+        this.stake = stake;
     }
 
     public @NotNull Player getHost() {
         return host;
     }
 
-    public @NotNull BetGame<?> getGame() {
-        return game;
+    /** The player a duel is sent to, or {@code null} for an offer listed in the lobby. */
+    public @Nullable Player getInvitee() {
+        return invitee;
     }
 
-    public @NotNull GameMode getMode() {
-        return mode;
+    public @NotNull BetGameInfo getGame() {
+        return game;
     }
 
     public @NotNull String getCurrency() {
         return currency;
     }
 
-    public @NotNull BigDecimal getWager() {
-        return wager;
-    }
-
-    /** Changes what each player has to put up. */
-    public void setWager(@NotNull BigDecimal wager) {
-        this.wager = wager;
-    }
-
-    public int getRounds() {
-        return rounds;
+    public @NotNull BigDecimal getStake() {
+        return stake;
     }
 
     @Override
@@ -78,8 +63,8 @@ public class BetMatchCreateEvent extends BetEvent implements Cancellable {
     }
 
     @Override
-    public void setCancelled(boolean cancelled) {
-        this.cancelled = cancelled;
+    public void setCancelled(boolean cancel) {
+        this.cancelled = cancel;
     }
 
     @Override
@@ -87,7 +72,7 @@ public class BetMatchCreateEvent extends BetEvent implements Cancellable {
         return HANDLERS;
     }
 
-    public static HandlerList getHandlerList() {
+    public static @NotNull HandlerList getHandlerList() {
         return HANDLERS;
     }
 }

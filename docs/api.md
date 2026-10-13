@@ -86,6 +86,10 @@ whenever its internals move; the API's version moves only when the contract
 does, so a developer targeting `exylia-api:1.0.0` is not disturbed by library
 releases.
 
+`exylia-api` 2.0.0 replaced `api.betcore` whole: the contract written for the
+first ExyliaBetCore (menu boards, rounds, modes) described a plugin that no longer
+exists, and no plugin implemented or consumed it.
+
 Adding a method to a service interface is a minor release: it breaks
 implementations, all of which are ours, and no consumers. Changing or removing
 one is a major release, so it does not happen — curate the surface before
@@ -136,7 +140,7 @@ such as `BetEvent` and `PracticeEvent`.
 | `api.armorskin` | `ArmorSkinService` | ExyliaArmorSkin | 2 |
 | `api.armortrims` | `ArmorTrimService` | ExyliaArmorTrims | 2 |
 | `api.arrows` | `ArrowsService` | ExyliaArrows | 1 |
-| `api.betcore` | `BetCoreService` | ExyliaBetCore | 8 |
+| `api.betcore` | `BetCoreService` | ExyliaBetCore | 4 |
 | `api.capture` | `CaptureService` | ExyliaCapture | 3 |
 | `api.chatcosmetics` | `CosmeticsService`, `ChatService` | ExyliaChatCosmetics | 10 |
 | `api.clans` | `ClansService` | ExyliaClans | 8 |
