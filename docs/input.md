@@ -95,6 +95,7 @@ consumer only when there is an answer.
 | `form(player, prompt)` | `FormValues` | several things in one window |
 | `icon(player, prompt)` | `String` | what something is drawn as |
 | `item(player, prompt)` | `ItemStack` | the item itself, stack size included |
+| `item(player, prompt).many()` | `List<ItemStack>` | any number of items, put down at once in a five-row window (1.289.0) |
 
 ### An icon is not an item
 
@@ -112,6 +113,15 @@ it matter.
 ```java
 inputs.item(player, "{primary}&lWHAT IS SPENT")
       .open(stack -> recipe.setInput(stack));   // 9 × a coin nobody can spell
+```
+
+`many()` (1.289.0) asks for several at once: five open rows to shift-click a
+whole selection into, one confirm, every item handed back. The answer is the
+list of clones in slot order, empty when the window closed with nothing in it.
+
+```java
+inputs.item(player, "{primary}&lPUT THE ITEMS DOWN")
+      .many().thenAccept(stacks -> catalogue.addAll(stacks));
 ```
 
 ### Modifiers every request has

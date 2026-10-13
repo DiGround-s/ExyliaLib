@@ -71,4 +71,19 @@ public final class ItemInput {
         Inputs.require(completed, "completed");
         return open().thenApply(result -> result.ifCompleted(completed));
     }
+
+    /**
+     * Asks for any number of items at once, in a window with five open rows.
+     *
+     * <p>For adding many things in one go: shift-click them in from the
+     * inventory and confirm once. Every item goes back to the player on every
+     * ending, exactly as with the one-slot window; the answer is clones, in
+     * slot order, and empty when the window was closed with nothing in it.
+     *
+     * @return the items put down, possibly none
+     * @since 1.289.0
+     */
+    public @NotNull CompletionStage<java.util.List<ItemStack>> many() {
+        return InsertWindow.openForItems(inputs.plugin(), player, prompt);
+    }
 }
