@@ -143,7 +143,9 @@ public final class Pickers {
                 names.add(material.name());
             }
         }
-        return search(viewer, Phrases.tr("{primary}&lWHICH MATERIAL?"), names, Material.CHEST);
+        // Each option drawn as itself: a page of identical chests is a page nobody can scan.
+        return search(viewer, Phrases.tr("{primary}&lWHICH MATERIAL?"), names,
+                name -> new ItemStack(Material.valueOf(name)));
     }
 
     /**
