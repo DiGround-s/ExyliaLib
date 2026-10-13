@@ -230,6 +230,16 @@ applies, measured from where the vehicle carries its passengers. The click box
 rides along and reaches up over the offset. Hover does not apply while
 riding. Since 1.288.0; before, the lines of a ridden hologram overlapped.
 
+While it rides, the entity is the hologram's place: who is in range, and
+where its displays are spawned, follow the entity's current location, not
+the one it was placed at (`location()` still returns the placed one, and
+detaching puts it back there). A client only seats passengers on an entity
+it already knows, so the mount is sent again whenever a viewer is sent the
+entity anew (they start tracking it, it respawns, it comes back from another
+world), and a viewer who respawns or changes world is sent the hologram whole
+again. A plugin no longer has to keep moving the hologram to the entity. Since
+1.298.1.
+
 ## API
 
 `Holograms`:

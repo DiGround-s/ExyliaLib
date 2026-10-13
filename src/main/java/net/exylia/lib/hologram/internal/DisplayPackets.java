@@ -5,6 +5,9 @@ import com.github.retrooper.packetevents.PacketEvents;
 import com.github.retrooper.packetevents.event.PacketListenerAbstract;
 import com.github.retrooper.packetevents.event.PacketListenerPriority;
 import com.github.retrooper.packetevents.event.PacketReceiveEvent;
+import com.github.retrooper.packetevents.event.PacketSendEvent;
+import com.github.retrooper.packetevents.protocol.packettype.PacketType;
+import com.github.retrooper.packetevents.protocol.packettype.PacketTypeCommon;
 import com.github.retrooper.packetevents.util.Quaternion4f;
 import com.github.retrooper.packetevents.protocol.entity.data.EntityData;
 import com.github.retrooper.packetevents.protocol.entity.data.EntityDataTypes;
@@ -17,6 +20,8 @@ import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerEn
 import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerEntityTeleport;
 import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerSetPassengers;
 import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerSpawnEntity;
+import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerSpawnLivingEntity;
+import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerSpawnPlayer;
 import io.github.retrooper.packetevents.util.SpigotConversionUtil;
 import io.github.retrooper.packetevents.util.SpigotReflectionUtil;
 import net.exylia.lib.hologram.HologramConfig;
@@ -115,7 +120,9 @@ final class DisplayPackets implements DisplaySink {
      * Starts telling {@code clicked} about clicks on a hologram's hitbox.
      *
      * <p>Every packet aimed at a hitbox is kept from the server, which has never
-     * heard of that id.
+     * heard of that id. The same listener watches spawns and respawns going
+     * out, so a hologram riding an entity is mounted again whenever a client
+     * is sent that entity anew.
      *
      * @return what to hand to {@link #stopListening}
      */
@@ -134,6 +141,34 @@ final class DisplayPackets implements DisplaySink {
                     clicked.clicked(player, press.entityId(),
                             net.exylia.lib.interaction.Click.of(press.attack(), sneaking));
                 }
+            }
+
+            /**
+             * Keeps ridden holograms on their vehicle: an entity the client is
+             * sent anew, or a viewer who respawns, arrives with no passengers.
+             */
+            @Override
+            public void onPacketSend(PacketSendEvent event) {
+                if (!HologramRuntime.anyMounted() || !(event.getPlayer() instanceof Player player)) {
+                    return;
+                }
+                PacketTypeCommon type = event.getPacketType();
+                if (type == PacketType.Play.Server.RESPAWN) {
+                    event.getPostTasks().add(() -> HologramRuntime.respawned(player));
+                    return;
+                }
+                int entityId;
+                if (type == PacketType.Play.Server.SPAWN_ENTITY) {
+                    entityId = new WrapperPlayServerSpawnEntity(event).getEntityId();
+                } else if (type == PacketType.Play.Server.SPAWN_PLAYER) {
+                    entityId = new WrapperPlayServerSpawnPlayer(event).getEntityId();
+                } else if (type == PacketType.Play.Server.SPAWN_LIVING_ENTITY) {
+                    entityId = new WrapperPlayServerSpawnLivingEntity(event).getEntityId();
+                } else {
+                    return;
+                }
+                // After the spawn, or the client has no vehicle to seat them on.
+                event.getPostTasks().add(() -> HologramRuntime.vehicleShown(player, entityId));
             }
         };
         PacketEvents.getAPI().getEventManager().registerListener(listener);

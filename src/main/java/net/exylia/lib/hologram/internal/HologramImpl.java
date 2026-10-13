@@ -514,7 +514,7 @@ final class HologramImpl implements Hologram {
         if (removed || !player.isOnline()) {
             return false;
         }
-        Location at = location;
+        Location at = anchor();
         if (player.getWorld() != at.getWorld()) {
             return false;
         }
@@ -678,11 +678,28 @@ final class HologramImpl implements Hologram {
         beginTyping(uuid, null, mask, now);
         placeLines(viewer, current, null, mask, now);
         spawnHitbox(viewer, mask);
+        // Recorded before the mount, so a vehicle that reaches the client right
+        // after is answered by vehicleShown instead of falling between the two.
+        viewers.add(uuid);
         Entity vehicle = mount;
         if (vehicle != null) {
             HologramRuntime.sink().mount(viewer, vehicle.getEntityId(), entityIdsWithHitbox());
         }
-        viewers.add(uuid);
+    }
+
+    /**
+     * The client of a viewer was just sent an entity: if it is the one this
+     * hologram rides, it arrived without passengers, so they are given back.
+     *
+     * <p>Covers a viewer who starts tracking the vehicle after the hologram was
+     * sent to them, and a vehicle that respawns or comes back from another world.
+     */
+    void vehicleShown(Player viewer, int entityId) {
+        Entity vehicle = mount;
+        if (vehicle != null && vehicle.getEntityId() == entityId
+                && viewers.contains(viewer.getUniqueId())) {
+            HologramRuntime.sink().mount(viewer, entityId, entityIdsWithHitbox());
+        }
     }
 
     /**
@@ -743,7 +760,7 @@ final class HologramImpl implements Hologram {
         int[] pages = linePage;
         int page = page(viewer);
         boolean[] mask = new boolean[current.length];
-        double distance = viewer.getLocation().distanceSquared(location);
+        double distance = viewer.getLocation().distanceSquared(anchor());
         for (int i = 0; i < current.length; i++) {
             LineStyle style = current[i];
             boolean shown = (i >= pages.length || pages[i] == page)
@@ -778,14 +795,14 @@ final class HologramImpl implements Hologram {
      */
     private void placeLines(Player viewer, DisplayState[] current, boolean[] before,
                             boolean[] after, long now) {
-        Location at = location;
+        Location at = anchor();
         double[] heights = heights(current.length);
         UUID uuid = viewer.getUniqueId();
         for (int i = 0; i < current.length; i++) {
             if (!shown(after, i)) {
                 continue;
             }
-            Location where = lineLocation(at, i, heights, after, current[i]);
+            Location where = place(at, i, heights, after, current[i]);
             if (before != null && shown(before, i)) {
                 HologramRuntime.sink().teleport(viewer, current[i].entityId(), where);
                 if (mount != null || hovering.contains(uuid)) {
@@ -1076,7 +1093,7 @@ final class HologramImpl implements Hologram {
         if (mount != null) {
             total += Math.max(0, config.offsetY());
         }
-        HologramRuntime.sink().hitbox(viewer, hitboxId, location,
+        HologramRuntime.sink().hitbox(viewer, hitboxId, anchor(),
                 (float) config.click().width(), (float) Math.max(total, 0.25));
     }
 
@@ -1134,23 +1151,62 @@ final class HologramImpl implements Hologram {
         hovering.remove(viewer);
     }
 
+    /**
+     * Forgets that a viewer has this hologram, without sending anything: their
+     * client dropped it on its own (a respawn or a world change), so the next
+     * visibility check sends it whole again.
+     */
+    void dropped(UUID viewer) {
+        viewers.remove(viewer);
+        masks.remove(viewer);
+        typing.remove(viewer);
+        hovering.remove(viewer);
+    }
+
     /** Moves every display for everybody who can see it. */
     void teleportFor(List<Player> currentViewers) {
         DisplayState[] current = displays;
-        Location at = location;
+        Location at = anchor();
         double[] heights = heights(current.length);
         for (Player viewer : currentViewers) {
             boolean[] mask = masks.get(viewer.getUniqueId());
             for (int i = 0; i < current.length; i++) {
                 if (shown(mask, i)) {
                     HologramRuntime.sink().teleport(viewer, current[i].entityId(),
-                            lineLocation(at, i, heights, mask, current[i]));
+                            place(at, i, heights, mask, current[i]));
                 }
             }
             if (clickable()) {
                 HologramRuntime.sink().teleport(viewer, hitboxId, at);
             }
         }
+    }
+
+    /**
+     * Where the hologram is, for range checks and for spawning: the ridden
+     * entity while it rides one, facing the way the placed location does,
+     * and the placed location otherwise.
+     */
+    Location anchor() {
+        Entity vehicle = mount;
+        Location at = location;
+        if (vehicle == null) {
+            return at;
+        }
+        Location riding = vehicle.getLocation().clone();
+        riding.setYaw(at.getYaw());
+        riding.setPitch(at.getPitch());
+        return riding;
+    }
+
+    /**
+     * Where a display is spawned or moved to. Riding, every display stands on
+     * the vehicle and its translation stacks it, so the client never draws
+     * the stack twice if the mount arrives late.
+     */
+    private Location place(Location anchor, int index, double[] heights, boolean[] mask,
+                           DisplayState display) {
+        return mount != null ? anchor : lineLocation(anchor, index, heights, mask, display);
     }
 
     /**

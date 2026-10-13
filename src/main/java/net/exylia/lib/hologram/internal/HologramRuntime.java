@@ -51,6 +51,9 @@ public final class HologramRuntime {
     /** Every hologram by the id of its click box, which is how a click finds it. */
     private static final Map<Integer, HologramImpl> BY_HITBOX = new ConcurrentHashMap<>();
 
+    /** The holograms riding an entity, which is all a spawn or respawn packet is checked against. */
+    private static final java.util.Set<HologramImpl> MOUNTED = ConcurrentHashMap.newKeySet();
+
     private static TaskScheduler scheduler;
     private static Logger logger = Logger.getLogger("ExyliaLib");
     private static TaskHandle driver;
@@ -282,6 +285,7 @@ public final class HologramRuntime {
             }
             BY_OWNER.clear();
             BY_HITBOX.clear();
+            MOUNTED.clear();
             stopDriverLocked();
             if (clicks != null) {
                 DisplayPackets.stopListening(clicks);
@@ -324,8 +328,41 @@ public final class HologramRuntime {
     }
 
     static void remounted(HologramImpl hologram) {
+        if (hologram.mount() != null && !hologram.removed()) {
+            MOUNTED.add(hologram);
+        } else {
+            MOUNTED.remove(hologram);
+        }
         // Riding is set up at spawn time, so viewers are given it again.
         respawn(hologram);
+    }
+
+    /** Whether any hologram rides an entity, so the packet listener can skip the rest. */
+    static boolean anyMounted() {
+        return !MOUNTED.isEmpty();
+    }
+
+    /**
+     * A viewer's client was just sent an entity. A client drops the passengers
+     * of an entity it did not know about, so the holograms riding it are
+     * mounted again for that viewer.
+     */
+    static void vehicleShown(Player viewer, int entityId) {
+        for (HologramImpl hologram : MOUNTED) {
+            hologram.vehicleShown(viewer, entityId);
+        }
+    }
+
+    /**
+     * A viewer respawned or changed world. Their own player is a new entity on
+     * their client, with no passengers, and a world change drops everything
+     * else, so every riding hologram is sent to them again on the next check.
+     */
+    static void respawned(Player viewer) {
+        UUID id = viewer.getUniqueId();
+        for (HologramImpl hologram : MOUNTED) {
+            hologram.dropped(id);
+        }
     }
 
     static void visibilityChanged(HologramImpl hologram) {
@@ -351,6 +388,7 @@ public final class HologramRuntime {
     private static void retire(HologramImpl hologram) {
         hologram.markRemoved();
         BY_HITBOX.remove(hologram.hitboxId());
+        MOUNTED.remove(hologram);
     }
 
     private static void respawn(HologramImpl hologram) {

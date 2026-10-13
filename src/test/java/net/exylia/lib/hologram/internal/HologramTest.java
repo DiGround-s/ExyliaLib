@@ -544,11 +544,79 @@ class HologramTest {
                 List.of("Top", "Bottom"), "", "", false, 32.0, 0, 0.5, 0,
                 new HologramConfig.Properties(), new HologramConfig.Refresh());
         Hologram hologram = Holograms.show(plugin, "koth", spawn(), config);
-        hologram.attachTo(far.player());
+        hologram.attachTo(near.player());
         drive();
 
         assertEquals(List.of(0.75f, 0.5f), sink.spawnedLift);
         assertEquals(1, sink.count("mount"));
+        assertTrue(sink.calls("spawn").stream().allMatch(call -> call.endsWith(":64.0")),
+                "every display stands on the vehicle; only the translation stacks them");
+    }
+
+    @Test
+    @DisplayName("riding, three lines with an offset stack by translation from the top down")
+    void mountedTranslationStacksEveryLine() {
+        HologramConfig config = new HologramConfig(true, HologramConfig.Kind.TEXT,
+                List.of("A", "B", "C"), "", "", false, 32.0, 0, 1.0, 0,
+                new HologramConfig.Properties(), new HologramConfig.Refresh());
+        Holograms.show(plugin, "koth", spawn(), config).attachTo(near.player());
+        drive();
+
+        assertEquals(List.of(1.5f, 1.25f, 1.0f), sink.spawnedLift);
+    }
+
+    @Test
+    @DisplayName("riding, who sees it follows the entity, not where it was placed")
+    void mountedRangeFollowsTheEntity() {
+        Hologram hologram = Holograms.show(plugin, "koth", spawn(), text(List.of("Line")));
+        hologram.attachTo(far.player());
+        drive();
+
+        assertEquals(1, hologram.viewerCount());
+        assertTrue(sink.calls("spawn").stream().allMatch(call -> call.contains(":Far:")),
+                "the player at the placed location is out of the entity's range");
+        sink.clear();
+
+        far.at(new Location(world, 5, 64, 5));
+        drive();
+        assertEquals(2, hologram.viewerCount(), "the entity walked over to the near player");
+
+        hologram.attachTo(null);
+        far.at(new Location(world, 500, 64, 500));
+        drive();
+        assertEquals(1, hologram.viewerCount(), "detached, it stays at the placed location");
+        assertTrue(hologram.isViewing(near.player()));
+    }
+
+    @Test
+    @DisplayName("riding, a viewer sent the entity again is mounted again")
+    void mountedResentWhenTheVehicleIsShown() {
+        Hologram hologram = Holograms.show(plugin, "koth", spawn(), text(List.of("Line")));
+        hologram.attachTo(near.player());
+        drive();
+        sink.clear();
+
+        HologramRuntime.vehicleShown(near.player(), 0);
+        assertEquals(List.of("mount:Near:0:1"), sink.calls("mount"));
+
+        HologramRuntime.vehicleShown(near.player(), 42);
+        HologramRuntime.vehicleShown(far.player(), 0);
+        assertEquals(1, sink.count("mount"), "another entity, or somebody not shown it, gets nothing");
+    }
+
+    @Test
+    @DisplayName("riding, a viewer who respawns is sent it whole again")
+    void mountedResentAfterRespawn() {
+        Hologram hologram = Holograms.show(plugin, "koth", spawn(), text(List.of("Line")));
+        hologram.attachTo(near.player());
+        drive();
+        sink.clear();
+
+        HologramRuntime.respawned(near.player());
+        drive();
+        assertEquals(1, sink.count("spawn"));
+        assertEquals(1, sink.count("mount"));
+        assertEquals(0, sink.count("destroy"), "their client already dropped it");
     }
 
     @Test

@@ -49,7 +49,9 @@ public interface Hologram {
      * <p>The cheapest way to have a hologram follow something: the client moves
      * it along with its mount, so nothing has to be sent while it moves. The
      * lines keep their stack and the offset is measured from where the vehicle
-     * carries its passengers.
+     * carries its passengers. While riding, range is measured from the
+     * entity's current location, and a viewer who is sent the entity anew
+     * (starts tracking it, it respawns or changes world) is mounted again.
      *
      * @param entity what to ride, or {@code null} to detach and stay put
      */
