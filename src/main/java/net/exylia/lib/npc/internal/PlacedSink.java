@@ -31,6 +31,16 @@ interface PlacedSink {
     void draw(Player viewer, int entityId, UUID profile, String name, NpcSpec spec,
               Location at, float yaw, float pitch);
 
+    /**
+     * Takes the identity back out of the viewer's player list once the body is drawn.
+     *
+     * <p>The client keeps the skin on a drawn body, but every entry still in its list is
+     * a name it offers when completing a command, so an entry left there is a fake
+     * player in {@code /kill <tab>}.
+     */
+    default void unlist(Player viewer, UUID profile) {
+    }
+
     /** Turns the head and body. */
     void look(Player viewer, int entityId, float yaw, float pitch);
 

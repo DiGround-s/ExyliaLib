@@ -62,10 +62,19 @@ final class PlacedNpcImpl implements PlacedNpc {
     private final Map<UUID, Viewer> viewers = new ConcurrentHashMap<>();
 
     /** What one player has been sent. */
+    /**
+     * How many passes after the body is drawn its identity leaves the player list: about
+     * two seconds, the time a client takes to fetch the skin it keeps on the body.
+     */
+    static final int UNLIST_AFTER_PASSES = 8;
+
     private static final class Viewer {
         final Player player;
         final World world;
         volatile boolean drawn;
+        /** Passes since the body was drawn, until the identity leaves the player list. */
+        int passesDrawn;
+        boolean unlisted;
         float yaw;
         float pitch;
         long lastClick = Long.MIN_VALUE / 2;
@@ -259,6 +268,9 @@ final class PlacedNpcImpl implements PlacedNpc {
                 announce(player, current);
             } else if (should && !viewer.drawn) {
                 draw(viewer, current, at);
+            } else if (should && !viewer.unlisted && ++viewer.passesDrawn >= UNLIST_AFTER_PASSES) {
+                viewer.unlisted = true;
+                sink().unlist(player, profile);
             } else if (!should && viewer != null) {
                 despawn(player);
             }

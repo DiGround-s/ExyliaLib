@@ -355,6 +355,11 @@ final class NpcPackets implements NpcSink, PlacedSink {
     }
 
     @Override
+    public void unlist(Player viewer, UUID profile) {
+        Broadcast.send(viewer, new WrapperPlayServerPlayerInfoRemove(profile));
+    }
+
+    @Override
     public void draw(Player viewer, int entityId, UUID profile, String name, NpcSpec spec,
                      Location at, float yaw, float pitch) {
         Broadcast.send(viewer, new WrapperPlayServerSpawnEntity(

@@ -64,6 +64,11 @@ class PlacedNpcTest {
         }
 
         @Override
+        public void unlist(Player viewer, UUID profile) {
+            sent.add("unlist:" + viewer.getName());
+        }
+
+        @Override
         public void look(Player viewer, int entityId, float yaw, float pitch) {
             sent.add("look:" + viewer.getName() + ":" + Math.round(yaw));
         }
@@ -164,6 +169,21 @@ class PlacedNpcTest {
         sent.clear();
         PlacedRuntime.tick();
         assertEquals(List.of(), sent, "staying in range sends nothing");
+    }
+
+    @Test
+    @DisplayName("the identity leaves the player list once the body is drawn, so no command completes it")
+    void unlistedAfterDrawing() {
+        npcs.place("guide", spec(), origin());
+        show();
+        for (int pass = 1; pass < PlacedNpcImpl.UNLIST_AFTER_PASSES; pass++) {
+            PlacedRuntime.tick();
+        }
+        assertEquals(List.of(), sent("unlist"), "the skin is still on its way");
+
+        PlacedRuntime.tick();
+        PlacedRuntime.tick();
+        assertEquals(List.of("unlist:Near"), sent("unlist"), "sent once");
     }
 
     @Test
