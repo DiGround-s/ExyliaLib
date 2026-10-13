@@ -43,22 +43,36 @@ public final class EntityClicks {
         throw new AssertionError("No instances.");
     }
 
-    /** The click in a received packet, or {@code null} when it is not a click on an entity. */
+    /**
+     * The click in a received packet, or {@code null} when it is not a click on an entity.
+     *
+     * <p>A player who is {@linkplain net.exylia.lib.tuner.Tuner tuning} clicks to save or
+     * snap, so their press is read as a twin: refused like any click on the entity, but
+     * acted on by nobody. Otherwise saving while looking at a clickable hologram would also
+     * run its actions.
+     */
     public static @Nullable Press read(PacketReceiveEvent event) {
         if (event.getPacketType() == PacketType.Play.Client.ATTACK) {
             return new Press(new WrapperPlayClientAttack(event).getEntityId(), true,
-                    InteractionHand.MAIN_HAND, null, false);
+                    InteractionHand.MAIN_HAND, null, tuning(event));
         }
         if (event.getPacketType() != PacketType.Play.Client.INTERACT_ENTITY) {
             return null;
         }
+        boolean tuning = tuning(event);
         WrapperPlayClientInteractEntity packet = new WrapperPlayClientInteractEntity(event);
         WrapperPlayClientInteractEntity.InteractAction action = packet.getAction();
         boolean attack = action == WrapperPlayClientInteractEntity.InteractAction.ATTACK;
-        boolean twin = action == WrapperPlayClientInteractEntity.InteractAction.INTERACT_AT && !oneInteract();
+        boolean twin = tuning || action == WrapperPlayClientInteractEntity.InteractAction.INTERACT_AT && !oneInteract();
         return new Press(packet.getEntityId(), attack,
                 attack ? InteractionHand.MAIN_HAND : packet.getHand(),
                 packet.isSneaking().orElse(null), twin);
+    }
+
+    /** Read only for a click: every other packet passes through {@link #read} too. */
+    private static boolean tuning(PacketReceiveEvent event) {
+        java.util.UUID clicker = event.getUser().getUUID();
+        return clicker != null && net.exylia.lib.tuner.Tuner.active(clicker).isPresent();
     }
 
     /** Whether a right-click arrives once, as INTERACT_AT: the server's format decides, not the client's. */

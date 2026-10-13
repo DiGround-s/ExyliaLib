@@ -274,6 +274,9 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         // else they refuse is refused as a packet.
         OverlayRuntime.init(this);
         getServer().getPluginManager().registerEvents(new OverlayListener(), this);
+        // Mouse-wheel tuning: one listener reads every plugin's sessions.
+        net.exylia.lib.tuner.Tuner.init(this);
+        getServer().getPluginManager().registerEvents(new net.exylia.lib.tuner.internal.TunerListener(), this);
         ClanRuntime.init(this);
         CombatRuntime.init(this);
         SkullRuntime.init(this);
@@ -920,6 +923,9 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
     @EventHandler(priority = EventPriority.MONITOR)
     public void onPluginDisable(PluginDisableEvent event) {
         String pluginName = event.getPlugin().getName();
+        // First: ending a tuning session stops its boss bars and lets the
+        // plugin save, which needs the effects and tasks below still up.
+        net.exylia.lib.tuner.Tuner.release(pluginName);
         // Before the task module: a display cancels its own task when stopped,
         // and doing it the other way round would leave the effect on screen.
         EffectRuntime.stopAll(pluginName);

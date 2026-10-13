@@ -30,6 +30,7 @@ against the source — rules and routes are in `AGENTS.md` under
 | [Formats](formats.md) | Numbers, money, percentages and dates a player reads — and amounts a player types, such as `10M` | 1.25.0 |
 | [Economy](economy.md) | Balances, charges and transfers over Vault, PlayerPoints or a currency you write — one economy choice for the whole server; item and experience currencies since 1.163.0 | 1.26.0 |
 | [Input](input.md) | Asking a player for something: text, numbers, amounts, choices, a searchable registry, or a whole form in one window | 1.31.0 |
+| [Tuner](tuner.md) | Fine adjustment with the mouse wheel: named axes, steps, snap, a boss-bar HUD and a live preview, saved or put back at the end | 1.298.0 |
 | [NPCs](npcs.md) | Player-shaped entities that exist only on a client — a body where somebody died, a statue, a double | 1.88.2 |
 | [Ragdolls](ragdolls.md) | Bodies that come apart into their own pieces, each one solved in advance and drawn by the client | 1.120.0 |
 | [Replays](replays.md) | Recording what happened and watching it again — the server's own state, sampled every tick, played back as packet bodies on the screens that asked for it, arena and debris included | 1.175.0 |
