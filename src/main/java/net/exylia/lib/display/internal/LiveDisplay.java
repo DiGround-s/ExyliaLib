@@ -270,6 +270,32 @@ final class LiveDisplay implements DisplayHandle {
     }
 
     /**
+     * Plays the rest of its motion {@code factor} times quicker, from where it
+     * is now.
+     *
+     * <p>The clock is re-anchored so the motion carries on from the same
+     * moment, the pose being drawn towards is sent again over the shorter time
+     * left, and the life left shrinks by the same factor.
+     */
+    synchronized void speedUp(DisplaySink sink, long now, double factor) {
+        if (gone || settling || !(factor > 0.0) || factor == 1.0) {
+            return;
+        }
+        long elapsed = elapsed(now);
+        speed *= factor;
+        maxSpeed *= factor;
+        cycleStartedAt = now - (long) (elapsed / speed);
+        endsAt = now + (long) (Math.max(0L, endsAt - now) / factor);
+        if (nextPose > 1) {
+            DisplayKeyframe heading = poses.get(nextPose - 1);
+            long remaining = (long) ((heading.atMillis() - elapsed) / speed);
+            if (remaining > 0L) {
+                sink.pose(viewers, entityId, model, heading, (int) Math.max(1L, remaining / TICK_MS));
+            }
+        }
+    }
+
+    /**
      * Sends whatever is due, and says whether this display is finished.
      *
      * <p>A pose is sent when the display reaches the <em>previous</em> pose's
@@ -400,6 +426,11 @@ final class LiveDisplay implements DisplayHandle {
             return;
         }
         DisplayRuntime.retarget(this, DisplayMotion.between(here, target, millis, easing), true);
+    }
+
+    @Override
+    public void speedUp(double factor) {
+        DisplayRuntime.speedUp(this, factor);
     }
 
     @Override

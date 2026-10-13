@@ -77,7 +77,7 @@ public final class Vfx {
     /** Above this many viewers an effect is drawn at a lower level of detail. */
     public static final int LOD_VIEWERS = 15;
 
-    private static final long TICK_MS = 50L;
+    static final long TICK_MS = 50L;
 
     private final Location origin;
     private List<Player> viewers = List.of();
@@ -555,26 +555,20 @@ public final class Vfx {
         if (idle) {
             return run;
         }
-        Map<Long, List<Step>> byTick = new TreeMap<>();
+        TreeMap<Long, List<Step>> byMoment = new TreeMap<>();
         for (Step step : steps) {
-            // Rounded, not floored: a piece at 70 ms lands on the tick at 50
-            // rather than at 100, so nothing is more than half a tick late.
-            byTick.computeIfAbsent((step.atMillis() + TICK_MS / 2) / TICK_MS,
-                    tick -> new ArrayList<>()).add(step);
+            byMoment.computeIfAbsent(step.atMillis(), at -> new ArrayList<>()).add(step);
         }
         TaskScheduler tasks = Tasks.of(plugin);
-        for (Map.Entry<Long, List<Step>> group : byTick.entrySet()) {
-            long tick = group.getKey();
-            List<Step> due = group.getValue();
-            Runnable fire = () -> run.fire(due);
-            if (tick == 0L && tasks.isOwnedBy(origin)) {
-                fire.run();
-            } else if (tick == 0L) {
-                run.owns(tasks.runAtLocation(origin, fire));
-            } else {
-                run.owns(tasks.runAtLocationLater(origin, tick, fire));
-            }
+        // What is due at once runs on this very call when it can, as it always has.
+        List<Step> first = new ArrayList<>();
+        Map<Long, List<Step>> immediate = byMoment.headMap(TICK_MS / 2);
+        if (tasks.isOwnedBy(origin)) {
+            immediate.values().forEach(first::addAll);
+            immediate.clear();
         }
+        run.start(tasks, byMoment);
+        run.fire(first);
         return run;
     }
 

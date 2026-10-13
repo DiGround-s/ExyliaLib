@@ -301,4 +301,22 @@ class LiveDisplayTest {
         assertTrue(live.advance(sink, 470L), "and once it is back it is gone");
         assertEquals("destroy", sent.get(sent.size() - 1));
     }
+
+    @Test
+    @DisplayName("sped up halfway, the rest of the motion and its life play four times quicker")
+    void speedUpCompressesWhatIsLeft() {
+        LiveDisplay shown = display(4000, 0, 2000, 4000);
+        shown.advance(sink, 0L);
+        sent.clear();
+
+        shown.speedUp(sink, 1000L, 4.0);
+        assertEquals(List.of("pose@2000 over 5"), sent);
+
+        sent.clear();
+        assertFalse(shown.advance(sink, 1249L));
+        assertTrue(sent.isEmpty());
+        shown.advance(sink, 1250L);
+        assertEquals(List.of("pose@4000 over 10"), sent);
+        assertTrue(shown.advance(sink, 1800L));
+    }
 }

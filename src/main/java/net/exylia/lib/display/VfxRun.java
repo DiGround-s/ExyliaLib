@@ -2,6 +2,7 @@ package net.exylia.lib.display;
 
 import net.exylia.lib.display.internal.DisplayRuntime;
 import net.exylia.lib.task.TaskHandle;
+import net.exylia.lib.task.TaskScheduler;
 import net.exylia.lib.util.sequence.SequenceRun;
 import org.bukkit.Location;
 import org.bukkit.World;
@@ -12,6 +13,8 @@ import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.TreeMap;
 import java.util.logging.Level;
 
 /**
@@ -29,13 +32,25 @@ public final class VfxRun {
 
     private final Plugin plugin;
     private final List<Player> viewers;
-    private final long endsAt;
+    private volatile long endsAt;
     private final List<Object> owned = new ArrayList<>();
     private volatile boolean cancelled;
 
     /** Who it is for when that is re-read while it plays; {@code null} for a fixed list. */
     private final DisplayRuntime.@Nullable Audience audience;
     private final Location origin;
+
+    /** The pieces still to come, by their moment in the effect's own time. */
+    private final TreeMap<Long, List<Vfx.Step>> waiting = new TreeMap<>();
+
+    /** The timers that fire {@link #waiting}, replaced when the speed changes. */
+    private final List<TaskHandle> timers = new ArrayList<>();
+    private TaskScheduler tasks;
+
+    /** The effect's own clock: {@code base} at {@code baseAt}, running {@code speed} times wall time. */
+    private long base;
+    private long baseAt;
+    private double speed = 1.0;
 
     VfxRun(@NotNull Plugin plugin, @NotNull List<Player> viewers, long endsAt) {
         this(plugin, viewers, endsAt, null, null);
@@ -101,7 +116,90 @@ public final class VfxRun {
         return viewers;
     }
 
+    /**
+     * Plays the rest of it {@code factor} times quicker, from now: the pieces
+     * still to come move closer and every display already on screen speeds up
+     * by as much.
+     *
+     * <p>Safe from any thread. Sequences it started play at their own pace.
+     *
+     * @param factor how many times quicker, above zero
+     * @since 1.290.0
+     */
+    public void speedUp(double factor) {
+        if (!(factor > 0.0) || factor == 1.0) {
+            return;
+        }
+        List<Object> pieces;
+        synchronized (owned) {
+            if (cancelled) {
+                return;
+            }
+            long now = System.currentTimeMillis();
+            base = clock(now);
+            baseAt = now;
+            speed *= factor;
+            endsAt = now + (long) (Math.max(0L, endsAt - now) / factor);
+            schedule();
+            pieces = List.copyOf(owned);
+        }
+        for (Object piece : pieces) {
+            if (piece instanceof DisplayHandle display) {
+                display.speedUp(factor);
+            }
+        }
+    }
+
     // ---------------------------------------------------------------- inside
+
+    /** Starts the timeline: {@code steps} by their moment, in milliseconds from now. */
+    void start(TaskScheduler scheduler, Map<Long, List<Vfx.Step>> steps) {
+        synchronized (owned) {
+            tasks = scheduler;
+            baseAt = System.currentTimeMillis();
+            waiting.putAll(steps);
+            schedule();
+        }
+    }
+
+    private long clock(long now) {
+        return base + (long) ((now - baseAt) * speed);
+    }
+
+    /** (Re)arms one timer per moment still to come, at the current speed. Holds {@link #owned}. */
+    private void schedule() {
+        timers.forEach(TaskHandle::cancel);
+        owned.removeAll(timers);
+        timers.clear();
+        long now = clock(System.currentTimeMillis());
+        // One timer per tick, however many moments land on it. Rounded, not
+        // floored: a piece at 70 ms lands on the tick at 50 rather than at
+        // 100, so nothing is more than half a tick late.
+        TreeMap<Long, List<Long>> byTick = new TreeMap<>();
+        for (long at : waiting.keySet()) {
+            long tick = Math.max(0L, (long) ((at - now) / speed + Vfx.TICK_MS / 2) / Vfx.TICK_MS);
+            byTick.computeIfAbsent(tick, key -> new ArrayList<>()).add(at);
+        }
+        for (Map.Entry<Long, List<Long>> group : byTick.entrySet()) {
+            List<Long> moments = group.getValue();
+            Runnable fire = () -> moments.forEach(this::fire);
+            TaskHandle timer = group.getKey() == 0L ? tasks.runAtLocation(origin, fire)
+                    : tasks.runAtLocationLater(origin, group.getKey(), fire);
+            timers.add(timer);
+            owned.add(timer);
+        }
+    }
+
+    /** Runs the pieces due at one moment, once, unless they already ran. */
+    private void fire(long at) {
+        List<Vfx.Step> due;
+        synchronized (owned) {
+            due = waiting.remove(at);
+        }
+        if (due != null) {
+            fire(due);
+        }
+    }
 
     @NotNull Plugin plugin() {
         return plugin;

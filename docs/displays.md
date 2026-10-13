@@ -300,6 +300,10 @@ angle the reel has reached (a loop of one turn per cycle is at
 `(now - started) / cycle` turns). `moveTo` takes the shorter arc, so use `then`
 with a spin whenever the display must turn more than half a turn to land.
 
+`speedUp(factor)` (1.290.0) plays the rest of the current motion `factor` times
+quicker from where it is, life included: an opening the player clicked to hurry.
+A motion handed over later with `then`/`moveTo` plays at its own speed.
+
 ### Who sees it, while it plays
 
 `PluginDisplays.show(model, motion, at, radius[, who])` re-reads who is within

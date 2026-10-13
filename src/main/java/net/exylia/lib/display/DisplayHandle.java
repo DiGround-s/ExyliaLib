@@ -202,4 +202,18 @@ public interface DisplayHandle {
     default void moveTo(@NotNull DisplayKeyframe target, long millis,
                         @NotNull DisplayMotion.Easing easing) {
     }
+
+    /**
+     * Plays the rest of its motion {@code factor} times quicker, from where it
+     * is now: an opening the player wants over sooner.
+     *
+     * <p>A motion handed over later with {@link #then} or {@link #moveTo}
+     * plays at its own speed. Safe from any thread; a display that cannot do
+     * it ignores it.
+     *
+     * @param factor how many times quicker, above zero
+     * @since 1.290.0
+     */
+    default void speedUp(double factor) {
+    }
 }

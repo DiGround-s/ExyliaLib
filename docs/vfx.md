@@ -51,7 +51,8 @@ run.cancel();
 | `.displays()`, `.dropped()`, `.lengthMillis()` | what it will cost and how long it lasts |
 
 `VfxRun` has `cancel()`, `isCancelled()`, `isDone()`, `endsAtMillis()` (wall
-clock) and `viewers()`.
+clock) and `viewers()`. `speedUp(factor)` (1.290.0) brings every piece still to come closer by that
+factor and speeds up the displays it already spawned.
 
 ## How it plays
 

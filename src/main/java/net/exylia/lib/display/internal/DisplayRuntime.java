@@ -380,6 +380,13 @@ public final class DisplayRuntime {
         }
     }
 
+    static void speedUp(LiveDisplay display, double factor) {
+        DisplaySink target = sink;
+        if (target != null) {
+            display.speedUp(target, clock.getAsLong(), factor);
+        }
+    }
+
     /** Gives a finished display's share of the budget back. */
     private static void released(LiveDisplay display) {
         VIEWER_LOAD.addAndGet(-display.viewerCost());
