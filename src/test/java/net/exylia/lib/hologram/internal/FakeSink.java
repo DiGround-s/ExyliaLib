@@ -24,6 +24,8 @@ final class FakeSink implements DisplaySink {
     final List<String> spawnedText = new CopyOnWriteArrayList<>();
     /** The vertical translation each spawn carried, in order. */
     final List<Float> spawnedLift = new CopyOnWriteArrayList<>();
+    /** Which way each spawn faced. */
+    final List<Float> spawnedYaw = new CopyOnWriteArrayList<>();
     /** The vertical scale each transformation carried, in order. */
     final List<Float> lastScale = new CopyOnWriteArrayList<>();
 
@@ -31,6 +33,7 @@ final class FakeSink implements DisplaySink {
     public void spawn(Player viewer, DisplayState display, Location at, Component text,
                       DisplayState.Transform transform) {
         spawnedLift.add(transform.ty());
+        spawnedYaw.add(at.getYaw());
         calls.add("spawn:" + name(viewer) + ":" + display.entityId()
                 + ":" + format(at.getY()));
         spawnedText.add(PlainTextComponentSerializer.plainText().serialize(text));
@@ -95,6 +98,7 @@ final class FakeSink implements DisplaySink {
         calls.clear();
         spawnedText.clear();
         spawnedLift.clear();
+        spawnedYaw.clear();
         lastScale.clear();
     }
 }

@@ -31,6 +31,14 @@ is packets, not a file). The interval is in ticks, like the scoreboard (and,
 like it, also reads `1s`):
 another scoped deviation so commons files keep working.
 
+## Which way it faces
+
+Every line is spawned, and moved, with the yaw and pitch of the location the
+hologram was shown at (since 1.291.1). That is what a `FIXED` billboard is read
+from: a text display at yaw 0 faces south, so a hologram meant to be read by a
+player looking at it takes that player's yaw plus 180. `CENTER` turns to every
+viewer anyway; `VERTICAL` and `HORIZONTAL` keep the axis they do not turn.
+
 ## Line tags
 
 Tags at the very start of a text line style that line alone. Look and models

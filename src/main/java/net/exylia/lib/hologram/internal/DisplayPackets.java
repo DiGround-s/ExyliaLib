@@ -78,7 +78,9 @@ final class DisplayPackets implements DisplaySink {
                 Optional.of(UUID.randomUUID()),
                 typeOf(display.kind()),
                 new Vector3d(at.getX(), at.getY(), at.getZ()),
-                0f, 0f, 0f, 0, Optional.empty()));
+                // Which way it faces: what a FIXED hologram is read from, and what the other
+                // billboards keep for the axes they do not turn.
+                at.getPitch(), at.getYaw(), at.getYaw(), 0, Optional.empty()));
         send(viewer, new WrapperPlayServerEntityMetadata(display.entityId(),
                 fullState(display, text, transform)));
     }
@@ -179,7 +181,7 @@ final class DisplayPackets implements DisplaySink {
     @Override
     public void teleport(Player viewer, int entityId, Location to) {
         send(viewer, new WrapperPlayServerEntityTeleport(entityId,
-                new Vector3d(to.getX(), to.getY(), to.getZ()), 0f, 0f, false));
+                new Vector3d(to.getX(), to.getY(), to.getZ()), to.getYaw(), to.getPitch(), false));
     }
 
     /** Makes displays ride an entity so the client moves them along with it. */

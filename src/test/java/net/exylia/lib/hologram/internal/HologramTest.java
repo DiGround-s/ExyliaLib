@@ -540,6 +540,16 @@ class HologramTest {
     }
 
     @Test
+    @DisplayName("every line faces the way the hologram's location does")
+    void linesFaceTheLocation() {
+        Location facing = new Location(world, 0, 64, 0, 135f, 0f);
+        Holograms.show(plugin, "koth", facing, text(List.of("A", "B")));
+        drive();
+
+        assertEquals(List.of(135f, 135f), sink.spawnedYaw);
+    }
+
+    @Test
     @DisplayName("moving teleports the displays instead of respawning them")
     void movingTeleports() {
         Hologram hologram = Holograms.show(plugin, "koth", spawn(), text(List.of("Line")));
