@@ -284,6 +284,10 @@ public final class Text {
             if (!source.contains(placeholder)) {
                 continue;
             }
+            source = inlineInTags(source, placeholder, pairs.get(i + 1));
+            if (!source.contains(placeholder)) {
+                continue;
+            }
             String marker = String.valueOf((char) (MARKER_BASE + values.size()));
             source = source.replace(placeholder, marker);
             values.add(pairs.get(i + 1));
@@ -587,6 +591,10 @@ public final class Text {
             if (!source.contains(substitution.key())) {
                 continue;
             }
+            source = inlineInTags(source, substitution.key(), substitution.value());
+            if (!source.contains(substitution.key())) {
+                continue;
+            }
             String marker = String.valueOf((char) (MARKER_BASE + marked.size()));
             source = source.replace(substitution.key(), marker);
             marked.add(new Marked(marker, substitution.value(), substitution.formatted(),
@@ -630,6 +638,46 @@ public final class Text {
         }
         component = substituteMarkers(component, replacements);
         return commands.isEmpty() ? component : fillClicks(component, commands);
+    }
+
+    /**
+     * Writes a value straight into the tags that carry it, such as
+     * {@code <head:%player_name%>}.
+     *
+     * <p>A marker is a character of text, so a tag argument holding one is a
+     * different argument: the head of a player named {@code \uE000}, which the
+     * parser refuses and prints as written. A value inside a tag is part of the
+     * instruction, so it goes in before the parse. Angle brackets are dropped
+     * from it, so a value cannot close the tag or open another. Click and hover
+     * tags keep their markers: their values are put in after the parse, where a
+     * command or a tooltip cannot be broken by them.
+     *
+     * @param source the text, before parsing
+     * @param key    the placeholder as written
+     * @param value  what it resolved to
+     * @return the text with the value inside every tag that held the key
+     */
+    static String inlineInTags(String source, String key, String value) {
+        int open = source.indexOf('<');
+        if (open < 0) {
+            return source;
+        }
+        String safe = value == null ? "" : value.replace("<", "").replace(">", "");
+        StringBuilder result = new StringBuilder(source.length() + safe.length());
+        int copied = 0;
+        while (open >= 0) {
+            int close = source.indexOf('>', open + 1);
+            if (close < 0) {
+                break;
+            }
+            String tag = source.substring(open + 1, close);
+            if (tag.contains(key) && !tag.startsWith("click") && !tag.startsWith("hover")) {
+                result.append(source, copied, open + 1).append(tag.replace(key, safe));
+                copied = close;
+            }
+            open = source.indexOf('<', close + 1);
+        }
+        return copied == 0 ? source : result.append(source, copied, source.length()).toString();
     }
 
     /** Where the private-use markers start, well clear of anything a font draws. */
