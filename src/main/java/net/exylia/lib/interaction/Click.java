@@ -10,7 +10,7 @@ import org.jetbrains.annotations.NotNull;
  * {@code shift_left:}, {@code shift_right:}, plus {@code shift:} for either while sneaking and
  * {@code any:} (or no prefix) for every click.
  *
- * @since 1.290.0
+ * @since 1.291.0
  */
 public enum Click {
     LEFT,
