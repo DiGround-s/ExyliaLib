@@ -26,6 +26,9 @@ stays.leave(player);                 // where they came from
 stays.leave(player, lobby);          // somewhere of your choosing
 stays.leaveHere(player);             // they walked out on their own
 
+// A hold that came first (a queue, a lent player) becomes a stay with its token and handler.
+sessions.claim(player, "match", onRelease).flatMap(claim -> stays.enter(player, claim));
+
 // Join: whatever a crash left behind goes back, and so does the player.
 stays.recover(player);
 
@@ -52,6 +55,7 @@ works, which every arena plugin used to learn on its own:
 
 - Every method is safe from any thread; player work runs on the player's thread.
 - `enter` is refused when any plugin holds the player, this one included.
+- `enter(player, claim)` (1.294.0) takes a claim this plugin already holds instead; refused when the claim is not current or the player is still leaving.
 - A second `leave` while the first runs does nothing; the first finishes.
 - `leave` on a player this plugin is not keeping does nothing.
 - A player with no snapshot left (a previous join used it) is still sent home.

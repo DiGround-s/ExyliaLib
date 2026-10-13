@@ -57,6 +57,22 @@ class PluginStaysTest {
     }
 
     @Test
+    void aClaimAlreadyHeldBecomesAStay() {
+        PluginSessions mine = new PluginSessions("ExyliaBetCore");
+        Claim loan = mine.claim(player.getUniqueId(), "queue", null).orElseThrow();
+        assertTrue(stays.enter(player, "match", null).isEmpty());
+        assertTrue(stays.enter(player, loan.as("match")).isPresent());
+        assertEquals(List.of("save"), backend.calls);
+    }
+
+    @Test
+    void aClaimThatIsNotOursCannotBecomeAStay() {
+        Claim theirs = other.claim(player.getUniqueId(), "arena", null).orElseThrow();
+        assertTrue(stays.enter(player, theirs).isEmpty());
+        assertTrue(backend.calls.isEmpty());
+    }
+
+    @Test
     void theRestoreWaitsForTheSaveToLand() {
         CompletableFuture<Void> save = new CompletableFuture<>();
         backend.nextSave = save;

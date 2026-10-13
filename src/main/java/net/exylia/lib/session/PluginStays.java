@@ -90,10 +90,32 @@ public final class PluginStays {
         if (sessions.mine(uuid).isPresent() || leaving.contains(uuid)) {
             return Optional.empty();
         }
-        Optional<Claim> claim = sessions.claim(uuid, kind, onRelease);
-        if (claim.isEmpty()) {
+        return sessions.claim(uuid, kind, onRelease).map(claim -> keep(player, claim));
+    }
+
+    /**
+     * Turns a claim this plugin already holds into a stay, and saves what the player owns.
+     *
+     * <p>For a hold that comes before the stay: a queue moving its player into
+     * the match, or a player another plugin lent this one. The claim keeps its
+     * token and its release handler. The same as {@link #enter} otherwise; the
+     * caller makes sure the claim is not already in a stay.
+     *
+     * @param player the player
+     * @param claim  this plugin's current claim on them
+     * @return the stay, or empty when the claim is no longer current or the player is still leaving
+     * @since 1.294.0
+     */
+    public @NotNull Optional<Stay> enter(@NotNull Player player, @NotNull Claim claim) {
+        UUID uuid = player.getUniqueId();
+        if (sessions.mine(uuid).filter(claim::equals).isEmpty() || leaving.contains(uuid)) {
             return Optional.empty();
         }
+        return Optional.of(keep(player, claim));
+    }
+
+    private Stay keep(Player player, Claim claim) {
+        UUID uuid = player.getUniqueId();
         // Closing hands whatever was on the cursor or in the crafting grid back
         // to the inventory, so the snapshot holds it. A screen only closes on
         // its owner's thread.
@@ -102,7 +124,7 @@ public final class PluginStays {
         }
         CompletableFuture<Void> saved = backend.save(player);
         saves.put(uuid, saved);
-        return Optional.of(new Stay(claim.get(), saved));
+        return new Stay(claim, saved);
     }
 
     /**
