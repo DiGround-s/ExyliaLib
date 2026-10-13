@@ -119,7 +119,7 @@ public final class H2Guard {
             again.initCause(ALREADY_REPORTED);
             throw again;
         }
-        Throwable failure = check(base, settings);
+        Throwable failure = checkCopy(base, db, settings);
         if (failure == null) {
             return;
         }
@@ -271,9 +271,42 @@ public final class H2Guard {
 
     // ---------------------------------------------------------------- check
 
+    /**
+     * {@link #check} on a copy of the live file, opened the way the pool will open it.
+     *
+     * <p>Never the live file itself: a file the last run did not close cleanly
+     * cannot be opened read-only, since H2 has to write to recover it, and the
+     * failed attempt stays registered in this JVM holding that path. The pool's
+     * connection then gets it back and every write of the plugin fails with
+     * "The database is read only". On a copy the recovery runs, as it will for
+     * the pool, and only real damage is left to report.
+     */
+    private static @Nullable Throwable checkCopy(Path base, Path db, SqlSettings settings) {
+        Path work;
+        Path copy;
+        try {
+            work = Files.createTempDirectory(base.getParent(), "check-");
+            copy = work.resolve(base.getFileName());
+            Files.copy(db, mvFile(copy));
+        } catch (IOException | RuntimeException uncopied) {
+            // Not enough room for a copy, most likely: the pool reports whatever is really wrong.
+            return null;
+        }
+        try {
+            return check(copy, settings, false);
+        } finally {
+            deleteTree(work);
+        }
+    }
+
     /** Reads every row of every table on a read-only connection; the failure, or {@code null} when all of it read. */
     static @Nullable Throwable check(@NotNull Path base, @NotNull SqlSettings settings) {
-        try (Connection connection = connect("jdbc:h2:file:" + base + ";ACCESS_MODE_DATA=r;IFEXISTS=TRUE", settings)) {
+        return check(base, settings, true);
+    }
+
+    private static @Nullable Throwable check(Path base, SqlSettings settings, boolean readOnly) {
+        String mode = readOnly ? ";ACCESS_MODE_DATA=r" : "";
+        try (Connection connection = connect("jdbc:h2:file:" + base + mode + ";IFEXISTS=TRUE", settings)) {
             try {
                 readEverything(connection);
                 return null;

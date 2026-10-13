@@ -65,6 +65,41 @@ class H2GuardTest {
         }
     }
 
+    @Test
+    void aFileLeftOpenByACrashStaysWritable(@TempDir Path dir) throws Exception {
+        // A server killed mid-run leaves a file H2 has to recover, which it cannot do read-only.
+        Path base = dir.resolve("h2");
+        Process killed = new ProcessBuilder(Path.of(System.getProperty("java.home"), "bin", "java").toString(),
+                "-cp", System.getProperty("java.class.path"), Crash.class.getName(), base.toString())
+                .inheritIO().start();
+        assertEquals(0, killed.waitFor(), "the crashing writer ran");
+
+        H2Guard.prepare(SqlSettings.file("h2", base), (Level level, String message) -> { });
+
+        try (Connection connection = connect(base); Statement statement = connection.createStatement()) {
+            // Whatever the crash kept, the pool must be able to write.
+            statement.execute("CREATE TABLE IF NOT EXISTS players (id INT PRIMARY KEY)");
+            statement.execute("INSERT INTO players VALUES (-1)");
+        }
+        try (var left = Files.list(dir)) {
+            assertTrue(left.noneMatch(path -> path.getFileName().toString().startsWith("check-")),
+                    "the copy the check read is gone");
+        }
+    }
+
+    /** Writes, then dies without closing anything, the way a killed server does. */
+    public static final class Crash {
+        public static void main(String[] args) throws Exception {
+            Connection connection = connect(Path.of(args[0]));
+            Statement statement = connection.createStatement();
+            statement.execute("CREATE TABLE players (id INT PRIMARY KEY)");
+            for (int id = 0; id < 5000; id++) {
+                statement.execute("INSERT INTO players VALUES (" + id + ")");
+            }
+            Runtime.getRuntime().halt(0);
+        }
+    }
+
     private static Connection connect(Path base) throws Exception {
         Properties credentials = new Properties();
         credentials.setProperty("user", "sa");
