@@ -27,7 +27,12 @@ import java.util.UUID;
  * are copies taken when the event was made, safe to keep.
  *
  * @since 1.11.0
+ * @deprecated a plugin now records its audit trail itself into the staff log
+ *             every plugin shares, {@code net.exylia.lib.log.Logs} in ExyliaLib
+ *             1.296.0 and later, browsed with {@code /exylialib logs}; nothing
+ *             needs to listen for this event any more
  */
+@Deprecated(since = "2.1.0")
 public class MarketLogEvent extends Event {
 
     private static final HandlerList HANDLERS = new HandlerList();

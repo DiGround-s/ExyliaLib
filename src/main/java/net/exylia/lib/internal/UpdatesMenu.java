@@ -96,6 +96,7 @@ public final class UpdatesMenu {
         actions.registerSync("updates_keep", (context, arguments) -> decide(context, false));
         PendingRewardsMenu.init(plugin);
         net.exylia.lib.settings.internal.SettingsMenu.init(plugin, NAMESPACE);
+        net.exylia.lib.log.internal.LogsMenu.init(plugin, NAMESPACE);
 
         PluginMenus built = Menus.of(plugin, NAMESPACE);
         load(built);
@@ -116,6 +117,7 @@ public final class UpdatesMenu {
         menus = null;
         PendingRewardsMenu.release();
         net.exylia.lib.settings.internal.SettingsMenu.release();
+        net.exylia.lib.log.internal.LogsMenu.release();
     }
 
     /**
@@ -147,6 +149,7 @@ public final class UpdatesMenu {
         // library owns, so each reload has to compile all of them again.
         PendingRewardsMenu.load(target);
         net.exylia.lib.settings.internal.SettingsMenu.load(target);
+        net.exylia.lib.log.internal.LogsMenu.load(target);
     }
 
     private static YamlConfiguration yaml(String text) {

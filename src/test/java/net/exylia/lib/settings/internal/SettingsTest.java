@@ -49,6 +49,7 @@ class SettingsTest {
         FakeServer.install();
         FakeServer.packageMainResources("lang");
         net.exylia.lib.settings.internal.SettingsMenu.anchor(FakeServer.class);
+        net.exylia.lib.log.internal.LogsMenu.anchor(FakeServer.class);
     }
 
     @BeforeEach

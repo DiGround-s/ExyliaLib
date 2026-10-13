@@ -1087,6 +1087,7 @@ x, y or z: x, y o z
 '{info}&lREFRESH': '{info}&lACTUALIZAR'
 '{letters_black}▎ {error}Nobody called {0} has played here.': '{letters_black}▎ {error}Nadie llamado {0} ha jugado aquí.'
 '{letters_black}▎ {secondary}Pending rewards {letters_black}» {letters}{muted}/exylialib pendingrewards [player]{letters} — rewards waiting to be delivered, to give now or cancel.': '{letters_black}▎ {secondary}Recompensas pendientes {letters_black}» {letters}{muted}/exylialib pendingrewards [jugador]{letters} — recompensas por entregar, para darlas ya o cancelarlas.'
+'{letters_black}▎ {secondary}Logs {letters_black}» {letters}{muted}/exylialib logs <player|*> [plugin] [action]{letters} — the staff audit log every plugin records into.': '{letters_black}▎ {secondary}Registros {letters_black}» {letters}{muted}/exylialib logs <jugador|*> [plugin] [acción]{letters} — el registro de auditoría del staff donde anota cada plugin.'
 '{letters_black}▎ {success}No reward is waiting to be delivered.': '{letters_black}▎ {success}Ninguna recompensa espera ser entregada.'
 '{muted}offline': '{muted}desconectado'
 '{muted}pending rewards': '{muted}recompensas pendientes'

@@ -31,6 +31,7 @@ import org.jetbrains.annotations.NotNull;
  * @param selection what the block selector tells them while they pick
  * @param players   what a command says about a player it cannot find
  * @param purchase  what buying a cosmetic with currency says
+ * @param logs      what the staff audit log says
  * @since 1.67.0
  */
 @Comment("What ExyliaLib itself says to your players.")
@@ -55,17 +56,25 @@ public record LibraryMessages(
         @NotNull Players players,
 
         @Comment("What buying a cosmetic with currency says, in every cosmetic plugin.")
-        @NotNull Purchase purchase
+        @NotNull Purchase purchase,
+
+        @Comment("What /exylialib logs, the staff audit log, says.")
+        @NotNull Logs logs
 ) {
 
     /** The Exylia defaults. */
     public LibraryMessages() {
-        this(new Wizard(), new Selection(), new Players(), new Purchase());
+        this(new Wizard(), new Selection(), new Players(), new Purchase(), new Logs());
+    }
+
+    /** The messages before the staff log had any, with its defaults. */
+    public LibraryMessages(Wizard wizard, Selection selection, Players players, Purchase purchase) {
+        this(wizard, selection, players, purchase, null);
     }
 
     /** The messages before purchases had any, with the purchase defaults. */
     public LibraryMessages(Wizard wizard, Selection selection, Players players) {
-        this(wizard, selection, players, null);
+        this(wizard, selection, players, null, null);
     }
 
     public LibraryMessages {
@@ -80,6 +89,9 @@ public record LibraryMessages(
         }
         if (purchase == null) {
             purchase = new Purchase();
+        }
+        if (logs == null) {
+            logs = new Logs();
         }
     }
 
@@ -428,6 +440,87 @@ public record LibraryMessages(
             alreadyOwned = orDefault(alreadyOwned, DEFAULT_ALREADY_OWNED);
             failed = orDefault(failed, DEFAULT_FAILED);
             refundFailed = orDefault(refundFailed, DEFAULT_REFUND_FAILED);
+        }
+    }
+
+    /**
+     * What {@code /exylialib logs}, the staff audit log, says.
+     *
+     * @param unavailable the logs could not be read
+     * @param empty       nothing matched; %subject% %plugin% %action%
+     * @param header      the console listing's first line; %subject% %plugin% %action% %count%
+     * @param entry       one console line; %when% %plugin% %action% %actor% %target% %detail% %server%
+     * @param more        closes a listing cut short; %count%
+     * @param everybody   what the feed of every player is called where a name would go
+     * @param all         a filter with nothing chosen
+     * @param none        no target, no detail, no location
+     * @param detailLine  one lore line of a detail; %line%
+     * @param viewItems   the click hint of an entry that kept items
+     * @param viewEntry   the click hint of an entry that kept none
+     * @since 1.296.0
+     */
+    public record Logs(
+            @Comment("The logs could not be read.")
+            @NotNull String unavailable,
+            @Comment("Nothing logged. %subject% %plugin% %action%.")
+            @NotNull String empty,
+            @Comment("The console listing's first line. %subject% %plugin% %action% %count%.")
+            @NotNull String header,
+            @Comment("One console line. %when% %plugin% %action% %actor% %target% %detail% %server%.")
+            @NotNull String entry,
+            @Comment("Closes a console listing cut short. %count%.")
+            @NotNull String more,
+            @Comment("What the feed of every player is called where a name would go.")
+            @NotNull String everybody,
+            @Comment("A filter with nothing chosen.")
+            @NotNull String all,
+            @Comment("Shown where there is no target, detail or location.")
+            @NotNull String none,
+            @Key("detail-line")
+            @Comment("One lore line of a long detail in the menu. %line%.")
+            @NotNull String detailLine,
+            @Key("view-items")
+            @Comment("The click hint of an entry that kept the items it moved.")
+            @NotNull String viewItems,
+            @Key("view-entry")
+            @Comment("The click hint of an entry with no items kept.")
+            @NotNull String viewEntry
+    ) {
+
+        public static final String DEFAULT_UNAVAILABLE =
+                "[sound:ENTITY_VILLAGER_NO|1|1]{error}✖ {letters}The logs could not be read. Try again in a moment.";
+        public static final String DEFAULT_EMPTY =
+                "{letters_black}▎ {muted}Nothing logged for {highlight}%subject% {muted}in {info}%plugin% {letters_black}» {info}%action%{muted}.";
+        public static final String DEFAULT_HEADER =
+                "{letters_black}▎ {letters}Logs of {highlight}%subject% {letters_black}» {info}%plugin% {letters_black}» {info}%action% {letters_black}(%count%)";
+        public static final String DEFAULT_ENTRY =
+                "{letters_black}▎ {muted}%when% {letters_black}» {secondary}%plugin% {highlight}%action% {letters}%actor% {letters_black}→ {letters}%target% {letters_black}» {letters}%detail%";
+        public static final String DEFAULT_MORE =
+                "{letters_black}▎ {letters}And {info}%count% {letters}more. Open the menu in game to read them all.";
+        public static final String DEFAULT_EVERYBODY = "Everybody";
+        public static final String DEFAULT_ALL = "All";
+        public static final String DEFAULT_NONE = "—";
+        public static final String DEFAULT_DETAIL_LINE = " {letters_black}▎ {letters}%line%";
+        public static final String DEFAULT_VIEW_ITEMS = "{warning}➥ Click to view the items";
+        public static final String DEFAULT_VIEW_ENTRY = "{warning}➥ Click to open the entry";
+
+        /** The Exylia defaults. */
+        public Logs() {
+            this(null, null, null, null, null, null, null, null, null, null, null);
+        }
+
+        public Logs {
+            unavailable = orDefault(unavailable, DEFAULT_UNAVAILABLE);
+            empty = orDefault(empty, DEFAULT_EMPTY);
+            header = orDefault(header, DEFAULT_HEADER);
+            entry = orDefault(entry, DEFAULT_ENTRY);
+            more = orDefault(more, DEFAULT_MORE);
+            everybody = orDefault(everybody, DEFAULT_EVERYBODY);
+            all = orDefault(all, DEFAULT_ALL);
+            none = orDefault(none, DEFAULT_NONE);
+            detailLine = orDefault(detailLine, DEFAULT_DETAIL_LINE);
+            viewItems = orDefault(viewItems, DEFAULT_VIEW_ITEMS);
+            viewEntry = orDefault(viewEntry, DEFAULT_VIEW_ENTRY);
         }
     }
 

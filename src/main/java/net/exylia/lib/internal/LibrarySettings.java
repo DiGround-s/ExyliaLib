@@ -85,6 +85,9 @@ import net.exylia.lib.config.Time;
 @Comment("")
 @Comment("notices: messages a plugin left for a player who was away, shown when")
 @Comment("they next join. keep-days is how long one waits before it is deleted.")
+@Comment("")
+@Comment("logs: the staff audit log every plugin records into, browsed with")
+@Comment("/exylialib logs. Each plugin keeps its entries in its own database.")
 public record LibrarySettings(
         @Comment("Language of the whole server: en, es, pt or fr. Every Exylia plugin whose own")
         @Comment("language is 'default' follows it, and so do the library's screens and prompts.")
@@ -146,7 +149,9 @@ public record LibrarySettings(
 
         Toasts toasts,
 
-        Notices notices
+        Notices notices,
+
+        Logs logs
 ) {
 
     /**
@@ -181,6 +186,49 @@ public record LibrarySettings(
         /** The default: thirty days. */
         public Notices() {
             this(30);
+        }
+    }
+
+    /**
+     * The {@code logs:} block.
+     *
+     * @param retentionDays how long an entry is kept, {@code 0} for ever
+     * @param flushSeconds  how often recorded entries are written
+     * @param maxRows       most entries one lookup reads
+     * @param consoleRows   most entries the console prints
+     * @param disabled      plugins, or {@code Plugin:action} pairs, not recorded
+     * @since 1.296.0
+     */
+    public record Logs(
+            @Key("retention-days")
+            @Comment("Days an entry is kept before it is deleted. 0 keeps them for ever.")
+            int retentionDays,
+
+            @Key("flush-seconds")
+            @Comment("Seconds between writes of what was recorded. Reading always writes first.")
+            @Comment("Changing it needs a restart.")
+            int flushSeconds,
+
+            @Key("max-rows")
+            @Comment("Most entries one lookup reads, newest first.")
+            int maxRows,
+
+            @Key("console-rows")
+            @Comment("Most entries the console prints for one lookup.")
+            int consoleRows,
+
+            @Comment("What is never recorded: a plugin name such as ExyliaMarket, or one of its")
+            @Comment("actions such as ExyliaMarket:trade.")
+            java.util.List<String> disabled
+    ) {
+
+        /** The defaults. */
+        public Logs() {
+            this(30, 10, 540, 20, java.util.List.of());
+        }
+
+        public Logs {
+            disabled = disabled == null ? java.util.List.of() : java.util.List.copyOf(disabled);
         }
     }
 
@@ -290,7 +338,7 @@ public record LibrarySettings(
     /** Safe defaults used when no config file exists yet. */
     public LibrarySettings() {
         this(Languages.ENGLISH, true, 30, false, true, "auto:0.4", DEFAULT_FALLBACK_HEAD, "", "", "normal", new Metrics(),
-                new PluginUpdates(), DEFAULT_WEBHOOK_HEAD, new PlayerSettings(), new Toasts(), new Notices());
+                new PluginUpdates(), DEFAULT_WEBHOOK_HEAD, new PlayerSettings(), new Toasts(), new Notices(), new Logs());
     }
 
     private static volatile LibrarySettings instance;

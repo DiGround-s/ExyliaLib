@@ -27,3 +27,15 @@ purchase:
   already-owned: '{warning}➥ {letters}Você já possui {highlight}%item%{letters}.'
   failed: '[sound:ENTITY_VILLAGER_NO|1|1]{error}✖ {letters}Não foi possível desbloquear {highlight}%item%{letters}. {info}%price% {letters}foi reembolsado.'
   refund-failed: '[sound:ENTITY_VILLAGER_NO|1|1]{error}✖ {letters}Não foi possível desbloquear {highlight}%item% {letters}e o reembolso de {info}%price% {letters}falhou. {warning}Contate a staff.'
+logs:
+  unavailable: '[sound:ENTITY_VILLAGER_NO|1|1]{error}✖ {letters}Não foi possível ler os registros. Tente de novo em instantes.'
+  empty: '{letters_black}▎ {muted}Nada registrado para {highlight}%subject% {muted}em {info}%plugin% {letters_black}» {info}%action%{muted}.'
+  header: '{letters_black}▎ {letters}Registros de {highlight}%subject% {letters_black}» {info}%plugin% {letters_black}» {info}%action% {letters_black}(%count%)'
+  entry: '{letters_black}▎ {muted}%when% {letters_black}» {secondary}%plugin% {highlight}%action% {letters}%actor% {letters_black}→ {letters}%target% {letters_black}» {letters}%detail%'
+  more: '{letters_black}▎ {letters}E mais {info}%count%{letters}. Abra o menu no jogo para ler todos.'
+  everybody: Todos
+  all: Tudo
+  none: —
+  detail-line: ' {letters_black}▎ {letters}%line%'
+  view-items: '{warning}➥ Clique para ver os itens'
+  view-entry: '{warning}➥ Clique para abrir o registro'

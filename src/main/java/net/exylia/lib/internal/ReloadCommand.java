@@ -222,6 +222,7 @@ public final class ReloadCommand {
                 + "\n" + Phrases.tr("{letters_black}▎ {secondary}Updates {letters_black}» {letters}{muted}/exylialib updates{letters} — default changes plugin updates shipped, to apply or keep.")
                 + "\n" + Phrases.tr("{letters_black}▎ {secondary}Plugins {letters_black}» {letters}{muted}/exylialib plugins{letters} — checks every Exylia plugin for a newer release and stages it.")
                 + "\n" + Phrases.tr("{letters_black}▎ {secondary}Pending rewards {letters_black}» {letters}{muted}/exylialib pendingrewards [player]{letters} — rewards waiting to be delivered, to give now or cancel.")
+                + "\n" + Phrases.tr("{letters_black}▎ {secondary}Logs {letters_black}» {letters}{muted}/exylialib logs <player|*> [plugin] [action]{letters} — the staff audit log every plugin records into.")
         ).send(sender);
     }
 
@@ -952,6 +953,97 @@ public final class ReloadCommand {
         }
         PendingRewardsMenu.open(viewer, target.getUniqueId(),
                 target.getName() != null ? target.getName() : player);
+    }
+
+    /**
+     * Opens the staff audit log every plugin records into.
+     *
+     * <p>A player gets the menu; the console gets the newest lines. {@code *}
+     * reads everybody's entries, and {@code *} or {@code all} for the plugin
+     * or the action means no filter.
+     *
+     * @param sender who asked
+     * @param player whose entries, or {@code *}
+     * @param plugin only this plugin's, or {@code null}
+     * @param action only this action, or {@code null}
+     */
+    @Subcommand("logs")
+    @CommandPermission(net.exylia.lib.log.internal.LogsMenu.PERMISSION)
+    public void logs(@NotNull CommandSender sender,
+                     @SuggestWith(LogPlayers.class) @NotNull String player,
+                     @Optional @SuggestWith(LogPlugins.class) @Nullable String plugin,
+                     @Optional @SuggestWith(LogActions.class) @Nullable String action) {
+        String onlyPlugin = anyIsNull(plugin);
+        String onlyAction = anyIsNull(action);
+        if (player.equals(net.exylia.lib.log.internal.LogsMenu.EVERYBODY)) {
+            showLogs(sender, new net.exylia.lib.log.internal.LogsMenu.Filter(null,
+                    net.exylia.lib.text.LibraryMessages.get().logs().everybody(), onlyPlugin, onlyAction));
+            return;
+        }
+        net.exylia.lib.player.ExyliaPlayers.then(sender, player, found -> showLogs(sender,
+                new net.exylia.lib.log.internal.LogsMenu.Filter(found.id(), found.name(), onlyPlugin, onlyAction)));
+    }
+
+    private static @Nullable String anyIsNull(@Nullable String filter) {
+        return filter == null || filter.equals("*") || filter.equalsIgnoreCase("all") ? null : filter;
+    }
+
+    private void showLogs(CommandSender sender, net.exylia.lib.log.internal.LogsMenu.Filter filter) {
+        if (sender instanceof org.bukkit.entity.Player viewer) {
+            net.exylia.lib.log.internal.LogsMenu.open(viewer, filter);
+            return;
+        }
+        net.exylia.lib.log.internal.LogsMenu.print(sender, header(), filter);
+    }
+
+    /** Suggests {@code *}, the players online and every name the network knows. */
+    public static final class LogPlayers implements SuggestionProvider<BukkitCommandActor> {
+
+        @Override
+        public java.util.Collection<String> getSuggestions(
+                @NotNull ExecutionContext<BukkitCommandActor> context) {
+            java.util.Set<String> names = new java.util.LinkedHashSet<>();
+            names.add(net.exylia.lib.log.internal.LogsMenu.EVERYBODY);
+            Bukkit.getOnlinePlayers().forEach(online -> names.add(online.getName()));
+            names.addAll(net.exylia.lib.player.ExyliaPlayers.names());
+            return names;
+        }
+    }
+
+    /** Suggests the plugins keeping a log. */
+    public static final class LogPlugins implements SuggestionProvider<BukkitCommandActor> {
+
+        @Override
+        public java.util.Collection<String> getSuggestions(
+                @NotNull ExecutionContext<BukkitCommandActor> context) {
+            List<String> plugins = new java.util.ArrayList<>(net.exylia.lib.log.Logs.plugins());
+            plugins.add(0, "*");
+            return plugins;
+        }
+    }
+
+    /** Suggests the actions of the plugin typed before, or of every plugin. */
+    public static final class LogActions implements SuggestionProvider<BukkitCommandActor> {
+
+        @Override
+        public java.util.Collection<String> getSuggestions(
+                @NotNull ExecutionContext<BukkitCommandActor> context) {
+            return net.exylia.lib.log.Logs.actions(anyIsNull(typedLogsPlugin(context.input().source())));
+        }
+    }
+
+    /** The plugin out of a half-typed {@code logs <player> <plugin>} line, or {@code null}. */
+    static @Nullable String typedLogsPlugin(@Nullable String input) {
+        if (input == null) {
+            return null;
+        }
+        String[] words = input.trim().split("\\s+");
+        for (int i = 0; i < words.length - 2; i++) {
+            if (words[i].equalsIgnoreCase("logs")) {
+                return words[i + 2];
+            }
+        }
+        return null;
     }
 
     /**

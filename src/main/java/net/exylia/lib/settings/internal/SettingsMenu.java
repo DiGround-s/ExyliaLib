@@ -416,7 +416,20 @@ public final class SettingsMenu {
 
     /** One screen from disk, or the packaged one when the owner's copy does not parse. */
     static YamlConfiguration read(Plugin library, String name) {
-        String resource = FOLDER + "/" + name + ".yml";
+        return read(library, FOLDER, name);
+    }
+
+    /**
+     * One of the library's restylable screens from disk, or the packaged
+     * English one when the owner's copy does not parse.
+     *
+     * @param library the library
+     * @param folder  the screens' folder inside the language folder, such as {@code menus/logs}
+     * @param name    the file, without {@code .yml}
+     * @return the screen
+     */
+    public static YamlConfiguration read(Plugin library, String folder, String name) {
+        String resource = folder + "/" + name + ".yml";
         java.io.File file = Languages.file(library, resource);
         YamlConfiguration yaml = new YamlConfiguration();
         try {

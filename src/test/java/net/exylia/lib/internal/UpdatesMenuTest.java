@@ -33,6 +33,7 @@ class UpdatesMenuTest {
         FakeServer.reset();
         FakeServer.packageMainResources("lang");
         net.exylia.lib.settings.internal.SettingsMenu.anchor(FakeServer.class);
+        net.exylia.lib.log.internal.LogsMenu.anchor(FakeServer.class);
         plugin = FakeServer.newPlugin("ExyliaLib", folder.toFile());
     }
 
@@ -56,6 +57,8 @@ class UpdatesMenuTest {
         assertTrue(menus.definition(UpdatesMenu.PLUGINS).isPresent());
         assertTrue(menus.definition(UpdatesMenu.FILES).isPresent());
         assertTrue(menus.definition(UpdatesMenu.CHANGES).isPresent());
+        assertTrue(menus.definition("logs").isPresent());
+        assertTrue(menus.definition("logs_entry").isPresent());
         assertTrue(messages.isEmpty(), messages::toString);
     }
 

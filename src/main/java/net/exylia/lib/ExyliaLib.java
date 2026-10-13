@@ -704,6 +704,7 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         Snapshots.releaseAll();
         net.exylia.lib.util.NetworkCooldowns.releaseAll();
         net.exylia.lib.notice.Notices.releaseAll();
+        net.exylia.lib.log.Logs.releaseAll();
         net.exylia.lib.settings.internal.SettingsRuntime.releaseAll();
         net.exylia.lib.player.Accounts.releaseAll();
         // Before the datasources and the Redis client it shares: a subscriber
@@ -1106,6 +1107,8 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         // plugin's repositories, and a join must not write through a closed one.
         net.exylia.lib.util.NetworkCooldowns.release(plugin);
         net.exylia.lib.notice.Notices.release(plugin);
+        // Writes the plugin's queued log entries while its database is still open.
+        net.exylia.lib.log.Logs.release(plugin);
         net.exylia.lib.settings.internal.SettingsRuntime.release(plugin);
         net.exylia.lib.player.Accounts.release(plugin);
         // Here rather than in the event, so a plugin can still announce its

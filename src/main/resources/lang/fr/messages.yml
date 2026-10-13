@@ -27,3 +27,15 @@ purchase:
   already-owned: '{warning}➥ {letters}Tu possèdes déjà {highlight}%item%{letters}.'
   failed: '[sound:ENTITY_VILLAGER_NO|1|1]{error}✖ {letters}Impossible de débloquer {highlight}%item%{letters}. {info}%price% {letters}t''a été remboursé.'
   refund-failed: '[sound:ENTITY_VILLAGER_NO|1|1]{error}✖ {letters}Impossible de débloquer {highlight}%item% {letters}et le remboursement de {info}%price% {letters}a échoué. {warning}Contacte le staff.'
+logs:
+  unavailable: '[sound:ENTITY_VILLAGER_NO|1|1]{error}✖ {letters}Impossible de lire les journaux. Réessaie dans un instant.'
+  empty: '{letters_black}▎ {muted}Rien d''enregistré pour {highlight}%subject% {muted}dans {info}%plugin% {letters_black}» {info}%action%{muted}.'
+  header: '{letters_black}▎ {letters}Journaux de {highlight}%subject% {letters_black}» {info}%plugin% {letters_black}» {info}%action% {letters_black}(%count%)'
+  entry: '{letters_black}▎ {muted}%when% {letters_black}» {secondary}%plugin% {highlight}%action% {letters}%actor% {letters_black}→ {letters}%target% {letters_black}» {letters}%detail%'
+  more: '{letters_black}▎ {letters}Et {info}%count% {letters}de plus. Ouvre le menu en jeu pour tout voir.'
+  everybody: Tous
+  all: Tout
+  none: —
+  detail-line: ' {letters_black}▎ {letters}%line%'
+  view-items: '{warning}➥ Clique pour voir les objets'
+  view-entry: '{warning}➥ Clique pour ouvrir l''entrée'

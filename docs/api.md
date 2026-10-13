@@ -90,6 +90,12 @@ releases.
 first ExyliaBetCore (menu boards, rounds, modes) described a plugin that no longer
 exists, and no plugin implemented or consumed it.
 
+`exylia-api` 2.1.0 deprecated `MarketLogEvent` (plugins record into ExyliaLib's
+`net.exylia.lib.log.Logs` since ExyliaLib 1.296.0, see [logs.md](logs.md)) and
+gave `SurvivalService.crateKeys` and `giveCrateKeys`, deprecated since 1.10.0,
+default bodies answering `0` and `false`, so an implementation no longer
+carries stubs for them.
+
 Adding a method to a service interface is a minor release: it breaks
 implementations, all of which are ours, and no consumers. Changing or removing
 one is a major release, so it does not happen — curate the surface before
@@ -150,7 +156,7 @@ such as `BetEvent` and `PracticeEvent`.
 | `api.ffa` | `FfaService` | ExyliaFFA | 4 |
 | `api.hiteffect` | `HitEffectService` | ExyliaHitEffect | 1 |
 | `api.killeffect` | `KillEffectService` | ExyliaKillEffect | 1 |
-| `api.market` | `MarketService` (`isModuleEnabled`, `autoSell`); events `MarketDealEvent`, `MarketLogEvent`, `TradeRequestEvent`, `SellWandUseEvent` | ExyliaMarket | 2 |
+| `api.market` | `MarketService` (`isModuleEnabled`, `autoSell`); events `MarketDealEvent`, `MarketLogEvent` (deprecated, see [logs.md](logs.md)), `TradeRequestEvent`, `SellWandUseEvent` | ExyliaMarket | 2 |
 | `api.pearls` | `PearlsService` | ExyliaPearls | 1 |
 | `api.practice` | `PracticeService` | ExyliaPracticeCore | 8 |
 | `api.practicebot` | `PracticeBotService` | ExyliaPracticeBotV3 | 2 |

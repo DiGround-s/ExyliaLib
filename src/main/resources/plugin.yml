@@ -17,6 +17,9 @@ permissions:
   exylialib.pendingrewards:
     description: Review the rewards players are still owed, and give or cancel them.
     default: op
+  exylialib.logs:
+    description: Read the staff audit log every plugin records into, with /exylialib logs.
+    default: op
 # Every Exylia plugin needs packetevents next to the library: the server refuses
 # to load either without it, rather than starting with its packet features dark.
 depend: [packetevents]

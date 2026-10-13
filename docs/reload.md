@@ -23,6 +23,7 @@ that one.
 | `/exylialib export <plugin>` (since 1.36.0) | Writes that plugin's tables to a dump |
 | `/exylialib import <plugin> <file> [force]` (since 1.36.0) | Reads one back; `force` **merges**, it does not replace |
 | `/exylialib wipe <plugin> <table\|*> [code]` (since 1.76.0) | Empties one table or all of them (`*` or `all`), after a typed confirmation and an automatic dump |
+| `/exylialib logs <player\|*> [plugin] [action]` (since 1.296.0) | The staff audit log every plugin records into: a menu in game, the newest lines in the console. Its own permission, `exylialib.logs`; see [logs.md](logs.md) |
 
 ### `/exylialib reload`
 
