@@ -595,6 +595,27 @@ A button is never picked up, and a drag touching any button is refused. Slots
 listed under `editable_slots` stay the player's, and `session.inputs()` returns
 whatever they left in them.
 
+### One click, one run (1.295.0+)
+
+The vanilla client sends a burst for some single gestures: a shift-double-click
+sends a `QUICK_MOVE` on press and another for every slot holding the same item
+type on release, and a double-click follows its `PICKUP` with a `DOUBLE_CLICK`.
+Every menu therefore goes through `ClickGuard`: a button runs at most once per
+player per cooldown (150 ms by default, three ticks), and a `DOUBLE_CLICK` never
+runs anything. A refused click is still cancelled, just not acted on.
+
+```yaml
+click_cooldown: 250   # milliseconds for this menu; 0 turns the guard off
+```
+
+`ClickGuard.cooldown(Duration)` changes the server-wide default. A plugin running
+its own Bukkit inventory uses the same guard:
+
+```java
+event.setCancelled(true);
+if (!ClickGuard.tryClick(event)) return;   // DOUBLE_CLICK or inside the cooldown
+```
+
 ### A grid of editable slots is an editor
 
 `editable_slots` plus buttons around them is how a kit layout, a shop's stock or
@@ -696,7 +717,7 @@ so a player opening a chest on top of a menu is not mistaken for one of ours.
 
 | | |
 | --- | --- |
-| Public API | `ui/Menus`, `PluginMenus`, `UiSession`, `UiDefinition`, `UiSection`, `UiEntry`, `UiItem`, `UiKeys`, `UiFillers`, `UiRefresh`, `UiSounds`, `ClickBindings`, `ClickKind`, `ClickPolicy`, `Pages`, `Slots` |
+| Public API | `ui/Menus`, `PluginMenus`, `UiSession`, `UiDefinition`, `UiSection`, `UiEntry`, `UiItem`, `UiKeys`, `UiFillers`, `UiRefresh`, `UiSounds`, `ClickBindings`, `ClickGuard`, `ClickKind`, `ClickPolicy`, `Pages`, `Slots` |
 | Internal | `ui/internal/MenuLoader`, `MenuRuntime`, `MenuListener`, `Session`, `MenuHolder`, `Rendered`, `Conditions`, `BuiltInActions` |
 | Tests | `src/test/java/net/exylia/lib/ui/` |
 

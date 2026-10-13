@@ -99,12 +99,6 @@ final class Session implements UiSession {
     /** What to stop when the menu closes. */
     private final List<ActionExecution> pending = new ArrayList<>();
 
-    /** Two ticks: faster than anybody means to press a button twice. */
-    private static final long PRESS_GAP_NANOS = 100_000_000L;
-
-    /** When a button last ran, on the viewer's thread. */
-    private long lastPress = System.nanoTime() - PRESS_GAP_NANOS;
-
     /** The title last sent, so an unchanged one costs no packet. */
     /** Built on first use; the definition it derives from cannot change. */
     private Set<Integer> inputSlots;
@@ -761,23 +755,6 @@ final class Session implements UiSession {
     }
 
     // ------------------------------------------------------------- internals
-
-    /**
-     * Whether a button may run now, claiming the press when it may.
-     *
-     * <p>Every press runs actions, maybe commands, a sound and a redraw, and a
-     * macro clicks far faster than a hand: a command run this way skips the
-     * game's own chat spam kick. Presses closer together than two ticks are
-     * dropped without a word.
-     */
-    boolean claimPress() {
-        long now = System.nanoTime();
-        if (now - lastPress < PRESS_GAP_NANOS) {
-            return false;
-        }
-        lastPress = now;
-        return true;
-    }
 
     /** The runtime that owns this menu. */
     MenuRuntime runtime() {

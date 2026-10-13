@@ -503,6 +503,13 @@ whatever they have open.
 - **A click is validated against what was drawn, not against the packet.** The
   client sends a slot number; the server already knows what it put there. A slot
   whose condition fails isn't blank: it **isn't there**.
+- **One physical click runs a button once.** The client sends a burst for a
+  shift-double-click (a `QUICK_MOVE` per matching slot on release) and follows a
+  double-click with `DOUBLE_CLICK`. `ClickGuard` debounces per player (150 ms
+  default, `ClickGuard.cooldown(Duration)` server-wide, `click_cooldown: <ms>`
+  per menu, `0` off), never per session: the burst does not care which screen
+  is open. A raw Bukkit inventory calls `ClickGuard.tryClick(event)` after
+  cancelling, instead of rolling its own.
 - **The session is found through the window's holder**, never through a player →
   menu map. A player who opens a chest on top of a menu isn't ours.
 - **A row of conditional cards is a `group`, not fixed slots.** Items with
@@ -1713,6 +1720,7 @@ They are package-private on purpose; the tests live in the same package:
 | Class | Seam |
 | --- | --- |
 | `util/Cooldowns` | `setClock/resetClock` (the clock), `installStore/removeStore` (persistence), `trackedOwners/dirtyCount` (observation) |
+| `ui/ClickGuard` | `setClock/resetClock` (the nanosecond clock; reset also forgets every player) |
 | `util/ItemCooldowns` | `setOverlay/resetOverlay` (Bukkit's `setCooldown`) |
 | `util/Effects` | `setResolver/setApplier`, `resetCache` |
 | `modifier/internal/PermissionModifiers` | `setReader/resetReader` (a player's permission nodes: `FakePlayer` has no effective permissions) |

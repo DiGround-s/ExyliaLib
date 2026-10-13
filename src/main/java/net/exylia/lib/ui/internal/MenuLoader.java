@@ -171,7 +171,9 @@ public final class MenuLoader {
                 sounds, refresh,
                 config.getStringList("open-actions"),
                 config.getStringList("close-actions"),
-                config.getString("parent"), groups);
+                config.getString("parent"), groups,
+                // Negative, or absent, means the server-wide ClickGuard cooldown.
+                config.getLong("click_cooldown", -1));
     }
 
     /**

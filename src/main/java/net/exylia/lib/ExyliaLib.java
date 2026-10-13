@@ -767,6 +767,7 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         // goes with them.
         EditorRuntime.forget(event.getPlayer().getUniqueId());
         MenuRuntime.forgetEverywhere(event.getPlayer().getUniqueId());
+        net.exylia.lib.ui.ClickGuard.forget(event.getPlayer().getUniqueId());
         // Before the input module: ending a run cancels the question it was
         // waiting on, and a question already forgotten cannot be cancelled.
         WizardRuntime.forget(event.getPlayer().getUniqueId());

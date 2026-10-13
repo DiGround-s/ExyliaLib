@@ -9,6 +9,7 @@ import net.exylia.lib.action.ActionStep;
 import net.exylia.lib.action.ActionTemplate;
 import net.exylia.lib.command.CommandLine;
 import net.exylia.lib.command.Commands;
+import net.exylia.lib.ui.ClickGuard;
 import net.exylia.lib.ui.ClickKind;
 import net.exylia.lib.ui.ClickPolicy;
 import net.exylia.lib.ui.UiDefinition;
@@ -29,6 +30,7 @@ import org.bukkit.event.inventory.InventoryDragEvent;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -153,7 +155,12 @@ public final class MenuListener implements Listener {
         if (actions.isEmpty() && commands.isEmpty()) {
             return;
         }
-        if (!session.claimPress()) {
+        // One physical click, one run: the client sends a burst for some single
+        // gestures, and a macro clicks faster than a hand. Per player, so the
+        // burst is caught even when the first click opened another menu.
+        long cooldown = session.definition().clickCooldownMillis();
+        if (!(cooldown < 0 ? ClickGuard.tryClick(viewer)
+                : ClickGuard.tryClick(viewer.getUniqueId(), Duration.ofMillis(cooldown)))) {
             return;
         }
 

@@ -18,6 +18,10 @@ import java.util.Map;
  * <p>{@code groups} are rows of items that pack themselves centred, see
  * {@link UiGroup}; a group's slots are not in {@code items}.
  *
+ * <p>{@code clickCooldownMillis} is the file's {@code click_cooldown}: how close
+ * together two presses of this menu's buttons may be. Negative means the
+ * server-wide {@link ClickGuard#cooldown()}.
+ *
  * @since 1.22.0
  */
 public record UiDefinition(
@@ -34,7 +38,8 @@ public record UiDefinition(
         @NotNull List<String> openActions,
         @NotNull List<String> closeActions,
         @Nullable String parent,
-        @NotNull Map<String, UiGroup> groups) {
+        @NotNull Map<String, UiGroup> groups,
+        long clickCooldownMillis) {
 
     public UiDefinition {
         items = Map.copyOf(items);
@@ -45,6 +50,17 @@ public record UiDefinition(
         closeActions = List.copyOf(closeActions);
     }
 
+    /** A menu using the server-wide click cooldown, as every menu did before 1.295.0. */
+    public UiDefinition(@NotNull String id, @NotNull String title, @NotNull UiKind kind, int size,
+                        @NotNull Map<Integer, UiItem> items, @NotNull UiFillers fillers,
+                        @NotNull Map<String, UiSection> sections, @NotNull List<Integer> inputSlots,
+                        @NotNull UiSounds sounds, @NotNull UiRefresh refresh,
+                        @NotNull List<String> openActions, @NotNull List<String> closeActions,
+                        @Nullable String parent, @NotNull Map<String, UiGroup> groups) {
+        this(id, title, kind, size, items, fillers, sections, inputSlots, sounds, refresh,
+                openActions, closeActions, parent, groups, -1);
+    }
+
     /** A menu with no groups, as every menu was before 1.282.0. */
     public UiDefinition(@NotNull String id, @NotNull String title, @NotNull UiKind kind, int size,
                         @NotNull Map<Integer, UiItem> items, @NotNull UiFillers fillers,
@@ -53,7 +69,7 @@ public record UiDefinition(
                         @NotNull List<String> openActions, @NotNull List<String> closeActions,
                         @Nullable String parent) {
         this(id, title, kind, size, items, fillers, sections, inputSlots, sounds, refresh,
-                openActions, closeActions, parent, Map.of());
+                openActions, closeActions, parent, Map.of(), -1);
     }
 
     /**
