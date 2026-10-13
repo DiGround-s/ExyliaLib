@@ -1,5 +1,6 @@
 package net.exylia.lib.overlay.internal;
 
+import net.exylia.lib.packet.internal.EntityClicks;
 import com.github.retrooper.packetevents.PacketEvents;
 import com.github.retrooper.packetevents.event.PacketListenerAbstract;
 import com.github.retrooper.packetevents.event.PacketListenerPriority;
@@ -18,7 +19,6 @@ import com.github.retrooper.packetevents.wrapper.PacketWrapper;
 import com.github.retrooper.packetevents.wrapper.play.client.WrapperPlayClientAnimation;
 import com.github.retrooper.packetevents.wrapper.play.client.WrapperPlayClientClickWindow;
 import com.github.retrooper.packetevents.wrapper.play.client.WrapperPlayClientCreativeInventoryAction;
-import com.github.retrooper.packetevents.wrapper.play.client.WrapperPlayClientInteractEntity;
 import com.github.retrooper.packetevents.wrapper.play.client.WrapperPlayClientPlayerBlockPlacement;
 import com.github.retrooper.packetevents.wrapper.play.client.WrapperPlayClientPlayerDigging;
 import com.github.retrooper.packetevents.wrapper.play.client.WrapperPlayClientUseItem;
@@ -474,7 +474,8 @@ final class OverlayPackets extends PacketListenerAbstract implements OverlaySink
             WrapperPlayClientPlayerBlockPlacement placement =
                     new WrapperPlayClientPlayerBlockPlacement(event);
             use(event, view, player, placement.getHand(), placement.getBlockPosition());
-        } else if (type == PacketType.Play.Client.INTERACT_ENTITY) {
+        } else if (type == PacketType.Play.Client.INTERACT_ENTITY
+                || type == PacketType.Play.Client.ATTACK) {
             interact(event, view, player);
         } else if (type == PacketType.Play.Client.ANIMATION) {
             swing(event, view, player);
@@ -623,18 +624,15 @@ final class OverlayPackets extends PacketListenerAbstract implements OverlaySink
 
     /** Clicking an entity, which is how a staff tool is pointed at somebody. */
     private void interact(PacketReceiveEvent event, OverlayView view, Player player) {
-        WrapperPlayClientInteractEntity packet = new WrapperPlayClientInteractEntity(event);
-        // INTERACT_AT arrives beside INTERACT for the same press. It is still
-        // refused — the server turns it into an interaction carrying the item
-        // the player really holds — but only its twin is bound, or every
-        // action would run twice.
-        boolean twin = packet.getAction()
-                == WrapperPlayClientInteractEntity.InteractAction.INTERACT_AT;
-        int slot = packet.getHand() == InteractionHand.OFF_HAND
+        EntityClicks.Press packet = EntityClicks.read(event);
+        // A press can arrive twice (see EntityClicks). The twin is still refused —
+        // the server turns it into an interaction carrying the item the player
+        // really holds — but only once is bound, or every action would run twice.
+        boolean twin = packet.twin();
+        int slot = packet.hand() == InteractionHand.OFF_HAND
                 ? OverlaySlots.OFFHAND
                 : view.heldSlot();
-        boolean attack = packet.getAction()
-                == WrapperPlayClientInteractEntity.InteractAction.ATTACK;
+        boolean attack = packet.attack();
         boolean sneaking = view.isSneaking();
         ClickKind kind = attack
                 ? (sneaking ? ClickKind.SHIFT_LEFT : ClickKind.LEFT)
@@ -647,7 +645,7 @@ final class OverlayPackets extends PacketListenerAbstract implements OverlaySink
         if (twin || press == OverlayClicks.WorldPress.REFUSE) {
             return;
         }
-        int entityId = packet.getEntityId();
+        int entityId = packet.entityId();
         view.markWorldPress(kind);
         atPlayer(view, () -> view.press(slot, kind, nearby(player, entityId), null));
     }

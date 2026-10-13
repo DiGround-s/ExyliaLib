@@ -4,9 +4,6 @@ import com.github.retrooper.packetevents.PacketEvents;
 import com.github.retrooper.packetevents.event.PacketListenerAbstract;
 import com.github.retrooper.packetevents.event.PacketListenerPriority;
 import com.github.retrooper.packetevents.event.PacketReceiveEvent;
-import com.github.retrooper.packetevents.protocol.packettype.PacketType;
-import com.github.retrooper.packetevents.protocol.player.InteractionHand;
-import com.github.retrooper.packetevents.wrapper.play.client.WrapperPlayClientInteractEntity;
 import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerTeams;
 import com.github.retrooper.packetevents.manager.server.ServerVersion;
 import com.github.retrooper.packetevents.protocol.attribute.Attributes;
@@ -40,6 +37,7 @@ import net.exylia.lib.npc.NpcModel;
 import net.exylia.lib.npc.NpcPose;
 import net.exylia.lib.npc.NpcSpec;
 import net.exylia.lib.packet.internal.Broadcast;
+import net.exylia.lib.packet.internal.EntityClicks;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.format.TextColor;
@@ -429,8 +427,7 @@ final class NpcPackets implements NpcSink, PlacedSink {
      * Starts telling {@code clicked} about clicks on a placed NPC's body.
      *
      * <p>Every packet aimed at one is kept from the server, which has never heard of
-     * that id. One press arrives as INTERACT and INTERACT_AT, and again for the off
-     * hand: only an attack or the main-hand INTERACT counts.
+     * that id. {@link EntityClicks} decides which packet of a press counts.
      *
      * @return what to hand to {@link #stopListening}
      */
@@ -438,26 +435,14 @@ final class NpcPackets implements NpcSink, PlacedSink {
         PacketListenerAbstract listener = new PacketListenerAbstract(PacketListenerPriority.NORMAL) {
             @Override
             public void onPacketReceive(PacketReceiveEvent event) {
-                if (event.getPacketType() != PacketType.Play.Client.INTERACT_ENTITY
-                        || !(event.getPlayer() instanceof Player player)) {
-                    return;
-                }
-                WrapperPlayClientInteractEntity packet = new WrapperPlayClientInteractEntity(event);
-                int target = packet.getEntityId();
-                if (!placed.test(target)) {
+                EntityClicks.Press press = EntityClicks.read(event);
+                if (press == null || !(event.getPlayer() instanceof Player player)
+                        || !placed.test(press.entityId())) {
                     return;
                 }
                 event.setCancelled(true);
-                switch (packet.getAction()) {
-                    case ATTACK -> clicked.clicked(player, target, true);
-                    case INTERACT -> {
-                        if (packet.getHand() == InteractionHand.MAIN_HAND) {
-                            clicked.clicked(player, target, false);
-                        }
-                    }
-                    default -> {
-                        // INTERACT_AT: the same press as the INTERACT that follows it.
-                    }
+                if (press.counts()) {
+                    clicked.clicked(player, press.entityId(), press.attack());
                 }
             }
         };

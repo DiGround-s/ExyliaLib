@@ -1,13 +1,11 @@
 package net.exylia.lib.hologram.internal;
 
+import net.exylia.lib.packet.internal.EntityClicks;
 import com.github.retrooper.packetevents.PacketEvents;
 import com.github.retrooper.packetevents.event.PacketListenerAbstract;
 import com.github.retrooper.packetevents.event.PacketListenerPriority;
 import com.github.retrooper.packetevents.event.PacketReceiveEvent;
-import com.github.retrooper.packetevents.protocol.packettype.PacketType;
-import com.github.retrooper.packetevents.protocol.player.InteractionHand;
 import com.github.retrooper.packetevents.util.Quaternion4f;
-import com.github.retrooper.packetevents.wrapper.play.client.WrapperPlayClientInteractEntity;
 import com.github.retrooper.packetevents.protocol.entity.data.EntityData;
 import com.github.retrooper.packetevents.protocol.entity.data.EntityDataTypes;
 import com.github.retrooper.packetevents.protocol.entity.type.EntityType;
@@ -125,28 +123,16 @@ final class DisplayPackets implements DisplaySink {
         PacketListenerAbstract listener = new PacketListenerAbstract(PacketListenerPriority.NORMAL) {
             @Override
             public void onPacketReceive(PacketReceiveEvent event) {
-                if (event.getPacketType() != PacketType.Play.Client.INTERACT_ENTITY
-                        || !(event.getPlayer() instanceof Player player)) {
-                    return;
-                }
-                WrapperPlayClientInteractEntity packet = new WrapperPlayClientInteractEntity(event);
-                int target = packet.getEntityId();
-                if (!HologramRuntime.isHitbox(target)) {
+                EntityClicks.Press press = EntityClicks.read(event);
+                if (press == null || !(event.getPlayer() instanceof Player player)
+                        || !HologramRuntime.isHitbox(press.entityId())) {
                     return;
                 }
                 event.setCancelled(true);
-                // One press arrives as INTERACT and INTERACT_AT, and again for
-                // the off hand: only the main-hand INTERACT, or an attack, counts.
-                boolean counts = switch (packet.getAction()) {
-                    case ATTACK -> true;
-                    case INTERACT -> packet.getHand() == InteractionHand.MAIN_HAND;
-                    default -> false;
-                };
-                if (counts) {
-                    boolean sneaking = packet.isSneaking().orElseGet(player::isSneaking);
-                    clicked.clicked(player, target, net.exylia.lib.interaction.Click.of(
-                            packet.getAction() == WrapperPlayClientInteractEntity.InteractAction.ATTACK,
-                            sneaking));
+                if (press.counts()) {
+                    boolean sneaking = press.sneaking() != null ? press.sneaking() : player.isSneaking();
+                    clicked.clicked(player, press.entityId(),
+                            net.exylia.lib.interaction.Click.of(press.attack(), sneaking));
                 }
             }
         };
