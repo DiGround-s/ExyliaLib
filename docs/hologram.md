@@ -100,7 +100,7 @@ styles are never cut.
 
 ## Reading and writing line tags in code
 
-`HologramLine` (since 1.289.0) is the reading a hologram does, public, for an
+`HologramLine` (since 1.289.1) is the reading a hologram does, public, for an
 editor that shows a line's tags as fields and writes them back:
 
 ```java

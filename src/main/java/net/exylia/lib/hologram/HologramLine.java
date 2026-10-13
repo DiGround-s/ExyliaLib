@@ -47,7 +47,7 @@ import java.util.Locale;
  * @param shine      the colour of the band of light that sweeps over it: a
  *                   palette name or {@code #RRGGBB}, empty for the default
  * @param flow       characters a second its colours flow along it
- * @since 1.289.0
+ * @since 1.289.1
  */
 public record HologramLine(@NotNull String text, @Nullable String item, @Nullable String block,
                            @Nullable Double size, @Nullable Integer opacity,
