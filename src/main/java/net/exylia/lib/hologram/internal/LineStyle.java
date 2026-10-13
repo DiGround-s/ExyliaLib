@@ -1,8 +1,8 @@
 package net.exylia.lib.hologram.internal;
 
 import net.exylia.lib.hologram.HologramConfig;
+import net.exylia.lib.hologram.HologramLine;
 
-import java.util.Locale;
 
 /**
  * How one line of a text hologram is drawn, read from tags at its start.
@@ -67,45 +67,29 @@ record LineStyle(String model, boolean block, double size, Integer opacity, Stri
     }
 
     static Parsed parse(String line) {
-        Builder style = new Builder();
-        String rest = line == null ? "" : line;
-
-        while (rest.startsWith("<")) {
-            int colon = -1;
-            int close = -1;
-            for (int i = 1; i < rest.length(); i++) {
-                char c = rest.charAt(i);
-                if (c == ':' && colon < 0) {
-                    colon = i;
-                    if (i + 1 < rest.length() && rest.charAt(i + 1) == '"') {
-                        int quote = rest.indexOf('"', i + 2);
-                        if (quote < 0) {
-                            break;
-                        }
-                        i = quote;
-                    }
-                } else if (c == '>') {
-                    close = i;
-                    break;
-                }
-            }
-            if (close < 0) {
-                break;
-            }
-            String key = rest.substring(1, colon < 0 ? close : colon).toLowerCase(Locale.ROOT);
-            String value = colon < 0 ? "" : unquote(rest.substring(colon + 1, close).trim());
-            if (!style.accept(key, value)) {
-                break;
-            }
-            rest = rest.substring(close + 1);
-        }
-        return new Parsed(style.build(), rest);
+        HologramLine written = HologramLine.parse(line);
+        return new Parsed(of(written), written.text());
     }
 
-    private static String unquote(String value) {
-        return value.length() >= 2 && value.startsWith("\"") && value.endsWith("\"")
-                ? value.substring(1, value.length() - 1)
-                : value;
+    /**
+     * A written line's style, clamped to what draws well and with the
+     * defaults filled in. The reading itself is {@link HologramLine}'s, so an
+     * editor and the hologram can never disagree on what a line says.
+     */
+    static LineStyle of(HologramLine line) {
+        String model = line.block() != null ? line.block() : line.item();
+        return new LineStyle(model, line.block() != null,
+                line.size() == null ? 1.0 : Math.clamp(line.size(), 0.1, 10.0),
+                line.opacity() == null ? null : Math.clamp(line.opacity(), 0, 255),
+                line.background(), line.shadow(), line.glow(),
+                line.spin() == null ? 0 : Math.clamp(line.spin(), -MAX_SPIN, MAX_SPIN),
+                line.bob() == null ? 0 : Math.clamp(line.bob(), 0, 2),
+                line.pulse() == null ? 0 : Math.clamp(line.pulse(), 0, 0.9),
+                line.typewriter() == null ? 0 : Math.clamp(line.typewriter(), 1, 1000),
+                line.condition(), line.permission(),
+                line.range() == null ? 0 : Math.max(0, line.range()),
+                line.shine() == null ? null : line.shine().isEmpty() ? "letters" : line.shine(),
+                line.flow() == null ? 0 : Math.clamp(line.flow(), -40, 40));
     }
 
     boolean isModel() {
@@ -145,69 +129,5 @@ record LineStyle(String model, boolean block, double size, Integer opacity, Stri
     /** The vertical room this line takes. */
     double height(HologramConfig.Properties base) {
         return isModel() ? MODEL_HEIGHT * size * base.scaleY() : base.lineSpacing() * size;
-    }
-
-    /** Collects tags; one place knows every key and what its value means. */
-    private static final class Builder {
-        private String model;
-        private boolean block;
-        private double size = 1.0;
-        private Integer opacity;
-        private String background;
-        private Boolean shadow;
-        private String glow;
-        private double spin;
-        private double bob;
-        private double pulse;
-        private double typewriter;
-        private String condition;
-        private String permission;
-        private double range;
-        private String shine;
-        private double flow;
-
-        /** Takes one tag, or answers {@code false} when it is not one of ours. */
-        boolean accept(String key, String value) {
-            try {
-                switch (key) {
-                    case "size" -> size = Math.clamp(Double.parseDouble(value), 0.1, 10.0);
-                    case "opacity" -> opacity = Math.clamp(Integer.parseInt(value), 0, 255);
-                    case "background" -> background = value;
-                    case "shadow" -> shadow = value.isEmpty() || Boolean.parseBoolean(value);
-                    case "item", "block" -> {
-                        if (value.isEmpty()) {
-                            return false;
-                        }
-                        model = value.toUpperCase(Locale.ROOT);
-                        block = key.equals("block");
-                    }
-                    case "glow" -> glow = value;
-                    case "spin" -> spin = Math.clamp(number(value, 90), -MAX_SPIN, MAX_SPIN);
-                    case "bob" -> bob = Math.clamp(number(value, 0.08), 0, 2);
-                    case "pulse" -> pulse = Math.clamp(number(value, 0.06), 0, 0.9);
-                    case "typewriter" -> typewriter = Math.clamp(number(value, 24), 1, 1000);
-                    case "if" -> condition = value.isEmpty() ? null : value;
-                    case "perm" -> permission = value.isEmpty() ? null : value;
-                    case "range" -> range = Math.max(0, Double.parseDouble(value));
-                    case "shine" -> shine = value.isEmpty() ? "letters" : value;
-                    case "flow" -> flow = Math.clamp(number(value, 4), -40, 40);
-                    default -> {
-                        return false;
-                    }
-                }
-                return true;
-            } catch (NumberFormatException ignored) {
-                return false;
-            }
-        }
-
-        private static double number(String value, double fallback) {
-            return value.isEmpty() ? fallback : Double.parseDouble(value);
-        }
-
-        LineStyle build() {
-            return new LineStyle(model, block, size, opacity, background, shadow, glow,
-                    spin, bob, pulse, typewriter, condition, permission, range, shine, flow);
-        }
     }
 }

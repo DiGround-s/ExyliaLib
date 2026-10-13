@@ -98,6 +98,21 @@ four), plus once to restore the plain line.
 for them. Changes to that line wait until it is fully typed, and colours and
 styles are never cut.
 
+## Reading and writing line tags in code
+
+`HologramLine` (since 1.289.0) is the reading a hologram does, public, for an
+editor that shows a line's tags as fields and writes them back:
+
+```java
+HologramLine line = HologramLine.parse(raw);          // tags into fields, the rest into text()
+String edited = line.toBuilder().size(2.0).spin(null).build().raw();
+```
+
+A tag the line does not write is `null`, so a round trip adds nothing nobody
+asked for. A bare tag (`<spin>`) reads as its default (`DEFAULT_SPIN` and the
+rest) and is written back with it. Values are kept as written: the hologram
+clamps them when it draws.
+
 ## Clicks
 
 `click.commands` (the `net.exylia.lib.command` syntax: `console:`,
@@ -156,7 +171,8 @@ packets while moving), `lines(List)`, `refresh()`, `updateData(Map)`,
 
 ## Source and tests
 
-- Public: `hologram/Holograms.java`, `Hologram.java`, `HologramConfig.java`.
+- Public: `hologram/Holograms.java`, `Hologram.java`, `HologramConfig.java`,
+  `HologramLine.java`.
 - Internal: `hologram/internal/` (`HologramImpl`, `HologramRuntime`,
   `DisplayPackets`, `DisplaySink`, `DisplayState`, `LineStyle`, `Typewriter`,
   `Shimmer`,
