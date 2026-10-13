@@ -25,6 +25,10 @@ jobs:
           distribution: temurin
           java-version: '21'
 
+      # The wrapper and every dependency, kept between runs instead of downloaded each release.
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
       - name: Ensure jq is available
         run: |
           if ! command -v jq >/dev/null 2>&1; then
@@ -118,7 +122,8 @@ jobs:
         env:
           PABLORELOJERO_USER: ${{ secrets.PABLORELOJERO_USER }}
           PABLORELOJERO_TOKEN: ${{ secrets.PABLORELOJERO_TOKEN }}
-        run: ./gradlew clean build
+        # The released jar and the tests; the javadoc and sources jars are not part of a release.
+        run: ./gradlew shadowJar test
 
       - name: Create GitHub release
         if: steps.release_guard.outputs.release_needed == 'true'
