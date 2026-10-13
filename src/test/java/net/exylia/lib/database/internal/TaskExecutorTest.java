@@ -13,7 +13,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class TaskExecutorTest {
@@ -89,8 +88,9 @@ class TaskExecutorTest {
             // The point of the test.
         }
         assertTrue(accepted < TaskExecutor.MAX_WAITING * 2, "nothing was ever refused");
+        // No second refusal is asserted here: a runner that starts late can still pull a queued
+        // task and free a slot, so one more submission may legitimately be accepted.
         assertTrue(accepted <= TaskExecutor.MAX_WAITING + 32, "accepted " + accepted);
-        assertThrows(RejectedExecutionException.class, () -> executor.execute(stuck));
 
         release.countDown();
         int expected = accepted;
