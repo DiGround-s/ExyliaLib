@@ -61,6 +61,12 @@ final class HologramImpl implements Hologram {
     static final long STEP_MS = 500L;
     private static final int STEP_TICKS = (int) (STEP_MS / TICK_MS);
 
+    /**
+     * How far apart shining and flowing frames are. A flowing line is re-sent whole every frame to
+     * every viewer, so it runs at 10 fps rather than the driver's 20: still smooth, half the traffic.
+     */
+    static final long SHIMMER_MS = 100L;
+
     /** Ticks a hover grows or shrinks over. */
     private static final int HOVER_TICKS = 3;
     /** How far away a look still counts as hovering, about where a click reaches. */
@@ -99,6 +105,7 @@ final class HologramImpl implements Hologram {
     /** When each line started being typed for each viewer; 0 once it is whole. */
     private final Map<UUID, long[]> typing = new ConcurrentHashMap<>();
     private volatile long lastFrame = Long.MIN_VALUE;
+    private volatile long lastShimmer = -SHIMMER_MS;
 
     /** The invisible box clicks land on; only spawned when it is clickable. */
     private final int hitboxId;
@@ -658,7 +665,8 @@ final class HologramImpl implements Hologram {
         if (!typing.isEmpty()) {
             type(currentViewers, now);
         }
-        if (shimmering) {
+        if (shimmering && now - lastShimmer >= SHIMMER_MS) {
+            lastShimmer = now;
             shimmer(currentViewers, now);
         }
         if (!animated) {

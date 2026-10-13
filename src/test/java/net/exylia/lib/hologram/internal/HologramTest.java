@@ -214,6 +214,21 @@ class HologramTest {
     }
 
     @Test
+    @DisplayName("a flowing line is re-sent at most ten times a second")
+    void flowIsCappedAtTenFramesASecond() {
+        Holograms.show(plugin, "banner", spawn(), text(List.of("<flow><gradient:red:blue>Season II</gradient>")));
+        drive();
+        sink.clear();
+
+        for (int tick = 0; tick < 20; tick++) {
+            advanceSeconds(0.05);
+            FakeServer.tick(1);
+        }
+
+        assertEquals(10, sink.count("text"));
+    }
+
+    @Test
     @DisplayName("a hologram with no placeholders never refreshes")
     void staticHologramsNeverRefresh() {
         Holograms.show(plugin, "koth", spawn(), text(List.of("Spawn", "Welcome")));
