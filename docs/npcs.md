@@ -152,6 +152,84 @@ put a body on the floor without a model of your own. `pose:standing` with
 `face:true` is a different effect entirely: somebody who has stopped, and is
 looking at you.
 
+## Placed NPCs
+
+Since 1.291.0. An NPC that stands somewhere until it is removed, is seen by
+whoever walks near it, and can be clicked: the lobby guide, the shopkeeper, the
+quest giver.
+
+```java
+PluginNpcs npcs = Npcs.of(this);
+
+PlacedNpc guide = npcs.place("guide", NpcSpec.builder()
+        .skin(NpcSkin.player("Notch"))       // or texture(value, signature), mirror(), none()
+        .pose(NpcPose.STANDING)
+        .scale(1.0)
+        .glow(0x8A51C4)                      // -1 for none
+        .equip(EquipmentSlot.HAND, compass)
+        .look(NpcLook.EACH_VIEWER)           // FIXED, NEAREST, EACH_VIEWER
+        .lookRange(8)
+        .viewDistance(48)
+        .build(), location);                 // reusing an id replaces the NPC
+
+guide.onClick((player, click) -> {           // net.exylia.lib.interaction.Click
+    if (click.isRight()) openShop(player);
+});
+guide.visibleIf(player -> player.hasPermission("lobby.guide"));
+guide.moveTo(other);                         // a teleport, not a respawn
+guide.update(guide.spec().toBuilder().pose(NpcPose.SNEAKING).build());
+guide.swing();
+
+npcs.placed("guide");                        // Optional<PlacedNpc>
+npcs.allPlaced();
+npcs.unplace("guide");
+```
+
+| Spec | What it does | Default |
+|---|---|---|
+| `skin` | `texture(value, signature)`, `player(name)`, `mirror()` or `none()` | `none()` |
+| `pose` | any `NpcPose` | `STANDING` |
+| `scale` | `0.0625` to `16`, needs a 1.20.5 client | `1` |
+| `glow` | `0xRRGGBB`, drawn in the nearest of the sixteen team colours | `-1` |
+| `equip` | one item per slot | empty |
+| `look` | `FIXED` faces the location's yaw; `NEAREST` turns to the closest viewer for everybody; `EACH_VIEWER` turns to each viewer on their own screen | `FIXED` |
+| `lookRange` | how close a viewer has to be to be looked at | `8` |
+| `viewDistance` | how close a player has to be to see it | `48` |
+
+How it behaves:
+
+- **Visibility is the hologram module's.** One async pass four times a second, a
+  squared distance per player, packets only when somebody crosses the edge. The
+  identity is announced on one pass and the body drawn on the next, because a
+  client that has not processed the player entry when the spawn arrives draws
+  nothing. Changing world or respawning sends it again; leaving forgets the
+  player; disabling the plugin takes every NPC it placed off every screen.
+- **No name, anywhere.** Each NPC is announced unlisted under its own UUID and a
+  generated name (`npc_<hex>`), in a team of its own that hides the nametag and
+  turns off collision. The name is generated so that team can never take in a
+  real player. A name above an NPC is a hologram's job.
+- **Skins never block.** `texture` is drawn at once (unsigned skins draw as the
+  default on modern clients). `player(name)` reads the connection when that
+  player is online, otherwise asks Mojang (name, then signed profile) off the
+  main thread and caches it for the run; until it arrives the NPC wears the
+  default skin, and it is redrawn for its viewers when it does. A failed lookup
+  is retried after a minute, not on every pass. `mirror()` gives each viewer the
+  skin they are wearing.
+- **The head turns only when it is worth a packet:** a head rotation and body yaw
+  when the target angle moved more than 1.5 degrees.
+- **Clicks** are read from `INTERACT_ENTITY` on the NPC's entity id and kept from
+  the server. An attack is a left click, the main-hand use a right click
+  (`INTERACT_AT` and the off-hand duplicate are ignored), sneaking makes it a
+  shift click. A second click from the same player within 200 ms is dropped. The
+  handler runs on the clicking player's thread.
+- **`update` sends only what changed:** equipment and pose are one packet each; a
+  new skin, scale or glow gives every viewer the NPC again.
+- **Thread-safe.** Every method can be called from any thread; everything that
+  sends packets for one NPC holds its lock.
+
+Without PacketEvents, `place` returns an inert NPC that is already `removed()`
+and the module says so once.
+
 ## Contracts
 
 - **Owned by the module, not the caller.** Every way out of the queue is
@@ -168,10 +246,16 @@ looking at you.
 
 ## Source and tests
 
-- Public: `npc/` — `Npcs`, `PluginNpcs`, `NpcModel`, `NpcPose`, `NpcHandle`.
-- Internal: `npc/internal/` — the driver and the one class that names
-  PacketEvents.
+- Public: `npc/` — `Npcs`, `PluginNpcs`, `NpcModel`, `NpcPose`, `NpcHandle`;
+  placed NPCs: `PlacedNpc`, `NpcSpec`, `NpcSkin`, `NpcLook`.
+- Internal: `npc/internal/` — the driver, `PlacedRuntime` and `PlacedNpcImpl`
+  for placed NPCs, and the one class that names PacketEvents (`NpcPackets`,
+  which also holds the click listener).
 - In sequences: `Steps.Corpse`, behind the `[NPC]` token.
 - Tests: `NpcLifetimeTest` asserts every way an NPC can be taken away, that it is
   taken away exactly once, that one plugin's release leaves another's alone, and
   that a life no file could have meant is brought back inside the limits.
+- `PlacedNpcTest` asserts visibility by distance and world, announce-then-draw,
+  click mapping and dedupe, replacing by id, release on plugin disable, look
+  angles and both turning modes, mirrored and looked-up skins, and that `update`
+  and `moveTo` send only what changed.

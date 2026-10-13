@@ -718,6 +718,23 @@ Bukkit entity, never an ArmorStand, never a hand-spawned `TextDisplay`.
 - **Nothing outlives its owner**: when the plugin is disabled, when the player
   leaves, or when the palette reloads (there it is resent whole).
 
+### NPCs — `Npcs`, packets only
+
+Player-shaped bodies through `net.exylia.lib.npc`, never a real entity or a
+hand-built packet. See `docs/npcs.md`.
+
+- **Effects** (`show`, `[NPC]` in sequences) have a life, a fixed viewer list
+  and no clicks; the module removes them.
+- **Placed NPCs** (`place(id, NpcSpec, location)`, since 1.291.0) live until
+  removed. Visibility works like holograms (async pass 4×/s, squared distance,
+  spawn/destroy on crossing the edge, re-sent on world change and respawn,
+  forgotten on quit, gone with the owning plugin). Announced unlisted under a
+  generated name in a team that hides the nametag. Skins: `texture`, `player`
+  (async Mojang lookup, cached, never blocking), `mirror` (each viewer's own).
+  Look modes `FIXED`/`NEAREST`/`EACH_VIEWER` send rotation only when the angle
+  moved. Clicks map to `interaction.Click` and run on the player's thread.
+- **PacketEvents is named in `NpcPackets` only.**
+
 ### Modded clients — always `Clients`, never branching
 
 Everything that depends on Lunar or Feather goes through

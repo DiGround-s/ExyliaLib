@@ -1,6 +1,13 @@
 package net.exylia.lib.npc.internal;
 
 import com.github.retrooper.packetevents.PacketEvents;
+import com.github.retrooper.packetevents.event.PacketListenerAbstract;
+import com.github.retrooper.packetevents.event.PacketListenerPriority;
+import com.github.retrooper.packetevents.event.PacketReceiveEvent;
+import com.github.retrooper.packetevents.protocol.packettype.PacketType;
+import com.github.retrooper.packetevents.protocol.player.InteractionHand;
+import com.github.retrooper.packetevents.wrapper.play.client.WrapperPlayClientInteractEntity;
+import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerTeams;
 import com.github.retrooper.packetevents.manager.server.ServerVersion;
 import com.github.retrooper.packetevents.protocol.attribute.Attributes;
 import com.github.retrooper.packetevents.protocol.entity.data.EntityData;
@@ -31,8 +38,11 @@ import io.github.retrooper.packetevents.util.SpigotConversionUtil;
 import io.github.retrooper.packetevents.util.SpigotReflectionUtil;
 import net.exylia.lib.npc.NpcModel;
 import net.exylia.lib.npc.NpcPose;
+import net.exylia.lib.npc.NpcSpec;
 import net.exylia.lib.packet.internal.Broadcast;
 import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.format.NamedTextColor;
+import net.kyori.adventure.text.format.TextColor;
 import org.bukkit.Location;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.PlayerInventory;
@@ -40,8 +50,10 @@ import org.bukkit.inventory.PlayerInventory;
 import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.function.IntPredicate;
 
 /**
  * Writes a player-shaped entity to a client.
@@ -62,7 +74,7 @@ import java.util.UUID;
  * being in the tab list is a separate flag, and an NPC that appears in the tab
  * beside real players is a bug report about ghost players.
  */
-final class NpcPackets implements NpcSink {
+final class NpcPackets implements NpcSink, PlacedSink {
 
     static final NpcPackets INSTANCE = new NpcPackets();
 
@@ -162,14 +174,18 @@ final class NpcPackets implements NpcSink {
      * be huge is merely normal there.
      */
     private static PacketWrapper<?> sizeOf(int entityId, NpcModel model) {
-        if (model.scale() == 1.0
+        return sizeOf(entityId, model.scale());
+    }
+
+    private static PacketWrapper<?> sizeOf(int entityId, double scale) {
+        if (scale == 1.0
                 || PacketEvents.getAPI().getServerManager().getVersion()
                         .isOlderThan(ServerVersion.V_1_20_5)) {
             return null;
         }
         return new WrapperPlayServerUpdateAttributes(entityId,
                 List.of(new WrapperPlayServerUpdateAttributes.Property(
-                        Attributes.SCALE, model.scale(), List.of())));
+                        Attributes.SCALE, scale, List.of())));
     }
 
     @Override
@@ -309,6 +325,156 @@ final class NpcPackets implements NpcSink {
         send(viewers, identity);
     }
 
+    // ------------------------------------------------------------------
+    // Placed NPCs: one viewer at a time
+    // ------------------------------------------------------------------
+
+    @Override
+    public void announce(Player viewer, UUID profileId, String name, String[] skin, int glow) {
+        UserProfile profile = new UserProfile(profileId, name);
+        if (skin != null && skin[0] != null) {
+            profile.setTextureProperties(List.of(new TextureProperty("textures", skin[0], skin[1])));
+        }
+        Broadcast.send(viewer, new WrapperPlayServerPlayerInfoUpdate(
+                EnumSet.of(WrapperPlayServerPlayerInfoUpdate.Action.ADD_PLAYER,
+                        WrapperPlayServerPlayerInfoUpdate.Action.UPDATE_LISTED),
+                new WrapperPlayServerPlayerInfoUpdate.PlayerInfo(
+                        profile, false, 0, GameMode.SURVIVAL, Component.empty(), null)));
+        // A team of its own hides the nametag, keeps it from pushing anybody, and is the
+        // only place a client reads an outline colour from. The name is generated, so
+        // no real player can ever be taken into it.
+        NamedTextColor colour = glow < 0 ? NamedTextColor.WHITE
+                : NamedTextColor.nearestTo(TextColor.color(glow));
+        Broadcast.send(viewer, new WrapperPlayServerTeams(name,
+                WrapperPlayServerTeams.TeamMode.CREATE,
+                new WrapperPlayServerTeams.ScoreBoardTeamInfo(Component.empty(), Component.empty(),
+                        Component.empty(), WrapperPlayServerTeams.NameTagVisibility.NEVER,
+                        WrapperPlayServerTeams.CollisionRule.NEVER, colour,
+                        WrapperPlayServerTeams.OptionData.NONE),
+                name));
+    }
+
+    @Override
+    public void draw(Player viewer, int entityId, UUID profile, String name, NpcSpec spec,
+                     Location at, float yaw, float pitch) {
+        Broadcast.send(viewer, new WrapperPlayServerSpawnEntity(
+                entityId, Optional.of(profile), EntityTypes.PLAYER,
+                new Vector3d(at.getX(), at.getY(), at.getZ()),
+                pitch, yaw, yaw, 0, Optional.empty()));
+        Broadcast.send(viewer, new WrapperPlayServerEntityMetadata(entityId,
+                fullState(spec.glow(), spec.pose())));
+        Broadcast.send(viewer, new WrapperPlayServerEntityHeadLook(entityId, yaw));
+        PacketWrapper<?> size = sizeOf(entityId, spec.scale());
+        if (size != null) {
+            Broadcast.send(viewer, size);
+        }
+        List<Equipment> kit = new ArrayList<>(6);
+        for (Map.Entry<org.bukkit.inventory.EquipmentSlot, org.bukkit.inventory.ItemStack> piece
+                : spec.equipment().entrySet()) {
+            EquipmentSlot slot = slotOf(piece.getKey());
+            if (slot != null) {
+                add(kit, slot, piece.getValue());
+            }
+        }
+        if (!kit.isEmpty()) {
+            Broadcast.send(viewer, new WrapperPlayServerEntityEquipment(entityId, kit));
+        }
+    }
+
+    @Override
+    public void look(Player viewer, int entityId, float yaw, float pitch) {
+        look(List.of(viewer), entityId, yaw, pitch);
+    }
+
+    @Override
+    public void teleport(Player viewer, int entityId, Location to) {
+        teleport(List.of(viewer), entityId, to);
+    }
+
+    @Override
+    public void equip(Player viewer, int entityId, org.bukkit.inventory.EquipmentSlot slot,
+                      org.bukkit.inventory.ItemStack item) {
+        equip(List.of(viewer), entityId, slot, item);
+    }
+
+    @Override
+    public void pose(Player viewer, int entityId, NpcPose pose) {
+        pose(List.of(viewer), entityId, null, pose);
+    }
+
+    @Override
+    public void swing(Player viewer, int entityId) {
+        swing(List.of(viewer), entityId);
+    }
+
+    @Override
+    public void hurt(Player viewer, int entityId) {
+        hurt(List.of(viewer), entityId);
+    }
+
+    @Override
+    public void destroy(Player viewer, int entityId, UUID profile, String name) {
+        destroy(List.of(viewer), entityId, profile);
+        Broadcast.send(viewer, new WrapperPlayServerTeams(name,
+                WrapperPlayServerTeams.TeamMode.REMOVE,
+                Optional.<WrapperPlayServerTeams.ScoreBoardTeamInfo>empty(), List.of()));
+    }
+
+    /**
+     * Starts telling {@code clicked} about clicks on a placed NPC's body.
+     *
+     * <p>Every packet aimed at one is kept from the server, which has never heard of
+     * that id. One press arrives as INTERACT and INTERACT_AT, and again for the off
+     * hand: only an attack or the main-hand INTERACT counts.
+     *
+     * @return what to hand to {@link #stopListening}
+     */
+    static Object listenPlaced(IntPredicate placed, PlacedClicks clicked) {
+        PacketListenerAbstract listener = new PacketListenerAbstract(PacketListenerPriority.NORMAL) {
+            @Override
+            public void onPacketReceive(PacketReceiveEvent event) {
+                if (event.getPacketType() != PacketType.Play.Client.INTERACT_ENTITY
+                        || !(event.getPlayer() instanceof Player player)) {
+                    return;
+                }
+                WrapperPlayClientInteractEntity packet = new WrapperPlayClientInteractEntity(event);
+                int target = packet.getEntityId();
+                if (!placed.test(target)) {
+                    return;
+                }
+                event.setCancelled(true);
+                switch (packet.getAction()) {
+                    case ATTACK -> clicked.clicked(player, target, true);
+                    case INTERACT -> {
+                        if (packet.getHand() == InteractionHand.MAIN_HAND) {
+                            clicked.clicked(player, target, false);
+                        }
+                    }
+                    default -> {
+                        // INTERACT_AT: the same press as the INTERACT that follows it.
+                    }
+                }
+            }
+        };
+        PacketEvents.getAPI().getEventManager().registerListener(listener);
+        return listener;
+    }
+
+    static void stopListening(Object listener) {
+        try {
+            PacketEvents.getAPI().getEventManager()
+                    .unregisterListener((PacketListenerAbstract) listener);
+        } catch (Throwable ignored) {
+            // Shutting down after PacketEvents already did is not a failure.
+        }
+    }
+
+    /** Where a click on a placed NPC goes. */
+    @FunctionalInterface
+    interface PlacedClicks {
+        void clicked(Player player, int entityId, boolean attack);
+    }
+
     /**
      * The identity the NPC is announced under.
      *
@@ -344,13 +510,17 @@ final class NpcPackets implements NpcSink {
     }
 
     private static List<EntityData<?>> fullState(NpcModel model) {
+        return fullState(model.glowArgb(), model.pose());
+    }
+
+    private static List<EntityData<?>> fullState(int glow, NpcPose pose) {
         List<EntityData<?>> data = new ArrayList<>(3);
-        if (model.glowArgb() >= 0) {
+        if (glow >= 0) {
             data.add(new EntityData<>(ENTITY_FLAGS, EntityDataTypes.BYTE, FLAG_GLOWING));
         }
         data.add(new EntityData<>(skinLayersIndex(), EntityDataTypes.BYTE, ALL_LAYERS));
-        if (model.pose() != NpcPose.STANDING) {
-            data.add(new EntityData<>(POSE, EntityDataTypes.ENTITY_POSE, poseOf(model.pose())));
+        if (pose != NpcPose.STANDING) {
+            data.add(new EntityData<>(POSE, EntityDataTypes.ENTITY_POSE, poseOf(pose)));
         }
         return data;
     }

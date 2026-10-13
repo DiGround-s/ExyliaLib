@@ -1,6 +1,7 @@
 package net.exylia.lib.npc;
 
 import net.exylia.lib.npc.internal.NpcRuntime;
+import net.exylia.lib.npc.internal.PlacedRuntime;
 import org.bukkit.plugin.Plugin;
 import org.jetbrains.annotations.NotNull;
 
@@ -66,7 +67,7 @@ public final class Npcs {
      * @return its view, the same instance every time
      */
     public static @NotNull PluginNpcs of(@NotNull Plugin plugin) {
-        return BY_PLUGIN.computeIfAbsent(plugin.getName(), PluginNpcs::new);
+        return BY_PLUGIN.computeIfAbsent(plugin.getName(), name -> new PluginNpcs(plugin));
     }
 
     /**
@@ -80,12 +81,14 @@ public final class Npcs {
     public static void release(@NotNull String pluginName) {
         BY_PLUGIN.remove(pluginName);
         NpcRuntime.release(pluginName);
+        PlacedRuntime.release(pluginName);
     }
 
     /** Removes every plugin's NPCs, on shutdown. */
     public static void releaseAll() {
         BY_PLUGIN.clear();
         NpcRuntime.releaseAll();
+        PlacedRuntime.releaseAll();
     }
 
     /** How many NPCs are on screen across every plugin, for diagnostics. */

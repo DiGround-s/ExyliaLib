@@ -52,6 +52,7 @@ public final class FakePlayer {
     private volatile boolean flying;
     private volatile boolean invulnerable;
     private volatile boolean gravity = true;
+    private volatile boolean sneaking;
 
     public FakePlayer(String name) {
         this.name = name;
@@ -65,6 +66,7 @@ public final class FakePlayer {
                     case "getWorld" -> location == null ? null : location.getWorld();
                     case "getName" -> this.name;
                     case "isOnline" -> online;
+                    case "isSneaking" -> sneaking;
                     // Bukkit reports a dead player as invalid while they are still connected.
                     case "isValid" -> online && !dead;
                     case "hasPermission" -> permissions.contains(String.valueOf(args[0]));
@@ -294,6 +296,11 @@ public final class FakePlayer {
     }
 
     /** Puts the player somewhere, which is what makes distance checks work. */
+    public FakePlayer sneaking(boolean value) {
+        sneaking = value;
+        return this;
+    }
+
     public FakePlayer at(org.bukkit.Location where) {
         this.location = where.clone();
         return this;

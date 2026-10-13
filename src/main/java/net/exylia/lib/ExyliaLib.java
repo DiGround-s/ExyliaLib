@@ -258,6 +258,7 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         // in before anybody dies in it.
         net.exylia.lib.ragdoll.internal.SkinCache.init(this);
         NpcRuntime.init(this);
+        net.exylia.lib.npc.internal.PlacedRuntime.init(this);
         // After the NPC module, whose bodies a playback is made of.
         net.exylia.lib.replay.internal.ReplayRuntime.init(this);
         ClientRuntime.init(this);
@@ -751,6 +752,7 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         Effects.stopFor(event.getPlayer());
         BoardManager.stopFor(event.getPlayer());
         HologramRuntime.forget(event.getPlayer());
+        net.exylia.lib.npc.internal.PlacedRuntime.forget(event.getPlayer());
         ClientRuntime.forget(event.getPlayer());
         NametagRuntime.forget(event.getPlayer());
         ClanRuntime.forget(event.getPlayer().getUniqueId());
@@ -888,6 +890,7 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
     @EventHandler(priority = EventPriority.MONITOR)
     public void onRespawn(PlayerRespawnEvent event) {
         BoardManager.reinit(event.getPlayer());
+        net.exylia.lib.npc.internal.PlacedRuntime.respawned(event.getPlayer());
     }
 
     /**

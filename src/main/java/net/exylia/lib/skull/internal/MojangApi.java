@@ -120,6 +120,31 @@ public class MojangApi implements Lookup {
     }
 
     /**
+     * Fetches the texture property of a profile together with Mojang's signature.
+     *
+     * <p>A head only needs the value; a player entry does too, because a modern client
+     * draws an unsigned skin on a player as the default one.
+     *
+     * @param id the player's unique id
+     * @return {@code {value, signature}}, or {@code null} when unavailable
+     * @since 1.291.0
+     */
+    public String[] signedTextureOf(UUID id) {
+        if (isBackedOff()) {
+            return null;
+        }
+        String body = get(ID_TO_PROFILE + undashed(id) + "?unsigned=false",
+                "signed texture lookup for " + id);
+        if (body == null) {
+            return null;
+        }
+        String texture = Json.property(body, "textures");
+        String signature = Json.property(body, "textures", "signature");
+        return Textures.isValid(texture) && signature != null
+                ? new String[] {texture, signature} : null;
+    }
+
+    /**
      * Performs the request and turns every failure into {@code null}.
      *
      * <p>The whole point of this class: a caller asking for a head gets a head

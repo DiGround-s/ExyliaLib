@@ -1,12 +1,15 @@
 package net.exylia.lib.npc;
 
 import net.exylia.lib.npc.internal.NpcRuntime;
+import net.exylia.lib.npc.internal.PlacedRuntime;
 import org.bukkit.Location;
 import org.bukkit.entity.Player;
+import org.bukkit.plugin.Plugin;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.List;
+import java.util.Optional;
 
 /**
  * One plugin's view of the NPC module.
@@ -22,10 +25,69 @@ import java.util.List;
  */
 public final class PluginNpcs {
 
+    private final Plugin plugin;
     private final String pluginName;
 
-    PluginNpcs(@NotNull String pluginName) {
-        this.pluginName = pluginName;
+    PluginNpcs(@NotNull Plugin plugin) {
+        this.plugin = plugin;
+        this.pluginName = plugin.getName();
+    }
+
+    /**
+     * Places an NPC that stays until it is removed, seen by whoever comes within its
+     * view distance and clickable by them.
+     *
+     * <pre>{@code
+     * PlacedNpc guide = Npcs.of(this).place("guide", NpcSpec.builder()
+     *         .skin(NpcSkin.player("Notch"))
+     *         .look(NpcLook.EACH_VIEWER)
+     *         .build(), location);
+     * guide.onClick((player, click) -> openShop(player));
+     * }</pre>
+     *
+     * @param id   a name unique within this plugin; reusing one replaces the NPC under it
+     * @param spec what it looks like
+     * @param at   where it stands; the yaw and pitch are which way it faces
+     * @return the NPC; an inert, already removed one when the server has no PacketEvents
+     * @since 1.291.0
+     */
+    public @NotNull PlacedNpc place(@NotNull String id, @NotNull NpcSpec spec,
+                                    @NotNull Location at) {
+        return PlacedRuntime.place(plugin, id, spec, at);
+    }
+
+    /**
+     * An NPC this plugin placed.
+     *
+     * @param id the id it was placed under
+     * @return the NPC, or empty
+     * @since 1.291.0
+     */
+    public @NotNull Optional<PlacedNpc> placed(@NotNull String id) {
+        return PlacedRuntime.get(pluginName, id);
+    }
+
+    /**
+     * Every NPC this plugin placed.
+     *
+     * @return a copy
+     * @since 1.291.0
+     */
+    public @NotNull List<PlacedNpc> allPlaced() {
+        return PlacedRuntime.all(pluginName);
+    }
+
+    /**
+     * Removes a placed NPC from every screen.
+     *
+     * @param id the id it was placed under
+     * @return whether there was one
+     * @since 1.291.0
+     */
+    public boolean unplace(@NotNull String id) {
+        Optional<PlacedNpc> npc = placed(id);
+        npc.ifPresent(PlacedNpc::remove);
+        return npc.isPresent();
     }
 
     /**
@@ -77,7 +139,7 @@ public final class PluginNpcs {
         return show(model, at, NpcRuntime.DEFAULT_LIFE_MILLIS, viewers);
     }
 
-    /** Takes away everything this plugin is showing. */
+    /** Takes away everything this plugin is showing; placed NPCs stay. */
     public void removeAll() {
         NpcRuntime.release(pluginName);
     }

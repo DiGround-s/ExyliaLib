@@ -49,6 +49,18 @@ final class Json {
      * @return the property value, or {@code null}
      */
     static String property(String body, String name) {
+        return property(body, name, "value");
+    }
+
+    /**
+     * Reads one field of a named entry out of a profile's {@code properties} array.
+     *
+     * @param body  the response body
+     * @param name  the property name, in practice {@code textures}
+     * @param field {@code value} or {@code signature}
+     * @return the field, or {@code null}
+     */
+    static String property(String body, String name, String field) {
         JsonObject object = object(body);
         if (object == null) {
             return null;
@@ -65,7 +77,7 @@ final class Json {
             JsonObject property = element.getAsJsonObject();
             JsonElement propertyName = property.get("name");
             if (propertyName != null && name.equals(propertyName.getAsString())) {
-                JsonElement value = property.get("value");
+                JsonElement value = property.get(field);
                 return value == null ? null : value.getAsString();
             }
         }
