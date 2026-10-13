@@ -68,6 +68,11 @@ import net.exylia.lib.config.Time;
  * @param properties   how it is drawn
  * @param config       how it refreshes
  * @param click        what clicking it does; since 1.287.0
+ * @param pages        the pages after the first, which is {@link #lines()};
+ *                     each viewer sees one page at a time. Since 1.297.0
+ * @param pageInterval ticks before each viewer is turned to the next page on
+ *                     their own, 0 to only turn on a click or from code. Since
+ *                     1.297.0
  * @since 1.6.0
  */
 public record HologramConfig(
@@ -85,6 +90,8 @@ public record HologramConfig(
         @Comment("  motion: <spin> <spin:180> <bob> <pulse> <typewriter> <typewriter:40>")
         @Comment("  colour: <shine> <shine:highlight> <flow> <flow:8>")
         @Comment("  who sees it: <range:8> <perm:vip.rank> <perm:!vip.rank> <if:\"%player_level% >= 10\">")
+        @Comment("  heads: <head:Notch> <head:<uuid|base64|textures.minecraft.net url>>")
+        @Comment("These lines are page 1; more pages go under 'pages'.")
         List<String> lines,
 
         @Comment("The item to show, such as DIAMOND_SWORD. Only used by ITEM holograms.")
@@ -116,7 +123,16 @@ public record HologramConfig(
         Refresh config,
 
         @Comment("What clicking the hologram does. Without commands it cannot be clicked.")
-        Click click) {
+        @Comment("On a hologram with pages, these run on page 1; '[PAGE] next', '[PAGE] previous' or '[PAGE] 2' turns it.")
+        Click click,
+
+        @Comment("More pages after the lines above, each with its own 'lines' and 'click' lines.")
+        @Comment("Every player sees one page at a time and turns it with a '[PAGE] next' click line.")
+        List<Page> pages,
+
+        @Comment("Ticks before each player is turned to the next page on their own. 0 turns it off.")
+        @Comment("Reads a written duration too: 5s, 1m.")
+        @Time(Time.Unit.TICKS) long pageInterval) {
 
     /** What a hologram is made of. */
     public enum Kind {
@@ -136,7 +152,31 @@ public record HologramConfig(
      */
     public HologramConfig() {
         this(false, Kind.TEXT, List.of(), "", "", false, 48.0, 0, 0, 0,
-                new Properties(), new Refresh(), new Click());
+                new Properties(), new Refresh(), new Click(), List.of(), 0);
+    }
+
+    /**
+     * A hologram with one page, as written before {@code pages} existed.
+     *
+     * @param enabled      whether the hologram shows at all
+     * @param type         {@code TEXT}, {@code ITEM} or {@code BLOCK}
+     * @param lines        the text lines, top first
+     * @param item         the item to show, for {@code ITEM}
+     * @param block        the block to show, for {@code BLOCK}
+     * @param perPlayer    whether every viewer gets their own copy
+     * @param viewDistance how far away a player still sees it
+     * @param offsetX      shift from the location it is shown at
+     * @param offsetY      shift from the location it is shown at
+     * @param offsetZ      shift from the location it is shown at
+     * @param properties   how it is drawn
+     * @param config       how it refreshes
+     * @param click        what clicking it does
+     */
+    public HologramConfig(boolean enabled, Kind type, List<String> lines, String item, String block,
+                          boolean perPlayer, double viewDistance, double offsetX, double offsetY,
+                          double offsetZ, Properties properties, Refresh config, Click click) {
+        this(enabled, type, lines, item, block, perPlayer, viewDistance, offsetX, offsetY, offsetZ,
+                properties, config, click, List.of(), 0);
     }
 
     /**
@@ -182,6 +222,8 @@ public record HologramConfig(
         if (click == null) {
             click = new Click();
         }
+        pages = pages == null ? List.of() : List.copyOf(pages);
+        pageInterval = Math.max(0, pageInterval);
         if (viewDistance <= 0) {
             viewDistance = 48.0;
         }
@@ -350,6 +392,67 @@ public record HologramConfig(
             if (hoverScale <= 0) {
                 hoverScale = 1;
             }
+        }
+    }
+
+    /**
+     * Every page, the first being {@link #lines()}.
+     *
+     * @return one list of lines per page, never empty
+     * @since 1.297.0
+     */
+    public List<List<String>> allPages() {
+        List<List<String>> all = new java.util.ArrayList<>(pages.size() + 1);
+        all.add(lines);
+        for (Page page : pages) {
+            all.add(page.lines());
+        }
+        return all;
+    }
+
+    /**
+     * One page after the first, as written in config.
+     *
+     * <pre>
+     * pages:
+     *   - lines:
+     *       - '{primary}&amp;lRULES'
+     *       - '{letters}No griefing.'
+     *     click:
+     *       - '[PAGE] next'
+     * </pre>
+     *
+     * @param lines the page's lines, top first, with the same tags as
+     *              {@link HologramConfig#lines()}
+     * @param click what clicking the hologram does while a player is on this
+     *              page, as interaction lines; {@code [PAGE] next},
+     *              {@code [PAGE] previous} and {@code [PAGE] <n>} turn it
+     * @since 1.297.0
+     */
+    public record Page(
+            @Comment("The page's lines, top first, with the same tags as the first page.")
+            List<String> lines,
+
+            @Comment("What clicking does on this page. '[PAGE] next', '[PAGE] previous' or '[PAGE] 2' turns it.")
+            List<String> click) {
+
+        /** An empty page. */
+        public Page() {
+            this(List.of(), List.of());
+        }
+
+        /**
+         * A page nobody clicks.
+         *
+         * @param lines the page's lines
+         */
+        public Page(List<String> lines) {
+            this(lines, List.of());
+        }
+
+        public Page {
+            lines = lines == null ? List.of() : List.copyOf(lines);
+            click = click == null ? List.of() : List.copyOf(click);
         }
     }
 

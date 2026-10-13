@@ -46,4 +46,39 @@ class HologramLineTest {
         assertEquals("<size:big>Hi", plain.text());
         assertFalse(plain.hasTags());
     }
+
+    @Test
+    @DisplayName("a head line round-trips and replaces an item or a block")
+    void headLines() {
+        HologramLine line = HologramLine.parse("<head:Notch><size:0.5>{letters}Hi");
+        assertEquals("Notch", line.head());
+        assertTrue(line.isModel());
+        assertEquals("<head:Notch><size:0.5>{letters}Hi", line.raw());
+        assertEquals(line, HologramLine.parse(line.raw()));
+
+        HologramLine swapped = line.toBuilder().item("diamond").build();
+        assertNull(swapped.head());
+        assertEquals("<item:DIAMOND><size:0.5>{letters}Hi", swapped.raw());
+        assertNull(HologramLine.builder().block("stone").head("Notch").build().block());
+    }
+
+    @Test
+    @DisplayName("a head is read from a name, a UUID, a URL, a hash, base64 or an item prefix")
+    void headSources() {
+        assertEquals(net.exylia.lib.skull.SkullSource.player("Notch"),
+                net.exylia.lib.skull.SkullSource.parse("Notch"));
+        java.util.UUID id = java.util.UUID.fromString("069a79f4-44e9-4726-a5be-fca90e38aaf5");
+        assertEquals(net.exylia.lib.skull.SkullSource.player(id),
+                net.exylia.lib.skull.SkullSource.parse(id.toString()));
+        String url = "http://textures.minecraft.net/texture/abc";
+        assertEquals(net.exylia.lib.skull.SkullSource.url(url),
+                net.exylia.lib.skull.SkullSource.parse(url));
+        String hash = "a".repeat(64);
+        assertEquals(net.exylia.lib.skull.SkullSource.url(hash),
+                net.exylia.lib.skull.SkullSource.parse("urlhead-" + hash));
+        assertEquals(net.exylia.lib.skull.SkullSource.url(hash),
+                net.exylia.lib.skull.SkullSource.parse(hash));
+        assertEquals(net.exylia.lib.skull.SkullSource.texture("eyJ0ZXh0dXJlcyI6e30="),
+                net.exylia.lib.skull.SkullSource.parse("eyJ0ZXh0dXJlcyI6e30="));
+    }
 }

@@ -109,6 +109,27 @@ public final class Interactions {
      */
     public static @NotNull Interaction compile(@NotNull Plugin plugin, @Nullable List<String> lines,
                                                @NotNull String name) {
+        return compile(plugin, lines, name, Map.of());
+    }
+
+    /**
+     * Compiles configured lines with tokens only these lines know.
+     *
+     * <p>For a verb that means something only to the thing being clicked, such
+     * as a hologram's {@code [PAGE] next}: it needs no global registration and
+     * cannot clash with another plugin's token. A local token wins over a
+     * registered one of the same name; the built-in ones cannot be taken.
+     *
+     * @param plugin the plugin the lines belong to
+     * @param lines  the lines as written
+     * @param name   what to call them in a console message
+     * @param tokens tokens by name, without brackets; case does not matter
+     * @return the interaction, never {@code null}
+     * @since 1.297.0
+     */
+    public static @NotNull Interaction compile(@NotNull Plugin plugin, @Nullable List<String> lines,
+                                               @NotNull String name,
+                                               @NotNull Map<String, InteractionToken> tokens) {
         if (lines == null || lines.isEmpty()) {
             return Interaction.empty();
         }
@@ -119,7 +140,7 @@ public final class Interactions {
                 continue;
             }
             try {
-                compiled.add(line(plugin, raw.trim(), name));
+                compiled.add(line(plugin, raw.trim(), name, local(tokens)));
             } catch (IllegalArgumentException problem) {
                 debug.warn("In " + name + ", \"" + raw.trim() + "\" was skipped: "
                         + problem.getMessage());
@@ -172,7 +193,17 @@ public final class Interactions {
 
     // ------------------------------------------------------------ compiling
 
-    private static Interaction.Line line(Plugin plugin, String raw, String name) {
+    private static Map<String, InteractionToken> local(Map<String, InteractionToken> tokens) {
+        if (tokens == null || tokens.isEmpty()) {
+            return Map.of();
+        }
+        Map<String, InteractionToken> keyed = new java.util.HashMap<>();
+        tokens.forEach((key, handler) -> keyed.put(key.trim().toUpperCase(Locale.ROOT), handler));
+        return keyed;
+    }
+
+    private static Interaction.Line line(Plugin plugin, String raw, String name,
+                                         Map<String, InteractionToken> local) {
         String body = raw;
         Set<Click> clicks = ANY;
         int colon = raw.indexOf(':');
@@ -186,7 +217,7 @@ public final class Interactions {
         if (body.isEmpty()) {
             throw new IllegalArgumentException("there is nothing after the click filter");
         }
-        return new Interaction.Line(raw, clicks, step(plugin, body, name));
+        return new Interaction.Line(raw, clicks, step(plugin, body, name, local));
     }
 
     /** The clicks a prefix names, or {@code null} when it is not a click filter. */
@@ -211,7 +242,8 @@ public final class Interactions {
         return Set.copyOf(clicks);
     }
 
-    private static Interaction.Step step(Plugin plugin, String body, String name) {
+    private static Interaction.Step step(Plugin plugin, String body, String name,
+                                         Map<String, InteractionToken> local) {
         int close = body.indexOf(']');
         if (!body.startsWith("[") || close < 2) {
             CommandLine command = CommandLine.compile(body);
@@ -271,6 +303,14 @@ public final class Interactions {
                 });
             }
             default -> {
+                InteractionToken own = local.get(token);
+                if (own != null) {
+                    Arg argument = Arg.of(rest);
+                    return (owner, player, click, data) -> onPlayer(owner, player, done -> {
+                        own.run(player, click, argument.render(player, data), data);
+                        done.complete(true);
+                    });
+                }
                 if (TOKENS.containsKey(token)) {
                     Arg argument = Arg.of(rest);
                     return (owner, player, click, data) -> onPlayer(owner, player, done -> {

@@ -61,9 +61,77 @@ public interface Hologram {
      * <p>For holograms whose content is decided in code. Placeholders in the
      * lines still resolve.
      *
+     * <p>On a hologram with pages, these are the first page's; the other
+     * pages stay as they are.
+     *
      * @param lines the new lines, top first
      */
     void lines(@NotNull java.util.List<String> lines);
+
+    /**
+     * Replaces every page at once, keeping the page each viewer is on when it
+     * still exists.
+     *
+     * @param pages one list of lines per page, the first page first; an empty
+     *              list is one empty page
+     * @since 1.297.0
+     */
+    default void pages(@NotNull java.util.List<java.util.List<String>> pages) {
+        lines(pages.isEmpty() ? java.util.List.of() : pages.getFirst());
+    }
+
+    /**
+     * Returns how many pages it has.
+     *
+     * @return 1 for a hologram without pages
+     * @since 1.297.0
+     */
+    default int pageCount() {
+        return 1;
+    }
+
+    /**
+     * Returns the page a player is on.
+     *
+     * @param player the viewer
+     * @return the page, counted from 0
+     * @since 1.297.0
+     */
+    default int page(@NotNull Player player) {
+        return 0;
+    }
+
+    /**
+     * Turns a player to a page. A page past either end is clamped to it.
+     *
+     * <p>Safe from any thread; the player sees it on the next frame.
+     *
+     * @param player the viewer
+     * @param page   the page, counted from 0
+     * @since 1.297.0
+     */
+    default void page(@NotNull Player player, int page) {
+    }
+
+    /**
+     * Turns a player to the next page, from the last back to the first.
+     *
+     * @param player the viewer
+     * @since 1.297.0
+     */
+    default void nextPage(@NotNull Player player) {
+        page(player, (page(player) + 1) % Math.max(1, pageCount()));
+    }
+
+    /**
+     * Turns a player to the previous page, from the first round to the last.
+     *
+     * @param player the viewer
+     * @since 1.297.0
+     */
+    default void previousPage(@NotNull Player player) {
+        page(player, Math.floorMod(page(player) - 1, Math.max(1, pageCount())));
+    }
 
     /**
      * Re-renders on the next refresh tick.

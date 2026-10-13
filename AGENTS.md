@@ -704,7 +704,7 @@ Bukkit entity, never an ArmorStand, never a hand-spawned `TextDisplay`.
   that has them is diffed and only it is resent, not the whole hologram.
 - **Per-line styling is tags at the start of the line**, never new YAML keys
   (`LineStyle`): look (`size`, `opacity`, `background`, `shadow`), models
-  (`item`, `block`, `glow`), motion (`spin`, `bob`, `pulse`, `typewriter`),
+  (`item`, `block`, `head`, `glow`), motion (`spin`, `bob`, `pulse`, `typewriter`),
   colour (`shine`, `flow`) and
   who sees it (`range`, `perm`, `if`). A sized line takes room in proportion,
   so the stack re-lays itself out; anything else at the start is left for the
@@ -714,6 +714,10 @@ Bukkit entity, never an ArmorStand, never a hand-spawned `TextDisplay`.
   the only per-viewer stream, and only while it types.
 - **Per-line visibility re-lays the stack per viewer.** Lines are destroyed,
   spawned or teleported, never respawned whole.
+- **Pages are one stack behind the per-viewer mask.** `lines` is page 1,
+  `pages` the rest; turning a page is the same destroy/spawn/teleport a
+  conditional line does. `[PAGE]` is a local token
+  (`Interactions.compile(..., tokens)`), not a registered one.
 - **Clicks are an interaction entity** spawned only when `click.commands` or
   `onClick` exist; the packet is cancelled before the server sees the id.
   Looking at it grows the hologram by `click.hover-scale`. `click.commands`

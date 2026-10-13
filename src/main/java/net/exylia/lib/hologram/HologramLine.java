@@ -47,6 +47,9 @@ import java.util.Locale;
  * @param shine      the colour of the band of light that sweeps over it: a
  *                   palette name or {@code #RRGGBB}, empty for the default
  * @param flow       characters a second its colours flow along it
+ * @param head       the player head of a head line: a player name, a UUID, a
+ *                   base64 texture or a {@code textures.minecraft.net} URL, or
+ *                   {@code null}; since 1.297.0
  * @since 1.289.1
  */
 public record HologramLine(@NotNull String text, @Nullable String item, @Nullable String block,
@@ -55,7 +58,8 @@ public record HologramLine(@NotNull String text, @Nullable String item, @Nullabl
                            @Nullable String glow, @Nullable Double spin, @Nullable Double bob,
                            @Nullable Double pulse, @Nullable Double typewriter,
                            @Nullable String condition, @Nullable String permission,
-                           @Nullable Double range, @Nullable String shine, @Nullable Double flow) {
+                           @Nullable Double range, @Nullable String shine, @Nullable Double flow,
+                           @Nullable String head) {
 
     /** What a bare tag means. */
     public static final double DEFAULT_SPIN = 90;
@@ -66,6 +70,23 @@ public record HologramLine(@NotNull String text, @Nullable String item, @Nullabl
 
     public HologramLine {
         text = text == null ? "" : text;
+    }
+
+    /**
+     * A line as written before head lines existed.
+     *
+     * @deprecated use {@link #builder()}, which also takes {@link Builder#head}
+     */
+    @Deprecated(since = "1.297.0")
+    public HologramLine(@NotNull String text, @Nullable String item, @Nullable String block,
+                        @Nullable Double size, @Nullable Integer opacity,
+                        @Nullable String background, @Nullable Boolean shadow,
+                        @Nullable String glow, @Nullable Double spin, @Nullable Double bob,
+                        @Nullable Double pulse, @Nullable Double typewriter,
+                        @Nullable String condition, @Nullable String permission,
+                        @Nullable Double range, @Nullable String shine, @Nullable Double flow) {
+        this(text, item, block, size, opacity, background, shadow, glow, spin, bob, pulse,
+                typewriter, condition, permission, range, shine, flow, null);
     }
 
     /**
@@ -133,6 +154,7 @@ public record HologramLine(@NotNull String text, @Nullable String item, @Nullabl
         StringBuilder out = new StringBuilder();
         tag(out, "item", item);
         tag(out, "block", block);
+        tag(out, "head", head);
         tag(out, "size", size);
         tag(out, "opacity", opacity);
         tag(out, "background", background);
@@ -152,9 +174,9 @@ public record HologramLine(@NotNull String text, @Nullable String item, @Nullabl
         return out.append(text).toString();
     }
 
-    /** Whether the line is an item or a block rather than text. */
+    /** Whether the line is an item, a block or a head rather than text. */
     public boolean isModel() {
-        return item != null || block != null;
+        return item != null || block != null || head != null;
     }
 
     /** Whether any tag is written. */
@@ -171,7 +193,7 @@ public record HologramLine(@NotNull String text, @Nullable String item, @Nullabl
         return new Builder().text(text).item(item).block(block).size(size).opacity(opacity)
                 .background(background).shadow(shadow).glow(glow).spin(spin).bob(bob).pulse(pulse)
                 .typewriter(typewriter).condition(condition).permission(permission).range(range)
-                .shine(shine).flow(flow);
+                .shine(shine).flow(flow).head(head);
     }
 
     /** @return a builder for a new line */
@@ -221,6 +243,7 @@ public record HologramLine(@NotNull String text, @Nullable String item, @Nullabl
         private Double range;
         private String shine;
         private Double flow;
+        private String head;
 
         private Builder() {
         }
@@ -230,20 +253,40 @@ public record HologramLine(@NotNull String text, @Nullable String item, @Nullabl
             return this;
         }
 
-        /** An item line; clears a block. */
+        /** An item line; clears a block and a head. */
         public @NotNull Builder item(@Nullable String material) {
             this.item = blank(material) ? null : material.toUpperCase(Locale.ROOT);
             if (item != null) {
                 this.block = null;
+                this.head = null;
             }
             return this;
         }
 
-        /** A block line; clears an item. */
+        /** A block line; clears an item and a head. */
         public @NotNull Builder block(@Nullable String material) {
             this.block = blank(material) ? null : material.toUpperCase(Locale.ROOT);
             if (block != null) {
                 this.item = null;
+                this.head = null;
+            }
+            return this;
+        }
+
+        /**
+         * A player head line, drawn like an item line; clears an item and a
+         * block.
+         *
+         * @param head a player name, a UUID, a base64 texture or a
+         *             {@code textures.minecraft.net} URL
+         * @return this builder
+         * @since 1.297.0
+         */
+        public @NotNull Builder head(@Nullable String head) {
+            this.head = blank(head) ? null : head.trim();
+            if (this.head != null) {
+                this.item = null;
+                this.block = null;
             }
             return this;
         }
@@ -322,7 +365,7 @@ public record HologramLine(@NotNull String text, @Nullable String item, @Nullabl
 
         public @NotNull HologramLine build() {
             return new HologramLine(text, item, block, size, opacity, background, shadow, glow,
-                    spin, bob, pulse, typewriter, condition, permission, range, shine, flow);
+                    spin, bob, pulse, typewriter, condition, permission, range, shine, flow, head);
         }
 
         /** Takes one tag as written, or answers {@code false} when it is not one. */
@@ -333,14 +376,14 @@ public record HologramLine(@NotNull String text, @Nullable String item, @Nullabl
                     case "opacity" -> opacity = Integer.parseInt(value);
                     case "background" -> background = value;
                     case "shadow" -> shadow = value.isEmpty() || Boolean.parseBoolean(value);
-                    case "item", "block" -> {
+                    case "item", "block", "head" -> {
                         if (value.isEmpty()) {
                             return false;
                         }
-                        if (key.equals("item")) {
-                            item(value);
-                        } else {
-                            block(value);
+                        switch (key) {
+                            case "item" -> item(value);
+                            case "block" -> block(value);
+                            default -> head(value);
                         }
                     }
                     case "glow" -> glow = value;

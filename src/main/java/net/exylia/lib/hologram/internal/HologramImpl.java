@@ -4,10 +4,14 @@ import net.exylia.lib.hologram.Hologram;
 import net.exylia.lib.hologram.HologramConfig;
 import net.exylia.lib.interaction.Click;
 import net.exylia.lib.interaction.Interaction;
+import net.exylia.lib.interaction.InteractionToken;
 import net.exylia.lib.interaction.Interactions;
 import net.exylia.lib.placeholder.Placeholders;
 import net.exylia.lib.placeholder.Request;
 import net.exylia.lib.placeholder.Template;
+import net.exylia.lib.skull.SkullHandle;
+import net.exylia.lib.skull.SkullSource;
+import net.exylia.lib.skull.Skulls;
 import net.exylia.lib.task.Tasks;
 import net.exylia.lib.text.Text;
 import net.exylia.lib.util.internal.Conditions;
@@ -25,6 +29,7 @@ import org.jetbrains.annotations.Nullable;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
@@ -107,9 +112,28 @@ final class HologramImpl implements Hologram {
     private volatile long lastFrame = Long.MIN_VALUE;
     private volatile long lastShimmer = -SHIMMER_MS;
 
+    /**
+     * Pages: every page's lines are one stack, and a viewer is shown the lines
+     * of their page only, through the same per-viewer mask that hides a
+     * conditional line. Turning a page is a mask change: the old page's lines
+     * are destroyed, the new ones spawned, and the click box re-sized.
+     */
+    private volatile List<List<String>> pageLines;
+    /** Which page each line of the stack belongs to. */
+    private volatile int[] linePage = new int[0];
+    private volatile int pageCount = 1;
+    /** The page each player is on; absent is the first. */
+    private final Map<UUID, Integer> pageOf = new ConcurrentHashMap<>();
+    /** When each viewer last turned a page, for the automatic turn. */
+    private final Map<UUID, Long> turnedAt = new ConcurrentHashMap<>();
+    /** Whether a viewer's page changed and the stack has not been re-laid for it. */
+    private volatile boolean turned;
+    private final long pageIntervalMs;
+
     /** The invisible box clicks land on; only spawned when it is clickable. */
     private final int hitboxId;
-    private final Interaction clickLines;
+    /** What a click does, per page. */
+    private final Interaction[] clickLines;
     private volatile BiConsumer<Player, Click> clickHandler;
     private final Map<UUID, Long> lastClick = new ConcurrentHashMap<>();
 
@@ -141,14 +165,85 @@ final class HologramImpl implements Hologram {
         this.config = config;
         this.location = location.clone().add(config.offsetX(), config.offsetY(), config.offsetZ());
         this.intervalMs = Math.max(TICK_MS, config.config().updateInterval() * TICK_MS);
-        this.clickLines = Interactions.compile(owner, config.click().commands(), "hologram \"" + id + "\"");
-        restyle(styles(config.lines()));
-        this.templates = compile(config.lines());
+        this.pageIntervalMs = config.pageInterval() * TICK_MS;
+        this.clickLines = compileClicks(owner, id, config,
+                Map.of("PAGE", (player, click, argument, values) -> turn(player, argument)));
+        List<String> lines = paginate(config.allPages());
+        restyle(styles(lines));
+        this.templates = compile(lines);
         this.displays = build(config, styles);
+        resolveHeads(displays);
         this.hitboxId = HologramRuntime.newEntityId();
         this.lastText = new String[displays.length];
         this.dynamic = config.config().autoUpdate() && isDynamic(templates);
         this.lastRender = -intervalMs;
+    }
+
+    private static Interaction[] compileClicks(Plugin owner, String id, HologramConfig config,
+                                               Map<String, InteractionToken> tokens) {
+        List<HologramConfig.Page> pages = config.pages();
+        Interaction[] compiled = new Interaction[pages.size() + 1];
+        compiled[0] = Interactions.compile(owner, config.click().commands(),
+                "hologram \"" + id + "\"", tokens);
+        for (int i = 0; i < pages.size(); i++) {
+            compiled[i + 1] = Interactions.compile(owner, pages.get(i).click(),
+                    "hologram \"" + id + "\" page " + (i + 2), tokens);
+        }
+        return compiled;
+    }
+
+    /**
+     * Lays every page into one stack and remembers which page each line is on.
+     *
+     * @return the lines of every page, the first page first
+     */
+    private List<String> paginate(List<List<String>> pages) {
+        List<List<String>> kept = pages.isEmpty() ? List.of(List.of()) : List.copyOf(pages);
+        List<String> lines = new ArrayList<>();
+        int[] owners = new int[kept.stream().mapToInt(List::size).sum()];
+        for (int page = 0; page < kept.size(); page++) {
+            for (String line : kept.get(page)) {
+                owners[lines.size()] = page;
+                lines.add(line);
+            }
+        }
+        this.pageLines = kept;
+        this.linePage = owners;
+        this.pageCount = kept.size();
+        return lines;
+    }
+
+    /**
+     * Gives head lines their textured item.
+     *
+     * <p>A texture or URL is ready at once. A player name or id draws the
+     * fallback head first and shows the real one when its lookup lands, which
+     * happens once per head: the skull module remembers it.
+     */
+    private void resolveHeads(DisplayState[] built) {
+        for (DisplayState display : built) {
+            String head = display.style().head();
+            if (head == null) {
+                continue;
+            }
+            try {
+                SkullHandle handle = Skulls.of(SkullSource.parse(head)).build();
+                display.item(handle.item());
+                if (!handle.isReady()) {
+                    handle.onReady(item -> {
+                        display.item(item);
+                        if (!removed && displays == built) {
+                            HologramRuntime.reshow(this);
+                        }
+                    });
+                }
+            } catch (RuntimeException | LinkageError failure) {
+                if (REPORTED.add("head:" + head)) {
+                    HologramRuntime.logger().warning("Hologram '" + id + "': the head '" + head
+                            + "' could not be drawn (" + failure.getMessage() + "); showing a plain head.");
+                }
+            }
+        }
     }
 
     private static Template[] compile(List<String> lines) {
@@ -164,7 +259,7 @@ final class HologramImpl implements Hologram {
         this.styles = styles;
         this.animated = text && Arrays.stream(styles).anyMatch(LineStyle::animated);
         this.typed = text && Arrays.stream(styles).anyMatch(style -> style.typewriter() > 0);
-        this.conditional = text && Arrays.stream(styles).anyMatch(LineStyle::conditional);
+        this.conditional = text && (pageCount > 1 || Arrays.stream(styles).anyMatch(LineStyle::conditional));
         this.shimmering = text && Arrays.stream(styles).anyMatch(LineStyle::shimmers);
         this.restSent = new boolean[styles.length];
     }
@@ -261,12 +356,22 @@ final class HologramImpl implements Hologram {
 
     @Override
     public void lines(@NotNull List<String> lines) {
+        List<List<String>> pages = new ArrayList<>(pageLines);
+        pages.set(0, lines == null ? List.of() : lines);
+        pages(pages);
+    }
+
+    @Override
+    public void pages(@NotNull List<List<String>> pages) {
+        int[] before = linePage;
+        List<String> lines = paginate(pages == null ? List.of() : pages);
         Template[] compiled = compile(lines);
         LineStyle[] restyled = styles(lines);
         // A different number of lines, or lines drawn differently, means
         // different displays, so viewers have to be given the new ones rather
         // than an update for entities that no longer look that way.
         boolean sameShape = java.util.Arrays.equals(restyled, styles)
+                && java.util.Arrays.equals(before, linePage)
                 && config.type() == HologramConfig.Kind.TEXT;
         restyle(restyled);
         this.templates = compiled;
@@ -282,6 +387,70 @@ final class HologramImpl implements Hologram {
     }
 
     @Override
+    public int pageCount() {
+        return pageCount;
+    }
+
+    @Override
+    public int page(@NotNull Player player) {
+        return Math.min(pageOf.getOrDefault(player.getUniqueId(), 0), pageCount - 1);
+    }
+
+    @Override
+    public void page(@NotNull Player player, int page) {
+        int target = Math.clamp(page, 0, pageCount - 1);
+        UUID uuid = player.getUniqueId();
+        turnedAt.put(uuid, HologramRuntime.now());
+        Integer was = pageOf.put(uuid, target);
+        if (was == null ? target != 0 : was != target) {
+            turned = true;
+        }
+    }
+
+    /** What a {@code [PAGE]} click line does: next, previous, first, last, or a page from 1. */
+    private void turn(Player player, String argument) {
+        String to = argument.trim().toLowerCase(Locale.ROOT);
+        switch (to) {
+            case "", "next" -> nextPage(player);
+            case "previous", "prev", "back" -> previousPage(player);
+            case "first" -> page(player, 0);
+            case "last" -> page(player, pageCount - 1);
+            default -> {
+                try {
+                    page(player, Integer.parseInt(to) - 1);
+                } catch (NumberFormatException notANumber) {
+                    if (REPORTED.add("page:" + id + ":" + to)) {
+                        HologramRuntime.logger().warning("Hologram '" + id + "': [PAGE] " + argument
+                                + " is not next, previous, first, last or a page number.");
+                    }
+                }
+            }
+        }
+    }
+
+    /**
+     * Turns viewers whose page is due on their own, then re-lays the stack for
+     * whoever's page changed. Runs on the driver, as every layout does.
+     */
+    private void turnPages(List<Player> currentViewers, long now) {
+        if (pageIntervalMs > 0) {
+            for (Player viewer : currentViewers) {
+                Long at = turnedAt.putIfAbsent(viewer.getUniqueId(), now);
+                if (at != null && now - at >= pageIntervalMs) {
+                    nextPage(viewer);
+                }
+            }
+        }
+        if (!turned) {
+            return;
+        }
+        turned = false;
+        for (Player viewer : currentViewers) {
+            revalidate(viewer);
+        }
+    }
+
+    @Override
     public void refresh() {
         pending = true;
         lastRender = -intervalMs;
@@ -290,7 +459,7 @@ final class HologramImpl implements Hologram {
     @Override
     public void onClick(@Nullable BiConsumer<Player, Click> handler) {
         boolean was = clickable();
-        boolean will = !clickLines.isEmpty() || handler != null;
+        boolean will = handler != null || Arrays.stream(clickLines).anyMatch(lines -> !lines.isEmpty());
         if (was != will) {
             // The box is spawned with the hologram, so viewers are given it
             // anew; taken down first, while it still counts as there.
@@ -498,6 +667,9 @@ final class HologramImpl implements Hologram {
             renderFor(viewer, false);
         }
         UUID uuid = viewer.getUniqueId();
+        if (pageIntervalMs > 0) {
+            turnedAt.put(uuid, HologramRuntime.now());
+        }
         boolean[] mask = conditional ? maskFor(viewer) : null;
         if (mask != null) {
             masks.put(uuid, mask);
@@ -568,11 +740,14 @@ final class HologramImpl implements Hologram {
      */
     private boolean[] maskFor(Player viewer) {
         LineStyle[] current = styles;
+        int[] pages = linePage;
+        int page = page(viewer);
         boolean[] mask = new boolean[current.length];
         double distance = viewer.getLocation().distanceSquared(location);
         for (int i = 0; i < current.length; i++) {
             LineStyle style = current[i];
-            boolean shown = style.range() <= 0 || distance <= style.range() * style.range();
+            boolean shown = (i >= pages.length || pages[i] == page)
+                    && (style.range() <= 0 || distance <= style.range() * style.range());
             String permission = style.permission();
             if (shown && permission != null) {
                 boolean negated = permission.startsWith("!");
@@ -661,6 +836,9 @@ final class HologramImpl implements Hologram {
     void animate(List<Player> currentViewers, long now) {
         if (removed || currentViewers.isEmpty()) {
             return;
+        }
+        if (pageCount > 1) {
+            turnPages(currentViewers, now);
         }
         if (!typing.isEmpty()) {
             type(currentViewers, now);
@@ -873,7 +1051,15 @@ final class HologramImpl implements Hologram {
     // ------------------------------------------------------------------
 
     boolean clickable() {
-        return !clickLines.isEmpty() || clickHandler != null;
+        if (clickHandler != null) {
+            return true;
+        }
+        for (Interaction lines : clickLines) {
+            if (!lines.isEmpty()) {
+                return true;
+            }
+        }
+        return false;
     }
 
     int hitboxId() {
@@ -911,8 +1097,9 @@ final class HologramImpl implements Hologram {
             return;
         }
         lastClick.put(uuid, now);
-        if (clickLines.handles(click)) {
-            clickLines.run(player, click, data);
+        Interaction lines = clickLines[Math.min(page(player), clickLines.length - 1)];
+        if (lines.handles(click)) {
+            lines.run(player, click, data);
         }
         BiConsumer<Player, Click> handler = clickHandler;
         if (handler != null) {
@@ -938,6 +1125,8 @@ final class HologramImpl implements Hologram {
 
     /** Forgets a player who left, without sending them anything. */
     void forget(UUID viewer) {
+        pageOf.remove(viewer);
+        turnedAt.remove(viewer);
         viewers.remove(viewer);
         masks.remove(viewer);
         typing.remove(viewer);
@@ -1030,6 +1219,7 @@ final class HologramImpl implements Hologram {
     /** Replaces the displays, for a hologram whose lines changed shape. */
     void rebuildDisplays() {
         this.displays = build(config, styles);
+        resolveHeads(displays);
         this.lastText = new String[displays.length];
         refresh();
     }

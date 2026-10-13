@@ -229,7 +229,8 @@ final class DisplayPackets implements DisplaySink {
             }
             case ITEM -> data.add(new EntityData<>(DisplayState.ITEM, EntityDataTypes.ITEMSTACK,
                     SpigotConversionUtil.fromBukkitItemStack(
-                            new org.bukkit.inventory.ItemStack(display.material()))));
+                            display.item() != null ? display.item()
+                                    : new org.bukkit.inventory.ItemStack(display.material()))));
             case BLOCK -> data.add(new EntityData<>(DisplayState.BLOCK_STATE, EntityDataTypes.BLOCK_STATE,
                     SpigotConversionUtil.fromBukkitBlockData(
                             display.material().createBlockData()).getGlobalId()));

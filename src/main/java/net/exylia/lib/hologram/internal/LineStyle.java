@@ -46,14 +46,16 @@ import net.exylia.lib.hologram.HologramLine;
  * @param shine      the colour of a band of light that sweeps over the line,
  *                   as a palette name or {@code #RRGGBB}, or {@code null}
  * @param flow       characters a second the line's own colours flow along it
+ * @param head       the player head an item line shows, as written, or
+ *                   {@code null}
  */
 record LineStyle(String model, boolean block, double size, Integer opacity, String background,
                  Boolean shadow, String glow, double spin, double bob, double pulse,
                  double typewriter, String condition, String permission, double range,
-                 String shine, double flow) {
+                 String shine, double flow, String head) {
 
     static final LineStyle PLAIN = new LineStyle(null, false, 1.0, null, null, null, null,
-            0, 0, 0, 0, null, null, 0, null, 0);
+            0, 0, 0, 0, null, null, 0, null, 0, null);
 
     /** An item or block at size 1 is half a block, a little taller than a text line. */
     static final double MODEL_HEIGHT = 0.5;
@@ -76,7 +78,8 @@ record LineStyle(String model, boolean block, double size, Integer opacity, Stri
      * editor and the hologram can never disagree on what a line says.
      */
     static LineStyle of(HologramLine line) {
-        String model = line.block() != null ? line.block() : line.item();
+        String model = line.block() != null ? line.block()
+                : line.head() != null ? "PLAYER_HEAD" : line.item();
         return new LineStyle(model, line.block() != null,
                 line.size() == null ? 1.0 : Math.clamp(line.size(), 0.1, 10.0),
                 line.opacity() == null ? null : Math.clamp(line.opacity(), 0, 255),
@@ -88,7 +91,8 @@ record LineStyle(String model, boolean block, double size, Integer opacity, Stri
                 line.condition(), line.permission(),
                 line.range() == null ? 0 : Math.max(0, line.range()),
                 line.shine() == null ? null : line.shine().isEmpty() ? "letters" : line.shine(),
-                line.flow() == null ? 0 : Math.clamp(line.flow(), -40, 40));
+                line.flow() == null ? 0 : Math.clamp(line.flow(), -40, 40),
+                line.head());
     }
 
     boolean isModel() {

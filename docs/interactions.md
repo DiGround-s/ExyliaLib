@@ -70,6 +70,17 @@ cannot be taken; a token another plugin holds throws. Tokens are released when
 their plugin disables, and a compiled line whose token was released does
 nothing.
 
+A token that means something to one clicked thing only is passed to
+`compile` instead of registered (since 1.297.0):
+
+```java
+Interactions.compile(this, lines, "hologram \"rules\"",
+        Map.of("PAGE", (player, click, argument, data) -> turn(player, argument)));
+```
+
+It is known to those lines alone, wins over a registered token of the same
+name, and runs like one. Holograms use it for `[PAGE]`.
+
 ## Contracts
 
 - **Compiled once, never throws.** A line that cannot be read (an unknown token,

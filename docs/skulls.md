@@ -29,6 +29,11 @@ A bare texture hash, a full `https://textures.minecraft.net/texture/...` URL
 and a scheme-less one are all accepted, because all three end up pasted into
 YAML in practice.
 
+`SkullSource.parse(value)` (since 1.297.0) reads any of them from one
+string: a UUID, a player name, a URL or hash, a base64 texture, or a
+`playerhead-`/`urlhead-`/`basehead-` value. It is what a hologram's
+`<head:...>` tag uses.
+
 Passing a `UUID` skips the name-to-id request, which is a whole round trip, and
 survives the player renaming themselves. Passing an online `Player` costs
 nothing at all: their skin arrived with them.

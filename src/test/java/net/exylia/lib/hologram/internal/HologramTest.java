@@ -334,7 +334,7 @@ class HologramTest {
     void lineTagsParse() {
         LineStyle.Parsed parsed = LineStyle.parse("<size:1.5><opacity:120><shadow:false><bold>Hi");
         assertEquals(new LineStyle(null, false, 1.5, 120, null, false, null, 0, 0, 0, 0,
-                null, null, 0, null, 0), parsed.style());
+                null, null, 0, null, 0, null), parsed.style());
         assertEquals("<bold>Hi", parsed.body());
         assertEquals("<size:big>Hi", LineStyle.parse("<size:big>Hi").body());
         assertEquals("<gradient:#fff:#000>Hi", LineStyle.parse("<gradient:#fff:#000>Hi").body());
@@ -692,6 +692,102 @@ class HologramTest {
 
         assertFalse(hologram.isViewing(near.player()));
         assertEquals(List.of(), sink.calls(), "nothing should be sent to a client that is gone");
+    }
+
+    // ------------------------------------------------------------------
+    // Pages
+    // ------------------------------------------------------------------
+
+    private static HologramConfig paged(long interval, List<String> firstClick, HologramConfig.Page... pages) {
+        return new HologramConfig(true, HologramConfig.Kind.TEXT, List.of("One A", "One B"), "", "",
+                false, 32.0, 0, 0, 0, new HologramConfig.Properties(), new HologramConfig.Refresh(),
+                new HologramConfig.Click(firstClick, 1.5, 0), List.of(pages), interval);
+    }
+
+    @Test
+    @DisplayName("a viewer sees only their page, and turning it swaps the lines")
+    void pagesShowOneAtATime() {
+        Hologram hologram = Holograms.show(plugin, "koth", spawn(),
+                paged(0, List.of(), new HologramConfig.Page(List.of("Two"))));
+        drive();
+        assertEquals(2, hologram.pageCount());
+        assertEquals(List.of("One A", "One B"), sink.spawnedText);
+        sink.clear();
+
+        hologram.nextPage(near.player());
+        assertEquals(1, hologram.page(near.player()));
+        FakeServer.tick(1);
+
+        assertEquals(List.of("destroy:Near:2"), sink.calls("destroy"));
+        assertEquals(List.of("Two"), sink.spawnedText);
+        sink.clear();
+
+        hologram.nextPage(near.player());
+        FakeServer.tick(1);
+        assertEquals(0, hologram.page(near.player()), "the last page turns back to the first");
+        assertEquals(List.of("One A", "One B"), sink.spawnedText);
+    }
+
+    @Test
+    @DisplayName("pages turn on their own every page-interval")
+    void pagesTurnOnTheirOwn() {
+        Hologram hologram = Holograms.show(plugin, "koth", spawn(),
+                paged(20, List.of(), new HologramConfig.Page(List.of("Two"))));
+        drive();
+        advanceSeconds(0.5);
+        FakeServer.tick(1);
+        assertEquals(0, hologram.page(near.player()));
+
+        advanceSeconds(0.6);
+        FakeServer.tick(1);
+        assertEquals(1, hologram.page(near.player()));
+    }
+
+    @Test
+    @DisplayName("[PAGE] click lines turn the page, and each page runs its own click lines")
+    void pageClicksTurnIt() {
+        Hologram hologram = Holograms.show(plugin, "koth", spawn(), paged(0,
+                List.of("[PAGE] next"),
+                new HologramConfig.Page(List.of("Two"), List.of("two", "[PAGE] 1"))));
+        drive();
+        int box = Integer.parseInt(sink.calls("hitbox").get(0).split(":")[2]);
+
+        HologramRuntime.clicked(near.player(), box);
+        FakeServer.tick(1);
+        assertEquals(1, hologram.page(near.player()));
+        assertEquals(List.of(), near.commands());
+
+        advanceSeconds(1);
+        HologramRuntime.clicked(near.player(), box);
+        FakeServer.tick(1);
+        assertEquals(List.of("two"), near.commands());
+        assertEquals(0, hologram.page(near.player()));
+    }
+
+    @Test
+    @DisplayName("replacing the pages keeps the page each viewer is on")
+    void replacingPagesKeepsThePage() {
+        Hologram hologram = Holograms.show(plugin, "koth", spawn(),
+                paged(0, List.of(), new HologramConfig.Page(List.of("Two"))));
+        drive();
+        hologram.page(near.player(), 1);
+        FakeServer.tick(1);
+        sink.clear();
+
+        hologram.pages(List.of(List.of("One A", "One B"), List.of("Deux")));
+        drive();
+        assertEquals(1, hologram.page(near.player()));
+        assertTrue(sink.calls("text").contains("text:Near:1002:Deux"), sink.calls().toString());
+    }
+
+    @Test
+    @DisplayName("a head line is an item display standing in the stack")
+    void headLinesAreItems() {
+        LineStyle style = LineStyle.parse("<head:Notch><size:0.5>").style();
+        assertTrue(style.isModel());
+        assertFalse(style.block());
+        assertEquals("PLAYER_HEAD", style.model());
+        assertEquals("Notch", style.head());
     }
 
     // ------------------------------------------------------------------

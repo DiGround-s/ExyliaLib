@@ -106,6 +106,9 @@ public final class DisplayState {
     /** What an ITEM or BLOCK display shows, resolved once at creation. */
     private final org.bukkit.Material material;
 
+    /** The item a head line resolved to; set once its texture is known. */
+    private volatile org.bukkit.inventory.ItemStack item;
+
     DisplayState(int entityId, HologramConfig.Kind kind, HologramConfig.Properties properties) {
         this(entityId, kind, properties, org.bukkit.Material.STONE);
     }
@@ -199,6 +202,18 @@ public final class DisplayState {
     /** What an ITEM or BLOCK display shows. */
     org.bukkit.Material material() {
         return material;
+    }
+
+    /**
+     * The exact item an ITEM display shows, such as a textured head, or
+     * {@code null} for a plain stack of {@link #material()}.
+     */
+    org.bukkit.inventory.ItemStack item() {
+        return item;
+    }
+
+    void item(org.bukkit.inventory.ItemStack item) {
+        this.item = item;
     }
 
     Component text() {

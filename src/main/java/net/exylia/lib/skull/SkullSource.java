@@ -101,6 +101,59 @@ public sealed interface SkullSource {
         return new PlayerId(id);
     }
 
+    /**
+     * Reads a head written as one value, whatever form it was pasted in.
+     *
+     * <p>A UUID is a player id, a name of up to sixteen letters, digits or
+     * underscores is a player name, a {@code textures.minecraft.net} URL or a
+     * bare texture hash is a skin URL, and anything else is a base64 texture.
+     * The item prefixes {@code playerhead-}, {@code urlhead-} and
+     * {@code basehead-} are read too, so a value picked from the head
+     * catalogue works as it is.
+     *
+     * @param value the head as written
+     * @return the source
+     * @throws IllegalArgumentException when the value is blank
+     * @since 1.297.0
+     */
+    static @NotNull SkullSource parse(@NotNull String value) {
+        String head = value == null ? "" : value.trim();
+        if (head.isEmpty()) {
+            throw new IllegalArgumentException("a head needs a name, a UUID, a texture or a URL");
+        }
+        int dash = head.indexOf('-');
+        if (dash > 0) {
+            String rest = head.substring(dash + 1);
+            switch (head.substring(0, dash).toLowerCase(Locale.ROOT)) {
+                case "playerhead" -> {
+                    return parse(rest);
+                }
+                case "urlhead", "headurl" -> {
+                    return url(rest);
+                }
+                case "basehead", "headbase" -> {
+                    return texture(rest);
+                }
+                default -> {
+                }
+            }
+        }
+        if (head.length() == 36 && head.charAt(8) == '-') {
+            try {
+                return player(UUID.fromString(head));
+            } catch (IllegalArgumentException notAnId) {
+                // Falls through to the other forms.
+            }
+        }
+        if (head.matches("[A-Za-z0-9_]{1,16}")) {
+            return player(head);
+        }
+        if (head.contains("textures.minecraft.net") || head.matches("[0-9a-fA-F]{40,}")) {
+            return url(head);
+        }
+        return texture(head);
+    }
+
     /** A base64 texture property. */
     record Texture(@NotNull String base64) implements SkullSource {
         @Override

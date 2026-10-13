@@ -24,6 +24,8 @@ Holograms.show(this, "trophy", location, config.trophy());
 | `kind` | `TEXT`, `ITEM` or `BLOCK` |
 | `properties` | `billboard`, `alignment`, `scaleX/Y/Z`, and more display properties |
 | `click` | `commands`, `width`, `cooldown`, `hover-scale`: what clicking it does (since 1.287.0; `hover-scale` since 1.288.0) |
+| `pages` | more pages after `lines`, each with its own `lines` and `click` lines (since 1.297.0) |
+| `page-interval` | ticks before each viewer is turned to the next page on their own; 0 is off (since 1.297.0) |
 
 The YML keys match what ExyliaCommons' `HologramTemplateSerializer` wrote,
 minus the ones that mean nothing here (chunks, disk persistence — a hologram
@@ -53,6 +55,7 @@ since 1.285.0; models with blocks, glow, motion, visibility and clicks since
 | `<shadow:false>` | turns the shadow off (or `<shadow>` on) for this line |
 | `<item:DIAMOND>` | the line is a floating item, centred in the stack and facing the player |
 | `<block:BEACON>` | the line is a floating block, turning around its own centre when it spins |
+| `<head:Notch>` | the line is a player head, drawn like an item line: a player name, a UUID, a base64 texture, a `textures.minecraft.net` URL or a bare texture hash (`urlhead-`/`basehead-`/`playerhead-` values read too). `<size:0.5>` makes it small, `<size:2>` large (since 1.297.0) |
 | `<glow>` / `<glow:#8a51c4>` | glow outline on an item or block line, in the team colour or the one given |
 | `<spin>` / `<spin:180>` | turns the line, in degrees a second (default 90, negative turns the other way) |
 | `<bob>` / `<bob:0.15>` | floats the line up and down, in blocks (default 0.08) |
@@ -135,6 +138,55 @@ asked for. A bare tag (`<spin>`) reads as its default (`DEFAULT_SPIN` and the
 rest) and is written back with it. Values are kept as written: the hologram
 clamps them when it draws.
 
+## Pages
+
+A hologram can have several pages; every viewer sees one at a time. `lines`
+is page 1, so a file written before pages existed reads exactly as it did,
+and `pages` adds the rest (since 1.297.0):
+
+```yaml
+lines:
+  - '<head:Notch><size:0.8>'
+  - '{primary}&lWELCOME'
+  - '{warning}➥ Click for the rules'
+click:
+  commands:
+    - '[PAGE] next'
+pages:
+  - lines:
+      - '{primary}&lRULES'
+      - '{letters}No griefing, no cheating.'
+    click:
+      - 'left: [PAGE] previous'
+      - 'right: [PAGE] 1'
+page-interval: 10s
+```
+
+- **`click.commands` run on page 1, a page's own `click` on that page.** A
+  page with no click lines does nothing when clicked there (a code handler
+  still runs).
+- **`[PAGE] next`, `[PAGE] previous`, `[PAGE] first`, `[PAGE] last` and
+  `[PAGE] 2`** (pages count from 1 there) turn the clicking player's page.
+  It is a token only hologram click lines know
+  (`Interactions.compile(plugin, lines, name, tokens)`), so it never clashes
+  with a plugin's own.
+- **`page-interval`** turns every viewer on to the next page on their own,
+  counted from when they last turned or came into range. 0 turns it off.
+- **A page turn is a per-viewer re-layout.** Pages are one stack shown through
+  the same per-viewer mask as `<range>` and `<if>`: the old page's lines are
+  destroyed, the new ones spawned, the click box re-sized to the new page and
+  typewriter lines typed in again. Nothing else is re-sent.
+- The page a player is on is kept until they leave the server.
+
+In code (pages count from 0):
+
+```java
+hologram.nextPage(player);
+hologram.page(player, 2);
+int at = hologram.page(player);
+hologram.pages(List.of(firstLines, secondLines));   // keeps each viewer's page
+```
+
 ## Clicks
 
 `click.commands` takes [interaction lines](interactions.md) (since 1.291.0; a
@@ -195,7 +247,9 @@ riding. Since 1.288.0; before, the lines of a ridden hologram overlapped.
 no flicker), `attachTo(entity)` (rides the entity; the client moves it, zero
 packets while moving), `lines(List)`, `refresh()`, `updateData(Map)`,
 `onClick(Consumer<Player>)` (since 1.287.0), `onClick(BiConsumer<Player, Click>)` (since 1.291.0), `visibleIf(Predicate<Player>)`, `isViewing(player)`, `viewerCount()`,
-`remove()`, `removed()`.
+`remove()`, `removed()`; pages since 1.297.0: `pages(List<List<String>>)`,
+`pageCount()`, `page(player)`, `page(player, n)`, `nextPage(player)`,
+`previousPage(player)`.
 
 ## Behavior
 
