@@ -60,6 +60,10 @@ public final class SqlStorage implements Storage {
     /** Whether the embedded file was already reported damaged; the next thousand failures say nothing new. */
     private final java.util.concurrent.atomic.AtomicBoolean damageReported =
             new java.util.concurrent.atomic.AtomicBoolean();
+    /** Damage failures since the last summary line. */
+    private final java.util.concurrent.atomic.AtomicLong damageRepeats = new java.util.concurrent.atomic.AtomicLong();
+    private final java.util.concurrent.atomic.AtomicLong lastSummary = new java.util.concurrent.atomic.AtomicLong();
+    private volatile java.time.LocalTime damageSince;
 
     /**
      * Wraps an open backend.
@@ -381,11 +385,14 @@ public final class SqlStorage implements Storage {
                 try {
                     future.complete(recreatingMissingTable(model, work));
                 } catch (SQLException failure) {
-                    reportDamage(failure);
-                    future.completeExceptionally(new DatabaseException(
+                    DatabaseException wrapped = new DatabaseException(
                             "Could not " + operation + " on " + model.table() + " ("
                                     + model.type().getSimpleName() + "): " + failure.getMessage(),
-                            failure));
+                            failure);
+                    if (!reportDamage(failure)) {
+                        H2Guard.markDamageReported(wrapped);
+                    }
+                    future.completeExceptionally(wrapped);
                 } catch (Throwable failure) {
                     // An IllegalArgumentException from an unknown filter column,
                     // an IllegalStateException from a record whose compact
@@ -409,18 +416,44 @@ public final class SqlStorage implements Storage {
     /**
      * Says once that an embedded file broke under a running server.
      *
-     * <p>H2 closes the whole database at the first damaged page it reads, and
-     * every query after that fails with "The database has been closed". That
-     * is one cause, so it is one line, not one per query.
+     * <p>H2 closes the whole database at the first damaged page it reads, or
+     * turns it read-only when a write fails, and every query after that fails
+     * the same way. That is one cause, so it is one line, not one per query:
+     * the later failures are counted and summed up at most once a minute.
+     *
+     * @return {@code false} when the failure is damage that was already
+     *         reported, which the per-query printer then leaves out
      */
-    private void reportDamage(@NotNull SQLException failure) {
-        if (backend.dialect().id().equals("h2") && H2Guard.isDamage(failure)
-                && damageReported.compareAndSet(false, true)) {
-            warnings.accept("DATABASE DAMAGED: the embedded H2 database stopped working ("
-                    + failure.getMessage() + "). Every read and write of this plugin fails until"
-                    + " the server restarts. On the next start ExyliaLib checks the file and repairs it"
-                    + " automatically, from the last complete write or the newest backup.");
+    private boolean reportDamage(@NotNull SQLException failure) {
+        if (!backend.dialect().id().equals("h2") || !H2Guard.isDamage(failure)) {
+            return true;
         }
+        boolean readOnly = H2Guard.isReadOnly(failure);
+        if (damageReported.compareAndSet(false, true)) {
+            damageSince = java.time.LocalTime.now().withNano(0);
+            lastSummary.set(System.currentTimeMillis());
+            warnings.accept((readOnly ? "DATABASE READ ONLY: the embedded H2 database refuses every write ("
+                    : "DATABASE DAMAGED: the embedded H2 database stopped working (")
+                    + failure.getMessage() + "). Every " + (readOnly ? "write" : "read and write")
+                    + " of this plugin fails until the server restarts. Usual causes: the disk is full,"
+                    + " the server cannot write the database folder (owner/permissions), or the file is"
+                    + " damaged. Free the disk or fix the permissions, then restart: on the next start"
+                    + " ExyliaLib checks the file and repairs it automatically when it is damaged, from the"
+                    + " last complete write or the newest backup.");
+            return true;
+        }
+        damageRepeats.incrementAndGet();
+        long now = System.currentTimeMillis();
+        long last = lastSummary.get();
+        if (now - last >= 60_000L && lastSummary.compareAndSet(last, now)) {
+            long count = damageRepeats.getAndSet(0);
+            if (count > 0) {
+                warnings.accept(count + " more database operations failed: the embedded database has been "
+                        + (readOnly ? "read only" : "closed") + " since " + damageSince
+                        + ". Restart the server to repair it.");
+            }
+        }
+        return false;
     }
 
     /**

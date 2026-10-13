@@ -1347,6 +1347,12 @@ know about it.
   taken after a full read succeeds. A failed H2 read leaves the database
   registered in the JVM with the old file open: `SHUTDOWN IMMEDIATELY` it before
   anything reconnects to that path.
+  Run-time damage (`H2Guard.isDamage`: corruption, `90098` closed, `90097` read
+  only, MVStore writing failure code 2; never `90096` or ordinary SQL errors) is
+  reported once per storage, then marked (`markDamageReported`) so
+  `Repository.reported` skips it and the storage sums repeats up once a minute
+  (1.288.2). A file the server cannot write is reported at start: H2 would
+  open it read-only in silence.
 - **Per-player read retries back off** (`util/internal/RetryBackoff`: 5 s
   doubling to 5 min, one warning per quiet period with a skipped count). A
   fixed-delay retry per online player turns one dead database into thousands

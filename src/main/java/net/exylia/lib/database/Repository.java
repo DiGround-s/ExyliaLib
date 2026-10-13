@@ -118,7 +118,9 @@ public final class Repository<T> {
      */
     private <R> CompletableFuture<R> reported(String operation, CompletableFuture<R> future) {
         future.whenComplete((result, failure) -> {
-            if (failure != null) {
+            // A damage failure after the one "DATABASE DAMAGED"/"READ ONLY" report is
+            // counted by the storage and summed up once a minute, not printed per query.
+            if (failure != null && !net.exylia.lib.database.internal.H2Guard.damageReported(failure)) {
                 unhandled.accept("A " + operation + " on " + model.table() + " ("
                         + model.type().getSimpleName() + ") failed", failure);
             }

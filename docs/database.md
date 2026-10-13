@@ -473,6 +473,10 @@ that owns the repository, **even when nobody attached a handler**:
 A caller that does handle it — `exceptionally`, `handle`, `whenComplete` —
 still gets it, and still gets it first. This only covers the dropped future.
 
+The one exception is an embedded database that broke under the running server
+(read only or closed): after its single report, the repeats are counted and
+summed up once a minute instead; see "A damaged embedded file repairs itself".
+
 The bug that prompted it: a plugin wrote `find(id).thenAccept(...)` with no
 error branch, the read failed, and the menu it fed simply never opened. No
 stack trace, no console line, nothing to search the logs for. Dropping the
@@ -528,8 +532,34 @@ chunk; never an ordinary SQL error, a lock or a newer format):
    plugin would seed new rows (start keys, defaults) over the lost ones.
 
 Every repair is logged as an error saying which path was taken and, table by
-table, what was lost. Corruption found while the server runs is one error
-("DATABASE DAMAGED"), not one per query; it is repaired on the next start.
+table, what was lost.
+
+**Damage while the server runs** (since 1.288.2) is one line, not one per
+query. These failures count as damage, because the run can no longer use the
+file until a restart: corruption (above), `90098` (H2 closed the database),
+`90097` (the database is read only: H2 opened a file the server cannot write,
+or a write failed and the store stopped writing) and an `MVStoreException`
+writing failure (code 2: disk full, I/O error). `90096` (no rights on a table)
+and every ordinary SQL error are not. The first one prints
+
+```
+DATABASE READ ONLY: the embedded H2 database refuses every write (...). Every write of this plugin fails until the server restarts. Usual causes: the disk is full, the server cannot write the database folder (owner/permissions), or the file is damaged. ...
+```
+
+(`DATABASE DAMAGED: ... stopped working` for the closed/corrupt kind) plus the
+usual full error of that one query. Every later damage failure of that storage
+skips the per-query printer below and is counted instead, summed up at most
+once a minute when failures keep coming:
+
+```
+N more database operations failed: the embedded database has been read only since 21:14:05. Restart the server to repair it.
+```
+
+Callers with their own handlers still receive every failure. On the next start
+the check above repairs a damaged file; a healthy one opens normally (the check
+connection is read-only and closed before the pool connects, so nothing stays
+read-only). A file or folder the server user cannot write is reported once at
+start, with its path, because H2 would otherwise open it read-only in silence.
 
 `H2Guard` (internal) holds all of it. A failed read leaves H2's database
 registered in the JVM with the old file still open, so the check shuts it down

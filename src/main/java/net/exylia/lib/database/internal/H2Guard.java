@@ -75,9 +75,17 @@ public final class H2Guard {
     private static final int FILE_CORRUPTED = 90030;
     private static final int GENERAL_ERROR = 50000;
     private static final int DATABASE_IS_CLOSED = 90098;
+    /** H2 refuses every write: the file was opened read-only (no write permission) or the store stopped writing. */
+    private static final int DATABASE_IS_READ_ONLY = 90097;
+    /** MVStore's ERROR_WRITING_FAILED: a write to the file failed (disk full, I/O error) and the store closed itself. */
+    private static final int STORE_WRITING_FAILED = 2;
 
     /** Files this run already failed to repair, with their size, so a retry fails fast instead of repeating it. */
     private static final Map<Path, Long> GIVEN_UP = new ConcurrentHashMap<>();
+
+    /** Attached to a damage failure whose cause was already reported, so the per-query printer stays quiet. */
+    private static final Throwable DAMAGE_REPORTED =
+            new Throwable("embedded database damage already reported", null, false, false) { };
 
     /** The cause of a refusal that was already reported in full this run. */
     private static final Throwable ALREADY_REPORTED = new Throwable("already reported", null, false, false) { };
@@ -104,6 +112,7 @@ public final class H2Guard {
         if (!Files.exists(db)) {
             return;
         }
+        warnIfNotWritable(base, db, log);
         Long failedSize = GIVEN_UP.get(db);
         if (failedSize != null && failedSize == size(db)) {
             DatabaseException again = unavailable(db, base);
@@ -131,6 +140,22 @@ public final class H2Guard {
             log.accept(Level.SEVERE, "The repair itself failed: " + broken);
             throw unavailable(db, base);
         }
+    }
+
+    /**
+     * H2 opens a file the server cannot write without a word, read-only, and
+     * then refuses every write with "The database is read only". Said once, at
+     * start, with the path, instead of once per query.
+     */
+    private static void warnIfNotWritable(Path base, Path db, BiConsumer<Level, String> log) {
+        Path dir = base.getParent();
+        if (Files.isWritable(db) && (dir == null || Files.isWritable(dir))) {
+            return;
+        }
+        log.accept(Level.SEVERE, "The database file " + db + " (or its folder) cannot be written by the"
+                + " server, so H2 opens it READ ONLY and every write of this plugin fails. Give the user"
+                + " that runs the server write access to " + (dir == null ? db : dir)
+                + " and the files in it (owner/permissions), then restart.");
     }
 
     private static void repair(SqlSettings settings, Path base, Path db, BiConsumer<Level, String> log)
@@ -326,14 +351,50 @@ public final class H2Guard {
         return false;
     }
 
-    /** Whether a failure at run time means the file is damaged or H2 already closed it over damage. */
+    /**
+     * Whether a failure at run time means this run can no longer use the file:
+     * it is damaged, H2 closed it, H2 turned it read-only, or a write to it failed.
+     * Permission errors on a table and every ordinary SQL error are not damage.
+     */
     public static boolean isDamage(@Nullable Throwable failure) {
         if (isCorruption(failure)) {
             return true;
         }
         for (Throwable cause = failure; cause != null && cause.getCause() != cause; cause = cause.getCause()) {
-            if (cause instanceof SQLException sql && sql.getErrorCode() == DATABASE_IS_CLOSED) {
+            if (cause instanceof SQLException sql && (sql.getErrorCode() == DATABASE_IS_CLOSED
+                    || sql.getErrorCode() == DATABASE_IS_READ_ONLY)) {
                 return true;
+            }
+            if (cause instanceof MVStoreException store && store.getErrorCode() == STORE_WRITING_FAILED) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /** Whether a failure is the read-only kind of damage, for the wording of its report. */
+    public static boolean isReadOnly(@Nullable Throwable failure) {
+        for (Throwable cause = failure; cause != null && cause.getCause() != cause; cause = cause.getCause()) {
+            if (cause instanceof SQLException sql && sql.getErrorCode() == DATABASE_IS_READ_ONLY) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /** Marks a damage failure whose cause was already reported; see {@link #damageReported}. */
+    public static <T extends Throwable> @NotNull T markDamageReported(@NotNull T failure) {
+        failure.addSuppressed(DAMAGE_REPORTED);
+        return failure;
+    }
+
+    /** Whether a failure was marked by {@link #markDamageReported}, anywhere in its cause chain. */
+    public static boolean damageReported(@Nullable Throwable failure) {
+        for (Throwable cause = failure; cause != null && cause.getCause() != cause; cause = cause.getCause()) {
+            for (Throwable suppressed : cause.getSuppressed()) {
+                if (suppressed == DAMAGE_REPORTED) {
+                    return true;
+                }
             }
         }
         return false;
