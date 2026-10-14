@@ -1,0 +1,41 @@
+wizard:
+  stand: '{warning}➥ {letters}Встань туда, где хочешь, и {highlight}присядь + клик{letters}.'
+  point: '{warning}➥ {letters}ЛКМ по нужному блоку.'
+  region: '{warning}➥ {letters}ЛКМ по одному углу и ПКМ по другому, затем {highlight}Shift+ЛКМ {letters}для подтверждения.'
+  item: '{warning}➥ {letters}Возьми нужный предмет в руку и подтверди.'
+selection:
+  first-corner: '{success}● {letters}Первый угол {letters_black}» {info}%x%, %y%, %z%'
+  second-corner: '{error}● {letters}Второй угол {letters_black}» {info}%x%, %y%, %z%'
+  volume: '{secondary}Выделение: {info}%blocks% {letters}блоков'
+  confirmed: '{success}● {letters}Выделение подтверждено'
+  guide-corners: '{letters}Отметь два угла ЛКМ и ПКМ, используя {highlight}%selector%'
+  guide-first: '{letters}ПКМ по {error}второму углу'
+  guide-second: '{letters}ЛКМ по {success}первому углу'
+  guide-confirm: '{warning}➥ {letters}Shift+ЛКМ для подтверждения {letters_black}» {info}%blocks% {letters}блоков'
+  area: '{secondary}Выделение: {info}%blocks% {letters}столбцов {letters_black}» {info}вся высота'
+  guide-confirm-area: '{warning}➥ {letters}Shift+ЛКМ для подтверждения {letters_black}» {info}%blocks% {letters}столбцов'
+players:
+  not-found: '[sound:ENTITY_VILLAGER_NO|1|1]{error}✖ {letters}Игрок {highlight}%player% {letters}не найден.'
+  not-here: '[sound:ENTITY_VILLAGER_NO|1|1]{error}✖ {highlight}%player% {letters}нет на этом сервере.'
+purchase:
+  confirm: '{letters}Купить {highlight}%item% {letters}за {info}%price%{letters}?'
+  confirm-button: '{success}&lКУПИТЬ'
+  success: '[sound:ENTITY_PLAYER_LEVELUP|1|1.4]{success}✔ {letters}Ты открыл {highlight}%item% {letters}за {info}%price%{letters}.'
+  insufficient-funds: '[sound:ENTITY_VILLAGER_NO|1|1]{error}✖ {letters}Нужно {info}%price%{letters}, чтобы купить {highlight}%item% {letters_black}» {letters}у тебя {info}%balance%{letters}.'
+  unavailable: '[sound:ENTITY_VILLAGER_NO|1|1]{error}✖ {highlight}%item% {letters}сейчас нельзя купить.'
+  busy: '{warning}➥ {letters}Твоя прошлая покупка ещё обрабатывается.'
+  already-owned: '{warning}➥ {letters}У тебя уже есть {highlight}%item%{letters}.'
+  failed: '[sound:ENTITY_VILLAGER_NO|1|1]{error}✖ {letters}Не удалось открыть {highlight}%item%{letters}. {info}%price% {letters}возвращено.'
+  refund-failed: '[sound:ENTITY_VILLAGER_NO|1|1]{error}✖ {letters}Не удалось открыть {highlight}%item%{letters}, и возврат {info}%price% {letters}не прошёл. {warning}Свяжись с персоналом.'
+logs:
+  unavailable: '[sound:ENTITY_VILLAGER_NO|1|1]{error}✖ {letters}Не удалось прочитать журнал. Попробуй чуть позже.'
+  empty: '{letters_black}▎ {muted}Ничего не записано для {highlight}%subject% {muted}в {info}%plugin% {letters_black}» {info}%action%{muted}.'
+  header: '{letters_black}▎ {letters}Журнал {highlight}%subject% {letters_black}» {info}%plugin% {letters_black}» {info}%action% {letters_black}(%count%)'
+  entry: '{letters_black}▎ {muted}%when% {letters_black}» {secondary}%plugin% {highlight}%action% {letters}%actor% {letters_black}→ {letters}%target% {letters_black}» {letters}%detail%'
+  more: '{letters_black}▎ {letters}И ещё {info}%count%{letters}. Открой меню в игре, чтобы увидеть всё.'
+  everybody: Все
+  all: Всё
+  none: —
+  detail-line: ' {letters_black}▎ {letters}%line%'
+  view-items: '{warning}➥ Нажми, чтобы посмотреть предметы'
+  view-entry: '{warning}➥ Нажми, чтобы открыть запись'

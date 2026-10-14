@@ -1,0 +1,42 @@
+title: '{primary}&lНАСТРОЙКИ'
+size: 27
+type: SIMPLE
+open_sounds:
+  - "minecraft:block.ender_chest.open|1.0|1.4"
+click_sounds:
+  - "minecraft:block.note_block.hat|1.0|1.0"
+close_sounds:
+  - "minecraft:block.barrel.close|1.0|0.7"
+filler:
+  global:
+    material: GRAY_STAINED_GLASS_PANE
+    hide_tooltip: true
+items:
+  settings:
+    slot: 12
+    material: COMPARATOR
+    name: '{primary}&lНАСТРОЙКИ'
+    lore:
+      - ''
+      - '{secondary}Информация:'
+      - ' {letters_black}▎ {letters}Как другие игроки связываются с тобой'
+      - ' {letters_black}▎ {letters}и как каждая функция к тебе относится.'
+      - ''
+      - '{warning}➥ Нажми, чтобы открыть'
+      - ''
+    actions:
+      - 'exylialib:settings_open settings'
+  announcements:
+    slot: 14
+    material: BELL
+    name: '{primary}&lОБЪЯВЛЕНИЯ'
+    lore:
+      - ''
+      - '{secondary}Информация:'
+      - ' {letters_black}▎ {letters}Какие общесерверные сообщения'
+      - ' {letters_black}▎ {letters}попадают в твой {highlight}чат{letters}.'
+      - ''
+      - '{warning}➥ Нажми, чтобы открыть'
+      - ''
+    actions:
+      - 'exylialib:settings_open announcements'
