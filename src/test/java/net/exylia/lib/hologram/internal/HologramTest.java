@@ -396,6 +396,9 @@ class HologramTest {
         advanceSeconds(0.5);
         drive();
         assertEquals(first + 1, sink.count("transform"));
+        // Each glide outlasts a step, so a keyframe sent a tick late never finds the line at rest.
+        assertTrue(sink.calls("transform").stream().allMatch(call -> call.endsWith(":11")),
+                "glides of 11 ticks: " + sink.calls("transform"));
     }
 
     @Test

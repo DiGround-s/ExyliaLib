@@ -62,7 +62,16 @@ final class HologramImpl implements Hologram {
 
     /** How far apart animation keyframes are; the client interpolates between them. */
     static final long STEP_MS = 500L;
-    private static final int STEP_TICKS = (int) (STEP_MS / TICK_MS);
+
+    /**
+     * How long each keyframe is glided over: one tick longer than a step. Steps are counted on
+     * the clock but sent on ticks, so they arrive 10 or 11 ticks apart; a glide of exactly one
+     * step ran out before an 11-tick gap and the line stood still for a tick. Gliding a tick
+     * longer, towards where the line will be by then, means the next keyframe always takes over
+     * while it is still moving.
+     */
+    static final long GLIDE_MS = STEP_MS + TICK_MS;
+    private static final int GLIDE_TICKS = (int) (GLIDE_MS / TICK_MS);
 
     /**
      * How far apart shining and flowing frames are. A flowing line is re-sent whole every frame to
@@ -1158,7 +1167,7 @@ final class HologramImpl implements Hologram {
             return;
         }
         lastFrame = frame;
-        long target = (frame + 1) * STEP_MS;
+        long target = now + GLIDE_MS;
         DisplayState[] current = displays;
         for (DisplayState display : current) {
             if (display.style().animated()) {
@@ -1172,7 +1181,7 @@ final class HologramImpl implements Hologram {
             for (int i = 0; i < current.length; i++) {
                 if (current[i].style().animated() && shown(mask, i)) {
                     HologramRuntime.sink().transform(viewer, current[i],
-                            viewOf(current[i], i, layout), STEP_TICKS);
+                            viewOf(current[i], i, layout), GLIDE_TICKS);
                 }
             }
         }
