@@ -649,7 +649,8 @@ final class Steps {
                 case KILLER -> killer != null ? killer : victim;
                 case FIXED -> victim != null ? victim : killer;
             };
-            if (whose == null && seat < 0) {
+            RagdollModel worn = seat < 0 ? target.wearing() : null;
+            if (whose == null && seat < 0 && worn == null) {
                 NpcRuntime.explainOnce("[RAGDOLL] was written, but what died was not a player");
                 return;
             }
@@ -659,13 +660,19 @@ final class Steps {
             if (facesSource) {
                 faceSource(where, target.source());
             }
-            RagdollModel model = (whose != null ? RagdollModel.of(whose)
-                    : RagdollModel.of(net.exylia.lib.ragdoll.internal.SkinCache.fallback(), null))
+            // A body handed over by whoever played this (a placed NPC) starts
+            // from its own size, outline and what it carries; the line still
+            // has the last word on each.
+            RagdollModel base = worn != null ? worn : whose != null ? RagdollModel.of(whose)
+                    : RagdollModel.of(net.exylia.lib.ragdoll.internal.SkinCache.fallback(), null);
+            RagdollModel model = base
                     .detail(detail)
-                    .scale(scale)
-                    .glow(glowArgb)
+                    .scale(scale * base.scaleFactor())
+                    .glow(glowArgb >= 0 ? glowArgb : base.glowArgb())
                     .light(brightness)
-                    .carrying(hold, offhand, hat)
+                    .carrying(hold != null ? hold : base.mainHand(),
+                            offhand != null ? offhand : base.offHand(),
+                            hat != null ? hat : base.hat())
                     .rigs(rigs);
             RagdollHandle handle = new RagdollHandle(
                     RagdollBuilder.show(owner, model, burst, where, observers, run.tempo()));

@@ -60,4 +60,30 @@ public final class SequenceAccess {
     public static @NotNull Map<String, Shape> builtInShapes() {
         return Shapes.builtIn();
     }
+
+    /**
+     * When the bodies of a sequence stand in their last pose, in milliseconds
+     * from its start: the moment something standing in for them can take
+     * their place without anybody seeing the swap.
+     *
+     * @param sequence the compiled sequence
+     * @return the latest such moment; {@code 0} when it draws no body, and
+     *         {@code -1} when a body loops and so has no end of its own
+     */
+    public static long bodyMillis(@NotNull Sequence sequence) {
+        long elapsed = 0L;
+        long latest = 0L;
+        for (SequenceStep step : sequence.steps()) {
+            if (step instanceof Steps.Ragdoll body) {
+                net.exylia.lib.ragdoll.RagdollMotion motion = body.burst();
+                if (motion.loop()) {
+                    return -1L;
+                }
+                long frames = motion.intactMillis() + motion.animation().durationMillis();
+                latest = Math.max(latest, elapsed + Math.min(motion.lifeMillis(), frames));
+            }
+            elapsed += step.holdMillis();
+        }
+        return latest;
+    }
 }

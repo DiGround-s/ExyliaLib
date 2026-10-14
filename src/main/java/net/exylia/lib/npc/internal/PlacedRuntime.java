@@ -1,5 +1,6 @@
 package net.exylia.lib.npc.internal;
 
+import net.exylia.lib.npc.NpcPerformance;
 import net.exylia.lib.npc.NpcSkin;
 import net.exylia.lib.npc.NpcSpec;
 import net.exylia.lib.npc.PlacedNpc;
@@ -54,6 +55,12 @@ public final class PlacedRuntime {
 
     /** Account skins being looked up, or not to be asked again before the value. */
     private static final Map<String, Long> ASKED = new ConcurrentHashMap<>();
+
+    /** What {@code emote:<id>} means, per owning plugin. */
+    private static final Map<String, Function<String, NpcPerformance>> EMOTES = new ConcurrentHashMap<>();
+
+    /** Where performances are played; swapped by tests. */
+    private static volatile NpcStage stage = NpcStage.SEQUENCES;
 
     private static TaskScheduler scheduler;
     private static Logger logger = Logger.getLogger("ExyliaLib");
@@ -120,6 +127,47 @@ public final class PlacedRuntime {
 
     static PlacedSink sink() {
         return sink;
+    }
+
+    /** Swaps where performances are played. For tests. */
+    static void testStage(NpcStage testStage) {
+        stage = testStage;
+    }
+
+    static NpcStage stage() {
+        return stage;
+    }
+
+    /** Sets what {@code emote:<id>} means for one plugin's NPCs. */
+    public static void emotes(String owner, Function<String, NpcPerformance> resolver) {
+        if (resolver == null) {
+            EMOTES.remove(owner);
+        } else {
+            EMOTES.put(owner, resolver);
+        }
+    }
+
+    /**
+     * The performance to play: itself, or what its plugin says an {@code emote:} means.
+     *
+     * @return the performance, or {@code null} when an emote is not known
+     */
+    static NpcPerformance resolve(String owner, NpcPerformance performance) {
+        String emote = performance.emote();
+        if (emote == null) {
+            return performance;
+        }
+        Function<String, NpcPerformance> resolver = EMOTES.get(owner);
+        if (resolver == null) {
+            return null;
+        }
+        try {
+            NpcPerformance found = resolver.apply(emote);
+            return found == null || found.emote() != null ? null : found;
+        } catch (RuntimeException failure) {
+            logger.warning("Could not resolve the emote '" + emote + "' for an NPC: " + failure);
+            return null;
+        }
     }
 
     /** What sends an animation's later moves. */
@@ -217,6 +265,7 @@ public final class PlacedRuntime {
      */
     public static int release(String pluginName) {
         synchronized (LOCK) {
+            EMOTES.remove(pluginName);
             Map<String, PlacedNpcImpl> owned = BY_OWNER.remove(pluginName);
             if (owned == null) {
                 return 0;
@@ -235,6 +284,7 @@ public final class PlacedRuntime {
             }
             BY_OWNER.clear();
             BY_ENTITY.clear();
+            EMOTES.clear();
             stopIfIdle();
             if (clicks != null) {
                 NpcPackets.stopListening(clicks);

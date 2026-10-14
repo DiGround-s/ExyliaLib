@@ -6,6 +6,7 @@ import net.exylia.lib.interaction.Click;
 import net.exylia.lib.npc.NpcAnimation;
 import net.exylia.lib.npc.NpcAnimations;
 import net.exylia.lib.npc.NpcLook;
+import net.exylia.lib.npc.NpcPerformance;
 import net.exylia.lib.npc.NpcPose;
 import net.exylia.lib.npc.NpcSkin;
 import net.exylia.lib.npc.NpcSpec;
@@ -120,6 +121,34 @@ class PlacedNpcTest {
         public void destroy(Player viewer, int entityId, UUID profile, String name) {
             sent.add("destroy:" + viewer.getName() + ":" + entityId);
         }
+
+        @Override
+        public void hide(Player viewer, int entityId, NpcSpec spec, boolean hidden) {
+            sent.add("hide:" + viewer.getName() + ":" + (hidden ? "on" : "off"));
+        }
+    };
+
+    /** When the fake body stands in its last pose; -1 loops. */
+    private long standsAt = 200L;
+
+    private final NpcStage stage = (owner, performance, at, audience, spec, texture) -> {
+        List<String> names = new ArrayList<>();
+        for (Player player : audience) {
+            names.add(player.getName());
+        }
+        sent.add("stage:" + String.join("+", performance.lines()) + ":" + names + ":" + texture);
+        long stands = standsAt;
+        return new NpcStage.Act() {
+            @Override
+            public long standsAtMillis() {
+                return stands;
+            }
+
+            @Override
+            public void stop(long settleMillis) {
+                sent.add("stop:" + settleMillis);
+            }
+        };
     };
 
     @BeforeEach
@@ -133,6 +162,7 @@ class PlacedNpcTest {
                     mojangCalls.incrementAndGet();
                     return new String[] {"mojang-" + name, "signed"};
                 });
+        PlacedRuntime.testStage(stage);
         npcs = Npcs.of(plugin);
         world = FakeServer.newWorld("world");
         near = new FakePlayer("Near").at(new Location(world, 3, 64, 0));
@@ -143,6 +173,7 @@ class PlacedNpcTest {
     @AfterEach
     void tearDown() {
         PlacedRuntime.releaseAll();
+        PlacedRuntime.testStage(NpcStage.SEQUENCES);
         FakeServer.reset();
     }
 
@@ -535,5 +566,122 @@ class PlacedNpcTest {
 
         npc.update(npc.spec().toBuilder().sitting(false).build());
         assertEquals(List.of("unseat:Near:501", "destroy:Near:500"), sent);
+    }
+
+    // ------------------------------------------------------------------ performances
+
+    private static final String WAVE = "[RAGDOLL] {victim};intact:0;follow:1;breathe:1;anim:wave";
+
+    @Test
+    @DisplayName("a performance hides the NPC, plays one body, and puts the NPC back before the body goes")
+    void performHidesThenReveals() {
+        PlacedNpc npc = npcs.place("guide", NpcSpec.builder().skin(NpcSkin.texture("tex", "sig")).build(),
+                origin());
+        show();
+        sent.clear();
+
+        assertTrue(npc.perform(NpcPerformance.parse("anim:wave")));
+        assertEquals(List.of("stage:" + WAVE + ":[Near]:tex", "hide:Near:on"), sent);
+        assertTrue(npc.isPerforming());
+
+        assertFalse(npc.perform(NpcPerformance.parse("anim:bow")), "one at a time: the second is skipped");
+        assertFalse(npc.perform(NpcPerformance.parse("anim:bow"), near.player()));
+
+        sent.clear();
+        FakeServer.tick(6);
+        assertEquals(List.of("hide:Near:off", "stop:0"), sent, "the NPC first, then the body");
+        assertFalse(npc.isPerforming());
+        assertTrue(npc.perform(NpcPerformance.parse("anim:wave")), "free again");
+    }
+
+    @Test
+    @DisplayName("only viewers within the perform range get a body; with nobody there it is skipped")
+    void performOnlyInRange() {
+        PlacedNpc npc = npcs.place("guide", NpcSpec.builder()
+                .animations(new NpcAnimations("", "", "", Duration.ZERO, "", 0, Duration.ZERO, 2.0))
+                .build(), origin());
+        show();
+        sent.clear();
+
+        assertFalse(npc.perform(NpcPerformance.parse("anim:wave")), "Near is 3 blocks away");
+        assertFalse(npc.perform(NpcPerformance.parse("anim:wave"), far.player()), "Far does not see it");
+        assertEquals(List.of(), sent);
+
+        near.at(new Location(world, 1, 64, 0));
+        assertTrue(npc.perform(NpcPerformance.parse("anim:wave"), near.player()));
+    }
+
+    @Test
+    @DisplayName("removing, moving or changing the NPC ends the performance at once")
+    void cancelledOnUnplaceAndMove() {
+        PlacedNpc npc = npcs.place("guide", spec(), origin());
+        show();
+        npc.perform(NpcPerformance.parse("anim:wave"));
+        sent.clear();
+        npc.moveTo(new Location(world, 1, 64, 0));
+        assertEquals(List.of("hide:Near:off", "stop:0", "teleport:Near"), sent);
+
+        npc.perform(NpcPerformance.parse("anim:wave"));
+        sent.clear();
+        npcs.unplace("guide");
+        assertEquals(List.of("stop:0", "destroy:Near:500"), sent, "nothing to reveal on a removed NPC");
+        sent.clear();
+        FakeServer.tick(10);
+        assertEquals(List.of(), sent, "the scheduled end finds nothing");
+        assertFalse(npc.isPerforming());
+    }
+
+    @Test
+    @DisplayName("a loop plays to its limit, stands back up, and only then is the NPC back")
+    void loopsEndAtTheirLimit() {
+        standsAt = -1L;
+        PlacedNpc npc = npcs.place("guide", spec(), origin());
+        show();
+        assertTrue(npc.perform(NpcPerformance.parse("loop:true;anim:wave").loopLimit(Duration.ofSeconds(1))));
+        sent.clear();
+        FakeServer.tick(22);
+        assertEquals(List.of("stop:" + PlacedNpcImpl.SETTLE_MILLIS), sent);
+        FakeServer.tick(10);
+        assertEquals(List.of("stop:" + PlacedNpcImpl.SETTLE_MILLIS, "hide:Near:off"), sent);
+    }
+
+    @Test
+    @DisplayName("emote:<id> is what the plugin's resolver says, and nothing without one")
+    void emotesResolve() {
+        PlacedNpc npc = npcs.place("guide", spec(), origin());
+        show();
+        assertFalse(npc.perform(NpcPerformance.parse("emote:wave")), "no resolver");
+
+        npcs.emotes(id -> id.equals("wave") ? NpcPerformance.parse("anim:wave") : null);
+        assertFalse(npc.perform(NpcPerformance.parse("emote:nope")));
+        sent.clear();
+        assertTrue(npc.perform(NpcPerformance.parse("emote:wave")));
+        assertEquals("stage:" + WAVE + ":[Near]:null", sent.get(0), "default skin");
+    }
+
+    @Test
+    @DisplayName("a trigger with a colon performs; a sitting NPC never does; a mirror wears the viewer")
+    void triggersPerform() {
+        PlacedNpc npc = npcs.place("guide", NpcSpec.builder().skin(NpcSkin.mirror())
+                .animations(new NpcAnimations("", "anim:wave", "", Duration.ZERO, "", 0, Duration.ZERO))
+                .build(), origin());
+        show();
+        sent.clear();
+
+        PlacedRuntime.clicked(near.player(), 500, false);
+        FakeServer.tick(1);
+        assertEquals(List.of(), sent("swing"));
+        assertEquals(List.of("stage:" + WAVE + ":[Near]:null"), sent("stage"),
+                "one body for everybody wears the default skin");
+        FakeServer.tick(6);
+
+        sent.clear();
+        assertTrue(npc.perform(NpcPerformance.parse("anim:wave"), near.player()));
+        assertEquals("stage:" + WAVE + ":[Near]:skin-of-Near", sent.get(0));
+        FakeServer.tick(6);
+
+        npc.update(npc.spec().toBuilder().sitting(true).build());
+        show();
+        assertFalse(npc.perform(NpcPerformance.parse("anim:wave")));
     }
 }

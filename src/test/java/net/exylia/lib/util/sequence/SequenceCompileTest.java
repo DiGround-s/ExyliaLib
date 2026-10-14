@@ -287,4 +287,15 @@ class SequenceCompileTest {
         assertTrue(found.stream().anyMatch(problem -> problem.contains("nothing")),
                 "a name with nothing behind it is said: " + found);
     }
+
+    @Test
+    @DisplayName("a body's last pose is when its frames end, after whatever came before it; a loop has none")
+    void bodyMillisIsWhenTheFramesEnd() {
+        assertEquals(0L, SequenceAccess.bodyMillis(compile(List.of("[SOUND] BLOCK_NOTE_BLOCK_BIT;0.6;1.2"))));
+        assertEquals(1000L, SequenceAccess.bodyMillis(compile(List.of(
+                "[DELAY] 0.2",
+                "[RAGDOLL] {victim};intact:0.3;keys:0.2 crouch | 0.3 stand"))));
+        assertEquals(-1L, SequenceAccess.bodyMillis(compile(List.of(
+                "[RAGDOLL] {victim};loop:true;keys:0.2 crouch | 0.3 stand | 0.2 crouch"))));
+    }
 }

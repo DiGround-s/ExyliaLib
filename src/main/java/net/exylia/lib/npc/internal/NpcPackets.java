@@ -81,6 +81,7 @@ final class NpcPackets implements NpcSink, PlacedSink {
     /** Shared entity metadata, from the vanilla protocol. */
     private static final int ENTITY_FLAGS = 0;
     private static final byte FLAG_GLOWING = 0x40;
+    private static final byte FLAG_INVISIBLE = 0x20;
     private static final int POSE = 6;
 
     /**
@@ -378,6 +379,31 @@ final class NpcPackets implements NpcSink, PlacedSink {
                 : spec.equipment().entrySet()) {
             EquipmentSlot slot = slotOf(piece.getKey());
             if (slot != null) {
+                add(kit, slot, piece.getValue());
+            }
+        }
+        if (!kit.isEmpty()) {
+            Broadcast.send(viewer, new WrapperPlayServerEntityEquipment(entityId, kit));
+        }
+    }
+
+    @Override
+    public void hide(Player viewer, int entityId, NpcSpec spec, boolean hidden) {
+        byte flags = hidden ? FLAG_INVISIBLE : spec.glow() >= 0 ? FLAG_GLOWING : 0;
+        Broadcast.send(viewer, new WrapperPlayServerEntityMetadata(entityId,
+                List.of(new EntityData<>(ENTITY_FLAGS, EntityDataTypes.BYTE, flags))));
+        // An invisible player still draws what it wears and holds, so the kit goes
+        // with it and comes back with it.
+        List<Equipment> kit = new ArrayList<>(6);
+        for (Map.Entry<org.bukkit.inventory.EquipmentSlot, org.bukkit.inventory.ItemStack> piece
+                : spec.equipment().entrySet()) {
+            EquipmentSlot slot = slotOf(piece.getKey());
+            if (slot == null) {
+                continue;
+            }
+            if (hidden) {
+                kit.add(new Equipment(slot, com.github.retrooper.packetevents.protocol.item.ItemStack.EMPTY));
+            } else {
                 add(kit, slot, piece.getValue());
             }
         }

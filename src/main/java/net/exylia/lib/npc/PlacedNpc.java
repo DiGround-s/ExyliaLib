@@ -110,6 +110,55 @@ public interface PlacedNpc {
     default void play(@NotNull NpcAnimation animation, @NotNull Player viewer) {
     }
 
+    /**
+     * Performs a whole-body animation for everybody near enough to see it.
+     *
+     * <pre>{@code
+     * guide.perform(NpcPerformance.parse("anim:wave"));
+     * }</pre>
+     *
+     * <p>While it plays the NPC is invisible to those viewers (it keeps its hitbox, so
+     * clicks still reach it) and a ragdoll body wearing its skin stands in its place,
+     * facing the same way; the NPC comes back the moment the body stands in its last
+     * pose. A mirrored skin is drawn as the default skin here, since one body is shared.
+     *
+     * <p>One at a time: while one plays, another is skipped. Skipped too when nobody is
+     * within {@link NpcAnimations#performRange()}, for a sitting NPC, without
+     * PacketEvents, and for an {@code emote:} the plugin's resolver does not know.
+     * Moving, changing, removing or replacing the NPC ends it at once.
+     *
+     * @param performance what it performs
+     * @return whether it started
+     * @since 1.302.0
+     */
+    default boolean perform(@NotNull NpcPerformance performance) {
+        return false;
+    }
+
+    /**
+     * Performs a whole-body animation for one viewer only; everybody else keeps seeing
+     * the NPC as it was. A mirrored skin is drawn as that viewer's own.
+     *
+     * <p>Counts as the NPC's one performance: while it plays, nothing else starts.
+     *
+     * @param performance what it performs
+     * @param viewer      who sees it
+     * @return whether it started
+     * @since 1.302.0
+     */
+    default boolean perform(@NotNull NpcPerformance performance, @NotNull Player viewer) {
+        return false;
+    }
+
+    /**
+     * Whether a performance is playing.
+     *
+     * @since 1.302.0
+     */
+    default boolean isPerforming() {
+        return false;
+    }
+
     /** Whether a player has it on screen. */
     boolean isViewing(@NotNull Player player);
 

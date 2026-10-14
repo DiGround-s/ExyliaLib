@@ -115,6 +115,53 @@ public final class RagdollModel {
     }
 
     /**
+     * A body wearing a skin written as a base64 texture value, the way an NPC
+     * or a head in a file carries one.
+     *
+     * <pre>{@code
+     * RagdollModel statue = RagdollModel.ofTexture(value).detail(2);
+     * }</pre>
+     *
+     * <p>Never waits. The picture behind the value is read in the background
+     * the first time it is asked for and kept, shared with every player and
+     * NPC wearing the same texture, so a body drawn before it arrives wears the
+     * default skin's colours under the right face, and the next one wears its
+     * own. With a MineSkin key it is cut into real-skin pieces exactly like a
+     * player's skin; without one it is drawn in blocks.
+     *
+     * @param value the base64 {@code textures} property value
+     * @return the model
+     * @since 1.302.0
+     */
+    public static @NotNull RagdollModel ofTexture(@NotNull String value) {
+        return new RagdollModel(SkinCache.ofTexture(value), textureHead(value), 1, 1.0, -1, -1);
+    }
+
+    /**
+     * A body wearing the skin a Minecraft account wears.
+     *
+     * <p>Read from the connection when that player is online; otherwise asked
+     * of Mojang off the main thread (through the skull module's cache, so a
+     * name already looked up for a head costs nothing). Completes with the
+     * default skin when the account has none or cannot be reached; never
+     * completes exceptionally.
+     *
+     * @param name the account name
+     * @return the model, once the texture is known
+     * @since 1.302.0
+     */
+    public static @NotNull java.util.concurrent.CompletableFuture<RagdollModel> ofAccount(@NotNull String name) {
+        Player online = org.bukkit.Bukkit.getPlayerExact(name);
+        if (online != null) {
+            return java.util.concurrent.CompletableFuture.completedFuture(of(online));
+        }
+        return net.exylia.lib.skull.Skulls.texture(net.exylia.lib.skull.SkullSource.player(name))
+                .handle((value, failure) -> value == null || failure != null
+                        ? of(SkinCache.fallback(), new ItemStack(Material.PLAYER_HEAD))
+                        : ofTexture(value));
+    }
+
+    /**
      * A body in colours given rather than read.
      *
      * <p>For a preview with nobody in it, and for tests.
@@ -216,6 +263,15 @@ public final class RagdollModel {
     /** The light level override, or a negative number to use the world's. */
     public int brightness() {
         return brightness;
+    }
+
+    /** A head item wearing a texture value; a plain head if it cannot be built. */
+    private static @Nullable ItemStack textureHead(String value) {
+        try {
+            return net.exylia.lib.skull.Skulls.texture(value).item();
+        } catch (RuntimeException | LinkageError noServer) {
+            return new ItemStack(Material.PLAYER_HEAD);
+        }
     }
 
     /** A head item wearing a connected player's face. */

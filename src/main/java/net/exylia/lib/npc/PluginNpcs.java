@@ -57,6 +57,27 @@ public final class PluginNpcs {
     }
 
     /**
+     * What {@code emote:<id>} means in this plugin's NPC performances.
+     *
+     * <pre>{@code
+     * Npcs.of(this).emotes(id -> {
+     *     List<String> effects = emotes.getStringList("emotes." + id + ".effects");
+     *     return effects.isEmpty() ? null : NpcPerformance.lines(effects);
+     * });
+     * }</pre>
+     *
+     * <p>Asked each time such a performance plays, from any thread, so it should be a
+     * map lookup; cache what it builds. Answering {@code null} (or another
+     * {@code emote:}) skips the performance.
+     *
+     * @param resolver the lookup, or {@code null} for none
+     * @since 1.302.0
+     */
+    public void emotes(@Nullable java.util.function.Function<String, NpcPerformance> resolver) {
+        PlacedRuntime.emotes(pluginName, resolver);
+    }
+
+    /**
      * An NPC this plugin placed.
      *
      * @param id the id it was placed under

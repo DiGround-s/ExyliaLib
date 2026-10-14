@@ -265,6 +265,12 @@ a play without it draws nothing for that line. Values set with `putText` (what a
 player typed) go in inert. `SequenceTarget.values()`, `item(name)` and
 `fill(line)` read them back. Everything else in a line is still compiled once.
 
+Since 1.302.0 `SequenceTarget.wearing(RagdollModel)` hands every `[RAGDOLL]` line of
+a play a body to wear instead of the victim's or killer's, for a body that belongs to
+no connected player. The line's `detail:`, `glow:`, `light:` and `hold:`/`offhand:`/
+`hat:` still apply over the model, and `size:` multiplies its scale. Placed NPCs
+perform this way ([npcs.md](npcs.md#performances)).
+
 ### Shapes
 
 `CIRCLE` `SPHERE` `BEAM` `SPIRAL` `DOUBLE_HELIX` `TORNADO` `STAR` `CAGE` `DISC`

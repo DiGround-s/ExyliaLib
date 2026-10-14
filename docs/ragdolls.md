@@ -12,6 +12,14 @@ ragdolls.show(
         nearby);
 ```
 
+A body wearing a skin that is not a connected player's (since 1.302.0):
+`RagdollModel.ofTexture(base64Value)` never waits and shares the skin cache and
+real-skin pieces with every player wearing the same texture;
+`RagdollModel.ofAccount(name)` completes off the main thread with the account's skin
+(the default skin when it has none). Without a MineSkin key both are drawn in
+blocks, like every body. `SequenceTarget.wearing(model)` makes every `[RAGDOLL]`
+line of a play wear it; that is how a placed NPC performs ([npcs.md](npcs.md#performances)).
+
 A body that is not a player's (a mob, a dummy) wears
 `RagdollModel.of(RagdollSkin.flat(colours), headItem)`. `RagdollSkin.flat` has
 one colour per part and needs nothing fetched (since 1.197.0; see

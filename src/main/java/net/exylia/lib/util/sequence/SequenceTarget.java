@@ -62,6 +62,9 @@ public final class SequenceTarget {
     /** The items {@code {item:name}} stands for in this play; never {@code null}. */
     private final Map<String, ItemStack> items;
 
+    /** The body {@code [RAGDOLL]} wears instead of a player's, or {@code null}. */
+    private final net.exylia.lib.ragdoll.RagdollModel wearing;
+
     /**
      * The last answer {@link #observers()} gave, and when.
      *
@@ -84,12 +87,14 @@ public final class SequenceTarget {
 
     private SequenceTarget(Location location, Player source, Entity target,
                            BiPredicate<Player, Player> visibility, double radius) {
-        this(location, source, target, visibility, radius, Map.of(), Map.of());
+        this(location, source, target, visibility, radius, Map.of(), Map.of(), null);
     }
 
     private SequenceTarget(Location location, Player source, Entity target,
                            BiPredicate<Player, Player> visibility, double radius,
-                           Map<String, String> values, Map<String, ItemStack> items) {
+                           Map<String, String> values, Map<String, ItemStack> items,
+                           net.exylia.lib.ragdoll.RagdollModel wearing) {
+        this.wearing = wearing;
         this.location = location;
         this.source = source;
         this.target = target;
@@ -132,7 +137,7 @@ public final class SequenceTarget {
      * @return a new target
      */
     public @NotNull SequenceTarget by(@Nullable Player player) {
-        return new SequenceTarget(location, player, target, visibility, radius, values, items);
+        return new SequenceTarget(location, player, target, visibility, radius, values, items, wearing);
     }
 
     /**
@@ -144,7 +149,7 @@ public final class SequenceTarget {
      * @return a new target
      */
     public @NotNull SequenceTarget on(@Nullable Entity entity) {
-        return new SequenceTarget(location, source, entity, visibility, radius, values, items);
+        return new SequenceTarget(location, source, entity, visibility, radius, values, items, wearing);
     }
 
     /**
@@ -159,7 +164,7 @@ public final class SequenceTarget {
      * @return a new target
      */
     public @NotNull SequenceTarget visibleTo(@Nullable BiPredicate<Player, Player> predicate) {
-        return new SequenceTarget(location, source, target, predicate, radius, values, items);
+        return new SequenceTarget(location, source, target, predicate, radius, values, items, wearing);
     }
 
     /**
@@ -182,7 +187,7 @@ public final class SequenceTarget {
      * @return a new target
      */
     public @NotNull SequenceTarget within(double blocks) {
-        return new SequenceTarget(location, source, target, visibility, Math.max(0.0, blocks), values, items);
+        return new SequenceTarget(location, source, target, visibility, Math.max(0.0, blocks), values, items, wearing);
     }
 
     /**
@@ -195,7 +200,7 @@ public final class SequenceTarget {
      * @return a new target
      */
     public @NotNull SequenceTarget movedTo(@NotNull Location destination) {
-        return new SequenceTarget(destination.clone(), source, target, visibility, radius, values, items);
+        return new SequenceTarget(destination.clone(), source, target, visibility, radius, values, items, wearing);
     }
 
     /**
@@ -226,7 +231,7 @@ public final class SequenceTarget {
             merged.put(value.getKey(), String.valueOf(value.getValue()));
         }
         return new SequenceTarget(location, source, target, visibility, radius,
-                Map.copyOf(merged), items);
+                Map.copyOf(merged), items, wearing);
     }
 
     /**
@@ -244,7 +249,7 @@ public final class SequenceTarget {
         Map<String, ItemStack> merged = new LinkedHashMap<>(items);
         merged.put(name.toLowerCase(Locale.ROOT), item);
         return new SequenceTarget(location, source, target, visibility, radius, values,
-                Map.copyOf(merged));
+                Map.copyOf(merged), wearing);
     }
 
     /**
@@ -287,6 +292,37 @@ public final class SequenceTarget {
             filled = filled.replace("%" + value.getKey() + "%", value.getValue());
         }
         return filled;
+    }
+
+    /**
+     * The body every {@code [RAGDOLL]} line of this play wears, instead of the
+     * victim's or the killer's.
+     *
+     * <pre>{@code
+     * sequences.play(dance, SequenceTarget.at(statue).wearing(RagdollModel.ofTexture(value)));
+     * }</pre>
+     *
+     * <p>For a body that belongs to no connected player: a placed NPC, a
+     * statue. The model's skin, head, size, outline and what it carries are
+     * the starting point; a line's own {@code detail:}, {@code glow:},
+     * {@code light:} and {@code hold:}/{@code offhand:}/{@code hat:} still
+     * apply over it, and its {@code size:} multiplies the model's.
+     *
+     * @param model the body, or {@code null} to go back to the players'
+     * @return a new target
+     * @since 1.302.0
+     */
+    public @NotNull SequenceTarget wearing(@Nullable net.exylia.lib.ragdoll.RagdollModel model) {
+        return new SequenceTarget(location, source, target, visibility, radius, values, items, model);
+    }
+
+    /**
+     * The body {@code [RAGDOLL]} lines wear in this play, or {@code null} for the players'.
+     *
+     * @since 1.302.0
+     */
+    public @Nullable net.exylia.lib.ragdoll.RagdollModel wearing() {
+        return wearing;
     }
 
     /** Where this happens. */

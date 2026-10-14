@@ -4,10 +4,12 @@ import net.exylia.lib.interaction.Click;
 import net.exylia.lib.npc.NpcAnimation;
 import net.exylia.lib.npc.NpcAnimations;
 import net.exylia.lib.npc.NpcLook;
+import net.exylia.lib.npc.NpcPerformance;
 import net.exylia.lib.npc.NpcPose;
 import net.exylia.lib.npc.NpcSkin;
 import net.exylia.lib.npc.NpcSpec;
 import net.exylia.lib.npc.PlacedNpc;
+import net.exylia.lib.task.TaskHandle;
 import net.exylia.lib.task.Tasks;
 import org.bukkit.Location;
 import org.bukkit.World;
@@ -18,6 +20,7 @@ import org.bukkit.plugin.Plugin;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -77,6 +80,16 @@ final class PlacedNpcImpl implements PlacedNpc {
     private final Map<UUID, Long> greeted = new ConcurrentHashMap<>();
 
     private final Map<UUID, Viewer> viewers = new ConcurrentHashMap<>();
+
+    /** How long a looping performance cut at its limit takes to stand back up. */
+    static final long SETTLE_MILLIS = 400L;
+
+    /** The performance playing now, or {@code null}; one at a time. Guarded by this. */
+    private NpcStage.Act act;
+    /** Who the NPC is hidden from while {@link #act} plays. */
+    private final Set<UUID> hidden = ConcurrentHashMap.newKeySet();
+    /** What ends {@link #act} when its body stands in its last pose. */
+    private TaskHandle ending;
 
     /** What one player has been sent. */
     /**
@@ -149,6 +162,7 @@ final class PlacedNpcImpl implements PlacedNpc {
 
     @Override
     public synchronized void moveTo(@NotNull Location to) {
+        cut();
         Location from = location;
         location = to.clone();
         if (removed) {
@@ -172,6 +186,7 @@ final class PlacedNpcImpl implements PlacedNpc {
 
     @Override
     public synchronized void update(@NotNull NpcSpec next) {
+        cut();
         NpcSpec before = spec;
         spec = Objects.requireNonNull(next, "spec");
         if (removed) {
@@ -214,6 +229,163 @@ final class PlacedNpcImpl implements PlacedNpc {
     @Override
     public void play(@NotNull NpcAnimation animation, @NotNull Player viewer) {
         schedule(animation, viewer.getUniqueId());
+    }
+
+    @Override
+    public boolean perform(@NotNull NpcPerformance performance) {
+        return start(performance, null);
+    }
+
+    @Override
+    public boolean perform(@NotNull NpcPerformance performance, @NotNull Player viewer) {
+        return start(performance, viewer);
+    }
+
+    @Override
+    public synchronized boolean isPerforming() {
+        return act != null;
+    }
+
+    /**
+     * Hides the NPC from whoever is in range and puts a body in its place, unless one
+     * is playing already.
+     */
+    private boolean start(NpcPerformance asked, @Nullable Player only) {
+        if (removed) {
+            return false;
+        }
+        NpcPerformance performance = PlacedRuntime.resolve(owner.getName(), asked);
+        if (performance == null || performance.isEmpty()) {
+            return false;
+        }
+        synchronized (this) {
+            NpcSpec current = spec;
+            Location at = location;
+            if (removed || act != null || current.sitting()) {
+                return false;
+            }
+            double range = current.animations().performRange();
+            List<Viewer> audience = new ArrayList<>();
+            for (Viewer viewer : viewers.values()) {
+                if (viewer.drawn
+                        && (only == null || viewer.player.getUniqueId().equals(only.getUniqueId()))
+                        && viewer.player.getWorld() == at.getWorld()
+                        && viewer.player.getLocation().distanceSquared(at) <= range * range) {
+                    audience.add(viewer);
+                }
+            }
+            if (audience.isEmpty()) {
+                return false;
+            }
+            // One body faces one way: the way this viewer sees the NPC facing, or the
+            // way everybody does; with each viewer seeing it turned to themselves, the
+            // way it stands when nobody is looking.
+            float yaw = only != null || current.look() == NpcLook.NEAREST
+                    ? audience.get(0).yaw : at.getYaw();
+            Location stage = at.clone();
+            stage.setYaw(yaw);
+            stage.setPitch(0f);
+            String[] skin = current.skin().isMirror() && only == null ? null
+                    : PlacedRuntime.skinFor(current.skin(), only != null ? only : audience.get(0).player);
+            List<Player> players = new ArrayList<>(audience.size());
+            for (Viewer viewer : audience) {
+                players.add(viewer.player);
+            }
+            NpcStage.Act started = PlacedRuntime.stage().start(owner, performance, stage, players, current,
+                    skin == null ? null : skin[0]);
+            if (started == null) {
+                return false;
+            }
+            act = started;
+            for (Viewer viewer : audience) {
+                hidden.add(viewer.player.getUniqueId());
+                sink().hide(viewer.player, entityId, current, true);
+                // Turned now, while it cannot be seen, so it comes back facing the way
+                // the body stands.
+                if (Math.abs(wrap(yaw - viewer.yaw)) > TURN_EPSILON) {
+                    viewer.yaw = yaw;
+                    sink().look(viewer.player, entityId, yaw, viewer.pitch);
+                }
+            }
+            long stands = started.standsAtMillis();
+            boolean loops = stands < 0L;
+            long endsAt = loops ? performance.loopLimit().toMillis() : stands;
+            // A tick past the last pose: putting the NPC back on that exact moment
+            // swaps them a frame early.
+            ending = PlacedRuntime.scheduler().runAsyncLater(endsAt / 50L + 1L,
+                    () -> end(started, loops ? SETTLE_MILLIS : 0L));
+            return true;
+        }
+    }
+
+    /** Ends a performance that ran its course: the NPC back first, then the body gone. */
+    private void end(NpcStage.Act which, long settleMillis) {
+        synchronized (this) {
+            if (act != which) {
+                return;
+            }
+        }
+        if (settleMillis > 0L) {
+            which.stop(settleMillis);
+            PlacedRuntime.scheduler().runAsyncLater(settleMillis / 50L + 1L, () -> reveal(which));
+        } else {
+            reveal(which);
+            which.stop(0L);
+        }
+    }
+
+    /** Shows the NPC again to whoever it was hidden from, if that act is still the one. */
+    private synchronized void reveal(NpcStage.Act which) {
+        if (act != which) {
+            return;
+        }
+        act = null;
+        ending = null;
+        showHidden();
+    }
+
+    /** Ends whatever is playing now, at once; nothing is left on anybody's screen. */
+    private synchronized void cut() {
+        NpcStage.Act was = act;
+        if (was == null) {
+            return;
+        }
+        act = null;
+        if (ending != null) {
+            ending.cancel();
+            ending = null;
+        }
+        if (!removed) {
+            showHidden();
+        }
+        hidden.clear();
+        was.stop(0L);
+    }
+
+    private void showHidden() {
+        NpcSpec current = spec;
+        for (UUID uuid : hidden) {
+            Viewer viewer = viewers.get(uuid);
+            if (viewer != null && viewer.drawn) {
+                sink().hide(viewer.player, entityId, current, false);
+            }
+        }
+        hidden.clear();
+    }
+
+    /** Plays one trigger: its performance, or its vanilla moves. */
+    private void fire(Trigger trigger, @Nullable Player only) {
+        if (trigger.performance() != null) {
+            if (only == null) {
+                perform(trigger.performance());
+            } else {
+                perform(trigger.performance(), only);
+            }
+        } else if (only == null) {
+            play(trigger.moves());
+        } else {
+            play(trigger.moves(), only);
+        }
     }
 
     /** Sends each move at its moment: the first ones now, the rest from the scheduler. */
@@ -374,7 +546,7 @@ final class PlacedNpcImpl implements PlacedNpc {
         } else if (now >= nextIdle) {
             nextIdle = now + every;
             if (viewerCount() > 0) {
-                play(animations.idle);
+                fire(animations.idle, null);
             }
         }
     }
@@ -389,7 +561,7 @@ final class PlacedNpcImpl implements PlacedNpc {
             return;
         }
         greeted.put(uuid, now);
-        play(animations.greet, viewer.player);
+        fire(animations.greet, viewer.player);
     }
 
     /** The spec's animations parsed, reusing the last parse while the spec keeps them. */
@@ -404,13 +576,28 @@ final class PlacedNpcImpl implements PlacedNpc {
     }
 
     /** {@link NpcAnimations} with every animation already read. */
-    private record Triggers(NpcAnimations source, NpcAnimation left, NpcAnimation right,
-                            NpcAnimation idle, NpcAnimation greet) {
+    private record Triggers(NpcAnimations source, Trigger left, Trigger right,
+                            Trigger idle, Trigger greet) {
 
         static Triggers of(NpcAnimations source) {
-            return new Triggers(source, NpcAnimation.parse(source.leftClick()),
-                    NpcAnimation.parse(source.rightClick()), NpcAnimation.parse(source.idle()),
-                    NpcAnimation.parse(source.greet()));
+            return new Triggers(source, Trigger.of(source.leftClick()), Trigger.of(source.rightClick()),
+                    Trigger.of(source.idle()), Trigger.of(source.greet()));
+        }
+    }
+
+    /** One trigger's value: vanilla moves, or a performance when it has a colon. */
+    private record Trigger(NpcAnimation moves, @Nullable NpcPerformance performance) {
+
+        private static final NpcAnimation NO_MOVES = NpcAnimation.parse("");
+
+        static Trigger of(String value) {
+            return NpcPerformance.isPerformance(value)
+                    ? new Trigger(NO_MOVES, NpcPerformance.parse(value))
+                    : new Trigger(NpcAnimation.parse(value), null);
+        }
+
+        boolean isEmpty() {
+            return performance == null ? moves.isEmpty() : performance.isEmpty();
         }
     }
 
@@ -465,6 +652,10 @@ final class PlacedNpcImpl implements PlacedNpc {
                     greet(viewer, current, animations);
                 }
                 viewer.inGreetRange = inside;
+            }
+            if (hidden.contains(viewer.player.getUniqueId())) {
+                // The body stands where it stood; the NPC comes back facing the same way.
+                continue;
             }
             Player target = switch (look) {
                 case FIXED -> null;
@@ -530,7 +721,13 @@ final class PlacedNpcImpl implements PlacedNpc {
             viewer.lastClick = now;
         }
         Triggers animations = triggers(spec);
-        play(attack ? animations.left : animations.right);
+        Trigger trigger = attack ? animations.left : animations.right;
+        if (trigger.performance() != null) {
+            // Off the network thread: the first play of a performance reads its files.
+            PlacedRuntime.scheduler().runAsync(() -> fire(trigger, null));
+        } else {
+            fire(trigger, null);
+        }
         BiConsumer<Player, Click> current = handler;
         if (current == null) {
             return;
@@ -541,6 +738,7 @@ final class PlacedNpcImpl implements PlacedNpc {
 
     /** Takes it off one player's screen. */
     synchronized void despawn(Player player) {
+        hidden.remove(player.getUniqueId());
         if (viewers.remove(player.getUniqueId()) != null) {
             if (seatId >= 0) {
                 sink().unseat(player, seatId);
@@ -573,6 +771,7 @@ final class PlacedNpcImpl implements PlacedNpc {
     /** Stops it for good; the caller has taken it off every screen. */
     void markRemoved() {
         removed = true;
+        cut();
     }
 
     private void forDrawn(java.util.function.Consumer<Player> action) {

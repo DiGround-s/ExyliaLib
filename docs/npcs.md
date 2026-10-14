@@ -286,6 +286,12 @@ record:
 | `greet` | played for a player who comes within `greet-range`, seen only by them | `''` |
 | `greet-range` | blocks | `4.0` |
 | `greet-cooldown` | how long before the same player is greeted again | `30s` |
+| `perform-range` | since 1.302.0: how close a player has to be to be shown a [performance](#performances); an idle performance with nobody this close is skipped | `24.0` |
+
+Since 1.302.0 any of the four animation keys can hold a [performance](#performances)
+instead of vanilla moves: a value with a colon (`anim:wave`, `emote:bow`,
+`follow:2;keys:...`) is a performance, one without is moves. One value is one or the
+other; a list mixing both is not read.
 
 The click animation plays before `onClick`'s handler runs, and only for a click
 that survived the 200 ms dedupe. The greeting is per viewer so a crowd walking
@@ -293,6 +299,102 @@ up one by one does not make it wave at nobody for everybody else; the
 cooldown survives the player walking out of view and back, and is forgotten
 when they quit. Idle and greeting are checked on the visibility pass, so they
 cost no timer of their own.
+
+### Performances
+
+Since 1.302.0. A whole-body animation: the ragdoll body ExyliaEmotes dances with,
+wearing the NPC's skin and standing exactly in its place. Vanilla moves can swing an
+arm; a performance can bow, salute or dance.
+
+```java
+PlacedNpc guide = npcs.placed("guide").orElseThrow();
+
+guide.perform(NpcPerformance.parse("anim:wave"));                // for everybody in range
+guide.perform(NpcPerformance.parse("emote:bow"), player);        // for one viewer only
+guide.perform(NpcPerformance.parse("follow:2;breathe:0;keys:0.3 arm_r=150,0,20 | 0.4 stand"));
+guide.perform(NpcPerformance.lines(List.of(                       // raw sequence lines
+        "[RAGDOLL] {victim};intact:0;follow:1;anim:dance",
+        "[SOUND] BLOCK_NOTE_BLOCK_BELL;0.6;1.4")));
+guide.isPerforming();
+```
+
+The notation, in code and in `NpcAnimations`' keys:
+
+| Written | What it plays |
+|---|---|
+| `anim:<name>` | an animation file from `plugins/<plugin>/animations` (Blockbench or Emotecraft), as `[RAGDOLL] ...;anim:` reads it ([ragdolls.md](ragdolls.md)) |
+| `keys:<frames>` | frames written on the line, in `[RAGDOLL]`'s frame format |
+| `<option>:<value>;...;keys:<frames>` | any `[RAGDOLL]` options first (`follow:`, `breathe:`, `intact:`, `tempo:`, `loop:`, `loop_from:`, `hold:`...), `keys:` or `anim:` last |
+| `emote:<id>` | whatever the plugin's resolver says `<id>` is (below) |
+
+It is a `[RAGDOLL]` line without its `{victim};` head. Left unwritten, `intact:0`,
+`follow:1` and `breathe:1` are added: it starts on the first tick, the loose joints
+lag a little, and a held pose breathes.
+
+```yaml
+animations:
+  right-click: anim:wave
+  idle: emote:stretch
+  idle-every: 45s
+  greet: 'follow:1;keys:0.25 arm_r=150,0,30 elbow_r=40 | 0.3 arm_r=150,0,60 | 0.3 stand'
+  perform-range: 24.0
+```
+
+**`emote:<id>`** is resolved by the plugin, so the library depends on no emote plugin:
+
+```java
+Npcs.of(this).emotes(id -> cache.get(id));   // Function<String, NpcPerformance>, null = unknown
+```
+
+Asked every time such a performance plays, from any thread, so keep it a map lookup.
+An unknown id, a resolver that throws, or no resolver at all skips the performance.
+ExyliaEmotes' emotes live in its `emotes.yml` under `emotes.<id>`; the playable lines are
+the `effects` list, so `NpcPerformance.lines(effects)` is the whole conversion. Its
+`[CAMERA]` lines find no player and do nothing; its `[SOUND]` lines play at the NPC.
+
+How it plays:
+
+- **Hidden, not removed.** For each viewer in range the NPC turns invisible, its
+  equipment and outline go with it, and its hitbox stays, so **clicks still reach
+  it** (and its click handler runs as usual). Viewers out of range, or who walk up
+  mid-performance, see the NPC as it was.
+- **The body takes its place.** Same location, same scale, outline, held items and hat
+  (the spec's `HAND`, `OFF_HAND` and `HEAD`), facing the way the NPC faces: the
+  viewer's own facing for a one-viewer performance, the nearest's for `NEAREST`, the
+  location's yaw otherwise. Its head stops turning while it plays.
+- **The skin.** `texture` and `player(name)` are worn by the body too, through the
+  ragdoll skin cache ([ragdolls.md](ragdolls.md#the-real-skin)): real-skin pieces with a
+  MineSkin key, blocks without. `mirror()` is the viewer's own skin for a one-viewer
+  performance and the default skin for everybody's, since one body is shared.
+  `none()` is the default skin.
+- **No pop at the end.** The NPC comes back a tick after the body reaches its last
+  pose, and the body is taken away in the same moment. Keep the default finish
+  (`then:hold`) and end the frames on `stand`, as every ExyliaEmotes emote does; a body
+  that bursts or collapses is still flying when the NPC comes back.
+- **A loop** (`loop:true`) has no end of its own: it plays for
+  `NpcPerformance.loopLimit` (8 seconds unless set), stands back up over 0.4 s, and
+  then the NPC returns.
+- **One at a time.** While one plays, any other (a click, the idle, a greeting, a
+  call) is **skipped** and `perform` returns `false`; nothing is queued, so a crowd
+  clicking does not stack dances.
+- **Ended at once** when the NPC is moved, `update`d, removed, unplaced, replaced
+  under its id or released with its plugin: the NPC comes back (unless it is gone)
+  and the body is removed.
+- **Skipped**, returning `false`, when nobody is within `perform-range`, for a sitting
+  NPC (a body is drawn standing at the seat, and standing up and sitting back down
+  on screen is exactly the pop this avoids), when the lines draw no body, and without
+  PacketEvents.
+- **Poses.** A body starts standing, so an NPC in another `pose` (sneaking, lying)
+  visibly changes posture as it starts; performances are meant for standing NPCs.
+- **Click triggers** that perform run off the network thread: the first play of a
+  performance compiles its lines and may read an animation file.
+
+What it costs: a body is a few dozen display entities per viewer (6 to about 120 by
+`detail:` in blocks, 5 to 19 pieces with real skins), sent and moved by the client
+for the whole performance. That is why there is at most one body per NPC, only
+viewers within `perform-range` get one, and an idle performance with nobody that
+close is not played at all. Keep `idle-every` long on NPCs in busy places, and
+prefer vanilla moves for anything that fires on every click of a crowd.
 
 ## Contracts
 
@@ -312,9 +414,9 @@ cost no timer of their own.
 
 - Public: `npc/` — `Npcs`, `PluginNpcs`, `NpcModel`, `NpcPose`, `NpcHandle`;
   placed NPCs: `PlacedNpc`, `NpcSpec`, `NpcSkin`, `NpcLook`, `NpcAnimation`,
-  `NpcAnimations`.
+  `NpcAnimations`, `NpcPerformance`.
 - Internal: `npc/internal/` — the driver, `PlacedRuntime` and `PlacedNpcImpl`
-  for placed NPCs, and the one class that names PacketEvents (`NpcPackets`,
+  for placed NPCs, `NpcStage` (where a performance is played, a seam for tests), and the one class that names PacketEvents (`NpcPackets`,
   which also holds the click listener).
 - In sequences: `Steps.Corpse`, behind the `[NPC]` token.
 - Tests: `NpcLifetimeTest` asserts every way an NPC can be taken away, that it is
@@ -328,3 +430,8 @@ cost no timer of their own.
   triggers, the greeting range and cooldown, and the seat following the body.
 - `NpcAnimationTest` asserts the word format: waits, presets, the closing
   stand and unknown words.
+- `NpcPerformanceTest` asserts the performance notation: what counts as one, the
+  `[RAGDOLL]` line and its defaults, `emote:` references, raw lines, loop limits and
+  `NpcAnimations`' old constructor. `PlacedNpcTest` (since 1.302.0) asserts hide, play
+  and reveal-before-removal, one at a time, the perform range, ending on move and
+  unplace, loops cut at their limit, the emote resolver, click triggers and sitting.

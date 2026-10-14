@@ -41,6 +41,14 @@ interface PlacedSink {
     default void unlist(Player viewer, UUID profile) {
     }
 
+    /**
+     * Makes the drawn body invisible, with nothing in its hands or on it and no outline,
+     * or puts it back the way the spec draws it. It keeps its hitbox either way, which
+     * is what lets a performing NPC still be clicked.
+     */
+    default void hide(Player viewer, int entityId, NpcSpec spec, boolean hidden) {
+    }
+
     /** Turns the head and body. */
     void look(Player viewer, int entityId, float yaw, float pitch);
 

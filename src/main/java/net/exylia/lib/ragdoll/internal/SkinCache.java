@@ -228,8 +228,24 @@ public final class SkinCache {
         return skin == null ? FALLBACK : skin;
     }
 
+    /**
+     * What a body wearing a texture value is drawn with, or the fallback while
+     * it is being read. The same cache and the same pieces as a player's skin,
+     * keyed by the texture's URL, so an NPC wearing somebody's skin shares
+     * every texture already made for that somebody.
+     *
+     * @param property the base64 {@code textures} value
+     */
+    public static RagdollSkin ofTexture(String property) {
+        RagdollSkin skin = skinOfProperty(property);
+        return skin == null ? FALLBACK : skin;
+    }
+
     private static RagdollSkin skinOf(Player player) {
-        String property = texturesOf(player);
+        return skinOfProperty(texturesOf(player));
+    }
+
+    private static RagdollSkin skinOfProperty(String property) {
         String url = property == null ? null : Textures.urlOf(property);
         if (url == null) {
             return null;

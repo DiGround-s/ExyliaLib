@@ -782,6 +782,14 @@ hand-built packet. See `docs/npcs.md`.
   them on click, on an interval and as a per-viewer greeting, all from the
   visibility pass. Sitting is `NpcSpec.sitting`, a ride on an air block display,
   not a `NpcPose` constant (adding one would break exhaustive switches).
+- **Performances** (`NpcPerformance`, 1.302.0) are ragdoll bodies standing in
+  for a placed NPC: `perform` hides it per viewer (invisible, hitbox kept, so
+  clicks work), plays the `[RAGDOLL]` line through a `SequenceTarget.wearing`
+  model in the NPC's skin, and reveals it a tick after the body's last pose, then
+  removes the body. One per NPC (another is skipped), only for viewers within
+  `NpcAnimations.performRange`, never for a sitting NPC; ended on move, update and
+  removal. A trigger value with a colon is a performance; `emote:<id>` goes
+  through the plugin's `PluginNpcs.emotes` resolver, never an emote plugin.
 - **PacketEvents is named in `NpcPackets` only.**
 
 ### Modded clients — always `Clients`, never branching
