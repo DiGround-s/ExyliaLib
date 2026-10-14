@@ -518,13 +518,14 @@ final class HologramImpl implements Hologram {
         if (player.getWorld() != at.getWorld()) {
             return false;
         }
-        Predicate<Player> current = filter;
-        if (current != null && !current.test(player)) {
-            return false;
-        }
         double range = config.viewDistance();
         // Squared, so a player walking past does not pay for a square root.
-        return player.getLocation().distanceSquared(at) <= range * range;
+        // Before the filter: it is the cheap check, and a caller's filter may not be.
+        if (player.getLocation().distanceSquared(at) > range * range) {
+            return false;
+        }
+        Predicate<Player> current = filter;
+        return current == null || current.test(player);
     }
 
     /**

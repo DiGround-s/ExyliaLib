@@ -111,6 +111,7 @@ doubles the height of the block without making it easier to read.
 | `onReload(Consumer<T>)` | run after each successful reload |
 | `save()` | write the current snapshot to disk |
 | `update(UnaryOperator<T>)` | change and persist in one step |
+| `updateAsync(UnaryOperator<T>)` → `CompletableFuture<Void>` | change at once, write off the caller's thread; see [Writing off the main thread](#writing-off-the-main-thread) (since 1.299.0) |
 | `set(String key, Object value)` | write one dotted key (or remove it with `null`) and reload, for in-game editors; returns the reload's issues (since 1.257.0) |
 | `issues()` | problems found on the last load |
 | `name()` | the file's name |
@@ -237,6 +238,27 @@ Contracts:
 - **One unreadable entry costs that entry, not the block.** It is reported as
   an `INVALID_VALUE` issue at its own path, and the rest load.
 - **Insertion order is kept**, so the file does not reshuffle on every save.
+
+## Writing off the main thread
+
+`update` reads, renders and writes the whole file on the caller's thread. For a
+file an in-game editor saves on every click, `updateAsync` publishes the new
+values at once (`get()` sees them before it returns) and leaves the write to
+the plugin's async scheduler:
+
+```java
+holograms.updateAsync(current -> current.with(name, edited))
+        .thenRun(() -> watcher.remember());
+```
+
+- Writes of one file run one at a time. Changes made before the queued write
+  starts join it: it writes the latest values once, and they all get the same
+  future.
+- `save()`, `update`, `set` and `reload()` write a pending change first, so a
+  synchronous call never overtakes or loses an async one.
+- What is still pending when the plugin is disabled is written as the library
+  lets go of its files, and while the plugin is not enabled the write happens
+  before `updateAsync` returns.
 
 ## Housekeeping
 

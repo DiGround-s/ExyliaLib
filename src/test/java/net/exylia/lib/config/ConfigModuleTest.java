@@ -589,6 +589,33 @@ class ConfigModuleTest {
         assertTrue(contents("config").contains("server-name: changed"));
     }
 
+    @Test
+    @DisplayName("updateAsync publishes at once, writes a burst once off the thread, and a reload writes it first")
+    void updateAsyncCoalescesAndFlushes() throws IOException {
+        ConfigFile<Settings> config = Configs.define(plugin, "config", Settings.class).load();
+
+        var first = config.updateAsync(current -> new Settings(20, current.serverName(), current.enabled(),
+                current.multiplier(), current.worlds(), current.mode(), current.nested()));
+        var second = config.updateAsync(current -> new Settings(current.poolSize() + 1, current.serverName(),
+                current.enabled(), current.multiplier(), current.worlds(), current.mode(), current.nested()));
+
+        assertEquals(21, config.get().poolSize(), "get() sees the change before the write");
+        assertSame(first, second, "a change made before the write starts joins it");
+        assertFalse(first.isDone());
+        assertTrue(contents("config").contains("pool-size: 10"), "nothing written on the caller's thread");
+
+        FakeServer.tick(1);
+        assertTrue(first.isDone());
+        assertTrue(contents("config").contains("pool-size: 21"), "the latest values are written");
+
+        var third = config.updateAsync(current -> new Settings(30, current.serverName(), current.enabled(),
+                current.multiplier(), current.worlds(), current.mode(), current.nested()));
+        assertNotSame(first, third);
+        config.reload();
+        assertTrue(third.isDone(), "a reload writes the pending change before it reads");
+        assertEquals(30, config.get().poolSize(), "and reads it back rather than losing it");
+    }
+
     // ------------------------------------------------------------------
     // Migrations
     // ------------------------------------------------------------------

@@ -178,7 +178,13 @@ public final class Configs {
      * @param pluginName the name of the plugin being disabled
      */
     public static void release(@NotNull String pluginName) {
-        FILES.values().removeIf(file -> file.pluginName().equals(pluginName));
+        FILES.values().removeIf(file -> {
+            if (!file.pluginName().equals(pluginName)) {
+                return false;
+            }
+            file.flushPending();
+            return true;
+        });
         MovedValues.release(pluginName);
         SchemaCache.release(pluginName);
     }
@@ -201,6 +207,8 @@ public final class Configs {
             if (!file.ownedBy(plugin)) {
                 continue;
             }
+            // A change updateAsync queued reaches the disk before the file is let go.
+            file.flushPending();
             FILES.values().remove(file);
             SchemaCache.release(plugin.getName(), file.schemaType());
         }
@@ -212,6 +220,7 @@ public final class Configs {
      * <p>Called by ExyliaLib on shutdown. Consumers do not need to call this.
      */
     public static void releaseAll() {
+        FILES.values().forEach(ConfigFileImpl::flushPending);
         FILES.clear();
         SchemaCache.releaseAll();
     }

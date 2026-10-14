@@ -114,6 +114,37 @@ public interface ConfigFile<T> {
     void update(@NotNull java.util.function.UnaryOperator<T> change);
 
     /**
+     * Changes values at once and writes them to disk off the caller's thread.
+     *
+     * <p>For files changed often from the main thread, such as one an in-game
+     * editor saves on every click:
+     *
+     * <pre>{@code
+     * holograms.updateAsync(current -> current.with(name, edited));
+     * }</pre>
+     *
+     * <p>The new snapshot is published before this method returns, so
+     * {@link #get()} sees it at once; only the write waits. Writes of one file
+     * run one at a time, and a burst of changes made before the write starts is
+     * written once, with the latest values, so every change of the burst gets
+     * the same future back.
+     *
+     * <p>{@link #save()}, {@link #update}, {@link #set} and {@link #reload()}
+     * write a pending change first, so nothing is lost or reordered, and the
+     * library writes whatever is pending when the plugin is disabled. While the
+     * plugin is not enabled, the write happens before this method returns.
+     *
+     * @param change maps the current values to the new ones
+     * @return completes once the change is on disk
+     * @since 1.299.0
+     */
+    default @NotNull java.util.concurrent.CompletableFuture<Void> updateAsync(
+            @NotNull java.util.function.UnaryOperator<T> change) {
+        update(change);
+        return java.util.concurrent.CompletableFuture.completedFuture(null);
+    }
+
+    /**
      * Writes one value by its dotted key, then reloads the file so the change is
      * bound, coerced and validated like anything the owner typed.
      *

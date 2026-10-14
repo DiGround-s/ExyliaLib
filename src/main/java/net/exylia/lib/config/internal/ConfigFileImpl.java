@@ -6,6 +6,7 @@ import net.exylia.lib.config.Configs;
 import net.exylia.lib.config.Languages;
 import net.exylia.lib.config.Migration;
 import net.exylia.lib.config.Schema;
+import net.exylia.lib.task.Tasks;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.InvalidConfigurationException;
 import org.bukkit.configuration.file.YamlConfiguration;
@@ -24,6 +25,7 @@ import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.Consumer;
 import java.util.function.UnaryOperator;
@@ -73,6 +75,15 @@ public final class ConfigFileImpl<T> implements ConfigFile<T> {
     private volatile T values;
     private volatile List<ConfigIssue> issues = List.of();
 
+    /**
+     * Held while the file is read or written, so a write queued by
+     * {@link #updateAsync} never lands between two others or under a reload.
+     * Always taken before {@code this}, never after.
+     */
+    private final Object disk = new Object();
+    /** The write {@link #updateAsync} queued and that has not started; guarded by {@code this}. */
+    private CompletableFuture<Void> queued;
+
     public ConfigFileImpl(Plugin plugin, String name, Class<T> schemaType,
                           int currentVersion, Map<Integer, Migration> migrations, boolean translated) {
         this.plugin = plugin;
@@ -100,7 +111,15 @@ public final class ConfigFileImpl<T> implements ConfigFile<T> {
 
     @Override
     public @NotNull List<ConfigIssue> reload() {
-        List<ConfigIssue> found = load();
+        List<ConfigIssue> found;
+        synchronized (disk) {
+            // Both locks: a change queued between the flush and the read would
+            // be overwritten by the file and then written back without itself.
+            synchronized (this) {
+                flushPending();
+                found = load();
+            }
+        }
         logIssues(found);
 
         T snapshot = values;
@@ -122,6 +141,21 @@ public final class ConfigFileImpl<T> implements ConfigFile<T> {
 
     @Override
     public void save() {
+        CompletableFuture<Void> covered;
+        synchronized (disk) {
+            synchronized (this) {
+                covered = queued;
+                queued = null;
+            }
+            writeValues();
+        }
+        // The values just written include whatever the queued write was for.
+        if (covered != null) {
+            covered.complete(null);
+        }
+    }
+
+    private void writeValues() {
         YamlConfiguration yaml = readFile(new ArrayList<>());
         if (yaml == null) {
             plugin.getLogger().warning("Not saving " + name + ".yml: it could not be read, "
@@ -155,24 +189,92 @@ public final class ConfigFileImpl<T> implements ConfigFile<T> {
 
     @Override
     public void update(@NotNull UnaryOperator<T> change) {
-        synchronized (this) {
-            values = change.apply(values);
+        synchronized (disk) {
+            synchronized (this) {
+                values = change.apply(values);
+            }
             save();
         }
     }
 
     @Override
-    public @NotNull List<ConfigIssue> set(@NotNull String key, @Nullable Object value) {
+    public @NotNull CompletableFuture<Void> updateAsync(@NotNull UnaryOperator<T> change) {
+        CompletableFuture<Void> write;
         synchronized (this) {
-            YamlConfiguration yaml = readFile(new ArrayList<>());
-            if (yaml == null) {
-                plugin.getLogger().warning("Not setting " + key + " in " + name + ".yml: it could not be read, "
-                        + "and overwriting it would discard whatever is in there.");
-                return List.of();
+            values = change.apply(values);
+            if (queued != null) {
+                // Not started yet, and it writes the values as they are when it does.
+                return queued;
             }
-            render(yaml, values);
-            yaml.set(key, value);
-            writeFile(yaml);
+            write = new CompletableFuture<>();
+            queued = write;
+        }
+        if (!plugin.isEnabled() || !schedule(write)) {
+            write(write);
+        }
+        return write;
+    }
+
+    /** Hands a queued write to the plugin's async scheduler; false when it refuses. */
+    private boolean schedule(CompletableFuture<Void> write) {
+        try {
+            Tasks.of(plugin).runAsync(() -> write(write));
+            return true;
+        } catch (RuntimeException refused) {
+            return false;
+        }
+    }
+
+    /** Writes the current values for a queued write, unless another write already covered it. */
+    private void write(CompletableFuture<Void> write) {
+        synchronized (disk) {
+            synchronized (this) {
+                if (queued != write) {
+                    return;
+                }
+                queued = null;
+            }
+            try {
+                writeValues();
+            } catch (RuntimeException failure) {
+                write.completeExceptionally(failure);
+                throw failure;
+            }
+        }
+        write.complete(null);
+    }
+
+    /**
+     * Writes a change {@link #updateAsync} queued, now, on this thread.
+     *
+     * <p>Called before the file is read again and when the plugin lets go of
+     * its files, so a queued change is never lost or overwritten.
+     */
+    public void flushPending() {
+        CompletableFuture<Void> write;
+        synchronized (this) {
+            write = queued;
+        }
+        if (write != null) {
+            write(write);
+        }
+    }
+
+    @Override
+    public @NotNull List<ConfigIssue> set(@NotNull String key, @Nullable Object value) {
+        synchronized (disk) {
+            flushPending();
+            synchronized (this) {
+                YamlConfiguration yaml = readFile(new ArrayList<>());
+                if (yaml == null) {
+                    plugin.getLogger().warning("Not setting " + key + " in " + name + ".yml: it could not be read, "
+                            + "and overwriting it would discard whatever is in there.");
+                    return List.of();
+                }
+                render(yaml, values);
+                yaml.set(key, value);
+                writeFile(yaml);
+            }
         }
         return reload();
     }
