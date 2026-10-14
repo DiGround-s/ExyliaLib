@@ -23,7 +23,7 @@ Holograms.show(this, "trophy", location, config.trophy());
 | `offsetX/Y/Z` | position adjustment |
 | `kind` | `TEXT`, `ITEM` or `BLOCK` |
 | `properties` | `billboard`, `alignment`, `scaleX/Y/Z`, and more display properties; `distance-scale` grows it with the viewer's distance (since 1.301.0, see [Size by distance](#size-by-distance)) |
-| `click` | `commands`, `width`, `cooldown`, `hover-scale`: what clicking it does (since 1.287.0; `hover-scale` since 1.288.0); `style`, `color`, `hover-color`, `sound`, `buttons` (since 1.301.0, see [Buttons](#buttons)) |
+| `click` | `commands`, `width`, `cooldown`, `hover-scale`: what clicking it does (since 1.287.0; `hover-scale` since 1.288.0); `style`, `color`, `hover-color`, `sound`, `buttons` (since 1.301.0, see [Buttons](#buttons)); `range` (since 1.303.0, see [Reach](#reach)) |
 | `pages` | more pages after `lines`, each with its own `lines` and `click` lines (since 1.297.0) |
 | `page-interval` | ticks before each viewer is turned to the next page on their own; 0 is off (since 1.297.0) |
 
@@ -324,8 +324,9 @@ click:
   commands:
     - '[MESSAGE] {letters}Pick a button below.'
   style: BUTTON              # BUTTON (default) or NONE
-  color: '{primary}'         # the panel; '#RRGGBB' or '#AARRGGBB' too
-  hover-color: '{secondary}' # the panel while looked at
+  color: '{primary}'         # at rest; '#RRGGBB' or '#AARRGGBB' too
+  hover-color: '{secondary}' # while aimed at
+  range: 8                   # how far away it can be aimed at and clicked
   sound: 'UI_BUTTON_CLICK;0.6;1.4'   # every click; empty (default) for none
   hover-scale: 1.08
   buttons:
@@ -336,16 +337,29 @@ click:
       - '[PAGE] next'
 ```
 
-- **The look.** With `style: BUTTON` a panel stands behind what can be clicked:
-  one behind the whole hologram when it has click lines (on the viewer's page),
-  and one behind each button line. A palette colour or `#RRGGBB` panel is drawn
-  at about 30% alpha, about 53% while looked at; `#AARRGGBB` keeps its own. The
-  panel lights up (`hover-color`) while a player looks at it, grows with
-  `hover-scale`, and on a click squashes to 92% for 120 ms and flashes brighter
-  before springing back. Panels turn upright only (or stay `FIXED` with a fixed
-  hologram) and stand a little behind the lines, so a line leaning towards a
-  player looking up never pokes through. Fully lit (`brightness` 15) day and
-  night.
+- **The look** (since 1.303.0). With `style: BUTTON`, what can be clicked is
+  drawn as a button:
+  - A **button line** is its own button: its text display's background,
+    which the client sizes to the label, so it lines up with its text at
+    every size, hover, press and tilt. The label gets two spaces of room
+    either side, and a column of buttons is padded to the widest one so they
+    share a width. A palette colour or `#RRGGBB` rests at 35% alpha and
+    lights to 80% (`hover-color`) while aimed at; `#AARRGGBB` keeps its own.
+    A `<background:...>` tag on the line replaces the colour at rest.
+  - A hologram **without button lines** whose whole body is clickable gets
+    one slim panel, fitted to the widest line and the top of the highest
+    (measured with the font's widths, wrapping included) plus 0.07 blocks.
+    Its lines lose their own background, so there are never two, and turn
+    upright (`CENTER` becomes `VERTICAL`, unless the line has a
+    `<billboard>` tag) as the panel does, which lets it stand a hair behind
+    them with no parallax. 25% alpha at rest, 45% aimed at.
+  - A hologram **with** button lines draws nothing behind its other lines.
+  - Aimed at, the target grows with `hover-scale`; clicked, it squashes to
+    92% for 120 ms and flashes more opaque before springing back. Fully lit
+    (`brightness` 15) day and night.
+
+  Before 1.303.0 every button and the whole hologram had a separate panel,
+  sized from the line spacing and `width`, which did not match the text.
 - **Who gets it.** Only holograms with click lines (`click.commands`, a page's
   `click`) or buttons. A hologram made clickable from code alone
   (`onClick`) gets no panel and no press, and a hologram nobody can click is
@@ -363,8 +377,28 @@ click:
   click, so a button costs no extra entity.
 - **`sound`** is played to the clicker on every click that has lines to run,
   as a `[SOUND]` line put first.
-- **Riding** an entity (`attachTo`), a hologram draws no panels and its button
-  lines are plain lines: passengers cannot be placed apart from their seat.
+- **Riding** an entity (`attachTo`), a hologram draws no panel and its buttons
+  do not light up: passengers cannot be placed apart from their seat.
+
+## Reach
+
+Since 1.303.0, `click.range` (default 8 blocks, at most 32) is how far away a
+player can aim at a clickable hologram. Hover and clicks share one ray from the
+eyes against the click box, so whatever lights up is what a click hits.
+
+- **Left-click** reaches the full range: an arm swing aimed at the hologram is
+  a click, wherever the client sent it.
+- **Right-click holding an item**, or on a block, reaches the full range too:
+  the client sends the use of the item or block.
+- **Right-click with an empty hand** at nothing sends no packet at all, so it
+  reaches only as far as the client lets a hand touch an entity, the click box
+  (3 blocks in survival, 5 in creative). Templates that should work from afar
+  say "click" or "left-click".
+- A click that lands on the box is followed by its swing; the second arrives
+  inside the 200 ms click gap and is dropped, so one click never runs twice.
+  The ray click goes to the hologram nearest along the line of sight. None of
+  these packets is kept from the server: the swing still swings, the item is
+  still used. Riding holograms keep box clicks only.
 
 ## Riding an entity
 

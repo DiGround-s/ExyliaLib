@@ -193,4 +193,18 @@ class CenteringTest {
             TextEngine.smallText(false);
         }
     }
+
+    @Test
+    @DisplayName("a parsed line measures what is drawn: bold from any parent, the widest of its lines")
+    void componentsMeasureWhatIsDrawn() {
+        net.kyori.adventure.text.Component bold = net.kyori.adventure.text.Component.text("AB")
+                .decorate(net.kyori.adventure.text.format.TextDecoration.BOLD);
+        assertEquals(12, Centering.pixelWidth(net.kyori.adventure.text.Component.text("AB")));
+        assertEquals(14, Centering.pixelWidth(bold), "bold adds a pixel per character");
+        assertEquals(14 + 4, Centering.pixelWidth(bold.append(net.kyori.adventure.text.Component.text(" "))),
+                "a child inherits bold, and a bold space is still 4");
+        assertEquals(Centering.pixelWidth("&lAB"), Centering.pixelWidth(Text.component("&lAB")));
+        assertEquals(12, Centering.pixelWidth(net.kyori.adventure.text.Component.text("i\nAB")),
+                "the widest line, not the sum");
+    }
 }

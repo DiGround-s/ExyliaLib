@@ -8,6 +8,10 @@ import com.github.retrooper.packetevents.event.PacketReceiveEvent;
 import com.github.retrooper.packetevents.event.PacketSendEvent;
 import com.github.retrooper.packetevents.protocol.packettype.PacketType;
 import com.github.retrooper.packetevents.protocol.packettype.PacketTypeCommon;
+import com.github.retrooper.packetevents.protocol.player.InteractionHand;
+import com.github.retrooper.packetevents.wrapper.play.client.WrapperPlayClientAnimation;
+import com.github.retrooper.packetevents.wrapper.play.client.WrapperPlayClientPlayerBlockPlacement;
+import com.github.retrooper.packetevents.wrapper.play.client.WrapperPlayClientUseItem;
 import com.github.retrooper.packetevents.util.Quaternion4f;
 import com.github.retrooper.packetevents.protocol.entity.data.EntityData;
 import com.github.retrooper.packetevents.protocol.entity.data.EntityDataTypes;
@@ -130,6 +134,9 @@ final class DisplayPackets implements DisplaySink {
         PacketListenerAbstract listener = new PacketListenerAbstract(PacketListenerPriority.NORMAL) {
             @Override
             public void onPacketReceive(PacketReceiveEvent event) {
+                if (aimedClick(event)) {
+                    return;
+                }
                 EntityClicks.Press press = EntityClicks.read(event);
                 if (press == null || !(event.getPlayer() instanceof Player player)
                         || !HologramRuntime.isHitbox(press.entityId())) {
@@ -173,6 +180,36 @@ final class DisplayPackets implements DisplaySink {
         };
         PacketEvents.getAPI().getEventManager().registerListener(listener);
         return listener;
+    }
+
+    /**
+     * Hands a click that touched no entity to the hologram the player aims
+     * at: an arm swing is a left-click, a use of the held item or of a block
+     * a right-click. Only the main hand's, as with clicks on the box, and
+     * none of them is kept from the server: the swing still swings, the item
+     * is still used. A right-click with an empty hand at nothing sends no
+     * packet at all, so that one only reaches as far as the box does.
+     *
+     * @return whether the packet was one of these
+     */
+    private static boolean aimedClick(PacketReceiveEvent event) {
+        PacketTypeCommon type = event.getPacketType();
+        InteractionHand hand;
+        if (type == PacketType.Play.Client.ANIMATION) {
+            hand = new WrapperPlayClientAnimation(event).getHand();
+        } else if (type == PacketType.Play.Client.USE_ITEM) {
+            hand = new WrapperPlayClientUseItem(event).getHand();
+        } else if (type == PacketType.Play.Client.PLAYER_BLOCK_PLACEMENT) {
+            hand = new WrapperPlayClientPlayerBlockPlacement(event).getHand();
+        } else {
+            return false;
+        }
+        if (hand == InteractionHand.MAIN_HAND && event.getPlayer() instanceof Player player
+                && net.exylia.lib.tuner.Tuner.active(player.getUniqueId()).isEmpty()) {
+            HologramRuntime.aimed(player, net.exylia.lib.interaction.Click.of(
+                    type == PacketType.Play.Client.ANIMATION, player.isSneaking()));
+        }
+        return true;
     }
 
     /** Told about a click on a hologram's hitbox. */

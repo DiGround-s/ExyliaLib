@@ -82,33 +82,42 @@ final class HologramImpl implements Hologram {
     private static final int PRESS_TICKS = 1;
 
     /**
-     * The panel behind a button is a text display showing one space, whose
-     * background the client draws {@value #PLATE_PX_W} by {@value #PLATE_PX_H}
-     * pixels of 1/40 block, half a pixel right of its centre; it is scaled
-     * from there to the size it has to cover.
+     * A text display draws one pixel as 1/40 block at scale 1. Its background
+     * is {@code width + 1} pixels wide, from {@code -width/2} to
+     * {@code width/2 + 1} around the entity, and {@code 10 * lines + 1} pixels
+     * tall from the entity up: the vanilla renderer's own numbers, which is
+     * what lets a panel be sized to the text it stands behind.
      */
-    private static final double PX = 0.025;
-    private static final double PLATE_PX_W = 5;
-    private static final double PLATE_PX_H = 10;
-    /** Room around what a panel covers, in blocks. */
-    private static final double PLATE_PAD = 0.05;
+    static final double PX = 0.025;
+    /** The panel is one space: 4 pixels of advance, so 5 by 11 pixels of background. */
+    private static final double PANEL_PX_W = 5;
+    private static final double PANEL_PX_H = 11;
+    /** Room around what the panel covers, in blocks. */
+    private static final double PANEL_PAD = 0.07;
     /**
-     * How far behind the lines panels stand. Panels turn upright only, so a
-     * line leaning towards a player looking up or down never pokes through.
+     * How far behind the lines the panel stands, past any item or block in the
+     * stack. The lines of a panelled hologram turn upright, as the panel does,
+     * so nothing leans through it and a hair of depth is enough: no parallax.
      */
-    private static final double PLATE_DEPTH = -0.18;
-    private static final double BUTTON_PLATE_DEPTH = -0.14;
+    private static final double PANEL_DEPTH = 0.03;
     private static final Component PLATE_TEXT = Component.text(" ");
-    /** Alpha of a panel colour written without one: at rest, looked at, and pressed. */
-    private static final int PLATE_ALPHA = 0x50;
-    private static final int PLATE_HOVER_ALPHA = 0x88;
-    private static final int PLATE_PRESS_BOOST = 0x48;
+    /** Alpha of a colour written without one, for a button line: at rest, aimed at, pressed. */
+    private static final int BUTTON_ALPHA = 0x59;
+    private static final int BUTTON_HOVER_ALPHA = 0xCC;
+    /** The same for the panel behind a whole hologram, which is larger and so quieter. */
+    private static final int PANEL_ALPHA = 0x40;
+    private static final int PANEL_HOVER_ALPHA = 0x73;
+    private static final int PRESS_BOOST = 0x33;
+    /** Spaces either side of a button's label, so its background is a button and not a highlight. */
+    private static final int BUTTON_PAD_SPACES = 2;
+    /** How a click target is lit. */
+    private static final int IDLE = 0;
+    private static final int HOVERED = 1;
+    private static final int PRESSED = 2;
 
     /** No click target, the whole hologram, or else the index of a button line. */
     private static final int NONE = -2;
     private static final int WHOLE = -1;
-    /** How far away a look still counts as hovering, about where a click reaches. */
-    private static final double HOVER_REACH = 6.0;
     /** Eye height of a standing player; ponytail: sneaking reads a little high. */
     private static final double EYE_HEIGHT = 1.62;
 
@@ -193,14 +202,19 @@ final class HologramImpl implements Hologram {
     private final Interaction[] clickLines;
     /** What clicking a {@code <button:name>} line does, by name. */
     private final Map<String, Interaction> buttonLines;
-    /** The panel behind the whole hologram, or {@code null} when it has none. */
+    /** The panel behind the whole hologram, or {@code null} when it can never have one. */
     private final DisplayState plate;
-    /** The panel behind each button line, {@code null} for the others. */
-    private volatile DisplayState[] buttonPlates = new DisplayState[0];
-    /** Panel colours as ARGB: at rest, looked at, pressed. */
-    private final int plateIdle;
-    private final int plateHover;
-    private final int platePress;
+    /** Whether the panel is drawn: the whole hologram is the button, and no line is a button of its own. */
+    private volatile boolean paneled;
+    /** Colours as ARGB: the panel at rest, aimed at and pressed, a button line aimed at and pressed. */
+    private final int panelIdle;
+    private final int panelHover;
+    private final int panelPress;
+    private final int buttonIdle;
+    private final int buttonHover;
+    private final int buttonPress;
+    /** Per line, the spaces either side of a button's label; 0 for any other line. */
+    private volatile int[] padSpaces = new int[0];
     private volatile BiConsumer<Player, Click> clickHandler;
     private final Map<UUID, Long> lastClick = new ConcurrentHashMap<>();
 
@@ -238,18 +252,20 @@ final class HologramImpl implements Hologram {
         this.clickLines = compileClicks(owner, id, config, tokens);
         this.buttonLines = compileButtons(owner, id, config, tokens);
         List<String> lines = paginate(config.allPages());
-        restyle(styles(lines));
-        this.templates = compile(lines);
-        this.displays = build(config, styles);
-        resolveHeads(displays);
-        this.hitboxId = HologramRuntime.newEntityId();
-        this.plateIdle = argb(config.click().color(), PLATE_ALPHA);
-        this.plateHover = argb(config.click().hoverColor(), PLATE_HOVER_ALPHA);
-        this.platePress = Math.min(0xFF, (plateHover >>> 24) + PLATE_PRESS_BOOST) << 24
-                | (plateHover & 0xFFFFFF);
+        this.panelIdle = argb(config.click().color(), PANEL_ALPHA);
+        this.panelHover = argb(config.click().hoverColor(), PANEL_HOVER_ALPHA);
+        this.panelPress = pressed(panelHover);
+        this.buttonIdle = argb(config.click().color(), BUTTON_ALPHA);
+        this.buttonHover = argb(config.click().hoverColor(), BUTTON_HOVER_ALPHA);
+        this.buttonPress = pressed(buttonHover);
         boolean wholeLines = Arrays.stream(clickLines).anyMatch(compiled -> !compiled.isEmpty());
         this.plate = wholeLines && buttonLook() ? newPlate() : null;
-        this.buttonPlates = buildPlates(styles);
+        restyle(styles(lines));
+        this.templates = compile(lines);
+        this.padSpaces = pads(styles, templates);
+        this.displays = build(styles);
+        resolveHeads(displays);
+        this.hitboxId = HologramRuntime.newEntityId();
         this.lastText = new String[displays.length];
         this.dynamic = config.config().autoUpdate() && isDynamic(templates);
         this.lastRender = -intervalMs;
@@ -299,34 +315,90 @@ final class HologramImpl implements Hologram {
         return config.click().buttonStyle() && config.type() == HologramConfig.Kind.TEXT;
     }
 
-    /** A panel: one space of text whose background is stretched over what it covers. */
+    /** A colour pressed: the same colour, more opaque. */
+    private static int pressed(int argb) {
+        return Math.min(0xFF, (argb >>> 24) + PRESS_BOOST) << 24 | (argb & 0xFFFFFF);
+    }
+
+    /** The panel: one space of text whose background is stretched over what it covers. */
     private DisplayState newPlate() {
         HologramConfig.Properties base = config.properties();
-        // Upright only: leaning back with the player's pitch, a tall panel would
-        // swing through the lines in front of it.
+        // Upright, like the lines in front of it, so the two never part.
         String turn = "FIXED".equalsIgnoreCase(base.billboard()) ? "FIXED" : "VERTICAL";
         HologramConfig.Properties look = new HologramConfig.Properties(turn, "CENTER", 1, 1, 1,
                 false, false, 200, base.lineSpacing(), 255, false,
-                String.format("#%08X", plateIdle), 15, false);
+                String.format("#%08X", panelIdle), 15, false);
         return new DisplayState(HologramRuntime.newEntityId(), HologramConfig.Kind.TEXT, look);
-    }
-
-    /** A panel for every line that is a button with lines to run. */
-    private DisplayState[] buildPlates(LineStyle[] lineStyles) {
-        DisplayState[] built = new DisplayState[lineStyles.length];
-        if (!buttonLook()) {
-            return built;
-        }
-        for (int i = 0; i < lineStyles.length; i++) {
-            if (isButton(lineStyles[i])) {
-                built[i] = newPlate();
-            }
-        }
-        return built;
     }
 
     private boolean isButton(LineStyle style) {
         return style.button() != null && buttonLines.containsKey(style.button());
+    }
+
+    /** Whether a line is drawn as a button: its own background, lit when aimed at. */
+    private boolean drawnAsButton(LineStyle style) {
+        return buttonLook() && isButton(style);
+    }
+
+    /**
+     * How a text line is drawn once the button look is applied.
+     *
+     * <p>A button line's background is its button: the client sizes it to the
+     * text, so it lines up with its label at any size, hover and tilt. A line
+     * in front of the panel loses its background, or there would be two, and
+     * turns upright as the panel does. A line's own {@code <background>} or
+     * {@code <billboard>} tag is kept either way.
+     */
+    private HologramConfig.Properties dressed(HologramConfig.Properties look, LineStyle style) {
+        if (drawnAsButton(style)) {
+            String background = style.background() != null ? look.backgroundColor()
+                    : String.format("#%08X", buttonIdle);
+            return restyled(look, look.billboard(), background);
+        }
+        if (paneled) {
+            String turn = style.billboard() == null && "CENTER".equalsIgnoreCase(look.billboard())
+                    ? "VERTICAL" : look.billboard();
+            String background = style.background() != null ? look.backgroundColor() : "#00000000";
+            return restyled(look, turn, background);
+        }
+        return look;
+    }
+
+    private static HologramConfig.Properties restyled(HologramConfig.Properties look, String billboard,
+                                                      String background) {
+        return new HologramConfig.Properties(billboard, look.alignment(), look.scaleX(),
+                look.scaleY(), look.scaleZ(), look.shadow(), look.seeThrough(), look.lineWidth(),
+                look.lineSpacing(), look.textOpacity(), false, background, look.brightness(),
+                look.glowing(), look.distanceScale());
+    }
+
+    /**
+     * The spaces either side of each button's label: a little room, plus what
+     * brings it to the widest button's width, so a column of buttons is one
+     * size. Measured from the written text, placeholders as written.
+     */
+    private int[] pads(LineStyle[] lineStyles, Template[] lines) {
+        int count = Math.min(lineStyles.length, lines.length);
+        int[] widths = new int[count];
+        int widest = 0;
+        for (int i = 0; i < count; i++) {
+            if (drawnAsButton(lineStyles[i])) {
+                widths[i] = net.exylia.lib.text.Centering.pixelWidth(Text.component(lines[i].raw()));
+                widest = Math.max(widest, widths[i]);
+            }
+        }
+        return buttonPads(lineStyles, widths, widest);
+    }
+
+    /** Pads from measured widths; a space is 4 pixels, half the difference goes either side. */
+    private int[] buttonPads(LineStyle[] lineStyles, int[] widths, int widest) {
+        int[] pads = new int[widths.length];
+        for (int i = 0; i < widths.length; i++) {
+            if (drawnAsButton(lineStyles[i])) {
+                pads[i] = BUTTON_PAD_SPACES + (int) Math.round((widest - widths[i]) / 8.0);
+            }
+        }
+        return pads;
     }
 
     /**
@@ -418,6 +490,7 @@ final class HologramImpl implements Hologram {
         this.scaling = config.properties().distanceScale().enabled()
                 || text && Arrays.stream(styles).anyMatch(LineStyle::autoscale);
         this.hasButtons = text && Arrays.stream(styles).anyMatch(this::isButton);
+        this.paneled = plate != null && !hasButtons;
         long[] keys = new long[styles.length];
         Arrays.fill(keys, Long.MAX_VALUE);
         this.lastKey = keys;
@@ -451,7 +524,7 @@ final class HologramImpl implements Hologram {
      * single display. A text line tagged {@code <item:...>} or
      * {@code <block:...>} is an item or block display standing in the stack.
      */
-    private static DisplayState[] build(HologramConfig config, LineStyle[] styles) {
+    private DisplayState[] build(LineStyle[] styles) {
         if (config.type() != HologramConfig.Kind.TEXT) {
             Material material = material(config);
             return new DisplayState[]{
@@ -461,9 +534,12 @@ final class HologramImpl implements Hologram {
         DisplayState[] displays = new DisplayState[styles.length];
         for (int i = 0; i < styles.length; i++) {
             LineStyle style = styles[i];
-            HologramConfig.Properties properties = style.apply(config.properties());
             HologramConfig.Kind kind = !style.isModel() ? HologramConfig.Kind.TEXT
                     : style.block() ? HologramConfig.Kind.BLOCK : HologramConfig.Kind.ITEM;
+            HologramConfig.Properties properties = style.apply(config.properties());
+            if (kind == HologramConfig.Kind.TEXT) {
+                properties = dressed(properties, style);
+            }
             displays[i] = new DisplayState(HologramRuntime.newEntityId(), kind, properties,
                     style.isModel() ? material(style.model()) : Material.STONE, style);
         }
@@ -537,6 +613,7 @@ final class HologramImpl implements Hologram {
                 && config.type() == HologramConfig.Kind.TEXT;
         restyle(restyled);
         this.templates = compiled;
+        this.padSpaces = pads(restyled, compiled);
         // Lines are replaced, so what they resolve from is decided again: text
         // that had a placeholder may no longer have one, and the other way
         // round.
@@ -739,6 +816,7 @@ final class HologramImpl implements Hologram {
         DisplayState[] current = displays;
         Template[] lines = templates;
         String[] previous = lastText;
+        boolean changed = false;
 
         for (int i = 0; i < current.length && i < lines.length; i++) {
             if (current[i].kind() != HologramConfig.Kind.TEXT) {
@@ -749,13 +827,28 @@ final class HologramImpl implements Hologram {
                 continue;
             }
             previous[i] = text;
-            current[i].text(componentFor(lines[i], text, null));
+            changed = true;
+            current[i].text(componentFor(i, lines[i], text, null));
             Component shown = Shimmer.dress(current[i].style(), current[i].text(), seconds());
             for (Player viewer : currentViewers) {
                 if (receivesText(viewer.getUniqueId(), i)) {
                     HologramRuntime.sink().text(viewer, current[i], shown);
                 }
             }
+        }
+        if (changed && paneled) {
+            for (Player viewer : currentViewers) {
+                reshapePanel(viewer);
+            }
+        }
+    }
+
+    /** Fits a viewer's panel to their lines again, for text that changed width. */
+    private void reshapePanel(Player viewer) {
+        if (wholePlated(viewer) && viewers.contains(viewer.getUniqueId())) {
+            HologramRuntime.sink().transform(viewer, plate,
+                    wholePlateView(viewer, layout(viewer.getUniqueId(), masks.get(viewer.getUniqueId()))),
+                    HOVER_TICKS);
         }
     }
 
@@ -773,11 +866,14 @@ final class HologramImpl implements Hologram {
                 continue;
             }
             String text = lines[i].render(viewer, data);
-            current[i].text(componentFor(lines[i], text, viewer));
+            current[i].text(componentFor(i, lines[i], text, viewer));
             if (send && receivesText(viewer.getUniqueId(), i)) {
                 HologramRuntime.sink().text(viewer, current[i],
                         Shimmer.dress(current[i].style(), current[i].text(), seconds()));
             }
+        }
+        if (send && paneled) {
+            reshapePanel(viewer);
         }
     }
 
@@ -802,7 +898,7 @@ final class HologramImpl implements Hologram {
             return displays[line].text();
         }
         Template template = templates[line];
-        return componentFor(template, template.render(viewer, data), viewer);
+        return componentFor(line, template, template.render(viewer, data), viewer);
     }
 
     /**
@@ -812,7 +908,18 @@ final class HologramImpl implements Hologram {
      * and is therefore always a cache hit, and the resolved values are
      * substituted into that parsed component.
      */
-    private Component componentFor(Template template, String text, Player viewer) {
+    private Component componentFor(int line, Template template, String text, Player viewer) {
+        Component parsed = parse(template, text, viewer);
+        int[] pads = padSpaces;
+        if (line >= pads.length || pads[line] == 0) {
+            return parsed;
+        }
+        // Unstyled spaces either side, so a bold label does not widen its padding.
+        Component pad = Component.text(" ".repeat(pads[line]));
+        return Component.text().append(pad, parsed, pad).build();
+    }
+
+    private Component parse(Template template, String text, Player viewer) {
         if (!template.isDynamic()) {
             return Text.component(text);
         }
@@ -1313,14 +1420,7 @@ final class HologramImpl implements Hologram {
             return;
         }
         if (wholePlated(viewer)) {
-            HologramRuntime.sink().transform(viewer, plate, wholePlateView(layout), ticks);
-        }
-        DisplayState[] plates = buttonPlates;
-        for (int i = 0; i < plates.length && i < current.length; i++) {
-            if (plates[i] != null && shown(mask, i)) {
-                HologramRuntime.sink().transform(viewer, plates[i],
-                        buttonPlateView(current, i, layout), ticks);
-            }
+            HologramRuntime.sink().transform(viewer, plate, wholePlateView(viewer, layout), ticks);
         }
     }
 
@@ -1341,54 +1441,115 @@ final class HologramImpl implements Hologram {
         return display.transform().view(grow, 0, layout.y()[line] - layout.baseY()[line], 0);
     }
 
-    /** The panel behind the whole stack, as wide as the click box. */
-    private DisplayState.Transform wholePlateView(Layout layout) {
-        return plateView(0, layout.top(), config.click().width() * layout.whole(), PLATE_DEPTH);
+    /**
+     * The panel behind the whole stack, fitted to what this viewer is shown:
+     * as wide as the widest line, from the lowest line to the top of the
+     * highest, each as large as it is drawn now.
+     */
+    private DisplayState.Transform wholePlateView(Player viewer, Layout layout) {
+        DisplayState[] current = displays;
+        boolean[] mask = masks.get(viewer.getUniqueId());
+        double half = 0;
+        double bottom = Double.MAX_VALUE;
+        double top = -Double.MAX_VALUE;
+        double depth = 0;
+        for (int i = 0; i < current.length; i++) {
+            if (!shown(mask, i)) {
+                continue;
+            }
+            DisplayState display = current[i];
+            HologramConfig.Properties look = display.properties();
+            double grow = layout.grow()[i];
+            double[] box = extent(display.kind(),
+                    display.kind() == HologramConfig.Kind.TEXT ? textFor(viewer, i) : null,
+                    look.lineWidth(), look.scaleX() * grow, look.scaleY() * grow, layout.y()[i]);
+            half = Math.max(half, box[0]);
+            bottom = Math.min(bottom, box[1]);
+            top = Math.max(top, box[2]);
+            if (display.kind() != HologramConfig.Kind.TEXT) {
+                depth = Math.max(depth, box[0]);
+            }
+        }
+        if (bottom > top) {
+            bottom = 0;
+            top = 0;
+        }
+        return panelView(half, bottom, top, depth);
     }
 
-    /** The panel behind one button line. */
-    private DisplayState.Transform buttonPlateView(DisplayState[] current, int line, Layout layout) {
-        double room = heights(current.length)[line] * layout.grow()[line];
-        double bottom = layout.y()[line]
-                - (current[line].kind() == HologramConfig.Kind.ITEM ? room / 2 : 0);
-        return plateView(bottom, room, config.click().width() * layout.grow()[line],
-                BUTTON_PLATE_DEPTH);
+    /**
+     * What a display covers, standing at {@code y}: half its width, its
+     * bottom and its top, in blocks.
+     *
+     * <p>Text by the client's own measure of its background: {@code width + 1}
+     * pixels across, {@code 10 * lines + 1} up from the entity, a line that
+     * runs past {@code lineWidth} wrapping onto more. An item is centred on
+     * its position, a block stands on it; both one block across at scale 1.
+     */
+    static double[] extent(HologramConfig.Kind kind, Component text, int lineWidth, double scaleX,
+                           double scaleY, double y) {
+        if (kind == HologramConfig.Kind.ITEM) {
+            return new double[]{scaleX / 2, y - scaleY / 2, y + scaleY / 2};
+        }
+        if (kind == HologramConfig.Kind.BLOCK) {
+            return new double[]{scaleX / 2, y, y + scaleY};
+        }
+        int width = net.exylia.lib.text.Centering.pixelWidth(text);
+        String plain = net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer
+                .plainText().serialize(text);
+        int lines = 1 + (int) plain.chars().filter(c -> c == '\n').count();
+        int wrap = Math.max(1, lineWidth);
+        if (width > wrap) {
+            // ponytail: wrapping is word by word on the client; this reads it as
+            // character by character, which is a line short at worst, and the
+            // panel's padding takes most of that.
+            lines += (width - 1) / wrap;
+            width = wrap;
+        }
+        return new double[]{(width / 2.0 + 1) * PX * scaleX, y, y + (10 * lines + 1) * PX * scaleY};
     }
 
-    /** A panel's transformation: its one space stretched over {@code width} by {@code height}. */
-    private static DisplayState.Transform plateView(double bottom, double height, double width,
-                                                    double depth) {
-        double sx = (width + 2 * PLATE_PAD) / (PLATE_PX_W * PX);
-        double sy = (Math.max(0, height) + 2 * PLATE_PAD) / (PLATE_PX_H * PX);
-        return new DisplayState.Transform((float) (-0.5 * PX * sx), (float) (bottom - PLATE_PAD),
-                (float) depth, (float) sx, (float) sy, 1f, 0f, 1f);
+    /** The panel's transformation: its one space stretched over the box it has to cover. */
+    static DisplayState.Transform panelView(double half, double bottom, double top, double depth) {
+        double sx = (2 * half + 2 * PANEL_PAD) / (PANEL_PX_W * PX);
+        double sy = (Math.max(0, top - bottom) + 2 * PANEL_PAD) / (PANEL_PX_H * PX);
+        // The space's background sits half a pixel right of the entity.
+        return new DisplayState.Transform((float) (-0.5 * PX * sx), (float) (bottom - PANEL_PAD),
+                (float) -(depth + PANEL_DEPTH), (float) sx, (float) sy, 1f, 0f, 1f);
     }
 
     /** Whether a viewer is shown the panel behind the whole hologram: it has click lines on their page. */
     private boolean wholePlated(Player viewer) {
-        return plate != null && mount == null
+        return paneled && mount == null
                 && !clickLines[Math.min(page(viewer), clickLines.length - 1)].isEmpty();
     }
 
-    /** The panel behind a click target, or {@code null} when it has none for this viewer. */
-    private DisplayState plateOf(Player viewer, int target) {
+    /** Whether a click target is drawn as a button for this viewer, which is what lights and presses. */
+    private boolean drawn(Player viewer, int target) {
         if (mount != null) {
-            return null;
+            return false;
         }
         if (target == WHOLE) {
-            return wholePlated(viewer) ? plate : null;
+            return wholePlated(viewer);
         }
-        DisplayState[] plates = buttonPlates;
-        return target >= 0 && target < plates.length
-                && shown(masks.get(viewer.getUniqueId()), target) ? plates[target] : null;
+        LineStyle[] lineStyles = styles;
+        return target >= 0 && target < lineStyles.length && target < displays.length
+                && drawnAsButton(lineStyles[target]) && shown(masks.get(viewer.getUniqueId()), target);
     }
 
-    /** Colours a target's panel for a viewer: at rest, looked at, or pressed. */
-    private void light(Player viewer, int target, int argb) {
-        DisplayState panel = plateOf(viewer, target);
-        if (panel != null) {
-            HologramRuntime.sink().look(viewer, panel, 255, argb);
+    /** Lights a target for a viewer: at rest, aimed at, or pressed. */
+    private void light(Player viewer, int target, int how) {
+        if (!drawn(viewer, target)) {
+            return;
         }
+        if (target == WHOLE) {
+            HologramRuntime.sink().look(viewer, plate, 255,
+                    how == PRESSED ? panelPress : how == HOVERED ? panelHover : panelIdle);
+            return;
+        }
+        DisplayState line = displays[target];
+        HologramRuntime.sink().look(viewer, line, line.properties().textOpacity(),
+                how == PRESSED ? buttonPress : how == HOVERED ? buttonHover : line.backgroundArgb());
     }
 
     /**
@@ -1401,7 +1562,7 @@ final class HologramImpl implements Hologram {
             return;
         }
         boolean grows = config.click().hoverScale() != 1;
-        if (!grows && plate == null && !hasButtons) {
+        if (!grows && !paneled && !hasButtons) {
             return;
         }
         UUID uuid = viewer.getUniqueId();
@@ -1418,8 +1579,8 @@ final class HologramImpl implements Hologram {
         if (grows) {
             relayout(viewer, HOVER_TICKS);
         }
-        light(viewer, was, plateIdle);
-        light(viewer, target, plateHover);
+        light(viewer, was, IDLE);
+        light(viewer, target, HOVERED);
     }
 
     /**
@@ -1468,6 +1629,15 @@ final class HologramImpl implements Hologram {
 
     /** Whether the viewer's line of sight crosses the click box, within reach. */
     private boolean looksAt(Player viewer, double height) {
+        return aim(viewer, height) >= 0;
+    }
+
+    /**
+     * How far along the viewer's line of sight it enters the click box, or
+     * {@code -1} when it misses it or meets it beyond the click range. The one
+     * ray hover and every click use, so what lights up is what a click hits.
+     */
+    private double aim(Player viewer, double height) {
         Location eye = viewer.getLocation();
         org.bukkit.util.Vector direction = eye.getDirection();
         double[] origin = {eye.getX(), eye.getY() + EYE_HEIGHT, eye.getZ()};
@@ -1477,11 +1647,11 @@ final class HologramImpl implements Hologram {
         double[] min = {at.getX() - half, at.getY(), at.getZ() - half};
         double[] max = {at.getX() + half, at.getY() + height, at.getZ() + half};
         double near = 0;
-        double far = HOVER_REACH;
+        double far = config.click().range();
         for (int axis = 0; axis < 3; axis++) {
             if (Math.abs(dir[axis]) < 1e-9) {
                 if (origin[axis] < min[axis] || origin[axis] > max[axis]) {
-                    return false;
+                    return -1;
                 }
                 continue;
             }
@@ -1490,10 +1660,26 @@ final class HologramImpl implements Hologram {
             near = Math.max(near, Math.min(a, b));
             far = Math.min(far, Math.max(a, b));
             if (near > far) {
-                return false;
+                return -1;
             }
         }
-        return true;
+        return near;
+    }
+
+    /**
+     * How far away a viewer aims at it, for a click made without touching its
+     * box, or {@code -1} when they do not: it rides nothing, takes clicks, is
+     * on their screen and is in their line of sight within range.
+     */
+    double aimedFrom(Player viewer) {
+        UUID uuid = viewer.getUniqueId();
+        if (removed || mount != null || !clickable() || !viewers.contains(uuid)) {
+            return -1;
+        }
+        DisplayState[] current = displays;
+        double top = stack(current, heights(current.length), masks.get(uuid), null,
+                new double[current.length]);
+        return aim(viewer, top);
     }
 
     /**
@@ -1503,14 +1689,14 @@ final class HologramImpl implements Hologram {
      */
     private void press(Player viewer, int target) {
         Viewer state = states.get(viewer.getUniqueId());
-        if (state == null || plateOf(viewer, target) == null) {
+        if (state == null || !drawn(viewer, target)) {
             return;
         }
         state.pressed = target;
         state.pressedAt = Math.max(1, HologramRuntime.now());
         pressing = true;
         relayout(viewer, PRESS_TICKS);
-        light(viewer, target, platePress);
+        light(viewer, target, PRESSED);
     }
 
     /** Springs back the presses that are due. */
@@ -1529,7 +1715,7 @@ final class HologramImpl implements Hologram {
             state.pressed = NONE;
             state.pressedAt = 0;
             relayout(viewer, HOVER_TICKS);
-            light(viewer, target, state.hover == target ? plateHover : plateIdle);
+            light(viewer, target, state.hover == target ? HOVERED : IDLE);
         }
         pressing = waiting;
     }
@@ -1629,37 +1815,17 @@ final class HologramImpl implements Hologram {
             return;
         }
         if (wholePlated(viewer)) {
-            HologramRuntime.sink().spawn(viewer, plate, at, PLATE_TEXT, wholePlateView(layout));
-        }
-        DisplayState[] current = displays;
-        DisplayState[] plates = buttonPlates;
-        for (int i = 0; i < plates.length && i < current.length; i++) {
-            if (plates[i] != null && shown(mask, i)) {
-                HologramRuntime.sink().spawn(viewer, plates[i], at, PLATE_TEXT,
-                        buttonPlateView(current, i, layout));
-            }
+            HologramRuntime.sink().spawn(viewer, plate, at, PLATE_TEXT, wholePlateView(viewer, layout));
         }
         Viewer state = states.get(viewer.getUniqueId());
         if (state != null && state.hover != NONE) {
-            light(viewer, state.hover, plateHover);
+            light(viewer, state.hover, HOVERED);
         }
     }
 
-    /** The click box and every panel, for taking them off a client. */
+    /** The click box and the panel, for taking them off a client. */
     private int[] controlIds() {
-        DisplayState[] plates = buttonPlates;
-        int[] ids = new int[2 + plates.length];
-        int count = 0;
-        ids[count++] = hitboxId;
-        if (plate != null) {
-            ids[count++] = plate.entityId();
-        }
-        for (DisplayState panel : plates) {
-            if (panel != null) {
-                ids[count++] = panel.entityId();
-            }
-        }
-        return Arrays.copyOf(ids, count);
+        return plate == null ? new int[]{hitboxId} : new int[]{hitboxId, plate.entityId()};
     }
 
     /**
@@ -1816,8 +1982,7 @@ final class HologramImpl implements Hologram {
 
     /** Replaces the displays, for a hologram whose lines changed shape. */
     void rebuildDisplays() {
-        this.displays = build(config, styles);
-        this.buttonPlates = buildPlates(styles);
+        this.displays = build(styles);
         resolveHeads(displays);
         this.lastText = new String[displays.length];
         refresh();

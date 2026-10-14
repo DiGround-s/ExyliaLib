@@ -1040,21 +1040,29 @@ class HologramTest {
         // Join is 65.0 to 65.25, Title above it; the eye is at 65.62, three blocks back.
         near.at(new Location(world, 0, 64, -3, 0, (float) Math.toDegrees(Math.atan(0.5 / 3))));
         drive();
-        assertEquals(4, sink.count("spawn"), "two lines, the hologram's panel and the button's");
+        assertEquals(2, sink.count("spawn"), "two lines: a button's background is its own, and no slab behind");
         int box = Integer.parseInt(sink.calls("hitbox").get(0).split(":")[2]);
+        DisplayState join = sink.spawnedDisplays.get(1);
+        assertEquals("  Join  ", sink.spawnedText.get(1), "a little room either side of the label");
+        assertEquals(0x598a51c4, join.backgroundArgb(), "{primary} at rest, at 35%");
+        assertFalse(join.properties().defaultBackground());
+        assertEquals(0, sink.spawnedDisplays.get(0).backgroundArgb(), "the title keeps no background");
 
         sink.clear();
         drive();
-        assertEquals(4, sink.count("transform"), "both lines and both panels follow the grown button");
+        assertEquals(2, sink.count("transform"), "both lines follow the grown button");
         assertTrue(sink.lastScale.contains(1.0f), "the title keeps its size: " + sink.lastScale);
         assertTrue(sink.lastScale.contains(1.08f), sink.lastScale.toString());
-        assertTrue(sink.count("look") >= 1, "the button lights up");
+        assertEquals(List.of("look:Near:" + join.entityId() + ":255:ccaa76de"), sink.calls("look"),
+                "the button's own background lights to {secondary} at 80%");
 
         sink.clear();
         HologramRuntime.clicked(near.player(), box, net.exylia.lib.interaction.Click.RIGHT);
         FakeServer.tick(1);
         assertEquals(List.of("joined"), near.commands());
         assertTrue(sink.lastScale.stream().anyMatch(scale -> scale < 1), "pressed in");
+        assertTrue(sink.calls("look").contains("look:Near:" + join.entityId() + ":255:ffaa76de"),
+                "and flashes: " + sink.calls("look"));
 
         sink.clear();
         advanceSeconds(0.2);
@@ -1095,5 +1103,97 @@ class HologramTest {
         assertEquals(0x508a51c4, HologramImpl.argb("{primary}", 0x50));
         assertEquals(10, HologramImpl.step(1.04));
         assertEquals(11, HologramImpl.step(1.06));
+    }
+
+    private HologramConfig clickable(List<String> lines, HologramConfig.Click click) {
+        return new HologramConfig(true, HologramConfig.Kind.TEXT, lines, "", "", false, 32.0, 0, 0, 0,
+                new HologramConfig.Properties(), new HologramConfig.Refresh(), click);
+    }
+
+    @Test
+    @DisplayName("a whole-hologram button gets one panel fitted to its lines, and the lines lose their own")
+    void panelFitsTheLines() {
+        HologramConfig.Click click = new HologramConfig.Click(List.of("next"), 1.5, 0, 1.0);
+        Holograms.show(plugin, "koth", spawn(), clickable(List.of("<size:2>&lGET STARTED", "Line"), click));
+        drive();
+        assertEquals(3, sink.count("spawn"), "two lines and the panel");
+        DisplayState title = sink.spawnedDisplays.get(0);
+        assertEquals(0, title.backgroundArgb(), "no second background under the panel");
+        assertEquals(1, title.billboard(), "upright, as the panel is, so they never part");
+
+        DisplayState.Transform panel = sink.spawnedTransforms.get(2);
+        // "GET STARTED" in bold is 74 pixels; at size 2 its background reaches 38 px * 0.05 = 1.9 either side.
+        double half = (37 + 1) * HologramImpl.PX * 2;
+        // The space's background spans -2 to +3 pixels before the panel's own scale and shift.
+        double left = panel.tx() - 2 * HologramImpl.PX * panel.sx();
+        double right = panel.tx() + 3 * HologramImpl.PX * panel.sx();
+        assertEquals(-(half + 0.07), left, 1e-4);
+        assertEquals(half + 0.07, right, 1e-4);
+        // The title stands on Line (0.25) and is 11 pixels tall at size 2.
+        double top = panel.ty() + 11 * HologramImpl.PX * panel.sy();
+        assertEquals(0.25 + 11 * HologramImpl.PX * 2 + 0.07, top, 1e-4, "the title no longer pokes out");
+        assertEquals(-0.07, panel.ty(), 1e-4);
+        assertTrue(panel.tz() < 0, "behind the lines");
+    }
+
+    @Test
+    @DisplayName("a display's extent is its background: width + 1 pixels, 10 a line + 1, wrapped past the line width")
+    void extents() {
+        double[] plain = HologramImpl.extent(HologramConfig.Kind.TEXT,
+                net.kyori.adventure.text.Component.text("AB"), 200, 1, 1, 0.5);
+        assertEquals((6 + 1) * HologramImpl.PX, plain[0], 1e-9);
+        assertEquals(0.5, plain[1], 1e-9);
+        assertEquals(0.5 + 11 * HologramImpl.PX, plain[2], 1e-9);
+
+        double[] wrapped = HologramImpl.extent(HologramConfig.Kind.TEXT,
+                net.kyori.adventure.text.Component.text("A".repeat(50)), 200, 1, 1, 0);
+        assertEquals((100 + 1) * HologramImpl.PX, wrapped[0], 1e-9, "no wider than the line width");
+        assertEquals(21 * HologramImpl.PX, wrapped[2], 1e-9, "300 pixels wrap onto a second line");
+
+        double[] item = HologramImpl.extent(HologramConfig.Kind.ITEM, null, 200, 0.4, 0.4, 1);
+        assertEquals(0.2, item[0], 1e-9);
+        assertEquals(0.8, item[1], 1e-9);
+        assertEquals(1.2, item[2], 1e-9);
+    }
+
+    @Test
+    @DisplayName("a column of buttons is one width: shorter labels get more room")
+    void buttonsShareAWidth() {
+        HologramConfig.Click click = new HologramConfig.Click(List.of(), 1.5, 0, 1.08, "BUTTON",
+                "{primary}", "{secondary}", "", Map.of("a", List.of("a"), "b", List.of("b")));
+        Holograms.show(plugin, "koth", spawn(), clickable(List.of("<button:a>AAAA", "<button:b>AA"), click));
+        drive();
+        // 12 pixels short: 6 a side, a space and a half, rounded to two.
+        assertEquals(List.of("  AAAA  ", "    AA    "), sink.spawnedText);
+    }
+
+    @Test
+    @DisplayName("a swing or a use aimed at it clicks from as far as it lights up, and only once")
+    void aimedClicksReachAsFarAsTheHover() {
+        Hologram hologram = Holograms.show(plugin, "koth", new Location(world, 0, 65, 0),
+                clickable(List.of("A"), new HologramConfig.Click(List.of("hit"), 1.5, 0)));
+        // Six blocks back, the eye at 65.62 aims at 65.12.
+        near.at(new Location(world, 0, 64, -6, 0, (float) Math.toDegrees(Math.atan(0.5 / 6))));
+        drive();
+        int box = Integer.parseInt(sink.calls("hitbox").get(0).split(":")[2]);
+
+        HologramRuntime.aimed(near.player(), net.exylia.lib.interaction.Click.LEFT);
+        FakeServer.tick(1);
+        assertEquals(List.of("hit"), near.commands(), "well past the hand's reach of the box");
+
+        advanceSeconds(1);
+        HologramRuntime.clicked(near.player(), box, net.exylia.lib.interaction.Click.RIGHT);
+        HologramRuntime.aimed(near.player(), net.exylia.lib.interaction.Click.LEFT);
+        FakeServer.tick(1);
+        assertEquals(List.of("hit", "hit"), near.commands(), "the box's click and the swing after it are one");
+
+        advanceSeconds(1);
+        near.at(new Location(world, 0, 64, -6, 180, 0));
+        HologramRuntime.aimed(near.player(), net.exylia.lib.interaction.Click.LEFT);
+        near.at(new Location(world, 0, 64, -9, 0, (float) Math.toDegrees(Math.atan(0.5 / 9))));
+        HologramRuntime.aimed(near.player(), net.exylia.lib.interaction.Click.LEFT);
+        FakeServer.tick(1);
+        assertEquals(2, near.commands().size(), "looking away, or past its 8 blocks, clicks nothing");
+        assertTrue(hologram.isViewing(near.player()));
     }
 }

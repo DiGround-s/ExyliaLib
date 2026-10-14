@@ -132,6 +132,32 @@ public final class HologramRuntime {
         }
     }
 
+    /**
+     * A player clicked without touching any hologram's box: a swing, or a
+     * right-click holding an item or on a block. The hologram nearest along
+     * their line of sight, within its click range, takes it.
+     *
+     * <p>This is what makes a click reach as far as the hover does: the box
+     * only hears clicks from as close as the client lets a hand touch an
+     * entity. A click that does land on the box arrives first, and its swing
+     * after it, so the second is the one the hologram's click gap swallows.
+     */
+    static void aimed(Player player, net.exylia.lib.interaction.Click click) {
+        HologramImpl nearest = null;
+        double distance = Double.MAX_VALUE;
+        // ponytail: every hologram per swing; index by world or chunk if a server ever has thousands.
+        for (HologramImpl hologram : BY_HITBOX.values()) {
+            double at = hologram.aimedFrom(player);
+            if (at >= 0 && at < distance) {
+                nearest = hologram;
+                distance = at;
+            }
+        }
+        if (nearest != null) {
+            nearest.clicked(player, click);
+        }
+    }
+
     /** A right click, for callers that do not know which button it was. */
     static void clicked(Player player, int entityId) {
         clicked(player, entityId, net.exylia.lib.interaction.Click.RIGHT);

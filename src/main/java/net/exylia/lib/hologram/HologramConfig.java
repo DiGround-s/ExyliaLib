@@ -490,14 +490,17 @@ public record HologramConfig(
             @Comment("How much bigger it grows while a player looks at it. 1 turns it off.")
             double hoverScale,
 
-            @Comment("BUTTON draws a panel behind what can be clicked, lit on hover and flashing on a click.")
+            @Comment("BUTTON draws what can be clicked as a button, lit on hover and flashing on a click:")
+            @Comment("each <button:...> line gets a background of its own, sized to its text; a hologram")
+            @Comment("without button lines whose whole body is clickable gets one slim panel behind its lines.")
             @Comment("NONE draws nothing. Holograms without click lines or buttons never get a panel.")
             String style,
 
-            @Comment("The panel's colour: a palette name like {primary}, or #RRGGBB / #AARRGGBB.")
+            @Comment("The colour at rest: a palette name like {primary}, or #RRGGBB / #AARRGGBB.")
+            @Comment("Without alpha a button rests at 35% and a panel at 25%.")
             String color,
 
-            @Comment("The panel's colour while a player looks at it.")
+            @Comment("The colour while a player aims at it. Without alpha a button lights at 80%, a panel at 45%.")
             String hoverColor,
 
             @Comment("A sound for every click, as [SOUND] takes it: UI_BUTTON_CLICK;0.6;1.4. Empty for none.")
@@ -505,7 +508,16 @@ public record HologramConfig(
 
             @Comment("Click lines for single lines: a line starting with <button:join> runs 'join' here")
             @Comment("instead of the commands above, and lights up on its own.")
-            Map<String, List<String>> buttons) {
+            Map<String, List<String>> buttons,
+
+            @Comment("How far away, in blocks, a player can aim at it: it lights up and takes clicks.")
+            @Comment("A left-click, or a right-click holding an item, reaches this far. A right-click")
+            @Comment("with an empty hand only reaches as far as the game lets a hand touch an entity")
+            @Comment("(3 blocks in survival), because the client sends nothing for it further away.")
+            double range) {
+
+        /** How far a player can aim at a hologram unless {@link #range} says otherwise. */
+        public static final double DEFAULT_RANGE = 8.0;
 
         /** {@link #style} drawing a panel. */
         public static final String STYLE_BUTTON = "BUTTON";
@@ -532,6 +544,39 @@ public record HologramConfig(
         }
 
         /**
+         * A click section as written before 1.303.0 added {@code range}: it
+         * reaches {@value #DEFAULT_RANGE} blocks.
+         *
+         * @param commands   what runs
+         * @param width      how wide the box is
+         * @param cooldown   milliseconds between two clicks of the same player
+         * @param hoverScale how much bigger it grows while looked at
+         * @param style      {@code BUTTON} or {@code NONE}
+         * @param color      the panel colour at rest
+         * @param hoverColor the panel colour while looked at
+         * @param sound      a sound for every click
+         * @param buttons    click lines by button name
+         */
+        public Click(List<String> commands, double width, long cooldown, double hoverScale,
+                     String style, String color, String hoverColor, String sound,
+                     Map<String, List<String>> buttons) {
+            this(commands, width, cooldown, hoverScale, style, color, hoverColor, sound, buttons,
+                    DEFAULT_RANGE);
+        }
+
+        /**
+         * This section with another reach.
+         *
+         * @param range how far away it can be aimed at, in blocks
+         * @return the changed copy
+         * @since 1.303.0
+         */
+        public Click withRange(double range) {
+            return new Click(commands, width, cooldown, hoverScale, style, color, hoverColor, sound,
+                    buttons, range);
+        }
+
+        /**
          * Whether the button look is on.
          *
          * @return {@code false} for {@code NONE}, {@code OFF} or {@code FALSE}
@@ -553,7 +598,7 @@ public record HologramConfig(
          */
         public Click withButtons(Map<String, List<String>> buttons) {
             return new Click(commands, width, cooldown, hoverScale, style, color, hoverColor, sound,
-                    buttons);
+                    buttons, range);
         }
 
         /**
@@ -580,6 +625,10 @@ public record HologramConfig(
             color = color == null || color.isBlank() ? "{primary}" : color.trim();
             hoverColor = hoverColor == null || hoverColor.isBlank() ? "{secondary}" : hoverColor.trim();
             sound = sound == null ? "" : sound.trim();
+            if (!(range > 0)) {
+                range = DEFAULT_RANGE;
+            }
+            range = Math.min(range, 32);
             if (buttons == null || buttons.isEmpty()) {
                 buttons = Map.of();
             } else {

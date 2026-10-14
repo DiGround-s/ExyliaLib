@@ -204,6 +204,49 @@ public final class Centering {
         return width;
     }
 
+    /**
+     * Returns how wide a parsed line is drawn, in pixels: the widest of its
+     * lines when it holds a line break.
+     *
+     * <p>Measures what reaches the screen, so colours and placeholders cost
+     * nothing and bold, set anywhere up the tree, adds a pixel per character.
+     * The same count the client makes for a text display's background, which
+     * is {@code pixelWidth + 1} pixels wide.
+     *
+     * @param component the parsed line
+     * @return its width in pixels
+     * @since 1.303.0
+     */
+    public static int pixelWidth(@NotNull net.kyori.adventure.text.Component component) {
+        int[] widths = {0, 0};
+        measure(component, false, widths);
+        return Math.max(widths[0], widths[1]);
+    }
+
+    /** Adds a component and its children to {@code widths}: the current line, then the widest so far. */
+    private static void measure(net.kyori.adventure.text.Component component, boolean inheritedBold,
+                                int[] widths) {
+        net.kyori.adventure.text.format.TextDecoration.State state =
+                component.style().decoration(net.kyori.adventure.text.format.TextDecoration.BOLD);
+        boolean bold = state == net.kyori.adventure.text.format.TextDecoration.State.NOT_SET
+                ? inheritedBold : state == net.kyori.adventure.text.format.TextDecoration.State.TRUE;
+        String content = component instanceof net.kyori.adventure.text.TextComponent text ? text.content()
+                : net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer.plainText()
+                .serialize(component.children(List.of()));
+        for (int i = 0; i < content.length(); i++) {
+            char drawn = content.charAt(i);
+            if (drawn == '\n') {
+                widths[1] = Math.max(widths[1], widths[0]);
+                widths[0] = 0;
+                continue;
+            }
+            widths[0] += (bold ? FontWidths.boldWidthOf(drawn) : FontWidths.widthOf(drawn)) + 1;
+        }
+        for (net.kyori.adventure.text.Component child : component.children()) {
+            measure(child, bold, widths);
+        }
+    }
+
     private static boolean isFormattingCode(char code) {
         return (code >= '0' && code <= '9')
                 || (code >= 'a' && code <= 'f')
