@@ -58,6 +58,12 @@ final class FakeSink implements DisplaySink {
     }
 
     @Override
+    public void look(Player viewer, DisplayState display, int opacity, int background) {
+        calls.add("look:" + name(viewer) + ":" + display.entityId() + ":" + opacity + ":"
+                + Integer.toHexString(background));
+    }
+
+    @Override
     public void teleport(Player viewer, int entityId, Location to) {
         calls.add("teleport:" + name(viewer) + ":" + entityId
                 + ":" + format(to.getY()));

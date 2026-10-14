@@ -704,9 +704,13 @@ Bukkit entity, never an ArmorStand, never a hand-spawned `TextDisplay`.
   that has them is diffed and only it is resent, not the whole hologram.
 - **Per-line styling is tags at the start of the line**, never new YAML keys
   (`LineStyle`): look (`size`, `opacity`, `background`, `shadow`), models
-  (`item`, `block`, `head`, `glow`), motion (`spin`, `bob`, `pulse`, `typewriter`),
-  colour (`shine`, `flow`) and
-  who sees it (`range`, `perm`, `if`). A sized line takes room in proportion,
+  (`item`, `block`, `head`, `glow`), layout (`gap`, `align`, `width`,
+  `billboard`, `seethrough`, `brightness`, `autoscale`), motion (`spin`, `sway`,
+  `bob`, `pulse`, `typewriter`, `scramble`), colour and text (`shine`, `flow`,
+  `rainbow`, `frames`, `marquee`, `fade`, `blink`), clicks (`button`) and
+  who sees it (`range`, `perm`, `if`). A tag's tuning goes in `key=value`
+  options after its value (`<shine:highlight,speed=15>`), each a nullable
+  `HologramLine` component. A sized line takes room in proportion,
   so the stack re-lays itself out; anything else at the start is left for the
   text parser. A new per-line feature is a new tag in `LineStyle`, not a key.
 - **Motion is client-interpolated keyframes.** One transformation every
@@ -720,7 +724,14 @@ Bukkit entity, never an ArmorStand, never a hand-spawned `TextDisplay`.
   (`Interactions.compile(..., tokens)`), not a registered one.
 - **Clicks are an interaction entity** spawned only when `click.commands` or
   `onClick` exist; the packet is cancelled before the server sees the id.
-  Looking at it grows the hologram by `click.hover-scale`. `click.commands`
+  Looking at it grows the hologram by `click.hover-scale`. Holograms with
+  click lines get the button look (`click.style`, a stretched one-space text
+  display as panel, lit on hover, squashed on press); `<button:name>` lines run
+  `click.buttons.name`, and which line was clicked comes from the aim height on
+  the one click box, never from extra entities.
+- **Size by distance is per viewer and stepped** (`properties.distance-scale`,
+  `<autoscale>`): checked on the visibility pass, re-sent only when a viewer's
+  0.1 step changes, through the same `Layout` that spreads hover growth. `click.commands`
   are interaction lines (`net.exylia.lib.interaction`, 1.291.0): the packet's
   attack/use and sneaking become a `Click`, and the lines filter on it.
 

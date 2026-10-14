@@ -4,7 +4,9 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.math.BigDecimal;
+import java.util.HashMap;
 import java.util.Locale;
+import java.util.Map;
 
 /**
  * One line of a text hologram as it is written: the tags at its start and the
@@ -50,6 +52,43 @@ import java.util.Locale;
  * @param head       the player head of a head line: a player name, a UUID, a
  *                   base64 texture or a {@code textures.minecraft.net} URL, or
  *                   {@code null}; since 1.297.0
+ * @param gap          extra blocks above the line, negative to pull the lines
+ *                     above it closer; since 1.301.0
+ * @param align        the line's own text alignment: {@code left},
+ *                     {@code center} or {@code right}; since 1.301.0
+ * @param width        where the line wraps, in pixels; since 1.301.0
+ * @param seeThrough   whether the line shows through blocks; since 1.301.0
+ * @param brightness   the line's fixed light level, 0 to 15, or -1 for the
+ *                     light where it stands; since 1.301.0
+ * @param billboard    how the line turns towards the player: {@code fixed},
+ *                     {@code center}, {@code vertical} or {@code horizontal};
+ *                     since 1.301.0
+ * @param autoscale    how the line grows with the viewer's distance: empty for
+ *                     the hologram's curve, or {@code start,end,max}; since
+ *                     1.301.0
+ * @param shineSpeed   characters a second the shine band travels; since 1.301.0
+ * @param shinePause   seconds between two sweeps of the shine; since 1.301.0
+ * @param shineWidth   half the width of the shine band, in characters; since
+ *                     1.301.0
+ * @param bobPeriod    seconds one bob takes, up and back; since 1.301.0
+ * @param pulsePeriod  seconds one pulse takes; since 1.301.0
+ * @param sway         degrees an item or block line turns back and forth;
+ *                     since 1.301.0
+ * @param swayPeriod   seconds one sway takes, there and back; since 1.301.0
+ * @param frames       seconds each frame of the line shows; frames are split
+ *                     by {@code ||} in the text. Since 1.301.0
+ * @param rainbow      characters a second the rainbow runs along the line;
+ *                     since 1.301.0
+ * @param fade         seconds one fade out and back in takes; since 1.301.0
+ * @param blink        seconds one blink takes, shown then hidden; since 1.301.0
+ * @param marquee      how many characters of the line show at once while it
+ *                     scrolls through them; since 1.301.0
+ * @param marqueeSpeed characters a second the marquee scrolls; since 1.301.0
+ * @param scramble     characters a second settle out of random glyphs when a
+ *                     player first sees the line; since 1.301.0
+ * @param button       the name of the line's own click actions in
+ *                     {@code click.buttons}, which makes the line a button of
+ *                     its own; since 1.301.0
  * @since 1.289.1
  */
 public record HologramLine(@NotNull String text, @Nullable String item, @Nullable String block,
@@ -59,7 +98,17 @@ public record HologramLine(@NotNull String text, @Nullable String item, @Nullabl
                            @Nullable Double pulse, @Nullable Double typewriter,
                            @Nullable String condition, @Nullable String permission,
                            @Nullable Double range, @Nullable String shine, @Nullable Double flow,
-                           @Nullable String head) {
+                           @Nullable String head, @Nullable Double gap, @Nullable String align,
+                           @Nullable Integer width, @Nullable Boolean seeThrough,
+                           @Nullable Integer brightness, @Nullable String billboard,
+                           @Nullable String autoscale, @Nullable Double shineSpeed,
+                           @Nullable Double shinePause, @Nullable Double shineWidth,
+                           @Nullable Double bobPeriod, @Nullable Double pulsePeriod,
+                           @Nullable Double sway, @Nullable Double swayPeriod,
+                           @Nullable Double frames, @Nullable Double rainbow, @Nullable Double fade,
+                           @Nullable Double blink, @Nullable Integer marquee,
+                           @Nullable Double marqueeSpeed, @Nullable Double scramble,
+                           @Nullable String button) {
 
     /** What a bare tag means. */
     public static final double DEFAULT_SPIN = 90;
@@ -67,9 +116,66 @@ public record HologramLine(@NotNull String text, @Nullable String item, @Nullabl
     public static final double DEFAULT_PULSE = 0.06;
     public static final double DEFAULT_TYPEWRITER = 24;
     public static final double DEFAULT_FLOW = 4;
+    /** @since 1.301.0 */
+    public static final double DEFAULT_SWAY = 15;
+    /** @since 1.301.0 */
+    public static final double DEFAULT_FRAMES = 2;
+    /** @since 1.301.0 */
+    public static final double DEFAULT_RAINBOW = 6;
+    /** @since 1.301.0 */
+    public static final double DEFAULT_FADE = 3;
+    /** @since 1.301.0 */
+    public static final double DEFAULT_BLINK = 1;
+    /** @since 1.301.0 */
+    public static final int DEFAULT_MARQUEE = 24;
+    /** @since 1.301.0 */
+    public static final double DEFAULT_SCRAMBLE = 20;
+
+    /** What splits the frames of a {@code <frames>} line. Since 1.301.0. */
+    public static final String FRAME_SEPARATOR = "||";
 
     public HologramLine {
         text = text == null ? "" : text;
+        // An option belongs to its tag: without the tag it is never written,
+        // so it is not kept either, and a round trip stays equal.
+        if (shine == null) {
+            shineSpeed = null;
+            shinePause = null;
+            shineWidth = null;
+        }
+        if (bob == null) {
+            bobPeriod = null;
+        }
+        if (pulse == null) {
+            pulsePeriod = null;
+        }
+        if (sway == null) {
+            swayPeriod = null;
+        }
+        if (marquee == null) {
+            marqueeSpeed = null;
+        }
+    }
+
+    /**
+     * A line as written before 1.301.0 added layout, motion options, new
+     * animations and buttons.
+     *
+     * @deprecated use {@link #builder()}
+     */
+    @Deprecated(since = "1.301.0")
+    public HologramLine(@NotNull String text, @Nullable String item, @Nullable String block,
+                        @Nullable Double size, @Nullable Integer opacity,
+                        @Nullable String background, @Nullable Boolean shadow,
+                        @Nullable String glow, @Nullable Double spin, @Nullable Double bob,
+                        @Nullable Double pulse, @Nullable Double typewriter,
+                        @Nullable String condition, @Nullable String permission,
+                        @Nullable Double range, @Nullable String shine, @Nullable Double flow,
+                        @Nullable String head) {
+        this(text, item, block, size, opacity, background, shadow, glow, spin, bob, pulse,
+                typewriter, condition, permission, range, shine, flow, head,
+                null, null, null, null, null, null, null, null, null, null, null, null, null,
+                null, null, null, null, null, null, null, null, null);
     }
 
     /**
@@ -86,7 +192,7 @@ public record HologramLine(@NotNull String text, @Nullable String item, @Nullabl
                         @Nullable String condition, @Nullable String permission,
                         @Nullable Double range, @Nullable String shine, @Nullable Double flow) {
         this(text, item, block, size, opacity, background, shadow, glow, spin, bob, pulse,
-                typewriter, condition, permission, range, shine, flow, null);
+                typewriter, condition, permission, range, shine, flow, (String) null);
     }
 
     /**
@@ -160,14 +266,30 @@ public record HologramLine(@NotNull String text, @Nullable String item, @Nullabl
         tag(out, "background", background);
         tag(out, "shadow", shadow);
         tag(out, "glow", glow);
+        tag(out, "align", align);
+        tag(out, "width", width);
+        tag(out, "billboard", billboard);
+        tag(out, "seethrough", seeThrough);
+        tag(out, "brightness", brightness);
+        tag(out, "gap", gap);
+        tag(out, "autoscale", autoscale);
         tag(out, "spin", spin);
-        tag(out, "bob", bob);
-        tag(out, "pulse", pulse);
-        tag(out, "shine", shine);
+        tag(out, "sway", sway == null ? null : options(sway, "period", swayPeriod));
+        tag(out, "bob", bob == null ? null : options(bob, "period", bobPeriod));
+        tag(out, "pulse", pulse == null ? null : options(pulse, "period", pulsePeriod));
+        tag(out, "shine", shine == null ? null
+                : options(shine, "speed", shineSpeed, "pause", shinePause, "width", shineWidth));
         tag(out, "flow", flow);
+        tag(out, "rainbow", rainbow);
+        tag(out, "frames", frames);
+        tag(out, "marquee", marquee == null ? null : options(marquee, "speed", marqueeSpeed));
+        tag(out, "fade", fade);
+        tag(out, "blink", blink);
         tag(out, "typewriter", typewriter);
+        tag(out, "scramble", scramble);
         tag(out, "range", range);
         tag(out, "perm", permission);
+        tag(out, "button", button);
         if (condition != null) {
             out.append("<if:\"").append(condition).append("\">");
         }
@@ -193,8 +315,14 @@ public record HologramLine(@NotNull String text, @Nullable String item, @Nullabl
         return new Builder().text(text).item(item).block(block).size(size).opacity(opacity)
                 .background(background).shadow(shadow).glow(glow).spin(spin).bob(bob).pulse(pulse)
                 .typewriter(typewriter).condition(condition).permission(permission).range(range)
-                .shine(shine).flow(flow).head(head);
+                .shine(shine).flow(flow).head(head).gap(gap).align(align).width(width)
+                .seeThrough(seeThrough).brightness(brightness).billboard(billboard)
+                .autoscale(autoscale).shineSpeed(shineSpeed).shinePause(shinePause)
+                .shineWidth(shineWidth).bobPeriod(bobPeriod).pulsePeriod(pulsePeriod).sway(sway)
+                .swayPeriod(swayPeriod).frames(frames).rainbow(rainbow).fade(fade).blink(blink)
+                .marquee(marquee).marqueeSpeed(marqueeSpeed).scramble(scramble).button(button);
     }
+
 
     /** @return a builder for a new line */
     public static @NotNull Builder builder() {
@@ -205,14 +333,32 @@ public record HologramLine(@NotNull String text, @Nullable String item, @Nullabl
         if (value == null) {
             return;
         }
-        String written = value instanceof Double number
-                ? BigDecimal.valueOf(number).stripTrailingZeros().toPlainString()
-                : String.valueOf(value);
+        String written = format(value);
         out.append('<').append(key);
         if (!written.isEmpty()) {
             out.append(':').append(written.indexOf('>') >= 0 ? "\"" + written + "\"" : written);
         }
         out.append('>');
+    }
+
+    private static String format(Object value) {
+        return value instanceof Double number
+                ? BigDecimal.valueOf(number).stripTrailingZeros().toPlainString()
+                : String.valueOf(value);
+    }
+
+    /** A tag's value with its {@code key=value} options after it, the unset ones left out. */
+    private static String options(Object main, Object... pairs) {
+        StringBuilder out = new StringBuilder(format(main));
+        for (int i = 0; i + 1 < pairs.length; i += 2) {
+            if (pairs[i + 1] != null) {
+                if (!out.isEmpty()) {
+                    out.append(',');
+                }
+                out.append(pairs[i]).append('=').append(format(pairs[i + 1]));
+            }
+        }
+        return out.toString();
     }
 
     private static String unquote(String value) {
@@ -244,6 +390,28 @@ public record HologramLine(@NotNull String text, @Nullable String item, @Nullabl
         private String shine;
         private Double flow;
         private String head;
+        private Double gap;
+        private String align;
+        private Integer width;
+        private Boolean seeThrough;
+        private Integer brightness;
+        private String billboard;
+        private String autoscale;
+        private Double shineSpeed;
+        private Double shinePause;
+        private Double shineWidth;
+        private Double bobPeriod;
+        private Double pulsePeriod;
+        private Double sway;
+        private Double swayPeriod;
+        private Double frames;
+        private Double rainbow;
+        private Double fade;
+        private Double blink;
+        private Integer marquee;
+        private Double marqueeSpeed;
+        private Double scramble;
+        private String button;
 
         private Builder() {
         }
@@ -363,9 +531,147 @@ public record HologramLine(@NotNull String text, @Nullable String item, @Nullabl
             return this;
         }
 
+        /** Extra blocks above the line, negative to pull the lines above closer. Since 1.301.0. */
+        public @NotNull Builder gap(@Nullable Double gap) {
+            this.gap = gap;
+            return this;
+        }
+
+        /** {@code left}, {@code center} or {@code right}. Since 1.301.0. */
+        public @NotNull Builder align(@Nullable String align) {
+            this.align = blank(align) ? null : align.trim().toLowerCase(Locale.ROOT);
+            return this;
+        }
+
+        /** Where the line wraps, in pixels. Since 1.301.0. */
+        public @NotNull Builder width(@Nullable Integer width) {
+            this.width = width;
+            return this;
+        }
+
+        /** Since 1.301.0. */
+        public @NotNull Builder seeThrough(@Nullable Boolean seeThrough) {
+            this.seeThrough = seeThrough;
+            return this;
+        }
+
+        /** 0 to 15, or -1 for the light where it stands. Since 1.301.0. */
+        public @NotNull Builder brightness(@Nullable Integer brightness) {
+            this.brightness = brightness;
+            return this;
+        }
+
+        /** {@code fixed}, {@code center}, {@code vertical} or {@code horizontal}. Since 1.301.0. */
+        public @NotNull Builder billboard(@Nullable String billboard) {
+            this.billboard = blank(billboard) ? null : billboard.trim().toLowerCase(Locale.ROOT);
+            return this;
+        }
+
+        /**
+         * Empty for the hologram's distance curve, {@code start,end,max} for the
+         * line's own, {@code null} for none. Since 1.301.0.
+         */
+        public @NotNull Builder autoscale(@Nullable String autoscale) {
+            this.autoscale = autoscale == null ? null : autoscale.replace(" ", "");
+            return this;
+        }
+
+        /** Characters a second; kept only with {@link #shine}. Since 1.301.0. */
+        public @NotNull Builder shineSpeed(@Nullable Double shineSpeed) {
+            this.shineSpeed = shineSpeed;
+            return this;
+        }
+
+        /** Seconds between sweeps; kept only with {@link #shine}. Since 1.301.0. */
+        public @NotNull Builder shinePause(@Nullable Double shinePause) {
+            this.shinePause = shinePause;
+            return this;
+        }
+
+        /** Half the band, in characters; kept only with {@link #shine}. Since 1.301.0. */
+        public @NotNull Builder shineWidth(@Nullable Double shineWidth) {
+            this.shineWidth = shineWidth;
+            return this;
+        }
+
+        /** Seconds; kept only with {@link #bob}. Since 1.301.0. */
+        public @NotNull Builder bobPeriod(@Nullable Double bobPeriod) {
+            this.bobPeriod = bobPeriod;
+            return this;
+        }
+
+        /** Seconds; kept only with {@link #pulse}. Since 1.301.0. */
+        public @NotNull Builder pulsePeriod(@Nullable Double pulsePeriod) {
+            this.pulsePeriod = pulsePeriod;
+            return this;
+        }
+
+        /** Degrees either way. Since 1.301.0. */
+        public @NotNull Builder sway(@Nullable Double sway) {
+            this.sway = sway;
+            return this;
+        }
+
+        /** Seconds; kept only with {@link #sway}. Since 1.301.0. */
+        public @NotNull Builder swayPeriod(@Nullable Double swayPeriod) {
+            this.swayPeriod = swayPeriod;
+            return this;
+        }
+
+        /** Seconds a frame. Since 1.301.0. */
+        public @NotNull Builder frames(@Nullable Double frames) {
+            this.frames = frames;
+            return this;
+        }
+
+        /** Characters a second. Since 1.301.0. */
+        public @NotNull Builder rainbow(@Nullable Double rainbow) {
+            this.rainbow = rainbow;
+            return this;
+        }
+
+        /** Seconds a fade out and in. Since 1.301.0. */
+        public @NotNull Builder fade(@Nullable Double fade) {
+            this.fade = fade;
+            return this;
+        }
+
+        /** Seconds a blink. Since 1.301.0. */
+        public @NotNull Builder blink(@Nullable Double blink) {
+            this.blink = blink;
+            return this;
+        }
+
+        /** Characters shown at once. Since 1.301.0. */
+        public @NotNull Builder marquee(@Nullable Integer marquee) {
+            this.marquee = marquee;
+            return this;
+        }
+
+        /** Characters a second; kept only with {@link #marquee}. Since 1.301.0. */
+        public @NotNull Builder marqueeSpeed(@Nullable Double marqueeSpeed) {
+            this.marqueeSpeed = marqueeSpeed;
+            return this;
+        }
+
+        /** Characters a second. Since 1.301.0. */
+        public @NotNull Builder scramble(@Nullable Double scramble) {
+            this.scramble = scramble;
+            return this;
+        }
+
+        /** The name of the line's click actions in {@code click.buttons}. Since 1.301.0. */
+        public @NotNull Builder button(@Nullable String button) {
+            this.button = blank(button) ? null : button.trim();
+            return this;
+        }
+
         public @NotNull HologramLine build() {
             return new HologramLine(text, item, block, size, opacity, background, shadow, glow,
-                    spin, bob, pulse, typewriter, condition, permission, range, shine, flow, head);
+                    spin, bob, pulse, typewriter, condition, permission, range, shine, flow, head,
+                    gap, align, width, seeThrough, brightness, billboard, autoscale, shineSpeed,
+                    shinePause, shineWidth, bobPeriod, pulsePeriod, sway, swayPeriod, frames,
+                    rainbow, fade, blink, marquee, marqueeSpeed, scramble, button);
         }
 
         /** Takes one tag as written, or answers {@code false} when it is not one. */
@@ -388,14 +694,89 @@ public record HologramLine(@NotNull String text, @Nullable String item, @Nullabl
                     }
                     case "glow" -> glow = value;
                     case "spin" -> spin = number(value, DEFAULT_SPIN);
-                    case "bob" -> bob = number(value, DEFAULT_BOB);
-                    case "pulse" -> pulse = number(value, DEFAULT_PULSE);
                     case "typewriter" -> typewriter = number(value, DEFAULT_TYPEWRITER);
                     case "if" -> condition = value.isEmpty() ? null : value;
                     case "perm" -> permission = value.isEmpty() ? null : value;
                     case "range" -> range = Double.parseDouble(value);
-                    case "shine" -> shine = value;
+                    case "shine" -> {
+                        Map<String, Double> options = new HashMap<>();
+                        String colour = options(value, options, "speed", "pause", "width");
+                        shine = colour;
+                        shineSpeed = options.get("speed");
+                        shinePause = options.get("pause");
+                        shineWidth = options.get("width");
+                    }
                     case "flow" -> flow = number(value, DEFAULT_FLOW);
+                    case "bob", "pulse", "sway" -> {
+                        Map<String, Double> options = new HashMap<>();
+                        String amount = options(value, options, "period");
+                        double parsed = number(amount, switch (key) {
+                            case "bob" -> DEFAULT_BOB;
+                            case "pulse" -> DEFAULT_PULSE;
+                            default -> DEFAULT_SWAY;
+                        });
+                        Double period = options.get("period");
+                        switch (key) {
+                            case "bob" -> {
+                                bob = parsed;
+                                bobPeriod = period;
+                            }
+                            case "pulse" -> {
+                                pulse = parsed;
+                                pulsePeriod = period;
+                            }
+                            default -> {
+                                sway = parsed;
+                                swayPeriod = period;
+                            }
+                        }
+                    }
+                    case "gap" -> gap = Double.parseDouble(value);
+                    case "align" -> {
+                        if (!ALIGNMENTS.contains(value.toLowerCase(Locale.ROOT))) {
+                            return false;
+                        }
+                        align(value);
+                    }
+                    case "width" -> width = Integer.parseInt(value);
+                    case "seethrough" -> seeThrough = value.isEmpty() || Boolean.parseBoolean(value);
+                    case "brightness" -> brightness = Integer.parseInt(value);
+                    case "billboard" -> {
+                        if (!BILLBOARDS.contains(value.toLowerCase(Locale.ROOT))) {
+                            return false;
+                        }
+                        billboard(value);
+                    }
+                    case "autoscale" -> {
+                        String curve = value.replace(" ", "");
+                        if (!curve.isEmpty()) {
+                            String[] parts = curve.split(",", -1);
+                            if (parts.length != 3) {
+                                return false;
+                            }
+                            for (String part : parts) {
+                                Double.parseDouble(part);
+                            }
+                        }
+                        autoscale = curve;
+                    }
+                    case "frames" -> frames = value.isEmpty() ? DEFAULT_FRAMES : seconds(value);
+                    case "rainbow" -> rainbow = number(value, DEFAULT_RAINBOW);
+                    case "fade" -> fade = value.isEmpty() ? DEFAULT_FADE : seconds(value);
+                    case "blink" -> blink = value.isEmpty() ? DEFAULT_BLINK : seconds(value);
+                    case "marquee" -> {
+                        Map<String, Double> options = new HashMap<>();
+                        String shown = options(value, options, "speed");
+                        marquee = shown.isEmpty() ? DEFAULT_MARQUEE : Integer.parseInt(shown);
+                        marqueeSpeed = options.get("speed");
+                    }
+                    case "scramble" -> scramble = number(value, DEFAULT_SCRAMBLE);
+                    case "button" -> {
+                        if (value.isEmpty()) {
+                            return false;
+                        }
+                        button(value);
+                    }
                     default -> {
                         return false;
                     }
@@ -404,6 +785,50 @@ public record HologramLine(@NotNull String text, @Nullable String item, @Nullabl
             } catch (NumberFormatException ignored) {
                 return false;
             }
+        }
+
+        private static final java.util.Set<String> ALIGNMENTS = java.util.Set.of("left", "center", "right");
+        private static final java.util.Set<String> BILLBOARDS =
+                java.util.Set.of("fixed", "center", "vertical", "horizontal");
+
+        /**
+         * Splits {@code value,key=number,...} into the value, returned, and
+         * its options, put in {@code into}.
+         *
+         * @throws NumberFormatException for an option that is not one of
+         *                               {@code allowed} or not a number, so the
+         *                               tag stays in the text
+         */
+        private static String options(String value, Map<String, Double> into, String... allowed) {
+            String[] parts = value.split(",", -1);
+            int first = 0;
+            String main = "";
+            if (parts.length > 0 && parts[0].indexOf('=') < 0) {
+                main = parts[0].trim();
+                first = 1;
+            }
+            for (int i = first; i < parts.length; i++) {
+                String part = parts[i];
+                int equals = part.indexOf('=');
+                String name = equals < 0 ? "" : part.substring(0, equals).trim().toLowerCase(Locale.ROOT);
+                if (equals < 0 || !java.util.Arrays.asList(allowed).contains(name)) {
+                    throw new NumberFormatException("not an option: " + part);
+                }
+                into.put(name, seconds(part.substring(equals + 1).trim()));
+            }
+            return main;
+        }
+
+        /** A number of seconds, written bare, with {@code s} or with {@code ms}. */
+        private static double seconds(String value) {
+            String trimmed = value.trim().toLowerCase(Locale.ROOT);
+            if (trimmed.endsWith("ms")) {
+                return Double.parseDouble(trimmed.substring(0, trimmed.length() - 2)) / 1000;
+            }
+            if (trimmed.endsWith("s")) {
+                trimmed = trimmed.substring(0, trimmed.length() - 1);
+            }
+            return Double.parseDouble(trimmed);
         }
 
         private static double number(String value, double fallback) {

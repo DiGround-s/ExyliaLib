@@ -229,6 +229,42 @@ class ConfigModuleTest {
         assertEquals(1.5, click.width());
     }
 
+    @Test
+    @DisplayName("buttons, the button look and the distance curve are read from YAML")
+    void hologramButtonsAndDistanceScale() throws IOException {
+        Files.writeString(file("trophy"), """
+                trophy:
+                  enabled: true
+                  lines:
+                    - '<button:join>Join'
+                  properties:
+                    distance-scale:
+                      enabled: true
+                      start: 4.0
+                      end: 20.0
+                      max: 3.0
+                  click:
+                    style: NONE
+                    sound: 'UI_BUTTON_CLICK;0.6;1.4'
+                    buttons:
+                      join:
+                        - 'arena join'
+                      leave:
+                        - 'arena leave'
+                """);
+        net.exylia.lib.hologram.HologramConfig trophy =
+                Configs.define(plugin, "trophy", Trophy.class).load().get().trophy();
+        assertEquals(List.of("arena join"), trophy.click().buttons().get("join"));
+        assertEquals(List.of("join", "leave"), List.copyOf(trophy.click().buttons().keySet()));
+        assertFalse(trophy.click().buttonStyle());
+        assertEquals("UI_BUTTON_CLICK;0.6;1.4", trophy.click().sound());
+        assertEquals("{primary}", trophy.click().color(), "unwritten keys keep their default");
+        assertTrue(trophy.properties().distanceScale().enabled());
+        assertEquals(3.0, trophy.properties().distanceScale().max());
+        assertEquals(1.0, trophy.properties().distanceScale().min());
+        assertTrue(contents("trophy").contains("hover-color:"), contents("trophy"));
+    }
+
     // ------------------------------------------------------------------
     // Lengths of time
     // ------------------------------------------------------------------

@@ -81,4 +81,116 @@ class HologramLineTest {
         assertEquals(net.exylia.lib.skull.SkullSource.texture("eyJ0ZXh0dXJlcyI6e30="),
                 net.exylia.lib.skull.SkullSource.parse("eyJ0ZXh0dXJlcyI6e30="));
     }
+
+    @Test
+    @DisplayName("every tag added in 1.301.0 reads back exactly as it is written")
+    void newTagsRoundTrip() {
+        for (String raw : java.util.List.of(
+                "<gap:0.3>Hi",
+                "<gap:-0.1>Hi",
+                "<align:left>Hi",
+                "<width:120>Hi",
+                "<billboard:fixed>Hi",
+                "<seethrough:true>Hi",
+                "<seethrough:false>Hi",
+                "<brightness:15>Hi",
+                "<autoscale>Hi",
+                "<autoscale:4,24,3>Hi",
+                "<sway:20>Hi",
+                "<sway:20,period=6>Hi",
+                "<bob:0.1,period=3>Hi",
+                "<pulse:0.05,period=4>Hi",
+                "<shine:highlight,speed=15,pause=1,width=4>Hi",
+                "<shine:speed=15>Hi",
+                "<rainbow:8>Hi",
+                "<frames:1.5>A||B",
+                "<marquee:20>Hi",
+                "<marquee:20,speed=3>Hi",
+                "<fade:2>Hi",
+                "<blink:0.5>Hi",
+                "<scramble:30>Hi",
+                "<button:join>Hi",
+                "<size:2><align:right><gap:0.2><spin:90><rainbow:6><typewriter:24><range:8><button:join><if:\"%a% > 1\">Hi")) {
+            HologramLine line = HologramLine.parse(raw);
+            assertEquals(raw, line.raw(), raw);
+            assertEquals(line, HologramLine.parse(line.raw()), raw);
+            assertTrue(line.hasTags(), raw);
+        }
+    }
+
+    @Test
+    @DisplayName("new tags read into their fields, bare ones into their defaults")
+    void newTagsRead() {
+        HologramLine line = HologramLine.parse(
+                "<shine:#ffd700,width=4,speed=15><bob:period=5><align:LEFT><autoscale><frames:500ms>A||B");
+        assertEquals("#ffd700", line.shine());
+        assertEquals(15.0, line.shineSpeed());
+        assertEquals(4.0, line.shineWidth());
+        assertNull(line.shinePause());
+        assertEquals(HologramLine.DEFAULT_BOB, line.bob());
+        assertEquals(5.0, line.bobPeriod());
+        assertEquals("left", line.align());
+        assertEquals("", line.autoscale());
+        assertEquals(0.5, line.frames());
+        assertEquals("A||B", line.text());
+
+        assertEquals(HologramLine.DEFAULT_SWAY, HologramLine.parse("<sway>x").sway());
+        assertEquals(HologramLine.DEFAULT_FRAMES, HologramLine.parse("<frames>x").frames());
+        assertEquals(HologramLine.DEFAULT_RAINBOW, HologramLine.parse("<rainbow>x").rainbow());
+        assertEquals(HologramLine.DEFAULT_FADE, HologramLine.parse("<fade>x").fade());
+        assertEquals(HologramLine.DEFAULT_BLINK, HologramLine.parse("<blink>x").blink());
+        assertEquals(HologramLine.DEFAULT_MARQUEE, HologramLine.parse("<marquee>x").marquee());
+        assertEquals(HologramLine.DEFAULT_SCRAMBLE, HologramLine.parse("<scramble>x").scramble());
+        assertEquals(Boolean.TRUE, HologramLine.parse("<seethrough>x").seeThrough());
+        assertEquals("<frames:2>x", HologramLine.parse("<frames>x").raw());
+        assertEquals("<shine>x", HologramLine.parse("<shine>x").raw(), "a bare shine is unchanged");
+        assertEquals("<shine:highlight>x", HologramLine.parse("<shine:highlight>x").raw());
+    }
+
+    @Test
+    @DisplayName("a broken new tag stays in the text, and options need their tag")
+    void brokenNewTags() {
+        for (String raw : java.util.List.of("<align:middle>x", "<billboard:up>x",
+                "<autoscale:1,2>x", "<shine:gold,speed=fast>x", "<bob:0.1,speed=2>x",
+                "<button>x", "<gap:wide>x", "<marquee:ten>x")) {
+            HologramLine line = HologramLine.parse(raw);
+            assertEquals(raw, line.text(), raw);
+            assertFalse(line.hasTags(), raw);
+        }
+        HologramLine cleared = HologramLine.parse("<shine:gold,speed=5><bob:0.1,period=3>x")
+                .toBuilder().shine(null).bob(null).build();
+        assertNull(cleared.shineSpeed());
+        assertNull(cleared.bobPeriod());
+        assertEquals("x", cleared.raw());
+    }
+
+    @Test
+    @DisplayName("the distance curve grows in a straight line between start and end")
+    void distanceCurve() {
+        HologramConfig.DistanceScale curve = new HologramConfig.DistanceScale(true, 8, 32, 1, 2.5);
+        assertEquals(1.0, curve.scaleAt(0), 1e-9);
+        assertEquals(1.0, curve.scaleAt(8), 1e-9);
+        assertEquals(1.75, curve.scaleAt(20), 1e-9);
+        assertEquals(2.5, curve.scaleAt(32), 1e-9);
+        assertEquals(2.5, curve.scaleAt(500), 1e-9);
+
+        HologramConfig.DistanceScale clamped = new HologramConfig.DistanceScale(true, 10, 5, 0, 99);
+        assertEquals(11, clamped.end(), 1e-9, "an end before the start is moved past it");
+        assertEquals(0.1, clamped.min(), 1e-9);
+        assertEquals(10, clamped.max(), 1e-9);
+        assertFalse(new HologramConfig.Properties().distanceScale().enabled(), "off unless asked");
+    }
+
+    @Test
+    @DisplayName("a click section written before buttons keeps its meaning and gains the button look")
+    void clickDefaults() {
+        HologramConfig.Click old = new HologramConfig.Click(java.util.List.of("spawn"), 1.5, 500);
+        assertTrue(old.buttonStyle());
+        assertEquals(java.util.Map.of(), old.buttons());
+        assertEquals("", old.sound());
+        HologramConfig.Click none = new HologramConfig.Click(java.util.List.of(), 1.5, 500, 1.08,
+                "none", null, null, null, null);
+        assertFalse(none.buttonStyle());
+        assertEquals("{primary}", none.color());
+    }
 }

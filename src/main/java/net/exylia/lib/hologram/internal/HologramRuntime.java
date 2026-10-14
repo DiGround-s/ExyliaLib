@@ -527,6 +527,7 @@ public final class HologramRuntime {
             } else if (should) {
                 hologram.revalidate(player);
                 hologram.hover(player);
+                hologram.rescale(player);
             }
             if (should) {
                 viewers.add(player);

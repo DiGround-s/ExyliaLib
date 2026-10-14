@@ -198,6 +198,13 @@ final class DisplayPackets implements DisplaySink {
                         EntityDataTypes.ADV_COMPONENT, text))));
     }
 
+    @Override
+    public void look(Player viewer, DisplayState display, int opacity, int background) {
+        send(viewer, new WrapperPlayServerEntityMetadata(display.entityId(), List.of(
+                new EntityData<>(DisplayState.BACKGROUND_COLOR, EntityDataTypes.INT, background),
+                new EntityData<>(DisplayState.TEXT_OPACITY, EntityDataTypes.BYTE, (byte) opacity))));
+    }
+
     /** Moves a display without respawning it. */
     @Override
     public void teleport(Player viewer, int entityId, Location to) {

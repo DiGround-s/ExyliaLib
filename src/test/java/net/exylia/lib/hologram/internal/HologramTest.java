@@ -333,8 +333,11 @@ class HologramTest {
     @DisplayName("line tags are stripped, unknown or broken ones stay in the text")
     void lineTagsParse() {
         LineStyle.Parsed parsed = LineStyle.parse("<size:1.5><opacity:120><shadow:false><bold>Hi");
-        assertEquals(new LineStyle(null, false, 1.5, 120, null, false, null, 0, 0, 0, 0,
-                null, null, 0, null, 0, null), parsed.style());
+        assertEquals(LineStyle.of(net.exylia.lib.hologram.HologramLine.builder()
+                .size(1.5).opacity(120).shadow(false).build()), parsed.style());
+        assertEquals(1.5, parsed.style().size());
+        assertEquals(120, parsed.style().opacity());
+        assertEquals(Boolean.FALSE, parsed.style().shadow());
         assertEquals("<bold>Hi", parsed.body());
         assertEquals("<size:big>Hi", LineStyle.parse("<size:big>Hi").body());
         assertEquals("<gradient:#fff:#000>Hi", LineStyle.parse("<gradient:#fff:#000>Hi").body());
@@ -882,5 +885,215 @@ class HologramTest {
 
         assertEquals(List.of("text:Near:1000:Hello Near", "text:Far:1000:Hello Far"),
                 sink.calls("text"));
+    }
+
+    // ------------------------------------------------------------------
+    // 1.301.0: layout, size by distance, new motion, buttons
+    // ------------------------------------------------------------------
+
+    private static String plain(net.kyori.adventure.text.Component component) {
+        return net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer.plainText()
+                .serialize(component);
+    }
+
+    @Test
+    @DisplayName("a gap pushes the lines above a line up by that much")
+    void gapsMakeRoom() {
+        Holograms.show(plugin, "koth", spawn(), text(List.of("A", "<gap:0.5>B", "C")));
+        drive();
+        assertEquals(List.of("spawn:Near:1000:65.0", "spawn:Near:1001:64.25", "spawn:Near:1002:64.0"),
+                sink.calls("spawn"));
+    }
+
+    @Test
+    @DisplayName("a line's own look overrides the hologram's")
+    void lineOverrides() {
+        HologramConfig.Properties base = new HologramConfig.Properties();
+        HologramConfig.Properties line = LineStyle.parse(
+                "<align:left><width:90><billboard:fixed><seethrough><brightness:12>x").style().apply(base);
+        assertEquals("LEFT", line.alignment());
+        assertEquals(90, line.lineWidth());
+        assertEquals("FIXED", line.billboard());
+        assertTrue(line.seeThrough());
+        assertEquals(12, line.brightness());
+        assertEquals(base, LineStyle.parse("x").style().apply(base), "a plain line inherits everything");
+    }
+
+    @Test
+    @DisplayName("frames take turns, keeping the style that runs into them")
+    void framesTakeTurns() {
+        net.kyori.adventure.text.Component line = net.kyori.adventure.text.Component.text("A||BB||C",
+                net.kyori.adventure.text.format.NamedTextColor.RED);
+        assertEquals("A", plain(Shimmer.frame(line, 0)));
+        assertEquals("BB", plain(Shimmer.frame(line, 1)));
+        assertEquals("BB", plain(Shimmer.frame(line, 4)));
+        assertEquals(net.kyori.adventure.text.format.NamedTextColor.RED,
+                Shimmer.frame(line, 1).children().get(0).color());
+        assertEquals("No frames", plain(Shimmer.frame(net.kyori.adventure.text.Component.text("No frames"), 3)));
+
+        LineStyle style = LineStyle.parse("<frames:2>A||B").style();
+        assertEquals(Shimmer.key(style, line, 0.1), Shimmer.key(style, line, 1.9), "same frame, nothing to send");
+        assertFalse(Shimmer.key(style, line, 1.9) == Shimmer.key(style, line, 2.1));
+    }
+
+    @Test
+    @DisplayName("a marquee scrolls a window through a long line and leaves a short one still")
+    void marqueeScrolls() {
+        net.kyori.adventure.text.Component line = net.kyori.adventure.text.Component.text("ABCDEFGHIJ");
+        assertEquals("ABCD", plain(Shimmer.marquee(line, 4, 2, 0)));
+        assertEquals("CDEF", plain(Shimmer.marquee(line, 4, 2, 1)));
+        assertEquals("IJ  ", plain(Shimmer.marquee(line, 4, 2, 4)), "a gap before it comes round");
+        assertEquals("ABCD", plain(Shimmer.marquee(line, 4, 2, 7)), "14 characters a lap");
+        assertEquals("ABCDEFGHIJ", plain(Shimmer.marquee(line, 20, 2, 3)));
+    }
+
+    @Test
+    @DisplayName("scrambled glyphs settle into the line from the left, spaces kept")
+    void scrambleSettles() {
+        net.kyori.adventure.text.Component line = net.kyori.adventure.text.Component.text("HELLO WORLD");
+        String early = plain(Shimmer.scramble(line, 0.25, 20, 7));
+        assertEquals(11, early.length());
+        assertTrue(early.startsWith("HELLO "), early);
+        assertFalse(early.endsWith("WORLD"), early);
+        assertFalse(early.equals(plain(Shimmer.scramble(line, 0.25, 20, 8))), "each frame draws new glyphs");
+        assertEquals("HELLO WORLD", plain(Shimmer.scramble(line, 1, 20, 9)));
+    }
+
+    @Test
+    @DisplayName("rainbow, blink and fade follow the clock")
+    void clockedLooks() {
+        net.kyori.adventure.text.Component line = net.kyori.adventure.text.Component.text("ABCDEF");
+        List<net.kyori.adventure.text.format.TextColor> now = colours(Shimmer.rainbow(line, 6, 0));
+        assertEquals(6, now.stream().distinct().count(), now.toString());
+        assertFalse(now.equals(colours(Shimmer.rainbow(line, 6, 0.5))));
+
+        assertTrue(Shimmer.blinkShown(1, 0.2));
+        assertFalse(Shimmer.blinkShown(1, 0.8));
+        assertEquals("", plain(Shimmer.dress(LineStyle.parse("<blink:1>x").style(), line, 0.8)));
+
+        assertEquals(255, Shimmer.fadeOpacity(255, 2, 0));
+        assertEquals(Shimmer.FADE_FLOOR, Shimmer.fadeOpacity(255, 2, 1));
+        int middle = Shimmer.fadeOpacity(255, 2, 0.5);
+        assertEquals(0, middle % 8, "stepped, so it is only re-sent when it moves");
+        assertTrue(middle > 100 && middle < 160, String.valueOf(middle));
+        assertEquals(128, Shimmer.fadeOpacity(128, 2, 0), "never brighter than the line");
+    }
+
+    @Test
+    @DisplayName("a fading line is sent its opacity as it steps, not every frame")
+    void fadingSendsOpacity() {
+        Holograms.show(plugin, "koth", spawn(), text(List.of("<fade:2>Hi")));
+        drive();
+        long first = sink.count("look");
+        assertEquals(1, first);
+        sink.clear();
+        advanceSeconds(0.5);
+        drive();
+        assertEquals(1, sink.count("look"));
+        sink.clear();
+        drive();
+        assertEquals(0, sink.count("look"), "the clock did not move");
+    }
+
+    @Test
+    @DisplayName("sizes by distance step: re-sent only when a viewer's step changes")
+    void distanceScaleSteps() {
+        HologramConfig.Properties properties = new HologramConfig.Properties()
+                .withDistanceScale(new HologramConfig.DistanceScale(true, 8, 32, 1, 2.5));
+        HologramConfig config = new HologramConfig(true, HologramConfig.Kind.TEXT, List.of("A", "B"),
+                "", "", false, 48.0, 0, 0, 0, properties, new HologramConfig.Refresh());
+        Holograms.show(plugin, "koth", spawn(), config);
+        drive();
+        assertEquals(0, sink.count("transform"), "up close it is its own size");
+
+        near.at(new Location(world, 0, 64, 20));
+        drive();
+        assertEquals(2, sink.count("transform"));
+        assertEquals(1.8f, sink.lastScale.get(0), 1e-4, "1.75 rounded to its step");
+
+        sink.clear();
+        near.at(new Location(world, 0, 64, 20.2));
+        drive();
+        assertEquals(0, sink.count("transform"), "inside the same step");
+    }
+
+    @Test
+    @DisplayName("an <autoscale> line grows alone and the stack makes room for it")
+    void autoscaleLine() {
+        Holograms.show(plugin, "koth", spawn(), text(List.of("A", "<autoscale:0,10,2>B")));
+        near.at(new Location(world, 0, 64, 10));
+        drive();
+        // B is twice its size, so A stands on top of it: 0.5 up instead of 0.25.
+        assertEquals(0.25f, sink.spawnedLift.get(0), 1e-4);
+        assertEquals(0.0f, sink.spawnedLift.get(1), 1e-4);
+    }
+
+    @Test
+    @DisplayName("clicking a button line runs its own lines and presses it; elsewhere runs the hologram's")
+    void buttonLines() {
+        HologramConfig.Click click = new HologramConfig.Click(List.of("whole"), 1.5, 0, 1.08,
+                "BUTTON", "{primary}", "{secondary}", "", Map.of("join", List.of("joined")));
+        HologramConfig config = new HologramConfig(true, HologramConfig.Kind.TEXT,
+                List.of("Title", "<button:join>Join"), "", "", false, 32.0, 0, 0, 0,
+                new HologramConfig.Properties(), new HologramConfig.Refresh(), click);
+        Hologram hologram = Holograms.show(plugin, "koth", new Location(world, 0, 65, 0), config);
+        // Join is 65.0 to 65.25, Title above it; the eye is at 65.62, three blocks back.
+        near.at(new Location(world, 0, 64, -3, 0, (float) Math.toDegrees(Math.atan(0.5 / 3))));
+        drive();
+        assertEquals(4, sink.count("spawn"), "two lines, the hologram's panel and the button's");
+        int box = Integer.parseInt(sink.calls("hitbox").get(0).split(":")[2]);
+
+        sink.clear();
+        drive();
+        assertEquals(4, sink.count("transform"), "both lines and both panels follow the grown button");
+        assertTrue(sink.lastScale.contains(1.0f), "the title keeps its size: " + sink.lastScale);
+        assertTrue(sink.lastScale.contains(1.08f), sink.lastScale.toString());
+        assertTrue(sink.count("look") >= 1, "the button lights up");
+
+        sink.clear();
+        HologramRuntime.clicked(near.player(), box, net.exylia.lib.interaction.Click.RIGHT);
+        FakeServer.tick(1);
+        assertEquals(List.of("joined"), near.commands());
+        assertTrue(sink.lastScale.stream().anyMatch(scale -> scale < 1), "pressed in");
+
+        sink.clear();
+        advanceSeconds(0.2);
+        drive();
+        assertTrue(sink.lastScale.stream().anyMatch(scale -> scale > 1), "springs back to its hover");
+
+        near.at(new Location(world, 0, 64, -3, 0, (float) Math.toDegrees(Math.atan(0.22 / 3))));
+        advanceSeconds(1);
+        HologramRuntime.clicked(near.player(), box, net.exylia.lib.interaction.Click.RIGHT);
+        FakeServer.tick(1);
+        assertEquals(List.of("joined", "whole"), near.commands());
+        assertTrue(hologram.isViewing(near.player()));
+    }
+
+    @Test
+    @DisplayName("a hologram clicked from code only, or styled NONE, has no panel")
+    void noPanelWithoutClickLines() {
+        Hologram hologram = Holograms.show(plugin, "koth", spawn(), text(List.of("A")));
+        hologram.onClick(player -> { });
+        drive();
+        assertEquals(1, sink.count("spawn"));
+
+        HologramConfig.Click none = new HologramConfig.Click(List.of("x"), 1.5, 0, 1.08,
+                "NONE", null, null, null, null);
+        Holograms.show(plugin, "other", spawn(), new HologramConfig(true, HologramConfig.Kind.TEXT,
+                List.of("A"), "", "", false, 32.0, 0, 0, 0, new HologramConfig.Properties(),
+                new HologramConfig.Refresh(), none));
+        sink.clear();
+        drive();
+        assertEquals(1, sink.count("spawn"));
+    }
+
+    @Test
+    @DisplayName("a panel colour takes a palette name or hex, with or without alpha")
+    void panelColours() {
+        assertEquals(0x50FF0000, HologramImpl.argb("#ff0000", 0x50));
+        assertEquals(0x80123456, HologramImpl.argb("#80123456", 0x50));
+        assertEquals(0x508a51c4, HologramImpl.argb("{primary}", 0x50));
+        assertEquals(10, HologramImpl.step(1.04));
+        assertEquals(11, HologramImpl.step(1.06));
     }
 }

@@ -3,6 +3,8 @@ package net.exylia.lib.hologram.internal;
 import net.exylia.lib.hologram.HologramConfig;
 import net.exylia.lib.hologram.HologramLine;
 
+import java.util.Locale;
+
 
 /**
  * How one line of a text hologram is drawn, read from tags at its start.
@@ -48,20 +50,53 @@ import net.exylia.lib.hologram.HologramLine;
  * @param flow       characters a second the line's own colours flow along it
  * @param head       the player head an item line shows, as written, or
  *                   {@code null}
+ * @param gap        extra blocks above the line
+ * @param align      the line's alignment, or {@code null} to inherit
+ * @param lineWidth  where the line wraps, or {@code null} to inherit
+ * @param seeThrough whether it shows through blocks, or {@code null} to inherit
+ * @param brightness its light level, or {@code null} to inherit
+ * @param billboard  how it turns, or {@code null} to inherit
+ * @param autoscale  whether it grows with the viewer's distance
+ * @param curve      its own distance curve, or {@code null} for the hologram's
+ * @param shineSpeed characters a second the shine travels
+ * @param shinePause seconds between two sweeps
+ * @param shineWidth half the shine band, in characters
+ * @param bobPeriod  seconds a bob takes
+ * @param pulsePeriod seconds a pulse takes
+ * @param sway       degrees it turns back and forth
+ * @param swayPeriod seconds a sway takes
+ * @param frames     seconds each frame shows, 0 for no frames
+ * @param rainbow    characters a second the rainbow runs, 0 for none
+ * @param fade       seconds a fade takes, 0 for none
+ * @param blink      seconds a blink takes, 0 for none
+ * @param marquee    characters shown at once while scrolling, 0 for none
+ * @param marqueeSpeed characters a second it scrolls
+ * @param scramble   characters a second that settle when first seen, 0 for none
+ * @param button     the name of its own click lines, or {@code null}
  */
 record LineStyle(String model, boolean block, double size, Integer opacity, String background,
                  Boolean shadow, String glow, double spin, double bob, double pulse,
                  double typewriter, String condition, String permission, double range,
-                 String shine, double flow, String head) {
+                 String shine, double flow, String head, double gap, String align,
+                 Integer lineWidth, Boolean seeThrough, Integer brightness, String billboard,
+                 boolean autoscale, HologramConfig.DistanceScale curve, double shineSpeed,
+                 double shinePause, double shineWidth, double bobPeriod, double pulsePeriod,
+                 double sway, double swayPeriod, double frames, double rainbow, double fade,
+                 double blink, int marquee, double marqueeSpeed, double scramble, String button) {
 
-    static final LineStyle PLAIN = new LineStyle(null, false, 1.0, null, null, null, null,
-            0, 0, 0, 0, null, null, 0, null, 0, null);
+    static final LineStyle PLAIN = of(HologramLine.of(""));
 
     /** An item or block at size 1 is half a block, a little taller than a text line. */
     static final double MODEL_HEIGHT = 0.5;
 
     /** The fastest spin that still reads as one direction between two keyframes. */
     private static final double MAX_SPIN = 300;
+
+    /**
+     * The shortest period a keyframed motion may have: keyframes are 500 ms
+     * apart, and fewer than four a cycle would alias a bob into stillness.
+     */
+    private static final double MIN_PERIOD = 2;
 
     /** A line split into its style and the text left to parse. */
     record Parsed(LineStyle style, String body) {
@@ -92,7 +127,43 @@ record LineStyle(String model, boolean block, double size, Integer opacity, Stri
                 line.range() == null ? 0 : Math.max(0, line.range()),
                 line.shine() == null ? null : line.shine().isEmpty() ? "letters" : line.shine(),
                 line.flow() == null ? 0 : Math.clamp(line.flow(), -40, 40),
-                line.head());
+                line.head(),
+                line.gap() == null ? 0 : Math.clamp(line.gap(), -5, 5),
+                line.align() == null ? null : line.align().toUpperCase(Locale.ROOT),
+                line.width() == null ? null : Math.clamp(line.width(), 1, 10_000),
+                line.seeThrough(),
+                line.brightness() == null ? null : Math.clamp(line.brightness(), -1, 15),
+                line.billboard() == null ? null : line.billboard().toUpperCase(Locale.ROOT),
+                line.autoscale() != null, curve(line.autoscale()),
+                or(line.shineSpeed(), 10, 1, 100),
+                or(line.shinePause(), 2.5, 0, 60),
+                or(line.shineWidth(), 3, 0.5, 20),
+                or(line.bobPeriod(), 3, MIN_PERIOD, 60),
+                or(line.pulsePeriod(), 2, MIN_PERIOD, 60),
+                line.sway() == null ? 0 : Math.clamp(line.sway(), -180, 180),
+                or(line.swayPeriod(), 4, MIN_PERIOD, 60),
+                line.frames() == null ? 0 : Math.clamp(line.frames(), 0.2, 3600),
+                line.rainbow() == null ? 0 : Math.clamp(line.rainbow(), -40, 40),
+                line.fade() == null ? 0 : Math.clamp(line.fade(), 0.5, 60),
+                line.blink() == null ? 0 : Math.clamp(line.blink(), 0.2, 60),
+                line.marquee() == null ? 0 : Math.clamp(line.marquee(), 1, 200),
+                or(line.marqueeSpeed(), 6, 0.5, 40),
+                line.scramble() == null ? 0 : Math.clamp(line.scramble(), 1, 1000),
+                line.button());
+    }
+
+    private static double or(Double value, double fallback, double min, double max) {
+        return value == null ? fallback : Math.clamp(value, min, max);
+    }
+
+    /** A line's own curve from {@code start,end,max}, or {@code null} for the hologram's. */
+    private static HologramConfig.DistanceScale curve(String written) {
+        if (written == null || written.isEmpty()) {
+            return null;
+        }
+        String[] parts = written.split(",");
+        return new HologramConfig.DistanceScale(true, Double.parseDouble(parts[0]),
+                Double.parseDouble(parts[1]), 1, Double.parseDouble(parts[2]));
     }
 
     boolean isModel() {
@@ -100,12 +171,22 @@ record LineStyle(String model, boolean block, double size, Integer opacity, Stri
     }
 
     boolean animated() {
-        return spin != 0 || bob != 0 || pulse != 0;
+        return spin != 0 || bob != 0 || pulse != 0 || sway != 0;
     }
 
-    /** Whether the line's colours move. */
+    /** Whether what the line says, or its colours, change with the clock. */
     boolean shimmers() {
-        return shine != null || flow != 0;
+        return shine != null || flow != 0 || rainbow != 0 || frames > 0 || marquee > 0 || blink > 0;
+    }
+
+    /** Whether its text opacity changes with the clock. */
+    boolean fades() {
+        return fade > 0;
+    }
+
+    /** Whether it is revealed to each viewer when they first see it. */
+    boolean reveals() {
+        return typewriter > 0 || scramble > 0;
     }
 
     /** Whether some viewers in range may still not be shown this line. */
@@ -117,19 +198,21 @@ record LineStyle(String model, boolean block, double size, Integer opacity, Stri
     HologramConfig.Properties apply(HologramConfig.Properties base) {
         double scale = isModel() ? size * MODEL_HEIGHT : size;
         // A block has no front to turn towards the player: it would swing
-        // around its corner instead.
-        String billboard = block ? "FIXED" : base.billboard();
-        return new HologramConfig.Properties(billboard, base.alignment(),
+        // around its corner instead, unless the line asks for it.
+        String turn = billboard != null ? billboard : block ? "FIXED" : base.billboard();
+        return new HologramConfig.Properties(turn, align == null ? base.alignment() : align,
                 base.scaleX() * scale, base.scaleY() * scale, base.scaleZ() * scale,
                 shadow == null ? base.shadow() : shadow,
-                base.seeThrough(), base.lineWidth(), base.lineSpacing(),
+                seeThrough == null ? base.seeThrough() : seeThrough,
+                lineWidth == null ? base.lineWidth() : lineWidth, base.lineSpacing(),
                 opacity == null ? base.textOpacity() : opacity,
                 base.defaultBackground() && background == null,
                 background == null ? base.backgroundColor() : background,
-                base.brightness(), base.glowing());
+                brightness == null ? base.brightness() : brightness, base.glowing(),
+                base.distanceScale());
     }
 
-    /** The vertical room this line takes. */
+    /** The vertical room the line itself takes, without its gap. */
     double height(HologramConfig.Properties base) {
         return isModel() ? MODEL_HEIGHT * size * base.scaleY() : base.lineSpacing() * size;
     }

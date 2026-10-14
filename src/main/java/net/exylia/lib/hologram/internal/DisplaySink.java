@@ -22,6 +22,16 @@ public interface DisplaySink {
     /** Sends only the text of a display whose line changed. */
     void text(Player viewer, DisplayState display, Component text);
 
+    /**
+     * Sends a text display's opacity and background alone, for a line that
+     * fades or a button panel that lights up.
+     *
+     * @param opacity    the text opacity, 0 to 255
+     * @param background the background as packed ARGB
+     */
+    default void look(Player viewer, DisplayState display, int opacity, int background) {
+    }
+
     /** Moves an entity without respawning it. */
     void teleport(Player viewer, int entityId, Location to);
 

@@ -54,10 +54,6 @@ public final class DisplayState {
     static final int INTERACTION_HEIGHT = 9;
     static final int INTERACTION_RESPONSIVE = 10;
 
-    /** Seconds one bob and one pulse take, up and back. */
-    private static final double BOB_PERIOD = 3.0;
-    private static final double PULSE_PERIOD = 2.0;
-
     /**
      * Where the model sits relative to the entity, how big it is, and how it is
      * turned: the display's transformation, as the protocol splits it.
@@ -151,12 +147,14 @@ public final class DisplayState {
      */
     Transform transformAt(long millis) {
         double seconds = millis / 1000.0;
-        double grow = 1 + style.pulse() * Math.sin(seconds * 2 * Math.PI / PULSE_PERIOD);
+        double grow = 1 + style.pulse() * Math.sin(seconds * 2 * Math.PI / style.pulsePeriod());
         double sx = properties.scaleX() * grow;
         double sy = properties.scaleY() * grow;
         double sz = properties.scaleZ() * grow;
-        double angle = Math.toRadians((style.spin() * seconds) % 360);
-        double ty = style.bob() * Math.sin(seconds * 2 * Math.PI / BOB_PERIOD);
+        double turned = style.spin() * seconds
+                + style.sway() * Math.sin(seconds * 2 * Math.PI / style.swayPeriod());
+        double angle = Math.toRadians(turned % 360);
+        double ty = style.bob() * Math.sin(seconds * 2 * Math.PI / style.bobPeriod());
         double tx = 0;
         double tz = 0;
         if (kind == HologramConfig.Kind.BLOCK && style.block()) {

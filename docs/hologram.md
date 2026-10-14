@@ -22,8 +22,8 @@ Holograms.show(this, "trophy", location, config.trophy());
 | `viewDistance` | how far it is visible |
 | `offsetX/Y/Z` | position adjustment |
 | `kind` | `TEXT`, `ITEM` or `BLOCK` |
-| `properties` | `billboard`, `alignment`, `scaleX/Y/Z`, and more display properties |
-| `click` | `commands`, `width`, `cooldown`, `hover-scale`: what clicking it does (since 1.287.0; `hover-scale` since 1.288.0) |
+| `properties` | `billboard`, `alignment`, `scaleX/Y/Z`, and more display properties; `distance-scale` grows it with the viewer's distance (since 1.301.0, see [Size by distance](#size-by-distance)) |
+| `click` | `commands`, `width`, `cooldown`, `hover-scale`: what clicking it does (since 1.287.0; `hover-scale` since 1.288.0); `style`, `color`, `hover-color`, `sound`, `buttons` (since 1.301.0, see [Buttons](#buttons)) |
 | `pages` | more pages after `lines`, each with its own `lines` and `click` lines (since 1.297.0) |
 | `page-interval` | ticks before each viewer is turned to the next page on their own; 0 is off (since 1.297.0) |
 
@@ -66,6 +66,54 @@ since 1.285.0; models with blocks, glow, motion, visibility and clicks since
 | `<range:8>` | the line only shows within 8 blocks; walking up reveals it, and the stack re-lays itself out for that player |
 | `<perm:observatory.key>` / `<perm:!observatory.key>` | only shown to players with (or without) the permission |
 | `<if:"%player_level% >= 10">` | only shown while the condition holds (`==`, `!=`, `>`, `<`, `>=`, `<=`, placeholders resolved per viewer) |
+
+Since 1.301.0:
+
+| Tag | Effect |
+| --- | --- |
+| `<gap:0.3>` | extra blocks above the line, so the lines above it move up; negative pulls them closer (clamped to -5..5) |
+| `<align:left>` / `<align:center>` / `<align:right>` | the line's own alignment, over `properties.alignment` |
+| `<width:120>` | where the line wraps, in pixels, over `properties.line-width` |
+| `<billboard:fixed>` / `center` / `vertical` / `horizontal` | how the line turns towards the player, over `properties.billboard` (a block line is `fixed` unless it says otherwise) |
+| `<seethrough>` / `<seethrough:false>` | whether the line shows through blocks |
+| `<brightness:15>` | the line's fixed light level, 0 to 15, -1 for the light where it stands |
+| `<autoscale>` / `<autoscale:4,24,3>` | the line grows with the viewer's distance: on the hologram's `distance-scale` curve (enabled or not), or its own `start,end,max` (blocks, blocks, size; it is its own size up to `start`). A line's own curve replaces the hologram's for that line |
+| `<sway>` / `<sway:20>` / `<sway:20,period=6>` | turns the line back and forth by that many degrees (default 15) over `period` seconds (default 4); for item and block lines, adds to `<spin>` |
+| `<bob:0.1,period=3>` / `<pulse:0.06,period=4>` | the bob or pulse with its own period in seconds (defaults 3 and 2; at least 2, as keyframes are half a second apart) |
+| `<shine:highlight,speed=15,pause=1,width=4>` | the shine with its own speed (characters a second, default 10), `pause` between sweeps (seconds, default 2.5) and half `width` of the band (characters, default 3). Every option is optional, in any order; `<shine:speed=20>` keeps the default colour |
+| `<rainbow>` / `<rainbow:10>` | the line's colours become a soft rainbow running along it, in characters a second (default 6; negative runs the other way) |
+| `<frames>` / `<frames:1.5>` | the text is split by <code>&#124;&#124;</code> into frames that take turns, each shown that many seconds (default 2; `1s` and `500ms` read too) |
+| `<marquee>` / `<marquee:20>` / `<marquee:20,speed=3>` | shows 20 characters (default 24) of a longer line at a time, scrolling through them at `speed` characters a second (default 6); a line that fits stays still |
+| `<fade>` / `<fade:2>` | the text fades out and back in, once every that many seconds (default 3); the background stays |
+| `<blink>` / `<blink:0.5>` | the text shows and hides, once every that many seconds (default 1, shown two thirds of it) |
+| `<scramble>` / `<scramble:30>` | when a player first sees the line, random glyphs settle into it from the left, in characters a second (default 20); spaces stay spaces |
+| `<button:join>` | the line is a button of its own: clicking it runs `click.buttons.join` instead of `click.commands`, and only it lights up and grows (see [Buttons](#buttons)) |
+
+Options are written `key=value` after the tag's value, separated by commas. An
+unknown option, or one that is not a number, keeps the whole tag in the text,
+as any broken tag does. Durations and periods are seconds.
+
+```yaml
+lines:
+  - '<item:NETHER_STAR><sway:25,period=5><bob:0.1,period=4>'
+  - '<size:2><shine:highlight,speed=18,pause=1>{primary}&lSEASON II'
+  - '<gap:0.15><frames:3>{letters}Open now||{letters}Rewards doubled||{letters}Talk to the guide'
+  - '<marquee:28,speed=5>{letters_black}Top players this week: %top_1% · %top_2% · %top_3%'
+  - '<align:left><width:150><range:6><scramble>{letters}Hit the panel below to queue up.'
+  - '<autoscale:6,30,2.5><fade:4>{muted}/warp arena'
+```
+
+- **Frames** split the parsed line, so a colour set before `||` carries into
+  the next frame, as it would on one line, and placeholders resolve in every
+  frame. A frame is only re-sent when it turns.
+- **Marquee, rainbow, flow and shine** keep every other style and run at ten
+  frames a second; a resting shine and a frame that did not turn send nothing.
+- **Fade** sends the text opacity alone, in steps of 8, so a fading line costs
+  a few small packets a second. **Blink** sends an empty line while hidden.
+- **Scramble** is per viewer, like typewriter, and runs at ten frames a second.
+  On a line with both, scramble wins.
+- **Sway** is keyframed like spin: one transformation every 500 ms, glided by
+  the client.
 
 An arena entrance: a block turning above a shining title, a line each viewer
 reads for themselves, and a hint that types itself in only up close.
@@ -123,6 +171,39 @@ four), plus once to restore the plain line.
 for them. Changes to that line wait until it is fully typed, and colours and
 styles are never cut.
 
+## Size by distance
+
+A hologram can grow with each viewer's distance, so it stays readable from far
+away (since 1.301.0). Off unless enabled:
+
+```yaml
+properties:
+  distance-scale:
+    enabled: true
+    start: 8.0      # blocks away where it starts growing
+    end: 32.0       # blocks away where it reaches max
+    min: 1.0        # its size up to start
+    max: 2.5        # its size from end on
+```
+
+The size grows in a straight line from `start` to `end`, which keeps its
+apparent size steady. `min` and `max` are clamped to 0.1..10, and an `end`
+before `start` is moved past it. A single line can follow a curve with
+`<autoscale>` (the hologram's curve, enabled or not) or `<autoscale:start,end,max>`.
+
+- **Per viewer, in steps.** Each viewer is shown their own size, quantised to
+  steps of 0.1 and re-sent only when their step changes, on the visibility
+  pass (four times a second), gliding over the 5 ticks to the next pass. Up
+  close, or standing still, it costs nothing; walking away costs at most four
+  transformations a second per line.
+- **The stack spreads with it.** Grown lines take room in proportion, so lines
+  never overlap; a line that grows alone pushes the ones above it up for that
+  viewer only. Hover and press growth multiply on top.
+- The click box keeps its size: nobody clicks a hologram from 20 blocks away.
+
+In code: `new HologramConfig.Properties().withDistanceScale(new HologramConfig.DistanceScale(true, 8, 32, 1, 2.5))`,
+and `DistanceScale.scaleAt(distance)` is the curve.
+
 ## Reading and writing line tags in code
 
 `HologramLine` (since 1.289.1) is the reading a hologram does, public, for an
@@ -134,7 +215,14 @@ String edited = line.toBuilder().size(2.0).spin(null).build().raw();
 ```
 
 A tag the line does not write is `null`, so a round trip adds nothing nobody
-asked for. A bare tag (`<spin>`) reads as its default (`DEFAULT_SPIN` and the
+asked for. Since 1.301.0 the record also carries `gap`, `align`, `width`,
+`seeThrough`, `brightness`, `billboard`, `autoscale`, `shineSpeed`,
+`shinePause`, `shineWidth`, `bobPeriod`, `pulsePeriod`, `sway`, `swayPeriod`,
+`frames`, `rainbow`, `fade`, `blink`, `marquee`, `marqueeSpeed`, `scramble` and
+`button`, each with its builder method. An option is kept only with its tag:
+`shine(null)` drops `shineSpeed` too. `align` and `billboard` are kept in lower
+case; a duration such as `<frames:1s>` is written back in seconds (`<frames:1>`).
+The 18-component constructor is deprecated; build lines with `builder()`. A bare tag (`<spin>`) reads as its default (`DEFAULT_SPIN` and the
 rest) and is written back with it. Values are kept as written: the hologram
 clamps them when it draws.
 
@@ -220,6 +308,63 @@ hologram.onClick(player -> arenas.queue(player)); // any click, since 1.287.0
 
 A handler makes the hologram clickable even with no lines. Without either it
 has no box at all.
+
+## Buttons
+
+Since 1.301.0 a clickable hologram looks like a button, and single lines can be
+buttons of their own.
+
+```yaml
+lines:
+  - '<head:Notch><size:0.8>'
+  - '{primary}&lTHE ARENA'
+  - '<gap:0.1><button:join>{success}&l▶ JOIN'
+  - '<button:spectate>{info}Spectate'
+click:
+  commands:
+    - '[MESSAGE] {letters}Pick a button below.'
+  style: BUTTON              # BUTTON (default) or NONE
+  color: '{primary}'         # the panel; '#RRGGBB' or '#AARRGGBB' too
+  hover-color: '{secondary}' # the panel while looked at
+  sound: 'UI_BUTTON_CLICK;0.6;1.4'   # every click; empty (default) for none
+  hover-scale: 1.08
+  buttons:
+    join:
+      - 'arena join'
+    spectate:
+      - 'left: arena spectate'
+      - '[PAGE] next'
+```
+
+- **The look.** With `style: BUTTON` a panel stands behind what can be clicked:
+  one behind the whole hologram when it has click lines (on the viewer's page),
+  and one behind each button line. A palette colour or `#RRGGBB` panel is drawn
+  at about 30% alpha, about 53% while looked at; `#AARRGGBB` keeps its own. The
+  panel lights up (`hover-color`) while a player looks at it, grows with
+  `hover-scale`, and on a click squashes to 92% for 120 ms and flashes brighter
+  before springing back. Panels turn upright only (or stay `FIXED` with a fixed
+  hologram) and stand a little behind the lines, so a line leaning towards a
+  player looking up never pokes through. Fully lit (`brightness` 15) day and
+  night.
+- **Who gets it.** Only holograms with click lines (`click.commands`, a page's
+  `click`) or buttons. A hologram made clickable from code alone
+  (`onClick`) gets no panel and no press, and a hologram nobody can click is
+  untouched. `style: NONE` turns the look off and keeps the hover growth.
+  Sections written before 1.301.0 read as `BUTTON`.
+- **Buttons.** A line starting with `<button:name>` runs `click.buttons.name`
+  when it is clicked, instead of `click.commands`; every other spot of the
+  hologram still runs `click.commands`. Button lines take every interaction
+  line, click filters and `[PAGE]` included, and share the click cooldown.
+  Only the button looked at grows and lights up. A `<button>` whose name has
+  no lines is a plain line. Code handlers (`onClick`) run for clicks on the
+  hologram, not on a button.
+- **Which line was clicked** is worked out from the height the player's line
+  of sight crosses the hologram's axis at: the one click box catches every
+  click, so a button costs no extra entity.
+- **`sound`** is played to the clicker on every click that has lines to run,
+  as a `[SOUND]` line put first.
+- **Riding** an entity (`attachTo`), a hologram draws no panels and its button
+  lines are plain lines: passengers cannot be placed apart from their seat.
 
 ## Riding an entity
 
