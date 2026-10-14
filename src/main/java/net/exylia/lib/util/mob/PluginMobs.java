@@ -751,7 +751,7 @@ public final class PluginMobs {
         return edited;
     }
 
-    /** Prefilled; blank keeps the value, so the hints say NONE clears it. */
+    /** Prefilled; blank clears it, and so does NONE, which older hints still name. */
     static FormField<String> optionalText(FormKey<String> key, String label, String current) {
         return FormField.text(key, label).defaultValue(current).optional();
     }

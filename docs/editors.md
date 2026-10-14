@@ -231,6 +231,26 @@ about twenty characters, and a display name is a dozen colour tokens around six
 words. See [input.md](input.md) — `TextInput.lines` and `FormField.lines` are
 the same setting, and chat, which has no notion of height, ignores it.
 
+### Emptying a box
+
+A text box here is always optional (1.301.2): clearing it saves it empty.
+`getText` reads a cleared box as `""` and `has` as `false`, so a lore line, a
+permission, a condition or a list of click actions is removed by emptying its
+box. The prefilled value is only where the box starts; it is never put back in
+place of a cleared box. Before 1.301.2 a prefilled text box was required and a
+blank answer silently became the old value, so nothing could be cleared.
+
+A value that has no meaning blank, such as a name or an id, says so with
+`required()` right after the field:
+
+```java
+.text(ID, "Id", entry.id()).required()
+```
+
+An emptied required box is refused with "This field is required." beside it,
+the other answers kept. Number, decimal, choice and flag fields are required
+and always carry a value.
+
 `hint` (1.60.0) attaches a note to the field just added, and answers what the
 label leaves open — `Command` does not say whether the player is `%player%` or
 `%player_name%`, and a wrong guess is found later, in a row that silently does

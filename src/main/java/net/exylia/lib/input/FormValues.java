@@ -6,6 +6,7 @@ import java.math.BigDecimal;
 import java.time.Duration;
 import java.util.Collections;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * The answers a form collected.
@@ -22,14 +23,29 @@ import java.util.Map;
  * that becomes a {@code NullPointerException} three lines later in the caller's
  * code.
  *
+ * <h2>Blank answers</h2>
+ * A submitted answer is what the player left in the box, never the field's
+ * {@link FormField#defaultValue(Object) default}: the default is only the text
+ * the box opens with. An optional field left blank is absent, so
+ * {@link #has} is {@code false} and {@link #getOr} answers its fallback; a text
+ * field left blank also reads as {@code ""} through {@link #getText}. A required
+ * field left blank never gets here: the form refuses it with
+ * "This field is required." next to the box.
+ *
  * @since 1.31.0
  */
 public final class FormValues {
 
     private final Map<String, Object> values;
+    private final Set<String> fields;
 
     FormValues(Map<String, Object> values) {
+        this(values, values.keySet());
+    }
+
+    FormValues(Map<String, Object> values, Set<String> fields) {
         this.values = values;
+        this.fields = Set.copyOf(fields);
     }
 
     /**
@@ -38,10 +54,15 @@ public final class FormValues {
      * @param key the field
      * @param <T> the field's type
      * @return the value
-     * @throws InputException when the form has no such field
+     * @throws InputException when the form has no such field, or when it is an
+     *                        optional field left blank (read those with {@link #getOr})
      */
     public <T> @NotNull T get(@NotNull FormKey<T> key) {
         Object value = values.get(key.name());
+        if (value == null && fields.contains(key.name())) {
+            throw new InputException("The field '" + key.name()
+                    + "' was left blank. Read an optional field with getOr(key, fallback).");
+        }
         if (value == null) {
             throw new InputException("This form has no field named '" + key.name()
                     + "'. It has: " + values.keySet() + '.');
@@ -78,11 +99,15 @@ public final class FormValues {
     /**
      * A text field's value.
      *
+     * <p>An optional text field left blank reads as {@code ""}: blank text is
+     * empty text. {@link #has} still tells it apart from an answer.
+     *
      * @param key the field
-     * @return the value
+     * @return the value, {@code ""} when an optional field was left blank
+     * @throws InputException when the form has no such field
      */
     public @NotNull String getText(@NotNull FormKey<String> key) {
-        return get(key);
+        return !values.containsKey(key.name()) && fields.contains(key.name()) ? "" : get(key);
     }
 
     /**

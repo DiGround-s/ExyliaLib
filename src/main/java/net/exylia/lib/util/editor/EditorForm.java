@@ -44,6 +44,17 @@ import java.util.function.Function;
  * correcting a display name and retyping thirty characters of colour tokens from
  * memory, and it is why the {@code current} argument is not optional.
  *
+ * <h2>Emptying a box</h2>
+ * A text box here is optional: the player can always empty it, and what they
+ * submit is what is saved. A cleared box reads as {@code ""} through
+ * {@link FormValues#getText} (and is absent for {@link FormValues#has}), so a
+ * lore, a permission or a list of click actions can be removed by clearing it.
+ * The prefilled value is only the starting text, never put back in place of a
+ * cleared box. A value that cannot be blank, such as a name, says so with
+ * {@link #required()} after the field, and an emptied box is then refused with
+ * "This field is required." beside it, the other answers kept. Number, decimal,
+ * choice and flag fields always carry a value and stay required.
+ *
  * <h2>Where there is no dialog</h2>
  * A client too old for dialogs, or a Bedrock player, is asked the same fields
  * through whichever transport can — a Floodgate form, or one chat line per
@@ -105,13 +116,10 @@ public final class EditorForm {
      */
     public @NotNull EditorForm text(@NotNull FormKey<String> key, @NotNull String label,
                                     String current, int lines) {
-        FormField<String> field = FormField.text(key, label)
+        return add(key, FormField.text(key, label)
                 .defaultValue(current == null ? "" : current)
-                .lines(lines);
-        if (current == null || current.isEmpty()) {
-            field.optional();
-        }
-        return add(key, field);
+                .lines(lines)
+                .optional());
     }
 
     /**
@@ -259,6 +267,25 @@ public final class EditorForm {
             throw new IllegalStateException("hint() describes the field before it; add a field first");
         }
         last.hint(hint);
+        return this;
+    }
+
+    /**
+     * Refuses a blank answer to the field just added.
+     *
+     * <p>Text boxes here are optional, so clearing one saves it empty. For a
+     * value that has no meaning blank, such as a name or an id, this makes an
+     * emptied box an error shown beside it instead.
+     *
+     * @return this form
+     * @throws IllegalStateException if no field has been added yet
+     * @since 1.301.2
+     */
+    public @NotNull EditorForm required() {
+        if (last == null) {
+            throw new IllegalStateException("required() describes the field before it; add a field first");
+        }
+        last.required();
         return this;
     }
 

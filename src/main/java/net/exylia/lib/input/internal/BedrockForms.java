@@ -193,7 +193,10 @@ final class BedrockForms {
                 Object value = field.kind() == FormField.Kind.FLAG
                         ? ACCESS.toggleResponse.invoke(response, index)
                         : ACCESS.inputResponse.invoke(response, index);
-                raw.put(field.key().name(), String.valueOf(value));
+                if (value != null) {
+                    // Absent stays absent so the default stands; "" is a cleared box.
+                    raw.put(field.key().name(), String.valueOf(value));
+                }
             }
             submitForm(state, form, Map.copyOf(raw));
         });

@@ -416,14 +416,34 @@ retype five correct fields.
 
 | Method | |
 | --- | --- |
-| `get(FormKey<T>)` | the value; `InputException` naming the field if it was never declared |
+| `get(FormKey<T>)` | the value; `InputException` naming the field if it was never declared, or if it is an optional field left blank |
 | `getOr(FormKey<T>, T fallback)` | for optional fields |
 | `has(FormKey<?>)` | whether it was answered |
 | `getText` / `getLong` / `getDecimal` / `getBoolean` / `getDuration` | typed shorthands |
 | `asMap()` | read-only, for logging and iteration |
 
 An optional field left blank is **absent**, not empty, so "not answered" and
-"answered with nothing" stay different things.
+"answered with nothing" stay different things. Read it with `getOr`;
+`getText` reads a blank text field as `""`.
+
+#### Blank means blank (1.301.2)
+
+What the player submits is the answer. A field's `defaultValue` is only the
+text its box opens with, so a box the player empties is blank, never the
+prefilled value put back:
+
+| Submitted | Optional field | Required field |
+| --- | --- | --- |
+| a value | the value | the value |
+| blank (the box emptied) | absent: `has` is `false`, `getOr` gives the fallback | "This field is required." beside the box; the other answers stay as typed |
+| not sent at all | the `defaultValue`, when there is one | the `defaultValue`, else required |
+
+Before 1.301.2 a blank answer was replaced by the default, which on an editing
+form is the current value: clearing a prefilled box silently kept what was
+there, and nothing could be removed. "Not sent" happens in chat, which asks
+one field at a time and checks the ones not reached yet against their
+defaults; a dialog and a Bedrock form send every box. Flag and choice fields
+always send a value.
 
 ---
 

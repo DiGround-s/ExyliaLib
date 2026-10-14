@@ -170,7 +170,7 @@ final class ScheduleDescriptor implements EditorDescriptor<Schedule> {
         // screen opened from one event's setup is about that event, and a field
         // holding its id is a field an admin can only get wrong.
         if (defaultTarget == null) {
-            form.text(TARGET, Phrases.tr("Starts {muted}(id)"), entry.target());
+            form.text(TARGET, Phrases.tr("Starts {muted}(id)"), entry.target()).required();
         }
 
         form.choice(MODE, Phrases.tr("When it runs"), mode, List.of(

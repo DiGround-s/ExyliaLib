@@ -143,7 +143,12 @@ public final class FormField<T> {
         return of(key, label, InputParser.flag(), Kind.FLAG);
     }
 
-    /** Allows this field to be left blank and omitted from {@link FormValues}. */
+    /**
+     * Allows this field to be left blank and omitted from {@link FormValues}.
+     *
+     * <p>Blank is what the player submitted, even when the box opened
+     * prefilled: an emptied box is absent, read with {@link FormValues#getOr}.
+     */
     public @NotNull FormField<T> optional() {
         this.required = false;
         return this;
@@ -155,7 +160,6 @@ public final class FormField<T> {
         return this;
     }
 
-    /** Sets the initial value a transport may display. */
     /**
      * Draws this field tall enough to read, where the transport can.
      *
@@ -223,6 +227,16 @@ public final class FormField<T> {
         return hint;
     }
 
+    /**
+     * Sets the text the box opens with, typically the value being edited.
+     *
+     * <p>Only the starting text: an answer the player clears is submitted
+     * blank, never replaced by this value. It stands in for an answer only
+     * when a transport did not send the field at all.
+     *
+     * @param defaultValue the initial value, or {@code null} for an empty box
+     * @return this field
+     */
     public @NotNull FormField<T> defaultValue(@Nullable T defaultValue) {
         this.defaultValue = defaultValue;
         return this;

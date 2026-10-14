@@ -537,7 +537,12 @@ final class DialogPackets {
         Map<String, String> values = new LinkedHashMap<>();
         if (request instanceof FormInput form) {
             for (FormField<?> field : form.fields()) {
-                values.put(field.key().name(), raw(compound, field.key().name()));
+                String name = field.key().name();
+                // A field the client did not send is left out, so its default stands;
+                // one it sent empty is kept as "", which the form reads as cleared.
+                if (compound.getTagOrNull(name) != null) {
+                    values.put(name, raw(compound, name));
+                }
             }
         } else {
             values.put("value", raw(compound, "value"));

@@ -233,8 +233,8 @@ final class EffectDescriptor implements EditorDescriptor<EffectEntry> {
                 .name(blankToNull(values.getText(NAME)))
                 .chance(values.getDecimal(CHANCE).doubleValue())
                 .radius(radius(values.getText(RADIUS)))
-                .delayTicks(net.exylia.lib.effect.Ticks.parseTicks(
-                        values.getText(DELAY), entry.delayTicks()))
+                .delayTicks(values.has(DELAY) ? net.exylia.lib.effect.Ticks.parseTicks(
+                        values.getText(DELAY), entry.delayTicks()) : 0)
                 .priority((int) values.getLong(PRIORITY))
                 .condition(blankToNull(values.getText(CONDITION)))
                 .permission(blankToNull(values.getText(PERMISSION)))

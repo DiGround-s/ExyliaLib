@@ -839,7 +839,8 @@ final class MobSkillDescriptor implements EditorDescriptor<MobSkill> {
                 unit(read(values, THRESHOLD, skill.threshold() * 100) / 100),
                 read(values, RADIUS, skill.radius()),
                 read(values, AMOUNT, skill.amount()),
-                values.getOr(DURATION, skill.duration()),
+                // Only fire is optional: blank there is no fire, not the old time.
+                values.getOr(DURATION, skill.type() == MobSkill.Type.AREA_DAMAGE ? Duration.ZERO : skill.duration()),
                 text(skill, values),
                 values.has(EFFECT) ? effectLines(values.get(EFFECT)) : skill.effect(),
                 skill.cast());
@@ -853,7 +854,7 @@ final class MobSkillDescriptor implements EditorDescriptor<MobSkill> {
         return values.has(TEXT) ? values.get(TEXT).trim() : (touchesText(skill.type()) ? "" : skill.text());
     }
 
-    /** Effect lines as typed; {@code NONE} clears them, since a blank box keeps the old ones. */
+    /** Effect lines as typed; {@code NONE} clears them, as a blank box does. */
     private static String effectLines(String typed) {
         String lines = typed.trim();
         return lines.equalsIgnoreCase("NONE") ? "" : lines;

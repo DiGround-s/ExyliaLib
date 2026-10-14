@@ -159,6 +159,11 @@ public final class FormInput implements InputSession.Pending {
      * <p>All field errors are collected in one pass so a player can correct the
      * complete form rather than discover one failure per round trip.
      *
+     * <p>A field missing from the map was not sent, and its
+     * {@link FormField#defaultValue default} stands in. A field sent blank is
+     * blank: absent from the values when optional, "This field is required."
+     * when required. The default is never put back in place of a cleared box.
+     *
      * @return a {@link FormValues} on success, otherwise a {@link Validation}
      */
     public @NotNull Object parseRaw(@NotNull Map<String, String> rawByFieldName) {
@@ -174,7 +179,7 @@ public final class FormInput implements InputSession.Pending {
             return Validation.errors(errors);
         }
 
-        FormValues values = new FormValues(Map.copyOf(parsed));
+        FormValues values = new FormValues(Map.copyOf(parsed), fields.keySet());
         Validation combined = Validation.ok();
         for (Function<FormValues, Validation> validation : validations) {
             final Validation verdict;
@@ -194,11 +199,22 @@ public final class FormInput implements InputSession.Pending {
     private static <T> void parseField(FormField<T> field, String raw,
                                         Map<String, Object> parsed,
                                         Map<String, String> errors) {
-        String text = raw == null ? "" : raw.trim();
-        if (text.isEmpty()) {
+        if (raw == null) {
+            // Not sent at all, as a chat form does for the fields not reached yet:
+            // the default stands in. A box the player emptied is sent as "".
             if (field.defaultValue() != null) {
                 parsed.put(field.key().name(), field.defaultValue());
             } else if (field.isRequired()) {
+                errors.put(field.key().name(), Phrases.tr("This field is required."));
+            }
+            return;
+        }
+        String text = raw.trim();
+        if (text.isEmpty()) {
+            // Blank means blank. The default is the text the box opened with, so
+            // falling back to it would hand back the old value of a field the
+            // player just cleared.
+            if (field.isRequired()) {
                 errors.put(field.key().name(), Phrases.tr("This field is required."));
             }
             return;

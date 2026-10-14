@@ -168,18 +168,64 @@ class FormInputTest {
     }
 
     @Test
-    @DisplayName("an optional field left blank falls back to its default")
-    void optionalFields() {
+    @DisplayName("an optional field that was not sent falls back to its default")
+    void notSentUsesDefault() {
         FormInput form = inputs.form(player, "Settings")
                 .field(NAME, FormField.text(NAME, "Name"))
                 .field(REWARD, FormField.amount(REWARD, "Reward")
                         .optional()
                         .defaultValue(BigDecimal.ZERO));
 
-        Object parsed = form.parseRaw(Map.of("name", "Boxing", "reward", ""));
+        Object parsed = form.parseRaw(Map.of("name", "Boxing"));
 
         FormValues values = assertInstanceOf(FormValues.class, parsed);
         assertEquals(0, BigDecimal.ZERO.compareTo(values.getDecimal(REWARD)));
+    }
+
+    @Test
+    @DisplayName("an optional field left blank is absent, not its default")
+    void optionalBlankIsAbsent() {
+        FormInput form = inputs.form(player, "Settings")
+                .field(NAME, FormField.text(NAME, "Name").optional())
+                .field(REWARD, FormField.amount(REWARD, "Reward")
+                        .optional()
+                        .defaultValue(BigDecimal.TEN));
+
+        Object parsed = form.parseRaw(Map.of("name", "  ", "reward", ""));
+
+        FormValues values = assertInstanceOf(FormValues.class, parsed);
+        assertFalse(values.has(NAME));
+        assertFalse(values.has(REWARD));
+        assertEquals(BigDecimal.ONE, values.getOr(REWARD, BigDecimal.ONE));
+        assertEquals("", values.getText(NAME), "blank text reads as empty text");
+        assertThrows(InputException.class, () -> values.getDecimal(REWARD),
+                "a blank number has no value to read strictly");
+    }
+
+    @Test
+    @DisplayName("a prefilled box the player emptied comes back empty, not as the old value")
+    void prefilledThenEmptied() {
+        FormInput form = inputs.form(player, "Edit animation")
+                .field(NAME, FormField.text(NAME, "Animation").defaultValue("wave").optional());
+
+        Object parsed = form.parseRaw(Map.of("name", ""));
+
+        FormValues values = assertInstanceOf(FormValues.class, parsed);
+        assertFalse(values.has(NAME));
+        assertEquals("", values.getOr(NAME, ""));
+    }
+
+    @Test
+    @DisplayName("a prefilled required box the player emptied is refused, not kept")
+    void requiredPrefilledThenEmptied() {
+        FormInput form = inputs.form(player, "Rename")
+                .field(NAME, FormField.text(NAME, "Name").defaultValue("Boxing"))
+                .field(MIN_PLAYERS, FormField.integer(MIN_PLAYERS, "Minimum").defaultValue(2L));
+
+        Object parsed = form.parseRaw(Map.of("name", "", "minPlayers", "4"));
+
+        Validation validation = assertInstanceOf(Validation.class, parsed);
+        assertEquals(Map.of("name", "This field is required."), validation.fieldErrors());
     }
 
     @Test
