@@ -223,10 +223,28 @@ public final class PluginUpdater {
     private static @Nullable Path jarOf(Plugin plugin) {
         try {
             Path jar = Path.of(plugin.getClass().getProtectionDomain().getCodeSource().getLocation().toURI());
-            Path plugins = Bukkit.getUpdateFolderFile().toPath().getParent();
-            return Files.isRegularFile(jar) && jar.getParent() != null && plugins != null
-                    && Files.isSameFile(jar.getParent(), plugins) ? jar : null;
-        } catch (URISyntaxException | IOException | RuntimeException unknown) {
+            return installed(jar, Bukkit.getUpdateFolderFile().toPath().getParent());
+        } catch (URISyntaxException | RuntimeException unknown) {
+            return null;
+        }
+    }
+
+    /**
+     * The jar in {@code plugins} that {@code loaded} comes from. Paper loads a Spigot-mapped plugin
+     * from a copy it remaps into {@code plugins/.paper-remapped/} under the same file name, so the
+     * jar to replace is the one with that name in the plugins folder.
+     */
+    static @Nullable Path installed(Path loaded, @Nullable Path plugins) {
+        try {
+            if (plugins == null || loaded.getParent() == null || !Files.isRegularFile(loaded)) return null;
+            Path folder = loaded.getParent();
+            if (folder.getFileName() != null && folder.getFileName().toString().equals(".paper-remapped")
+                    && folder.getParent() != null && Files.isSameFile(folder.getParent(), plugins)) {
+                Path original = plugins.resolve(loaded.getFileName());
+                return Files.isRegularFile(original) ? original : null;
+            }
+            return Files.isSameFile(folder, plugins) ? loaded : null;
+        } catch (IOException unreadable) {
             return null;
         }
     }
