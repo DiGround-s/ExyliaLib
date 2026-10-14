@@ -82,6 +82,34 @@ public interface PlacedNpc {
     /** Makes it flinch for everybody who sees it. */
     void hurt();
 
+    /**
+     * Plays an animation for everybody who sees it.
+     *
+     * <pre>{@code
+     * guide.play(NpcAnimation.parse("wave"));
+     * }</pre>
+     *
+     * <p>Returns at once; the moves are sent at their moments, off the main thread. Two
+     * animations at once both play; one that crouched always ends in the spec's pose.
+     *
+     * @param animation what it does
+     * @since 1.300.0
+     */
+    default void play(@NotNull NpcAnimation animation) {
+    }
+
+    /**
+     * Plays an animation for one viewer only, which nobody else sees.
+     *
+     * <p>Nothing happens when that player does not have it on screen.
+     *
+     * @param animation what it does
+     * @param viewer    who sees it
+     * @since 1.300.0
+     */
+    default void play(@NotNull NpcAnimation animation, @NotNull Player viewer) {
+    }
+
     /** Whether a player has it on screen. */
     boolean isViewing(@NotNull Player player);
 

@@ -170,6 +170,9 @@ PlacedNpc guide = npcs.place("guide", NpcSpec.builder()
         .look(NpcLook.EACH_VIEWER)           // FIXED, NEAREST, EACH_VIEWER
         .lookRange(8)
         .viewDistance(48)
+        .sitting(false)                      // true mounts it on an invisible seat
+        .animations(new NpcAnimations(       // since 1.300.0; NpcAnimations.none() by default
+                "", "wave", "nod", Duration.ofSeconds(20), "wave", 4.0, Duration.ofSeconds(30)))
         .build(), location);                 // reusing an id replaces the NPC
 
 guide.onClick((player, click) -> {           // net.exylia.lib.interaction.Click
@@ -179,6 +182,8 @@ guide.visibleIf(player -> player.hasPermission("lobby.guide"));
 guide.moveTo(other);                         // a teleport, not a respawn
 guide.update(guide.spec().toBuilder().pose(NpcPose.SNEAKING).build());
 guide.swing();
+guide.play(NpcAnimation.parse("wave"));      // for everybody who sees it
+guide.play(NpcAnimation.parse("bow"), player); // for one viewer only
 
 npcs.placed("guide");                        // Optional<PlacedNpc>
 npcs.allPlaced();
@@ -195,6 +200,8 @@ npcs.unplace("guide");
 | `look` | `FIXED` faces the location's yaw; `NEAREST` turns to the closest viewer for everybody; `EACH_VIEWER` turns to each viewer on their own screen | `FIXED` |
 | `lookRange` | how close a viewer has to be to be looked at | `8` |
 | `viewDistance` | how close a player has to be to see it | `48` |
+| `sitting` | sits on an invisible seat at its location; combines with `pose` | `false` |
+| `animations` | `NpcAnimations`: what it plays on a click, every so often and to a player who walks up | `none()` |
 
 How it behaves:
 
@@ -217,6 +224,14 @@ How it behaves:
   skin they are wearing.
 - **The head turns only when it is worth a packet:** a head rotation and body yaw
   when the target angle moved more than 1.5 degrees.
+- **A head let go of eases home.** When nobody it would look at is in range
+  any more, it turns back to the location's facing by at most 45 degrees a pass
+  (about 180 degrees a second) instead of snapping.
+- **Sitting is a ride, not a pose.** A client only draws a player seated while it
+  rides something, so `sitting(true)` spawns a block display of air (nothing to
+  draw, no hitbox) at the location and mounts the body on it. The hips rest on
+  the location: place a sitting NPC on the seat. Turning sitting on or off gives
+  every viewer the NPC again; `moveTo` takes the seat along.
 - **Clicks** are read from `INTERACT_ENTITY` on the NPC's entity id and kept from
   the server. An attack is a left click, the main-hand use a right click
   (`INTERACT_AT` and the off-hand duplicate are ignored), sneaking makes it a
@@ -229,6 +244,55 @@ How it behaves:
 
 Without PacketEvents, `place` returns an inert NPC that is already `removed()`
 and the module says so once.
+
+### Animations
+
+Since 1.300.0. Short gestures made of vanilla packets, so they need no resource
+pack and cost nothing while idle. `NpcAnimation.parse` reads one from a file:
+
+```yaml
+right-click: wave
+idle: swing, 300ms, offhand, 300ms, crouch, 500ms, stand
+```
+
+| Word | What it does |
+|---|---|
+| `swing` | swings the main arm |
+| `offhand` | swings the off-hand arm |
+| `hurt` | flinches red |
+| `crouch` | crouches |
+| `stand` | back to the spec's pose |
+| `250ms`, `1s`, `5t` | waits before the next word; a bare number is seconds |
+| `wave`, `wave-offhand`, `nod`, `bow`, `flinch`, `punch`, `cheer` | presets, expanded in place |
+
+- Words are separated by commas and played left to right; moves with no wait
+  between them happen together. Tick resolution: under 50 ms is the same moment.
+- An unknown word is skipped, never thrown; `parse(text, unknown)` hands each
+  one to the caller so a command can tell the admin.
+- An animation that crouched always ends standing in the spec's pose, even
+  when the file forgot the `stand`.
+- `play` returns at once: the first moves go out now, the rest from the
+  scheduler, off the main thread. Two animations at once both play.
+
+`NpcAnimations` is a config record for the triggers; nest it in a plugin's own
+record:
+
+| Key | What it does | Default |
+|---|---|---|
+| `left-click` | played on a left click, for everyone who sees it | `''` |
+| `right-click` | played on a right click, for everyone who sees it | `''` |
+| `idle` | played every `idle-every` while anyone sees it | `''` |
+| `idle-every` | how often `idle` plays; `0` never | `20s` |
+| `greet` | played for a player who comes within `greet-range`, seen only by them | `''` |
+| `greet-range` | blocks | `4.0` |
+| `greet-cooldown` | how long before the same player is greeted again | `30s` |
+
+The click animation plays before `onClick`'s handler runs, and only for a click
+that survived the 200 ms dedupe. The greeting is per viewer so a crowd walking
+up one by one does not make it wave at nobody for everybody else; the
+cooldown survives the player walking out of view and back, and is forgotten
+when they quit. Idle and greeting are checked on the visibility pass, so they
+cost no timer of their own.
 
 ## Contracts
 
@@ -247,7 +311,8 @@ and the module says so once.
 ## Source and tests
 
 - Public: `npc/` — `Npcs`, `PluginNpcs`, `NpcModel`, `NpcPose`, `NpcHandle`;
-  placed NPCs: `PlacedNpc`, `NpcSpec`, `NpcSkin`, `NpcLook`.
+  placed NPCs: `PlacedNpc`, `NpcSpec`, `NpcSkin`, `NpcLook`, `NpcAnimation`,
+  `NpcAnimations`.
 - Internal: `npc/internal/` — the driver, `PlacedRuntime` and `PlacedNpcImpl`
   for placed NPCs, and the one class that names PacketEvents (`NpcPackets`,
   which also holds the click listener).
@@ -258,4 +323,8 @@ and the module says so once.
 - `PlacedNpcTest` asserts visibility by distance and world, announce-then-draw,
   click mapping and dedupe, replacing by id, release on plugin disable, look
   angles and both turning modes, mirrored and looked-up skins, and that `update`
-  and `moveTo` send only what changed.
+  and `moveTo` send only what changed; since 1.300.0 also the head easing home,
+  animations sent at their moments (to all or to one viewer), click and idle
+  triggers, the greeting range and cooldown, and the seat following the body.
+- `NpcAnimationTest` asserts the word format: waits, presets, the closing
+  stand and unknown words.

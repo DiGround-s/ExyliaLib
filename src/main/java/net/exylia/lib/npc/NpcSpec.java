@@ -40,6 +40,8 @@ public final class NpcSpec {
     private final NpcLook look;
     private final double lookRange;
     private final double viewDistance;
+    private final boolean sitting;
+    private final NpcAnimations animations;
 
     private NpcSpec(Builder builder) {
         this.skin = builder.skin;
@@ -50,6 +52,8 @@ public final class NpcSpec {
         this.look = builder.look;
         this.lookRange = builder.lookRange;
         this.viewDistance = builder.viewDistance;
+        this.sitting = builder.sitting;
+        this.animations = builder.animations;
     }
 
     /** A builder with the defaults: no skin, standing, player-sized, no glow, fixed look. */
@@ -68,6 +72,8 @@ public final class NpcSpec {
         builder.look = look;
         builder.lookRange = lookRange;
         builder.viewDistance = viewDistance;
+        builder.sitting = sitting;
+        builder.animations = animations;
         return builder;
     }
 
@@ -111,6 +117,24 @@ public final class NpcSpec {
         return viewDistance;
     }
 
+    /**
+     * Whether it sits, on top of its pose.
+     *
+     * @since 1.300.0
+     */
+    public boolean sitting() {
+        return sitting;
+    }
+
+    /**
+     * What it plays on its own: on a click, every so often, and to a player who walks up.
+     *
+     * @since 1.300.0
+     */
+    public @NotNull NpcAnimations animations() {
+        return animations;
+    }
+
     /** Builds a {@link NpcSpec}. Not thread-safe; build on one thread. */
     public static final class Builder {
 
@@ -122,6 +146,8 @@ public final class NpcSpec {
         private NpcLook look = NpcLook.FIXED;
         private double lookRange = 8.0;
         private double viewDistance = 48.0;
+        private boolean sitting;
+        private NpcAnimations animations = NpcAnimations.none();
 
         private Builder() {
         }
@@ -191,6 +217,36 @@ public final class NpcSpec {
         /** How close a player has to be to see it, in blocks. */
         public @NotNull Builder viewDistance(double blocks) {
             this.viewDistance = Math.max(1.0, blocks);
+            return this;
+        }
+
+        /**
+         * Sits it down where it stands.
+         *
+         * <p>Not a {@link NpcPose}: a client only draws a player seated when it rides
+         * something, so this mounts the body on an invisible seat at its location. Its
+         * hips rest at that location, so place a sitting NPC on the seat (a stair's
+         * top, a block's top), not in front of it. Combines with a pose: a sitting
+         * NPC can still crouch.
+         *
+         * @param sitting whether it sits
+         * @return this builder
+         * @since 1.300.0
+         */
+        public @NotNull Builder sitting(boolean sitting) {
+            this.sitting = sitting;
+            return this;
+        }
+
+        /**
+         * What it plays on its own.
+         *
+         * @param animations the triggers; {@link NpcAnimations#none()} for none
+         * @return this builder
+         * @since 1.300.0
+         */
+        public @NotNull Builder animations(@NotNull NpcAnimations animations) {
+            this.animations = Objects.requireNonNull(animations, "animations");
             return this;
         }
 

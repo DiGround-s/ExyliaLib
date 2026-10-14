@@ -59,6 +59,19 @@ interface PlacedSink {
     /** Makes it flinch. */
     void hurt(Player viewer, int entityId);
 
+    /** Swings its off-hand arm. */
+    void swingOffhand(Player viewer, int entityId);
+
+    /**
+     * Spawns an invisible seat at {@code at} and sits the drawn body on it.
+     *
+     * <p>A client only draws a player seated while it rides something.
+     */
+    void seat(Player viewer, int seatId, int entityId, Location at);
+
+    /** Removes the seat; the body stands up where it is. */
+    void unseat(Player viewer, int seatId);
+
     /** Removes the body, the identity and the team that hid its name. */
     void destroy(Player viewer, int entityId, UUID profile, String name);
 }

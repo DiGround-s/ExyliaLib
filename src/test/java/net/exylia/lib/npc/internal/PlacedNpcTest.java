@@ -3,6 +3,8 @@ package net.exylia.lib.npc.internal;
 import net.exylia.lib.FakePlayer;
 import net.exylia.lib.FakeServer;
 import net.exylia.lib.interaction.Click;
+import net.exylia.lib.npc.NpcAnimation;
+import net.exylia.lib.npc.NpcAnimations;
 import net.exylia.lib.npc.NpcLook;
 import net.exylia.lib.npc.NpcPose;
 import net.exylia.lib.npc.NpcSkin;
@@ -22,6 +24,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -96,6 +99,21 @@ class PlacedNpcTest {
         @Override
         public void hurt(Player viewer, int entityId) {
             sent.add("hurt:" + viewer.getName());
+        }
+
+        @Override
+        public void swingOffhand(Player viewer, int entityId) {
+            sent.add("offhand:" + viewer.getName());
+        }
+
+        @Override
+        public void seat(Player viewer, int seatId, int entityId, Location at) {
+            sent.add("seat:" + viewer.getName() + ":" + seatId + ">" + entityId);
+        }
+
+        @Override
+        public void unseat(Player viewer, int seatId) {
+            sent.add("unseat:" + viewer.getName() + ":" + seatId);
         }
 
         @Override
@@ -403,5 +421,119 @@ class PlacedNpcTest {
         assertEquals(List.of("destroy:Near:500"), sent);
         show();
         assertEquals(1, sent.size(), "not sent again");
+    }
+
+    @Test
+    @DisplayName("a viewer who walks out of the look range sees the head ease home, not snap")
+    void headEasesHomeOutOfRange() {
+        npcs.place("guide", NpcSpec.builder().look(NpcLook.EACH_VIEWER).lookRange(8).build(), origin());
+        show();
+        assertTrue(sent.contains("look:Near:-90"), sent.toString());
+        sent.clear();
+
+        near.at(new Location(world, 20, 64, 0));
+        PlacedRuntime.tick();
+        PlacedRuntime.tick();
+        PlacedRuntime.tick();
+        assertEquals(List.of("look:Near:-45", "look:Near:0"), sent("look"),
+                "45 degrees a pass, then still once home");
+    }
+
+    @Test
+    @DisplayName("an animation sends its moves at their moments, and a crouch always stands back up")
+    void playSchedulesMoves() {
+        PlacedNpc npc = npcs.place("guide", spec(), origin());
+        show();
+        sent.clear();
+
+        npc.play(NpcAnimation.parse("swing, 100ms, crouch"));
+        assertEquals(List.of("swing:Near"), sent);
+        FakeServer.tick(3);
+        assertEquals(List.of("swing:Near", "pose:Near:SNEAKING", "pose:Near:STANDING"), sent);
+
+        sent.clear();
+        npc.play(NpcAnimation.parse("offhand"), far.player());
+        assertEquals(List.of(), sent, "Far does not see it, so nothing is sent");
+        npc.play(NpcAnimation.parse("hurt"), near.player());
+        assertEquals(List.of("hurt:Near"), sent);
+    }
+
+    @Test
+    @DisplayName("click triggers play for the click they are for, before the handler")
+    void clickAnimations() {
+        npcs.place("guide", NpcSpec.builder()
+                .animations(new NpcAnimations("hurt", "swing", "", Duration.ZERO, "", 0, Duration.ZERO))
+                .build(), origin());
+        show();
+        sent.clear();
+
+        PlacedRuntime.clicked(near.player(), 500, true);
+        clock.addAndGet(300);
+        PlacedRuntime.clicked(near.player(), 500, false);
+        assertEquals(List.of("hurt:Near", "swing:Near"), sent);
+    }
+
+    @Test
+    @DisplayName("the idle animation plays every interval, only while somebody sees it")
+    void idleInterval() {
+        npcs.place("guide", NpcSpec.builder()
+                .animations(new NpcAnimations("", "", "swing", Duration.ofSeconds(10), "", 0, Duration.ZERO))
+                .build(), origin());
+        show();
+        sent.clear();
+
+        clock.addAndGet(9_000);
+        PlacedRuntime.tick();
+        assertEquals(List.of(), sent("swing"));
+        clock.addAndGet(1_000);
+        PlacedRuntime.tick();
+        assertEquals(List.of("swing:Near"), sent("swing"));
+        PlacedRuntime.tick();
+        assertEquals(1, sent("swing").size(), "not again before the next interval");
+    }
+
+    @Test
+    @DisplayName("a greeting plays only for the player who walked up, once per cooldown")
+    void greetsOnlyWhoCameClose() {
+        far.at(new Location(world, 10, 64, 0));
+        npcs.place("guide", NpcSpec.builder()
+                .animations(new NpcAnimations("", "", "", Duration.ZERO, "swing", 4, Duration.ofSeconds(30)))
+                .build(), origin());
+        show();
+        assertEquals(List.of("swing:Near"), sent("swing"), "Near was already close; Far is not");
+        sent.clear();
+
+        far.at(new Location(world, 2, 64, 0));
+        PlacedRuntime.tick();
+        assertEquals(List.of("swing:Far"), sent("swing"));
+
+        far.at(new Location(world, 10, 64, 0));
+        PlacedRuntime.tick();
+        far.at(new Location(world, 2, 64, 0));
+        PlacedRuntime.tick();
+        assertEquals(1, sent("swing").size(), "inside the cooldown");
+
+        clock.addAndGet(31_000);
+        far.at(new Location(world, 10, 64, 0));
+        PlacedRuntime.tick();
+        far.at(new Location(world, 2, 64, 0));
+        PlacedRuntime.tick();
+        assertEquals(2, sent("swing").size());
+    }
+
+    @Test
+    @DisplayName("a sitting NPC rides its own seat, which goes with it and respawns when it stands")
+    void sitsOnASeat() {
+        PlacedNpc npc = npcs.place("guide", NpcSpec.builder().sitting(true).build(), origin());
+        show();
+        assertTrue(sent.contains("seat:Near:501>500"), sent.toString());
+        sent.clear();
+
+        npc.moveTo(new Location(world, 1, 64, 0));
+        assertEquals(List.of("teleport:Near", "teleport:Near"), sent("teleport"), "seat and body");
+        sent.clear();
+
+        npc.update(npc.spec().toBuilder().sitting(false).build());
+        assertEquals(List.of("unseat:Near:501", "destroy:Near:500"), sent);
     }
 }

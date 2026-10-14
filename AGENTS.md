@@ -764,7 +764,13 @@ hand-built packet. See `docs/npcs.md`.
   generated name in a team that hides the nametag. Skins: `texture`, `player`
   (async Mojang lookup, cached, never blocking), `mirror` (each viewer's own).
   Look modes `FIXED`/`NEAREST`/`EACH_VIEWER` send rotation only when the angle
-  moved. Clicks map to `interaction.Click` and run on the player's thread.
+  moved, and ease home (45°/pass) once nobody is in range. Clicks map to
+  `interaction.Click` and run on the player's thread.
+- **Animations** (`NpcAnimation`, 1.300.0) are vanilla packets in a comma
+  format with presets; `PlacedNpc.play` schedules them, `NpcAnimations` triggers
+  them on click, on an interval and as a per-viewer greeting, all from the
+  visibility pass. Sitting is `NpcSpec.sitting`, a ride on an air block display,
+  not a `NpcPose` constant (adding one would break exhaustive switches).
 - **PacketEvents is named in `NpcPackets` only.**
 
 ### Modded clients — always `Clients`, never branching

@@ -27,6 +27,8 @@ import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerEn
 import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerEntityRelativeMoveAndRotation;
 import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerEntityRotation;
 import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerEntityTeleport;
+import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerHurtAnimation;
+import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerSetPassengers;
 import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerPlayerInfoRemove;
 import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerPlayerInfoUpdate;
 import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerSpawnEntity;
@@ -296,9 +298,9 @@ final class NpcPackets implements NpcSink, PlacedSink {
 
     @Override
     public void hurt(List<Player> viewers, int entityId) {
-        PacketWrapper<?> packet = new WrapperPlayServerEntityAnimation(entityId,
-                WrapperPlayServerEntityAnimation.EntityAnimationType.HURT);
-        send(viewers, packet);
+        // The HURT animation id has done nothing since 1.19.4; a client flinches on
+        // its own packet now, and api-version 1.21 means every server has it.
+        send(viewers, new WrapperPlayServerHurtAnimation(entityId, 0f));
     }
 
     @Override
@@ -413,6 +415,28 @@ final class NpcPackets implements NpcSink, PlacedSink {
     @Override
     public void hurt(Player viewer, int entityId) {
         hurt(List.of(viewer), entityId);
+    }
+
+    @Override
+    public void swingOffhand(Player viewer, int entityId) {
+        Broadcast.send(viewer, new WrapperPlayServerEntityAnimation(entityId,
+                WrapperPlayServerEntityAnimation.EntityAnimationType.SWING_OFF_HAND));
+    }
+
+    @Override
+    public void seat(Player viewer, int seatId, int entityId, Location at) {
+        // A block display of air: nothing to draw, no hitbox to steal clicks from the
+        // body, and a passenger sits at its origin, so the hips land on the location.
+        Broadcast.send(viewer, new WrapperPlayServerSpawnEntity(
+                seatId, Optional.of(UUID.randomUUID()), EntityTypes.BLOCK_DISPLAY,
+                new Vector3d(at.getX(), at.getY(), at.getZ()),
+                0f, at.getYaw(), at.getYaw(), 0, Optional.empty()));
+        Broadcast.send(viewer, new WrapperPlayServerSetPassengers(seatId, new int[] {entityId}));
+    }
+
+    @Override
+    public void unseat(Player viewer, int seatId) {
+        Broadcast.send(viewer, new WrapperPlayServerDestroyEntities(seatId));
     }
 
     @Override

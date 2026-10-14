@@ -1,7 +1,10 @@
 package net.exylia.lib.npc.internal;
 
 import net.exylia.lib.interaction.Click;
+import net.exylia.lib.npc.NpcAnimation;
+import net.exylia.lib.npc.NpcAnimations;
 import net.exylia.lib.npc.NpcLook;
+import net.exylia.lib.npc.NpcPose;
 import net.exylia.lib.npc.NpcSkin;
 import net.exylia.lib.npc.NpcSpec;
 import net.exylia.lib.npc.PlacedNpc;
@@ -43,6 +46,12 @@ final class PlacedNpcImpl implements PlacedNpc {
     /** A turn smaller than this, in degrees, is not worth a packet. */
     static final float TURN_EPSILON = 1.5f;
 
+    /**
+     * The most it turns back towards its own facing in one pass, in degrees: a head
+     * let go of eases home over about a second instead of snapping.
+     */
+    static final float RETURN_STEP = 45f;
+
     private final String id;
     private final Plugin owner;
     private final int entityId;
@@ -58,6 +67,14 @@ final class PlacedNpcImpl implements PlacedNpc {
     private volatile Predicate<Player> filter;
     private volatile BiConsumer<Player, Click> handler;
     private volatile boolean removed;
+    /** The invisible seat's entity id, taken the first time it sits; -1 before. */
+    private volatile int seatId = -1;
+    /** The spec's animations, parsed once per spec rather than once per trigger. */
+    private volatile Triggers triggers;
+    /** When the idle animation plays next, or 0 when it is not counting. */
+    private long nextIdle;
+    /** When each player was last greeted, kept across leaving and coming back. */
+    private final Map<UUID, Long> greeted = new ConcurrentHashMap<>();
 
     private final Map<UUID, Viewer> viewers = new ConcurrentHashMap<>();
 
@@ -77,6 +94,8 @@ final class PlacedNpcImpl implements PlacedNpc {
         boolean unlisted;
         float yaw;
         float pitch;
+        /** Whether they were inside the greeting range on the last pass. */
+        boolean inGreetRange;
         long lastClick = Long.MIN_VALUE / 2;
 
         Viewer(Player player) {
@@ -141,6 +160,9 @@ final class PlacedNpcImpl implements PlacedNpc {
         }
         for (Viewer viewer : viewers.values()) {
             if (viewer.drawn) {
+                if (spec.sitting()) {
+                    sink().teleport(viewer.player, seatId, location);
+                }
                 sink().teleport(viewer.player, entityId, location);
                 viewer.yaw = to.getYaw();
                 viewer.pitch = to.getPitch();
@@ -154,6 +176,9 @@ final class PlacedNpcImpl implements PlacedNpc {
         spec = Objects.requireNonNull(next, "spec");
         if (removed) {
             return;
+        }
+        if (!before.animations().equals(next.animations())) {
+            nextIdle = 0L;
         }
         if (respawns(before, next)) {
             despawnAll();
@@ -179,6 +204,60 @@ final class PlacedNpcImpl implements PlacedNpc {
     @Override
     public synchronized void hurt() {
         forDrawn(viewer -> sink().hurt(viewer, entityId));
+    }
+
+    @Override
+    public void play(@NotNull NpcAnimation animation) {
+        schedule(animation, null);
+    }
+
+    @Override
+    public void play(@NotNull NpcAnimation animation, @NotNull Player viewer) {
+        schedule(animation, viewer.getUniqueId());
+    }
+
+    /** Sends each move at its moment: the first ones now, the rest from the scheduler. */
+    private void schedule(NpcAnimation animation, @Nullable UUID only) {
+        if (removed || animation.isEmpty()) {
+            return;
+        }
+        for (NpcAnimation.Step step : animation.steps()) {
+            long ticks = step.atMillis() / 50L;
+            if (ticks == 0L) {
+                perform(step.move(), only);
+            } else {
+                PlacedRuntime.scheduler().runAsyncLater(ticks, () -> perform(step.move(), only));
+            }
+        }
+    }
+
+    /** One move, for every drawn viewer or only one. */
+    private synchronized void perform(NpcAnimation.Move move, @Nullable UUID only) {
+        if (removed) {
+            return;
+        }
+        if (only != null) {
+            Viewer viewer = viewers.get(only);
+            if (viewer != null && viewer.drawn) {
+                perform(move, viewer.player);
+            }
+            return;
+        }
+        for (Viewer viewer : viewers.values()) {
+            if (viewer.drawn) {
+                perform(move, viewer.player);
+            }
+        }
+    }
+
+    private void perform(NpcAnimation.Move move, Player player) {
+        switch (move) {
+            case SWING -> sink().swing(player, entityId);
+            case SWING_OFFHAND -> sink().swingOffhand(player, entityId);
+            case HURT -> sink().hurt(player, entityId);
+            case CROUCH -> sink().pose(player, entityId, NpcPose.SNEAKING);
+            case STAND -> sink().pose(player, entityId, spec.pose());
+        }
     }
 
     @Override
@@ -224,7 +303,8 @@ final class PlacedNpcImpl implements PlacedNpc {
     static boolean respawns(NpcSpec before, NpcSpec after) {
         return !before.skin().equals(after.skin())
                 || before.scale() != after.scale()
-                || before.glow() != after.glow();
+                || before.glow() != after.glow()
+                || before.sitting() != after.sitting();
     }
 
     /** Whether a player should have it on screen. */
@@ -277,7 +357,61 @@ final class PlacedNpcImpl implements PlacedNpc {
         }
         // Somebody who left without the quit reaching us: nothing to send.
         viewers.keySet().removeIf(uuid -> !seen.contains(uuid));
-        turn(current, at);
+        Triggers animations = triggers(current);
+        turn(current, at, animations);
+        idle(current, animations);
+    }
+
+    /** Plays the idle animation when its time comes round, if anybody is there to see it. */
+    private void idle(NpcSpec current, Triggers animations) {
+        long every = current.animations().idleEvery().toMillis();
+        if (animations.idle.isEmpty() || every <= 0L) {
+            return;
+        }
+        long now = PlacedRuntime.now();
+        if (nextIdle == 0L) {
+            nextIdle = now + every;
+        } else if (now >= nextIdle) {
+            nextIdle = now + every;
+            if (viewerCount() > 0) {
+                play(animations.idle);
+            }
+        }
+    }
+
+    /** Greets a viewer who just came within range, unless they were greeted too recently. */
+    private void greet(Viewer viewer, NpcSpec current, Triggers animations) {
+        long now = PlacedRuntime.now();
+        long cooldown = current.animations().greetCooldown().toMillis();
+        UUID uuid = viewer.player.getUniqueId();
+        Long last = greeted.get(uuid);
+        if (last != null && now - last < cooldown) {
+            return;
+        }
+        greeted.put(uuid, now);
+        play(animations.greet, viewer.player);
+    }
+
+    /** The spec's animations parsed, reusing the last parse while the spec keeps them. */
+    private Triggers triggers(NpcSpec current) {
+        NpcAnimations source = current.animations();
+        Triggers known = triggers;
+        if (known == null || known.source != source) {
+            known = Triggers.of(source);
+            triggers = known;
+        }
+        return known;
+    }
+
+    /** {@link NpcAnimations} with every animation already read. */
+    private record Triggers(NpcAnimations source, NpcAnimation left, NpcAnimation right,
+                            NpcAnimation idle, NpcAnimation greet) {
+
+        static Triggers of(NpcAnimations source) {
+            return new Triggers(source, NpcAnimation.parse(source.leftClick()),
+                    NpcAnimation.parse(source.rightClick()), NpcAnimation.parse(source.idle()),
+                    NpcAnimation.parse(source.greet()));
+        }
     }
 
     private void announce(Player player, NpcSpec current) {
@@ -291,10 +425,19 @@ final class PlacedNpcImpl implements PlacedNpc {
         viewer.yaw = at.getYaw();
         viewer.pitch = at.getPitch();
         sink().draw(viewer.player, entityId, profile, name, current, at, at.getYaw(), at.getPitch());
+        if (current.sitting()) {
+            if (seatId < 0) {
+                seatId = PlacedRuntime.newEntityId();
+            }
+            sink().seat(viewer.player, seatId, entityId, at);
+        }
     }
 
-    /** Turns the head for every viewer whose target angle moved enough to see. */
-    private void turn(NpcSpec current, Location at) {
+    /**
+     * Turns the head for every viewer whose target angle moved enough to see, easing it
+     * home when nobody is in range, and greets whoever just came close.
+     */
+    private void turn(NpcSpec current, Location at, Triggers animations) {
         NpcLook look = current.look();
         double rangeSquared = current.lookRange() * current.lookRange();
         Player nearest = null;
@@ -308,22 +451,35 @@ final class PlacedNpcImpl implements PlacedNpc {
                 }
             }
         }
+        boolean greets = !animations.greet.isEmpty() && current.animations().greetRange() > 0;
+        double greetSquared = current.animations().greetRange() * current.animations().greetRange();
         for (Viewer viewer : viewers.values()) {
             if (!viewer.drawn) {
                 continue;
             }
+            double distance = look == NpcLook.EACH_VIEWER || greets
+                    ? viewer.player.getLocation().distanceSquared(at) : 0.0;
+            if (greets) {
+                boolean inside = distance <= greetSquared;
+                if (inside && !viewer.inGreetRange) {
+                    greet(viewer, current, animations);
+                }
+                viewer.inGreetRange = inside;
+            }
             Player target = switch (look) {
                 case FIXED -> null;
                 case NEAREST -> nearest;
-                case EACH_VIEWER -> viewer.player.getLocation().distanceSquared(at) <= rangeSquared
-                        ? viewer.player : null;
+                case EACH_VIEWER -> distance <= rangeSquared ? viewer.player : null;
             };
-            float yaw = at.getYaw();
-            float pitch = at.getPitch();
+            float yaw;
+            float pitch;
             if (target != null) {
                 float[] angles = angles(at, EYE_HEIGHT * current.scale(), target.getLocation());
                 yaw = angles[0];
                 pitch = angles[1];
+            } else {
+                yaw = viewer.yaw + Math.clamp(wrap(at.getYaw() - viewer.yaw), -RETURN_STEP, RETURN_STEP);
+                pitch = viewer.pitch + Math.clamp(at.getPitch() - viewer.pitch, -RETURN_STEP, RETURN_STEP);
             }
             if (Math.abs(wrap(yaw - viewer.yaw)) > TURN_EPSILON
                     || Math.abs(pitch - viewer.pitch) > TURN_EPSILON) {
@@ -373,6 +529,8 @@ final class PlacedNpcImpl implements PlacedNpc {
             }
             viewer.lastClick = now;
         }
+        Triggers animations = triggers(spec);
+        play(attack ? animations.left : animations.right);
         BiConsumer<Player, Click> current = handler;
         if (current == null) {
             return;
@@ -384,6 +542,9 @@ final class PlacedNpcImpl implements PlacedNpc {
     /** Takes it off one player's screen. */
     synchronized void despawn(Player player) {
         if (viewers.remove(player.getUniqueId()) != null) {
+            if (seatId >= 0) {
+                sink().unseat(player, seatId);
+            }
             sink().destroy(player, entityId, profile, name);
         }
     }
@@ -406,6 +567,7 @@ final class PlacedNpcImpl implements PlacedNpc {
     /** Forgets a player who left, without sending them anything. */
     void forget(UUID player) {
         viewers.remove(player);
+        greeted.remove(player);
     }
 
     /** Stops it for good; the caller has taken it off every screen. */

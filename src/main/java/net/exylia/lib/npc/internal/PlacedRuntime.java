@@ -122,6 +122,21 @@ public final class PlacedRuntime {
         return sink;
     }
 
+    /** What sends an animation's later moves. */
+    static TaskScheduler scheduler() {
+        return scheduler;
+    }
+
+    /** The time, from the clock tests can move. */
+    static long now() {
+        return clock.getAsLong();
+    }
+
+    /** A fresh entity id, for a part an NPC only needs sometimes, such as a seat. */
+    static int newEntityId() {
+        return ids.next();
+    }
+
     /** Whether an entity id is a placed NPC's body. Asked on the network thread. */
     static boolean isPlaced(int entityId) {
         return BY_ENTITY.containsKey(entityId);
