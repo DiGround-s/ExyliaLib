@@ -1,0 +1,45 @@
+# The settings screens of every plugin, shown by /settings.
+# Restyle them freely: the library only adds keys missing from this file.
+# The root screen: Settings and Announcements.
+title: '{primary}&lAYARLAR'
+size: 27
+type: SIMPLE
+open_sounds:
+  - "minecraft:block.ender_chest.open|1.0|1.4"
+click_sounds:
+  - "minecraft:block.note_block.hat|1.0|1.0"
+close_sounds:
+  - "minecraft:block.barrel.close|1.0|0.7"
+filler:
+  global:
+    material: GRAY_STAINED_GLASS_PANE
+    hide_tooltip: true
+items:
+  settings:
+    slot: 12
+    material: COMPARATOR
+    name: '{primary}&lAYARLAR'
+    lore:
+      - ''
+      - '{secondary}Bilgi:'
+      - ' {letters_black}▎ {letters}Diğer oyuncular sana nasıl ulaşır'
+      - ' {letters_black}▎ {letters}ve her özellik sana nasıl davranır.'
+      - ''
+      - '{warning}➥ Açmak için tıkla'
+      - ''
+    actions:
+      - 'exylialib:settings_open settings'
+  announcements:
+    slot: 14
+    material: BELL
+    name: '{primary}&lDUYURULAR'
+    lore:
+      - ''
+      - '{secondary}Bilgi:'
+      - ' {letters_black}▎ {letters}Sunucu genelindeki hangi mesajlar'
+      - ' {letters_black}▎ {letters}senin {highlight}sohbetine {letters}ulaşır.'
+      - ''
+      - '{warning}➥ Açmak için tıkla'
+      - ''
+    actions:
+      - 'exylialib:settings_open announcements'

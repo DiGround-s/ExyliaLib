@@ -1,0 +1,41 @@
+wizard:
+  stand: '{warning}➥ {letters}İstediğin yerde dur ve {highlight}eğilip tıkla{letters}.'
+  point: '{warning}➥ {letters}İstediğin bloğa sol tıkla.'
+  region: '{warning}➥ {letters}Bir köşeye sol tık, diğerine sağ tık yap, ardından onaylamak için {highlight}Shift + sol tık {letters}yap.'
+  item: '{warning}➥ {letters}İstediğin eşyayı eline al ve onayla.'
+selection:
+  first-corner: '{success}● {letters}Birinci köşe {letters_black}» {info}%x%, %y%, %z%'
+  second-corner: '{error}● {letters}İkinci köşe {letters_black}» {info}%x%, %y%, %z%'
+  volume: '{secondary}Seçim: {info}%blocks% {letters}blok'
+  confirmed: '{success}● {letters}Seçim onaylandı'
+  guide-corners: '{letters}Sol tık ve sağ tık ile iki köşe işaretle, araç: {highlight}%selector%'
+  guide-first: '{letters}Sağ tıkla: {error}ikinci köşe'
+  guide-second: '{letters}Sol tıkla: {success}birinci köşe'
+  guide-confirm: '{warning}➥ {letters}Onaylamak için Shift + sol tık {letters_black}» {info}%blocks% {letters}blok'
+  area: '{secondary}Seçim: {info}%blocks% {letters}sütun {letters_black}» {info}tam yükseklik'
+  guide-confirm-area: '{warning}➥ {letters}Onaylamak için Shift + sol tık {letters_black}» {info}%blocks% {letters}sütun'
+players:
+  not-found: '[sound:ENTITY_VILLAGER_NO|1|1]{error}✖ {letters}Bu isimde bir oyuncu bulunamadı: {highlight}%player%{letters}.'
+  not-here: '[sound:ENTITY_VILLAGER_NO|1|1]{error}✖ {highlight}%player% {letters}adlı oyuncu bu sunucuda değil.'
+purchase:
+  confirm: '{letters}Satın almak istiyor musun: {highlight}%item% {letters}fiyatı {info}%price%{letters}?'
+  confirm-button: '{success}&lSATIN AL'
+  success: '[sound:ENTITY_PLAYER_LEVELUP|1|1.4]{success}✔ {letters}Kilidi açıldı: {highlight}%item% {letters}ödenen {info}%price%{letters}.'
+  insufficient-funds: '[sound:ENTITY_VILLAGER_NO|1|1]{error}✖ {letters}Gereken tutar {info}%price% {letters}şunun için: {highlight}%item% {letters_black}» {letters}bakiyen {info}%balance%{letters}.'
+  unavailable: '[sound:ENTITY_VILLAGER_NO|1|1]{error}✖ {highlight}%item% {letters}şu anda satın alınamıyor.'
+  busy: '{warning}➥ {letters}Önceki satın alman hâlâ işleniyor.'
+  already-owned: '{warning}➥ {letters}Buna zaten sahipsin: {highlight}%item%{letters}.'
+  failed: '[sound:ENTITY_VILLAGER_NO|1|1]{error}✖ {letters}Kilit açılamadı: {highlight}%item%{letters}. İade edilen tutar {info}%price%{letters}.'
+  refund-failed: '[sound:ENTITY_VILLAGER_NO|1|1]{error}✖ {letters}Kilit açılamadı: {highlight}%item% {letters}ve iade başarısız oldu, tutar {info}%price%{letters}. {warning}Yetkililerle iletişime geç.'
+logs:
+  unavailable: '[sound:ENTITY_VILLAGER_NO|1|1]{error}✖ {letters}Kayıtlar okunamadı. Biraz sonra tekrar dene.'
+  empty: '{letters_black}▎ {muted}Kayıt yok: {highlight}%subject% {muted}/ {info}%plugin% {letters_black}» {info}%action%{muted}.'
+  header: '{letters_black}▎ {letters}Kayıtlar: {highlight}%subject% {letters_black}» {info}%plugin% {letters_black}» {info}%action% {letters_black}(%count%)'
+  entry: '{letters_black}▎ {muted}%when% {letters_black}» {secondary}%plugin% {highlight}%action% {letters}%actor% {letters_black}→ {letters}%target% {letters_black}» {letters}%detail%'
+  more: '{letters_black}▎ {letters}Ve {info}%count% {letters}kayıt daha. Hepsini görmek için oyun içinde menüyü aç.'
+  everybody: Herkes
+  all: Tümü
+  none: —
+  detail-line: ' {letters_black}▎ {letters}%line%'
+  view-items: '{warning}➥ Eşyaları görmek için tıkla'
+  view-entry: '{warning}➥ Kaydı açmak için tıkla'

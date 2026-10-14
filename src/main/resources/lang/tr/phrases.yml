@@ -1,0 +1,1226 @@
+' {error}{0} too big to store were left out.': ' {error}Kaydedilemeyecek kadar büyük {0} dışarıda bırakıldı.'
+' {letters_black}(auto)': ' {letters_black}(otomatik)'
+' {letters_black}(faint)': ' {letters_black}(soluk)'
+' {letters_black}» {letters}reloaded {0}': ' {letters_black}» {letters}yeniden yüklendi {0}'
+' {letters_black}» {warning}reload {0} {warning}to see it': ' {letters_black}» {warning}görmek için {0} {warning}ile yeniden yükle'
+' {letters_black}» {warning}{0} changed on disk and were left alone': ' {letters_black}» {warning}{0} diskte değişti ve olduğu gibi bırakıldı'
+' {letters_black}▎ {letters_black}Nothing is written until you leave.': ' {letters_black}▎ {letters_black}Çıkana kadar hiçbir şey yazılmaz.'
+' {letters_black}▎ {letters_black}Nothing is written until you save.': ' {letters_black}▎ {letters_black}Kaydedene kadar hiçbir şey yazılmaz.'
+' {letters_black}▎ {letters_black}Replaces whatever is there now.': ' {letters_black}▎ {letters_black}Şu an orada ne varsa değiştirir.'
+' {letters_black}▎ {letters_black}The rows below are the inventory,': ' {letters_black}▎ {letters_black}Alttaki satırlar envanterdir,'
+' {letters_black}▎ {letters_black}the last one being the hotbar.': ' {letters_black}▎ {letters_black}sonuncusu hızlı erişim çubuğudur.'
+' {letters_black}▎ {letters}1 {letters_black}» {letters}Helmet': ' {letters_black}▎ {letters}1 {letters_black}» {letters}Kask'
+' {letters_black}▎ {letters}2 {letters_black}» {letters}Chestplate': ' {letters_black}▎ {letters}2 {letters_black}» {letters}Göğüslük'
+' {letters_black}▎ {letters}3 {letters_black}» {letters}Leggings': ' {letters_black}▎ {letters}3 {letters_black}» {letters}Pantolon'
+' {letters_black}▎ {letters}4 {letters_black}» {letters}Boots': ' {letters_black}▎ {letters}4 {letters_black}» {letters}Bot'
+' {letters_black}▎ {letters}5 {letters_black}» {letters}Offhand': ' {letters_black}▎ {letters}5 {letters_black}» {letters}İkinci el'
+' {letters_black}▎ {letters}A {highlight}changed default {letters}waits here:': ' {letters_black}▎ {letters}Bir {highlight}değişen varsayılan {letters}burada bekliyor:'
+' {letters_black}▎ {letters}After {letters_black}» {info}{0}s ⌚': ' {letters_black}▎ {letters}Sonra {letters_black}» {info}{0}s ⌚'
+' {letters_black}▎ {letters}Amount {letters_black}» {info}{0}': ' {letters_black}▎ {letters}Miktar {letters_black}» {info}{0}'
+' {letters_black}▎ {letters}At {letters_black}» {info}{0}{letters_black}, {info}{1}{letters_black}, {info}{2}': ' {letters_black}▎ {letters}Konum {letters_black}» {info}{0}{letters_black}, {info}{1}{letters_black}, {info}{2}'
+' {letters_black}▎ {letters}Chance {letters_black}» {0}': ' {letters_black}▎ {letters}Şans {letters_black}» {0}'
+' {letters_black}▎ {letters}Chance {letters_black}» {info}{0}%': ' {letters_black}▎ {letters}Şans {letters_black}» {info}{0}%'
+' {letters_black}▎ {letters}Changes {letters_black}» {info}%changes%': ' {letters_black}▎ {letters}Değişiklikler {letters_black}» {info}%changes%'
+' {letters_black}▎ {letters}Command {letters_black}» {warning}{0}': ' {letters_black}▎ {letters}Komut {letters_black}» {warning}{0}'
+' {letters_black}▎ {letters}Condition {letters_black}» {info}{0}': ' {letters_black}▎ {letters}Koşul {letters_black}» {info}{0}'
+' {letters_black}▎ {letters}Cooldown {letters_black}» {info}{0} ⌚': ' {letters_black}▎ {letters}Bekleme süresi {letters_black}» {info}{0} ⌚'
+' {letters_black}▎ {letters}Currency {letters_black}» {info}{0}': ' {letters_black}▎ {letters}Para birimi {letters_black}» {info}{0}'
+' {letters_black}▎ {letters}Days {letters_black}» {info}{0}': ' {letters_black}▎ {letters}Günler {letters_black}» {info}{0}'
+' {letters_black}▎ {letters}Default {letters_black}» {0}': ' {letters_black}▎ {letters}Varsayılan {letters_black}» {0}'
+' {letters_black}▎ {letters}Discard every change and': ' {letters_black}▎ {letters}Tüm değişiklikleri at ve'
+' {letters_black}▎ {letters}Empties every slot.': ' {letters_black}▎ {letters}Tüm yuvaları boşaltır.'
+' {letters_black}▎ {letters}Every change in this file.': ' {letters_black}▎ {letters}Bu dosyadaki tüm değişiklikler.'
+' {letters_black}▎ {letters}Every change in this plugin.': ' {letters_black}▎ {letters}Bu eklentideki tüm değişiklikler.'
+' {letters_black}▎ {letters}Every value in this file stays as it is.': ' {letters_black}▎ {letters}Bu dosyadaki her değer olduğu gibi kalır.'
+' {letters_black}▎ {letters}Every value in this plugin stays as it is.': ' {letters_black}▎ {letters}Bu eklentideki her değer olduğu gibi kalır.'
+' {letters_black}▎ {letters}Files {letters_black}» {info}%files%': ' {letters_black}▎ {letters}Dosyalar {letters_black}» {info}%files%'
+' {letters_black}▎ {letters}Flags set here {letters_black}» {info}{0}': ' {letters_black}▎ {letters}Burada ayarlanan bayraklar {letters_black}» {info}{0}'
+' {letters_black}▎ {letters}Gives {letters_black}» {info}{0}': ' {letters_black}▎ {letters}Verir {letters_black}» {info}{0}'
+' {letters_black}▎ {letters}Height {letters_black}» {info}Full': ' {letters_black}▎ {letters}Yükseklik {letters_black}» {info}Tam'
+' {letters_black}▎ {letters}Icon {letters_black}» {0}': ' {letters_black}▎ {letters}Simge {letters_black}» {0}'
+' {letters_black}▎ {letters}If {letters_black}» {info}{0}': ' {letters_black}▎ {letters}Eğer {letters_black}» {info}{0}'
+' {letters_black}▎ {letters}Its odds, who sees it, how long': ' {letters_black}▎ {letters}Şansı, kimin gördüğü, ne kadar'
+' {letters_black}▎ {letters}Keep every change made here.': ' {letters_black}▎ {letters}Burada yapılan tüm değişiklikleri koru.'
+' {letters_black}▎ {letters}Keeps the layout as it is now.': ' {letters_black}▎ {letters}Düzeni şu anki haliyle korur.'
+' {letters_black}▎ {letters}Lasts {letters_black}» {info}{0} ⌚': ' {letters_black}▎ {letters}Süre {letters_black}» {info}{0} ⌚'
+' {letters_black}▎ {letters}Lays your own armour, offhand,': ' {letters_black}▎ {letters}Kendi zırhını, ikinci elini,'
+' {letters_black}▎ {letters}Leaves every value as it is and stops': ' {letters_black}▎ {letters}Her değeri olduğu gibi bırakır ve'
+' {letters_black}▎ {letters}Leaves it exactly as it was.': ' {letters_black}▎ {letters}Tam olarak eski haliyle bırakır.'
+' {letters_black}▎ {letters}Left-click {letters_black}» {success}first corner': ' {letters_black}▎ {letters}Sol tık {letters_black}» {success}ilk köşe'
+' {letters_black}▎ {letters}Level {letters_black}» {info}{0}': ' {letters_black}▎ {letters}Seviye {letters_black}» {info}{0}'
+' {letters_black}▎ {letters}Money {letters_black}» {success}{0}': ' {letters_black}▎ {letters}Para {letters_black}» {success}{0}'
+' {letters_black}▎ {letters}Name gains {letters_black}» {0}': ' {letters_black}▎ {letters}İsme eklenen {letters_black}» {0}'
+' {letters_black}▎ {letters}Needs {letters_black}» {info}{0}': ' {letters_black}▎ {letters}Gerekli {letters_black}» {info}{0}'
+' {letters_black}▎ {letters}New settings arrive on their own.': ' {letters_black}▎ {letters}Yeni ayarlar kendiliğinden gelir.'
+' {letters_black}▎ {letters}No default change waits for a decision.': ' {letters_black}▎ {letters}Karar bekleyen varsayılan değişikliği yok.'
+' {letters_black}▎ {letters}Not in your file yet. It may be one': ' {letters_black}▎ {letters}Henüz dosyanda yok. Bilerek kaldırdığın'
+' {letters_black}▎ {letters}Now {letters_black}» {0}': ' {letters_black}▎ {letters}Şimdi {letters_black}» {0}'
+' {letters_black}▎ {letters}Particles {letters_black}» {0}': ' {letters_black}▎ {letters}Parçacıklar {letters_black}» {0}'
+' {letters_black}▎ {letters}Permission {letters_black}» {info}{0}': ' {letters_black}▎ {letters}Yetki {letters_black}» {info}{0}'
+' {letters_black}▎ {letters}Real {letters_black}» {success}{0}% {muted}of all drops': ' {letters_black}▎ {letters}Gerçek {letters_black}» {success}{0}% {muted}tüm düşen eşyaların'
+' {letters_black}▎ {letters}Replaces everything here with': ' {letters_black}▎ {letters}Buradaki her şeyi önerilen'
+' {letters_black}▎ {letters}Right-click {letters_black}» {error}second corner': ' {letters_black}▎ {letters}Sağ tık {letters_black}» {error}ikinci köşe'
+' {letters_black}▎ {letters}Seen by {letters_black}» {info}{0}': ' {letters_black}▎ {letters}Görenler {letters_black}» {info}{0}'
+' {letters_black}▎ {letters}Server {letters_black}» {info}{0}': ' {letters_black}▎ {letters}Sunucu {letters_black}» {info}{0}'
+' {letters_black}▎ {letters}The plugin no longer ships it.': ' {letters_black}▎ {letters}Eklenti artık bunu içermiyor.'
+' {letters_black}▎ {letters}The rest follow their {muted}Default{letters}.': ' {letters_black}▎ {letters}Geri kalanlar {muted}Varsayılan{letters} değerini izler.'
+' {letters_black}▎ {letters}Tier {letters_black}» {info}{0}': ' {letters_black}▎ {letters}Kademe {letters_black}» {info}{0}'
+' {letters_black}▎ {letters}Time {letters_black}» {info}{0}': ' {letters_black}▎ {letters}Saat {letters_black}» {info}{0}'
+' {letters_black}▎ {letters}Value {letters_black}» {highlight}{0}': ' {letters_black}▎ {letters}Değer {letters_black}» {highlight}{0}'
+' {letters_black}▎ {letters}Weight 🎲 {letters_black}» {highlight}{0}': ' {letters_black}▎ {letters}Ağırlık 🎲 {letters_black}» {highlight}{0}'
+' {letters_black}▎ {letters}Weight 🎲 {letters_black}» {info}{0}': ' {letters_black}▎ {letters}Ağırlık 🎲 {letters_black}» {info}{0}'
+' {letters_black}▎ {letters}When {letters_black}» {info}{0}': ' {letters_black}▎ {letters}Ne zaman {letters_black}» {info}{0}'
+' {letters_black}▎ {letters}World {letters_black}» {info}{0}': ' {letters_black}▎ {letters}Dünya {letters_black}» {info}{0}'
+' {letters_black}▎ {letters}Writes every new default and reloads': ' {letters_black}▎ {letters}Her yeni varsayılanı yazar ve ait oldukları'
+' {letters_black}▎ {letters}close this screen.': ' {letters_black}▎ {letters}bu ekranı kapat.'
+' {letters_black}▎ {letters}inventory and hotbar into the grid.': ' {letters_black}▎ {letters}envanterini ve hızlı erişim çubuğunu ızgaraya dizer.'
+' {letters_black}▎ {letters}it waits, and what it needs.': ' {letters_black}▎ {letters}beklediği ve neye ihtiyaç duyduğu.'
+' {letters_black}▎ {letters}listing these changes.': ' {letters_black}▎ {letters}bu değişiklikleri listelemeyi bırakır.'
+' {letters_black}▎ {letters}the plugins they belong to.': ' {letters_black}▎ {letters}eklentileri yeniden yükler.'
+' {letters_black}▎ {letters}the recommended list.': ' {letters_black}▎ {letters}listeyle değiştirir.'
+' {letters_black}▎ {letters}you removed on purpose.': ' {letters_black}▎ {letters}bir değer olabilir.'
+' {letters_black}▎ {letters}your value may be the one you want.': ' {letters_black}▎ {letters}istediğin değer seninki olabilir.'
+' {letters_black}▎ {muted}all left at their defaults': ' {letters_black}▎ {muted}hepsi varsayılan değerlerinde'
+' {letters_black}▎ {muted}and {0} more': ' {letters_black}▎ {muted}ve {0} tane daha'
+' {letters_black}▎ {muted}nothing yet': ' {letters_black}▎ {muted}henüz hiçbir şey yok'
+' {letters}(every {info}{0}{letters}min)': ' {letters}(her {info}{0}{letters}dk)'
+'%player% is the target, %mob% the template id. No leading slash.': '%player% hedef, %mob% şablon kimliği. Başta eğik çizgi yok.'
+'%player_name% and colour codes work': '%player_name% ve renk kodları çalışır'
+'%player_name% is the player, no leading slash': '%player_name% oyuncudur, başta eğik çizgi yok'
+'%player_name% is the player, no leading slash; one command per line': '%player_name% oyuncudur, başta eğik çizgi yok; her satıra bir komut'
+'%player_name% is the player. No leading slash.': '%player_name% oyuncudur. Başta eğik çizgi yok.'
+'%player_name% is the player; one command per line, no slash': '%player_name% oyuncudur; her satıra bir komut, eğik çizgi yok'
+(no command): (komut yok)
+(no item): (eşya yok)
+(not set): (ayarlanmadı)
+(nothing yet): (henüz hiçbir şey yok)
+0 appears behind the target. Above 0 blinks to a random spot on the ground that far.: 0 hedefin arkasında belirir. 0 üstü, o uzaklıkta yerde rastgele bir noktaya ışınlanır.
+0 detonates at once: 0 anında patlar
+0 for no fire. 3s.: Ateş olmaması için 0. 3s.
+0 for no limit. With either set, a mob with no target does not cast it.: Sınır olmaması için 0. Biri ayarlıysa, hedefi olmayan mob bunu kullanmaz.
+0 for none, or blocks: Hiçbiri için 0, ya da blok
+0 gives it to the target alone.: 0 yalnızca hedefe verir.
+0 goes anywhere. Past it, it walks back; 8 blocks further, it is put back.: 0 her yere gider. Bunu aşarsa geri yürür; 8 blok daha ötede geri konur.
+0 is east, 90 is south: 0 doğu, 90 güney
+0 is level I: 0 seviye I demektir
+0 is only the flash.: 0 yalnızca parlamadır.
+0 lets its health decide. Above 0 nothing hurts it; each player's hit counts one.: 0 olursa canı belirler. 0 üstünde hiçbir şey ona zarar vermez; her oyuncu vuruşu bir sayılır.
+0 only leaps. Above 0, whoever is that close as it lands takes its attack damage.: 0 yalnızca sıçrar. 0 üstünde, yere indiğinde o kadar yakında olan herkes saldırı hasarını alır.
+0 stays put: 0 yerinde kalır
+0 the model itself, 5 head, 7 dropped, 8 item frame: 0 modelin kendisi, 5 kafa, 7 yere atılmış, 8 eşya çerçevesi
+0 to 1: 0 ile 1 arası
+0 to 15: 0 ile 15 arası
+0, 1 or 2: 0, 1 veya 2
+0, or 0.4: 0 ya da 0.4
+0, or 1s: 0 ya da 1s
+0, or x,y,z for a tumble: 0 ya da takla için x,y,z
+0.05, or 50ms: 0.05 ya da 50ms
+0.1, or 100ms: 0.1 ya da 100ms
+0.15, or 150ms: 0.15 ya da 150ms
+0.2 is four ticks; 1m30s works too: 0.2 dört tick eder; 1m30s de olur
+0.3, or 300ms: 0.3 ya da 300ms
+0.32, or 320ms: 0.32 ya da 320ms
+0.4, or 400ms: 0.4 ya da 400ms
+0.45, or 450ms: 0.45 ya da 450ms
+0.5, or 500ms: 0.5 ya da 500ms
+0.7, or 700ms: 0.7 ya da 700ms
+0.9, or 900ms: 0.9 ya da 900ms
+0; vanilla is 32: 0; vanilla değeri 32
+1 is the start; its fight's phases follow. 0 for any.: 1 başlangıçtır; ardından dövüşün aşamaları gelir. Herhangi biri için 0.
+1 line: 1 satır
+1 reaches it: 1 ona ulaşır
+1, from 0.5 to 2: 1, 0.5 ile 2 arası
+1, or 1-1.6: 1 ya da 1-1.6
+1, or 1m30s: 1 ya da 1m30s
+1, or 1s: 1 ya da 1s
+100 blocks every hit. In hits mode no hit counts while it lasts.: 100 her vuruşu engeller. Vuruş modunda sürdüğü sürece hiçbir vuruş sayılmaz.
+12 when 0, 24 at most. It runs the way it faced as it wound up.: 0 ise 12, en fazla 24. Hazırlanırken baktığı yöne koşar.
+16 at most, a fifth of a second apart.: En fazla 16, aralarında saniyenin beşte biri.
+1; also how far it carries: 1; ayrıca ne kadar uzağa gittiği
+1; dust particles only: 1; yalnızca toz parçacıkları
+2.2, or 2s200ms: 2.2 ya da 2s200ms
+3.5, or 1m: 3.5 ya da 1m
+30s at most. Two per mob at once. Aim SELF makes it go with the mob.: En fazla 30s. Aynı anda mob başına iki tane. SELF hedefi mob ile birlikte gitmesini sağlar.
+30s, 1m30s, or forever.: 30s, 1m30s ya da sonsuza dek.
+5, or 1m30s: 5 ya da 1m30s
+5m, 1h. 0 stays until it dies.: 5m, 1h. 0 ölene kadar kalır.
+A bare number is ticks. 10t, 1s, 1m30s.: Tek başına sayı tick demektir. 10t, 1s, 1m30s.
+A cloud in the colour of what it casts.: Kullandığı şeyin renginde bir bulut.
+A giant blade falls from the sky onto you.: Gökten üstüne dev bir kılıç düşer.
+A head: Bir kafa
+A second pose, so it goes down while you watch: İkinci bir poz, böylece sen izlerken yere yığılır
+A shockwave ring that throws people back.: Herkesi geri savuran bir şok dalgası halkası.
+A shriek that drowns everyone in darkness.: Herkesi karanlığa boğan bir çığlık.
+A spring off the ground in a puff of dust.: Bir toz bulutu içinde yerden sıçrayış.
+A survival or adventure player. 0 needs nobody.: Hayatta kalma ya da macera modunda bir oyuncu. 0 kimseye ihtiyaç duymaz.
+A value is required.: Bir değer gerekli.
+A vanished block goes back to its placer.: Kaybolan blok, yerleştiren kişiye geri döner.
+A whole amount between the two, paid each time the line comes up: İkisi arasında tam bir miktar, satır her çıktığında ödenir
+ARROW RAIN: OK YAĞMURU
+AUTO is the type's own. GROUND strikes where the target stood as the wind-up began.: AUTO türün kendi değeridir. GROUND, hazırlık başladığında hedefin durduğu yere vurur.
+Added to its name while in this phase, such as &c⚡. NONE for none.: Bu aşamadayken ismine eklenir, örneğin &c⚡. Hiçbiri için NONE.
+After any skill but EFFECT and COMMAND, how long before the next. 0 for none.: EFFECT ve COMMAND dışındaki her yetenekten sonra bir sonrakine kadar geçen süre. Hiç yoksa 0.
+Aim: Hedef
+Alive at once: Aynı anda hayatta
+Always runs around: Hep etrafta koşar
+Answer yes or no.: Evet ya da hayır diye cevap ver.
+Anything but NONE makes it glow.: NONE dışındaki her şey onu parlatır.
+Appears at, as x,y,z: Belirdiği yer, x,y,z olarak
+Around its target. 6 when 0.: Hedefinin etrafında. 0 ise 6.
+Arrows fall on the spots it marks.: İşaretlediği noktalara oklar yağar.
+At {0}% health: Can {0}% olduğunda
+Aura: Aura
+BALL, BALL_LARGE, STAR, BURST or CREEPER: BALL, BALL_LARGE, STAR, BURST veya CREEPER
+BLADE RING: KILIÇ HALKASI
+BLINK: IŞINLANMA
+Between two attacks: İki saldırı arasında
+Between two hits of one player: Bir oyuncunun iki vuruşu arasında
+Blank keeps the vanilla value.: Boş bırakırsan vanilla değeri korunur.
+Blinks up to: En fazla şu kadar ışınlanır
+Block it is made of: Yapıldığı blok
+Blocks: Bloklar
+Blocks and entities can be used.: Bloklar ve varlıklar kullanılabilir.
+Browse a head: Kafa ara
+Burns: Yakar
+Burns for: Yanma süresi
+CHAIN LIGHTNING: ZİNCİRLEME YILDIRIM
+CHARGE: HÜCUM
+CLEAVE: YARMA
+'CONE: its angle in degrees, 60 when 0. LINE: its width in blocks, 1.6 when 0.': 'CONE: derece cinsinden açısı, 0 ise 60. LINE: blok cinsinden genişliği, 0 ise 1.6.'
+CYCLE changes it every second.: CYCLE onu her saniye değiştirir.
+Calls a burning rock down where you stand.: Durduğun yere yanan bir kaya indirir.
+Cancel: İptal
+Cannot be ridden, leashed, fed or opened: Binilemez, kayışlanamaz, beslenemez ve açılamaz
+Carried by whoever set it off: Onu tetikleyen kişi taşır
+Chains from the wrists to the floor this far out: Bileklerden yere bu uzaklığa kadar zincirler
+Chance out of 100: 100 üzerinden şans
+Chance, in percent: Yüzde olarak şans
+Change something: Bir şeyi değiştir
+Change the effects: Efektleri değiştir
+Change the effects on those inside: İçeridekilere uygulanan efektleri değiştir
+Change the icon: Simgeyi değiştir
+Change the item: Eşyayı değiştir
+Change what it plays: Çaldığı şeyi değiştir
+Channels a burst of healing.: Bir iyileştirme dalgası toplar.
+Choose a position from the grid.: Izgaradan bir konum seç.
+Choose an option: Bir seçenek seç
+Choose one of the available options.: Mevcut seçeneklerden birini seç.
+'Choose one of: {0}': 'Şunlardan birini seç: {0}'
+Colour: Renk
+Colour it fades to: Solarak dönüştüğü renk
+Command the console runs: Konsolun çalıştırdığı komut
+Command, without the slash: Eğik çizgi olmadan komut
+Condition: Koşul
+Condition (blank for none): Koşul (yoksa boş bırak)
+Confirm: Onayla
+Cooldown: Bekleme süresi
+Crouches, then lands on you hard.: Çömelir, sonra üstüne sertçe iner.
+Currency: Para birimi
+Custom Head: Özel Kafa
+Custom Item: Özel Eşya
+Custom model data: Özel model verisi
+DREAD: DEHŞET
+Damage: Hasar
+Damage a second: Saniye başına hasar
+Damage each: Her birinin hasarı
+Damage it blocks, in percent: Yüzde olarak engellediği hasar
+Damage per strike: Vuruş başına hasar
+Damage, times its own: Hasar, kendi hasarının katı olarak
+Dances the frames again when they end; the cycle must close: Kareler bitince dansı yeniden başlatır; döngü kapanmalı
+Degrees further round each beat: Her vuruşta dönülen ek derece
+Degrees it turns on the spot: Yerinde döndüğü derece
+Display name: Görünen ad
+Does not burn in daylight: Gün ışığında yanmaz
+Drags everyone around it inwards.: Çevresindeki herkesi içeri çeker.
+Drags you to it on a chain.: Seni bir zincirle kendine çeker.
+Draw it with: Şununla çiz
+Draws a constellation, then drops its stars.: Bir takımyıldız çizer, sonra yıldızlarını düşürür.
+Drops no vanilla experience: Vanilla tecrübe düşürmez
+Drops no vanilla loot: Vanilla ganimet düşürmez
+EARTHSPLITTER: YERYARAN
+ENRAGE: ÖFKE
+ERUPTION: PÜSKÜRME
+Effect: Efekt
+Effects: Efektler
+Enabled: Açık
+Ends at, as x,y,z: Bittiği yer, x,y,z olarak
+Ends up at, as x,y,z: Vardığı yer, x,y,z olarak
+Enter a duration of at least {0}.: En az {0} olan bir süre gir.
+Enter a duration of at most {0}.: En fazla {0} olan bir süre gir.
+Enter a duration, such as 30s or 1h30m.: 30s veya 1h30m gibi bir süre gir.
+Enter a number.: Bir sayı gir.
+Enter a value of at least {0}.: En az {0} olan bir değer gir.
+Enter a value of at most {0}.: En fazla {0} olan bir değer gir.
+Enter a whole number.: Bir tam sayı gir.
+Enter an amount of at least {0}.: En az {0} olan bir miktar gir.
+Enter an amount of at most {0}.: En fazla {0} olan bir miktar gir.
+Enter an amount, such as 100 or 10M.: 100 veya 10M gibi bir miktar gir.
+Enter an id.: Bir kimlik gir.
+Enter something that can become an id.: Kimliğe dönüşebilecek bir şey gir.
+Entering each phase: Her aşamaya girerken
+Entering phase {0}: Aşama {0} başlarken
+Every: Her
+Every day: Her gün
+Every {0} ⌚: Her {0} ⌚
+Exactly as it is spelled in game, such as {0}.: Oyunda yazıldığı haliyle, örneğin {0}.
+Experience levels: Tecrübe seviyeleri
+Experience points: Tecrübe puanı
+Export: Dışa aktar
+FIXED, VERTICAL, HORIZONTAL or CENTER: FIXED, VERTICAL, HORIZONTAL veya CENTER
+FROST NOVA: AYAZ PATLAMASI
+Fade in: Belirme
+Fade out: Solma
+Faint particles, the way a beacon gives them: İşaret feneri gibi soluk parçacıklar
+Falling hurts players.: Düşmek oyunculara hasar verir.
+Falls at, in blocks per second squared: Düşüş hızı, saniye kare başına blok
+Fires at this much health, in percent: Can bu yüzdeye indiğinde tetiklenir
+Fixed light level: Sabit ışık seviyesi
+Fixed roll, in degrees: Derece cinsinden sabit yuvarlanma
+Fixed tilt, in degrees: Derece cinsinden sabit eğim
+Fixed turn, in degrees: Derece cinsinden sabit dönüş
+Flight time: Uçuş süresi
+Flinches when it is struck: Vurulunca irkilir
+Focuses a crystal, then fires a searing beam.: Bir kristale odaklanır, sonra yakıcı bir ışın ateşler.
+For: Süre
+Frames it is drawn over: Çizildiği kareler
+Freezes everyone close in place.: Yakındaki herkesi olduğu yerde dondurur.
+From this much health, in percent: Bu can yüzdesinden itibaren
+GRAVITY WELL: YERÇEKİMİ KUYUSU
+GROUND SLAM: YER SARSINTISI
+Glows through walls: Duvarların arkasından parlar
+Goes up by: Artış miktarı
+Group {0}, every: Grup {0}, her
+HOOK: KANCA
+Health: Can
+Health, range and players it needs.: Gerektirdiği can, menzil ve oyuncular.
+Height above the anchor: Çapanın üzerindeki yükseklik
+Hits left in hits mode. 0 and 100 for always.: Vuruş modunda kalan vuruşlar. Her zaman için 0 ve 100.
+Hits left in hits mode. Between 0 and 100.: Vuruş modunda kalan vuruşlar. 0 ile 100 arası.
+Hits mode only. 500ms, 1s. 0 for none.: Yalnızca vuruş modu. 500ms, 1s. Hiç yoksa 0.
+Hits to break it: Kırmak için gereken vuruş
+How an item is held: Bir eşyanın nasıl tutulduğu
+How big it is; 1 is player-sized: Ne kadar büyük olduğu; 1 oyuncu boyutudur
+How far a blow shoves it, in blocks: Bir darbenin onu blok cinsinden ne kadar ittiği
+How far it leaps from one player to the next. 6 when 0.: Bir oyuncudan diğerine ne kadar sıçradığı. 0 ise 6.
+How far off the ground it hangs: Yerden ne kadar yukarıda asılı durduğu
+How far the arms and legs open out: Kolların ve bacakların ne kadar açıldığı
+How fast it plays, or a range it rolls from each play: Ne kadar hızlı çaldığı ya da her çalışta rastgele seçilen bir aralık
+How fast the pieces leave, outwards: Parçaların dışarı doğru ne kadar hızlı fırladığı
+How fast they leave, upwards: 'Ne kadar hızlı ayrılırlar, yukarı doğru'
+'How finely a body in blocks is drawn, 1 to 5 (5: the design on every face)': 'Blok gövdenin ne kadar ince çizileceği, 1 ile 5 arası (5: her yüzde desen)'
+'How it is drawn: its warning, its release and its impact.': 'Nasıl çizilir: uyarısı, salınışı ve çarpması.'
+How it lies: 'Nasıl yatar'
+How long: 'Ne kadar süre'
+How long a temporary block lasts.: 'Geçici bir bloğun ne kadar süreceği.'
+How long before any of that happens: 'Bunlardan herhangi biri olmadan önceki süre'
+How long before that second pose: 'O ikinci pozdan önceki süre'
+How long between beats: 'Atımlar arası süre'
+How long between blows: 'Darbeler arası süre'
+How long between frames: 'Kareler arası süre'
+How long between tilts: 'Eğilmeler arası süre'
+How long from the start until the strings or chains break: 'Başlangıçtan iplerin veya zincirlerin kopmasına kadar geçen süre'
+How long it hangs there: 'Orada ne kadar asılı kalır'
+How long it lasts: 'Ne kadar sürer'
+How long it stands whole first: 'Önce ne kadar bütün kalır'
+How long it stays: 'Ne kadar kalır'
+How long the lift takes: 'Yükselme ne kadar sürer'
+How long the movement takes: 'Hareket ne kadar sürer'
+How long the pieces last: 'Parçalar ne kadar sürer'
+How long to wait: 'Ne kadar beklenir'
+How many: 'Kaç tane'
+How many tilts: 'Kaç eğilme'
+How many times it is struck: 'Kaç kez vurulur'
+How many times its size a head reaches: 'Bir kafanın kendi boyutunun kaç katına ulaşacağı'
+How much experience: 'Ne kadar deneyim'
+How much money: 'Ne kadar para'
+How much of it is the entry, played once: 'Ne kadarı giriş, bir kez oynatılır'
+How much the loose joints lag and overshoot: 'Gevşek eklemlerin ne kadar geride kalıp aşırı savrulacağı'
+How much the pieces differ in size: 'Parçaların boyutça ne kadar farklı olacağı'
+How much the pieces differ, 0 to 1: 'Parçaların ne kadar farklı olacağı, 0 ile 1 arası'
+How often it is tried. 1s at least.: 'Ne sıklıkla denenir. En az 1s.'
+How tall one letter is, in blocks: 'Bir harfin yüksekliği, blok cinsinden'
+How the change looks, the mob held still 1.2s for it. Default is enrage; none also skips the hold.: 'Değişimin görünüşü; mob bunun için 1.2s hareketsiz kalır. Varsayılan enrage; none beklemeyi de atlar.'
+How the movement is spread: 'Hareketin nasıl dağıtılacağı'
+Hunts the nearest player: 'En yakın oyuncuyu avlar'
+Immune to fire and lava: 'Ateşe ve lavlara karşı bağışık'
+Import: 'İçe aktar'
+Insert an item: 'Bir eşya koy'
+It stops, faces its aim and telegraphs this long before it lands. 0 lands at once. 800ms, 1.5s.: 'Durur, hedefine döner ve inmeden bu kadar önce uyarır. 0 anında iner. 800ms, 1.5s.'
+Item: 'Eşya'
+Its group decides how often. This is the least time between two of its own casts; 0 for none.: 'Sıklığa grubu karar verir. Bu, kendi iki kullanımı arasındaki en kısa süredir; yoksa 0.'
+Its style, tint and your own lines.: 'Stili, tonu ve kendi satırların.'
+JUDGEMENT: 'YARGI'
+Jump range: 'Zıplama menzili'
+Jump range, in blocks: 'Zıplama menzili, blok cinsinden'
+Jumps: 'Zıplar'
+LINE: 'LINE'
+Lands hard within: 'Sert iniş alanı'
+Lands hard within, in blocks: 'Sert iniş alanı, blok cinsinden'
+Lasts: 'Süre'
+Leaps and shatters the floor around it.: 'Sıçrar ve etrafındaki zemini paramparça eder.'
+Least amount: 'En az miktar'
+Least money: 'En az para'
+Leave it off to keep the item this line already gives: 'Bu satırın zaten verdiği eşyayı korumak için boş bırak'
+Leaves a poison cloud where you stood.: 'Durduğun yerde zehirli bir bulut bırakır.'
+Leaves a trail: 'İz bırakır'
+Leaves after: 'Şu süreden sonra ayrılır'
+Level, as a player reads it: 'Seviye, oyuncunun gördüğü şekliyle'
+Light level, 0 to 15: 'Işık seviyesi, 0 ile 15 arası'
+Lightning that leaps from player to player.: 'Oyuncudan oyuncuya sıçrayan bir şimşek.'
+Looks like: 'Görünüm'
+Lowers its head and runs you down.: 'Başını eğer ve seni ezip geçer.'
+METEOR: 'METEOR'
+MIASMA: 'MİYAZMA'
+MONEY: 'PARA'
+Makes no sound: 'Ses çıkarmaz'
+Marks a spot, then calls a bolt onto it.: 'Bir noktayı işaretler, sonra üzerine yıldırım çağırır.'
+Material: 'Malzeme'
+Message to send: 'Gönderilecek mesaj'
+Message when it lands: 'İndiğinde gösterilecek mesaj'
+Message when it lands (blank for none): 'İndiğinde gösterilecek mesaj (yoksa boş bırak)'
+Minimum players online: 'En az çevrimiçi oyuncu'
+Minions never summon.: 'Minyonlar asla çağırma yapmaz.'
+Most amount: 'En çok miktar'
+Most money: 'En çok para'
+Name: 'Ad'
+Name (blank to show the command): 'Ad (komutu göstermek için boş bırak)'
+Name (blank to show the first line): 'Ad (ilk satırı göstermek için boş bırak)'
+Name gains: 'Ada eklenen'
+Needs a player within: 'Şu mesafede bir oyuncu gerekir'
+Needs a player within, in blocks: 'Şu mesafede bir oyuncu gerekir, blok cinsinden'
+Never picks up items: 'Asla eşya toplamaz'
+Never targets anything: 'Hiçbir şeyi hedef almaz'
+'No': 'Hayır'
+No auras are registered. NONE for none.: 'Kayıtlı aura yok. Hiçbiri için NONE.'
+Nothing drawn; only its own lines play.: 'Hiçbir şey çizilmez; yalnızca kendi satırları oynar.'
+Now {0}. The effect list opens after submitting.: 'Şu an {0}. Efekt listesi gönderdikten sonra açılır.'
+Now {0}. The line list opens after submitting.: 'Şu an {0}. Satır listesi gönderdikten sonra açılır.'
+On death: 'Ölünce'
+On spawn: 'Doğunca'
+Once to each player it runs through, who is thrown aside.: 'İçinden geçtiği her oyuncuya bir kez; oyuncu kenara savrulur.'
+One command per line, without the slash: 'Satır başına bir komut, eğik çizgi olmadan'
+One line; add another for a second.: 'Tek satır; ikinci için bir tane daha ekle.'
+One skill of the group per period, picked by weight. 1s at least.: 'Her periyotta gruptan ağırlığa göre seçilen bir yetenek. En az 1s.'
+Only blocks a player placed can break.: 'Yalnızca oyuncuların koyduğu bloklar kırılabilir.'
+Only in phase: 'Yalnızca şu aşamada'
+Only matters while the particles are shown.: 'Yalnızca parçacıklar gösterilirken önemlidir.'
+Only region members can act inside.: 'İçeride yalnızca bölge üyeleri işlem yapabilir.'
+Only the allowed blocks can be placed.: 'Yalnızca izin verilen bloklar yerleştirilebilir.'
+Only the breakable blocks can break.: 'Yalnızca kırılabilir bloklar kırılabilir.'
+Opens portals and calls its minions through.: 'Portallar açar ve minyonlarını içinden çağırır.'
+Outline colour: 'Dış hat rengi'
+POUNCE: 'ATILIŞ'
+PRISM BEAM: 'PRİZMA IŞINI'
+Particles per point: 'Nokta başına parçacık'
+Permission (blank for none): 'Yetki (yoksa boş bırak)'
+Permission needed: 'Gereken yetki'
+Permission needed (blank for none): 'Gereken yetki (yoksa boş bırak)'
+Phase: 'Aşama'
+Pick what it does and build it from scratch.: 'Ne yapacağını seç ve sıfırdan oluştur.'
+Pitch: 'Perde'
+Placed blocks vanish on their own.: 'Yerleştirilen bloklar kendiliğinden kaybolur.'
+Player Head: 'Oyuncu kafası'
+Players can break blocks.: 'Oyuncular blok kırabilir.'
+Players can come in, teleports included.: 'Oyuncular içeri girebilir, ışınlanmalar dahil.'
+Players can drop items.: 'Oyuncular eşya atabilir.'
+Players can hurt each other.: 'Oyuncular birbirine zarar verebilir.'
+Players can leave, teleports included.: 'Oyuncular çıkabilir, ışınlanmalar dahil.'
+Players can pick items up.: 'Oyuncular eşya toplayabilir.'
+Players can place blocks.: 'Oyuncular blok yerleştirebilir.'
+Players it hits in all, the target first. 8 at most.: 'Toplamda vurduğu oyuncular, önce hedef. En fazla 8.'
+Plays: 'Oynatır'
+Plays the path again when it ends; it must close: 'Bittiğinde yolu yeniden oynatır; yol kapalı olmalı'
+Points away from the centre: 'Merkezden dışarı bakar'
+Priority, higher plays first: 'Öncelik, yüksek olan önce oynar'
+Projectile: 'Mermi'
+Props tied to its joints, by name from rigs.yml: 'Eklemlerine bağlı aksesuarlar, rigs.yml içindeki adlarıyla'
+Puppet strings up to this height: 'Bu yüksekliğe kadar kukla ipleri'
+Put a different item in: 'Başka bir eşya koy'
+RENEW: 'YENİLE'
+Radius: 'Yarıçap'
+Radius, in blocks: 'Yarıçap, blok cinsinden'
+Reach: 'Menzil'
+Reach, in blocks: 'Menzil, blok cinsinden'
+Reaches: 'Ulaşır'
+Resistance: 'Direnç'
+Resists: 'Dayanır'
+Restores: 'Yeniler'
+Restores, in percent of max health: 'Yeniler, maksimum canın yüzdesi olarak'
+Roam, in blocks: 'Dolaşma alanı, blok cinsinden'
+Roars and runs faster for a while.: 'Kükrer ve bir süre daha hızlı koşar.'
+Rotation group: 'Sıra grubu'
+Rotation, in degrees: 'Dönüş, derece cinsinden'
+Runs: 'Koşar'
+SHIELD BUBBLE: 'KALKAN BALONU'
+SMITE: 'İLAHİ DARBE'
+STARFALL: 'YILDIZ YAĞMURU'
+SUMMON PORTAL: 'ÇAĞIRMA PORTALI'
+SUPERNOVA: 'SÜPERNOVA'
+Scale: 'Ölçek'
+Scatter: 'Saçılma'
+Scatter, in blocks: 'Saçılma, blok cinsinden'
+Seconds between beats: 'Atımlar arası saniye'
+'Seen by: a radius, 0 for them alone, or world': 'Görenler: bir yarıçap, yalnızca kendileri için 0 veya world'
+Sets them alight for: 'Şu süre boyunca ateşe verir'
+Shakes players this close, in blocks: 'Bu yakınlıktaki oyuncuları sarsar, blok cinsinden'
+Shape: 'Şekil'
+Show the icon in the corner of the screen: 'Simgeyi ekranın köşesinde göster'
+Show the swirling particles: 'Dönen parçacıkları göster'
+Shows the icon in the corner of the screen: 'Simgeyi ekranın köşesinde gösterir'
+Shows the swirling particles: 'Dönen parçacıkları gösterir'
+Shrinks away at the end: 'Sonunda küçülerek kaybolur'
+Shrinks down with a pop.: 'Pıt diye küçülür.'
+Size: 'Boyut'
+Size it ends at: 'Bitiş boyutu'
+Size it starts at: 'Başlangıç boyutu'
+'Skills of one group take turns: one per period, picked by weight. NONE rolls on its own.': 'Bir grubun yetenekleri sırayla kullanılır: her periyotta ağırlığa göre seçilen bir tane. NONE kendi başına zar atar.'
+Spawns as a baby: 'Bebek olarak doğar'
+Speed: 'Hız'
+Speed kept on landing, 0 to 1: 'İnişte korunan hız, 0 ile 1 arası'
+Speed lines and a gust.: 'Hız çizgileri ve bir rüzgar.'
+Speed, times its own: 'Hız, kendi hızının katı olarak'
+Spins a ring of blades around itself.: 'Etrafında bir kılıç halkası döndürür.'
+Spins up a tornado that hurls you away.: 'Seni uzağa fırlatan bir hortum çıkarır.'
+Splits the ground in a line at you.: 'Zemini sana doğru bir hat boyunca yarar.'
+Spread: 'Yayılım'
+Spread, as x,y,z: 'Yayılım, x,y,z olarak'
+Spread, in blocks: 'Yayılım, blok cinsinden'
+Starts at, as x,y,z: 'Başlangıç noktası, x,y,z olarak'
+Starts below: 'Şunun altında başlar'
+Starts below this much health, in percent: 'Can bu yüzdenin altına düşünce başlar'
+Stays for: 'Kalma süresi'
+Stops turning once it lands: 'İnince dönmeyi bırakır'
+Strength: 'Güç'
+Strikes: 'Vuruşlar'
+Style: 'Stil'
+Submit: 'Gönder'
+Subtitle: 'Alt başlık'
+Swallows the light, then bursts like a star.: 'Işığı yutar, sonra bir yıldız gibi patlar.'
+Swells up with a pop.: 'Pıt diye şişer.'
+TEMPEST: 'FIRTINA'
+TYPE A HEX VALUE: 'BİR HEX DEĞERİ YAZ'
+Takes aim, then fires at you.: 'Nişan alır, sonra sana ateş eder.'
+Takes turns in {0}: '{0} içinde sırayla kullanılır'
+Target: 'Hedef'
+Target at least this far, in blocks: 'Hedef en az bu uzaklıkta, blok cinsinden'
+Target at most this far, in blocks: 'Hedef en fazla bu uzaklıkta, blok cinsinden'
+Template: 'Şablon'
+Template id: 'Şablon kimliği'
+Ten at most.: 'En fazla on.'
+That duration is too large.: 'Bu süre çok uzun.'
+That option is not accepted.: 'Bu seçenek kabul edilmiyor.'
+That position is already taken.: 'Bu konum zaten dolu.'
+That value could not be read.: 'Bu değer okunamadı.'
+That value is not accepted.: 'Bu değer kabul edilmiyor.'
+The choreography, frame by frame: 'Koreografi, kare kare'
+The colour it is drawn in; the theme's by default.: 'Çizildiği renk; varsayılan olarak temanınki.'
+The damage it takes is divided by this. 1 changes nothing; 0.1 to 10.: 'Aldığı hasar buna bölünür. 1 hiçbir şeyi değiştirmez; 0.1 ile 10 arası.'
+The fastest a looping body may get: 'Döngüdeki bir gövdenin ulaşabileceği en yüksek hız'
+The ground under you boils, then bursts.: 'Altındaki zemin kaynar, sonra patlar.'
+The line above the hotbar: 'Hızlı erişim çubuğunun üstündeki satır'
+The line, as it is written: 'Satır, yazıldığı haliyle'
+The message: 'Mesaj'
+The most the gap may be divided by: 'Aralığın bölünebileceği en büyük değer'
+The name of a skill cast right after this one lands. NONE for none.: 'Bu yetenek isabet ettikten hemen sonra kullanılan yeteneğin adı. Hiçbiri için NONE.'
+The shortest gap between two casts. 5s, 1m.: 'İki kullanım arasındaki en kısa aralık. 5s, 1m.'
+The style that suits its type.: 'Türüne uyan stil.'
+The whole line, after the token: 'Belirteçten sonraki satırın tamamı'
+Then: 'Sonra'
+This field is required.: 'Bu alan zorunlu.'
+Throws: 'Fırlatır'
+Tier: 'Kademe'
+Tier (blank for none): 'Kademe (yoksa boş bırak)'
+Times it plays: 'Oynatılma sayısı'
+Tint: 'Ton'
+Title: 'Başlık'
+To whoever stands within a block and a half as it lands.: 'İndiğinde bir buçuk blok içinde duran herkese.'
+Travels towards the centre: 'Merkeze doğru ilerler'
+Turns a second: 'Saniyedeki dönüş'
+Turns around: 'Arkasını döner'
+Turns it carries round the anchor: 'Çapanın etrafında attığı tur'
+Turns it makes while it hangs: 'Asılı kalırken attığı tur'
+Turns over its life: 'Ömrü boyunca attığı tur'
+Turns to face the player: 'Oyuncuya döner'
+Turns to face the viewer: 'İzleyene döner'
+Turns to face whoever did it: 'Bunu yapana döner'
+Twinkles: 'Parıldar'
+UNKNOWN: 'BİLİNMİYOR'
+Up to this much health, in percent: 'Canın bu yüzdesine kadar'
+Upward speed. 0.8 is a hop, 1.5 a leap.: 'Yukarı hız. 0.8 hafif bir sıçrama, 1.5 büyük bir atlayış.'
+Use at least {0} characters.: 'En az {0} karakter kullan.'
+Use at most {0} characters.: 'En fazla {0} karakter kullan.'
+Use only letters, numbers, - and _.: 'Yalnızca harf, rakam, - ve _ kullan.'
+Use this item: 'Bu eşyayı kullan'
+VOLLEY: 'YAYLIM ATEŞİ'
+Vanishes and reappears behind you.: 'Kaybolur ve arkanda yeniden belirir.'
+Variant: 'Varyant'
+Volume: 'Ses düzeyi'
+Waits first: 'Önce bekler'
+Watch it from a stand-in four blocks ahead.: 'Dört blok öndeki bir dubleden izle.'
+Wears what they died in: 'Öldüğünde giydiklerini giyer'
+Weight: 'Ağırlık'
+Weight against its siblings: 'Kardeşlerine karşı ağırlık'
+Weight in its group: 'Grubundaki ağırlık'
+What a sign body spells: 'Bir tabela gövdesinin yazdığı'
+What another skill's Then calls it by. NONE for none.: 'Başka bir yeteneğin Sonra alanının onu çağırdığı ad. Hiçbiri için NONE.'
+What can be placed when the list is on.: 'Liste açıkken ne yerleştirilebilir.'
+What can break when the list is on.: 'Liste açıkken ne kırılabilir.'
+What happens to the body: 'Gövdeye ne olur'
+What is left of a flattened piece's height: 'Ezilmiş bir parçanın yüksekliğinden kalan'
+What is worn on the head: 'Başa takılan'
+What it does after the last frame: 'Son kareden sonra ne yapar'
+What the gap is divided by after each beat: 'Her atımdan sonra aralığın bölündüğü değer'
+What the left hand holds: 'Sol elin tuttuğu'
+What the right hand holds: 'Sağ elin tuttuğu'
+What the speed is multiplied by each cycle: 'Her döngüde hızın çarpıldığı değer'
+When: 'Ne zaman'
+When it fires and what it does.: 'Ne zaman tetiklenir ve ne yapar.'
+When it hits: 'Vurduğunda'
+When it is hit: 'Vurulduğunda'
+Where the camera goes, frame by frame: 'Kameranın gittiği yer, kare kare'
+Which: 'Hangisi'
+Which block: 'Hangi blok'
+Which effect: 'Hangi efekt'
+Which one do you want to change?: 'Hangisini değiştirmek istiyorsun?'
+Which particle: 'Hangi parçacık'
+Which sound: 'Hangi ses'
+Which spectator a {crowd} body wears: 'Bir {crowd} gövdesinin giydiği izleyici'
+Which way it is thrown or flies, in degrees: 'Fırlatıldığı veya uçtuğu yön, derece cinsinden'
+Whose eyes it takes: 'Kimin gözünden bakar'
+Wind-up: 'Hazırlık'
+Wind-up, aim, turns and what it chains into.: 'Hazırlık, nişan, dönüşler ve neye zincirlendiği.'
+Winds back, then sweeps everything ahead.: 'Geri çekilir, sonra önündeki her şeyi süpürür.'
+Wipe: 'Silme'
+Worn on its back: 'Sırtında taşınır'
+Wraps itself in a ward that blunts blows.: 'Darbeleri yumuşatan bir korumaya bürünür.'
+'Write it as #rrggbb, such as #8a51c4.': '#rrggbb şeklinde yaz, örneğin #8a51c4.'
+'Yes': 'Evet'
+Your own lines, played as it lands. With any, AUTO draws no style.: 'Kendi satırların, indiğinde oynar. Herhangi biri varsa AUTO stil çizmez.'
+Your own lines, played as the wind-up starts.: 'Kendi satırların, hazırlık başlarken oynar.'
+a custom item: 'özel bir eşya'
+'a name or #rrggbb': 'bir ad veya #rrggbb'
+'a name or #rrggbb; dust particles only': 'bir ad veya #rrggbb; yalnızca toz parçacıkları'
+'a name, #rrggbb or a {palette} token': 'bir ad, #rrggbb veya bir {palette} belirteci'
+a section: 'bir bölüm'
+an item: 'bir eşya'
+an item, as in CARVED_PUMPKIN: 'bir eşya, örneğin CARVED_PUMPKIN'
+an item, as in POPPY: 'bir eşya, örneğin POPPY'
+at least {0} since the last one: 'son kullanımdan beri en az {0}'
+at most {0} online: 'en fazla {0} çevrimiçi'
+auto: 'otomatik'
+'auto: {0}': 'otomatik: {0}'
+blank keeps each one's own: 'boş bırakılırsa her birinin kendi değeri korunur'
+blank keeps each one; - removes it from all: 'boş bırakılırsa her biri korunur; - hepsinden kaldırır'
+blank keeps each one; {0} removes it from all: 'boş bırakılırsa her biri korunur; {0} hepsinden kaldırır'
+burst, spread, knocked, vortex, balloon, helicopter, plane, flatten, melt, sign, thrown or animate: 'burst, spread, knocked, vortex, balloon, helicopter, plane, flatten, melt, sign, thrown veya animate'
+command: 'komut'
+custom skull: özel kafa
+default: varsayılan
+economy: ekonomi
+enrage {letters_black}(auto): enrage {letters_black}(auto)
+every registered table ({0}): kayıtlı tüm tablolar ({0})
+every {0}: her {0}
+experience: deneyim
+for a resource pack model: kaynak paketi modeli için
+for block and item particles: blok ve eşya parçacıkları için
+forever: süresiz
+hold, burst, collapse, implode, dissolve or spell: hold, burst, collapse, implode, dissolve veya spell
+in {0}: '{0} içinde'
+in, out, in_out, back, bounce, elastic or linear: in, out, in_out, back, bounce, elastic veya linear
+item: eşya
+item, block, head or text: item, block, head veya text
+item, block, head or text; leave empty for particles: item, block, head veya text; parçacıklar için boş bırak
+just now: az önce
+lying, standing, crawling, sneaking or spinning: lying, standing, crawling, sneaking veya spinning
+message: mesaj
+min|max, such as 0.7|1.8, or one number. 0.1 at least.: min|max, örneğin 0.7|1.8, ya da tek bir sayı. En az 0.1.
+money: para
+never: asla
+none: yok
+'none: it has impact lines': 'yok: çarpma çizgileri var'
+nothing: hiçbir şey
+now {0}; a picker opens after submitting: şu an {0}; gönderince bir seçici açılır
+now {0}; the effect list opens after submitting: şu an {0}; gönderince efekt listesi açılır
+out, in, in_out or linear: out, in, in_out veya linear
+potion: iksir
+s ⌚: sn ⌚
+same as size: boyutla aynı
+shorthand for to:0,n,0: to:0,n,0 kısaltması
+source, target or both; source by default: source, target veya both; varsayılan source
+the check did not finish: kontrol tamamlanmadı
+the last frame: son kare
+the target: hedef
+the whole world: tüm dünya
+them alone: yalnızca onlar
+theme: tema
+ticks, or 1s; 1 draws it at once: tick ya da 1s; 1 anında çizer
+ticks, or 5s; 100 by default: tick ya da 5s; varsayılan 100
+tophat, or crown,wand for two: tophat, ya da iki tane için crown,wand
+true, victim or false: true, victim veya false
+unknown: bilinmiyor
+world's own: dünyanın kendi ayarı
+x, y or z: x, y veya z
+'{0} XP': '{0} XP'
+'{0} a second': 'saniyede {0}'
+'{0} ago': '{0} önce'
+'{0} blocks': '{0} blok'
+'{0} coins': '{0} jeton'
+'{0} has no registered tables.': '{0} için kayıtlı tablo yok.'
+'{0} lines': '{0} satır'
+'{0} wide': '{0} genişlik'
+'{0} {letters_black}» {letters}a whole number, 0 or more': '{0} {letters_black}» {letters}0 veya daha büyük bir tam sayı'
+'{0}% health': '%{0} can'
+'{0}''s Head': '{0} Kafası'
+'{0}+ players online': '{0}+ oyuncu çevrimiçi'
+'{0}-{1} blocks': '{0}-{1} blok'
+'{error}&lBACK': '{error}&lGERİ'
+'{error}&lCANCEL': '{error}&lİPTAL'
+'{error}&lCLEAR THE GRID': '{error}&lIZGARAYI TEMİZLE'
+'{error}&lCLOSE': '{error}&lKAPAT'
+'{error}&lUNAVAILABLE': '{error}&lKULLANILAMAZ'
+'{error}&lUNREADABLE ENTRY': '{error}&lOKUNAMAYAN KAYIT'
+'{error}&l← PREVIOUS PAGE': '{error}&l← ÖNCEKİ SAYFA'
+'{error}Cancel': '{error}İptal'
+'{error}DENY': '{error}REDDET'
+'{error}Deny': '{error}Reddet'
+'{error}Taken': '{error}Dolu'
+'{error}Taken {letters_black}» {letters}{0}': '{error}Dolu {letters_black}» {letters}{0}'
+'{error}That block holds nothing to import.': '{error}Bu blokta içe aktarılacak bir şey yok.'
+'{error}That head is too long to store.': '{error}Bu kafa kaydedilemeyecek kadar uzun.'
+'{error}That is not a head.': '{error}Bu bir kafa değil.'
+'{error}That item is too big to store as an icon. Pick a material or a head instead.': '{error}Bu eşya simge olarak kaydedilemeyecek kadar büyük. Bunun yerine bir malzeme ya da kafa seç.'
+'{error}That item is too big to store. Shorten its lore, or use a plainer item.': '{error}Bu eşya kaydedilemeyecek kadar büyük. Açıklamasını kısalt ya da daha sade bir eşya kullan.'
+'{error}That option could not be read.': '{error}Bu seçenek okunamadı.'
+'{error}The search box is unavailable here.': '{error}Arama kutusu burada kullanılamıyor.'
+'{error}failed': '{error}başarısız'
+'{error}none': '{error}yok'
+'{error}off': '{error}kapalı'
+'{error}removed': '{error}kaldırıldı'
+'{error}● {letters}Right Click {letters_black}» Delete': '{error}● {letters}Sağ Tık {letters_black}» Sil'
+'{error}✘ Turned off': '{error}✘ Kapatıldı'
+'{error}➥ Click to clear': '{error}➥ Temizlemek için tıkla'
+'{error}➥ Click to discard': '{error}➥ Vazgeçmek için tıkla'
+'{error}➥ Right-click to remove': '{error}➥ Kaldırmak için sağ tıkla'
+'{highlight}&lEVERYTHING IN A CHEST': '{highlight}&lHEPSİ BİR SANDIKTA'
+'{highlight}&lLOAD DEFAULTS': '{highlight}&lVARSAYILANLARI YÜKLE'
+'{highlight}&lPASTE': '{highlight}&lYAPIŞTIR'
+'{highlight}&lWHEN IT PLAYS': '{highlight}&lNE ZAMAN OYNAR'
+'{highlight}● {letters}Shift + Left {letters_black}» Copy': '{highlight}● {letters}Shift + Sol {letters_black}» Kopyala'
+'{info}&lCOPY ALL': '{info}&lTÜMÜNÜ KOPYALA'
+'{info}&lEDIT ALL': '{info}&lTÜMÜNÜ DÜZENLE'
+'{info}{0} material': '{info}{0} malzeme'
+'{info}{0} materials': '{info}{0} malzeme'
+'{letters_black}&lKEEP ALL': '{letters_black}&lTÜMÜNÜ KORU'
+'{letters_black}&lKEEP EVERYTHING': '{letters_black}&lHER ŞEYİ KORU'
+'{letters_black}Hidden': '{letters_black}Gizli'
+'{letters_black}▎ {error}Cancelled {letters_black}» {letters}the backup export failed, so nothing was deleted.': '{letters_black}▎ {error}İptal edildi {letters_black}» {letters}yedek dışa aktarımı başarısız oldu, bu yüzden hiçbir şey silinmedi.'
+'{letters_black}▎ {error}Failed {letters_black}» {letters}{0}': '{letters_black}▎ {error}Başarısız {letters_black}» {letters}{0}'
+'{letters_black}▎ {error}That confirmation is not valid.': '{letters_black}▎ {error}Bu onay geçerli değil.'
+'{letters_black}▎ {error}This deletes rows. There is no undo.': '{letters_black}▎ {error}Bu işlem satırları siler. Geri alınamaz.'
+? '{letters_black}▎ {error}force MERGES, it does not replace{letters}: rows whose key is in the dump are overwritten, rows that are not in the dump stay exactly where they are.'
+: '{letters_black}▎ {error}force BİRLEŞTİRİR, yerine koymaz{letters}: anahtarı dökümde olan satırların üzerine yazılır, dökümde olmayan satırlar olduğu gibi kalır.'
+'{letters_black}▎ {error}{0} has no registered tables.': '{letters_black}▎ {error}{0} için kayıtlı tablo yok.'
+'{letters_black}▎ {error}{0} has no table named {1}.': '{letters_black}▎ {error}{0} içinde {1} adlı bir tablo yok.'
+'{letters_black}▎ {info}{0} {letters}still to review <click:run_command:''/exylialib updates''>{warning}[Review]</click>': '{letters_black}▎ {info}{0} {letters}incelenmeyi bekliyor <click:run_command:''/exylialib updates''>{warning}[İncele]</click>'
+'{letters_black}▎ {letters}A code is issued for one sender, one plugin and one table, and expires after {0} seconds.': '{letters_black}▎ {letters}Bir kod tek bir gönderen, tek bir eklenti ve tek bir tablo için verilir ve {0} saniye sonra geçersiz olur.'
+'{letters_black}▎ {letters}A plugin appears here once it has asked for its first repository.': '{letters_black}▎ {letters}Bir eklenti, ilk deposunu istediğinde burada görünür.'
+'{letters_black}▎ {letters}Add {info}{0} {letters}copied entries to': '{letters_black}▎ {letters}Kopyalanan {info}{0} {letters}kaydı şuraya ekle:'
+'{letters_black}▎ {letters}Add {info}{0} {letters}copied entry to': '{letters_black}▎ {letters}Kopyalanan {info}{0} {letters}kaydı şuraya ekle:'
+'{letters_black}▎ {letters}Change a value on every': '{letters_black}▎ {letters}Buradaki her kayıtta bir değeri'
+'{letters_black}▎ {letters}Click to choose this option.': '{letters_black}▎ {letters}Bu seçeneği seçmek için tıkla.'
+'{letters_black}▎ {letters}Close without choosing.': '{letters_black}▎ {letters}Seçmeden kapat.'
+'{letters_black}▎ {letters}Copy every entry here {letters_black}({0})': '{letters_black}▎ {letters}Buradaki tüm kayıtları kopyala {letters_black}({0})'
+'{letters_black}▎ {letters}Create a new entry and': '{letters_black}▎ {letters}Yeni bir kayıt oluştur ve'
+'{letters_black}▎ {letters}Discard every change and': '{letters_black}▎ {letters}Tüm değişiklikleri at ve'
+'{letters_black}▎ {letters}Each item above becomes': '{letters_black}▎ {letters}Yukarıdaki her eşya'
+'{letters_black}▎ {letters}Engine {letters_black}» {info}{0} {letters_black}({1}{letters_black})': '{letters_black}▎ {letters}Motor {letters_black}» {info}{0} {letters_black}({1}{letters_black})'
+'{letters_black}▎ {letters}Entries {letters_black}» {info}{0}': '{letters_black}▎ {letters}Kayıtlar {letters_black}» {info}{0}'
+'{letters_black}▎ {letters}Fetching results…': '{letters_black}▎ {letters}Sonuçlar getiriliyor…'
+'{letters_black}▎ {letters}Keep every change made here.': '{letters_black}▎ {letters}Burada yapılan tüm değişiklikleri koru.'
+'{letters_black}▎ {letters}Matches {letters_black}» {info}{0}': '{letters_black}▎ {letters}Eşleşmeler {letters_black}» {info}{0}'
+'{letters_black}▎ {letters}Page {info}{0}{letters_black}/{info}{1}': '{letters_black}▎ {letters}Sayfa {info}{0}{letters_black}/{info}{1}'
+'{letters_black}▎ {letters}Page {letters_black}» {info}{0}{letters_black}/{info}{1}': '{letters_black}▎ {letters}Sayfa {letters_black}» {info}{0}{letters_black}/{info}{1}'
+'{letters_black}▎ {letters}Plugins {letters_black}» {info}{0}': '{letters_black}▎ {letters}Eklentiler {letters_black}» {info}{0}'
+'{letters_black}▎ {letters}Query {letters_black}» {0}': '{letters_black}▎ {letters}Sorgu {letters_black}» {0}'
+'{letters_black}▎ {letters}Read the item above and use': '{letters_black}▎ {letters}Yukarıdaki eşyayı oku ve'
+'{letters_black}▎ {letters}Redis {letters_black}» {0}': '{letters_black}▎ {letters}Redis {letters_black}» {0}'
+'{letters_black}▎ {letters}Show every option again.': '{letters_black}▎ {letters}Tüm seçenekleri yeniden göster.'
+'{letters_black}▎ {letters}The catalogue could not be reached.': '{letters_black}▎ {letters}Kataloğa ulaşılamadı.'
+'{letters_black}▎ {letters}This row could not be described.': '{letters_black}▎ {letters}Bu satır açıklanamadı.'
+'{letters_black}▎ {letters}Type to filter these results.': '{letters_black}▎ {letters}Sonuçları süzmek için yaz.'
+'{letters_black}▎ {letters}You get the item back either way.': '{letters_black}▎ {letters}Her durumda eşyanı geri alırsın.'
+'{letters_black}▎ {letters}You get the items back either way.': '{letters_black}▎ {letters}Her durumda eşyalarını geri alırsın.'
+'{letters_black}▎ {letters}close this screen.': '{letters_black}▎ {letters}bu ekranı kapat.'
+'{letters_black}▎ {letters}configure it right away.': '{letters_black}▎ {letters}hemen ayarla.'
+'{letters_black}▎ {letters}entry here at once {letters_black}({0})': '{letters_black}▎ {letters}tek seferde değiştir {letters_black}({0})'
+'{letters_black}▎ {letters}it as the icon.': '{letters_black}▎ {letters}simge olarak kullan.'
+'{letters_black}▎ {letters}its own entry.': '{letters_black}▎ {letters}ayrı bir kayıt olur.'
+'{letters_black}▎ {letters}ready to paste somewhere else.': '{letters_black}▎ {letters}başka bir yere yapıştırmaya hazır.'
+'{letters_black}▎ {letters}this list.': '{letters_black}▎ {letters}bu listeye.'
+? '{letters_black}▎ {letters}{0} still holds these rows in memory; until the restart, writes to its tables are ignored so they cannot come back. Wipe other tables first if you need to.'
+: '{letters_black}▎ {letters}{0} bu satırları hâlâ bellekte tutuyor; yeniden başlatılana kadar tablolarına yapılan yazmalar yok sayılır, böylece geri gelemezler. Gerekirse önce diğer tabloları sil.'
+? '{letters_black}▎ {letters}{0} still holds these rows in memory; until the restart, writes to {1} are ignored so they cannot come back. Wipe other tables first if you need to.'
+: '{letters_black}▎ {letters}{0} bu satırları hâlâ bellekte tutuyor; yeniden başlatılana kadar {1} tablosuna yapılan yazmalar yok sayılır, böylece geri gelemezler. Gerekirse önce diğer tabloları sil.'
+'{letters_black}▎ {muted}A reload cannot swap a library every plugin is bound to.': '{letters_black}▎ {muted}Yeniden yükleme, tüm eklentilerin bağlı olduğu bir kütüphaneyi değiştiremez.'
+'{letters_black}▎ {muted}A table a plugin registers lazily is not listed here and will not be exported.': '{letters_black}▎ {muted}Bir eklentinin gecikmeli kaydettiği tablo burada listelenmez ve dışa aktarılmaz.'
+'{letters_black}▎ {muted}Nothing was deleted.': '{letters_black}▎ {muted}Hiçbir şey silinmedi.'
+'{letters_black}▎ {muted}Still running {letters}{0}{muted}. Nothing was changed.': '{letters_black}▎ {muted}Hâlâ çalışan sürüm {letters}{0}{muted}. Hiçbir şey değiştirilmedi.'
+'{letters_black}▎ {muted}Use {0} (or {1}) to wipe every one of them.': '{letters_black}▎ {muted}Hepsini silmek için {0} (veya {1}) kullan.'
+'{letters_black}▎ {muted}none found on this server': '{letters_black}▎ {muted}bu sunucuda hiç bulunamadı'
+'{letters_black}▎ {secondary}Already staged {letters_black}» {info}{0} {letters}is waiting in the update folder.': '{letters_black}▎ {secondary}Zaten hazır {letters_black}» {info}{0} {letters}update klasöründe bekliyor.'
+'{letters_black}▎ {secondary}Auto-update {letters_black}» {0}': '{letters_black}▎ {secondary}Otomatik güncelleme {letters_black}» {0}'
+'{letters_black}▎ {secondary}Available {letters_black}» {0}': '{letters_black}▎ {secondary}Mevcut {letters_black}» {0}'
+? '{letters_black}▎ {secondary}Backup {letters_black}» {letters}a dump is written into {0} first, and the wipe is cancelled if it fails'
+: '{letters_black}▎ {secondary}Yedek {letters_black}» {letters}önce bir döküm şuraya yazılır: {0}; başarısız olursa silme iptal edilir'
+'{letters_black}▎ {secondary}Backup {letters_black}» {letters}writing a dump first, into {0}': '{letters_black}▎ {secondary}Yedek {letters_black}» {letters}önce bir döküm yazılıyor, hedef: {0}'
+'{letters_black}▎ {secondary}Backup {letters_black}» {letters}{0} {muted}({1} rows)': '{letters_black}▎ {secondary}Yedek {letters_black}» {letters}{0} {muted}({1} satır)'
+'{letters_black}▎ {secondary}Checking {letters_black}» {letters}asking GitHub for the newest release...': '{letters_black}▎ {secondary}Kontrol ediliyor {letters_black}» {letters}en yeni sürüm GitHub üzerinden sorgulanıyor...'
+'{letters_black}▎ {secondary}Debug {letters_black}» {0}': '{letters_black}▎ {secondary}Hata ayıklama {letters_black}» {0}'
+? '{letters_black}▎ {secondary}Export {letters_black}» {letters}{muted}/exylialib export <plugin>{letters} — writes that plugin''s tables to a dump.'
+: '{letters_black}▎ {secondary}Dışa aktar {letters_black}» {letters}{muted}/exylialib export <plugin>{letters} — o eklentinin tablolarını bir döküme yazar.'
+'{letters_black}▎ {secondary}Exporting {letters_black}» {info}{0} {letters}({1} tables)': '{letters_black}▎ {secondary}Dışa aktarılıyor {letters_black}» {info}{0} {letters}({1} tablo)'
+'{letters_black}▎ {secondary}File {letters_black}» {letters}{0}': '{letters_black}▎ {secondary}Dosya {letters_black}» {letters}{0}'
+? '{letters_black}▎ {secondary}Import {letters_black}» {letters}{muted}/exylialib import <plugin> <file> [force]{letters} — reads one back; force MERGES rather than replacing.'
+: '{letters_black}▎ {secondary}İçe aktar {letters_black}» {letters}{muted}/exylialib import <plugin> <file> [force]{letters} — bir dökümü geri okur; force değiştirmek yerine BİRLEŞTİRİR.'
+'{letters_black}▎ {secondary}Importing {letters_black}» {info}{0}': '{letters_black}▎ {secondary}İçe aktarılıyor {letters_black}» {info}{0}'
+'{letters_black}▎ {secondary}Kept {info}{0} {letters}value as it was.': '{letters_black}▎ {secondary}Korundu: {info}{0} {letters}değer olduğu gibi bırakıldı.'
+'{letters_black}▎ {secondary}Kept {info}{0} {letters}values as they were.': '{letters_black}▎ {secondary}Korundu: {info}{0} {letters}değer olduğu gibi bırakıldı.'
+'{letters_black}▎ {secondary}Mode {letters_black}» {0}': '{letters_black}▎ {secondary}Mod {letters_black}» {0}'
+'{letters_black}▎ {secondary}Platform {letters_black}» {info}{0}': '{letters_black}▎ {secondary}Platform {letters_black}» {info}{0}'
+? '{letters_black}▎ {secondary}Reload {letters_black}» {letters}{muted}/exylialib reload{letters} — refreshes colours, formats, economy detection and input settings.'
+: '{letters_black}▎ {secondary}Yeniden yükle {letters_black}» {letters}{muted}/exylialib reload{letters} — renkleri, biçimleri, ekonomi algılamasını ve giriş ayarlarını yeniler.'
+'{letters_black}▎ {secondary}Reloaded {letters_black}» {letters}{0}': '{letters_black}▎ {secondary}Yeniden yüklendi {letters_black}» {letters}{0}'
+'{letters_black}▎ {secondary}Result {letters_black}» {0}': '{letters_black}▎ {secondary}Sonuç {letters_black}» {0}'
+'{letters_black}▎ {secondary}Rows {letters_black}» {info}{0}': '{letters_black}▎ {secondary}Satırlar {letters_black}» {info}{0}'
+'{letters_black}▎ {secondary}Small text {letters_black}» {0}': '{letters_black}▎ {secondary}Küçük yazı {letters_black}» {0}'
+'{letters_black}▎ {secondary}Tables {letters_black}» {letters}{0}': '{letters_black}▎ {secondary}Tablolar {letters_black}» {letters}{0}'
+'{letters_black}▎ {secondary}Target {letters_black}» {letters}{0}': '{letters_black}▎ {secondary}Hedef {letters_black}» {letters}{0}'
+'{letters_black}▎ {secondary}Took {letters_black}» {info}{0}ms': '{letters_black}▎ {secondary}Süre {letters_black}» {info}{0}ms'
+? '{letters_black}▎ {secondary}Update {letters_black}» {letters}{muted}/exylialib update{letters} — checks GitHub now and stages a newer release.'
+: '{letters_black}▎ {secondary}Güncelle {letters_black}» {letters}{muted}/exylialib update{letters} — GitHub üzerinden hemen kontrol eder ve daha yeni bir sürümü hazırlar.'
+? '{letters_black}▎ {secondary}Updates {letters_black}» {letters}{muted}/exylialib updates{letters} — default changes plugin updates shipped, to apply or keep.'
+: '{letters_black}▎ {secondary}Güncellemeler {letters_black}» {letters}{muted}/exylialib updates{letters} — eklenti güncellemelerinin getirdiği varsayılan değişiklikler; uygula ya da koru.'
+? '{letters_black}▎ {secondary}Wipe {letters_black}» {letters}{muted}/exylialib wipe <plugin> <table|*>{letters} — empties tables, after a typed confirmation and an automatic dump.'
+: '{letters_black}▎ {secondary}Silme {letters_black}» {letters}{muted}/exylialib wipe <plugin> <table|*>{letters} — yazılı bir onay ve otomatik bir dökümden sonra tabloları boşaltır.'
+'{letters_black}▎ {secondary}Wiping {letters_black}» {info}{0} {letters}({1} tables)': '{letters_black}▎ {secondary}Siliniyor {letters_black}» {info}{0} {letters}({1} tablo)'
+'{letters_black}▎ {secondary}Wiping {letters_black}» {info}{0} {letters}({1})': '{letters_black}▎ {secondary}Siliniyor {letters_black}» {info}{0} {letters}({1})'
+'{letters_black}▎ {success}Applied {info}{0} {letters}change.': '{letters_black}▎ {success}Uygulandı: {info}{0} {letters}değişiklik.'
+'{letters_black}▎ {success}Applied {info}{0} {letters}changes.': '{letters_black}▎ {success}Uygulandı: {info}{0} {letters}değişiklik.'
+'{letters_black}▎ {success}Nothing to review. {letters}New defaults are added on their own; changed ones wait here.': '{letters_black}▎ {success}İncelenecek bir şey yok. {letters}Yeni varsayılanlar kendiliğinden eklenir; değişenler burada bekler.'
+'{letters_black}▎ {success}Reloaded {letters_black}» {letters}colours, formats, economy and input are live everywhere.': '{letters_black}▎ {success}Yeniden yüklendi {letters_black}» {letters}renkler, biçimler, ekonomi ve giriş her yerde etkin.'
+'{letters_black}▎ {success}Staged {letters_black}» {info}{0} {letters}downloaded and verified.': '{letters_black}▎ {success}Hazırlandı {letters_black}» {info}{0} {letters}indirildi ve doğrulandı.'
+'{letters_black}▎ {success}Up to date {letters_black}» {letters}running {info}{0}{letters}, which is the newest release.': '{letters_black}▎ {success}Güncel {letters_black}» {letters}çalışan sürüm {info}{0}{letters}, en yeni sürüm bu.'
+'{letters_black}▎ {warning}Nothing pending matches {letters}%target%{warning}.': '{letters_black}▎ {warning}Bekleyenler arasında eşleşen yok: {letters}%target%{warning}.'
+'{letters_black}▎ {warning}Reload {letters}{0} {warning}to see it live.': '{letters_black}▎ {warning}Yeniden yükle: {letters}{0} {warning}ve değişikliği canlı gör.'
+'{letters_black}▎ {warning}{0} {letters}changed on disk since the list was shown, and were left alone.': '{letters_black}▎ {warning}{0} {letters}liste gösterildikten sonra diskte değişti ve olduğu gibi bırakıldı.'
+'{letters}Default {muted}({0})': '{letters}Varsayılan {muted}({0})'
+'{letters}Type to search': '{letters}Aramak için yaz'
+'{letters}safe': '{letters}güvenli'
+'{muted}AUTO': '{muted}OTOMATİK'
+'{muted}DEFAULT': '{muted}VARSAYILAN'
+'{muted}Default': '{muted}Varsayılan'
+'{muted}N/A (PacketEvents not present)': '{muted}Yok (PacketEvents yüklü değil)'
+'{muted}No materials': '{muted}Malzeme yok'
+'{muted}Place it at the next free position': '{muted}Sonraki boş konuma yerleştir'
+'{muted}Set by the plugin': '{muted}Eklenti tarafından ayarlandı'
+'{muted}Type to filter': '{muted}Filtrelemek için yaz'
+'{muted}Type to search': '{muted}Aramak için yaz'
+'{muted}Type {highlight}%cancel%{muted} to cancel, or {highlight}%back%{muted} to revisit the previous field.': '{muted}İptal için {highlight}%cancel%{muted}, önceki alana dönmek için {highlight}%back%{muted} yaz.'
+'{muted}Type {highlight}%cancel%{muted} to cancel.': '{muted}İptal için {highlight}%cancel%{muted} yaz.'
+'{muted}[Keep all]': '{muted}[Hepsini koru]'
+'{muted}[Keep]': '{muted}[Koru]'
+'{muted}none': '{muted}yok'
+'{muted}nothing yet': '{muted}henüz yok'
+'{muted}off': '{muted}kapalı'
+'{muted}skipped': '{muted}atlandı'
+'{muted}transfer': '{muted}transfer'
+'{muted}update': '{muted}update'
+'{muted}updates': '{muted}updates'
+'{primary}&l%key% &8[{error}REMOVED&8]': '{primary}&l%key% &8[{error}KALDIRILDI&8]'
+'{primary}&l%key% &8[{success}NEW&8]': '{primary}&l%key% &8[{success}YENİ&8]'
+'{primary}&l%updates_file% {muted}%current_page%/%total_pages%': '{primary}&l%updates_file% {muted}%current_page%/%total_pages%'
+'{primary}&l%updates_plugin% {muted}%current_page%/%total_pages%': '{primary}&l%updates_plugin% {muted}%current_page%/%total_pages%'
+'{primary}&lA COMMAND': '{primary}&lBİR KOMUT'
+'{primary}&lADD A SKILL': '{primary}&lYETENEK EKLE'
+'{primary}&lALLOWED BLOCKS': '{primary}&lİZİN VERİLEN BLOKLAR'
+'{primary}&lALLOWED BLOCKS ONLY': '{primary}&lYALNIZCA İZİN VERİLEN BLOKLAR'
+'{primary}&lAN ITEM': '{primary}&lBİR EŞYA'
+'{primary}&lAPPEARANCE': '{primary}&lGÖRÜNÜM'
+'{primary}&lATTRIBUTES': '{primary}&lÖZELLİKLER'
+'{primary}&lAUTO &8[{info}{0}&8]': '{primary}&lOTOMATİK &8[{info}{0}&8]'
+'{primary}&lBEHAVIOUR': '{primary}&lDAVRANIŞ'
+'{primary}&lBELOW {0}%': '{primary}&l{0}% ALTINDA'
+'{primary}&lBLOCK LIFETIME': '{primary}&lBLOK ÖMRÜ'
+'{primary}&lBREAK': '{primary}&lKIRMA'
+'{primary}&lBREAKABLE BLOCKS': '{primary}&lKIRILABİLİR BLOKLAR'
+'{primary}&lBREAKABLE BLOCKS ONLY': '{primary}&lYALNIZCA KIRILABİLİR BLOKLAR'
+'{primary}&lBUILD': '{primary}&lİNŞA'
+'{primary}&lBUTTON': '{primary}&lBUTON'
+'{primary}&lCONDITIONS': '{primary}&lKOŞULLAR'
+'{primary}&lCUSTOM': '{primary}&lÖZEL'
+'{primary}&lCUSTOM &8[{info}#rrggbb&8]': '{primary}&lÖZEL &8[{info}#rrggbb&8]'
+'{primary}&lEDIT ALL {0} LINES': '{primary}&l{0} SATIRIN TÜMÜNÜ DÜZENLE'
+'{primary}&lEDIT ALL {0} REWARDS': '{primary}&l{0} ÖDÜLÜN TÜMÜNÜ DÜZENLE'
+'{primary}&lEDIT COMMAND': '{primary}&lKOMUTU DÜZENLE'
+'{primary}&lEDIT EFFECT': '{primary}&lEFEKTİ DÜZENLE'
+'{primary}&lEDIT LOOT': '{primary}&lGANİMETİ DÜZENLE'
+'{primary}&lEDIT REWARD': '{primary}&lÖDÜLÜ DÜZENLE'
+'{primary}&lEDIT SCHEDULE': '{primary}&lZAMANLAMAYI DÜZENLE'
+'{primary}&lEDIT SKILL': '{primary}&lYETENEĞİ DÜZENLE'
+'{primary}&lEDIT {0}': '{primary}&lDÜZENLE: {0}'
+'{primary}&lEDITOR': '{primary}&lDÜZENLEYİCİ'
+'{primary}&lEFFECTS': '{primary}&lEFEKTLER'
+'{primary}&lENTRY': '{primary}&lGİRİŞ'
+'{primary}&lEXIT': '{primary}&lÇIKIŞ'
+'{primary}&lFALL DAMAGE': '{primary}&lDÜŞME HASARI'
+'{primary}&lFIGHT': '{primary}&lDÖVÜŞ'
+'{primary}&lFLAGS': '{primary}&lBAYRAKLAR'
+'{primary}&lFLAGS &8[{info}{0}&8/{info}{1}&8]': '{primary}&lBAYRAKLAR &8[{info}{0}&8/{info}{1}&8]'
+'{primary}&lIMPACT LINES': '{primary}&lETKİ SATIRLARI'
+'{primary}&lIMPACT LINES &8[{info}{0}&8]': '{primary}&lETKİ SATIRLARI &8[{info}{0}&8]'
+'{primary}&lIMPORT FROM A CHEST': '{primary}&lSANDIKTAN İÇE AKTAR'
+'{primary}&lINSERT AN ITEM': '{primary}&lBİR EŞYA KOY'
+'{primary}&lINSERT THE ITEMS': '{primary}&lEŞYALARI KOY'
+'{primary}&lINTERACT': '{primary}&lETKİLEŞİM'
+'{primary}&lITEM DROP': '{primary}&lEŞYA ATMA'
+'{primary}&lITEM PICKUP': '{primary}&lEŞYA TOPLAMA'
+'{primary}&lLIST': '{primary}&lLİSTE'
+'{primary}&lLOADOUT': '{primary}&lEKİPMAN'
+'{primary}&lLOOK': '{primary}&lGÖRÜNÜŞ'
+'{primary}&lMECHANICS': '{primary}&lMEKANİKLER'
+'{primary}&lMEMBERS ONLY': '{primary}&lYALNIZCA ÜYELER'
+'{primary}&lMONEY': '{primary}&lPARA'
+'{primary}&lNEXT': '{primary}&lSONRAKİ'
+'{primary}&lPHASE': '{primary}&lAŞAMA'
+'{primary}&lPHASES': '{primary}&lAŞAMALAR'
+'{primary}&lPHASES &8[{info}{0}&8]': '{primary}&lAŞAMALAR &8[{info}{0}&8]'
+'{primary}&lPLAYER BLOCKS ONLY': '{primary}&lYALNIZCA OYUNCU BLOKLARI'
+'{primary}&lPLUGIN UPDATES': '{primary}&lEKLENTİ GÜNCELLEMELERİ'
+'{primary}&lPREVIOUS': '{primary}&lÖNCEKİ'
+'{primary}&lPVP': '{primary}&lPVP'
+'{primary}&lREACTIONS': '{primary}&lTEPKİLER'
+'{primary}&lREGION FLAGS': '{primary}&lBÖLGE BAYRAKLARI'
+'{primary}&lREGION SELECTOR': '{primary}&lBÖLGE SEÇİCİ'
+'{primary}&lREPLACE THE ITEM': '{primary}&lEŞYAYI DEĞİŞTİR'
+'{primary}&lRETURN BLOCKS': '{primary}&lBLOKLARI GERİ GETİR'
+'{primary}&lSEARCH': '{primary}&lARA'
+'{primary}&lSEARCH RESULTS': '{primary}&lARAMA SONUÇLARI'
+'{primary}&lSEARCHING': '{primary}&lARANIYOR'
+'{primary}&lSEVERAL COMMANDS': '{primary}&lBİRDEN FAZLA KOMUT'
+'{primary}&lSEVERAL ITEMS': '{primary}&lBİRDEN FAZLA EŞYA'
+'{primary}&lSTYLE': '{primary}&lSTİL'
+'{primary}&lSTYLE &8[{info}{0}&8]': '{primary}&lSTİL &8[{info}{0}&8]'
+'{primary}&lTEMPORARY BLOCKS': '{primary}&lGEÇİCİ BLOKLAR'
+'{primary}&lTHEME': '{primary}&lTEMA'
+'{primary}&lTIMING': '{primary}&lZAMANLAMA'
+'{primary}&lTIMING & AIM': '{primary}&lZAMANLAMA VE NİŞAN'
+'{primary}&lTINT': '{primary}&lRENK TONU'
+'{primary}&lTINT &8[{info}{0}&8]': '{primary}&lRENK TONU &8[{info}{0}&8]'
+'{primary}&lUPDATES {muted}%current_page%/%total_pages%': '{primary}&lGÜNCELLEMELER {muted}%current_page%/%total_pages%'
+'{primary}&lWHAT DO THEY RUN?': '{primary}&lNE ÇALIŞTIRIRLAR?'
+'{primary}&lWHAT DO YOU WANT TO ADD?': '{primary}&lNE EKLEMEK İSTİYORSUN?'
+'{primary}&lWHAT DOES IT DO?': '{primary}&lNE YAPAR?'
+'{primary}&lWHAT DOES IT GIVE?': '{primary}&lNE VERİR?'
+'{primary}&lWHAT DOES IT PLAY?': '{primary}&lNE OYNATIR?'
+'{primary}&lWHAT DOES IT RUN?': '{primary}&lNE ÇALIŞTIRIR?'
+'{primary}&lWHAT EFFECTS?': '{primary}&lHANGİ EFEKTLER?'
+'{primary}&lWHAT ICON?': '{primary}&lHANGİ SİMGE?'
+'{primary}&lWHAT IT PLAYS': '{primary}&lNE OYNATIR'
+'{primary}&lWHAT ITEM?': '{primary}&lHANGİ EŞYA?'
+'{primary}&lWHEN IT PLAYS': '{primary}&lNE ZAMAN OYNATIR'
+'{primary}&lWHEN?': '{primary}&lNE ZAMAN?'
+'{primary}&lWHICH COLOUR?': '{primary}&lHANGİ RENK?'
+'{primary}&lWHICH EFFECT?': '{primary}&lHANGİ EFEKT?'
+'{primary}&lWHICH ENCHANTMENT?': '{primary}&lHANGİ BÜYÜ?'
+'{primary}&lWHICH ITEM?': '{primary}&lHANGİ EŞYA?'
+'{primary}&lWHICH MATERIAL?': '{primary}&lHANGİ MATERYAL?'
+'{primary}&lWHICH PARTICLE?': '{primary}&lHANGİ PARÇACIK?'
+'{primary}&lWHICH SHAPE?': '{primary}&lHANGİ ŞEKİL?'
+'{primary}&lWHICH SOUND?': '{primary}&lHANGİ SES?'
+'{primary}&lWIND-UP LINES': '{primary}&lHAZIRLIK SATIRLARI'
+'{primary}&lWIND-UP LINES &8[{info}{0}&8]': '{primary}&lHAZIRLIK SATIRLARI &8[{info}{0}&8]'
+'{primary}&lWIPE&r {muted}{0}': '{primary}&lSİLME&r {muted}{0}'
+'{primary}&l← ARMOUR & OFFHAND': '{primary}&l← ZIRH VE İKİNCİ EL'
+'{primary}&l▶ PREVIEW': '{primary}&l▶ ÖNİZLEME'
+'{primary}Next': '{primary}Sonraki'
+'{primary}Previous': '{primary}Önceki'
+'{primary}Search': '{primary}Ara'
+'{primary}Type a colour as #rrggbb': '{primary}Rengi #rrggbb biçiminde yaz'
+? '{primary}✦ {info}%count% {letters}default change to review {letters_black}» {letters}%plugins% <click:run_command:''/exylialib updates''>{warning}[Review]</click>'
+: '{primary}✦ {info}%count% {letters}incelenecek varsayılan değişiklik {letters_black}» {letters}%plugins% <click:run_command:''/exylialib updates''>{warning}[İncele]</click>'
+? '{primary}✦ {info}%count% {letters}default changes to review {letters_black}» {letters}%plugins% <click:run_command:''/exylialib updates''>{warning}[Review]</click>'
+: '{primary}✦ {info}%count% {letters}incelenecek varsayılan değişiklik {letters_black}» {letters}%plugins% <click:run_command:''/exylialib updates''>{warning}[İncele]</click>'
+'{secondary}&lCLEAR': '{secondary}&lTEMİZLE'
+'{secondary}&lNEXT »': '{secondary}&lSONRAKİ »'
+'{secondary}&l« PREVIOUS': '{secondary}&l« ÖNCEKİ'
+'{secondary}Cast:': '{secondary}Kullanım:'
+'{secondary}Database:': '{secondary}Veritabanı:'
+'{secondary}Depending plugins:': '{secondary}Bağımlı eklentiler:'
+'{secondary}Effect:': '{secondary}Efekt:'
+'{secondary}Gives:': '{secondary}Verir:'
+'{secondary}Information:': '{secondary}Bilgi:'
+'{secondary}Locked:': '{secondary}Kilitli:'
+'{secondary}Materials:': '{secondary}Materyaller:'
+'{secondary}New default:': '{secondary}Yeni varsayılan:'
+'{secondary}New setting:': '{secondary}Yeni ayar:'
+'{secondary}Odds:': '{secondary}Olasılıklar:'
+'{secondary}On screen:': '{secondary}Ekranda:'
+'{secondary}Only for:': '{secondary}Yalnızca şunlar için:'
+'{secondary}Only if:': '{secondary}Yalnızca şu durumda:'
+'{secondary}Phase:': '{secondary}Aşama:'
+'{secondary}Place:': '{secondary}Konum:'
+'{secondary}Plays:': '{secondary}Oynatır:'
+'{secondary}Problems:': '{secondary}Sorunlar:'
+'{secondary}Reward:': '{secondary}Ödül:'
+'{secondary}Runs:': '{secondary}Çalıştırır:'
+'{secondary}Says:': '{secondary}Söyler:'
+'{secondary}Selection:': '{secondary}Seçim:'
+'{secondary}Settings:': '{secondary}Ayarlar:'
+'{secondary}Skill:': '{secondary}Yetenek:'
+'{secondary}Stack:': '{secondary}Yığın:'
+'{secondary}State:': '{secondary}Durum:'
+'{secondary}The five slots to the left:': '{secondary}Soldaki beş yuva:'
+'{secondary}When:': '{secondary}Ne zaman:'
+'{secondary}Your value:': '{secondary}Senin değerin:'
+'{secondary}✔ {letters}Kept {info}{0} {letters}value': '{secondary}✔ {letters}Korunan {info}{0} {letters}değer'
+'{secondary}✔ {letters}Kept {info}{0} {letters}values': '{secondary}✔ {letters}Korunan {info}{0} {letters}değer'
+'{success}&l%count% {letters}match(es)': '{success}&l%count% {letters}eşleşme'
+'{success}&lADD': '{success}&lEKLE'
+'{success}&lALL CAUGHT UP': '{success}&lHEPSİ GÜNCEL'
+'{success}&lAPPLY ALL': '{success}&lTÜMÜNÜ UYGULA'
+'{success}&lAPPLY EVERYTHING': '{success}&lHER ŞEYİ UYGULA'
+'{success}&lIMPORT MY INVENTORY': '{success}&lENVANTERİMİ İÇE AKTAR'
+'{success}&lNEXT PAGE →': '{success}&lSONRAKİ SAYFA →'
+'{success}&lSAVE': '{success}&lKAYDET'
+'{success}&lSAVE & BACK': '{success}&lKAYDET VE GERİ DÖN'
+'{success}&lSEARCH {letters}%query%': '{success}&lARA {letters}%query%'
+'{success}&lUSE THESE ITEMS': '{success}&lBU EŞYALARI KULLAN'
+'{success}&lUSE THIS ITEM': '{success}&lBU EŞYAYI KULLAN'
+'{success}ALLOW': '{success}İZİN VER'
+'{success}Added {info}{0} {success}reward.': '{success}Eklenen {info}{0} {success}ödül.'
+'{success}Added {info}{0} {success}rewards.': '{success}Eklenen {info}{0} {success}ödül.'
+'{success}Allow': '{success}İzin ver'
+'{success}Free': '{success}Boş'
+'{success}Imported {info}{0} {success}line.': '{success}İçe aktarılan {info}{0} {success}satır.'
+'{success}Imported {info}{0} {success}lines.': '{success}İçe aktarılan {info}{0} {success}satır.'
+'{success}Reloaded {highlight}{0} {success}step in {info}{1}ms': '{success}Yeniden yüklenen {highlight}{0} {success}adım, süre {info}{1}ms'
+'{success}Reloaded {highlight}{0} {success}steps in {info}{1}ms': '{success}Yeniden yüklenen {highlight}{0} {success}adım, süre {info}{1}ms'
+'{success}Shown': '{success}Görünür'
+'{success}[Apply all]': '{success}[Tümünü uygula]'
+'{success}[Apply]': '{success}[Uygula]'
+'{success}always': '{success}her zaman'
+'{success}new ': '{success}yeni '
+'{success}on': '{success}açık'
+'{success}on {letters_black}({0})': '{success}açık {letters_black}({0})'
+'{success}success': '{success}başarılı'
+'{success}● {letters}Left Click {letters_black}» Edit': '{success}● {letters}Sol Tık {letters_black}» Düzenle'
+'{success}✔ {letters}Applied {info}{0} {letters}change': '{success}✔ {letters}Uygulanan {info}{0} {letters}değişiklik'
+'{success}✔ {letters}Applied {info}{0} {letters}changes': '{success}✔ {letters}Uygulanan {info}{0} {letters}değişiklik'
+'{warning}Browse a head': '{warning}Kafa ara'
+'{warning}Paste a head {muted}(playerhead-Notch, basehead-<base64>, urlhead-<url>)': '{warning}Bir kafa yapıştır {muted}(playerhead-Notch, basehead-<base64>, urlhead-<url>)'
+'{warning}Reloaded {highlight}{0}/{1} {warning}steps in {info}{2}ms {letters_black}» {error}{3}': '{warning}Yeniden yüklenen {highlight}{0}/{1} {warning}adım, süre {info}{2}ms {letters_black}» {error}{3}'
+'{warning}Search a material': '{warning}Materyal ara'
+'{warning}That is enough changes for now; nothing was created.': '{warning}Şimdilik bu kadar değişiklik yeter; hiçbir şey oluşturulmadı.'
+'{warning}You are already at the first field.': '{warning}Zaten ilk alandasın.'
+'{warning}You are not holding anything. Take the item and try again.': '{warning}Elinde hiçbir şey yok. Eşyayı al ve tekrar dene.'
+'{warning}force {letters}(merge)': '{warning}force {letters}(birleştir)'
+'{warning}partial': '{warning}kısmi'
+'{warning}{0} {letters}(layout drifted)': '{warning}{0} {letters}(düzen değişti)'
+'{warning}⚠ {letters}Not finished yet': '{warning}⚠ {letters}Henüz bitmedi'
+'{warning}➥ Click to add': '{warning}➥ Eklemek için tıkla'
+'{warning}➥ Click to apply all': '{warning}➥ Tümünü uygulamak için tıkla'
+'{warning}➥ Click to change, then save': '{warning}➥ Değiştirmek için tıkla, sonra kaydet'
+'{warning}➥ Click to clear the search': '{warning}➥ Aramayı temizlemek için tıkla'
+'{warning}➥ Click to confirm': '{warning}➥ Onaylamak için tıkla'
+'{warning}➥ Click to copy': '{warning}➥ Kopyalamak için tıkla'
+'{warning}➥ Click to cycle': '{warning}➥ Değiştirmek için tıkla'
+'{warning}➥ Click to discard': '{warning}➥ Vazgeçmek için tıkla'
+'{warning}➥ Click to edit all': '{warning}➥ Tümünü düzenlemek için tıkla'
+'{warning}➥ Click to edit the list': '{warning}➥ Listeyi düzenlemek için tıkla'
+'{warning}➥ Click to import': '{warning}➥ İçe aktarmak için tıkla'
+'{warning}➥ Click to keep all': '{warning}➥ Tümünü korumak için tıkla'
+'{warning}➥ Click to load, then save': '{warning}➥ Yüklemek için tıkla, sonra kaydet'
+'{warning}➥ Click to open the text box': '{warning}➥ Metin kutusunu açmak için tıkla'
+'{warning}➥ Click to paste': '{warning}➥ Yapıştırmak için tıkla'
+'{warning}➥ Click to review': '{warning}➥ İncelemek için tıkla'
+'{warning}➥ Click to save': '{warning}➥ Kaydetmek için tıkla'
+'{warning}➥ Click to set': '{warning}➥ Ayarlamak için tıkla'
+'{warning}➥ Click to swap': '{warning}➥ Yer değiştirmek için tıkla'
+'{warning}➥ Confirm within {0}s:': '{warning}➥ {0}s içinde onayla:'
+'{warning}➥ Editing moves it to where you stand': '{warning}➥ Düzenlemek onu durduğun yere taşır'
+'{warning}➥ Left click to add it': '{warning}➥ Eklemek için sol tık'
+'{warning}➥ Left click to apply the new default': '{warning}➥ Yeni varsayılanı uygulamak için sol tık'
+'{warning}➥ Left click to remove it': '{warning}➥ Kaldırmak için sol tık'
+'{warning}➥ Re-run with force to write anyway:': '{warning}➥ Yine de yazmak için force ile tekrar çalıştır:'
+'{warning}➥ Restart the server to apply it': '{warning}➥ Uygulamak için sunucuyu yeniden başlat'
+'{warning}➥ Restart the server to apply it.': '{warning}➥ Uygulamak için sunucuyu yeniden başlat.'
+'{warning}➥ Restore it with:': '{warning}➥ Geri yüklemek için:'
+'{warning}➥ Right click to keep it': '{warning}➥ Korumak için sağ tık'
+'{warning}➥ Right click to keep your value': '{warning}➥ Kendi değerini korumak için sağ tık'
+'{warning}➥ Right click to leave it out': '{warning}➥ Dışarıda bırakmak için sağ tık'
+'{warning}➥ Right-click for default': '{warning}➥ Varsayılan için sağ tık'
+'{warning}➥ Search again to retry': '{warning}➥ Tekrar denemek için yeniden ara'
+'{warning}➥ Set a time before it can run': '{warning}➥ Çalışabilmesi için önce bir saat ayarla'
+'{warning}➥ Shift + left click to apply all': '{warning}➥ Tümünü uygulamak için Shift + sol tık'
+'{warning}➥ Shift + left-click to confirm': '{warning}➥ Onaylamak için Shift + sol tık'
+'{warning}➥ Shift + right click to keep all': '{warning}➥ Tümünü korumak için Shift + sağ tık'
+'{warning}➥ Start again:': '{warning}➥ Baştan başla:'
+'{warning}➥ {letters}Left-click the chest you want to copy.': '{warning}➥ {letters}Kopyalamak istediğin sandığa sol tıkla.'
+… {0} more: … {0} tane daha
+' {letters_black}▎ {error}Cancelling deletes this batch.': ' {letters_black}▎ {error}İptal etmek bu grubu siler.'
+' {letters_black}▎ {letters}Every batch this player is owed,': ' {letters_black}▎ {letters}Bu oyuncuya borçlu olunan her grup,'
+' {letters_black}▎ {letters}Hands over every batch now.': ' {letters_black}▎ {letters}Tüm grupları şimdi teslim eder.'
+' {letters_black}▎ {letters}No reward is waiting to be delivered.': ' {letters_black}▎ {letters}Teslim edilmeyi bekleyen ödül yok.'
+' {letters_black}▎ {letters}Only while the player is {highlight}online{letters}.': ' {letters_black}▎ {letters}Yalnızca oyuncu {highlight}çevrimiçiyken{letters}.'
+' {letters_black}▎ {letters}Owed {letters_black}» {info}%owed% ⌚': ' {letters_black}▎ {letters}Bekleyen {letters_black}» {info}%owed% ⌚'
+' {letters_black}▎ {letters}Player {letters_black}» %status%': ' {letters_black}▎ {letters}Oyuncu {letters_black}» %status%'
+' {letters_black}▎ {letters}Rewards a player could not receive': ' {letters_black}▎ {letters}Bir oyuncunun alamadığı ödüller'
+' {letters_black}▎ {letters}Source {letters_black}» {info}%source%': ' {letters_black}▎ {letters}Kaynak {letters_black}» {info}%source%'
+' {letters_black}▎ {letters}The player never receives it.': ' {letters_black}▎ {letters}Oyuncu bunu asla almaz.'
+' {letters_black}▎ {letters}This plugin keeps its own table and': ' {letters_black}▎ {letters}Bu eklenti kendi tablosunu kullanıyor ve'
+' {letters_black}▎ {letters}cannot list it yet. Update it to': ' {letters_black}▎ {letters}henüz listeleyemiyor. Ödüllerini burada'
+' {letters_black}▎ {letters}oldest first, plugin by plugin.': ' {letters_black}▎ {letters}en eskiden başlayarak, eklenti eklenti.'
+' {letters_black}▎ {letters}review its rewards here.': ' {letters_black}▎ {letters}incelemek için onu güncelle.'
+' {letters_black}▎ {letters}wait here until their {highlight}next join{letters}.': ' {letters_black}▎ {letters}burada {highlight}bir sonraki girişine{letters} kadar bekler.'
+' {letters_black}▎ {muted}Offline: delivered on their next join.': ' {letters_black}▎ {muted}Çevrimdışı: bir sonraki girişinde teslim edilir.'
+'{error}✘ {letters}{0} is offline. Their rewards wait for their next join.': '{error}✘ {letters}{0} adlı oyuncu çevrimdışı. Ödülleri bir sonraki girişini bekliyor.'
+'{info}&lREFRESH': '{info}&lYENİLE'
+'{letters_black}▎ {error}Nobody called {0} has played here.': '{letters_black}▎ {error}{0} adında kimse burada oynamamış.'
+'{letters_black}▎ {secondary}Pending rewards {letters_black}» {letters}{muted}/exylialib pendingrewards [player]{letters} — rewards waiting to be delivered, to give now or cancel.': '{letters_black}▎ {secondary}Bekleyen ödüller {letters_black}» {letters}{muted}/exylialib pendingrewards [player]{letters} — teslim edilmeyi bekleyen ödüller; hemen ver ya da iptal et.'
+'{letters_black}▎ {secondary}Logs {letters_black}» {letters}{muted}/exylialib logs <player|*> [plugin] [action]{letters} — the staff audit log every plugin records into.': '{letters_black}▎ {secondary}Kayıtlar {letters_black}» {letters}{muted}/exylialib logs <player|*> [plugin] [action]{letters} — her eklentinin yazdığı yetkili denetim kaydı.'
+'{letters_black}▎ {success}No reward is waiting to be delivered.': '{letters_black}▎ {success}Teslim edilmeyi bekleyen ödül yok.'
+'{muted}offline': '{muted}çevrimdışı'
+'{muted}pending rewards': '{muted}bekleyen ödüller'
+'{primary}&l%pending_name%': '{primary}&l%pending_name%'
+'{primary}&l%pending_name% {muted}%current_page%/%total_pages%': '{primary}&l%pending_name% {muted}%current_page%/%total_pages%'
+'{primary}&lPENDING REWARDS': '{primary}&lBEKLEYEN ÖDÜLLER'
+'{primary}&lPENDING REWARDS {muted}%current_page%/%total_pages%': '{primary}&lBEKLEYEN ÖDÜLLER {muted}%current_page%/%total_pages%'
+'{secondary}Owed by:': '{secondary}Borçlu olan:'
+'{secondary}Rewards:': '{secondary}Ödüller:'
+'{success}&lALL DELIVERED': '{success}&lHEPSİ TESLİM EDİLDİ'
+'{success}&lGIVE EVERYTHING': '{success}&lHEPSİNİ VER'
+'{success}online': '{success}çevrimiçi'
+'{success}✔ {letters}Cancelled {info}{0} {letters}reward(s) owed to {highlight}{1}': '{success}✔ {letters}İptal edilen {info}{0} {letters}ödül, oyuncu: {highlight}{1}'
+'{success}✔ {letters}Gave {info}{0} {letters}reward(s) to {highlight}{1}': '{success}✔ {letters}Verilen {info}{0} {letters}ödül, oyuncu: {highlight}{1}'
+'{warning}✘ {letters}That batch was already gone.': '{warning}✘ {letters}O grup zaten yoktu.'
+'{warning}➥ Any other click keeps it': '{warning}➥ Başka herhangi bir tık onu korur'
+'{warning}➥ Click to give all': '{warning}➥ Hepsini vermek için tıkla'
+'{warning}➥ Left click to give it now': '{warning}➥ Hemen vermek için sol tık'
+'{warning}➥ Shift + right click again to confirm': '{warning}➥ Onaylamak için tekrar Shift + sağ tık'
+'{warning}➥ Shift + right click to cancel it': '{warning}➥ İptal etmek için Shift + sağ tık'
+'{letters_black}▎ {letters}{0} {letters_black}» {error}failed: {1}': '{letters_black}▎ {letters}{0} {letters_black}» {error}başarısız: {1}'
+'{letters_black}▎ {letters}{0} {letters_black}» {info}{1} {letters}→ {success}{2} {muted}(ready)': '{letters_black}▎ {letters}{0} {letters_black}» {info}{1} {letters}→ {success}{2} {muted}(hazır)'
+'{letters_black}▎ {letters}{0} {letters_black}» {muted}skipped: {1}': '{letters_black}▎ {letters}{0} {letters_black}» {muted}atlandı: {1}'
+'{letters_black}▎ {letters}{0} {letters_black}» {success}up to date {muted}({1})': '{letters_black}▎ {letters}{0} {letters_black}» {success}güncel {muted}({1})'
+'{letters_black}▎ {letters}{0} {letters_black}» {warning}{1} {letters}is a new major version; install it by hand': '{letters_black}▎ {letters}{0} {letters_black}» {warning}{1} {letters}yeni bir ana sürüm; elle kur'
+'{letters_black}▎ {letters}{0} {letters_black}» {warning}{1} {letters}waits for a newer ExyliaLib': '{letters_black}▎ {letters}{0} {letters_black}» {warning}{1} {letters}daha yeni bir ExyliaLib bekliyor'
+'{letters_black}▎ {muted}No installed plugin names a repository to update from.': '{letters_black}▎ {muted}Yüklü eklentilerin hiçbiri güncelleme için bir depo belirtmiyor.'
+'{letters_black}▎ {secondary}Checking {letters_black}» {letters}asking GitHub for each plugin''s newest release...': '{letters_black}▎ {secondary}Kontrol ediliyor {letters_black}» {letters}her eklentinin en yeni sürümü GitHub üzerinden soruluyor...'
+'{letters_black}▎ {secondary}Plugins {letters_black}» {letters}{muted}/exylialib plugins{letters} — checks every Exylia plugin for a newer release and stages it.': '{letters_black}▎ {secondary}Eklentiler {letters_black}» {letters}{muted}/exylialib plugins{letters} — her Exylia eklentisinin yeni sürümünü arar ve kuruluma hazırlar.'
+'{muted}plugin updates': '{muted}eklenti güncellemeleri'
+'{primary}&lEXYLIALIB&r {letters_black}» {info}{0} {letters}plugin update(s) ready. {warning}Restart to apply them {muted}(/exylialib plugins)': '{primary}&lEXYLIALIB&r {letters_black}» {info}{0} {letters}eklenti güncellemesi hazır. {warning}Uygulamak için yeniden başlat {muted}(/exylialib plugins)'
+'{warning}➥ Restart the server to apply them': '{warning}➥ Uygulamak için sunucuyu yeniden başlat'
+'Discord: Server Settings » Integrations » Webhooks » Copy URL': 'Discord: Sunucu Ayarları » Entegrasyonlar » Webhook''lar » URL''yi Kopyala'
+'Paste the webhook URL.': 'Webhook URL adresini yapıştır.'
+'That is not a URL.': 'Bu bir URL değil.'
+'The URL has to start with https://': 'URL https:// ile başlamalı'
+'That URL is not from discord.com.': 'Bu URL discord.com adresine ait değil.'
+'Paste the URL exactly as Discord gives it, with nothing added.': 'URL adresini Discord verdiği gibi, hiçbir şey eklemeden yapıştır.'
+'That is not a webhook URL. Copy it from Integrations » Webhooks.': 'Bu bir webhook URL adresi değil. Entegrasyonlar » Webhook''lar bölümünden kopyala.'
+'The webhook URL is incomplete. Copy it again.': 'Webhook URL adresi eksik. Tekrar kopyala.'
+'Name {muted}(optional)': 'Ad {muted}(isteğe bağlı)'
+'Starts {muted}(id)': 'Başlatır {muted}(id)'
+'When it runs': 'Ne zaman çalışır'
+'At set times': 'Belirli saatlerde'
+'On a repeating timer': 'Tekrarlanan zamanlayıcıyla'
+'Every {muted}(e.g. 2h, 90m)': 'Her {muted}(örn. 2h, 90m)'
+'From {muted}(blank = 00:00)': 'Başlangıç {muted}(boş = 00:00)'
+'Until {muted}(blank = 23:59)': 'Bitiş {muted}(boş = 23:59)'
+'Times {muted}(24h, e.g. 20:00, 22:30)': 'Saatler {muted}(24 saat, örn. 20:00, 22:30)'
+'Monday': 'Pazartesi'
+'Tuesday': 'Salı'
+'Wednesday': 'Çarşamba'
+'Thursday': 'Perşembe'
+'Friday': 'Cuma'
+'Saturday': 'Cumartesi'
+'Sunday': 'Pazar'
+'Edit conditions next {muted}(players, cooldown, checks)': 'Ardından koşulları düzenle {muted}(oyuncular, bekleme süresi, kontroller)'
+'{primary}&lSCHEDULE CONDITIONS': '{primary}&lZAMANLAMA KOŞULLARI'
+'Maximum players online {muted}(0 = no limit)': 'En fazla çevrimiçi oyuncu {muted}(0 = sınırsız)'
+'Wait between runs {muted}(e.g. 1h)': 'Çalışmalar arası bekleme {muted}(örn. 1h)'
+'Only if {0}': 'Yalnızca {0} ise'
+'Custom condition {muted}(e.g. %server_tps% >= 18)': 'Özel koşul {muted}(örn. %server_tps% >= 18)'
+'{error}no answer {letters_black}— {letters}is ExyliaProxyUtils on the proxy, on the same Redis and key-prefix?': '{error}yanıt yok {letters_black}— {letters}ExyliaProxyUtils proxy üzerinde, aynı Redis ve key-prefix ile mi çalışıyor?'
+'{error}{0}': '{error}{0}'
+'{letters_black}▎ {letters}Actions {letters_black}» {info}{0}': '{letters_black}▎ {letters}Eylemler {letters_black}» {info}{0}'
+'{letters_black}▎ {letters}Configs loaded {letters_black}» {info}{0}': '{letters_black}▎ {letters}Yüklenen yapılandırmalar {letters_black}» {info}{0}'
+'{letters_black}▎ {letters}Effects {letters_black}» {info}{0}': '{letters_black}▎ {letters}Efektler {letters_black}» {info}{0}'
+'{letters_black}▎ {letters}Holograms {letters_black}» {0}': '{letters_black}▎ {letters}Hologramlar {letters_black}» {0}'
+'{letters_black}▎ {letters}Menus {letters_black}» {info}{0} {letters}plugins': '{letters_black}▎ {letters}Menüler {letters_black}» {info}{0} {letters}eklenti'
+'{letters_black}▎ {letters}Network players {letters_black}» {info}{0}': '{letters_black}▎ {letters}Ağdaki oyuncular {letters_black}» {info}{0}'
+'{letters_black}▎ {letters}Proxy bridge {letters_black}» {0}': '{letters_black}▎ {letters}Proxy köprüsü {letters_black}» {0}'
+'{letters_black}▎ {letters}Regions {letters_black}» {info}{0} {letters}plugins': '{letters_black}▎ {letters}Bölgeler {letters_black}» {info}{0} {letters}eklenti'
+'{letters_black}▎ {letters}Scoreboards {letters_black}» {info}{0}': '{letters_black}▎ {letters}Skor tabloları {letters_black}» {info}{0}'
+'{letters_black}▎ {letters}Server id {letters_black}» {info}{0}': '{letters_black}▎ {letters}Sunucu kimliği {letters_black}» {info}{0}'
+'{letters_black}▎ {secondary}Status {letters_black}» {letters}{muted}/exylialib status{letters} — settings, proxy bridge, modules, databases and dependents.': '{letters_black}▎ {secondary}Durum {letters_black}» {letters}{muted}/exylialib status{letters} — ayarlar, proxy köprüsü, modüller, veritabanları ve bağımlı eklentiler.'
+'{muted}off {letters_black}— {letters}no plugin turns Redis on': '{muted}kapalı {letters_black}— {letters}hiçbir eklenti Redis kullanmıyor'
+'{secondary}Modules:': '{secondary}Modüller:'
+'{secondary}Network:': '{secondary}Ağ:'
+'{success}{0} {letters_black}({info}{1}ms{letters_black})': '{success}{0} {letters_black}({info}{1}ms{letters_black})'
+'{warning}answered, but too old to know ping {letters_black}— {letters}update ExyliaProxyUtils': '{warning}yanıt verdi ama ping bilgisi için çok eski {letters_black}— {letters}ExyliaProxyUtils eklentisini güncelle'
+' {letters_black}▎ {letters}Applies to {letters_black}» {info}{0}': ' {letters_black}▎ {letters}Uygulandığı yer {letters_black}» {info}{0}'
+' {letters_black}▎ {letters}Channels {letters_black}» {info}{0}': ' {letters_black}▎ {letters}Kanallar {letters_black}» {info}{0}'
+' {letters_black}▎ {letters}Current {letters_black}» {info}{0}': ' {letters_black}▎ {letters}Mevcut {letters_black}» {info}{0}'
+' {letters_black}▎ {letters}Every setting this plugin offers,': ' {letters_black}▎ {letters}Bu eklentinin sunduğu tüm ayarlar,'
+' {letters_black}▎ {letters}How other players reach you': ' {letters_black}▎ {letters}Diğer oyuncuların sana nasıl ulaştığı'
+' {letters_black}▎ {letters}Muted {letters_black}» {info}{0}': ' {letters_black}▎ {letters}Susturulanlar {letters_black}» {info}{0}'
+' {letters_black}▎ {letters}Page {info}%current_page%{letters_black}/{info}%total_pages%': ' {letters_black}▎ {letters}Sayfa {info}%current_page%{letters_black}/{info}%total_pages%'
+' {letters_black}▎ {letters}Plugins on this server add theirs here.': ' {letters_black}▎ {letters}Bu sunucudaki eklentiler kendi ayarlarını buraya ekler.'
+' {letters_black}▎ {letters}Returns to %settings_parent%.': ' {letters_black}▎ {letters}Geri döner: %settings_parent%.'
+' {letters_black}▎ {letters}Settings {letters_black}» {info}{0}': ' {letters_black}▎ {letters}Ayarlar {letters_black}» {info}{0}'
+' {letters_black}▎ {letters}State {letters_black}» {0}': ' {letters_black}▎ {letters}Durum {letters_black}» {0}'
+' {letters_black}▎ {letters}Which server-wide messages': ' {letters_black}▎ {letters}Sunucu genelindeki hangi mesajların'
+' {letters_black}▎ {letters}and how each feature treats you.': ' {letters_black}▎ {letters}ve her özelliğin sana nasıl davrandığı.'
+' {letters_black}▎ {letters}grouped by what it is about.': ' {letters_black}▎ {letters}konularına göre gruplanmış hâlde.'
+' {letters_black}▎ {letters}reach your {highlight}chat{letters}.': ' {letters_black}▎ {letters}{highlight}sohbetine{letters} ulaştığı.'
+'ANNOUNCEMENTS': 'DUYURULAR'
+'Plugins': 'Eklentiler'
+'SETTINGS': 'AYARLAR'
+'This feature is off on this server.': 'Bu özellik bu sunucuda kapalı.'
+'Your rank does not include it.': 'Rütben bunu içermiyor.'
+'[sound:ENTITY_VILLAGER_NO|1.0|1.0]{error}✘ {letters}Your settings are still loading. Try again in a moment.': '[sound:ENTITY_VILLAGER_NO|1.0|1.0]{error}✘ {letters}Ayarların hâlâ yükleniyor. Birazdan tekrar dene.'
+'the plugin list': 'eklenti listesi'
+'the settings menu': 'ayarlar menüsü'
+'this server': 'bu sunucu'
+'{error}Disabled': '{error}Devre dışı'
+'{error}Locked': '{error}Kilitli'
+'{muted}Nothing more here': '{muted}Burada başka bir şey yok'
+'{muted}Unavailable': '{muted}Kullanılamıyor'
+'{primary}&l%settings_section% {letters_black}» {highlight}%settings_title%': '{primary}&l%settings_section% {letters_black}» {highlight}%settings_title%'
+'{primary}&l%settings_section% {letters_black}» {highlight}%settings_title% {muted}%current_page%/%total_pages%': '{primary}&l%settings_section% {letters_black}» {highlight}%settings_title% {muted}%current_page%/%total_pages%'
+'{primary}&l%settings_title%': '{primary}&l%settings_title%'
+'{primary}&lANNOUNCEMENTS': '{primary}&lDUYURULAR'
+'{primary}&lSETTINGS': '{primary}&lAYARLAR'
+'{secondary}Status:': '{secondary}Durum:'
+'{success}Enabled': '{success}Etkin'
+'{warning}➥ Click to go back': '{warning}➥ Geri dönmek için tıkla'
+'{warning}➥ Click to open': '{warning}➥ Açmak için tıkla'
+'{warning}➥ Click to toggle': '{warning}➥ Açıp kapatmak için tıkla'
+'{warning}➥ Left-click {letters_black}» {letters}+{0}': '{warning}➥ Sol tık {letters_black}» {letters}+{0}'
+'{warning}➥ Left-click {letters_black}» {letters}next option': '{warning}➥ Sol tık {letters_black}» {letters}sonraki seçenek'
+'{warning}➥ Right-click {letters_black}» {letters}-{0}': '{warning}➥ Sağ tık {letters_black}» {letters}-{0}'
+'{warning}➥ Right-click {letters_black}» {letters}previous option': '{warning}➥ Sağ tık {letters_black}» {letters}önceki seçenek'
+'weight': 'ağırlık'
+'{info}▲ {letters}Shift + Left {letters_black}» Raise {0}': '{info}▲ {letters}Shift + Sol {letters_black}» {0} artır'
+'{info}▼ {letters}Shift + Right {letters_black}» Lower {0}': '{info}▼ {letters}Shift + Sağ {letters_black}» {0} azalt'
+'{highlight}● {letters}Q {letters_black}» Copy': '{highlight}● {letters}Q {letters_black}» Kopyala'
+'{info}&lSORT BY WEIGHT': '{info}&lAĞIRLIĞA GÖRE SIRALA'
+' {letters_black}▎ {letters}Most common first; press again': ' {letters_black}▎ {letters}Önce en yaygınlar; en nadirleri önce'
+' {letters_black}▎ {letters}for the rarest first.': ' {letters_black}▎ {letters}görmek için tekrar bas.'
+'{warning}➥ Click to sort': '{warning}➥ Sıralamak için tıkla'
+'Icon': 'Simge'
+'an item, such as EMERALD': 'bir eşya, örneğin EMERALD'
+'Frame': 'Çerçeve'
+'TASK, GOAL or CHALLENGE': 'TASK, GOAL ya da CHALLENGE'
+'Text': 'Metin'
+'%prefix% {letters}While you were away {letters_black}({info}{0}{letters_black})': '%prefix% {letters}Sen yokken {letters_black}({info}{0}{letters_black})'
