@@ -609,13 +609,7 @@ public final class Text {
         // measured as written because it is inserted as a component and never
         // passes through the small-capitals transform.
         if (parsed.centered()) {
-            int width = Centering.pixelWidth(source);
-            for (Marked value : marked) {
-                width -= Centering.pixelWidth(value.marker());
-                width += Centering.pixelWidth(value.value(),
-                        value.formatted() && !value.verbatim() && TextEngine.smallText());
-            }
-            source = Centering.paddingFor(width, Centering.CHAT_WIDTH_PX) + source;
+            source = centreLines(source, marked);
         }
 
         Component component = verbatim ? TextEngine.parseExact(source) : TextEngine.parse(source);
@@ -678,6 +672,84 @@ public final class Text {
             open = source.indexOf('<', close + 1);
         }
         return copied == 0 ? source : result.append(source, copied, source.length()).toString();
+    }
+
+    /**
+     * Pads every line the player will read so it sits in the middle of the chat.
+     *
+     * <p>A value may carry line breaks of its own, a rewards list or a top
+     * three, while the template is one line to the parser either way. Padding
+     * the template once would centre the first line on screen for the width of
+     * all of them and leave the rest flush left. So each line on screen is
+     * measured on its own, template text and value text alike, and the padding
+     * for a line that starts inside a value is written into that value, right
+     * after the break.
+     *
+     * @param source the template, values already stood in for by markers
+     * @param marked the values; the ones that break lines are padded in place
+     * @return the template with the first line's padding in front
+     */
+    private static String centreLines(String source, List<Marked> marked) {
+        boolean breaks = false;
+        for (Marked value : marked) {
+            breaks |= value.value().indexOf('\n') >= 0;
+        }
+        if (!breaks) {
+            int width = Centering.pixelWidth(source);
+            for (Marked value : marked) {
+                width -= Centering.pixelWidth(value.marker());
+                width += Centering.pixelWidth(value.value(), value.measuredSmall());
+            }
+            return Centering.paddingFor(width, Centering.CHAT_WIDTH_PX) + source;
+        }
+
+        // The width of every line on screen, cutting the template wherever a
+        // value breaks the line.
+        List<Integer> widths = new ArrayList<>();
+        int width = 0;
+        int from = 0;
+        for (int at = 0; at < source.length(); at++) {
+            char c = source.charAt(at);
+            if (c < MARKER_BASE || c > MARKER_LAST) {
+                continue;
+            }
+            width += Centering.pixelWidth(source.substring(from, at));
+            from = at + 1;
+            Marked value = marked.get(c - MARKER_BASE);
+            String[] lines = value.value().split("\n", -1);
+            for (int i = 0; i < lines.length; i++) {
+                if (i > 0) {
+                    widths.add(width);
+                    width = 0;
+                }
+                width += Centering.pixelWidth(lines[i], value.measuredSmall());
+            }
+        }
+        widths.add(width + Centering.pixelWidth(source.substring(from)));
+
+        // The first line is padded in front of the template; every other line
+        // starts inside a value, so its padding goes after that break.
+        int line = 0;
+        for (int at = 0; at < source.length(); at++) {
+            char c = source.charAt(at);
+            if (c < MARKER_BASE || c > MARKER_LAST) {
+                continue;
+            }
+            int index = c - MARKER_BASE;
+            Marked value = marked.get(index);
+            String[] lines = value.value().split("\n", -1);
+            if (lines.length == 1) {
+                continue;
+            }
+            StringBuilder padded = new StringBuilder(lines[0]);
+            for (int i = 1; i < lines.length; i++) {
+                padded.append('\n')
+                        .append(Centering.paddingFor(widths.get(++line), Centering.CHAT_WIDTH_PX))
+                        .append(lines[i]);
+            }
+            marked.set(index, value.withValue(padded.toString()));
+        }
+        return Centering.paddingFor(widths.get(0), Centering.CHAT_WIDTH_PX) + source;
     }
 
     /** Where the private-use markers start, well clear of anything a font draws. */
@@ -806,6 +878,14 @@ public final class Text {
     /** A value and the marker standing in for it while the text is parsed. */
     private record Marked(String marker, String value, boolean formatted, boolean verbatim,
                           boolean restricted) {
+        /** Whether the value is drawn as small capitals, and so measured as such. */
+        boolean measuredSmall() {
+            return formatted && !verbatim && TextEngine.smallText();
+        }
+
+        Marked withValue(String value) {
+            return new Marked(marker, value, formatted, verbatim, restricted);
+        }
     }
 
     /**

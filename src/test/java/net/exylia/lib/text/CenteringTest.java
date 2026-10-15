@@ -174,6 +174,20 @@ class CenteringTest {
     }
 
     @Test
+    @DisplayName("a value that spans several lines centres each of them")
+    void centresEveryLineOfAMultiLineValue() {
+        String centred = Text.of("[center]%rewards%")
+                .with("%rewards%", "#1 · Key\n#2 · A much longer reward name\n#3 · Coins")
+                .plain();
+
+        // Padding the template once centres the first line for the width of
+        // all three and leaves the other two flush left.
+        assertEquals(Centering.center("#1 · Key") + "\n"
+                + Centering.center("#2 · A much longer reward name") + "\n"
+                + Centering.center("#3 · Coins"), centred);
+    }
+
+    @Test
     @DisplayName("a literal value is measured as written, small capitals or not")
     void literalValueIsNotMeasuredAsSmallCapitals() {
         TextEngine.smallText(true);
