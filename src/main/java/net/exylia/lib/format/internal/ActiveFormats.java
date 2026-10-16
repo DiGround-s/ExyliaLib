@@ -238,7 +238,7 @@ public final class ActiveFormats {
         }
         for (int index = 0; index < DIVISORS.length; index++) {
             if (magnitude >= DIVISORS[index]) {
-                return Numbers.trimmed(value / DIVISORS[index], compactDecimals) + suffixes[index];
+                return Numbers.truncated(value / DIVISORS[index], compactDecimals) + suffixes[index];
             }
         }
         return Numbers.grouped(value, 0);
@@ -260,7 +260,7 @@ public final class ActiveFormats {
         }
         for (int index = 0; index < DIVISORS.length; index++) {
             if (magnitude >= DIVISORS[index]) {
-                return Numbers.trimmed((double) value / DIVISORS[index], compactDecimals) + suffixes[index];
+                return Numbers.truncated((double) value / DIVISORS[index], compactDecimals) + suffixes[index];
             }
         }
         return Numbers.grouped(value);
@@ -334,7 +334,7 @@ public final class ActiveFormats {
         for (int index = 0; index < BIG_DIVISORS.length; index++) {
             if (magnitude.compareTo(BIG_DIVISORS[index]) >= 0) {
                 BigDecimal shortened = magnitude
-                        .divide(BIG_DIVISORS[index], compactDecimals, RoundingMode.HALF_UP)
+                        .divide(BIG_DIVISORS[index], compactDecimals, RoundingMode.DOWN)
                         .stripTrailingZeros();
                 return shortened.toPlainString() + suffixes[index];
             }

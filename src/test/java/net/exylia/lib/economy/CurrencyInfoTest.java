@@ -36,6 +36,7 @@ class CurrencyInfoTest {
     void compact() {
         assertTrue(coins.formatCompact(new BigDecimal("1500")).startsWith("1.5"));
         assertEquals("999⛃", coins.formatCompact(new BigDecimal("999")));
+        assertTrue(coins.formatCompact(new BigDecimal("8992.8")).startsWith("8.9"));
     }
 
     @Test

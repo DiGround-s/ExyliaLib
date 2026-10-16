@@ -38,7 +38,9 @@ import java.math.RoundingMode;
  * <h2>Rounding</h2>
  * Half-up everywhere, not Java's default half-even. Half-even renders
  * {@code 2.5} as {@code 2} and {@code 3.5} as {@code 4}, which is correct for
- * statistics and looks like a bug to a player counting coins.
+ * statistics and looks like a bug to a player counting coins. Compact notation
+ * is the exception: it cuts instead, so a shortened balance never shows more
+ * than the player holds.
  *
  * @since 1.25.0
  */
@@ -74,7 +76,9 @@ public final class Numbers {
      * A number shortened with a suffix: {@code 1500} becomes {@code "1.5K"}.
      *
      * <p>One decimal, and only when it says something: {@code 2000} is
-     * {@code "2K"} rather than {@code "2.0K"}. Below a thousand the number is
+     * {@code "2K"} rather than {@code "2.0K"}. Cut, never rounded up:
+     * {@code 8992} is {@code "8.9K"}, because {@code "9K"} promises a player
+     * money they do not have. Below a thousand the number is
      * written out, so a balance of {@code 999} does not become {@code "1K"}.
      *
      * <p>Anything not finite renders as {@code "0"}. A scoreboard showing
@@ -90,7 +94,7 @@ public final class Numbers {
         double magnitude = Math.abs(value);
         for (int index = 0; index < DIVISORS.length; index++) {
             if (magnitude >= DIVISORS[index]) {
-                return oneDecimal(value / DIVISORS[index]) + SUFFIXES[index];
+                return truncated(value / DIVISORS[index], 1) + SUFFIXES[index];
             }
         }
         return whole(value);
@@ -106,7 +110,7 @@ public final class Numbers {
         long magnitude = Math.abs(value);
         for (int index = 0; index < DIVISORS.length; index++) {
             if (magnitude >= DIVISORS[index]) {
-                return oneDecimal((double) value / DIVISORS[index]) + SUFFIXES[index];
+                return truncated((double) value / DIVISORS[index], 1) + SUFFIXES[index];
             }
         }
         return Long.toString(value);
@@ -225,6 +229,32 @@ public final class Numbers {
         return rendered.substring(0, end);
     }
 
+    /**
+     * A number cut to this many decimals, never rounded up, dropping the ones
+     * that say nothing.
+     *
+     * <p>{@code 8.9928} with one decimal is {@code "8.9"}, not {@code "9"}. For a
+     * shortened balance: a player holding 8,992.8 who reads {@code 9K} and
+     * then cannot afford something that costs 9,000 has been shown money they
+     * do not have.
+     *
+     * @param value    the number
+     * @param decimals the most decimal places to show
+     * @return the text, or {@code "0"} when the number is not finite
+     * @since 1.308.0
+     */
+    public static @NotNull String truncated(double value, int decimals) {
+        if (!Double.isFinite(value)) {
+            return "0";
+        }
+        // BigDecimal.valueOf reads the shortest decimal that round-trips, so
+        // 8.2 stays 8.2 instead of the 8.1999… a floor on the double would see.
+        BigDecimal cut = BigDecimal.valueOf(value)
+                .setScale(Math.max(0, decimals), RoundingMode.DOWN)
+                .stripTrailingZeros();
+        return cut.signum() == 0 ? "0" : cut.toPlainString();
+    }
+
     // --------------------------------------------------------- percent
 
     /**
@@ -300,20 +330,6 @@ public final class Numbers {
     }
 
     // ---------------------------------------------------------- helpers
-
-    /**
-     * One decimal, dropping it when it is a zero.
-     *
-     * <p>Rounded half-up by hand rather than through a formatter: this is the
-     * innermost step of the method that runs per tick per line per player.
-     */
-    private static String oneDecimal(double value) {
-        double rounded = Math.floor(Math.abs(value) * 10 + 0.5) / 10;
-        long whole = (long) rounded;
-        int tenth = (int) Math.round((rounded - whole) * 10);
-        String sign = value < 0 ? "-" : "";
-        return tenth == 0 ? sign + whole : sign + whole + '.' + tenth;
-    }
 
     /**
      * A number with no decimals at all.

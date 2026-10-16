@@ -105,14 +105,14 @@ class NumbersTest {
     }
 
     @Test
-    @DisplayName("compact notation rounds half-up too")
-    void compactRoundingIsHalfUp() {
-        // Its own rounding step, separate from decimals(): half-even would
-        // render these as 1.2K and 2.2M. A balance that ticks up by one and
-        // displays a smaller number reads as the server losing money.
-        assertEquals("1.3K", Numbers.compact(1_250L));
-        assertEquals("1.4K", Numbers.compact(1_350L));
-        assertEquals("2.3M", Numbers.compact(2_250_000L));
+    @DisplayName("compact notation cuts, never rounds up")
+    void compactNeverRoundsUp() {
+        // A balance of 8,992.8 shown as 9K reads as enough for a 9,000 price.
+        assertEquals("1.2K", Numbers.compact(1_250L));
+        assertEquals("8.9K", Numbers.compact(8_992.8));
+        assertEquals("999.9K", Numbers.compact(999_999L));
+        assertEquals("8.2K", Numbers.compact(8_200L));
+        assertEquals("-8.9K", Numbers.compact(-8_992L));
     }
 
     @Test

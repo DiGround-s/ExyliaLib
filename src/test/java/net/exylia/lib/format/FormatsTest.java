@@ -372,7 +372,7 @@ class FormatsTest {
             // rather than money's two: a shortened figure is a glance, and the
             // section that decides what a glance looks like is the same one a
             // kill count uses.
-            assertEquals("1.3K €", Formats.money(1250L));
+            assertEquals("1.2K €", Formats.money(1250L));
 
             Formats.reset();
 
