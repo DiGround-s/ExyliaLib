@@ -112,8 +112,9 @@ class WebEditorRuntimeTest {
         assertNotNull(runtime.session(code));
         assertFalse(runtime.session(code).secret().isEmpty());
         assertEquals(editor.lastSecret, runtime.session(code).secret());
-        assertTrue(sent.get(sent.size() - 1).contains("OPEN THE EDITOR"));
-        assertFalse(sent.get(sent.size() - 1).contains(code), "the code must never be printed");
+        String block = String.join("\n", sent);
+        assertTrue(block.contains("OPEN THE EDITOR"));
+        assertFalse(block.contains(code), "the code must never be printed");
     }
 
     @Test
@@ -150,7 +151,7 @@ class WebEditorRuntimeTest {
         runtime.apply(admin, code, false);
         assertTrue(file.get().entries().isEmpty(), "written without confirmation");
         assertNull(editor.appliedChange);
-        assertTrue(sent.get(sent.size() - 1).contains("APPLY ANYWAY"));
+        assertTrue(String.join("\n", sent).contains("APPLY ANYWAY"));
 
         runtime.apply(admin, code, true);
         assertEquals(List.of("say hello"), file.get().entries().get("spawn").click().commands());

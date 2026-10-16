@@ -243,7 +243,6 @@ public final class WebEditorRuntime {
         subjects.forEach(subject -> plugins.add(subject.plugin().getName()));
         String secret = secret();
         String resolvedScope = scope == null ? null : resolveScope(scope);
-        tell(sender, EditorMessages.opening(subjects.size(), plugins.size()));
         async.accept(() -> {
             try {
                 EditorClient.Opened opened = client(current).open(secret, snapshot);
@@ -455,8 +454,15 @@ public final class WebEditorRuntime {
         return message == null || message.isBlank() ? failure.getClass().getSimpleName() : message;
     }
 
+    /** A centred block is sent line by line, so each line is centred on its own, as the request blocks of every plugin are. */
     private static void tell(CommandSender sender, String text) {
-        Text.of(text).send(sender);
+        if (!text.startsWith("[center")) {
+            Text.of(text).send(sender);
+            return;
+        }
+        for (String line : text.split("\n")) {
+            Text.of(line).send(sender);
+        }
     }
 
     /** Generated once, kept in its own file so no config rewrite can lose it. */

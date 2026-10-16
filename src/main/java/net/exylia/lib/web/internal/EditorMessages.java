@@ -31,11 +31,6 @@ final class EditorMessages {
                         : Phrases.tr("{error}{0} offers nothing to edit here, or you lack the permission for it.", scope));
     }
 
-    static String opening(int subjects, int plugins) {
-        return header()
-                + line(Phrases.tr("{letters}Uploading {info}{0} {letters}subjects of {info}{1} {letters}plugins…", subjects, plugins));
-    }
-
     static String tooLarge(int bytes, int max) {
         return header()
                 + line(Phrases.tr("{error}The snapshot is {0} KB; the editor takes at most {1} KB.", bytes / 1024, max / 1024))
@@ -44,28 +39,32 @@ final class EditorMessages {
 
     /**
      * The link and the two commands as buttons, never as text: an admin sharing their screen
-     * would otherwise show the session code to everybody watching.
+     * would otherwise show the session code to everybody watching. Laid out as every request
+     * block in the ecosystem is: a blank line, a centred title, one line of context, the button.
      */
     static String opened(String url, String code, int subjects) {
-        return header()
-                + line(Phrases.tr("{letters}Editing {info}{0} {letters}subjects.", subjects))
-                + line("<click:open_url:'" + url + "'><hover:show_text:'" + Phrases.tr("{letters}Opens the editor in your browser") + "'>"
-                        + Phrases.tr("{warning}➥ {info}&l[OPEN THE EDITOR]") + "</hover></click>")
-                + line(Phrases.tr("{muted}The first browser to open it owns the session; another one sees a code"))
-                + line(Phrases.tr("{muted}to be trusted with: ") + trustButton(code))
-                + "\n" + line(Phrases.tr("{muted}After saving in the browser: ") + applyButton(code, false));
+        return "[center; sound:ENTITY_EXPERIENCE_ORB_PICKUP|1.0|1.2]{letters}"
+                + "\n[center]" + Phrases.tr("{primary}&lWEB EDITOR&r")
+                + "\n[center]" + Phrases.tr("{letters}{highlight}{0} {letters}subjects, ready to edit in your browser.", subjects)
+                + "\n[center]{letters}"
+                + "\n[center]<click:open_url:'" + url + "'><hover:show_text:'" + Phrases.tr("{letters}Opens the editor in your browser") + "'>"
+                + Phrases.tr("{success}&l[✔ OPEN THE EDITOR]") + "</hover></click>"
+                + "\n[center]{letters}"
+                + "\n[center]" + Phrases.tr("{letters_black}Saved there? ") + applyButton(code, false)
+                + "  " + Phrases.tr("{letters_black}Another browser? ") + trustButton(code)
+                + "\n[center]{letters}";
     }
 
     private static String applyButton(String code, boolean confirm) {
         String command = "/exylialib editor apply " + code + (confirm ? " " + "confirm" : "");
         return "<click:suggest_command:'" + command + "'><hover:show_text:'" + Phrases.tr("{letters}Puts the command in your chat box") + "'>"
-                + (confirm ? Phrases.tr("{warning}&l[APPLY ANYWAY]") : Phrases.tr("{success}&l[APPLY]")) + "</hover></click>";
+                + (confirm ? Phrases.tr("{warning}&l[✔ APPLY ANYWAY]") : Phrases.tr("{info}&l[APPLY]")) + "</hover></click>";
     }
 
     private static String trustButton(String code) {
         return "<click:suggest_command:'/exylialib editor trust " + code + " '><hover:show_text:'"
                 + Phrases.tr("{letters}Puts the command in your chat box; add the code the browser shows") + "'>"
-                + Phrases.tr("{info}&l[TRUST A BROWSER]") + "</hover></click>";
+                + Phrases.tr("{info}&l[TRUST]") + "</hover></click>";
     }
 
     static String failed(String what, String reason) {
@@ -97,7 +96,7 @@ final class EditorMessages {
         for (String reason : reasons) {
             text.append(line(reason));
         }
-        text.append("\n").append(line(Phrases.tr("{muted}Apply them all the same: ") + applyButton(code, true)));
+        text.append("\n[center]{letters}").append("\n[center]").append(applyButton(code, true)).append("\n[center]{letters}");
         return text.toString();
     }
 
