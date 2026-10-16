@@ -25,6 +25,7 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.attribute.PosixFilePermissions;
 import java.security.SecureRandom;
 import java.time.Duration;
 import java.util.ArrayList;
@@ -117,8 +118,9 @@ public final class WebEditorRuntime {
     /** Starts the runtime for this load of the library. */
     public static void start(@NotNull ExyliaLib lib) {
         Path idFile = lib.getDataFolder().toPath().resolve("editor-id.txt");
+        Path keyFile = lib.getDataFolder().toPath().resolve("editor-key.txt");
         instance = new WebEditorRuntime(LibrarySettings::get, () -> serverId(idFile), lib.version(),
-                base -> new HttpEditorClient(base, lib.version()),
+                base -> new HttpEditorClient(base, lib.version(), serverKey(keyFile)),
                 task -> Tasks.of(lib).runAsync(task), task -> Tasks.of(lib).run(task), Debug.of(lib));
     }
 
@@ -761,6 +763,31 @@ public final class WebEditorRuntime {
         } catch (IOException failure) {
             // A server that cannot keep a file still gets a session; trust just will not persist.
             return UUID.randomUUID().toString();
+        }
+    }
+
+    /**
+     * The key that proves to the editor this is the same server, so a browser trusted here stays
+     * trusted for its later sessions. Unlike the id it never reaches a browser; deleting the file
+     * revokes every browser trusted for this server.
+     */
+    static synchronized String serverKey(Path file) {
+        try {
+            String stored = Files.exists(file) ? Files.readString(file).trim() : "";
+            if (stored.matches("[A-Za-z0-9_-]{43,128}")) {
+                return stored;
+            }
+            String fresh = secret();
+            Files.createDirectories(file.getParent());
+            Files.writeString(file, fresh);
+            try {
+                Files.setPosixFilePermissions(file, PosixFilePermissions.fromString("rw-------"));
+            } catch (UnsupportedOperationException notPosix) {
+                // Windows: the data folder's own permissions are all there is.
+            }
+            return fresh;
+        } catch (IOException failure) {
+            return secret();
         }
     }
 }

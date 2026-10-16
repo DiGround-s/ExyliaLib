@@ -227,8 +227,12 @@ change is held for `confirm` so applying it is a decision, not an accident.
   bound to it with its address. Another browser, or the same link from another
   address, is read-only and shows a short challenge; `trust <code> <challenge>`
   typed in game, by somebody with the permission, is what makes it an editor.
-  The editor keeps that trust per server, so a trusted browser stays trusted
-  for that server's later sessions.
+  The editor keeps that trust per server for 90 days, so a trusted browser
+  stays trusted for that server's later sessions. "Per server" means per
+  `editor-key.txt`, a 256-bit key generated once in the library's data folder
+  and sent only when a session opens; the id in `editor-id.txt` is public and
+  never decides trust. Delete `editor-key.txt` to revoke every trusted browser.
+  A link preview (Discord, Slack, …) never becomes a session's owner.
 - **The binder is the trust boundary.** A change is never written as text:
   it is bound to the record, refused when it does not fit, and lines that run
   with the server's authority are confirmed first.
@@ -266,7 +270,9 @@ its own:
 | `POST {url}/api/v1/editor/sessions/{code}/trust` with `{"challenge"}` | `204`, or `404` for an unknown challenge |
 
 Every request carries `Authorization: Bearer <secret>` and
-`User-Agent: ExyliaLib/<version>`, and every body is gzip-compressed
+`User-Agent: ExyliaLib/<version>`; the open also carries
+`X-Exylia-Server-Key: <editor-key.txt>` (an editor that gets none scopes trust to
+that one session), and every body is gzip-compressed
 (`Content-Encoding: gzip`): at most 8 MiB compressed and 32 MiB decompressed.
 `404` or `410` on a session makes the server forget it. Answers over 8 MB are
 refused unread.

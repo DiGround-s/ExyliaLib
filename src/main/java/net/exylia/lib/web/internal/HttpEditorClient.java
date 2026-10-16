@@ -28,7 +28,8 @@ import java.util.zip.GZIPOutputStream;
  * POST {base}/api/v1/editor/sessions/{code}/trust                     -> 204 | 404
  * </pre>
  *
- * <p>The secret travels as {@code Authorization: Bearer}. Every body is gzip-compressed
+ * <p>The secret travels as {@code Authorization: Bearer}; the open also carries the server's
+ * persistent key as {@code X-Exylia-Server-Key}, which scopes the trust of its browsers. Every body is gzip-compressed
  * ({@code Content-Encoding: gzip}) and refused before it is sent when it compresses to more than
  * the editor takes. Answers are capped on the way in so a misbehaving host cannot fill the heap.
  */
@@ -42,19 +43,22 @@ final class HttpEditorClient implements EditorClient {
 
     private final String base;
     private final String userAgent;
+    private final String serverKey;
     private final HttpClient http = HttpClient.newBuilder()
             .connectTimeout(TIMEOUT)
             .followRedirects(HttpClient.Redirect.NEVER)
             .build();
 
-    HttpEditorClient(String base, String libraryVersion) {
+    HttpEditorClient(String base, String libraryVersion, String serverKey) {
         this.base = base;
         this.userAgent = "ExyliaLib/" + libraryVersion;
+        this.serverKey = serverKey;
     }
 
     @Override
     public Opened open(String secret, JsonObject index) throws IOException {
         JsonObject answer = json(send(request("/api/v1/editor/sessions", secret)
+                .header("X-Exylia-Server-Key", serverKey)
                 .header("Content-Encoding", "gzip").POST(body(index)).build(), 201, 200));
         return new Opened(text(answer, "code"), text(answer, "url"),
                 answer.has("expiresAt") && answer.get("expiresAt").isJsonPrimitive()

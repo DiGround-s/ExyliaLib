@@ -21,7 +21,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 /** What actually goes over the wire: gzip bodies, the v2 paths, the headers. */
 class HttpEditorClientTest {
 
-    private record Received(String method, String path, String encoding, String authorization, String agent, String body) {
+    private record Received(String method, String path, String encoding, String authorization, String agent, String key, String body) {
     }
 
     private final List<Received> received = new ArrayList<>();
@@ -45,7 +45,8 @@ class HttpEditorClientTest {
             synchronized (received) {
                 received.add(new Received(exchange.getRequestMethod(), exchange.getRequestURI().getRawPath(), encoding,
                         exchange.getRequestHeaders().getFirst("Authorization"),
-                        exchange.getRequestHeaders().getFirst("User-Agent"), body));
+                        exchange.getRequestHeaders().getFirst("User-Agent"),
+                        exchange.getRequestHeaders().getFirst("X-Exylia-Server-Key"), body));
             }
             if (exchange.getRequestURI().getPath().equals("/api/v1/editor/sessions")) {
                 byte[] answer = "{\"code\":\"abc\",\"url\":\"https://e/abc\",\"expiresAt\":5}".getBytes(StandardCharsets.UTF_8);
@@ -57,7 +58,7 @@ class HttpEditorClientTest {
             exchange.close();
         });
         server.start();
-        client = new HttpEditorClient("http://127.0.0.1:" + server.getAddress().getPort(), "1.307.0");
+        client = new HttpEditorClient("http://127.0.0.1:" + server.getAddress().getPort(), "1.307.0", "k".repeat(43));
     }
 
     @AfterEach
@@ -84,6 +85,7 @@ class HttpEditorClientTest {
         assertEquals("gzip", open.encoding());
         assertEquals("Bearer s3cret", open.authorization());
         assertEquals("ExyliaLib/1.307.0", open.agent());
+        assertEquals("k".repeat(43), open.key());
         assertEquals(index, JsonParser.parseString(open.body()));
 
         Received upload = received.get(1);
@@ -91,6 +93,7 @@ class HttpEditorClientTest {
         assertEquals("/api/v1/editor/sessions/abc/plugins/ExyliaMines", upload.path());
         assertEquals("gzip", upload.encoding());
         assertEquals(payload, JsonParser.parseString(upload.body()));
+        assertEquals(null, upload.key(), "the key goes with the open only");
 
         JsonObject applied = JsonParser.parseString(received.get(2).body()).getAsJsonObject();
         assertEquals(2, applied.get("version").getAsInt());

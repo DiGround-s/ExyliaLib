@@ -589,6 +589,16 @@ class WebEditorRuntimeTest {
         assertTrue(runtime.visible(admin, null).isEmpty());
     }
 
+    @Test
+    void theServerKeyIsKeptAndANewOneRevokesTheOld() throws IOException {
+        Path file = folder.resolve("editor-key.txt");
+        String key = WebEditorRuntime.serverKey(file);
+        assertTrue(key.length() >= 43);
+        assertEquals(key, WebEditorRuntime.serverKey(file));
+        java.nio.file.Files.delete(file);
+        assertFalse(key.equals(WebEditorRuntime.serverKey(file)));
+    }
+
     private static LibrarySettings withEditor(LibrarySettings base, boolean enabled) {
         return new LibrarySettings(base.language(), base.autoUpdate(), base.updateCheckMinutes(), base.debug(),
                 base.smallText(), base.textShadow(), base.fallbackHead(), base.timezone(), base.mineskinKey(),
