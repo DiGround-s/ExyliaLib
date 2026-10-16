@@ -1,6 +1,7 @@
 package net.exylia.lib.config;
 
 import net.exylia.lib.config.internal.BundledResources;
+import net.exylia.lib.config.internal.InstalledFiles;
 import net.exylia.lib.debug.Debug;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.plugin.Plugin;
@@ -219,6 +220,7 @@ public final class Languages {
     public static boolean replace(@NotNull Plugin plugin, @NotNull Class<?> anchor, @NotNull String resource) {
         Path dataFolder = plugin.getDataFolder().toPath().toAbsolutePath().normalize();
         Path target = BundledResources.inside(dataFolder, Path.of(path(plugin, resource)));
+        InstalledFiles.owned(plugin, Path.of(path(plugin, resource)));
         try {
             BundledResources.replaceDirectory(anchor, layers(plugin, resource), dataFolder, target);
             return true;

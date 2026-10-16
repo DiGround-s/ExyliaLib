@@ -2,8 +2,8 @@ package net.exylia.lib.web.internal;
 
 import net.exylia.lib.config.ConfigFile;
 import net.exylia.lib.config.Configs;
-import net.exylia.lib.config.Languages;
 import net.exylia.lib.config.internal.ConfigFileImpl;
+import net.exylia.lib.config.internal.InstalledFiles;
 import net.exylia.lib.ui.Menus;
 import net.exylia.lib.ui.internal.MenuRuntime;
 import net.exylia.lib.web.Subject;
@@ -29,7 +29,10 @@ import java.util.regex.Pattern;
 
 /**
  * Every file of a plugin an admin could edit by hand, found without the plugin registering it:
- * its record config files first, then any other YAML in its data folder.
+ * its record config files first, then the YAML it installs from its jar ({@code BundledFiles},
+ * {@code Languages.refresh}), and new files the owner added inside those folders. A folder the
+ * plugin rewrites on every start (admin menus) and anything it never installed (another tool's
+ * {@code loader.yml}, a file an old version left behind) is not offered.
  *
  * <p>Reads the disk, so it runs off the main thread. A subject a plugin registered always wins:
  * a file one already covers (compared as canonical files) is not offered twice, whatever
@@ -50,14 +53,14 @@ final class Discovery {
     private Discovery() {
     }
 
-    /** What the server knows about a plugin: its language, the folders its jar regenerates, its config files. */
+    /** What the server knows about a plugin: what it installs, the folders its jar regenerates, its config files. */
     static List<SubjectImpl> discover(Plugin plugin, Collection<SubjectImpl> registered, List<String> excluded) {
-        return discover(plugin, registered, excluded, Languages.code(plugin),
-                MenuRuntime.bundledDirectoriesOf(plugin.getName()), Configs.loaded());
+        return discover(plugin, registered, excluded, InstalledFiles.editableOf(plugin.getName()),
+                InstalledFiles.ownedOf(plugin.getName()), Configs.loaded());
     }
 
     static List<SubjectImpl> discover(Plugin plugin, Collection<SubjectImpl> registered, List<String> excluded,
-                                      String language, Set<String> bundled, Collection<? extends ConfigFile<?>> configs) {
+                                      Set<String> installed, Set<String> owned, Collection<? extends ConfigFile<?>> configs) {
         Path root = canonical(plugin.getDataFolder()).toPath();
         List<Pattern> globs = excluded.stream().map(Discovery::glob).toList();
         Set<File> covered = new HashSet<>();
@@ -86,7 +89,7 @@ final class Discovery {
             found.add(subject);
         }
 
-        List<Path> files = yamlFiles(root, language, bundled, globs);
+        List<Path> files = yamlFiles(root, installed, owned, globs);
         for (Path path : files) {
             File file = canonical(path.toFile());
             if (covered.contains(file)) {
@@ -115,25 +118,42 @@ final class Discovery {
         return found;
     }
 
-    /** Every {@code .yml} under the data folder an admin could mean to edit, sorted by path. */
-    private static List<Path> yamlFiles(Path root, String language, Set<String> bundled, List<Pattern> globs) {
-        List<Path> out = new ArrayList<>();
-        if (!Files.isDirectory(root)) {
-            return out;
+    /** Every {@code .yml} the plugin installed, or the owner added inside a folder it installed, sorted by path. */
+    private static List<Path> yamlFiles(Path root, Set<String> installed, Set<String> owned, List<Pattern> globs) {
+        Set<Path> out = new HashSet<>();
+        for (String start : installed) {
+            Path path = root.resolve(start).normalize();
+            if (path.startsWith(root) && !ownedBy(start, owned) && !excluded(start, globs) && Files.exists(path)) {
+                walk(root, path, owned, globs, out);
+            }
         }
+        List<Path> sorted = new ArrayList<>(out);
+        sorted.sort((a, b) -> relative(root, a).compareTo(relative(root, b)));
+        return sorted;
+    }
+
+    /** Whether a path is one of the plugin's own folders, or inside one. */
+    private static boolean ownedBy(String relative, Set<String> owned) {
+        for (String folder : owned) {
+            if (relative.equals(folder) || relative.startsWith(folder + "/")) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static void walk(Path root, Path start, Set<String> owned, List<Pattern> globs, Set<Path> out) {
         try {
-            Files.walkFileTree(root, new SimpleFileVisitor<>() {
+            Files.walkFileTree(start, new SimpleFileVisitor<>() {
                 @Override
                 public FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes attributes) {
-                    if (dir.equals(root)) {
+                    if (dir.equals(start)) {
                         return FileVisitResult.CONTINUE;
                     }
                     String relative = relative(root, dir);
                     String name = dir.getFileName().toString();
-                    boolean otherLanguage = relative.startsWith("lang/") && relative.indexOf('/', 5) < 0
-                            && !name.equals(language) && !name.equals(Languages.CUSTOM);
                     boolean skip = name.startsWith(".") || SKIPPED.contains(name.toLowerCase(Locale.ROOT))
-                            || bundled.contains(relative) || otherLanguage || excluded(relative, globs);
+                            || ownedBy(relative, owned) || excluded(relative, globs);
                     return skip ? FileVisitResult.SKIP_SUBTREE : FileVisitResult.CONTINUE;
                 }
 
@@ -156,8 +176,6 @@ final class Discovery {
         } catch (IOException unreadable) {
             // What could be walked is offered; a folder the server cannot read is not the admin's to edit here.
         }
-        out.sort((a, b) -> relative(root, a).compareTo(relative(root, b)));
-        return out;
     }
 
     private static YamlConfiguration parse(Path file) {

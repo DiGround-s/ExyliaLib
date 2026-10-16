@@ -3,6 +3,7 @@ package net.exylia.lib.ui;
 import net.exylia.lib.action.Actions;
 import net.exylia.lib.config.BundledFiles;
 import net.exylia.lib.config.internal.BundledResources;
+import net.exylia.lib.config.internal.InstalledFiles;
 import net.exylia.lib.action.PluginActions;
 import net.exylia.lib.debug.Debug;
 import net.exylia.lib.item.Problems;
@@ -211,7 +212,7 @@ public final class PluginMenus {
         Path target = BundledResources.inside(dataFolder, relative);
 
         // Remembered even when the copy fails: the folder is the jar's either way, not the owner's.
-        runtime.bundledDirectory(relative.toString());
+        InstalledFiles.owned(plugin, relative);
         try {
             BundledResources.replaceDirectory(anchor, List.of(relative), dataFolder, target);
             return true;

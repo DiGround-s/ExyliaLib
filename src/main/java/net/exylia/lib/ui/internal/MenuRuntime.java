@@ -113,9 +113,6 @@ public final class MenuRuntime {
     /** The action namespace the plugin's menus are written against; an explicit one wins over the derived one. */
     private volatile String namespace;
 
-    /** Data-folder directories {@code refreshBundledDirectory} regenerates on startup, slash-separated. */
-    private final java.util.Set<String> bundledDirectories = ConcurrentHashMap.newKeySet();
-
     private MenuRuntime(Plugin plugin) {
         this.plugin = plugin;
         this.items = Items.of(plugin);
@@ -133,21 +130,10 @@ public final class MenuRuntime {
         }
     }
 
-    /** Records a directory the plugin regenerates from its jar on startup. */
-    public void bundledDirectory(String relative) {
-        bundledDirectories.add(relative.replace('\\', '/'));
-    }
-
     /** The namespace a plugin's menus use, or {@code null} when it never asked for its menus. */
     public static @Nullable String namespaceOf(String pluginName) {
         MenuRuntime runtime = RUNTIMES.get(pluginName);
         return runtime == null ? null : runtime.namespace;
-    }
-
-    /** The directories a plugin regenerates from its jar on startup, slash-separated, relative to its data folder. */
-    public static java.util.Set<String> bundledDirectoriesOf(String pluginName) {
-        MenuRuntime runtime = RUNTIMES.get(pluginName);
-        return runtime == null ? java.util.Set.of() : java.util.Set.copyOf(runtime.bundledDirectories);
     }
 
     /**

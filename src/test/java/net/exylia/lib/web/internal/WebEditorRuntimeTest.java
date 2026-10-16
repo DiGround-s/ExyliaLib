@@ -92,6 +92,9 @@ class WebEditorRuntimeTest {
         java.nio.file.Files.createDirectories(other.resolve("menus"));
         java.nio.file.Files.writeString(other.resolve("menus/shop.yml"),
                 "title: Shop\nsize: 27\nitems:\n  stone:\n    slot: 13\n    material: STONE\n");
+        for (String installed : List.of("rewards.yml", "shop.yml", "menus")) {
+            net.exylia.lib.config.internal.InstalledFiles.editable(mines, java.nio.file.Path.of(installed));
+        }
         FakeServer.plugins(plugin, mines);
         return mines;
     }

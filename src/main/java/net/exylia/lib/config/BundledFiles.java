@@ -3,6 +3,7 @@ package net.exylia.lib.config;
 import net.exylia.lib.config.internal.BundledResources;
 import net.exylia.lib.config.internal.DefaultUpdates;
 import net.exylia.lib.config.internal.DefaultsMerge;
+import net.exylia.lib.config.internal.InstalledFiles;
 import net.exylia.lib.debug.Debug;
 import org.bukkit.configuration.InvalidConfigurationException;
 import org.bukkit.configuration.file.YamlConfiguration;
@@ -95,6 +96,7 @@ public final class BundledFiles {
     static boolean refresh(Plugin plugin, Class<?> anchor, List<Path> layers, Path relative, String label) {
         Path dataFolder = plugin.getDataFolder().toPath().toAbsolutePath().normalize();
         BundledResources.inside(dataFolder, relative);
+        InstalledFiles.editable(plugin, relative);
         Debug debug = Debug.of(plugin);
 
         Path staging = null;

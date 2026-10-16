@@ -55,9 +55,12 @@ class DiscoveryTest {
 
     private static final String MENU = "title: Mines\nsize: 27\nitems:\n  stone:\n    slot: 13\n    material: STONE\n";
 
-    private Map<String, SubjectImpl> discover(List<SubjectImpl> registered, List<String> excluded, Set<String> bundled) {
+    /** What the plugin installs in these tests: its menus, an English and a custom language folder, its rewards. */
+    private static final Set<String> INSTALLED = Set.of("menus", "lang/en", "lang/custom", "rewards.yml", "cosmetics", "arenas", "missing");
+
+    private Map<String, SubjectImpl> discover(List<SubjectImpl> registered, List<String> excluded, Set<String> owned) {
         Map<String, SubjectImpl> out = new LinkedHashMap<>();
-        for (SubjectImpl subject : Discovery.discover(plugin, registered, excluded, "en", bundled, Configs.loaded())) {
+        for (SubjectImpl subject : Discovery.discover(plugin, registered, excluded, INSTALLED, owned, Configs.loaded())) {
             out.put(subject.source().name(), subject);
         }
         return out;
@@ -71,12 +74,15 @@ class DiscoveryTest {
         write("lang/es/extra.yml", "a: 1\n");
         write("lang/custom/extra.yml", "a: 1\n");
         write("data/state.yml", "a: 1\n");
-        write("Players/uuid.yml", "a: 1\n");
+        write("menus/Players/uuid.yml", "a: 1\n");
         write("arenas/one.yml", "a: 1\n");
-        write("broken.yml", "a: [\n");
-        write("notes.txt", "a: 1\n");
+        write("menus/broken.yml", "a: [\n");
+        write("menus/notes.txt", "a: 1\n");
         write("rewards.yml", "daily:\n  money: 5\n");
-        write("huge.yml", "a: '" + "x".repeat((int) Discovery.MAX_FILE_BYTES) + "'\n");
+        write("colors.yml", "a: 1\n");
+        write("loader.yml", "a: 1\n");
+        write("menus/data/state.yml", "a: 1\n");
+        write("menus/huge.yml", "a: '" + "x".repeat((int) Discovery.MAX_FILE_BYTES) + "'\n");
 
         Map<String, SubjectImpl> found = discover(List.of(), List.of("arenas/**"), Set.of("menus/admin"));
 
