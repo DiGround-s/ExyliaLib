@@ -1250,6 +1250,7 @@ x, y or z: x, y veya z
 '{warning}{0} {letters}changed on the server after the browser loaded it; applying overwrites that.': '{warning}{0} {letters}tarayıcı yükledikten sonra sunucuda değişti; uygulamak bunun üzerine yazar.'
 '{warning}{0} {letters}changes {info}{1}{letters}, a setting marked sensitive.': '{warning}{0} {letters}hassas işaretli bir ayarı değiştiriyor: {info}{1}{letters}.'
 '{warning}{0} {letters}sets {info}{1} {letters}to a line that runs as the console.': '{warning}{0} {letters}{info}{1} {letters}için konsol olarak çalışan bir satır ayarlıyor.'
+'{warning}{0} {letters}deletes {info}{1}{letters}.': '{warning}{0} {letters}{info}{1} {letters}öğesini siler.'
 '{error}No browser is waiting with that code on this session.': '{error}Bu oturumda o kodla bekleyen tarayıcı yok.'
 '{error}No session with that code is open on this server.': '{error}Bu sunucuda o kodla açık bir oturum yok.'
 '{letters}Nothing has been saved in the browser yet for that session.': '{letters}O oturum için tarayıcıda henüz bir şey kaydedilmedi.'

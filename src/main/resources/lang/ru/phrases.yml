@@ -1238,6 +1238,7 @@
 '{warning}{0} {letters}changed on the server after the browser loaded it; applying overwrites that.': '{warning}{0} {letters}изменился на сервере после загрузки в браузер; применение перезапишет это.'
 '{warning}{0} {letters}changes {info}{1}{letters}, a setting marked sensitive.': '{warning}{0} {letters}меняет {info}{1}{letters}, настройку, помеченную как чувствительную.'
 '{warning}{0} {letters}sets {info}{1} {letters}to a line that runs as the console.': '{warning}{0} {letters}задаёт в {info}{1} {letters}строку, выполняемую от консоли.'
+'{warning}{0} {letters}deletes {info}{1}{letters}.': '{warning}{0} {letters}удаляет {info}{1}{letters}.'
 '{error}No browser is waiting with that code on this session.': '{error}Ни один браузер не ждёт с таким кодом в этой сессии.'
 '{error}No session with that code is open on this server.': '{error}Сессия с таким кодом на этом сервере не открыта.'
 '{letters}Nothing has been saved in the browser yet for that session.': '{letters}В браузере для этой сессии пока ничего не сохранено.'

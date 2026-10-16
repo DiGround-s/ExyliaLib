@@ -1238,6 +1238,7 @@
 '{warning}{0} {letters}changed on the server after the browser loaded it; applying overwrites that.': '{warning}{0} {letters}a changé sur le serveur après son chargement dans le navigateur ; appliquer écrasera cela.'
 '{warning}{0} {letters}changes {info}{1}{letters}, a setting marked sensitive.': '{warning}{0} {letters}modifie {info}{1}{letters}, un réglage marqué sensible.'
 '{warning}{0} {letters}sets {info}{1} {letters}to a line that runs as the console.': '{warning}{0} {letters}donne à {info}{1} {letters}une ligne exécutée en tant que console.'
+'{warning}{0} {letters}deletes {info}{1}{letters}.': '{warning}{0} {letters}supprime {info}{1}{letters}.'
 '{error}No browser is waiting with that code on this session.': '{error}Aucun navigateur n''attend avec ce code sur cette session.'
 '{error}No session with that code is open on this server.': '{error}Aucune session avec ce code n''est ouverte sur ce serveur.'
 '{letters}Nothing has been saved in the browser yet for that session.': '{letters}Rien n''a encore été enregistré dans le navigateur pour cette session.'

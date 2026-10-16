@@ -183,6 +183,162 @@ class WebEditorRuntimeTest {
         assertTrue(java.nio.file.Files.readString(catalog).contains("display: '&6*'"));
     }
 
+    /** A store kept in memory, recording what it was asked to do. */
+    private static final class Pits implements net.exylia.lib.web.EntryStore<Pit> {
+        final Map<String, Pit> rows = new java.util.LinkedHashMap<>();
+        final List<String> calls = new ArrayList<>();
+        java.util.concurrent.CompletableFuture<Void> answer = java.util.concurrent.CompletableFuture.completedFuture(null);
+
+        @Override
+        public Map<String, Pit> entries() {
+            return Map.copyOf(rows).isEmpty() ? Map.of() : new java.util.LinkedHashMap<>(rows);
+        }
+
+        @Override
+        public List<String> check(String id, Pit value, boolean created) {
+            return value.name().isBlank() ? List.of("a pit needs a name") : List.of();
+        }
+
+        @Override
+        public java.util.concurrent.CompletableFuture<Void> save(String id, Pit value, boolean created) {
+            calls.add((created ? "create " : "save ") + id);
+            if (answer.isDone() && !answer.isCompletedExceptionally()) {
+                rows.put(id, value);
+            }
+            return answer;
+        }
+
+        @Override
+        public java.util.concurrent.CompletableFuture<Void> delete(String id) {
+            calls.add("delete " + id);
+            rows.remove(id);
+            return java.util.concurrent.CompletableFuture.completedFuture(null);
+        }
+    }
+
+    private Pits pits() {
+        Pits store = new Pits();
+        store.rows.put("spawn", new Pit("Spawn", Pit.Kind.CLASSIC, List.of(new Pit.Layer("STONE", 3))));
+        store.rows.put("deep", new Pit("Deep", Pit.Kind.REALISTIC, List.of()));
+        runtime.register(plugin, "board", file, "test/board").permission("nobody");
+        runtime.registerEntries(plugin, "pits", Pit.class, store, "test/pit").onApplied(applied::incrementAndGet);
+        return store;
+    }
+
+    private CommandSender limited() {
+        return (CommandSender) Proxy.newProxyInstance(getClass().getClassLoader(),
+                new Class<?>[]{CommandSender.class}, (proxy, method, args) -> switch (method.getName()) {
+                    case "sendMessage" -> {
+                        if (args[0] instanceof Component component) {
+                            sent.add(PlainTextComponentSerializer.plainText().serialize(component));
+                        }
+                        yield null;
+                    }
+                    case "hasPermission" -> !"nobody".equals(args[0]);
+                    case "getName" -> "Admin";
+                    default -> FakeServer.defaultValue(method.getReturnType());
+                });
+    }
+
+    private JsonObject pitValues() {
+        JsonObject subject = editor.lastSnapshot.getAsJsonArray("subjects").get(0).getAsJsonObject();
+        return subject.getAsJsonObject("values").deepCopy();
+    }
+
+    private void savePits(JsonObject values) {
+        JsonObject subjects = new JsonObject();
+        subjects.add("ExyliaDisplays/pits", values);
+        editor.pending = new EditorClient.Pending("change-" + sent.size(), subjects, new JsonObject(), "a browser");
+    }
+
+    @Test
+    void entriesAreDescribedAsAMapOfTheirRecord() {
+        pits();
+        runtime.open(limited(), null);
+        JsonObject subject = editor.lastSnapshot.getAsJsonArray("subjects").get(0).getAsJsonObject();
+        assertEquals("", subject.get("file").getAsString());
+        JsonObject field = subject.getAsJsonObject("schema").getAsJsonArray("fields").get(0).getAsJsonObject();
+        assertEquals("pits", field.get("key").getAsString());
+        assertEquals("map", field.getAsJsonObject("type").get("type").getAsString());
+        assertEquals("STONE", subject.getAsJsonObject("values").getAsJsonObject("pits").getAsJsonObject("spawn")
+                .getAsJsonArray("layers").get(0).getAsJsonObject().get("block").getAsString());
+    }
+
+    @Test
+    void anEntryAddedAndOneEditedAreWrittenAndOnlyThose() {
+        Pits store = pits();
+        CommandSender admin = limited();
+        runtime.open(admin, null);
+        String code = editor.lastCode;
+        JsonObject values = pitValues();
+        JsonObject entries = values.getAsJsonObject("pits");
+        entries.getAsJsonObject("spawn").addProperty("name", "Spawn mine");
+        JsonObject fresh = new JsonObject();
+        fresh.addProperty("kind", "realistic");
+        entries.add("lava", fresh);
+        savePits(values);
+
+        runtime.apply(admin, code, false);
+
+        assertEquals(List.of("save spawn", "create lava"), store.calls);
+        assertEquals("Spawn mine", store.rows.get("spawn").name());
+        assertEquals(new Pit("Pit", Pit.Kind.REALISTIC, List.of()), store.rows.get("lava"), "a new entry starts from the defaults");
+        assertEquals(1, applied.get());
+        assertEquals("ExyliaDisplays/pits", editor.appliedOutcome.getAsJsonArray("applied").get(0).getAsString());
+    }
+
+    @Test
+    void aDeletionIsHeldUntilConfirmed() {
+        Pits store = pits();
+        CommandSender admin = limited();
+        runtime.open(admin, null);
+        String code = editor.lastCode;
+        JsonObject values = pitValues();
+        values.getAsJsonObject("pits").remove("deep");
+        savePits(values);
+
+        runtime.apply(admin, code, false);
+        assertTrue(store.calls.isEmpty());
+        assertTrue(String.join("\n", sent).contains("deletes deep"), String.join("\n", sent));
+
+        runtime.apply(admin, code, true);
+        assertEquals(List.of("delete deep"), store.calls);
+        assertFalse(store.rows.containsKey("deep"));
+    }
+
+    @Test
+    void theBinderTheStoreAndTheDatabaseCanEachRefuse() {
+        Pits store = pits();
+        CommandSender admin = limited();
+        runtime.open(admin, null);
+        String code = editor.lastCode;
+
+        JsonObject values = pitValues();
+        values.getAsJsonObject("pits").getAsJsonObject("spawn").addProperty("kind", "volcanic");
+        savePits(values);
+        runtime.apply(admin, code, false);
+        assertTrue(store.calls.isEmpty(), "a value the record refuses never reaches the store");
+        assertTrue(editor.appliedOutcome.getAsJsonObject("rejected").get("ExyliaDisplays/pits").getAsString().contains("spawn"));
+
+        values = pitValues();
+        values.getAsJsonObject("pits").getAsJsonObject("spawn").addProperty("name", "");
+        savePits(values);
+        runtime.apply(admin, code, false);
+        assertTrue(store.calls.isEmpty());
+        assertTrue(editor.appliedOutcome.getAsJsonObject("rejected").get("ExyliaDisplays/pits").getAsString()
+                .contains("a pit needs a name"));
+
+        store.answer = java.util.concurrent.CompletableFuture.failedFuture(new IllegalStateException("the database is down"));
+        values = pitValues();
+        values.getAsJsonObject("pits").getAsJsonObject("spawn").addProperty("name", "Other");
+        savePits(values);
+        runtime.apply(admin, code, false);
+        assertEquals(List.of("save spawn"), store.calls);
+        assertEquals(0, applied.get(), "nothing written, nothing to apply");
+        assertTrue(editor.appliedOutcome.getAsJsonObject("rejected").get("ExyliaDisplays/pits").getAsString()
+                .contains("spawn: the database is down"));
+    }
+
     @Test
     void aSensitivePathIsHeldBackUntilConfirmed() {
         String code = open();

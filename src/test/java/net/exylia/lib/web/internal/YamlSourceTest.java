@@ -99,7 +99,7 @@ class YamlSourceTest {
         Source.Prepared prepared = source.prepare("ExyliaChatCosmetics", values);
         assertNull(prepared.problem());
         assertNotNull(prepared.write());
-        prepared.write().run();
+        prepared.write().get().join();
 
         String written = Files.readString(folder.resolve("cosmetics/tags.yml"));
         assertTrue(written.startsWith("# Tags — what is drawn before a name."), written);

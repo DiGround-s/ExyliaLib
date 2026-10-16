@@ -143,6 +143,8 @@ public final class RecordJson {
             out.addProperty("type", "number");
         } else if (type.isEnum()) {
             out.addProperty("type", "enum");
+            // Lets the editor tell a block or item picker from a short list of choices.
+            out.addProperty("class", type.getSimpleName());
             JsonArray values = new JsonArray();
             for (Object constant : type.getEnumConstants()) {
                 values.add(((Enum<?>) constant).name().toLowerCase(Locale.ROOT).replace('_', '-'));

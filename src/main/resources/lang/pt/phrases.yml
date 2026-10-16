@@ -1250,6 +1250,7 @@ x, y or z: x, y ou z
 '{warning}{0} {letters}changed on the server after the browser loaded it; applying overwrites that.': '{warning}{0} {letters}mudou no servidor depois de o navegador o carregar; aplicar sobrescreve isso.'
 '{warning}{0} {letters}changes {info}{1}{letters}, a setting marked sensitive.': '{warning}{0} {letters}altera {info}{1}{letters}, uma definição marcada como sensível.'
 '{warning}{0} {letters}sets {info}{1} {letters}to a line that runs as the console.': '{warning}{0} {letters}define {info}{1} {letters}com uma linha que corre como a consola.'
+'{warning}{0} {letters}deletes {info}{1}{letters}.': '{warning}{0} {letters}apaga {info}{1}{letters}.'
 '{error}No browser is waiting with that code on this session.': '{error}Nenhum navegador está à espera com esse código nesta sessão.'
 '{error}No session with that code is open on this server.': '{error}Não há nenhuma sessão aberta com esse código neste servidor.'
 '{letters}Nothing has been saved in the browser yet for that session.': '{letters}Ainda não foi guardado nada no navegador para essa sessão.'

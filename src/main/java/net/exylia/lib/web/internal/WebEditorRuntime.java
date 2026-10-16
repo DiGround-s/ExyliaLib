@@ -12,6 +12,7 @@ import net.exylia.lib.debug.Debug;
 import net.exylia.lib.internal.LibrarySettings;
 import net.exylia.lib.task.Tasks;
 import net.exylia.lib.text.Text;
+import net.exylia.lib.web.EntryStore;
 import net.exylia.lib.web.Subject;
 import net.exylia.lib.web.YamlSubject;
 import org.bukkit.command.CommandSender;
@@ -33,6 +34,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -145,6 +148,13 @@ public final class WebEditorRuntime {
 
     public @NotNull YamlSubject registerYaml(Plugin plugin, String id, String path, String kind) {
         YamlSubjectImpl subject = YamlSubjectImpl.of(plugin, id, path, kind);
+        registry.computeIfAbsent(plugin.getName(), name -> new ConcurrentHashMap<>()).put(id, subject);
+        return subject;
+    }
+
+    public <R extends Record> @NotNull Subject registerEntries(Plugin plugin, String id, Class<R> type,
+                                                                EntryStore<R> store, String kind) {
+        SubjectImpl subject = new SubjectImpl(plugin, id, new EntrySource<>(id, type, store), kind);
         registry.computeIfAbsent(plugin.getName(), name -> new ConcurrentHashMap<>()).put(id, subject);
         return subject;
     }
@@ -295,7 +305,7 @@ public final class WebEditorRuntime {
     }
 
     /** One subject of a change, decoded and compared, ready to write or to be shown first. */
-    private record Planned(SubjectImpl subject, Runnable write, int changes) {
+    private record Planned(SubjectImpl subject, Supplier<CompletableFuture<Void>> write, int changes) {
     }
 
     private void applyPending(CommandSender sender, Session session, LibrarySettings current,
@@ -303,7 +313,6 @@ public final class WebEditorRuntime {
         List<String> reasons = new ArrayList<>();
         List<String> lines = new ArrayList<>();
         List<Planned> planned = new ArrayList<>();
-        JsonArray appliedKeys = new JsonArray();
         JsonObject rejected = new JsonObject();
         int totalChanges = 0;
 
@@ -351,6 +360,9 @@ public final class WebEditorRuntime {
             if (base != null && base.isJsonPrimitive() && !base.getAsString().equals(described.hash()) && !changes.isEmpty()) {
                 reasons.add(EditorMessages.staleReason(subject.title()));
             }
+            for (String removed : prepared.holds()) {
+                reasons.add(EditorMessages.deleteReason(subject.title(), removed));
+            }
             List<String> sensitive = subject.sensitive();
             for (Diff.Change change : changes) {
                 if (Diff.matchesAny(change.path(), sensitive)) {
@@ -372,14 +384,45 @@ public final class WebEditorRuntime {
             return;
         }
 
+        List<CompletableFuture<Void>> writes = new ArrayList<>();
         for (Planned item : planned) {
+            writes.add(item.changes() > 0 ? start(item) : CompletableFuture.completedFuture(null));
+        }
+        // A store answers when its database does; the admin hears once every write has.
+        CompletableFuture.allOf(writes.toArray(CompletableFuture[]::new)).whenComplete((done, ignored) -> sync.accept(() ->
+                finish(sender, session, current, pending, planned, writes, lines, rejected)));
+    }
+
+    /** Starts one subject's write; a write that throws instead of answering is a failed one. */
+    private CompletableFuture<Void> start(Planned item) {
+        try {
+            CompletableFuture<Void> future = item.write().get();
+            return future == null ? CompletableFuture.completedFuture(null) : future;
+        } catch (RuntimeException failure) {
+            return CompletableFuture.failedFuture(failure);
+        }
+    }
+
+    /** Tells the admin how every write went, runs the listeners of what was written, and tells the editor. */
+    private void finish(CommandSender sender, Session session, LibrarySettings current, EditorClient.Pending pending,
+                        List<Planned> planned, List<CompletableFuture<Void>> writes, List<String> lines, JsonObject rejected) {
+        JsonArray appliedKeys = new JsonArray();
+        for (int i = 0; i < planned.size(); i++) {
+            Planned item = planned.get(i);
+            Throwable failure = failureOf(writes.get(i));
+            if (failure != null) {
+                Debug.of(item.subject().plugin()).error("The web editor could not write " + item.subject().title(), failure);
+                String reason = EditorMessages.invalid(describe(failure));
+                lines.add(EditorMessages.rejectedLine(item.subject().title(), reason));
+                rejected.addProperty(item.subject().key(), reason);
+                continue;
+            }
             if (item.changes() > 0) {
-                String failure = write(item.subject(), item.write());
-                if (failure != null) {
-                    String reason = EditorMessages.invalid(failure);
-                    lines.add(EditorMessages.rejectedLine(item.subject().title(), reason));
-                    rejected.addProperty(item.subject().key(), reason);
-                    continue;
+                try {
+                    item.subject().applied().run();
+                } catch (Throwable thrown) {
+                    Debug.of(item.subject().plugin()).error("The web editor wrote " + item.subject().title()
+                            + ", but applying it threw", thrown);
                 }
             }
             appliedKeys.add(item.subject().key());
@@ -408,21 +451,14 @@ public final class WebEditorRuntime {
         });
     }
 
-    /** Writes and runs the listener; the reason the file could not be written, or null. */
-    private @Nullable String write(SubjectImpl subject, Runnable write) {
+    /** The cause a completed future failed with, unwrapped; null when it succeeded. */
+    private static @Nullable Throwable failureOf(CompletableFuture<Void> future) {
         try {
-            write.run();
-        } catch (RuntimeException failure) {
-            Debug.of(subject.plugin()).error("The web editor could not write " + subject.source().name() + ".yml", failure);
-            return describe(failure);
+            future.join();
+            return null;
+        } catch (CompletionException | java.util.concurrent.CancellationException failure) {
+            return failure.getCause() != null ? failure.getCause() : failure;
         }
-        try {
-            subject.applied().run();
-        } catch (Throwable failure) {
-            Debug.of(subject.plugin()).error("The web editor wrote " + subject.source().name()
-                    + ".yml, but applying it threw", failure);
-        }
-        return null;
     }
 
     // ------------------------------------------------------------------

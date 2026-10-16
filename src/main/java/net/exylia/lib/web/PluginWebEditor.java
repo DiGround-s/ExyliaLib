@@ -86,6 +86,40 @@ public final class PluginWebEditor {
     }
 
     /**
+     * Makes entries a plugin stores itself editable: created, edited and deleted from the
+     * browser, each one read through the config binder as {@code type} describes it.
+     *
+     * <p>For what lives in a database or a folder of files rather than one config file, such as
+     * mines or kits. See {@link EntryStore}.
+     *
+     * @param id    the subject's name inside this plugin, such as {@code mines}; also the key
+     *              the entries sit under in the editor
+     * @param type  one entry, a record with a no-arg constructor holding the defaults
+     * @param store where the entries are read from and written to
+     * @param <R>   the entry record
+     * @return the subject, to describe further
+     * @throws IllegalArgumentException when the id is not valid, or the record has no no-arg
+     *                                  constructor
+     * @since 1.306.0
+     */
+    public <R extends Record> @NotNull Subject entries(@NotNull String id, @NotNull Class<R> type,
+                                                       @NotNull EntryStore<R> store) {
+        return entries(id, type, store, Subject.GENERIC);
+    }
+
+    /**
+     * Makes entries a plugin stores itself editable on a screen the editor ships for them.
+     *
+     * @param kind the screen, such as {@code mines/mine}; {@link Subject#GENERIC} for the form
+     * @see #entries(String, Class, EntryStore)
+     * @since 1.306.0
+     */
+    public <R extends Record> @NotNull Subject entries(@NotNull String id, @NotNull Class<R> type,
+                                                       @NotNull EntryStore<R> store, @NotNull String kind) {
+        return WebEditorRuntime.get().registerEntries(plugin, id, type, store, kind);
+    }
+
+    /**
      * Forgets one subject, for a module that is turned off while its plugin keeps running.
      *
      * @param id the subject's name

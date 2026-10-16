@@ -108,6 +108,10 @@ final class EditorMessages {
         return Phrases.tr("{warning}{0} {letters}changes {info}{1}{letters}, a setting marked sensitive.", subject, path);
     }
 
+    static String deleteReason(String subject, String entry) {
+        return Phrases.tr("{warning}{0} {letters}deletes {info}{1}{letters}.", subject, entry);
+    }
+
     static String privilegedReason(String subject, String path) {
         return Phrases.tr("{warning}{0} {letters}sets {info}{1} {letters}to a line that runs as the console.", subject, path);
     }

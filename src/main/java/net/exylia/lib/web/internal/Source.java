@@ -5,33 +5,51 @@ import net.exylia.lib.config.ConfigFile;
 import net.exylia.lib.config.ConfigIssue;
 import org.jetbrains.annotations.Nullable;
 
+import java.util.List;
+import java.util.concurrent.CompletableFuture;
+import java.util.function.Supplier;
+
 /**
- * Where a subject's values come from and go back to: a record-backed {@link ConfigFile}, or a
- * YAML file a plugin compiles itself ({@link YamlSource}). The runtime asks the same four
- * things of both.
+ * Where a subject's values come from and go back to: a record-backed {@link ConfigFile}, a
+ * YAML file a plugin compiles itself ({@link YamlSource}), or entries a plugin stores itself
+ * ({@link EntrySource}). The runtime asks the same four things of all of them.
  */
 interface Source {
 
-    /** The file, relative to the plugin's data folder and without {@code .yml}. */
+    /** The file, relative to the plugin's data folder and without {@code .yml}; empty when not a file. */
     String name();
 
     /** What the browser draws the form from. */
     JsonObject schema(String pluginName);
 
-    /** What the file holds now. */
+    /** What there is now. */
     JsonObject values(String pluginName);
 
-    /** The browser's values read the way the file would be, ready to compare and write. */
+    /** The browser's values read the way the source would, ready to compare and write. */
     Prepared prepare(String pluginName, JsonObject values);
 
     /**
-     * One subject of a change, read: either the reason it is refused, or what the file would
-     * hold afterwards and how to write it.
+     * One subject of a change, read: either the reason it is refused, or what it would hold
+     * afterwards, what needs {@code confirm} on top of the diff, and how to write it.
+     *
+     * @param holds lines shown before applying, beyond the sensitive paths and console lines
+     *              the runtime finds in the diff itself
+     * @param write runs on the global thread; the future completes once written, or
+     *              exceptionally with the reason it was not
      */
-    record Prepared(@Nullable String problem, @Nullable JsonObject after, @Nullable Runnable write) {
+    record Prepared(@Nullable String problem, @Nullable JsonObject after, List<String> holds,
+                    @Nullable Supplier<CompletableFuture<Void>> write) {
 
         static Prepared refused(String problem) {
-            return new Prepared(problem, null, null);
+            return new Prepared(problem, null, List.of(), null);
+        }
+
+        /** A write that is done when it returns. */
+        static Prepared now(JsonObject after, Runnable write) {
+            return new Prepared(null, after, List.of(), () -> {
+                write.run();
+                return CompletableFuture.completedFuture(null);
+            });
         }
     }
 
@@ -63,7 +81,7 @@ interface Source {
                 return Prepared.refused(first.describe());
             }
             Object value = decoded.value();
-            return new Prepared(null, ValueCodec.toJson(type, pluginName, value),
+            return Prepared.now(ValueCodec.toJson(type, pluginName, value),
                     () -> ((ConfigFile<Object>) file).update(current -> value));
         }
     }

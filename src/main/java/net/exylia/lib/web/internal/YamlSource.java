@@ -102,7 +102,7 @@ final class YamlSource implements Source {
         if (problems != null && !problems.isEmpty()) {
             return Prepared.refused(problems.get(0));
         }
-        return new Prepared(null, toJson(next), () -> save(next));
+        return Prepared.now(toJson(next), () -> save(next));
     }
 
     // ------------------------------------------------------------------

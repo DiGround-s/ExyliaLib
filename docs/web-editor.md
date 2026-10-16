@@ -98,6 +98,39 @@ WebEditor.of(this).yaml("tags", "cosmetics/tags", "chatcosmetics/catalog")
 
 `Subject.file()` is `null` for a YAML subject.
 
+## Entries a plugin stores itself
+
+Mines, kits, arenas: things a plugin keeps in a database, or anywhere that is
+not one config file, and that admins create and delete as well as edit.
+`entries(id, type, store)` makes them editable (since 1.306.0):
+
+```java
+WebEditor.of(this).entries("mines", MineEdit.class, new MineStore(manager), "mines/mine")
+        .title("Mines")
+        .permission("exyliamines.admin")
+        .sensitive("mines.*.blocks.loot", "mines.*.lucky-rewards");
+```
+
+- **One entry is a record.** Declared like a config, with a no-arg constructor
+  holding the defaults; the plugin maps it to and from what it stores. The
+  browser draws the form from it, and lists the entries under `id`, where the
+  admin adds, duplicates and removes them.
+- **Read through the binder, then the store.** Each entry is bound against what
+  it is now, a new one against `blank(id)` (the record's defaults unless the
+  store says otherwise), then passed to `check(id, value, created)`. One problem
+  in one entry refuses the subject whole, so the store never sees half a change.
+- **Only what changed is written.** `save(id, value, created)` for an entry that
+  is new or differs, `delete(id)` for one the browser removed. **Every deletion
+  is shown first and needs `confirm`.**
+- **Writes answer with a future.** Called on the global thread, they hand the
+  database work off as the plugin always does. The admin hears the outcome once
+  every future has completed; one that completed exceptionally is reported with
+  its message, and `onApplied` runs only when every write succeeded.
+- **The `file` the snapshot names is empty**: there is no file.
+
+An enum in a schema carries its class (`"class": "Material"`), so the editor
+can offer a block or item picker rather than a list of a thousand names.
+
 ## How a change is read
 
 Through `net.exylia.lib.config.internal.RecordJson`, the same binder the YAML
@@ -193,9 +226,9 @@ as it is built. `invalidateAll()` does not apply.
 
 ## Code
 
-`net.exylia.lib.web` — `WebEditor`, `PluginWebEditor`, `Subject`, `YamlSubject`.
+`net.exylia.lib.web` — `WebEditor`, `PluginWebEditor`, `Subject`, `YamlSubject`, `EntryStore`.
 `net.exylia.lib.web.internal` — `WebEditorRuntime` (registry, sessions, open,
-apply, trust), `Source` (a record file or a `YamlSource`), `Snapshot`, `ValueCodec`, `Diff`, `EditorClient` and
+apply, trust), `Source` (a record file, a `YamlSource` or an `EntrySource`), `Snapshot`, `ValueCodec`, `Diff`, `EditorClient` and
 `HttpEditorClient`, `EditorMessages`. `net.exylia.lib.internal.EditorCommand`
 is the Lamp command. `net.exylia.lib.config.internal.RecordJson` is the
 schema-and-values bridge next to the binder.
