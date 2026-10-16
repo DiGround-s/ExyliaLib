@@ -40,7 +40,11 @@ final class Snapshot {
     static final int MAX_BYTES = 4 * 1024 * 1024;
     /** The most placeholders resolved for the preview; a file with more shows the rest as written. */
     static final int MAX_PLACEHOLDERS = 300;
-    private static final Pattern PLACEHOLDER = Pattern.compile("%[A-Za-z0-9_:-]+%");
+    /**
+     * Anything between two percent signs on one line, as the template compiler reads it: a name
+     * may carry dots, colons, braces of a nested PlaceholderAPI placeholder, formats and spaces.
+     */
+    private static final Pattern PLACEHOLDER = Pattern.compile("%[^%\\n]+%");
     private static final Pattern EXYLIA = Pattern.compile("^Exylia[A-Za-z0-9_-]{1,48}$");
 
     private Snapshot() {
