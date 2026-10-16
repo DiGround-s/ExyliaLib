@@ -42,14 +42,30 @@ final class EditorMessages {
                 + line(Phrases.tr("{muted}Open one plugin at a time: /exylialib editor <plugin>"));
     }
 
+    /**
+     * The link and the two commands as buttons, never as text: an admin sharing their screen
+     * would otherwise show the session code to everybody watching.
+     */
     static String opened(String url, String code, int subjects) {
         return header()
-                + line(Phrases.tr("{letters}Editing {info}{0} {letters}subjects. Open the link:", subjects))
-                + line("<click:open_url:'" + url + "'><hover:show_text:'" + Phrases.tr("{letters}Open the editor") + "'>{info}<u>" + url + "</u></hover></click>")
-                + line(Phrases.tr("{muted}The first browser to open it owns the session. Another browser"))
-                + line(Phrases.tr("{muted}sees a challenge code; trust it with /exylialib editor trust {0} <challenge>", code))
-                + "\n\n" + Phrases.tr("{warning}➥ After saving in the browser:")
-                + line("<click:suggest_command:'/exylialib editor apply " + code + "'>{muted}/exylialib editor apply " + code + "</click>");
+                + line(Phrases.tr("{letters}Editing {info}{0} {letters}subjects.", subjects))
+                + line("<click:open_url:'" + url + "'><hover:show_text:'" + Phrases.tr("{letters}Opens the editor in your browser") + "'>"
+                        + Phrases.tr("{warning}➥ {info}&l[OPEN THE EDITOR]") + "</hover></click>")
+                + line(Phrases.tr("{muted}The first browser to open it owns the session; another one sees a code"))
+                + line(Phrases.tr("{muted}to be trusted with: ") + trustButton(code))
+                + "\n" + line(Phrases.tr("{muted}After saving in the browser: ") + applyButton(code, false));
+    }
+
+    private static String applyButton(String code, boolean confirm) {
+        String command = "/exylialib editor apply " + code + (confirm ? " " + "confirm" : "");
+        return "<click:suggest_command:'" + command + "'><hover:show_text:'" + Phrases.tr("{letters}Puts the command in your chat box") + "'>"
+                + (confirm ? Phrases.tr("{warning}&l[APPLY ANYWAY]") : Phrases.tr("{success}&l[APPLY]")) + "</hover></click>";
+    }
+
+    private static String trustButton(String code) {
+        return "<click:suggest_command:'/exylialib editor trust " + code + " '><hover:show_text:'"
+                + Phrases.tr("{letters}Puts the command in your chat box; add the code the browser shows") + "'>"
+                + Phrases.tr("{info}&l[TRUST A BROWSER]") + "</hover></click>";
     }
 
     static String failed(String what, String reason) {
@@ -60,13 +76,13 @@ final class EditorMessages {
 
     static String unknownSession(String code) {
         return header()
-                + line(Phrases.tr("{error}No session {0} is open on this server.", code))
+                + line(Phrases.tr("{error}No session with that code is open on this server."))
                 + line(Phrases.tr("{muted}A session lives a day and does not survive a restart. Open another with /exylialib editor."));
     }
 
     static String nothingPending(String code) {
         return header()
-                + line(Phrases.tr("{letters}Nothing saved in the browser yet for session {info}{0}{letters}.", code))
+                + line(Phrases.tr("{letters}Nothing has been saved in the browser yet for that session."))
                 + line(Phrases.tr("{muted}Save there first, then run this again."));
     }
 
@@ -81,9 +97,7 @@ final class EditorMessages {
         for (String reason : reasons) {
             text.append(line(reason));
         }
-        text.append("\n\n").append(Phrases.tr("{warning}➥ Apply them anyway:"))
-                .append(line("<click:suggest_command:'/exylialib editor apply " + code + " confirm'>{muted}/exylialib editor apply "
-                        + code + " confirm</click>"));
+        text.append("\n").append(line(Phrases.tr("{muted}Apply them all the same: ") + applyButton(code, true)));
         return text.toString();
     }
 
@@ -124,12 +138,12 @@ final class EditorMessages {
 
     static String trusted(String code) {
         return header()
-                + line(Phrases.tr("{success}That browser may now edit session {0}.", code));
+                + line(Phrases.tr("{success}That browser may now edit the session."));
     }
 
     static String unknownChallenge(String code) {
         return header()
-                + line(Phrases.tr("{error}No browser is waiting with that challenge on session {0}.", code))
+                + line(Phrases.tr("{error}No browser is waiting with that code on this session."))
                 + line(Phrases.tr("{muted}Codes expire in a few minutes; reload the page and read it again."));
     }
 
