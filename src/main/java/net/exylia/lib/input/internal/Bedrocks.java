@@ -21,10 +21,20 @@ import java.util.UUID;
  * {@code 00000000-0000-0000-xxxx-xxxxxxxxxxxx}, its XUID with zeroed high bits.
  * The name never does. Its prefix is a server setting that can be changed or
  * removed, and a Java player may pick a name that starts with it.
+ *
+ * <p>Geyser without Floodgate signs Bedrock players in with their Java
+ * account, so neither Floodgate nor the UUID can tell; when Geyser runs on
+ * this server its own API is asked too.
+ *
+ * <p>The APIs are looked up on first use, never at class load, and looked up
+ * again until their plugin is enabled: ExyliaLib loads at {@code STARTUP},
+ * before either bridge, and a lookup cached from then would read every
+ * player as Java.
  */
 public final class Bedrocks {
 
-    private static final Access ACCESS = Access.detect();
+    private static volatile Access floodgate;
+    private static volatile Access geyser;
 
     private Bedrocks() {
     }
@@ -39,16 +49,19 @@ public final class Bedrocks {
      */
     public static boolean isBedrock(@NotNull UUID playerId) {
         java.util.Objects.requireNonNull(playerId, "playerId");
-        Boolean floodgate = ACCESS.isBedrock(playerId);
-        if (floodgate != null) {
-            return floodgate;
+        if (playerId.getMostSignificantBits() == 0) {
+            return true;
         }
-        return playerId.getMostSignificantBits() == 0;
+        Boolean linked = floodgate().isBedrock(playerId);
+        if (Boolean.TRUE.equals(linked)) {
+            return true;
+        }
+        return Boolean.TRUE.equals(geyser().isBedrock(playerId));
     }
 
     /** Whether Floodgate and the form adapter can currently serve requests. */
     static boolean formsAvailable() {
-        if (!ACCESS.available()) {
+        if (!floodgate().available()) {
             return false;
         }
         try {
@@ -62,20 +75,58 @@ public final class Bedrocks {
         }
     }
 
-    private record Access(Object api, Method isFloodgatePlayer) {
+    private static Access floodgate() {
+        Access access = floodgate;
+        if (access == null) {
+            access = Access.detect("floodgate", "org.geysermc.floodgate.api.FloodgateApi",
+                    "getInstance", "isFloodgatePlayer");
+            if (access == null) {
+                return Access.ABSENT;
+            }
+            floodgate = access;
+        }
+        return access;
+    }
 
-        private static Access detect() {
+    private static Access geyser() {
+        Access access = geyser;
+        if (access == null) {
+            access = Access.detect("Geyser-Spigot", "org.geysermc.geyser.api.GeyserApi",
+                    "api", "isBedrockPlayer");
+            if (access == null) {
+                return Access.ABSENT;
+            }
+            geyser = access;
+        }
+        return access;
+    }
+
+    private record Access(Object api, Method check) {
+
+        private static final Access ABSENT = new Access(null, null);
+
+        /**
+         * Reaches the API through the plugin's own loader, since ExyliaLib
+         * softdepends on neither. {@code null} while the plugin is missing or
+         * not yet enabled, which costs a map lookup, so it is asked again on
+         * the next call; once it is enabled the answer is kept, broken or not.
+         */
+        private static Access detect(String plugin, String type, String instance, String check) {
             try {
-                Class<?> type = Class.forName("org.geysermc.floodgate.api.FloodgateApi");
-                Object api = type.getMethod("getInstance").invoke(null);
-                return new Access(api, type.getMethod("isFloodgatePlayer", UUID.class));
-            } catch (Throwable absent) {
-                return new Access(null, null);
+                Plugin owner = Bukkit.getPluginManager().getPlugin(plugin);
+                if (owner == null || !owner.isEnabled()) {
+                    return null;
+                }
+                Class<?> api = Class.forName(type, true, owner.getClass().getClassLoader());
+                Object value = api.getMethod(instance).invoke(null);
+                return value == null ? ABSENT : new Access(value, api.getMethod(check, UUID.class));
+            } catch (Throwable broken) {
+                return ABSENT;
             }
         }
 
         private boolean available() {
-            return api != null && isFloodgatePlayer != null;
+            return api != null && check != null;
         }
 
         private Boolean isBedrock(UUID uuid) {
@@ -83,7 +134,7 @@ public final class Bedrocks {
                 return null;
             }
             try {
-                return (Boolean) isFloodgatePlayer.invoke(api, uuid);
+                return (Boolean) check.invoke(api, uuid);
             } catch (ReflectiveOperationException | RuntimeException broken) {
                 return null;
             }
