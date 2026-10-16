@@ -1252,7 +1252,7 @@ x, y or z: x, y veya z
 '{muted}The first browser to open it owns the session. Another browser': '{muted}İlk açan tarayıcı oturumun sahibidir. Başka bir tarayıcı'
 '{muted}sees a challenge code; trust it with /exylialib editor trust {0} <challenge>': '{muted}bir doğrulama kodu görür; /exylialib editor trust {0} <kod> ile ona güven'
 '{muted}…and {0} more.': '{muted}…ve {0} daha.'
-'{primary}&lWEB EDITOR': '{primary}&lWEB DÜZENLEYİCİ'
+'{primary}&lWEB EDITOR&r': '{primary}&lWEB DÜZENLEYİCİ&r'
 '{success}That browser may now edit session {0}.': '{success}O tarayıcı artık {0} oturumunu düzenleyebilir.'
 '{success}✔ {letters}{0} {letters_black}» {info}{1} {letters}changes written': '{success}✔ {letters}{0} {letters_black}» {info}{1} {letters}değişiklik yazıldı'
 '{success}✔ {letters}{0} {letters_black}» {muted}already up to date': '{success}✔ {letters}{0} {letters_black}» {muted}zaten güncel'

@@ -1240,7 +1240,7 @@
 '{muted}The first browser to open it owns the session. Another browser': '{muted}Le premier navigateur à l''ouvrir possède la session. Un autre navigateur'
 '{muted}sees a challenge code; trust it with /exylialib editor trust {0} <challenge>': '{muted}voit un code de vérification ; autorisez-le avec /exylialib editor trust {0} <code>'
 '{muted}…and {0} more.': '{muted}…et {0} de plus.'
-'{primary}&lWEB EDITOR': '{primary}&lÉDITEUR WEB'
+'{primary}&lWEB EDITOR&r': '{primary}&lÉDITEUR WEB&r'
 '{success}That browser may now edit session {0}.': '{success}Ce navigateur peut maintenant modifier la session {0}.'
 '{success}✔ {letters}{0} {letters_black}» {info}{1} {letters}changes written': '{success}✔ {letters}{0} {letters_black}» {info}{1} {letters}changements écrits'
 '{success}✔ {letters}{0} {letters_black}» {muted}already up to date': '{success}✔ {letters}{0} {letters_black}» {muted}déjà à jour'

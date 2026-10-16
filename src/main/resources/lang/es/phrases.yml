@@ -1252,7 +1252,7 @@ x, y or z: x, y o z
 '{muted}The first browser to open it owns the session. Another browser': '{muted}El primer navegador que lo abra es el dueño de la sesión. Otro navegador'
 '{muted}sees a challenge code; trust it with /exylialib editor trust {0} <challenge>': '{muted}ve un código de verificación; autorízalo con /exylialib editor trust {0} <código>'
 '{muted}…and {0} more.': '{muted}…y {0} más.'
-'{primary}&lWEB EDITOR': '{primary}&lEDITOR WEB'
+'{primary}&lWEB EDITOR&r': '{primary}&lEDITOR WEB&r'
 '{success}That browser may now edit session {0}.': '{success}Ese navegador ya puede editar la sesión {0}.'
 '{success}✔ {letters}{0} {letters_black}» {info}{1} {letters}changes written': '{success}✔ {letters}{0} {letters_black}» {info}{1} {letters}cambios escritos'
 '{success}✔ {letters}{0} {letters_black}» {muted}already up to date': '{success}✔ {letters}{0} {letters_black}» {muted}ya estaba al día'

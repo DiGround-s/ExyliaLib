@@ -11,7 +11,7 @@ final class EditorMessages {
     }
 
     static String header() {
-        return Phrases.tr("{primary}&lWEB EDITOR");
+        return Phrases.tr("{primary}&lWEB EDITOR&r");
     }
 
     private static String line(String body) {

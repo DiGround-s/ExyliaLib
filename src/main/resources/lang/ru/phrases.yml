@@ -1240,7 +1240,7 @@
 '{muted}The first browser to open it owns the session. Another browser': '{muted}Первый открывший браузер становится владельцем сессии. Другой браузер'
 '{muted}sees a challenge code; trust it with /exylialib editor trust {0} <challenge>': '{muted}видит код проверки; доверьте ему командой /exylialib editor trust {0} <код>'
 '{muted}…and {0} more.': '{muted}…и ещё {0}.'
-'{primary}&lWEB EDITOR': '{primary}&lВЕБ-РЕДАКТОР'
+'{primary}&lWEB EDITOR&r': '{primary}&lВЕБ-РЕДАКТОР&r'
 '{success}That browser may now edit session {0}.': '{success}Этот браузер теперь может редактировать сессию {0}.'
 '{success}✔ {letters}{0} {letters_black}» {info}{1} {letters}changes written': '{success}✔ {letters}{0} {letters_black}» {info}{1} {letters}изменений записано'
 '{success}✔ {letters}{0} {letters_black}» {muted}already up to date': '{success}✔ {letters}{0} {letters_black}» {muted}уже актуально'
