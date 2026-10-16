@@ -36,6 +36,10 @@ class WebEditorRuntimeTest {
     @TempDir
     Path folder;
 
+    /** Another plugin's data folder, outside the first one's. */
+    @TempDir
+    Path other;
+
     private final List<String> sent = new ArrayList<>();
     private final FakeClient editor = new FakeClient();
     private final AtomicInteger applied = new AtomicInteger();
@@ -75,6 +79,120 @@ class WebEditorRuntimeTest {
     void tearDown() {
         WebEditorRuntime.install(null);
         Configs.release(plugin);
+        net.exylia.lib.reload.Reloads.release("ExyliaMines");
+        net.exylia.lib.ui.Menus.releaseAll();
+        net.exylia.lib.action.Actions.releaseAll();
+        FakeServer.plugins();
+    }
+
+    private Plugin mines() throws IOException {
+        Plugin mines = FakeServer.newPlugin("ExyliaMines", other.toFile());
+        java.nio.file.Files.writeString(other.resolve("rewards.yml"), "daily:\n  money: 5\n");
+        java.nio.file.Files.writeString(other.resolve("shop.yml"), "price: 1\n");
+        java.nio.file.Files.createDirectories(other.resolve("menus"));
+        java.nio.file.Files.writeString(other.resolve("menus/shop.yml"),
+                "title: Shop\nsize: 27\nitems:\n  stone:\n    slot: 13\n    material: STONE\n");
+        FakeServer.plugins(plugin, mines);
+        return mines;
+    }
+
+    private JsonObject uploaded(String plugin, String key) {
+        for (var element : editor.uploads.get(plugin).getAsJsonArray("subjects")) {
+            if (element.getAsJsonObject().get("key").getAsString().equals(key)) {
+                return element.getAsJsonObject();
+            }
+        }
+        throw new AssertionError(key + " was not uploaded");
+    }
+
+    private static JsonObject listedPlugin(JsonObject index, String name) {
+        for (var element : index.getAsJsonArray("plugins")) {
+            if (element.getAsJsonObject().get("name").getAsString().equals(name)) {
+                return element.getAsJsonObject();
+            }
+        }
+        throw new AssertionError(name + " is not in the index");
+    }
+
+    @Test
+    void openingSendsTheIndexThenEveryPluginInTurn() throws IOException {
+        mines();
+        Plugin quiet = FakeServer.newPlugin("ExyliaQuiet", folder.resolve("quiet-elsewhere").toFile());
+        FakeServer.plugins(plugin, FakeServer.newPlugin("ExyliaMines", other.toFile()), quiet);
+        runtime.discover("ExyliaQuiet", false);
+
+        open();
+
+        assertEquals(List.of("open", "upload ExyliaDisplays", "upload ExyliaMines"), editor.calls);
+        JsonObject quietListed = listedPlugin(editor.lastIndex, "ExyliaQuiet");
+        assertFalse(quietListed.get("editable").getAsBoolean());
+        assertEquals(0, quietListed.getAsJsonArray("subjects").size());
+        long boards = 0;
+        for (var subject : listedPlugin(editor.lastIndex, "ExyliaDisplays").getAsJsonArray("subjects")) {
+            boards += subject.getAsJsonObject().get("file").getAsString().equals("board") ? 1 : 0;
+        }
+        assertEquals(1, boards, "the registered board covers board.yml");
+        assertEquals("files", uploaded("ExyliaMines", "ExyliaMines/rewards").get("group").getAsString());
+        assertEquals("menus", uploaded("ExyliaMines", "ExyliaMines/menus-shop").get("group").getAsString());
+        assertTrue(String.join("\n", sent).contains("OPEN THE EDITOR"));
+    }
+
+    @Test
+    void aPluginThatFailsToUploadIsNamedAndTheNextStillGoes() throws IOException {
+        mines();
+        editor.failFor = "ExyliaDisplays";
+
+        open();
+
+        assertEquals(List.of("open", "upload ExyliaMines"), editor.calls);
+        assertTrue(String.join("\n", sent).contains("ExyliaDisplays could not be sent to the editor"), String.join("\n", sent));
+    }
+
+    @Test
+    void applyingDiscoveredFilesReloadsThePluginOnceAndUploadsWhatItTouched() throws IOException {
+        Plugin mines = mines();
+        AtomicInteger reloads = new AtomicInteger();
+        net.exylia.lib.reload.Reloads.of(mines).step("files", reloads::incrementAndGet);
+        String code = open();
+        editor.calls.clear();
+
+        JsonObject rewards = uploaded("ExyliaMines", "ExyliaMines/rewards").getAsJsonObject("values").deepCopy();
+        rewards.getAsJsonObject("daily").addProperty("money", 9);
+        JsonObject shop = uploaded("ExyliaMines", "ExyliaMines/shop").getAsJsonObject("values").deepCopy();
+        shop.addProperty("price", 2);
+        JsonObject subjects = new JsonObject();
+        subjects.add("ExyliaMines/rewards", rewards);
+        subjects.add("ExyliaMines/shop", shop);
+        editor.pending = new EditorClient.Pending("change-1", subjects, new JsonObject(), "a browser");
+
+        runtime.apply(admin, code, false);
+
+        assertEquals(1, reloads.get(), "one reload per plugin, not one per file");
+        assertEquals(List.of("applied", "upload ExyliaMines"), editor.calls);
+        assertTrue(java.nio.file.Files.readString(other.resolve("rewards.yml")).contains("money: 9"));
+        assertTrue(java.nio.file.Files.readString(other.resolve("shop.yml")).contains("price: 2"));
+        assertEquals(2, editor.appliedOutcome.getAsJsonArray("applied").size());
+    }
+
+    @Test
+    void aDiscoveredMenuThatWouldNotCompileIsRefused() throws IOException {
+        mines();
+        String code = open();
+        JsonObject menu = uploaded("ExyliaMines", "ExyliaMines/menus-shop").getAsJsonObject("values").deepCopy();
+        menu.addProperty("size", 7);
+        JsonObject subjects = new JsonObject();
+        subjects.add("ExyliaMines/menus-shop", menu);
+        editor.pending = new EditorClient.Pending("change-1", subjects, new JsonObject(), "a browser");
+
+        runtime.apply(admin, code, false);
+
+        assertTrue(editor.appliedOutcome.getAsJsonObject("rejected").has("ExyliaMines/menus-shop"), editor.appliedOutcome.toString());
+        assertTrue(java.nio.file.Files.readString(other.resolve("menus/shop.yml")).contains("size: 27"));
+
+        menu.addProperty("size", 54);
+        editor.pending = new EditorClient.Pending("change-2", subjects, new JsonObject(), "a browser");
+        runtime.apply(admin, code, false);
+        assertTrue(java.nio.file.Files.readString(other.resolve("menus/shop.yml")).contains("size: 54"));
     }
 
     private String open() {
@@ -101,9 +219,14 @@ class WebEditorRuntimeTest {
     @Test
     void openingUploadsTheSnapshotAndTellsTheLink() {
         String code = open();
-        JsonObject snapshot = editor.lastSnapshot;
-        assertEquals("server-1", snapshot.getAsJsonObject("server").get("id").getAsString());
-        JsonObject subject = snapshot.getAsJsonArray("subjects").get(0).getAsJsonObject();
+        assertEquals("server-1", editor.lastIndex.getAsJsonObject("server").get("id").getAsString());
+        assertEquals(2, editor.lastIndex.get("version").getAsInt());
+        JsonObject listed = editor.lastIndex.getAsJsonArray("plugins").get(0).getAsJsonObject()
+                .getAsJsonArray("subjects").get(0).getAsJsonObject();
+        assertEquals("content", listed.get("group").getAsString());
+        assertFalse(listed.has("values"), "the index carries metadata only");
+        assertEquals(List.of("open", "upload ExyliaDisplays"), editor.calls);
+        JsonObject subject = editor.firstSubject();
         assertEquals("ExyliaDisplays/board", subject.get("key").getAsString());
         assertEquals("Boards", subject.get("title").getAsString());
         assertEquals("test/board", subject.get("kind").getAsString());
@@ -161,7 +284,7 @@ class WebEditorRuntimeTest {
                 });
         runtime.open(limited, null);
         String code = editor.lastCode;
-        JsonObject subject = editor.lastSnapshot.getAsJsonArray("subjects").get(0).getAsJsonObject();
+        JsonObject subject = editor.firstSubject();
         assertEquals("ExyliaDisplays/tags", subject.get("key").getAsString());
         assertEquals("cosmetics/tags", subject.get("file").getAsString());
         assertEquals("map", subject.getAsJsonObject("schema").getAsJsonArray("fields").get(0).getAsJsonObject()
@@ -241,7 +364,7 @@ class WebEditorRuntimeTest {
     }
 
     private JsonObject pitValues() {
-        JsonObject subject = editor.lastSnapshot.getAsJsonArray("subjects").get(0).getAsJsonObject();
+        JsonObject subject = editor.firstSubject();
         return subject.getAsJsonObject("values").deepCopy();
     }
 
@@ -255,7 +378,7 @@ class WebEditorRuntimeTest {
     void entriesAreDescribedAsAMapOfTheirRecord() {
         pits();
         runtime.open(limited(), null);
-        JsonObject subject = editor.lastSnapshot.getAsJsonArray("subjects").get(0).getAsJsonObject();
+        JsonObject subject = editor.firstSubject();
         assertEquals("", subject.get("file").getAsString());
         JsonObject field = subject.getAsJsonObject("schema").getAsJsonArray("fields").get(0).getAsJsonObject();
         assertEquals("pits", field.get("key").getAsString());
@@ -472,24 +595,44 @@ class WebEditorRuntimeTest {
     }
 
     /** The editor, remembered rather than reached. */
-    private static final class FakeClient implements EditorClient {
+    static final class FakeClient implements EditorClient {
         String lastCode;
         String lastSecret;
-        JsonObject lastSnapshot;
+        JsonObject lastIndex;
+        final List<String> calls = new ArrayList<>();
+        final Map<String, JsonObject> uploads = new java.util.LinkedHashMap<>();
         Pending pending;
         String appliedChange;
         JsonObject appliedOutcome;
         String trustedChallenge;
         String trustSecret;
         Trust trustAnswer = Trust.TRUSTED;
+        String failFor;
         private int opened;
 
+        JsonObject firstSubject() {
+            return uploads.values().iterator().next().getAsJsonArray("subjects").get(0).getAsJsonObject();
+        }
+
         @Override
-        public Opened open(String secret, JsonObject snapshot) {
+        public Opened open(String secret, JsonObject index) {
+            calls.add("open");
             lastSecret = secret;
-            lastSnapshot = snapshot;
+            lastIndex = index;
             lastCode = "c0de" + (++opened);
             return new Opened(lastCode, "https://utils.test/e/" + lastCode, 0L);
+        }
+
+        @Override
+        public void uploadPlugin(String code, String secret, String plugin, JsonObject payload) throws IOException {
+            if (!secret.equals(lastSecret)) {
+                throw new Refused(401, "wrong secret");
+            }
+            if (plugin.equals(failFor)) {
+                throw new Refused(500, "boom");
+            }
+            calls.add("upload " + plugin);
+            uploads.put(plugin, payload);
         }
 
         @Override
@@ -501,7 +644,8 @@ class WebEditorRuntimeTest {
         }
 
         @Override
-        public void applied(String code, String secret, String changeId, JsonObject outcome, JsonObject snapshot) {
+        public void applied(String code, String secret, String changeId, JsonObject outcome) {
+            calls.add("applied");
             appliedChange = changeId;
             appliedOutcome = outcome;
             pending = null;

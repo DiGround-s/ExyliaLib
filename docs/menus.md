@@ -38,7 +38,24 @@ menus.register(definition);              // an already-compiled menu
 menus.definition(id);                    // one back
 menus.unload();                          // forget them all, for a reload
 menus.sounds(UiSounds.DEFAULTS);         // what this plugin's menus sound like
+menus.check(section);                    // the problems load would report, registering nothing (1.307.0+)
 ```
+
+### Checking a file before it is written
+
+`check(section)` compiles the section exactly as `load` would, against this
+plugin's actions, and answers one `where: what` line per problem: a structural
+mistake (a size that is not a row count, an unreadable slot) and every bad part
+(an action that does not exist, a mistyped enchantment). Nothing is registered
+and no open menu changes. An empty list means the menu compiles clean.
+
+```java
+List<String> problems = Menus.of(this).check(yaml);
+```
+
+Call it where menus load (the global thread). The web editor uses it to refuse a
+discovered menu file that would not compile, with the namespace the plugin's
+own `Menus.of(plugin, namespace)` call used.
 
 ### Refreshing bundled menus
 
@@ -56,6 +73,8 @@ works there. Files removed from the
 artifact disappear from that directory; other data-folder files remain untouched.
 The path must be relative and cannot be blank or escape the plugin data folder.
 Failure leaves the previous directory intact and logs a warning; success is quiet.
+The directory is remembered for the plugin's lifetime, and the web editor's
+discovery leaves it out: the jar rewrites it on every start.
 
 A part that will not compile — an action that does not exist, a mistyped
 enchantment — becomes a dead button and a line in the console, and the other

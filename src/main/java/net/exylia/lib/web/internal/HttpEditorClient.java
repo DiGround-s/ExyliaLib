@@ -6,6 +6,7 @@ import com.google.gson.JsonParser;
 import com.google.gson.JsonSyntaxException;
 import org.jetbrains.annotations.Nullable;
 
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URLEncoder;
@@ -14,23 +15,28 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
+import java.util.zip.GZIPOutputStream;
 
 /**
  * {@link EditorClient} over {@code java.net.http}, which the JVM already has.
  *
  * <pre>
  * POST {base}/api/v1/editor/sessions                                  -> 201 {code,url,expiresAt}
+ * PUT  {base}/api/v1/editor/sessions/{code}/plugins/{plugin}          -> 204
  * GET  {base}/api/v1/editor/sessions/{code}/changes/pending           -> 200 {id,subjects,baseHash,author} | 204
  * POST {base}/api/v1/editor/sessions/{code}/changes/{id}/applied      -> 204
  * POST {base}/api/v1/editor/sessions/{code}/trust                     -> 204 | 404
  * </pre>
  *
- * <p>The secret travels as {@code Authorization: Bearer}. Bodies are capped on the way in so a
- * misbehaving host cannot fill the heap; a change is at most as large as the snapshot it edits.
+ * <p>The secret travels as {@code Authorization: Bearer}. Every body is gzip-compressed
+ * ({@code Content-Encoding: gzip}) and refused before it is sent when it compresses to more than
+ * the editor takes. Answers are capped on the way in so a misbehaving host cannot fill the heap.
  */
 final class HttpEditorClient implements EditorClient {
 
     static final int MAX_RESPONSE_BYTES = 8 * 1024 * 1024;
+    /** The most the editor takes per request, compressed. */
+    static final int MAX_REQUEST_BYTES = 8 * 1024 * 1024;
     private static final Duration TIMEOUT = Duration.ofSeconds(15);
     private static final Gson GSON = new Gson();
 
@@ -47,9 +53,9 @@ final class HttpEditorClient implements EditorClient {
     }
 
     @Override
-    public Opened open(String secret, JsonObject snapshot) throws IOException {
+    public Opened open(String secret, JsonObject index) throws IOException {
         JsonObject answer = json(send(request("/api/v1/editor/sessions", secret)
-                .POST(body(snapshot)).build(), 201, 200));
+                .header("Content-Encoding", "gzip").POST(body(index)).build(), 201, 200));
         return new Opened(text(answer, "code"), text(answer, "url"),
                 answer.has("expiresAt") && answer.get("expiresAt").isJsonPrimitive()
                         ? answer.get("expiresAt").getAsLong() : 0L);
@@ -70,12 +76,18 @@ final class HttpEditorClient implements EditorClient {
     }
 
     @Override
-    public void applied(String code, String secret, String changeId, JsonObject outcome, JsonObject snapshot) throws IOException {
+    public void uploadPlugin(String code, String secret, String plugin, JsonObject payload) throws IOException {
+        send(request("/api/v1/editor/sessions/" + encode(code) + "/plugins/" + encode(plugin), secret)
+                .header("Content-Encoding", "gzip").PUT(body(payload)).build(), 204, 200);
+    }
+
+    @Override
+    public void applied(String code, String secret, String changeId, JsonObject outcome) throws IOException {
         JsonObject body = new JsonObject();
         body.add("outcome", outcome);
-        body.add("snapshot", snapshot);
+        body.addProperty("version", Snapshot.VERSION);
         send(request("/api/v1/editor/sessions/" + encode(code) + "/changes/" + encode(changeId) + "/applied", secret)
-                .POST(body(body)).build(), 204, 200);
+                .header("Content-Encoding", "gzip").POST(body(body)).build(), 204, 200);
     }
 
     @Override
@@ -83,7 +95,7 @@ final class HttpEditorClient implements EditorClient {
         JsonObject body = new JsonObject();
         body.addProperty("challenge", challenge);
         HttpResponse<byte[]> response = send(request("/api/v1/editor/sessions/" + encode(code) + "/trust", secret)
-                .POST(body(body)).build(), 204, 200, 404);
+                .header("Content-Encoding", "gzip").POST(body(body)).build(), 204, 200, 404);
         return response.statusCode() == 404 ? Trust.UNKNOWN_CHALLENGE : Trust.TRUSTED;
     }
 
@@ -96,8 +108,21 @@ final class HttpEditorClient implements EditorClient {
                 .header("User-Agent", userAgent);
     }
 
-    private static HttpRequest.BodyPublisher body(JsonObject json) {
-        return HttpRequest.BodyPublishers.ofByteArray(GSON.toJson(json).getBytes(StandardCharsets.UTF_8));
+    private static HttpRequest.BodyPublisher body(JsonObject json) throws IOException {
+        byte[] compressed = gzip(GSON.toJson(json).getBytes(StandardCharsets.UTF_8));
+        if (compressed.length > MAX_REQUEST_BYTES) {
+            throw new IOException("the body compresses to " + compressed.length / (1024 * 1024)
+                    + " MB; the editor takes at most " + MAX_REQUEST_BYTES / (1024 * 1024) + " MB");
+        }
+        return HttpRequest.BodyPublishers.ofByteArray(compressed);
+    }
+
+    static byte[] gzip(byte[] plain) throws IOException {
+        ByteArrayOutputStream out = new ByteArrayOutputStream(Math.max(64, plain.length / 4));
+        try (GZIPOutputStream zip = new GZIPOutputStream(out)) {
+            zip.write(plain);
+        }
+        return out.toByteArray();
     }
 
     private HttpResponse<byte[]> send(HttpRequest request, int... accepted) throws IOException {

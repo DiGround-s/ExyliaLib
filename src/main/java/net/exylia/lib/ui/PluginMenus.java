@@ -59,6 +59,7 @@ public final class PluginMenus {
         this.runtime = MenuRuntime.of(plugin);
         this.actions = Actions.of(plugin, namespace);
         this.debug = Debug.of(plugin);
+        runtime.namespace(namespace, Menus.derivedNamespace(plugin));
         // next_page, previous_page, back, close and refresh: every menu in the
         // ecosystem already writes them, and none of them are a plugin's job.
         BuiltInActions.register(actions);
@@ -120,6 +121,40 @@ public final class PluginMenus {
     }
 
     /**
+     * What is wrong with a menu file, without registering anything.
+     *
+     * <p>Compiles the section exactly as {@link #load(String, ConfigurationSection, Problems)}
+     * would, against this plugin's actions, and answers every problem that load would report:
+     * a structural mistake (a size that is not a row count, an unreadable slot) and each bad
+     * part (an action that does not exist, a mistyped enchantment). Nothing is registered and
+     * no open menu changes, so it is safe to ask about a file before it is written.
+     *
+     * <pre>{@code
+     * List<String> problems = Menus.of(this).check(yaml);
+     * if (!problems.isEmpty()) {
+     *     refuse(problems.get(0));
+     * }
+     * }</pre>
+     *
+     * <p>Call it where the plugin would load its menus (the global thread): items resolve
+     * materials and actions as they compile.
+     *
+     * @param config the file's root section
+     * @return one line per problem, {@code where: what}; empty when the menu compiles clean
+     * @since 1.307.0
+     */
+    public @NotNull List<String> check(@NotNull ConfigurationSection config) {
+        List<String> problems = new java.util.ArrayList<>();
+        try {
+            MenuLoader.load(qualify("check"), config, actions::template, defaults,
+                    (where, problem) -> problems.add(where + ": " + problem));
+        } catch (IllegalArgumentException structural) {
+            problems.add(structural.getMessage());
+        }
+        return problems;
+    }
+
+    /**
      * Registers an already-compiled menu.
      *
      * @param definition the menu
@@ -175,6 +210,8 @@ public final class PluginMenus {
         Path dataFolder = plugin.getDataFolder().toPath().toAbsolutePath().normalize();
         Path target = BundledResources.inside(dataFolder, relative);
 
+        // Remembered even when the copy fails: the folder is the jar's either way, not the owner's.
+        runtime.bundledDirectory(relative.toString());
         try {
             BundledResources.replaceDirectory(anchor, List.of(relative), dataFolder, target);
             return true;

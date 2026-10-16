@@ -1,7 +1,7 @@
 # Web editor
 
 Editing a plugin's configuration from the browser, the way LuckPerms' web editor
-works: a command uploads a snapshot and answers with a link, the admin edits on
+works: a command uploads what is editable and answers with a link, the admin edits on
 the web, and a second command brings the result back. Since 1.304.0.
 
 Entry point: `net.exylia.lib.web.WebEditor`.
@@ -19,6 +19,13 @@ That is the whole integration. `hologramsFile` is the `ConfigFile` the plugin
 already reads; the editor learns its shape from the record (keys, types,
 `@Comment` lines) and its values from `get()`, and writes through `update()`.
 
+Since 1.307.0 a plugin does not even need that line for its files: every
+config file it defined and every other YAML file in its data folder is
+**discovered** and editable on its own (see *Discovery*). Registering is for
+what discovery cannot know: a richer screen (`kind`), a permission narrower
+than `exylialib.editor`, sensitive paths, a checker, entries kept in a
+database.
+
 ## Why this is in the library
 
 Every plugin would need the same four things, and each of them done wrong is a
@@ -31,13 +38,13 @@ The library does them once. A plugin adds one line per file.
 
 | Command | What it does |
 | --- | --- |
-| `/exylialib editor [plugin]` | Snapshots every subject the sender may edit (or one plugin's) and sends the link |
+| `/exylialib editor [plugin]` | Opens a session over every subject the sender may edit (or one plugin's), sends the link, then uploads plugin by plugin |
 | `/exylialib editor apply <code> [confirm]` | Brings down what was saved in the browser and writes it; `confirm` applies what the preview held back |
 | `/exylialib editor trust <code> <challenge>` | Lets a second browser, or the same link from another address, edit the session |
 
 All three sit behind `exylialib.editor` (default: op). Each subject can narrow
 it with a `permission` of its own: a subject the sender may not see is left out
-of the snapshot and refused at apply time. The console passes every check.
+of the session and refused at apply time. The console passes every check.
 
 A plugin may offer the same from its own command with
 `WebEditor.open(sender, plugin)`; ExyliaDisplays does as `/displays editor`.
@@ -54,6 +61,9 @@ One `ConfigFile`, described to the browser by its schema and its values.
   editor ships for that shape, such as the hologram editor with its preview. A
   kind the editor does not know falls back to the form.
 - **Title.** What the editor calls it. Default: the id, capitalised.
+- **Group.** Where the editor files it (`Subject.group()`, since 1.307.0):
+  `content` for every registered subject; a discovered one is `settings`,
+  `messages`, `menus` or `files`.
 - **Sensitive paths.** Dotted YAML paths, `*` for any one key, matched as a
   prefix with list indices ignored: `holograms.*.click.commands` covers every
   hologram's click lines. A change under one is shown first and applied only
@@ -126,10 +136,62 @@ WebEditor.of(this).entries("mines", MineEdit.class, new MineStore(manager), "min
   database work off as the plugin always does. The admin hears the outcome once
   every future has completed; one that completed exceptionally is reported with
   its message, and `onApplied` runs only when every write succeeded.
-- **The `file` the snapshot names is empty**: there is no file.
+- **The `file` the index names is empty**: there is no file.
 
 An enum in a schema carries its class (`"class": "Material"`), so the editor
-can offer a block or item picker rather than a list of a thousand names.
+can offer a block or item picker rather than a list of a thousand names. On
+the wire the list itself is sent once per plugin, under `enums` (see *Wire
+contract*).
+
+## Discovery
+
+Since 1.307.0, for every enabled Exylia plugin (`Exylia` + name) and a sender
+holding `exylialib.editor`, the library offers on top of the registered
+subjects:
+
+1. **Every `ConfigFile` the plugin defined** (`Configs.loaded()`), as a record
+   subject: group `messages` when it is translated (the active language's
+   file), `settings` otherwise. Id from its name (`/` becomes `-`), title from
+   it too.
+2. **Every other `.yml` under the data folder**, read as a YAML subject, except:
+   - a file a registered subject or step 1 already covers (compared as
+     canonical files; a registered subject wins whatever permission it asks
+     for, so discovery never opens a file a registration keeps narrower);
+   - directories `PluginMenus.refreshBundledDirectory` regenerates on start
+     (the jar's, not the owner's);
+   - `lang/<code>/` of every language but the active one (`lang/<active>/`
+     and `lang/custom/` stay);
+   - folders named `data`, `players`, `playerdata`, `logs`, `backups`,
+     `cache`, `storage`, `database`, `exports`, `schematics` (any depth, any
+     case), and hidden ones;
+   - files over 1 MiB, files that do not parse, and paths the plugin excluded.
+
+   A file whose root has an `items` section and one of `size`, `rows`, `type`
+   or `title` is a **menu**: group `menus`, kind `lib/menu`, sensitive
+   `items.*.actions`, and checked before it is written by compiling it with the
+   plugin's own menu compiler (`PluginMenus.check`, against the action
+   namespace the plugin's menus use): any problem refuses it. Any other file is
+   group `files`, kind `generic`, with no checker beyond being valid YAML.
+3. **Applying** any discovered subject runs the plugin's declared `Reloads`
+   once per apply, however many of its files changed. A plugin that declares
+   none has each written record file re-read instead, so its `onReload`
+   listeners run.
+
+Ids are unique per plugin and valid subject ids: `menus/user/mines` is
+`menus-user-mines`, cut to 48 characters, with `-2`, `-3`... on a clash.
+Discovered subjects carry `exylialib.editor` as their permission.
+
+Opting out, from the plugin:
+
+```java
+WebEditor.of(this)
+        .exclude("arenas/**", "generated/*.yml")   // relative paths, * and **, with or without .yml
+        .discover(false);                          // or turn it off entirely
+```
+
+A pattern that matches a folder keeps out everything in it; exclusions apply
+to step 1's files too. Exclude what the plugin writes for itself outside the
+folders above, and what a registered `entries` store already edits.
 
 ## How a change is read
 
@@ -147,7 +209,7 @@ what the console-line check reads. A block added or removed whole is walked as
 if the other side were empty, so a sensitive branch inside a brand-new entry
 is still seen.
 
-The snapshot carries a hash of every subject's values; the browser sends it
+Every uploaded subject carries a hash of its values; the browser sends it
 back with a change. A hash that no longer matches means the file changed on
 the server after the browser loaded it (a command, a hand edit), and the
 change is held for `confirm` so applying it is a decision, not an accident.
@@ -171,8 +233,9 @@ change is held for `confirm` so applying it is a decision, not an accident.
   it is bound to the record, refused when it does not fit, and lines that run
   with the server's authority are confirmed first.
 - **A session lives a day, in memory.** At most 32 at once; a restart forgets
-  them, and with them every secret. A snapshot over 4 MB is refused before it
-  is sent. No player data leaves the server beyond the name of the admin who
+  them, and with them every secret. A body over 32 MiB (or over 8 MiB once
+  compressed) is refused before it is sent; a plugin refused this way is named
+  in chat and the others still upload. No player data leaves the server beyond the name of the admin who
   opened the session; no address ever does.
 
 ## Settings
@@ -191,33 +254,55 @@ running its own copy.
 
 ## Wire contract
 
-What the editor must answer, for a server running its own:
+Protocol v2 (since 1.307.0). What the editor must answer, for a server running
+its own:
 
 | Request | Answer |
 | --- | --- |
-| `POST {url}/api/v1/editor/sessions` with the snapshot | `201 {"code","url","expiresAt"}` |
+| `POST {url}/api/v1/editor/sessions` with the index | `201 {"code","url","expiresAt"}` |
+| `PUT {url}/api/v1/editor/sessions/{code}/plugins/{plugin}` with one plugin's payload | `204`; `404` for a plugin the index did not list |
 | `GET {url}/api/v1/editor/sessions/{code}/changes/pending` | `200 {"id","subjects":{key: values},"baseHash":{key: hash},"author"}`, or `204` |
-| `POST {url}/api/v1/editor/sessions/{code}/changes/{id}/applied` with `{"outcome","snapshot"}` | `204` |
+| `POST {url}/api/v1/editor/sessions/{code}/changes/{id}/applied` with `{"outcome":{"applied":[keys],"rejected":{key: reason}},"version":2}` | `204` |
 | `POST {url}/api/v1/editor/sessions/{code}/trust` with `{"challenge"}` | `204`, or `404` for an unknown challenge |
 
 Every request carries `Authorization: Bearer <secret>` and
-`User-Agent: ExyliaLib/<version>`. `404` or `410` on a session makes the server
-forget it. Answers over 8 MB are refused unread.
+`User-Agent: ExyliaLib/<version>`, and every body is gzip-compressed
+(`Content-Encoding: gzip`): at most 8 MiB compressed and 32 MiB decompressed.
+`404` or `410` on a session makes the server forget it. Answers over 8 MB are
+refused unread.
 
-The snapshot is `{version, server{id, platform, software, bukkit, lib, language,
-smallText, palette}, issuer{name, player}, plugins[{name, version, editable}],
-subjects[{key, plugin, id, title, kind, file, sensitive[], schema, values,
-hash}], placeholders{"%token%": value}}`. `palette` is the server's colour
-tokens as hex, `placeholders` what each `%placeholder%` found in the values
-reads as for the admin who opened the session, so the preview can show
-`%player_name%` as a name.
+**Index** (the open): `{version: 2, server{id, platform, software, bukkit,
+lib, language, smallText, palette}, issuer{name, player}, plugins[{name,
+version, editable, subjects[{key, id, title, kind, group, file,
+sensitive[]}]}]}`. `plugins` lists every enabled Exylia plugin, editable or
+not; `subjects` is metadata only, empty when the sender may edit nothing
+there. `file` is the path relative to the data folder without `.yml`
+(`menus/user/mines`, `lang/en/messages`), or `""` for entries a plugin stores.
+
+**Plugin payload** (one PUT per plugin, one after another once the index was
+accepted, and again for every plugin a change touched once it is applied):
+`{subjects[{key, plugin, id, title, kind, group, file, sensitive[], schema,
+values, hash}], enums{Class: [values]}, placeholders{"%token%": value}}`. An
+enum node in a schema that carries a `class` has its `values` moved into
+`enums[class]`, sent once per plugin; a class name another enum of the same
+plugin already took with different values keeps its own inline. `placeholders`
+is what each `%placeholder%` found in the plugin's values reads as for the
+admin who opened the session, so the preview can show `%player_name%` as a
+name. `palette` is the server's colour tokens as hex.
+
+Version 1 servers (1.304.0 to 1.306.0) sent one snapshot with every subject's
+schema and values inline and `applied` with `{"outcome","snapshot"}`.
 
 ## Threads
 
-Registration is safe from any thread. `open` builds the snapshot where it is
-called (placeholders resolve there) and uploads it asynchronously. `apply`
-fetches asynchronously, then decodes, compares, writes and runs `onApplied` on
-the global thread. Chat goes to the sender from whichever thread finished.
+Registration is safe from any thread. `open` checks permissions and reads the
+plugin list where it is called; discovery, reading files and the uploads run
+on the async scheduler, and each plugin's `EntryStore.entries()` and
+placeholders are read on the global thread on the way. `apply` fetches
+asynchronously, then decodes, compares, writes and runs `onApplied` (and a
+discovered subject's `Reloads`) on the global thread; the `applied` call and
+the re-uploads go back off it. Chat goes to the sender from whichever thread
+finished.
 
 ## Reload
 
@@ -228,7 +313,7 @@ as it is built. `invalidateAll()` does not apply.
 
 `net.exylia.lib.web` — `WebEditor`, `PluginWebEditor`, `Subject`, `YamlSubject`, `EntryStore`.
 `net.exylia.lib.web.internal` — `WebEditorRuntime` (registry, sessions, open,
-apply, trust), `Source` (a record file, a `YamlSource` or an `EntrySource`), `Snapshot`, `ValueCodec`, `Diff`, `EditorClient` and
+apply, trust), `Discovery`, `Source` (a record file, a `YamlSource` or an `EntrySource`), `Snapshot`, `ValueCodec`, `Diff`, `EditorClient` and
 `HttpEditorClient`, `EditorMessages`. `net.exylia.lib.internal.EditorCommand`
 is the Lamp command. `net.exylia.lib.config.internal.RecordJson` is the
 schema-and-values bridge next to the binder.

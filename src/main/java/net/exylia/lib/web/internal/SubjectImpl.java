@@ -24,6 +24,9 @@ class SubjectImpl implements Subject {
     private final String id;
     private final Source source;
     private final String kind;
+    private volatile String group = "content";
+    /** Found by discovery rather than registered: applying it runs the plugin's declared reload. */
+    private volatile boolean discovered;
     private volatile String title;
     private volatile String permission;
     private final List<String> sensitive = new CopyOnWriteArrayList<>();
@@ -68,6 +71,22 @@ class SubjectImpl implements Subject {
     @Override
     public @NotNull String kind() {
         return kind;
+    }
+
+    @Override
+    public @NotNull String group() {
+        return group;
+    }
+
+    /** Files a discovered subject; registered ones stay {@code content}. */
+    SubjectImpl discovered(String group) {
+        this.group = group;
+        this.discovered = true;
+        return this;
+    }
+
+    boolean isDiscovered() {
+        return discovered;
     }
 
     @Override

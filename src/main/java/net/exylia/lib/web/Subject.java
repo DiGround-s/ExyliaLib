@@ -35,6 +35,16 @@ public interface Subject {
     /** The screen the editor draws it with; {@link #GENERIC} for the form. */
     @NotNull String kind();
 
+    /**
+     * Where the editor files it: {@code content} for what a plugin registers (this method's
+     * answer for every subject made through {@link PluginWebEditor}); a subject the library
+     * discovered on its own is {@code settings}, {@code messages}, {@code menus} or
+     * {@code files}.
+     *
+     * @since 1.307.0
+     */
+    @NotNull String group();
+
     /** What the editor calls it: the title set, or the id capitalised. */
     @NotNull String title();
 

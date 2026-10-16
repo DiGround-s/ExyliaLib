@@ -6,7 +6,7 @@ import org.jetbrains.annotations.Nullable;
 import java.io.IOException;
 
 /**
- * The four things the server says to the editor. Behind an interface so the runtime is tested
+ * The five things the server says to the editor (protocol v2). Behind an interface so the runtime is tested
  * without a network; {@link HttpEditorClient} is the one that talks.
  *
  * <p>Every call is a request the server makes, authorised by the session's secret in a header.
@@ -46,18 +46,21 @@ interface EditorClient {
         }
     }
 
-    Opened open(String secret, JsonObject snapshot) throws IOException;
+    /** Opens a session with the index: the server and each plugin's subjects, metadata only. */
+    Opened open(String secret, JsonObject index) throws IOException;
+
+    /** Replaces what the editor has for one plugin: its subjects whole, their enums and placeholders. */
+    void uploadPlugin(String code, String secret, String plugin, JsonObject payload) throws IOException;
 
     /** The oldest change saved and not applied, or {@code null} when there is none. */
     @Nullable Pending pending(String code, String secret) throws IOException;
 
     /**
-     * Tells the editor a change was applied, with a fresh snapshot so editing continues from
-     * what the server has now.
+     * Tells the editor a change was applied; the plugins it touched are uploaded again after.
      *
      * @param outcome what was applied and what was refused, per subject key
      */
-    void applied(String code, String secret, String changeId, JsonObject outcome, JsonObject snapshot) throws IOException;
+    void applied(String code, String secret, String changeId, JsonObject outcome) throws IOException;
 
     Trust trust(String code, String secret, String challenge) throws IOException;
 }

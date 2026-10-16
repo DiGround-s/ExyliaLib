@@ -1253,3 +1253,6 @@
 '{letters}{highlight}{0} {letters}subjects, ready to edit in your browser.': '{letters}{highlight}{0} {letters}éléments, prêts à modifier dans votre navigateur.'
 '{success}&l[✔ OPEN THE EDITOR]': '{success}&l[✔ OUVRIR L''ÉDITEUR]'
 '{warning}&l[✔ APPLY ANYWAY]': '{warning}&l[✔ APPLIQUER QUAND MÊME]'
+'{error}{0} is {1} MB, over the {2} MB the editor takes for one plugin; it was left out.': '{error}{0} pèse {1} Mo, plus que les {2} Mo que l''éditeur accepte par plugin ; il a été laissé de côté.'
+'{muted}The other plugins are in the editor as usual.': '{muted}Les autres plugins sont dans l''éditeur comme d''habitude.'
+'{error}{0} could not be sent to the editor: {1}': '{error}{0} n''a pas pu être envoyé à l''éditeur : {1}'

@@ -68,8 +68,12 @@ public final class Menus {
      * @return its menus
      */
     public static @NotNull PluginMenus of(@NotNull Plugin plugin) {
-        return of(plugin, plugin.getName().toLowerCase(Locale.ROOT)
-                .replaceAll("[^a-z0-9_.-]", ""));
+        return of(plugin, derivedNamespace(plugin));
+    }
+
+    /** The namespace {@link #of(Plugin)} uses: the plugin's name, lower case. */
+    static String derivedNamespace(Plugin plugin) {
+        return plugin.getName().toLowerCase(Locale.ROOT).replaceAll("[^a-z0-9_.-]", "");
     }
 
     /**

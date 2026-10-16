@@ -19,8 +19,8 @@ import org.jetbrains.annotations.Nullable;
  *         .onApplied(this::reloadFile);
  * }</pre>
  *
- * <p>From then on {@code /exylialib editor} snapshots every registered file, uploads it to
- * the editor and answers with a link. The admin edits in the browser, and
+ * <p>From then on {@code /exylialib editor} opens a session with an index of what is
+ * editable, answers with a link, and uploads each plugin's subjects one after another. The admin edits in the browser, and
  * {@code /exylialib editor apply <code>}, typed in game, brings the result back: it is read
  * through the same binder as the YAML file, compared with what the server has now, and
  * written through {@link net.exylia.lib.config.ConfigFile#update}. Nothing reaches the server
@@ -32,6 +32,14 @@ import org.jetbrains.annotations.Nullable;
  * alone; a {@code kind} names a richer screen the editor ships for that shape, such as the
  * hologram editor with its preview. A subject without a kind is edited as a form.
  *
+ * <h2>Discovery</h2>
+ * Since 1.307.0 every enabled Exylia plugin's config files and other YAML files are editable
+ * without registering them, by whoever holds {@code exylialib.editor}: settings, the active
+ * language's messages, menus (checked by the plugin's menu compiler) and any other file.
+ * Applying one runs the plugin's declared {@link net.exylia.lib.reload.Reloads}. A registered
+ * subject covering a file wins; {@link PluginWebEditor#exclude} and
+ * {@link PluginWebEditor#discover} opt out.
+ *
  * <h2>Security</h2>
  * The server never listens: every exchange is a request it makes. The link carries only a
  * public code; the secret that authorises reading a change back stays in memory on the server
@@ -42,9 +50,10 @@ import org.jetbrains.annotations.Nullable;
  * snapshot, are shown first and applied only with {@code confirm}.
  *
  * <h2>Threads</h2>
- * Registration is safe from any thread. {@link #open} builds the snapshot where it is called
- * (placeholders are resolved there) and talks to the editor asynchronously. Applying runs the
- * file update and the {@code onApplied} listener on the global thread.
+ * Registration is safe from any thread. {@link #open} checks permissions where it is called;
+ * discovery, file reads and every request run asynchronously, and entries and placeholders are
+ * read on the global thread. Applying runs the file update and the {@code onApplied} listener
+ * on the global thread.
  *
  * @since 1.304.0
  */

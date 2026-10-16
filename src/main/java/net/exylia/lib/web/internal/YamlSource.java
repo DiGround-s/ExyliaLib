@@ -35,9 +35,9 @@ import java.util.function.Function;
  * a key whose type differs between entries is {@code any}. Comments above a key become its
  * help text and survive the write, as do the header and footer.
  *
- * <p>Read from disk on every snapshot and apply, on the thread the admin's command runs on, as
- * the plugin's own reload would; these are files an admin edits by hand, measured in
- * kilobytes.
+ * <p>Read from disk on every upload (off the main thread) and every apply (on the global
+ * thread, as the plugin's own reload would); these are files an admin edits by hand, measured
+ * in kilobytes.
  */
 final class YamlSource implements Source {
 
@@ -60,6 +60,11 @@ final class YamlSource implements Source {
     @Override
     public String name() {
         return name;
+    }
+
+    @Override
+    public File disk() {
+        return file;
     }
 
     @Override

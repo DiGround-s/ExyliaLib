@@ -12,6 +12,11 @@ import org.jetbrains.annotations.NotNull;
  * registration, so a plugin that re-enables a module re-registers freely. Everything a plugin
  * registered is forgotten when it is disabled.
  *
+ * <p>On top of what it registers, every file of the plugin is offered on its own (since
+ * 1.307.0): its config files and any other YAML in its data folder, to whoever holds
+ * {@code exylialib.editor}. A registered subject covering a file wins over the discovered one;
+ * {@link #exclude} and {@link #discover} narrow or turn that off.
+ *
  * @since 1.304.0
  */
 public final class PluginWebEditor {
@@ -117,6 +122,45 @@ public final class PluginWebEditor {
     public <R extends Record> @NotNull Subject entries(@NotNull String id, @NotNull Class<R> type,
                                                        @NotNull EntryStore<R> store, @NotNull String kind) {
         return WebEditorRuntime.get().registerEntries(plugin, id, type, store, kind);
+    }
+
+    /**
+     * Keeps files out of discovery: the library offers every YAML file in the data folder that
+     * no subject covers, and these are the ones it should not.
+     *
+     * <p>Paths relative to the data folder, with or without {@code .yml}; {@code *} stands for
+     * any part of one folder or file name and {@code **} for any number of folders. A pattern
+     * that matches a folder keeps out everything in it.
+     *
+     * <pre>{@code
+     * WebEditor.of(this).exclude("arenas/**", "generated/*.yml");
+     * }</pre>
+     *
+     * <p>Folders the plugin writes for itself ({@code data}, {@code players}, {@code storage},
+     * {@code cache}...) and folders it regenerates from its jar are already left out.
+     *
+     * @param globs the patterns to add to the ones given before
+     * @return this handle
+     * @since 1.307.0
+     */
+    public @NotNull PluginWebEditor exclude(@NotNull String... globs) {
+        WebEditorRuntime.get().exclude(plugin.getName(), globs);
+        return this;
+    }
+
+    /**
+     * Turns discovery on or off for this plugin. On by default: every config file the plugin
+     * defined through {@link net.exylia.lib.config.Configs}, and every other YAML file in its
+     * data folder, is editable by whoever holds {@code exylialib.editor}. Off, only the subjects
+     * the plugin registers are.
+     *
+     * @param discover whether the library looks for the plugin's files
+     * @return this handle
+     * @since 1.307.0
+     */
+    public @NotNull PluginWebEditor discover(boolean discover) {
+        WebEditorRuntime.get().discover(plugin.getName(), discover);
+        return this;
     }
 
     /**

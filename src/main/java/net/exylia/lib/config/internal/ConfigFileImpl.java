@@ -305,6 +305,16 @@ public final class ConfigFileImpl<T> implements ConfigFile<T> {
         return plugin == other;
     }
 
+    /** The file's path relative to the data folder, slash-separated and without {@code .yml}. */
+    public String path() {
+        return path;
+    }
+
+    /** Whether the file lives in the plugin's language folder ({@code lang/<code>/}). */
+    public boolean translated() {
+        return translated;
+    }
+
     /** Returns the owning plugin, which identifies one load of it. */
     public Plugin owner() {
         return plugin;

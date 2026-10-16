@@ -67,6 +67,19 @@ final class EditorMessages {
                 + Phrases.tr("{info}&l[TRUST]") + "</hover></click>";
     }
 
+    static String pluginTooLarge(String plugin, int bytes, int max) {
+        return header()
+                + line(Phrases.tr("{error}{0} is {1} MB, over the {2} MB the editor takes for one plugin; it was left out.",
+                        plugin, bytes / (1024 * 1024), max / (1024 * 1024)))
+                + line(Phrases.tr("{muted}The other plugins are in the editor as usual."));
+    }
+
+    static String pluginNotUploaded(String plugin, String reason) {
+        return header()
+                + line(Phrases.tr("{error}{0} could not be sent to the editor: {1}", plugin, reason))
+                + line(Phrases.tr("{muted}The other plugins are in the editor as usual."));
+    }
+
     static String failed(String what, String reason) {
         return header()
                 + line(Phrases.tr("{error}Could not {0}: {1}", what, reason))

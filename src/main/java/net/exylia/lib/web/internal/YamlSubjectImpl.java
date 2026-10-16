@@ -32,6 +32,11 @@ final class YamlSubjectImpl extends SubjectImpl implements YamlSubject {
         return new YamlSubjectImpl(plugin, id, new YamlSource(file, path), kind);
     }
 
+    /** A file discovery found: already inside the data folder, so its path is not held to {@link #PATH}. */
+    static YamlSubjectImpl of(Plugin plugin, String id, File file, String path, String kind) {
+        return new YamlSubjectImpl(plugin, id, new YamlSource(file, path), kind);
+    }
+
     @Override
     public @NotNull YamlSubject check(@NotNull Function<ConfigurationSection, List<String>> checker) {
         yaml.check(checker);

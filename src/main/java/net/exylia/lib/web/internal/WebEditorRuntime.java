@@ -10,6 +10,7 @@ import net.exylia.lib.ExyliaLib;
 import net.exylia.lib.config.ConfigFile;
 import net.exylia.lib.debug.Debug;
 import net.exylia.lib.internal.LibrarySettings;
+import net.exylia.lib.reload.Reloads;
 import net.exylia.lib.task.Tasks;
 import net.exylia.lib.text.Text;
 import net.exylia.lib.web.EntryStore;
@@ -28,7 +29,9 @@ import java.security.SecureRandom;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Base64;
+import java.util.Collection;
 import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -66,11 +69,25 @@ public final class WebEditorRuntime {
 
     private static volatile WebEditorRuntime instance;
 
-    /** One open session, as the server remembers it. */
-    record Session(String code, String url, String secret, @Nullable String scope, Set<String> subjectKeys) {
+    /**
+     * One open session, as the server remembers it.
+     *
+     * @param plugins     the plugins uploaded, in order
+     * @param subjectKeys every subject the session covers
+     * @param discovered  the subjects discovery found for it, by key; registered ones are looked
+     *                    up in the registry, so a re-registration is what applies
+     */
+    record Session(String code, String url, String secret, @Nullable String scope, List<String> plugins,
+                   Set<String> subjectKeys, Map<String, SubjectImpl> discovered) {
+    }
+
+    /** A plugin's opt-outs from discovery. */
+    private record Options(List<String> excluded, boolean discover) {
+        static final Options DEFAULT = new Options(List.of(), true);
     }
 
     private final Map<String, Map<String, SubjectImpl>> registry = new ConcurrentHashMap<>();
+    private final Map<String, Options> options = new ConcurrentHashMap<>();
     private final Cache<String, Session> sessions = Caffeine.newBuilder()
             .expireAfterWrite(SESSION_LIFETIME)
             .maximumSize(MAX_SESSIONS)
@@ -112,6 +129,7 @@ public final class WebEditorRuntime {
         if (current != null) {
             current.sessions.invalidateAll();
             current.registry.clear();
+            current.options.clear();
         }
     }
 
@@ -133,6 +151,7 @@ public final class WebEditorRuntime {
         WebEditorRuntime current = instance;
         if (current != null) {
             current.registry.remove(pluginName);
+            current.options.remove(pluginName);
         }
     }
 
@@ -159,6 +178,29 @@ public final class WebEditorRuntime {
         return subject;
     }
 
+    public void exclude(String pluginName, String... globs) {
+        options.merge(pluginName, new Options(List.of(globs), true), (known, added) -> {
+            List<String> all = new ArrayList<>(known.excluded());
+            added.excluded().stream().filter(glob -> !all.contains(glob)).forEach(all::add);
+            return new Options(List.copyOf(all), known.discover());
+        });
+    }
+
+    public void discover(String pluginName, boolean discover) {
+        options.merge(pluginName, new Options(List.of(), discover),
+                (known, added) -> new Options(known.excluded(), discover));
+    }
+
+    private Options options(String pluginName) {
+        return options.getOrDefault(pluginName, Options.DEFAULT);
+    }
+
+    /** Whether discovery may offer this plugin's files. */
+    private boolean discoverable(Plugin plugin) {
+        return plugin.isEnabled() && Snapshot.EXYLIA.matcher(plugin.getName()).matches()
+                && options(plugin.getName()).discover();
+    }
+
     public void unregister(String pluginName, String id) {
         Map<String, SubjectImpl> subjects = registry.get(pluginName);
         if (subjects != null) {
@@ -171,13 +213,16 @@ public final class WebEditorRuntime {
             return false;
         }
         if (scope == null) {
-            return registry.values().stream().anyMatch(subjects -> !subjects.isEmpty());
+            return registry.values().stream().anyMatch(subjects -> !subjects.isEmpty())
+                    || Snapshot.exyliaPlugins().stream().anyMatch(this::discoverable);
         }
-        Map<String, SubjectImpl> subjects = registry.get(resolveScope(scope));
-        return subjects != null && !subjects.isEmpty();
+        String name = resolveScope(scope);
+        Map<String, SubjectImpl> subjects = registry.get(name);
+        return subjects != null && !subjects.isEmpty()
+                || Snapshot.exyliaPlugins().stream().anyMatch(plugin -> plugin.getName().equals(name) && discoverable(plugin));
     }
 
-    /** The plugins with at least one subject, for suggestions and the snapshot. */
+    /** The plugins with at least one subject or files to discover, for suggestions. */
     public @NotNull Set<String> editablePlugins() {
         Set<String> names = new java.util.TreeSet<>(String.CASE_INSENSITIVE_ORDER);
         registry.forEach((name, subjects) -> {
@@ -185,6 +230,7 @@ public final class WebEditorRuntime {
                 names.add(name);
             }
         });
+        Snapshot.exyliaPlugins().stream().filter(this::discoverable).forEach(plugin -> names.add(plugin.getName()));
         return names;
     }
 
@@ -202,6 +248,11 @@ public final class WebEditorRuntime {
         for (String name : registry.keySet()) {
             if (name.equalsIgnoreCase(scope)) {
                 return name;
+            }
+        }
+        for (Plugin plugin : Snapshot.exyliaPlugins()) {
+            if (plugin.getName().equalsIgnoreCase(scope)) {
+                return plugin.getName();
             }
         }
         return scope;
@@ -229,46 +280,181 @@ public final class WebEditorRuntime {
     // Open
     // ------------------------------------------------------------------
 
+    /**
+     * Opens a session. Permissions and the plugin list are read here, on the caller's thread;
+     * discovery, the index and the uploads run on the async scheduler, and each plugin's
+     * entries and placeholders hop to the global thread on the way.
+     */
     public void open(@NotNull CommandSender sender, @Nullable String scope) {
         LibrarySettings current = settings.get();
         if (!current.webEditor().enabled()) {
             tell(sender, EditorMessages.disabled());
             return;
         }
-        List<SubjectImpl> subjects = visible(sender, scope);
-        if (subjects.isEmpty()) {
+        String wanted = scope == null ? null : resolveScope(scope);
+        Map<String, List<SubjectImpl>> explicit = new LinkedHashMap<>();
+        visible(sender, scope).forEach(subject ->
+                explicit.computeIfAbsent(subject.plugin().getName(), name -> new ArrayList<>()).add(subject));
+        boolean mayDiscover = sender.hasPermission(Discovery.PERMISSION);
+        Map<String, Plugin> listed = new LinkedHashMap<>();
+        for (Plugin plugin : Snapshot.exyliaPlugins()) {
+            listed.put(plugin.getName(), plugin);
+        }
+        explicit.values().forEach(subjects -> listed.putIfAbsent(subjects.get(0).plugin().getName(), subjects.get(0).plugin()));
+        List<Snapshot.Listed> plugins = new ArrayList<>();
+        List<Plugin> toDiscover = new ArrayList<>();
+        Map<String, List<SubjectImpl>> registered = new LinkedHashMap<>();
+        for (Plugin plugin : listed.values()) {
+            plugins.add(Snapshot.listed(plugin));
+            if (mayDiscover && (wanted == null || wanted.equals(plugin.getName())) && discoverable(plugin)) {
+                toDiscover.add(plugin);
+                Map<String, SubjectImpl> all = registry.get(plugin.getName());
+                registered.put(plugin.getName(), all == null ? List.of() : List.copyOf(all.values()));
+            }
+        }
+        if (explicit.isEmpty() && toDiscover.isEmpty()) {
             tell(sender, EditorMessages.nothingToEdit(scope));
             return;
         }
-        JsonObject snapshot;
-        try {
-            snapshot = Snapshot.build(serverId.get(), version, current, sender, subjects, editablePlugins());
-        } catch (RuntimeException failure) {
-            debug.error("Could not describe the editor subjects", failure);
-            tell(sender, EditorMessages.failed("describe the subjects", failure.toString()));
-            return;
-        }
-        int bytes = GSON.toJson(snapshot).getBytes(StandardCharsets.UTF_8).length;
-        if (bytes > Snapshot.MAX_BYTES) {
-            tell(sender, EditorMessages.tooLarge(bytes, Snapshot.MAX_BYTES));
-            return;
-        }
-        Set<String> keys = new LinkedHashSet<>();
-        subjects.forEach(subject -> keys.add(subject.key()));
-        Set<String> plugins = new LinkedHashSet<>();
-        subjects.forEach(subject -> plugins.add(subject.plugin().getName()));
+        plugins.sort(Comparator.comparing(Snapshot.Listed::name, String.CASE_INSENSITIVE_ORDER));
         String secret = secret();
-        String resolvedScope = scope == null ? null : resolveScope(scope);
         async.accept(() -> {
+            Map<String, List<SubjectImpl>> subjects = new LinkedHashMap<>();
+            Map<String, SubjectImpl> discovered = new LinkedHashMap<>();
+            for (Snapshot.Listed plugin : plugins) {
+                List<SubjectImpl> own = new ArrayList<>(explicit.getOrDefault(plugin.name(), List.of()));
+                Plugin found = listed.get(plugin.name());
+                if (toDiscover.contains(found)) {
+                    try {
+                        for (SubjectImpl subject : Discovery.discover(found, registered.get(plugin.name()),
+                                options(plugin.name()).excluded())) {
+                            own.add(subject);
+                            discovered.put(subject.key(), subject);
+                        }
+                    } catch (RuntimeException failure) {
+                        debug.error("Could not look through the files of " + plugin.name(), failure);
+                    }
+                }
+                if (!own.isEmpty()) {
+                    subjects.put(plugin.name(), own);
+                }
+            }
+            if (subjects.isEmpty()) {
+                tell(sender, EditorMessages.nothingToEdit(scope));
+                return;
+            }
+            JsonObject index;
             try {
-                EditorClient.Opened opened = client(current).open(secret, snapshot);
-                sessions.put(opened.code(), new Session(opened.code(), opened.url(), secret, resolvedScope, keys));
-                tell(sender, EditorMessages.opened(opened.url(), opened.code(), subjects.size()));
+                index = Snapshot.index(serverId.get(), version, current, sender, plugins, subjects);
+            } catch (RuntimeException failure) {
+                debug.error("Could not describe the editor subjects", failure);
+                tell(sender, EditorMessages.failed("describe the subjects", failure.toString()));
+                return;
+            }
+            int bytes = GSON.toJson(index).getBytes(StandardCharsets.UTF_8).length;
+            if (bytes > Snapshot.MAX_BYTES) {
+                tell(sender, EditorMessages.tooLarge(bytes, Snapshot.MAX_BYTES));
+                return;
+            }
+            Set<String> keys = new LinkedHashSet<>();
+            subjects.values().forEach(own -> own.forEach(subject -> keys.add(subject.key())));
+            Session session;
+            try {
+                EditorClient.Opened opened = client(current).open(secret, index);
+                session = new Session(opened.code(), opened.url(), secret, wanted, List.copyOf(subjects.keySet()),
+                        keys, Map.copyOf(discovered));
+                sessions.put(opened.code(), session);
             } catch (IOException | RuntimeException failure) {
                 debug.debug("Web editor session not opened: " + failure);
                 tell(sender, EditorMessages.failed("open a session", describe(failure)));
+                return;
             }
+            tell(sender, EditorMessages.opened(session.url(), session.code(), keys.size()));
+            upload(sender, session, current, session.plugins());
         });
+    }
+
+    /** Uploads plugins one after another; one that fails is told and the next still goes. */
+    private CompletableFuture<Void> upload(CommandSender sender, Session session, LibrarySettings current,
+                                           Collection<String> plugins) {
+        CompletableFuture<Void> chain = CompletableFuture.completedFuture(null);
+        for (String plugin : plugins) {
+            chain = chain.thenCompose(ignored -> uploadPlugin(sender, session, current, plugin));
+        }
+        return chain;
+    }
+
+    /**
+     * Describes and uploads one plugin's subjects. Called on the async scheduler: what is read
+     * from a file is read there, entries and placeholders on the global thread, then the upload
+     * back off it. The future always completes normally; a failure is the admin's chat line.
+     */
+    private CompletableFuture<Void> uploadPlugin(CommandSender sender, Session session, LibrarySettings current,
+                                                 String plugin) {
+        CompletableFuture<Void> done = new CompletableFuture<>();
+        List<SubjectImpl> subjects = new ArrayList<>();
+        for (String key : session.subjectKeys()) {
+            SubjectImpl subject = key.startsWith(plugin + "/") ? subjectOf(session, key) : null;
+            if (subject != null && subject.visibleTo(sender)) {
+                subjects.add(subject);
+            }
+        }
+        JsonObject[] described = new JsonObject[subjects.size()];
+        try {
+            for (int i = 0; i < described.length; i++) {
+                if (!subjects.get(i).source().global()) {
+                    described[i] = Snapshot.subject(subjects.get(i));
+                }
+            }
+        } catch (RuntimeException failure) {
+            notUploaded(sender, plugin, failure);
+            return CompletableFuture.completedFuture(null);
+        }
+        sync.accept(() -> {
+            JsonObject placeholders;
+            try {
+                for (int i = 0; i < described.length; i++) {
+                    if (described[i] == null) {
+                        described[i] = Snapshot.subject(subjects.get(i));
+                    }
+                }
+                placeholders = Snapshot.placeholders(List.of(described), sender);
+            } catch (RuntimeException failure) {
+                notUploaded(sender, plugin, failure);
+                done.complete(null);
+                return;
+            }
+            async.accept(() -> {
+                try {
+                    JsonObject payload = Snapshot.payload(List.of(described), placeholders);
+                    int bytes = GSON.toJson(payload).getBytes(StandardCharsets.UTF_8).length;
+                    if (bytes > Snapshot.MAX_BYTES) {
+                        tell(sender, EditorMessages.pluginTooLarge(plugin, bytes, Snapshot.MAX_BYTES));
+                        return;
+                    }
+                    client(current).uploadPlugin(session.code(), session.secret(), plugin, payload);
+                } catch (IOException | RuntimeException failure) {
+                    notUploaded(sender, plugin, failure);
+                } finally {
+                    done.complete(null);
+                }
+            });
+        });
+        return done;
+    }
+
+    private void notUploaded(CommandSender sender, String plugin, Throwable failure) {
+        debug.debug("Web editor did not upload " + plugin + ": " + failure);
+        tell(sender, EditorMessages.pluginNotUploaded(plugin, describe(failure)));
+    }
+
+    /** A subject of a session: the one discovery found, or the registered one, which re-registering replaces. */
+    private @Nullable SubjectImpl subjectOf(Session session, String key) {
+        if (!session.subjectKeys().contains(key)) {
+            return null;
+        }
+        SubjectImpl discovered = session.discovered().get(key);
+        return discovered != null ? discovered : find(key);
     }
 
     // ------------------------------------------------------------------
@@ -318,7 +504,7 @@ public final class WebEditorRuntime {
 
         for (Map.Entry<String, JsonElement> entry : pending.subjects().entrySet()) {
             String key = entry.getKey();
-            SubjectImpl subject = session.subjectKeys().contains(key) ? find(key) : null;
+            SubjectImpl subject = subjectOf(session, key);
             if (subject == null) {
                 String reason = EditorMessages.unknownSubject(key);
                 lines.add(EditorMessages.rejectedLine(key, reason));
@@ -428,25 +614,59 @@ public final class WebEditorRuntime {
             appliedKeys.add(item.subject().key());
             lines.add(EditorMessages.appliedLine(item.subject().title(), item.changes()));
         }
+        runReloads(planned, writes);
         tell(sender, EditorMessages.applied(lines));
 
         JsonObject outcome = new JsonObject();
         outcome.add("applied", appliedKeys);
         outcome.add("rejected", rejected);
-        List<SubjectImpl> remaining = new ArrayList<>();
-        for (String key : session.subjectKeys()) {
-            SubjectImpl subject = find(key);
-            if (subject != null && subject.visibleTo(sender)) {
-                remaining.add(subject);
+        Set<String> touched = new LinkedHashSet<>();
+        for (String key : pending.subjects().keySet()) {
+            SubjectImpl subject = subjectOf(session, key);
+            if (subject != null) {
+                touched.add(subject.plugin().getName());
             }
         }
-        JsonObject fresh = Snapshot.build(serverId.get(), version, current, sender, remaining, editablePlugins());
         async.accept(() -> {
             try {
-                client(current).applied(session.code(), session.secret(), pending.id(), outcome, fresh);
+                client(current).applied(session.code(), session.secret(), pending.id(), outcome);
             } catch (IOException | RuntimeException failure) {
                 debug.debug("Web editor change not marked applied: " + failure);
                 tell(sender, EditorMessages.failed("tell the editor it was applied", describe(failure)));
+                return;
+            }
+            upload(sender, session, current, touched);
+        });
+    }
+
+    /**
+     * What follows a write to a discovered subject: the plugin's declared {@code Reloads}, once
+     * per plugin however many of its files changed. A plugin that declares none still has each
+     * written record file re-read, so its {@code onReload} listeners run.
+     */
+    private void runReloads(List<Planned> planned, List<CompletableFuture<Void>> writes) {
+        Map<String, List<SubjectImpl>> written = new LinkedHashMap<>();
+        for (int i = 0; i < planned.size(); i++) {
+            Planned item = planned.get(i);
+            if (item.subject().isDiscovered() && item.changes() > 0 && failureOf(writes.get(i)) == null) {
+                written.computeIfAbsent(item.subject().plugin().getName(), name -> new ArrayList<>()).add(item.subject());
+            }
+        }
+        written.forEach((plugin, subjects) -> {
+            try {
+                Reloads reloads = Reloads.declared(plugin);
+                if (reloads != null) {
+                    reloads.run();
+                    return;
+                }
+                for (SubjectImpl subject : subjects) {
+                    ConfigFile<?> file = subject.file();
+                    if (file != null) {
+                        file.reload();
+                    }
+                }
+            } catch (Throwable thrown) {
+                Debug.of(subjects.get(0).plugin()).error("The web editor wrote " + plugin + "'s files, but reloading it threw", thrown);
             }
         });
     }

@@ -19,6 +19,16 @@ interface Source {
     /** The file, relative to the plugin's data folder and without {@code .yml}; empty when not a file. */
     String name();
 
+    /** The file it reads and writes, or {@code null} when it is not one file. */
+    default @Nullable java.io.File disk() {
+        return null;
+    }
+
+    /** Whether reading it has to happen on the global thread: entries live in the plugin's memory. */
+    default boolean global() {
+        return false;
+    }
+
     /** What the browser draws the form from. */
     JsonObject schema(String pluginName);
 
@@ -58,7 +68,12 @@ interface Source {
 
         @Override
         public String name() {
-            return file.name();
+            return file instanceof net.exylia.lib.config.internal.ConfigFileImpl<?> impl ? impl.path() : file.name();
+        }
+
+        @Override
+        public java.io.File disk() {
+            return file instanceof net.exylia.lib.config.internal.ConfigFileImpl<?> impl ? impl.file() : null;
         }
 
         @Override

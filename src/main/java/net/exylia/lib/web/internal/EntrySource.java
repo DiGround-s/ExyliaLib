@@ -52,6 +52,11 @@ final class EntrySource<R extends Record> implements Source {
     }
 
     @Override
+    public boolean global() {
+        return true;
+    }
+
+    @Override
     public JsonObject schema(String pluginName) {
         JsonObject map = new JsonObject();
         map.addProperty("type", "map");

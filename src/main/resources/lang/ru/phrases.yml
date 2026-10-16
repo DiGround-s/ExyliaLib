@@ -1253,3 +1253,6 @@
 '{letters}{highlight}{0} {letters}subjects, ready to edit in your browser.': '{letters}{highlight}{0} {letters}разделов готовы к редактированию в браузере.'
 '{success}&l[✔ OPEN THE EDITOR]': '{success}&l[✔ ОТКРЫТЬ РЕДАКТОР]'
 '{warning}&l[✔ APPLY ANYWAY]': '{warning}&l[✔ ПРИМЕНИТЬ ВСЁ РАВНО]'
+'{error}{0} is {1} MB, over the {2} MB the editor takes for one plugin; it was left out.': '{error}{0} занимает {1} МБ, больше {2} МБ, которые редактор принимает на плагин; он пропущен.'
+'{muted}The other plugins are in the editor as usual.': '{muted}Остальные плагины в редакторе как обычно.'
+'{error}{0} could not be sent to the editor: {1}': '{error}{0} не удалось отправить в редактор: {1}'
