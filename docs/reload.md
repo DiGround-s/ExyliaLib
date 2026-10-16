@@ -24,6 +24,7 @@ that one.
 | `/exylialib import <plugin> <file> [force]` (since 1.36.0) | Reads one back; `force` **merges**, it does not replace |
 | `/exylialib wipe <plugin> <table\|*> [code]` (since 1.76.0) | Empties one table or all of them (`*` or `all`), after a typed confirmation and an automatic dump |
 | `/exylialib logs <player\|*> [plugin] [action]` (since 1.296.0) | The staff audit log every plugin records into: a menu in game, the newest lines in the console. Its own permission, `exylialib.logs`; see [logs.md](logs.md) |
+| `/exylialib editor [plugin]`, `editor apply <code> [confirm]`, `editor trust <code> <challenge>` (since 1.304.0) | The browser editor: open a session, bring its changes down, trust a second browser. Its own permission, `exylialib.editor`; see [web-editor.md](web-editor.md) |
 
 ### `/exylialib reload`
 

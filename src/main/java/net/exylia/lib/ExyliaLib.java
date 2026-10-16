@@ -183,6 +183,7 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         // Right after the settings it reads, and before anything whose errors
         // it should count.
         net.exylia.lib.metrics.internal.MetricsRuntime.start(this);
+        net.exylia.lib.web.internal.WebEditorRuntime.start(this);
         // At STARTUP, before any world loads: whatever a crash left in the
         // temporary world is deleted before anything can load it.
         net.exylia.lib.util.world.TemporaryWorld.start(this);
@@ -615,6 +616,7 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         // Before the tasks go: a report scheduled on a stopped plugin would run
         // inline, on the shutdown thread.
         net.exylia.lib.metrics.internal.MetricsRuntime.stop();
+        net.exylia.lib.web.internal.WebEditorRuntime.stop();
         // Stage any newer release now, while the server is on its way down.
         // The next start applies plugins/update/ before it loads anything, so
         // staging here is what turns updating into a single restart. Run inline
@@ -990,6 +992,7 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         Watchers.release(pluginName);
         net.exylia.lib.util.Effects.release(pluginName);
         net.exylia.lib.metrics.internal.MetricsRuntime.release(pluginName);
+        net.exylia.lib.web.internal.WebEditorRuntime.release(pluginName);
         // And so is taking an overlay off: the player is still here, still
         // looking at buttons whose actions come from a classloader that is
         // going away.

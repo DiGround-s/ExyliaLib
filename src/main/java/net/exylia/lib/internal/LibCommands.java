@@ -9,7 +9,7 @@ import revxrsal.commands.bukkit.actor.BukkitCommandActor;
 /**
  * Registers the library's commands.
  *
- * <p>Lamp is confined to this class and {@link ReloadCommand}: if the
+ * <p>Lamp is confined to this class, {@link ReloadCommand} and {@link EditorCommand}: if the
  * framework were ever swapped, nothing outside this package would change.
  */
 public final class LibCommands {
@@ -28,6 +28,7 @@ public final class LibCommands {
                 .suggestionProviders(providers -> providers.addProviderFactory(Suggestions.filtering()))
                 .build();
         lamp.register(new ReloadCommand(plugin));
+        lamp.register(new EditorCommand());
         LibrarySettings.PlayerSettings.Command settings = LibrarySettings.get().settings().command();
         if (settings.enabled() && settings.name() != null && !settings.name().isBlank()) {
             java.util.List<String> names = new java.util.ArrayList<>();

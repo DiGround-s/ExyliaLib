@@ -14,6 +14,9 @@ permissions:
   exylialib.settings:
     description: Open /settings, when the server enables the library's command.
     default: true
+  exylialib.editor:
+    description: Open the browser editor with /exylialib editor, apply what it saved and trust a second browser.
+    default: op
   exylialib.pendingrewards:
     description: Review the rewards players are still owed, and give or cancel them.
     default: op

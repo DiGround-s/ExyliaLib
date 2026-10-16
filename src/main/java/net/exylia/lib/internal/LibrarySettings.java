@@ -71,6 +71,12 @@ import net.exylia.lib.config.Time;
 @Comment("errors they throw. No player data and no IP addresses. Set enabled to")
 @Comment("false and nothing is ever sent.")
 @Comment("")
+@Comment("web-editor: lets an admin edit the configuration of the Exylia plugins on")
+@Comment("this server from the browser, with /exylialib editor. The server never opens")
+@Comment("a port: it uploads a snapshot, hands back a link, and only /exylialib editor")
+@Comment("apply <code>, typed in game, brings the changes down. Set enabled to false and")
+@Comment("the command refuses.")
+@Comment("")
 @Comment("plugin-updates: keeps the other Exylia plugins up to date the same way,")
 @Comment("from the GitHub releases of the repository each one names. Checked with")
 @Comment("the library's own updates, applied on the next restart.")
@@ -139,6 +145,9 @@ public record LibrarySettings(
 
         @Key("plugin-updates")
         PluginUpdates pluginUpdates,
+
+        @Key("web-editor")
+        WebEditor webEditor,
 
         @Key("webhook-head")
         @Comment("The image a player's head is drawn from in Discord webhook messages; %uuid% is the player's id.")
@@ -309,6 +318,36 @@ public record LibrarySettings(
     }
 
     /**
+     * The {@code web-editor:} block: the browser editor {@code /exylialib editor} opens.
+     *
+     * @param enabled whether a session can be opened at all
+     * @param url     the editor sessions are opened on, without a trailing slash
+     * @since 1.304.0
+     */
+    public record WebEditor(
+            @Comment("Whether /exylialib editor may open a session. Nothing is sent until an admin runs it.")
+            boolean enabled,
+
+            @Comment("The editor sessions are opened on. Only change it to run your own copy.")
+            String url
+    ) {
+
+        /** The default: on, Exylia's own editor. */
+        public WebEditor() {
+            this(true, "https://utils.exylia.net");
+        }
+
+        /** The url without a trailing slash, so paths can be appended to it. */
+        public String baseUrl() {
+            String base = url == null ? "" : url.trim();
+            while (base.endsWith("/")) {
+                base = base.substring(0, base.length() - 1);
+            }
+            return base;
+        }
+    }
+
+    /**
      * The {@code metrics:} block.
      *
      * @param enabled whether anything is sent to stats.exylia.net
@@ -338,7 +377,7 @@ public record LibrarySettings(
     /** Safe defaults used when no config file exists yet. */
     public LibrarySettings() {
         this(Languages.ENGLISH, true, 30, false, true, "auto:0.4", DEFAULT_FALLBACK_HEAD, "", "", "normal", new Metrics(),
-                new PluginUpdates(), DEFAULT_WEBHOOK_HEAD, new PlayerSettings(), new Toasts(), new Notices(), new Logs());
+                new PluginUpdates(), new WebEditor(), DEFAULT_WEBHOOK_HEAD, new PlayerSettings(), new Toasts(), new Notices(), new Logs());
     }
 
     private static volatile LibrarySettings instance;
