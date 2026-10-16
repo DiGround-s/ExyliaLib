@@ -1,5 +1,7 @@
 package net.exylia.lib.util.editor;
 
+import io.papermc.paper.datacomponent.DataComponentType;
+import io.papermc.paper.datacomponent.DataComponentTypes;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
@@ -210,7 +212,9 @@ public final class Loadout {
      * <p>Positions and stack splits do not count: only how many of each kind
      * of item there are. Kinds are matched with {@link ItemStack#isSimilar}
      * rather than by hash, because an item read from storage and the same item
-     * taken from an inventory need not hash alike.
+     * taken from an inventory need not hash alike. Looks are not compared
+     * (names, lore, dye, trims, banner patterns, models), since none of them
+     * gives a player an edge.
      *
      * @param layout    the items the player arranged, in any order
      * @param reference the kit's own items, in any order
@@ -262,14 +266,27 @@ public final class Loadout {
         }
     }
 
+    /** What only changes how an item looks; a holder, since the types need a server to load. */
+    private static final class Looks {
+        static final List<DataComponentType> ALL = List.of(
+                DataComponentTypes.CUSTOM_NAME, DataComponentTypes.ITEM_NAME, DataComponentTypes.LORE,
+                DataComponentTypes.ITEM_MODEL, DataComponentTypes.CUSTOM_MODEL_DATA,
+                DataComponentTypes.ENCHANTMENT_GLINT_OVERRIDE,
+                DataComponentTypes.DYED_COLOR, DataComponentTypes.TRIM,
+                DataComponentTypes.BANNER_PATTERNS, DataComponentTypes.BASE_COLOR);
+    }
+
     /**
-     * An item as an inventory holds it. A kit read from storage keeps the meta
-     * it was written with, and the server can drop part of it on the way into
-     * an inventory (a shield's banner patterns do), so both sides go through
-     * the same conversion before they are compared.
+     * An item as an inventory holds it, without its looks. A kit read from
+     * storage keeps the meta it was written with, and the server can drop part
+     * of it on the way into an inventory (a shield's banner patterns do), so
+     * both sides go through the same conversion before they are compared.
      */
     private static ItemStack asInInventory(ItemStack item) {
-        return Bukkit.getServer() == null ? item : item.ensureServerConversions();
+        if (Bukkit.getServer() == null) return item;
+        ItemStack plain = item.ensureServerConversions().clone();
+        Looks.ALL.forEach(plain::resetData);
+        return plain;
     }
 
     private static @Nullable ItemStack clone(@Nullable ItemStack item) {
