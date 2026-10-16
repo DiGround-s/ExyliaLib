@@ -11,6 +11,8 @@ import org.junit.jupiter.api.Test;
 
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
@@ -26,6 +28,11 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class RedisRuntimeTest {
 
     private Plugin plugin;
+    /**
+     * The test's own threads. The common pool has one thread on a two-core CI runner: a connect
+     * held open on it leaves the lookup that must not wait for it with nowhere to run.
+     */
+    private ExecutorService threads;
 
     @BeforeEach
     void open() {
@@ -33,10 +40,12 @@ class RedisRuntimeTest {
         FakeServer.reset();
         FakeServer.runAsyncForReal();
         plugin = FakeServer.newPlugin("Lobby");
+        threads = Executors.newCachedThreadPool();
     }
 
     @AfterEach
     void close() {
+        threads.shutdownNow();
         RedisRuntime.installForTests(null);
         Tasks.releaseAll();
         FakeServer.reset();
@@ -96,19 +105,19 @@ class RedisRuntimeTest {
         assertNotNull(fast);
 
         CompletableFuture<RedisClient> slow = CompletableFuture.supplyAsync(
-                () -> RedisRuntime.client(plugin, settings(1)));
+                () -> RedisRuntime.client(plugin, settings(1)), threads);
         CompletableFuture<RedisClient> sameSlow = null;
         try {
             assertTrue(connecting.await(5, TimeUnit.SECONDS));
             // Another thread asking for the same Redis joins the attempt in
             // flight instead of dialling it a second time.
-            sameSlow = CompletableFuture.supplyAsync(() -> RedisRuntime.client(plugin, settings(1)));
+            sameSlow = CompletableFuture.supplyAsync(() -> RedisRuntime.client(plugin, settings(1)), threads);
 
             CompletableFuture<RedisClient> lookup = CompletableFuture.supplyAsync(
-                    () -> RedisRuntime.client(plugin, settings(0)));
+                    () -> RedisRuntime.client(plugin, settings(0)), threads);
             assertSame(fast, lookup.get(2, TimeUnit.SECONDS),
                     "an open connection must not wait behind somebody else's connect");
-            assertTrue(CompletableFuture.supplyAsync(RedisRuntime::isActive).get(2, TimeUnit.SECONDS));
+            assertTrue(CompletableFuture.supplyAsync(RedisRuntime::isActive, threads).get(2, TimeUnit.SECONDS));
         } finally {
             release.countDown();
         }
@@ -134,7 +143,7 @@ class RedisRuntimeTest {
         });
         try {
             CompletableFuture<RowCache> lookup = CompletableFuture.supplyAsync(
-                    () -> RedisRuntime.cacheIfOpen(plugin, settings(0)));
+                    () -> RedisRuntime.cacheIfOpen(plugin, settings(0)), threads);
             assertNull(lookup.get(2, TimeUnit.SECONDS), "a connect still under way is not waited for");
         } finally {
             release.countDown();
