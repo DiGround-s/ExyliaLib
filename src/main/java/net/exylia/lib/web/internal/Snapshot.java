@@ -3,7 +3,6 @@ package net.exylia.lib.web.internal;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
-import net.exylia.lib.config.internal.RecordJson;
 import net.exylia.lib.internal.LibrarySettings;
 import net.exylia.lib.placeholder.Placeholders;
 import net.exylia.lib.platform.Platform;
@@ -54,7 +53,7 @@ final class Snapshot {
     record Described(SubjectImpl subject, JsonObject values, String hash) {
 
         static Described of(SubjectImpl subject) {
-            JsonObject values = ValueCodec.toJson(subject.type(), subject.plugin().getName(), subject.file().get());
+            JsonObject values = subject.source().values(subject.plugin().getName());
             return new Described(subject, values, ValueCodec.hash(values));
         }
     }
@@ -77,11 +76,11 @@ final class Snapshot {
             entry.addProperty("id", subject.id());
             entry.addProperty("title", subject.title());
             entry.addProperty("kind", subject.kind());
-            entry.addProperty("file", subject.file().name());
+            entry.addProperty("file", subject.source().name());
             JsonArray sensitive = new JsonArray();
             subject.sensitive().forEach(sensitive::add);
             entry.add("sensitive", sensitive);
-            entry.add("schema", RecordJson.schema(subject.type(), subject.plugin().getName()));
+            entry.add("schema", subject.source().schema(subject.plugin().getName()));
             entry.add("values", item.values());
             entry.addProperty("hash", item.hash());
             described.add(entry);

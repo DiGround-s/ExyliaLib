@@ -134,6 +134,56 @@ class WebEditorRuntimeTest {
     }
 
     @Test
+    void aYamlSubjectIsWrittenAfterThePluginsCheck() throws IOException {
+        java.nio.file.Path catalog = folder.resolve("cosmetics/tags.yml");
+        java.nio.file.Files.createDirectories(catalog.getParent());
+        java.nio.file.Files.writeString(catalog, "tags:\n  star:\n    display: '&e*'\n");
+        AtomicInteger reloaded = new AtomicInteger();
+        runtime.register(plugin, "board", file, "test/board").permission("nobody");
+        runtime.registerYaml(plugin, "tags", "cosmetics/tags", "test/catalog")
+                .check(yaml -> yaml.getString("tags.star.display", "").isBlank() ? List.of("star has no display") : List.of())
+                .onApplied(reloaded::incrementAndGet);
+        java.util.function.Function<String, JsonObject> change = display -> {
+            JsonObject star = new JsonObject();
+            star.addProperty("display", display);
+            JsonObject tags = new JsonObject();
+            tags.add("star", star);
+            JsonObject values = new JsonObject();
+            values.add("tags", tags);
+            return values;
+        };
+
+        CommandSender limited = (CommandSender) Proxy.newProxyInstance(getClass().getClassLoader(),
+                new Class<?>[]{CommandSender.class}, (proxy, method, args) -> switch (method.getName()) {
+                    case "hasPermission" -> !"nobody".equals(args[0]);
+                    case "getName" -> "Admin";
+                    default -> FakeServer.defaultValue(method.getReturnType());
+                });
+        runtime.open(limited, null);
+        String code = editor.lastCode;
+        JsonObject subject = editor.lastSnapshot.getAsJsonArray("subjects").get(0).getAsJsonObject();
+        assertEquals("ExyliaDisplays/tags", subject.get("key").getAsString());
+        assertEquals("cosmetics/tags", subject.get("file").getAsString());
+        assertEquals("map", subject.getAsJsonObject("schema").getAsJsonArray("fields").get(0).getAsJsonObject()
+                .getAsJsonObject("type").get("type").getAsString());
+
+        JsonObject subjects = new JsonObject();
+        subjects.add("ExyliaDisplays/tags", change.apply(""));
+        editor.pending = new EditorClient.Pending("change-1", subjects, new JsonObject(), "a browser");
+        runtime.apply(limited, code, false);
+        assertEquals(0, reloaded.get());
+        assertTrue(editor.appliedOutcome.getAsJsonObject("rejected").get("ExyliaDisplays/tags").getAsString()
+                .contains("star has no display"));
+
+        subjects = new JsonObject();
+        subjects.add("ExyliaDisplays/tags", change.apply("&6*"));
+        editor.pending = new EditorClient.Pending("change-2", subjects, new JsonObject(), "a browser");
+        runtime.apply(limited, code, false);
+        assertEquals(1, reloaded.get());
+        assertTrue(java.nio.file.Files.readString(catalog).contains("display: '&6*'"));
+    }
+
+    @Test
     void aSensitivePathIsHeldBackUntilConfirmed() {
         String code = open();
         JsonObject values = currentValues();

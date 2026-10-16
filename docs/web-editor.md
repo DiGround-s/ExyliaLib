@@ -67,6 +67,37 @@ Registering the same id twice replaces the earlier registration. A plugin's
 subjects are forgotten when it is disabled; `remove(id)` forgets one while the
 plugin keeps running.
 
+## YAML subjects
+
+Settings are records; content often is not. A catalogue of cosmetics or a menu
+is a YAML file its plugin compiles entry by entry, and no record describes it.
+`yaml(id, path)` makes such a file editable all the same (since 1.305.0):
+
+```java
+WebEditor.of(this).yaml("tags", "cosmetics/tags", "chatcosmetics/catalog")
+        .title("Tags")
+        .permission("exyliachatcosmetics.admin")
+        .check(yaml -> catalog.problems(yaml))
+        .onApplied(catalog::reload);
+```
+
+- **Path.** Relative to the data folder, without `.yml`.
+- **Schema, inferred.** From what the file holds: a block whose children are
+  all blocks is a map of named entries, and the keys of every entry are merged,
+  so adding an entry offers every key any entry uses. A key whose type differs
+  between entries (`price: 500` here, `price: {amount, currency}` there) is
+  `any`, edited as whatever it holds. Comments above a key are its help text;
+  the header is the subject's.
+- **Check.** No binder stands in between, so the plugin's own reader does.
+  `check` gets the exact text about to be written, read as the plugin reads it,
+  and answers one line per problem that would stop an entry from loading. Any
+  answer refuses the subject whole; a checker that throws refuses it too.
+  Sensitive paths and console lines are held for `confirm` as for any subject.
+- **Write.** Atomic, in the browser's key order, with the comments of every
+  key that still exists, the header and the footer kept. Keys may hold dots.
+
+`Subject.file()` is `null` for a YAML subject.
+
 ## How a change is read
 
 Through `net.exylia.lib.config.internal.RecordJson`, the same binder the YAML
@@ -162,9 +193,9 @@ as it is built. `invalidateAll()` does not apply.
 
 ## Code
 
-`net.exylia.lib.web` — `WebEditor`, `PluginWebEditor`, `Subject`.
+`net.exylia.lib.web` — `WebEditor`, `PluginWebEditor`, `Subject`, `YamlSubject`.
 `net.exylia.lib.web.internal` — `WebEditorRuntime` (registry, sessions, open,
-apply, trust), `Snapshot`, `ValueCodec`, `Diff`, `EditorClient` and
+apply, trust), `Source` (a record file or a `YamlSource`), `Snapshot`, `ValueCodec`, `Diff`, `EditorClient` and
 `HttpEditorClient`, `EditorMessages`. `net.exylia.lib.internal.EditorCommand`
 is the Lamp command. `net.exylia.lib.config.internal.RecordJson` is the
 schema-and-values bridge next to the binder.

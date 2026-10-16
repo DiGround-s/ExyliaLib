@@ -8,12 +8,12 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import net.exylia.lib.ExyliaLib;
 import net.exylia.lib.config.ConfigFile;
-import net.exylia.lib.config.ConfigIssue;
 import net.exylia.lib.debug.Debug;
 import net.exylia.lib.internal.LibrarySettings;
 import net.exylia.lib.task.Tasks;
 import net.exylia.lib.text.Text;
 import net.exylia.lib.web.Subject;
+import net.exylia.lib.web.YamlSubject;
 import org.bukkit.command.CommandSender;
 import org.bukkit.plugin.Plugin;
 import org.jetbrains.annotations.NotNull;
@@ -139,6 +139,12 @@ public final class WebEditorRuntime {
 
     public @NotNull Subject register(Plugin plugin, String id, ConfigFile<?> file, String kind) {
         SubjectImpl subject = new SubjectImpl(plugin, id, file, kind);
+        registry.computeIfAbsent(plugin.getName(), name -> new ConcurrentHashMap<>()).put(id, subject);
+        return subject;
+    }
+
+    public @NotNull YamlSubject registerYaml(Plugin plugin, String id, String path, String kind) {
+        YamlSubjectImpl subject = YamlSubjectImpl.of(plugin, id, path, kind);
         registry.computeIfAbsent(plugin.getName(), name -> new ConcurrentHashMap<>()).put(id, subject);
         return subject;
     }
@@ -289,7 +295,7 @@ public final class WebEditorRuntime {
     }
 
     /** One subject of a change, decoded and compared, ready to write or to be shown first. */
-    private record Planned(SubjectImpl subject, Object value, int changes) {
+    private record Planned(SubjectImpl subject, Runnable write, int changes) {
     }
 
     private void applyPending(CommandSender sender, Session session, LibrarySettings current,
@@ -322,17 +328,24 @@ public final class WebEditorRuntime {
                 rejected.addProperty(key, reason);
                 continue;
             }
-            Snapshot.Described described = Snapshot.Described.of(subject);
-            ValueCodec.Decoded<Object> decoded = ValueCodec.fromJson(subject.type(), subject.plugin().getName(),
-                    subject.file().get(), entry.getValue().getAsJsonObject(), subject.file().name());
-            if (decoded.rejected()) {
-                ConfigIssue first = decoded.problems().get(0);
-                String reason = EditorMessages.invalid(first.describe());
+            Snapshot.Described described;
+            Source.Prepared prepared;
+            try {
+                described = Snapshot.Described.of(subject);
+                prepared = subject.source().prepare(subject.plugin().getName(), entry.getValue().getAsJsonObject());
+            } catch (RuntimeException failure) {
+                String reason = EditorMessages.invalid(describe(failure));
                 lines.add(EditorMessages.rejectedLine(subject.title(), reason));
                 rejected.addProperty(key, reason);
                 continue;
             }
-            JsonObject after = ValueCodec.toJson(subject.type(), subject.plugin().getName(), decoded.value());
+            if (prepared.problem() != null) {
+                String reason = EditorMessages.invalid(prepared.problem());
+                lines.add(EditorMessages.rejectedLine(subject.title(), reason));
+                rejected.addProperty(key, reason);
+                continue;
+            }
+            JsonObject after = prepared.after();
             List<Diff.Change> changes = Diff.of(described.values(), after);
             JsonElement base = pending.baseHash().get(key);
             if (base != null && base.isJsonPrimitive() && !base.getAsString().equals(described.hash()) && !changes.isEmpty()) {
@@ -347,7 +360,7 @@ public final class WebEditorRuntime {
                 }
             }
             totalChanges += changes.size();
-            planned.add(new Planned(subject, decoded.value(), changes.size()));
+            planned.add(new Planned(subject, prepared.write(), changes.size()));
         }
 
         if (!reasons.isEmpty() && !confirm) {
@@ -361,7 +374,13 @@ public final class WebEditorRuntime {
 
         for (Planned item : planned) {
             if (item.changes() > 0) {
-                write(item.subject(), item.value());
+                String failure = write(item.subject(), item.write());
+                if (failure != null) {
+                    String reason = EditorMessages.invalid(failure);
+                    lines.add(EditorMessages.rejectedLine(item.subject().title(), reason));
+                    rejected.addProperty(item.subject().key(), reason);
+                    continue;
+                }
             }
             appliedKeys.add(item.subject().key());
             lines.add(EditorMessages.appliedLine(item.subject().title(), item.changes()));
@@ -389,15 +408,21 @@ public final class WebEditorRuntime {
         });
     }
 
-    @SuppressWarnings("unchecked")
-    private void write(SubjectImpl subject, Object value) {
-        ((ConfigFile<Object>) subject.file()).update(current -> value);
+    /** Writes and runs the listener; the reason the file could not be written, or null. */
+    private @Nullable String write(SubjectImpl subject, Runnable write) {
+        try {
+            write.run();
+        } catch (RuntimeException failure) {
+            Debug.of(subject.plugin()).error("The web editor could not write " + subject.source().name() + ".yml", failure);
+            return describe(failure);
+        }
         try {
             subject.applied().run();
         } catch (Throwable failure) {
-            Debug.of(subject.plugin()).error("The web editor wrote " + subject.file().name()
+            Debug.of(subject.plugin()).error("The web editor wrote " + subject.source().name()
                     + ".yml, but applying it threw", failure);
         }
+        return null;
     }
 
     // ------------------------------------------------------------------

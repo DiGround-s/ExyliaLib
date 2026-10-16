@@ -53,6 +53,39 @@ public final class PluginWebEditor {
     }
 
     /**
+     * Makes a YAML file the plugin reads itself editable, as a form inferred from its contents.
+     *
+     * <p>For files no record describes, such as a catalogue a loader compiles entry by entry.
+     * Give it a {@link YamlSubject#check checker}: nothing else reads the browser's values
+     * before they are written.
+     *
+     * @param id   the subject's name inside this plugin
+     * @param path the file relative to the data folder, without {@code .yml}, such as
+     *             {@code cosmetics/tags}; letters, digits, {@code -}, {@code _} and {@code /}
+     * @return the subject, to describe further
+     * @throws IllegalArgumentException when the id or the path is not valid
+     * @since 1.305.0
+     */
+    public @NotNull YamlSubject yaml(@NotNull String id, @NotNull String path) {
+        return yaml(id, path, Subject.GENERIC);
+    }
+
+    /**
+     * Makes a YAML file the plugin reads itself editable on a screen the editor ships for it.
+     *
+     * @param id   the subject's name inside this plugin
+     * @param path the file relative to the data folder, without {@code .yml}
+     * @param kind the screen, such as {@code chatcosmetics/catalog}; {@link Subject#GENERIC}
+     *             for the form
+     * @return the subject, to describe further
+     * @throws IllegalArgumentException when the id or the path is not valid
+     * @since 1.305.0
+     */
+    public @NotNull YamlSubject yaml(@NotNull String id, @NotNull String path, @NotNull String kind) {
+        return WebEditorRuntime.get().registerYaml(plugin, id, path, kind);
+    }
+
+    /**
      * Forgets one subject, for a module that is turned off while its plugin keeps running.
      *
      * @param id the subject's name

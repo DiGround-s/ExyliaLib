@@ -27,8 +27,10 @@ public interface Subject {
     /** {@code <plugin>/<id>}: how the editor and a change refer to it. */
     @NotNull String key();
 
-    /** The file it edits. */
-    @NotNull ConfigFile<?> file();
+    /**
+     * The file it edits, or {@code null} for a {@link YamlSubject}, which no record describes.
+     */
+    @Nullable ConfigFile<?> file();
 
     /** The screen the editor draws it with; {@link #GENERIC} for the form. */
     @NotNull String kind();

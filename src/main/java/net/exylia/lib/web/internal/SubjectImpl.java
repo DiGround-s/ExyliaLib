@@ -16,13 +16,13 @@ import java.util.regex.Pattern;
  * A registered subject. Setters are volatile writes: a registration is read by the command
  * thread and written by the plugin's enable, and neither needs to see the other mid-chain.
  */
-final class SubjectImpl implements Subject {
+class SubjectImpl implements Subject {
 
     static final Pattern ID = Pattern.compile("[A-Za-z0-9_-]{1,48}");
 
     private final Plugin plugin;
     private final String id;
-    private final ConfigFile<?> file;
+    private final Source source;
     private final String kind;
     private volatile String title;
     private volatile String permission;
@@ -30,13 +30,17 @@ final class SubjectImpl implements Subject {
     private volatile Runnable applied = () -> { };
 
     SubjectImpl(Plugin plugin, String id, ConfigFile<?> file, String kind) {
+        this(plugin, id, new Source.RecordFile(file), kind);
+    }
+
+    SubjectImpl(Plugin plugin, String id, Source source, String kind) {
         if (!ID.matcher(id).matches()) {
             throw new IllegalArgumentException("Not a subject id: '" + id
                     + "' (letters, digits, - and _, up to 48)");
         }
         this.plugin = plugin;
         this.id = id;
-        this.file = file;
+        this.source = source;
         this.kind = kind == null || kind.isBlank() ? GENERIC : kind.trim().toLowerCase(Locale.ROOT);
         this.title = Character.toUpperCase(id.charAt(0)) + id.substring(1).replace('_', ' ').replace('-', ' ');
     }
@@ -57,8 +61,8 @@ final class SubjectImpl implements Subject {
     }
 
     @Override
-    public @NotNull ConfigFile<?> file() {
-        return file;
+    public @Nullable ConfigFile<?> file() {
+        return source instanceof Source.RecordFile record ? record.file() : null;
     }
 
     @Override
@@ -113,9 +117,9 @@ final class SubjectImpl implements Subject {
         return applied;
     }
 
-    /** The record the file is declared as. */
-    Class<?> type() {
-        return file.schema().type();
+    /** Where the values come from and go back to. */
+    Source source() {
+        return source;
     }
 
     /** Whether this sender may see and change the subject. The console always may. */
