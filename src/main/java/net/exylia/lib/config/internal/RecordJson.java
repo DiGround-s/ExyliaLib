@@ -41,6 +41,8 @@ import java.util.Map;
  * {@code duration} (with the {@code unit} a bare number is read in, or {@code written} for a
  * {@link Duration}), {@code enum} (with its {@code values} as the file writes them),
  * {@code list}, {@code map}, {@code section}, and {@code any} for a type only shown as text.
+ * A section that is one of the library's records carries its {@code class}, relative to
+ * {@code net.exylia.lib} ({@code hologram.HologramConfig.Properties}).
  *
  * <h2>Values</h2>
  * {@link #write} renders the record into an in-memory configuration exactly as it would be
@@ -55,6 +57,7 @@ public final class RecordJson {
 
     /** Deeper than this and a record is referring to itself; the editor shows text. */
     private static final int MAX_DEPTH = 8;
+    private static final String LIBRARY = "net.exylia.lib.";
 
     private RecordJson() {
     }
@@ -93,6 +96,7 @@ public final class RecordJson {
     private static JsonObject section(SchemaNode node, int depth) {
         JsonObject out = new JsonObject();
         out.addProperty("type", "section");
+        libraryType(out, node.type());
         out.add("comments", strings(node.comments()));
         JsonArray fields = new JsonArray();
         for (SchemaNode.SchemaComponent component : node.components()) {
@@ -172,6 +176,7 @@ public final class RecordJson {
     private static JsonObject record(Class<?> type, int depth) {
         JsonObject out = new JsonObject();
         out.addProperty("type", "section");
+        libraryType(out, type);
         out.add("comments", strings(List.of()));
         JsonArray fields = new JsonArray();
         for (RecordComponent component : type.getRecordComponents()) {
@@ -189,6 +194,18 @@ public final class RecordJson {
         }
         out.add("fields", fields);
         return out;
+    }
+
+    /**
+     * Names a section that is one of the library's own records ({@code hologram.HologramConfig.Properties}),
+     * so the editor draws it with that type's screen in whichever plugin's file it appears.
+     * A plugin's own records stay unnamed: only the library's types mean the same everywhere.
+     */
+    private static void libraryType(JsonObject out, Class<?> type) {
+        String name = type.getCanonicalName();
+        if (name != null && name.startsWith(LIBRARY)) {
+            out.addProperty("class", name.substring(LIBRARY.length()));
+        }
     }
 
     private static Type argument(Type generic, int index) {

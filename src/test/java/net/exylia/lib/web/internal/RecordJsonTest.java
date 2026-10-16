@@ -62,4 +62,13 @@ class RecordJsonTest {
 
         assertTrue(field(schema, "look").getAsJsonObject("type").has("fields"));
     }
+
+    @Test
+    void aLibraryRecordIsNamedWhereverItSits() {
+        JsonObject properties = RecordJson.schema(net.exylia.lib.hologram.HologramConfig.Properties.class, "Test");
+        assertEquals("hologram.HologramConfig.Properties", properties.get("class").getAsString());
+        JsonObject schema = RecordJson.schema(Board.class, "Test");
+        assertEquals("web.internal.Board.Look", field(schema, "look").getAsJsonObject("type").get("class").getAsString());
+        assertEquals("web.internal.Board.Page", field(schema, "pages").getAsJsonObject("type").getAsJsonObject("of").get("class").getAsString());
+    }
 }
