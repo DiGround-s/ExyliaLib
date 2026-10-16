@@ -1,5 +1,6 @@
 package net.exylia.lib.util.editor;
 
+import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.PlayerInventory;
@@ -250,6 +251,7 @@ public final class Loadout {
         if (items == null) return;
         for (ItemStack item : items) {
             if (item == null || item.isEmpty()) continue;
+            item = asInInventory(item);
             int index = 0;
             while (index < kinds.size() && !kinds.get(index).isSimilar(item)) index++;
             if (index == kinds.size()) {
@@ -258,6 +260,16 @@ public final class Loadout {
             }
             balance.set(index, balance.get(index) + sign * item.getAmount());
         }
+    }
+
+    /**
+     * An item as an inventory holds it. A kit read from storage keeps the meta
+     * it was written with, and the server can drop part of it on the way into
+     * an inventory (a shield's banner patterns do), so both sides go through
+     * the same conversion before they are compared.
+     */
+    private static ItemStack asInInventory(ItemStack item) {
+        return Bukkit.getServer() == null ? item : item.ensureServerConversions();
     }
 
     private static @Nullable ItemStack clone(@Nullable ItemStack item) {
