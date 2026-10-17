@@ -24,14 +24,14 @@ import org.jetbrains.annotations.NotNull;
  * boolean ready = schematics.exists("arena_1");
  * }</pre>
  *
- * <h2>One engine, on purpose</h2>
- * FastAsyncWorldEdit and nothing else. Without it {@link #isSupported()} is
- * {@code false} and every operation completes with
- * {@link SchematicOutcome#UNSUPPORTED} rather than throwing — the same
- * degradation as holograms without PacketEvents. ExyliaCommons carried a
- * second, hand-written engine whose every problem was silent: block-entity NBT
- * was lost, palettes past 32767 states were truncated, and blocks were applied
- * one at a time.
+ * <h2>Two engines, one format</h2>
+ * FastAsyncWorldEdit when it is installed and enabled; otherwise a built-in
+ * engine that reads and writes the same Sponge {@code .schem} files with the
+ * Paper API alone, for servers where FAWE cannot run (NeoForge or Forge hybrids
+ * such as Youer or Mohist). An arena saved by either is pasted by the other.
+ * The built-in engine keeps container contents, sign text and spawner types,
+ * but not the rest of a block entity's data; {@code docs/schematics.md} lists
+ * exactly what it keeps.
  *
  * <h2>Threading</h2>
  * Every method is safe from any thread and none of them blocks. Files and
@@ -71,11 +71,10 @@ public final class Schematics {
     /**
      * Returns whether anything can be saved or pasted at all.
      *
-     * <p>{@code false} when FastAsyncWorldEdit is not installed or cannot be
-     * bound — on Folia that includes a FAWE build the server refused to load
-     * because it does not declare {@code folia-supported}. Every call still
-     * works and completes with
-     * {@link SchematicOutcome#UNSUPPORTED}.
+     * <p>{@code true} whenever the library is running: without
+     * FastAsyncWorldEdit the built-in engine is bound instead. {@code false}
+     * only before ExyliaLib enables or after it stops, and then every call
+     * still works and completes with {@link SchematicOutcome#UNSUPPORTED}.
      *
      * @return {@code true} when an engine is bound
      */
@@ -84,13 +83,13 @@ public final class Schematics {
     }
 
     /**
-     * Returns why {@link #isSupported()} is {@code false}, as a sentence to
-     * show an admin.
+     * Returns which engine is bound, or why {@link #isSupported()} is
+     * {@code false}, as a sentence to show an admin.
      *
      * <p>Printed once at startup rather than once per refused call, because it
      * is a fact about the server rather than about the request.
      *
-     * @return the reason, or a sentence saying an engine is bound
+     * @return the reason, or a sentence naming the bound engine
      */
     public static @NotNull String unsupportedReason() {
         return SchematicRuntime.unsupportedReason();

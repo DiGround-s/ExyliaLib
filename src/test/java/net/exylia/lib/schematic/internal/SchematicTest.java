@@ -302,7 +302,7 @@ class SchematicTest {
         PluginSchematics schematics = schematics();
 
         assertFalse(Schematics.isSupported());
-        assertEquals(Engines.NO_FAWE, Schematics.unsupportedReason());
+        assertEquals(Engines.NO_ENGINE, Schematics.unsupportedReason());
 
         assertEquals(SchematicOutcome.UNSUPPORTED,
                 await(schematics.save("arena_1", box(), world())).outcome());

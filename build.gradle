@@ -8,7 +8,7 @@ plugins {
 }
 
 group = 'net.exylia'
-version = '1.308.2'
+version = '1.309.0'
 description = 'Shared high-performance library for Exylia Minecraft plugins.'
 
 def targetJavaVersion = 21
@@ -188,6 +188,16 @@ dependencies {
     // classloading accident waiting to happen.
     compileOnly 'com.fastasyncworldedit:FastAsyncWorldEdit-Core:2.8.4'
     compileOnly 'com.fastasyncworldedit:FastAsyncWorldEdit-Bukkit:2.8.4'
+    // FAWE's own NBT streams, for the built-in engine's cross-check: a file it
+    // writes must be what FAWE's reader looks for, and the reverse. Only the
+    // core jar and its bundled NBT types, nothing else — the streams need no platform, and the
+    // rest of FAWE is exactly what the test must not need.
+    testImplementation('com.fastasyncworldedit:FastAsyncWorldEdit-Core:2.8.4') {
+        transitive = false
+    }
+    testImplementation('com.fastasyncworldedit:FastAsyncWorldEdit-Libs-Core:2.8.4') {
+        transitive = false
+    }
     // WorldGuard: optional, guarded behind a plugin check in WorldGuardRegions.
     // WorldEdit is excluded because FAWE above already provides those classes
     // and a second copy on the compile classpath only breeds ambiguity.

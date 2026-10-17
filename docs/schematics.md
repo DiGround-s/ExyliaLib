@@ -17,48 +17,117 @@ schematics.regenerate("arena_1", bounds, world, RegenerateOptions.defaults())
 boolean ready = schematics.exists("arena_1");
 ```
 
-## One engine, on purpose
+## Two engines, one format
 
-FastAsyncWorldEdit and nothing else. ExyliaCommons carried a second,
-hand-written engine as a fallback, and every one of its problems was silent:
+**FastAsyncWorldEdit when it is installed and enabled. A built-in engine
+otherwise.** FAWE always wins: it is faster on full rewrites and keeps every
+byte of block-entity NBT. The built-in engine exists for servers where FAWE
+cannot run — NeoForge or Forge hybrids with the Paper API, such as Youer or
+Mohist — and it uses the Paper API alone: no NMS, no CraftBukkit, so it runs on
+Paper, Folia and those hybrids alike.
 
-- **Block-entity NBT was lost.** A SurvivalGames arena regenerated with empty
-  loot chests, a spawner became a plain block, a sign lost its text.
-- **Palettes past 32767 states were truncated**, because block states were
-  packed into a `short[]`.
-- **Blocks were applied one at a time**, so a regeneration was one client packet
-  per block.
+`Schematics.isSupported()` is `true` with either; it is `false` only before
+ExyliaLib enables or after it stops. `Schematics.unsupportedReason()` names the
+bound engine, and the built-in one is announced once on the console on the
+first tick.
 
-FastAsyncWorldEdit is installed on production, so the fallback is not ported.
-Keeping it would mean maintaining a second, worse answer to a question that is
-already answered — and choosing between them at runtime, which is what made the
-NBT loss so hard to see.
+**The choice is made late, on purpose.** ExyliaLib is `load: STARTUP` and may
+enable before FAWE does. Until FAWE says it is enabled, every operation asks the
+plugin manager again — one map lookup — and switches to FAWE the moment it is.
+That is why `plugin.yml` has no `softdepend` on FAWE: load order would only
+decide something that is already decided correctly. A FAWE that is installed but
+failed to enable leaves the built-in engine bound.
 
-## What is needed
+**On Folia**, Folia only loads plugins that declare `folia-supported`, so a FAWE
+the plugin manager knows about is a Folia build and is bound; without one the
+built-in engine is used, which is Folia-safe by construction.
 
-FastAsyncWorldEdit. Without it `Schematics.isSupported()` is `false` and every
-operation completes with `UNSUPPORTED` rather than throwing — the same
-degradation as holograms without PacketEvents. The reason is printed once at
-startup rather than once per refused call, because it is a fact about the server
-rather than about the request.
+### The same files, both ways
 
-`Schematics.unsupportedReason()` is the sentence to show an admin.
+Both engines read and write Sponge `.schem` files in the same folders, so an
+arena saved by one is pasted by the other, and installing or removing FAWE never
+means re-saving arenas.
+
+- **Reads** Sponge versions 1, 2 and 3, gzipped or not.
+- **Writes** version 2, laid out as FAWE 2.8.4's own `FastSchematicWriter` lays
+  it out: a root compound *named* `Schematic`, which is what FAWE 2.8.4's reader
+  is keyed by. It does not read version 3, so writing it would make the built-in
+  engine's arenas unreadable the day FAWE is installed.
+- **Where a paste lands** matches `FaweEngine` exactly. Relative block (0,0,0)
+  lands at the paste point plus the file's paste offset: `Metadata.WEOffset*` in
+  version 2 (the `Offset` tag there is the box's absolute minimum and does not
+  move the paste), `Offset` in version 3. Both engines save with the origin at
+  the box's minimum, so their files carry a zero offset.
+- **Palettes are ints**, stored a byte per block for the usual arena, a char past
+  256 states and an int past 65536 — never a short.
+
+### How the built-in engine stays off the tick
+
+Reading, decompressing, parsing and comparing run off the server threads. The
+world is only touched on the thread that owns each chunk (`runAtLocation`), one
+chunk at a time:
+
+1. **Load** — an unloaded chunk is loaded with `getChunkAtAsync`, never
+   synchronously, and held with a plugin ticket until the paste is done with it.
+   Only a server whose API lacks `getChunkAtAsync` gets a synchronous load, one
+   chunk per task.
+2. **Snapshot** — a `ChunkSnapshot` on the owning thread, a fraction of a
+   millisecond.
+3. **Diff** — off-thread, only blocks whose `BlockData` differs are kept. An
+   arena where 300 blocks changed costs 300 writes, air included, without
+   physics.
+4. **Write** — on the owning thread under a budget of **2.5 ms per 50 ms per
+   thread**, shared by every chunk of every paste on that thread, continuing on
+   the next tick. A full rewrite of an empty area is therefore deliberately slow
+   (tens of thousands of blocks a second per thread); the usual regeneration
+   finishes within a tick or two.
+
+A paste or save fails — as `FAILED`, never a hang — if any chunk fails or if no
+chunk makes progress for 60 seconds. A save writes beside the destination and
+moves the file over it, so a crash halfway leaves the old arena.
+
+### What the built-in engine keeps, and what it does not
+
+Bukkit has no generic block-entity NBT API, so it keeps what an arena needs:
+
+| Kept | How |
+| --- | --- |
+| Container contents — chests, barrels, shulker boxes, hoppers, furnaces, dispensers, droppers, brewing stands | Paper's versioned item bytes, which are vanilla item NBT plus a data version, so items FAWE saved are read back and items saved on an older server are upgraded by Paper's data fixer. A container is set to exactly what was saved, so a looted chest is refilled even though its block never changed. |
+| Sign text | both sides, with colour, glow and wax, in the JSON or 1.21.5+ component form the data version calls for |
+| Spawner type | the entity it spawns; delays and ranges return to the server defaults |
+| Loose entities, when `copyEntities` is on | Paper's entity serialisation, with a fresh UUID; riders are saved as separate entities and not re-mounted |
+
+**Not kept:** every other block entity's data — banner patterns, head owners,
+lectern books, beehive occupants, command block commands. Their block states
+are pasted; their data is not. A block state the server does not know (a block
+removed since the file was saved, a mod that is not installed) is left as it was
+and reported once per paste. Block states are not run through a data fixer, so a
+schematic from a much older version may paste some states as unknown. Biomes
+are never copied, as with FAWE.
+
+**Boxes are capped** at 2<sup>26</sup> blocks (a 512×256×512 box) for both save
+and paste; past that the built-in engine refuses and FAWE is the answer.
+
+**The gap.** A chunk is compared with its snapshot, not with itself at the
+moment of writing, so a block changed in the fraction of a second between the
+two survives the paste. Regenerate an arena when nobody is building in it.
+
+### Why ExyliaCommons' fallback is still not the answer
+
+ExyliaCommons carried a hand-written fallback whose every problem was silent:
+block-entity NBT was lost, palettes past 32767 states were truncated by a
+`short[]`, and blocks were applied one at a time on the main thread. The
+built-in engine is the opposite on each point: what it keeps and loses is
+written down above, palettes are ints, and writes are diffed, chunked and
+budgeted. It is still second to FAWE, which is why FAWE wins whenever it is
+there.
 
 FAWE is `compileOnly` and is never shaded. It is a plugin: a second copy of
 WorldEdit on one server is a classloading accident waiting to happen.
 
 ## What it does not do
 
-**Folia without a Folia-capable FAWE.** Folia refuses to load a plugin that does
-not declare `folia-supported`, so a FAWE the plugin manager knows about on Folia
-is a FAWE built for region threading, and the engine binds normally. When the
-server has no such build `isSupported()` is `false` with that as its reason: the
-server starts, every other module keeps working, and this one does nothing —
-loudly. Everything outside the engine is already scheduled the Folia way
-(`runAtLocation` for blocks, `runAtEntity` for players).
-
-**Entities, by default.** A schematic carries its block entities for free — that
-is the point above — but loose entities are opt-in:
+**Entities, by default.** Loose entities are opt-in:
 
 ```java
 schematics.save("plot_3", bounds, world, true);   // armour stands are the build
@@ -88,7 +157,7 @@ schematics.paste("arena_1", origin).thenAccept(result -> {
 | --- | --- |
 | `SUCCESS` | the whole operation completed |
 | `NOT_FOUND` | there is no such schematic; nothing went wrong |
-| `UNSUPPORTED` | no engine — FAWE absent or unbindable |
+| `UNSUPPORTED` | no engine — the library is not running |
 | `FAILED` | it was attempted and did not finish; `reason()` says why |
 
 ExyliaCommons answered all four with `false`, so a menu that greys out a button,
@@ -190,7 +259,8 @@ Every method is safe from any thread, and none of them blocks.
 
 | Work | Where it runs |
 | --- | --- |
-| reading and writing files, clipboards | `runAsync` |
+| reading and writing files, clipboards, diffing chunks | `runAsync` |
+| snapshotting and writing chunks (built-in engine) | `runAtLocation`, under the tick budget |
 | reading the entities in a box | `runAtLocation` |
 | moving a trapped player | `runAtEntity` |
 | `exists()`, `names()`, `isIndexed()` | the calling thread, from memory |
@@ -200,7 +270,10 @@ touches the game hops back through `Tasks.of(plugin).runAtLocation(...)` first.
 
 ## What is held in memory
 
-Loaded clipboards, up to **8**, dropped after 10 idle minutes.
+With FAWE: loaded clipboards, up to **8**, dropped after 10 idle minutes. With
+the built-in engine: parsed schematics up to **128 MB** in total, weighed by
+their size rather than counted, dropped after 10 idle minutes and re-read when
+the file on disk changes.
 
 Deliberately small. A clipboard is not a cache entry like a parsed component: a
 200×80×200 arena is millions of block states, tens of megabytes live.
@@ -239,10 +312,11 @@ the stage that completes the future unable to run.
 | | |
 | --- | --- |
 | API | `net.exylia.lib.schematic` — `Schematics`, `PluginSchematics`, `SchematicResult`, `SchematicOutcome`, `RegenerateOptions` |
-| Internal | `net.exylia.lib.schematic.internal` — `SchematicRuntime`, `SchematicStore`, `SchematicNames`, `Bounds`, `Engines`, `SchematicEngine`, `FaweEngine` |
-| Tests | `src/test/java/net/exylia/lib/schematic/internal/SchematicTest.java` |
+| Internal | `net.exylia.lib.schematic.internal` — `SchematicRuntime`, `SchematicStore`, `SchematicNames`, `Bounds`, `Engines`, `SchematicEngine`, `FaweEngine`; the built-in engine: `NativeEngine`, `SpongeSchematic`, `Nbt`, `ChunkDiff`, `TickBudget`, `NativeCodec` |
+| Tests | `src/test/java/net/exylia/lib/schematic/internal/` — `SchematicTest` (the module), `SpongeSchematicTest` (the format, against FAWE's own NBT streams), `NativeEngineTest` (diff, budget, binding) |
 
-`FaweEngine` is the only class that names FastAsyncWorldEdit types, so a server
-without it never loads that one — verified in bytecode, the same way PacketEvents
+`FaweEngine` is the only class that names FastAsyncWorldEdit types — `Engines`
+never mentions it outside one guarded call, not even in an `instanceof` — so a
+server without it never loads that one — verified in bytecode, the same way PacketEvents
 and Folia are. `SchematicEngine` is the seam a test installs to exercise every
 decision the module makes with no FAWE and no server.

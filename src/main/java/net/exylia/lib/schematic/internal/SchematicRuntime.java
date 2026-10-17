@@ -60,18 +60,27 @@ public final class SchematicRuntime {
     // ------------------------------------------------------------------
 
     /**
-     * Binds an engine, if the server has one. Called once, by the library.
+     * Binds an engine. Called once, by the library.
+     *
+     * <p>The choice is reported on the first tick rather than here: the
+     * library enables at {@code STARTUP}, possibly before FastAsyncWorldEdit,
+     * and by the first tick every plugin that is going to enable has. Only the
+     * built-in engine is reported — once, because it is a fact about the
+     * server rather than about any one request.
      *
      * @param plugin the library plugin
      */
     public static void init(@NotNull Plugin plugin) {
         library = plugin;
-        Engines.bind();
-        if (!Engines.isSupported()) {
-            // Once, at startup, rather than once per refused call: this is a
-            // fact about the server rather than about any one request.
-            Debug.of(plugin).warn(Engines.reason());
-        }
+        Engines.bind(plugin);
+        Tasks.of(plugin).run(() -> {
+            // reason() resolves first, so a FAWE that enabled after the
+            // library is the engine reported on, and the one bound.
+            String reason = Engines.reason();
+            if (Engines.isNative()) {
+                Debug.of(plugin).log(reason);
+            }
+        });
     }
 
     /** Whether anything can be saved or pasted. */
@@ -480,7 +489,7 @@ public final class SchematicRuntime {
     private static SchematicEngine engine() {
         SchematicEngine bound = Engines.engine();
         if (bound == null) {
-            // Only reachable if FAWE went away between the check and the stage.
+            // Only reachable if the library shut down between the check and the stage.
             throw new IllegalStateException(Engines.reason());
         }
         return bound;

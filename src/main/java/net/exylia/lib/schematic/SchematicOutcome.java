@@ -18,7 +18,7 @@ public enum SchematicOutcome {
     /** There is no such schematic. Nothing went wrong. */
     NOT_FOUND,
 
-    /** There is no engine: FastAsyncWorldEdit is absent, unbindable, or Folia. */
+    /** There is no engine: the library is not running. */
     UNSUPPORTED,
 
     /** It was attempted and did not finish. The reason says why. */
