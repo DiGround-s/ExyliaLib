@@ -283,7 +283,8 @@ public final class Loadout {
      * both sides go through the same conversion before they are compared.
      */
     private static ItemStack asInInventory(ItemStack item) {
-        if (Bukkit.getServer() == null) return item;
+        // A test server installed by another suite has no item factory either.
+        if (Bukkit.getServer() == null || Bukkit.getServer().getItemFactory() == null) return item;
         ItemStack plain = item.ensureServerConversions().clone();
         Looks.ALL.forEach(plain::resetData);
         return plain;
