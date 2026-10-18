@@ -13,7 +13,7 @@ import java.util.Optional;
 import java.util.Set;
 
 /**
- * Reading and driving ExyliaSpecialsV3.
+ * Reading and driving ExyliaSpecials.
  *
  * <pre>{@code
  * ExyliaAPI.get(SpecialsService.class).ifPresent(specials ->
@@ -22,16 +22,16 @@ import java.util.Set;
  * }</pre>
  *
  * <p>Registered with Bukkit's {@link org.bukkit.plugin.ServicesManager} when
- * ExyliaSpecialsV3 enables. Reach it through {@link ExyliaAPI#get(Class)}, and
+ * ExyliaSpecials enables. Reach it through {@link ExyliaAPI#get(Class)}, and
  * treat an empty result as "this server has no special items" rather than as a
  * failure.
  *
  * <h2>What is here and what is not</h2>
- * Special items, the cooldowns they impose, the player states they leave
- * behind, and the duels they open. The plugin's tools and stat-track items are
- * separate features with their own item formats and are deliberately not part
- * of this contract; neither is arena administration, which is a console
- * operation rather than an integration point.
+ * Special items (tools included, since they are special items too), the
+ * cooldowns they impose, the player states they leave behind, and the duels
+ * they open. Stat trackers are not part of this contract; neither is arena
+ * administration, which is a console operation rather than an integration
+ * point.
  *
  * <h2>Queries are cheap, actions are not</h2>
  * Everything that returns a value reads a registry or a cache and is safe from
