@@ -158,7 +158,7 @@ public final class MenuRuntime {
      */
     public static @Nullable Session anySessionOf(Player viewer) {
         Inventory top = viewer.getOpenInventory().getTopInventory();
-        return top.getHolder() instanceof MenuHolder holder ? holder.session() : null;
+        return net.exylia.lib.internal.Holders.of(top) instanceof MenuHolder holder ? holder.session() : null;
     }
 
     /**
@@ -365,7 +365,7 @@ public final class MenuRuntime {
 
     /** The session behind an inventory, if it is one of ours. */
     public static @Nullable Session sessionOf(Inventory inventory) {
-        return inventory.getHolder() instanceof MenuHolder holder ? holder.session() : null;
+        return net.exylia.lib.internal.Holders.of(inventory) instanceof MenuHolder holder ? holder.session() : null;
     }
 
     /**

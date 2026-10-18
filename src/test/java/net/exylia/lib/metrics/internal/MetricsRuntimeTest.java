@@ -74,6 +74,8 @@ class MetricsRuntimeTest {
         groups.add("ExyliaCore", "1.0.0", "runtime", new IllegalStateException("Could not open a mariadb pool",
                 new SQLException("Access denied for user 'u'@'%' to database 'd'", "42000", 1044)));
         groups.add("ExyliaCore", "1.0.0", "runtime", new SQLException("Access denied for user 'u'@'%'", "28000", 1045));
+        groups.add("ExyliaCore", "1.0.0", "runtime", new IllegalStateException("Could not open a mysql pool",
+                new SQLException("Unknown database 'minecraft'", "42000", 1049)));
         groups.add("ExyliaCore", "1.0.0", "runtime", new IllegalStateException(
                 "The paper plugin classloader for Glaze.voicechat has thrown a zip file error.",
                 new IllegalStateException("zip file closed")));

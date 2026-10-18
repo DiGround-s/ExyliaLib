@@ -73,7 +73,7 @@ public final class InputListener implements Listener {
     /** Routes clicks; both transports cancel first and fail closed. */
     @EventHandler(priority = EventPriority.HIGHEST)
     public void onClick(InventoryClickEvent event) {
-        if (event.getView().getTopInventory().getHolder(false) instanceof InsertWindow window
+        if (net.exylia.lib.internal.Holders.of(event.getView().getTopInventory()) instanceof InsertWindow window
                 && event.getWhoClicked() instanceof Player viewer) {
             window.click(viewer, event);
             return;
@@ -92,7 +92,7 @@ public final class InputListener implements Listener {
     /** Routes drags so no drag variant can write into an input window. */
     @EventHandler(priority = EventPriority.HIGHEST)
     public void onDrag(InventoryDragEvent event) {
-        if (event.getView().getTopInventory().getHolder(false) instanceof InsertWindow window) {
+        if (net.exylia.lib.internal.Holders.of(event.getView().getTopInventory()) instanceof InsertWindow window) {
             window.drag(event);
             return;
         }
@@ -115,7 +115,7 @@ public final class InputListener implements Listener {
         if (event.getReason() == InventoryCloseEvent.Reason.UNLOADED) {
             return;
         }
-        if (event.getInventory().getHolder(false) instanceof InsertWindow window) {
+        if (net.exylia.lib.internal.Holders.of(event.getInventory()) instanceof InsertWindow window) {
             // Whatever was lent to the window goes back, on every ending.
             window.release(event.getPlayer() instanceof Player viewer ? viewer : null);
             return;

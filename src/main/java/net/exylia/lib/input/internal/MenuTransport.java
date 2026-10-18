@@ -313,7 +313,7 @@ public final class MenuTransport implements Transport {
     }
 
     private static @Nullable MenuHolder holderOf(Inventory inventory) {
-        return inventory.getHolder(false) instanceof MenuHolder holder ? holder : null;
+        return net.exylia.lib.internal.Holders.of(inventory) instanceof MenuHolder holder ? holder : null;
     }
 
     private record Option(String raw, String label, Material icon, @Nullable String description) {

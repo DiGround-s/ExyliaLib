@@ -92,9 +92,11 @@ final class ErrorGroups {
             return true;
         }
         for (Throwable cause = error; cause != null && cause.getCause() != cause; cause = cause.getCause()) {
-            // Wrong credentials or missing grants in the plugin's database settings
-            // (MySQL/MariaDB 1044 and 1045, SQLSTATE class 28).
+            // Wrong credentials, missing grants or a database that was never created
+            // in the plugin's database settings (MySQL/MariaDB 1044, 1045 and 1049,
+            // SQLSTATE class 28).
             if (cause instanceof SQLException sql && (sql.getErrorCode() == 1044 || sql.getErrorCode() == 1045
+                    || sql.getErrorCode() == 1049
                     || (sql.getSQLState() != null && sql.getSQLState().startsWith("28")))) {
                 return true;
             }

@@ -679,7 +679,7 @@ public final class SearchTransport implements Transport {
     }
 
     private static @Nullable SearchView<?> viewOf(Inventory inventory) {
-        return inventory.getHolder(false) instanceof SearchView<?> view ? view : null;
+        return net.exylia.lib.internal.Holders.of(inventory) instanceof SearchView<?> view ? view : null;
     }
 
     /**

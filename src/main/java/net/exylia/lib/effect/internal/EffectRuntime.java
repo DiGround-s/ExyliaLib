@@ -159,11 +159,27 @@ public final class EffectRuntime {
         }
     }
 
+    /**
+     * The plugin whose classloader, or one of its parents, loaded a class.
+     *
+     * <p>Parents count because a plugin started by a Lukittu loader is loaded
+     * by the loader's own classloader, whose parent is the loader plugin's:
+     * {@link JavaPlugin#getProvidingPlugin} only knows the latter, so it
+     * rejected every premium plugin's classes.
+     */
     private static Plugin pluginOf(Class<?> type) {
         try {
-            return JavaPlugin.getProvidingPlugin(type);
+            Plugin[] plugins = Bukkit.getPluginManager().getPlugins();
+            for (ClassLoader loader = type.getClassLoader(); loader != null; loader = loader.getParent()) {
+                for (Plugin plugin : plugins) {
+                    if (plugin.getClass().getClassLoader() == loader) {
+                        return plugin;
+                    }
+                }
+            }
+            return null;
         } catch (Throwable notAPlugin) {
-            // A JDK or server class, or no plugin classloader at all in tests.
+            // No plugin manager at all in tests.
             return null;
         }
     }

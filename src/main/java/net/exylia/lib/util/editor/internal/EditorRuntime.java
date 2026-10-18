@@ -355,7 +355,7 @@ public final class EditorRuntime {
         if (inventory == null) {
             return null;
         }
-        return inventory.getHolder(false) instanceof LoadoutHolder holder ? holder : null;
+        return net.exylia.lib.internal.Holders.of(inventory) instanceof LoadoutHolder holder ? holder : null;
     }
 
     /** Forgets a loadout editor that has ended. */
@@ -389,6 +389,6 @@ public final class EditorRuntime {
         if (inventory == null) {
             return null;
         }
-        return inventory.getHolder(false) instanceof EditorHolder<?> holder ? holder : null;
+        return net.exylia.lib.internal.Holders.of(inventory) instanceof EditorHolder<?> holder ? holder : null;
     }
 }

@@ -353,7 +353,7 @@ public final class PolicyEditorHolder implements InventoryHolder {
         if (inventory == null) {
             return null;
         }
-        return inventory.getHolder(false) instanceof PolicyEditorHolder holder ? holder : null;
+        return net.exylia.lib.internal.Holders.of(inventory) instanceof PolicyEditorHolder holder ? holder : null;
     }
 
     /** Ends, without saving, every editor of a plugin being disabled. */
