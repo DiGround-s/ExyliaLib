@@ -96,6 +96,17 @@ class MenuLoaderTest {
     }
 
     @Test
+    @DisplayName("an empty file, which is how Bukkit reads a missing one, is reported")
+    void emptyFileReported() {
+        List<String> problems = new ArrayList<>();
+        UiDefinition menu = MenuLoader.load("practice:test", new YamlConfiguration(),
+                actions::template, UiSounds.DEFAULTS, (where, problem) -> problems.add(where));
+
+        assertEquals(List.of("file"), problems);
+        assertEquals("Menu", menu.title(), "it still loads, as the blank chest it always was");
+    }
+
+    @Test
     @DisplayName("left, right and shift prefixes bind to their own clicks")
     void clickPrefixes() {
         UiDefinition menu = load("""

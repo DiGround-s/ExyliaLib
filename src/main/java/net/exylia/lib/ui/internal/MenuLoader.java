@@ -92,6 +92,13 @@ public final class MenuLoader {
     public static UiDefinition load(String id, ConfigurationSection config,
                                     Function<String, ActionTemplate> compiler,
                                     UiSounds defaults, Problems problems) {
+        if (config.getKeys(false).isEmpty()) {
+            // Bukkit reads a missing file as an empty one without a word, so a
+            // menu whose file was never written opened as a blank "Menu" chest
+            // and the console said nothing.
+            problems.found("file", "is empty or missing, so it opens as a blank chest;"
+                    + " check that it was written to the plugin folder");
+        }
         try {
             return read(id, config, new Binder(compiler, problems), defaults);
         } catch (IllegalArgumentException bad) {
