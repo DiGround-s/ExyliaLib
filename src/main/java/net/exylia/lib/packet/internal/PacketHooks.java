@@ -62,6 +62,7 @@ import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerSe
 import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerSetSlot;
 import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerSpawnEntity;
 import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerSystemChatMessage;
+import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerTabComplete;
 import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerWindowItems;
 import io.github.retrooper.packetevents.util.SpigotConversionUtil;
 import io.github.retrooper.packetevents.util.SpigotReflectionUtil;
@@ -210,6 +211,10 @@ final class PacketHooks extends PacketListenerAbstract implements PacketSink {
         if (PacketRuntime.hidesAnything(viewer)) {
             if (type == PacketType.Play.Server.PLAYER_INFO_UPDATE) {
                 stripTabEntries(event, viewer);
+                return;
+            }
+            if (type == PacketType.Play.Server.TAB_COMPLETE) {
+                stripSuggestions(event, viewer);
                 return;
             }
             int entityId = subjectOf(event, type);
@@ -592,6 +597,32 @@ final class PacketHooks extends PacketListenerAbstract implements PacketSink {
             return;
         }
         packet.setEntries(kept);
+        event.markForReEncode(true);
+    }
+
+    /**
+     * Drops hidden players' names from command suggestions, whichever plugin
+     * offered them.
+     *
+     * <p>A command that lists {@code getOnlinePlayers()} without asking
+     * {@code canSee} would otherwise complete a vanished name for anybody who
+     * presses tab.
+     */
+    private static void stripSuggestions(PacketSendEvent event, UUID viewer) {
+        WrapperPlayServerTabComplete packet = new WrapperPlayServerTabComplete(event);
+        List<WrapperPlayServerTabComplete.CommandMatch> matches = packet.getCommandMatches();
+        List<WrapperPlayServerTabComplete.CommandMatch> kept = new ArrayList<>(matches.size());
+        for (WrapperPlayServerTabComplete.CommandMatch match : matches) {
+            if (!PacketRuntime.hidesName(viewer, match.getText())) {
+                kept.add(match);
+            }
+        }
+        if (kept.size() == matches.size()) {
+            return;
+        }
+        // Emptied rather than cancelled: the client waits for an answer to
+        // its request, and an empty one is what "nobody by that name" looks like.
+        packet.setCommandMatches(kept);
         event.markForReEncode(true);
     }
 

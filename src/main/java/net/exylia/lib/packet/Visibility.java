@@ -12,9 +12,9 @@ import org.jetbrains.annotations.NotNull;
  * viewers who lost sight and respawns them for viewers who regained it.
  *
  * <p>Between refreshes, every outbound packet about a hidden target — spawn,
- * metadata, movement, entity sounds, tab-list entries — is dropped on its way
- * to a viewer who may not see them, so a plugin that sends its own packets
- * cannot leak a vanished player.
+ * metadata, movement, entity sounds, tab-list entries, their names among
+ * command suggestions — is dropped on its way to a viewer who may not see
+ * them, so a plugin that sends its own packets cannot leak a vanished player.
  *
  * <h2>Limits</h2>
  * The server still knows where the target is: they collide, block arrows,

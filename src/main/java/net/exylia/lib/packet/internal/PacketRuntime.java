@@ -360,6 +360,21 @@ public final class PacketRuntime {
         return hidden != null && hidden.contains(target);
     }
 
+    /** Whether this word is the name of an online player hidden from this viewer. */
+    static boolean hidesName(UUID viewer, String word) {
+        Set<UUID> hidden = HIDDEN.get(viewer);
+        if (hidden == null) {
+            return false;
+        }
+        for (UUID target : hidden) {
+            Player player = Bukkit.getPlayer(target);
+            if (player != null && player.getName().equalsIgnoreCase(word)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     static boolean hidesEntity(UUID viewer, int entityId) {
         UUID target = ENTITY_IDS.get(entityId);
         return target != null && hidesProfile(viewer, target);
