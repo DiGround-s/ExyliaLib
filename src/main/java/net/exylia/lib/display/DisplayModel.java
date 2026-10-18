@@ -71,7 +71,8 @@ public final class DisplayModel {
     private byte billboard;
     private byte itemTransform;
     private Function<Player, Component> textFor;
-    private int background = UNSET;
+    /** No panel by default since 1.311.0: the client's grey one reads as clutter. */
+    private int background = 0;
     private int opacity = UNSET;
     private boolean seeThrough = true;
     private boolean textShadow;
@@ -299,9 +300,8 @@ public final class DisplayModel {
     /**
      * A panel behind the text, in {@code 0xAARRGGBB}.
      *
-     * <p>Unset, a text display keeps the client's default panel, which is what
-     * every effect before 1.272.0 drew. {@code 0} is no panel at all, which is
-     * what a floating label over a reveal usually wants.
+     * <p>Unset, a text display has no panel at all ({@code 0}) since 1.311.0;
+     * before that it kept the client's default grey panel.
      *
      * @param argb the panel colour with its alpha
      * @return a new model
@@ -456,7 +456,8 @@ public final class DisplayModel {
     }
 
     /**
-     * The panel colour, or {@code null} for the client's default panel.
+     * The panel colour; {@code 0}, no panel, unless one was set. {@code null}
+     * (the client's default panel) is no longer produced since 1.311.0.
      *
      * @since 1.272.0
      */

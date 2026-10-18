@@ -122,7 +122,7 @@ leaves a plain head rather than delaying the effect.
 | `hold:` | item display context: `0` the model itself, `5` head, `7` dropped, `8` item frame | `0` |
 | `view_range:` | how far away it is drawn, as a multiple of the client's entity distance (since 1.272.0) | `1` |
 | `cull:` | the box tested against the screen edge, `w` or `w,h` in blocks; give a wide piece one or it vanishes when its centre leaves the screen (since 1.272.0) | none |
-| `background:` | text only: panel colour (name, `#rrggbb`, `{palette}`) or `none`; `background_alpha:` 0-255 (64) (since 1.272.0) | the client's panel |
+| `background:` | text only: panel colour (name, `#rrggbb`, `{palette}`) or `none`; `background_alpha:` 0-255 (64) (since 1.272.0) | none (the client's panel before 1.311.0) |
 | `opacity:` `see_through:` `text_shadow:` `align:` `line_width:` | text only: text alpha 0-255, drawn through walls (`true`), drop shadow (`false`), `left`/`center`/`right`, wrap width in pixels (200) (since 1.272.0) | |
 
 `gravity:` is added to the straight line rather than replacing it, so "throw it
@@ -350,7 +350,8 @@ and `culling(width, height)`: a wheel or a carousel wider than a block needs a
 culling box as wide as itself, or the client drops it the moment its anchor
 leaves the screen. Text displays take `background(argb)` (`0` for no panel),
 `opacity(alpha)`, `seeThrough(boolean)`, `textShadow(boolean)`, `align(Align)`
-and `lineWidth(pixels)`. Left unset, every field is what it was before 1.272.0.
+and `lineWidth(pixels)`. Left unset, every field is what it was before 1.272.0,
+except the panel: none since 1.311.0, where the client's grey one was drawn before.
 
 ## Contracts
 
