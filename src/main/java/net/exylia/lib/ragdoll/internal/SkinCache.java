@@ -47,8 +47,8 @@ import java.util.logging.Logger;
  * <p>The same goes for the pieces that draw a body in its real skin: the
  * moment the picture is read they are cut at the configured quality, looked up
  * in the databases that keep them, and whatever nobody has made yet is queued
- * with {@link MineSkinQueue}. Every death before a piece arrives draws that
- * piece in blocks, never a wait.
+ * with {@link MineSkinQueue}. Every death before the last piece arrives draws
+ * the body in blocks, never a wait.
  *
  * <p>Keyed by texture URL rather than by player, so a hundred players wearing
  * the same skin decode one picture, and a player who changes skin is a new key

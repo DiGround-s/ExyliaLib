@@ -161,11 +161,11 @@ public final class RagdollBuilder {
      * A body in its real skin, region by region, or {@code null} when it has
      * nothing real to wear yet.
      *
-     * <p>Drawn by parts: a region whose texture has arrived is a head, a region
-     * that is one flat block anyway is that block, and a region still waiting
-     * is a block of its commonest colour at its own size. Worn once any region
-     * is real, or when every region is plain; until then the body is cut the
-     * way its detail asks, which reads better than a handful of large blocks.
+     * <p>Drawn by parts: a region whose texture has arrived is a head, and a
+     * region that is one flat block anyway is that block. Worn only once every
+     * region has one or the other; until then the body is cut the way its
+     * detail asks. Half a body in its skin and half in a few large blocks reads
+     * as broken, where a body in fine blocks reads as a body.
      *
      * @param skin    whose skin
      * @param quality how finely it is cut
@@ -176,18 +176,16 @@ public final class RagdollBuilder {
         if (cubes == null) {
             return null;
         }
-        boolean real = false;
-        boolean plain = true;
         List<RagdollPieces.Placed> placed = new ArrayList<>(cubes.size());
         for (SkinCubes.Cube cube : cubes) {
             String texture = cube.plain() == null ? RagdollTextures.known(cube.hash()) : null;
-            plain &= cube.plain() != null;
-            real |= texture != null;
-            Material block = texture != null ? null : cube.plain() != null ? cube.plain() : cube.dominant();
+            if (texture == null && cube.plain() == null) {
+                return null;
+            }
             placed.add(new RagdollPieces.Placed(cube.part(), cube.region().centre(), cube.region().size(),
-                    block, texture));
+                    cube.plain(), texture));
         }
-        return real || plain ? placed : null;
+        return placed;
     }
 
     /** What one piece is drawn with: a face, a carried item, a head of real skin, or a block. */

@@ -72,8 +72,22 @@ public final class MineSkinQueue {
     /** MineSkin asks for a job to be checked at most once a second. */
     private static final long POLL_MS = 1_000L;
 
-    /** A job still not done after this long is abandoned for this run. */
+    /** A job still not done after this long is abandoned until the piece is retried. */
     private static final long JOB_TIMEOUT_MS = 120_000L;
+
+    /**
+     * How long a piece MineSkin did not make waits before it is asked for again.
+     *
+     * <p>Most failures on the free plan are a busy queue, not a bad picture, and
+     * a job that ran out of time usually finished on MineSkin's side anyway, so
+     * asking again answers at once. Short enough that a body is whole within
+     * minutes, long enough that a picture MineSkin truly refuses is not sent
+     * every few seconds.
+     */
+    private static final Duration RETRY = Duration.ofMinutes(10);
+
+    /** The least time between two warnings in the console, so a refusal that repeats is one line, not a flood. */
+    private static final long WARN_EVERY_MS = 10 * 60_000L;
 
     private static final Duration TIMEOUT = Duration.ofSeconds(15);
 
@@ -88,13 +102,13 @@ public final class MineSkinQueue {
     private static final Set<String> QUEUED = ConcurrentHashMap.newKeySet();
 
     /**
-     * Hashes MineSkin refused recently; asking again at once would be refused again.
-     * They expire, so an outage does not keep every piece it saw for the whole uptime
-     * and the pieces get another chance once MineSkin is back.
+     * Hashes MineSkin did not make recently; asking again at once would fail again.
+     * They expire after {@link #RETRY}, and the skin is prepared again within
+     * minutes of that, so each piece gets another chance on its own.
      */
     private static final Set<String> FAILED = Collections.newSetFromMap(Caffeine.newBuilder()
             .maximumSize(10_000)
-            .expireAfterWrite(Duration.ofHours(1))
+            .expireAfterWrite(RETRY)
             .<String, Boolean>build()
             .asMap());
 
@@ -105,7 +119,8 @@ public final class MineSkinQueue {
 
     private static volatile String key = "";
     private static volatile boolean rejected;
-    private static volatile boolean warned;
+    /** When the console was last warned, so it is at most once every {@link #WARN_EVERY_MS}. */
+    private static volatile long lastWarned;
     private static volatile Thread worker;
     private static volatile Logger logger = Logger.getLogger("ExyliaLib");
 
@@ -134,7 +149,7 @@ public final class MineSkinQueue {
         }
         key = cleaned;
         rejected = false;
-        warned = false;
+        lastWarned = 0L;
         FAILED.clear();
         return true;
     }
@@ -204,6 +219,7 @@ public final class MineSkinQueue {
                 } catch (IOException | RuntimeException unreachable) {
                     // A runtime failure is caught too: it would otherwise end
                     // the one worker, and every later skin would wait forever.
+                    refused("Could not reach MineSkin for a ragdoll skin piece: " + unreachable);
                     logger.log(Level.FINE, "Could not upload a ragdoll skin piece to MineSkin", unreachable);
                     FAILED.add(cube.hash());
                 } finally {
@@ -242,6 +258,8 @@ public final class MineSkinQueue {
                     String job = string(body, "job", "id");
                     if (texture == null && job != null) {
                         texture = poll(job, agent);
+                    } else if (texture == null) {
+                        refused("MineSkin answered without a texture for a ragdoll skin piece: " + body);
                     }
                     String id = texture == null ? null : textureId(texture);
                     if (id != null) {
@@ -266,15 +284,10 @@ public final class MineSkinQueue {
                     Thread.sleep(held);
                 }
                 default -> {
-                    // Once per key at warning level: a refusal that repeats for
-                    // every piece, such as a plan that does not allow unlisted
-                    // skins, would otherwise leave bodies in blocks with no clue.
-                    if (!warned) {
-                        warned = true;
-                        logger.warning("MineSkin answered " + response.statusCode()
-                                + " for a ragdoll skin piece; bodies stay in blocks. " + body);
-                    }
-                    logger.fine("MineSkin answered " + response.statusCode() + " for a ragdoll skin piece: " + body);
+                    // A refusal that repeats for every piece, such as a plan that
+                    // does not allow unlisted skins, would otherwise leave
+                    // bodies in blocks with no clue.
+                    refused("MineSkin answered " + response.statusCode() + " for a ragdoll skin piece: " + body);
                     FAILED.add(cube.hash());
                     return wait;
                 }
@@ -300,6 +313,8 @@ public final class MineSkinQueue {
                 continue;
             }
             if (response.statusCode() != 200) {
+                refused("MineSkin answered " + response.statusCode()
+                        + " while making a ragdoll skin piece: " + body);
                 return null;
             }
             String texture = texture(body);
@@ -307,10 +322,30 @@ public final class MineSkinQueue {
                 return texture;
             }
             if ("failed".equals(string(body, "job", "status"))) {
+                refused("MineSkin could not make a ragdoll skin piece: " + body);
                 return null;
             }
         }
+        refused("MineSkin took longer than " + JOB_TIMEOUT_MS / 1_000 + "s to make a ragdoll skin piece.");
         return null;
+    }
+
+    /**
+     * Says that a piece was not made: in the console at most once every ten
+     * minutes, and at fine level every other time.
+     *
+     * <p>Every one of these used to be fine-only, which left a server whose
+     * bodies stayed half in blocks with nothing in its console to go on.
+     */
+    private static void refused(String what) {
+        long now = System.currentTimeMillis();
+        if (now - lastWarned >= WARN_EVERY_MS) {
+            lastWarned = now;
+            logger.warning(what + " Bodies wearing it stay in blocks; it is asked for again in "
+                    + RETRY.toMinutes() + " minutes.");
+        } else {
+            logger.fine(what);
+        }
     }
 
     /** Says once, in the console, that the hour is spent and when uploads start again. */

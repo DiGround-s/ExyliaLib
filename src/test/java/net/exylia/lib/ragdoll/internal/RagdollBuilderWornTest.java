@@ -45,21 +45,30 @@ class RagdollBuilderWornTest {
     }
 
     @Test
-    @DisplayName("one arrived region is a head, and every region still waiting is a block of its own")
-    void drawnByParts() {
+    @DisplayName("a body is not worn half in its skin: it waits in its detail until every region has arrived")
+    void wornOnlyWhole() {
         RagdollSkin skin = skin(picture(0x22));
         List<SkinCubes.Cube> cubes = skin.cubes(SkinCubes.Quality.NORMAL);
         assertNotNull(cubes);
         RagdollTextures.arrived(cubes.get(0).hash(), "torso-top");
+        assertNull(RagdollBuilder.worn(skin, SkinCubes.Quality.NORMAL));
+        for (int i = 1; i < cubes.size(); i++) {
+            RagdollTextures.arrived(cubes.get(i).hash(), "piece-" + i);
+        }
         List<RagdollPieces.Placed> placed = RagdollBuilder.worn(skin, SkinCubes.Quality.NORMAL);
         assertNotNull(placed);
         assertEquals(10, placed.size());
         assertEquals("torso-top", placed.get(0).texture());
         assertNull(placed.get(0).block());
         assertArrayEquals(new float[]{8f, 8f, 4f}, placed.get(0).size(), 1e-5f);
-        for (RagdollPieces.Placed waiting : placed.subList(1, placed.size())) {
-            assertNull(waiting.texture());
-            assertNotNull(waiting.block(), waiting.part() + " is drawn in a block meanwhile");
+        for (int i = 0; i < cubes.size(); i++) {
+            SkinCubes.Cube cube = cubes.get(i);
+            RagdollPieces.Placed piece = placed.get(i);
+            if (cube.plain() != null) {
+                assertEquals(cube.plain(), piece.block(), piece.part() + " is the one block it is anyway");
+            } else {
+                assertNotNull(piece.texture(), piece.part() + " wears its skin");
+            }
         }
     }
 
