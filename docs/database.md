@@ -135,6 +135,11 @@ Commons buffered writes for thirty seconds by default, so a crash discarded half
 a minute of every player's progress on the whole server. Ignore the future if
 you do not care; wait for it before telling a player their purchase worked.
 
+Writes to the same row land in the order they were made (since 1.311.4):
+`save`, `saveAll`, `update`, `updateIf` and `delete` on one key wait for the
+previous write to that key, so a later save is never overtaken by an earlier
+one. Writes to different rows still run in parallel.
+
 ### Counters and claims several servers write (since 1.163.0)
 
 A `find`, a change in memory and a `save` lose whichever of two servers writes

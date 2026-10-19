@@ -6,10 +6,14 @@ import net.exylia.lib.database.internal.Storage;
 import org.jetbrains.annotations.ApiStatus;
 import org.jetbrains.annotations.NotNull;
 
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Supplier;
 
 /**
  * Everything one record type can do against the database.
@@ -50,6 +54,16 @@ public final class Repository<T> {
     private final Storage storage;
     private final EntityModel<T> model;
     private final java.util.function.BiConsumer<String, Throwable> unhandled;
+
+    /**
+     * The newest write queued for each row, by stored key.
+     *
+     * <p>The storage runs writes in parallel, so two saves of one row made one
+     * after the other could land the other way round and leave the older
+     * values in the table: a match's stats batch overtaken by the rating save
+     * that followed it put a player's previous rating back on their next join.
+     */
+    private final ConcurrentHashMap<Object, CompletableFuture<?>> lastWrite = new ConcurrentHashMap<>();
 
     /** Set by a wipe; every write is dropped until the plugin's next load. */
     private volatile boolean frozen;
@@ -129,6 +143,54 @@ public final class Repository<T> {
         // the derived one would make a caller's own exceptionally() run after
         // this and change what their chain sees.
         return future;
+    }
+
+    private Object keyOf(T record) {
+        return orderKey(model.idOf(record));
+    }
+
+    private Object keyOfId(Object id) {
+        try {
+            return orderKey(model.id().encode(id));
+        } catch (RuntimeException unencodable) {
+            // The storage reports it, as it did before; there is no row to order on.
+            return new Object();
+        }
+    }
+
+    /** An absent key is no row another write can touch, so it orders against nothing. */
+    private static Object orderKey(Object stored) {
+        return stored != null ? stored : new Object();
+    }
+
+    /**
+     * Runs a write once every earlier write to the same rows has finished.
+     *
+     * <p>Successful or not: a failed write does not hold the next one back.
+     * With nothing pending the write starts at once, on the calling thread, as
+     * it did before the ordering existed.
+     */
+    private <R> CompletableFuture<R> ordered(List<Object> keys, Supplier<CompletableFuture<R>> write) {
+        CompletableFuture<R> mine = new CompletableFuture<>();
+        List<CompletableFuture<?>> before = new ArrayList<>(keys.size());
+        for (Object key : keys) {
+            CompletableFuture<?> previous = lastWrite.put(key, mine);
+            if (previous != null) before.add(previous.handle((result, failure) -> null));
+        }
+        CompletableFuture<?> ready = before.isEmpty()
+                ? CompletableFuture.completedFuture(null)
+                : CompletableFuture.allOf(before.toArray(CompletableFuture[]::new));
+        ready.thenCompose(ignored -> write.get()).whenComplete((result, failure) -> {
+            for (Object key : keys) lastWrite.remove(key, mine);
+            if (failure == null) {
+                mine.complete(result);
+            } else {
+                // Unwrapped, so a caller sees the storage's own exception as before.
+                mine.completeExceptionally(failure instanceof CompletionException && failure.getCause() != null
+                        ? failure.getCause() : failure);
+            }
+        });
+        return mine;
     }
 
     /** The record type this stores. */
@@ -268,7 +330,7 @@ public final class Repository<T> {
         if (frozen) {
             return CompletableFuture.completedFuture(null);
         }
-        return reported("save", storage.save(model, record));
+        return reported("save", ordered(List.of(keyOf(record)), () -> storage.save(model, record)));
     }
 
     /**
@@ -362,7 +424,7 @@ public final class Repository<T> {
         if (frozen) {
             return CompletableFuture.completedFuture(null);
         }
-        return reported("update", storage.update(model, record));
+        return reported("update", ordered(List.of(keyOf(record)), () -> storage.update(model, record)));
     }
 
     private void requireGenerated(String operation) {
@@ -395,7 +457,10 @@ public final class Repository<T> {
         if (frozen) {
             return CompletableFuture.completedFuture(null);
         }
-        return reported("saveAll", storage.saveAll(model, records));
+        // Copied now: the write may start after the caller has reused the collection.
+        List<T> batch = List.copyOf(records);
+        return reported("saveAll", ordered(batch.stream().map(this::keyOf).distinct().toList(),
+                () -> storage.saveAll(model, batch)));
     }
 
     /**
@@ -408,7 +473,7 @@ public final class Repository<T> {
         if (frozen) {
             return CompletableFuture.completedFuture(false);
         }
-        return reported("delete", storage.delete(model, id));
+        return reported("delete", ordered(List.of(keyOfId(id)), () -> storage.delete(model, id)));
     }
 
     /**
@@ -490,7 +555,8 @@ public final class Repository<T> {
         if (frozen) {
             return CompletableFuture.completedFuture(false);
         }
-        return reported("updateIf", storage.updateIf(model, row, target, expected));
+        return reported("updateIf", ordered(List.of(keyOf(row)),
+                () -> storage.updateIf(model, row, target, expected)));
     }
 
     private ColumnModel requireColumn(String operation, String name) {
