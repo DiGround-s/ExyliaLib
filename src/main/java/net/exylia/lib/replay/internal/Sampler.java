@@ -81,13 +81,15 @@ final class Sampler {
      * <p>A full comparison every tick was the most expensive thing the
      * recorder did, and almost all it ever found was durability going down a
      * point a hit. The material is checked every tick; everything else,
-     * enchantments and trims included, once a second.
+     * enchantments and trims included, once a second. An item that is equal
+     * is also alike, so the second comparison alone answers both; asking for
+     * equality first only cost a whole extra comparison on every hit taken.
      */
     static boolean sameLook(ItemStack now, ItemStack recorded, int tick) {
         if (now == recorded) return true;
         if (now == null || recorded == null) return false;
         if (now.getType() != recorded.getType()) return false;
-        return tick % FULL_LOOK_EVERY != 0 || now.equals(recorded) || looksAlike(now, recorded);
+        return tick % FULL_LOOK_EVERY != 0 || looksAlike(now, recorded);
     }
 
     /** Whether data components can be compared one by one; false on a server older than them. */

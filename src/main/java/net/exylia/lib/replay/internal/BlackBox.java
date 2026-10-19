@@ -61,9 +61,12 @@ public final class BlackBox {
 
     /**
      * How often each player's timer looks around again, in ticks. Spawns are
-     * picked up at once through notice(); the look only finds what walked in.
+     * picked up at once through notice() and a teleport looks at once, so the
+     * look only finds what walked in: a second is time for a mob to cover a
+     * few blocks at the edge of the radius, and the lookup is an entity query
+     * per player.
      */
-    private static final int LOOK_EVERY = 10;
+    private static final int LOOK_EVERY = 20;
 
     /** Moving this far since the last look looks again at once: a teleport or a pearl. */
     private static final double LOOK_AFTER_MOVING = 8.0;
