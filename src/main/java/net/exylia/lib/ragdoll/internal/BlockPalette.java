@@ -16,10 +16,10 @@ import java.util.concurrent.ConcurrentHashMap;
  * The blocks a skin colour is drawn with.
  *
  * <h2>When a body is drawn in blocks</h2>
- * A body wears its real skin once MineSkin has turned every piece of it into a
- * head texture, which takes a key and a minute or so per new skin. Until then,
- * and on any server without a key, the client can only be shown what it
- * already has: every block in the game, and a limb is a box. No resource pack
+ * A body wears its real skin once Exylia Skins has turned every piece of it
+ * into a head texture: at once for a piece any server already made, a while
+ * for a brand-new one. Until then, and on a server that cannot reach it, the
+ * client can only be shown what it already has: every block in the game, and a limb is a box. No resource pack
  * is ever involved, because a server that needs a download before a kill
  * effect works is a server most players never see the effect on.
  *

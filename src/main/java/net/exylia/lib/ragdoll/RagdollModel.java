@@ -17,11 +17,10 @@ import org.jetbrains.annotations.Nullable;
  *
  * <h2>The real skin, or the nearest blocks</h2>
  * The head is a player head item, so it carries the actual face, hat layer and
- * all. On a server with a MineSkin key the rest of the body is too: it is cut
+ * all. The rest of the body is too, through Exylia Skins: it is cut
  * into pieces at the configured quality, each repainted as a head texture of
  * its own and made once per skin in the background, so a sleeve comes away
- * wearing its real pixels on every face. A piece still on its way &mdash; or
- * every piece, without a key &mdash; is drawn in the nearest block to the
+ * wearing its real pixels on every face. A piece still on its way is drawn in the nearest block to the
  * colour that part of the skin actually is, which is what a box tumbling reads
  * as anyway.
  *
@@ -126,8 +125,8 @@ public final class RagdollModel {
      * the first time it is asked for and kept, shared with every player and
      * NPC wearing the same texture, so a body drawn before it arrives wears the
      * default skin's colours under the right face, and the next one wears its
-     * own. With a MineSkin key it is cut into real-skin pieces exactly like a
-     * player's skin; without one it is drawn in blocks.
+     * own. It is cut into real-skin pieces exactly like a player's skin, drawn
+     * in blocks while they are on their way.
      *
      * @param value the base64 {@code textures} property value
      * @return the model

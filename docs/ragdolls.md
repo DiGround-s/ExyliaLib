@@ -16,8 +16,8 @@ A body wearing a skin that is not a connected player's (since 1.302.0):
 `RagdollModel.ofTexture(base64Value)` never waits and shares the skin cache and
 real-skin pieces with every player wearing the same texture;
 `RagdollModel.ofAccount(name)` completes off the main thread with the account's skin
-(the default skin when it has none). Without a MineSkin key both are drawn in
-blocks, like every body. `SequenceTarget.wearing(model)` makes every `[RAGDOLL]`
+(the default skin when it has none). Both wear real-skin pieces like every
+body, drawn in blocks while those are on their way. `SequenceTarget.wearing(model)` makes every `[RAGDOLL]`
 line of a play wear it; that is how a placed NPC performs ([npcs.md](npcs.md#performances)).
 
 A body that is not a player's (a mob, a dummy) wears
@@ -219,7 +219,7 @@ plank tipping over.
 
 A body that bends anywhere is cut into an upper and a lower half even at
 `detail:1`, because a limb drawn as one block cannot bend; one that never
-bends is drawn exactly as it always was. With a MineSkin key the default
+bends is drawn exactly as it always was. In its real skin the default
 `normal` quality is already an upper and a lower box per part, and the elbow
 lands where they meet. At `high` and at `detail:2` and up, the cell that sits
 on the hinge itself turns half as far, which reads as a limb bending rather
@@ -434,21 +434,24 @@ the number those `[DELAY]` lines add up to.
 
 ### The real skin
 
-A body wears its **real skin** when the server has a MineSkin key: set
-`mineskin-key` in ExyliaLib's `config.yml` to a free key from
-<https://account.mineskin.org/keys>. The body is then cut into pieces, each
-repainted as a head texture of its own — all six faces and the second layer —
-and drawn as a head stretched back to the piece's shape. No resource pack is
-involved.
+A body wears its **real skin** with nothing to set up: no key, no account. The
+body is cut into pieces, each repainted as a head texture of its own — all six
+faces and the second layer — and drawn as a head stretched back to the piece's
+shape. No resource pack is involved. The textures come from
+[Exylia Skins](https://skins.exylia.net), a free service that keeps a pool of
+Minecraft accounts and a cache shared by every server: a piece any server ever
+made, at any quality, arrives at once and is never uploaded again.
 
-How finely it is cut is `ragdoll-skin-quality`, in the same file. Every piece is
-one upload, made once:
+How finely it is cut is `ragdoll-skin-quality`, in ExyliaLib's `config.yml`:
 
-| Quality | Uploads per new skin | Look | New skins an hour, free plan |
-|---|---|---|---|
-| `high` | 18 | Four-pixel cubes, every pixel exact; breaks into 19 pieces | about 5 |
-| `normal` (default) | 10 | Every pixel exact; each part an upper and a lower box, 11 pieces | about 10 |
-| `low` | 5 | One head per part; twelve rows squeezed into eight, so a third are lost | about 20 |
+| Quality | Pieces per skin | Look |
+|---|---|---|
+| `high` | 18 | Four-pixel cubes, every pixel exact; breaks into 19 pieces |
+| `normal` (default) | 10 | Every pixel exact; each part an upper and a lower box, 11 pieces |
+| `low` | 5 | One head per part; twelve rows squeezed into eight, so a third are lost |
+
+Servers on different qualities just work: a piece is named by the hash of its
+pixels, so each quality's pieces are cached on their own.
 
 - **Plain regions are free.** A region that is one flat block anyway, such as a
   plain trouser leg, is drawn as that block and never uploaded.
@@ -456,16 +459,25 @@ one upload, made once:
   arrives; a region still waiting is a block of its commonest colour. Until the
   first region of a skin arrives, the body is drawn in blocks the way `detail`
   says.
-- **Prepared on join.** A skin's regions are looked up and queued when its owner
-  joins, torso first, then arms, then legs. Changing the key or the quality and
-  running `/exylialib reload` prepares everybody online again.
+- **Prepared on join.** A skin's regions are looked up and asked for when its
+  owner joins, torso first, then arms, then legs. A skin changed mid-session
+  (SkinsRestorer's `/skin`) is a new texture and is prepared the next time it is
+  read. Changing the quality and running `/exylialib reload` prepares everybody
+  online again.
+- **Players with no skin.** An offline-mode player without one wears the default
+  skin the client gives that UUID (one of the eighteen wide and slim defaults
+  since 1.19.3), cut like any other. SkinsRestorer's skin is read from the
+  profile, offline mode included. On Spigot, whose profile API differs, bodies
+  stay in the default colours.
 - **Kept in the plugin's database.** Textures live in the database of the plugin
   that shows the bodies — its own `database.yml`, table `exylia_ragdoll_skins` —
-  and only Mojang's 64-character texture id is stored. Point the plugins of
-  several servers at the same MySQL and a skin uploaded by one is worn by all.
-- **Within the plan.** The free plan allows 20 uploads a minute and 100 an hour.
-  Uploads are paced to the minute; when the hour is spent the queue sleeps until
-  MineSkin says it resets, and says once in the console when it will resume.
+  and only Mojang's 64-character texture id is stored, so a restart asks for
+  nothing it already has.
+- **Asked, then uploaded.** Pieces are first asked for by hash, which sends no
+  picture; only the ones nobody has made are uploaded, one request per skin. A
+  brand-new piece waits its turn in the service's queue, drawn in blocks. One
+  background worker talks to the service, honours its `Retry-After` and backs
+  off when it is unreachable.
 - A body that spells a word is always drawn in blocks.
 
 ### Blocks

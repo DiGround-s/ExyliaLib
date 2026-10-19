@@ -125,20 +125,14 @@ public record LibrarySettings(
         @Comment("Empty means the machine's own. Example: Europe/Madrid")
         String timezone,
 
-        @Key("mineskin-key")
-        @Comment("A MineSkin API key, so ragdoll bodies wear the real skin rather than blocks.")
-        @Comment("Get one free at https://account.mineskin.org/keys. Empty keeps bodies drawn")
-        @Comment("in blocks. Each new skin is uploaded once and kept in the database of the")
-        @Comment("plugin that shows the bodies, so that server, or a network sharing that")
-        @Comment("database, never uploads it again. The free plan allows 20 uploads a minute")
-        @Comment("and 100 an hour; past the hour, uploads wait for it to reset.")
-        String mineskinKey,
-
         @Key("ragdoll-skin-quality")
-        @Comment("How finely a ragdoll body in its real skin is cut, and so what a new skin costs:")
-        @Comment("  high    18 uploads: 4-pixel cubes, 19 pieces when a body breaks (about 5 new skins an hour on the free plan)")
-        @Comment("  normal  10 uploads: every skin pixel kept exactly, 11 larger pieces (about 10 an hour)")
-        @Comment("  low      5 uploads: one head per part, a third of the rows lost (about 20 an hour)")
+        @Comment("How finely a ragdoll body in its real skin is cut into pieces:")
+        @Comment("  high    18 pieces: 4-pixel cubes, every skin pixel kept, 19 pieces when a body breaks")
+        @Comment("  normal  10 pieces: every skin pixel kept, each part an upper and a lower box")
+        @Comment("  low      5 pieces: one per part, a third of the rows lost")
+        @Comment("Each piece is made once, for every server, by Exylia Skins (skins.exylia.net, free,")
+        @Comment("no key) and kept in the database of the plugin that shows the bodies. A piece any")
+        @Comment("server already made arrives at once; a brand-new one waits its turn, drawn in blocks.")
         String ragdollSkinQuality,
 
         Metrics metrics,
@@ -376,7 +370,7 @@ public record LibrarySettings(
 
     /** Safe defaults used when no config file exists yet. */
     public LibrarySettings() {
-        this(Languages.ENGLISH, true, 30, false, true, "auto:0.4", DEFAULT_FALLBACK_HEAD, "", "", "normal", new Metrics(),
+        this(Languages.ENGLISH, true, 30, false, true, "auto:0.4", DEFAULT_FALLBACK_HEAD, "", "normal", new Metrics(),
                 new PluginUpdates(), new WebEditor(), DEFAULT_WEBHOOK_HEAD, new PlayerSettings(), new Toasts(), new Notices(), new Logs());
     }
 

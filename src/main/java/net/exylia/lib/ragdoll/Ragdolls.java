@@ -34,11 +34,11 @@ import java.util.concurrent.ConcurrentHashMap;
  * that is not, and it costs fewer packets than the NPC it replaces.
  *
  * <h2>The skin</h2>
- * The head is a real player head, so the face is exact. With a MineSkin key the
- * rest of the body wears its real skin too: it is cut into pieces each
- * repainted as a head texture, made once and kept in the database of the
- * plugin that shows the bodies. Without a key, and for a piece whose texture
- * is still on its way, the piece is drawn in the nearest block to the colour
+ * The head is a real player head, so the face is exact. The rest of the body
+ * wears its real skin too: it is cut into pieces each repainted as a head
+ * texture, made once for every server by Exylia Skins and kept in the database
+ * of the plugin that shows the bodies. A player with no skin wears the default
+ * one the client gives them. For a piece whose texture is still on its way, the piece is drawn in the nearest block to the colour
  * that part of the skin actually is. Skins are read once, in the background,
  * when their owner joins.
  *

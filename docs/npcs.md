@@ -363,8 +363,8 @@ How it plays:
   viewer's own facing for a one-viewer performance, the nearest's for `NEAREST`, the
   location's yaw otherwise. Its head stops turning while it plays.
 - **The skin.** `texture` and `player(name)` are worn by the body too, through the
-  ragdoll skin cache ([ragdolls.md](ragdolls.md#the-real-skin)): real-skin pieces with a
-  MineSkin key, blocks without. `mirror()` is the viewer's own skin for a one-viewer
+  ragdoll skin cache ([ragdolls.md](ragdolls.md#the-real-skin)): real-skin pieces, in
+  blocks while they are on their way. `mirror()` is the viewer's own skin for a one-viewer
   performance and the default skin for everybody's, since one body is shared.
   `none()` is the default skin.
 - **No pop at the end.** The NPC comes back a tick after the body reaches its last

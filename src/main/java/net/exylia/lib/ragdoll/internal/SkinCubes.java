@@ -6,7 +6,6 @@ import org.jetbrains.annotations.ApiStatus;
 import org.jetbrains.annotations.Nullable;
 
 import java.awt.image.BufferedImage;
-import java.nio.ByteBuffer;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
@@ -29,9 +28,10 @@ import java.util.Locale;
  * the piece's shape. No resource pack is involved.
  *
  * <h2>How finely</h2>
- * Every piece is one upload to MineSkin, and the free plan allows a hundred an
- * hour, so how many pieces a skin is cut into is a real cost. {@link Quality}
- * decides it. A piece whose every side is a whole number of texels per pixel
+ * Every new piece is one upload to Exylia Skins, made once for every server
+ * and shared by every skin that has the same piece, so how many pieces a skin
+ * is cut into is what a brand-new skin costs and how long it takes to arrive.
+ * {@link Quality} decides it. A piece whose every side is a whole number of texels per pixel
  * &mdash; one or two &mdash; is exact; anything else loses rows.
  *
  * <h2>The faces a piece does not have</h2>
@@ -62,7 +62,7 @@ public final class SkinCubes {
     private SkinCubes() {
     }
 
-    /** How many pieces a skin is cut into, and so how many uploads it costs. */
+    /** How many pieces a skin is cut into, and so how many uploads a brand-new skin costs. */
     public enum Quality {
 
         /** Four-pixel cubes: eighteen uploads, every pixel exact, nineteen pieces when a body breaks. */
@@ -393,13 +393,30 @@ public final class SkinCubes {
         };
     }
 
-    /** A fingerprint of a picture's pixels, as hex. */
+    /**
+     * A picture's fingerprint, exactly as Exylia Skins computes it: SHA-256 of
+     * its pixels as RGBA bytes, row by row, with every clear pixel zeroed.
+     *
+     * <p>The same on both sides on purpose: a piece is asked for by this hash
+     * alone, with no picture sent, so any piece any server ever made comes
+     * back without an upload. Zeroing clear pixels makes two pictures that
+     * differ only where nothing is drawn the same texture.
+     */
     static String hash(BufferedImage image) {
         int[] pixels = image.getRGB(0, 0, image.getWidth(), image.getHeight(), null, 0, image.getWidth());
-        ByteBuffer bytes = ByteBuffer.allocate(pixels.length * 4);
-        bytes.asIntBuffer().put(pixels);
+        byte[] rgba = new byte[pixels.length * 4];
+        for (int i = 0; i < pixels.length; i++) {
+            int argb = pixels[i];
+            if ((argb >>> 24) == 0) {
+                continue;
+            }
+            rgba[i * 4] = (byte) (argb >>> 16);
+            rgba[i * 4 + 1] = (byte) (argb >>> 8);
+            rgba[i * 4 + 2] = (byte) argb;
+            rgba[i * 4 + 3] = (byte) (argb >>> 24);
+        }
         try {
-            return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(bytes.array()));
+            return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(rgba));
         } catch (NoSuchAlgorithmException impossible) {
             throw new IllegalStateException("Every JVM ships SHA-256", impossible);
         }

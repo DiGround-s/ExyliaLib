@@ -22,11 +22,14 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
+import java.util.Base64;
 import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.logging.Level;
@@ -46,13 +49,14 @@ import java.util.logging.Logger;
  *
  * <p>The same goes for the pieces that draw a body in its real skin: the
  * moment the picture is read they are cut at the configured quality, looked up
- * in the databases that keep them, and whatever nobody has made yet is queued
- * with {@link MineSkinQueue}. Every death before the last piece arrives draws
- * the body in blocks, never a wait.
+ * in the databases that keep them, and whatever is not there is asked of
+ * Exylia Skins through {@link SkinTextureQueue}. Every death before the last
+ * piece arrives draws the body in blocks, never a wait.
  *
  * <p>Keyed by texture URL rather than by player, so a hundred players wearing
  * the same skin decode one picture, and a player who changes skin is a new key
- * rather than a stale one. Bounded, because a server sees far more skins over
+ * rather than a stale one: SkinsRestorer's {@code /skin} rewrites the profile,
+ * and the next read of it finds the new URL. Bounded, because a server sees far more skins over
  * a day than it has players at once.
  */
 @ApiStatus.Internal
@@ -80,13 +84,38 @@ public final class SkinCache {
             .expireAfterWrite(Duration.ofMinutes(5))
             .build();
 
-    /** Bumped whenever what a skin is prepared against changes: the key, the quality, a new store. */
+    /** Bumped whenever what a skin is prepared against changes: the quality, a new store. */
     private static final AtomicInteger GENERATION = new AtomicInteger();
 
     private static final HttpClient HTTP = HttpClient.newBuilder()
             .version(HttpClient.Version.HTTP_1_1)
             .connectTimeout(TIMEOUT)
             .build();
+
+    /**
+     * Vanilla's default skins in the client's own order: slim alex, ari, efe,
+     * kai, makena, noor, steve, sunny, zuri, then the same nine wide.
+     */
+    private static final String[] DEFAULT_SKINS = {
+            "46acd06e8483b176e8ea39fc12fe105eb3a2a4970f5100057e9d84d4b60bdfa7",
+            "6ac6ca262d67bcfb3dbc924ba8215a18195497c780058a5749de674217721892",
+            "fece7017b1bb13926d1158864b283b8b930271f80a90482f174cca6a17e88236",
+            "226c617fde5b1ba569aa08bd2cb6fd84c93337532a872b3eb7bf66bdd5b395f8",
+            "7cb3ba52ddd5cc82c0b050c3f920f87da36add80165846f479079663805433db",
+            "6c160fbd16adbc4bff2409e70180d911002aebcfa811eb6ec3d1040761aea6dd",
+            "d5c4ee5ce20aed9e33e866c66caa37178606234b3721084bf01d13320fb2eb3f",
+            "b66bc80f002b10371e2fa23de6f230dd5e2f3affc2e15786f65bc9be4c6eb71a",
+            "eee522611005acf256dbd152e992c60c0bb7978cb0f3127807700e478ad97664",
+            "1abc803022d8300ab7578b189294cce39622d9a404cdc00d3feacfdf45be6981",
+            "4c05ab9e07b3505dc3ec11370c3bdce5570ad2fb2b562e9b9dd9cf271f81aa44",
+            "daf3d88ccb38f11f74814e92053d92f7728ddb1a7955652a60e30cb27ae6659f",
+            "e5cdc3243b2153ab28a159861be643a4fc1e3c17d291cdd3e57a7f370ad676f3",
+            "dc0fcfaf2aa040a83dc0de4e56058d1bbb2ea40157501f3e7d15dc245e493095",
+            "90e75cd429ba6331cd210b9bd19399527ee3bab467b5a9f61cb8a27b177f6789",
+            "31f477eb1a7beee631c2ca64d06f8f68fa93a3386d04452ab27f43acdf1b60cb",
+            "a3bd16079f764cd541e072e888fe43885e711f98658323db0f9a6045da91ee7a",
+            "f5dddb41dcafef616e959c2817808e0be741c89ffbfed39134a13e75b811863d"
+    };
 
     /** What a body is drawn in until its real skin has been read. */
     private static final RagdollSkin FALLBACK = defaultSkin();
@@ -110,7 +139,7 @@ public final class SkinCache {
         scheduler = Tasks.of(plugin);
         logger = plugin.getLogger();
         RagdollTextures.logger(plugin.getLogger());
-        MineSkinQueue.start(plugin);
+        SkinTextureQueue.start(plugin);
         // A skin read at join and not worn for half an hour expires, and a read
         // that failed is never asked again: either way the next death draws the
         // default skin's colours under a real face. Touching every online
@@ -137,7 +166,7 @@ public final class SkinCache {
             keeper = null;
         }
         wanted = false;
-        MineSkinQueue.stop();
+        SkinTextureQueue.stop();
         BY_TEXTURE.invalidateAll();
         PREPARED.invalidateAll();
         IN_FLIGHT.clear();
@@ -182,8 +211,8 @@ public final class SkinCache {
     }
 
     /**
-     * Prepares the skin of every player online again, after the key or the
-     * quality changed, rather than at each of their next deaths.
+     * Prepares the skin of every player online again, after the quality
+     * changed, rather than at each of their next deaths.
      */
     public static void rewarm() {
         stale();
@@ -259,25 +288,52 @@ public final class SkinCache {
         TaskScheduler tasks = scheduler;
         if (tasks != null && (prepared == null || prepared != GENERATION.get())) {
             PREPARED.put(url, GENERATION.get());
-            tasks.runAsync(() -> prepare(cached));
+            tasks.runAsync(() -> prepare(url, cached));
         }
         return cached;
     }
 
-    /** The texture property carried in a connected player's profile. */
+    /**
+     * The texture property carried in a connected player's profile, or the
+     * default skin the client draws them in when it carries none.
+     *
+     * <p>Read fresh every time rather than remembered: SkinsRestorer, on an
+     * offline-mode server too, writes the skin it applies into this property,
+     * and a {@code /skin} mid-session is a new URL on the next read.
+     */
     private static String texturesOf(Player player) {
         try {
             for (ProfileProperty property : player.getPlayerProfile().getProperties()) {
-                if ("textures".equals(property.getName())) {
+                if ("textures".equals(property.getName()) && Textures.urlOf(property.getValue()) != null) {
                     return property.getValue();
                 }
             }
         } catch (Throwable noProfileApi) {
-            // Spigot, an offline-mode player with no texture, or a profile the
-            // server has not filled in. All three mean the same thing here.
+            // Spigot, whose profile is another type: nothing to tell a real
+            // skin from a missing one, so the body keeps the fallback colours.
             return null;
         }
-        return null;
+        return defaultTextures(player.getUniqueId());
+    }
+
+    /**
+     * The skin the client draws a player with no skin in: one of vanilla's
+     * eighteen defaults (nine characters, wide and slim), picked by the hash
+     * of the UUID exactly as {@code DefaultPlayerSkin.get} does since 1.19.3.
+     *
+     * <p>An offline-mode player sees themselves in it, so their body is cut
+     * from it too, and its pieces are the same for every offline server.
+     * The ids are Mojang's own copies of the client's textures, checked to
+     * exist on textures.minecraft.net.
+     *
+     * @return the texture property, with the slim model marked
+     */
+    static String defaultTextures(UUID id) {
+        int index = Math.floorMod(id.hashCode(), DEFAULT_SKINS.length);
+        boolean slim = index < DEFAULT_SKINS.length / 2;
+        String json = "{\"textures\":{\"SKIN\":{\"url\":\"http://textures.minecraft.net/texture/"
+                + DEFAULT_SKINS[index] + "\"" + (slim ? ",\"metadata\":{\"model\":\"slim\"}" : "") + "}}}";
+        return Base64.getEncoder().encodeToString(json.getBytes(StandardCharsets.UTF_8));
     }
 
     private static void fetch(String url, boolean slim) {
@@ -300,7 +356,7 @@ public final class SkinCache {
                         RagdollSkin skin = read(image, slim);
                         BY_TEXTURE.put(url, skin);
                         PREPARED.put(url, GENERATION.get());
-                        prepare(skin);
+                        prepare(url, skin);
                     }
                 }
             } catch (Exception unreachable) {
@@ -320,18 +376,30 @@ public final class SkinCache {
      * <p>Nothing happens while no plugin keeps textures: an upload with nowhere
      * to be kept would have to be made again at the next restart.
      */
-    private static void prepare(RagdollSkin skin) {
+    private static void prepare(String url, RagdollSkin skin) {
         if (!RagdollTextures.stored()) {
             return;
         }
         try {
-            List<SkinCubes.Cube> cubes = skin.cubes(quality);
+            SkinCubes.Quality cut = quality;
+            List<SkinCubes.Cube> cubes = skin.cubes(cut);
             if (cubes != null) {
-                RagdollTextures.missing(cubes).thenAccept(MineSkinQueue::submit);
+                String id = textureId(url);
+                RagdollTextures.missing(cubes).thenAccept(missing -> SkinTextureQueue.submit(missing, id, cut));
             }
         } catch (RuntimeException uncut) {
             logger.log(Level.FINE, "Could not prepare a skin for a ragdoll effect", uncut);
         }
+    }
+
+    /** Mojang's id for a skin: the end of its textures.minecraft.net address, or {@code null}. */
+    static @Nullable String textureId(String url) {
+        int at = url.indexOf("textures.minecraft.net/texture/");
+        if (at < 0) {
+            return null;
+        }
+        String id = url.substring(at + "textures.minecraft.net/texture/".length());
+        return id.isEmpty() || id.length() > 64 ? null : id;
     }
 
     /**

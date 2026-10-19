@@ -601,7 +601,7 @@ class WebEditorRuntimeTest {
 
     private static LibrarySettings withEditor(LibrarySettings base, boolean enabled) {
         return new LibrarySettings(base.language(), base.autoUpdate(), base.updateCheckMinutes(), base.debug(),
-                base.smallText(), base.textShadow(), base.fallbackHead(), base.timezone(), base.mineskinKey(),
+                base.smallText(), base.textShadow(), base.fallbackHead(), base.timezone(),
                 base.ragdollSkinQuality(), base.metrics(), base.pluginUpdates(),
                 new LibrarySettings.WebEditor(enabled, base.webEditor().url()), base.webhookHead(),
                 base.settings(), base.toasts(), base.notices(), base.logs());

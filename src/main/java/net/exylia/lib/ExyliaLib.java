@@ -366,11 +366,9 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         TextEngine.smallText(settings.smallText());
         TextEngine.shadow(Shadows.read(settings.textShadow()));
         SkullRuntime.fallback(settings.fallbackHead());
-        // A new key or a new quality changes which pieces a skin needs, so every
-        // player already online is prepared again rather than at their next death.
-        boolean ragdollSkins = net.exylia.lib.ragdoll.internal.MineSkinQueue.key(settings.mineskinKey());
-        ragdollSkins |= net.exylia.lib.ragdoll.internal.SkinCache.quality(settings.ragdollSkinQuality());
-        if (ragdollSkins) {
+        // A new quality changes which pieces a skin needs, so every player
+        // already online is prepared again rather than at their next death.
+        if (net.exylia.lib.ragdoll.internal.SkinCache.quality(settings.ragdollSkinQuality())) {
             net.exylia.lib.ragdoll.internal.SkinCache.rewarm();
         }
         // The library first: a plugin release that needs a newer library is only staged once the
@@ -569,11 +567,9 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         // palette listener already sees the new fallback rather than the old
         // one baked in.
         SkullRuntime.fallback(settings.fallbackHead());
-        // A new key or a new quality changes which pieces a skin needs, so every
-        // player already online is prepared again rather than at their next death.
-        boolean ragdollSkins = net.exylia.lib.ragdoll.internal.MineSkinQueue.key(settings.mineskinKey());
-        ragdollSkins |= net.exylia.lib.ragdoll.internal.SkinCache.quality(settings.ragdollSkinQuality());
-        if (ragdollSkins) {
+        // A new quality changes which pieces a skin needs, so every player
+        // already online is prepared again rather than at their next death.
+        if (net.exylia.lib.ragdoll.internal.SkinCache.quality(settings.ragdollSkinQuality())) {
             net.exylia.lib.ragdoll.internal.SkinCache.rewarm();
         }
         // Before anything redraws: the menus and panels rebuilt below read

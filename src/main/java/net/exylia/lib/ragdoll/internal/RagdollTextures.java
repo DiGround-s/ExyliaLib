@@ -25,8 +25,8 @@ import java.util.logging.Logger;
  * The library has no database of its own. Every plugin that shows ragdolls
  * already has one &mdash; its {@code database.yml}, H2 until its owner says
  * otherwise &mdash; so the textures go there, in {@code exylia_ragdoll_skins},
- * the way owed rewards do. A network that points those plugins at one MySQL
- * uploads each skin once for every server on it.
+ * the way owed rewards do, so a restart asks Exylia Skins for nothing it has
+ * already answered.
  *
  * <h2>In memory, only what is about to be worn</h2>
  * A server with ten thousand registered players has made textures for all of
@@ -164,7 +164,7 @@ public final class RagdollTextures {
     }
 
     /**
-     * A texture MineSkin has just made: remembered, and written to every store.
+     * A texture Exylia Skins has answered with: remembered, and written to every store.
      *
      * @param fingerprint the piece's hash
      * @param texture     Mojang's texture id
