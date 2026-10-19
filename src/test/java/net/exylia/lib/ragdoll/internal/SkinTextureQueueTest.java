@@ -17,15 +17,15 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class SkinTextureQueueTest {
 
     @Test
-    @DisplayName("a piece is hashed exactly as protocol.md says: RGBA bytes, clear pixels zeroed, SHA-256")
+    @DisplayName("a piece is hashed exactly as protocol.md says: RGBA bytes, SHA-256")
     void protocolHash() {
         BufferedImage image = new BufferedImage(64, 64, BufferedImage.TYPE_INT_ARGB);
         image.setRGB(0, 0, 0xFFFF0000);
-        // Clear, but with a colour: has to hash as 0,0,0,0.
+        // Clear, but with a colour a skin's base layer shows: it is part of the hash.
         image.setRGB(1, 0, 0x00ABCDEF);
         image.setRGB(1, 1, 0x80123456);
         // Worked out apart, in Python, from the bytes the protocol describes.
-        assertEquals("cae1b8142c3e82a17ad250554b84d41c5e802d0a315e7b5054d8f8f8c06dfc01", SkinCubes.hash(image));
+        assertEquals("40511476df749a41c82f9b8a66eaddc3f65998d6817fc458000960474a76d130", SkinCubes.hash(image));
     }
 
     @Test

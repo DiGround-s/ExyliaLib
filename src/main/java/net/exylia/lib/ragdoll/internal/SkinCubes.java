@@ -395,21 +395,18 @@ public final class SkinCubes {
 
     /**
      * A picture's fingerprint, exactly as Exylia Skins computes it: SHA-256 of
-     * its pixels as RGBA bytes, row by row, with every clear pixel zeroed.
+     * its pixels as RGBA bytes, row by row.
      *
      * <p>The same on both sides on purpose: a piece is asked for by this hash
      * alone, with no picture sent, so any piece any server ever made comes
-     * back without an upload. Zeroing clear pixels makes two pictures that
-     * differ only where nothing is drawn the same texture.
+     * back without an upload. Clear pixels keep their colour, since a skin's
+     * base layer is drawn opaque and shows it.
      */
     static String hash(BufferedImage image) {
         int[] pixels = image.getRGB(0, 0, image.getWidth(), image.getHeight(), null, 0, image.getWidth());
         byte[] rgba = new byte[pixels.length * 4];
         for (int i = 0; i < pixels.length; i++) {
             int argb = pixels[i];
-            if ((argb >>> 24) == 0) {
-                continue;
-            }
             rgba[i * 4] = (byte) (argb >>> 16);
             rgba[i * 4 + 1] = (byte) (argb >>> 8);
             rgba[i * 4 + 2] = (byte) argb;
